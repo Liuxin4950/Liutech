@@ -9,11 +9,5 @@
 </template>
 
 <style scoped>
-.app-container {
-  width: 100%;
-  min-height: 100vh;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  transition: background-color 0.3s, color 0.3s;
-}
+
 </style>

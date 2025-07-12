@@ -1,0 +1,89 @@
+/* 首页样式初始化 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* 通用元素样式重置 */
+ul, ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+button {
+    border: none;
+    outline: none;
+    background: none;
+    cursor: pointer;
+}
+
+/* flex布局相关 */
+.flex {
+  display: flex;
+}
+
+/* flex 列布局 */
+.flex-col {
+  flex-direction: column;
+}
+
+/* flex 自动换行 */
+.flex-fw {
+  flex-wrap: wrap;
+}
+
+/* flex 水平垂直居中 */
+.flex-ct {
+  justify-content: center;
+  align-items: center;
+}
+
+/* flex 两端对齐 */
+.flex-sb {
+  justify-content: space-between;
+}
+
+/* flex 平均分布 */
+.flex-sa {
+  justify-content: space-around;
+}
+
+/* flex 垂直居中 */
+.flex-ac {
+    align-items: center;
+}
+
+/* flex 水平居中 */
+.flex-jc {
+    justify-content: center;
+}
+
+/* flex 垂直底部对齐 */
+.flex-ae {
+    align-items: flex-end;
+}
+
+/* flex 垂直顶部对齐 */
+.flex-as {
+    align-items: flex-start;
+}
