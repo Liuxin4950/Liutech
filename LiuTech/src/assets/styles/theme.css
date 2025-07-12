@@ -1,0 +1,13 @@
+:root {
+  /* 默认浅色主题 */
+  --bg-color: #ffffff;
+  --text-color: #333333;
+  --primary-color: #409eff;
+}
+
+.dark {
+  /* 深色主题 */
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --primary-color: #66b1ff;
+}
