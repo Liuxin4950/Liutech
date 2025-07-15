@@ -1,7 +1,7 @@
 package chat.liuxin.liutech.controller;
 
+import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.User;
-import chat.liuxin.liutech.resl.Result;
 import chat.liuxin.liutech.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
