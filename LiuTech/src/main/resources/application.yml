@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: LiuTech
+  datasource:
+    url: jdbc:mysql://localhost:3306/blog?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 30000
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  type-aliases-package: chat.liuxin.liutech.model
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      table-underline: true
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+logging:
+  level:
+    com.baomidou.mybatisplus: debug  # 可选：显示生成的 SQL
+    org.hibernate.orm.connections.pooling: WARN
+
+server:
+  port: 8080
+  servlet:
+    context-path: /blog
+  tomcat:
+    uri-encoding: UTF-8
+
+

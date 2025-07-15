@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="chat.liuxin.liutech.mapper.UserMapper">
+
+    <select id="findByUserName" parameterType="string" resultType="chat.liuxin.liutech.model.User">
+        SELECT * FROM user WHERE user_name = #{userName}
+    </select>
+
+</mapper>
