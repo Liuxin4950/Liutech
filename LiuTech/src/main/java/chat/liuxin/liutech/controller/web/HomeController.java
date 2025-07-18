@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.controller;
+package chat.liuxin.liutech.controller.web;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

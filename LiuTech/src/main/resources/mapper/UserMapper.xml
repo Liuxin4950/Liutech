@@ -5,8 +5,8 @@
 
 <mapper namespace="chat.liuxin.liutech.mapper.UserMapper">
 
-    <select id="findByUserName" parameterType="string" resultType="chat.liuxin.liutech.model.User">
-        SELECT * FROM user WHERE user_name = #{userName}
+    <select id="findByUserName" parameterType="string" resultType="chat.liuxin.liutech.model.Users">
+        SELECT * FROM users WHERE username = #{username}
     </select>
 
 </mapper>

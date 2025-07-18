@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-LiuTechApplication<LiuTech>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "chat.liuxin.liutech.LiuTechApplication",
+            "projectName": "LiuTech",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
