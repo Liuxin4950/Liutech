@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,7 +18,7 @@ public class Result<T> {
         return new Result<>(ErrorCode.SUCCESS.getCode(), ErrorCode.SUCCESS.getMessage(), data);
     }
 
-    public static <T> Result<T> fail(ErrorCode errorCode) {
+    public static <T> Result<T> fail(ErrorCode errorCode, String 参数验证失败, Map<String, String> errors) {
         return new Result<>(errorCode.getCode(), errorCode.getMessage(), null);
     }
 

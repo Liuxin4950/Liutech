@@ -4,7 +4,8 @@ import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Users;
-import chat.liuxin.liutech.req.UserReq;
+import chat.liuxin.liutech.req.LoginReq;
+import chat.liuxin.liutech.req.RegisterReq;
 import chat.liuxin.liutech.resl.UserResl;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,22 +42,22 @@ public class UserService {
         return userMapper.findByUserName(userName);
     }
 
-    public UserResl register(UserReq userReq) {
+    public UserResl register(RegisterReq registerReq) {
         // 1. 检查用户名是否已存在
-        List<Users> existingUsers = findByUserName(userReq.getUsername());
+        List<Users> existingUsers = findByUserName(registerReq.getUsername());
         if (existingUsers != null && !existingUsers.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户名已存在");
         }
 
         // 2. 密码长度验证
-        if (userReq.getPassword().length() < 6) {
+        if (registerReq.getPassword().length() < 6) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码长度不能少于6位");
         }
 
         // 3. 创建用户对象并设置属性
         Users user = new Users();
-        user.setUsername(userReq.getUsername());
-        user.setPasswordHash(passwordEncoder.encode(userReq.getPassword())); // 密码加密存储
+        user.setUsername(registerReq.getUsername());
+        user.setPasswordHash(passwordEncoder.encode(registerReq.getPassword())); // 密码加密存储
         user.setStatus(1); // 默认正常状态
         Date now = new Date();
         user.setCreatedAt(now);
@@ -72,9 +73,9 @@ public class UserService {
         return userResl;
     }
 
-    public UserResl login(UserReq userReq) {
+    public UserResl login(LoginReq loginReq) {
         // 1. 查询用户信息
-        List<Users> users = findByUserName(userReq.getUsername());
+        List<Users> users = findByUserName(loginReq.getUsername());
         if (users == null || users.isEmpty()) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
@@ -82,7 +83,7 @@ public class UserService {
         Users user = users.get(0);
 
         // 2. 验证密码
-        if (!passwordEncoder.matches(userReq.getPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(loginReq.getPassword(), user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
         }
 
