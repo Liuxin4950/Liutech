@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -144,6 +145,7 @@ public class Result<T> {
      * 
      * @return true表示成功，false表示失败
      */
+    @JsonIgnore
     public boolean isSuccess() {
         return this.code == ErrorCode.SUCCESS.getCode();
     }
@@ -153,6 +155,7 @@ public class Result<T> {
      * 
      * @return true表示失败，false表示成功
      */
+    @JsonIgnore
     public boolean isFail() {
         return !isSuccess();
     }

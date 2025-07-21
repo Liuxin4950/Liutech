@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class LiuTechApplication {
     public static void main(String[] args) {
         SpringApplication.run(LiuTechApplication.class, args);
-        System.out.println("http://127.0.0.1:8080/blog/");
+        System.out.println("http://127.0.0.1:8080");
     }
 
 }

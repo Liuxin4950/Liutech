@@ -36,8 +36,6 @@ logging:
 
 server:
   port: 8080
-  servlet:
-    context-path: /blog
   tomcat:
     uri-encoding: UTF-8
 
