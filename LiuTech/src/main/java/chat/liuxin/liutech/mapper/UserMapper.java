@@ -9,6 +9,8 @@ public interface UserMapper extends BaseMapper<Users> {
     // 这里可以添加自定义查询方法
     // 例如：List<User> findByUserName(String userName);
     List<Users> findByUserName(String username);
-
+    
+    // 根据邮箱查询用户
+    List<Users> findByEmail(String email);
 
 }

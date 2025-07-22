@@ -1,0 +1,206 @@
+package chat.liuxin.liutech.utils;
+
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * JWT工具类
+ * 用于生成、解析和验证JWT token
+ * 
+ * @author liuxin
+ */
+@Slf4j
+@Component
+public class JwtUtil {
+
+    /**
+     * JWT密钥 - 在生产环境中应该从配置文件或环境变量中读取
+     * 密钥长度必须至少256位（32字节）以满足HMAC-SHA256算法要求
+     */
+    private static final String SECRET_KEY = "liuxin-blog-jwt-secret-key-2025-very-secure-and-long-enough-for-hmac-sha256-algorithm";
+    
+    /**
+     * token过期时间：7天（毫秒）
+     */
+    private static final long EXPIRATION_TIME = 7 * 24 * 60 * 60 * 1000;
+    
+    /**
+     * 获取签名密钥
+     */
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+    }
+
+    /**
+     * 生成JWT token
+     * 
+     * @param userId 用户ID
+     * @param username 用户名
+     * @param passwordHash 密码哈希值（用于token验证，不会明文传输）
+     * @return JWT token字符串
+     */
+    public String generateToken(Long userId, String username, String passwordHash) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("username", username);
+        claims.put("passwordHash", passwordHash);
+        
+        return createToken(claims, username);
+    }
+
+    /**
+     * 创建token
+     * 
+     * @param claims 载荷信息
+     * @param subject 主题（通常是用户名）
+     * @return JWT token
+     */
+    private String createToken(Map<String, Object> claims, String subject) {
+        Date now = new Date();
+        Date expiration = new Date(now.getTime() + EXPIRATION_TIME);
+        
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(now)
+                .setExpiration(expiration)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /**
+     * 从token中提取用户ID
+     * 
+     * @param token JWT token
+     * @return 用户ID
+     */
+    public Long getUserIdFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        return claims != null ? ((Number) claims.get("userId")).longValue() : null;
+    }
+
+    /**
+     * 从token中提取用户名
+     * 
+     * @param token JWT token
+     * @return 用户名
+     */
+    public String getUsernameFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        return claims != null ? claims.getSubject() : null;
+    }
+
+    /**
+     * 从token中提取密码哈希值
+     * 
+     * @param token JWT token
+     * @return 密码哈希值
+     */
+    public String getPasswordHashFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        return claims != null ? (String) claims.get("passwordHash") : null;
+    }
+
+    /**
+     * 从token中提取过期时间
+     * 
+     * @param token JWT token
+     * @return 过期时间
+     */
+    public Date getExpirationDateFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        return claims != null ? claims.getExpiration() : null;
+    }
+
+    /**
+     * 从token中提取所有声明信息
+     * 
+     * @param token JWT token
+     * @return 声明信息
+     */
+    private Claims getClaimsFromToken(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            log.warn("JWT token已过期: {}", e.getMessage());
+            return null;
+        } catch (UnsupportedJwtException e) {
+            log.warn("不支持的JWT token: {}", e.getMessage());
+            return null;
+        } catch (MalformedJwtException e) {
+            log.warn("JWT token格式错误: {}", e.getMessage());
+            return null;
+        } catch (SecurityException e) {
+            log.warn("JWT token签名验证失败: {}", e.getMessage());
+            return null;
+        } catch (IllegalArgumentException e) {
+            log.warn("JWT token参数错误: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 检查token是否过期
+     * 
+     * @param token JWT token
+     * @return true表示已过期，false表示未过期
+     */
+    public boolean isTokenExpired(String token) {
+        Date expiration = getExpirationDateFromToken(token);
+        return expiration != null && expiration.before(new Date());
+    }
+
+    /**
+     * 验证token是否有效
+     * 
+     * @param token JWT token
+     * @param username 用户名（用于验证token中的用户名是否匹配）
+     * @return true表示有效，false表示无效
+     */
+    public boolean validateToken(String token, String username) {
+        String tokenUsername = getUsernameFromToken(token);
+        return tokenUsername != null && 
+               tokenUsername.equals(username) && 
+               !isTokenExpired(token);
+    }
+
+    /**
+     * 验证token是否有效（不验证用户名）
+     * 
+     * @param token JWT token
+     * @return true表示有效，false表示无效
+     */
+    public boolean validateToken(String token) {
+        return getClaimsFromToken(token) != null && !isTokenExpired(token);
+    }
+
+    /**
+     * 刷新token（生成新的token）
+     * 
+     * @param token 旧的JWT token
+     * @return 新的JWT token
+     */
+    public String refreshToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        if (claims == null) {
+            return null;
+        }
+        
+        Long userId = ((Number) claims.get("userId")).longValue();
+        String username = claims.getSubject();
+        String passwordHash = (String) claims.get("passwordHash");
+        
+        return generateToken(userId, username, passwordHash);
+    }
+}

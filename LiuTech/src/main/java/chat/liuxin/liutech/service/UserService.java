@@ -7,9 +7,12 @@ import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.LoginReq;
 import chat.liuxin.liutech.req.RegisterReq;
 import chat.liuxin.liutech.resl.UserResl;
+import chat.liuxin.liutech.resl.LoginResl;
+import chat.liuxin.liutech.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -29,6 +32,9 @@ import java.util.List;
 public class UserService {
     @Autowired
     private UserMapper userMapper;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
 
     /**
      * 密码加密器，使用BCrypt算法进行密码加密
@@ -90,6 +96,15 @@ public class UserService {
     public List<Users> findByUserName(String userName) {
         return userMapper.findByUserName(userName);
     }
+    
+    /**
+     * 根据邮箱查询用户
+     * @param email 邮箱地址
+     * @return 用户列表
+     */
+    public List<Users> findByEmail(String email) {
+        return userMapper.findByEmail(email);
+    }
 
     /**
      * 用户注册
@@ -111,12 +126,11 @@ public class UserService {
 
         // 2. 检查邮箱是否已被注册（如果提供了邮箱）
         if (StringUtils.hasText(registerReq.getEmail())) {
-            // 这里可以添加邮箱查重逻辑，暂时跳过
-            // List<Users> existingEmailUsers = findByEmail(registerReq.getEmail());
-            // if (existingEmailUsers != null && !existingEmailUsers.isEmpty()) {
-            //     log.warn("注册失败，邮箱已被注册: {}", registerReq.getEmail());
-            //     throw new BusinessException(ErrorCode.EMAIL_EXISTS);
-            // }
+            List<Users> existingEmailUsers = findByEmail(registerReq.getEmail());
+            if (existingEmailUsers != null && !existingEmailUsers.isEmpty()) {
+                log.warn("注册失败，邮箱已被注册: {}", registerReq.getEmail());
+                throw new BusinessException(ErrorCode.EMAIL_EXISTS);
+            }
         }
 
         // 3. 创建用户对象并设置属性
@@ -135,6 +149,18 @@ public class UserService {
         try {
             addUser(user);
             log.info("用户注册成功，用户名: {}, ID: {}", user.getUsername(), user.getId());
+        } catch (DuplicateKeyException e) {
+            // 处理数据库唯一约束违反异常
+            String errorMessage = e.getMessage();
+            log.error("用户注册失败，数据库约束违反: {}", errorMessage, e);
+            
+            if (errorMessage.contains("username")) {
+                throw new BusinessException(ErrorCode.USERNAME_EXISTS);
+            } else if (errorMessage.contains("email")) {
+                throw new BusinessException(ErrorCode.EMAIL_EXISTS);
+            } else {
+                throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，数据重复");
+            }
         } catch (Exception e) {
             log.error("用户注册失败，数据库操作异常: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "注册失败，请稍后重试");
@@ -149,13 +175,13 @@ public class UserService {
 
     /**
      * 用户登录
-     * 验证用户凭据并更新登录时间
+     * 验证用户凭据并返回JWT token
      * 
      * @param loginReq 登录请求参数，包含用户名和密码
-     * @return 登录成功的用户信息（脱敏后）
+     * @return 包含JWT token的登录响应
      * @throws BusinessException 当用户名或密码错误、账户被禁用时抛出
      */
-    public UserResl login(LoginReq loginReq) {
+    public LoginResl login(LoginReq loginReq) {
         log.info("用户登录尝试，用户名: {}", loginReq.getUsername());
         
         // 1. 查询用户信息
@@ -193,10 +219,77 @@ public class UserService {
             // 登录成功但更新时间失败，不影响登录流程
         }
 
-        // 5. 转换为响应对象（不包含敏感信息）
-        UserResl userResl = new UserResl();
-        BeanUtils.copyProperties(user, userResl);
+        // 5. 生成JWT token
+        // token中包含用户ID、用户名和密码哈希值，用于后续身份验证和密码修改等操作
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getPasswordHash());
+        log.info("为用户 {} 生成JWT token成功", loginReq.getUsername());
         
-        return userResl;
+        // 6. 返回登录响应（只包含token，不包含用户敏感信息）
+        LoginResl loginResl = new LoginResl();
+        loginResl.setToken(token);
+        return loginResl;
+    }
+    
+    /**
+     * 修改用户密码
+     * 使用JWT token中的信息验证用户身份并修改密码
+     * 
+     * @param userId 用户ID（从token中提取）
+     * @param username 用户名（从token中提取）
+     * @param tokenPasswordHash token中存储的密码哈希（用于验证token的有效性）
+     * @param oldPassword 用户输入的原密码
+     * @param newPassword 新密码
+     * @throws RuntimeException 当验证失败或修改失败时抛出异常
+     */
+    public void changePassword(Long userId, String username, String tokenPasswordHash, 
+                              String oldPassword, String newPassword) {
+        log.info("开始修改用户密码，用户ID: {}, 用户名: {}", userId, username);
+        
+        // 1. 查询当前用户信息
+        Users currentUser = findById(userId);
+        if (currentUser == null) {
+            log.warn("用户不存在，ID: {}", userId);
+            throw new RuntimeException("用户不存在");
+        }
+        
+        // 2. 验证用户名是否匹配（防止token被篡改）
+        if (!currentUser.getUsername().equals(username)) {
+            log.warn("用户名不匹配，token中: {}, 数据库中: {}", username, currentUser.getUsername());
+            throw new RuntimeException("用户信息不匹配");
+        }
+        
+        // 3. 验证token中的密码哈希是否与数据库中的一致（确保token未过期且有效）
+        if (!currentUser.getPasswordHash().equals(tokenPasswordHash)) {
+            log.warn("token中的密码哈希与数据库不匹配，可能token已过期或密码已被修改");
+            throw new RuntimeException("token已失效，请重新登录");
+        }
+        
+        // 4. 验证原密码是否正确
+        if (!passwordEncoder.matches(oldPassword, currentUser.getPasswordHash())) {
+            log.warn("原密码验证失败，用户: {}", username);
+            throw new RuntimeException("原密码错误");
+        }
+        
+        // 5. 检查新密码是否与原密码相同
+        if (passwordEncoder.matches(newPassword, currentUser.getPasswordHash())) {
+            log.warn("新密码与原密码相同，用户: {}", username);
+            throw new RuntimeException("新密码不能与原密码相同");
+        }
+        
+        // 6. 加密新密码
+        String encodedNewPassword = passwordEncoder.encode(newPassword);
+        
+        // 7. 更新密码
+        currentUser.setPasswordHash(encodedNewPassword);
+        currentUser.setUpdatedAt(new Date());
+        
+        // 8. 保存到数据库
+        try {
+            updateUser(currentUser);
+            log.info("用户 {} 密码修改成功", username);
+        } catch (Exception e) {
+            log.error("密码更新失败，用户ID: {}, 错误: {}", userId, e.getMessage(), e);
+            throw new RuntimeException("密码更新失败");
+        }
     }
 }

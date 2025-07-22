@@ -8,5 +8,9 @@
     <select id="findByUserName" parameterType="string" resultType="chat.liuxin.liutech.model.Users">
         SELECT * FROM users WHERE username = #{username}
     </select>
+    
+    <select id="findByEmail" parameterType="string" resultType="chat.liuxin.liutech.model.Users">
+        SELECT * FROM users WHERE email = #{email}
+    </select>
 
 </mapper>
