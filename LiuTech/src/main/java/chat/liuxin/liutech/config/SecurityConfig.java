@@ -31,9 +31,6 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             // 配置请求授权
             .authorizeHttpRequests(authz -> authz
-
-
-            
                 // 允许访问根路径
                 .requestMatchers("/").permitAll()
                 // 允许访问用户注册和登录接口
