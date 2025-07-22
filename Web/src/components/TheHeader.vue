@@ -58,41 +58,45 @@ const handleLogout = () => {
         </ul>
       </nav>
       
-      <!-- 用户信息区域 -->
-      <div v-if="userStore.isLoggedIn" class="user-section">
-        <div class="user-info" @click="toggleUserMenu">
-          <div class="user-avatar">
-            <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" />
-            <span v-else class="avatar-placeholder">{{ userStore.username.charAt(0).toUpperCase() }}</span>
-          </div>
-          <span class="username">{{ userStore.username }}</span>
-          <span class="dropdown-arrow">▼</span>
-        </div>
-        
-        <!-- 用户下拉菜单 -->
-        <div class="user-menu" :class="{ 'is-open': isUserMenuOpen }">
-          <div class="user-menu-header">
-            <div class="user-avatar-large">
+
+      <div class="flex">
+        <!-- 用户信息区域 -->
+        <div v-if="userStore.isLoggedIn" class="user-section">
+          <div class="user-info" @click="toggleUserMenu">
+            <div class="user-avatar">
               <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" />
               <span v-else class="avatar-placeholder">{{ userStore.username.charAt(0).toUpperCase() }}</span>
             </div>
-            <div class="user-details">
-              <div class="username">{{ userStore.username }}</div>
-              <div class="points">积分: {{ userStore.points }}</div>
-            </div>
+            <span class="username">{{ userStore.username }}</span>
+            <span class="dropdown-arrow">▼</span>
           </div>
-          <ul class="user-menu-list">
-            <li @click="navigateTo('/profile')">个人资料</li>
-            <li @click="navigateTo('/settings')">设置</li>
-            <li @click="handleLogout" class="logout-item">退出登录</li>
-          </ul>
+          
+          <!-- 用户下拉菜单 -->
+          <div class="user-menu" :class="{ 'is-open': isUserMenuOpen }">
+            <div class="user-menu-header">
+              <div class="user-avatar-large">
+                <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" />
+                <span v-else class="avatar-placeholder">{{ userStore.username.charAt(0).toUpperCase() }}</span>
+              </div>
+              <div class="user-details">
+                <div class="username">{{ userStore.username }}</div>
+                <div class="points">积分: {{ userStore.points }}</div>
+              </div>
+            </div>
+            <ul class="user-menu-list">
+              <li @click="navigateTo('/profile')">个人资料</li>
+              <li @click="navigateTo('/settings')">设置</li>
+              <li @click="handleLogout" class="logout-item">退出登录</li>
+            </ul>
+          </div>
         </div>
+        
+        <!-- 主题切换按钮 -->
+        <button @click="theme.toggle" class="theme-toggle-btn">
+          {{ theme.current.value === 'light' ? '🌙' : '☀️' }}
+        </button>
       </div>
-      
-      <!-- 主题切换按钮 -->
-      <button @click="theme.toggle" class="theme-toggle-btn">
-        {{ theme.current === 'light' ? '🌙' : '☀️' }}
-      </button>
+     
       
       <!-- 移动端菜单按钮 -->
       <button class="mobile-menu-btn" @click="toggleMenu">
