@@ -14,6 +14,14 @@ const routes: RouteRecordRaw[] = [
       title: '首页'
     }
   },
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('../views/Login.vue'),
+    meta: {
+      title: '登录'
+    }
+  },
   // 404页面
   {
     path: '/:pathMatch(.*)*',

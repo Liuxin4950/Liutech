@@ -14,6 +14,8 @@ import chat.liuxin.liutech.utils.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -67,45 +69,38 @@ public class UserController {
     
     /**
      * 获取当前用户信息接口
-     * 根据JWT token解析用户信息，用于前端获取当前登录用户的详细信息
+     * 从Spring Security上下文中获取认证用户信息
      * 
-     * @param authorization Authorization头，格式：Bearer {token}
      * @return 当前用户信息（脱敏后）
      */
     @GetMapping("/current")
-    public Result<UserResl> getCurrentUser(@RequestHeader("Authorization") String authorization) {
+    public Result<UserResl> getCurrentUser() {
         log.info("收到获取当前用户信息请求");
         
-        // 1. 验证Authorization头格式
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
-            log.warn("Authorization头格式错误");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "请提供有效的Authorization头");
+        // 1. 从Security上下文获取认证信息
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("用户未认证");
+            return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
         }
         
-        // 2. 提取token
-        String token = authorization.substring(7); // 移除"Bearer "前缀
-        
-        // 3. 验证token有效性
-        if (!jwtUtil.validateToken(token)) {
-            log.warn("无效的JWT token");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "token无效或已过期");
+        // 2. 获取用户名
+        String username = authentication.getName();
+        if (username == null) {
+            log.warn("无法获取用户名");
+            return Result.fail(ErrorCode.UNAUTHORIZED, "认证信息无效");
         }
         
-        // 4. 从token中提取用户ID
-        Long userId = jwtUtil.getUserIdFromToken(token);
-        if (userId == null) {
-            log.warn("无法从token中提取用户ID");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "token格式错误");
-        }
-        
-        // 5. 查询用户信息
-        Users user = userService.findById(userId);
-        if (user == null) {
-            log.warn("用户不存在，ID: {}", userId);
+        // 3. 根据用户名查询用户信息
+        List<Users> users = userService.findByUserName(username);
+        if (users == null || users.isEmpty()) {
+            log.warn("用户不存在，用户名: {}", username);
             return Result.fail(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
         
-        // 6. 转换为响应对象（不包含敏感信息）
+        Users user = users.get(0);
+        
+        // 4. 转换为响应对象（不包含敏感信息）
         UserResl userResl = new UserResl();
         org.springframework.beans.BeanUtils.copyProperties(user, userResl);
         
@@ -115,16 +110,13 @@ public class UserController {
     
     /**
      * 修改密码接口
-     * 使用JWT token验证用户身份，支持用户修改自己的密码
+     * 从Spring Security上下文中获取认证用户信息
      * 
-     * @param authorization Authorization头，格式：Bearer {token}
      * @param changePasswordReq 修改密码请求参数
      * @return 修改结果
      */
     @PutMapping("/password")
-    public Result<String> changePassword(
-            @RequestHeader("Authorization") String authorization,
-            @Valid @RequestBody ChangePasswordReq changePasswordReq) {
+    public Result<String> changePassword(@Valid @RequestBody ChangePasswordReq changePasswordReq) {
         log.info("收到修改密码请求");
         
         // 1. 验证密码一致性
@@ -133,34 +125,32 @@ public class UserController {
             return Result.fail(ErrorCode.PARAMS_ERROR, "新密码和确认密码不一致");
         }
         
-        // 2. 验证Authorization头格式
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
-            log.warn("Authorization头格式错误");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "请提供有效的Authorization头");
+        // 2. 从Security上下文获取认证信息
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("用户未认证");
+            return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
         }
         
-        // 3. 提取token
-        String token = authorization.substring(7);
-        
-        // 4. 验证token有效性
-        if (!jwtUtil.validateToken(token)) {
-            log.warn("无效的JWT token");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "token无效或已过期");
+        // 3. 获取用户名
+        String username = authentication.getName();
+        if (username == null) {
+            log.warn("无法获取用户名");
+            return Result.fail(ErrorCode.UNAUTHORIZED, "认证信息无效");
         }
         
-        // 5. 从token中提取用户信息
-        Long userId = jwtUtil.getUserIdFromToken(token);
-        String username = jwtUtil.getUsernameFromToken(token);
-        String oldPasswordHash = jwtUtil.getPasswordHashFromToken(token);
-        
-        if (userId == null || username == null || oldPasswordHash == null) {
-            log.warn("无法从token中提取完整用户信息");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "token格式错误");
+        // 4. 根据用户名查询用户信息
+        List<Users> users = userService.findByUserName(username);
+        if (users == null || users.isEmpty()) {
+            log.warn("用户不存在，用户名: {}", username);
+            return Result.fail(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
         
-        // 6. 调用服务层修改密码
+        Users user = users.get(0);
+        
+        // 5. 调用服务层修改密码
         try {
-            userService.changePassword(userId, username, oldPasswordHash, 
+            userService.changePassword(user.getId(), username, user.getPasswordHash(), 
                     changePasswordReq.getOldPassword(), changePasswordReq.getNewPassword());
             log.info("用户 {} 密码修改成功", username);
             return Result.success("密码修改成功");

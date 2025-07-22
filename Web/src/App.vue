@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import Index from './views/Index.vue';
+
 </script>
 
 <template>
   <div class="app-container">
-    <!-- 路由视图 -->
-    <router-view />
+    <Index></Index>
   </div>
 </template>
 
