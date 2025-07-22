@@ -18,8 +18,8 @@
 ## 2. 访问方式
 
 启动项目后，可以通过以下地址访问 Swagger 文档：
-- **Swagger UI**: http://localhost:8080/blog/swagger-ui/index.html
-- **API 文档 JSON**: http://localhost:8080/blog/v3/api-docs
+- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+- **API 文档 JSON**: http://localhost:8080/v3/api-docs
 
 ## 3. 常用 Swagger 注解
 
