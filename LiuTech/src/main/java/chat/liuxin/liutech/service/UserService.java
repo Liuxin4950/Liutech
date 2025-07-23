@@ -231,6 +231,128 @@ public class UserService {
     }
     
     /**
+     * 获取当前用户信息
+     * 从Spring Security上下文中获取认证用户信息并返回脱敏后的用户信息
+     * 
+     * @return 当前用户信息（脱敏后）
+     * @throws BusinessException 当用户未认证、认证信息无效或用户不存在时抛出
+     */
+    public UserResl getCurrentUser() {
+        log.info("开始获取当前用户信息");
+        
+        // 1. 从Security上下文获取认证信息
+        org.springframework.security.core.Authentication authentication = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("用户未认证");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
+        }
+        
+        // 2. 获取用户名
+        String username = authentication.getName();
+        if (username == null) {
+            log.warn("无法获取用户名");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "认证信息无效");
+        }
+        
+        // 3. 根据用户名查询用户信息
+        List<Users> users = findByUserName(username);
+        if (users == null || users.isEmpty()) {
+            log.warn("用户不存在，用户名: {}", username);
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+        }
+        
+        Users user = users.get(0);
+        
+        // 4. 转换为响应对象（不包含敏感信息）
+        UserResl userResl = new UserResl();
+        BeanUtils.copyProperties(user, userResl);
+        
+        log.info("成功获取当前用户信息，用户名: {}", user.getUsername());
+        return userResl;
+    }
+    
+    /**
+     * 根据条件获取用户信息
+     * 支持根据ID、用户名查询，或获取所有用户列表
+     * 
+     * @param id 用户ID（可选）
+     * @param username 用户名（可选）
+     * @return 用户信息或用户列表
+     */
+    public Object getUsersByCondition(Long id, String username) {
+        // 根据ID获取单个用户
+        if (id != null) {
+            log.info("根据ID获取用户信息，ID: {}", id);
+            return findById(id);
+        }
+        
+        // 根据用户名查询用户
+        if (username != null && !username.trim().isEmpty()) {
+            log.info("根据用户名查询用户，用户名: {}", username);
+            return findByUserName(username);
+        }
+        
+        // 获取所有用户列表
+        log.info("获取所有用户列表");
+        return findAll();
+    }
+    
+    /**
+     * 修改当前用户密码
+     * 从Spring Security上下文中获取认证用户信息并修改密码
+     * 
+     * @param changePasswordReq 修改密码请求参数
+     * @throws BusinessException 当验证失败或修改失败时抛出异常
+     */
+    public void changePasswordWithAuth(chat.liuxin.liutech.req.ChangePasswordReq changePasswordReq) {
+        log.info("开始修改当前用户密码");
+        
+        // 1. 验证密码一致性
+        if (!changePasswordReq.isPasswordMatch()) {
+            log.warn("新密码和确认密码不一致");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "新密码和确认密码不一致");
+        }
+        
+        // 2. 从Security上下文获取认证信息
+        org.springframework.security.core.Authentication authentication = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("用户未认证");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
+        }
+        
+        // 3. 获取用户名
+        String username = authentication.getName();
+        if (username == null) {
+            log.warn("无法获取用户名");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "认证信息无效");
+        }
+        
+        // 4. 根据用户名查询用户信息
+        List<Users> users = findByUserName(username);
+        if (users == null || users.isEmpty()) {
+            log.warn("用户不存在，用户名: {}", username);
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+        }
+        
+        Users user = users.get(0);
+        
+        // 5. 调用原有的密码修改方法
+        try {
+            changePassword(user.getId(), username, user.getPasswordHash(), 
+                    changePasswordReq.getOldPassword(), changePasswordReq.getNewPassword());
+            log.info("用户 {} 密码修改成功", username);
+        } catch (BusinessException e) {
+            // 直接重新抛出业务异常
+            throw e;
+        } catch (Exception e) {
+            log.error("密码修改失败: {}", e.getMessage());
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "密码修改失败");
+        }
+    }
+    
+    /**
      * 修改用户密码
      * 使用JWT token中的信息验证用户身份并修改密码
      * 
@@ -239,7 +361,7 @@ public class UserService {
      * @param tokenPasswordHash token中存储的密码哈希（用于验证token的有效性）
      * @param oldPassword 用户输入的原密码
      * @param newPassword 新密码
-     * @throws RuntimeException 当验证失败或修改失败时抛出异常
+     * @throws BusinessException 当验证失败或修改失败时抛出异常
      */
     public void changePassword(Long userId, String username, String tokenPasswordHash, 
                               String oldPassword, String newPassword) {
@@ -249,31 +371,31 @@ public class UserService {
         Users currentUser = findById(userId);
         if (currentUser == null) {
             log.warn("用户不存在，ID: {}", userId);
-            throw new RuntimeException("用户不存在");
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         
         // 2. 验证用户名是否匹配（防止token被篡改）
         if (!currentUser.getUsername().equals(username)) {
             log.warn("用户名不匹配，token中: {}, 数据库中: {}", username, currentUser.getUsername());
-            throw new RuntimeException("用户信息不匹配");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户信息不匹配");
         }
         
         // 3. 验证token中的密码哈希是否与数据库中的一致（确保token未过期且有效）
         if (!currentUser.getPasswordHash().equals(tokenPasswordHash)) {
             log.warn("token中的密码哈希与数据库不匹配，可能token已过期或密码已被修改");
-            throw new RuntimeException("token已失效，请重新登录");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "token已失效，请重新登录");
         }
         
         // 4. 验证原密码是否正确
         if (!passwordEncoder.matches(oldPassword, currentUser.getPasswordHash())) {
             log.warn("原密码验证失败，用户: {}", username);
-            throw new RuntimeException("原密码错误");
+            throw new BusinessException(ErrorCode.LOGIN_FAILED, "原密码错误");
         }
         
         // 5. 检查新密码是否与原密码相同
         if (passwordEncoder.matches(newPassword, currentUser.getPasswordHash())) {
             log.warn("新密码与原密码相同，用户: {}", username);
-            throw new RuntimeException("新密码不能与原密码相同");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "新密码不能与原密码相同");
         }
         
         // 6. 加密新密码
@@ -289,7 +411,7 @@ public class UserService {
             log.info("用户 {} 密码修改成功", username);
         } catch (Exception e) {
             log.error("密码更新失败，用户ID: {}, 错误: {}", userId, e.getMessage(), e);
-            throw new RuntimeException("密码更新失败");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "密码更新失败");
         }
     }
 }

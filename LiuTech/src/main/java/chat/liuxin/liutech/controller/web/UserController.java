@@ -1,7 +1,6 @@
 package chat.liuxin.liutech.controller.web;
 
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.LoginReq;
 import chat.liuxin.liutech.req.RegisterReq;
@@ -9,16 +8,12 @@ import chat.liuxin.liutech.req.ChangePasswordReq;
 import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.resl.LoginResl;
 import chat.liuxin.liutech.service.UserService;
-import chat.liuxin.liutech.utils.JwtUtil;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 /**
  * 用户控制器
@@ -33,10 +28,6 @@ public class UserController {
 
     @Autowired
     private UserService userService;
-    
-    @Autowired
-    private JwtUtil jwtUtil;
-
     /**
      * 用户注册接口
      * 创建新用户账户，包括用户名唯一性检查、邮箱唯一性检查、密码加密等
@@ -76,35 +67,8 @@ public class UserController {
     @GetMapping("/current")
     public Result<UserResl> getCurrentUser() {
         log.info("收到获取当前用户信息请求");
-        
-        // 1. 从Security上下文获取认证信息
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            log.warn("用户未认证");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
-        }
-        
-        // 2. 获取用户名
-        String username = authentication.getName();
-        if (username == null) {
-            log.warn("无法获取用户名");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "认证信息无效");
-        }
-        
-        // 3. 根据用户名查询用户信息
-        List<Users> users = userService.findByUserName(username);
-        if (users == null || users.isEmpty()) {
-            log.warn("用户不存在，用户名: {}", username);
-            return Result.fail(ErrorCode.USER_NOT_FOUND, "用户不存在");
-        }
-        
-        Users user = users.get(0);
-        
-        // 4. 转换为响应对象（不包含敏感信息）
-        UserResl userResl = new UserResl();
-        org.springframework.beans.BeanUtils.copyProperties(user, userResl);
-        
-        log.info("成功获取当前用户信息，用户名: {}", user.getUsername());
+        UserResl userResl = userService.getCurrentUser();
+        log.info("获取当前用户信息成功");
         return Result.success("获取用户信息成功", userResl);
     }
     
@@ -118,46 +82,9 @@ public class UserController {
     @PutMapping("/password")
     public Result<String> changePassword(@Valid @RequestBody ChangePasswordReq changePasswordReq) {
         log.info("收到修改密码请求");
-        
-        // 1. 验证密码一致性
-        if (!changePasswordReq.isPasswordMatch()) {
-            log.warn("新密码和确认密码不一致");
-            return Result.fail(ErrorCode.PARAMS_ERROR, "新密码和确认密码不一致");
-        }
-        
-        // 2. 从Security上下文获取认证信息
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            log.warn("用户未认证");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
-        }
-        
-        // 3. 获取用户名
-        String username = authentication.getName();
-        if (username == null) {
-            log.warn("无法获取用户名");
-            return Result.fail(ErrorCode.UNAUTHORIZED, "认证信息无效");
-        }
-        
-        // 4. 根据用户名查询用户信息
-        List<Users> users = userService.findByUserName(username);
-        if (users == null || users.isEmpty()) {
-            log.warn("用户不存在，用户名: {}", username);
-            return Result.fail(ErrorCode.USER_NOT_FOUND, "用户不存在");
-        }
-        
-        Users user = users.get(0);
-        
-        // 5. 调用服务层修改密码
-        try {
-            userService.changePassword(user.getId(), username, user.getPasswordHash(), 
-                    changePasswordReq.getOldPassword(), changePasswordReq.getNewPassword());
-            log.info("用户 {} 密码修改成功", username);
-            return Result.success("密码修改成功");
-        } catch (Exception e) {
-            log.error("密码修改失败: {}", e.getMessage());
-            return Result.fail(ErrorCode.SYSTEM_ERROR, e.getMessage());
-        }
+        userService.changePasswordWithAuth(changePasswordReq);
+        log.info("密码修改成功");
+        return Result.success("密码修改成功");
     }
     
     /**
@@ -174,24 +101,10 @@ public class UserController {
     public Result<?> getUsers(
             @RequestParam(required = false) Long id,
             @RequestParam(required = false) String username) {
-        // 根据ID获取单个用户
-        if (id != null) {
-            log.info("根据ID获取用户信息，ID: {}", id);
-            Users user = userService.findById(id);
-            return Result.success(user);
-        }
-        
-        // 根据用户名查询用户
-        if (username != null && !username.trim().isEmpty()) {
-            log.info("根据用户名查询用户，用户名: {}", username);
-            List<Users> users = userService.findByUserName(username);
-            return Result.success(users);
-        }
-        
-        // 获取所有用户列表
-        log.info("获取所有用户列表");
-        List<Users> users = userService.findAll();
-        return Result.success(users);
+        log.info("收到获取用户信息请求，ID: {}, 用户名: {}", id, username);
+        Object result = userService.getUsersByCondition(id, username);
+        log.info("获取用户信息成功");
+        return Result.success(result);
     }
 
     /**
