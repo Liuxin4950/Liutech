@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import router from '../router'
+import { errorHandler } from '../utils/errorHandler'
 
 // API 响应接口
 export interface ApiResponse<T = any> {
@@ -57,34 +58,19 @@ instance.interceptors.response.use(
   (error) => {
     console.error('API 请求失败', error)
     
-    // 处理 HTTP 状态码错误
-    if (error.response) {
-      const status = error.response.status
-      const message = error.response.data?.message || '请求失败'
-      
-      switch (status) {
-        case 401:
-          // 未授权，清除 token 并跳转到登录页
-          localStorage.removeItem('token')
-          if (router.currentRoute.value.path !== '/login') {
-            router.push('/login')
-          }
-          throw new Error('登录已过期，请重新登录')
-        case 403:
-          throw new Error('权限不足，禁止访问')
-        case 404:
-          throw new Error('请求的资源不存在')
-        case 500:
-          throw new Error('服务器内部错误')
-        default:
-          throw new Error(message)
+    // 使用统一错误处理器
+    errorHandler.handleApiError(error)
+    
+    // 特殊处理401错误，需要跳转登录页
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      if (router.currentRoute.value.path !== '/login') {
+        router.push('/login')
       }
-    } else if (error.request) {
-      // 网络错误
-      throw new Error('网络连接失败，请检查网络设置')
-    } else {
-      throw new Error(error.message || '请求失败')
     }
+    
+    // 重新抛出错误，保持原有的错误传播机制
+    throw error
   }
 )
 

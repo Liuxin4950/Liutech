@@ -2,10 +2,12 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { useErrorHandler } from '../composables/useErrorHandler'
 import type { RegisterRequest } from '../services/user'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { handleFormSubmit, showSuccess, clearError } = useErrorHandler()
 
 // 表单状态
 const isLogin = ref(true) // true: 登录模式, false: 注册模式
@@ -39,6 +41,7 @@ const errors = reactive({
 const toggleMode = () => {
   isLogin.value = !isLogin.value
   clearErrors()
+  clearError() // 清除全局错误状态
   // 注意：不清空表单数据，让用户可以在两种模式间保持已输入的数据
   // 只有在提交成功后才清空表单
 }
@@ -57,22 +60,7 @@ const clearForms = () => {
   })
 }
 
-/**
- * 清空当前模式的表单
- */
-const clearCurrentForm = () => {
-  if (isLogin.value) {
-    Object.assign(loginForm, { username: '', password: '' })
-  } else {
-    Object.assign(registerForm, {
-      username: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      nickname: ''
-    })
-  }
-}
+
 
 /**
  * 清空错误信息
@@ -127,8 +115,8 @@ const validateForm = () => {
     } else if (registerForm.password.length < 8) {
       errors.password = '密码至少8位字符'
       isValid = false
-    } else if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(registerForm.password)) {
-      errors.password = '密码必须包含字母和数字'
+    } else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(registerForm.password)) {
+      errors.password = '密码至少8位且只能包含字母和数字'
       isValid = false
     }
 
@@ -147,35 +135,13 @@ const validateForm = () => {
 const handleLogin = async () => {
   if (!validateForm()) return
 
-  try {
-    // 使用用户状态管理进行登录
-    await userStore.login(loginForm.username, loginForm.password)
-    
-    // 登录成功后跳转到首页
+  const result = await handleFormSubmit(async () => {
+    return await userStore.login(loginForm.username, loginForm.password)
+  })
+
+  if (result) {
+    showSuccess('登录成功！')
     router.push('/')
-    alert('登录成功！')
-  } catch (error) {
-    console.error('登录失败:', error)
-    
-    // 根据错误信息显示对应的错误提示
-    if (error instanceof Error) {
-      const message = error.message
-      
-      // 根据 API 文档的错误码进行处理
-      if (message.includes('用户名或密码错误') || message.includes('1004')) {
-        errors.username = '用户名或密码错误'
-      } else if (message.includes('用户不存在') || message.includes('1001')) {
-        errors.username = '用户不存在'
-      } else if (message.includes('账户已被禁用') || message.includes('1005')) {
-        errors.username = '账户已被禁用，请联系管理员'
-      } else if (message.includes('网络连接失败')) {
-        errors.username = '网络连接失败，请检查网络设置'
-      } else {
-        errors.username = message || '登录失败，请稍后重试'
-      }
-    } else {
-      errors.username = '登录失败，请稍后重试'
-    }
   }
 }
 
@@ -185,7 +151,7 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   if (!validateForm()) return
 
-  try {
+  const result = await handleFormSubmit(async () => {
     // 构建注册数据
     const registerData: RegisterRequest = {
       username: registerForm.username,
@@ -194,35 +160,13 @@ const handleRegister = async () => {
       nickname: registerForm.nickname || undefined
     }
     
-    // 使用用户状态管理进行注册
-    await userStore.register(registerData)
-    
-    // 注册成功后切换到登录模式
+    return await userStore.register(registerData)
+  })
+
+  if (result) {
+    showSuccess('注册成功！请登录您的账户')
     isLogin.value = true
     clearForms()
-    alert('注册成功！请登录您的账户')
-  } catch (error) {
-    console.error('注册失败:', error)
-    
-    // 根据错误信息显示对应的错误提示
-    if (error instanceof Error) {
-      const message = error.message
-      
-      // 根据 API 文档的错误码进行处理
-      if (message.includes('用户名已存在') || message.includes('1002')) {
-        errors.username = '用户名已存在'
-      } else if (message.includes('邮箱已被注册') || message.includes('1003')) {
-        errors.email = '邮箱已被注册'
-      } else if (message.includes('请求参数错误') || message.includes('400')) {
-        errors.email = '请求参数错误，请检查输入信息'
-      } else if (message.includes('网络连接失败')) {
-        errors.email = '网络连接失败，请检查网络设置'
-      } else {
-        errors.email = message || '注册失败，请稍后重试'
-      }
-    } else {
-      errors.email = '注册失败，请稍后重试'
-    }
   }
 }
 
@@ -313,7 +257,7 @@ const handleSubmit = () => {
                 id="password-register"
                 v-model="registerForm.password"
                 type="password"
-                placeholder="至少8位，包含字母和数字"
+                placeholder="至少8位，只能包含字母和数字"
                 :class="{ 'error': errors.password }"
               />
               <span v-if="errors.password" class="error-message">{{ errors.password }}</span>

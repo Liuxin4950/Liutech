@@ -9,12 +9,20 @@ import router from './router'
 import theme from './utils/theme.ts'
 // 引入用户状态管理
 import { useUserStore } from './stores/user'
+// 引入全局错误处理
+import { initGlobalErrorHandler, configureVueErrorHandler } from './utils/globalErrorHandler'
 
 //初始化浅色主题
 theme.init()
 
+// 初始化全局错误处理
+initGlobalErrorHandler()
+
 const app = createApp(App)
 const pinia = createPinia()
+
+// 配置Vue错误处理
+configureVueErrorHandler(app)
 
 // 使用Pinia状态管理
 app.use(pinia)

@@ -54,15 +54,15 @@ const handleLogout = () => {
       <nav class="desktop-nav">
         <ul>
           <li><router-link to="/">首页</router-link></li>
-          <li v-if="!userStore.isLoggedIn"><router-link to="/login">登录</router-link></li>
         </ul>
       </nav>
       
 
       <div class="flex">
         <!-- 用户信息区域 -->
-        <div v-if="userStore.isLoggedIn" class="user-section">
-          <div class="user-info" @click="toggleUserMenu">
+        <div class="user-section">
+          <!-- 已登录状态 -->
+          <div v-if="userStore.isLoggedIn" class="user-info" @click="toggleUserMenu">
             <div class="user-avatar">
               <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" />
               <span v-else class="avatar-placeholder">{{ userStore.username.charAt(0).toUpperCase() }}</span>
@@ -70,6 +70,12 @@ const handleLogout = () => {
             <span class="username">{{ userStore.username }}</span>
             <span class="dropdown-arrow">▼</span>
           </div>
+          
+          <!-- 未登录状态 -->
+          <button v-else class="login-btn" @click="navigateTo('/login')">
+            <span class="login-icon">👤</span>
+            <span>登录</span>
+          </button>
           
           <!-- 用户下拉菜单 -->
           <div class="user-menu" :class="{ 'is-open': isUserMenuOpen }">
@@ -260,6 +266,26 @@ const handleLogout = () => {
   margin-left: 20px;
 }
 
+/* 登录按钮样式 */
+.login-btn {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  color: var(--text-color);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  margin-top: 5px;
+  margin-left: 5px;
+}
+
+.login-icon {
+  font-size: 16px;
+}
+
 .user-info {
   display: flex;
   align-items: center;
@@ -423,6 +449,15 @@ const handleLogout = () => {
   
   .mobile-menu {
     display: block;
+  }
+  
+  .login-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .login-icon {
+    font-size: 14px;
   }
 }
 </style>

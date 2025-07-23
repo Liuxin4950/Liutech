@@ -5,6 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { UserService, type UserInfo, type RegisterRequest } from '../services/user'
+import { handleApiError, handleBusinessError } from '../utils/errorHandler'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
@@ -39,6 +40,10 @@ export const useUserStore = defineStore('user', () => {
     try {
       await UserService.login({ username, password })
       await fetchUserInfo()
+      return true
+    } catch (error) {
+      handleApiError(error)
+      return false
     } finally {
       isLoading.value = false
     }
@@ -53,6 +58,10 @@ export const useUserStore = defineStore('user', () => {
     try {
       const userData = await UserService.register(registerData)
       userInfo.value = userData
+      return true
+    } catch (error) {
+      handleApiError(error)
+      return false
     } finally {
       isLoading.value = false
     }
@@ -80,6 +89,7 @@ export const useUserStore = defineStore('user', () => {
       userInfo.value = userData
     } catch (error) {
       console.error('获取用户信息失败:', error)
+      handleBusinessError('获取用户信息失败，请重新登录')
       // 如果获取用户信息失败，可能是token过期，清除登录状态
       logout()
     }

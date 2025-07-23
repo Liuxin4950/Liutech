@@ -1,4 +1,4 @@
-import { get, post, put, del, type ApiResponse } from './api'
+import { get, post, put } from './api'
 
 // 登录请求参数接口
 export interface LoginRequest {
