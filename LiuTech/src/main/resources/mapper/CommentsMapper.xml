@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.CommentsMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="CommentWithUserMap" type="chat.liuxin.liutech.model.Comments">
+        <id property="id" column="id"/>
+        <result property="postId" column="post_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="content" column="content"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+        
+        <!-- 关联用户信息 -->
+        <association property="user" javaType="chat.liuxin.liutech.model.Users">
+            <id property="id" column="user_id"/>
+            <result property="username" column="username"/>
+            <result property="email" column="email"/>
+            <result property="avatarUrl" column="avatar_url"/>
+        </association>
+    </resultMap>
+
+    <!-- 基础查询SQL片段 -->
+    <sql id="baseSelectSql">
+        SELECT 
+            c.id,
+            c.post_id,
+            c.user_id,
+            c.content,
+            c.parent_id,
+            c.created_at,
+            c.updated_at,
+            c.deleted_at,
+            u.username,
+            u.email,
+            u.avatar_url
+        FROM comments c
+        LEFT JOIN users u ON c.user_id = u.id
+        WHERE c.deleted_at IS NULL
+    </sql>
+
+    <!-- 分页查询文章评论 -->
+    <select id="selectCommentsByPostId" resultMap="CommentWithUserMap">
+        <include refid="baseSelectSql"/>
+        AND c.post_id = #{postId}
+        ORDER BY c.created_at DESC
+    </select>
+
+    <!-- 查询文章的顶级评论 -->
+    <select id="selectTopLevelCommentsByPostId" resultMap="CommentWithUserMap">
+        <include refid="baseSelectSql"/>
+        AND c.post_id = #{postId}
+        AND c.parent_id IS NULL
+        ORDER BY c.created_at DESC
+    </select>
+
+    <!-- 查询某个评论的子评论 -->
+    <select id="selectChildCommentsByParentId" resultMap="CommentWithUserMap">
+        <include refid="baseSelectSql"/>
+        AND c.parent_id = #{parentId}
+        ORDER BY c.created_at ASC
+    </select>
+
+    <!-- 统计文章评论数量 -->
+    <select id="countCommentsByPostId" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM comments c
+        WHERE c.post_id = #{postId}
+        AND c.deleted_at IS NULL
+    </select>
+
+    <!-- 查询最新评论 -->
+    <select id="selectLatestComments" resultMap="CommentWithUserMap">
+        <include refid="baseSelectSql"/>
+        ORDER BY c.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

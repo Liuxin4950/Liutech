@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.PostTagsMapper">
+
+    <!-- 批量插入文章标签关联 -->
+    <insert id="batchInsert">
+        INSERT INTO post_tags (post_id, tag_id)
+        VALUES
+        <foreach collection="postTags" item="item" separator=",">
+            (#{item.postId}, #{item.tagId})
+        </foreach>
+    </insert>
+
+    <!-- 根据文章ID删除所有标签关联 -->
+    <delete id="deleteByPostId">
+        DELETE FROM post_tags WHERE post_id = #{postId}
+    </delete>
+
+    <!-- 根据标签ID删除所有文章关联 -->
+    <delete id="deleteByTagId">
+        DELETE FROM post_tags WHERE tag_id = #{tagId}
+    </delete>
+
+</mapper>

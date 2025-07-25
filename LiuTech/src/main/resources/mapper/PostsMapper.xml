@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.PostsMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="PostWithDetailsMap" type="chat.liuxin.liutech.model.Posts">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="summary" column="summary"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="authorId" column="author_id"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="deletedAt" column="deleted_at"/>
+        <result property="commentCount" column="comment_count"/>
+        
+        <!-- 关联分类信息 -->
+        <association property="category" javaType="chat.liuxin.liutech.model.Categories">
+            <id property="id" column="cat_id"/>
+            <result property="name" column="cat_name"/>
+            <result property="description" column="cat_description"/>
+        </association>
+        
+        <!-- 关联作者信息 -->
+        <association property="author" javaType="chat.liuxin.liutech.model.Users">
+            <id property="id" column="author_id"/>
+            <result property="username" column="author_username"/>
+            <result property="email" column="author_email"/>
+            <result property="avatarUrl" column="author_avatar_url"/>
+        </association>
+        
+        <!-- 关联标签信息 -->
+        <collection property="tags" ofType="chat.liuxin.liutech.model.Tags">
+            <id property="id" column="tag_id"/>
+            <result property="name" column="tag_name"/>
+        </collection>
+    </resultMap>
+
+    <!-- 基础查询SQL片段 -->
+    <sql id="baseSelectSql">
+        SELECT 
+            p.id,
+            p.title,
+            p.content,
+            p.summary,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.created_at,
+            p.updated_at,
+            p.created_by,
+            p.updated_by,
+            p.deleted_at,
+            c.id as cat_id,
+            c.name as cat_name,
+            c.description as cat_description,
+            u.username as author_username,
+            u.email as author_email,
+            u.avatar_url as author_avatar_url,
+            t.id as tag_id,
+            t.name as tag_name,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_tags pt ON p.id = pt.post_id
+        LEFT JOIN tags t ON pt.tag_id = t.id
+        WHERE p.deleted_at IS NULL
+    </sql>
+
+    <!-- 分页查询文章列表 -->
+    <select id="selectPostsWithDetails" resultMap="PostWithDetailsMap">
+        <include refid="baseSelectSql"/>
+        AND p.status = 'published'
+        <if test="categoryId != null">
+            AND p.category_id = #{categoryId}
+        </if>
+        <if test="tagId != null">
+            AND EXISTS (SELECT 1 FROM post_tags pt2 WHERE pt2.post_id = p.id AND pt2.tag_id = #{tagId})
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') 
+                 OR p.content LIKE CONCAT('%', #{keyword}, '%')
+                 OR p.summary LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY p.created_at DESC
+    </select>
+
+    <!-- 根据ID查询文章详情 -->
+    <select id="selectPostWithDetails" resultMap="PostWithDetailsMap">
+        <include refid="baseSelectSql"/>
+        AND p.id = #{id}
+    </select>
+
+    <!-- 查询热门文章 -->
+    <select id="selectHotPosts" resultType="chat.liuxin.liutech.model.Posts">
+        SELECT 
+            p.id,
+            p.title,
+            p.summary,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.created_at,
+            p.updated_at,
+            COUNT(c.id) as comment_count
+        FROM posts p
+        LEFT JOIN comments c ON p.id = c.post_id AND c.deleted_at IS NULL
+        WHERE p.deleted_at IS NULL
+        AND p.status = 'published'
+        GROUP BY p.id, p.title, p.summary, p.category_id, p.author_id, p.status, p.created_at, p.updated_at
+        ORDER BY comment_count DESC, p.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 查询最新文章 -->
+    <select id="selectLatestPosts" resultType="chat.liuxin.liutech.model.Posts">
+        SELECT 
+            p.id,
+            p.title,
+            p.summary,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.created_at,
+            p.updated_at
+        FROM posts p
+        WHERE p.deleted_at IS NULL
+        AND p.status = 'published'
+        ORDER BY p.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 根据分类ID查询文章数量 -->
+    <select id="countPostsByCategory" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.category_id = #{categoryId}
+        AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 根据标签ID查询文章数量 -->
+    <select id="countPostsByTag" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT p.id)
+        FROM posts p
+        INNER JOIN post_tags pt ON p.id = pt.post_id
+        WHERE pt.tag_id = #{tagId}
+        AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 插入文章 -->
+    <insert id="insert" parameterType="chat.liuxin.liutech.model.Posts" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO posts (
+            title,
+            content,
+            summary,
+            category_id,
+            author_id,
+            status,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{title},
+            #{content},
+            #{summary},
+            #{categoryId},
+            #{authorId},
+            #{status},
+            #{createdAt},
+            #{updatedAt},
+            #{createdBy},
+            #{updatedBy}
+        )
+    </insert>
+
+    <!-- 更新文章 -->
+    <update id="updateById" parameterType="chat.liuxin.liutech.model.Posts">
+        UPDATE posts SET
+            title = #{title},
+            content = #{content},
+            summary = #{summary},
+            category_id = #{categoryId},
+            status = #{status},
+            updated_at = #{updatedAt},
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </update>
+
+    <!-- 软删除文章 -->
+    <update id="deleteById">
+        UPDATE posts SET
+            deleted_at = #{deletedAt},
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </update>
+
+    <!-- 更新文章状态 -->
+    <update id="updateStatus">
+        UPDATE posts SET
+            status = #{status},
+            updated_at = #{updatedAt},
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </update>
+
+    <!-- 根据ID查询文章（不包含关联信息） -->
+    <select id="selectById" resultType="chat.liuxin.liutech.model.Posts">
+        SELECT 
+            id,
+            title,
+            content,
+            summary,
+            category_id,
+            author_id,
+            status,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by,
+            deleted_at
+        FROM posts
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </select>
+
+    <!-- 检查文章是否存在 -->
+    <select id="existsById" resultType="java.lang.Boolean">
+        SELECT COUNT(*) > 0
+        FROM posts
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </select>
+
+</mapper>

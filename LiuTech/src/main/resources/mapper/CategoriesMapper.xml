@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.CategoriesMapper">
+
+    <!-- 查询所有分类（包含文章数量） -->
+    <select id="selectCategoriesWithPostCount" resultType="chat.liuxin.liutech.model.Categories">
+        SELECT 
+            c.id,
+            c.name,
+            c.description,
+            COUNT(p.id) as post_count
+        FROM categories c
+        LEFT JOIN posts p ON c.id = p.category_id AND p.deleted_at IS NULL
+        GROUP BY c.id, c.name, c.description
+        ORDER BY c.name
+    </select>
+
+</mapper>

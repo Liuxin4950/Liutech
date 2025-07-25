@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.TagsMapper">
+
+    <!-- 查询所有标签（包含文章数量） -->
+    <select id="selectTagsWithPostCount" resultType="chat.liuxin.liutech.model.Tags">
+        SELECT 
+            t.id,
+            t.name,
+            COUNT(DISTINCT p.id) as post_count
+        FROM tags t
+        LEFT JOIN post_tags pt ON t.id = pt.tag_id
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        GROUP BY t.id, t.name
+        ORDER BY t.name
+    </select>
+
+    <!-- 根据文章ID查询标签列表 -->
+    <select id="selectTagsByPostId" resultType="chat.liuxin.liutech.model.Tags">
+        SELECT 
+            t.id,
+            t.name
+        FROM tags t
+        INNER JOIN post_tags pt ON t.id = pt.tag_id
+        WHERE pt.post_id = #{postId}
+        ORDER BY t.name
+    </select>
+
+    <!-- 查询热门标签 -->
+    <select id="selectHotTags" resultType="chat.liuxin.liutech.model.Tags">
+        SELECT 
+            t.id,
+            t.name,
+            COUNT(DISTINCT p.id) as post_count
+        FROM tags t
+        INNER JOIN post_tags pt ON t.id = pt.tag_id
+        INNER JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        GROUP BY t.id, t.name
+        ORDER BY post_count DESC, t.name
+        LIMIT #{limit}
+    </select>
+
+</mapper>

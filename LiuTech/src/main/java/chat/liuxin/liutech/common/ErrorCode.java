@@ -87,6 +87,26 @@ public enum ErrorCode {
      * 文章标题已存在
      */
     ARTICLE_TITLE_EXISTS(1102, "文章标题已存在"),
+    
+    /**
+     * 无权限操作此文章
+     */
+    ARTICLE_PERMISSION_DENIED(1103, "无权限操作此文章"),
+    
+    /**
+     * 文章状态无效
+     */
+    ARTICLE_STATUS_INVALID(1104, "文章状态无效"),
+    
+    /**
+     * 分类不存在
+     */
+    CATEGORY_NOT_FOUND(1105, "分类不存在"),
+    
+    /**
+     * 标签不存在
+     */
+    TAG_NOT_FOUND(1106, "标签不存在"),
 
     // ========== 系统错误 5xx ==========
     /**
@@ -102,7 +122,18 @@ public enum ErrorCode {
     /**
      * 网络异常 - 外部服务调用失败
      */
-    NETWORK_ERROR(502, "网络异常，请稍后重试");
+    NETWORK_ERROR(502, "网络异常，请稍后重试"),
+    
+    // ========== 通用操作错误 ==========
+    /**
+     * 操作失败 - 通用操作错误
+     */
+    OPERATION_ERROR(50000, "操作失败"),
+    
+    /**
+     * 用户未登录 - 需要登录才能访问
+     */
+    NOT_LOGIN_ERROR(40001, "用户未登录");
 
     /**
      * 错误码
