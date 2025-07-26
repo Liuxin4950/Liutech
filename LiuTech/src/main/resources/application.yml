@@ -29,6 +29,12 @@ mybatis-plus:
       table-underline: true
       logic-delete-value: 1
       logic-not-delete-value: 0
+  # 分页插件配置
+  configuration-properties:
+    helperDialect: mysql
+    reasonable: true
+    supportMethodsArguments: true
+    params: count=countSql
 logging:
   level:
     com.baomidou.mybatisplus: debug  # 可选：显示生成的 SQL

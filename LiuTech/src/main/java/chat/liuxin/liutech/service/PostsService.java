@@ -58,7 +58,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 处理搜索关键词
         String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
         
-        // 执行分页查询
+        // 执行分页查询，MyBatis-Plus会自动处理count查询
         IPage<Posts> result = postsMapper.selectPostsWithDetails(page, req.getCategoryId(), req.getTagId(), keyword);
         
         // 为每篇文章查询标签信息
@@ -76,6 +76,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 .map(this::convertToPostListResl)
                 .collect(Collectors.toList());
         
+        // 使用MyBatis-Plus自动统计的总数
         return new PageResl<>(postList, result.getTotal(), result.getCurrent(), result.getSize());
     }
 

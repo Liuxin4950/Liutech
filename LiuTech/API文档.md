@@ -887,7 +887,7 @@ Authorization: Bearer {token}
 
 ### 17. 获取热门文章
 
-**接口地址：** `GET /posts/popular`
+**接口地址：** `GET /posts/hot`
 
 **接口描述：** 获取热门文章列表
 

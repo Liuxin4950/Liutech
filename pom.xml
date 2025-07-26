@@ -76,10 +76,13 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-validation</artifactId>
                 <version>3.5.3</version>
-
             </dependency>
-
-
+            <!-- MyBatis-Plus分页插件依赖 -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>3.5.12</version>
+            </dependency>
 
         </dependencies>
     </dependencyManagement>

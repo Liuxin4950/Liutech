@@ -116,4 +116,6 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @return 是否存在
      */
     Boolean existsById(@Param("id") Long id);
+
+
 }
