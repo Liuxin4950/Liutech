@@ -57,7 +57,7 @@ public class TagsController {
         Tags tag = tagsService.getById(id);
         if (tag == null) {
             log.warn("标签不存在 - ID: {}", id);
-            return Result.fail(ErrorCode.NOT_FOUND, "标签不存在");
+            return Result.fail(ErrorCode.TAG_NOT_FOUND);
         }
         
         log.info("查询标签详情成功 - 名称: {}", tag.getName());

@@ -51,6 +51,11 @@ public class SecurityConfig {
                 .requestMatchers("/").permitAll()
                 // 允许访问用户注册和登录接口
                 .requestMatchers("/user/register", "/user/login").permitAll()
+                // 允许访问文章相关的公开接口
+                .requestMatchers("/posts", "/posts/**").permitAll()
+                // 允许访问分类和标签接口
+                .requestMatchers("/categories", "/categories/**").permitAll()
+                .requestMatchers("/tags", "/tags/**").permitAll()
                 // 其他请求需要认证
                 .anyRequest().authenticated()
             )

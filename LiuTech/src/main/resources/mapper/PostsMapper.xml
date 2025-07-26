@@ -27,7 +27,7 @@
         
         <!-- 关联作者信息 -->
         <association property="author" javaType="chat.liuxin.liutech.model.Users">
-            <id property="id" column="author_id"/>
+            <id property="id" column="author_user_id"/>
             <result property="username" column="author_username"/>
             <result property="email" column="author_email"/>
             <result property="avatarUrl" column="author_avatar_url"/>
@@ -58,6 +58,7 @@
             c.id as cat_id,
             c.name as cat_name,
             c.description as cat_description,
+            u.id as author_user_id,
             u.username as author_username,
             u.email as author_email,
             u.avatar_url as author_avatar_url,
@@ -74,7 +75,31 @@
 
     <!-- 分页查询文章列表 -->
     <select id="selectPostsWithDetails" resultMap="PostWithDetailsMap">
-        <include refid="baseSelectSql"/>
+        SELECT 
+            p.id,
+            p.title,
+            p.content,
+            p.summary,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.created_at,
+            p.updated_at,
+            p.created_by,
+            p.updated_by,
+            p.deleted_at,
+            c.id as cat_id,
+            c.name as cat_name,
+            c.description as cat_description,
+            u.id as author_user_id,
+            u.username as author_username,
+            u.email as author_email,
+            u.avatar_url as author_avatar_url,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        WHERE p.deleted_at IS NULL
         AND p.status = 'published'
         <if test="categoryId != null">
             AND p.category_id = #{categoryId}

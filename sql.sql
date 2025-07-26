@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS posts (
   summary VARCHAR(500) DEFAULT NULL COMMENT '摘要',
   category_id BIGINT NOT NULL COMMENT '分类ID',
   author_id BIGINT NOT NULL COMMENT '作者ID',
+  status TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '文章状态(0草稿,1已发布)',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS posts (
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_category_id (category_id),
   INDEX idx_author_id (author_id),
+  INDEX idx_status (status),
   FOREIGN KEY (category_id) REFERENCES categories(id),
   FOREIGN KEY (author_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章表';

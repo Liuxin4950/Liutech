@@ -56,7 +56,7 @@ public class CategoriesController {
         Categories category = categoriesService.getById(id);
         if (category == null) {
             log.warn("分类不存在 - ID: {}", id);
-            return Result.fail(ErrorCode.NOT_FOUND, "分类不存在");
+            return Result.fail(ErrorCode.CATEGORY_NOT_FOUND);
         }
         
         log.info("查询分类详情成功 - 名称: {}", category.getName());

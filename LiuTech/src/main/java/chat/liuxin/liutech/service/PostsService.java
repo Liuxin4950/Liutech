@@ -15,8 +15,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.mapper.PostTagsMapper;
+import chat.liuxin.liutech.mapper.TagsMapper;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.PostTags;
+import chat.liuxin.liutech.model.Tags;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
@@ -40,6 +42,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     
     @Autowired
     private PostTagsMapper postTagsMapper;
+    
+    @Autowired
+    private TagsMapper tagsMapper;
 
     /**
      * 分页查询文章列表
@@ -55,6 +60,16 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         
         // 执行分页查询
         IPage<Posts> result = postsMapper.selectPostsWithDetails(page, req.getCategoryId(), req.getTagId(), keyword);
+        
+        // 为每篇文章查询标签信息
+        List<Posts> posts = result.getRecords();
+        if (!posts.isEmpty()) {
+            // 为每篇文章查询标签信息
+            for (Posts post : posts) {
+                List<Tags> tags = tagsMapper.selectTagsByPostId(post.getId());
+                post.setTags(tags);
+            }
+        }
         
         // 转换为响应对象
         List<PostListResl> postList = result.getRecords().stream()
