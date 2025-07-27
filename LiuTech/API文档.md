@@ -735,15 +735,13 @@ Content-Type: application/json
 ```json
 {
   "code": 200,
-  "message": "文章创建成功",
-  "data": {
-    "id": 1,
-    "title": "文章标题",
-    "status": "published",
-    "createdAt": "2024-01-15T10:30:00"
-  }
+  "message": "操作成功",
+  "data": 7
 }
 ```
+
+**响应说明：**
+- `data` 字段直接返回创建成功的文章ID（Long类型）
 
 ---
 
@@ -785,10 +783,13 @@ Content-Type: application/json
 ```json
 {
   "code": 200,
-  "message": "文章更新成功",
-  "data": null
+  "message": "操作成功",
+  "data": true
 }
 ```
+
+**响应说明：**
+- `data` 字段返回布尔值，true表示更新成功
 
 ---
 
@@ -816,10 +817,13 @@ Authorization: Bearer {token}
 ```json
 {
   "code": 200,
-  "message": "文章删除成功",
-  "data": null
+  "message": "操作成功",
+  "data": true
 }
 ```
+
+**响应说明：**
+- `data` 字段返回布尔值，true表示删除成功
 
 ---
 
@@ -847,10 +851,13 @@ Authorization: Bearer {token}
 ```json
 {
   "code": 200,
-  "message": "文章发布成功",
-  "data": null
+  "message": "操作成功",
+  "data": true
 }
 ```
+
+**响应说明：**
+- `data` 字段返回布尔值，true表示发布成功
 
 ---
 
@@ -878,10 +885,13 @@ Authorization: Bearer {token}
 ```json
 {
   "code": 200,
-  "message": "文章取消发布成功",
-  "data": null
+  "message": "操作成功",
+  "data": true
 }
 ```
+
+**响应说明：**
+- `data` 字段返回布尔值，true表示取消发布成功
 
 ---
 
