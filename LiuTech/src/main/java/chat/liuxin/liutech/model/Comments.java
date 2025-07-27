@@ -1,6 +1,5 @@
 package chat.liuxin.liutech.model;
 
-import java.util.Date;
 import java.util.List;
 
 import com.baomidou.mybatisplus.annotation.TableField;

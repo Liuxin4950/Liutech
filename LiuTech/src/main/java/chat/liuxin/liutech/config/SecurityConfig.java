@@ -45,25 +45,21 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             // 设置会话管理为无状态（JWT不需要session）
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // 配置请求授权
+            // 配置请求授权 - 优化版本：白名单模式，只配置公开接口
             .authorizeHttpRequests(authz -> authz
-                // 允许访问根路径
+                // ========== 完全公开的接口（无需任何认证） ==========
                 .requestMatchers("/").permitAll()
-                // 允许访问用户注册和登录接口
                 .requestMatchers("/user/register", "/user/login").permitAll()
-                // 允许访问文章查询相关的公开接口（GET请求）
-                .requestMatchers("GET", "/posts", "/posts/*/", "/posts/hot", "/posts/latest", "/posts/search").permitAll()
-                .requestMatchers("GET", "/posts/{id}").permitAll()
-                // 文章的创建、更新、删除操作需要认证
-                .requestMatchers("POST", "/posts").authenticated()
-                .requestMatchers("PUT", "/posts").authenticated()
-                .requestMatchers("PUT", "/posts/{id}/publish").authenticated()
-                .requestMatchers("PUT", "/posts/{id}/unpublish").authenticated()
-                .requestMatchers("DELETE", "/posts/{id}").authenticated()
-                // 允许访问分类和标签接口
-                .requestMatchers("/categories", "/categories/**").permitAll()
-                .requestMatchers("/tags", "/tags/**").permitAll()
-                // 其他请求需要认证
+                
+                // ========== 只读公开接口（GET请求） ==========
+                .requestMatchers("GET", "/posts/**").permitAll()  // 所有文章查询接口
+                .requestMatchers("GET", "/categories/**").permitAll()  // 所有分类接口
+                .requestMatchers("GET", "/tags/**").permitAll()  // 所有标签接口
+                .requestMatchers("GET", "/user/{id}").permitAll()  // 用户信息查询
+                
+                // ========== 其他所有请求都需要认证 ==========
+                // 包括：POST、PUT、DELETE等写操作
+                // 这样就不用一个个配置了，默认保护所有写操作
                 .anyRequest().authenticated()
             )
             // 添加JWT认证过滤器

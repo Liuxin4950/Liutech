@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -335,14 +336,14 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
         
-        // 更新状态
-        Posts post = new Posts();
-        post.setId(id);
-        post.setStatus(status);
-        post.setUpdatedAt(new Date());
-        post.setUpdatedBy(authorId);
+        // 使用 LambdaUpdateWrapper 只更新指定字段
+        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Posts::getId, id)
+                    .set(Posts::getStatus, status)
+                    .set(Posts::getUpdatedAt, new Date())
+                    .set(Posts::getUpdatedBy, authorId);
         
-        return this.updateById(post);
+        return this.update(updateWrapper);
     }
 
     /**
