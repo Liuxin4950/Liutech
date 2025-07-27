@@ -3,6 +3,9 @@ package chat.liuxin.liutech.controller.web;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +28,9 @@ import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.resl.PostDetailResl;
 import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.service.PostsService;
+import chat.liuxin.liutech.service.UserService;
+import chat.liuxin.liutech.utils.JwtUtil;
+import chat.liuxin.liutech.model.Users;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -40,6 +46,12 @@ public class PostsController {
 
     @Autowired
     private PostsService postsService;
+    
+    @Autowired
+    private UserService userService;
+    
+    @Autowired
+    private JwtUtil jwtUtil;
 
     /**
      * 分页查询文章列表
@@ -293,27 +305,51 @@ public class PostsController {
 
     /**
      * 获取当前登录用户ID
-     * 这里需要根据实际的认证机制实现
+     * 从JWT token和SecurityContext中获取用户ID
      * 
      * @param request HTTP请求对象
-     * @return 用户ID
+     * @return 用户ID，如果未登录返回null
      */
     private Long getCurrentUserId(HttpServletRequest request) {
-        // TODO: 根据实际的认证机制获取用户ID
-        // 例如：从JWT token中解析用户ID
-        // 或者从Session中获取用户ID
-        // 这里暂时返回null，需要根据项目的认证方式实现
-        
-        // 示例：从请求头中获取用户ID（仅供参考）
-        String userIdHeader = request.getHeader("X-User-Id");
-        if (userIdHeader != null) {
-            try {
-                return Long.parseLong(userIdHeader);
-            } catch (NumberFormatException e) {
-                log.warn("无效的用户ID格式: {}", userIdHeader);
+        try {
+            // 方法1：从SecurityContext获取认证信息
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                String username = authentication.getName();
+                if (username != null && !"anonymousUser".equals(username)) {
+                    // 通过UserService根据用户名获取用户ID
+                    try {
+                        List<Users> users = userService.findByUserName(username);
+                        if (users != null && !users.isEmpty()) {
+                            Users user = users.get(0);
+                            log.debug("从SecurityContext获取用户ID成功: {}", user.getId());
+                            return user.getId();
+                        }
+                    } catch (Exception e) {
+                        log.warn("从SecurityContext获取用户信息失败: {}", e.getMessage());
+                    }
+                }
             }
+            
+            // 方法2：直接从JWT token中解析用户ID（备用方案）
+            String authHeader = request.getHeader("Authorization");
+            if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+                if (jwtUtil.validateToken(token)) {
+                    Long userId = jwtUtil.getUserIdFromToken(token);
+                    if (userId != null) {
+                        log.debug("从JWT token获取用户ID成功: {}", userId);
+                        return userId;
+                    }
+                }
+            }
+            
+            log.debug("无法获取当前用户ID，用户可能未登录");
+            return null;
+            
+        } catch (Exception e) {
+            log.error("获取当前用户ID时发生错误: {}", e.getMessage(), e);
+            return null;
         }
-        
-        return null;
     }
 }

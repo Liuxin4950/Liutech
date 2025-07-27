@@ -51,8 +51,15 @@ public class SecurityConfig {
                 .requestMatchers("/").permitAll()
                 // 允许访问用户注册和登录接口
                 .requestMatchers("/user/register", "/user/login").permitAll()
-                // 允许访问文章相关的公开接口
-                .requestMatchers("/posts", "/posts/**").permitAll()
+                // 允许访问文章查询相关的公开接口（GET请求）
+                .requestMatchers("GET", "/posts", "/posts/*/", "/posts/hot", "/posts/latest", "/posts/search").permitAll()
+                .requestMatchers("GET", "/posts/{id}").permitAll()
+                // 文章的创建、更新、删除操作需要认证
+                .requestMatchers("POST", "/posts").authenticated()
+                .requestMatchers("PUT", "/posts").authenticated()
+                .requestMatchers("PUT", "/posts/{id}/publish").authenticated()
+                .requestMatchers("PUT", "/posts/{id}/unpublish").authenticated()
+                .requestMatchers("DELETE", "/posts/{id}").authenticated()
                 // 允许访问分类和标签接口
                 .requestMatchers("/categories", "/categories/**").permitAll()
                 .requestMatchers("/tags", "/tags/**").permitAll()
