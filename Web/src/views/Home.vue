@@ -148,7 +148,7 @@ onMounted(() => {
 
 .hot-posts-section h2 {
   font-size: 1.8rem;
-  color: #2c3e50;
+  color: var(--text-color);
   margin-bottom: 24px;
   text-align: center;
 }
@@ -156,13 +156,14 @@ onMounted(() => {
 .loading, .error, .empty {
   text-align: center;
   padding: 40px;
-  color: #7f8c8d;
+  color: var(--text-color);
+  opacity: 0.7;
 }
 
 .retry-btn {
   margin-top: 12px;
   padding: 8px 16px;
-  background: #3498db;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 4px;
@@ -171,7 +172,7 @@ onMounted(() => {
 }
 
 .retry-btn:hover {
-  background: #2980b9;
+  background: var(--secondary-color);
 }
 
 .posts-grid {
@@ -182,13 +183,13 @@ onMounted(() => {
 }
 
 .post-card {
-  background: white;
+  background: var(--bg-color);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   cursor: pointer;
-  border: 1px solid #e1e8ed;
+  border: 1px solid var(--border-color);
 }
 
 .post-card:hover {
@@ -206,7 +207,7 @@ onMounted(() => {
 .post-title {
   font-size: 1.2rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-color);
   margin: 0;
   line-height: 1.4;
   flex: 1;
@@ -214,7 +215,7 @@ onMounted(() => {
 }
 
 .post-category {
-  background: #3498db;
+  background: var(--primary-color);
   color: white;
   padding: 4px 8px;
   border-radius: 12px;
@@ -224,7 +225,8 @@ onMounted(() => {
 }
 
 .post-summary {
-  color: #7f8c8d;
+  color: var(--text-color);
+  opacity: 0.7;
   line-height: 1.6;
   margin: 12px 0;
   display: -webkit-box;
@@ -255,14 +257,16 @@ onMounted(() => {
 }
 
 .author-name {
-  color: #5a6c7d;
+  color: var(--text-color);
+  opacity: 0.8;
   font-weight: 500;
 }
 
 .post-stats {
   display: flex;
   gap: 12px;
-  color: #95a5a6;
+  color: var(--text-color);
+  opacity: 0.6;
 }
 
 .post-tags {
@@ -273,8 +277,9 @@ onMounted(() => {
 }
 
 .tag {
-  background: #ecf0f1;
-  color: #5a6c7d;
+  background: var(--hover-color);
+  color: var(--text-color);
+  opacity: 0.8;
   padding: 2px 8px;
   border-radius: 8px;
   font-size: 0.75rem;

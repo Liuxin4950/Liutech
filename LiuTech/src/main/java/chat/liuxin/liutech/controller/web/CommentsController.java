@@ -3,8 +3,12 @@ package chat.liuxin.liutech.controller.web;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Comments;
+import chat.liuxin.liutech.req.CreateCommentReq;
 import chat.liuxin.liutech.resl.CommentResl;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.service.CommentsService;
@@ -138,5 +143,25 @@ public class CommentsController {
         
         log.info("查询评论详情成功 - ID: {}", id);
         return Result.success("查询成功", comment);
+    }
+
+    /**
+     * 创建评论
+     * 
+     * @param createCommentReq 创建评论请求
+     * @return 创建的评论
+     */
+    @PostMapping
+    public Result<CommentResl> createComment(@Valid @RequestBody CreateCommentReq createCommentReq) {
+        log.info("创建评论 - 请求: {}", createCommentReq);
+        
+        try {
+            CommentResl comment = commentsService.createComment(createCommentReq);
+            log.info("创建评论成功 - ID: {}", comment.getId());
+            return Result.success("创建成功", comment);
+        } catch (Exception e) {
+            log.error("创建评论失败", e);
+            return Result.fail(ErrorCode.SYSTEM_ERROR, "创建评论失败: " + e.getMessage());
+        }
     }
 }

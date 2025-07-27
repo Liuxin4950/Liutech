@@ -52,6 +52,11 @@
       <div class="post-actions">
         <button @click="goBack" class="back-btn">返回</button>
       </div>
+      
+      <!-- 评论模块 -->
+      <div class="comment-section-wrapper">
+        <CommentSection :post-id="Number(route.params.id)" />
+      </div>
     </div>
     <div v-else class="not-found">
       <p>文章不存在</p>
@@ -66,6 +71,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import CommentSection from '@/components/CommentSection.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -151,7 +157,7 @@ onMounted(() => {
 .retry-btn, .back-btn {
   margin-top: 12px;
   padding: 8px 16px;
-  background: #3498db;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 4px;
@@ -160,24 +166,24 @@ onMounted(() => {
 }
 
 .retry-btn:hover, .back-btn:hover {
-  background: #2980b9;
+  background: var(--secondary-color);
 }
 
 .post-content {
-  background: white;
+  background: var(--bg-color);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .post-header {
   padding: 30px;
-  border-bottom: 1px solid #e1e8ed;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .post-title {
   font-size: 2.2rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: var(--text-color);
   margin: 0 0 20px 0;
   line-height: 1.3;
 }
@@ -205,7 +211,8 @@ onMounted(() => {
 }
 
 .author-name {
-  color: #5a6c7d;
+  color: var(--text-color);
+  opacity: 0.8;
   font-weight: 500;
   font-size: 0.95rem;
 }
@@ -215,11 +222,12 @@ onMounted(() => {
   gap: 16px;
   align-items: center;
   font-size: 0.875rem;
-  color: #95a5a6;
+  color: var(--text-color);
+  opacity: 0.6;
 }
 
 .post-category {
-  background: #3498db;
+  background: var(--primary-color);
   color: white;
   padding: 4px 8px;
   border-radius: 12px;
@@ -234,8 +242,9 @@ onMounted(() => {
 }
 
 .tag {
-  background: #ecf0f1;
-  color: #5a6c7d;
+  background: var(--hover-color);
+  color: var(--text-color);
+  opacity: 0.8;
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 0.75rem;
@@ -244,14 +253,15 @@ onMounted(() => {
 
 .post-summary {
   padding: 20px 30px;
-  background: #f8f9fa;
-  border-left: 4px solid #3498db;
+  background: var(--hover-color);
+  border-left: 4px solid var(--primary-color);
   margin: 0;
 }
 
 .post-summary p {
   margin: 0;
-  color: #5a6c7d;
+  color: var(--text-color);
+  opacity: 0.8;
   font-style: italic;
   line-height: 1.6;
 }
@@ -262,7 +272,7 @@ onMounted(() => {
 
 .markdown-content {
   line-height: 1.8;
-  color: #2c3e50;
+  color: var(--text-color);
   font-size: 1rem;
 }
 
@@ -305,8 +315,13 @@ onMounted(() => {
 
 .post-actions {
   padding: 20px 30px;
-  border-top: 1px solid #e1e8ed;
+  border-top: 1px solid var(--border-color);
   text-align: center;
+}
+
+.comment-section-wrapper {
+  padding: 0 30px 30px 30px;
+  background: var(--bg-color);
 }
 
 /* 响应式设计 */
@@ -343,6 +358,10 @@ onMounted(() => {
   
   .post-actions {
     padding: 16px 20px;
+  }
+  
+  .comment-section-wrapper {
+    padding: 0 20px 20px 20px;
   }
 }
 </style>

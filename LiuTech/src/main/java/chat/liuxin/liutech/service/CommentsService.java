@@ -1,28 +1,39 @@
 package chat.liuxin.liutech.service;
 
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CommentsMapper;
 import chat.liuxin.liutech.model.Comments;
+import chat.liuxin.liutech.model.Users;
+import chat.liuxin.liutech.req.CreateCommentReq;
 import chat.liuxin.liutech.resl.CommentResl;
 import chat.liuxin.liutech.resl.PageResl;
-
+import lombok.extern.slf4j.Slf4j;
 /**
  * 评论服务类
  */
+@Slf4j
 @Service
 public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
     @Autowired
     private CommentsMapper commentsMapper;
+    
+    @Autowired
+    private UserService userService;
 
     /**
      * 分页查询文章评论
@@ -83,6 +94,78 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      */
     public List<Comments> getChildCommentsByParentId(Long parentId) {
         return commentsMapper.selectChildCommentsByParentId(parentId);
+    }
+    
+    /**
+     * 创建评论
+     * @param createCommentReq 创建评论请求
+     * @return 创建的评论
+     */
+    public CommentResl createComment(CreateCommentReq createCommentReq) {
+        log.info("开始创建评论，请求参数: {}", createCommentReq);
+        
+        // 获取当前登录用户
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        log.info("获取到的Authentication: {}", authentication);
+        
+        if (authentication == null) {
+            log.error("Authentication为null");
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        
+        if (!authentication.isAuthenticated()) {
+            log.error("用户未认证，isAuthenticated: {}", authentication.isAuthenticated());
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        
+        if ("anonymousUser".equals(authentication.getPrincipal())) {
+            log.error("用户为匿名用户，principal: {}", authentication.getPrincipal());
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        
+        String username = authentication.getName();
+        log.info("从Authentication中获取的用户名: {}", username);
+        
+        List<Users> users = userService.findByUserName(username);
+        log.info("根据用户名查询到的用户列表: {}", users);
+        
+        if (users == null || users.isEmpty()) {
+            log.error("根据用户名{}未找到用户", username);
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        Users currentUser = users.get(0);
+        log.info("获取到当前用户: {}", currentUser.getUsername());
+        
+        // 如果是回复评论，验证父评论是否存在
+        if (createCommentReq.getParentId() != null) {
+            Comments parentComment = this.getById(createCommentReq.getParentId());
+            if (parentComment == null) {
+                throw new BusinessException(ErrorCode.PARENT_COMMENT_NOT_FOUND);
+            }
+            // 确保父评论和当前评论属于同一篇文章
+            if (!parentComment.getPostId().equals(createCommentReq.getPostId())) {
+                throw new BusinessException(ErrorCode.PARENT_COMMENT_MISMATCH);
+            }
+        }
+        
+        // 创建评论对象
+        Comments comment = new Comments();
+        comment.setPostId(createCommentReq.getPostId());
+        comment.setContent(createCommentReq.getContent());
+        comment.setParentId(createCommentReq.getParentId());
+        comment.setUserId(currentUser.getId());
+        comment.setCreatedAt(new Date());
+        comment.setUpdatedAt(new Date());
+        
+        // 保存评论
+        boolean saved = this.save(comment);
+        if (!saved) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "评论创建失败");
+        }
+        
+        // 设置用户信息并转换为响应对象
+        comment.setUser(currentUser);
+        return convertToCommentResl(comment);
     }
 
     /**
