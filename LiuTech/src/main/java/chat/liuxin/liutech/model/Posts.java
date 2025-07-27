@@ -1,25 +1,21 @@
 package chat.liuxin.liutech.model;
 
-import java.util.Date;
 import java.util.List;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 文章表
  * @TableName posts
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("posts")
-public class Posts {
-    /**
-     * 文章ID
-     */
-    private Long id;
-
+public class Posts extends BaseEntity {
     /**
      * 文章标题
      */
@@ -49,31 +45,6 @@ public class Posts {
      * 文章状态（draft: 草稿, published: 已发布, archived: 已归档）
      */
     private String status;
-
-    /**
-     * 创建时间
-     */
-    private Date createdAt;
-
-    /**
-     * 更新时间
-     */
-    private Date updatedAt;
-
-    /**
-     * 创建人ID
-     */
-    private Long createdBy;
-
-    /**
-     * 更新人ID
-     */
-    private Long updatedBy;
-
-    /**
-     * 软删除时间
-     */
-    private Date deletedAt;
 
     // 关联查询字段
     /**

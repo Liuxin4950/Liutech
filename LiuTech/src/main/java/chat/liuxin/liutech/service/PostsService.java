@@ -290,13 +290,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         }
         
         // 软删除文章
-        Posts post = new Posts();
-        post.setId(id);
-        post.setDeletedAt(new Date());
-        post.setUpdatedAt(new Date());
-        post.setUpdatedBy(authorId);
-        
-        return this.updateById(post);
+        int result = postsMapper.deleteById(id, new Date(), authorId);
+        return result > 0;
     }
 
     /**

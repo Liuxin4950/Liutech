@@ -7,19 +7,16 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 评论表
  * @TableName comments
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("comments")
-public class Comments {
-    /**
-     * 评论ID
-     */
-    private Long id;
-
+public class Comments extends BaseEntity {
     /**
      * 文章ID
      */
@@ -36,24 +33,9 @@ public class Comments {
     private String content;
 
     /**
-     * 父评论ID
+     * 父评论ID（用于回复功能）
      */
     private Long parentId;
-
-    /**
-     * 评论时间
-     */
-    private Date createdAt;
-
-    /**
-     * 更新时间
-     */
-    private Date updatedAt;
-
-    /**
-     * 软删除时间
-     */
-    private Date deletedAt;
 
     // 关联查询字段
     /**

@@ -6,19 +6,16 @@ import java.util.Date;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 用户表
  * @TableName users
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("users")
-public class Users {
-    /**
-     * 用户ID
-     */
-    private Long id;
-
+public class Users extends BaseEntity {
     /**
      * 用户名
      */
@@ -53,30 +50,5 @@ public class Users {
      * 最近登录时间
      */
     private Date lastLoginAt;
-
-    /**
-     * 创建时间
-     */
-    private Date createdAt;
-
-    /**
-     * 更新时间
-     */
-    private Date updatedAt;
-
-    /**
-     * 创建人ID
-     */
-    private Long createdBy;
-
-    /**
-     * 更新人ID
-     */
-    private Long updatedBy;
-
-    /**
-     * 删除时间（软删除）
-     */
-    private Date deletedAt;
 
 }

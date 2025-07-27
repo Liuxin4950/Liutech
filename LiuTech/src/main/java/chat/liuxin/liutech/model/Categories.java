@@ -4,19 +4,16 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 文章分类表
  * @TableName categories
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("categories")
-public class Categories {
-    /**
-     * 分类ID
-     */
-    private Long id;
-
+public class Categories extends IdEntity {
     /**
      * 分类名
      */

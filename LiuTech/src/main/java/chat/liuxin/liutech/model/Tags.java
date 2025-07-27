@@ -4,19 +4,16 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 标签表
  * @TableName tags
  */
 @Data
+@EqualsAndHashCode(callSuper = true)
 @TableName("tags")
-public class Tags {
-    /**
-     * 标签ID
-     */
-    private Long id;
-
+public class Tags extends IdEntity {
     /**
      * 标签名
      */
