@@ -37,22 +37,32 @@ export function useErrorHandler() {
   /**
    * 处理异步操作的错误
    * @param asyncFn 异步函数
-   * @param silent 是否静默处理（不显示弹窗），默认false
+   * @param options 配置选项
    */
   const handleAsync = async <T>(
     asyncFn: () => Promise<T>,
-    silent: boolean = false
+    options?: {
+      silent?: boolean
+      onError?: (error: any) => void
+      onFinally?: () => void
+    }
   ): Promise<T | null> => {
     try {
       clearError()
       const result = await asyncFn()
       return result
     } catch (err: any) {
-      if (!silent) {
+      if (options?.onError) {
+        options.onError(err)
+      } else if (!options?.silent) {
         handleApiError(err)
       }
       setError(err?.response?.data?.message || err?.message || '操作失败')
       return null
+    } finally {
+      if (options?.onFinally) {
+        options.onFinally()
+      }
     }
   }
 

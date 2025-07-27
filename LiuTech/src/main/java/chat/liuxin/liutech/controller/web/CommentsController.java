@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Comments;
+import chat.liuxin.liutech.resl.CommentResl;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.service.CommentsService;
 import lombok.extern.slf4j.Slf4j;
@@ -39,14 +40,14 @@ public class CommentsController {
      * @return 分页评论列表
      */
     @GetMapping("/post/{postId}")
-    public Result<PageResl<Comments>> getCommentsByPostId(
+    public Result<PageResl<CommentResl>> getCommentsByPostId(
             @PathVariable Long postId,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {
         
         log.info("查询文章评论 - 文章ID: {}, 页码: {}, 大小: {}", postId, page, size);
         
-        PageResl<Comments> result = commentsService.getCommentsByPostId(postId, page, size);
+        PageResl<CommentResl> result = commentsService.getCommentsByPostId(postId, page, size);
         log.info("查询文章评论成功 - 文章ID: {}, 总数: {}", postId, result.getTotal());
         
         return Result.success("查询成功", result);
@@ -60,10 +61,10 @@ public class CommentsController {
      * @return 树形评论列表
      */
     @GetMapping("/post/{postId}/tree")
-    public Result<List<Comments>> getTreeCommentsByPostId(@PathVariable Long postId) {
+    public Result<List<CommentResl>> getTreeCommentsByPostId(@PathVariable Long postId) {
         log.info("查询文章树形评论 - 文章ID: {}", postId);
         
-        List<Comments> comments = commentsService.getTopLevelCommentsByPostId(postId);
+        List<CommentResl> comments = commentsService.getTopLevelCommentsByPostId(postId);
         log.info("查询文章树形评论成功 - 文章ID: {}, 顶级评论数: {}", postId, comments.size());
         
         return Result.success("查询成功", comments);

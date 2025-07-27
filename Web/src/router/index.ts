@@ -17,6 +17,14 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '首页'
         }
+      },
+      {
+        path: 'post/:id',
+        name: 'post-detail',
+        component: () => import('../views/PostDetail.vue'),
+        meta: {
+          title: '文章详情'
+        }
       }
     ]
   },
