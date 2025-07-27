@@ -769,6 +769,7 @@ Content-Type: application/json
 
 ```json
 {
+  "id": 8,
   "title": "更新后的文章标题",
   "content": "更新后的文章内容",
   "summary": "更新后的文章摘要",

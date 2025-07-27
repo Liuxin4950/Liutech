@@ -207,12 +207,13 @@ public class PostsController {
      * 更新文章
      * 只有文章作者可以更新自己的文章
      * 
+     * @param id 文章ID
      * @param req 更新请求
      * @param request HTTP请求对象
      * @return 更新结果
      */
-    @PutMapping
-    public Result<Boolean> updatePost(@Valid @RequestBody PostUpdateReq req, HttpServletRequest request) {
+    @PutMapping("/{id}")
+    public Result<Boolean> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req, HttpServletRequest request) {
         try {
             // 获取当前用户ID
             Long authorId = getCurrentUserId(request);
@@ -220,6 +221,8 @@ public class PostsController {
                 return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
             }
             
+            // 将文章ID设置到请求对象中
+            req.setId(id);
             boolean success = postsService.updatePost(req, authorId);
             return Result.success(success);
         } catch (Exception e) {
