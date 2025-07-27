@@ -22,8 +22,6 @@ export function initGlobalErrorHandler() {
     event.preventDefault()
   })
 
-  // Vue错误处理（如果需要的话）
-  // 这个需要在Vue应用创建时设置
   console.log('✅ 全局错误处理已初始化')
 }
 

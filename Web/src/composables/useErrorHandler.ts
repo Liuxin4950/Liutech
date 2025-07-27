@@ -3,11 +3,18 @@
  * 在Vue组件中使用的错误处理逻辑
  */
 import { ref } from 'vue'
-import { errorHandler, type ErrorInfo } from '../utils/errorHandler'
+import { 
+  handleApiError, 
+  handleValidationError, 
+  showError, 
+  showSuccess, 
+  showWarning, 
+  showConfirm 
+} from '../utils/errorHandler'
 
 export function useErrorHandler() {
   // 错误状态
-  const error = ref<ErrorInfo | null>(null)
+  const error = ref<string | null>(null)
   const isError = ref(false)
 
   /**
@@ -20,31 +27,31 @@ export function useErrorHandler() {
 
   /**
    * 设置错误状态
-   * @param errorInfo 错误信息
+   * @param message 错误信息
    */
-  const setError = (errorInfo: ErrorInfo) => {
-    error.value = errorInfo
+  const setError = (message: string) => {
+    error.value = message
     isError.value = true
   }
 
   /**
    * 处理异步操作的错误
    * @param asyncFn 异步函数
-   * @param showError 是否显示错误提示，默认true
+   * @param silent 是否静默处理（不显示弹窗），默认false
    */
   const handleAsync = async <T>(
     asyncFn: () => Promise<T>,
-    showError: boolean = true
+    silent: boolean = false
   ): Promise<T | null> => {
     try {
       clearError()
       const result = await asyncFn()
       return result
     } catch (err: any) {
-      const errorInfo = errorHandler.handleApiError(err)
-      if (showError) {
-        setError(errorInfo)
+      if (!silent) {
+        handleApiError(err)
       }
+      setError(err?.response?.data?.message || err?.message || '操作失败')
       return null
     }
   }
@@ -63,45 +70,33 @@ export function useErrorHandler() {
     } catch (err: any) {
       // 特殊处理表单验证错误
       if (err.response?.status === 422 && err.response?.data?.errors) {
-        const errorInfo = errorHandler.handleValidationErrors(err.response.data.errors)
-        setError(errorInfo)
+        handleValidationError(err.response.data.errors)
+        setError('表单验证失败')
       } else {
-        const errorInfo = errorHandler.handleApiError(err)
-        setError(errorInfo)
+        handleApiError(err)
+        setError(err?.response?.data?.message || err?.message || '提交失败')
       }
       return null
     }
   }
 
   /**
-   * 处理业务逻辑错误
+   * 显示业务错误
    * @param message 错误消息
-   * @param code 错误代码
+   * @param title 错误标题
    */
-  const showBusinessError = (message: string, code?: string | number) => {
-    const errorInfo = errorHandler.handleBusinessError(message, code)
-    setError(errorInfo)
+  const showBusinessError = (message: string, title?: string) => {
+    showError(message, title)
+    setError(message)
   }
 
   /**
-   * 显示成功消息
-   * @param message 成功消息
+   * 显示确认对话框
+   * @param message 确认消息
+   * @param title 确认标题
    */
-  const showSuccess = (message: string) => {
-    // 这里可以集成成功提示组件
-    console.log(`✅ ${message}`)
-    alert(`操作成功：${message}`)
-    clearError()
-  }
-
-  /**
-   * 显示警告消息
-   * @param message 警告消息
-   */
-  const showWarning = (message: string) => {
-    // 这里可以集成警告提示组件
-    console.warn(`⚠️ ${message}`)
-    alert(`警告：${message}`)
+  const confirm = (message: string, title?: string) => {
+    return showConfirm(message, title)
   }
 
   return {
@@ -116,6 +111,8 @@ export function useErrorHandler() {
     handleFormSubmit,
     showBusinessError,
     showSuccess,
-    showWarning
+    showWarning,
+    showError,
+    confirm
   }
 }

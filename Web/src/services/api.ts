@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import router from '../router'
-import { errorHandler } from '../utils/errorHandler'
+import { handleApiError } from '../utils/errorHandler'
 
 // API 响应接口
 export interface ApiResponse<T = any> {
@@ -59,7 +59,7 @@ instance.interceptors.response.use(
     console.error('API 请求失败', error)
     
     // 使用统一错误处理器
-    errorHandler.handleApiError(error)
+    handleApiError(error)
     
     // 特殊处理401错误，需要跳转登录页
     if (error.response?.status === 401) {
