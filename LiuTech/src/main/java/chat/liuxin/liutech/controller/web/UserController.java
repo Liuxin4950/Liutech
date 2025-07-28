@@ -5,6 +5,7 @@ import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.LoginReq;
 import chat.liuxin.liutech.req.RegisterReq;
 import chat.liuxin.liutech.req.ChangePasswordReq;
+import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.resl.LoginResl;
 import chat.liuxin.liutech.service.UserService;
@@ -85,6 +86,21 @@ public class UserController {
         userService.changePasswordWithAuth(changePasswordReq);
         log.info("密码修改成功");
         return Result.success("密码修改成功");
+    }
+    
+    /**
+     * 更新个人资料接口
+     * 用户更新自己的个人信息
+     * 
+     * @param updateProfileReq 更新资料请求参数
+     * @return 更新后的用户信息
+     */
+    @PutMapping("/profile")
+    public Result<UserResl> updateProfile(@Valid @RequestBody UpdateProfileReq updateProfileReq) {
+        log.info("收到更新个人资料请求");
+        UserResl userResl = userService.updateProfile(updateProfileReq);
+        log.info("个人资料更新成功");
+        return Result.success("个人资料更新成功", userResl);
     }
     
     /**

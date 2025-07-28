@@ -49,6 +49,22 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '我的文章'
         }
+      },
+      {
+        path: 'posts',
+        name: 'posts',
+        component: () => import('../views/Posts.vue'),
+        meta: {
+          title: '全部文章'
+        }
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('../views/Profile.vue'),
+        meta: {
+          title: '个人资料'
+        }
       }
     ]
   },

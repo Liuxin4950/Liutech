@@ -6,6 +6,7 @@ import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.LoginReq;
 import chat.liuxin.liutech.req.RegisterReq;
+import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.resl.LoginResl;
 import chat.liuxin.liutech.utils.JwtUtil;
@@ -413,5 +414,87 @@ public class UserService {
             log.error("密码更新失败，用户ID: {}, 错误: {}", userId, e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "密码更新失败");
         }
+    }
+    
+    /**
+     * 更新用户个人资料
+     * 从Spring Security上下文中获取认证用户信息并更新个人资料
+     * 
+     * @param updateProfileReq 更新资料请求参数
+     * @return 更新后的用户信息（脱敏后）
+     * @throws BusinessException 当验证失败或更新失败时抛出异常
+     */
+    public UserResl updateProfile(UpdateProfileReq updateProfileReq) {
+        log.info("开始更新用户个人资料");
+        
+        // 1. 从Security上下文获取认证信息
+        org.springframework.security.core.Authentication authentication = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("用户未认证");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
+        }
+        
+        // 2. 获取用户名
+        String username = authentication.getName();
+        if (username == null) {
+            log.warn("无法获取用户名");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "认证信息无效");
+        }
+        
+        // 3. 根据用户名查询用户信息
+        List<Users> users = findByUserName(username);
+        if (users == null || users.isEmpty()) {
+            log.warn("用户不存在，用户名: {}", username);
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+        }
+        
+        Users user = users.get(0);
+        
+        // 4. 检查邮箱是否已被其他用户使用（如果要更新邮箱）
+        if (StringUtils.hasText(updateProfileReq.getEmail()) && 
+            !updateProfileReq.getEmail().equals(user.getEmail())) {
+            List<Users> existingEmailUsers = findByEmail(updateProfileReq.getEmail());
+            if (existingEmailUsers != null && !existingEmailUsers.isEmpty()) {
+                // 检查是否是其他用户使用了这个邮箱
+                boolean emailUsedByOther = existingEmailUsers.stream()
+                    .anyMatch(u -> !u.getId().equals(user.getId()));
+                if (emailUsedByOther) {
+                    log.warn("邮箱已被其他用户使用: {}", updateProfileReq.getEmail());
+                    throw new BusinessException(ErrorCode.EMAIL_EXISTS, "邮箱已被其他用户使用");
+                }
+            }
+        }
+        
+        // 5. 更新用户信息
+        if (StringUtils.hasText(updateProfileReq.getEmail())) {
+            user.setEmail(updateProfileReq.getEmail());
+        }
+        if (StringUtils.hasText(updateProfileReq.getAvatarUrl())) {
+            user.setAvatarUrl(updateProfileReq.getAvatarUrl());
+        }
+        if (StringUtils.hasText(updateProfileReq.getNickname())) {
+            user.setNickname(updateProfileReq.getNickname());
+        }
+        if (StringUtils.hasText(updateProfileReq.getBio())) {
+            user.setBio(updateProfileReq.getBio());
+        }
+        
+        user.setUpdatedAt(new Date());
+        
+        // 6. 保存到数据库
+        try {
+            updateUser(user);
+            log.info("用户 {} 个人资料更新成功", username);
+        } catch (Exception e) {
+            log.error("个人资料更新失败，用户: {}, 错误: {}", username, e.getMessage(), e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "个人资料更新失败");
+        }
+        
+        // 7. 转换为响应对象（不包含敏感信息）
+        UserResl userResl = new UserResl();
+        BeanUtils.copyProperties(user, userResl);
+        
+        return userResl;
     }
 }

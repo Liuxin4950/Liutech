@@ -31,4 +31,14 @@ public class UserResl {
      * 最近登录时间
      */
     private Date lastLoginAt;
+
+    /**
+     * 用户昵称
+     */
+    private String nickname;
+
+    /**
+     * 个人简介
+     */
+    private String bio;
 }

@@ -22,12 +22,22 @@ export interface ChangePasswordRequest {
   confirmPassword: string
 }
 
+// 更新个人资料请求参数接口
+export interface UpdateProfileRequest {
+  email?: string
+  avatarUrl?: string
+  nickname?: string
+  bio?: string
+}
+
 // 用户信息接口
 export interface UserInfo {
   id?: number
   username: string
   email: string
   avatarUrl?: string
+  nickname?: string
+  bio?: string
   points: number
   status?: number
   lastLoginAt?: string
@@ -109,6 +119,21 @@ export class UserService {
   }
 
   /**
+   * 更新个人资料
+   * @param data 更新资料数据
+   * @returns Promise<UserInfo>
+   */
+  static async updateProfile(data: UpdateProfileRequest): Promise<UserInfo> {
+    try {
+      const response = await put<UserInfo>('/user/profile', data)
+      return response.data
+    } catch (error) {
+      console.error('更新个人资料失败', error)
+      throw error
+    }
+  }
+
+  /**
    * 用户登出
    */
   static logout(): void {
@@ -140,6 +165,7 @@ export const {
   register,
   getCurrentUser,
   changePassword,
+  updateProfile,
   logout,
   isLoggedIn,
   getToken

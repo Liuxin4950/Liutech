@@ -51,4 +51,14 @@ public class Users extends BaseEntity {
      */
     private Date lastLoginAt;
 
+    /**
+     * 用户昵称
+     */
+    private String nickname;
+
+    /**
+     * 个人简介
+     */
+    private String bio;
+
 }

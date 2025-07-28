@@ -245,6 +245,15 @@ export class PostService {
       throw error
     }
   }
+
+  /**
+   * 获取文章列表（别名方法）
+   * @param params 查询参数
+   * @returns 分页文章列表
+   */
+  static async getPosts(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
+    return this.getPostList(params)
+  }
 }
 
 export default PostService
