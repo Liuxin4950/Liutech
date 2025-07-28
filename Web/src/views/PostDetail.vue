@@ -119,6 +119,15 @@ const loadPostDetail = async () => {
     
     const postData = await PostService.getPostDetail(postId)
     post.value = postData
+    
+    // 动态更新路由meta信息，用于面包屑导航
+    if (postData && route.meta) {
+      route.meta.title = postData.title
+      if (postData.category) {
+        route.meta.category = postData.category.name
+        route.meta.categoryId = postData.category.id
+      }
+    }
   }, {
     onError: (err) => {
       error.value = '加载文章详情失败，请稍后重试'
@@ -155,7 +164,7 @@ onMounted(() => {
 
 <style scoped>
 .post-detail {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
 }

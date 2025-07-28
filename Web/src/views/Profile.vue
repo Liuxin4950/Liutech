@@ -471,7 +471,7 @@ onMounted(async () => {
 <style scoped>
 .profile-page {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--bg-color);
 }
 
 /* 容器 */
@@ -723,11 +723,12 @@ onMounted(async () => {
 .info-card,
 .activity-card,
 .achievements-card {
-  background: white;
+  background: var(--bg-color);
   border-radius: 16px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   transition: all 0.3s ease;
+  border: 1px solid var(--border-color);
 }
 
 .stats-card:hover,
@@ -740,15 +741,15 @@ onMounted(async () => {
 
 .card-header {
   padding: 20px 25px;
-  border-bottom: 1px solid #f1f5f9;
-  background: #fafbfc;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--hover-color);
 }
 
 .card-header h3 {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-color);
 }
 
 /* 统计网格 */
@@ -806,13 +807,14 @@ onMounted(async () => {
   display: block;
   font-size: 1.8rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-color);
   margin-bottom: 4px;
 }
 
 .stat-label {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--text-color);
+  opacity: 0.7;
   font-weight: 500;
 }
 
@@ -826,7 +828,7 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 15px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .info-item:last-child {
@@ -835,11 +837,12 @@ onMounted(async () => {
 
 .info-label {
   font-weight: 600;
-  color: #475569;
+  color: var(--text-color);
 }
 
 .info-value {
-  color: #64748b;
+  color: var(--text-color);
+  opacity: 0.7;
   font-weight: 500;
 }
 
@@ -867,7 +870,7 @@ onMounted(async () => {
   top: 30px;
   bottom: -20px;
   width: 2px;
-  background: #e2e8f0;
+  background: var(--border-color);
 }
 
 .timeline-dot {
@@ -889,13 +892,14 @@ onMounted(async () => {
 
 .timeline-title {
   font-weight: 600;
-  color: #334155;
+  color: var(--text-color);
   margin-bottom: 4px;
 }
 
 .timeline-time {
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--text-color);
+  opacity: 0.7;
 }
 
 /* 成就徽章 */
@@ -910,7 +914,7 @@ onMounted(async () => {
   text-align: center;
   padding: 20px;
   border-radius: 12px;
-  border: 2px solid #e2e8f0;
+  border: 2px solid var(--border-color);
   transition: all 0.3s ease;
   opacity: 0.6;
 }
@@ -933,13 +937,14 @@ onMounted(async () => {
 
 .achievement-name {
   font-weight: 600;
-  color: #334155;
+  color: var(--text-color);
   margin-bottom: 5px;
 }
 
 .achievement-desc {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-color);
+  opacity: 0.7;
 }
 
 /* 响应式设计 */
@@ -987,7 +992,7 @@ onMounted(async () => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-color);
   border-radius: 16px;
   width: 90%;
   max-width: 500px;
@@ -995,6 +1000,7 @@ onMounted(async () => {
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.3s ease-out;
+  border: 1px solid var(--border-color);
 }
 
 @keyframes modalSlideIn {

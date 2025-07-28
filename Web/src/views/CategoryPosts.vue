@@ -138,6 +138,12 @@ const loadCategory = async () => {
   await handleAsync(async () => {
     const categoryData = await categoryStore.fetchCategoryById(categoryId.value)
     category.value = categoryData
+    
+    // 动态更新路由meta信息，用于面包屑导航
+    if (categoryData && route.meta) {
+      route.meta.categoryName = categoryData.name
+      route.meta.title = `${categoryData.name} - 分类文章`
+    }
   }, {
     onError: (err) => {
       console.error('加载分类信息失败:', err)

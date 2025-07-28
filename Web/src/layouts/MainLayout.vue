@@ -2,6 +2,7 @@
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
 import Banner from '@/components/Banner.vue'
+import Breadcrumb from '@/components/Breadcrumb.vue'
 </script>
 
 <template>
@@ -9,6 +10,7 @@ import Banner from '@/components/Banner.vue'
     <TheHeader />
     <main class="main-content">
       <Banner class="banner" />
+      <Breadcrumb />
       <router-view />
     </main>
     <TheFooter />

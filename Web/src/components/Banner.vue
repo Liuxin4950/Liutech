@@ -7,10 +7,10 @@
                         d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
                 </defs>
                 <g class="parallax">
-                    <use xlink:href="#gentle-wave" x="48" y="0" fill="rgba(255,255,255,0.7)" />
-                    <use xlink:href="#gentle-wave" x="48" y="3" fill="rgba(255,255,255,0.5)" />
-                    <use xlink:href="#gentle-wave" x="48" y="5" fill="rgba(255,255,255,0.3)" />
-                    <use xlink:href="#gentle-wave" x="48" y="7" fill="#fff" />
+                    <use xlink:href="#gentle-wave" x="48" y="0" class="wave-1" />
+                    <use xlink:href="#gentle-wave" x="48" y="3" class="wave-2" />
+                    <use xlink:href="#gentle-wave" x="48" y="5" class="wave-3" />
+                    <use xlink:href="#gentle-wave" x="48" y="7" class="wave-4" />
                 </g>
             </svg>
         </div>
@@ -37,6 +37,27 @@
     min-height: 100px;
     max-height: 150px;
     z-index: 10;
+}
+
+/* 波浪颜色适配主题 */
+.wave-1 {
+    fill: var(--bg-color);
+    opacity: 0.7;
+}
+
+.wave-2 {
+    fill: var(--bg-color);
+    opacity: 0.5;
+}
+
+.wave-3 {
+    fill: var(--bg-color);
+    opacity: 0.3;
+}
+
+.wave-4 {
+    fill: var(--bg-color);
+    opacity: 1;
 }
 
 .parallax>use {
