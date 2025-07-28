@@ -1,0 +1,71 @@
+<template>
+  <div class="card">
+    <h4 class="card-title">📖 推荐阅读</h4>
+    <div v-if="loading" class="loading-text">加载中...</div>
+    <div v-else-if="posts.length === 0" class="empty-text">暂无推荐</div>
+    <div v-else class="list gap-12">
+      <div 
+        v-for="post in posts" 
+        :key="post.id" 
+        class="post-item"
+        @click="handlePostClick(post.id)"
+      >
+        <h5 class="post-title">{{ post.title }}</h5>
+        <div class="post-meta">
+          <span class="post-author">{{ post.author?.username }}</span>
+          <span class="post-date">{{ formatDate(post.createdAt) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { defineProps, defineEmits } from 'vue'
+
+// 定义props
+interface Author {
+  username: string
+}
+
+interface Post {
+  id: number
+  title: string
+  author?: Author
+  createdAt: string
+}
+
+interface Props {
+  posts: Post[]
+  loading?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  loading: false
+})
+
+// 定义事件
+const emit = defineEmits<{
+  postClick: [postId: number]
+}>()
+
+// 处理文章点击
+const handlePostClick = (postId: number) => {
+  emit('postClick', postId)
+}
+
+// 格式化日期
+const formatDate = (dateString: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+</script>
+
+<style scoped>
+/* 使用全局样式，这里只定义组件特有的样式 */
+</style>
