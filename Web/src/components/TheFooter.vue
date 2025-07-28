@@ -8,7 +8,7 @@ const currentYear = new Date().getFullYear();
     <div class="container">
       <div class="footer-content">
         <div class="footer-logo">
-          <h2>MyBlog</h2>
+          <h2>LiuTech</h2>
           <p>记录学习与生活的点滴</p>
         </div>
         
@@ -32,7 +32,7 @@ const currentYear = new Date().getFullYear();
       </div>
       
       <div class="footer-bottom">
-        <p>&copy; {{ currentYear }} MyBlog. 保留所有权利。</p>
+        <p>&copy; {{ currentYear }} LiuTech. 保留所有权利。</p>
       </div>
     </div>
   </footer>

@@ -1,4 +1,4 @@
-import { get } from './api'
+import { get, post } from './api'
 
 // 文章分类信息接口
 export interface CategoryInfo {
@@ -54,6 +54,24 @@ export interface PostQueryParams {
   tagId?: number
   keyword?: string
   sortBy?: 'latest' | 'popular'
+}
+
+// 创建文章请求接口
+export interface CreatePostRequest {
+  title: string
+  content: string
+  summary?: string
+  categoryId: number
+  status: 'draft' | 'published'
+  tagIds?: number[]
+}
+
+// 创建文章响应接口
+export interface CreatePostResponse {
+  id: number
+  title: string
+  status: string
+  createdAt: string
 }
 
 /**
@@ -116,6 +134,21 @@ export class PostService {
       return response.data
     } catch (error) {
       console.error('获取最新文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 创建文章
+   * @param postData 文章数据
+   * @returns 创建结果
+   */
+  static async createPost(postData: CreatePostRequest): Promise<CreatePostResponse> {
+    try {
+      const response = await post('/posts', postData)
+      return response.data
+    } catch (error) {
+      console.error('创建文章失败:', error)
       throw error
     }
   }

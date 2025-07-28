@@ -24,6 +24,7 @@ import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
 import chat.liuxin.liutech.resl.PageResl;
+import chat.liuxin.liutech.resl.PostCreateResl;
 import chat.liuxin.liutech.resl.PostDetailResl;
 import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.common.ErrorCode;
@@ -207,10 +208,10 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 创建文章
      * @param req 创建请求
      * @param authorId 作者ID
-     * @return 文章ID
+     * @return 文章创建响应
      */
     @Transactional(rollbackFor = Exception.class)
-    public Long createPost(PostCreateReq req, Long authorId) {
+    public PostCreateResl createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
         BeanUtils.copyProperties(req, post);
@@ -232,7 +233,14 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             savePostTags(post.getId(), req.getTagIds());
         }
         
-        return post.getId();
+        // 构建响应对象
+        PostCreateResl response = new PostCreateResl();
+        response.setId(post.getId());
+        response.setTitle(post.getTitle());
+        response.setStatus(post.getStatus());
+        response.setCreatedAt(post.getCreatedAt());
+        
+        return response;
     }
 
     /**

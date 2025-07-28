@@ -82,15 +82,27 @@ const post = ref<PostDetail | null>(null)
 const loading = ref(false)
 const error = ref('')
 
-// 计算属性：渲染Markdown内容
+// 计算属性：渲染富文本内容
 const renderedContent = computed(() => {
   if (!post.value?.content) return ''
-  // 简单的Markdown渲染（这里可以后续集成专业的Markdown解析器）
-  return post.value.content
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
+  // TinyMCE生成的内容已经是HTML格式，直接返回
+  // 如果内容是纯文本，则进行简单的换行处理
+  const content = post.value.content
+  
+  // 检查是否包含HTML标签
+  const hasHtmlTags = /<[^>]*>/g.test(content)
+  
+  if (hasHtmlTags) {
+    // 已经是HTML格式，直接返回
+    return content
+  } else {
+    // 纯文本内容，进行简单的格式化
+    return content
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`(.*?)`/g, '<code>$1</code>')
+  }
 })
 
 // 加载文章详情
@@ -311,6 +323,98 @@ onMounted(() => {
 
 .markdown-content :deep(em) {
   font-style: italic;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 16px 0;
+  padding-left: 24px;
+}
+
+.markdown-content :deep(li) {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.markdown-content :deep(a) {
+  color: var(--primary-color);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.markdown-content :deep(a:hover) {
+  border-bottom-color: var(--primary-color);
+}
+
+.markdown-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.markdown-content :deep(blockquote) {
+  margin: 16px 0;
+  padding: 16px 20px;
+  background: var(--hover-color);
+  border-left: 4px solid var(--primary-color);
+  border-radius: 0 4px 4px 0;
+}
+
+.markdown-content :deep(blockquote p) {
+  margin: 0;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.markdown-content :deep(pre) {
+  background: #f8f9fa;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.markdown-content :deep(pre code) {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875rem;
+}
+
+.markdown-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.markdown-content :deep(th) {
+  background: var(--hover-color);
+  font-weight: 600;
+}
+
+.markdown-content :deep(tr:last-child td) {
+  border-bottom: none;
+}
+
+.markdown-content :deep(hr) {
+  border: none;
+  height: 1px;
+  background: var(--border-color);
+  margin: 24px 0;
 }
 
 .post-actions {

@@ -7,9 +7,12 @@
   --bg-color: #ffffff;
   --text-color: #333333;
   --primary-color: #409eff;
+  --primary-hover-color: #337ecc;
   --secondary-color: #79bbff;
   --border-color: #dcdfe6;
   --hover-color: #ecf5ff;
+  --tag-bg-color: #f0f0f0;
+  --tag-text-color: #666666;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -22,7 +25,10 @@
   --bg-color: #1a1a1a;
   --text-color: #ffffff;
   --primary-color: #66b1ff;
+  --primary-hover-color: #4d9fff;
   --secondary-color: #409eff;
   --border-color: #4c4d4f;
   --hover-color: #18222c;
+  --tag-bg-color: #2d2d2d;
+  --tag-text-color: #cccccc;
 }

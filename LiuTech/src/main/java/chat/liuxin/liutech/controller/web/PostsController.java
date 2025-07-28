@@ -25,6 +25,7 @@ import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
 import chat.liuxin.liutech.resl.PageResl;
+import chat.liuxin.liutech.resl.PostCreateResl;
 import chat.liuxin.liutech.resl.PostDetailResl;
 import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.service.PostsService;
@@ -183,10 +184,10 @@ public class PostsController {
      * 
      * @param req 创建请求
      * @param request HTTP请求对象
-     * @return 创建成功的文章ID
+     * @return 创建成功的文章信息
      */
     @PostMapping
-    public Result<Long> createPost(@Valid @RequestBody PostCreateReq req, HttpServletRequest request) {
+    public Result<PostCreateResl> createPost(@Valid @RequestBody PostCreateReq req, HttpServletRequest request) {
         try {
             // 从请求中获取当前用户ID（这里需要根据实际的认证机制获取）
             // 假设通过JWT或Session获取用户ID
@@ -195,8 +196,8 @@ public class PostsController {
                 return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
             }
             
-            Long postId = postsService.createPost(req, authorId);
-            return Result.success(postId);
+            PostCreateResl result = postsService.createPost(req, authorId);
+            return Result.success(result);
         } catch (Exception e) {
             log.error("创建文章失败", e);
             return Result.fail(ErrorCode.OPERATION_ERROR, "创建文章失败: " + e.getMessage());

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
+import Banner from '@/components/Banner.vue'
 </script>
 
 <template>
   <div class="main-layout">
     <TheHeader />
     <main class="main-content">
+      <Banner class="banner" />
       <router-view />
     </main>
     <TheFooter />
@@ -22,5 +24,8 @@ import TheFooter from '../components/TheFooter.vue'
 
 .main-content {
   flex: 1;
+}
+.banner{
+  height: 500px;
 }
 </style>

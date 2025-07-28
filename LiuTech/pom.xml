@@ -7,7 +7,7 @@
     <!-- 继承父模块 -->
     <parent>
         <groupId>chat.liuxin</groupId>
-        <artifactId>MyBlog</artifactId>
+        <artifactId>LiuTech</artifactId>
         <version>1.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>

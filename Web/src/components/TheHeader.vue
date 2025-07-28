@@ -47,7 +47,7 @@ const handleLogout = () => {
   <header class="header">
     <div class="container">
       <div class="logo" @click="navigateTo('/')">
-        <h1>MyBlog</h1>
+        <h1>LiuTech</h1>
       </div>
       
       <!-- 桌面端导航 -->

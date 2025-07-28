@@ -25,6 +25,14 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '文章详情'
         }
+      },
+      {
+        path: 'create',
+        name: 'create-post',
+        component: () => import('../views/CreatePost.vue'),
+        meta: {
+          title: '发布文章'
+        }
       }
     ]
   },
@@ -35,6 +43,11 @@ const routes: RouteRecordRaw[] = [
     meta: {
       title: '登录'
     }
+  },
+  {
+    path: '/category/:id',
+    name: 'CategoryPosts',
+    component: () => import('@/views/CategoryPosts.vue')
   },
   // 404页面
   {

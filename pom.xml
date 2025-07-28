@@ -6,10 +6,10 @@
 
     <!-- 父模块标识 -->
     <groupId>chat.liuxin</groupId>
-    <artifactId>MyBlog</artifactId>
+    <artifactId>LiuTech</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
-    <name>MyBlog</name>
+    <name>LiuTech</name>
     <description>我的博客父模块</description>
 
     <!-- 引入 Spring Boot BOM 管理依赖版本 -->
