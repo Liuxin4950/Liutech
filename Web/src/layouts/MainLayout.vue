@@ -26,6 +26,6 @@ import Banner from '@/components/Banner.vue'
   flex: 1;
 }
 .banner{
-  height: 500px;
+  height: 300px;
 }
 </style>

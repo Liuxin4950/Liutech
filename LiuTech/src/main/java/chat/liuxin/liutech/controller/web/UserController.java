@@ -185,4 +185,18 @@ public class UserController {
         return Result.success("用户删除成功");
     }
 
+    /**
+     * 获取当前用户统计信息
+     * 包括评论数量、文章数量、积分等统计数据
+     * 
+     * @return 用户统计信息
+     */
+    @GetMapping("/stats")
+    public Result<?> getUserStats() {
+        log.info("收到获取用户统计信息请求");
+        Object stats = userService.getCurrentUserStats();
+        log.info("获取用户统计信息成功");
+        return Result.success("获取统计信息成功", stats);
+    }
+
 }

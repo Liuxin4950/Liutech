@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.mapper;
 
+import java.util.Date;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -120,6 +121,20 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @return 是否存在
      */
     Boolean existsById(@Param("id") Long id);
-
+    
+    /**
+     * 根据用户ID和状态统计文章数量
+     * @param userId 用户ID
+     * @param status 文章状态
+     * @return 文章数量
+     */
+    Integer countPostsByUserIdAndStatus(@Param("userId") Long userId, @Param("status") String status);
+    
+    /**
+     * 获取用户最后发文时间
+     * @param userId 用户ID
+     * @return 最后发文时间
+     */
+    Date getLastPostTimeByUserId(@Param("userId") Long userId);
 
 }

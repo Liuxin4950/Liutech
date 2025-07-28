@@ -97,6 +97,24 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
     }
     
     /**
+     * 统计用户评论数量
+     * @param userId 用户ID
+     * @return 评论数量
+     */
+    public Integer countCommentsByUserId(Long userId) {
+        return commentsMapper.countCommentsByUserId(userId);
+    }
+    
+    /**
+     * 获取用户最后评论时间
+     * @param userId 用户ID
+     * @return 最后评论时间
+     */
+    public Date getLastCommentTimeByUserId(Long userId) {
+        return commentsMapper.getLastCommentTimeByUserId(userId);
+    }
+    
+    /**
      * 创建评论
      * @param createCommentReq 创建评论请求
      * @return 创建的评论

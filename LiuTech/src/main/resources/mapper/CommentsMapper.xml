@@ -77,5 +77,21 @@
         ORDER BY c.created_at DESC
         LIMIT #{limit}
     </select>
+    
+    <!-- 统计用户评论数量 -->
+    <select id="countCommentsByUserId" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM comments c
+        WHERE c.user_id = #{userId}
+        AND c.deleted_at IS NULL
+    </select>
+    
+    <!-- 获取用户最后评论时间 -->
+    <select id="getLastCommentTimeByUserId" resultType="java.util.Date">
+        SELECT MAX(c.created_at)
+        FROM comments c
+        WHERE c.user_id = #{userId}
+        AND c.deleted_at IS NULL
+    </select>
 
 </mapper>

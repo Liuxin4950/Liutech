@@ -294,5 +294,23 @@
         WHERE id = #{id}
         AND deleted_at IS NULL
     </select>
+    
+    <!-- 根据用户ID和状态统计文章数量 -->
+    <select id="countPostsByUserIdAndStatus" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.author_id = #{userId}
+        AND p.status = #{status}
+        AND p.deleted_at IS NULL
+    </select>
+    
+    <!-- 获取用户最后发文时间 -->
+    <select id="getLastPostTimeByUserId" resultType="java.util.Date">
+        SELECT MAX(p.created_at)
+        FROM posts p
+        WHERE p.author_id = #{userId}
+        AND p.status = 'published'
+        AND p.deleted_at IS NULL
+    </select>
 
 </mapper>

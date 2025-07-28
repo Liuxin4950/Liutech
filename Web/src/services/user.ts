@@ -45,6 +45,26 @@ export interface UserInfo {
   updatedAt?: string
 }
 
+// 用户统计信息接口
+export interface UserStats {
+  id?: number
+  username: string
+  email: string
+  avatarUrl?: string
+  nickname?: string
+  bio?: string
+  points: number
+  status?: number
+  lastLoginAt?: string
+  createdAt?: string
+  commentCount: number
+  postCount: number
+  draftCount: number
+  viewCount: number
+  lastCommentAt?: string
+  lastPostAt?: string
+}
+
 // 登录响应数据接口
 export interface LoginResponse {
   token: string
@@ -157,6 +177,20 @@ export class UserService {
   static getToken(): string | null {
     return localStorage.getItem('token')
   }
+
+  /**
+   * 获取用户统计信息
+   * @returns Promise<UserStats>
+   */
+  static async getUserStats(): Promise<UserStats> {
+    try {
+      const response = await get<UserStats>('/user/stats')
+      return response.data
+    } catch (error) {
+      console.error('获取用户统计信息失败', error)
+      throw error
+    }
+  }
 }
 
 // 导出便捷方法
@@ -168,7 +202,8 @@ export const {
   updateProfile,
   logout,
   isLoggedIn,
-  getToken
+  getToken,
+  getUserStats
 } = UserService
 
 export default UserService

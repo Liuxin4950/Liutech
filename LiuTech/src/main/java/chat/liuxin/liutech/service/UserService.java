@@ -9,6 +9,7 @@ import chat.liuxin.liutech.req.RegisterReq;
 import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.resl.LoginResl;
+import chat.liuxin.liutech.resl.UserStatsResl;
 import chat.liuxin.liutech.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -36,6 +37,12 @@ public class UserService {
     
     @Autowired
     private JwtUtil jwtUtil;
+    
+    @Autowired
+    private CommentsService commentsService;
+    
+    @Autowired
+    private PostsService postsService;
 
     /**
      * 密码加密器，使用BCrypt算法进行密码加密
@@ -496,5 +503,84 @@ public class UserService {
         BeanUtils.copyProperties(user, userResl);
         
         return userResl;
+    }
+    
+    /**
+     * 获取当前用户统计信息
+     * 从Spring Security上下文中获取认证用户信息并返回统计数据
+     * 
+     * @return 用户统计信息
+     * @throws BusinessException 当用户未认证或不存在时抛出异常
+     */
+    public UserStatsResl getCurrentUserStats() {
+        log.info("开始获取当前用户统计信息");
+        
+        // 1. 从Security上下文获取认证信息
+        org.springframework.security.core.Authentication authentication = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("用户未认证");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
+        }
+        
+        // 2. 获取用户名
+        String username = authentication.getName();
+        if (username == null) {
+            log.warn("无法获取用户名");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "认证信息无效");
+        }
+        
+        // 3. 根据用户名查询用户信息
+        List<Users> users = findByUserName(username);
+        if (users == null || users.isEmpty()) {
+            log.warn("用户不存在，用户名: {}", username);
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+        }
+        
+        Users user = users.get(0);
+        Long userId = user.getId();
+        
+        // 4. 获取统计信息
+        UserStatsResl stats = new UserStatsResl();
+        
+        // 复制用户基本信息
+        BeanUtils.copyProperties(user, stats);
+        
+        try {
+            // 获取评论数量
+            Integer commentCount = commentsService.countCommentsByUserId(userId);
+            stats.setCommentCount(commentCount != null ? commentCount.longValue() : 0L);
+            
+            // 获取文章数量（已发布）
+            Integer postCount = postsService.countPostsByUserId(userId, "published");
+            stats.setPostCount(postCount != null ? postCount.longValue() : 0L);
+            
+            // 获取草稿数量
+            Integer draftCount = postsService.countPostsByUserId(userId, "draft");
+            stats.setDraftCount(draftCount != null ? draftCount.longValue() : 0L);
+            
+            // 访问量暂时设为0（后续可扩展）
+            stats.setViewCount(0L);
+            
+            // 获取最近活动时间
+            Date lastCommentAt = commentsService.getLastCommentTimeByUserId(userId);
+            stats.setLastCommentAt(lastCommentAt);
+            
+            Date lastPostAt = postsService.getLastPostTimeByUserId(userId);
+            stats.setLastPostAt(lastPostAt);
+            
+            log.info("用户 {} 统计信息获取成功 - 评论: {}, 文章: {}, 草稿: {}", 
+                    username, commentCount, postCount, draftCount);
+            
+        } catch (Exception e) {
+            log.error("获取用户统计信息失败，用户: {}, 错误: {}", username, e.getMessage(), e);
+            // 如果统计信息获取失败，设置默认值
+            stats.setCommentCount(0L);
+            stats.setPostCount(0L);
+            stats.setDraftCount(0L);
+            stats.setViewCount(0L);
+        }
+        
+        return stats;
     }
 }

@@ -1,6 +1,8 @@
 spring:
   application:
     name: LiuTech
+  main:
+    allow-circular-references: true
   servlet:
     multipart:
       max-file-size: 100MB

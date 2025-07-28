@@ -36,6 +36,7 @@
     height: 10vh;
     min-height: 100px;
     max-height: 150px;
+    z-index: 10;
 }
 
 .parallax>use {

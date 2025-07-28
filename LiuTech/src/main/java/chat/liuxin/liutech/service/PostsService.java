@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,7 +32,6 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.BusinessException;
 
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Date;
 
 /**
  * 文章服务类
@@ -389,5 +389,42 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (tagIds != null && !tagIds.isEmpty()) {
             savePostTags(postId, tagIds);
         }
+    }
+    
+    /**
+     * 统计用户文章数量（已发布）
+     * @param userId 用户ID
+     * @return 文章数量
+     */
+    public Integer countPublishedPostsByUserId(Long userId) {
+        return postsMapper.countPostsByUserIdAndStatus(userId, "published");
+    }
+    
+    /**
+     * 统计用户草稿数量
+     * @param userId 用户ID
+     * @return 草稿数量
+     */
+    public Integer countDraftsByUserId(Long userId) {
+        return postsMapper.countPostsByUserIdAndStatus(userId, "draft");
+    }
+    
+    /**
+     * 获取用户最后发文时间
+     * @param userId 用户ID
+     * @return 最后发文时间
+     */
+    public Date getLastPostTimeByUserId(Long userId) {
+        return postsMapper.getLastPostTimeByUserId(userId);
+    }
+    
+    /**
+     * 统计用户文章数量（按状态）
+     * @param userId 用户ID
+     * @param status 文章状态
+     * @return 文章数量
+     */
+    public Integer countPostsByUserId(Long userId, String status) {
+        return postsMapper.countPostsByUserIdAndStatus(userId, status);
     }
 }

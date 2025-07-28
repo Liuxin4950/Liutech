@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.mapper;
 
+import java.util.Date;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -52,4 +53,18 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      * @return 最新评论列表
      */
     List<Comments> selectLatestComments(@Param("limit") Integer limit);
+    
+    /**
+     * 统计用户评论数量
+     * @param userId 用户ID
+     * @return 评论数量
+     */
+    Integer countCommentsByUserId(@Param("userId") Long userId);
+    
+    /**
+     * 获取用户最后评论时间
+     * @param userId 用户ID
+     * @return 最后评论时间
+     */
+    Date getLastCommentTimeByUserId(@Param("userId") Long userId);
 }
