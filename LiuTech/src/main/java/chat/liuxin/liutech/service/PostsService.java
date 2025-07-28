@@ -61,7 +61,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
         
         // 执行分页查询，MyBatis-Plus会自动处理count查询
-        IPage<Posts> result = postsMapper.selectPostsWithDetails(page, req.getCategoryId(), req.getTagId(), keyword);
+        IPage<Posts> result = postsMapper.selectPostsWithDetails(page, req.getCategoryId(), req.getTagId(), keyword, req.getStatus(), req.getAuthorId());
         
         // 为每篇文章查询标签信息
         List<Posts> posts = result.getRecords();

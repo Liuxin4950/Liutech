@@ -23,12 +23,16 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param categoryId 分类ID（可选）
      * @param tagId 标签ID（可选）
      * @param keyword 搜索关键词（可选）
+     * @param status 文章状态（可选）
+     * @param authorId 作者ID（可选）
      * @return 文章列表
      */
     IPage<Posts> selectPostsWithDetails(Page<Posts> page, 
                                        @Param("categoryId") Long categoryId,
                                        @Param("tagId") Long tagId,
-                                       @Param("keyword") String keyword);
+                                       @Param("keyword") String keyword,
+                                       @Param("status") String status,
+                                       @Param("authorId") Long authorId);
 
     /**
      * 根据ID查询文章详情（包含作者、分类、标签信息）

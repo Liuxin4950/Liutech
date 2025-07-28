@@ -36,4 +36,14 @@ public class PostQueryReq {
      * 排序方式（latest: 最新, hot: 热门）
      */
     private String sort = "latest";
+
+    /**
+     * 文章状态（draft: 草稿, published: 已发布, archived: 已归档）
+     */
+    private String status;
+
+    /**
+     * 作者ID（用于查询指定作者的文章）
+     */
+    private Long authorId;
 }

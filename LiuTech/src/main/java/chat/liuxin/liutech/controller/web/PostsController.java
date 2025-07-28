@@ -308,6 +308,51 @@ public class PostsController {
     }
 
     /**
+     * 获取当前用户的草稿箱
+     * 查询当前登录用户的所有草稿文章
+     * 
+     * @param page 页码（从1开始）
+     * @param size 每页大小
+     * @param keyword 搜索关键词（可选）
+     * @param request HTTP请求对象
+     * @return 草稿文章列表
+     */
+    @GetMapping("/drafts")
+    public Result<PageResl<PostListResl>> getDrafts(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String keyword,
+            HttpServletRequest request) {
+        
+        try {
+            // 获取当前用户ID
+            Long authorId = getCurrentUserId(request);
+            if (authorId == null) {
+                return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
+            }
+            
+            log.info("查询草稿箱 - 用户ID: {}, 页码: {}, 大小: {}, 关键词: {}", 
+                    authorId, page, size, keyword);
+            
+            PostQueryReq req = new PostQueryReq();
+            req.setPage(page);
+            req.setSize(size);
+            req.setKeyword(keyword);
+            req.setStatus("draft"); // 只查询草稿状态的文章
+            req.setAuthorId(authorId); // 只查询当前用户的文章
+            req.setSort("latest"); // 按最新时间排序
+            
+            PageResl<PostListResl> result = postsService.getPostList(req);
+            log.info("查询草稿箱成功 - 用户ID: {}, 总数: {}", authorId, result.getTotal());
+            
+            return Result.success("查询成功", result);
+        } catch (Exception e) {
+            log.error("查询草稿箱失败", e);
+            return Result.fail(ErrorCode.OPERATION_ERROR, "查询草稿箱失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 获取当前登录用户ID
      * 从JWT token和SecurityContext中获取用户ID
      * 

@@ -33,6 +33,22 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '发布文章'
         }
+      },
+      {
+        path: 'drafts',
+        name: 'drafts',
+        component: () => import('../views/Drafts.vue'),
+        meta: {
+          title: '草稿箱'
+        }
+      },
+      {
+        path: 'my-posts',
+        name: 'my-posts',
+        component: () => import('../views/MyPosts.vue'),
+        meta: {
+          title: '我的文章'
+        }
       }
     ]
   },

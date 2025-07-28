@@ -1,10 +1,12 @@
 <template>
   <div class="create-post">
     <div class="page-header">
-      <h1 class="page-title">📝 发布文章</h1>
+      <h1 class="page-title">
+        {{ isEditMode ? '✏️ 编辑文章' : '📝 发布文章' }}
+      </h1>
       <div class="header-actions">
         <button @click="saveDraft" class="draft-btn" :disabled="saving">
-          💾 保存草稿
+          💾 {{ isEditMode ? '更新草稿' : '保存草稿' }}
         </button>
         <button @click="goBack" class="back-btn">
           ← 返回
@@ -141,7 +143,10 @@
           class="submit-btn"
           :disabled="saving || !form.title || !form.content || !form.categoryId"
         >
-          {{ saving ? '发布中...' : '🚀 发布文章' }}
+          {{ saving 
+            ? (isEditMode ? '更新中...' : '发布中...') 
+            : (isEditMode ? '💾 更新文章' : '🚀 发布文章') 
+          }}
         </button>
       </div>
     </form>
@@ -171,9 +176,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
-import { PostService } from '@/services/post'
+import { PostService, type PostDetail } from '@/services/post'
 import { type Tag } from '@/services/tag'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -181,6 +186,7 @@ import { useErrorHandler } from '@/composables/useErrorHandler'
 import Swal from 'sweetalert2'
 
 const router = useRouter()
+const route = useRoute()
 const { handleAsync } = useErrorHandler()
 
 // 表单数据
@@ -205,6 +211,9 @@ const selectedTagId = ref('')
 // 状态
 const saving = ref(false)
 const showPreview = ref(false)
+const isEditMode = ref(false)
+const editingPostId = ref<number | null>(null)
+const loading = ref(false)
 
 // 可选标签（排除已选择的）
 const availableTags = computed(() => {
@@ -307,26 +316,46 @@ const submitPost = async () => {
   await handleAsync(async () => {
     saving.value = true
     
-    const postData = {
-      title: form.value.title.trim(),
-      content: form.value.content,
-      summary: form.value.summary?.trim() || '',
-      categoryId: Number(form.value.categoryId),
-      status: form.value.status,
-      tagIds: selectedTags.value.map(tag => tag.id)
+    let result
+    if (isEditMode.value && editingPostId.value) {
+      // 编辑模式：更新文章
+      const updateData = {
+        id: editingPostId.value,
+        title: form.value.title.trim(),
+        content: form.value.content,
+        summary: form.value.summary?.trim() || '',
+        categoryId: Number(form.value.categoryId),
+        status: form.value.status,
+        tagIds: selectedTags.value.map(tag => tag.id)
+      }
+      result = await PostService.updatePost(editingPostId.value, updateData)
+    } else {
+      // 创建模式：新建文章
+      const postData = {
+        title: form.value.title.trim(),
+        content: form.value.content,
+        summary: form.value.summary?.trim() || '',
+        categoryId: Number(form.value.categoryId),
+        status: form.value.status,
+        tagIds: selectedTags.value.map(tag => tag.id)
+      }
+      result = await PostService.createPost(postData)
     }
-
-    const result = await PostService.createPost(postData)
     
-    const actionText = form.value.status === 'draft' ? '保存草稿' : '发布文章'
+    const actionText = isEditMode.value 
+      ? (form.value.status === 'draft' ? '更新草稿' : '更新文章')
+      : (form.value.status === 'draft' ? '保存草稿' : '发布文章')
     await Swal.fire('成功', `${actionText}成功！`, 'success')
     
     // 跳转到文章详情页
-    router.push(`/post/${result.id}`)
+    const postId = isEditMode.value ? editingPostId.value : result.id
+    router.push(`/post/${postId}`)
   }, {
     onError: (err) => {
       console.error('提交文章失败:', err)
-      const actionText = form.value.status === 'draft' ? '保存草稿' : '发布文章'
+      const actionText = isEditMode.value 
+        ? (form.value.status === 'draft' ? '更新草稿' : '更新文章')
+        : (form.value.status === 'draft' ? '保存草稿' : '发布文章')
       Swal.fire('错误', `${actionText}失败，请重试`, 'error')
     },
     onFinally: () => {
@@ -355,12 +384,71 @@ const goBack = () => {
   }
 }
 
+// 加载文章数据（编辑模式）
+const loadPostData = async (postId: number) => {
+  await handleAsync(async () => {
+    loading.value = true
+    const postData: PostDetail = await PostService.getPostDetail(postId)
+    
+    // 填充表单数据
+    form.value = {
+      title: postData.title,
+      content: postData.content,
+      summary: postData.summary || '',
+      categoryId: postData.category.id.toString(),
+      status: 'published' // 编辑已发布文章时默认保持发布状态
+    }
+    
+    // 设置标签
+    if (postData.tags) {
+      selectedTags.value = postData.tags
+    }
+  }, {
+    onError: (err) => {
+      console.error('加载文章数据失败:', err)
+      Swal.fire('错误', '加载文章数据失败，请重试', 'error')
+      router.back()
+    },
+    onFinally: () => {
+      loading.value = false
+    }
+  })
+}
+
+// 检查URL参数并设置编辑模式
+const checkEditMode = () => {
+  const draftParam = route.query.draft
+  const editParam = route.query.edit
+  
+  if (draftParam && draftParam !== 'true') {
+    // 编辑草稿
+    isEditMode.value = true
+    editingPostId.value = Number(draftParam)
+    form.value.status = 'draft'
+  } else if (editParam) {
+    // 编辑已发布文章
+    isEditMode.value = true
+    editingPostId.value = Number(editParam)
+    form.value.status = 'published'
+  } else if (draftParam === 'true') {
+    // 新建草稿
+    form.value.status = 'draft'
+  }
+}
+
 // 组件挂载时加载数据
-onMounted(() => {
-  Promise.all([
+onMounted(async () => {
+  checkEditMode()
+  
+  await Promise.all([
     loadCategories(),
     loadTags()
   ])
+  
+  // 如果是编辑模式，加载文章数据
+  if (isEditMode.value && editingPostId.value) {
+    await loadPostData(editingPostId.value)
+  }
 })
 </script>
 

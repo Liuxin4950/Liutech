@@ -90,9 +90,11 @@ const handleLogout = () => {
               </div>
             </div>
             <ul class="user-menu-list">
-              <li @click="navigateTo('/profile')">个人资料</li>
-              <li @click="navigateTo('/settings')">设置</li>
-              <li @click="handleLogout" class="logout-item">退出登录</li>
+              <li @click="navigateTo('/profile')">📝 个人资料</li>
+              <li @click="navigateTo('/my-posts')">📚 我的文章</li>
+              <li @click="navigateTo('/drafts')">📄 草稿箱</li>
+              <li @click="navigateTo('/settings')">⚙️ 设置</li>
+              <li @click="handleLogout" class="logout-item">🚪 退出登录</li>
             </ul>
           </div>
         </div>
@@ -114,11 +116,13 @@ const handleLogout = () => {
       <!-- 移动端菜单 -->
       <div class="mobile-menu" :class="{ 'is-open': isMenuOpen }">
         <ul>
-          <li @click="navigateTo('/')">首页</li>
-          <li v-if="!userStore.isLoggedIn" @click="navigateTo('/login')">登录</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')">个人资料</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/settings')">设置</li>
-          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="logout-item">退出登录</li>
+          <li @click="navigateTo('/')">🏠 首页</li>
+          <li v-if="!userStore.isLoggedIn" @click="navigateTo('/login')">👤 登录</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')">📝 个人资料</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/my-posts')">📚 我的文章</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/drafts')">📄 草稿箱</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/settings')">⚙️ 设置</li>
+          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="logout-item">🚪 退出登录</li>
         </ul>
       </div>
     </div>

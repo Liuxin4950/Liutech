@@ -982,9 +982,86 @@ Authorization: Bearer {token}
 
 ---
 
+### 19. 获取草稿箱列表
+
+**接口地址：** `GET /posts/drafts`
+
+**接口描述：** 分页获取当前用户的草稿文章列表，支持关键词搜索
+
+**认证要求：** 需要用户认证
+
+**请求头：**
+```
+Authorization: Bearer {token}
+```
+
+**请求参数：**
+
+| 参数名 | 类型 | 必填 | 说明 | 默认值 |
+|--------|------|------|------|--------|
+| page | Integer | 否 | 页码 | 1 |
+| size | Integer | 否 | 每页大小 | 10 |
+| keyword | String | 否 | 搜索关键词（标题、内容、摘要） | - |
+| sortBy | String | 否 | 排序方式：latest/oldest | latest |
+
+**成功响应：**
+
+```json
+{
+  "code": 200,
+  "message": "操作成功",
+  "data": {
+    "records": [
+      {
+        "id": 1,
+        "title": "草稿文章标题",
+        "summary": "草稿文章摘要",
+        "category": {
+          "id": 1,
+          "name": "技术分享"
+        },
+        "author": {
+          "id": 1,
+          "username": "author",
+          "avatarUrl": "http://example.com/avatar.jpg"
+        },
+        "tags": [
+          {
+            "id": 1,
+            "name": "Java"
+          }
+        ],
+        "commentCount": 0,
+        "createdAt": "2024-01-15T10:30:00",
+        "updatedAt": "2024-01-16T14:20:00"
+      }
+    ],
+    "total": 5,
+    "size": 10,
+    "current": 1,
+    "pages": 1
+  }
+}
+```
+
+**错误响应：**
+
+| 错误码 | 错误信息 | 说明 |
+|--------|----------|------|
+| 401 | 未授权访问，请先登录 | Token无效或过期 |
+| 403 | 权限不足 | 只能查看自己的草稿 |
+
+**接口说明：**
+- 只返回当前登录用户创建的草稿文章（status = 'draft'）
+- 支持按标题、内容、摘要进行关键词搜索
+- 默认按更新时间倒序排列（最新修改的在前）
+- 返回的文章包含完整的分类、作者、标签信息
+
+---
+
 ## 💬 评论模块
 
-### 19. 分页查询文章评论
+### 20. 分页查询文章评论
 
 **接口地址：** `GET /comments/post/{postId}`
 
@@ -1037,7 +1114,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 20. 获取文章树形评论结构
+### 21. 获取文章树形评论结构
 
 **接口地址：** `GET /comments/post/{postId}/tree`
 
@@ -1091,7 +1168,7 @@ Authorization: Bearer {token}
 
 ---
 
-### 21. 创建评论
+### 22. 创建评论
 
 **接口地址：** `POST /comments`
 
@@ -1156,7 +1233,7 @@ Content-Type: application/json
 
 ---
 
-### 22. 统计文章评论数量
+### 23. 统计文章评论数量
 
 **接口地址：** `GET /comments/post/{postId}/count`
 
@@ -1185,7 +1262,7 @@ Content-Type: application/json
 
 ---
 
-### 23. 查询子评论
+### 24. 查询子评论
 
 **接口地址：** `GET /comments/{parentId}/children`
 
@@ -1221,7 +1298,7 @@ Content-Type: application/json
 
 ---
 
-### 24. 查询最新评论
+### 25. 查询最新评论
 
 **接口地址：** `GET /comments/latest`
 
@@ -1257,7 +1334,7 @@ Content-Type: application/json
 
 ---
 
-### 25. 查询评论详情
+### 26. 查询评论详情
 
 **接口地址：** `GET /comments/{id}`
 
@@ -1299,7 +1376,7 @@ Content-Type: application/json
 
 ## 🏠 系统模块
 
-### 26. 系统首页
+### 27. 系统首页
 
 **接口地址：** `GET /`
 
@@ -1405,7 +1482,18 @@ Content-Type: application/json
 
 - **当前版本**：v1.3.0
 
-#### v1.3.0 (2025-01-15)
+#### v1.4.0 (2025-01-28)
+**✨ 新增草稿箱功能**
+- 新增草稿箱列表查询接口（GET /posts/drafts）
+- 扩展PostQueryReq，支持按文章状态和作者ID筛选
+- 更新PostsMapper，支持status和authorId参数查询
+- 优化PostsService，增强文章查询灵活性
+- 完善前端草稿箱页面，集成真实API接口
+- 支持草稿文章的编辑、发布、删除操作
+- 实现草稿箱关键词搜索和分页功能
+- 优化用户体验，提供完整的草稿管理流程
+
+### v1.3.0 (2025-01-15)
 **✨ 新增评论模块**
 - 新增评论分页查询接口（GET /comments/post/{postId}）
 - 新增文章树形评论结构查询接口（GET /comments/post/{postId}/tree）
@@ -1444,6 +1532,16 @@ Content-Type: application/json
 ---
 
 ## 📝 更新日志
+
+### v1.4.0 (2025-01-28)
+- 新增草稿箱功能模块，支持用户管理个人草稿文章
+- 实现草稿列表分页查询，支持关键词搜索和排序
+- 扩展文章查询参数，支持按状态（draft/published）和作者筛选
+- 优化MyBatis映射文件，增强SQL查询灵活性
+- 完善前端草稿箱页面，提供完整的草稿管理功能
+- 集成真实API接口，替换模拟数据
+- 支持草稿的编辑、发布、删除等操作
+- 优化用户体验，提供直观的草稿状态管理
 
 ### v1.3.0 (2025-01-15)
 - 新增评论管理模块，支持评论的增删改查功能

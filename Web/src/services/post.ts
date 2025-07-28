@@ -1,4 +1,4 @@
-import { get, post } from './api'
+import { get, post, put, del } from './api'
 
 // 文章分类信息接口
 export interface CategoryInfo {
@@ -54,6 +54,8 @@ export interface PostQueryParams {
   tagId?: number
   keyword?: string
   sortBy?: 'latest' | 'popular'
+  status?: 'draft' | 'published'
+  authorId?: number
 }
 
 // 创建文章请求接口
@@ -72,6 +74,17 @@ export interface CreatePostResponse {
   title: string
   status: string
   createdAt: string
+}
+
+// 更新文章请求接口
+export interface UpdatePostRequest {
+  id?: number
+  title?: string
+  content?: string
+  summary?: string
+  categoryId?: number
+  status?: 'draft' | 'published'
+  tagIds?: number[]
 }
 
 /**
@@ -149,6 +162,86 @@ export class PostService {
       return response.data
     } catch (error) {
       console.error('创建文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取草稿箱列表
+   * @param params 查询参数
+   * @returns 分页草稿列表
+   */
+  static async getDraftList(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
+    try {
+      const response = await get('/posts/drafts', params)
+      return response.data
+    } catch (error) {
+      console.error('获取草稿列表失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 更新文章
+   * @param id 文章ID
+   * @param postData 更新数据
+   * @returns 更新结果
+   */
+  static async updatePost(id: number, postData: UpdatePostRequest): Promise<PostDetail> {
+    try {
+      const response = await put(`/posts/${id}`, postData)
+      return response.data
+    } catch (error) {
+      console.error('更新文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 删除文章
+   * @param id 文章ID
+   * @returns 删除结果
+   */
+  static async deletePost(id: number): Promise<void> {
+    try {
+      await del(`/posts/${id}`)
+    } catch (error) {
+      console.error('删除文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 发布文章
+   * @param id 文章ID
+   * @returns 发布结果
+   */
+  static async publishPost(id: number): Promise<PostDetail> {
+    try {
+      const response = await put(`/posts/${id}/publish`)
+      return response.data
+    } catch (error) {
+      console.error('发布文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取用户已发布文章列表
+   * @param params 查询参数
+   * @returns 分页文章列表
+   */
+  static async getMyPosts(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
+    try {
+      // 设置status为published来获取已发布的文章
+      const queryParams = {
+        ...params,
+        status: 'published' as const
+      }
+      const response = await get('/posts', queryParams)
+      return response.data
+    } catch (error) {
+      console.error('获取我的文章失败:', error)
       throw error
     }
   }
