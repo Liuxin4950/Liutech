@@ -111,6 +111,26 @@ public class PostsController {
         log.info("查询文章详情成功 - 标题: {}", post.getTitle());
         return Result.success("查询成功", post);
     }
+    
+    /**
+     * 点赞文章
+     * 
+     * @param id 文章ID
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/like")
+    public Result<Void> likePost(@PathVariable Long id) {
+        log.info("点赞文章 - ID: {}", id);
+        
+        boolean success = postsService.likePost(id);
+        if (!success) {
+            log.warn("文章不存在或点赞失败 - ID: {}", id);
+            return Result.fail(ErrorCode.ARTICLE_NOT_FOUND);
+        }
+        
+        log.info("点赞文章成功 - ID: {}", id);
+        return Result.success("点赞成功", null);
+    }
 
     /**
      * 查询热门文章

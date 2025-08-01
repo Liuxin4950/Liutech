@@ -87,12 +87,47 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @param id 文章ID
      * @return 文章详情
      */
+    @Transactional(rollbackFor = Exception.class)
     public PostDetailResl getPostDetail(Long id) {
         Posts post = postsMapper.selectPostWithDetails(id);
         if (post == null) {
             return null;
         }
+        
+        // 访问数自增
+        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Posts::getId, id)
+                     .setSql("view_count = IFNULL(view_count, 0) + 1");
+        this.update(updateWrapper);
+        
+        // 更新返回对象中的访问数
+        if (post.getViewCount() == null) {
+            post.setViewCount(1);
+        } else {
+            post.setViewCount(post.getViewCount() + 1);
+        }
+        
         return convertToPostDetailResl(post);
+    }
+    
+    /**
+     * 点赞文章
+     * @param id 文章ID
+     * @return 是否成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean likePost(Long id) {
+        // 检查文章是否存在
+        Posts post = this.getById(id);
+        if (post == null || post.getDeletedAt() != null) {
+            return false;
+        }
+        
+        // 点赞数自增
+        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Posts::getId, id)
+                     .setSql("like_count = IFNULL(like_count, 0) + 1");
+        return this.update(updateWrapper);
     }
 
     /**

@@ -72,6 +72,14 @@
                 <span class="meta-icon">🏷️</span>
                 {{ post.category.name }}
               </span>
+              <span class="post-views">
+                <span class="meta-icon">👁️</span>
+                {{ post.viewCount || 0 }} 浏览
+              </span>
+              <span class="post-likes">
+                <span class="meta-icon">❤️</span>
+                {{ post.likeCount || 0 }} 点赞
+              </span>
               <span class="post-comments">
                 <span class="meta-icon">💬</span>
                 {{ post.commentCount }} 评论

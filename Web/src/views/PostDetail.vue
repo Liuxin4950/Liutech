@@ -24,6 +24,8 @@
           <div class="post-info">
             <span v-if="post.category" class="post-category">{{ post.category.name }}</span>
             <span class="post-date">{{ formatDate(post.createdAt) }}</span>
+            <span class="view-count">👁️ {{ post.viewCount || 0 }}</span>
+            <span class="like-count">❤️ {{ post.likeCount || 0 }}</span>
             <span class="comment-count">💬 {{ post.commentCount }}</span>
           </div>
         </div>
@@ -48,8 +50,13 @@
         <div class="markdown-content" v-html="renderedContent"></div>
       </article>
 
-      <!-- 返回按钮 -->
+      <!-- 文章操作按钮 -->
       <div class="post-actions">
+        <button @click="handleLike" class="like-btn" :class="{ 'liked': isLiked }" :disabled="liking">
+          <span class="like-icon">{{ isLiked ? '❤️' : '🤍' }}</span>
+          <span class="like-text">{{ isLiked ? '已喜欢' : '喜欢' }}</span>
+          <span class="like-count">({{ currentLikeCount }})</span>
+        </button>
         <button @click="goBack" class="back-btn">返回</button>
       </div>
       
@@ -81,6 +88,11 @@ const { handleAsync } = useErrorHandler()
 const post = ref<PostDetail | null>(null)
 const loading = ref(false)
 const error = ref('')
+
+// 喜欢按钮相关状态
+const isLiked = ref(false)
+const liking = ref(false)
+const currentLikeCount = ref(0)
 
 // 计算属性：渲染富文本内容
 const renderedContent = computed(() => {
@@ -120,6 +132,9 @@ const loadPostDetail = async () => {
     const postData = await PostService.getPostDetail(postId)
     post.value = postData
     
+    // 初始化喜欢数量
+    currentLikeCount.value = postData.likeCount || 0
+    
     // 动态更新路由meta信息，用于面包屑导航
     if (postData && route.meta) {
       route.meta.title = postData.title
@@ -135,6 +150,32 @@ const loadPostDetail = async () => {
     },
     onFinally: () => {
       loading.value = false
+    }
+  })
+}
+
+// 处理点赞
+const handleLike = async () => {
+  if (!post.value || liking.value) return
+  
+  await handleAsync(async () => {
+    liking.value = true
+    
+    await PostService.likePost(post.value!.id)
+    
+    // 更新本地状态
+    isLiked.value = true
+    currentLikeCount.value += 1
+    
+    // 显示成功提示
+    console.log('点赞成功！')
+  }, {
+    onError: (err) => {
+      console.error('点赞失败:', err)
+      // 这里可以添加错误提示
+    },
+    onFinally: () => {
+      liking.value = false
     }
   })
 }
@@ -429,7 +470,83 @@ onMounted(() => {
 .post-actions {
   padding: 20px 30px;
   border-top: 1px solid var(--border-color);
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  align-items: center;
+}
+
+.like-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.like-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+.like-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.like-btn.liked {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  animation: likeAnimation 0.6s ease;
+}
+
+@keyframes likeAnimation {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.like-icon {
+  font-size: 16px;
+  transition: transform 0.3s ease;
+}
+
+.like-btn:hover .like-icon {
+  transform: scale(1.2);
+}
+
+.like-text {
+  font-weight: 600;
+}
+
+.like-count {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.back-btn {
+  padding: 12px 24px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: var(--primary-hover-color);
+  transform: translateY(-2px);
 }
 
 .comment-section-wrapper {

@@ -266,6 +266,20 @@ export class PostService {
   static async getPosts(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
     return this.getPostList(params)
   }
+
+  /**
+   * 点赞文章
+   * @param id 文章ID
+   * @returns 操作结果
+   */
+  static async likePost(id: number): Promise<void> {
+    try {
+      await post(`/posts/${id}/like`)
+    } catch (error) {
+      console.error('点赞文章失败:', error)
+      throw error
+    }
+  }
 }
 
 export default PostService

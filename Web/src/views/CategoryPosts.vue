@@ -60,6 +60,8 @@
                 <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
               </div>
               <div class="post-stats">
+                <span class="view-count">👁️ {{ post.viewCount || 0 }}</span>
+                <span class="like-count">❤️ {{ post.likeCount || 0 }}</span>
                 <span class="comment-count">💬 {{ post.commentCount }}</span>
                 <span class="post-date">{{ formatDate(post.createdAt) }}</span>
               </div>

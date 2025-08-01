@@ -114,6 +114,30 @@
             </select>
           </div>
         </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="coverImage" class="form-label">封面图片</label>
+            <input
+              id="coverImage"
+              v-model="form.coverImage"
+              type="url"
+              class="form-input"
+              placeholder="请输入封面图片URL（可选）"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="thumbnail" class="form-label">缩略图</label>
+            <input
+              id="thumbnail"
+              v-model="form.thumbnail"
+              type="url"
+              class="form-input"
+              placeholder="请输入缩略图URL（可选）"
+            >
+          </div>
+        </div>
       </div>
 
       <!-- 文章内容 -->
@@ -195,7 +219,11 @@ const form = ref({
   content: '',
   summary: '',
   categoryId: '',
-  status: 'published' as 'draft' | 'published'
+  status: 'published' as 'draft' | 'published',
+  coverImage: '',
+  thumbnail: '',
+  viewCount: 0,
+  likeCount: 0
 })
 
 // Pinia stores
@@ -396,7 +424,11 @@ const loadPostData = async (postId: number) => {
       content: postData.content,
       summary: postData.summary || '',
       categoryId: postData.category.id.toString(),
-      status: 'published' // 编辑已发布文章时默认保持发布状态
+      status: 'published', // 编辑已发布文章时默认保持发布状态
+      coverImage: postData.coverImage || '',
+      thumbnail: postData.thumbnail || '',
+      viewCount: postData.viewCount || 0,
+      likeCount: postData.likeCount || 0
     }
     
     // 设置标签
