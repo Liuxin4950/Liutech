@@ -51,6 +51,26 @@ public class PostDetailResl {
     private Integer commentCount;
 
     /**
+     * 封面图片URL
+     */
+    private String coverImage;
+
+    /**
+     * 缩略图URL
+     */
+    private String thumbnail;
+
+    /**
+     * 浏览次数
+     */
+    private Integer viewCount;
+
+    /**
+     * 点赞次数
+     */
+    private Integer likeCount;
+
+    /**
      * 创建时间
      */
     private Date createdAt;

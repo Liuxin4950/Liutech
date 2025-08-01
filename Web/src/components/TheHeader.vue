@@ -45,84 +45,82 @@ const handleLogout = () => {
 
 <template>
   <header class="header">
-    <div class="container">
+    <div class="header-content flex flex-ac flex-sb">
       <div class="logo" @click="navigateTo('/')">
-        <h1>LiuTech</h1>
+        <h2>LiuTech</h2>
       </div>
       
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
-        <ul>
-          <li><router-link to="/">首页</router-link></li>
+        <ul class="flex">
+          <li><router-link to="/" exact class="link transition">首页</router-link></li>
+          <li><router-link to="/posts" class="link transition">全部文章</router-link></li>
+          <li><router-link to="/create" class="link transition">发布文章</router-link></li>
+          <li><router-link to="/about" class="link transition">关于我</router-link></li>
         </ul>
       </nav>
       
 
-      <div class="flex">
+      <div class="flex flex-ac gap-16">
         <!-- 用户信息区域 -->
         <div class="user-section">
           <!-- 已登录状态 -->
-          <div v-if="userStore.isLoggedIn" class="user-info" @click="toggleUserMenu">
+          <div v-if="userStore.isLoggedIn" class="user-info flex flex-ac gap-8" @click="toggleUserMenu">
             <div class="user-avatar">
-              <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" />
-              <span v-else class="avatar-placeholder">{{ userStore.username.charAt(0).toUpperCase() }}</span>
+              <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="img" />
+              <div v-else class="default-avatar flex flex-ct">{{ userStore.username?.charAt(0).toUpperCase() }}</div>
             </div>
-            <span class="username">{{ userStore.username }}</span>
-            <span class="dropdown-arrow">▼</span>
+            <div class="flex flex-col">
+              <span class="username font-medium">{{ userStore.username }}</span>
+              <span class="points text-sm text-muted">{{ userStore.points }}积分</span>
+            </div>
           </div>
           
           <!-- 未登录状态 -->
-          <button v-else class="login-btn" @click="navigateTo('/login')">
+          <button v-else class="login-btn flex flex-ac gap-8 transition hover-bg rounded p-8" @click="navigateTo('/login')">
             <span class="login-icon">👤</span>
             <span>登录</span>
           </button>
           
           <!-- 用户下拉菜单 -->
-          <div class="user-menu" :class="{ 'is-open': isUserMenuOpen }">
-            <div class="user-menu-header">
-              <div class="user-avatar-large">
-                <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" />
-                <span v-else class="avatar-placeholder">{{ userStore.username.charAt(0).toUpperCase() }}</span>
-              </div>
-              <div class="user-details">
-                <div class="username">{{ userStore.username }}</div>
-                <div class="points">积分: {{ userStore.points }}</div>
-              </div>
-            </div>
+          <div class="user-menu card" :class="{ 'is-open': isUserMenuOpen }">
             <ul class="user-menu-list">
-              <li @click="navigateTo('/profile')">📝 个人资料</li>
-              <li @click="navigateTo('/my-posts')">📚 我的文章</li>
-              <li @click="navigateTo('/drafts')">📄 草稿箱</li>
-              <li @click="navigateTo('/settings')">⚙️ 设置</li>
-              <li @click="handleLogout" class="logout-item">🚪 退出登录</li>
+              <li @click="navigateTo('/profile')" class="p-12 hover-bg transition">📝 个人资料</li>
+              <li @click="navigateTo('/my-posts')" class="p-12 hover-bg transition">📚 我的文章</li>
+              <li @click="navigateTo('/drafts')" class="p-12 hover-bg transition">📄 草稿箱</li>
+              <li @click="navigateTo('/settings')" class="p-12 hover-bg transition">⚙️ 设置</li>
+              <li @click="handleLogout" class="logout-item p-12 hover-bg transition border-t">🚪 退出登录</li>
             </ul>
           </div>
         </div>
         
         <!-- 主题切换按钮 -->
-        <button @click="theme.toggle" class="theme-toggle-btn">
+        <button @click="theme.toggle" class="theme-toggle-btn rounded transition hover-bg p-8">
           {{ theme.current.value === 'light' ? '🌙' : '☀️' }}
         </button>
       </div>
      
       
       <!-- 移动端菜单按钮 -->
-      <button class="mobile-menu-btn" @click="toggleMenu">
-        <span></span>
-        <span></span>
-        <span></span>
+      <button class="mobile-menu-btn flex flex-col gap-4 p-8" @click="toggleMenu">
+        <span class="menu-line"></span>
+        <span class="menu-line"></span>
+        <span class="menu-line"></span>
       </button>
       
       <!-- 移动端菜单 -->
-      <div class="mobile-menu" :class="{ 'is-open': isMenuOpen }">
-        <ul>
-          <li @click="navigateTo('/')">🏠 首页</li>
-          <li v-if="!userStore.isLoggedIn" @click="navigateTo('/login')">👤 登录</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')">📝 个人资料</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/my-posts')">📚 我的文章</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/drafts')">📄 草稿箱</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/settings')">⚙️ 设置</li>
-          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="logout-item">🚪 退出登录</li>
+      <div class="mobile-menu card" :class="{ 'is-open': isMenuOpen }">
+        <ul class="list">
+          <li @click="navigateTo('/')" class="list-item p-16 hover-bg transition border-b">🏠 首页</li>
+          <li @click="navigateTo('/posts')" class="list-item p-16 hover-bg transition border-b">📚 全部文章</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/create')" class="list-item p-16 hover-bg transition border-b">✍️ 发布文章</li>
+          <li @click="navigateTo('/about')" class="list-item p-16 hover-bg transition border-b">👤 关于我</li>
+          <li v-if="!userStore.isLoggedIn" @click="navigateTo('/login')" class="list-item p-16 hover-bg transition border-b">🔑 登录</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')" class="list-item p-16 hover-bg transition border-b">📝 个人资料</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/my-posts')" class="list-item p-16 hover-bg transition border-b">📚 我的文章</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/drafts')" class="list-item p-16 hover-bg transition border-b">📄 草稿箱</li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/settings')" class="list-item p-16 hover-bg transition border-b">⚙️ 设置</li>
+          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="logout-item list-item p-16 hover-bg transition text-primary">🚪 退出登录</li>
         </ul>
       </div>
     </div>
@@ -131,39 +129,29 @@ const handleLogout = () => {
 
 <style scoped>
 .header {
-  background-color: var(--bg-color);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
   z-index: 100;
-  transition: background-color 0.3s;
+  height: 70px;
 }
 
-.container {
+.header-content {
   max-width: 1200px;
   margin: 0 auto;
+  height: 100%;
   padding: 0 20px;
-  height: 70px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
 .logo {
-  cursor: pointer;
-}
-
-.logo h1 {
   font-size: 1.5rem;
-  margin: 0;
+  font-weight: 700;
   color: var(--primary-color);
+  text-decoration: none;
 }
 
 .desktop-nav ul {
-  display: flex;
-  list-style: none;
-  margin: 0;
-  padding: 0;
   gap: 30px;
 }
 
@@ -171,57 +159,38 @@ const handleLogout = () => {
   color: var(--text-color);
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.3s;
-  padding: 8px 0;
   position: relative;
+  padding: 8px 0;
 }
 
-.desktop-nav a:hover,
-.desktop-nav a.router-link-active {
+.desktop-nav a.router-link-exact-active {
   color: var(--primary-color);
 }
 
-.desktop-nav a.router-link-active::after {
+.desktop-nav a.router-link-exact-active::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
   height: 2px;
-  background-color: var(--primary-color);
+  background: var(--primary-color);
 }
 
 .theme-toggle-btn {
-  background: none;
-  border: none;
   font-size: 1.2rem;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  transition: background-color 0.3s;
-}
-
-.theme-toggle-btn:hover {
-  background-color: var(--hover-color);
 }
 
 .mobile-menu-btn {
   display: none;
-  flex-direction: column;
-  justify-content: space-between;
   width: 30px;
   height: 20px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
 }
 
-.mobile-menu-btn span {
+.menu-line {
   width: 100%;
   height: 2px;
   background-color: var(--text-color);
-  transition: all 0.3s;
 }
 
 .mobile-menu {
@@ -230,8 +199,6 @@ const handleLogout = () => {
   top: 70px;
   left: 0;
   width: 100%;
-  background-color: var(--bg-color);
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
   transform: translateY(-100%);
   opacity: 0;
   transition: transform 0.3s, opacity 0.3s;
@@ -243,47 +210,22 @@ const handleLogout = () => {
   opacity: 1;
 }
 
-.mobile-menu ul {
-  list-style: none;
-  margin: 0;
-  padding: 20px;
+.logout-item {
+  color: #f56565 !important;
 }
 
-.mobile-menu li {
-  padding: 15px 0;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--text-color);
-  cursor: pointer;
-}
-
-.mobile-menu li:last-child {
-  border-bottom: none;
-}
-
-.mobile-menu .logout-item {
-  color: #f56565;
-}
-
-/* 用户信息区域样式 */
 .user-section {
   position: relative;
-  margin-left: 20px;
 }
 
-/* 登录按钮样式 */
 .login-btn {
-  display: flex;
-  align-items: center;
-  padding: 8px 16px;
-  color: var(--text-color);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  margin-top: 5px;
-  margin-left: 5px;
+  background: var(--primary-color);
+  color: white;
+}
+
+.login-btn:hover {
+  background: var(--secondary-color);
+  transform: translateY(-1px);
 }
 
 .login-icon {
@@ -291,13 +233,7 @@ const handleLogout = () => {
 }
 
 .user-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.3s;
 }
 
 .user-info:hover {
@@ -305,14 +241,10 @@ const handleLogout = () => {
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 35px;
+  height: 35px;
   border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--primary-color);
+  background: var(--primary-color);
 }
 
 .user-avatar img {
@@ -321,68 +253,36 @@ const handleLogout = () => {
   object-fit: cover;
 }
 
-.avatar-placeholder {
+.default-avatar {
+  width: 100%;
+  height: 100%;
   color: white;
   font-weight: 600;
   font-size: 14px;
 }
 
-.user-info .username {
-  color: var(--text-color);
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.dropdown-arrow {
-  color: var(--text-color);
-  font-size: 10px;
-  transition: transform 0.3s;
-}
-
-.user-info:hover .dropdown-arrow {
-  transform: rotate(180deg);
-}
-
-/* 用户下拉菜单样式 */
 .user-menu {
   position: absolute;
   top: 100%;
   right: 0;
-  width: 240px;
-  background-color: var(--bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  transform: translateY(-10px);
+  min-width: 200px;
+  z-index: 1000;
   opacity: 0;
   visibility: hidden;
-  transition: all 0.3s ease;
-  z-index: 1000;
+  transform: translateY(-10px);
+  transition: all 0.3s;
 }
 
 .user-menu.is-open {
-  transform: translateY(0);
   opacity: 1;
   visibility: visible;
-}
-
-.user-menu-header {
-  padding: 16px;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  transform: translateY(0);
 }
 
 .user-avatar-large {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--primary-color);
+  width: 40px;
+  height: 40px;
+  background: var(--primary-color);
 }
 
 .user-avatar-large img {
@@ -391,77 +291,32 @@ const handleLogout = () => {
   object-fit: cover;
 }
 
-.user-avatar-large .avatar-placeholder {
+.user-avatar-large .default-avatar {
   color: white;
   font-weight: 600;
   font-size: 18px;
 }
 
-.user-details .username {
-  color: var(--text-color);
-  font-weight: 600;
-  font-size: 16px;
-  margin-bottom: 4px;
-}
-
-.user-details .points {
-  color: var(--text-color);
-  opacity: 0.7;
-  font-size: 12px;
-}
-
-.user-menu-list {
-  list-style: none;
-  margin: 0;
-  padding: 8px 0;
-}
-
-.user-menu-list li {
-  padding: 12px 16px;
-  color: var(--text-color);
-  cursor: pointer;
-  transition: background-color 0.3s;
-  font-size: 14px;
-}
-
-.user-menu-list li:hover {
-  background-color: var(--hover-color);
-}
-
-.user-menu-list .logout-item {
-  color: #f56565;
-  border-top: 1px solid var(--border-color);
-}
-
-.user-menu-list .logout-item:hover {
-  background-color: rgba(245, 101, 101, 0.1);
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
   .desktop-nav {
     display: none;
   }
-  
-  .user-section {
-    display: none;
-  }
-  
+
   .mobile-menu-btn {
     display: flex;
   }
-  
+
   .mobile-menu {
     display: block;
   }
-  
-  .login-btn {
-    padding: 6px 12px;
-    font-size: 12px;
+
+  .user-menu {
+    right: -10px;
+    width: 220px;
   }
-  
-  .login-icon {
-    font-size: 14px;
+
+  .logo {
+    font-size: 1.3rem;
   }
 }
 </style>

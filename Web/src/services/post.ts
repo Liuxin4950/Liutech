@@ -28,6 +28,10 @@ export interface PostListItem {
   author: AuthorInfo
   tags?: TagInfo[]
   commentCount: number
+  coverImage?: string
+  thumbnail?: string
+  viewCount: number
+  likeCount: number
   createdAt: string
   updatedAt?: string
 }
@@ -66,6 +70,10 @@ export interface CreatePostRequest {
   categoryId: number
   status: 'draft' | 'published'
   tagIds?: number[]
+  coverImage?: string
+  thumbnail?: string
+  viewCount?: number
+  likeCount?: number
 }
 
 // 创建文章响应接口
@@ -85,6 +93,10 @@ export interface UpdatePostRequest {
   categoryId?: number
   status?: 'draft' | 'published'
   tagIds?: number[]
+  coverImage?: string
+  thumbnail?: string
+  viewCount?: number
+  likeCount?: number
 }
 
 /**

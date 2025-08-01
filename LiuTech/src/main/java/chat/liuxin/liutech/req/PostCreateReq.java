@@ -47,4 +47,24 @@ public class PostCreateReq {
      * 文章状态（draft: 草稿, published: 已发布）
      */
     private String status = "draft";
+
+    /**
+     * 封面图片URL
+     */
+    private String coverImage;
+
+    /**
+     * 缩略图URL
+     */
+    private String thumbnail;
+
+    /**
+     * 浏览次数
+     */
+    private Integer viewCount = 0;
+
+    /**
+     * 点赞次数
+     */
+    private Integer likeCount = 0;
 }

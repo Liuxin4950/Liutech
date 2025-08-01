@@ -46,6 +46,26 @@ public class Posts extends BaseEntity {
      */
     private String status;
 
+    /**
+     * 封面图片URL
+     */
+    private String coverImage;
+
+    /**
+     * 缩略图URL
+     */
+    private String thumbnail;
+
+    /**
+     * 浏览次数
+     */
+    private Integer viewCount;
+
+    /**
+     * 点赞次数
+     */
+    private Integer likeCount;
+
     // 关联查询字段
     /**
      * 分类信息
