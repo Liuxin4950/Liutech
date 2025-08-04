@@ -73,6 +73,15 @@
           class="post-item"
           @click="goToPost(post.id)"
         >
+          <!-- 缩略图 -->
+          <div class="post-thumbnail">
+            <img 
+              :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" 
+              :alt="post.title" 
+              class="thumbnail-image"
+            >
+          </div>
+          
           <div class="post-content">
             <div class="post-header">
               <h3 class="post-title">{{ post.title }}</h3>
@@ -253,6 +262,15 @@ const loadPosts = async (page: number = 1) => {
     }
 
     const response = await PostService.getPosts(params)
+    
+    console.log('API返回的完整数据:', response)
+    console.log('文章列表数据:', response.records)
+    if (response.records && response.records.length > 0) {
+      console.log('第一篇文章的数据:', response.records[0])
+      console.log('第一篇文章的thumbnail:', response.records[0].thumbnail)
+      console.log('第一篇文章的coverImage:', response.records[0].coverImage)
+    }
+    
     posts.value = response.records
     pagination.value = {
       current: response.current,
@@ -489,12 +507,34 @@ onMounted(async () => {
   padding: 24px;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
+  gap: 16px;
 }
 
 .post-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
   border-color: var(--primary-color);
+}
+
+/* 缩略图样式 */
+.post-thumbnail {
+  flex-shrink: 0;
+  width: 120px;
+  height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.post-item:hover .thumbnail-image {
+  transform: scale(1.05);
 }
 
 .post-content {

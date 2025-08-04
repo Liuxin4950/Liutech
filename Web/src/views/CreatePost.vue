@@ -1,60 +1,91 @@
 <template>
-  <div class="create-post">
-    <div class="page-header">
-      <h1 class="page-title">
-        {{ isEditMode ? '✏️ 编辑文章' : '📝 发布文章' }}
-      </h1>
-      <div class="header-actions">
-        <button @click="saveDraft" class="draft-btn" :disabled="saving">
-          💾 {{ isEditMode ? '更新草稿' : '保存草稿' }}
+  <div class="content">
+    <!-- 顶部工具栏 -->
+    <div class="editor-toolbar">
+      <div class="toolbar-left">
+        <button @click="goBack" class="btn-icon" title="返回">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
         </button>
-        <button @click="goBack" class="back-btn">
-          ← 返回
+        <div class="editor-title">
+          <span class="title-icon">{{ isEditMode ? '✏️' : '📝' }}</span>
+          <span>{{ isEditMode ? '编辑文章' : '发布文章' }}</span>
+        </div>
+      </div>
+      <div class="toolbar-right flex gap-8">
+        <button @click="saveDraft" class="btn-secondary" :disabled="saving">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+            <polyline points="17,21 17,13 7,13 7,21"/>
+            <polyline points="7,3 7,8 15,8"/>
+          </svg>
+          {{ isEditMode ? '更新草稿' : '保存草稿' }}
+        </button>
+        <button 
+          @click="handleSubmit" 
+          class="btn-primary" 
+          :disabled="saving || !form.title || !form.content || !form.categoryId"
+        >
+          <svg v-if="saving" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+          </svg>
+          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+          </svg>
+          {{ saving 
+            ? (isEditMode ? '更新中...' : '发布中...') 
+            : (isEditMode ? '更新文章' : '发布文章') 
+          }}
         </button>
       </div>
     </div>
 
-    <form @submit.prevent="submitPost" class="post-form">
-      <!-- 基本信息 -->
-      <div class="form-section">
-        <h2 class="section-title">基本信息</h2>
-        
-        <div class="form-group">
-          <label for="title" class="form-label">文章标题 *</label>
+    <!-- 编辑器主体 -->
+    <div class="editor-container">
+      <!-- 左侧编辑区 -->
+      <div class="editor-main">
+        <!-- 文章标题 -->
+        <div class="title-section">
           <input
-            id="title"
             v-model="form.title"
             type="text"
-            class="form-input"
-            placeholder="请输入文章标题"
-            required
+            class="title-input"
+            placeholder="请输入文章标题..."
             maxlength="100"
           >
-          <div class="char-count">{{ form.title.length }}/100</div>
+          <div class="char-count text-sm text-muted">{{ form.title.length }}/100</div>
         </div>
 
-        <div class="form-group">
-          <label for="summary" class="form-label">文章摘要</label>
-          <textarea
-            id="summary"
-            v-model="form.summary"
-            class="form-textarea"
-            placeholder="请输入文章摘要（可选）"
-            rows="3"
-            maxlength="200"
-          ></textarea>
-          <div class="char-count">{{ (form.summary || '').length }}/200</div>
+        <!-- 文章内容编辑器 -->
+        <div class="content-section">
+          <TinyMCEEditor 
+            v-model="form.content"
+            :height="600"
+            placeholder="开始编写你的文章内容..."
+            class="content-editor"
+          />
         </div>
+      </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="category" class="form-label">文章分类 *</label>
-            <select
-              id="category"
-              v-model="form.categoryId"
-              class="form-select"
-              required
-            >
+      <!-- 右侧设置面板 -->
+      <div class="editor-sidebar">
+        <!-- 发布设置 -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">发布设置</h3>
+          
+          <div class="form-field">
+            <label class="field-label">发布状态</label>
+            <select v-model="form.status" class="field-select">
+              <option value="draft">📝 草稿</option>
+              <option value="published">🚀 发布</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label class="field-label">文章分类 *</label>
+            <select v-model="form.categoryId" class="field-select" required>
               <option value="">请选择分类</option>
               <option
                 v-for="category in categories"
@@ -65,28 +96,30 @@
               </option>
             </select>
           </div>
-
-          <div class="form-group">
-            <label for="status" class="form-label">发布状态</label>
-            <select
-              id="status"
-              v-model="form.status"
-              class="form-select"
-            >
-              <option value="draft">草稿</option>
-              <option value="published">发布</option>
-            </select>
-          </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">文章标签</label>
-          <div class="tags-input">
-            <div class="selected-tags">
+        <!-- 文章摘要 -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">文章摘要</h3>
+          <textarea
+            v-model="form.summary"
+            class="field-textarea"
+            placeholder="请输入文章摘要（可选）"
+            rows="4"
+            maxlength="200"
+          ></textarea>
+          <div class="char-count text-sm text-muted">{{ (form.summary || '').length }}/200</div>
+        </div>
+
+        <!-- 标签设置 -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">文章标签</h3>
+          <div class="tags-section">
+            <div v-if="selectedTags.length > 0" class="selected-tags tags-cloud mb-12">
               <span
                 v-for="tag in selectedTags"
                 :key="tag.id"
-                class="tag-item"
+                class="tag"
               >
                 {{ tag.name }}
                 <button
@@ -101,7 +134,7 @@
             <select
               v-model="selectedTagId"
               @change="addTag"
-              class="tag-select"
+              class="field-select"
             >
               <option value="">选择标签</option>
               <option
@@ -115,65 +148,45 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="coverImage" class="form-label">封面图片</label>
+        <!-- 图片设置 -->
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">图片设置</h3>
+          <div class="form-field">
+            <label class="field-label">封面图片</label>
             <input
-              id="coverImage"
               v-model="form.coverImage"
               type="url"
-              class="form-input"
-              placeholder="请输入封面图片URL（可选）"
+              class="field-input"
+              placeholder="请输入封面图片URL"
             >
           </div>
-
-          <div class="form-group">
-            <label for="thumbnail" class="form-label">缩略图</label>
+          <div class="form-field">
+            <label class="field-label">缩略图</label>
             <input
-              id="thumbnail"
               v-model="form.thumbnail"
               type="url"
-              class="form-input"
-              placeholder="请输入缩略图URL（可选）"
+              class="field-input"
+              placeholder="请输入缩略图URL"
             >
           </div>
         </div>
-      </div>
 
-      <!-- 文章内容 -->
-      <div class="form-section">
-        <h2 class="section-title">文章内容</h2>
-        <div class="form-group">
-          <TinyMCEEditor style="width: 100%; height: 500px;"
-            v-model="form.content"
-            :height="500"
-            placeholder="开始编写你的文章内容..."
-          />
+        <!-- 预览按钮 -->
+        <div class="sidebar-section">
+          <button
+            @click="previewPost"
+            class="btn-outline w-full"
+            :disabled="!form.title || !form.content"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            预览文章
+          </button>
         </div>
       </div>
-
-      <!-- 提交按钮 -->
-      <div class="form-actions">
-        <button
-          type="button"
-          @click="previewPost"
-          class="preview-btn"
-          :disabled="!form.title || !form.content"
-        >
-          👁️ 预览
-        </button>
-        <button
-          type="submit"
-          class="submit-btn"
-          :disabled="saving || !form.title || !form.content || !form.categoryId"
-        >
-          {{ saving 
-            ? (isEditMode ? '更新中...' : '发布中...') 
-            : (isEditMode ? '💾 更新文章' : '🚀 发布文章') 
-          }}
-        </button>
-      </div>
-    </form>
+    </div>
 
     <!-- 预览模态框 -->
     <div v-if="showPreview" class="preview-modal" @click="closePreview">
@@ -322,6 +335,11 @@ const previewPost = () => {
 // 关闭预览
 const closePreview = () => {
   showPreview.value = false
+}
+
+// 处理表单提交
+const handleSubmit = async () => {
+  await submitPost()
 }
 
 // 提交文章
@@ -485,198 +503,363 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.create-post {
-  max-width: 1000px;
-  margin: 0 auto;
+
+/* 编辑器工具栏样式 */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.back-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  
+  .back-btn:hover {
+    background: var(--hover-color);
+    border-color: var(--border-color);
+  }
+  
+  .toolbar-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+    margin: 0;
+  }
+ 
+ .toolbar-actions {
+   display: flex;
+   align-items: center;
+   gap: 12px;
+ }
+
+.btn-secondary,
+.btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid;
+}
+
+.btn-secondary {
+   background: var(--hover-color);
+   border-color: var(--border-color);
+   color: var(--text-color);
+ }
+ 
+ .btn-secondary:hover {
+   background: var(--border-color);
+   border-color: var(--border-color);
+ }
+ 
+ .btn-primary {
+   background: var(--primary-color);
+   border-color: var(--primary-color);
+   color: #fff;
+ }
+ 
+ .btn-primary:hover {
+   background: var(--primary-hover-color);
+   border-color: var(--primary-hover-color);
+ }
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 编辑器容器 */
+.editor-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* 左侧编辑区 */
+ .editor-main {
+   flex: 1;
+   display: flex;
+   flex-direction: column;
+   background: var(--bg-color);
+   border-right: 1px solid var(--border-color);
+ }
+ 
+ .title-section {
+   padding: 20px 24px;
+   border-bottom: 1px solid var(--border-color);
+ }
+ 
+ .title-input {
+   width: 100%;
+   padding: 12px 0;
+   border: none;
+   outline: none;
+   font-size: 24px;
+   font-weight: 600;
+   color: var(--text-color);
+   background: transparent;
+ }
+ 
+ .title-input::placeholder {
+   color: var(--tag-text-color);
+ }
+
+.content-section {
+  flex: 1;
+}
+
+.content-editor {
+  width: 100%;
+  height: 100%;
+}
+
+/* 右侧设置面板 */
+.editor-sidebar {
+  width: 320px;
+  background: var(--hover-color);
+  border-left: 1px solid var(--border-color);
+  overflow-y: auto;
   padding: 20px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid var(--border-color);
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-color);
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.draft-btn, .back-btn {
-  padding: 8px 16px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+.sidebar-section {
+  margin-bottom: 24px;
+  padding: 16px;
   background: var(--bg-color);
-  color: var(--text-color);
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.draft-btn:hover, .back-btn:hover {
-  background: var(--hover-color);
-}
-
-.draft-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.post-form {
-  display: flex;
-  flex-direction: column;
-  gap: 30px;
-}
-
-.form-section {
-  background: var(--bg-color);
+  border-radius: 8px;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 24px;
 }
 
-.section-title {
-  font-size: 1.3rem;
+.sidebar-title {
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-color);
-  margin: 0 0 20px 0;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-color);
+  margin: 0 0 12px 0;
 }
 
-.form-group {
-  margin-bottom: 20px;
+.form-field {
+  margin-bottom: 16px;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+.form-field:last-child {
+  margin-bottom: 0;
 }
 
-.form-label {
-  display: block;
-  font-weight: 500;
-  color: var(--text-color);
-  margin-bottom: 8px;
-}
+.field-label {
+   display: block;
+   margin-bottom: 6px;
+   font-size: 12px;
+   font-weight: 500;
+   color: var(--tag-text-color);
+   text-transform: uppercase;
+   letter-spacing: 0.5px;
+ }
+ 
+ .field-input,
+ .field-textarea,
+ .field-select {
+   width: 100%;
+   padding: 8px 12px;
+   border: 1px solid var(--border-color);
+   border-radius: 6px;
+   font-size: 14px;
+   background: var(--bg-color);
+   color: var(--text-color);
+   transition: border-color 0.2s;
+ }
+ 
+ .field-input:focus,
+ .field-textarea:focus,
+ .field-select:focus {
+   outline: none;
+   border-color: var(--primary-color);
+   box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+ }
 
-.form-input, .form-textarea, .form-select {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-color);
-  color: var(--text-color);
-  font-size: 14px;
-  transition: border-color 0.3s;
-}
-
-.form-input:focus, .form-textarea:focus, .form-select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-}
-
-.form-textarea {
+.field-textarea {
   resize: vertical;
   min-height: 80px;
+  font-family: inherit;
 }
 
-.char-count {
-  text-align: right;
-  font-size: 12px;
-  color: var(--text-color);
-  opacity: 0.6;
-  margin-top: 4px;
+.tags-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.tags-input {
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 8px;
-  background: var(--bg-color);
-}
-
-.selected-tags {
+.tags-cloud {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
 }
 
-.tag-item {
+.tag {
+   display: inline-flex;
+   align-items: center;
+   gap: 4px;
+   padding: 4px 8px;
+   background: var(--tag-bg-color);
+   color: var(--primary-color);
+   border-radius: 12px;
+   font-size: 12px;
+   font-weight: 500;
+ }
+ 
+ .tag-remove {
+   background: none;
+   border: none;
+   color: var(--primary-color);
+   cursor: pointer;
+   padding: 0;
+   margin-left: 4px;
+   font-size: 14px;
+   line-height: 1;
+ }
+ 
+ .tag-remove:hover {
+   color: var(--secondary-color);
+ }
+ 
+ .btn-outline {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   gap: 8px;
+   padding: 10px 16px;
+   background: transparent;
+   border: 1px solid var(--border-color);
+   border-radius: 6px;
+   color: var(--text-color);
+   font-size: 14px;
+   font-weight: 500;
+   cursor: pointer;
+   transition: all 0.2s;
+ }
+ 
+ .btn-outline:hover {
+   background: var(--hover-color);
+   border-color: var(--border-color);
+ }
+
+.btn-outline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.flex {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--primary-color);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+
+.mb-12 {
+  margin-bottom: 12px;
+}
+
+.text-sm {
   font-size: 12px;
 }
 
-.tag-remove {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
+.text-muted {
+    color: var(--tag-text-color);
+  }
+ 
+ .char-count {
+   text-align: right;
+   margin-top: 4px;
+ }
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .editor-container {
+    flex-direction: column;
+  }
+  
+  .editor-sidebar {
+     width: 100%;
+     border-left: none;
+     border-top: 1px solid var(--border-color);
+     max-height: 40vh;
+   }
+  
+  .toolbar-title {
+    display: none;
+  }
+  
+  .toolbar-actions {
+    gap: 8px;
+  }
+  
+  .btn-secondary,
+  .btn-primary {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .title-input {
+    font-size: 20px;
+  }
+  
+  .sidebar-section {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
 }
 
-.tag-select {
-  border: none;
-  background: transparent;
-  color: var(--text-color);
-  font-size: 14px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 20px 0;
-}
-
-.preview-btn, .submit-btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.preview-btn {
-  background: var(--hover-color);
-  color: var(--text-color);
-}
-
-.submit-btn {
-  background: var(--primary-color);
-  color: white;
-}
-
-.preview-btn:hover {
-  background: var(--border-color);
-}
-
-.submit-btn:hover {
-  background: var(--secondary-color);
-}
-
-.preview-btn:disabled, .submit-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+@media (max-width: 480px) {
+  .editor-toolbar {
+    padding: 8px 12px;
+  }
+  
+  .title-section {
+    padding: 16px;
+  }
+  
+  .content-section {
+    padding: 16px;
+  }
+  
+  .editor-sidebar {
+    padding: 12px;
+  }
+  
+  .btn-secondary span,
+  .btn-primary span {
+    display: none;
+  }
 }
 
 /* 预览模态框 */

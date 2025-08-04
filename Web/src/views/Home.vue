@@ -1,5 +1,5 @@
 <template>
-  <div class="home">
+  <div class="content">
     <div class="home-layout">
       <!-- 左侧边栏 -->
       <aside class="sidebar">
@@ -224,7 +224,7 @@ onMounted(() => {
 .banner{
   height: 500px;
 }
-.home {
+.content {
   max-width: 1400px;
   margin: 0 auto;
   padding: 20px;

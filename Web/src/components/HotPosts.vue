@@ -26,6 +26,15 @@
         @click="$emit('post-click', post.id)"
       >
         <div class="post-content">
+          <!-- 缩略图 -->
+          <div class="post-thumbnail">
+            <img 
+              :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" 
+              :alt="post.title" 
+              class="thumbnail-image" 
+            />
+          </div>
+          
           <div class="post-header">
             <h3 class="post-title">{{ post.title }}</h3>
             <span v-if="post.category" class="post-category">{{ post.category.name }}</span>
@@ -177,6 +186,30 @@ const formatDate = (dateString: string) => {
   width: 100%;
 }
 
+/* 缩略图样式 */
+.post-thumbnail {
+  margin-bottom: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.post-thumbnail:hover {
+  transform: scale(1.02);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.thumbnail-image:hover {
+  transform: scale(1.05);
+}
+
 .post-header {
   display: flex;
   justify-content: space-between;
@@ -285,6 +318,10 @@ const formatDate = (dateString: string) => {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+
+  .thumbnail-image {
+    height: 150px;
   }
 }
 </style>

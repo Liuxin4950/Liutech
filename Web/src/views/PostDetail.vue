@@ -1,35 +1,53 @@
 <template>
   <div class="post-detail">
-    <div v-if="loading" class="loading">
+    <div v-if="loading" class="text-center p-20 text-muted">
       <p>加载中...</p>
     </div>
-    <div v-else-if="error" class="error">
+    <div v-else-if="error" class="text-center p-20 text-muted">
       <p>{{ error }}</p>
-      <button @click="loadPostDetail" class="retry-btn">重试</button>
+      <button @click="loadPostDetail" class="retry-btn bg-primary text-center rounded transition mt-8">重试</button>
     </div>
-    <div v-else-if="post" class="post-content">
+    <div v-else-if="post" class="card">
       <!-- 文章头部信息 -->
       <header class="post-header">
+        <!-- 返回按钮 -->
+        <button @click="goBack" class="back-btn-top">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          <span>返回</span>
+        </button>
+        
         <h1 class="post-title">{{ post.title }}</h1>
-        <div class="post-meta">
-          <div class="author-info">
+        
+        <!-- 封面图片 -->
+        <div class="post-cover rounded-lg mb-16">
+          <img 
+            :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'" 
+            :alt="post.title" 
+            class="cover-image"
+          >
+        </div>
+        
+        <div class="flex flex-sb flex-ac mb-16 flex-fw gap-12">
+          <div class="flex flex-ac gap-8">
             <img 
               v-if="post.author?.avatarUrl" 
               :src="post.author.avatarUrl" 
               :alt="post.author.username"
               class="author-avatar"
             >
-            <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
+            <span class="text-muted font-medium">{{ post.author?.username || '匿名用户' }}</span>
           </div>
-          <div class="post-info">
-            <span v-if="post.category" class="post-category">{{ post.category.name }}</span>
-            <span class="post-date">{{ formatDate(post.createdAt) }}</span>
-            <span class="view-count">👁️ {{ post.viewCount || 0 }}</span>
-            <span class="like-count">❤️ {{ post.likeCount || 0 }}</span>
-            <span class="comment-count">💬 {{ post.commentCount }}</span>
+          <div class="flex gap-16 flex-ac text-sm text-muted">
+            <span v-if="post.category" class="badge">{{ post.category.name }}</span>
+            <span>{{ formatDate(post.createdAt) }}</span>
+            <span>👁️ {{ post.viewCount || 0 }}</span>
+            <span>❤️ {{ post.likeCount || 0 }}</span>
+            <span>💬 {{ post.commentCount }}</span>
           </div>
         </div>
-        <div v-if="post.tags && post.tags.length > 0" class="post-tags">
+        <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
           <span 
             v-for="tag in post.tags" 
             :key="tag.id" 
@@ -41,33 +59,23 @@
       </header>
 
       <!-- 文章摘要 -->
-      <div v-if="post.summary" class="post-summary">
-        <p>{{ post.summary }}</p>
+      <div v-if="post.summary" class="post-summary bg-hover border-l-3 p-20">
+        <p class="text-muted">{{ post.summary }}</p>
       </div>
 
       <!-- 文章内容 -->
-      <article class="post-body">
+      <article class="p-20">
         <div class="markdown-content" v-html="renderedContent"></div>
       </article>
-
-      <!-- 文章操作按钮 -->
-      <div class="post-actions">
-        <button @click="handleLike" class="like-btn" :class="{ 'liked': isLiked }" :disabled="liking">
-          <span class="like-icon">{{ isLiked ? '❤️' : '🤍' }}</span>
-          <span class="like-text">{{ isLiked ? '已喜欢' : '喜欢' }}</span>
-          <span class="like-count">({{ currentLikeCount }})</span>
-        </button>
-        <button @click="goBack" class="back-btn">返回</button>
-      </div>
       
       <!-- 评论模块 -->
-      <div class="comment-section-wrapper">
+      <div class="p-20">
         <CommentSection :post-id="Number(route.params.id)" />
       </div>
     </div>
-    <div v-else class="not-found">
+    <div v-else class="text-center p-20 text-muted">
       <p>文章不存在</p>
-      <button @click="goBack" class="back-btn">返回首页</button>
+      <button @click="goBack" class="bg-primary text-center rounded transition mt-8">返回首页</button>
     </div>
   </div>
 </template>
@@ -210,35 +218,20 @@ onMounted(() => {
   padding: 20px;
 }
 
-.loading, .error, .not-found {
-  text-align: center;
-  padding: 40px;
-  color: #7f8c8d;
-}
-
-.retry-btn, .back-btn {
-  margin-top: 12px;
+.retry-btn {
   padding: 8px 16px;
-  background: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.3s;
 }
 
-.retry-btn:hover, .back-btn:hover {
-  background: var(--secondary-color);
-}
-
-.post-content {
-  background: var(--bg-color);
-  border-radius: 8px;
-  overflow: hidden;
+.retry-btn:hover {
+  background: var(--secondary-color) !important;
 }
 
 .post-header {
-  padding: 30px;
+  position: relative;
+  padding: 60px 30px 30px 30px;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -250,19 +243,17 @@ onMounted(() => {
   line-height: 1.3;
 }
 
-.post-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 12px;
+.post-cover {
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.author-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.cover-image {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  object-fit: cover;
+  display: block;
 }
 
 .author-avatar {
@@ -272,66 +263,18 @@ onMounted(() => {
   object-fit: cover;
 }
 
-.author-name {
-  color: var(--text-color);
-  opacity: 0.8;
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.post-info {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  font-size: 0.875rem;
-  color: var(--text-color);
-  opacity: 0.6;
-}
-
-.post-category {
-  background: var(--primary-color);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.post-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tag {
-  background: var(--hover-color);
-  color: var(--text-color);
-  opacity: 0.8;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
 .post-summary {
-  padding: 20px 30px;
-  background: var(--hover-color);
-  border-left: 4px solid var(--primary-color);
   margin: 0;
+  border-left-color: var(--primary-color);
 }
 
 .post-summary p {
   margin: 0;
-  color: var(--text-color);
-  opacity: 0.8;
   font-style: italic;
   line-height: 1.6;
 }
 
-.post-body {
-  padding: 30px;
-}
-
+/* Markdown 内容样式 */
 .markdown-content {
   line-height: 1.8;
   color: var(--text-color);
@@ -354,9 +297,9 @@ onMounted(() => {
 .markdown-content :deep(h3) { font-size: 1.3rem; }
 .markdown-content :deep(h4) { font-size: 1.1rem; }
 
-.markdown-content :deep(p) {
-  margin: 16px 0;
-}
+.markdown-content :deep(p) { margin: 16px 0; }
+.markdown-content :deep(strong) { font-weight: 600; }
+.markdown-content :deep(em) { font-style: italic; }
 
 .markdown-content :deep(code) {
   background: #f1f2f6;
@@ -365,14 +308,6 @@ onMounted(() => {
   font-family: 'Courier New', monospace;
   font-size: 0.9rem;
   color: #e74c3c;
-}
-
-.markdown-content :deep(strong) {
-  font-weight: 600;
-}
-
-.markdown-content :deep(em) {
-  font-style: italic;
 }
 
 .markdown-content :deep(ul),
@@ -395,14 +330,6 @@ onMounted(() => {
 
 .markdown-content :deep(a:hover) {
   border-bottom-color: var(--primary-color);
-}
-
-.markdown-content :deep(img) {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-  margin: 16px 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .markdown-content :deep(blockquote) {
@@ -467,91 +394,39 @@ onMounted(() => {
   margin: 24px 0;
 }
 
-.post-actions {
-  padding: 20px 30px;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  align-items: center;
-}
-
-.like-btn {
+/* 返回按钮 */
+.back-btn-top {
+  position: absolute;
+  top: 20px;
+  left: 20px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
-  color: white;
-  border: none;
-  border-radius: 25px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+  color: var(--text-color);
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+  z-index: 10;
 }
 
-.like-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+.back-btn-top:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateX(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.like-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.like-btn.liked {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  animation: likeAnimation 0.6s ease;
-}
-
-@keyframes likeAnimation {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
-}
-
-.like-icon {
-  font-size: 16px;
+.back-btn-top svg {
   transition: transform 0.3s ease;
 }
 
-.like-btn:hover .like-icon {
-  transform: scale(1.2);
-}
-
-.like-text {
-  font-weight: 600;
-}
-
-.like-count {
-  font-size: 12px;
-  opacity: 0.9;
-}
-
-.back-btn {
-  padding: 12px 24px;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 25px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.back-btn:hover {
-  background: var(--primary-hover-color);
-  transform: translateY(-2px);
-}
-
-.comment-section-wrapper {
-  padding: 0 30px 30px 30px;
-  background: var(--bg-color);
+.back-btn-top:hover svg {
+  transform: translateX(-2px);
 }
 
 /* 响应式设计 */
@@ -561,37 +436,23 @@ onMounted(() => {
   }
   
   .post-header {
-    padding: 20px;
+    padding: 50px 20px 20px 20px;
+  }
+  
+  .back-btn-top {
+    top: 16px;
+    left: 16px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .back-btn-top svg {
+    width: 16px;
+    height: 16px;
   }
   
   .post-title {
     font-size: 1.8rem;
-  }
-  
-  .post-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .post-info {
-    gap: 12px;
-  }
-  
-  .post-summary {
-    padding: 16px 20px;
-  }
-  
-  .post-body {
-    padding: 20px;
-  }
-  
-  .post-actions {
-    padding: 16px 20px;
-  }
-  
-  .comment-section-wrapper {
-    padding: 0 20px 20px 20px;
   }
 }
 </style>

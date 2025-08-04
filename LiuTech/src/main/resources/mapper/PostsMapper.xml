@@ -16,6 +16,8 @@
         <result property="createdBy" column="created_by"/>
         <result property="updatedBy" column="updated_by"/>
         <result property="deletedAt" column="deleted_at"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="thumbnail" column="thumbnail"/>
         <result property="viewCount" column="view_count"/>
         <result property="likeCount" column="like_count"/>
         <result property="commentCount" column="comment_count"/>
@@ -49,6 +51,8 @@
             p.title,
             p.content,
             p.summary,
+            p.cover_image,
+            p.thumbnail,
             p.category_id,
             p.author_id,
             p.status,
@@ -84,6 +88,8 @@
             p.title,
             p.content,
             p.summary,
+            p.cover_image,
+            p.thumbnail,
             p.category_id,
             p.author_id,
             p.status,
@@ -143,6 +149,8 @@
             p.id,
             p.title,
             p.summary,
+            p.cover_image,
+            p.thumbnail,
             p.category_id,
             p.author_id,
             p.status,
@@ -164,7 +172,7 @@
         LEFT JOIN comments cm ON p.id = cm.post_id AND cm.deleted_at IS NULL
         WHERE p.deleted_at IS NULL
         AND p.status = 'published'
-        GROUP BY p.id, p.title, p.summary, p.category_id, p.author_id, p.status, p.view_count, p.like_count, p.created_at, p.updated_at,
+        GROUP BY p.id, p.title, p.summary, p.cover_image, p.thumbnail, p.category_id, p.author_id, p.status, p.view_count, p.like_count, p.created_at, p.updated_at,
                  c.id, c.name, c.description, u.id, u.username, u.email, u.avatar_url
         ORDER BY comment_count DESC, IFNULL(p.view_count, 0) DESC, IFNULL(p.like_count, 0) DESC, p.created_at DESC
         LIMIT #{limit}
@@ -176,6 +184,8 @@
             p.id,
             p.title,
             p.summary,
+            p.cover_image,
+            p.thumbnail,
             p.category_id,
             p.author_id,
             p.status,

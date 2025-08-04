@@ -12,6 +12,12 @@
   color: var(--text-color);
   transition: background-color 0.3s, color 0.3s;
 }
+/* 显示内容区域大小 */
+.content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
 
 /* 通用元素样式重置 */
 ul, ol {
