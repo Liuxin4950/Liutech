@@ -112,12 +112,26 @@ const router = createRouter({
 
 /**
  * 路由前置守卫
- * 设置页面标题
+ * 设置页面标题和权限检查
  */
-// router.beforeEach((to, from, next) => {
-//   // 设置页面标题
-//   document.title = `${to.meta.title || '博客'} - MyBlog`
-//   next()
-// })
+router.beforeEach((to, from, next) => {
+  // 设置页面标题
+  document.title = `${to.meta.title || '博客'} - MyBlog`
+  
+  // 需要登录的页面
+  const requiresAuth = ['create-post', 'drafts', 'my-posts', 'profile']
+  
+  // 检查是否需要登录
+  if (requiresAuth.includes(to.name as string)) {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      // 未登录，跳转到登录页面
+      next({ name: 'login', query: { redirect: to.fullPath } })
+      return
+    }
+  }
+  
+  next()
+})
 
 export default router

@@ -56,6 +56,7 @@ public class SecurityConfig {
                 .requestMatchers("GET", "/categories/**").permitAll()  // 所有分类接口
                 .requestMatchers("GET", "/tags/**").permitAll()  // 所有标签接口
                 .requestMatchers("GET", "/comments/**").permitAll()  // 所有评论查询接口
+                .requestMatchers("GET", "/announcements/**").permitAll()  // 所有公告查询接口
                 .requestMatchers("GET", "/user/{id}").permitAll()  // 用户信息查询
                 
                 // ========== 其他所有请求都需要认证 ==========

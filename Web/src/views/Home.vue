@@ -66,6 +66,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem } from '@/services/post'
+import { AnnouncementService } from '@/services/announcement'
+import type { Announcement } from '@/services/announcement'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -90,25 +92,15 @@ const totalComments = ref(67)
 const totalViews = ref(152)
 const recommendedPosts = ref<PostListItem[]>([])
 const recommendedLoading = ref(false)
+// 定义简化的公告接口，匹配AnnouncementCard组件
+interface SimpleAnnouncement {
+  id: number
+  date: string
+  text: string
+}
 
-// 公告数据
-const announcements = ref([
-  {
-    id: 1,
-    date: '2025-01-27',
-    text: '博客系统正式上线，欢迎大家访问！'
-  },
-  {
-    id: 2,
-    date: '2025-01-26',
-    text: '新增夜间模式功能，提升阅读体验。'
-  },
-  {
-    id: 3,
-    date: '2025-01-25',
-    text: '评论系统优化完成，支持实时回复。'
-  }
-])
+const announcements = ref<SimpleAnnouncement[]>([])
+const announcementsLoading = ref(false)
 
 // 友情链接数据
 const friendLinks = ref([
@@ -199,23 +191,35 @@ const loadRecommendedPosts = async () => {
   })
 }
 
-// 格式化日期
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+// 加载公告
+const loadAnnouncements = async () => {
+  await handleAsync(async () => {
+    announcementsLoading.value = true
+    const response = await AnnouncementService.getLatestAnnouncements(5)
+    // 转换数据格式以适配AnnouncementCard组件
+    announcements.value = (response || []).map(item => ({
+      id: item.id,
+      date: item.createdAt ? item.createdAt.split(' ')[0] : '未知日期', // 安全处理日期
+      text: item.title // 使用标题作为显示文本
+    }))
+  }, {
+    onError: (err) => {
+      console.error('加载公告失败:', err)
+      announcements.value = []
+    },
+    onFinally: () => {
+      announcementsLoading.value = false
+    }
   })
 }
-
 // 组件挂载时加载数据
 onMounted(() => {
   Promise.all([
     loadHotPosts(),
     loadCategories(),
     loadHotTags(),
-    loadRecommendedPosts()
+    loadRecommendedPosts(),
+    loadAnnouncements()
   ])
 })
 </script>

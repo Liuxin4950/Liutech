@@ -109,5 +109,29 @@ CREATE TABLE IF NOT EXISTS download_logs (
   FOREIGN KEY (resource_id) REFERENCES resources(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='下载记录表';
 
+CREATE TABLE IF NOT EXISTS announcements (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '公告ID',
+  title VARCHAR(255) NOT NULL COMMENT '公告标题',
+  content TEXT NOT NULL COMMENT '公告内容',
+  type TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '公告类型(1系统,2活动,3维护,4其他)',
+  priority TINYINT UNSIGNED NOT NULL DEFAULT 2 COMMENT '优先级(1低,2中,3高,4紧急)',
+  status TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '状态(0草稿,1发布,2下线)',
+  start_time TIMESTAMP NULL DEFAULT NULL COMMENT '开始显示时间',
+  end_time TIMESTAMP NULL DEFAULT NULL COMMENT '结束显示时间',
+  is_top TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '是否置顶(0否,1是)',
+  view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '查看次数',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+  updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
+  INDEX idx_status (status),
+  INDEX idx_type (type),
+  INDEX idx_priority (priority),
+  INDEX idx_is_top (is_top),
+  INDEX idx_start_time (start_time),
+  INDEX idx_end_time (end_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告表';
+
 -- 重新开启外键检查
 SET FOREIGN_KEY_CHECKS = 1;

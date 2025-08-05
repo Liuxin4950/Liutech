@@ -141,7 +141,9 @@ const handleLogin = async () => {
 
   if (result) {
     showSuccess('登录成功！')
-    router.push('/')
+    // 获取重定向路径，如果没有则跳转到首页
+    const redirect = router.currentRoute.value.query.redirect as string || '/'
+    router.push(redirect)
   }
 }
 
