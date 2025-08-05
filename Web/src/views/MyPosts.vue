@@ -1,5 +1,5 @@
 <template>
-  <div class="my-posts-page">
+  <div class="content">
     <div class="page-header">
       <h1 class="page-title">📚 我的文章</h1>
       <p class="page-description">管理您已发布的文章，编辑或删除</p>

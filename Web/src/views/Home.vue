@@ -43,7 +43,6 @@
         <!-- 友情链接 -->
         <FriendLinks :links="friendLinks" />
       </aside>
-
       <!-- 右侧主内容区 -->
       <main class="main-content">
         <!-- 热门文章组件 -->
@@ -67,7 +66,6 @@ import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem } from '@/services/post'
 import { AnnouncementService } from '@/services/announcement'
-import type { Announcement } from '@/services/announcement'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -228,12 +226,6 @@ onMounted(() => {
 .banner{
   height: 500px;
 }
-.content {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 20px;
-}
-
 .home-layout {
   display: grid;
   grid-template-columns: 320px 1fr;

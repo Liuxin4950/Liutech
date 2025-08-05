@@ -1,19 +1,17 @@
 <template>
   <div class="posts-page">
-    <div class="page-header">
-      <h1>📚 全部文章</h1>
-      <div class="header-actions">
-        <button class="create-btn" @click="router.push('/create')">
-          ✍️ 发布文章
-        </button>
-      </div>
+    <div class="flex flex-sb flex-ac mb-16">
+      <h1 class="text-lg font-semibold text-primary mb-0">📚 全部文章</h1>
+      <button class="bg-primary text-base font-medium p-12 rounded transition hover-lift" @click="router.push('/create')">
+        ✍️ 发布文章
+      </button>
     </div>
 
     <!-- 筛选器 -->
-    <div class="filters">
-      <div class="filter-group">
-        <label>分类：</label>
-        <select v-model="filters.categoryId" @change="handleFilterChange">
+    <div class="card flex flex-fw gap-16 flex-ac mb-16">
+      <div class="flex flex-ac gap-8">
+        <label class="font-medium text-muted">分类：</label>
+        <select v-model="filters.categoryId" @change="handleFilterChange" class="p-8 rounded border-t text-sm">
           <option value="">全部分类</option>
           <option v-for="category in categories" :key="category.id" :value="category.id">
             {{ category.name }}
@@ -21,9 +19,9 @@
         </select>
       </div>
       
-      <div class="filter-group">
-        <label>标签：</label>
-        <select v-model="filters.tagId" @change="handleFilterChange">
+      <div class="flex flex-ac gap-8">
+        <label class="font-medium text-muted">标签：</label>
+        <select v-model="filters.tagId" @change="handleFilterChange" class="p-8 rounded border-t text-sm">
           <option value="">全部标签</option>
           <option v-for="tag in tags" :key="tag.id" :value="tag.id">
             {{ tag.name }}
@@ -31,86 +29,86 @@
         </select>
       </div>
       
-      <div class="filter-group">
-        <label>排序：</label>
-        <select v-model="filters.sortBy" @change="handleFilterChange">
+      <div class="flex flex-ac gap-8">
+        <label class="font-medium text-muted">排序：</label>
+        <select v-model="filters.sortBy" @change="handleFilterChange" class="p-8 rounded border-t text-sm">
           <option value="latest">最新发布</option>
           <option value="popular">最受欢迎</option>
         </select>
       </div>
       
-      <div class="search-group">
+      <div class="flex flex-ac gap-8 flex-1">
         <input 
           v-model="searchKeyword" 
           type="text" 
           placeholder="搜索文章标题或内容..."
+          class="flex-1 p-8 rounded border-t text-sm"
           @keyup.enter="handleSearch"
-          class="search-input"
         >
-        <button @click="handleSearch" class="search-btn">🔍</button>
+        <button @click="handleSearch" class="bg-primary text-sm font-medium p-8 rounded transition hover-lift">
+          🔍 搜索
+        </button>
       </div>
     </div>
 
     <!-- 文章列表 -->
-    <div class="posts-container">
-      <div v-if="loading" class="loading">
-        <p>加载中...</p>
-      </div>
+    <div class="card">
+      <div v-if="loading" class="loading-text">加载中...</div>
       
-      <div v-else-if="error" class="error">
+      <div v-else-if="error" class="loading-text text-primary">
         <p>{{ error }}</p>
         <button @click="loadPosts()" class="retry-btn">重试</button>
       </div>
       
-      <div v-else-if="posts.length === 0" class="empty">
-        <p>暂无文章</p>
-      </div>
+      <div v-else-if="posts.length === 0" class="empty-text">暂无文章</div>
       
-      <div v-else class="posts-list">
+      <div v-else class="list gap-16">
         <article
           v-for="post in posts"
           :key="post.id"
-          class="post-item"
+          class="flex gap-16 p-16 bg-hover rounded-lg transition hover-lift link border-l-3"
           @click="goToPost(post.id)"
         >
           <!-- 缩略图 -->
-          <div class="post-thumbnail">
+          <div class="flex-shrink-0">
             <img 
               :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" 
               :alt="post.title" 
-              class="thumbnail-image"
+              class="rounded" 
+              style="width: 120px; height: 80px; object-fit: cover;"
             >
           </div>
           
-          <div class="post-content">
-            <div class="post-header">
-              <h3 class="post-title">{{ post.title }}</h3>
-              <span v-if="post.category" class="post-category">{{ post.category.name }}</span>
+          <div class="flex flex-col gap-8 flex-1">
+            <div class="flex flex-sb flex-ac">
+              <h3 class="text-lg font-semibold text-primary mb-0">{{ post.title }}</h3>
+              <span v-if="post.category" class="badge">{{ post.category.name }}</span>
             </div>
             
-            <p v-if="post.summary" class="post-summary">{{ post.summary }}</p>
+            <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
             
-            <div class="post-tags" v-if="post.tags && post.tags.length > 0">
+            <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
               <span v-for="tag in post.tags" :key="tag.id" class="tag">
                 {{ tag.name }}
               </span>
             </div>
             
-            <div class="post-meta">
-              <div class="author-info">
+            <div class="flex flex-sb flex-ac mt-8">
+              <div class="flex flex-ac gap-8">
                 <img
                   v-if="post.author?.avatarUrl"
                   :src="post.author.avatarUrl"
                   :alt="post.author.username"
-                  class="author-avatar"
+                  class="rounded"
+                  style="width: 24px; height: 24px; object-fit: cover;"
                 >
-                <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
+                <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
               </div>
-              <div class="post-stats">
-                <span class="view-count">👁️ {{ post.viewCount || 0 }}</span>
-                <span class="like-count">❤️ {{ post.likeCount || 0 }}</span>
-                <span class="comment-count">💬 {{ post.commentCount }}</span>
-                <span class="post-date">{{ formatDate(post.createdAt) }}</span>
+              <div class="flex gap-12 text-sm text-muted">
+                <span>👁️ {{ post.viewCount || 0 }}</span>
+                <span>❤️ {{ post.likeCount || 0 }}</span>
+                <span>💬 {{ post.commentCount }}</span>
+                <span>{{ formatDate(post.createdAt) }}</span>
               </div>
             </div>
           </div>
@@ -119,28 +117,29 @@
     </div>
 
     <!-- 分页器 -->
-    <div v-if="!loading && posts.length > 0" class="pagination">
+    <div v-if="!loading && posts.length > 0" class="card flex flex-jc flex-ac gap-16">
       <button 
         @click="goToPage(pagination.current - 1)" 
         :disabled="pagination.current <= 1"
-        class="page-btn"
+        class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
+        :class="{ 'opacity-50 cursor-not-allowed': pagination.current <= 1 }"
       >
         ⬅️ 上一页
       </button>
       
-      <div class="page-info">
-        <span class="page-numbers">
+      <div class="flex flex-ac gap-16">
+        <span class="flex gap-4">
           <button 
             v-for="page in visiblePages" 
             :key="page"
             @click="goToPage(page)"
-            :class="['page-number', { active: page === pagination.current }]"
+            :class="['text-sm p-8 rounded transition hover-lift', { 'bg-primary text-white': page === pagination.current, 'bg-hover': page !== pagination.current }]"
           >
             {{ page }}
           </button>
         </span>
         
-        <span class="page-text">
+        <span class="text-sm text-muted">
           第 {{ pagination.current }} 页，共 {{ pagination.pages }} 页
         </span>
       </div>
@@ -148,7 +147,8 @@
       <button 
         @click="goToPage(pagination.current + 1)" 
         :disabled="pagination.current >= pagination.pages"
-        class="page-btn"
+        class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
+        :class="{ 'opacity-50 cursor-not-allowed': pagination.current >= pagination.pages }"
       >
         下一页 ➡️
       </button>
@@ -366,118 +366,6 @@ onMounted(async () => {
   padding: 20px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid var(--border-color);
-}
-
-.page-header h1 {
-  font-size: 2rem;
-  color: var(--text-color);
-  margin: 0;
-}
-
-.create-btn {
-  padding: 10px 20px;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.create-btn:hover {
-  background: var(--secondary-color);
-}
-
-/* 筛选器样式 */
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  align-items: center;
-  background: var(--bg-color);
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 24px;
-  border: 1px solid var(--border-color);
-}
-
-.filter-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.filter-group label {
-  font-weight: 500;
-  color: var(--text-color);
-  white-space: nowrap;
-}
-
-.filter-group select {
-  padding: 6px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-color);
-  color: var(--text-color);
-  font-size: 0.9rem;
-  min-width: 120px;
-}
-
-.search-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.search-input {
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-color);
-  color: var(--text-color);
-  font-size: 0.9rem;
-  width: 250px;
-}
-
-.search-btn {
-  padding: 8px 12px;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.search-btn:hover {
-  background: var(--secondary-color);
-}
-
-/* 文章容器 */
-.posts-container {
-  background: var(--bg-color);
-  border-radius: 12px;
-  padding: 24px;
-  border: 1px solid var(--border-color);
-  margin-bottom: 24px;
-}
-
-.loading, .error, .empty {
-  text-align: center;
-  padding: 60px;
-  color: var(--text-color);
-  opacity: 0.7;
-}
-
 .retry-btn {
   margin-top: 12px;
   padding: 8px 16px;
@@ -491,217 +379,6 @@ onMounted(async () => {
 
 .retry-btn:hover {
   background: var(--secondary-color);
-}
-
-/* 文章列表 */
-.posts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.post-item {
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 24px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  gap: 16px;
-}
-
-.post-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color);
-}
-
-/* 缩略图样式 */
-.post-thumbnail {
-  flex-shrink: 0;
-  width: 120px;
-  height: 80px;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.thumbnail-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.post-item:hover .thumbnail-image {
-  transform: scale(1.05);
-}
-
-.post-content {
-  width: 100%;
-}
-
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.post-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin: 0;
-  line-height: 1.4;
-  flex: 1;
-  margin-right: 12px;
-}
-
-.post-category {
-  background: var(--primary-color);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.post-summary {
-  color: var(--text-color);
-  opacity: 0.7;
-  line-height: 1.6;
-  margin: 12px 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 0.95rem;
-}
-
-.post-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 12px 0;
-}
-
-.tag {
-  background: var(--hover-color);
-  color: var(--text-color);
-  opacity: 0.8;
-  padding: 3px 8px;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.post-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 16px;
-  font-size: 0.85rem;
-}
-
-.author-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.author-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.author-name {
-  color: var(--text-color);
-  opacity: 0.8;
-  font-weight: 500;
-}
-
-.post-stats {
-  display: flex;
-  gap: 12px;
-  color: var(--text-color);
-  opacity: 0.6;
-}
-
-/* 分页器样式 */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: var(--bg-color);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-}
-
-.page-btn {
-  padding: 8px 16px;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 0.9rem;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: var(--secondary-color);
-}
-
-.page-btn:disabled {
-  background: var(--border-color);
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.page-info {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.page-numbers {
-  display: flex;
-  gap: 4px;
-}
-
-.page-number {
-  padding: 6px 10px;
-  background: transparent;
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 0.9rem;
-  min-width: 36px;
-}
-
-.page-number:hover {
-  background: var(--hover-color);
-}
-
-.page-number.active {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-}
-
-.page-text {
-  color: var(--text-color);
-  opacity: 0.7;
-  font-size: 0.9rem;
-  white-space: nowrap;
 }
 
 /* 响应式设计 */

@@ -1,103 +1,101 @@
 <template>
   <div class="category-posts">
     <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-content">
-        <button class="back-btn" @click="goBack">
+    <div class="card mb-16 shadow-sm">
+      <div class="flex flex-col gap-16">
+        <button class="bg-hover p-8 rounded text-sm font-medium link transition self-start hover:bg-primary hover:text-white" @click="goBack">
           ← 返回
         </button>
-        <div class="category-info">
-          <h1 class="category-title">
-            📂 {{ category?.name || '分类文章' }}
+        <div class="flex flex-col gap-12">
+          <h1 class="text-xl font-semibold text-primary mb-0 flex flex-ac gap-8">
+            <span class="text-2xl">📂</span> {{ category?.name || '分类文章' }}
           </h1>
-          <p v-if="category?.description" class="category-description">
+          <p v-if="category?.description" class="text-muted text-base mb-0">
             {{ category.description }}
           </p>
-          <div class="category-stats">
-            <span class="post-count">共 {{ totalPosts }} 篇文章</span>
+          <div class="flex flex-ac gap-8">
+            <span class="badge bg-primary">共 {{ totalPosts }} 篇文章</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- 文章列表 -->
-    <div class="posts-container">
-      <div v-if="loading" class="loading">
-        <p>加载中...</p>
-      </div>
-      <div v-else-if="error" class="error">
+    <div class="card shadow-sm">
+      <div v-if="loading" class="loading-text">加载中...</div>
+      <div v-else-if="error" class="loading-text text-primary">
         <p>{{ error }}</p>
-        <button @click="loadPosts" class="retry-btn">重试</button>
+        <button @click="loadPosts" class="bg-primary text-sm font-medium p-8 rounded transition hover-lift mt-8">重试</button>
       </div>
-      <div v-else-if="posts.length === 0" class="empty">
-        <div class="empty-content">
-          <div class="empty-icon">📝</div>
-          <h3>暂无文章</h3>
-          <p>该分类下还没有文章</p>
-        </div>
+      <div v-else-if="posts.length === 0" class="text-center p-20">
+        <div class="text-lg mb-8">📝</div>
+        <h3 class="text-base font-semibold mb-8">暂无文章</h3>
+        <p class="text-muted text-sm mb-0">该分类下还没有文章</p>
       </div>
-      <div v-else class="posts-list">
+      <div v-else class="list gap-16">
         <article
           v-for="post in posts"
           :key="post.id"
-          class="post-item"
+          class="flex flex-col gap-12 p-16 bg-hover rounded-lg transition hover-lift link border-l-3 shadow-sm"
+          :style="{ borderLeftColor: `var(--primary-color)` }"
           @click="goToPost(post.id)"
         >
-          <div class="post-content">
-            <div class="post-header">
-              <h3 class="post-title">{{ post.title }}</h3>
-              <span v-if="post.category" class="post-category">{{ post.category.name }}</span>
-            </div>
-            <p v-if="post.summary" class="post-summary">{{ post.summary }}</p>
-            <div class="post-meta">
-              <div class="author-info">
-                <img
-                  v-if="post.author?.avatarUrl"
-                  :src="post.author.avatarUrl"
-                  :alt="post.author.username"
-                  class="author-avatar"
-                >
-                <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
-              </div>
-              <div class="post-stats">
-                <span class="view-count">👁️ {{ post.viewCount || 0 }}</span>
-                <span class="like-count">❤️ {{ post.likeCount || 0 }}</span>
-                <span class="comment-count">💬 {{ post.commentCount }}</span>
-                <span class="post-date">{{ formatDate(post.createdAt) }}</span>
-              </div>
-            </div>
-            <div v-if="post.tags && post.tags.length > 0" class="post-tags">
-              <span
-                v-for="tag in post.tags"
-                :key="tag.id"
-                class="tag"
-                @click.stop="goToTag(tag.id)"
+          <div class="flex flex-sb flex-ac gap-12">
+            <h3 class="text-lg font-semibold text-primary mb-0 flex-1">{{ post.title }}</h3>
+            <span v-if="post.category" class="badge flex-shrink-0">{{ post.category.name }}</span>
+          </div>
+          <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
+          <div class="flex flex-sb flex-ac">
+            <div class="flex flex-ac gap-8">
+              <img
+                v-if="post.author?.avatarUrl"
+                :src="post.author.avatarUrl"
+                :alt="post.author.username"
+                class="rounded"
+                style="width: 24px; height: 24px; object-fit: cover;"
               >
-                {{ tag.name }}
-              </span>
+              <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
             </div>
+            <div class="flex gap-16 text-sm text-muted flex-wrap">
+              <span class="flex flex-ac gap-4">👁️ {{ post.viewCount || 0 }}</span>
+              <span class="flex flex-ac gap-4">❤️ {{ post.likeCount || 0 }}</span>
+              <span class="flex flex-ac gap-4">💬 {{ post.commentCount }}</span>
+              <span class="flex flex-ac gap-4">📅 {{ formatDate(post.createdAt) }}</span>
+            </div>
+          </div>
+          <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
+            <span
+              v-for="tag in post.tags"
+              :key="tag.id"
+              class="tag"
+              @click.stop="goToTag(tag.id)"
+            >
+              {{ tag.name }}
+            </span>
           </div>
         </article>
       </div>
 
       <!-- 分页 -->
-      <div v-if="totalPages > 1" class="pagination">
+      <div v-if="totalPages > 1" class="card flex flex-jc flex-ac gap-16 mt-16">
         <button
-          class="page-btn"
+          class="bg-primary text-sm font-medium px-16 py-8 rounded transition hover-lift shadow-sm"
+          :class="{ 'opacity-50 cursor-not-allowed': currentPage <= 1 }"
           :disabled="currentPage <= 1"
           @click="changePage(currentPage - 1)"
         >
-          上一页
+          ← 上一页
         </button>
-        <span class="page-info">
+        <span class="text-sm text-muted bg-hover px-12 py-6 rounded">
           第 {{ currentPage }} 页，共 {{ totalPages }} 页
         </span>
         <button
-          class="page-btn"
+          class="bg-primary text-sm font-medium px-16 py-8 rounded transition hover-lift shadow-sm"
+          :class="{ 'opacity-50 cursor-not-allowed': currentPage >= totalPages }"
           :disabled="currentPage >= totalPages"
           @click="changePage(currentPage + 1)"
         >
-          下一页
+          下一页 →
         </button>
       </div>
     </div>
@@ -223,302 +221,17 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 仅保留必要的自定义样式 */
 .category-posts {
-  max-width: 1000px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
-}
-
-.page-header {
-  margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid var(--border-color);
-}
-
-.header-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-}
-
-.back-btn {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.back-btn:hover {
-  background: var(--primary-hover-color);
-  transform: translateY(-1px);
-}
-
-.category-info {
-  flex: 1;
-}
-
-.category-title {
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin: 0 0 10px 0;
-}
-
-.category-description {
-  color: var(--text-color);
-  opacity: 0.8;
-  margin: 0 0 15px 0;
-  line-height: 1.6;
-}
-
-.category-stats {
-  display: flex;
-  gap: 20px;
-}
-
-.post-count {
-  color: var(--text-color);
-  opacity: 0.7;
-  font-size: 14px;
-}
-
-.posts-container {
-  min-height: 400px;
-}
-
-.loading, .error, .empty {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-color);
-}
-
-.empty-content {
-  max-width: 300px;
-  margin: 0 auto;
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 20px;
-}
-
-.empty-content h3 {
-  color: var(--text-color);
-  margin: 0 0 10px 0;
-}
-
-.empty-content p {
-  color: var(--text-color);
-  opacity: 0.7;
-  margin: 0;
-}
-
-.retry-btn {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-top: 10px;
-}
-
-.retry-btn:hover {
-  background: var(--primary-hover-color);
-}
-
-.posts-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.post-item {
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 24px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.post-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  border-color: var(--primary-color);
-}
-
-.post-content {
-  width: 100%;
-}
-
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-  gap: 16px;
-}
-
-.post-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin: 0;
-  line-height: 1.4;
-  flex: 1;
-}
-
-.post-category {
-  background: var(--primary-color);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.post-summary {
-  color: var(--text-color);
-  opacity: 0.8;
-  line-height: 1.6;
-  margin: 0 0 16px 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.post-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.author-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.author-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.author-name {
-  color: var(--text-color);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.post-stats {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 14px;
-  color: var(--text-color);
-  opacity: 0.7;
-}
-
-.post-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tag {
-  background: var(--tag-bg-color, #f0f0f0);
-  color: var(--tag-text-color, #666);
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tag:hover {
-  background: var(--primary-color);
-  color: white;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 20px;
-  margin-top: 40px;
-  padding: 20px;
-}
-
-.page-btn {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: var(--primary-hover-color);
-}
-
-.page-btn:disabled {
-  background: var(--border-color);
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.page-info {
-  color: var(--text-color);
-  font-size: 14px;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .category-posts {
     padding: 15px;
-  }
-  
-  .header-content {
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .category-title {
-    font-size: 1.5rem;
-  }
-  
-  .post-item {
-    padding: 16px;
-  }
-  
-  .post-header {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .post-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .pagination {
-    flex-direction: column;
-    gap: 10px;
   }
 }
 </style>

@@ -7,13 +7,13 @@
       <div 
         v-for="post in posts" 
         :key="post.id" 
-        class="post-item"
+        class="flex flex-col gap-8 p-12 bg-hover rounded link transition hover-lift border-l-3"
         @click="handlePostClick(post.id)"
       >
-        <h5 class="post-title">{{ post.title }}</h5>
-        <div class="post-meta">
-          <span class="post-author">{{ post.author?.username }}</span>
-          <span class="post-date">{{ formatDate(post.createdAt) }}</span>
+        <h5 class="text-base font-semibold text-primary mb-0">{{ post.title }}</h5>
+        <div class="flex flex-sb flex-ac text-sm text-muted">
+          <span class="font-medium">{{ post.author?.username }}</span>
+          <span>{{ formatDate(post.createdAt) }}</span>
         </div>
       </div>
     </div>

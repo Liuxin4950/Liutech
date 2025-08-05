@@ -1,94 +1,99 @@
 <template>
-  <div class="about-page">
-    <div class="about-header">
-      <div class="avatar-section">
-        <img src="/default-avatar.svg" alt="刘鑫" class="about-avatar" />
-        <h1>刘鑫</h1>
-        <p class="title">全栈工程师</p>
-      </div>
+  <div class="content">
+    <!-- 页头信息 -->
+    <div class="card text-center mb-20">
+      <img src="/default-avatar.svg" alt="刘鑫" class="w-120 h-120 rounded-full mx-auto mb-16 border-4" />
+      <h1 class="text-2xl font-bold text-primary mb-8">刘鑫</h1>
+      <p class="text-lg text-muted mb-0">全栈工程师 & 技术博主</p>
     </div>
 
-    <div class="about-content">
-      <section class="intro-section">
-        <h2>👋 关于我</h2>
-        <p>
-          你好！我是刘鑫，一名热爱技术的全栈工程师。专注于前端开发、后端架构和技术分享。
-          喜欢探索新技术，记录学习过程，分享技术心得。
+    <div class="flex flex-col gap-20">
+      <!-- 关于我 -->
+      <section class="card">
+        <h2 class="card-title">👋 关于我</h2>
+        <p class="text-base text-muted mb-12 leading-relaxed">
+          你好！我是刘鑫，一名热爱技术的全栈工程师。专注于前端开发、后端架构设计，
+          喜欢探索新技术并分享技术心得。
         </p>
-        <p>
-          这个博客是我用来记录学习笔记、技术总结和生活感悟的地方。
-          希望通过分享，能够帮助到更多的开发者朋友。
+        <p class="text-base text-muted mb-0 leading-relaxed">
+          这个博客是我记录技术学习和生活感悟的地方，希望能够帮助到更多的开发者朋友。
         </p>
       </section>
 
-      <section class="skills-section">
-        <h2>🛠️ 技术栈</h2>
-        <div class="skills-grid">
+      <!-- 技术栈 -->
+      <section class="card">
+        <h2 class="card-title">💻 技术栈</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-16">
           <div class="skill-category">
-            <h3>前端技术</h3>
-            <div class="skill-tags">
-              <span class="skill-tag">Vue.js</span>
-              <span class="skill-tag">TypeScript</span>
-              <span class="skill-tag">JavaScript</span>
-              <span class="skill-tag">HTML/CSS</span>
-              <span class="skill-tag">Vite</span>
+            <h3 class="text-lg font-semibold text-primary mb-12">前端技术</h3>
+            <div class="tags-cloud">
+              <span class="tag">Vue.js</span>
+              <span class="tag">React</span>
+              <span class="tag">TypeScript</span>
+              <span class="tag">JavaScript</span>
+              <span class="tag">HTML/CSS</span>
+              <span class="tag">Vite</span>
             </div>
           </div>
           <div class="skill-category">
-            <h3>后端技术</h3>
-            <div class="skill-tags">
-              <span class="skill-tag">Java</span>
-              <span class="skill-tag">Spring Boot</span>
-              <span class="skill-tag">MyBatis</span>
-              <span class="skill-tag">MySQL</span>
-              <span class="skill-tag">Spring Security</span>
+            <h3 class="text-lg font-semibold text-primary mb-12">后端技术</h3>
+            <div class="tags-cloud">
+              <span class="tag">Java</span>
+              <span class="tag">Spring Boot</span>
+              <span class="tag">MyBatis</span>
+              <span class="tag">MySQL</span>
+              <span class="tag">Redis</span>
+              <span class="tag">Docker</span>
             </div>
           </div>
           <div class="skill-category">
-            <h3>开发工具</h3>
-            <div class="skill-tags">
-              <span class="skill-tag">Git</span>
-              <span class="skill-tag">Maven</span>
-              <span class="skill-tag">IntelliJ IDEA</span>
-              <span class="skill-tag">VS Code</span>
+            <h3 class="text-lg font-semibold text-primary mb-12">开发工具</h3>
+            <div class="tags-cloud">
+              <span class="tag">Git</span>
+              <span class="tag">VS Code</span>
+              <span class="tag">IntelliJ IDEA</span>
+              <span class="tag">Postman</span>
+              <span class="tag">Maven</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="contact-section">
-        <h2>📫 联系方式</h2>
-        <div class="contact-grid">
-          <div class="contact-item">
-            <span class="contact-icon">📧</span>
-            <span>邮箱：your-email@example.com</span>
+      <!-- 联系方式 -->
+      <section class="card">
+        <h2 class="card-title">📞 联系方式</h2>
+        <div class="list gap-12">
+          <div class="flex flex-ac gap-12 p-12 bg-hover rounded">
+            <span class="text-lg">📧</span>
+            <span class="text-base text-muted">liuxin@example.com</span>
           </div>
-          <div class="contact-item">
-            <span class="contact-icon">🐙</span>
-            <span>GitHub：github.com/yourusername</span>
+          <div class="flex flex-ac gap-12 p-12 bg-hover rounded">
+            <span class="text-lg">🐙</span>
+            <span class="text-base text-muted">GitHub: @liuxin</span>
           </div>
-          <div class="contact-item">
-            <span class="contact-icon">💼</span>
-            <span>领英：linkedin.com/in/yourusername</span>
+          <div class="flex flex-ac gap-12 p-12 bg-hover rounded">
+            <span class="text-lg">🌐</span>
+            <span class="text-base text-muted">个人网站: liutech.blog</span>
           </div>
         </div>
       </section>
 
-      <section class="blog-info-section">
-        <h2>📝 关于本站</h2>
-        <p>
-          本博客基于 Vue 3 + Spring Boot 构建，采用前后端分离架构。
+      <!-- 关于本站 -->
+      <section class="card">
+        <h2 class="card-title">🚀 关于本站</h2>
+        <p class="text-base text-muted mb-16 leading-relaxed">
+          本站采用现代化的技术栈构建，前后端分离架构，
           支持文章发布、分类管理、标签系统、用户评论等功能。
         </p>
-        <div class="tech-info">
-          <div class="tech-item">
-            <strong>前端：</strong>Vue 3 + TypeScript + Vite
+        <div class="list gap-12">
+          <div class="p-12 bg-hover rounded border-l-3">
+            <strong class="text-primary">前端：</strong>Vue 3 + TypeScript + Vite
           </div>
-          <div class="tech-item">
-            <strong>后端：</strong>Spring Boot + MyBatis + MySQL
+          <div class="p-12 bg-hover rounded border-l-3">
+            <strong class="text-primary">后端：</strong>Spring Boot + MyBatis + MySQL
           </div>
-          <div class="tech-item">
-            <strong>部署：</strong>Vercel + 云服务器
+          <div class="p-12 bg-hover rounded border-l-3">
+            <strong class="text-primary">部署：</strong>Vercel + 云服务器
           </div>
         </div>
       </section>
@@ -101,138 +106,30 @@
 </script>
 
 <style scoped>
-.about-page {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.about-header {
-  text-align: center;
-  margin-bottom: 3rem;
-  padding: 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 1rem;
-  color: white;
-}
-
-.about-avatar {
+/* 使用全局样式类，保持简洁 */
+.w-120 {
   width: 120px;
+}
+
+.h-120 {
   height: 120px;
-  border-radius: 50%;
-  margin-bottom: 1rem;
-  border: 4px solid rgba(255, 255, 255, 0.3);
 }
 
-.about-header h1 {
-  margin: 0.5rem 0;
-  font-size: 2rem;
-}
-
-.title {
-  font-size: 1.1rem;
-  opacity: 0.9;
-  margin: 0;
-}
-
-.about-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2.5rem;
-}
-
-section {
-  background: var(--card-bg);
-  padding: 2rem;
-  border-radius: 0.75rem;
-  box-shadow: var(--shadow-sm);
-}
-
-section h2 {
-  margin: 0 0 1.5rem 0;
-  color: var(--text-primary);
-  font-size: 1.5rem;
-}
-
-section p {
-  line-height: 1.6;
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-}
-
-.skills-grid {
+.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
 }
 
-.skill-category h3 {
-  margin: 0 0 1rem 0;
-  color: var(--text-primary);
-  font-size: 1.1rem;
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
 }
 
-.skill-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.skill-tag {
-  background: var(--primary-color);
-  color: white;
-  padding: 0.3rem 0.8rem;
-  border-radius: 1rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.contact-grid {
-  display: grid;
-  gap: 1rem;
-}
-
-.contact-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: var(--bg-secondary);
-  border-radius: 0.5rem;
-}
-
-.contact-icon {
-  font-size: 1.2rem;
-}
-
-.tech-info {
-  display: grid;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.tech-item {
-  padding: 0.75rem;
-  background: var(--bg-secondary);
-  border-radius: 0.5rem;
-  border-left: 4px solid var(--primary-color);
-}
-
-@media (max-width: 768px) {
-  .about-page {
-    padding: 1rem;
+@media (min-width: 768px) {
+  .md\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  
-  .about-header {
-    padding: 1.5rem;
-  }
-  
-  section {
-    padding: 1.5rem;
-  }
-  
-  .skills-grid {
-    grid-template-columns: 1fr;
-  }
+}
+
+.leading-relaxed {
+  line-height: 1.625;
 }
 </style>

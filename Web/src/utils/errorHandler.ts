@@ -35,6 +35,25 @@ export function showSuccess(message: string, title: string = '成功') {
 }
 
 /**
+ * 显示成功Toast提示（自动消失）
+ * @param message 成功消息
+ */
+export function showSuccessToast(message: string) {
+  Swal.fire({
+    icon: 'success',
+    title: message,
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true,
+    background: 'var(--bg-color)',
+    color: 'var(--text-color)',
+    iconColor: 'var(--primary-color)'
+  })
+}
+
+/**
  * 显示警告消息
  * @param message 警告消息
  * @param title 警告标题
