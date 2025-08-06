@@ -23,7 +23,6 @@
         <CategoriesCard 
           :categories="categories"
           :loading="categoriesLoading"
-          @category-click="goToCategory"
         />
 
         <!-- 热门标签 -->
@@ -152,10 +151,7 @@ const goToPost = (postId: number) => {
   router.push(`/post/${postId}`)
 }
 
-// 跳转到分类页面
-const goToCategory = (categoryId: number) => {
-  router.push(`/category/${categoryId}`)
-}
+// 注意：分类卡片组件现在直接处理跳转，无需此函数
 
 // 跳转到标签页面
 const goToTag = (tagId: number) => {

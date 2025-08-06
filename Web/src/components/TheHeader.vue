@@ -83,8 +83,10 @@ onUnmounted(() => {
           <li><router-link to="/" exact class="nav-link transition">首页</router-link></li>
           <li><router-link to="/categories" class="nav-link transition">分类</router-link></li>
           <li><router-link to="/tags" class="nav-link transition">标签</router-link></li>
-          <li><router-link to="/posts" class="nav-link transition">全部文章</router-link></li>
-          <li><router-link to="/create" class="nav-link transition">发布文章</router-link></li>
+          <li><router-link to="/archive" class="nav-link transition">归档</router-link></li>
+
+          <!-- <li><router-link to="/posts" class="nav-link transition">全部文章</router-link></li>
+          <li><router-link to="/create" class="nav-link transition">发布文章</router-link></li> -->
           <li><router-link to="/about" class="nav-link transition">关于我</router-link></li>
         
         </ul>

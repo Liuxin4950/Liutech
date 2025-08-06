@@ -130,14 +130,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { TagService, type Tag } from '@/services/tag'
 import { PostService, type PostListItem, type PageResponse } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 
 // 路由相关
 const route = useRoute()
-const router = useRouter()
 const { showBusinessError } = useErrorHandler()
 
 // 响应式数据
@@ -335,7 +334,6 @@ onMounted(() => {
   line-height: 1.6;
   flex: 1;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

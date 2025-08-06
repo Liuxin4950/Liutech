@@ -58,8 +58,11 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   // 根据路由名称添加对应的面包屑
   switch (route.name) {
     case 'home':
-      // 首页不需要额外的面包屑
-      return []
+      // 首页显示当前位置
+      items.push({
+        label: '博客首页'
+      })
+      break
       
     case 'posts':
       items.push({

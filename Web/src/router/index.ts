@@ -91,6 +91,14 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'archive',
+        name: 'archive',
+        component: () => import('../views/Archive.vue'),
+        meta: {
+          title: '文章归档'
+        }
+      },
+      {
         path: 'profile',
         name: 'profile',
         component: () => import('../views/Profile.vue'),

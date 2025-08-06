@@ -18,7 +18,9 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 
 // 定义props
 interface Category {
@@ -32,18 +34,13 @@ interface Props {
   loading?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   loading: false
 })
 
-// 定义事件
-const emit = defineEmits<{
-  categoryClick: [categoryId: number]
-}>()
-
-// 处理分类点击
+// 处理分类点击 - 直接跳转到分类详情页面
 const handleCategoryClick = (categoryId: number) => {
-  emit('categoryClick', categoryId)
+  router.push(`/category-detail/${categoryId}`)
 }
 </script>
 
