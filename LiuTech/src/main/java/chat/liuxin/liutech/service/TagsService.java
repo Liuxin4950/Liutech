@@ -44,4 +44,13 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     public List<Tags> getHotTags(Integer limit) {
         return tagsMapper.selectHotTags(limit);
     }
+
+    /**
+     * 根据标签名字搜索标签（包含文章数量）
+     * @param name 标签名字（支持模糊搜索）
+     * @return 标签列表
+     */
+    public List<Tags> getTagsByName(String name) {
+        return tagsMapper.selectTagsByName(name);
+    }
 }

@@ -40,4 +40,18 @@
         LIMIT #{limit}
     </select>
 
+    <!-- 根据标签名字搜索标签（包含文章数量） -->
+    <select id="selectTagsByName" resultType="chat.liuxin.liutech.model.Tags">
+        SELECT 
+            t.id,
+            t.name,
+            COUNT(DISTINCT p.id) as post_count
+        FROM tags t
+        LEFT JOIN post_tags pt ON t.id = pt.tag_id
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        WHERE t.name LIKE CONCAT('%', #{name}, '%')
+        GROUP BY t.id, t.name
+        ORDER BY t.name
+    </select>
+
 </mapper>

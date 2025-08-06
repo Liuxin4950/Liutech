@@ -4,7 +4,7 @@ import { get } from './api'
 export interface Tag {
   id: number
   name: string
-  postCount?: number
+  postCount: number
 }
 
 // 标签服务类
@@ -38,6 +38,14 @@ export class TagService {
    */
   static async getTagsByPostId(postId: number): Promise<Tag[]> {
     const response = await get(`/tags/post/${postId}`)
+    return response.data
+  }
+
+  /**
+   * 根据名字搜索标签
+   */
+  static async searchTagsByName(name: string): Promise<Tag[]> {
+    const response = await get('/tags/search', { name })
     return response.data
   }
 }

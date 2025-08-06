@@ -138,7 +138,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 
 <style scoped>
 .breadcrumb {
-  background: var(--hover-color);
+  background: var(--bg-color);
   border-bottom: 1px solid var(--border-color);
   padding: 12px 0;
   font-size: 0.9rem;

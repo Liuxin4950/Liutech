@@ -44,7 +44,7 @@
             <h3 class="text-lg font-semibold text-primary mb-0 flex-1">{{ post.title }}</h3>
             <span v-if="post.category" class="badge flex-shrink-0">{{ post.category.name }}</span>
           </div>
-          <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
+          <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
           <div class="flex flex-sb flex-ac">
             <div class="flex flex-ac gap-8">
               <img

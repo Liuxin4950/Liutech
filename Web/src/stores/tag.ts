@@ -53,11 +53,7 @@ export const useTagStore = defineStore('tag', () => {
       tags.value = response || []
       lastFetchTime.value = Date.now()
       
-      // 持久化到本地存储
-      localStorage.setItem('blog_tags', JSON.stringify({
-        data: tags.value,
-        timestamp: lastFetchTime.value
-      }))
+      // 数据已通过Pinia persist自动持久化
       
       return tags.value
     } catch (error) {
@@ -86,11 +82,7 @@ export const useTagStore = defineStore('tag', () => {
       hotTags.value = response || []
       lastHotTagsFetchTime.value = Date.now()
       
-      // 持久化到本地存储
-      localStorage.setItem('blog_hot_tags', JSON.stringify({
-        data: hotTags.value,
-        timestamp: lastHotTagsFetchTime.value
-      }))
+      // 数据已通过Pinia persist自动持久化
       
       return hotTags.value
     } catch (error) {
@@ -157,38 +149,10 @@ export const useTagStore = defineStore('tag', () => {
   
   /**
    * 初始化标签数据
-   * 从本地存储恢复数据，如果数据过期则重新获取
+   * 检查缓存数据是否过期，如果过期则重新获取
    */
   const initTags = async () => {
-    try {
-      // 恢复所有标签数据
-      const storedTags = localStorage.getItem('blog_tags')
-      if (storedTags) {
-        const { data, timestamp } = JSON.parse(storedTags)
-        
-        // 检查数据是否过期
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          tags.value = data || []
-          lastFetchTime.value = timestamp
-        }
-      }
-      
-      // 恢复热门标签数据
-      const storedHotTags = localStorage.getItem('blog_hot_tags')
-      if (storedHotTags) {
-        const { data, timestamp } = JSON.parse(storedHotTags)
-        
-        // 检查数据是否过期
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          hotTags.value = data || []
-          lastHotTagsFetchTime.value = timestamp
-        }
-      }
-    } catch (error) {
-      console.warn('恢复标签数据失败:', error)
-    }
-    
-    // 如果没有有效的本地数据，则从服务器获取
+    // 检查数据是否需要刷新（Pinia persist会自动恢复数据）
     const promises = []
     if (tags.value.length === 0 || isDataStale.value) {
       promises.push(fetchTags(true))
@@ -208,8 +172,7 @@ export const useTagStore = defineStore('tag', () => {
     hotTags.value = []
     lastFetchTime.value = 0
     lastHotTagsFetchTime.value = 0
-    localStorage.removeItem('blog_tags')
-    localStorage.removeItem('blog_hot_tags')
+    // Pinia persist会自动同步清理
   }
   
   /**
@@ -224,7 +187,7 @@ export const useTagStore = defineStore('tag', () => {
   }
   
   /**
-   * 搜索标签
+   * 搜索标签（本地过滤）
    * @param keyword 关键词
    */
   const searchTags = computed(() => {
@@ -237,6 +200,26 @@ export const useTagStore = defineStore('tag', () => {
       )
     }
   })
+
+  /**
+   * 搜索标签（调用后端API）
+   * @param keyword 关键词
+   */
+  const searchTagsByAPI = async (keyword: string): Promise<Tag[]> => {
+    if (!keyword.trim()) {
+      return tags.value
+    }
+    
+    try {
+      const result = await TagService.searchTagsByName(keyword.trim())
+      return result
+    } catch (error) {
+      console.error('搜索标签失败:', error)
+      handleApiError(error)
+      // 如果API调用失败，回退到本地搜索
+      return searchTags.value(keyword)
+    }
+  }
   
   return {
     // 状态
@@ -261,7 +244,8 @@ export const useTagStore = defineStore('tag', () => {
     fetchTagsByPostId,
     initTags,
     clearCache,
-    refreshTags
+    refreshTags,
+    searchTagsByAPI
   }
 }, {
   persist: {

@@ -98,4 +98,25 @@ public class TagsController {
         
         return Result.success("查询成功", tags);
     }
+
+    /**
+     * 根据标签名字搜索标签
+     * 
+     * @param name 标签名字（支持模糊搜索）
+     * @return 标签列表
+     */
+    @GetMapping("/search")
+    public Result<List<Tags>> searchTagsByName(@RequestParam String name) {
+        log.info("搜索标签 - 关键词: {}", name);
+        
+        if (name == null || name.trim().isEmpty()) {
+            log.warn("搜索关键词为空");
+            return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), "搜索关键词不能为空");
+        }
+        
+        List<Tags> tags = tagsService.getTagsByName(name.trim());
+        log.info("搜索标签成功 - 关键词: {}, 结果数量: {}", name, tags.size());
+        
+        return Result.success("搜索成功", tags);
+    }
 }
