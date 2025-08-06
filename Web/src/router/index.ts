@@ -58,8 +58,16 @@ const routes: RouteRecordRaw[] = [
           title: '全部文章'
         }
       },
-        {
-        path: '/category/:id',
+      {
+        path: 'categories',
+        name: 'categories',
+        component: () => import('../views/Categories.vue'),
+        meta: {
+          title: '文章分类'
+        }
+      },
+      {
+        path: 'category/:id',
         name: 'CategoryPosts',
         component: () => import('@/views/CategoryPosts.vue'),
         meta: {

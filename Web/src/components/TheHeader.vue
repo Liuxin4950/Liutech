@@ -84,6 +84,8 @@ onUnmounted(() => {
           <li><router-link to="/posts" class="nav-link transition">全部文章</router-link></li>
           <li><router-link to="/create" class="nav-link transition">发布文章</router-link></li>
           <li><router-link to="/about" class="nav-link transition">关于我</router-link></li>
+          <li><router-link to="/categories" class="nav-link transition">分类</router-link></li>
+        
         </ul>
       </nav>
       
@@ -143,6 +145,7 @@ onUnmounted(() => {
         <ul class="list">
           <li @click="navigateTo('/')" class="p-16 hover-bg transition border-b cursor-pointer">🏠 首页</li>
           <li @click="navigateTo('/posts')" class="p-16 hover-bg transition border-b cursor-pointer">📚 全部文章</li>
+          <li @click="navigateTo('/categories')" class="p-16 hover-bg transition border-b cursor-pointer">📂 分类</li>
           <li v-if="userStore.isLoggedIn" @click="navigateTo('/create')" class="p-16 hover-bg transition border-b cursor-pointer">✍️ 发布文章</li>
           <li @click="navigateTo('/about')" class="p-16 hover-bg transition border-b cursor-pointer">👤 关于我</li>
           <li v-if="!userStore.isLoggedIn" @click="navigateTo('/login')" class="p-16 hover-bg transition border-b cursor-pointer">🔑 登录</li>
