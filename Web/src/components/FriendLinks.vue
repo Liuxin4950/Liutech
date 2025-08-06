@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue'
+
 
 // 定义props
 interface Link {

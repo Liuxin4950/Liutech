@@ -1,5 +1,5 @@
 <template>
-  <div class="category-posts">
+  <div class="category-posts content">
     <!-- 页面头部 -->
     <div class="card mb-16 shadow-sm">
       <div class="flex flex-col gap-16">
@@ -223,7 +223,6 @@ onMounted(() => {
 <style scoped>
 /* 仅保留必要的自定义样式 */
 .category-posts {
-  max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
 }

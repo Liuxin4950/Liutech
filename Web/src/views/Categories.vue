@@ -180,7 +180,7 @@ const loadCategories = async () => {
 
 // 跳转到分类文章页面
 const goToCategory = (categoryId: number) => {
-    router.push(`/category/${categoryId}`)
+    router.push(`/category-detail/${categoryId}`)
 }
 
 // 组件挂载时加载数据

@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue'
+
 
 // 定义props
 interface Author {
