@@ -12,6 +12,8 @@ import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -181,6 +183,43 @@ public class GlobalExceptionHandler {
         Result<Void> result = Result.fail(ErrorCode.NOT_FOUND, "请求的接口不存在");
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(result);
+    }
+
+    // ========== 文件上传异常处理 ==========
+
+    /**
+     * 处理文件大小超限异常
+     * 当上传的文件大小超过配置的最大值时触发
+     *
+     * @param e 文件大小超限异常
+     * @return 统一的错误响应
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Result<Void>> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        log.warn("文件大小超限: {}", e.getMessage());
+        
+        Result<Void> result = Result.fail(ErrorCode.PARAMS_ERROR, "上传文件大小超过限制");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+    }
+    
+    /**
+     * 处理文件上传异常
+     * 包括文件格式错误、上传中断等文件上传相关异常
+     *
+     * @param e 文件上传异常
+     * @return 统一的错误响应
+     */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<Result<Void>> handleMultipartException(MultipartException e) {
+        log.warn("文件上传异常: {}", e.getMessage());
+        
+        String message = "文件上传失败";
+        if (e.getCause() instanceof MaxUploadSizeExceededException) {
+            message = "上传文件大小超过限制";
+        }
+        
+        Result<Void> result = Result.fail(ErrorCode.PARAMS_ERROR, message);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
     }
 
     // ========== 数据库异常处理 ==========

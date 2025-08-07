@@ -60,6 +60,10 @@ public class SecurityConfig {
                 .requestMatchers("GET", "/user/{id}").permitAll()  // 用户信息查询
                 .requestMatchers("GET", "/user/profile").permitAll()  // 个人资料信息（首页展示）
                 
+                // ========== 静态资源访问（无需认证） ==========
+                .requestMatchers("/uploads/**").permitAll()  // 上传文件访问
+                .requestMatchers("/files/**").permitAll()  // 文件访问路径
+                
                 // ========== 其他所有请求都需要认证 ==========
                 // 包括：POST、PUT、DELETE等写操作
                 // 这样就不用一个个配置了，默认保护所有写操作

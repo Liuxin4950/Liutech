@@ -196,15 +196,53 @@
           <button @click="closePreview" class="close-btn">×</button>
         </div>
         <div class="preview-body">
-          <h1 class="preview-title">{{ form.title }}</h1>
-          <div class="preview-meta">
-            <span class="preview-category">{{ getCategoryName(form.categoryId) }}</span>
-            <span class="preview-date">{{ new Date().toLocaleDateString('zh-CN') }}</span>
+          <!-- 文章头部信息 -->
+          <header class="preview-post-header">
+            <h1 class="preview-title">{{ form.title }}</h1>
+            
+            <!-- 封面图片 -->
+            <div v-if="form.coverImage" class="preview-cover rounded-lg mb-16">
+              <img 
+                :src="form.coverImage" 
+                :alt="form.title" 
+                class="preview-cover-image"
+              >
+            </div>
+            
+            <div class="flex flex-sb flex-ac mb-16 flex-fw gap-12">
+              <div class="flex flex-ac gap-8">
+                <span class="text-muted font-medium">预览作者</span>
+              </div>
+              <div class="flex gap-16 flex-ac text-sm text-muted">
+                <span v-if="form.categoryId" class="badge">{{ getCategoryName(form.categoryId) }}</span>
+                <span>{{ new Date().toLocaleDateString('zh-CN') }}</span>
+                <span>👁️ {{ form.viewCount || 0 }}</span>
+                <span>❤️ {{ form.likeCount || 0 }}</span>
+                <span>💬 0</span>
+              </div>
+            </div>
+            
+            <!-- 标签云 -->
+            <div v-if="selectedTags.length > 0" class="preview-tags-cloud">
+              <span 
+                v-for="tag in selectedTags" 
+                :key="tag.id" 
+                class="preview-tag"
+              >
+                {{ tag.name }}
+              </span>
+            </div>
+          </header>
+
+          <!-- 文章摘要 -->
+          <div v-if="form.summary" class="preview-summary bg-hover border-l-3 p-20">
+            <p class="text-muted">{{ form.summary }}</p>
           </div>
-          <div v-if="form.summary" class="preview-summary">
-            {{ form.summary }}
-          </div>
-          <div class="preview-content-body" v-html="form.content"></div>
+
+          <!-- 文章内容 -->
+          <article class="p-20">
+            <div class="markdown-content" v-html="form.content"></div>
+          </article>
         </div>
       </div>
     </div>
@@ -450,9 +488,14 @@ const loadPostData = async (postId: number) => {
     }
     
     // 设置标签
-    if (postData.tags) {
-      selectedTags.value = postData.tags
-    }
+        if (postData.tags) {
+          // 将 TagInfo[] 转换为 Tag[] 类型，添加默认的 postCount
+          selectedTags.value = postData.tags.map(tag => ({
+            id: tag.id,
+            name: tag.name,
+            postCount: 0  // 为编辑模式的标签添加默认的文章数量
+          }))
+        }
   }, {
     onError: (err) => {
       console.error('加载文章数据失败:', err)
@@ -611,8 +654,9 @@ onMounted(async () => {
  }
  
  .title-section {
-   padding: 20px 24px;
+   padding: 20px 0 0 0;
    border-bottom: 1px solid var(--border-color);
+   margin-bottom: 20px;
  }
  
  .title-input {
@@ -641,11 +685,11 @@ onMounted(async () => {
 
 /* 右侧设置面板 */
 .editor-sidebar {
-  width: 320px;
-  background: var(--hover-color);
+  width: 280px;
+  /* background: var(--hover-color); */
   border-left: 1px solid var(--border-color);
   overflow-y: auto;
-  padding: 20px;
+  padding-left: 20px;
 }
 
 .sidebar-section {
@@ -913,43 +957,136 @@ onMounted(async () => {
   overflow-y: auto;
 }
 
+/* 预览文章头部 */
+.preview-post-header {
+  position: relative;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
 .preview-title {
   font-size: 1.8rem;
   font-weight: 700;
   color: var(--text-color);
-  margin: 0 0 12px 0;
+  margin: 0 0 16px 0;
+  line-height: 1.3;
 }
 
-.preview-meta {
-  display: flex;
-  gap: 16px;
+/* 预览封面图片 */
+.preview-cover {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  border-radius: 8px;
   margin-bottom: 16px;
-  font-size: 14px;
-  color: var(--text-color);
-  opacity: 0.7;
 }
 
-.preview-category {
+.preview-cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+/* 预览标签云 */
+.preview-tags-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.preview-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--tag-bg-color);
+  color: var(--primary-color);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.preview-tag:hover {
+  background: var(--primary-color);
+  color: white;
+  transform: translateY(-1px);
+}
+
+/* 预览摘要样式 */
+.preview-summary {
+  margin-bottom: 0;
+}
+
+.preview-summary p {
+  margin: 0;
+  font-style: italic;
+}
+
+/* 预览内容样式 */
+.markdown-content {
+  color: var(--text-color);
+  line-height: 1.6;
+}
+
+/* 通用样式类 */
+.flex {
+  display: flex;
+}
+
+.flex-sb {
+  justify-content: space-between;
+}
+
+.flex-ac {
+  align-items: center;
+}
+
+.flex-fw {
+  flex-wrap: wrap;
+}
+
+.gap-12 {
+  gap: 12px;
+}
+
+.gap-16 {
+  gap: 16px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.p-20 {
+  padding: 20px;
+}
+
+.bg-hover {
+  background: var(--hover-color);
+}
+
+.border-l-3 {
+  border-left: 3px solid var(--primary-color);
+}
+
+.badge {
   background: var(--primary-color);
   color: white;
   padding: 2px 8px;
   border-radius: 8px;
   font-size: 12px;
+  font-weight: 500;
 }
 
-.preview-summary {
-  background: var(--hover-color);
-  padding: 12px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-style: italic;
-  color: var(--text-color);
-  opacity: 0.8;
+.font-medium {
+  font-weight: 500;
 }
 
-.preview-content-body {
-  color: var(--text-color);
-  line-height: 1.6;
+.rounded-lg {
+  border-radius: 8px;
 }
 
 /* 响应式设计 */

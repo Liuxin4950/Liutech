@@ -113,6 +113,14 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '关于我'
         }
+      },
+      {
+        path: 'file-upload-test',
+        name: 'file-upload-test',
+        component: () => import('../views/FileUploadTest.vue'),
+        meta: {
+          title: '文件上传测试'
+        }
       }
     ]
   },
