@@ -10,6 +10,7 @@ import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.resl.LoginResl;
 import chat.liuxin.liutech.resl.UserStatsResl;
+import chat.liuxin.liutech.resl.ProfileResl;
 import chat.liuxin.liutech.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -582,5 +583,127 @@ public class UserService {
         }
         
         return stats;
+    }
+    
+    /**
+     * 获取个人资料信息
+     * 用于首页个人信息卡片展示
+     * 如果用户已登录，返回用户真实信息；否则返回默认信息
+     * 
+     * @return 个人资料信息
+     */
+    public ProfileResl getProfile() {
+        log.info("开始获取个人资料信息");
+        
+        // 1. 从Security上下文获取认证信息
+        org.springframework.security.core.Authentication authentication = 
+            org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        
+        // 2. 如果用户未认证，返回默认个人资料
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            log.info("用户未认证，返回默认个人资料信息");
+            return getDefaultProfile();
+        }
+        
+        // 3. 获取用户名
+        String username = authentication.getName();
+        if (username == null) {
+            log.warn("无法获取用户名，返回默认个人资料信息");
+            return getDefaultProfile();
+        }
+        
+        // 4. 根据用户名查询用户信息
+        List<Users> users = findByUserName(username);
+        if (users == null || users.isEmpty()) {
+            log.warn("用户不存在，用户名: {}，返回默认个人资料信息", username);
+            return getDefaultProfile();
+        }
+        
+        Users user = users.get(0);
+        Long userId = user.getId();
+        
+        // 5. 构建个人资料响应
+        ProfileResl profile = new ProfileResl();
+        
+        // 设置基本信息
+        profile.setName(StringUtils.hasText(user.getNickname()) ? user.getNickname() : user.getUsername());
+        profile.setTitle("全栈工程师"); // 默认职位，后续可以从用户表扩展字段获取
+        profile.setAvatar(StringUtils.hasText(user.getAvatarUrl()) ? user.getAvatarUrl() : "/default-avatar.svg");
+        profile.setBio(StringUtils.hasText(user.getBio()) ? user.getBio() : "专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。");
+        
+        // 5. 获取统计信息
+        ProfileResl.Stats stats = new ProfileResl.Stats();
+        
+        try {
+            // 获取评论数量
+            Integer commentCount = commentsService.countCommentsByUserId(userId);
+            stats.setComments(commentCount != null ? commentCount.longValue() : 0L);
+            
+            // 获取文章数量（已发布）
+            Integer postCount = postsService.countPostsByUserId(userId, "published");
+            stats.setPosts(postCount != null ? postCount.longValue() : 0L);
+            
+            // 获取用户文章总浏览量
+            Long totalViews = postsService.countViewsByUserId(userId);
+            stats.setViews(totalViews != null ? totalViews : 0L);
+            
+            log.info("用户 {} 个人资料获取成功 - 评论: {}, 文章: {}", 
+                    username, commentCount, postCount);
+            
+        } catch (Exception e) {
+            log.error("获取用户统计信息失败，用户: {}, 错误: {}", username, e.getMessage(), e);
+            // 如果统计信息获取失败，设置默认值
+            stats.setComments(0L);
+            stats.setPosts(0L);
+            stats.setViews(0L);
+        }
+        
+        profile.setStats(stats);
+        
+        return profile;
+    }
+    
+    /**
+     * 获取默认个人资料信息
+     * 用于未登录用户的首页展示
+     * 
+     * @return 默认个人资料信息
+     */
+    private ProfileResl getDefaultProfile() {
+        ProfileResl profile = new ProfileResl();
+        profile.setName("刘鑫同学");
+        profile.setTitle("全栈工程师");
+        profile.setAvatar("/default-avatar.svg");
+        profile.setBio("专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。");
+        
+        // 设置统计信息（查询全站数据）
+         ProfileResl.Stats stats = new ProfileResl.Stats();
+         
+         try {
+             // 查询全站文章总数（已发布）
+             Integer totalPosts = postsService.countAllPublishedPosts();
+             stats.setPosts(totalPosts != null ? totalPosts.longValue() : 0L);
+             
+             // 查询全站评论总数
+             Integer totalComments = commentsService.countAllComments();
+             stats.setComments(totalComments != null ? totalComments.longValue() : 0L);
+             
+             // 查询全站总浏览量
+             Long totalViews = postsService.countAllViews();
+             stats.setViews(totalViews != null ? totalViews : 0L);
+             
+             log.info("获取全站统计数据成功 - 文章: {}, 评论: {}", totalPosts, totalComments);
+             
+         } catch (Exception e) {
+             log.error("获取全站统计数据失败: {}", e.getMessage(), e);
+             // 如果查询失败，使用默认值
+             stats.setPosts(25L);
+             stats.setComments(156L);
+             stats.setViews(2580L);
+         }
+         
+         profile.setStats(stats);
+        
+        return profile;
     }
 }

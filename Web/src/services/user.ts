@@ -45,6 +45,22 @@ export interface UserInfo {
   updatedAt?: string
 }
 
+// 个人资料统计信息接口
+export interface ProfileStats {
+  posts: number
+  comments: number
+  views: number
+}
+
+// 个人资料信息接口
+export interface ProfileInfo {
+  name: string
+  title: string
+  avatar: string
+  bio: string
+  stats: ProfileStats
+}
+
 // 用户统计信息接口
 export interface UserStats {
   id?: number
@@ -191,6 +207,20 @@ export class UserService {
       throw error
     }
   }
+
+  /**
+   * 获取个人资料信息
+   * @returns Promise<ProfileInfo>
+   */
+  static async getProfile(): Promise<ProfileInfo> {
+    try {
+      const response = await get<ProfileInfo>('/user/profile')
+      return response.data
+    } catch (error) {
+      console.error('获取个人资料失败', error)
+      throw error
+    }
+  }
 }
 
 // 导出便捷方法
@@ -203,7 +233,8 @@ export const {
   logout,
   isLoggedIn,
   getToken,
-  getUserStats
+  getUserStats,
+  getProfile
 } = UserService
 
 export default UserService

@@ -462,4 +462,29 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public Integer countPostsByUserId(Long userId, String status) {
         return postsMapper.countPostsByUserIdAndStatus(userId, status);
     }
+    
+    /**
+     * 统计全站已发布文章数量
+     * @return 已发布文章数量
+     */
+    public Integer countAllPublishedPosts() {
+        return postsMapper.countAllPublishedPosts();
+    }
+    
+    /**
+     * 统计全站文章总浏览量
+     * @return 总浏览量
+     */
+    public Long countAllViews() {
+        return postsMapper.countAllViews();
+    }
+    
+    /**
+     * 统计用户所有文章的浏览量总和
+     * @param userId 用户ID
+     * @return 用户文章总浏览量
+     */
+    public Long countViewsByUserId(Long userId) {
+        return postsMapper.countViewsByUserId(userId);
+    }
 }

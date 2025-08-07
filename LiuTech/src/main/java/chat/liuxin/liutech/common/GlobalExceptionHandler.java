@@ -141,8 +141,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<Result<Void>> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
-        log.warn("参数类型转换失败: 参数[{}]无法转换为类型[{}]", e.getName(), e.getRequiredType().getSimpleName());
-        String message = String.format("参数[%s]类型错误，期望类型为%s", e.getName(), e.getRequiredType().getSimpleName());
+        Class<?> requiredType = e.getRequiredType();
+        String typeName = requiredType != null ? requiredType.getSimpleName() : "未知类型";
+        log.warn("参数类型转换失败: 参数[{}]无法转换为类型[{}]", e.getName(), typeName);
+        String message = String.format("参数[%s]类型错误，期望类型为%s", e.getName(), typeName);
         Result<Void> result = Result.fail(ErrorCode.PARAMS_ERROR, message);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);

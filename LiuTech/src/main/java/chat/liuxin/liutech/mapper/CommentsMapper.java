@@ -67,4 +67,10 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      * @return 最后评论时间
      */
     Date getLastCommentTimeByUserId(@Param("userId") Long userId);
+    
+    /**
+     * 统计全站评论数量
+     * @return 评论数量
+     */
+    Integer countAllComments();
 }

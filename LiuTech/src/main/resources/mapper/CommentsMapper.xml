@@ -93,5 +93,12 @@
         WHERE c.user_id = #{userId}
         AND c.deleted_at IS NULL
     </select>
+    
+    <!-- 统计全站评论数量 -->
+    <select id="countAllComments" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM comments c
+        WHERE c.deleted_at IS NULL
+    </select>
 
 </mapper>

@@ -5,15 +5,11 @@
       <aside class="sidebar">
         <!-- 个人信息卡片 -->
         <ProfileCard 
-          :name="'刘鑫'"
-          :title="'全栈工程师'"
-          :avatar="'/default-avatar.svg'"
-          :bio="'专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。'"
-          :stats="{
-            posts: hotPosts.length,
-            comments: totalComments,
-            views: totalViews
-          }"
+          :name="profileInfo.name"
+          :title="profileInfo.title"
+          :avatar="profileInfo.avatar"
+          :bio="profileInfo.bio"
+          :stats="profileInfo.stats"
         />
 
         <!-- 公告栏 -->
@@ -65,6 +61,8 @@ import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem } from '@/services/post'
 import { AnnouncementService } from '@/services/announcement'
+import { UserService } from '@/services/user'
+import type { ProfileInfo } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -89,6 +87,20 @@ const totalComments = ref(67)
 const totalViews = ref(152)
 const recommendedPosts = ref<PostListItem[]>([])
 const recommendedLoading = ref(false)
+
+// 个人资料数据
+const profileInfo = ref<ProfileInfo>({
+  name: '刘鑫',
+  title: '全栈工程师',
+  avatar: '/default-avatar.svg',
+  bio: '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。',
+  stats: {
+    posts: 0,
+    comments: 0,
+    views: 0
+  }
+})
+const profileLoading = ref(false)
 // 定义简化的公告接口，匹配AnnouncementCard组件
 interface SimpleAnnouncement {
   id: number
@@ -206,6 +218,23 @@ const loadAnnouncements = async () => {
     }
   })
 }
+
+// 加载个人资料
+const loadProfile = async () => {
+  await handleAsync(async () => {
+    profileLoading.value = true
+    const response = await UserService.getProfile()
+    profileInfo.value = response
+  }, {
+    onError: (err) => {
+      console.error('加载个人资料失败:', err)
+      // 保持默认值
+    },
+    onFinally: () => {
+      profileLoading.value = false
+    }
+  })
+}
 // 组件挂载时加载数据
 onMounted(() => {
   Promise.all([
@@ -213,7 +242,8 @@ onMounted(() => {
     loadCategories(),
     loadHotTags(),
     loadRecommendedPosts(),
-    loadAnnouncements()
+    loadAnnouncements(),
+    loadProfile()
   ])
 })
 </script>

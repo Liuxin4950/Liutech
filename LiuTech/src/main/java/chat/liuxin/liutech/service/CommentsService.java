@@ -115,6 +115,14 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
     }
     
     /**
+     * 统计全站评论数量
+     * @return 评论数量
+     */
+    public Integer countAllComments() {
+        return commentsMapper.countAllComments();
+    }
+    
+    /**
      * 创建评论
      * @param createCommentReq 创建评论请求
      * @return 创建的评论

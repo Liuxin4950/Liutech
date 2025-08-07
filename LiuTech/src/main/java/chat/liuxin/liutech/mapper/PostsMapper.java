@@ -136,5 +136,24 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @return 最后发文时间
      */
     Date getLastPostTimeByUserId(@Param("userId") Long userId);
+    
+    /**
+     * 统计全站已发布文章数量
+     * @return 已发布文章数量
+     */
+    Integer countAllPublishedPosts();
+    
+    /**
+     * 统计全站文章总浏览量
+     * @return 总浏览量
+     */
+    Long countAllViews();
+    
+    /**
+     * 统计用户所有文章的浏览量总和
+     * @param userId 用户ID
+     * @return 用户文章总浏览量
+     */
+    Long countViewsByUserId(@Param("userId") Long userId);
 
 }

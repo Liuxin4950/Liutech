@@ -8,6 +8,7 @@ import chat.liuxin.liutech.req.ChangePasswordReq;
 import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.resl.LoginResl;
+import chat.liuxin.liutech.resl.ProfileResl;
 import chat.liuxin.liutech.service.UserService;
 
 import jakarta.validation.Valid;
@@ -198,5 +199,22 @@ public class UserController {
         log.info("获取用户统计信息成功");
         return Result.success("获取统计信息成功", stats);
     }
+    
+    /**
+     * 获取个人资料接口
+     * 用于首页个人信息卡片展示
+     * 
+     * @return 个人资料信息
+     */
+    @GetMapping("/profile")
+    public Result<ProfileResl> getProfile() {
+        log.info("收到获取个人资料请求");
+        ProfileResl profile = userService.getProfile();
+        log.info("获取个人资料成功");
+        return Result.success("获取个人资料成功", profile);
+    }
+
+    
+
 
 }

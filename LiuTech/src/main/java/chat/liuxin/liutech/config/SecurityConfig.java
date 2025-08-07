@@ -58,6 +58,7 @@ public class SecurityConfig {
                 .requestMatchers("GET", "/comments/**").permitAll()  // 所有评论查询接口
                 .requestMatchers("GET", "/announcements/**").permitAll()  // 所有公告查询接口
                 .requestMatchers("GET", "/user/{id}").permitAll()  // 用户信息查询
+                .requestMatchers("GET", "/user/profile").permitAll()  // 个人资料信息（首页展示）
                 
                 // ========== 其他所有请求都需要认证 ==========
                 // 包括：POST、PUT、DELETE等写操作
