@@ -45,7 +45,7 @@ public class TagsController {
     }
 
     /**
-     * 根据ID查询标签详情
+     * 根据ID查询标签详情（包含文章数量）
      * 
      * @param id 标签ID
      * @return 标签详情
@@ -54,13 +54,13 @@ public class TagsController {
     public Result<Tags> getTagById(@PathVariable Long id) {
         log.info("查询标签详情 - ID: {}", id);
         
-        Tags tag = tagsService.getById(id);
+        Tags tag = tagsService.getTagByIdWithPostCount(id);
         if (tag == null) {
             log.warn("标签不存在 - ID: {}", id);
             return Result.fail(ErrorCode.TAG_NOT_FOUND);
         }
         
-        log.info("查询标签详情成功 - 名称: {}", tag.getName());
+        log.info("查询标签详情成功 - 名称: {}, 文章数量: {}", tag.getName(), tag.getPostCount());
         return Result.success("查询成功", tag);
     }
 

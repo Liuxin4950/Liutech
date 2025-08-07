@@ -42,8 +42,8 @@
       <div v-else-if="posts.length > 0" class="flex flex-col gap-20">
         <article v-for="post in posts" :key="post.id" class="post-card card border rounded-lg transition hover-lift">
           <router-link :to="`/posts/${post.id}`" class="flex no-underline text-color h-full">
-            <div v-if="post.coverImage || post.thumbnail" class="post-cover">
-              <img :src="post.coverImage || post.thumbnail" :alt="post.title" class="w-full h-full object-cover" />
+            <div class="post-cover">
+              <img :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'" :alt="post.title" class="w-full h-full object-cover" />
             </div>
             <div class="p-20 flex-1 flex flex-col">
               <h3 class="post-title text-xl font-bold mb-12">{{ post.title }}</h3>

@@ -36,6 +36,13 @@ public interface TagsMapper extends BaseMapper<Tags> {
     List<Tags> selectHotTags(@Param("limit") Integer limit);
 
     /**
+     * 根据ID查询标签详情（包含文章数量）
+     * @param id 标签ID
+     * @return 标签详情
+     */
+    Tags selectTagByIdWithPostCount(@Param("id") Long id);
+
+    /**
      * 根据标签名字搜索标签（包含文章数量）
      * @param name 标签名字（支持模糊搜索）
      * @return 标签列表

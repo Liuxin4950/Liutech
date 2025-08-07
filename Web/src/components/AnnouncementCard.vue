@@ -50,5 +50,4 @@ const props = withDefaults(defineProps<Props>(), {
 </script>
 
 <style scoped>
-/* 使用全局样式，这里只定义组件特有的样式 */
 </style>

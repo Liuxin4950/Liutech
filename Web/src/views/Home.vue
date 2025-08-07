@@ -83,8 +83,6 @@ const tagStore = useTagStore()
 const hotPosts = ref<PostListItem[]>([])
 const loading = ref(false)
 const error = ref('')
-const totalComments = ref(67)
-const totalViews = ref(152)
 const recommendedPosts = ref<PostListItem[]>([])
 const recommendedLoading = ref(false)
 
@@ -167,7 +165,7 @@ const goToPost = (postId: number) => {
 
 // 跳转到标签页面
 const goToTag = (tagId: number) => {
-  router.push(`/tag/${tagId}`)
+  router.push(`/tags/${tagId}`)
 }
 
 // 加载分类

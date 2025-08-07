@@ -36,42 +36,56 @@
         <article
           v-for="post in posts"
           :key="post.id"
-          class="flex flex-col gap-12 p-16 bg-hover rounded-lg transition hover-lift link border-l-3 shadow-sm"
+          class="flex gap-16 p-16 bg-hover rounded-lg transition hover-lift link border-l-3 shadow-sm"
           :style="{ borderLeftColor: `var(--primary-color)` }"
           @click="goToPost(post.id)"
         >
-          <div class="flex flex-sb flex-ac gap-12">
-            <h3 class="text-lg font-semibold text-primary mb-0 flex-1">{{ post.title }}</h3>
-            <span v-if="post.category" class="badge flex-shrink-0">{{ post.category.name }}</span>
-          </div>
-          <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
-          <div class="flex flex-sb flex-ac">
-            <div class="flex flex-ac gap-8">
-              <img
-                v-if="post.author?.avatarUrl"
-                :src="post.author.avatarUrl"
-                :alt="post.author.username"
-                class="rounded"
-                style="width: 24px; height: 24px; object-fit: cover;"
-              >
-              <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
-            </div>
-            <div class="flex gap-16 text-sm text-muted flex-wrap">
-              <span class="flex flex-ac gap-4">👁️ {{ post.viewCount || 0 }}</span>
-              <span class="flex flex-ac gap-4">❤️ {{ post.likeCount || 0 }}</span>
-              <span class="flex flex-ac gap-4">💬 {{ post.commentCount }}</span>
-              <span class="flex flex-ac gap-4">📅 {{ formatDate(post.createdAt) }}</span>
-            </div>
-          </div>
-          <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
-            <span
-              v-for="tag in post.tags"
-              :key="tag.id"
-              class="tag"
-              @click.stop="goToTag(tag.id)"
+          <!-- 文章图片 -->
+          <div class="post-image flex-shrink-0">
+            <img
+              :src="getPostImage(post)"
+              :alt="post.title"
+              class="rounded-lg"
+              style="width: 180px; height: 100%; object-fit: cover;"
+              @error="handleImageError"
             >
-              {{ tag.name }}
-            </span>
+          </div>
+          
+          <!-- 文章内容 -->
+          <div class="flex flex-col gap-12 flex-1">
+            <div class="flex flex-sb flex-ac gap-12">
+              <h3 class="text-lg font-semibold text-primary mb-0 flex-1">{{ post.title }}</h3>
+              <span v-if="post.category" class="badge flex-shrink-0">{{ post.category.name }}</span>
+            </div>
+            <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
+            <div class="flex flex-sb flex-ac">
+              <div class="flex flex-ac gap-8">
+                <img
+                  v-if="post.author?.avatarUrl"
+                  :src="post.author.avatarUrl"
+                  :alt="post.author.username"
+                  class="rounded"
+                  style="width: 24px; height: 24px; object-fit: cover;"
+                >
+                <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
+              </div>
+              <div class="flex gap-16 text-sm text-muted flex-wrap">
+                <span class="flex flex-ac gap-4">👁️ {{ post.viewCount || 0 }}</span>
+                <span class="flex flex-ac gap-4">❤️ {{ post.likeCount || 0 }}</span>
+                <span class="flex flex-ac gap-4">💬 {{ post.commentCount }}</span>
+                <span class="flex flex-ac gap-4">📅 {{ formatDate(post.createdAt) }}</span>
+              </div>
+            </div>
+            <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
+              <span
+                v-for="tag in post.tags"
+                :key="tag.id"
+                class="tag"
+                @click.stop="goToTag(tag.id)"
+              >
+                {{ tag.name }}
+              </span>
+            </div>
           </div>
         </article>
       </div>
@@ -193,7 +207,7 @@ const goToPost = (postId: number) => {
 
 // 跳转到标签页面
 const goToTag = (tagId: number) => {
-  router.push(`/tag/${tagId}`)
+  router.push(`/tags/${tagId}`)
 }
 
 // 返回上一页
@@ -209,6 +223,17 @@ const formatDate = (dateString: string) => {
     month: 'short',
     day: 'numeric'
   })
+}
+
+// 获取文章图片
+const getPostImage = (post: PostListItem) => {
+  return post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'
+}
+
+// 处理图片加载错误
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  img.src = '/src/assets/image/images.jpg'
 }
 
 // 组件挂载时加载数据
@@ -227,10 +252,43 @@ onMounted(() => {
   padding: 20px;
 }
 
+.post-image img {
+  transition: transform 0.3s ease;
+}
+
+.post-image img:hover {
+  transform: scale(1.05);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .category-posts {
     padding: 15px;
+  }
+  
+  .post-image {
+    width: 80px;
+  }
+  
+  .post-image img {
+    width: 80px !important;
+    height: 60px !important;
+  }
+  
+  /* 移动端文章卡片调整为垂直布局 */
+  article {
+    flex-direction: column !important;
+  }
+  
+  .post-image {
+    width: 100% !important;
+    align-self: center;
+  }
+  
+  .post-image img {
+    width: 100% !important;
+    height: 200px !important;
+    max-width: 300px;
   }
 }
 </style>
