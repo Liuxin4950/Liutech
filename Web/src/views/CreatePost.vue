@@ -151,23 +151,69 @@
         <!-- 图片设置 -->
         <div class="sidebar-section">
           <h3 class="sidebar-title">图片设置</h3>
+          
+          <!-- 封面图片上传 -->
           <div class="form-field">
             <label class="field-label">封面图片</label>
-            <input
-              v-model="form.coverImage"
-              type="url"
-              class="field-input"
-              placeholder="请输入封面图片URL"
-            >
+            <div class="image-upload-container">
+              <div 
+                class="image-preview-box"
+                @click="triggerCoverImageUpload"
+                :class="{ 'has-image': form.coverImage }"
+              >
+                <img 
+                  v-if="form.coverImage" 
+                  :src="form.coverImage" 
+                  alt="封面图片预览"
+                  class="preview-image"
+                >
+                <div class="upload-overlay">
+                  <div class="upload-text">
+                    <i class="upload-icon">📷</i>
+                    <span>{{ form.coverImage ? '点击更换图片' : '点击上传封面图片' }}</span>
+                  </div>
+                </div>
+              </div>
+              <input 
+                ref="coverImageInput"
+                type="file" 
+                accept="image/*" 
+                @change="handleCoverImageUpload"
+                style="display: none;"
+              >
+            </div>
           </div>
+          
+          <!-- 缩略图上传 -->
           <div class="form-field">
             <label class="field-label">缩略图</label>
-            <input
-              v-model="form.thumbnail"
-              type="url"
-              class="field-input"
-              placeholder="请输入缩略图URL"
-            >
+            <div class="image-upload-container">
+              <div 
+                class="image-preview-box thumbnail-box"
+                @click="triggerThumbnailUpload"
+                :class="{ 'has-image': form.thumbnail }"
+              >
+                <img 
+                  v-if="form.thumbnail" 
+                  :src="form.thumbnail" 
+                  alt="缩略图预览"
+                  class="preview-image"
+                >
+                <div class="upload-overlay">
+                  <div class="upload-text">
+                    <i class="upload-icon">🖼️</i>
+                    <span>{{ form.thumbnail ? '点击更换图片' : '点击上传缩略图' }}</span>
+                  </div>
+                </div>
+              </div>
+              <input 
+                ref="thumbnailInput"
+                type="file" 
+                accept="image/*" 
+                @change="handleThumbnailUpload"
+                style="display: none;"
+              >
+            </div>
           </div>
         </div>
 
@@ -410,7 +456,9 @@ const submitPost = async () => {
         summary: form.value.summary?.trim() || '',
         categoryId: Number(form.value.categoryId),
         status: form.value.status,
-        tagIds: selectedTags.value.map(tag => tag.id)
+        tagIds: selectedTags.value.map(tag => tag.id),
+        coverImage: form.value.coverImage || '',
+        thumbnail: form.value.thumbnail || ''
       }
       result = await PostService.updatePost(editingPostId.value, updateData)
     } else {
@@ -421,7 +469,9 @@ const submitPost = async () => {
         summary: form.value.summary?.trim() || '',
         categoryId: Number(form.value.categoryId),
         status: form.value.status,
-        tagIds: selectedTags.value.map(tag => tag.id)
+        tagIds: selectedTags.value.map(tag => tag.id),
+        coverImage: form.value.coverImage || '',
+        thumbnail: form.value.thumbnail || ''
       }
       result = await PostService.createPost(postData)
     }
@@ -529,6 +579,107 @@ const checkEditMode = () => {
   }
 }
 
+// 图片上传相关方法
+const coverImageInput = ref<HTMLInputElement>()
+const thumbnailInput = ref<HTMLInputElement>()
+
+// 触发封面图片上传
+const triggerCoverImageUpload = () => {
+  coverImageInput.value?.click()
+}
+
+// 触发缩略图上传
+const triggerThumbnailUpload = () => {
+  thumbnailInput.value?.click()
+}
+
+// 处理封面图片上传
+const handleCoverImageUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  await uploadImage(file, 'cover')
+}
+
+// 处理缩略图上传
+const handleThumbnailUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  await uploadImage(file, 'thumbnail')
+}
+
+// 上传图片的通用方法
+const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
+  // 验证文件类型
+  if (!file.type.startsWith('image/')) {
+    Swal.fire('错误', '请选择图片文件', 'error')
+    return
+  }
+
+  // 验证文件大小（5MB）
+  if (file.size > 5 * 1024 * 1024) {
+    Swal.fire('错误', '图片大小不能超过5MB', 'error')
+    return
+  }
+
+  await handleAsync(async () => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    // 显示上传进度
+    const loadingAlert = Swal.fire({
+      title: '上传中...',
+      text: '正在上传图片，请稍候',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading()
+      }
+    })
+
+    try {
+      const response = await fetch('http://localhost:8080/upload/image', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('上传失败')
+      }
+
+      const result = await response.json()
+      
+      if (result.code === 200) {
+        // 上传成功，更新对应的图片URL
+        const fullUrl = `http://localhost:8080${result.data.fileUrl}`
+        if (type === 'cover') {
+          form.value.coverImage = fullUrl
+        } else {
+          form.value.thumbnail = fullUrl
+        }
+        
+        Swal.close()
+        Swal.fire('成功', '图片上传成功！', 'success')
+      } else {
+        throw new Error(result.message || '上传失败')
+      }
+    } catch (error) {
+      Swal.close()
+      throw error
+    }
+  }, {
+    onError: (err) => {
+      console.error('图片上传失败:', err)
+      Swal.fire('错误', '图片上传失败，请重试', 'error')
+    }
+  })
+}
+
 // 组件挂载时加载数据
 onMounted(async () => {
   checkEditMode()
@@ -630,6 +781,100 @@ onMounted(async () => {
    background: var(--primary-hover-color);
    border-color: var(--primary-hover-color);
  }
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 图片上传组件样式 */
+.image-upload-container {
+  margin-top: 8px;
+}
+
+.image-preview-box {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: var(--bg-color);
+}
+
+.image-preview-box:hover {
+  border-color: var(--primary-color);
+  background: var(--hover-color);
+}
+
+.image-preview-box.has-image {
+  border-style: solid;
+  border-color: var(--primary-color);
+}
+
+.thumbnail-box {
+  height: 120px;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.image-preview-box:hover .preview-image {
+  transform: scale(1.05);
+}
+
+.upload-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.image-preview-box:hover .upload-overlay {
+  opacity: 1;
+}
+
+.image-preview-box:not(.has-image) .upload-overlay {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.1);
+  backdrop-filter: none;
+}
+
+.upload-text {
+  text-align: center;
+  color: white;
+  font-weight: 500;
+}
+
+.image-preview-box:not(.has-image) .upload-text {
+  color: var(--text-muted);
+}
+
+.upload-icon {
+  display: block;
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.upload-text span {
+  font-size: 14px;
+  line-height: 1.4;
+}
 
 .btn-primary:disabled,
 .btn-secondary:disabled {

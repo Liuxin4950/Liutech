@@ -29,14 +29,14 @@ public class WebConfig implements WebMvcConfigurer {
         
         // 配置图片访问路径
         registry.addResourceHandler("/uploads/images/**")
-                .addResourceLocations("file:" + fileUploadConfig.getImagePath() + "/");
+                .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/" + fileUploadConfig.getImagePath() + "/");
         
         // 配置文档访问路径
         registry.addResourceHandler("/uploads/documents/**")
-                .addResourceLocations("file:" + fileUploadConfig.getDocumentPath() + "/");
+                .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/" + fileUploadConfig.getDocumentPath() + "/");
         
         // 配置资源访问路径
         registry.addResourceHandler("/uploads/resources/**")
-                .addResourceLocations("file:" + fileUploadConfig.getResourcePath() + "/");
+                .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/" + fileUploadConfig.getResourcePath() + "/");
     }
 }

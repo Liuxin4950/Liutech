@@ -19,7 +19,7 @@ public class FileUploadConfig {
     /**
      * 文件上传根目录
      */
-    private String basePath = "uploads";
+    private String basePath = System.getProperty("user.dir") + "/uploads";
     
     /**
      * 图片上传目录

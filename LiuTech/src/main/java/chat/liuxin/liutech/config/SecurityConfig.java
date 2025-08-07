@@ -64,6 +64,9 @@ public class SecurityConfig {
                 .requestMatchers("/uploads/**").permitAll()  // 上传文件访问
                 .requestMatchers("/files/**").permitAll()  // 文件访问路径
                 
+                // ========== 文件上传接口（需要认证） ==========
+                .requestMatchers("POST", "/upload/**").authenticated()  // 文件上传需要认证
+                
                 // ========== 其他所有请求都需要认证 ==========
                 // 包括：POST、PUT、DELETE等写操作
                 // 这样就不用一个个配置了，默认保护所有写操作
