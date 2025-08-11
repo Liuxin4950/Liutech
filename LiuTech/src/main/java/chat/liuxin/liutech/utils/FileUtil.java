@@ -138,10 +138,11 @@ public class FileUtil {
      * 生成文件访问URL
      * 
      * @param relativePath 文件相对路径
-     * @return 访问URL
+     * @return 完整的访问URL
      */
     public String generateFileUrl(String relativePath) {
-        return fileUploadConfig.getUrlPrefix() + "/" + relativePath;
+        // 返回完整的URL，TinyMCE需要完整URL才能正确获取图片尺寸
+        return "http://localhost:8080" + fileUploadConfig.getUrlPrefix() + "/" + relativePath;
     }
     
     /**

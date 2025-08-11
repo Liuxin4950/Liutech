@@ -17,7 +17,7 @@
 import { ref, watch, computed } from 'vue'
 import Editor from '@tinymce/tinymce-vue'
 import theme from '@/utils/theme'
-
+import { ImageUploadService } from '@/services/utils'
 // 导入TinyMCE核心
 import 'tinymce/tinymce'
 // 导入TinyMCE主题
@@ -25,24 +25,28 @@ import 'tinymce/themes/silver'
 // 导入TinyMCE图标
 import 'tinymce/icons/default'
 // 导入TinyMCE插件
-import 'tinymce/plugins/advlist'
-import 'tinymce/plugins/autolink'
-import 'tinymce/plugins/lists'
-import 'tinymce/plugins/link'
-import 'tinymce/plugins/image'
-import 'tinymce/plugins/charmap'
-import 'tinymce/plugins/preview'
-import 'tinymce/plugins/anchor'
-import 'tinymce/plugins/searchreplace'
-import 'tinymce/plugins/visualblocks'
-import 'tinymce/plugins/code'
-import 'tinymce/plugins/fullscreen'
-import 'tinymce/plugins/insertdatetime'
-import 'tinymce/plugins/media'
-import 'tinymce/plugins/table'
-import 'tinymce/plugins/help'
-import 'tinymce/plugins/wordcount'
-import 'tinymce/plugins/emoticons'
+import 'tinymce/plugins/advlist' // 高级列表
+import 'tinymce/plugins/autolink' // 自动链接
+import 'tinymce/plugins/lists' // 列表插件
+import 'tinymce/plugins/link' // 链接插件
+import 'tinymce/plugins/image' // 图片插件
+import 'tinymce/plugins/charmap' // 特殊字符
+import 'tinymce/plugins/preview' // 预览
+import 'tinymce/plugins/anchor' // 锚点
+import 'tinymce/plugins/searchreplace' // 查找替换
+import 'tinymce/plugins/visualblocks' // 可视化块
+import 'tinymce/plugins/code' // 代码
+import 'tinymce/plugins/fullscreen' // 全屏
+import 'tinymce/plugins/insertdatetime' // 插入日期时间
+import 'tinymce/plugins/media' // 媒体
+import 'tinymce/plugins/table' // 表格
+import 'tinymce/plugins/help' // 帮助
+import 'tinymce/plugins/wordcount' // 字数统计
+import 'tinymce/plugins/emoticons' // 表情符号
+import 'tinymce/plugins/codesample' // 代码示例
+import 'tinymce/plugins/nonbreaking' // 不间断空格
+import 'tinymce/plugins/visualchars' // 可视化字符
+import 'tinymce/plugins/directionality' // 文字方向
 // 导入表情符号数据库
 import 'tinymce/plugins/emoticons/js/emojis'
 
@@ -162,21 +166,74 @@ const editorConfig = computed(() => ({
   height: props.height,
   menubar: false,
   readonly: false, // 确保编辑器不是只读模式
+  language_url: '/tinymce/langs/zh_CN.js', // 中文语言包路径
+  language: 'zh_CN', // 设置语言为中文
   base_url: '/node_modules/tinymce', // 设置TinyMCE资源基础路径
   suffix: '.min', // 使用压缩版本
   plugins: [
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-    'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons'
+    'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons',
+    'codesample', 'nonbreaking', 'visualchars', 'directionality'
   ],
   toolbar: [
-    'undo redo | blocks | bold italic underline strikethrough | alignleft aligncenter alignright alignjustify',
-    'bullist numlist outdent indent | removeformat | link image media table | code preview fullscreen | help'
+    'undo redo | formatselect fontselect fontsizeselect | bold italic underline strikethrough',
+    'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent',
+    'link image media table emoticons | codesample code | searchreplace | preview fullscreen help'
   ].join(' | '),
+  // 字体选项
+  font_formats: '微软雅黑=Microsoft YaHei,Helvetica Neue,PingFang SC,sans-serif;苹果苹方=PingFang SC,Microsoft YaHei,sans-serif;宋体=simsun,serif;仿宋体=FangSong,serif;黑体=SimHei,sans-serif;Arial=arial,helvetica,sans-serif;Arial Black=arial black,avant garde;Book Antiqua=book antiqua,palatino;',
+  // 字号选项
+  fontsize_formats: '12px 14px 16px 18px 20px 22px 24px 26px 28px 30px 32px 34px 36px 38px 40px 42px 44px 46px 48px 50px 52px 54px 56px 58px 60px 62px 64px 66px 68px 70px 72px',
+  // 行高选项
+  lineheight_formats: '1 1.1 1.2 1.3 1.4 1.5 1.6 1.8 2.0 2.5 3.0',
+  // 代码示例语言
+  codesample_languages: [
+    { text: 'HTML/XML', value: 'markup' },
+    { text: 'JavaScript', value: 'javascript' },
+    { text: 'CSS', value: 'css' },
+    { text: 'PHP', value: 'php' },
+    { text: 'Ruby', value: 'ruby' },
+    { text: 'Python', value: 'python' },
+    { text: 'Java', value: 'java' },
+    { text: 'C', value: 'c' },
+    { text: 'C#', value: 'csharp' },
+    { text: 'C++', value: 'cpp' },
+    { text: 'TypeScript', value: 'typescript' },
+    { text: 'Vue', value: 'vue' },
+    { text: 'React JSX', value: 'jsx' },
+    { text: 'SQL', value: 'sql' },
+    { text: 'JSON', value: 'json' },
+    { text: 'Markdown', value: 'markdown' },
+    { text: 'Shell', value: 'bash' },
+    { text: 'Go', value: 'go' },
+    { text: 'Rust', value: 'rust' }
+  ],
+  // 图片上传配置 - 使用统一的图片上传服务
+  images_upload_handler: ImageUploadService.uploadTinyMCEImage,
+  // 图片上传相关配置
+  automatic_uploads: true, // 启用自动上传到服务器
+  images_upload_credentials: false, // 是否发送凭据
+  images_reuse_filename: true, // 重用文件名
+  images_file_types: 'jpeg,jpg,jpe,jfi,jif,jfif,png,gif,bmp,webp', // 支持的图片格式
+  
+  // 启用URL转换，处理服务器返回的URL
+  convert_urls: true,
+  relative_urls: false,
+  
+  // 粘贴配置
+  paste_data_images: true, // 允许粘贴图片
+  paste_as_text: false, // 不强制粘贴为纯文本
+  paste_remove_styles_if_webkit: false, // 保留样式
+  // 其他配置
+  branding: false, // 隐藏TinyMCE品牌信息
+  elementpath: false, // 隐藏底部元素路径
+  resize: 'both', // 允许调整大小
+  statusbar: true, // 显示状态栏
+  remove_script_host: false, // 保留脚本主机
   content_style: getContentStyle(theme.current.value === 'dark'),
   placeholder: props.placeholder,
-  branding: false,
-  promotion: false,
+  promotion: false, // 隐藏升级提示
   skin: theme.current.value === 'dark' ? 'oxide-dark' : 'oxide',  
   content_css: theme.current.value === 'dark' ? 'dark' : 'default',
   directionality: 'ltr',
@@ -184,30 +241,13 @@ const editorConfig = computed(() => ({
   entities: '160,nbsp,38,amp,60,lt,62,gt',
   indent: false,
   keep_styles: false,
-  paste_data_images: true,
-  paste_as_text: false,
   paste_webkit_styles: 'none',
   paste_retain_style_properties: 'color font-size',
-  resize: 'both',
-  statusbar: true,
-  convert_urls: false,
-  relative_urls: false,
-  remove_script_host: false,
   // 初始化回调，用于调试
   init_instance_callback: (editor: any) => {
     console.log('TinyMCE编辑器初始化完成:', editor.id)
     console.log('编辑器模式:', editor.readonly ? '只读' : '可编辑')
     console.log('当前主题:', theme.current.value)
-  },
-  // 图片上传配置（暂时禁用，后续可以添加图片上传功能）
-  images_upload_handler: (blobInfo: any, success: Function, _failure: Function) => {
-    // 这里可以实现图片上传逻辑
-    // 暂时返回base64
-    const reader = new FileReader()
-    reader.onload = () => {
-      success(reader.result)
-    }
-    reader.readAsDataURL(blobInfo.blob())
   }
 }))
 

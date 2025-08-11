@@ -301,6 +301,7 @@ import { useRouter, useRoute } from 'vue-router'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 import { PostService, type PostDetail } from '@/services/post'
 import { type Tag } from '@/services/tag'
+import { ImageUploadService } from '@/services/utils'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import { useErrorHandler } from '@/composables/useErrorHandler'
@@ -613,22 +614,7 @@ const handleThumbnailUpload = async (event: Event) => {
 
 // 上传图片的通用方法
 const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
-  // 验证文件类型
-  if (!file.type.startsWith('image/')) {
-    Swal.fire('错误', '请选择图片文件', 'error')
-    return
-  }
-
-  // 验证文件大小（5MB）
-  if (file.size > 5 * 1024 * 1024) {
-    Swal.fire('错误', '图片大小不能超过5MB', 'error')
-    return
-  }
-
   await handleAsync(async () => {
-    const formData = new FormData()
-    formData.append('file', file)
-
     // 显示上传进度
     const loadingAlert = Swal.fire({
       title: '上传中...',
@@ -640,34 +626,18 @@ const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
     })
 
     try {
-      const response = await fetch('http://localhost:8080/upload/image', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('上传失败')
-      }
-
-      const result = await response.json()
+      const result = await ImageUploadService.uploadImage(file)
       
-      if (result.code === 200) {
-        // 上传成功，更新对应的图片URL
-        const fullUrl = `http://localhost:8080${result.data.fileUrl}`
-        if (type === 'cover') {
-          form.value.coverImage = fullUrl
-        } else {
-          form.value.thumbnail = fullUrl
-        }
-        
-        Swal.close()
-        Swal.fire('成功', '图片上传成功！', 'success')
+      // 上传成功，更新对应的图片URL
+      const imageUrl = result.fileUrl
+      if (type === 'cover') {
+        form.value.coverImage = imageUrl
       } else {
-        throw new Error(result.message || '上传失败')
+        form.value.thumbnail = imageUrl
       }
+      
+      Swal.close()
+      Swal.fire('成功', '图片上传成功！', 'success')
     } catch (error) {
       Swal.close()
       throw error
@@ -675,7 +645,7 @@ const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
   }, {
     onError: (err) => {
       console.error('图片上传失败:', err)
-      Swal.fire('错误', '图片上传失败，请重试', 'error')
+      Swal.fire('错误', err.message || '图片上传失败，请重试', 'error')
     }
   })
 }

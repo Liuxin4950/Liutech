@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { post } from '@/services/api'
+import { ImageUploadService } from '@/services/utils'
 
 // 响应式数据
 const uploading = ref(false)
@@ -136,16 +136,9 @@ const uploadImage = async () => {
   error.value = ''
   
   try {
-    const formData = new FormData()
-    formData.append('file', selectedImage.value)
+    const result = await ImageUploadService.uploadImage(selectedImage.value)
     
-    const response = await post('/upload/image', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-    
-    imageResult.value = response.data.data
+    imageResult.value = result
     selectedImage.value = null
     if (imageInput.value) {
       imageInput.value.value = ''
@@ -165,19 +158,12 @@ const uploadDocument = async () => {
   error.value = ''
   
   try {
-    const formData = new FormData()
-    formData.append('file', selectedDocument.value)
-    if (documentDescription.value) {
-      formData.append('description', documentDescription.value)
-    }
+    const result = await ImageUploadService.uploadDocument(
+      selectedDocument.value, 
+      documentDescription.value || undefined
+    )
     
-    const response = await post('/upload/document', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-    
-    documentResult.value = response.data.data
+    documentResult.value = result
     selectedDocument.value = null
     documentDescription.value = ''
     if (documentInput.value) {
@@ -198,17 +184,18 @@ const uploadTinyMCEImage = async () => {
   error.value = ''
   
   try {
-    const formData = new FormData()
-    formData.append('file', selectedTinyMCEImage.value)
+    // 模拟TinyMCE的blobInfo对象
+    const blobInfo = {
+      blob: () => selectedTinyMCEImage.value,
+      filename: () => selectedTinyMCEImage.value?.name || 'image.jpg'
+    }
     
-    const response = await post('/upload/tinymce/image', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+    const location = await ImageUploadService.uploadTinyMCEImage(
+      blobInfo, 
+      (percent) => console.log('上传进度:', percent)
+    )
     
-    // TinyMCE接口返回的是直接的对象，不是包装在data中
-    tinyMCEResult.value = response.data
+    tinyMCEResult.value = { location }
     selectedTinyMCEImage.value = null
     if (tinyMCEImageInput.value) {
       tinyMCEImageInput.value.value = ''
