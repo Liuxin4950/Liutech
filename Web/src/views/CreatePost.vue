@@ -616,14 +616,6 @@ const handleThumbnailUpload = async (event: Event) => {
 const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
   await handleAsync(async () => {
     // 显示上传进度
-    const loadingAlert = Swal.fire({
-      title: '上传中...',
-      text: '正在上传图片，请稍候',
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading()
-      }
-    })
 
     try {
       const result = await ImageUploadService.uploadImage(file)

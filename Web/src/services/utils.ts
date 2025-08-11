@@ -63,7 +63,7 @@ export class ImageUploadService {
    */
   static uploadTinyMCEImage(
     blobInfo: any, 
-    progress: (percent: number) => void
+    _progress: (percent: number) => void
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       try {
