@@ -5,61 +5,43 @@
       <main class="main-content">
         <!-- 全部文章展示 -->
         <div class="posts-section">
-          <div class="flex flex-sb flex-ac mb-16">
-            <h2 class="text-lg font-semibold text-primary mb-0">📚 最新文章</h2>
-          </div>
-
           <!-- 文章列表 -->
-          <div class="card">
+          <div>
             <div v-if="postsLoading" class="loading-text">加载中...</div>
-            
+
             <div v-else-if="postsError" class="loading-text text-primary">
               <p>{{ postsError }}</p>
               <button @click="loadAllPosts()" class="retry-btn">重试</button>
             </div>
-            
+
             <div v-else-if="allPosts.length === 0" class="empty-text">暂无文章</div>
-            
+
             <div v-else class="list gap-16">
-              <article
-                v-for="post in allPosts"
-                :key="post.id"
-                class="flex gap-16 p-16 bg-hover rounded-lg transition hover-lift link border-l-3"
-                @click="goToPost(post.id)"
-              >
+              <article v-for="post in allPosts" :key="post.id"
+                class="flex gap-16 p-16 rounded-lg transition link card bg-card" @click="goToPost(post.id)">
                 <!-- 缩略图 -->
-                <div class="flex-shrink-0">
-                  <img 
-                    :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" 
-                    :alt="post.title" 
-                    class="rounded" 
-                    style="width: 120px; height: 80px; object-fit: cover;"
-                  >
+                <div class="posts-img">
+                  <img :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" :alt="post.title"
+                    class="fit">
                 </div>
-                
-                <div class="flex flex-col gap-8 flex-1">
-                  <div class="flex flex-sb flex-ac">
-                    <h3 class="text-lg font-semibold text-primary mb-0">{{ post.title }}</h3>
-                    <span v-if="post.category" class="badge">{{ post.category.name }}</span>
+
+                <div class="flex flex-col flex-sb flex-1 relative">
+                  <span v-if="post.category" class="badge" @click.stop="goToCategory(post.category.id)">{{ post.category.name }}</span>
+                  <div class="flex-1 flex flex-col gap-12">
+                    <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
+   
+                    <p v-if="post.summary" class="text-muted text-base text-sm">{{ post.summary }}</p>
+                    <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
+                      <span @click.stop="goToTag(tag.id)" v-for="tag in post.tags" :key="tag.id" class="tag">
+                        {{ tag.name }}
+                      </span>
+                    </div>
                   </div>
-                  
-                  <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
-                  
-                  <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
-                    <span v-for="tag in post.tags" :key="tag.id" class="tag">
-                      {{ tag.name }}
-                    </span>
-                  </div>
-                  
+
                   <div class="flex flex-sb flex-ac mt-8">
                     <div class="flex flex-ac gap-8">
-                      <img
-                        v-if="post.author?.avatarUrl"
-                        :src="post.author.avatarUrl"
-                        :alt="post.author.username"
-                        class="rounded"
-                        style="width: 24px; height: 24px; object-fit: cover;"
-                      >
+                      <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
+                        class="rounded" style="width: 24px; height: 24px; object-fit: cover;">
                       <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
                     </div>
                     <div class="flex gap-12 text-sm text-muted">
@@ -75,40 +57,31 @@
           </div>
 
           <!-- 分页器 -->
-          <div v-if="!postsLoading && allPosts.length > 0" class="card flex flex-jc flex-ac gap-16 mt-16">
-            <button 
-              @click="goToPostsPage(postsPagination.current - 1)" 
-              :disabled="postsPagination.current <= 1"
+          <div v-if="!postsLoading && allPosts.length > 0" class="flex flex-jc flex-ac gap-16 mt-12">
+            <button @click="goToPostsPage(postsPagination.current - 1)" :disabled="postsPagination.current <= 1"
               class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
-              :class="{ 'opacity-50 cursor-not-allowed': postsPagination.current <= 1 }"
-            >
-              ⬅️ 上一页
+              :class="{ 'opacity-50 cursor-not-allowed': postsPagination.current <= 1 }">
+              上一页
             </button>
-            
+
             <div class="flex flex-ac gap-16">
-              <span class="flex gap-4">
-                <button 
-                  v-for="page in visiblePostsPages" 
-                  :key="page"
-                  @click="goToPostsPage(page)"
-                  :class="['text-sm p-8 rounded transition hover-lift', { 'bg-primary text-white': page === postsPagination.current, 'bg-hover': page !== postsPagination.current }]"
-                >
+              <span class="flex gap-8">
+                <button v-for="page in visiblePostsPages" :key="page" @click="goToPostsPage(page)"
+                  :class="['text-sm p-8 rounded transition hover-lift', { 'bg-primary text-white': page === postsPagination.current, 'bg-hover': page !== postsPagination.current }]">
                   {{ page }}
                 </button>
               </span>
-              
+
               <span class="text-sm text-muted">
                 第 {{ postsPagination.current }} 页，共 {{ postsPagination.pages }} 页
               </span>
             </div>
-            
-            <button 
-              @click="goToPostsPage(postsPagination.current + 1)" 
+
+            <button @click="goToPostsPage(postsPagination.current + 1)"
               :disabled="postsPagination.current >= postsPagination.pages"
               class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
-              :class="{ 'opacity-50 cursor-not-allowed': postsPagination.current >= postsPagination.pages }"
-            >
-              下一页 ➡️
+              :class="{ 'opacity-50 cursor-not-allowed': postsPagination.current >= postsPagination.pages }">
+              下一页
             </button>
           </div>
         </div>
@@ -120,36 +93,20 @@
 
 
         <!-- 个人信息卡片 -->
-        <ProfileCard 
-          :name="profileInfo.name"
-          :title="profileInfo.title"
-          :avatar="profileInfo.avatar"
-          :bio="profileInfo.bio"
-          :stats="profileInfo.stats"
-        />
+        <ProfileCard :name="profileInfo.name" :title="profileInfo.title" :avatar="profileInfo.avatar"
+          :bio="profileInfo.bio" :stats="profileInfo.stats" />
 
         <!-- 公告栏 -->
         <AnnouncementCard :announcements="announcements" />
 
         <!-- 分类展示 -->
-        <CategoriesCard 
-          :categories="categories"
-          :loading="categoriesLoading"
-        />
+        <CategoriesCard :categories="categories" :loading="categoriesLoading" />
 
         <!-- 热门标签 -->
-        <HotTags 
-          :tags="hotTags"
-          :loading="tagsLoading"
-          @tag-click="goToTag"
-        />
+        <HotTags :tags="hotTags" :loading="tagsLoading" @tag-click="goToTag" />
 
         <!-- 推荐文章 -->
-        <RecommendedPosts 
-          :posts="recommendedPosts"
-          :loading="recommendedLoading"
-          @post-click="goToPost"
-        />
+        <RecommendedPosts :posts="recommendedPosts" :loading="recommendedLoading" @post-click="goToPost" />
 
         <!-- 友情链接 -->
         <FriendLinks :links="friendLinks" />
@@ -176,7 +133,6 @@ import CategoriesCard from '@/components/CategoriesCard.vue'
 import HotTags from '@/components/HotTags.vue'
 import RecommendedPosts from '@/components/RecommendedPosts.vue'
 import FriendLinks from '@/components/FriendLinks.vue'
-import HotPosts from '@/components/HotPosts.vue'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
@@ -184,9 +140,6 @@ const categoryStore = useCategoryStore()
 const tagStore = useTagStore()
 
 // 响应式数据
-const hotPosts = ref<PostListItem[]>([])
-const loading = ref(false)
-const error = ref('')
 const recommendedPosts = ref<PostListItem[]>([])
 const recommendedLoading = ref(false)
 
@@ -259,7 +212,7 @@ const visiblePostsPages = computed(() => {
   const current = postsPagination.value.current
   const total = postsPagination.value.pages
   const pages: number[] = []
-  
+
   if (total <= 7) {
     // 总页数小于等于7，显示全部页码
     for (let i = 1; i <= total; i++) {
@@ -292,7 +245,6 @@ const visiblePostsPages = computed(() => {
       pages.push(total)
     }
   }
-  
   return pages
 })
 
@@ -301,8 +253,10 @@ const visiblePostsPages = computed(() => {
 const goToPost = (postId: number) => {
   router.push(`/post/${postId}`)
 }
-
-// 注意：分类卡片组件现在直接处理跳转，无需此函数
+// 跳转到分类详情
+const goToCategory = (categoryId: number) => {
+    router.push(`/category-detail/${categoryId}`)
+}
 
 // 跳转到标签页面
 const goToTag = (tagId: number) => {
@@ -322,8 +276,10 @@ const loadAllPosts = async (page: number = 1) => {
     }
 
     const response = await PostService.getPosts(params)
-    
+
     allPosts.value = response.records
+    console.log(response.records);
+    
     postsPagination.value = {
       current: response.current,
       size: response.size,
@@ -346,7 +302,7 @@ const goToPostsPage = (page: number) => {
   if (page < 1 || page > postsPagination.value.pages || page === postsPagination.value.current) {
     return
   }
-  
+
   loadAllPosts(page)
 }
 
@@ -431,12 +387,38 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.banner{
+.badge {
+  background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.relative > .badge{
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.posts-img {
+  width: 200px;
+  height: 150px;
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.banner {
   height: 500px;
 }
+
 .home-layout {
   display: grid;
-  grid-template-columns:1fr 300px;
+  grid-template-columns: 1fr 300px;
   gap: 20px;
   align-items: start;
 }
@@ -517,7 +499,7 @@ onMounted(() => {
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .home-layout {
-    grid-template-columns:1fr 260px;
+    grid-template-columns: 1fr 260px;
     gap: 20px;
   }
 

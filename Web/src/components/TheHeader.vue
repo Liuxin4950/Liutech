@@ -71,8 +71,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <header class="bg-color border-b sticky top-0 z-100 h-70">
-    <div class="content mx-auto h-full px-20 flex flex-ac flex-sb">
+  <header class="sticky top-0 z-100">
+    <div class="content px-20 flex flex-ac flex-sb">
       <div class="text-xl font-bold text-primary cursor-pointer">
         <h2>LiuTech</h2>
       </div>
@@ -94,12 +94,12 @@ onUnmounted(() => {
         <!-- 用户信息区域 -->
         <div class="relative user-menu-container">
           <!-- 已登录状态 -->
-          <div v-if="userStore.isLoggedIn" class="flex flex-ac gap-8 cursor-pointer hover-bg p-8 rounded transition" @click="toggleUserMenu">
-            <div class="w-35 h-35 rounded-full bg-primary flex flex-ct">
+          <div v-if="userStore.isLoggedIn" class="flex flex-ac gap-8 cursor-pointer rounded transition" @click="toggleUserMenu">
+            <div class="user-avatar rounded-full bg-primary flex flex-ct link">
               <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="w-full h-full object-cover rounded-full" />
               <div v-else class="text-white font-semibold text-sm">{{ userStore.username?.charAt(0).toUpperCase() }}</div>
             </div>
-            <div class="flex flex-col">
+            <div class="flex flex-col link">
               <span class="font-medium">{{ userStore.username }}</span>
               <span class="text-sm text-muted">{{ userStore.points }}积分</span>
             </div>
@@ -112,13 +112,13 @@ onUnmounted(() => {
           </button>
           
           <!-- 用户下拉菜单 -->
-          <div class="absolute top-full right-0 min-w-200 z-1000 card transition-all" :class="{ 'opacity-100 visible translate-y-0': isUserMenuOpen, 'opacity-0 invisible -translate-y-10': !isUserMenuOpen }" @click.stop>
+          <div class="avatar-menu absolute card transition" :class="{ 'opacity-100': isUserMenuOpen, 'opacity-0': !isUserMenuOpen }" @click.stop>
             <ul class="list">
-              <li @click="navigateTo('/profile')" class="p-12 hover-bg transition cursor-pointer">📝 个人资料</li>
-              <li @click="navigateTo('/my-posts')" class="p-12 hover-bg transition cursor-pointer">📚 我的文章</li>
-              <li @click="navigateTo('/drafts')" class="p-12 hover-bg transition cursor-pointer">📄 草稿箱</li>
-              <li @click="navigateTo('/settings')" class="p-12 hover-bg transition cursor-pointer">⚙️ 设置</li>
-              <li @click="handleLogout" class="p-12 hover-bg transition cursor-pointer border-t text-danger">🚪 退出登录</li>
+              <li @click="navigateTo('/profile')" class="hover-bg transition cursor-pointer">个人资料</li>
+              <li @click="navigateTo('/my-posts')" class="hover-bg transition cursor-pointer">我的文章</li>
+              <li @click="navigateTo('/drafts')" class="hover-bg transition cursor-pointer">草稿箱</li>
+              <li @click="navigateTo('/settings')" class=" hover-bg transition cursor-pointer">设置</li>
+              <li @click="handleLogout" class=" hover-bg transition cursor-pointer border-t text-danger">退出登录</li>
             </ul>
           </div>
         </div>
@@ -153,7 +153,36 @@ onUnmounted(() => {
   </header>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+header{
+  width: 100%;
+  height: 70px;
+  background-color: var(--bg-primary);
+}
+header > div{
+  height: 70px;
+}
+
+.user-avatar{
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+}
+.avatar-menu{
+  top: 70px;
+  width: 140px; 
+  li{
+    margin-bottom: 12px;
+    cursor: pointer;
+  }
+  li:last-child {
+    margin-bottom: 0;
+  }
+  li:hover{
+    color: var(--primary-color);
+  }
+}
+
 /* 导航链接样式 */
 .nav-link {
   color: var(--text-color);
@@ -161,6 +190,7 @@ onUnmounted(() => {
   font-weight: 500;
   position: relative;
   padding: 8px 0;
+  cursor: pointer;
 }
 
 .nav-link.router-link-exact-active {

@@ -2,17 +2,72 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  /* 现代简洁色系 - 浅色主题 */
+  /* 主色调 */
+  --primary-50: #f0f7ff;
+  --primary-100: #e0efff;
+  --primary-200: #b3d9ff;
+  --primary-300: #80c1ff;
+  --primary-400: #4da9ff;
+  --primary-500: #409eff;
+  --primary-600: #337ecc;
+  --primary-700: #0077b6;
+  --primary-800: #1e4e8c;
+  --primary-900: #1a365d;
 
-  /* 默认浅色主题变量 */
-  --bg-color: #ffffff;
-  --text-color: #333333;
-  --primary-color: #409eff;
-  --primary-hover-color: #337ecc;
-  --secondary-color: #79bbff;
-  --border-color: #dcdfe6;
-  --hover-color: #ecf5ff;
-  --tag-bg-color: #f0f0f0;
-  --tag-text-color: #666666;
+  /* 中性色 */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #adb5bd;
+  --gray-600: #6c757d;
+  --gray-700: #343a40;
+  --gray-800: #212529;
+  --gray-900: #171717;
+
+  /* 背景色 */
+  --bg-primary: #ffffff;
+  --bg-secondary: #fafafa;
+  --bg-tertiary: #f5f5f5;
+  --bg-card: #e9ecef;
+  --bg-hover: #f8fafc;
+  --bg-active: #f1f5f9;
+
+  /* 文字色 */
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-tertiary: #6b7280;
+  --text-muted: #2f3e46;
+  --text-title: #111827;
+  --text-color: #374151;
+
+  /* 边框色 */
+  --border-light: #e5e7eb;
+  --border-medium: #d1d5db;
+  --border-dark: #9ca3af;
+
+  /* 状态色 */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* 旧变量兼容 */
+  --bg-color: var(--bg-primary);
+  --primary-color: var(--primary-500);
+  --primary-hover-color: var(--primary-600);
+  --secondary-color: var(--primary-300);
+  --border-color: var(--border-light);
+  --hover-color: var(--bg-hover);
+  --tag-bg-color: var(--gray-100);
+  --tag-text-color: var(--text-secondary);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -22,13 +77,70 @@
 
 /* 深色主题变量 */
 .dark {
-  --bg-color: #1a1a1a;
-  --text-color: #ffffff;
-  --primary-color: #66b1ff;
-  --primary-hover-color: #4d9fff;
-  --secondary-color: #409eff;
-  --border-color: #4c4d4f;
-  --hover-color: #18222c;
-  --tag-bg-color: #2d2d2d;
-  --tag-text-color: #cccccc;
+  /* 深色主色调 */
+  --primary-50: #0f172a;
+  --primary-100: #1e293b;
+  --primary-200: #334155;
+  --primary-300: #475569;
+  --primary-400: #64748b;
+  --primary-500: #94a3b8;
+  --primary-600: #a1a1aa;
+  --primary-700: #d4d4d8;
+  --primary-800: #e5e5e5;
+  --primary-900: #fafafa;
+
+  /* 深色中性色 */
+  --gray-50: #18181b;
+  --gray-100: #27272a;
+  --gray-200: #3f3f46;
+  --gray-300: #52525b;
+  --gray-400: #71717a;
+  --gray-500: #a1a1aa;
+  --gray-600: #d4d4d8;
+  --gray-700: #e4e4e7;
+  --gray-800: #f4f4f5;
+  --gray-900: #fafafa;
+
+  /* 深色背景色 */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --bg-card: #1e293b;
+  --bg-hover: #334155;
+  --bg-active: #475569;
+
+  /* 深色文字色 */
+  --text-primary: #f9fafb;
+  --text-secondary: #e5e7eb;
+  --text-tertiary: #d1d5db;
+  --text-muted: #9ca3af;
+  --text-title: #f9fafb;
+  --text-color: #e5e7eb;
+
+  /* 深色边框色 */
+  --border-light: #374151;
+  --border-medium: #4b5563;
+  --border-dark: #6b7280;
+
+  /* 深色状态色 */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: #60a5fa;
+  
+
+  /* 深色阴影 */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+
+  /* 旧变量兼容 */
+  --bg-color: var(--bg-primary);
+  --primary-color: var(--primary-400);
+  --primary-hover-color: var(--primary-300);
+  --secondary-color: var(--primary-500);
+  --border-color: var(--border-light);
+  --hover-color: var(--bg-hover);
+  --tag-bg-color: var(--gray-200);
+  --tag-text-color: var(--text-secondary);
 }

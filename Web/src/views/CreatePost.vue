@@ -1,5 +1,5 @@
 <template>
-  <div class="content">
+  <div class="content card">
     <!-- 顶部工具栏 -->
     <div class="editor-toolbar">
       <div class="toolbar-left">

@@ -1,6 +1,6 @@
 <template>
-  <div class="card">
-    <h4 class="card-title">📖 推荐阅读</h4>
+  <div class="card bg-card ">
+    <h4 class="card-title">推荐阅读</h4>
     <div v-if="loading" class="loading-text">加载中...</div>
     <div v-else-if="posts.length === 0" class="empty-text">暂无推荐</div>
     <div v-else class="list gap-12">

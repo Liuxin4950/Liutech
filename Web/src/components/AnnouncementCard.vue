@@ -1,6 +1,6 @@
 <template>
-  <div class="card">
-    <h4 class="card-title">📢 公告</h4>
+  <div class="card bg-card ">
+    <h4 class="card-title">公告</h4>
     <div class="list gap-12">
       <div 
         v-for="announcement in announcements" 

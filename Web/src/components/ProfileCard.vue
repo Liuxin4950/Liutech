@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <div class="card bg-card ">
     <div class="flex flex-ac gap-12 mb-16">
       <img :src="avatar" :alt="name" class="avatar">
       <div class="flex-1">

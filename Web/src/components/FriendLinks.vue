@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <div class="card bg-card ">
     <h4 class="card-title">🔗 友情链接</h4>
     <div class="list gap-8">
       <a 

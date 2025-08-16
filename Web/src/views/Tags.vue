@@ -1,73 +1,61 @@
 <template>
-  <div class="tags-page content">
-    
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <h1 class="page-title">标签云</h1>
-      <p class="page-description">探索不同主题的文章标签</p>
+  <div class="tags-page content  ">
+
+    <div class="bg-hover card">
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <h1 class="page-title">标签云</h1>
+        <p class="page-description">探索不同主题的文章标签</p>
+      </div>
+
+      <!-- 搜索框 -->
+      <div class="search-section">
+        <div class="search-box">
+          <input v-model="searchKeyword" type="text" placeholder="搜索标签..." class="search-input" />
+          <i class="search-icon" v-if="!isSearching">🔍</i>
+          <i class="search-icon loading" v-else>⏳</i>
+        </div>
+      </div>
+
+      <!-- 热门标签 -->
+      <div v-if="hotTags && hotTags.length > 0" class="hot-tags-section">
+        <h2 class="section-title">🔥 热门标签</h2>
+        <div class="hot-tags-grid">
+          <router-link v-for="tag in hotTags" :key="tag.id" :to="`/tags/${tag.id}`" class="hot-tag-card">
+            <div class="tag-name">{{ tag.name }}</div>
+            <div class="tag-count">{{ tag.postCount }} 篇文章</div>
+          </router-link>
+        </div>
+      </div>
+
+      <!-- 所有标签 -->
+      <div class="all-tags-section">
+        <h2 class="section-title">📚 所有标签</h2>
+
+        <!-- 加载状态 -->
+        <div v-if="isLoading" class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>加载中...</p>
+        </div>
+
+        <!-- 标签云 -->
+        <div v-else-if="filteredTags.length > 0" class="tags-cloud">
+          <router-link v-for="tag in filteredTags" :key="tag.id" :to="`/tags/${tag.id}`" class="tag-item"
+            :class="getTagSizeClass(tag.postCount)">
+            <span class="tag-name">{{ tag.name }}</span>
+            <span class="tag-count">({{ tag.postCount || 0 }})</span>
+          </router-link>
+        </div>
+
+        <!-- 空状态 -->
+        <div v-else class="empty-state">
+          <div class="empty-icon">🏷️</div>
+          <h3>{{ searchKeyword ? '未找到相关标签' : '暂无标签' }}</h3>
+          <p>{{ searchKeyword ? '尝试使用其他关键词搜索' : '还没有任何标签，快去发布文章吧！' }}</p>
+        </div>
+      </div>
     </div>
 
-    <!-- 搜索框 -->
-    <div class="search-section">
-      <div class="search-box">
-        <input 
-          v-model="searchKeyword" 
-          type="text" 
-          placeholder="搜索标签..."
-          class="search-input"
-        />
-        <i class="search-icon" v-if="!isSearching">🔍</i>
-        <i class="search-icon loading" v-else>⏳</i>
-      </div>
-    </div>
-
-    <!-- 热门标签 -->
-    <div v-if="hotTags && hotTags.length > 0" class="hot-tags-section">
-      <h2 class="section-title">🔥 热门标签</h2>
-      <div class="hot-tags-grid">
-        <router-link 
-          v-for="tag in hotTags" 
-          :key="tag.id"
-          :to="`/tags/${tag.id}`"
-          class="hot-tag-card"
-        >
-          <div class="tag-name">{{ tag.name }}</div>
-          <div class="tag-count">{{ tag.postCount }} 篇文章</div>
-        </router-link>
-      </div>
-    </div>
-
-    <!-- 所有标签 -->
-    <div class="all-tags-section">
-      <h2 class="section-title">📚 所有标签</h2>
-      
-      <!-- 加载状态 -->
-      <div v-if="isLoading" class="loading-state">
-        <div class="loading-spinner"></div>
-        <p>加载中...</p>
-      </div>
-      
-      <!-- 标签云 -->
-      <div v-else-if="filteredTags.length > 0" class="tags-cloud">
-        <router-link 
-          v-for="tag in filteredTags" 
-          :key="tag.id"
-          :to="`/tags/${tag.id}`"
-          class="tag-item"
-          :class="getTagSizeClass(tag.postCount)"
-        >
-          <span class="tag-name">{{ tag.name }}</span>
-          <span class="tag-count">({{ tag.postCount || 0 }})</span>
-        </router-link>
-      </div>
-      
-      <!-- 空状态 -->
-      <div v-else class="empty-state">
-        <div class="empty-icon">🏷️</div>
-        <h3>{{ searchKeyword ? '未找到相关标签' : '暂无标签' }}</h3>
-        <p>{{ searchKeyword ? '尝试使用其他关键词搜索' : '还没有任何标签，快去发布文章吧！' }}</p>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -110,12 +98,12 @@ watch(searchKeyword, async (newKeyword) => {
   if (searchTimer) {
     clearTimeout(searchTimer)
   }
-  
+
   if (!newKeyword.trim()) {
     searchResults.value = []
     return
   }
-  
+
   // 设置防抖定时器
   searchTimer = setTimeout(async () => {
     isSearching.value = true
@@ -307,8 +295,13 @@ onMounted(async () => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .tags-cloud {
@@ -399,26 +392,26 @@ onMounted(async () => {
   .tags-page {
     padding: 15px;
   }
-  
+
   .page-title {
     font-size: 2rem;
   }
-  
 
-  
+
+
   .hot-tags-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 10px;
   }
-  
+
   .hot-tag-card {
     padding: 15px;
   }
-  
+
   .tags-cloud {
     gap: 8px;
   }
-  
+
   .tag-item {
     padding: 6px 12px;
     font-size: 0.9rem;
