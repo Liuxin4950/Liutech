@@ -134,6 +134,7 @@ import { useRoute } from 'vue-router'
 import { TagService, type Tag } from '@/services/tag'
 import { PostService, type PostListItem, type PageResponse } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { formatDate } from '@/utils/uitls'
 
 // 路由相关
 const route = useRoute()
@@ -161,19 +162,7 @@ const tagId = computed(() => {
   return typeof id === 'string' ? parseInt(id) : 0
 })
 
-/**
- * 格式化日期
- * @param dateString 日期字符串
- * @returns 格式化后的日期
- */
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
+
 
 /**
  * 加载标签信息

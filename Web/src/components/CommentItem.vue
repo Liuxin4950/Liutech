@@ -17,7 +17,7 @@
         <!-- 用户信息和时间 -->
         <div class="comment-header">
           <span class="username">{{ comment.user?.username || '匿名用户' }}</span>
-          <span class="comment-time">{{ formatTime(comment.createdAt) }}</span>
+          <span class="comment-time">{{ formatRelativeTime(comment.createdAt) }}</span>
         </div>
         
         <!-- 评论文本 -->
@@ -89,7 +89,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { type Comment } from '@/services/comment'
+import type { Comment } from '@/services/comment'
+import { formatRelativeTime } from '@/utils/uitls'
 import CommentForm from './CommentForm.vue'
 
 // Props
@@ -152,31 +153,7 @@ const handleAvatarError = (event: Event) => {
   img.src = '/default-avatar.svg'
 }
 
-const formatTime = (dateString: string) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  
-  const minutes = Math.floor(diff / (1000 * 60))
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  
-  if (minutes < 1) {
-    return '刚刚'
-  } else if (minutes < 60) {
-    return `${minutes}分钟前`
-  } else if (hours < 24) {
-    return `${hours}小时前`
-  } else if (days < 7) {
-    return `${days}天前`
-  } else {
-    return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-}
+
 </script>
 
 <style scoped>

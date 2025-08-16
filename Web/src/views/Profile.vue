@@ -162,14 +162,14 @@
                   <div class="timeline-dot comment"></div>
                   <div class="timeline-content">
                     <div class="timeline-title">发表了评论</div>
-                    <div class="timeline-time">{{ formatRelativeTime(userStats.lastCommentAt) }}</div>
+                    <div class="timeline-time">{{ formatRelativeTime(userStats.lastCommentAt || '') }}</div>
                   </div>
                 </div>
                 <div class="timeline-item">
                   <div class="timeline-dot join"></div>
                   <div class="timeline-content">
                     <div class="timeline-title">加入了社区</div>
-                    <div class="timeline-time">{{ formatRelativeTime(userInfo?.createdAt) }}</div>
+                    <div class="timeline-time">{{ formatRelativeTime(userInfo?.createdAt || '') }}</div>
                   </div>
                 </div>
               </div>
@@ -295,6 +295,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/user'
 import { UserService, type UpdateProfileRequest, type UserStats } from '../services/user'
 import { showSuccess, showError } from '../utils/errorHandler'
+import { formatDate, formatRelativeTime } from '../utils/uitls'
 
 const userStore = useUserStore()
 const isLoading = ref(false)
@@ -380,35 +381,7 @@ const handleSubmit = async () => {
   }
 }
 
-const formatDate = (dateString?: string) => {
-  if (!dateString) return '暂无'
-  return new Date(dateString).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
 
-// 格式化相对时间
-const formatRelativeTime = (dateString?: string) => {
-  if (!dateString) return '暂无'
-  const date = new Date(dateString)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  
-  const minutes = Math.floor(diff / (1000 * 60))
-  const hours = Math.floor(diff / (1000 * 60 * 60))
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const months = Math.floor(diff / (1000 * 60 * 60 * 24 * 30))
-  const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365))
-  
-  if (years > 0) return `${years}年前`
-  if (months > 0) return `${months}个月前`
-  if (days > 0) return `${days}天前`
-  if (hours > 0) return `${hours}小时前`
-  if (minutes > 0) return `${minutes}分钟前`
-  return '刚刚'
-}
 
 // 格式化数字
 const formatNumber = (num: number) => {

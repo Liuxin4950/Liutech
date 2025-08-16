@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import type { PostListItem } from '@/services/post'
+import { formatDate } from '@/utils/uitls'
 
 interface Props {
   posts: PostListItem[]
@@ -81,15 +82,7 @@ defineEmits<{
   'retry': []
 }>()
 
-// 格式化日期
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+
 </script>
 
 <style scoped>

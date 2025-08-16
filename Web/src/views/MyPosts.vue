@@ -129,6 +129,7 @@ import { useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
 import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { formatDate } from '@/utils/uitls'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
@@ -234,14 +235,7 @@ const changePage = (page: number) => {
   loadPosts()
 }
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-}
+
 
 // 生命周期
 onMounted(async () => {

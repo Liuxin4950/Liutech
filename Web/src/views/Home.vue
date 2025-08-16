@@ -2,7 +2,123 @@
   <div class="content">
     <div class="home-layout">
       <!-- 左侧边栏 -->
+      <main class="main-content">
+        <!-- 全部文章展示 -->
+        <div class="posts-section">
+          <div class="flex flex-sb flex-ac mb-16">
+            <h2 class="text-lg font-semibold text-primary mb-0">📚 最新文章</h2>
+          </div>
+
+          <!-- 文章列表 -->
+          <div class="card">
+            <div v-if="postsLoading" class="loading-text">加载中...</div>
+            
+            <div v-else-if="postsError" class="loading-text text-primary">
+              <p>{{ postsError }}</p>
+              <button @click="loadAllPosts()" class="retry-btn">重试</button>
+            </div>
+            
+            <div v-else-if="allPosts.length === 0" class="empty-text">暂无文章</div>
+            
+            <div v-else class="list gap-16">
+              <article
+                v-for="post in allPosts"
+                :key="post.id"
+                class="flex gap-16 p-16 bg-hover rounded-lg transition hover-lift link border-l-3"
+                @click="goToPost(post.id)"
+              >
+                <!-- 缩略图 -->
+                <div class="flex-shrink-0">
+                  <img 
+                    :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" 
+                    :alt="post.title" 
+                    class="rounded" 
+                    style="width: 120px; height: 80px; object-fit: cover;"
+                  >
+                </div>
+                
+                <div class="flex flex-col gap-8 flex-1">
+                  <div class="flex flex-sb flex-ac">
+                    <h3 class="text-lg font-semibold text-primary mb-0">{{ post.title }}</h3>
+                    <span v-if="post.category" class="badge">{{ post.category.name }}</span>
+                  </div>
+                  
+                  <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
+                  
+                  <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
+                    <span v-for="tag in post.tags" :key="tag.id" class="tag">
+                      {{ tag.name }}
+                    </span>
+                  </div>
+                  
+                  <div class="flex flex-sb flex-ac mt-8">
+                    <div class="flex flex-ac gap-8">
+                      <img
+                        v-if="post.author?.avatarUrl"
+                        :src="post.author.avatarUrl"
+                        :alt="post.author.username"
+                        class="rounded"
+                        style="width: 24px; height: 24px; object-fit: cover;"
+                      >
+                      <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
+                    </div>
+                    <div class="flex gap-12 text-sm text-muted">
+                      <span>👁️ {{ post.viewCount || 0 }}</span>
+                      <span>❤️ {{ post.likeCount || 0 }}</span>
+                      <span>💬 {{ post.commentCount }}</span>
+                      <span>{{ formatDate(post.createdAt) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <!-- 分页器 -->
+          <div v-if="!postsLoading && allPosts.length > 0" class="card flex flex-jc flex-ac gap-16 mt-16">
+            <button 
+              @click="goToPostsPage(postsPagination.current - 1)" 
+              :disabled="postsPagination.current <= 1"
+              class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
+              :class="{ 'opacity-50 cursor-not-allowed': postsPagination.current <= 1 }"
+            >
+              ⬅️ 上一页
+            </button>
+            
+            <div class="flex flex-ac gap-16">
+              <span class="flex gap-4">
+                <button 
+                  v-for="page in visiblePostsPages" 
+                  :key="page"
+                  @click="goToPostsPage(page)"
+                  :class="['text-sm p-8 rounded transition hover-lift', { 'bg-primary text-white': page === postsPagination.current, 'bg-hover': page !== postsPagination.current }]"
+                >
+                  {{ page }}
+                </button>
+              </span>
+              
+              <span class="text-sm text-muted">
+                第 {{ postsPagination.current }} 页，共 {{ postsPagination.pages }} 页
+              </span>
+            </div>
+            
+            <button 
+              @click="goToPostsPage(postsPagination.current + 1)" 
+              :disabled="postsPagination.current >= postsPagination.pages"
+              class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
+              :class="{ 'opacity-50 cursor-not-allowed': postsPagination.current >= postsPagination.pages }"
+            >
+              下一页 ➡️
+            </button>
+          </div>
+        </div>
+      </main>
+      <!-- 右侧主内容区 -->
       <aside class="sidebar">
+        <!-- 搜索框 -->
+        <!-- <SearchBox /> -->
+
+
         <!-- 个人信息卡片 -->
         <ProfileCard 
           :name="profileInfo.name"
@@ -38,19 +154,6 @@
         <!-- 友情链接 -->
         <FriendLinks :links="friendLinks" />
       </aside>
-      <!-- 右侧主内容区 -->
-      <main class="main-content">
-        <!-- 热门文章组件 -->
-        <HotPosts 
-          :posts="hotPosts"
-          :loading="loading"
-          :error="error"
-          @post-click="goToPost"
-          @create-post="router.push('/create')"
-          @view-all="router.push('/posts')"
-          @retry="loadHotPosts"
-        />
-      </main>
     </div>
   </div>
 </template>
@@ -59,7 +162,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
-import type { PostListItem } from '@/services/post'
+import type { PostListItem, PostQueryParams } from '@/services/post'
+import { formatDate } from '@/utils/uitls'
 import { AnnouncementService } from '@/services/announcement'
 import { UserService } from '@/services/user'
 import type { ProfileInfo } from '@/services/user'
@@ -85,6 +189,19 @@ const loading = ref(false)
 const error = ref('')
 const recommendedPosts = ref<PostListItem[]>([])
 const recommendedLoading = ref(false)
+
+// 文章列表数据
+const allPosts = ref<PostListItem[]>([])
+const postsLoading = ref(false)
+const postsError = ref('')
+
+// 分页信息
+const postsPagination = ref({
+  current: 1,
+  size: 10,
+  total: 0,
+  pages: 0
+})
 
 // 个人资料数据
 const profileInfo = ref<ProfileInfo>({
@@ -137,24 +254,48 @@ const categoriesLoading = computed(() => categoryStore.isLoading)
 const hotTags = computed(() => tagStore.hotTags)
 const tagsLoading = computed(() => tagStore.isHotTagsLoading)
 
-// 加载热门文章
-const loadHotPosts = async () => {
-  await handleAsync(async () => {
-    loading.value = true
-    error.value = ''
-
-    const posts = await PostService.getHotPosts(10) // 获取10篇热门文章
-    hotPosts.value = posts
-  }, {
-    onError: (err) => {
-      error.value = '加载热门文章失败，请稍后重试'
-      console.error('加载热门文章失败:', err)
-    },
-    onFinally: () => {
-      loading.value = false
+// 计算可见的页码
+const visiblePostsPages = computed(() => {
+  const current = postsPagination.value.current
+  const total = postsPagination.value.pages
+  const pages: number[] = []
+  
+  if (total <= 7) {
+    // 总页数小于等于7，显示全部页码
+    for (let i = 1; i <= total; i++) {
+      pages.push(i)
     }
-  })
-}
+  } else {
+    // 总页数大于7，显示部分页码
+    if (current <= 4) {
+      // 当前页在前4页
+      for (let i = 1; i <= 5; i++) {
+        pages.push(i)
+      }
+      pages.push(-1) // 省略号
+      pages.push(total)
+    } else if (current >= total - 3) {
+      // 当前页在后4页
+      pages.push(1)
+      pages.push(-1) // 省略号
+      for (let i = total - 4; i <= total; i++) {
+        pages.push(i)
+      }
+    } else {
+      // 当前页在中间
+      pages.push(1)
+      pages.push(-1) // 省略号
+      for (let i = current - 1; i <= current + 1; i++) {
+        pages.push(i)
+      }
+      pages.push(-1) // 省略号
+      pages.push(total)
+    }
+  }
+  
+  return pages
+})
+
 
 // 跳转到文章详情
 const goToPost = (postId: number) => {
@@ -167,6 +308,49 @@ const goToPost = (postId: number) => {
 const goToTag = (tagId: number) => {
   router.push(`/tags/${tagId}`)
 }
+
+// 加载全部文章列表
+const loadAllPosts = async (page: number = 1) => {
+  await handleAsync(async () => {
+    postsLoading.value = true
+    postsError.value = ''
+
+    const params: PostQueryParams = {
+      page,
+      size: postsPagination.value.size,
+      sortBy: 'latest' // 按最新排序
+    }
+
+    const response = await PostService.getPosts(params)
+    
+    allPosts.value = response.records
+    postsPagination.value = {
+      current: response.current,
+      size: response.size,
+      total: response.total,
+      pages: response.pages
+    }
+  }, {
+    onError: (err) => {
+      postsError.value = '加载文章列表失败，请稍后重试'
+      console.error('加载文章列表失败:', err)
+    },
+    onFinally: () => {
+      postsLoading.value = false
+    }
+  })
+}
+
+// 跳转到指定页面
+const goToPostsPage = (page: number) => {
+  if (page < 1 || page > postsPagination.value.pages || page === postsPagination.value.current) {
+    return
+  }
+  
+  loadAllPosts(page)
+}
+
+
 
 // 加载分类
 const loadCategories = async () => {
@@ -236,7 +420,7 @@ const loadProfile = async () => {
 // 组件挂载时加载数据
 onMounted(() => {
   Promise.all([
-    loadHotPosts(),
+    loadAllPosts(), // 加载全部文章
     loadCategories(),
     loadHotTags(),
     loadRecommendedPosts(),
@@ -252,9 +436,42 @@ onMounted(() => {
 }
 .home-layout {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns:1fr 300px;
   gap: 20px;
   align-items: start;
+}
+
+/* 文章列表样式 */
+.posts-section {
+  width: 100%;
+}
+
+.loading-text {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.empty-text {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.retry-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+}
+
+.retry-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
 }
 
 /* 左侧边栏样式 */
@@ -262,15 +479,16 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  /* 当距离顶部70px时固定 */
   position: sticky;
-  top: 20px;
+  top: 70px;
 }
 
 /* 右侧主内容区 */
 .main-content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 /* 欢迎横幅 */
@@ -299,7 +517,7 @@ onMounted(() => {
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .home-layout {
-    grid-template-columns: 280px 1fr;
+    grid-template-columns:1fr 260px;
     gap: 20px;
   }
 

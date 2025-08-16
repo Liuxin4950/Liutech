@@ -3,6 +3,7 @@ import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
 import Banner from '@/components/Banner.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
+import BottomNavigation from '@/components/BottomNavigation.vue'
 </script>
 
 <template>
@@ -14,6 +15,7 @@ import Breadcrumb from '@/components/Breadcrumb.vue'
       <router-view />
     </main>
     <TheFooter />
+    <BottomNavigation></BottomNavigation>
   </div>
 </template>
 

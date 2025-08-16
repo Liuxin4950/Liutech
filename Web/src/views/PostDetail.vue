@@ -167,6 +167,7 @@ import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { showError, showSuccessToast } from '@/utils/errorHandler'
+import { formatDate } from '@/utils/uitls'
 import CommentSection from '@/components/CommentSection.vue'
 
 const route = useRoute()
@@ -377,17 +378,7 @@ const copyLink = async () => {
   showShare.value = false
 }
 
-// 格式化日期
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+
 
 // 组件挂载时加载数据
 onMounted(() => {

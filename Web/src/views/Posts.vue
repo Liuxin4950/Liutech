@@ -164,6 +164,7 @@ import type { PostListItem, PostQueryParams } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
+import { formatDate } from '@/utils/uitls'
 
 const router = useRouter()
 const route = useRoute()
@@ -325,15 +326,7 @@ const goToPost = (postId: number) => {
   router.push(`/post/${postId}`)
 }
 
-// 格式化日期
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+
 
 // 监听路由变化
 watch(() => route.query.page, (newPage) => {

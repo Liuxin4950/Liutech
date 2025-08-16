@@ -97,8 +97,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { PostService } from '@/services/post'
-import type { PostListItem } from '@/services/post'
+import { PostService, type PostListItem } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 
 const router = useRouter()

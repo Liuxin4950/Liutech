@@ -261,7 +261,7 @@
               </div>
               <div class="flex gap-16 flex-ac text-sm text-muted">
                 <span v-if="form.categoryId" class="badge">{{ getCategoryName(form.categoryId) }}</span>
-                <span>{{ new Date().toLocaleDateString('zh-CN') }}</span>
+                <span>{{ formatDate(new Date().toISOString()) }}</span>
                 <span>👁️ {{ form.viewCount || 0 }}</span>
                 <span>❤️ {{ form.likeCount || 0 }}</span>
                 <span>💬 0</span>
@@ -305,6 +305,7 @@ import { ImageUploadService } from '@/services/utils'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { formatDate } from '@/utils/uitls'
 import Swal from 'sweetalert2'
 
 const router = useRouter()

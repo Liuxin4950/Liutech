@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-
+import { formatDate } from '@/utils/uitls'
 
 // 定义props
 interface Author {
@@ -54,16 +54,7 @@ const handlePostClick = (postId: number) => {
   emit('postClick', postId)
 }
 
-// 格式化日期
-const formatDate = (dateString: string) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
-}
+
 </script>
 
 <style scoped>

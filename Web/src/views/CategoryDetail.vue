@@ -123,6 +123,7 @@ import { PostService, type PostListItem } from '@/services/post'
 import type { Category } from '@/services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
+import { formatDate } from '@/utils/uitls'
 
 const router = useRouter()
 const route = useRoute()
@@ -215,15 +216,7 @@ const goBack = () => {
   router.back()
 }
 
-// 格式化日期
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+
 
 // 获取文章图片
 const getPostImage = (post: PostListItem) => {

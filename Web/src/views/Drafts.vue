@@ -66,7 +66,7 @@
             <div class="draft-meta">
               <span class="draft-date">
                 <span class="meta-icon">📅</span>
-                更新于 {{ formatDate(draft.updatedAt || draft.createdAt) }}
+                更新于 {{ formatRelativeTime(draft.updatedAt || draft.createdAt) }}
               </span>
               <span class="draft-category" v-if="draft.category">
                 <span class="meta-icon">🏷️</span>
@@ -117,6 +117,7 @@ import { useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
 import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { formatDate, formatRelativeTime } from '@/utils/uitls'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
@@ -239,36 +240,7 @@ const handleSearch = () => {
 
 
 
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  
-  // 小于1小时显示分钟
-  if (diff < 60 * 60 * 1000) {
-    const minutes = Math.floor(diff / (60 * 1000))
-    return `${minutes}分钟前`
-  }
-  
-  // 小于24小时显示小时
-  if (diff < 24 * 60 * 60 * 1000) {
-    const hours = Math.floor(diff / (60 * 60 * 1000))
-    return `${hours}小时前`
-  }
-  
-  // 小于7天显示天数
-  if (diff < 7 * 24 * 60 * 60 * 1000) {
-    const days = Math.floor(diff / (24 * 60 * 60 * 1000))
-    return `${days}天前`
-  }
-  
-  // 超过7天显示具体日期
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+
 
 // 组件挂载时加载数据
 onMounted(async () => {
