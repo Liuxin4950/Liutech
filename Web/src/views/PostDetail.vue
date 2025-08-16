@@ -1,5 +1,5 @@
 <template>
-  <div class="post-detail">
+  <div class="post-detail content">
     <div v-if="loading" class="text-center p-20 text-muted">
       <p>加载中...</p>
     </div>
@@ -404,9 +404,8 @@ onUnmounted(() => {
 
 <style scoped>
 .post-detail {
-  max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+
 }
 
 .retry-btn {

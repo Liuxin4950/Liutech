@@ -84,16 +84,13 @@ onUnmounted(() => {
           <li><router-link to="/categories" class="nav-link transition">分类</router-link></li>
           <li><router-link to="/tags" class="nav-link transition">标签</router-link></li>
           <li><router-link to="/archive" class="nav-link transition">归档</router-link></li>
-
-          <!-- <li><router-link to="/posts" class="nav-link transition">全部文章</router-link></li>
-          <li><router-link to="/create" class="nav-link transition">发布文章</router-link></li> -->
           <li><router-link to="/about" class="nav-link transition">关于我</router-link></li>
         
         </ul>
       </nav>
       
 
-      <div class="flex flex-ac gap-16">
+      <div class="flex flex-ac gap-16 nav-user" >
         <!-- 用户信息区域 -->
         <div class="relative user-menu-container">
           <!-- 已登录状态 -->
@@ -149,14 +146,7 @@ onUnmounted(() => {
           <li @click="navigateTo('/')" class="p-16 hover-bg transition border-b cursor-pointer">🏠 首页</li>
           <li @click="navigateTo('/posts')" class="p-16 hover-bg transition border-b cursor-pointer">📚 全部文章</li>
           <li @click="navigateTo('/categories')" class="p-16 hover-bg transition border-b cursor-pointer">📂 分类</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/create')" class="p-16 hover-bg transition border-b cursor-pointer">✍️ 发布文章</li>
           <li @click="navigateTo('/about')" class="p-16 hover-bg transition border-b cursor-pointer">👤 关于我</li>
-          <li v-if="!userStore.isLoggedIn" @click="navigateTo('/login')" class="p-16 hover-bg transition border-b cursor-pointer">🔑 登录</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')" class="p-16 hover-bg transition border-b cursor-pointer">📝 个人资料</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/my-posts')" class="p-16 hover-bg transition border-b cursor-pointer">📚 我的文章</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/drafts')" class="p-16 hover-bg transition border-b cursor-pointer">📄 草稿箱</li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/settings')" class="p-16 hover-bg transition border-b cursor-pointer">⚙️ 设置</li>
-          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 hover-bg transition text-danger cursor-pointer">🚪 退出登录</li>
         </ul>
       </div>
     </div>
@@ -189,6 +179,8 @@ onUnmounted(() => {
 
 /* 默认隐藏移动端菜单按钮 */
 .mobile-menu-btn {
+  height: 30px;
+  justify-content: space-between;
   display: none;
 }
 
@@ -200,6 +192,9 @@ onUnmounted(() => {
 
   .mobile-menu-btn {
     display: flex;
+  }
+  .nav-user{
+    display: none;
   }
 }
 </style>
