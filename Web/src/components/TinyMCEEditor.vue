@@ -47,11 +47,18 @@ import 'tinymce/plugins/codesample' // 代码示例
 import 'tinymce/plugins/nonbreaking' // 不间断空格
 import 'tinymce/plugins/visualchars' // 可视化字符
 import 'tinymce/plugins/directionality' // 文字方向
+// 颜色相关功能已集成到TinyMCE 7.x核心中，无需单独导入
+import 'tinymce/plugins/quickbars' // 快速工具栏
+// 这些插件在当前版本中不可用，暂时注释掉
+// import 'tinymce/plugins/hr' // 水平线
+// import 'tinymce/plugins/pagebreak' // 分页符
+// import 'tinymce/plugins/template' // 模板
+// import 'tinymce/plugins/save' // 保存
+// import 'tinymce/plugins/autosave' // 自动保存
+// import 'tinymce/plugins/print' // 打印
 // 导入表情符号数据库
 import 'tinymce/plugins/emoticons/js/emojis'
-
 console.log('TinyMCEEditor组件正在加载...')
-
 // 定义组件属性
 interface Props {
   modelValue?: string
@@ -174,13 +181,17 @@ const editorConfig = computed(() => ({
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
     'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons',
-    'codesample', 'nonbreaking', 'visualchars', 'directionality'
+    'codesample', 'nonbreaking', 'visualchars', 'directionality',
+    'quickbars'
   ],
   toolbar: [
     'undo redo | formatselect fontselect fontsizeselect | bold italic underline strikethrough',
     'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent',
-    'link image media table emoticons | codesample code | searchreplace | preview fullscreen help'
+    'forecolor backcolor | link image media table emoticons | codesample code | searchreplace',
+    'preview fullscreen | help'
   ].join(' | '),
+  quickbars_selection_toolbar: 'bold italic underline | forecolor backcolor | quicklink h2 h3 blockquote',
+  quickbars_insert_toolbar: 'quickimage quicktable',
   // 字体选项
   font_formats: '微软雅黑=Microsoft YaHei,Helvetica Neue,PingFang SC,sans-serif;苹果苹方=PingFang SC,Microsoft YaHei,sans-serif;宋体=simsun,serif;仿宋体=FangSong,serif;黑体=SimHei,sans-serif;Arial=arial,helvetica,sans-serif;Arial Black=arial black,avant garde;Book Antiqua=book antiqua,palatino;',
   // 字号选项
@@ -209,6 +220,114 @@ const editorConfig = computed(() => ({
     { text: 'Go', value: 'go' },
     { text: 'Rust', value: 'rust' }
   ],
+  // 自定义颜色调色板 - 匹配主题色
+  color_map: [
+    '#0ea5e9', 'Primary Blue',
+    '#0284c7', 'Primary Dark',
+    '#38bdf8', 'Primary Light',
+    '#22c55e', 'Success Green',
+    '#f43f5e', 'Error Red',
+    '#facc15', 'Warning Yellow',
+    '#06b6d4', 'Info Cyan',
+    '#6366f1', 'Purple',
+    '#111827', 'Text Primary',
+    '#374151', 'Text Secondary',
+    '#6b7280', 'Text Tertiary',
+    '#ffffff', 'White',
+    '#f9fafb', 'Light Gray',
+    '#f3f4f6', 'Gray 100',
+    '#e5e7eb', 'Gray 200',
+    '#d1d5db', 'Gray 300'
+  ],
+  // 自定义颜色选择器
+  color_cols: 8,
+  custom_colors: true,
+  color_default_foreground: '#111827',
+  color_default_background: '#ffffff',
+  // 文字格式预设
+  style_formats: [
+    {
+      title: '标题',
+      items: [
+        { title: '标题 1', format: 'h1' },
+        { title: '标题 2', format: 'h2' },
+        { title: '标题 3', format: 'h3' },
+        { title: '标题 4', format: 'h4' },
+        { title: '标题 5', format: 'h5' },
+        { title: '标题 6', format: 'h6' }
+      ]
+    },
+    {
+      title: '内联',
+      items: [
+        { title: '加粗', format: 'bold' },
+        { title: '斜体', format: 'italic' },
+        { title: '下划线', format: 'underline' },
+        { title: '删除线', format: 'strikethrough' },
+        { title: '上标', format: 'superscript' },
+        { title: '下标', format: 'subscript' },
+        { title: '代码', format: 'code' }
+      ]
+    },
+    {
+      title: '块级',
+      items: [
+        { title: '段落', format: 'p' },
+        { title: '块引用', format: 'blockquote' },
+        { title: '代码块', format: 'pre' },
+        { title: '水平线', format: 'hr' }
+      ]
+    },
+    {
+      title: '对齐',
+      items: [
+        { title: '左对齐', format: 'alignleft' },
+        { title: '居中', format: 'aligncenter' },
+        { title: '右对齐', format: 'alignright' },
+        { title: '两端对齐', format: 'alignjustify' }
+      ]
+    },
+    {
+      title: '颜色',
+      items: [
+        { title: '主要文字', inline: 'span', styles: { color: '#111827' } },
+        { title: '次要文字', inline: 'span', styles: { color: '#374151' } },
+        { title: '主要蓝色', inline: 'span', styles: { color: '#0ea5e9' } },
+        { title: '成功绿色', inline: 'span', styles: { color: '#22c55e' } },
+        { title: '错误红色', inline: 'span', styles: { color: '#f43f5e' } },
+        { title: '警告黄色', inline: 'span', styles: { color: '#facc15' } }
+      ]
+    }
+  ],
+  // 模板功能暂时禁用，因为template插件不可用
+  // templates: [
+  //   {
+  //     title: '文章模板',
+  //     description: '标准文章格式',
+  //     content: '<h2>文章标题</h2><p>在这里开始你的文章内容...</p><h3>第一部分</h3><p>详细内容...</p><h3>第二部分</h3><p>详细内容...</p><h3>总结</h3><p>总结内容...</p>'
+  //   },
+  //   {
+  //     title: '技术文档',
+  //     description: '技术文档格式',
+  //     content: '<h1>技术文档标题</h1><h2>概述</h2><p>简要描述...</p><h2>前置条件</h2><ul><li>条件1</li><li>条件2</li></ul><h2>步骤</h2><ol><li>第一步</li><li>第二步</li></ol><h2>注意事项</h2><blockquote><p>重要提示...</p></blockquote>'
+  //   },
+  //   {
+  //     title: '代码示例',
+  //     description: '包含代码块的模板',
+  //     content: '<h2>代码示例</h2><p>下面是一个代码示例：</p><pre><code>// 你的代码在这里</code></pre><h3>说明</h3><p>代码说明...</p>'
+  //   }
+  // ],
+  // 格式选项
+  formats: {
+    alignleft: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-left' },
+    aligncenter: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-center' },
+    alignright: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-right' },
+    alignjustify: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-justify' },
+    bold: { inline: 'strong' },
+    italic: { inline: 'em' },
+    underline: { inline: 'span', styles: { 'text-decoration': 'underline' } },
+    strikethrough: { inline: 'span', styles: { 'text-decoration': 'line-through' } }
+  },
   // 图片上传配置 - 使用统一的图片上传服务
   images_upload_handler: ImageUploadService.uploadTinyMCEImage,
   // 图片上传相关配置
@@ -243,11 +362,50 @@ const editorConfig = computed(() => ({
   keep_styles: false,
   paste_webkit_styles: 'none',
   paste_retain_style_properties: 'color font-size',
+  // 高级功能配置 - 保存相关功能暂时禁用
+  // autosave_interval: '30s',
+  // autosave_prefix: 'tinymce-autosave-{path}{query}-{id}-',
+  // autosave_restore_when_empty: true,
+  // autosave_retention: '1440m',
+  // save_enablewhendirty: true,
+  // save_onsavecallback: function () {
+  //   console.log('内容已保存')
+  // },
+  // 编辑器尺寸和布局
+  min_height: 300,
+  max_height: 800,
+  autoresize_bottom_margin: 50,
+  autoresize_overflow_padding: 16,
+  paste_word_valid_elements: 'b,strong,i,em,h1,h2,h3,h4,h5,h6,p,div,ul,ol,li,table,tr,td,th,blockquote,code',
+  // 链接配置
+  link_context_toolbar: true,
+  link_default_target: '_blank',
+  link_title: false,
+  // 图片配置
+  image_caption: true,
+  image_advtab: true,
+  image_class_list: [
+    { title: '无', value: '' },
+    { title: '响应式', value: 'img-responsive' },
+    { title: '圆角', value: 'img-rounded' },
+    { title: '圆形', value: 'img-circle' }
+  ],
+  // 表格配置
+  table_advtab: true,
+  table_class_list: [
+    { title: '无', value: '' },
+    { title: '基础表格', value: 'table table-bordered' },
+    { title: '条纹表格', value: 'table table-striped' }
+  ],
   // 初始化回调，用于调试
   init_instance_callback: (editor: any) => {
     console.log('TinyMCE编辑器初始化完成:', editor.id)
     console.log('编辑器模式:', editor.readonly ? '只读' : '可编辑')
     console.log('当前主题:', theme.current.value)
+    // Ctrl+S 保存快捷键
+    editor.shortcuts.add('ctrl+s', '保存内容', function () {
+      console.log('保存内容...')
+    })
   }
 }))
 

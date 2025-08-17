@@ -371,9 +371,10 @@ button {
 }
 
 /* =================================
-   颜色工具类
+   颜色工具类（统一走变量）
    ================================= */
-/* 文本颜色 */
+
+/* ========= 文本颜色 ========= */
 .text-title {
   color: var(--text-title);
   cursor: pointer;
@@ -384,95 +385,109 @@ button {
 }
 
 .text-primary {
-  color: var(--primary-700);
+  color: var(--primary-500);
   cursor: pointer;
 }
 
 .text-muted {
   color: var(--text-muted);
-  opacity: 0.7;
-}
-
-.text-light {
-  color: var(--text-color);
   opacity: 0.8;
 }
 
-/* 背景颜色 */
+.text-light {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+/* ========= 背景颜色 ========= */
 .bg-color {
   background-color: var(--bg-primary);
 }
 
+.bg-card {
+  background-color: var(--bg-card);
+}
+
 .bg-hover {
-  background: var(--bg-hover);
+  background-color: var(--bg-hover);
+}
+
+.bg-active {
+  background-color: var(--bg-active);
 }
 
 .bg-primary {
-  background: var(--primary-400);
-  color: white;
-}
-.bg-card{
-  background-color: var(--bg-hover);
-
+  background-color: var(--primary-500);
+  color: #fff;
 }
 
-.bg-text {
-  background: var(--text-primary);
+.bg-success {
+  background-color: var(--success);
+  color: #fff;
+}
+
+.bg-warning {
+  background-color: var(--warning);
+  color: #fff;
+}
+
+.bg-error {
+  background-color: var(--error);
+  color: #fff;
+}
+
+.bg-info {
+  background-color: var(--info);
+  color: #fff;
 }
 
 .bg-white {
-  background-color: white;
+  background-color: #ffffff;
 }
 
 .bg-black {
-  background-color: black;
-}
-
-.bg-muted {
-  background-color: #6b7280;
+  background-color: #000000;
 }
 
 .bg-none {
   background: none;
 }
 
-/* 背景颜色 - 浅色版本 */
+/* ========= 背景浅色版本 ========= */
+/* 用透明度叠加状态色，更灵活 */
 .bg-primary-light {
-  background-color: rgba(59, 130, 246, 0.1);
+  background-color: color-mix(in srgb, var(--primary-500) 15%, transparent);
 }
 
 .bg-success-light {
-  background-color: rgba(16, 185, 129, 0.1);
+  background-color: color-mix(in srgb, var(--success) 15%, transparent);
 }
 
 .bg-warning-light {
-  background-color: rgba(251, 191, 36, 0.1);
+  background-color: color-mix(in srgb, var(--warning) 15%, transparent);
+}
+
+.bg-error-light {
+  background-color: color-mix(in srgb, var(--error) 15%, transparent);
 }
 
 .bg-info-light {
-  background-color: rgba(6, 182, 212, 0.1);
+  background-color: color-mix(in srgb, var(--info) 15%, transparent);
 }
 
 .bg-purple-light {
-  background-color: rgba(139, 92, 246, 0.1);
+  background-color: color-mix(in srgb, rebeccapurple 15%, transparent);
 }
 
 .bg-pink-light {
-  background-color: rgba(236, 72, 153, 0.1);
+  background-color: color-mix(in srgb, hotpink 15%, transparent);
 }
 
-.bg-success {
-  background-color: #10b981;
-}
-
-.bg-purple {
-  background-color: #8b5cf6;
-}
-
-/* 背景透明度 */
+/* ========= 背景透明度 ========= */
 .bg-opacity-60 {
   background-color: rgba(0, 0, 0, 0.6);
 }
+
 
 /* =================================
    边框和圆角工具类
