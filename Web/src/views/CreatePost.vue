@@ -1,91 +1,96 @@
 <template>
-  <div class="content card">
-    <!-- 顶部工具栏 -->
-    <div class="editor-toolbar">
-      <div class="toolbar-left">
-        <button @click="goBack" class="btn-icon" title="返回">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-        </button>
-        <div class="editor-title">
-          <span class="title-icon">{{ isEditMode ? '✏️' : '📝' }}</span>
-          <span>{{ isEditMode ? '编辑文章' : '发布文章' }}</span>
-        </div>
-      </div>
-      <div class="toolbar-right flex gap-8">
-        <button @click="saveDraft" class="btn-secondary" :disabled="saving">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-            <polyline points="17,21 17,13 7,13 7,21"/>
-            <polyline points="7,3 7,8 15,8"/>
-          </svg>
-          {{ isEditMode ? '更新草稿' : '保存草稿' }}
-        </button>
-        <button 
-          @click="handleSubmit" 
-          class="btn-primary" 
-          :disabled="saving || !form.title || !form.content || !form.categoryId"
-        >
-          <svg v-if="saving" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12a9 9 0 11-6.219-8.56"/>
-          </svg>
-          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 19l7-7 3 3-7 7-3-3z"/>
-            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
-          </svg>
-          {{ saving 
-            ? (isEditMode ? '更新中...' : '发布中...') 
-            : (isEditMode ? '更新文章' : '发布文章') 
-          }}
-        </button>
-      </div>
-    </div>
-
+  <div class="content">
     <!-- 编辑器主体 -->
-    <div class="editor-container">
-      <!-- 左侧编辑区 -->
+    <div class="editor-container bg-card p-20">
+      <!-- 上侧编辑区 -->
       <div class="editor-main">
         <!-- 文章标题 -->
         <div class="title-section">
-          <input
-            v-model="form.title"
-            type="text"
-            class="title-input"
-            placeholder="请输入文章标题..."
-            maxlength="100"
-          >
+          <input v-model="form.title" type="text" class="title-input" placeholder="请输入文章标题..." maxlength="100">
           <div class="char-count text-sm text-muted">{{ form.title.length }}/100</div>
         </div>
 
         <!-- 文章内容编辑器 -->
         <div class="content-section">
-          <TinyMCEEditor 
-            v-model="form.content"
-            :height="600"
-            placeholder="开始编写你的文章内容..."
-            class="content-editor"
-          />
+          <TinyMCEEditor v-model="form.content" :height="1000" placeholder="开始编写你的文章内容..." class="content-editor" />
         </div>
       </div>
 
-      <!-- 右侧设置面板 -->
+      <!-- 下侧设置面板 -->
       <div class="editor-sidebar">
         <!-- 发布设置 -->
         <div class="sidebar-section">
-          <h3 class="sidebar-title">发布设置</h3>
-          
-          <div class="form-field">
-            <label class="field-label">发布状态</label>
-            <select v-model="form.status" class="field-select">
-              <option value="draft">📝 草稿</option>
-              <option value="published">🚀 发布</option>
-            </select>
+          <!-- 标签设置 -->
+          <div class="sidebar-item flex flex-ac gap-20">
+            <div class="sidebar-title">文章标签</div>
+            <div class="sidebar-content">
+              <div v-if="selectedTags.length > 0" class="selected-tags tags-cloud mb-12">
+                <span v-for="tag in selectedTags" :key="tag.id" class="tag">
+                  {{ tag.name }}
+                  <button type="button" @click="removeTag(tag.id)" class="tag-remove">
+                    ×
+                  </button>
+                </span>
+              </div>
+              <select v-model="selectedTagId" @change="addTag" class="field-select">
+                <option value="">选择标签</option>
+                <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">
+                  {{ tag.name }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <!-- 图片 -->
+          <div class="sidebar-item flex flex-ac gap-20">
+            <div class="sidebar-title">添加封面</div>
+            <div class="sidebar-content flex gap-20">
+              <!-- 封面图片上传 -->
+              <div class="image-upload-container">
+                <div class="image-preview-box" @click="triggerCoverImageUpload"
+                  :class="{ 'has-image': form.coverImage }">
+                  <img v-if="form.coverImage" :src="form.coverImage" alt="封面图片预览" class="preview-image">
+                  <div class="upload-overlay">
+                    <div class="upload-text">
+                      <i class="upload-icon">📷</i>
+                      <span>{{ form.coverImage ? '点击更换图片' : '点击上传封面图片' }}</span>
+                    </div>
+                  </div>
+                </div>
+                <input ref="coverImageInput" type="file" accept="image/*" @change="handleCoverImageUpload"
+                  style="display: none;">
+              </div>
+
+              <!-- 缩略图上传 -->
+              <div class="image-upload-container">
+                <div class="image-preview-box thumbnail-box" @click="triggerThumbnailUpload"
+                  :class="{ 'has-image': form.thumbnail }">
+                  <img v-if="form.thumbnail" :src="form.thumbnail" alt="缩略图预览" class="preview-image">
+                  <div class="upload-overlay">
+                    <div class="upload-text">
+                      <i class="upload-icon">🖼️</i>
+                      <span>{{ form.thumbnail ? '点击更换图片' : '点击上传缩略图' }}</span>
+                    </div>
+                  </div>
+                </div>
+                <input ref="thumbnailInput" type="file" accept="image/*" @change="handleThumbnailUpload"
+                  style="display: none;">
+              </div>
+            </div>
           </div>
 
-          <div class="form-field">
-            <label class="field-label">文章分类 *</label>
-            <select v-model="form.categoryId" class="field-select" required>
+          <div class="sidebar-item flex flex-ac gap-20 relative">
+            <div class="sidebar-title">文章摘要</div>
+            <div class="sidebar-content">
+              <textarea v-model="form.summary" class="field-textarea" placeholder="请输入文章摘要（可选）" rows="4"
+                maxlength="200"></textarea>
+              <div class="char-count text-sm text-muted">{{ (form.summary || '').length }}/200</div>
+            </div>
+          </div>
+
+          <div class="sidebar-item flex flex-ac gap-20">
+            <div class="sidebar-title">文章分类</div>
+            <div class="sidebar-content">
+              <select v-model="form.categoryId" class="field-select" required>
               <option value="">请选择分类</option>
               <option
                 v-for="category in categories"
@@ -95,140 +100,67 @@
                 {{ category.name }}
               </option>
             </select>
-          </div>
-        </div>
-
-        <!-- 文章摘要 -->
-        <div class="sidebar-section">
-          <h3 class="sidebar-title">文章摘要</h3>
-          <textarea
-            v-model="form.summary"
-            class="field-textarea"
-            placeholder="请输入文章摘要（可选）"
-            rows="4"
-            maxlength="200"
-          ></textarea>
-          <div class="char-count text-sm text-muted">{{ (form.summary || '').length }}/200</div>
-        </div>
-
-        <!-- 标签设置 -->
-        <div class="sidebar-section">
-          <h3 class="sidebar-title">文章标签</h3>
-          <div class="tags-section">
-            <div v-if="selectedTags.length > 0" class="selected-tags tags-cloud mb-12">
-              <span
-                v-for="tag in selectedTags"
-                :key="tag.id"
-                class="tag"
-              >
-                {{ tag.name }}
-                <button
-                  type="button"
-                  @click="removeTag(tag.id)"
-                  class="tag-remove"
-                >
-                  ×
-                </button>
-              </span>
-            </div>
-            <select
-              v-model="selectedTagId"
-              @change="addTag"
-              class="field-select"
-            >
-              <option value="">选择标签</option>
-              <option
-                v-for="tag in availableTags"
-                :key="tag.id"
-                :value="tag.id"
-              >
-                {{ tag.name }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <!-- 图片设置 -->
-        <div class="sidebar-section">
-          <h3 class="sidebar-title">图片设置</h3>
-          
-          <!-- 封面图片上传 -->
-          <div class="form-field">
-            <label class="field-label">封面图片</label>
-            <div class="image-upload-container">
-              <div 
-                class="image-preview-box"
-                @click="triggerCoverImageUpload"
-                :class="{ 'has-image': form.coverImage }"
-              >
-                <img 
-                  v-if="form.coverImage" 
-                  :src="form.coverImage" 
-                  alt="封面图片预览"
-                  class="preview-image"
-                >
-                <div class="upload-overlay">
-                  <div class="upload-text">
-                    <i class="upload-icon">📷</i>
-                    <span>{{ form.coverImage ? '点击更换图片' : '点击上传封面图片' }}</span>
-                  </div>
-                </div>
-              </div>
-              <input 
-                ref="coverImageInput"
-                type="file" 
-                accept="image/*" 
-                @change="handleCoverImageUpload"
-                style="display: none;"
-              >
             </div>
           </div>
-          
-          <!-- 缩略图上传 -->
-          <div class="form-field">
-            <label class="field-label">缩略图</label>
-            <div class="image-upload-container">
-              <div 
-                class="image-preview-box thumbnail-box"
-                @click="triggerThumbnailUpload"
-                :class="{ 'has-image': form.thumbnail }"
-              >
-                <img 
-                  v-if="form.thumbnail" 
-                  :src="form.thumbnail" 
-                  alt="缩略图预览"
-                  class="preview-image"
-                >
-                <div class="upload-overlay">
-                  <div class="upload-text">
-                    <i class="upload-icon">🖼️</i>
-                    <span>{{ form.thumbnail ? '点击更换图片' : '点击上传缩略图' }}</span>
-                  </div>
-                </div>
-              </div>
-              <input 
-                ref="thumbnailInput"
-                type="file" 
-                accept="image/*" 
-                @change="handleThumbnailUpload"
-                style="display: none;"
-              >
+
+
+          <div class="sidebar-item flex flex-ac gap-20">
+            <div class="sidebar-title">发布状态</div>
+            <div class="sidebar-content">
+              <select v-model="form.status" class="field-select">
+                <option value="draft">📝 草稿</option>
+                <option value="published">🚀 发布</option>
+              </select>
             </div>
           </div>
+
+          <div class="sidebar-item flex flex-ac gap-20">
+            <div class="sidebar-title">文章预览</div>
+            <div class="sidebar-content">
+              <button @click="previewPost" class="btn-secondary w-full" :disabled="!form.title || !form.content">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                预览文章
+              </button>
+            </div>
+          </div>
+
+
         </div>
 
-        <!-- 预览按钮 -->
-        <div class="sidebar-section">
-          <button
-            @click="previewPost"
-            class="btn-outline w-full"
-            :disabled="!form.title || !form.content"
-          >
+      </div>
+    </div>
+    <!-- 底部工具栏 -->
+    <div class="tool bg-soft">
+      <div class="toot-content flex flex-ac flex-sb content">
+        <div>
+          <span @click="goBack" class="link back">退出{{ isEditMode ? '更新' : '发布' }}</span>
+        </div>
+        <div class="flex gap-12">
+          <button @click="saveDraft" class="btn-secondary" :disabled="saving">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17,21 17,13 7,13 7,21" />
+              <polyline points="7,3 7,8 15,8" />
             </svg>
-            预览文章
+            {{ isEditMode ? '更新草稿' : '保存草稿' }}
+          </button>
+          <button @click="handleSubmit" class="btn-primary"
+            :disabled="saving || !form.title || !form.content || !form.categoryId">
+            <svg v-if="saving" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2">
+              <path d="M21 12a9 9 0 11-6.219-8.56" />
+            </svg>
+            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 19l7-7 3 3-7 7-3-3z" />
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+            </svg>
+            {{ saving
+              ? (isEditMode ? '更新中...' : '发布中...')
+              : (isEditMode ? '更新文章' : '发布文章')
+            }}
           </button>
         </div>
       </div>
@@ -245,16 +177,12 @@
           <!-- 文章头部信息 -->
           <header class="preview-post-header">
             <h1 class="preview-title">{{ form.title }}</h1>
-            
+
             <!-- 封面图片 -->
             <div v-if="form.coverImage" class="preview-cover rounded-lg mb-16">
-              <img 
-                :src="form.coverImage" 
-                :alt="form.title" 
-                class="preview-cover-image"
-              >
+              <img :src="form.coverImage" :alt="form.title" class="preview-cover-image">
             </div>
-            
+
             <div class="flex flex-sb flex-ac mb-16 flex-fw gap-12">
               <div class="flex flex-ac gap-8">
                 <span class="text-muted font-medium">预览作者</span>
@@ -267,14 +195,10 @@
                 <span>💬 0</span>
               </div>
             </div>
-            
+
             <!-- 标签云 -->
-            <div v-if="selectedTags.length > 0" class="preview-tags-cloud">
-              <span 
-                v-for="tag in selectedTags" 
-                :key="tag.id" 
-                class="preview-tag"
-              >
+            <div v-if="selectedTags.length > 0" class="tags-cloud">
+              <span v-for="tag in selectedTags" :key="tag.id" class="tag">
                 {{ tag.name }}
               </span>
             </div>
@@ -344,7 +268,7 @@ const loading = ref(false)
 
 // 可选标签（排除已选择的）
 const availableTags = computed(() => {
-  return tags.value.filter(tag => 
+  return tags.value.filter(tag =>
     !selectedTags.value.some(selected => selected.id === tag.id)
   )
 })
@@ -381,7 +305,7 @@ const loadTags = async () => {
 // 添加标签
 const addTag = () => {
   if (!selectedTagId.value) return
-  
+
   const tag = tags.value.find(t => t.id === Number(selectedTagId.value))
   if (tag && !selectedTags.value.some(t => t.id === tag.id)) {
     selectedTags.value.push(tag)
@@ -403,9 +327,9 @@ const saveDraft = async () => {
 
   const originalStatus = form.value.status
   form.value.status = 'draft'
-  
+
   await submitPost()
-  
+
   form.value.status = originalStatus
 }
 
@@ -434,12 +358,12 @@ const submitPost = async () => {
     Swal.fire('错误', '请输入文章标题', 'error')
     return
   }
-  
+
   if (!form.value.content.trim()) {
     Swal.fire('错误', '请输入文章内容', 'error')
     return
   }
-  
+
   if (!form.value.categoryId) {
     Swal.fire('错误', '请选择文章分类', 'error')
     return
@@ -447,7 +371,7 @@ const submitPost = async () => {
 
   await handleAsync(async () => {
     saving.value = true
-    
+
     let result
     if (isEditMode.value && editingPostId.value) {
       // 编辑模式：更新文章
@@ -477,19 +401,19 @@ const submitPost = async () => {
       }
       result = await PostService.createPost(postData)
     }
-    
-    const actionText = isEditMode.value 
+
+    const actionText = isEditMode.value
       ? (form.value.status === 'draft' ? '更新草稿' : '更新文章')
       : (form.value.status === 'draft' ? '保存草稿' : '发布文章')
     await Swal.fire('成功', `${actionText}成功！`, 'success')
-    
+
     // 跳转到文章详情页
     const postId = isEditMode.value ? editingPostId.value : result.id
     router.push(`/post/${postId}`)
   }, {
     onError: (err) => {
       console.error('提交文章失败:', err)
-      const actionText = isEditMode.value 
+      const actionText = isEditMode.value
         ? (form.value.status === 'draft' ? '更新草稿' : '更新文章')
         : (form.value.status === 'draft' ? '保存草稿' : '发布文章')
       Swal.fire('错误', `${actionText}失败，请重试`, 'error')
@@ -525,7 +449,7 @@ const loadPostData = async (postId: number) => {
   await handleAsync(async () => {
     loading.value = true
     const postData: PostDetail = await PostService.getPostDetail(postId)
-    
+
     // 填充表单数据
     form.value = {
       title: postData.title,
@@ -538,16 +462,16 @@ const loadPostData = async (postId: number) => {
       viewCount: postData.viewCount || 0,
       likeCount: postData.likeCount || 0
     }
-    
+
     // 设置标签
-        if (postData.tags) {
-          // 将 TagInfo[] 转换为 Tag[] 类型，添加默认的 postCount
-          selectedTags.value = postData.tags.map(tag => ({
-            id: tag.id,
-            name: tag.name,
-            postCount: 0  // 为编辑模式的标签添加默认的文章数量
-          }))
-        }
+    if (postData.tags) {
+      // 将 TagInfo[] 转换为 Tag[] 类型，添加默认的 postCount
+      selectedTags.value = postData.tags.map(tag => ({
+        id: tag.id,
+        name: tag.name,
+        postCount: 0  // 为编辑模式的标签添加默认的文章数量
+      }))
+    }
   }, {
     onError: (err) => {
       console.error('加载文章数据失败:', err)
@@ -564,7 +488,7 @@ const loadPostData = async (postId: number) => {
 const checkEditMode = () => {
   const draftParam = route.query.draft
   const editParam = route.query.edit
-  
+
   if (draftParam && draftParam !== 'true') {
     // 编辑草稿
     isEditMode.value = true
@@ -620,7 +544,7 @@ const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
 
     try {
       const result = await ImageUploadService.uploadImage(file)
-      
+
       // 上传成功，更新对应的图片URL
       const imageUrl = result.fileUrl
       if (type === 'cover') {
@@ -628,7 +552,7 @@ const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
       } else {
         form.value.thumbnail = imageUrl
       }
-      
+
       Swal.close()
       Swal.fire('成功', '图片上传成功！', 'success')
     } catch (error) {
@@ -646,12 +570,12 @@ const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
 // 组件挂载时加载数据
 onMounted(async () => {
   checkEditMode()
-  
+
   await Promise.all([
     loadCategories(),
     loadTags()
   ])
-  
+
   // 如果是编辑模式，加载文章数据
   if (isEditMode.value && editingPostId.value) {
     await loadPostData(editingPostId.value)
@@ -659,127 +583,63 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-
+<style scoped lang="scss">
 /* 编辑器工具栏样式 */
 .editor-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  background: var(--bg-color);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 12px 0;
+  background: var(--bg-soft);
 }
-
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.back-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    background: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-color);
-    text-decoration: none;
-    transition: all 0.2s;
-  }
-  
-  .back-btn:hover {
-    background: var(--hover-color);
-    border-color: var(--border-color);
-  }
-  
-  .toolbar-title {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--text-color);
-    margin: 0;
-  }
- 
- .toolbar-actions {
-   display: flex;
-   align-items: center;
-   gap: 12px;
- }
 
 .btn-secondary,
 .btn-primary {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  padding: 10px 16px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   border: 1px solid;
+  color: var(--text-main);
 }
 
-.btn-secondary {
-   background: var(--hover-color);
-   border-color: var(--border-color);
-   color: var(--text-color);
- }
- 
- .btn-secondary:hover {
-   background: var(--border-color);
-   border-color: var(--border-color);
- }
- 
- .btn-primary {
-   background: var(--primary-color);
-   border-color: var(--primary-color);
-   color: #fff;
- }
- 
- .btn-primary:hover {
-   background: var(--primary-hover-color);
-   border-color: var(--primary-hover-color);
- }
-
-.btn-primary:disabled,
-.btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.btn-secondary:hover,
+.btn-primary:hover {
+  background-color: var(--color-primary);
+  color: white;
 }
+
 
 /* 图片上传组件样式 */
 .image-upload-container {
-  margin-top: 8px;
+  width: 200px;
+  height: 150px;
 }
 
 .image-preview-box {
   position: relative;
   width: 100%;
-  height: 200px;
-  border: 2px dashed var(--border-color);
+  height: 100%;
+  border: 2px dashed var(--border-soft);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: var(--bg-color);
+  background: var(--bg-main);
 }
 
 .image-preview-box:hover {
-  border-color: var(--primary-color);
-  background: var(--hover-color);
+  color: white;
+  background-color: var(--color-primary);
 }
 
 .image-preview-box.has-image {
   border-style: solid;
-  border-color: var(--primary-color);
-}
-
-.thumbnail-box {
-  height: 120px;
+  border-color: var(--color-primary);
 }
 
 .preview-image {
@@ -847,272 +707,126 @@ onMounted(async () => {
 
 /* 编辑器容器 */
 .editor-container {
-  flex: 1;
   display: flex;
-  overflow: hidden;
+  flex-direction: column;
+
 }
 
 /* 左侧编辑区 */
- .editor-main {
-   flex: 1;
-   display: flex;
-   flex-direction: column;
-   background: var(--bg-color);
-   border-right: 1px solid var(--border-color);
- }
- 
- .title-section {
-   padding: 20px 0 0 0;
-   border-bottom: 1px solid var(--border-color);
-   margin-bottom: 20px;
- }
- 
- .title-input {
-   width: 100%;
-   padding: 12px 0;
-   border: none;
-   outline: none;
-   font-size: 24px;
-   font-weight: 600;
-   color: var(--text-color);
-   background: transparent;
- }
- 
- .title-input::placeholder {
-   color: var(--tag-text-color);
- }
+.editor-main {
+  margin-bottom: 20px;
+}
+
+.title-section {
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 20px;
+}
+
+.title-input {
+  width: 100%;
+  padding: 12px 0;
+  border: none;
+  outline: none;
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text-main);
+  background: transparent;
+}
+
+.title-input::placeholder {
+  color: var(--tag-text-color);
+}
 
 .content-section {
   flex: 1;
 }
 
-.content-editor {
-  width: 100%;
-  height: 100%;
-}
-
 /* 右侧设置面板 */
 .editor-sidebar {
-  width: 280px;
-  /* background: var(--hover-color); */
-  border-left: 1px solid var(--border-color);
-  overflow-y: auto;
-  padding-left: 20px;
+  width: 100%;
+}
+
+.sidebar-tool {
+  height: 40px;
 }
 
 .sidebar-section {
-  margin-bottom: 24px;
-  padding: 16px;
-  background: var(--bg-color);
+  padding: 40px;
+  background: var(--bg-main);
   border-radius: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-soft);
+}
+
+.sidebar-item {
+  margin-bottom: 24px;
+}
+
+.sidebar-item>.sidebar-title {
+  width: 80px;
 }
 
 .sidebar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-color);
-  margin: 0 0 12px 0;
+  font-size: 18px;
+  color: var(--text-main);
 }
 
-.form-field {
-  margin-bottom: 16px;
-}
-
-.form-field:last-child {
-  margin-bottom: 0;
-}
-
-.field-label {
-   display: block;
-   margin-bottom: 6px;
-   font-size: 12px;
-   font-weight: 500;
-   color: var(--tag-text-color);
-   text-transform: uppercase;
-   letter-spacing: 0.5px;
- }
- 
- .field-input,
- .field-textarea,
- .field-select {
-   width: 100%;
-   padding: 8px 12px;
-   border: 1px solid var(--border-color);
-   border-radius: 6px;
-   font-size: 14px;
-   background: var(--bg-color);
-   color: var(--text-color);
-   transition: border-color 0.2s;
- }
- 
- .field-input:focus,
- .field-textarea:focus,
- .field-select:focus {
-   outline: none;
-   border-color: var(--primary-color);
-   box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
- }
-
-.field-textarea {
-  resize: vertical;
-  min-height: 80px;
-  font-family: inherit;
-}
-
-.tags-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.tags-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tag {
-   display: inline-flex;
-   align-items: center;
-   gap: 4px;
-   padding: 4px 8px;
-   background: var(--tag-bg-color);
-   color: var(--primary-color);
-   border-radius: 12px;
-   font-size: 12px;
-   font-weight: 500;
- }
- 
- .tag-remove {
-   background: none;
-   border: none;
-   color: var(--primary-color);
-   cursor: pointer;
-   padding: 0;
-   margin-left: 4px;
-   font-size: 14px;
-   line-height: 1;
- }
- 
- .tag-remove:hover {
-   color: var(--secondary-color);
- }
- 
- .btn-outline {
-   display: flex;
-   align-items: center;
-   justify-content: center;
-   gap: 8px;
-   padding: 10px 16px;
-   background: transparent;
-   border: 1px solid var(--border-color);
-   border-radius: 6px;
-   color: var(--text-color);
-   font-size: 14px;
-   font-weight: 500;
-   cursor: pointer;
-   transition: all 0.2s;
- }
- 
- .btn-outline:hover {
-   background: var(--hover-color);
-   border-color: var(--border-color);
- }
-
-.btn-outline:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.w-full {
+.sidebar-content {
   width: 100%;
 }
 
-.flex {
-  display: flex;
+
+
+.field-input,
+.field-textarea,
+.field-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-soft);
+  font-size: 14px;
+  background: var(--bg-soft);
+  color: var(--text-main);
+  transition: border-color 0.2s;
+  outline: none;
 }
 
-.gap-8 {
-  gap: 8px;
+.field-input:focus,
+.field-textarea:focus,
+.field-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
 }
 
-.mb-12 {
-  margin-bottom: 12px;
+.char-count {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  transform: translate(-10px, -10px);
 }
 
-.text-sm {
-  font-size: 12px;
+// 悬浮工具栏
+.tool {
+  width: 100%;
+  height: 60px;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  z-index: 99;
+  box-shadow: var(--shadow-sm);
 }
 
-.text-muted {
-    color: var(--tag-text-color);
-  }
- 
- .char-count {
-   text-align: right;
-   margin-top: 4px;
- }
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .editor-container {
-    flex-direction: column;
-  }
-  
-  .editor-sidebar {
-     width: 100%;
-     border-left: none;
-     border-top: 1px solid var(--border-color);
-     max-height: 40vh;
-   }
-  
-  .toolbar-title {
-    display: none;
-  }
-  
-  .toolbar-actions {
-    gap: 8px;
-  }
-  
-  .btn-secondary,
-  .btn-primary {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
-  
-  .title-input {
-    font-size: 20px;
-  }
-  
-  .sidebar-section {
-    padding: 12px;
-    margin-bottom: 16px;
-  }
+.toot-content {
+  height: 100%;
+  // background-color: black;
 }
 
-@media (max-width: 480px) {
-  .editor-toolbar {
-    padding: 8px 12px;
-  }
-  
-  .title-section {
-    padding: 16px;
-  }
-  
-  .content-section {
-    padding: 16px;
-  }
-  
-  .editor-sidebar {
-    padding: 12px;
-  }
-  
-  .btn-secondary span,
-  .btn-primary span {
-    display: none;
-  }
+// 退出样式
+.back:hover {
+  color: var(--color-primary);
 }
+
+
+
 
 /* 预览模态框 */
 .preview-modal {
@@ -1129,10 +843,10 @@ onMounted(async () => {
 }
 
 .preview-content {
-  background: var(--bg-color);
+  background: var(--bg-main);
   border-radius: 12px;
-  max-width: 800px;
-  max-height: 80vh;
+  max-width: 900px;
+  max-height: 90vh;
   width: 90%;
   overflow: hidden;
   display: flex;
@@ -1144,12 +858,12 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .preview-header h3 {
   margin: 0;
-  color: var(--text-color);
+  color: var(--text-main);
 }
 
 .close-btn {
@@ -1157,7 +871,7 @@ onMounted(async () => {
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: var(--text-color);
+  color: var(--text-main);
 }
 
 .preview-body {
@@ -1169,13 +883,13 @@ onMounted(async () => {
 .preview-post-header {
   position: relative;
   padding: 20px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .preview-title {
   font-size: 1.8rem;
   font-weight: 700;
-  color: var(--text-color);
+  color: var(--text-main);
   margin: 0 0 16px 0;
   line-height: 1.3;
 }
@@ -1196,32 +910,6 @@ onMounted(async () => {
   transition: transform 0.3s ease;
 }
 
-/* 预览标签云 */
-.preview-tags-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.preview-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  background: var(--tag-bg-color);
-  color: var(--primary-color);
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.preview-tag:hover {
-  background: var(--primary-color);
-  color: white;
-  transform: translateY(-1px);
-}
 
 /* 预览摘要样式 */
 .preview-summary {
@@ -1235,66 +923,7 @@ onMounted(async () => {
 
 /* 预览内容样式 */
 .markdown-content {
-  color: var(--text-color);
-  line-height: 1.6;
-}
-
-/* 通用样式类 */
-.flex {
-  display: flex;
-}
-
-.flex-sb {
-  justify-content: space-between;
-}
-
-.flex-ac {
-  align-items: center;
-}
-
-.flex-fw {
-  flex-wrap: wrap;
-}
-
-.gap-12 {
-  gap: 12px;
-}
-
-.gap-16 {
-  gap: 16px;
-}
-
-.mb-16 {
-  margin-bottom: 16px;
-}
-
-.p-20 {
-  padding: 20px;
-}
-
-.bg-hover {
-  background: var(--hover-color);
-}
-
-.border-l-3 {
-  border-left: 3px solid var(--primary-color);
-}
-
-.badge {
-  background: var(--primary-color);
-  color: white;
-  padding: 2px 8px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.font-medium {
-  font-weight: 500;
-}
-
-.rounded-lg {
-  border-radius: 8px;
+  color: var(--text-main);
 }
 
 /* 响应式设计 */
@@ -1302,21 +931,21 @@ onMounted(async () => {
   .create-post {
     padding: 16px;
   }
-  
+
   .page-header {
     flex-direction: column;
     gap: 16px;
     align-items: flex-start;
   }
-  
+
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .form-actions {
     flex-direction: column;
   }
-  
+
   .preview-content {
     width: 95%;
     max-height: 90vh;

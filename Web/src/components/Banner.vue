@@ -25,7 +25,7 @@
 .banner-header {
     width: 100%;
     position: relative;
-    background: linear-gradient(60deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    background: linear-gradient(60deg, var(--color-primary) 0%, var(--color-primary) 100%);
     color: white;
 }
 
@@ -41,22 +41,22 @@
 
 /* 波浪颜色适配主题 */
 .wave-1 {
-    fill: var(--bg-color);
+    fill: var(--bg-main);
     opacity: 0.7;
 }
 
 .wave-2 {
-    fill: var(--bg-color);
+    fill: var(--bg-main);
     opacity: 0.5;
 }
 
 .wave-3 {
-    fill: var(--bg-color);
+    fill: var(--bg-main);
     opacity: 0.3;
 }
 
 .wave-4 {
-    fill: var(--bg-color);
+    fill: var(--bg-main);
     opacity: 1;
 }
 

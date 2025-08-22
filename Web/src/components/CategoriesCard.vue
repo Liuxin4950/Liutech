@@ -7,7 +7,7 @@
       <div 
         v-for="category in categories" 
         :key="category.id" 
-        class="flex flex-sb flex-ac p-12 rounded link transition bg-hover"
+        class="flex flex-sb flex-ac p-12 rounded link transition bg-soft"
         @click="handleCategoryClick(category.id)"
       >
         <span class="font-medium">{{ category.name }}</span>

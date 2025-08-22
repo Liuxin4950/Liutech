@@ -11,15 +11,15 @@
                         浏览不同主题的文章内容，找到你感兴趣的话题
                     </p>
                     <div class="flex flex-ac gap-8">
-                        <span class="badge bg-primary">共 {{ categories.length }} 个分类</span>
-                        <span class="badge bg-secondary">{{ totalPosts }} 篇文章</span>
+                        <span class="badge">共 {{ categories.length }} 个分类</span>
+                        <span class="badge">{{ totalPosts }} 篇文章</span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- 分类网格 -->
-        <div class="card shadow-sm">
+        <div class="card shadow-sm mb-16">
             <!-- 加载异常处理 -->
             <div v-if="loading" class="loading-text">加载中...</div>
             <div v-else-if="error" class="loading-text text-primary">
@@ -34,7 +34,7 @@
                 <p class="text-muted text-sm mb-0">还没有创建任何分类</p>
             </div>
             
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-20">
+            <div v-else class="grid gap-20">
                 <div v-for="category in categories" :key="category.id"
                     class="category-card card transition-all hover-lift cursor-pointer relative overflow-hidden"
                     @click="goToCategory(category.id)">
@@ -44,7 +44,7 @@
                     <div class="flex flex-col gap-16 relative z-10">
                         <!-- 分类图标和标题 -->
                         <div class="flex flex-ac gap-16">
-                            <div class="category-icon w-50 h-50 bg-primary rounded-12 flex flex-ct text-white text-xl font-bold shadow-sm">
+                            <div class="category-icon w-50 h-50 rounded-12 flex flex-ct text-white text-xl font-bold shadow-sm">
                                 {{ getCategoryIcon(category.name) }}
                             </div>
                             <div class="flex-1">
@@ -68,12 +68,12 @@
                         </div>
 
                         <!-- 底部信息栏 -->
-                        <div class="flex flex-jb flex-ac pt-12 border-t border-color">
+                        <div class="flex flex-sb  flex-ac pt-12 ">
                             <div class="flex flex-ac gap-6 text-xs text-muted">
                                 <span class="text-sm">📅</span>
                                 <span>最近更新</span>
                             </div>
-                            <div class="category-arrow flex flex-ac gap-6 text-primary text-sm font-semibold transition-all">
+                            <div class="category-arrow flex flex-ac gap-6 text-primary text-sm link">
                                 <span>查看文章</span>
                                 <span class="arrow-icon transition-all">→</span>
                             </div>
@@ -84,14 +84,14 @@
         </div>
 
         <!-- 热门分类 -->
-        <div v-if="popularCategories.length > 0" class="card shadow-sm mt-16">
+        <div v-if="popularCategories.length > 0" class="card shadow-sm mb-16">
             <div class="flex flex-col gap-16">
                 <h2 class="text-lg font-semibold text-primary mb-0 flex flex-ac gap-8">
                     <span class="text-xl">🔥</span> 热门分类
                 </h2>
                 <div class="flex flex-wrap gap-12">
                     <div v-for="category in popularCategories" :key="category.id"
-                        class="flex flex-ac gap-8 bg-hover px-12 py-8 rounded-8 cursor-pointer transition hover-lift"
+                        class="tag  flex flex-ac gap-8 px-12 py-8 rounded-8  transition link"
                         @click="goToCategory(category.id)">
                         <span class="text-sm">{{ getCategoryIcon(category.name) }}</span>
                         <span class="text-sm font-medium">{{ category.name }}</span>
@@ -192,30 +192,17 @@ onMounted(() => {
 <style scoped>
 /* 分类页面样式优化 */
 .categories-page {
-    margin: 0 auto;
     padding: 20px;
 }
 
 /* 分类卡片样式 */
 .category-card {
-    border-left: 4px solid var(--primary-color);
     transition: all 0.2s ease;
 }
 
 .category-card:hover {
     transform: translateY(-2px);
-    border-left-color: var(--primary-color);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* 分类图标样式 */
-.category-icon {
-    background: var(--primary-color);
-    transition: all 0.2s ease;
-}
-
-.category-card:hover .category-icon {
-    background: var(--primary-color);
 }
 
 /* 分类标题样式 */
@@ -224,23 +211,9 @@ onMounted(() => {
     transition: color 0.2s ease;
 }
 
-.category-card:hover .category-title {
-    color: var(--primary-color);
-}
-
-/* 装饰性背景 */
-.category-bg {
-    background: var(--primary-color);
-    opacity: 0.05;
-}
-
 /* 箭头样式 */
 .arrow-icon {
     transition: transform 0.2s ease;
-}
-
-.category-card:hover .arrow-icon {
-    transform: translateX(2px);
 }
 
 /* 描述文本样式 */
@@ -266,57 +239,9 @@ onMounted(() => {
 }
 
 .category-card:hover .badge {
-    background: var(--primary-color) !important;
-    color: white !important;
+    background: var(--color-primary);
+    color: white ;
 }
-
-/* 缺失的工具类 */
-.w-50 {
-    width: 50px;
-}
-
-.h-50 {
-    height: 50px;
-}
-
-.w-20 {
-    width: 20px;
-}
-
-.z-10 {
-    z-index: 10;
-}
-
-.italic {
-    font-style: italic;
-}
-
-.overflow-hidden {
-    overflow: hidden;
-}
-
-.px-8 {
-    padding-left: 8px;
-    padding-right: 8px;
-}
-
-.py-4 {
-    padding-top: 4px;
-    padding-bottom: 4px;
-}
-
-.pt-12 {
-    padding-top: 12px;
-}
-
-.gap-6 {
-    gap: 6px;
-}
-
-.flex-jb {
-    justify-content: space-between;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
     .categories-page {

@@ -125,8 +125,8 @@ const submitComment = async () => {
 
 <style scoped>
 .comment-form {
-  background: var(--hover-color);
-  border: 1px solid var(--border-color);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 16px;
@@ -142,13 +142,13 @@ const submitComment = async () => {
 .form-title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: var(--text-main);
   margin: 0;
 }
 
 .cancel-btn {
   padding: 6px 12px;
-  background: var(--text-color);
+  background: var(--text-main);
   opacity: 0.6;
   color: white;
   border: none;
@@ -184,7 +184,7 @@ const submitComment = async () => {
   transition: border-color 0.3s;
   box-sizing: border-box;
   background: var(--bg-color);
-  color: var(--text-color);
+  color: var(--text-main);
 }
 
 .comment-textarea:focus {
@@ -203,7 +203,7 @@ const submitComment = async () => {
   bottom: 8px;
   right: 12px;
   font-size: 0.75rem;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.6;
   background: var(--bg-color);
   padding: 2px 4px;
@@ -218,12 +218,12 @@ const submitComment = async () => {
 
 .login-tip {
   font-size: 0.875rem;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
 }
 
 .login-link {
-  color: var(--primary-color);
+  color: var(--color-primary);
   text-decoration: none;
   font-weight: 500;
 }
@@ -234,7 +234,7 @@ const submitComment = async () => {
 
 .submit-btn {
   padding: 10px 20px;
-  background: var(--primary-color);
+  background: #000;
   color: white;
   border: none;
   border-radius: 6px;
@@ -245,19 +245,14 @@ const submitComment = async () => {
   min-width: 100px;
 }
 
-.submit-btn:hover:not(:disabled) {
-  background: var(--secondary-color);
-  transform: translateY(-1px);
-}
-
 .submit-btn:disabled {
-  background: var(--border-color);
+  background: var(--color-primary);
   cursor: not-allowed;
   transform: none;
 }
 
 .submit-btn.submitting {
-  background: var(--text-color);
+  background: var(--text-main);
   opacity: 0.6;
   cursor: wait;
 }

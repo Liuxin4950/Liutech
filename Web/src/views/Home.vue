@@ -30,7 +30,7 @@
                   <div class="flex-1 flex flex-col gap-12">
                     <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
    
-                    <p v-if="post.summary" class="text-muted text-base text-sm">{{ post.summary }}</p>
+                    <p v-if="post.summary" class="text-subtle text-base text-sm">{{ post.summary }}</p>
                     <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
                       <span @click.stop="goToTag(tag.id)" v-for="tag in post.tags" :key="tag.id" class="tag">
                         {{ tag.name }}
@@ -39,12 +39,12 @@
                   </div>
 
                   <div class="flex flex-sb flex-ac mt-8">
-                    <div class="flex flex-ac gap-8">
+                    <div class="flex flex-ac gap-8 text-subtle">
                       <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
                         class="rounded" style="width: 24px; height: 24px; object-fit: cover;">
-                      <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
+                      <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
                     </div>
-                    <div class="flex gap-12 text-sm text-muted">
+                    <div class="flex gap-12 text-sm text-subtle">
                       <span>👁️ {{ post.viewCount || 0 }}</span>
                       <span>❤️ {{ post.likeCount || 0 }}</span>
                       <span>💬 {{ post.commentCount }}</span>
@@ -57,17 +57,17 @@
           </div>
 
           <!-- 分页器 -->
-          <div v-if="!postsLoading && allPosts.length > 0" class="flex flex-jc flex-ac gap-16 mt-12">
+          <div v-if="!postsLoading && allPosts.length > 0" class="paging-tab flex flex-jc flex-ac gap-16 mt-12">
             <button @click="goToPostsPage(postsPagination.current - 1)" :disabled="postsPagination.current <= 1"
-              class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
-              :class="{ 'opacity-50 cursor-not-allowed': postsPagination.current <= 1 }">
+              class="bg-primary text-sm font-medium p-8 rounded transition text-muted"
+              :class="{ 'btn-disabled': postsPagination.current <= 1 }">
               上一页
             </button>
 
             <div class="flex flex-ac gap-16">
-              <span class="flex gap-8">
+              <span class="flex gap-8 ">
                 <button v-for="page in visiblePostsPages" :key="page" @click="goToPostsPage(page)"
-                  :class="['text-sm p-8 rounded transition hover-lift', { 'bg-primary text-white': page === postsPagination.current, 'bg-hover': page !== postsPagination.current }]">
+                  :class="['text-sm text-muted p-8 rounded transition', { 'bg-primary text-white ': page === postsPagination.current, 'bg-primary btn-disabled': page !== postsPagination.current }]">
                   {{ page }}
                 </button>
               </span>
@@ -79,8 +79,8 @@
 
             <button @click="goToPostsPage(postsPagination.current + 1)"
               :disabled="postsPagination.current >= postsPagination.pages"
-              class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
-              :class="{ 'opacity-50 cursor-not-allowed': postsPagination.current >= postsPagination.pages }">
+              class="bg-primary text-sm  p-8 rounded transition text-muted"
+              :class="{ 'btn-disabled cursor-not-allowed': postsPagination.current >= postsPagination.pages }">
               下一页
             </button>
           </div>
@@ -90,7 +90,6 @@
       <aside class="sidebar">
         <!-- 搜索框 -->
         <!-- <SearchBox /> -->
-
 
         <!-- 个人信息卡片 -->
         <ProfileCard :name="profileInfo.name" :title="profileInfo.title" :avatar="profileInfo.avatar"
@@ -278,7 +277,6 @@ const loadAllPosts = async (page: number = 1) => {
     const response = await PostService.getPosts(params)
 
     allPosts.value = response.records
-    console.log(response.records);
     
     postsPagination.value = {
       current: response.current,
@@ -387,17 +385,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.badge {
-  background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
+.btn-disabled{
+  opacity: 50%;
 }
+
+
 .relative > .badge{
   position: absolute;
   top: 0;
@@ -493,7 +485,9 @@ onMounted(() => {
   margin: 0;
   opacity: 0.9;
 }
-
+.paging-tab button.text-muted{
+  color: white;
+}
 
 
 /* 响应式设计 */

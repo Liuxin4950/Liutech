@@ -8,13 +8,8 @@
     <!-- 操作栏 -->
     <div class="actions-bar">
       <div class="search-box">
-        <input 
-          v-model="searchKeyword" 
-          type="text" 
-          placeholder="搜索草稿..." 
-          class="search-input"
-          @keyup.enter="handleSearch"
-        />
+        <input v-model="searchKeyword" type="text" placeholder="搜索草稿..." class="search-input"
+          @keyup.enter="handleSearch" />
         <span class="search-icon">🔍</span>
       </div>
       <button class="create-btn" @click="createNewDraft">
@@ -22,6 +17,7 @@
         新建草稿
       </button>
     </div>
+
 
     <!-- 草稿列表 -->
     <div class="drafts-container">
@@ -51,18 +47,22 @@
 
       <!-- 草稿列表 -->
       <div v-else class="drafts-list">
-        <div 
-          v-for="draft in filteredDrafts" 
-          :key="draft.id" 
-          class="draft-card"
-        >
-          <div class="draft-content">
-            <h3 class="draft-title" @click="editDraft(draft.id)">
+        <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card gap-12">
+          <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="">
+          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="">
+          <img v-else="draft.coverImage" class="fit" src="@/assets/image/images.jpg" alt="">
+          <div class="draft-content flex flex-col gap-12">
+            <h3 class="draft-title text-primary" @click="editDraft(draft.id)">
               {{ draft.title || '无标题草稿' }}
             </h3>
             <p class="draft-summary" v-if="draft.summary">
               {{ draft.summary }}
             </p>
+            <div class="tags-cloud" v-if="draft.tags && draft.tags.length > 0">
+              <span @click.stop="goToTag(tag.id)" v-for="tag in draft.tags" :key="tag.id" class="tag">
+                {{ tag.name }}
+              </span>
+            </div>
             <div class="draft-meta">
               <span class="draft-date">
                 <span class="meta-icon">📅</span>
@@ -74,7 +74,7 @@
               </span>
             </div>
           </div>
-          
+
           <div class="draft-actions">
             <button class="action-btn edit-btn" @click="editDraft(draft.id)" title="编辑">
               <span class="btn-icon">✏️</span>
@@ -92,19 +92,11 @@
 
     <!-- 分页 -->
     <div v-if="totalPages > 1" class="pagination">
-      <button 
-        class="page-btn" 
-        :disabled="currentPage === 1" 
-        @click="changePage(currentPage - 1)"
-      >
+      <button class="page-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
         上一页
       </button>
       <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-      <button 
-        class="page-btn" 
-        :disabled="currentPage === totalPages" 
-        @click="changePage(currentPage + 1)"
-      >
+      <button class="page-btn" :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)">
         下一页
       </button>
     </div>
@@ -117,7 +109,7 @@ import { useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
 import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { formatDate, formatRelativeTime } from '@/utils/uitls'
+import { formatRelativeTime } from '@/utils/uitls'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
@@ -137,7 +129,7 @@ const filteredDrafts = computed(() => {
   if (!searchKeyword.value) {
     return drafts.value
   }
-  return drafts.value.filter(draft => 
+  return drafts.value.filter(draft =>
     draft.title.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
     (draft.summary && draft.summary.toLowerCase().includes(searchKeyword.value.toLowerCase()))
   )
@@ -152,13 +144,13 @@ const loadDrafts = async () => {
   await handleAsync(async () => {
     loading.value = true
     error.value = ''
-    
+
     const response: PageResponse<PostListItem> = await PostService.getDraftList({
       page: currentPage.value,
       size: pageSize.value,
       keyword: searchKeyword.value || undefined
     })
-    
+
     drafts.value = response.records
     totalCount.value = response.total
   }, {
@@ -179,6 +171,10 @@ const loadCategories = async () => {
     console.error('加载分类失败:', error)
   }
 }
+// 跳转到标签页面
+const goToTag = (tagId: number) => {
+  router.push(`/tags/${tagId}`)
+}
 
 const createNewDraft = () => {
   router.push('/create?draft=true')
@@ -192,13 +188,13 @@ const publishDraft = async (draftId: number) => {
   if (!confirm('确定要发布这篇草稿吗？')) {
     return
   }
-  
+
   await handleAsync(async () => {
     await PostService.publishPost(draftId)
-    
+
     // 重新加载草稿列表
     await loadDrafts()
-    
+
     alert('草稿发布成功！')
   }, {
     onError: (err) => {
@@ -212,13 +208,13 @@ const deleteDraft = async (draftId: number) => {
   if (!confirm('确定要删除这篇草稿吗？此操作不可恢复。')) {
     return
   }
-  
+
   await handleAsync(async () => {
     await PostService.deletePost(draftId)
-    
+
     // 重新加载草稿列表
     await loadDrafts()
-    
+
     alert('草稿已删除')
   }, {
     onError: (err) => {
@@ -265,14 +261,14 @@ onMounted(async () => {
 
 .page-title {
   font-size: 2.5rem;
-  color: var(--text-color);
+  color: var(--text-main);
   margin: 0 0 12px 0;
   font-weight: 700;
 }
 
 .page-description {
   font-size: 1.1rem;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
   margin: 0;
 }
@@ -293,27 +289,28 @@ onMounted(async () => {
 
 .search-input {
   width: 100%;
-  padding: 12px 16px 12px 45px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  padding: 12px 40px 12px 16px;
+  border: 2px solid var(--border-soft);
+  border-radius: 25px;
   font-size: 14px;
-  background: var(--bg-color);
-  color: var(--text-color);
+  background-color: var(--bg-soft);
+  color: var(--text-main);
   transition: border-color 0.3s;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
+
 
 .search-icon {
   position: absolute;
-  left: 15px;
+  right: 15px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 16px;
-  opacity: 0.5;
+  color: var(--text-main);
+  opacity: 0.6;
 }
 
 .create-btn {
@@ -321,7 +318,7 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -357,16 +354,21 @@ onMounted(async () => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid var(--border-color);
-  border-top: 3px solid var(--primary-color);
+  border: 3px solid var(--border-soft);
+  border-top: 3px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-icon,
@@ -377,20 +379,20 @@ onMounted(async () => {
 
 .error-state h3,
 .empty-state h3 {
-  color: var(--text-color);
+  color: var(--text-main);
   margin: 0 0 12px 0;
 }
 
 .error-state p,
 .empty-state p {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
   margin: 0 0 20px 0;
 }
 
 .retry-btn {
   padding: 8px 16px;
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 6px;
@@ -408,8 +410,8 @@ onMounted(async () => {
 }
 
 .draft-card {
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
+  background: var(--bg-main);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 24px;
   display: flex;
@@ -418,10 +420,15 @@ onMounted(async () => {
   transition: all 0.3s ease;
 }
 
+.draft-card>img {
+  width: 200px;
+  height: 150px;
+}
+
 .draft-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .draft-content {
@@ -432,21 +439,18 @@ onMounted(async () => {
 .draft-title {
   font-size: 1.3rem;
   font-weight: 600;
-  color: var(--text-color);
-  margin: 0 0 12px 0;
   cursor: pointer;
   transition: color 0.3s;
   line-height: 1.4;
 }
 
 .draft-title:hover {
-  color: var(--primary-color);
+  color: var(--color-primary);
 }
 
 .draft-summary {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.8;
-  margin: 0 0 16px 0;
   line-height: 1.6;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -466,7 +470,7 @@ onMounted(async () => {
   align-items: center;
   gap: 4px;
   font-size: 0.85rem;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
 }
 
@@ -494,12 +498,12 @@ onMounted(async () => {
 }
 
 .edit-btn {
-  background: var(--hover-color);
-  color: var(--text-color);
+  background: var(--color-primary);
+  color: var(--text-main);
 }
 
 .edit-btn:hover {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
 }
 
@@ -531,18 +535,18 @@ onMounted(async () => {
 
 .page-btn {
   padding: 8px 16px;
-  background: var(--bg-color);
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
+  background: var(--bg-main);
+  color: var(--text-main);
+  border: 1px solid var(--border-soft);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .page-btn:hover:not(:disabled) {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .page-btn:disabled {
@@ -551,7 +555,7 @@ onMounted(async () => {
 }
 
 .page-info {
-  color: var(--text-color);
+  color: var(--text-main);
   font-weight: 500;
 }
 
@@ -560,33 +564,33 @@ onMounted(async () => {
   .drafts-page {
     padding: 15px;
   }
-  
+
   .page-title {
     font-size: 2rem;
   }
-  
+
   .actions-bar {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .search-box {
     max-width: none;
   }
-  
+
   .draft-card {
     flex-direction: column;
     gap: 20px;
   }
-  
+
   .draft-content {
     margin-right: 0;
   }
-  
+
   .draft-actions {
     align-self: flex-end;
   }
-  
+
   .draft-meta {
     gap: 15px;
   }

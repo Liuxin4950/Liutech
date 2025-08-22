@@ -139,13 +139,13 @@ onMounted(() => {
 .comment-header {
   margin-bottom: 24px;
   padding-bottom: 12px;
-  border-bottom: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--text-primary);
 }
 
 .comment-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: var(--text-primary);
   margin: 0;
   display: flex;
   align-items: center;
@@ -154,14 +154,11 @@ onMounted(() => {
 
 .comment-count {
   font-size: 1rem;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
   font-weight: 400;
 }
 
-.comment-form-container {
-  margin-bottom: 32px;
-}
 
 .comment-list {
   min-height: 200px;
@@ -170,7 +167,7 @@ onMounted(() => {
 .loading, .error, .empty {
   text-align: center;
   padding: 40px 20px;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
 }
 
@@ -186,7 +183,7 @@ onMounted(() => {
 
 .retry-btn {
   padding: 8px 16px;
-  background: var(--primary-color);
+  background: var(--bg-tag);
   color: white;
   border: none;
   border-radius: 4px;
@@ -195,7 +192,11 @@ onMounted(() => {
 }
 
 .retry-btn:hover {
-  background: var(--secondary-color);
+  background: var(--bg-tag-hover);
+}
+
+.comment-form-container {
+    margin-bottom: 32px;
 }
 
 /* 响应式设计 */

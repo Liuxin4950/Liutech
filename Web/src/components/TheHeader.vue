@@ -72,8 +72,8 @@ onUnmounted(() => {
 
 <template>
   <header class="sticky top-0 z-100">
-    <div class="content px-20 flex flex-ac flex-sb">
-      <div class="text-xl font-bold text-primary cursor-pointer">
+    <div class="content px-20 flex flex-ac flex-sb ">
+      <div class="text-xl font-bold link text-primary">
         <h2>LiuTech</h2>
       </div>
       
@@ -94,7 +94,7 @@ onUnmounted(() => {
         <!-- 用户信息区域 -->
         <div class="relative user-menu-container">
           <!-- 已登录状态 -->
-          <div v-if="userStore.isLoggedIn" class="flex flex-ac gap-8 cursor-pointer rounded transition" @click="toggleUserMenu">
+          <div v-if="userStore.isLoggedIn" class="flex flex-ac gap-8 link rounded transition" @click="toggleUserMenu">
             <div class="user-avatar rounded-full bg-primary flex flex-ct link">
               <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="w-full h-full object-cover rounded-full" />
               <div v-else class="text-white font-semibold text-sm">{{ userStore.username?.charAt(0).toUpperCase() }}</div>
@@ -106,19 +106,19 @@ onUnmounted(() => {
           </div>
           
           <!-- 未登录状态 -->
-          <button v-else class="bg-primary text-white flex flex-ac gap-8 transition hover-bg rounded p-8 hover-lift" @click="navigateTo('/login')">
+          <button v-else class=" text-white flex flex-ac gap-8 transition  rounded p-8 hover-lift" @click="navigateTo('/login')">
             <span class="text-base">👤</span>
             <span>登录</span>
           </button>
           
           <!-- 用户下拉菜单 -->
-          <div class="avatar-menu absolute card transition" :class="{ 'opacity-100': isUserMenuOpen, 'opacity-0': !isUserMenuOpen }" @click.stop>
+          <div v-show="isUserMenuOpen" class="avatar-menu absolute card transition bg-main" @click.stop>
             <ul class="list">
-              <li @click="navigateTo('/profile')" class="hover-bg transition cursor-pointer">个人资料</li>
-              <li @click="navigateTo('/my-posts')" class="hover-bg transition cursor-pointer">我的文章</li>
-              <li @click="navigateTo('/drafts')" class="hover-bg transition cursor-pointer">草稿箱</li>
-              <li @click="navigateTo('/settings')" class=" hover-bg transition cursor-pointer">设置</li>
-              <li @click="handleLogout" class=" hover-bg transition cursor-pointer border-t text-danger">退出登录</li>
+              <li @click="navigateTo('/profile')" class="transition link">个人资料</li>
+              <li @click="navigateTo('/my-posts')" class="transition link">我的文章</li>
+              <li @click="navigateTo('/drafts')" class="transition link">草稿箱</li>
+              <li @click="navigateTo('/settings')" class="transition link">设置</li>
+              <li @click="handleLogout" class="transition link border-t text-danger">退出登录</li>
             </ul>
           </div>
         </div>
@@ -131,22 +131,24 @@ onUnmounted(() => {
      
       
       <!-- 移动端菜单按钮 -->
-      <button class="mobile-menu-btn flex flex-col gap-4 p-8 w-30 h-20" @click="toggleMenu">
-        <span class="w-full h-2 bg-text"></span>
-        <span class="w-full h-2 bg-text"></span>
-        <span class="w-full h-2 bg-text"></span>
+      <button class="mobile-menu-btn flex flex-col flex-sb" @click="toggleMenu">
+        <div class=""></div>
+        <div class=""></div>
+        <div class=""></div>
+
       </button>
       
       <!-- 移动端菜单 -->
-      <div class="absolute top-70 left-0 w-full card z-99 transition-all mobile-menu" 
-           :class="{ 'translate-y-0 opacity-100': isMenuOpen, '-translate-y-full opacity-0': !isMenuOpen }" 
-           :style="{ pointerEvents: isMenuOpen ? 'auto' : 'none' }" 
+      <div class="mobile-menu " 
+          v-show="isMenuOpen"
            @click.stop>
         <ul class="list">
-          <li @click="navigateTo('/')" class="p-16 hover-bg transition border-b cursor-pointer">🏠 首页</li>
-          <li @click="navigateTo('/posts')" class="p-16 hover-bg transition border-b cursor-pointer">📚 全部文章</li>
-          <li @click="navigateTo('/categories')" class="p-16 hover-bg transition border-b cursor-pointer">📂 分类</li>
-          <li @click="navigateTo('/about')" class="p-16 hover-bg transition border-b cursor-pointer">👤 关于我</li>
+          <li @click="navigateTo('/')" class="p-16 hover-bg transition border-b link">🏠 首页</li>
+          <li @click="navigateTo('/posts')" class="p-16 hover-bg transition border-b link">📚 全部文章</li>
+          <li @click="navigateTo('/categories')" class="p-16 hover-bg transition border-b link">📂 分类</li>
+          <li @click="navigateTo('/tags')" class="p-16 hover-bg transition border-b link">📂 标签</li>
+          <li @click="navigateTo('/archive')" class="p-16 hover-bg transition border-b link">📂 归档</li>
+          <li @click="navigateTo('/about')" class="p-16 hover-bg transition border-b link">👤 关于我</li>
         </ul>
       </div>
     </div>
@@ -157,7 +159,7 @@ onUnmounted(() => {
 header{
   width: 100%;
   height: 70px;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-main);
 }
 header > div{
   height: 70px;
@@ -168,9 +170,17 @@ header > div{
   height: 40px;
   cursor: pointer;
 }
+
+ul,ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
 .avatar-menu{
   top: 70px;
   width: 140px; 
+  z-index: 99;
+  bar
   li{
     margin-bottom: 12px;
     cursor: pointer;
@@ -179,13 +189,13 @@ header > div{
     margin-bottom: 0;
   }
   li:hover{
-    color: var(--primary-color);
+    color: var(--color-primary);
   }
 }
 
 /* 导航链接样式 */
 .nav-link {
-  color: var(--text-color);
+  color: var(--text-main);
   text-decoration: none;
   font-weight: 500;
   position: relative;
@@ -194,7 +204,7 @@ header > div{
 }
 
 .nav-link.router-link-exact-active {
-  color: var(--primary-color);
+  color: var(--color-primary);
 }
 
 .nav-link.router-link-exact-active::after {
@@ -204,14 +214,30 @@ header > div{
   left: 0;
   width: 100%;
   height: 2px;
-  background: var(--primary-color);
+  background: var(--color-primary);
 }
 
 /* 默认隐藏移动端菜单按钮 */
 .mobile-menu-btn {
+  width: 40px;
   height: 30px;
-  justify-content: space-between;
+  padding: 5px;
   display: none;
+}
+.mobile-menu-btn div{
+  width: 100%;
+  height: 3px;
+  background-color: var(--text-main);
+}
+.mobile-menu {
+  width: 100%;
+  position: fixed;
+  top: 70px;
+  left: 0;
+  background-color: var(--bg-main);
+  li:hover{
+    color: var(--color-primary);
+  }
 }
 
 /* 移动端响应式 */

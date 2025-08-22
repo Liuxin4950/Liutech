@@ -8,13 +8,8 @@
     <!-- 操作栏 -->
     <div class="actions-bar">
       <div class="search-box">
-        <input 
-          v-model="searchKeyword" 
-          type="text" 
-          placeholder="搜索文章..." 
-          class="search-input"
-          @keyup.enter="handleSearch"
-        />
+        <input v-model="searchKeyword" type="text" placeholder="搜索文章..." class="search-input"
+          @keyup.enter="handleSearch" />
         <span class="search-icon">🔍</span>
       </div>
       <button class="create-btn" @click="createNewPost">
@@ -51,18 +46,24 @@
 
       <!-- 文章列表 -->
       <div v-else class="posts-list">
-        <div 
-          v-for="post in filteredPosts" 
-          :key="post.id" 
-          class="post-card"
-        >
-          <div class="post-content">
-            <h3 class="post-title" @click="viewPost(post.id)">
+        <div v-for="post in filteredPosts" :key="post.id" class="post-card">
+          <img v-if="post.thumbnail" class="fit" :src="post.coverImage" alt="">
+          <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="">
+          <img v-else="post.coverImage" class="fit" src="@/assets/image/images.jpg" alt="">
+          
+          <div class="post-content flex flex-col gap-12">
+            <h3 class="post-title text-primary" @click="viewPost(post.id)">
               {{ post.title }}
             </h3>
             <p class="post-summary" v-if="post.summary">
               {{ post.summary }}
             </p>
+            <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
+              <span @click.stop="goToTag(tag.id)" v-for="tag in post.tags" :key="tag.id" class="tag">
+                {{ tag.name }}
+              </span>
+            </div>
+
             <div class="post-meta">
               <span class="post-date">
                 <span class="meta-icon">📅</span>
@@ -86,7 +87,7 @@
               </span>
             </div>
           </div>
-          
+
           <div class="post-actions">
             <button class="action-btn view-btn" @click="viewPost(post.id)" title="查看">
               <span class="btn-icon">👁️</span>
@@ -104,19 +105,11 @@
 
     <!-- 分页 -->
     <div v-if="totalPages > 1" class="pagination">
-      <button 
-        class="page-btn" 
-        :disabled="currentPage === 1" 
-        @click="changePage(currentPage - 1)"
-      >
+      <button class="page-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
         上一页
       </button>
       <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-      <button 
-        class="page-btn" 
-        :disabled="currentPage === totalPages" 
-        @click="changePage(currentPage + 1)"
-      >
+      <button class="page-btn" :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)">
         下一页
       </button>
     </div>
@@ -149,7 +142,7 @@ const filteredPosts = computed(() => {
   if (!searchKeyword.value) {
     return posts.value
   }
-  return posts.value.filter(post => 
+  return posts.value.filter(post =>
     post.title.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
     (post.summary && post.summary.toLowerCase().includes(searchKeyword.value.toLowerCase()))
   )
@@ -164,13 +157,13 @@ const loadPosts = async () => {
   await handleAsync(async () => {
     loading.value = true
     error.value = ''
-    
+
     const response: PageResponse<PostListItem> = await PostService.getMyPosts({
       page: currentPage.value,
       size: pageSize.value,
       keyword: searchKeyword.value || undefined
     })
-    
+
     posts.value = response.records
     totalCount.value = response.total
   }, {
@@ -191,6 +184,10 @@ const loadCategories = async () => {
     console.error('加载分类失败:', error)
   }
 }
+// 跳转到标签页面
+const goToTag = (tagId: number) => {
+  router.push(`/tags/${tagId}`)
+}
 
 const createNewPost = () => {
   router.push('/create')
@@ -208,13 +205,13 @@ const deletePost = async (postId: number) => {
   if (!confirm('确定要删除这篇文章吗？删除后无法恢复！')) {
     return
   }
-  
+
   await handleAsync(async () => {
     await PostService.deletePost(postId)
-    
+
     // 重新加载文章列表
     await loadPosts()
-    
+
     // 显示成功消息
     alert('文章删除成功！')
   }, {
@@ -260,12 +257,12 @@ onMounted(async () => {
 
 .page-title {
   font-size: 2.5rem;
-  color: var(--primary-color);
+  color: var(--color-primary);
   margin-bottom: 10px;
 }
 
 .page-description {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.8;
   font-size: 1.1rem;
 }
@@ -287,17 +284,17 @@ onMounted(async () => {
 .search-input {
   width: 100%;
   padding: 12px 40px 12px 16px;
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--border-soft);
   border-radius: 25px;
   font-size: 14px;
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  background-color: var(--bg-soft);
+  color: var(--text-main);
   transition: border-color 0.3s;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .search-icon {
@@ -305,7 +302,7 @@ onMounted(async () => {
   right: 15px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.6;
 }
 
@@ -314,7 +311,7 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background-color: var(--primary-color);
+  background-color: var(--color-primary);
   color: white;
   border: none;
   border-radius: 25px;
@@ -326,7 +323,7 @@ onMounted(async () => {
 }
 
 .create-btn:hover {
-  background-color: var(--primary-hover);
+  background-color: var(--color-primary-dark);
   transform: translateY(-2px);
 }
 
@@ -348,16 +345,21 @@ onMounted(async () => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid var(--border-color);
-  border-top: 4px solid var(--primary-color);
+  border: 4px solid var(--border-soft);
+  border-top: 4px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-icon,
@@ -368,7 +370,7 @@ onMounted(async () => {
 
 .retry-btn {
   padding: 10px 20px;
-  background-color: var(--primary-color);
+  background-color: var(--color-primary);
   color: white;
   border: none;
   border-radius: 20px;
@@ -383,7 +385,7 @@ onMounted(async () => {
 
 .post-card {
   background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 24px;
   display: flex;
@@ -398,6 +400,11 @@ onMounted(async () => {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
+.post-card>img {
+  width: 200px;
+  height: 150px;
+}
+
 .post-content {
   flex: 1;
 }
@@ -405,23 +412,17 @@ onMounted(async () => {
 .post-title {
   font-size: 1.3rem;
   font-weight: 600;
-  color: var(--text-color);
-  margin-bottom: 10px;
   cursor: pointer;
   transition: color 0.3s;
 }
 
 .post-title:hover {
-  color: var(--primary-color);
+  color: var(--color-primary);
 }
 
 .post-summary {
-  color: var(--text-color);
-  opacity: 0.8;
-  line-height: 1.6;
-  margin-bottom: 15px;
+  color: var(--text-main);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -430,7 +431,7 @@ onMounted(async () => {
   display: flex;
   gap: 20px;
   font-size: 0.9rem;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
   flex-wrap: wrap;
 }
@@ -495,18 +496,18 @@ onMounted(async () => {
 
 .page-btn {
   padding: 10px 20px;
-  border: 1px solid var(--border-color);
-  background-color: var(--bg-color);
-  color: var(--text-color);
+  border: 1px solid var(--border-soft);
+  background-color: var(--bg-soft);
+  color: var(--text-main);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .page-btn:hover:not(:disabled) {
-  background-color: var(--primary-color);
+  background-color: var(--color-primary);
   color: white;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .page-btn:disabled {
@@ -516,7 +517,7 @@ onMounted(async () => {
 
 .page-info {
   font-weight: 500;
-  color: var(--text-color);
+  color: var(--text-main);
 }
 
 /* 响应式设计 */
@@ -524,27 +525,32 @@ onMounted(async () => {
   .my-posts-page {
     padding: 15px;
   }
-  
+
   .actions-bar {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .search-box {
     max-width: none;
   }
-  
+
   .post-card {
     flex-direction: column;
     gap: 15px;
   }
-  
+
   .post-actions {
     justify-content: center;
   }
-  
+
   .post-meta {
     gap: 15px;
   }
+  
+.post-card>img {
+  width: 100%;
+  height: auto;
+}
 }
 </style>

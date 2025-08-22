@@ -1,13 +1,13 @@
 <template>
   <div class="post-detail content">
-    <div v-if="loading" class="text-center p-20 text-muted">
+    <div v-if="loading" class="text-center p-20 ">
       <p>加载中...</p>
     </div>
-    <div v-else-if="error" class="text-center p-20 text-muted">
+    <div v-else-if="error" class="text-center p-20 ">
       <p>{{ error }}</p>
       <button @click="loadPostDetail" class="retry-btn bg-primary text-center rounded transition mt-8">重试</button>
     </div>
-    <div v-else-if="post" class="card bg-hover ">
+    <div v-else-if="post" class="card bg-soft">
       <!-- 文章头部信息 -->
       <header class="post-header">
         <h2 class="post-title">{{ post.title }}</h2>
@@ -21,9 +21,9 @@
           <div class="flex flex-ac gap-8">
             <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
               class="author-avatar">
-            <span class="text-muted font-medium">{{ post.author?.username || '匿名用户' }}</span>
+            <span class=" font-medium">{{ post.author?.username || '匿名用户' }}</span>
           </div>
-          <div class="flex gap-16 flex-ac text-sm text-muted">
+          <div class="flex gap-16 flex-ac text-sm ">
             <span v-if="post.category" class="badge">{{ post.category.name }}</span>
             <span>{{ formatDate(post.createdAt) }}</span>
             <span>👁️ {{ post.viewCount || 0 }}</span>
@@ -40,7 +40,7 @@
 
       <!-- 文章摘要 -->
       <div v-if="post.summary" class="post-summary bg-hover p-20">
-        <p class="text-muted">{{ post.summary }}</p>
+        <p class="">{{ post.summary }}</p>
       </div>
 
       <!-- 文章内容 -->
@@ -129,7 +129,7 @@
         <CommentSection :post-id="Number(route.params.id)" />
       </div>
     </div>
-    <div v-else class="text-center p-20 text-muted">
+    <div v-else class="text-center p-20 ">
       <p>文章不存在</p>
       <button @click="goBack" class="bg-primary text-center rounded transition mt-8">返回首页</button>
     </div>
@@ -374,9 +374,7 @@ onUnmounted(() => {
 <style scoped>
 .post-detail {
   margin: 0 auto;
-
 }
-
 .retry-btn {
   padding: 8px 16px;
   color: white;
@@ -395,7 +393,7 @@ onUnmounted(() => {
 .post-title {
   font-size: 2.2rem;
   font-weight: 700;
-  color: var(--text-color);
+  color: var(--color-primary);
   margin: 0 0 20px 0;
   line-height: 1.3;
 }
@@ -438,153 +436,38 @@ onUnmounted(() => {
 /* Markdown 内容样式 */
 .markdown-content {
   line-height: 1.8;
-  color: var(--text-color);
-  font-size: 1rem;
+  padding: 20px;
 }
 
 /* TinyMCE 富文本内容样式适配 */
 .markdown-content :deep(*) {
   color: inherit;
 }
-
-.markdown-content :deep(div),
-.markdown-content :deep(span) {
-  color: var(--text-color);
+.markdown-content :deep(span.td-span){
+  color: var(--text-main);
 }
 
-.markdown-content :deep([style*="color"]) {
-  color: var(--text-color) !important;
+.markdown-content :deep(span.md-plain){
+  color: var(--text-main);
+}
+.markdown-content :deep(code.box-sizing){
+  background-color: var(--text-main);
 }
 
-.markdown-content :deep(h1),
-.markdown-content :deep(h2),
-.markdown-content :deep(h3),
-.markdown-content :deep(h4),
-.markdown-content :deep(h5),
-.markdown-content :deep(h6) {
-  margin: 24px 0 16px 0;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.markdown-content :deep(h1) {
-  font-size: 1.8rem;
-}
-
-.markdown-content :deep(h2) {
-  font-size: 1.5rem;
-}
-
-.markdown-content :deep(h3) {
-  font-size: 1.3rem;
-}
-
-.markdown-content :deep(h4) {
-  font-size: 1.1rem;
-}
-
-.markdown-content :deep(p) {
-  margin: 16px 0;
-}
-
-.markdown-content :deep(strong) {
-  font-weight: 600;
-}
-
-.markdown-content :deep(em) {
-  font-style: italic;
-}
-
-.markdown-content :deep(code) {
-  background: var(--tag-bg-color);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-  color: var(--primary-color);
-}
-
-.markdown-content :deep(ul),
-.markdown-content :deep(ol) {
-  margin: 16px 0;
-  padding-left: 24px;
-}
-
-.markdown-content :deep(li) {
-  margin: 8px 0;
-  line-height: 1.6;
-}
-
-.markdown-content :deep(a) {
-  color: var(--primary-color);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.3s;
-}
-
-.markdown-content :deep(a:hover) {
-  border-bottom-color: var(--primary-color);
-}
-
-.markdown-content :deep(blockquote) {
-  margin: 16px 0;
-  padding: 16px 20px;
-  background: var(--hover-color);
-  border-left: 4px solid var(--primary-color);
-  border-radius: 0 4px 4px 0;
-}
-
-.markdown-content :deep(blockquote p) {
-  margin: 0;
-  font-style: italic;
-  opacity: 0.9;
-}
-
-.markdown-content :deep(pre) {
-  background: var(--hover-color);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 16px;
-  overflow-x: auto;
-  margin: 16px 0;
-}
-
-.markdown-content :deep(pre code) {
-  background: none;
-  padding: 0;
-  color: var(--text-color);
-  font-size: 0.875rem;
-}
-
-.markdown-content :deep(table) {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 16px 0;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
+.markdown-content :deep(table),
+.markdown-content :deep(tr),
 .markdown-content :deep(th),
-.markdown-content :deep(td) {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-}
-
+.markdown-content :deep(td),
 .markdown-content :deep(th) {
-  background: var(--hover-color);
-  font-weight: 600;
+background-color: var(--bg-main);
+  border-bottom: 1px solid var(--border-soft);
 }
 
-.markdown-content :deep(tr:last-child td) {
-  border-bottom: none;
-}
 
 .markdown-content :deep(hr) {
   border: none;
   height: 1px;
-  background: var(--border-color);
+  background: var(--border-soft);
   margin: 24px 0;
 }
 
@@ -595,9 +478,9 @@ onUnmounted(() => {
   align-items: center;
   padding: 20px 0;
   margin-top: 30px;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-color);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-main);
   position: sticky;
   bottom: 0;
   z-index: 999;
@@ -620,9 +503,9 @@ onUnmounted(() => {
   gap: 6px;
   padding: 8px 16px;
   background: transparent;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-soft);
   border-radius: 20px;
-  color: var(--text-color);
+  color: var(--text-main);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -654,7 +537,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-muted);
+  color: var(--);
   font-size: 14px;
 }
 
@@ -663,7 +546,7 @@ onUnmounted(() => {
 }
 
 .count {
-  color: var(--text-muted);
+  color: var(--);
   font-size: 13px;
 }
 
@@ -690,7 +573,7 @@ onUnmounted(() => {
   right: 0;
   margin-top: 8px;
   background: var(--bg-color);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 1000;
@@ -706,7 +589,7 @@ onUnmounted(() => {
   padding: 12px 16px;
   background: transparent;
   border: none;
-  color: var(--text-color);
+  color: var(--text-main);
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s ease;

@@ -158,6 +158,7 @@ const handleAvatarError = (event: Event) => {
 
 <style scoped>
 .comment-item {
+  /* border-bottom: 1px solid var(--border-soft) ; */
   margin-bottom: 16px;
 }
 

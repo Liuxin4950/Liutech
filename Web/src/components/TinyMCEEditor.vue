@@ -47,15 +47,7 @@ import 'tinymce/plugins/codesample' // 代码示例
 import 'tinymce/plugins/nonbreaking' // 不间断空格
 import 'tinymce/plugins/visualchars' // 可视化字符
 import 'tinymce/plugins/directionality' // 文字方向
-// 颜色相关功能已集成到TinyMCE 7.x核心中，无需单独导入
 import 'tinymce/plugins/quickbars' // 快速工具栏
-// 这些插件在当前版本中不可用，暂时注释掉
-// import 'tinymce/plugins/hr' // 水平线
-// import 'tinymce/plugins/pagebreak' // 分页符
-// import 'tinymce/plugins/template' // 模板
-// import 'tinymce/plugins/save' // 保存
-// import 'tinymce/plugins/autosave' // 自动保存
-// import 'tinymce/plugins/print' // 打印
 // 导入表情符号数据库
 import 'tinymce/plugins/emoticons/js/emojis'
 console.log('TinyMCEEditor组件正在加载...')
@@ -76,7 +68,7 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
   disabled: false,
-  height: 400,
+  height: 800,
   placeholder: '请输入文章内容...'
 })
 
@@ -299,24 +291,6 @@ const editorConfig = computed(() => ({
       ]
     }
   ],
-  // 模板功能暂时禁用，因为template插件不可用
-  // templates: [
-  //   {
-  //     title: '文章模板',
-  //     description: '标准文章格式',
-  //     content: '<h2>文章标题</h2><p>在这里开始你的文章内容...</p><h3>第一部分</h3><p>详细内容...</p><h3>第二部分</h3><p>详细内容...</p><h3>总结</h3><p>总结内容...</p>'
-  //   },
-  //   {
-  //     title: '技术文档',
-  //     description: '技术文档格式',
-  //     content: '<h1>技术文档标题</h1><h2>概述</h2><p>简要描述...</p><h2>前置条件</h2><ul><li>条件1</li><li>条件2</li></ul><h2>步骤</h2><ol><li>第一步</li><li>第二步</li></ol><h2>注意事项</h2><blockquote><p>重要提示...</p></blockquote>'
-  //   },
-  //   {
-  //     title: '代码示例',
-  //     description: '包含代码块的模板',
-  //     content: '<h2>代码示例</h2><p>下面是一个代码示例：</p><pre><code>// 你的代码在这里</code></pre><h3>说明</h3><p>代码说明...</p>'
-  //   }
-  // ],
   // 格式选项
   formats: {
     alignleft: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-left' },

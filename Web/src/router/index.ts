@@ -71,7 +71,7 @@ const routes: RouteRecordRaw[] = [
         name: 'category-detail',
         component: () => import('../views/CategoryDetail.vue'),
         meta: {
-          title: '分类文章'
+          title: '文章分类详情'
         }
       },
       {
@@ -79,7 +79,7 @@ const routes: RouteRecordRaw[] = [
         name: 'tags',
         component: () => import('../views/Tags.vue'),
         meta: {
-          title: '标签云'
+          title: '标签分类'
         }
       },
       {
@@ -87,7 +87,7 @@ const routes: RouteRecordRaw[] = [
         name: 'tag-detail',
         component: () => import('../views/TagDetail.vue'),
         meta: {
-          title: '标签详情'
+          title: '标签分类详情'
         }
       },
       {

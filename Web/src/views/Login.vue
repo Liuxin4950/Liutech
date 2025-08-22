@@ -314,7 +314,7 @@ const handleSubmit = () => {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  background: linear-gradient(135deg, var(--bg-color) 0%, var(--hover-color) 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--bg-tag) 100%);
 }
 
 .login-wrapper {
@@ -323,11 +323,11 @@ const handleSubmit = () => {
 }
 
 .login-card {
-  background: var(--bg-color);
+  background: var(--bg-soft);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   padding: 40px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-soft);
   transition: all 0.3s ease;
 }
 
@@ -341,14 +341,14 @@ const handleSubmit = () => {
 }
 
 .card-header h2 {
-  color: var(--text-color);
+  color: var(--text-main);
   font-size: 28px;
   font-weight: 600;
   margin-bottom: 8px;
 }
 
 .card-header p {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
   font-size: 14px;
 }
@@ -364,7 +364,7 @@ const handleSubmit = () => {
 .form-group label {
   display: block;
   margin-bottom: 8px;
-  color: var(--text-color);
+  color: var(--text-main);
   font-weight: 500;
   font-size: 14px;
 }
@@ -372,17 +372,17 @@ const handleSubmit = () => {
 .form-group input {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--border-soft);
   border-radius: 8px;
   font-size: 16px;
-  background: var(--bg-color);
-  color: var(--text-color);
+  background: var(--bg-soft);
+  color: var(--text-main);
   transition: all 0.3s ease;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
 }
 
@@ -401,7 +401,7 @@ const handleSubmit = () => {
 .submit-btn {
   width: 100%;
   padding: 14px;
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 8px;
@@ -416,7 +416,7 @@ const handleSubmit = () => {
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: var(--secondary-color);
+  background: var(--bg-tag-hover);
   transform: translateY(-1px);
 }
 
@@ -446,14 +446,14 @@ const handleSubmit = () => {
 }
 
 .card-footer p {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
   font-size: 14px;
   margin: 0;
 }
 
 .toggle-btn {
-  color: var(--primary-color);
+  color: var(--color-primary);
   background: none;
   border: none;
   cursor: pointer;
@@ -464,7 +464,7 @@ const handleSubmit = () => {
 }
 
 .toggle-btn:hover {
-  color: var(--secondary-color);
+  color: var(--color-primary-dark);
   text-decoration: underline;
 }
 

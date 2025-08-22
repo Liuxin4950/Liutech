@@ -41,14 +41,21 @@
       <!-- 文章列表 -->
       <div v-else-if="posts.length > 0" class="flex flex-col gap-20">
         <article v-for="post in posts" :key="post.id" class="post-card card border rounded-lg transition hover-lift">
-          <router-link :to="`/posts/${post.id}`" class="flex no-underline text-color h-full">
-            <div class="post-cover">
-              <img :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'" :alt="post.title" class="w-full h-full object-cover" />
+          <router-link :to="`/posts/${post.id}`" class="flex gap-20">
+            <div class="post-cover rounded-lg">
+              <img color="fit rounded-lg" :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'"
+                :alt="post.title" class="fit" />
             </div>
-            <div class="p-20 flex-1 flex flex-col">
-              <h3 class="post-title text-xl font-bold mb-12">{{ post.title }}</h3>
-              <p class="post-summary mb-16" v-if="post.summary">{{ post.summary }}</p>
-              <div class="flex gap-20 mb-16 flex-fw">
+            <div class="flex flex-col gap-12">
+              <h3 class="post-title text-xl font-bold">{{ post.title }}</h3>
+              <p class="post-summary" v-if="post.summary">{{ post.summary }}</p>
+              <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
+                <router-link v-for="tag in post.tags" :key="tag.id" :to="`/tags/${tag.id}`"
+                  class="tag">
+                  {{ tag.name }}
+                </router-link>
+              </div>
+              <div class="flex gap-20 flex-fw">
                 <div class="meta-item flex flex-ac gap-8 text-sm">
                   <span class="text-base">👤</span>
                   <span>{{ post.author.username }}</span>
@@ -66,16 +73,6 @@
                   <span>{{ post.commentCount || 0 }}</span>
                 </div>
               </div>
-              <div class="flex gap-8 flex-fw" v-if="post.tags && post.tags.length > 0">
-                <router-link 
-                  v-for="tag in post.tags" 
-                  :key="tag.id" 
-                  :to="`/tags/${tag.id}`" 
-                  class="tag-link tag p-4 rounded-lg text-xs font-medium no-underline transition"
-                >
-                  {{ tag.name }}
-                </router-link>
-              </div>
             </div>
           </router-link>
         </article>
@@ -86,33 +83,25 @@
         <div class="empty-icon mb-20">📝</div>
         <h3 class="text-xl font-semibold mb-12">暂无相关文章</h3>
         <p class="text-base mb-20">该标签下还没有发布任何文章</p>
-        <router-link to="/" class="create-btn inline-block p-12 px-24 rounded text-white font-medium no-underline transition">返回首页</router-link>
+        <router-link to="/"
+          class="create-btn inline-block p-12 px-24 rounded text-white font-medium no-underline transition">返回首页</router-link>
       </div>
 
       <!-- 分页组件 -->
       <div v-if="pagination.total > pagination.size" class="flex flex-jc gap-12 mt-20">
-        <button 
-          class="page-btn p-8 px-16 border rounded cursor-pointer transition" 
-          :disabled="pagination.current <= 1"
-          @click="changePage(pagination.current - 1)"
-        >
+        <button class="page-btn p-8 px-16 border rounded cursor-pointer transition" :disabled="pagination.current <= 1"
+          @click="changePage(pagination.current - 1)">
           上一页
         </button>
-        
-        <button 
-          v-for="page in getPageNumbers()" 
-          :key="page"
+
+        <button v-for="page in getPageNumbers()" :key="page"
           :class="['page-btn p-8 px-16 border rounded cursor-pointer transition', { active: page === pagination.current }]"
-          @click="changePage(page)"
-        >
+          @click="changePage(page)">
           {{ page }}
         </button>
-        
-        <button 
-          class="page-btn p-8 px-16 border rounded cursor-pointer transition" 
-          :disabled="pagination.current >= pagination.pages"
-          @click="changePage(pagination.current + 1)"
-        >
+
+        <button class="page-btn p-8 px-16 border rounded cursor-pointer transition"
+          :disabled="pagination.current >= pagination.pages" @click="changePage(pagination.current + 1)">
           下一页
         </button>
       </div>
@@ -175,7 +164,7 @@ const loadTagInfo = async () => {
 
   loading.value = true
   error.value = ''
-  
+
   try {
     tagInfo.value = await TagService.getTagById(tagId.value)
     if (!tagInfo.value) {
@@ -199,7 +188,7 @@ const loadPosts = async (page: number = 1) => {
   if (!tagId.value) return
 
   postsLoading.value = true
-  
+
   try {
     const response: PageResponse<PostListItem> = await PostService.getPostList({
       tagId: tagId.value,
@@ -207,7 +196,7 @@ const loadPosts = async (page: number = 1) => {
       size: pagination.value.size,
       sortBy: sortBy.value
     })
-    
+
     posts.value = response.records || []
     pagination.value = {
       current: response.current || 1,
@@ -238,15 +227,15 @@ const getPageNumbers = () => {
   const current = pagination.value.current
   const total = pagination.value.pages
   const pages: number[] = []
-  
+
   // 显示当前页前后各2页
   const start = Math.max(1, current - 2)
   const end = Math.min(total, current + 2)
-  
+
   for (let i = start; i <= end; i++) {
     pages.push(i)
   }
-  
+
   return pages
 }
 
@@ -259,8 +248,8 @@ onMounted(() => {
 <style scoped>
 /* 使用 styles.css 工具类简化样式 */
 .tag-header {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-  color: var(--text-color);
+  background: linear-gradient(135deg, var(--color-primary), var(--secondary-color));
+  color: var(--text-main);
 }
 
 .tag-title {
@@ -272,12 +261,12 @@ onMounted(() => {
 }
 
 .section-title {
-  color: var(--text-color);
+  color: var(--text-main);
 }
 
 .sort-select {
   background: var(--bg-color);
-  color: var(--text-color);
+  color: var(--text-main);
   outline: none;
 }
 
@@ -285,15 +274,20 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   border: 4px solid var(--border-color);
-  border-top: 4px solid var(--primary-color);
+  border-top: 4px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .post-card {
@@ -304,41 +298,36 @@ onMounted(() => {
 .post-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .post-cover {
   width: 200px;
-  flex-shrink: 0;
+  height: 150px;
 }
 
 .post-title {
-  color: var(--text-color);
+  color: var(--text-main);
   line-height: 1.4;
 }
 
 .post-summary {
-  color: var(--text-color);
-  opacity: 0.8;
-  line-height: 1.6;
-  flex: 1;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
+  color: var(--text-main);
   overflow: hidden;
 }
 
 .meta-item {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
 }
 
 .tag-link {
   background: var(--hover-color);
-  color: var(--primary-color);
+  color: var(--color-primary);
 }
 
 .tag-link:hover {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
 }
 
@@ -347,16 +336,16 @@ onMounted(() => {
 }
 
 .empty-state h3 {
-  color: var(--text-color);
+  color: var(--text-main);
 }
 
 .empty-state p {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
 }
 
 .create-btn {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
 }
 
@@ -366,18 +355,18 @@ onMounted(() => {
 
 .page-btn {
   background: var(--bg-color);
-  color: var(--text-color);
+  color: var(--text-main);
 }
 
 .page-btn:hover {
   background: var(--hover-color);
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .page-btn.active {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 /* 响应式设计 */
@@ -385,7 +374,7 @@ onMounted(() => {
   .tag-title {
     font-size: 2rem;
   }
-  
+
   .post-cover {
     width: 100%;
     height: 200px;

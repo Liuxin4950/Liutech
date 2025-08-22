@@ -7,7 +7,7 @@
       <div 
         v-for="post in posts" 
         :key="post.id" 
-        class="flex flex-col gap-8 p-12 bg-hover rounded link transition hover-lift border-l-3"
+        class="flex flex-col gap-8 p-12 rounded link transition bg-soft"
         @click="handlePostClick(post.id)"
       >
         <h5 class="text-base font-semibold text-primary mb-0">{{ post.title }}</h5>
