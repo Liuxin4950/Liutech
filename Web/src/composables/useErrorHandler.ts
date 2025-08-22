@@ -8,6 +8,8 @@ import {
   handleValidationError, 
   showError, 
   showSuccess, 
+  showSuccessToast, 
+  showErrorToast,
   showWarning, 
   showConfirm 
 } from '../utils/errorHandler'
@@ -109,6 +111,22 @@ export function useErrorHandler() {
     return showConfirm(message, title)
   }
 
+  /**
+   * 显示成功Toast提示（自动消失）
+   * @param message 成功消息
+   */
+  const showToastSuccess = (message: string) => {
+    showSuccessToast(message)
+  }
+
+  /**
+   * 显示错误Toast提示（自动消失）
+   * @param message 错误消息
+   */
+  const showToastError = (message: string) => {
+    showErrorToast(message)
+  }
+
   return {
     // 状态
     error,
@@ -121,6 +139,10 @@ export function useErrorHandler() {
     handleFormSubmit,
     showBusinessError,
     showSuccess,
+    showSuccessToast,
+    showToastSuccess,
+    showErrorToast,
+    showToastError,
     showWarning,
     showError,
     confirm

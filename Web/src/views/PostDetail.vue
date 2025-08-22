@@ -144,13 +144,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { showError, showSuccessToast } from '@/utils/errorHandler'
 import { formatDate } from '@/utils/uitls'
 import CommentSection from '@/components/CommentSection.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { handleAsync } = useErrorHandler()
+const { handleAsync,showSuccessToast,showError } = useErrorHandler()
 
 // 响应式数据
 const post = ref<PostDetail | null>(null)
@@ -513,9 +512,9 @@ background-color: var(--bg-main);
 }
 
 .action-btn:hover {
-  background: var(--hover-color);
-  border-color: var(--primary-color);
-  color: var(--primary-color);
+  background: var(--bg-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .action-btn:disabled {
@@ -524,8 +523,8 @@ background-color: var(--bg-main);
 }
 
 .action-btn.liked {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: white;
 }
 
@@ -556,13 +555,13 @@ background-color: var(--bg-main);
 }
 
 .share-btn {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: white;
 }
 
 .share-btn:hover {
-  background: var(--hover-color);
+  background: var(--bg-hover);
   border-color: var(--primary-hover);
   color: #000;
 }
@@ -597,7 +596,7 @@ background-color: var(--bg-main);
 }
 
 .share-option:hover {
-  background: var(--hover-color);
+  background: var(--bg-hover);
 }
 
 .share-option.wechat:hover {
@@ -611,7 +610,7 @@ background-color: var(--bg-main);
 }
 
 .share-option.link:hover {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
 }
 

@@ -47,9 +47,28 @@ export function showSuccessToast(message: string) {
     showConfirmButton: false,
     timer: 2000,
     timerProgressBar: true,
-    background: 'var(--bg-color)',
-    color: 'var(--text-color)',
-    iconColor: 'var(--primary-color)'
+    background: 'var(--bg-soft)',
+    color: 'var(--text-main)',
+    iconColor: 'var(--color-primary)'
+  })
+}
+
+/**
+ * 显示错误Toast提示（自动消失）
+ * @param message 错误消息
+ */
+export function showErrorToast(message: string) {
+  Swal.fire({
+    icon: 'error',
+    title: message,
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    background: 'var(--bg-soft)',
+    color: 'var(--text-main)',
+    iconColor: '#d33'
   })
 }
 

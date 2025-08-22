@@ -4,10 +4,9 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useErrorHandler } from '../composables/useErrorHandler'
 import type { RegisterRequest } from '../services/user'
-
 const router = useRouter()
 const userStore = useUserStore()
-const { handleFormSubmit, showSuccess, clearError } = useErrorHandler()
+const { handleFormSubmit, showSuccess, clearError,showSuccessToast } = useErrorHandler()
 
 // 表单状态
 const isLogin = ref(true) // true: 登录模式, false: 注册模式
@@ -40,7 +39,6 @@ const errors = reactive({
  */
 const toggleMode = () => {
   isLogin.value = !isLogin.value
-  clearErrors()
   clearError() // 清除全局错误状态
   // 注意：不清空表单数据，让用户可以在两种模式间保持已输入的数据
   // 只有在提交成功后才清空表单
@@ -140,7 +138,8 @@ const handleLogin = async () => {
   })
 
   if (result) {
-    showSuccess('登录成功！')
+    showSuccessToast("登录成功！")
+    // showSuccess('登录成功！')
     // 获取重定向路径，如果没有则跳转到首页
     const redirect = router.currentRoute.value.query.redirect as string || '/'
     router.push(redirect)
