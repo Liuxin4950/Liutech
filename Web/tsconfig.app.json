@@ -6,6 +6,8 @@
     "paths": {
       "@/*": ["src/*"]
     },
+    "allowJs": true,
+    "skipLibCheck": true,
 
     /* Linting */
     "strict": true,
@@ -16,5 +18,5 @@
     "noUncheckedSideEffectImports": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.js", "src/**/*.jsx"]
 }
