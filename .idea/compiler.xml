@@ -8,6 +8,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="LiuTech" />
+        <module name="LiuTech (1)" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="21" />
@@ -15,6 +16,7 @@
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="LiuTech" options="-parameters" />
+      <module name="LiuTech (1)" options="-parameters" />
     </option>
   </component>
 </project>

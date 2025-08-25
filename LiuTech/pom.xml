@@ -8,15 +8,15 @@
     <!-- 继承父模块 -->
     <parent>
         <groupId>chat.liuxin</groupId>
-        <artifactId>LiuTech</artifactId>
+        <artifactId>liutech-parent</artifactId>
         <version>1.0.0</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>LiuTech</artifactId>
+    <artifactId>liutech-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>LiuTech</name>
-    <description>博客后台主模块</description>
+    <name>LiuTech Backend</name>
+    <description>LiuTech博客系统后端服务</description>
 
     <dependencies>
         <!-- 只需声明需要的依赖名，版本由父模块统一管理 -->
