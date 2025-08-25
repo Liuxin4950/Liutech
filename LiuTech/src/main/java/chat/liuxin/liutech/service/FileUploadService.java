@@ -177,7 +177,7 @@ public class FileUploadService {
      */
     private void validateUser(Long userId) {
         if (userId == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         
         Users user = userMapper.selectById(userId);

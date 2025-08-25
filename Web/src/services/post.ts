@@ -32,6 +32,9 @@ export interface PostListItem {
   thumbnail?: string
   viewCount: number
   likeCount: number
+  favoriteCount: number
+  likeStatus: boolean
+  favoriteStatus: boolean
   createdAt: string
   updatedAt?: string
 }
@@ -277,6 +280,20 @@ export class PostService {
       await post(`/posts/${id}/like`)
     } catch (error) {
       console.error('点赞文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 收藏文章
+   * @param id 文章ID
+   * @returns 操作结果
+   */
+  static async favoritePost(id: number): Promise<void> {
+    try {
+      await post(`/posts/${id}/favorite`)
+    } catch (error) {
+      console.error('收藏文章失败:', error)
       throw error
     }
   }

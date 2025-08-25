@@ -61,6 +61,15 @@
             <span class="count">({{ currentLikeCount }})</span>
           </button>
 
+          <!-- 收藏按钮 -->
+          <button @click="handleFavorite" :class="['action-btn', { 'favorited': isFavorited }]" :disabled="favoriting">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+            </svg>
+            <span>{{ isFavorited ? '已收藏' : '收藏' }}</span>
+            <span class="count">({{ currentFavoriteCount }})</span>
+          </button>
+
           <!-- 评论数 -->
           <div class="action-info">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -133,8 +142,9 @@
       <p>文章不存在</p>
       <button @click="goBack" class="bg-primary text-center rounded transition mt-8">返回首页</button>
     </div>
-
-
+    
+    <!-- 登录弹窗 -->
+    <LoginModal v-model:visible="showLoginModal" message="点赞和收藏功能需要登录后才能使用" />
   </div>
 </template>
 
@@ -146,6 +156,8 @@ import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate } from '@/utils/uitls'
 import CommentSection from '@/components/CommentSection.vue'
+import { isLoggedIn } from '../utils/auth'
+import LoginModal from '../components/LoginModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -161,8 +173,16 @@ const isLiked = ref(false)
 const liking = ref(false)
 const currentLikeCount = ref(0)
 
+// 收藏按钮相关状态
+const isFavorited = ref(false)
+const favoriting = ref(false)
+const currentFavoriteCount = ref(0)
+
 // 分享功能相关状态
 const showShare = ref(false)
+
+// 登录弹窗相关状态
+const showLoginModal = ref(false)
 
 // 图片预加载相关状态
 const imageLoading = ref(true)
@@ -214,9 +234,13 @@ const loadPostDetail = async () => {
 
     const postData = await PostService.getPostDetail(postId)
     post.value = postData
+    console.log('postData', postData);
 
-    // 初始化喜欢数量
+    // 初始化点赞和收藏状态
     currentLikeCount.value = postData.likeCount || 0
+    currentFavoriteCount.value = postData.favoriteCount || 0
+    isLiked.value = postData.likeStatus || false
+    isFavorited.value = postData.favoriteStatus || false
 
     // 动态更新路由meta信息，用于面包屑导航
     if (postData && route.meta) {
@@ -244,24 +268,64 @@ const loadPostDetail = async () => {
 const handleLike = async () => {
   if (!post.value || liking.value) return
 
+  // 检查登录状态
+  if (!isLoggedIn()) {
+    showLoginModal.value = true
+    return
+  }
+
   await handleAsync(async () => {
     liking.value = true
 
     await PostService.likePost(post.value!.id)
 
-    // 更新本地状态
-    isLiked.value = true
-    currentLikeCount.value += 1
+    // 切换本地状态
+    const wasLiked = isLiked.value
+    isLiked.value = !wasLiked
+    currentLikeCount.value += wasLiked ? -1 : 1
 
     // 显示成功提示
-    showSuccessToast('点赞成功！')
+    showSuccessToast(isLiked.value ? '点赞成功！' : '取消点赞成功！')
   }, {
     onError: (err) => {
       console.error('点赞失败:', err)
-      showError('点赞失败，请稍后重试')
+      showError('操作失败，请稍后重试')
     },
     onFinally: () => {
       liking.value = false
+    }
+  })
+}
+
+// 处理收藏
+const handleFavorite = async () => {
+  if (!post.value || favoriting.value) return
+
+  // 检查登录状态
+  if (!isLoggedIn()) {
+    showLoginModal.value = true
+    return
+  }
+
+  await handleAsync(async () => {
+    favoriting.value = true
+
+    await PostService.favoritePost(post.value!.id)
+
+    // 切换本地状态
+    const wasFavorited = isFavorited.value
+    isFavorited.value = !wasFavorited
+    currentFavoriteCount.value += wasFavorited ? -1 : 1
+
+    // 显示成功提示
+    showSuccessToast(isFavorited.value ? '收藏成功！' : '取消收藏成功！')
+  }, {
+    onError: (err) => {
+      console.error('收藏失败:', err)
+      showError('操作失败，请稍后重试')
+    },
+    onFinally: () => {
+      favoriting.value = false
     }
   })
 }
@@ -529,6 +593,16 @@ background-color: var(--bg-main);
 }
 
 .action-btn.liked svg {
+  fill: currentColor;
+}
+
+.action-btn.favorited {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: white;
+}
+
+.action-btn.favorited svg {
   fill: currentColor;
 }
 

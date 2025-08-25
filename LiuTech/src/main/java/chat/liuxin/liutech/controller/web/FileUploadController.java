@@ -36,54 +36,8 @@ public class FileUploadController {
     @Autowired
     private UserService userService;
     
-    @Autowired
-    private JwtUtil jwtUtil;
     
-    /**
-     * 获取当前用户ID
-     */
-    private Long getCurrentUserId(HttpServletRequest request) {
-        try {
-            // 方法1：从SecurityContext获取认证信息
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.isAuthenticated()) {
-                String username = authentication.getName();
-                if (username != null && !"anonymousUser".equals(username)) {
-                    // 通过UserService根据用户名获取用户ID
-                    try {
-                        List<Users> users = userService.findByUserName(username);
-                        if (users != null && !users.isEmpty()) {
-                            Users user = users.get(0);
-                            log.debug("从SecurityContext获取用户ID成功: {}", user.getId());
-                            return user.getId();
-                        }
-                    } catch (Exception e) {
-                        log.warn("从SecurityContext获取用户信息失败: {}", e.getMessage());
-                    }
-                }
-            }
-            
-            // 方法2：直接从JWT token中解析用户ID（备用方案）
-            String authHeader = request.getHeader("Authorization");
-            if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-                if (jwtUtil.validateToken(token)) {
-                    Long userId = jwtUtil.getUserIdFromToken(token);
-                    if (userId != null) {
-                        log.debug("从JWT token获取用户ID成功: {}", userId);
-                        return userId;
-                    }
-                }
-            }
-            
-            log.debug("无法获取当前用户ID，用户可能未登录");
-            return null;
-            
-        } catch (Exception e) {
-            log.error("获取当前用户ID时发生错误: {}", e.getMessage(), e);
-            return null;
-        }
-    }
+
     
     /**
      * 上传图片（用于TinyMCE编辑器）
@@ -96,7 +50,7 @@ public class FileUploadController {
             @RequestParam("file") MultipartFile file,
             HttpServletRequest request) {
         
-        Long userId = getCurrentUserId(request);
+        Long userId = userService.getCurrentUserId();
         log.info("接收到图片上传请求 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename());
         
         FileUploadResl result = fileUploadService.uploadImage(file, userId);
@@ -116,7 +70,7 @@ public class FileUploadController {
             @RequestParam(value = "description", required = false) String description,
             HttpServletRequest request) {
         
-        Long userId = getCurrentUserId(request);
+        Long userId = userService.getCurrentUserId();
         log.info("接收到文档上传请求 - 用户ID: {}, 文件名: {}, 描述: {}", 
                 userId, file.getOriginalFilename(), description);
         
@@ -137,7 +91,7 @@ public class FileUploadController {
             @RequestParam(value = "description", required = false) String description,
             HttpServletRequest request) {
         
-        Long userId = getCurrentUserId(request);
+        Long userId = userService.getCurrentUserId();
         log.info("接收到资源上传请求 - 用户ID: {}, 文件名: {}, 描述: {}", 
                 userId, file.getOriginalFilename(), description);
         
@@ -157,7 +111,7 @@ public class FileUploadController {
             @RequestParam("file") MultipartFile file,
             HttpServletRequest request) {
         
-        Long userId = getCurrentUserId(request);
+        Long userId = userService.getCurrentUserId();
         log.info("接收到TinyMCE图片上传请求 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename());
         
         try {

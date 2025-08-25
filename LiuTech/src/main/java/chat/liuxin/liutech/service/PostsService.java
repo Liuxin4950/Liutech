@@ -1,6 +1,5 @@
 package chat.liuxin.liutech.service;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -17,10 +16,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.mapper.PostTagsMapper;
-import chat.liuxin.liutech.mapper.TagsMapper;
+import chat.liuxin.liutech.mapper.PostLikesMapper;
+import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.PostTags;
-import chat.liuxin.liutech.model.Tags;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
@@ -46,7 +45,10 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     private PostTagsMapper postTagsMapper;
     
     @Autowired
-    private TagsMapper tagsMapper;
+    private PostLikesMapper postLikesMapper;
+    
+    @Autowired
+    private PostFavoritesMapper postFavoritesMapper;
 
     /**
      * 分页查询文章列表
@@ -54,32 +56,27 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 分页结果
      */
     public PageResl<PostListResl> getPostList(PostQueryReq req) {
+        return getPostList(req, null);
+    }
+    
+    /**
+     * 分页查询文章列表（支持用户状态）
+     * @param req 查询请求
+     * @param userId 当前用户ID（可为null）
+     * @return 分页结果
+     */
+    public PageResl<PostListResl> getPostList(PostQueryReq req, Long userId) {
         // 创建分页对象
-        Page<Posts> page = new Page<>(req.getPage(), req.getSize());
+        Page<PostListResl> page = new Page<>(req.getPage(), req.getSize());
         
         // 处理搜索关键词
         String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
         
-        // 执行分页查询，MyBatis-Plus会自动处理count查询
-        IPage<Posts> result = postsMapper.selectPostsWithDetails(page, req.getCategoryId(), req.getTagId(), keyword, req.getStatus(), req.getAuthorId());
-        
-        // 为每篇文章查询标签信息
-        List<Posts> posts = result.getRecords();
-        if (!posts.isEmpty()) {
-            // 为每篇文章查询标签信息
-            for (Posts post : posts) {
-                List<Tags> tags = tagsMapper.selectTagsByPostId(post.getId());
-                post.setTags(tags);
-            }
-        }
-        
-        // 转换为响应对象
-        List<PostListResl> postList = result.getRecords().stream()
-                .map(this::convertToPostListResl)
-                .collect(Collectors.toList());
+        // 执行分页查询，直接返回PostListResl
+        IPage<PostListResl> result = postsMapper.selectPostListResl(page, req.getCategoryId(), req.getTagId(), keyword, req.getStatus(), req.getAuthorId(), userId);
         
         // 使用MyBatis-Plus自动统计的总数
-        return new PageResl<>(postList, result.getTotal(), result.getCurrent(), result.getSize());
+        return new PageResl<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 
     /**
@@ -89,8 +86,19 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(rollbackFor = Exception.class)
     public PostDetailResl getPostDetail(Long id) {
-        Posts post = postsMapper.selectPostWithDetails(id);
-        if (post == null) {
+        return getPostDetail(id, null);
+    }
+    
+    /**
+     * 根据ID查询文章详情（包含用户状态）
+     * @param id 文章ID
+     * @param userId 当前用户ID（可为null）
+     * @return 文章详情
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PostDetailResl getPostDetail(Long id, Long userId) {
+        PostDetailResl postDetail = postsMapper.selectPostDetailResl(id, userId);
+        if (postDetail == null) {
             return null;
         }
         
@@ -101,20 +109,22 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         this.update(updateWrapper);
         
         // 更新返回对象中的访问数
-        if (post.getViewCount() == null) {
-            post.setViewCount(1);
+        if (postDetail.getViewCount() == null) {
+            postDetail.setViewCount(1);
         } else {
-            post.setViewCount(post.getViewCount() + 1);
+            postDetail.setViewCount(postDetail.getViewCount() + 1);
         }
         
-        return convertToPostDetailResl(post);
+        return postDetail;
     }
     
     /**
-     * 点赞文章
+     * 点赞文章（已废弃，请使用toggleLike方法）
      * @param id 文章ID
      * @return 是否成功
+     * @deprecated 使用toggleLike(Long postId, Long userId)替代
      */
+    @Deprecated
     @Transactional(rollbackFor = Exception.class)
     public boolean likePost(Long id) {
         // 检查文章是否存在
@@ -129,6 +139,70 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                      .setSql("like_count = IFNULL(like_count, 0) + 1");
         return this.update(updateWrapper);
     }
+    
+    /**
+     * 切换文章点赞状态
+     * @param postId 文章ID
+     * @param userId 用户ID
+     * @return 点赞后的状态（true=已点赞，false=已取消点赞）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean toggleLike(Long postId, Long userId) {
+        // 检查文章是否存在
+        Posts post = this.getById(postId);
+        if (post == null || post.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
+        }
+        
+        // 查询当前点赞状态
+        Integer currentStatus = postLikesMapper.getLikeStatus(userId, postId);
+        boolean isLiked = currentStatus != null && currentStatus == 1;
+        
+        // 切换点赞状态
+        boolean newStatus = !isLiked;
+        postLikesMapper.insertOrUpdateLike(userId, postId, newStatus ? 1 : 0);
+        
+        // 更新文章点赞数
+        Integer likeCount = postLikesMapper.countLikesByPostId(postId);
+        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Posts::getId, postId)
+                     .set(Posts::getLikeCount, likeCount);
+        this.update(updateWrapper);
+        
+        return newStatus;
+    }
+    
+    /**
+     * 切换文章收藏状态
+     * @param postId 文章ID
+     * @param userId 用户ID
+     * @return 收藏后的状态（true=已收藏，false=已取消收藏）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean toggleFavorite(Long postId, Long userId) {
+        // 检查文章是否存在
+        Posts post = this.getById(postId);
+        if (post == null || post.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
+        }
+        
+        // 查询当前收藏状态
+        Integer currentStatus = postFavoritesMapper.getFavoriteStatus(userId, postId);
+        boolean isFavorited = currentStatus != null && currentStatus == 1;
+        
+        // 切换收藏状态
+        boolean newStatus = !isFavorited;
+        postFavoritesMapper.insertOrUpdateFavorite(userId, postId, newStatus ? 1 : 0);
+        
+        // 更新文章收藏数
+        Integer favoriteCount = postFavoritesMapper.countFavoritesByPostId(postId);
+        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Posts::getId, postId)
+                     .set(Posts::getFavoriteCount, favoriteCount);
+        this.update(updateWrapper);
+        
+        return newStatus;
+    }
 
     /**
      * 查询热门文章
@@ -136,10 +210,17 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 热门文章列表
      */
     public List<PostListResl> getHotPosts(Integer limit) {
-        List<Posts> posts = postsMapper.selectHotPosts(limit);
-        return posts.stream()
-                .map(this::convertToPostListResl)
-                .collect(Collectors.toList());
+        return getHotPosts(limit, null);
+    }
+    
+    /**
+     * 查询热门文章（支持用户状态）
+     * @param limit 限制数量
+     * @param userId 当前用户ID（可为null）
+     * @return 热门文章列表
+     */
+    public List<PostListResl> getHotPosts(Integer limit, Long userId) {
+        return postsMapper.selectHotPostListResl(limit, userId);
     }
 
     /**
@@ -148,96 +229,20 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 最新文章列表
      */
     public List<PostListResl> getLatestPosts(Integer limit) {
-        List<Posts> posts = postsMapper.selectLatestPosts(limit);
-        return posts.stream()
-                .map(this::convertToPostListResl)
-                .collect(Collectors.toList());
+        return getLatestPosts(limit, null);
+    }
+    
+    /**
+     * 查询最新文章（支持用户状态）
+     * @param limit 限制数量
+     * @param userId 当前用户ID（可为null）
+     * @return 最新文章列表
+     */
+    public List<PostListResl> getLatestPosts(Integer limit, Long userId) {
+        return postsMapper.selectLatestPostListResl(limit, userId);
     }
 
-    /**
-     * 转换为文章列表响应对象
-     */
-    private PostListResl convertToPostListResl(Posts post) {
-        PostListResl resl = new PostListResl();
-        BeanUtils.copyProperties(post, resl);
-        
-        // 设置分类信息
-        if (post.getCategory() != null) {
-            PostListResl.CategoryInfo categoryInfo = new PostListResl.CategoryInfo();
-            categoryInfo.setId(post.getCategory().getId());
-            categoryInfo.setName(post.getCategory().getName());
-            resl.setCategory(categoryInfo);
-        }
-        
-        // 设置作者信息
-        if (post.getAuthor() != null) {
-            PostListResl.AuthorInfo authorInfo = new PostListResl.AuthorInfo();
-            authorInfo.setId(post.getAuthor().getId());
-            authorInfo.setUsername(post.getAuthor().getUsername());
-            authorInfo.setAvatarUrl(post.getAuthor().getAvatarUrl());
-            resl.setAuthor(authorInfo);
-        }
-        
-        // 设置标签信息
-        if (post.getTags() != null && !post.getTags().isEmpty()) {
-            List<PostListResl.TagInfo> tagInfos = post.getTags().stream()
-                    .map(tag -> {
-                        PostListResl.TagInfo tagInfo = new PostListResl.TagInfo();
-                        tagInfo.setId(tag.getId());
-                        tagInfo.setName(tag.getName());
-                        return tagInfo;
-                    })
-                    .collect(Collectors.toList());
-            resl.setTags(tagInfos);
-        } else {
-            resl.setTags(new ArrayList<>());
-        }
-        
-        return resl;
-    }
 
-    /**
-     * 转换为文章详情响应对象
-     */
-    private PostDetailResl convertToPostDetailResl(Posts post) {
-        PostDetailResl resl = new PostDetailResl();
-        BeanUtils.copyProperties(post, resl);
-        
-        // 设置分类信息
-        if (post.getCategory() != null) {
-            PostDetailResl.CategoryInfo categoryInfo = new PostDetailResl.CategoryInfo();
-            categoryInfo.setId(post.getCategory().getId());
-            categoryInfo.setName(post.getCategory().getName());
-            categoryInfo.setDescription(post.getCategory().getDescription());
-            resl.setCategory(categoryInfo);
-        }
-        
-        // 设置作者信息
-        if (post.getAuthor() != null) {
-            PostDetailResl.AuthorInfo authorInfo = new PostDetailResl.AuthorInfo();
-            authorInfo.setId(post.getAuthor().getId());
-            authorInfo.setUsername(post.getAuthor().getUsername());
-            authorInfo.setAvatarUrl(post.getAuthor().getAvatarUrl());
-            resl.setAuthor(authorInfo);
-        }
-        
-        // 设置标签信息
-        if (post.getTags() != null && !post.getTags().isEmpty()) {
-            List<PostDetailResl.TagInfo> tagInfos = post.getTags().stream()
-                    .map(tag -> {
-                        PostDetailResl.TagInfo tagInfo = new PostDetailResl.TagInfo();
-                        tagInfo.setId(tag.getId());
-                        tagInfo.setName(tag.getName());
-                        return tagInfo;
-                    })
-                    .collect(Collectors.toList());
-            resl.setTags(tagInfos);
-        } else {
-            resl.setTags(new ArrayList<>());
-        }
-        
-        return resl;
-    }
 
     /**
      * 创建文章

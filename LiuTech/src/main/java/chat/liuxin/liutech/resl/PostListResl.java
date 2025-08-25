@@ -61,11 +61,26 @@ public class PostListResl {
     private Integer viewCount;
 
     /**
-     * 点赞次数
+     * 点赞数
      */
     private Integer likeCount;
 
     /**
+     * 收藏数
+     */
+    private Integer favoriteCount;
+
+    /**
+     * 当前用户点赞状态 (0-未点赞, 1-已点赞)
+     */
+    private Integer likeStatus;
+    
+    /**
+     * 当前用户收藏状态 (0-未收藏, 1-已收藏)
+     */
+    private Integer favoriteStatus;
+
+    /** 
      * 创建时间
      */
     private Date createdAt;

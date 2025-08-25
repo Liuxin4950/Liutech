@@ -39,5 +39,6 @@ import Live2d from '@/components/Live2d.vue'
   right: 0;
   width: 400px;
   height: 400px;
+  z-index: 1;
 }
 </style>

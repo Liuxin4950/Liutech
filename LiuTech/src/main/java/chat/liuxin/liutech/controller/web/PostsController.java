@@ -73,10 +73,15 @@ public class PostsController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long tagId,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "latest") String sort) {
+            @RequestParam(defaultValue = "latest") String sort,
+            HttpServletRequest request) {
         
         log.info("查询文章列表 - 页码: {}, 大小: {}, 分类: {}, 标签: {}, 关键词: {}, 排序: {}", 
                 page, size, categoryId, tagId, keyword, sort);
+        
+        // 获取当前用户ID（如果已登录）
+        Long currentUserId = userService.getCurrentUserId();
+        log.debug("当前用户ID: {}", currentUserId);
         
         PostQueryReq req = new PostQueryReq();
         req.setPage(page);
@@ -86,7 +91,7 @@ public class PostsController {
         req.setKeyword(keyword);
         req.setSort(sort);
         
-        PageResl<PostListResl> result = postsService.getPostList(req);
+        PageResl<PostListResl> result = postsService.getPostList(req, currentUserId);
         log.info("查询文章列表成功 - 总数: {}, 当前页: {}", result.getTotal(), result.getCurrent());
         
         return Result.success("查询成功", result);
@@ -99,10 +104,13 @@ public class PostsController {
      * @return 文章详情
      */
     @GetMapping("/{id}")
-    public Result<PostDetailResl> getPostDetail(@PathVariable Long id) {
+    public Result<PostDetailResl> getPostDetail(@PathVariable Long id, HttpServletRequest request) {
         log.info("查询文章详情 - ID: {}", id);
         
-        PostDetailResl post = postsService.getPostDetail(id);
+        // 获取当前用户ID（可能为null）
+        Long currentUserId = userService.getCurrentUserId();
+        
+        PostDetailResl post = postsService.getPostDetail(id, currentUserId);
         if (post == null) {
             log.warn("文章不存在 - ID: {}", id);
             return Result.fail(ErrorCode.ARTICLE_NOT_FOUND);
@@ -113,23 +121,65 @@ public class PostsController {
     }
     
     /**
-     * 点赞文章
+     * 切换文章点赞状态
      * 
      * @param id 文章ID
+     * @param request HTTP请求对象
      * @return 操作结果
      */
     @PostMapping("/{id}/like")
-    public Result<Void> likePost(@PathVariable Long id) {
-        log.info("点赞文章 - ID: {}", id);
+    public Result<String> toggleLike(@PathVariable Long id, HttpServletRequest request) {
+        log.info("切换文章点赞状态 - ID: {}", id);
         
-        boolean success = postsService.likePost(id);
-        if (!success) {
-            log.warn("文章不存在或点赞失败 - ID: {}", id);
-            return Result.fail(ErrorCode.ARTICLE_NOT_FOUND);
+        // 获取当前用户ID
+        Long currentUserId = userService.getCurrentUserId();
+        if (currentUserId == null) {
+            log.warn("用户未登录，无法点赞文章 - ID: {}", id);
+            return Result.fail(ErrorCode.UNAUTHORIZED);
         }
         
-        log.info("点赞文章成功 - ID: {}", id);
-        return Result.success("点赞成功", null);
+        try {
+            boolean isLiked = postsService.toggleLike(id, currentUserId);
+            String message = isLiked ? "点赞成功" : "取消点赞成功";
+            String action = isLiked ? "liked" : "unliked";
+            
+            log.info("切换文章点赞状态成功 - ID: {}, 用户ID: {}, 状态: {}", id, currentUserId, action);
+            return Result.success(message, action);
+        } catch (Exception e) {
+            log.error("切换文章点赞状态失败 - ID: {}, 用户ID: {}", id, currentUserId, e);
+            return Result.fail(ErrorCode.SYSTEM_ERROR);
+        }
+    }
+    
+    /**
+     * 切换文章收藏状态
+     * 
+     * @param id 文章ID
+     * @param request HTTP请求对象
+     * @return 操作结果
+     */
+    @PostMapping("/{id}/favorite")
+    public Result<String> toggleFavorite(@PathVariable Long id, HttpServletRequest request) {
+        log.info("切换文章收藏状态 - ID: {}", id);
+        
+        // 获取当前用户ID
+        Long currentUserId = userService.getCurrentUserId();
+        if (currentUserId == null) {
+            log.warn("用户未登录，无法收藏文章 - ID: {}", id);
+            return Result.fail(ErrorCode.UNAUTHORIZED);
+        }
+        
+        try {
+            boolean isFavorited = postsService.toggleFavorite(id, currentUserId);
+            String message = isFavorited ? "收藏成功" : "取消收藏成功";
+            String action = isFavorited ? "favorited" : "unfavorited";
+            
+            log.info("切换文章收藏状态成功 - ID: {}, 用户ID: {}, 状态: {}", id, currentUserId, action);
+            return Result.success(message, action);
+        } catch (Exception e) {
+            log.error("切换文章收藏状态失败 - ID: {}, 用户ID: {}", id, currentUserId, e);
+            return Result.fail(ErrorCode.SYSTEM_ERROR);
+        }
     }
 
     /**
@@ -211,9 +261,9 @@ public class PostsController {
         try {
             // 从请求中获取当前用户ID（这里需要根据实际的认证机制获取）
             // 假设通过JWT或Session获取用户ID
-            Long authorId = getCurrentUserId(request);
+            Long authorId = userService.getCurrentUserId();
             if (authorId == null) {
-                return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
+                return Result.fail(ErrorCode.UNAUTHORIZED);
             }
             
             PostCreateResl result = postsService.createPost(req, authorId);
@@ -237,9 +287,9 @@ public class PostsController {
     public Result<Boolean> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req, HttpServletRequest request) {
         try {
             // 获取当前用户ID
-            Long authorId = getCurrentUserId(request);
+            Long authorId = userService.getCurrentUserId();
             if (authorId == null) {
-                return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
+                return Result.fail(ErrorCode.UNAUTHORIZED);
             }
             
             // 将文章ID设置到请求对象中
@@ -264,9 +314,9 @@ public class PostsController {
     public Result<Boolean> deletePost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID
-            Long authorId = getCurrentUserId(request);
+            Long authorId = userService.getCurrentUserId();
             if (authorId == null) {
-                return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
+                return Result.fail(ErrorCode.UNAUTHORIZED);
             }
             
             boolean success = postsService.deletePost(id, authorId);
@@ -289,9 +339,9 @@ public class PostsController {
     public Result<Boolean> publishPost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID
-            Long authorId = getCurrentUserId(request);
+            Long authorId = userService.getCurrentUserId();
             if (authorId == null) {
-                return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
+                return Result.fail(ErrorCode.UNAUTHORIZED);
             }
             
             boolean success = postsService.publishPost(id, authorId);
@@ -314,9 +364,9 @@ public class PostsController {
     public Result<Boolean> unpublishPost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID
-            Long authorId = getCurrentUserId(request);
+            Long authorId = userService.getCurrentUserId();
             if (authorId == null) {
-                return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
+                return Result.fail(ErrorCode.UNAUTHORIZED);
             }
             
             boolean success = postsService.unpublishPost(id, authorId);
@@ -346,9 +396,9 @@ public class PostsController {
         
         try {
             // 获取当前用户ID
-            Long authorId = getCurrentUserId(request);
+            Long authorId = userService.getCurrentUserId();
             if (authorId == null) {
-                return Result.fail(ErrorCode.NOT_LOGIN_ERROR);
+                return Result.fail(ErrorCode.UNAUTHORIZED);
             }
             
             log.info("查询草稿箱 - 用户ID: {}, 页码: {}, 大小: {}, 关键词: {}", 
@@ -372,53 +422,5 @@ public class PostsController {
         }
     }
 
-    /**
-     * 获取当前登录用户ID
-     * 从JWT token和SecurityContext中获取用户ID
-     * 
-     * @param request HTTP请求对象
-     * @return 用户ID，如果未登录返回null
-     */
-    private Long getCurrentUserId(HttpServletRequest request) {
-        try {
-            // 方法1：从SecurityContext获取认证信息
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.isAuthenticated()) {
-                String username = authentication.getName();
-                if (username != null && !"anonymousUser".equals(username)) {
-                    // 通过UserService根据用户名获取用户ID
-                    try {
-                        List<Users> users = userService.findByUserName(username);
-                        if (users != null && !users.isEmpty()) {
-                            Users user = users.get(0);
-                            log.debug("从SecurityContext获取用户ID成功: {}", user.getId());
-                            return user.getId();
-                        }
-                    } catch (Exception e) {
-                        log.warn("从SecurityContext获取用户信息失败: {}", e.getMessage());
-                    }
-                }
-            }
-            
-            // 方法2：直接从JWT token中解析用户ID（备用方案）
-            String authHeader = request.getHeader("Authorization");
-            if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
-                if (jwtUtil.validateToken(token)) {
-                    Long userId = jwtUtil.getUserIdFromToken(token);
-                    if (userId != null) {
-                        log.debug("从JWT token获取用户ID成功: {}", userId);
-                        return userId;
-                    }
-                }
-            }
-            
-            log.debug("无法获取当前用户ID，用户可能未登录");
-            return null;
-            
-        } catch (Exception e) {
-            log.error("获取当前用户ID时发生错误: {}", e.getMessage(), e);
-            return null;
-        }
-    }
+
 }

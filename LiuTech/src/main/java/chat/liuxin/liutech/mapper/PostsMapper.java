@@ -11,6 +11,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import chat.liuxin.liutech.model.Posts;
+import chat.liuxin.liutech.resl.PostListResl;
+import chat.liuxin.liutech.resl.PostDetailResl;
 
 /**
  * 文章Mapper接口
@@ -36,11 +38,74 @@ public interface PostsMapper extends BaseMapper<Posts> {
                                        @Param("authorId") Long authorId);
 
     /**
-     * 根据ID查询文章详情（包含作者、分类、标签信息）
+     * 分页查询文章列表（包含作者、分类信息和用户点赞收藏状态）
+     * @param page 分页参数
+     * @param categoryId 分类ID（可选）
+     * @param tagId 标签ID（可选）
+     * @param keyword 搜索关键词（可选）
+     * @param status 文章状态（可选）
+     * @param authorId 作者ID（可选）
+     * @param userId 当前用户ID（用于查询点赞收藏状态）
+     * @return 文章列表
+     */
+    IPage<Posts> selectPostsWithDetailsAndUserStatus(Page<Posts> page, 
+                                                     @Param("categoryId") Long categoryId,
+                                                     @Param("tagId") Long tagId,
+                                                     @Param("keyword") String keyword,
+                                                     @Param("status") String status,
+                                                     @Param("authorId") Long authorId,
+                                                     @Param("userId") Long userId);
+
+    /**
+     * 查询文章详情（包含作者、分类、标签信息和用户点赞收藏状态）
      * @param id 文章ID
+     * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
      * @return 文章详情
      */
-    Posts selectPostWithDetails(@Param("id") Long id);
+    Posts selectPostWithDetails(@Param("id") Long id, @Param("userId") Long userId);
+
+    /**
+     * 分页查询文章列表（返回PostListResl）
+     * @param page 分页参数
+     * @param categoryId 分类ID（可选）
+     * @param tagId 标签ID（可选）
+     * @param keyword 搜索关键词（可选）
+     * @param status 文章状态（可选）
+     * @param authorId 作者ID（可选）
+     * @param userId 当前用户ID（用于查询点赞收藏状态）
+     * @return 文章列表
+     */
+    IPage<PostListResl> selectPostListResl(Page<PostListResl> page, 
+                                           @Param("categoryId") Long categoryId,
+                                           @Param("tagId") Long tagId,
+                                           @Param("keyword") String keyword,
+                                           @Param("status") String status,
+                                           @Param("authorId") Long authorId,
+                                           @Param("userId") Long userId);
+
+    /**
+     * 查询文章详情（返回PostDetailResl）
+     * @param id 文章ID
+     * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
+     * @return 文章详情
+     */
+    PostDetailResl selectPostDetailResl(@Param("id") Long id, @Param("userId") Long userId);
+
+    /**
+     * 查询热门文章列表（返回PostListResl）
+     * @param limit 限制数量
+     * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
+     * @return 热门文章列表
+     */
+    List<PostListResl> selectHotPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
+
+    /**
+     * 查询最新文章列表（返回PostListResl）
+     * @param limit 限制数量
+     * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
+     * @return 最新文章列表
+     */
+    List<PostListResl> selectLatestPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
 
     /**
      * 查询热门文章（根据评论数排序）

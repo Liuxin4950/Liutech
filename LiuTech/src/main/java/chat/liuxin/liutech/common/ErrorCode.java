@@ -12,7 +12,8 @@ import lombok.Getter;
  * - 1000-1999: 业务逻辑错误（用户相关、数据相关等）
  * - 500-599: 服务器内部错误
  * 
- * @author liuxin
+ * @author 刘鑫
+ * @date 2024-01-15
  */
 @Getter
 public enum ErrorCode {
@@ -134,6 +135,43 @@ public enum ErrorCode {
      */
     COMMENT_CONTENT_TOO_LONG(1205, "评论内容超出长度限制"),
 
+    // ========== 点赞收藏相关业务错误 1300-1399 ==========
+    /**
+     * 重复点赞
+     */
+    ALREADY_LIKED(1301, "您已经点赞过了"),
+    
+    /**
+     * 重复收藏
+     */
+    ALREADY_FAVORITED(1302, "您已经收藏过了"),
+    
+    /**
+     * 取消点赞失败
+     */
+    UNLIKE_FAILED(1303, "取消点赞失败"),
+    
+    /**
+     * 取消收藏失败
+     */
+    UNFAVORITE_FAILED(1304, "取消收藏失败"),
+
+    // ========== 公告相关业务错误 1400-1499 ==========
+    /**
+     * 公告不存在
+     */
+    ANNOUNCEMENT_NOT_FOUND(1401, "公告不存在"),
+    
+    /**
+     * 公告标题已存在
+     */
+    ANNOUNCEMENT_TITLE_EXISTS(1402, "公告标题已存在"),
+    
+    /**
+     * 无权限操作此公告
+     */
+    ANNOUNCEMENT_PERMISSION_DENIED(1403, "无权限操作此公告"),
+
     // ========== 系统错误 5xx ==========
     /**
      * 系统内部错误 - 未知的系统异常
@@ -150,16 +188,10 @@ public enum ErrorCode {
      */
     NETWORK_ERROR(502, "网络异常，请稍后重试"),
     
-    // ========== 通用操作错误 ==========
     /**
      * 操作失败 - 通用操作错误
      */
-    OPERATION_ERROR(50000, "操作失败"),
-    
-    /**
-     * 用户未登录 - 需要登录才能访问
-     */
-    NOT_LOGIN_ERROR(40001, "用户未登录");
+    OPERATION_ERROR(503, "操作失败");
 
     /**
      * 错误码
@@ -179,5 +211,19 @@ public enum ErrorCode {
     ErrorCode(int code, String message) {
         this.code = code;
         this.message = message;
+    }
+    
+    /**
+     * 根据错误码获取ErrorCode枚举
+     * @param code 错误码
+     * @return ErrorCode枚举，如果未找到则返回SYSTEM_ERROR
+     */
+    public static ErrorCode getByCode(int code) {
+        for (ErrorCode errorCode : ErrorCode.values()) {
+            if (errorCode.getCode() == code) {
+                return errorCode;
+            }
+        }
+        return SYSTEM_ERROR;
     }
 }

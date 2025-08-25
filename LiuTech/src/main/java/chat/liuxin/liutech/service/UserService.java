@@ -707,4 +707,43 @@ public class UserService {
         
         return profile;
     }
+
+    /**
+     * 获取当前登录用户ID
+     * 从JWT token和SecurityContext中获取用户ID
+     * 
+     * @author 刘鑫
+     * @date 2025-01-15
+     * @return 用户ID，如果未登录返回null
+     */
+    public Long getCurrentUserId() {
+        try {
+            // 方法1：从SecurityContext获取认证信息
+            org.springframework.security.core.Authentication authentication = 
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                String username = authentication.getName();
+                if (username != null && !"anonymousUser".equals(username)) {
+                    // 通过用户名获取用户ID
+                    try {
+                        List<Users> users = findByUserName(username);
+                        if (users != null && !users.isEmpty()) {
+                            Users user = users.get(0);
+                            log.debug("从SecurityContext获取用户ID成功: {}", user.getId());
+                            return user.getId();
+                        }
+                    } catch (Exception e) {
+                        log.warn("从SecurityContext获取用户信息失败: {}", e.getMessage());
+                    }
+                }
+            }
+            
+            log.debug("无法获取当前用户ID，用户可能未登录");
+            return null;
+            
+        } catch (Exception e) {
+            log.error("获取当前用户ID时发生错误: {}", e.getMessage(), e);
+            return null;
+        }
+    }
 }

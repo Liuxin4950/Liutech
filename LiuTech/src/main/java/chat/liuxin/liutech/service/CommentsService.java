@@ -136,17 +136,17 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
         
         if (authentication == null) {
             log.error("Authentication为null");
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         
         if (!authentication.isAuthenticated()) {
             log.error("用户未认证，isAuthenticated: {}", authentication.isAuthenticated());
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         
         if ("anonymousUser".equals(authentication.getPrincipal())) {
             log.error("用户为匿名用户，principal: {}", authentication.getPrincipal());
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         
         String username = authentication.getName();
@@ -157,7 +157,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
         
         if (users == null || users.isEmpty()) {
             log.error("根据用户名{}未找到用户", username);
-            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
         Users currentUser = users.get(0);
         log.info("获取到当前用户: {}", currentUser.getUsername());

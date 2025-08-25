@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="chat.liuxin.liutech.mapper.PostsMapper">
 
-    <!-- 结果映射 -->
+    <!-- Posts实体结果映射 -->
     <resultMap id="PostWithDetailsMap" type="chat.liuxin.liutech.model.Posts">
         <id property="id" column="id"/>
         <result property="title" column="title"/>
@@ -20,25 +20,75 @@
         <result property="thumbnail" column="thumbnail"/>
         <result property="viewCount" column="view_count"/>
         <result property="likeCount" column="like_count"/>
+        <result property="favoriteCount" column="favorite_count"/>
         <result property="commentCount" column="comment_count"/>
-        
-        <!-- 关联分类信息 -->
-        <association property="category" javaType="chat.liuxin.liutech.model.Categories">
+        <result property="likeStatus" column="like_status"/>
+        <result property="favoriteStatus" column="favorite_status"/>
+    </resultMap>
+
+    <!-- PostListResl响应类结果映射 -->
+    <resultMap id="PostListReslMap" type="chat.liuxin.liutech.resl.PostListResl">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="summary" column="summary"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="thumbnail" column="thumbnail"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="favoriteCount" column="favorite_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="likeStatus" column="like_status"/>
+        <result property="favoriteStatus" column="favorite_status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <!-- 分类信息 -->
+        <association property="category" javaType="chat.liuxin.liutech.resl.PostListResl$CategoryInfo">
+            <id property="id" column="cat_id"/>
+            <result property="name" column="cat_name"/>
+        </association>
+        <!-- 作者信息 -->
+        <association property="author" javaType="chat.liuxin.liutech.resl.PostListResl$AuthorInfo">
+            <id property="id" column="author_user_id"/>
+            <result property="username" column="author_username"/>
+            <result property="avatarUrl" column="author_avatar_url"/>
+        </association>
+        <!-- 标签信息 -->
+        <collection property="tags" ofType="chat.liuxin.liutech.resl.PostListResl$TagInfo">
+            <id property="id" column="tag_id"/>
+            <result property="name" column="tag_name"/>
+        </collection>
+    </resultMap>
+
+    <!-- PostDetailResl响应类结果映射 -->
+    <resultMap id="PostDetailReslMap" type="chat.liuxin.liutech.resl.PostDetailResl">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="summary" column="summary"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="thumbnail" column="thumbnail"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="favoriteCount" column="favorite_count"/>
+        <result property="commentCount" column="comment_count"/>
+        <result property="likeStatus" column="like_status"/>
+        <result property="favoriteStatus" column="favorite_status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <!-- 分类信息 -->
+        <association property="category" javaType="chat.liuxin.liutech.resl.PostDetailResl$CategoryInfo">
             <id property="id" column="cat_id"/>
             <result property="name" column="cat_name"/>
             <result property="description" column="cat_description"/>
         </association>
-        
-        <!-- 关联作者信息 -->
-        <association property="author" javaType="chat.liuxin.liutech.model.Users">
+        <!-- 作者信息 -->
+        <association property="author" javaType="chat.liuxin.liutech.resl.PostDetailResl$AuthorInfo">
             <id property="id" column="author_user_id"/>
             <result property="username" column="author_username"/>
-            <result property="email" column="author_email"/>
             <result property="avatarUrl" column="author_avatar_url"/>
         </association>
-        
-        <!-- 关联标签信息 -->
-        <collection property="tags" ofType="chat.liuxin.liutech.model.Tags">
+        <!-- 标签信息 -->
+        <collection property="tags" ofType="chat.liuxin.liutech.resl.PostDetailResl$TagInfo">
             <id property="id" column="tag_id"/>
             <result property="name" column="tag_name"/>
         </collection>
@@ -58,6 +108,7 @@
             p.status,
             p.view_count,
             p.like_count,
+            p.favorite_count,
             p.created_at,
             p.updated_at,
             p.created_by,
@@ -135,11 +186,105 @@
         ORDER BY p.created_at DESC
     </select>
 
-
+    <!-- 分页查询文章列表（包含用户点赞收藏状态） -->
+    <select id="selectPostsWithDetailsAndUserStatus" resultMap="PostWithDetailsMap">
+        SELECT 
+            p.id,
+            p.title,
+            p.content,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            p.created_at,
+            p.updated_at,
+            p.created_by,
+            p.updated_by,
+            p.deleted_at,
+            c.id as cat_id,
+            c.name as cat_name,
+            c.description as cat_description,
+            u.id as author_user_id,
+            u.username as author_username,
+            u.email as author_email,
+            u.avatar_url as author_avatar_url,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            CASE WHEN pl.is_like = 1 THEN 1 ELSE 0 END as like_status,
+            CASE WHEN pf.is_favorite = 1 THEN 1 ELSE 0 END as favorite_status
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId}
+        LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId}
+        WHERE p.deleted_at IS NULL
+        <if test="status != null and status != ''">
+            AND p.status = #{status}
+        </if>
+        <if test="status == null or status == ''">
+            AND p.status = 'published'
+        </if>
+        <if test="authorId != null">
+            AND p.author_id = #{authorId}
+        </if>
+        <if test="categoryId != null">
+            AND p.category_id = #{categoryId}
+        </if>
+        <if test="tagId != null">
+            AND EXISTS (SELECT 1 FROM post_tags pt2 WHERE pt2.post_id = p.id AND pt2.tag_id = #{tagId})
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') 
+                 OR p.content LIKE CONCAT('%', #{keyword}, '%')
+                 OR p.summary LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY p.created_at DESC
+    </select>
 
     <!-- 根据ID查询文章详情 -->
     <select id="selectPostWithDetails" resultMap="PostWithDetailsMap">
-        <include refid="baseSelectSql"/>
+        SELECT 
+            p.id,
+            p.title,
+            p.content,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            p.created_at,
+            p.updated_at,
+            p.created_by,
+            p.updated_by,
+            p.deleted_at,
+            c.id as cat_id,
+            c.name as cat_name,
+            c.description as cat_description,
+            u.id as author_user_id,
+            u.username as author_username,
+            u.email as author_email,
+            u.avatar_url as author_avatar_url,
+            t.id as tag_id,
+            t.name as tag_name,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            CASE WHEN pl.is_like = 1 THEN 1 ELSE 0 END as like_status,
+            CASE WHEN pf.is_favorite = 1 THEN 1 ELSE 0 END as favorite_status
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_tags pt ON p.id = pt.post_id
+        LEFT JOIN tags t ON pt.tag_id = t.id
+        LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId}
+        LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId}
+        WHERE p.deleted_at IS NULL
         AND p.id = #{id}
     </select>
 
@@ -368,6 +513,202 @@
         WHERE p.author_id = #{userId}
         AND p.status = 'published'
         AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 分页查询文章列表（返回PostListResl） -->
+    <select id="selectPostListResl" resultMap="PostListReslMap">
+        SELECT 
+            p.id,
+            p.title,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            p.created_at,
+            p.updated_at,
+            c.id as cat_id,
+            c.name as cat_name,
+            u.id as author_user_id,
+            u.username as author_username,
+            u.avatar_url as author_avatar_url,
+            t.id as tag_id,
+            t.name as tag_name,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <if test="userId != null">
+                CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
+                CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
+            </if>
+            <if test="userId == null">
+                0 as like_status,
+                0 as favorite_status
+            </if>
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_tags pt ON p.id = pt.post_id
+        LEFT JOIN tags t ON pt.tag_id = t.id
+        <if test="userId != null">
+            LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
+            LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
+        </if>
+        WHERE p.deleted_at IS NULL
+        <if test="categoryId != null">
+            AND p.category_id = #{categoryId}
+        </if>
+        <if test="tagId != null">
+            AND pt.tag_id = #{tagId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="status != null and status != ''">
+            AND p.status = #{status}
+        </if>
+        <if test="authorId != null">
+            AND p.author_id = #{authorId}
+        </if>
+        ORDER BY p.created_at DESC
+    </select>
+
+    <!-- 查询文章详情（返回PostDetailResl） -->
+    <select id="selectPostDetailResl" resultMap="PostDetailReslMap">
+        SELECT 
+            p.id,
+            p.title,
+            p.content,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            p.created_at,
+            p.updated_at,
+            c.id as category_id,
+            c.name as category_name,
+            c.description as category_description,
+            u.id as author_id,
+            u.username as author_username,
+            u.email as author_email,
+            u.avatar_url as author_avatar_url,
+            u.bio as author_bio,
+            t.id as tag_id,
+            t.name as tag_name,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <if test="userId != null">
+                CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
+                CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
+            </if>
+            <if test="userId == null">
+                0 as like_status,
+                0 as favorite_status
+            </if>
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_tags pt ON p.id = pt.post_id
+        LEFT JOIN tags t ON pt.tag_id = t.id
+        <if test="userId != null">
+            LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
+            LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
+        </if>
+        WHERE p.id = #{id} AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 查询热门文章列表（返回PostListResl） -->
+    <select id="selectHotPostListResl" resultMap="PostListReslMap">
+        SELECT 
+            p.id,
+            p.title,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            p.created_at,
+            p.updated_at,
+            c.id as cat_id,
+            c.name as cat_name,
+            u.id as author_user_id,
+            u.username as author_username,
+            u.avatar_url as author_avatar_url,
+            t.id as tag_id,
+            t.name as tag_name,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <if test="userId != null">
+                CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
+                CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
+            </if>
+            <if test="userId == null">
+                0 as like_status,
+                0 as favorite_status
+            </if>
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        <if test="userId != null">
+            LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
+            LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
+        </if>
+        WHERE p.deleted_at IS NULL AND p.status = 'published'
+        ORDER BY (p.view_count * 0.3 + p.like_count * 0.4 + p.favorite_count * 0.3) DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 查询最新文章列表（返回PostListResl） -->
+    <select id="selectLatestPostListResl" resultMap="PostListReslMap">
+        SELECT 
+            p.id,
+            p.title,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.category_id,
+            p.author_id,
+            p.status,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            p.created_at,
+            p.updated_at,
+            c.id as category_id,
+            c.name as category_name,
+            u.id as author_id,
+            u.username as author_username,
+            u.avatar_url as author_avatar_url,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <if test="userId != null">
+                CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
+                CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
+            </if>
+            <if test="userId == null">
+                0 as like_status,
+                0 as favorite_status
+            </if>
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_tags pt ON p.id = pt.post_id
+        LEFT JOIN tags t ON pt.tag_id = t.id
+        <if test="userId != null">
+            LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
+            LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
+        </if>
+        WHERE p.deleted_at IS NULL AND p.status = 'published'
+        ORDER BY p.created_at DESC
+        LIMIT #{limit}
     </select>
 
 </mapper>
