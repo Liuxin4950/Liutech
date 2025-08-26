@@ -3,6 +3,8 @@ package chat.liuxin.liutech.config;
 import java.util.Date;
 
 import org.apache.ibatis.reflection.MetaObject;
+import org.springframework.beans.factory.annotation.Autowired; // 新增
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken; // 新增
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -10,16 +12,23 @@ import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 
+import chat.liuxin.liutech.mapper.UserMapper; // 新增：查询用户ID
+import chat.liuxin.liutech.model.Users;       // 新增：用户实体
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * MyBatis-Plus 字段自动填充处理器
  * 自动填充BaseEntity中的通用字段
  * 支持从Spring Security上下文获取当前用户信息
+ *
+ * 作者：刘鑫，时间：2025-08-26（Asia/Shanghai）
  */
 @Slf4j
 @Component
 public class MyMetaObjectHandler implements MetaObjectHandler {
+
+    @Autowired
+    private UserMapper userMapper; // 说明：用于通过用户名查询用户ID，避免默认值1L的问题
 
     /**
      * 插入时自动填充
@@ -27,63 +36,54 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void insertFill(MetaObject metaObject) {
         Date now = new Date();
-        
-        // 自动填充创建时间
         this.strictInsertFill(metaObject, "createdAt", Date.class, now);
-        
-        // 自动填充更新时间
         this.strictInsertFill(metaObject, "updatedAt", Date.class, now);
-        
-        // 从Spring Security上下文获取当前用户ID
+
         Long currentUserId = getCurrentUserId();
-        
-        // 自动填充创建人ID
         this.strictInsertFill(metaObject, "createdBy", Long.class, currentUserId);
-        
-        // 自动填充更新人ID
         this.strictInsertFill(metaObject, "updatedBy", Long.class, currentUserId);
     }
     
     /**
      * 从Spring Security上下文获取当前用户ID
-     * 
-     * @return 当前用户ID，如果未认证则返回默认值1L
+     * 优先策略：
+     * 1) 若 Authentication 是 UsernamePasswordAuthenticationToken，且 details 中放了 userId（由Jwt过滤器设置），直接取用；
+     * 2) 若 principal 是用户名，则调用 UserMapper.findByUserName 查询数据库获取用户ID；
+     * 3) 否则返回 null（调用处可决定是否给默认值）。
      */
     private Long getCurrentUserId() {
         try {
-            // 获取当前认证信息
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            
-            if (authentication != null && authentication.isAuthenticated() 
-                && !"anonymousUser".equals(authentication.getPrincipal())) {
-                
-                // 获取用户名（在JWT过滤器中设置的principal）
-                String username = (String) authentication.getPrincipal();
-                
-                if (StringUtils.hasText(username)) {
-                    // TODO: 这里可以根据用户名查询数据库获取用户ID
-                    // 暂时使用简单的转换逻辑，实际项目中应该查询用户表
-                    log.debug("当前认证用户: {}", username);
-                    
-                    // 示例：如果用户名是数字，直接转换；否则返回默认值
-                    try {
-                        return Long.parseLong(username);
-                    } catch (NumberFormatException e) {
-                        // 如果用户名不是数字，可以通过用户服务查询用户ID
-                        // 这里暂时返回默认值，实际应该注入UserService进行查询
-                        log.warn("无法从用户名 {} 解析用户ID，使用默认值", username);
-                        return 1L;
-                    }
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return null;
+            }
+            if ("anonymousUser".equals(authentication.getPrincipal())) {
+                return null;
+            }
+
+            // 1) 尝试从details中读取（JwtAuthenticationFilter已写入userId）
+            if (authentication instanceof UsernamePasswordAuthenticationToken token) {
+                Object details = token.getDetails();
+                if (details instanceof Long userId) {
+                    return userId;
                 }
             }
-            
-            log.debug("未找到认证信息，使用默认用户ID");
-            return 1L;
-            
+
+            // 2) 回退：从principal的用户名查询数据库
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof String username && StringUtils.hasText(username)) {
+                // findByUserName 可能返回多条，取第一条
+                Users user = userMapper.findByUserName(username).stream().findFirst().orElse(null);
+                if (user != null && user.getId() != null) {
+                    return user.getId();
+                }
+            }
+        
         } catch (Exception e) {
             log.error("获取当前用户ID时发生错误: {}", e.getMessage());
-            return 1L;
         }
+        // 返回null，让调用处决定是否兜底
+        return null;
     }
 
     /**
@@ -92,14 +92,11 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override
     public void updateFill(MetaObject metaObject) {
         Date now = new Date();
-        
-        // 自动填充更新时间
         this.strictUpdateFill(metaObject, "updatedAt", Date.class, now);
-        
-        // 从Spring Security上下文获取当前用户ID
+
         Long currentUserId = getCurrentUserId();
-        
-        // 自动填充更新人ID
-        this.strictUpdateFill(metaObject, "updatedBy", Long.class, currentUserId);
+        if (currentUserId != null) {
+            this.strictUpdateFill(metaObject, "updatedBy", Long.class, currentUserId);
+        }
     }
 }

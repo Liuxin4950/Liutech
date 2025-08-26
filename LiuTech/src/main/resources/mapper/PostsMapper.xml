@@ -52,11 +52,8 @@
             <result property="username" column="author_username"/>
             <result property="avatarUrl" column="author_avatar_url"/>
         </association>
-        <!-- 标签信息 -->
-        <collection property="tags" ofType="chat.liuxin.liutech.resl.PostListResl$TagInfo">
-            <id property="id" column="tag_id"/>
-            <result property="name" column="tag_name"/>
-        </collection>
+        <!-- 标签信息（使用嵌套查询，避免主查询JOIN导致分页数量减少） -->
+        <collection property="tags" ofType="chat.liuxin.liutech.resl.PostListResl$TagInfo" column="{postId=id}" select="selectTagInfosByPostId"/>
     </resultMap>
 
     <!-- PostDetailResl响应类结果映射 -->
@@ -323,8 +320,8 @@
         LIMIT #{limit}
     </select>
 
-    <!-- 查询最新文章 -->
-    <select id="selectLatestPosts" resultMap="PostWithDetailsMap">
+    <!-- 查询最新文章列表（返回PostListResl） -->
+    <select id="selectLatestPostListResl" resultMap="PostListReslMap">
         SELECT 
             p.id,
             p.title,
@@ -334,185 +331,35 @@
             p.category_id,
             p.author_id,
             p.status,
-            IFNULL(p.view_count, 0) as view_count,
-            IFNULL(p.like_count, 0) as like_count,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
             p.created_at,
             p.updated_at,
             c.id as cat_id,
             c.name as cat_name,
-            c.description as cat_description,
             u.id as author_user_id,
             u.username as author_username,
-            u.email as author_email,
             u.avatar_url as author_avatar_url,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <if test="userId != null">
+                CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
+                CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
+            </if>
+            <if test="userId == null">
+                0 as like_status,
+                0 as favorite_status
+            </if>
         FROM posts p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.author_id = u.id
-        WHERE p.deleted_at IS NULL
-        AND p.status = 'published'
+        <if test="userId != null">
+            LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
+            LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
+        </if>
+        WHERE p.deleted_at IS NULL AND p.status = 'published'
         ORDER BY p.created_at DESC
         LIMIT #{limit}
-    </select>
-
-    <!-- 根据分类ID查询文章数量 -->
-    <select id="countPostsByCategory" resultType="java.lang.Integer">
-        SELECT COUNT(*)
-        FROM posts p
-        WHERE p.category_id = #{categoryId}
-        AND p.deleted_at IS NULL
-    </select>
-
-    <!-- 根据标签ID查询文章数量 -->
-    <select id="countPostsByTag" resultType="java.lang.Integer">
-        SELECT COUNT(DISTINCT p.id)
-        FROM posts p
-        INNER JOIN post_tags pt ON p.id = pt.post_id
-        WHERE pt.tag_id = #{tagId}
-        AND p.deleted_at IS NULL
-    </select>
-
-    <!-- 插入文章 -->
-    <insert id="insert" parameterType="chat.liuxin.liutech.model.Posts" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO posts (
-            title,
-            content,
-            summary,
-            category_id,
-            author_id,
-            status,
-            cover_image,
-            thumbnail,
-            view_count,
-            like_count,
-            created_at,
-            updated_at,
-            created_by,
-            updated_by
-        ) VALUES (
-            #{title},
-            #{content},
-            #{summary},
-            #{categoryId},
-            #{authorId},
-            #{status},
-            #{coverImage},
-            #{thumbnail},
-            #{viewCount},
-            #{likeCount},
-            #{createdAt},
-            #{updatedAt},
-            #{createdBy},
-            #{updatedBy}
-        )
-    </insert>
-
-    <!-- 更新文章 -->
-    <update id="updateById" parameterType="chat.liuxin.liutech.model.Posts">
-        UPDATE posts SET
-            title = #{title},
-            content = #{content},
-            summary = #{summary},
-            category_id = #{categoryId},
-            status = #{status},
-            cover_image = #{coverImage},
-            thumbnail = #{thumbnail},
-            view_count = #{viewCount},
-            like_count = #{likeCount},
-            updated_at = #{updatedAt},
-            updated_by = #{updatedBy}
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </update>
-
-    <!-- 软删除文章 -->
-    <update id="deleteById">
-        UPDATE posts SET
-            deleted_at = #{deletedAt},
-            updated_by = #{updatedBy}
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </update>
-
-    <!-- 更新文章状态 -->
-    <update id="updateStatus">
-        UPDATE posts SET
-            status = #{status},
-            updated_at = #{updatedAt},
-            updated_by = #{updatedBy}
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </update>
-
-    <!-- 根据ID查询文章（不包含关联信息） -->
-    <select id="selectById" resultType="chat.liuxin.liutech.model.Posts">
-        SELECT 
-            id,
-            title,
-            content,
-            summary,
-            category_id,
-            author_id,
-            status,
-            created_at,
-            updated_at,
-            created_by,
-            updated_by,
-            deleted_at
-        FROM posts
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </select>
-
-    <!-- 检查文章是否存在 -->
-    <select id="existsById" resultType="java.lang.Boolean">
-        SELECT COUNT(*) > 0
-        FROM posts
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </select>
-    
-    <!-- 根据用户ID和状态统计文章数量 -->
-    <select id="countPostsByUserIdAndStatus" resultType="java.lang.Integer">
-        SELECT COUNT(*)
-        FROM posts p
-        WHERE p.author_id = #{userId}
-        AND p.status = #{status}
-        AND p.deleted_at IS NULL
-    </select>
-    
-    <!-- 获取用户最后发文时间 -->
-    <select id="getLastPostTimeByUserId" resultType="java.util.Date">
-        SELECT MAX(p.created_at)
-        FROM posts p
-        WHERE p.author_id = #{userId}
-        AND p.status = 'published'
-        AND p.deleted_at IS NULL
-    </select>
-    
-    <!-- 统计全站已发布文章数量 -->
-    <select id="countAllPublishedPosts" resultType="java.lang.Integer">
-        SELECT COUNT(*)
-        FROM posts p
-        WHERE p.status = 'published'
-        AND p.deleted_at IS NULL
-    </select>
-    
-    <!-- 统计全站文章总浏览量 -->
-    <select id="countAllViews" resultType="java.lang.Long">
-        SELECT IFNULL(SUM(p.view_count), 0)
-        FROM posts p
-        WHERE p.status = 'published'
-        AND p.deleted_at IS NULL
-    </select>
-    
-    <!-- 统计用户所有文章的浏览量总和 -->
-    <select id="countViewsByUserId" resultType="java.lang.Long">
-        SELECT IFNULL(SUM(p.view_count), 0)
-        FROM posts p
-        WHERE p.author_id = #{userId}
-        AND p.status = 'published'
-        AND p.deleted_at IS NULL
     </select>
 
     <!-- 分页查询文章列表（返回PostListResl） -->
@@ -536,8 +383,6 @@
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
-            t.id as tag_id,
-            t.name as tag_name,
             (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
             <if test="userId != null">
                 CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
@@ -550,8 +395,6 @@
         FROM posts p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.author_id = u.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
         <if test="userId != null">
             LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
             LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
@@ -561,7 +404,7 @@
             AND p.category_id = #{categoryId}
         </if>
         <if test="tagId != null">
-            AND pt.tag_id = #{tagId}
+            AND EXISTS (SELECT 1 FROM post_tags pt2 WHERE pt2.post_id = p.id AND pt2.tag_id = #{tagId})
         </if>
         <if test="keyword != null and keyword != ''">
             AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
@@ -700,8 +543,6 @@
         FROM posts p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN users u ON p.author_id = u.id
-        LEFT JOIN post_tags pt ON p.id = pt.post_id
-        LEFT JOIN tags t ON pt.tag_id = t.id
         <if test="userId != null">
             LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
             LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
@@ -709,6 +550,179 @@
         WHERE p.deleted_at IS NULL AND p.status = 'published'
         ORDER BY p.created_at DESC
         LIMIT #{limit}
+    </select>
+
+    <!-- 根据分类ID查询文章数量 -->
+    <select id="countPostsByCategory" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.category_id = #{categoryId}
+        AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 根据标签ID查询文章数量 -->
+    <select id="countPostsByTag" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT p.id)
+        FROM posts p
+        INNER JOIN post_tags pt ON p.id = pt.post_id
+        WHERE pt.tag_id = #{tagId}
+        AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 插入文章 -->
+    <insert id="insert" parameterType="chat.liuxin.liutech.model.Posts" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO posts (
+            title,
+            content,
+            summary,
+            category_id,
+            author_id,
+            status,
+            cover_image,
+            thumbnail,
+            view_count,
+            like_count,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by
+        ) VALUES (
+            #{title},
+            #{content},
+            #{summary},
+            #{categoryId},
+            #{authorId},
+            #{status},
+            #{coverImage},
+            #{thumbnail},
+            #{viewCount},
+            #{likeCount},
+            #{createdAt},
+            #{updatedAt},
+            #{createdBy},
+            #{updatedBy}
+        )
+    </insert>
+
+    <!-- 更新文章 -->
+    <update id="updateById" parameterType="chat.liuxin.liutech.model.Posts">
+        UPDATE posts SET
+            title = #{title},
+            content = #{content},
+            summary = #{summary},
+            category_id = #{categoryId},
+            status = #{status},
+            cover_image = #{coverImage},
+            thumbnail = #{thumbnail},
+            view_count = #{viewCount},
+            like_count = #{likeCount},
+            updated_at = #{updatedAt},
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </update>
+
+    <!-- 软删除文章 -->
+    <update id="deleteById">
+        UPDATE posts SET
+            deleted_at = #{deletedAt},
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </update>
+
+    <!-- 更新文章状态 -->
+    <update id="updateStatus">
+        UPDATE posts SET
+            status = #{status},
+            updated_at = #{updatedAt},
+            updated_by = #{updatedBy}
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </update>
+
+    <!-- 根据ID查询文章（不包含关联信息） -->
+    <select id="selectById" resultType="chat.liuxin.liutech.model.Posts">
+        SELECT 
+            id,
+            title,
+            content,
+            summary,
+            category_id,
+            author_id,
+            status,
+            created_at,
+            updated_at,
+            created_by,
+            updated_by,
+            deleted_at
+        FROM posts
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </select>
+
+    <!-- 检查文章是否存在 -->
+    <select id="existsById" resultType="java.lang.Boolean">
+        SELECT COUNT(*) > 0
+        FROM posts
+        WHERE id = #{id}
+        AND deleted_at IS NULL
+    </select>
+    
+    <!-- 根据用户ID和状态统计文章数量 -->
+    <select id="countPostsByUserIdAndStatus" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.author_id = #{userId}
+        AND p.status = #{status}
+        AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 获取用户最后发文时间 -->
+    <select id="getLastPostTimeByUserId" resultType="java.util.Date">
+        SELECT MAX(p.created_at)
+        FROM posts p
+        WHERE p.author_id = #{userId}
+        AND p.status = 'published'
+        AND p.deleted_at IS NULL
+    </select>
+    
+    <!-- 统计全站已发布文章数量 -->
+    <select id="countAllPublishedPosts" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.status = 'published'
+        AND p.deleted_at IS NULL
+    </select>
+    
+    <!-- 统计全站文章总浏览量 -->
+    <select id="countAllViews" resultType="java.lang.Long">
+        SELECT IFNULL(SUM(p.view_count), 0)
+        FROM posts p
+        WHERE p.status = 'published'
+        AND p.deleted_at IS NULL
+    </select>
+    
+    <!-- 统计用户所有文章的浏览量总和 -->
+    <select id="countViewsByUserId" resultType="java.lang.Long">
+        SELECT IFNULL(SUM(p.view_count), 0)
+        FROM posts p
+        WHERE p.author_id = #{userId}
+        AND p.status = 'published'
+        AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 分页查询文章列表（返回PostListResl）- 已上移至文件底部，保持逻辑清晰 -->
+
+    <!-- 嵌套查询：根据文章ID获取标签信息（用于PostListReslMap.tags） -->
+    <select id="selectTagInfosByPostId" resultType="chat.liuxin.liutech.resl.PostListResl$TagInfo">
+        SELECT 
+            t.id AS id,
+            t.name AS name
+        FROM tags t
+        INNER JOIN post_tags pt ON t.id = pt.tag_id
+        WHERE pt.post_id = #{postId}
+        ORDER BY t.name
     </select>
 
 </mapper>
