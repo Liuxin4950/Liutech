@@ -57,33 +57,12 @@
           </div>
 
           <!-- 分页器 -->
-          <div v-if="!postsLoading && allPosts.length > 0" class="paging-tab flex flex-jc flex-ac gap-16 mt-12">
-            <button @click="goToPostsPage(postsPagination.current - 1)" :disabled="postsPagination.current <= 1"
-              class="bg-primary text-sm font-medium p-8 rounded transition text-muted"
-              :class="{ 'btn-disabled': postsPagination.current <= 1 }">
-              上一页
-            </button>
-
-            <div class="flex flex-ac gap-16">
-              <span class="flex gap-8 ">
-                <button v-for="page in visiblePostsPages" :key="page" @click="goToPostsPage(page)"
-                  :class="['text-sm text-muted p-8 rounded transition', { 'bg-primary text-white ': page === postsPagination.current, 'bg-primary btn-disabled': page !== postsPagination.current }]">
-                  {{ page }}
-                </button>
-              </span>
-
-              <span class="text-sm text-muted">
-                第 {{ postsPagination.current }} 页，共 {{ postsPagination.pages }} 页
-              </span>
-            </div>
-
-            <button @click="goToPostsPage(postsPagination.current + 1)"
-              :disabled="postsPagination.current >= postsPagination.pages"
-              class="bg-primary text-sm  p-8 rounded transition text-muted"
-              :class="{ 'btn-disabled cursor-not-allowed': postsPagination.current >= postsPagination.pages }">
-              下一页
-            </button>
-          </div>
+          <Pagination 
+            v-if="!postsLoading && allPosts.length > 0"
+            :current-page="postsPagination.current"
+            :total-pages="postsPagination.pages"
+            @page-change="goToPostsPage"
+          />
         </div>
       </main>
       <!-- 右侧主内容区 -->
@@ -132,6 +111,7 @@ import CategoriesCard from '@/components/CategoriesCard.vue'
 import HotTags from '@/components/HotTags.vue'
 import RecommendedPosts from '@/components/RecommendedPosts.vue'
 import FriendLinks from '@/components/FriendLinks.vue'
+import Pagination from '@/components/Pagination.vue'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
@@ -206,51 +186,12 @@ const categoriesLoading = computed(() => categoryStore.isLoading)
 const hotTags = computed(() => tagStore.hotTags)
 const tagsLoading = computed(() => tagStore.isHotTagsLoading)
 
-// 计算可见的页码
-const visiblePostsPages = computed(() => {
-  const current = postsPagination.value.current
-  const total = postsPagination.value.pages
-  const pages: number[] = []
-
-  if (total <= 7) {
-    // 总页数小于等于7，显示全部页码
-    for (let i = 1; i <= total; i++) {
-      pages.push(i)
-    }
-  } else {
-    // 总页数大于7，显示部分页码
-    if (current <= 4) {
-      // 当前页在前4页
-      for (let i = 1; i <= 5; i++) {
-        pages.push(i)
-      }
-      pages.push(-1) // 省略号
-      pages.push(total)
-    } else if (current >= total - 3) {
-      // 当前页在后4页
-      pages.push(1)
-      pages.push(-1) // 省略号
-      for (let i = total - 4; i <= total; i++) {
-        pages.push(i)
-      }
-    } else {
-      // 当前页在中间
-      pages.push(1)
-      pages.push(-1) // 省略号
-      for (let i = current - 1; i <= current + 1; i++) {
-        pages.push(i)
-      }
-      pages.push(-1) // 省略号
-      pages.push(total)
-    }
-  }
-  return pages
-})
+// 注意：visiblePostsPages 计算属性已移除，现在使用 Pagination 组件内部处理
 
 
 // 跳转到文章详情
 const goToPost = (postId: number) => {
-  router.push(`/post/${postId}`)
+  router.push(`/post/${postId}?from=home`)
 }
 // 跳转到分类详情
 const goToCategory = (categoryId: number) => {

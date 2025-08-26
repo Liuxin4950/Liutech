@@ -1,15 +1,19 @@
 <template>
   <div class="content max-w-1200 mx-auto p-20">
     <!-- 标签头部 -->
-    <div v-if="tagInfo" class="tag-header p-20 rounded-lg mb-20 text-center">
-      <h1 class="tag-title font-bold mb-16 flex flex-ac flex-jc gap-16">
-        <span class="tag-icon">🏷️</span>
-        {{ tagInfo.name }}
-      </h1>
-      <div class="flex flex-jc gap-30 flex-fw">
-        <div class="flex flex-ac gap-8 text-lg font-medium">
-          <span class="text-xl">📄</span>
-          <span>{{ tagInfo.postCount || 0 }} 篇文章</span>
+    <div v-if="tagInfo" class="tag-header card bg-soft p-20 rounded-lg mb-20 text-center">
+      <div class="flex flex-col gap-16">
+        <div class="flex flex-col gap-12">
+          <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
+            <span class="text-3xl">🏷️</span> 标签云
+          </h1>
+          <p style="text-align: left;" class="text-muted text-base ">
+            探索不同主题的文章标签
+          </p>
+          <div class="flex flex-ac gap-8">
+            <span class="badge"> {{ tagInfo.name }}</span>
+            <span class="badge">{{ tagInfo.postCount || 0 }} 篇文章</span>
+          </div>
         </div>
       </div>
     </div>
@@ -38,43 +42,39 @@
         <p class="loading-text">正在加载文章列表...</p>
       </div>
 
-      <!-- 文章列表 -->
-      <div v-else-if="posts.length > 0" class="flex flex-col gap-20">
-        <article v-for="post in posts" :key="post.id" class="post-card card border rounded-lg transition hover-lift">
-          <router-link :to="`/posts/${post.id}`" class="flex gap-20">
-            <div class="post-cover rounded-lg">
-              <img color="fit rounded-lg" :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'"
-                :alt="post.title" class="fit" />
-            </div>
-            <div class="flex flex-col gap-12">
-              <h3 class="post-title text-xl font-bold">{{ post.title }}</h3>
-              <p class="post-summary" v-if="post.summary">{{ post.summary }}</p>
-              <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
-                <router-link v-for="tag in post.tags" :key="tag.id" :to="`/tags/${tag.id}`"
-                  class="tag">
+      <!-- 文章列表：统一首页样式 -->
+      <div v-else-if="posts.length > 0" class="list gap-16">
+        <article v-for="post in posts" :key="post.id" class="flex gap-16 p-16 rounded-lg transition link card bg-card"
+          @click="goToPost(post.id)">
+          <!-- 缩略图统一 -->
+          <div class="posts-img">
+            <img :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'" :alt="post.title"
+              class="fit" />
+          </div>
+
+          <!-- 内容区统一 -->
+          <div class="flex flex-col flex-sb flex-1">
+            <div class="flex-1 flex flex-col gap-12">
+              <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
+              <p v-if="post.summary" class="text-subtle text-base">{{ post.summary }}</p>
+              <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
+                <router-link v-for="tag in post.tags" :key="tag.id" :to="`/tags/${tag.id}`" class="tag" @click.stop>
                   {{ tag.name }}
                 </router-link>
               </div>
-              <div class="flex gap-20 flex-fw">
-                <div class="meta-item flex flex-ac gap-8 text-sm">
-                  <span class="text-base">👤</span>
-                  <span>{{ post.author.username }}</span>
-                </div>
-                <div class="meta-item flex flex-ac gap-8 text-sm">
-                  <span class="text-base">📅</span>
-                  <span>{{ formatDate(post.createdAt) }}</span>
-                </div>
-                <div class="meta-item flex flex-ac gap-8 text-sm">
-                  <span class="text-base">👁️</span>
-                  <span>{{ post.viewCount || 0 }}</span>
-                </div>
-                <div class="meta-item flex flex-ac gap-8 text-sm">
-                  <span class="text-base">💬</span>
-                  <span>{{ post.commentCount || 0 }}</span>
-                </div>
+            </div>
+            <div class="flex flex-sb flex-ac mt-8">
+              <div class="flex flex-ac gap-8 text-subtle">
+                <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
+              </div>
+              <div class="flex gap-12 text-sm text-subtle">
+                <span>👁️ {{ post.viewCount || 0 }}</span>
+                <span>❤️ {{ post.likeCount || 0 }}</span>
+                <span>💬 {{ post.commentCount || 0 }}</span>
+                <span>{{ formatDate(post.createdAt) }}</span>
               </div>
             </div>
-          </router-link>
+          </div>
         </article>
       </div>
 
@@ -119,7 +119,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { TagService, type Tag } from '@/services/tag'
 import { PostService, type PostListItem, type PageResponse } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
@@ -127,6 +127,7 @@ import { formatDate } from '@/utils/uitls'
 
 // 路由相关
 const route = useRoute()
+const router = useRouter()
 const { showBusinessError } = useErrorHandler()
 
 // 响应式数据
@@ -151,8 +152,6 @@ const tagId = computed(() => {
   return typeof id === 'string' ? parseInt(id) : 0
 })
 
-
-
 /**
  * 加载标签信息
  */
@@ -171,6 +170,10 @@ const loadTagInfo = async () => {
       error.value = '标签不存在'
       return
     }
+
+    // 更新页面标题
+    route.meta.title = `${tagInfo.value.name} - 标签文章`
+
     // 加载标签信息成功后，加载文章列表
     await loadPosts()
   } catch (err: any) {
@@ -218,6 +221,7 @@ const loadPosts = async (page: number = 1) => {
 const changePage = (page: number) => {
   if (page < 1 || page > pagination.value.pages) return
   loadPosts(page)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 /**
@@ -239,25 +243,26 @@ const getPageNumbers = () => {
   return pages
 }
 
-// 组件挂载时加载数据
+/**
+ * 跳转到文章详情
+ */
+const goToPost = (postId: number) => {
+  const name = tagInfo.value?.name
+  const query = new URLSearchParams({ from: 'tags', tagId: String(tagId.value) })
+  if (name) query.set('tagName', name)
+  router.push(`/post/${postId}?${query.toString()}`)
+}
+
 onMounted(() => {
   loadTagInfo()
 })
 </script>
 
 <style scoped>
-/* 使用 styles.css 工具类简化样式 */
+/* 修改人：刘鑫；修改时间：2025-08-26；统一列表为首页样式，仅保留必要差异化样式 */
 .tag-header {
   background: linear-gradient(135deg, var(--color-primary), var(--secondary-color));
   color: var(--text-main);
-}
-
-.tag-title {
-  font-size: 2.5rem;
-}
-
-.tag-icon {
-  font-size: 2rem;
 }
 
 .section-title {
@@ -290,69 +295,16 @@ onMounted(() => {
   }
 }
 
-.post-card {
-  background: var(--bg-color);
-  overflow: hidden;
-}
-
-.post-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  border-color: var(--color-primary);
-}
-
-.post-cover {
+/* 统一图片尺寸与卡片结构 */
+.posts-img {
   width: 200px;
   height: 150px;
-}
-
-.post-title {
-  color: var(--text-main);
-  line-height: 1.4;
-}
-
-.post-summary {
-  color: var(--text-main);
+  background-color: white;
+  border-radius: 12px;
   overflow: hidden;
 }
 
-.meta-item {
-  color: var(--text-main);
-  opacity: 0.7;
-}
-
-.tag-link {
-  background: var(--hover-color);
-  color: var(--color-primary);
-}
-
-.tag-link:hover {
-  background: var(--color-primary);
-  color: white;
-}
-
-.empty-icon {
-  font-size: 4rem;
-}
-
-.empty-state h3 {
-  color: var(--text-main);
-}
-
-.empty-state p {
-  color: var(--text-main);
-  opacity: 0.7;
-}
-
-.create-btn {
-  background: var(--color-primary);
-  color: white;
-}
-
-.create-btn:hover {
-  background: var(--primary-hover-color);
-}
-
+/* 分页与按钮保留既有样式变量 */
 .page-btn {
   background: var(--bg-color);
   color: var(--text-main);
@@ -369,15 +321,12 @@ onMounted(() => {
   border-color: var(--color-primary);
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .tag-title {
-    font-size: 2rem;
-  }
 
-  .post-cover {
+  .post-cover,
+  .posts-img {
     width: 100%;
-    height: 200px;
+    height: auto;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// App.vue 作为应用根组件，只负责渲染路由视图
+// App根组件（作者：刘鑫，修改时间：2025-08-26 16:01:05 +08:00）
 </script>
 
 <template>
@@ -9,5 +9,4 @@
 </template>
 
 <style scoped>
-
 </style>

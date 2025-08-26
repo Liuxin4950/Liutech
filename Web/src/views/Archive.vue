@@ -37,7 +37,7 @@
     </div>
 
     <!-- 归档列表 -->
-    <div v-else class="archive-list">
+    <div v-else class="archive-list ">
       <div v-for="yearData in groupedArchive" :key="yearData.year" class="year-group mb-30">
         <!-- 年份标题 -->
         <div class="year-header flex flex-ac gap-12 mb-20">
@@ -60,9 +60,9 @@
 
             <!-- 文章列表 -->
             <div v-show="expandedMonths.has(`${yearData.year}-${monthData.month}`)" 
-                 class="posts-list ml-20">
+                 class="posts-list ml-20  rounded-lg">
               <div v-for="post in monthData.posts" :key="post.id" 
-                   class="post-item flex flex-ac gap-12 p-12 border-l-2 border-gray-200 hover:border-primary transition cursor-pointer"
+                   class="post-item bg-card mb-16 flex flex-ac gap-12 p-12 border-l-2 border-gray-200 hover:bg-hover transition cursor-pointer"
                    @click="goToPost(post.id)">
                 <div class="post-date text-sm text-gray-500 w-60 flex-shrink-0">
                   {{ formatDate(post.createdAt, 'MM-dd') }}
@@ -206,7 +206,7 @@ const formatDate = (dateString: string, format: string = 'YYYY-MM-dd'): string =
 
 // 跳转到文章详情
 const goToPost = (postId: number) => {
-  router.push(`/post/${postId}`)
+  router.push(`/post/${postId}?from=archive`)
 }
 
 // 加载归档数据
@@ -268,11 +268,11 @@ onMounted(() => {
 }
 
 .post-item:hover {
-  background-color: var(--hover-bg-color, rgba(0, 0, 0, 0.02));
+  color: var(--color-primary);
 }
 
 .month-header:hover {
-  color: var(--primary-color);
+  color: var(--color-primary);
 }
 
 /* 响应式设计 */

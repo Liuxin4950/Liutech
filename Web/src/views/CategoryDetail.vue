@@ -3,9 +3,6 @@
     <!-- 页面头部 -->
     <div class="card bg-soft mb-16">
       <div class="flex flex-col gap-16">
-        <!-- <button class="bg-hover p-8 rounded text-sm font-medium link transition self-start hover:bg-primary hover:text-white" @click="goBack">
-          ← 返回
-        </button> -->
         <div class="flex flex-col gap-12">
           <h1 class="text-xl font-semibold text-primary mb-0 flex flex-ac gap-8">
             <span class="text-2xl">📂</span> {{ category?.name || '分类文章' }}
@@ -20,75 +17,70 @@
       </div>
     </div>
 
-    <!-- 文章列表 -->
-    <div class="">
+    <!-- 文章列表：统一为首页样式 -->
+    <div>
       <div v-if="loading" class="loading-text">加载中...</div>
       <div v-else-if="error" class="loading-text">
         <p>{{ error }}</p>
-        <button @click="loadPosts"
-          class="bg-primary text-sm font-medium p-8 rounded transitionmt-8">重试</button>
+        <button @click="loadPosts" class="bg-primary text-sm font-medium p-8 rounded transition mt-8">重试</button>
       </div>
       <div v-else-if="posts.length === 0" class="text-center p-20">
         <div class="text-lg mb-8">📝</div>
         <h3 class="text-base font-semibold mb-8">暂无文章</h3>
         <p class="text-muted text-sm mb-0">该分类下还没有文章</p>
       </div>
+
       <div v-else class="list gap-16">
-        <article v-for="post in posts" :key="post.id" class="card bg-soft flex gap-16 p-16 rounded-lg transition link "
-          :style="{ borderLeftColor: `var(--color-primary)` }" @click="goToPost(post.id)">
-          <!-- 文章图片 -->
-          <div class="post-image rounded-lg">
-            <img :src="getPostImage(post)" :alt="post.title" class="rounded-lg"
-              style="width: 200px; height: 150px; object-fit: cover;" @error="handleImageError">
+        <article
+          v-for="post in posts"
+          :key="post.id"
+          class="flex gap-16 p-16 rounded-lg transition link card bg-card"
+          @click="goToPost(post.id)"
+        >
+          <!-- 缩略图与尺寸统一 -->
+          <div class="posts-img">
+            <img :src="getPostImage(post)" :alt="post.title" class="fit" @error="handleImageError" />
           </div>
 
-          <!-- 文章内容 -->
-          <div class="flex flex-col gap-12 flex-1">
-            <div class="flex flex-sb flex-ac gap-12">
-              <h3 class="text-xl text-primary">{{ post.title }}</h3>
-              <span v-if="post.category" class="badge ">{{ post.category.name }}</span>
-            </div>
-            <p v-if="post.summary" class="text-muted text-base mb-0"
-              style="display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
-            <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
-              <span v-for="tag in post.tags" :key="tag.id" class="tag" @click.stop="goToTag(tag.id)">
-                {{ tag.name }}
-              </span>
-            </div>
-            <div class="flex flex-sb flex-ac">
-              <div class="flex flex-ac gap-8">
-                <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
-                  class="rounded" style="width: 24px; height: 24px; object-fit: cover;">
-                <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
-              </div>
-              <div class="flex gap-16 text-sm text-muted flex-wrap">
-                <span class="flex flex-ac gap-4">👁️ {{ post.viewCount || 0 }}</span>
-                <span class="flex flex-ac gap-4">❤️ {{ post.likeCount || 0 }}</span>
-                <span class="flex flex-ac gap-4">💬 {{ post.commentCount }}</span>
-                <span class="flex flex-ac gap-4">📅 {{ formatDate(post.createdAt) }}</span>
+          <!-- 文章内容，结构与首页一致 -->
+          <div class="flex flex-col flex-sb flex-1">
+            <span v-if="post.category" class="badge">{{ post.category.name }}</span>
+            <div class="flex-1 flex flex-col gap-12">
+              <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
+              <p v-if="post.summary" class="text-subtle text-base">
+                {{ post.summary }}
+              </p>
+              <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
+                <span v-for="tag in post.tags" :key="tag.id" class="tag" @click.stop="goToTag(tag.id)">
+                  {{ tag.name }}
+                </span>
               </div>
             </div>
 
+            <div class="flex flex-sb flex-ac mt-8">
+              <div class="flex flex-ac gap-8 text-subtle">
+                <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username" class="rounded" style="width: 24px; height: 24px; object-fit: cover;" />
+                <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
+              </div>
+              <div class="flex gap-12 text-sm text-subtle">
+                <span>👁️ {{ post.viewCount || 0 }}</span>
+                <span>❤️ {{ post.likeCount || 0 }}</span>
+                <span>💬 {{ post.commentCount }}</span>
+                <span>{{ formatDate(post.createdAt) }}</span>
+              </div>
+            </div>
           </div>
         </article>
       </div>
 
-      <!-- 分页 -->
-      <div v-if="totalPages > 1" class="card flex flex-jc flex-ac gap-16 mt-16">
-        <button class="bg-primary text-sm font-medium px-16 py-8 rounded transition hover-lift shadow-sm"
-          :class="{ 'opacity-50 cursor-not-allowed': currentPage <= 1 }" :disabled="currentPage <= 1"
-          @click="changePage(currentPage - 1)">
-          ← 上一页
-        </button>
-        <span class="text-sm text-muted bg-hover px-12 py-6 rounded">
-          第 {{ currentPage }} 页，共 {{ totalPages }} 页
-        </span>
-        <button class="bg-primary text-sm font-medium px-16 py-8 rounded transition hover-lift shadow-sm"
-          :class="{ 'opacity-50 cursor-not-allowed': currentPage >= totalPages }" :disabled="currentPage >= totalPages"
-          @click="changePage(currentPage + 1)">
-          下一页 →
-        </button>
-      </div>
+      <!-- 分页器 -->
+      <Pagination 
+        v-if="!loading && posts.length > 0"
+        :current-page="currentPage"
+        :total-pages="totalPages"
+        :show-page-numbers="false"
+        @page-change="changePage"
+      />
     </div>
   </div>
 </template>
@@ -101,6 +93,9 @@ import type { Category } from '@/services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { formatDate } from '@/utils/uitls'
+import Pagination from '@/components/Pagination.vue'
+
+// 修改人：刘鑫；修改时间：2025-08-26；说明：统一分类详情列表为首页样式，简化局部样式，保留公共样式与颜色
 
 const router = useRouter()
 const route = useRoute()
@@ -131,9 +126,8 @@ const loadCategory = async () => {
     const categoryData = await categoryStore.fetchCategoryById(categoryId.value)
     category.value = categoryData
 
-    // 动态更新路由meta信息，用于面包屑导航
+    // 动态更新路由meta信息：仅保留标题
     if (categoryData && route.meta) {
-      route.meta.categoryName = categoryData.name
       route.meta.title = `${categoryData.name} - 分类文章`
     }
   }, {
@@ -173,14 +167,18 @@ const changePage = (page: number) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
     loadPosts()
-    // 滚动到顶部
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
 
 // 跳转到文章详情
 const goToPost = (postId: number) => {
-  router.push(`/post/${postId}`)
+  const id = categoryId.value
+  const name = category.value?.name
+  const query = new URLSearchParams({ from: 'categories' })
+  if (id) query.set('categoryId', String(id))
+  if (name) query.set('categoryName', name)
+  router.push(`/post/${postId}?${query.toString()}`)
 }
 
 // 跳转到标签页面
@@ -209,42 +207,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 仅保留必要的自定义样式 */
-.category-posts {
-  margin: 0 auto;
-  padding: 20px;
-}
-.post-image{
-  overflow: hidden;
-}
-.post-image img {
-  transition: transform 0.3s ease;
-}
+/* 修改人：刘鑫；修改时间：2025-08-26；仅保留必要样式，复用首页图片尺寸与卡片结构 */
+.category-posts { padding: 20px; }
 
-.post-image img:hover {
-  transform: scale(1.05);
-}
+.posts-img { width: 200px; height: 150px; background-color: white; border-radius: 12px; overflow: hidden; }
 
-/* 响应式设计 */
+.loading-text { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+
 @media (max-width: 768px) {
-  .category-posts {
-    padding: 15px;
-  }
-
-  .post-image {
-    width: 100%;
-    height: auto;
-  }
-
-  .post-image img {
-    width: 100%;
-    height: 100%;
-  }
-
-  /* 移动端文章卡片调整为垂直布局 */
-  article {
-    flex-direction: column !important;
-  }
-
+  .category-posts { padding: 15px; }
+  article { flex-direction: column !important; }
+  .posts-img { width: 100%; height: auto; }
 }
 </style>

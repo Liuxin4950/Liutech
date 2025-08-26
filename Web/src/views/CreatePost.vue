@@ -409,7 +409,7 @@ const submitPost = async () => {
 
     // 跳转到文章详情页
     const postId = isEditMode.value ? editingPostId.value : result.id
-    router.push(`/post/${postId}`)
+    router.push(`/post/${postId}?from=home`)
   }, {
     onError: (err) => {
       console.error('提交文章失败:', err)

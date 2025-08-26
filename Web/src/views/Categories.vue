@@ -1,7 +1,7 @@
 <template>
     <div class="categories-page content">
         <!-- 页面头部 -->
-        <div class="card mb-16 shadow-sm">
+        <div class="card bg-card mb-16 shadow-sm">
             <div class="flex flex-col gap-16">
                 <div class="flex flex-col gap-12">
                     <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
@@ -36,7 +36,7 @@
             
             <div v-else class="grid gap-20">
                 <div v-for="category in categories" :key="category.id"
-                    class="category-card card transition-all hover-lift cursor-pointer relative overflow-hidden"
+                    class="category-card bg-card card transition-all hover-lift cursor-pointer relative overflow-hidden"
                     @click="goToCategory(category.id)">
                     <!-- 装饰性背景渐变 -->
                     <div class="category-bg absolute top-0 right-0 w-20 h-20 opacity-10 rounded-full"></div>
@@ -84,7 +84,7 @@
         </div>
 
         <!-- 热门分类 -->
-        <div v-if="popularCategories.length > 0" class="card shadow-sm mb-16">
+        <div v-if="popularCategories.length > 0" class="card bg-card shadow-sm mb-16">
             <div class="flex flex-col gap-16">
                 <h2 class="text-lg font-semibold text-primary mb-0 flex flex-ac gap-8">
                     <span class="text-xl">🔥</span> 热门分类

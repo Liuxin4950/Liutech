@@ -194,7 +194,7 @@ const createNewPost = () => {
 }
 
 const viewPost = (postId: number) => {
-  router.push(`/post/${postId}`)
+  router.push(`/post/${postId}?from=my-posts`)
 }
 
 const editPost = (postId: number) => {

@@ -15,7 +15,8 @@ const routes: RouteRecordRaw[] = [
         name: 'home',
         component: () => import('../views/Home.vue'),
         meta: {
-          title: '首页'
+          title: '首页',
+          section: 'home'
         }
       },
       {
@@ -23,7 +24,8 @@ const routes: RouteRecordRaw[] = [
         name: 'post-detail',
         component: () => import('../views/PostDetail.vue'),
         meta: {
-          title: '文章详情'
+          title: '文章详情',
+          section: 'home'
         }
       },
       {
@@ -55,7 +57,8 @@ const routes: RouteRecordRaw[] = [
         name: 'posts',
         component: () => import('../views/Posts.vue'),
         meta: {
-          title: '全部文章'
+          title: '全部文章',
+          section: 'home'
         }
       },
       {
@@ -63,7 +66,8 @@ const routes: RouteRecordRaw[] = [
         name: 'category-list',
         component: () => import('../views/Categories.vue'),
         meta: {
-          title: '文章分类'
+          title: '分类',
+          section: 'categories'
         }
       },
       {
@@ -71,7 +75,8 @@ const routes: RouteRecordRaw[] = [
         name: 'category-detail',
         component: () => import('../views/CategoryDetail.vue'),
         meta: {
-          title: '文章分类详情'
+          title: '分类详情',
+          section: 'categories'
         }
       },
       {
@@ -79,7 +84,8 @@ const routes: RouteRecordRaw[] = [
         name: 'tags',
         component: () => import('../views/Tags.vue'),
         meta: {
-          title: '标签分类'
+          title: '标签',
+          section: 'tags'
         }
       },
       {
@@ -87,7 +93,8 @@ const routes: RouteRecordRaw[] = [
         name: 'tag-detail',
         component: () => import('../views/TagDetail.vue'),
         meta: {
-          title: '标签分类详情'
+          title: '标签详情',
+          section: 'tags'
         }
       },
       {
@@ -95,7 +102,8 @@ const routes: RouteRecordRaw[] = [
         name: 'archive',
         component: () => import('../views/Archive.vue'),
         meta: {
-          title: '文章归档'
+          title: '文章归档',
+          section: 'archive'
         }
       },
       {
@@ -111,7 +119,8 @@ const routes: RouteRecordRaw[] = [
         name: 'about',
         component: () => import('../views/About.vue'),
         meta: {
-          title: '关于我'
+          title: '关于我',
+          section: 'about'
         }
       }
     ]
@@ -139,7 +148,16 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
   linkActiveClass: 'router-link-active',
-  linkExactActiveClass: 'router-link-exact-active'
+  linkExactActiveClass: 'router-link-exact-active',
+  // 滚动行为配置 - 每次路由跳转都回到页面顶部
+  scrollBehavior(to, from, savedPosition) {
+    // 如果有保存的滚动位置（浏览器前进后退），则恢复到该位置
+    if (savedPosition) {
+      return savedPosition
+    }
+    // 否则滚动到页面顶部
+    return { top: 0, behavior: 'smooth' }
+  }
 })
 
 /**

@@ -52,7 +52,7 @@
               v-model="searchKeyword"
               type="text"
               placeholder="搜索标签..."
-              class=""
+              class="bg-card text-main"
             />
            
           </div>

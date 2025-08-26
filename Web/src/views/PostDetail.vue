@@ -163,6 +163,7 @@ const route = useRoute()
 const router = useRouter()
 const { handleAsync,showSuccessToast,showError } = useErrorHandler()
 
+// 已移除：旧的基于 referrer 的导航激活逻辑，改由 Header 基于当前路径自动判定
 // 响应式数据
 const post = ref<PostDetail | null>(null)
 const loading = ref(false)
@@ -228,6 +229,8 @@ const loadPostDetail = async () => {
     return
   }
 
+  // 说明：面包屑与导航激活均基于路由配置自动判定，无需依赖 referrer
+
   await handleAsync(async () => {
     loading.value = true
     error.value = ''
@@ -236,20 +239,20 @@ const loadPostDetail = async () => {
     post.value = postData
     console.log('postData', postData);
 
+    // 动态更新页面标题与面包屑末项
+    if (postData && route.meta) {
+      route.meta.title = postData.title
+      // 同步更新浏览器标题（路由守卫只会在切换时触发，这里手动更新）
+      document.title = `${postData.title} - MyBlog`
+    }
+
     // 初始化点赞和收藏状态
     currentLikeCount.value = postData.likeCount || 0
     currentFavoriteCount.value = postData.favoriteCount || 0
     isLiked.value = postData.likeStatus || false
     isFavorited.value = postData.favoriteStatus || false
 
-    // 动态更新路由meta信息，用于面包屑导航
-    if (postData && route.meta) {
-      route.meta.title = postData.title
-      if (postData.category) {
-        route.meta.category = postData.category.name
-        route.meta.categoryId = postData.category.id
-      }
-    }
+
 
     // 预加载封面图片
     preloadCoverImage(postData)

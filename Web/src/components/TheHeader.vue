@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme.ts'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const isMenuOpen = ref(false)
 const isUserMenuOpen = ref(false)
@@ -43,6 +44,30 @@ const handleLogout = () => {
 }
 
 /**
+ * 计算导航激活态：
+ * - 在文章详情页（post-detail）优先根据 route.query.from 映射高亮
+ *   from 映射：categories/tags/archive -> 同名；home/posts/my-posts -> home
+ * - 其它情况下回退到 route.meta.section
+ */
+const isActive = (section: string) => {
+  const routeName = (route.name as string) || ''
+  const from = (route.query.from as string) || ''
+  if (routeName === 'post-detail') {
+    const map: Record<string, string> = {
+      categories: 'categories',
+      tags: 'tags',
+      archive: 'archive',
+      home: 'home',
+      posts: 'home',
+      'my-posts': 'home'
+    }
+    const prefer = map[from]
+    if (prefer) return prefer === section
+  }
+  return (route.meta?.section as string) === section
+}
+
+/**
  * 点击外部区域关闭菜单
  */
 const handleClickOutside = (event: Event) => {
@@ -71,7 +96,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-100">
+  <header class="sticky top-0 z-100 ">
     <div class="content px-20 flex flex-ac flex-sb ">
       <div class="text-xl font-bold link text-primary">
         <h2>LiuTech</h2>
@@ -80,11 +105,11 @@ onUnmounted(() => {
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
         <ul class="flex gap-30">
-          <li><router-link to="/" exact class="nav-link transition">首页</router-link></li>
-          <li><router-link to="/categories" class="nav-link transition">分类</router-link></li>
-          <li><router-link to="/tags" class="nav-link transition">标签</router-link></li>
-          <li><router-link to="/archive" class="nav-link transition">归档</router-link></li>
-          <li><router-link to="/about" class="nav-link transition">关于我</router-link></li>
+          <li><router-link to="/" class="nav-link transition" :class="{ 'is-active': isActive('home') }">首页</router-link></li>
+          <li><router-link to="/categories" class="nav-link transition" :class="{ 'is-active': isActive('categories') }">分类</router-link></li>
+          <li><router-link to="/tags" class="nav-link transition" :class="{ 'is-active': isActive('tags') }">标签</router-link></li>
+          <li><router-link to="/archive" class="nav-link transition" :class="{ 'is-active': isActive('archive') }">归档</router-link></li>
+          <li><router-link to="/about" class="nav-link transition" :class="{ 'is-active': isActive('about') }">关于我</router-link></li>
         
         </ul>
       </nav>
@@ -96,7 +121,7 @@ onUnmounted(() => {
           <!-- 已登录状态 -->
           <div v-if="userStore.isLoggedIn" class="flex flex-ac gap-8 link rounded transition" @click="toggleUserMenu">
             <div class="user-avatar rounded-full bg-primary flex flex-ct link">
-              <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="w-full h-full object-cover rounded-full" />
+              <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="fit rounded-full" />
               <div v-else class="text-white font-semibold text-sm">{{ userStore.username?.charAt(0).toUpperCase() }}</div>
             </div>
             <div class="flex flex-col link">
@@ -160,6 +185,7 @@ header{
   width: 100%;
   height: 70px;
   background-color: var(--bg-main);
+  box-shadow: var(--shadow-sm);
 }
 header > div{
   height: 70px;
@@ -203,11 +229,13 @@ ul,ol {
   cursor: pointer;
 }
 
-.nav-link.router-link-exact-active {
+.nav-link.router-link-exact-active,
+.nav-link.is-active {
   color: var(--color-primary);
 }
 
-.nav-link.router-link-exact-active::after {
+.nav-link.router-link-exact-active::after,
+.nav-link.is-active::after {
   content: '';
   position: absolute;
   bottom: 0;

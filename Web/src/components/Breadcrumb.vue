@@ -38,103 +38,103 @@ import { useRoute } from 'vue-router'
 
 interface BreadcrumbItem {
   label: string
-  to?: string
+  to?: any
   icon?: string
 }
 
 const route = useRoute()
 
-// 根据当前路由生成面包屑导航
+// 父级路由映射（用于“返回列表”场景）
+const sectionParentMap = {
+  home: { name: 'posts', label: '全部文章' },
+  categories: { name: 'category-list', label: '分类' },
+  tags: { name: 'tags', label: '标签' },
+  archive: { name: 'archive', label: '文章归档' },
+  about: { name: 'about', label: '关于我' }
+} as const
+
+// 被视为“列表页”的路由：仅展示“首页 > 当前页”
+const listRoutes = new Set([
+  'posts',
+  'category-list',
+  'tags',
+  'archive',
+  'about',
+  'my-posts',
+  'drafts',
+  'profile',
+  'create-post'
+])
+
+// 智能面包屑：
+// - 首页：仅显示“首页”
+// - 列表页：显示“首页 > 当前列表”
+// - 详情页：优先根据 ?from=categories|tags 判断父级；否则回退到 section 映射；文章详情默认回退到“全部文章”
 const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   const items: BreadcrumbItem[] = []
-  
-  // 首页
-  items.push({
-    label: '首页',
-    to: '/',
-    icon: '🏠'
-  })
-  
-  // 根据路由名称添加对应的面包屑
-  switch (route.name) {
-    case 'home':
-      // 首页显示当前位置
-      items.push({
-        label: '博客首页'
-      })
-      break
-      
-    case 'posts':
-      items.push({
-        label: '全部文章'
-      })
-      break
-      
-    case 'post-detail':
-      items.push({
-        label: '全部文章',
-        to: '/posts'
-      })
-      // 如果有分类信息，添加分类面包屑
-      if (route.meta.category) {
-        items.push({
-          label: route.meta.category as string,
-          to: `/category/${route.meta.categoryId}`
-        })
-      }
-      items.push({
-        label: route.meta.title as string || '文章详情'
-      })
-      break
-      
-    case 'CategoryPosts':
-      items.push({
-        label: '全部文章',
-        to: '/posts'
-      })
-      items.push({
-        label: route.meta.categoryName as string || '分类文章'
-      })
-      break
-      
-    case 'create-post':
-      items.push({
-        label: '发布文章'
-      })
-      break
-      
-    case 'drafts':
-      items.push({
-        label: '我的文章',
-        to: '/my-posts'
-      })
-      items.push({
-        label: '草稿箱'
-      })
-      break
-      
-    case 'my-posts':
-      items.push({
-        label: '我的文章'
-      })
-      break
-      
-    case 'profile':
-      items.push({
-        label: '个人资料'
-      })
-      break
-      
-    default:
-      // 对于其他页面，使用路由的 meta.title
-      if (route.meta.title) {
-        items.push({
-          label: route.meta.title as string
-        })
-      }
-      break
+
+  // 始终添加首页
+  const homeItem: BreadcrumbItem = { label: '首页', to: { name: 'home' } }
+  items.push(homeItem)
+
+  const currentName = route.name as string | undefined
+  const currentLabel = (route.meta?.title as string) || String(currentName || '') || '当前页'
+
+  // 首页：仅显示首页
+  if (!currentName || currentName === 'home') {
+    items[0].to = undefined
+    return items
   }
-  
+
+  // 列表页：直接“首页 > 当前页”
+  if (listRoutes.has(currentName)) {
+    items.push({ label: currentLabel })
+    return items
+  }
+
+  // 详情页：根据类型决定父级
+  const from = (route.query.from as string) || ''
+  const categoryId = (route.query.categoryId as string) || ''
+  const tagId = (route.query.tagId as string) || ''
+  const categoryName = (route.query.categoryName as string) || ''
+  const tagName = (route.query.tagName as string) || ''
+
+  const addParent = (label: string, to: any) => items.push({ label, to })
+
+  if (currentName === 'post-detail') {
+    if (from === 'categories') {
+      if (categoryId) addParent(categoryName || '分类', { name: 'category-detail', params: { id: categoryId } })
+      else addParent('分类', { name: 'category-list' })
+    } else if (from === 'tags') {
+      if (tagId) addParent(tagName || '标签', { name: 'tag-detail', params: { id: tagId } })
+      else addParent('标签', { name: 'tags' })
+    } else if (from === 'archive') {
+      addParent('文章归档', { name: 'archive' })
+    } else if (from === 'posts' || from === 'home') {
+      addParent('全部文章', { name: 'posts' })
+    } else if (from === 'my-posts') {
+      addParent('我的文章', { name: 'my-posts' })
+    } else {
+      // 默认回退到“全部文章”
+      const parent = sectionParentMap.home
+      addParent(parent.label, { name: parent.name })
+    }
+  } else if (currentName === 'category-detail') {
+    const parent = sectionParentMap.categories
+    addParent(parent.label, { name: parent.name })
+  } else if (currentName === 'tag-detail') {
+    const parent = sectionParentMap.tags
+    addParent(parent.label, { name: parent.name })
+  } else {
+    // 其它详情页：根据 section 映射回退
+    const section = (route.meta?.section as string) || ''
+    const parent = sectionParentMap[section as keyof typeof sectionParentMap]
+    if (parent) addParent(parent.label, { name: parent.name })
+  }
+
+  // 最后添加当前页（不可点击）
+  items.push({ label: currentLabel })
+
   return items
 })
 </script>
@@ -143,88 +143,76 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 .breadcrumb {
   background: var(--bg-color);
   border-bottom: 1px solid var(--border-color);
-  padding: 12px 0;
-  font-size: 0.9rem;
-}
-
-.container {
-  margin: 0 auto;
-  padding: 0 20px;
+  padding: 0.75rem 0;
+  font-size: 0.875rem;
 }
 
 .breadcrumb-list {
   display: flex;
   align-items: center;
-  list-style: none;
+  flex-wrap: wrap;
+  gap: 0.25rem;
   margin: 0;
   padding: 0;
-  flex-wrap: wrap;
-  gap: 4px;
+  list-style: none;
 }
 
 .breadcrumb-item {
   display: flex;
   align-items: center;
+  gap: 0.25rem;
 }
 
 .breadcrumb-separator {
-  color: var(--text-color);
-  opacity: 0.5;
-  margin: 0 8px;
-  font-weight: 500;
+  color: var(--text-muted);
+  font-weight: normal;
+  user-select: none;
 }
 
 .breadcrumb-link {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: var(--text-color);
-  opacity: 0.7;
+  gap: 0.25rem;
+  color: var(--primary-color);
   text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .breadcrumb-link:hover {
-  color: var(--primary-color);
-  background: var(--hover-color);
-  opacity: 1;
+  color: var(--primary-hover);
+  text-decoration: underline;
 }
 
 .breadcrumb-current {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.25rem;
   color: var(--text-color);
-  font-weight: 600;
-  padding: 4px 8px;
+  font-weight: 500;
 }
 
 .icon {
-  font-size: 1rem;
+  font-size: 0.875rem;
   line-height: 1;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .breadcrumb {
-    padding: 8px 0;
-    font-size: 0.85rem;
+    padding: 0.5rem 0;
+    font-size: 0.8rem;
   }
   
-  .container {
-    padding: 0 15px;
+  .breadcrumb-list {
+    gap: 0.125rem;
   }
   
-  .breadcrumb-separator {
-    margin: 0 4px;
+  .breadcrumb-item {
+    gap: 0.125rem;
   }
   
-  .breadcrumb-link,
-  .breadcrumb-current {
-    padding: 2px 4px;
-    gap: 4px;
+  .icon {
+    font-size: 0.75rem;
   }
 }
 </style>

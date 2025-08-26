@@ -8,7 +8,7 @@
     </div>
 
     <!-- 筛选器 -->
-    <div class="card flex flex-fw gap-16 flex-ac mb-16">
+    <div class="card bg-card flex flex-fw gap-16 flex-ac mb-16">
       <div class="flex flex-ac gap-8">
         <label class="font-medium text-muted">分类：</label>
         <select v-model="filters.categoryId" @change="handleFilterChange" class="p-8 rounded border-t text-sm">
@@ -66,35 +66,33 @@
         <article
           v-for="post in posts"
           :key="post.id"
-          class="flex gap-16 p-16 bg-hover rounded-lg transition hover-lift link border-l-3"
+          class="flex gap-16 p-16 rounded-lg transition link card bg-card"
           @click="goToPost(post.id)"
         >
-          <!-- 缩略图 -->
-          <div class="flex-shrink-0">
+          <!-- 缩略图容器，统一为首页 posts-img 结构 -->
+          <div class="posts-img">
             <img 
               :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" 
               :alt="post.title" 
-              class="rounded" 
-              style="width: 120px; height: 80px; object-fit: cover;"
+              class="fit"
             >
           </div>
           
-          <div class="flex flex-col gap-8 flex-1">
-            <div class="flex flex-sb flex-ac">
-              <h3 class="text-lg font-semibold text-primary mb-0">{{ post.title }}</h3>
-              <span v-if="post.category" class="badge">{{ post.category.name }}</span>
-            </div>
+          <div class="flex flex-col flex-sb flex-1 relative">
+            <span v-if="post.category" class="badge">{{ post.category.name }}</span>
+            <div class="flex-1 flex flex-col gap-12">
+              <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
+              <p v-if="post.summary" class="text-subtle text-base text-sm">{{ post.summary }}</p>
             
-            <p v-if="post.summary" class="text-muted text-base mb-0" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ post.summary }}</p>
-            
-            <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
-              <span v-for="tag in post.tags" :key="tag.id" class="tag">
-                {{ tag.name }}
-              </span>
+              <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
+                <span v-for="tag in post.tags" :key="tag.id" class="tag">
+                  {{ tag.name }}
+                </span>
+              </div>
             </div>
             
             <div class="flex flex-sb flex-ac mt-8">
-              <div class="flex flex-ac gap-8">
+              <div class="flex flex-ac gap-8 text-subtle">
                 <img
                   v-if="post.author?.avatarUrl"
                   :src="post.author.avatarUrl"
@@ -102,9 +100,9 @@
                   class="rounded"
                   style="width: 24px; height: 24px; object-fit: cover;"
                 >
-                <span class="text-sm font-medium">{{ post.author?.username || '匿名用户' }}</span>
+                <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
               </div>
-              <div class="flex gap-12 text-sm text-muted">
+              <div class="flex gap-12 text-sm text-subtle">
                 <span>👁️ {{ post.viewCount || 0 }}</span>
                 <span>❤️ {{ post.likeCount || 0 }}</span>
                 <span>💬 {{ post.commentCount }}</span>
@@ -117,42 +115,12 @@
     </div>
 
     <!-- 分页器 -->
-    <div v-if="!loading && posts.length > 0" class="card flex flex-jc flex-ac gap-16">
-      <button 
-        @click="goToPage(pagination.current - 1)" 
-        :disabled="pagination.current <= 1"
-        class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
-        :class="{ 'opacity-50 cursor-not-allowed': pagination.current <= 1 }"
-      >
-        ⬅️ 上一页
-      </button>
-      
-      <div class="flex flex-ac gap-16">
-        <span class="flex gap-4">
-          <button 
-            v-for="page in visiblePages" 
-            :key="page"
-            @click="goToPage(page)"
-            :class="['text-sm p-8 rounded transition hover-lift', { 'bg-primary text-white': page === pagination.current, 'bg-hover': page !== pagination.current }]"
-          >
-            {{ page }}
-          </button>
-        </span>
-        
-        <span class="text-sm text-muted">
-          第 {{ pagination.current }} 页，共 {{ pagination.pages }} 页
-        </span>
-      </div>
-      
-      <button 
-        @click="goToPage(pagination.current + 1)" 
-        :disabled="pagination.current >= pagination.pages"
-        class="bg-primary text-sm font-medium p-8 rounded transition hover-lift"
-        :class="{ 'opacity-50 cursor-not-allowed': pagination.current >= pagination.pages }"
-      >
-        下一页 ➡️
-      </button>
-    </div>
+    <Pagination 
+      v-if="!loading && posts.length > 0"
+      :current-page="pagination.current"
+      :total-pages="pagination.pages"
+      @page-change="goToPage"
+    />
   </div>
 </template>
 
@@ -165,6 +133,7 @@ import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import { formatDate } from '@/utils/uitls'
+import Pagination from '@/components/Pagination.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -197,47 +166,7 @@ const pagination = ref({
 const categories = computed(() => categoryStore.categories)
 const tags = computed(() => tagStore.tags)
 
-// 计算可见的页码
-const visiblePages = computed(() => {
-  const current = pagination.value.current
-  const total = pagination.value.pages
-  const pages: number[] = []
-  
-  if (total <= 7) {
-    // 总页数小于等于7，显示全部页码
-    for (let i = 1; i <= total; i++) {
-      pages.push(i)
-    }
-  } else {
-    // 总页数大于7，显示部分页码
-    if (current <= 4) {
-      // 当前页在前4页
-      for (let i = 1; i <= 5; i++) {
-        pages.push(i)
-      }
-      pages.push(-1) // 省略号
-      pages.push(total)
-    } else if (current >= total - 3) {
-      // 当前页在后4页
-      pages.push(1)
-      pages.push(-1) // 省略号
-      for (let i = total - 4; i <= total; i++) {
-        pages.push(i)
-      }
-    } else {
-      // 当前页在中间
-      pages.push(1)
-      pages.push(-1) // 省略号
-      for (let i = current - 1; i <= current + 1; i++) {
-        pages.push(i)
-      }
-      pages.push(-1) // 省略号
-      pages.push(total)
-    }
-  }
-  
-  return pages
-})
+// 注意：visiblePages 计算属性已移除，现在使用 Pagination 组件内部处理
 
 // 加载文章列表
 const loadPosts = async (page: number = 1) => {
@@ -321,9 +250,9 @@ const handleSearch = () => {
   loadPosts(1)
 }
 
-// 跳转到文章详情
+// 跳转到文章详情（带 from=posts，便于面包屑返回“全部文章”）
 const goToPost = (postId: number) => {
-  router.push(`/post/${postId}`)
+  router.push(`/post/${postId}?from=posts`)
 }
 
 
@@ -373,6 +302,12 @@ onMounted(async () => {
 .retry-btn:hover {
   background: var(--secondary-color);
 }
+.relative > .badge{
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
 
 /* 响应式设计 */
 @media (max-width: 768px) {
@@ -457,4 +392,7 @@ onMounted(async () => {
     font-size: 1.1rem;
   }
 }
+
+/* 统一首页与全部文章列表的图片容器尺寸与样式 */
+.posts-img { width: 200px; height: 150px; background-color: white; border-radius: 12px; overflow: hidden; }
 </style>
