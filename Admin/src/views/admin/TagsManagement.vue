@@ -18,244 +18,178 @@ const searchParams = ref<TagListParams>({
   name: ''
 })
 
-// 表格列定义
 const columns = [
-  {
-    title: '标签名称',
-    dataIndex: 'name',
-    key: 'name'
-  },
-  {
-    title: '描述',
-    dataIndex: 'description',
-    key: 'description',
-    ellipsis: true
-  },
-  {
-    title: '创建时间',
-    dataIndex: 'createdAt',
-    key: 'createdAt'
-  },
-  {
-    title: '更新时间',
-    dataIndex: 'updatedAt',
-    key: 'updatedAt'
-  },
-  {
-    title: '操作',
-    key: 'action'
-  }
+  { title: '名称', dataIndex: 'name', key: 'name' },
+  { title: '描述', dataIndex: 'description', key: 'description' },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
+  { title: '操作', key: 'action' }
 ]
 
-// 加载标签列表
+// 弹窗相关
+const modalVisible = ref(false)
+const modalTitle = ref('新建标签')
+const isEdit = ref(false)
+const editingId = ref<number | null>(null)
+const confirmLoading = ref(false)
+
+const formRef = ref()
+const formModel = ref<Partial<Tag>>({ name: '', description: '' })
+const rules = {
+  name: [{ required: true, message: '请输入标签名称' }]
+}
+
+const openCreate = () => {
+  isEdit.value = false
+  modalTitle.value = '新建标签'
+  editingId.value = null
+  formModel.value = { name: '', description: '' }
+  modalVisible.value = true
+}
+
+const openEdit = (record: Tag) => {
+  isEdit.value = true
+  modalTitle.value = '编辑标签'
+  editingId.value = record.id || null
+  formModel.value = { name: record.name, description: record.description }
+  modalVisible.value = true
+}
+
+const handleOk = async () => {
+  try {
+    confirmLoading.value = true
+    await formRef.value?.validate?.()
+    if (isEdit.value) {
+      const res = await TagsService.updateTag(editingId.value as number, formModel.value as any)
+      if (res.code === 200) {
+        message.success('更新成功')
+        modalVisible.value = false
+        loadTags()
+      } else {
+        message.error(res.message || '更新失败')
+      }
+    } else {
+      const res = await TagsService.createTag(formModel.value as any)
+      if (res.code === 200) {
+        message.success('创建成功')
+        modalVisible.value = false
+        current.value = 1
+        loadTags()
+      } else {
+        message.error(res.message || '创建失败')
+      }
+    }
+  } catch (e) {
+    // ignore
+  } finally {
+    confirmLoading.value = false
+  }
+}
+
+const handleCancel = () => { modalVisible.value = false }
+
+// 列表加载
 const loadTags = async () => {
   try {
     loading.value = true
-    const params = {
-      page: current.value,
-      size: pageSize.value,
-      ...searchParams.value
-    }
-    const response = await TagsService.getTagList(params)
-    if (response.code === 200) {
-      dataSource.value = response.data.records
-      total.value = response.data.total
+    const params = { page: current.value, size: pageSize.value, ...searchParams.value }
+    const res = await TagsService.getTagList(params)
+    if (res.code === 200) {
+      dataSource.value = res.data.records
+      total.value = res.data.total
     } else {
-      message.error(response.message || '加载标签列表失败')
+      message.error(res.message || '加载标签失败')
     }
-  } catch (error) {
-    message.error('加载标签列表失败')
-    console.error('加载标签列表失败:', error)
+  } catch (e) {
+    message.error('加载标签失败')
   } finally {
     loading.value = false
   }
 }
 
-// 搜索
-const handleSearch = () => {
-  current.value = 1
-  loadTags()
-}
+const handleSearch = () => { current.value = 1; loadTags() }
+const handleReset = () => { searchParams.value = { name: '' }; current.value = 1; loadTags() }
+const handleTableChange = (p: any) => { current.value = p.current; pageSize.value = p.pageSize; loadTags() }
+const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
 
-// 重置搜索
-const handleReset = () => {
-  searchParams.value = {
-    name: ''
-  }
-  current.value = 1
-  loadTags()
-}
-
-// 分页变化
-const handleTableChange = (pagination: any) => {
-  current.value = pagination.current
-  pageSize.value = pagination.pageSize
-  loadTags()
-}
-
-// 选择变化
-const onSelectChange = (newSelectedRowKeys: number[]) => {
-  selectedRowKeys.value = newSelectedRowKeys
-}
-
-// 删除标签
 const handleDelete = async (id: number) => {
-  try {
-    const response = await TagsService.deleteTag(id)
-    if (response.code === 200) {
-      message.success('删除成功')
-      loadTags()
-    } else {
-      message.error(response.message || '删除失败')
-    }
-  } catch (error) {
-    message.error('删除失败')
-    console.error('删除失败:', error)
-  }
+  const res = await TagsService.deleteTag(id)
+  if (res.code === 200) { message.success('删除成功'); loadTags() } else { message.error(res.message || '删除失败') }
 }
 
-// 批量删除
 const handleBatchDelete = async () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要删除的标签')
-    return
-  }
-  
-  try {
-    const response = await TagsService.batchDeleteTags(selectedRowKeys.value)
-    if (response.code === 200) {
-      message.success('批量删除成功')
-      selectedRowKeys.value = []
-      loadTags()
-    } else {
-      message.error(response.message || '批量删除失败')
-    }
-  } catch (error) {
-    message.error('批量删除失败')
-    console.error('批量删除失败:', error)
-  }
+  if (!selectedRowKeys.value.length) { message.warning('请选择要删除的标签'); return }
+  const res = await TagsService.batchDeleteTags(selectedRowKeys.value)
+  if (res.code === 200) { message.success('批量删除成功'); selectedRowKeys.value = []; loadTags() } else { message.error(res.message || '批量删除失败') }
 }
 
-// 组件挂载时加载数据
-onMounted(() => {
-  loadTags()
-})
+onMounted(() => { loadTags() })
 </script>
 
 <template>
   <div class="tags-management">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <h2>标签管理</h2>
-    </div>
+    <div class="page-header"><h2>标签管理</h2></div>
 
-    <!-- 搜索区域 -->
     <a-card class="search-card" :bordered="false">
       <a-form layout="inline" :model="searchParams">
-        <a-form-item label="标签名称">
-          <a-input 
-            v-model:value="searchParams.name" 
-            placeholder="请输入标签名称" 
-            allow-clear
-            style="width: 200px"
-          />
+        <a-form-item label="名称">
+          <a-input v-model:value="searchParams.name" placeholder="请输入标签名称" allow-clear style="width: 220px" />
         </a-form-item>
         <a-form-item>
           <a-space>
-            <a-button type="primary" @click="handleSearch">
-              搜索
-            </a-button>
-            <a-button @click="handleReset">
-              重置
-            </a-button>
+            <a-button type="primary" @click="handleSearch">搜索</a-button>
+            <a-button @click="handleReset">重置</a-button>
           </a-space>
         </a-form-item>
       </a-form>
     </a-card>
 
-    <!-- 操作区域 -->
     <a-card class="action-card" :bordered="false">
       <a-space>
-        <a-button type="primary">
-          新建标签
-        </a-button>
-        <a-button 
-          danger 
-          :disabled="selectedRowKeys.length === 0"
-          @click="handleBatchDelete"
-        >
-          批量删除
-        </a-button>
+        <a-button type="primary" @click="openCreate">新建标签</a-button>
+        <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">批量删除</a-button>
       </a-space>
     </a-card>
 
-    <!-- 表格区域 -->
     <a-card :bordered="false">
       <a-table
         :columns="columns"
         :data-source="dataSource"
         :loading="loading"
-        :pagination="{
-          current,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total: number) => `共 ${total} 条记录`
-        }"
-        :row-selection="{
-          selectedRowKeys,
-          onChange: onSelectChange
-        }"
-        @change="handleTableChange"
+        :pagination="{ current, pageSize, total, showSizeChanger: true, showQuickJumper: true, showTotal: (t:number)=>`共 ${t} 条记录` }"
+        :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
         row-key="id"
+        @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'createdAt'">
-            {{ formatDateTime(record.createdAt) }}
-          </template>
-          <template v-else-if="column.key === 'updatedAt'">
-            {{ formatDateTime(record.updatedAt) }}
-          </template>
+          <template v-if="column.key === 'createdAt'">{{ formatDateTime(record.createdAt) }}</template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small">
-                编辑
-              </a-button>
-              <a-popconfirm
-                title="确定要删除这个标签吗？"
-                @confirm="handleDelete(record.id)"
-              >
-                <a-button type="link" size="small" danger>
-                  删除
-                </a-button>
+              <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
+              <a-popconfirm title="确定删除该标签吗？" @confirm="handleDelete(record.id)">
+                <a-button type="link" size="small" danger>删除</a-button>
               </a-popconfirm>
             </a-space>
           </template>
         </template>
       </a-table>
     </a-card>
+
+    <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
+      <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
+        <a-form-item name="name" label="标签名称" required>
+          <a-input v-model:value="formModel.name" placeholder="请输入标签名称" />
+        </a-form-item>
+        <a-form-item name="description" label="描述">
+          <a-input v-model:value="formModel.description" placeholder="请输入描述" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <style scoped>
-.tags-management {
-  padding: 24px;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #262626;
-}
-
-.search-card,
-.action-card {
-  margin-bottom: 16px;
-}
+.tags-management { padding: 24px; }
+.page-header { margin-bottom: 24px; }
+.page-header h2 { margin: 0; font-size: 24px; font-weight: 600; color: #262626; }
+.search-card, .action-card { margin-bottom: 16px; }
 </style>

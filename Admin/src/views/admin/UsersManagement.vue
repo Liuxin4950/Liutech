@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import UserService from '../../services/user'
-import type { UserListParams, User, PageResult } from '../../services/user'
+import type { UserListParams, User } from '../../services/user'
 import { formatDateTime } from '../../utils/uitls'
 
 // 响应式数据
@@ -61,8 +61,8 @@ const columns = [
 
 // 状态选项
 const statusOptions = [
-  { label: '启用', value: 'active' },
-  { label: '禁用', value: 'inactive' }
+  { label: '启用', value: 1 },
+  { label: '禁用', value: 0 }
 ]
 
 // 角色选项
@@ -71,6 +71,97 @@ const roleOptions = [
   { label: '普通用户', value: 'user' }
 ]
 
+// =================== 新建/编辑 弹窗与表单 ===================
+const modalVisible = ref(false)
+const modalTitle = ref('新建用户')
+const isEdit = ref(false)
+const editingId = ref<number | null>(null)
+const confirmLoading = ref(false)
+
+// 使用 Partial<User> 以简化创建/编辑时的必填校验
+const formRef = ref()
+const formModel = ref<Partial<User>>({
+  username: '',
+  email: '',
+  nickname: '',
+  role: 'user',
+  status: 1,
+  passwordHash: ''
+})
+
+const rules = {
+  username: [{ required: true, message: '请输入用户名' }],
+  email: [{ required: true, message: '请输入邮箱' }]
+}
+
+const openCreate = () => {
+  isEdit.value = false
+  modalTitle.value = '新建用户'
+  editingId.value = null
+  formModel.value = {
+    username: '',
+    email: '',
+    nickname: '',
+    role: 'user',
+    status: 1,
+    passwordHash: ''
+  }
+  modalVisible.value = true
+}
+
+const openEdit = (record: User) => {
+  isEdit.value = true
+  modalTitle.value = '编辑用户'
+  editingId.value = record.id
+  formModel.value = {
+    username: record.username,
+    email: record.email,
+    nickname: record.nickname,
+    role: record.role ?? 'user',
+    status: record.status,
+    // 更新时密码可留空表示不修改
+    passwordHash: ''
+  }
+  modalVisible.value = true
+}
+
+const handleOk = async () => {
+  try {
+    confirmLoading.value = true
+    await formRef.value?.validate?.()
+    if (isEdit.value) {
+      const res = await UserService.updateUser(editingId.value as number, formModel.value as any)
+      if (res.code === 200) {
+        message.success('更新成功')
+        modalVisible.value = false
+        loadUsers()
+      } else {
+        message.error(res.message || '更新失败')
+      }
+    } else {
+      const res = await UserService.createUser(formModel.value as any)
+      if (res.code === 200) {
+        message.success('创建成功')
+        modalVisible.value = false
+        // 创建后返回第一页便于看到新数据
+        current.value = 1
+        loadUsers()
+      } else {
+        message.error(res.message || '创建失败')
+      }
+    }
+  } catch (e) {
+    // 表单校验失败或请求错误
+  } finally {
+    confirmLoading.value = false
+  }
+}
+
+const handleCancel = () => {
+  modalVisible.value = false
+}
+
+// =================== 列表与查询 ===================
 // 加载用户列表
 const loadUsers = async () => {
   try {
@@ -261,7 +352,7 @@ onMounted(() => {
     <!-- 操作区域 -->
     <a-card class="action-card" :bordered="false">
       <a-space>
-        <a-button type="primary">
+        <a-button type="primary" @click="openCreate">
           新建用户
         </a-button>
         <a-button 
@@ -311,7 +402,7 @@ onMounted(() => {
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small">
+              <a-button type="link" size="small" @click="openEdit(record)">
                 编辑
               </a-button>
               <a-button 
@@ -335,6 +426,44 @@ onMounted(() => {
         </template>
       </a-table>
     </a-card>
+
+    <!-- 新建/编辑 弹窗 -->
+    <a-modal
+      v-model:open="modalVisible"
+      :title="modalTitle"
+      :confirm-loading="confirmLoading"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      destroy-on-close
+    >
+      <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
+        <a-form-item name="username" label="用户名" required>
+          <a-input v-model:value="formModel.username" placeholder="请输入用户名" />
+        </a-form-item>
+        <a-form-item name="email" label="邮箱" required>
+          <a-input v-model:value="formModel.email" placeholder="请输入邮箱" />
+        </a-form-item>
+        <a-form-item name="nickname" label="昵称">
+          <a-input v-model:value="formModel.nickname" placeholder="请输入昵称" />
+        </a-form-item>
+        <a-form-item name="role" label="角色">
+          <a-select v-model:value="formModel.role" placeholder="请选择角色">
+            <a-select-option v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item name="status" label="状态">
+          <a-radio-group v-model:value="formModel.status">
+            <a-radio :value="1">启用</a-radio>
+            <a-radio :value="0">禁用</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item v-if="!isEdit" name="passwordHash" label="密码">
+          <a-input-password v-model:value="formModel.passwordHash" placeholder="请输入密码(仅创建时)" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 

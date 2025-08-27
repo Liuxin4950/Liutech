@@ -9,7 +9,8 @@ export interface Post {
   summary?: string
   categoryId?: number
   authorId?: number
-  status: string
+  tagIds?: number[]
+  status: number
   createdAt?: string
   updatedAt?: string
 }
@@ -17,9 +18,29 @@ export interface Post {
 export interface PostListItem {
   id: number
   title: string
+  content?: string
   summary?: string
-  categoryName?: string
-  authorName?: string
+  category?: {
+    id: number
+    name: string
+  }
+  author?: {
+    id: number
+    username: string
+    avatarUrl?: string
+  }
+  tags?: Array<{
+    id: number
+    name: string
+  }>
+  commentCount?: number
+  coverImage?: string
+  thumbnail?: string
+  viewCount?: number
+  likeCount?: number
+  favoriteCount?: number
+  likeStatus?: number
+  favoriteStatus?: number
   status: string
   createdAt: string
   updatedAt: string
