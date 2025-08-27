@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("categories")
-public class Categories extends IdEntity {
+public class Categories extends BaseEntity {
     /**
      * 分类名
      */

@@ -41,4 +41,29 @@ public class UserResl {
      * 个人简介
      */
     private String bio;
+
+    /**
+     * 密码哈希（管理端使用，前端不返回）
+     */
+    private String passwordHash;
+
+    /**
+     * 用户ID
+     */
+    private Long id;
+
+    /**
+     * 用户状态
+     */
+    private Integer status;
+
+    /**
+     * 创建时间
+     */
+    private Date createdAt;
+
+    /**
+     * 更新时间
+     */
+    private Date updatedAt;
 }

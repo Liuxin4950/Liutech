@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 import chat.liuxin.liutech.model.Tags;
+import chat.liuxin.liutech.resl.TagResl;
 
 /**
  * 标签Mapper接口
@@ -19,33 +20,51 @@ public interface TagsMapper extends BaseMapper<Tags> {
      * 查询所有标签（包含文章数量）
      * @return 标签列表
      */
-    List<Tags> selectTagsWithPostCount();
+    List<TagResl> selectTagsWithPostCount();
 
     /**
      * 根据文章ID查询标签列表
      * @param postId 文章ID
      * @return 标签列表
      */
-    List<Tags> selectTagsByPostId(@Param("postId") Long postId);
+    List<TagResl> selectTagsByPostId(@Param("postId") Long postId);
 
     /**
      * 查询热门标签（根据文章数量排序）
      * @param limit 限制数量
      * @return 热门标签列表
      */
-    List<Tags> selectHotTags(@Param("limit") Integer limit);
+    List<TagResl> selectHotTags(@Param("limit") Integer limit);
 
     /**
      * 根据ID查询标签详情（包含文章数量）
      * @param id 标签ID
      * @return 标签详情
      */
-    Tags selectTagByIdWithPostCount(@Param("id") Long id);
+    TagResl selectTagByIdWithPostCount(@Param("id") Long id);
 
     /**
      * 根据标签名字搜索标签（包含文章数量）
      * @param name 标签名字（支持模糊搜索）
      * @return 标签列表
      */
-    List<Tags> selectTagsByName(@Param("name") String name);
+    List<TagResl> selectTagsByName(@Param("name") String name);
+
+    /**
+     * 管理端分页查询标签列表（包含创建者信息）
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @param name 标签名称（可选，模糊搜索）
+     * @return 标签列表
+     */
+    List<chat.liuxin.liutech.resl.TagResl> selectTagsForAdmin(@Param("offset") Integer offset, 
+                                                              @Param("limit") Integer limit, 
+                                                              @Param("name") String name);
+
+    /**
+     * 管理端查询标签总数
+     * @param name 标签名称（可选，模糊搜索）
+     * @return 总数
+     */
+    Integer countTagsForAdmin(@Param("name") String name);
 }

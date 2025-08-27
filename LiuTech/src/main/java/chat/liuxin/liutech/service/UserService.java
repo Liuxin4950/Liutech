@@ -11,6 +11,7 @@ import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.resl.LoginResl;
 import chat.liuxin.liutech.resl.UserStatsResl;
 import chat.liuxin.liutech.resl.ProfileResl;
+import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -715,6 +716,149 @@ public class UserService {
          profile.setStats(stats);
         
         return profile;
+    }
+
+    /**
+     * 管理端分页查询用户列表
+     * 支持按用户名和邮箱模糊搜索
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param page 页码（从1开始）
+     * @param size 每页大小
+     * @param keyword 搜索关键词（可选）
+     * @return 分页用户列表
+     */
+    public PageResl<UserResl> getUserListForAdmin(int page, int size, String keyword) {
+        log.info("管理端查询用户列表 - 页码: {}, 每页: {}, 关键词: {}", page, size, keyword);
+        
+        try {
+            // 计算偏移量
+            int offset = (page - 1) * size;
+            
+            // 查询用户列表
+            List<UserResl> users = userMapper.selectUsersForAdmin(offset, size, keyword);
+            
+            // 不返回密码等敏感信息
+            users.forEach(user -> user.setPasswordHash(null));
+            
+            // 查询总数
+            int total = userMapper.countUsersForAdmin(keyword);
+            
+            // 构建分页结果
+            PageResl<UserResl> pageResult = new PageResl<>();
+            pageResult.setRecords(users);
+            pageResult.setTotal((long) total);
+            pageResult.setCurrent((long) page);
+            pageResult.setSize((long) size);
+            pageResult.setPages((long) Math.ceil((double) total / size));
+            pageResult.setHasNext((long) page < pageResult.getPages());
+            pageResult.setHasPrevious((long) page > 1);
+            
+            log.info("管理端用户列表查询成功 - 总数: {}, 当前页数据: {}", total, users.size());
+            return pageResult;
+            
+        } catch (Exception e) {
+            log.error("管理端用户列表查询失败: {}", e.getMessage(), e);
+            throw new RuntimeException("查询用户列表失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 保存用户（管理端）
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param user 用户信息
+     * @return 是否保存成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean save(Users user) {
+        try {
+            if (user.getPasswordHash() != null && !user.getPasswordHash().isEmpty()) {
+                // 如果提供了密码，进行加密
+                user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+            }
+            Date now = new Date();
+            user.setCreatedAt(now);
+            user.setUpdatedAt(now);
+            if (user.getStatus() == null) {
+                user.setStatus(1); // 默认启用
+            }
+            if (user.getPoints() == null) {
+                user.setPoints(BigDecimal.ZERO);
+            }
+            int result = userMapper.insert(user);
+            return result > 0;
+        } catch (Exception e) {
+            log.error("保存用户失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 根据ID更新用户（管理端）
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param user 用户信息
+     * @return 是否更新成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean updateById(Users user) {
+        try {
+            if (user.getPasswordHash() != null && !user.getPasswordHash().isEmpty()) {
+                // 如果提供了密码，进行加密
+                user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+            }
+            user.setUpdatedAt(new Date());
+            int result = userMapper.updateById(user);
+            return result > 0;
+        } catch (Exception e) {
+            log.error("更新用户失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 根据ID删除用户（管理端）
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param id 用户ID
+     * @return 是否删除成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeById(Long id) {
+        try {
+            int result = userMapper.deleteById(id);
+            return result > 0;
+        } catch (Exception e) {
+            log.error("删除用户失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 批量删除用户（管理端）
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param ids 用户ID列表
+     * @return 是否删除成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeByIds(List<Long> ids) {
+        try {
+            if (ids == null || ids.isEmpty()) {
+                return false;
+            }
+            int result = userMapper.deleteBatchIds(ids);
+            return result > 0;
+        } catch (Exception e) {
+            log.error("批量删除用户失败: {}", e.getMessage(), e);
+            return false;
+        }
     }
 
     /**

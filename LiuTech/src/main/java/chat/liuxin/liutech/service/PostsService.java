@@ -11,6 +11,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import lombok.extern.slf4j.Slf4j;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -37,6 +38,7 @@ import chat.liuxin.liutech.common.BusinessException;
 /**
  * 文章服务类
  */
+@Slf4j
 @Service
 public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
@@ -499,5 +501,154 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     public Long countViewsByUserId(Long userId) {
         return postsMapper.countViewsByUserId(userId);
+    }
+    
+    /**
+     * 管理端分页查询文章列表
+     * 支持按标题、分类ID、状态、作者ID过滤
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param page 页码（从1开始）
+     * @param size 每页大小
+     * @param title 标题关键词（可选）
+     * @param categoryId 分类ID（可选）
+     * @param status 状态（可选）
+     * @param authorId 作者ID（可选）
+     * @return 分页文章列表
+     */
+    public PageResl<PostListResl> getPostListForAdmin(int page, int size, String title, Long categoryId, String status, Long authorId) {
+        log.info("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}", 
+                page, size, title, categoryId, status, authorId);
+        
+        try {
+            // 创建分页对象
+            Page<PostListResl> pageObj = new Page<>(page, size);
+            
+            // 处理搜索关键词
+            String keyword = StringUtils.hasText(title) ? title.trim() : null;
+            
+            // 执行分页查询，复用现有的selectPostListResl方法
+            IPage<PostListResl> result = postsMapper.selectPostListResl(pageObj, categoryId, null, keyword, status, authorId, null);
+            
+            log.info("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
+            
+            // 使用MyBatis-Plus自动统计的总数
+            return new PageResl<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+            
+        } catch (Exception e) {
+            log.error("管理端文章列表查询失败: {}", e.getMessage(), e);
+            throw new RuntimeException("查询文章列表失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 管理端更新文章状态
+     * 管理员可以更新任何文章的状态
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param id 文章ID
+     * @param status 新状态
+     * @param operatorId 操作者ID
+     * @return 是否成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    public boolean updatePostStatusForAdmin(Long id, String status, Long operatorId) {
+        log.info("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
+        
+        try {
+            // 检查文章是否存在
+            Posts existPost = this.getById(id);
+            if (existPost == null || existPost.getDeletedAt() != null) {
+                throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
+            }
+            
+            // 管理员可以更新任何文章的状态，无需权限检查
+            LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Posts::getId, id)
+                        .set(Posts::getStatus, status)
+                        .set(Posts::getUpdatedAt, new Date())
+                        .set(Posts::getUpdatedBy, operatorId);
+            
+            boolean result = this.update(updateWrapper);
+            log.info("管理端文章状态更新{} - 文章ID: {}", result ? "成功" : "失败", id);
+            return result;
+            
+        } catch (Exception e) {
+            log.error("管理端更新文章状态失败 - 文章ID: {}, 错误: {}", id, e.getMessage(), e);
+            throw new RuntimeException("更新文章状态失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 管理端删除文章（软删除）
+     * 管理员可以删除任何文章
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param id 文章ID
+     * @param operatorId 操作者ID
+     * @return 是否成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    public boolean deletePostForAdmin(Long id, Long operatorId) {
+        log.info("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
+        
+        try {
+            // 检查文章是否存在
+            Posts existPost = this.getById(id);
+            if (existPost == null || existPost.getDeletedAt() != null) {
+                throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
+            }
+            
+            // 管理员可以删除任何文章，无需权限检查
+            int result = postsMapper.deleteById(id, new Date(), operatorId);
+            boolean success = result > 0;
+            log.info("管理端文章删除{} - 文章ID: {}", success ? "成功" : "失败", id);
+            return success;
+            
+        } catch (Exception e) {
+            log.error("管理端删除文章失败 - 文章ID: {}, 错误: {}", id, e.getMessage(), e);
+            throw new RuntimeException("删除文章失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 管理端批量更新文章状态
+     * 管理员可以批量更新文章状态
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param ids 文章ID列表
+     * @param status 新状态
+     * @return 是否成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    public boolean batchUpdateStatus(List<Long> ids, String status) {
+        log.info("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
+        
+        try {
+            if (ids == null || ids.isEmpty()) {
+                return false;
+            }
+            
+            // 批量更新文章状态
+            LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.in(Posts::getId, ids)
+                        .set(Posts::getStatus, status)
+                        .set(Posts::getUpdatedAt, new Date());
+            
+            boolean result = this.update(updateWrapper);
+            log.info("管理端批量更新文章状态{} - 影响文章数: {}", result ? "成功" : "失败", ids.size());
+            return result;
+            
+        } catch (Exception e) {
+            log.error("管理端批量更新文章状态失败 - 错误: {}", e.getMessage(), e);
+            throw new RuntimeException("批量更新文章状态失败: " + e.getMessage());
+        }
     }
 }

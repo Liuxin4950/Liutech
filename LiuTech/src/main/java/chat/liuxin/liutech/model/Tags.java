@@ -13,11 +13,16 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("tags")
-public class Tags extends IdEntity {
+public class Tags extends BaseEntity {
     /**
      * 标签名
      */
     private String name;
+
+    /**
+     * 标签描述
+     */
+    private String description;
 
     /**
      * 该标签下的文章数量

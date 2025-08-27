@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.model.Categories;
+import chat.liuxin.liutech.resl.CategoryResl;
 import chat.liuxin.liutech.service.CategoriesService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,10 +34,10 @@ public class CategoriesController {
      * @return 分类列表
      */
     @GetMapping
-    public Result<List<Categories>> getAllCategories() {
+    public Result<List<CategoryResl>> getAllCategories() {
         log.info("查询所有分类");
         
-        List<Categories> categories = categoriesService.getAllCategoriesWithPostCount();
+        List<CategoryResl> categories = categoriesService.getAllCategoriesWithPostCount();
         log.info("查询分类成功 - 数量: {}", categories.size());
         
         return Result.success("查询成功", categories);
@@ -50,10 +50,10 @@ public class CategoriesController {
      * @return 分类详情
      */
     @GetMapping("/{id}")
-    public Result<Categories> getCategoryById(@PathVariable Long id) {
+    public Result<CategoryResl> getCategoryById(@PathVariable Long id) {
         log.info("查询分类详情 - ID: {}", id);
         
-        Categories category = categoriesService.getById(id);
+        CategoryResl category = categoriesService.getById(id);
         if (category == null) {
             log.warn("分类不存在 - ID: {}", id);
             return Result.fail(ErrorCode.CATEGORY_NOT_FOUND);

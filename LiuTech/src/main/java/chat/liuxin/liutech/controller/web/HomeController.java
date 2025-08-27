@@ -11,10 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.model.Categories;
 import chat.liuxin.liutech.model.Comments;
-import chat.liuxin.liutech.model.Tags;
+import chat.liuxin.liutech.resl.CategoryResl;
 import chat.liuxin.liutech.resl.PostListResl;
+import chat.liuxin.liutech.resl.TagResl;
 import chat.liuxin.liutech.service.CategoriesService;
 import chat.liuxin.liutech.service.CommentsService;
 import chat.liuxin.liutech.service.PostsService;
@@ -77,11 +77,11 @@ public class HomeController {
             data.put("hotPosts", hotPosts);
             
             // 分类列表（包含文章数量）
-            List<Categories> categories = categoriesService.getAllCategoriesWithPostCount();
+            List<CategoryResl> categories = categoriesService.getAllCategoriesWithPostCount();
             data.put("categories", categories);
             
             // 热门标签（10个）
-            List<Tags> hotTags = tagsService.getHotTags(10);
+            List<TagResl> hotTags = tagsService.getHotTags(10);
             data.put("hotTags", hotTags);
             
             // 最新评论（5条）
