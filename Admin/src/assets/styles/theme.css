@@ -1,0 +1,213 @@
+/* ===============================
+   浅色主题（默认，青蓝风格）
+   =============================== */
+:root {
+   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+   line-height: 1.6;
+
+   /* ===== 主色调（青蓝系） ===== */
+   --color-primary: #6ba6c5;
+   /* 主色：青蓝，按钮、链接 */
+   --color-primary-light: #84a98c;
+   /* 浅青绿，hover/次要按钮 */
+   --color-primary-dark: #1b4965;
+   /* 深青蓝，用于导航/强调 */
+
+   /* ===== 背景色 ===== */
+   --bg-main: #ffffff;
+   /* 页面整体背景（白底） */
+   --bg-soft: #fefefe;
+   /* 分区柔和青蓝底 */
+   --bg-card: #f8f9fa;
+   /* 卡片背景（浅灰白） */
+   --bg-hover: #d8eefe;
+   /* hover 高亮（淡青蓝） */
+   --bg-tag: #b5dbec;
+   /* 标签背景 */
+   --bg-tag-hover: #2a7789;
+   /* 标签hover背景 */
+
+
+   /* ===== 文本色 ===== */
+   --text-main: #253237;
+   /* 主正文颜色（深灰蓝） */
+   --text-subtle: #52575a;
+   /* 次要文字（灰蓝） */
+   --text-muted: #9db4c0;
+   /* 更淡文字（已修正为标准命名） */
+   --text-title: #1b263b;
+   /* 标题（深蓝灰） */
+
+
+   /* ===== 边框色 ===== */
+   --border-soft: #d8e5e9;
+   /* 浅边框 */
+   --border-base: #9db4c0;
+   /* 常规边框 */
+   --border-strong: #5c6b73;
+   /* 深边框 */
+
+   /* ===== 状态色（柔和） ===== */
+   --color-success: #2a9d8f;
+   --color-warning: #f4a261;
+   --color-error: #e63946;
+   --color-info: #3a86ff;
+
+   /* ===== 阴影 ===== */
+   --shadow-sm: 0 0px 2px rgb(0 0 0 / 0.2);
+   --shadow-md: 0 0px 6px rgb(0 0 0 / 0.1);
+   --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.15);
+}
+
+/* ===============================
+   深色主题（柔和青蓝）
+   =============================== */
+.dark {
+   /* ===== 主色调（青蓝系） ===== */
+   --color-primary: #5dade2;
+   /* 主色：亮青蓝 */
+   --color-primary-light: #a8dadc;
+   /* 浅青蓝，用于次按钮 */
+   --color-primary-dark: #0d1b2a;
+   /* 深青蓝，用于导航栏 */
+
+   /* ===== 背景色 ===== */
+   --bg-main: #1b263b;
+   /* 页面整体背景（深蓝灰，而不是死黑） */
+   --bg-soft: #161f2e;
+   /* 分区背景 */
+   --bg-card: #161f2e;
+   /* 卡片背景（深灰蓝，仍有层次感） */
+   --bg-hover: #354f52;
+   /* hover 背景（暗青蓝） */
+   --bg-tag: #2a7789;
+   /* 标签背景 */
+   --bg-tag-hover: #5ba8ab;
+   /* 标签hover背景 */
+
+   /* ===== 文本色 ===== */
+   --text-main: #e0e1dd;
+   /* 主正文（浅灰白） */
+   --text-subtle: #c1c5c9;
+   /* 次要文字 */
+   --text-subtle: #6c757d;
+   /* 更淡文字 */
+   --text-title: #f8f9fa;
+   /* 标题（接近白） */
+
+   /* ===== 边框色 ===== */
+   --border-soft: #415a77;
+   --border-base: #5c6b73;
+   --border-strong: #9db4c0;
+
+   /* ===== 状态色（稍亮以突出） ===== */
+   --color-success: #2ec4b6;
+   --color-warning: #ffb703;
+   --color-error: #ef476f;
+   --color-info: #4cc9f0;
+
+   /* ===== 阴影（暗背景更明显） ===== */
+   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+   --shadow-md: 0 4px 6px rgb(0 0 0 / 0.35);
+   --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.4);
+}
+
+/* ===============================
+   工具类（命名直观）
+   =============================== */
+
+/* 文本颜色 */
+.text-main {
+   color: var(--text-main);
+}
+
+.text-subtle {
+   color: var(--text-subtle);
+}
+
+.text-subtle {
+   color: var(--text-subtle);
+}
+
+.text-title {
+   color: var(--text-title);
+}
+
+.text-primary {
+   color: var(--color-primary);
+}
+
+.text-accent {
+   color: var(--color-primary-light);
+}
+
+/* 背景颜色 */
+.bg-main {
+   background-color: var(--bg-main);
+}
+
+.bg-soft {
+   background-color: var(--bg-soft);
+}
+
+.bg-card {
+   background-color: var(--bg-card);
+}
+
+.bg-hover {
+   background-color: var(--bg-hover);
+}
+
+.bg-primary {
+   background-color: var(--color-primary);
+}
+
+.bg-accent {
+   background-color: var(--color-primary-light);
+}
+
+/* 边框颜色 */
+.border-soft {
+   border-color: var(--border-soft);
+}
+
+.border-base {
+   border-color: var(--border-base);
+}
+
+.border-strong {
+   border-color: var(--border-strong);
+}
+
+/* 状态色 */
+.text-success {
+   color: var(--color-success);
+}
+
+.text-warning {
+   color: var(--color-warning);
+}
+
+.text-error {
+   color: var(--color-error);
+}
+
+.text-info {
+   color: var(--color-info);
+}
+
+.bg-success {
+   background-color: var(--color-success);
+}
+
+.bg-warning {
+   background-color: var(--color-warning);
+}
+
+.bg-error {
+   background-color: var(--color-error);
+}
+
+.bg-info {
+   background-color: var(--color-info);
+}

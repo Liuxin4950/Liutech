@@ -1,0 +1,449 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "DDFont";
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+button {
+  border: none;
+  outline: none;
+  background: none;
+  cursor: pointer;
+}
+
+.fit {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.link{
+  cursor: pointer;
+}
+/* 载入字体 */
+@font-face {
+  font-family: 'DDFont';
+  src: url('@/assets/font/dd.ttf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+/* =================================
+   应用容器样式
+   ================================= */
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* =================================
+   布局工具类 - Flex布局
+   ================================= */
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-fw {
+  flex-wrap: wrap;
+}
+
+/* flex-1 用于让元素自动填充剩余空间
+   常用于flex布局中让某个子元素占据剩余的所有空间 */
+.flex-1 {
+  flex: 1;
+}
+
+/* Flex对齐方式 */
+.flex-ct {
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-sb {
+  justify-content: space-between;
+}
+
+.flex-sa {
+  justify-content: space-around;
+}
+
+.flex-jc {
+  justify-content: center;
+}
+
+.flex-je {
+  justify-content: flex-end;
+}
+
+.flex-ac {
+  align-items: center;
+}
+
+.flex-as {
+  align-items: flex-start;
+}
+
+.flex-ae {
+  align-items: flex-end;
+}
+
+/* 布局工具类 - Grid布局 */
+.grid {
+  display: grid;
+}
+
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+/* 布局工具类 - 显示类型 */
+.block {
+  display: block;
+}
+
+/* =================================
+   文本样式工具类
+   ================================= */
+/* 文本对齐 */
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.no-underline {
+  text-decoration: none;
+}
+
+/* =================================
+   组件样式
+   ================================= */
+.badge {
+  background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* 卡片组件 */
+.card {
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 0px 2px rgba(0, 0, 0, 0.3);
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  padding-bottom: 8px;
+}
+
+/* 列表组件 */
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-item {
+  padding: 8px 0;
+}
+
+/* 标签云组件 */
+.tags-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  background: var(--bg-tag);
+  color: var(--text-main);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border-soft);
+}
+
+.tag:hover {
+  background: var(--bg-tag-hover);
+  color:white;
+}
+
+.tag small {
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
+/* =================================
+   间距工具类
+   ================================= */
+/* 间隙 */
+.gap-8 {
+  gap: 8px;
+}
+
+.gap-12 {
+  gap: 12px;
+}
+
+/* gap属性需要父元素设置display: flex、grid或column-gap等布局属性才能生效 */
+.gap-16 {
+  gap: 16px;
+}
+
+.gap-20 {
+  gap: 20px;
+}
+
+.gap-30 {
+  gap: 30px;
+}
+
+/* 内边距 */
+.p-4 {
+  padding: 4px;
+}
+
+.p-8 {
+  padding: 8px;
+}
+
+.p-12 {
+  padding: 12px;
+}
+
+.p-16 {
+  padding: 16px;
+}
+
+.p-20 {
+  padding: 20px;
+}
+
+.p-24 {
+  padding: 24px;
+}
+
+.px-20 {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.px-24 {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.py-12 {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.pb-16 {
+  padding-bottom: 16px;
+}
+
+.pt-16 {
+  padding-top: 16px;
+}
+
+/* 外边距 */
+.m-0 {
+  margin: 0;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.mb-4 {
+  margin-bottom: 4px;
+}
+
+.mb-8 {
+  margin-bottom: 8px;
+}
+
+.mb-12 {
+  margin-bottom: 12px;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.mt-4 {
+  margin-top: 4px;
+}
+
+.mt-8 {
+  margin-top: 8px;
+}
+
+.mt-12 {
+  margin-top: 12px;
+}
+
+.mt-24 {
+  margin-top: 24px;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 文本大小 */
+.text-xs {
+  font-size: 0.75rem;
+}
+
+.text-sm {
+  font-size: 0.75rem;
+}
+
+.text-base {
+  font-size: 0.85rem;
+}
+
+.text-lg {
+  font-size: 0.9rem;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+}
+
+/* 字体粗细 */
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+/* =================================
+   圆角工具类
+   ================================= */
+/* 圆角 */
+.rounded {
+  border-radius: 8px;
+}
+
+.rounded-8 {
+  border-radius: 8px;
+}
+
+.rounded-lg {
+  border-radius: 12px;
+}
+
+.rounded-12 {
+  border-radius: 12px;
+}
+
+.rounded-full {
+  border-radius: 50%;
+}
+/* 过渡效果 */
+.transition {
+  transition: all 0.3s ease;
+}
+
+/* 定位 */
+.relative {
+  position: relative;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.fixed {
+  position: fixed;
+}
+
+.sticky {
+  position: sticky;
+}
+
+/* 定位偏移 */
+.top-0 {
+  top: 0;
+}
+
+.left-0 {
+  left: 0;
+}
+
+.right-0 {
+  right: 0;
+}
+.bottom-0{
+  bottom: 0;
+}
+
+
+/* 层级 */
+.z-99 {
+  z-index: 99;
+}
+
+.z-100 {
+  z-index: 100;
+}
+
+.z-1000 {
+  z-index: 1000;
+}

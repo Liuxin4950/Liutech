@@ -9,6 +9,16 @@
             "projectName": "LiuTech",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-LiuTechApplication<liutech-backend>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "chat.liuxin.liutech.LiuTechApplication",
+            "projectName": "liutech-backend",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
