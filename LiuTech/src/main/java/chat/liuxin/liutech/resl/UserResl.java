@@ -66,4 +66,9 @@ public class UserResl {
      * 更新时间
      */
     private Date updatedAt;
+
+    /**
+     * 文章数量
+     */
+    private Integer postCount;
 }

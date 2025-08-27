@@ -119,4 +119,29 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
         
         return tagResl;
     }
+
+    /**
+     * 保存标签（接受TagResl参数）
+     * @param tagResl 标签信息
+     * @return 保存结果
+     */
+    public boolean save(TagResl tagResl) {
+        Tags tag = new Tags();
+        tag.setName(tagResl.getName());
+        tag.setDescription(tagResl.getDescription());
+        return super.save(tag);
+    }
+
+    /**
+     * 根据ID更新标签（接受TagResl参数）
+     * @param tagResl 标签信息
+     * @return 更新结果
+     */
+    public boolean updateById(TagResl tagResl) {
+        Tags tag = new Tags();
+        tag.setId(tagResl.getId());
+        tag.setName(tagResl.getName());
+        tag.setDescription(tagResl.getDescription());
+        return super.updateById(tag);
+    }
 }

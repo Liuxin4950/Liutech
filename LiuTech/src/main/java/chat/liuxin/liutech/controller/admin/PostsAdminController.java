@@ -7,18 +7,21 @@ import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.service.PostsService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
  * 管理端文章控制器
+ * 需要管理员权限才能访问
  * 
  * @author 刘鑫
  */
 @RestController
 @RequestMapping("/api/admin/posts")
 @CrossOrigin(origins = "http://localhost:3000")
+@PreAuthorize("hasRole('ADMIN')")
 public class PostsAdminController {
 
     @Autowired

@@ -2,23 +2,26 @@ package chat.liuxin.liutech.controller.admin;
 
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
-import chat.liuxin.liutech.model.Categories;
+
 import chat.liuxin.liutech.resl.CategoryResl;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.service.CategoriesService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
  * 管理端分类控制器
+ * 需要管理员权限才能访问
  * 
  * @author 刘鑫
  */
 @RestController
 @RequestMapping("/api/admin/categories")
 @CrossOrigin(origins = "http://localhost:3000")
+@PreAuthorize("hasRole('ADMIN')")
 public class CategoriesAdminController {
 
     @Autowired
@@ -71,7 +74,7 @@ public class CategoriesAdminController {
      * @return 创建结果
      */
     @PostMapping
-    public Result<String> createCategory(@RequestBody Categories category) {
+    public Result<String> createCategory(@RequestBody CategoryResl category) {
         try {
             boolean success = categoriesService.save(category);
             if (success) {
@@ -92,7 +95,7 @@ public class CategoriesAdminController {
      * @return 更新结果
      */
     @PutMapping("/{id}")
-    public Result<String> updateCategory(@PathVariable Long id, @RequestBody Categories category) {
+    public Result<String> updateCategory(@PathVariable Long id, @RequestBody CategoryResl category) {
         try {
             category.setId(id);
             boolean success = categoriesService.updateById(category);

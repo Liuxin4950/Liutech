@@ -83,4 +83,29 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
         
         return categoryResl;
     }
+
+    /**
+     * 保存分类（接受CategoryResl参数）
+     * @param categoryResl 分类信息
+     * @return 保存结果
+     */
+    public boolean save(CategoryResl categoryResl) {
+        Categories category = new Categories();
+        category.setName(categoryResl.getName());
+        category.setDescription(categoryResl.getDescription());
+        return super.save(category);
+    }
+
+    /**
+     * 根据ID更新分类（接受CategoryResl参数）
+     * @param categoryResl 分类信息
+     * @return 更新结果
+     */
+    public boolean updateById(CategoryResl categoryResl) {
+        Categories category = new Categories();
+        category.setId(categoryResl.getId());
+        category.setName(categoryResl.getName());
+        category.setDescription(categoryResl.getDescription());
+        return super.updateById(category);
+    }
 }

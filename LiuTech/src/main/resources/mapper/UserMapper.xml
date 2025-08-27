@@ -13,4 +13,43 @@
         SELECT * FROM users WHERE email = #{email}
     </select>
 
+    <!-- 管理端分页查询用户列表 -->
+    <select id="selectUsersForAdmin" resultType="chat.liuxin.liutech.resl.UserResl">
+        SELECT 
+            u.id,
+            u.username,
+            u.email,
+            u.nickname,
+            u.avatar_url as avatarUrl,
+            u.bio,
+            u.points,
+            u.status,
+            u.last_login_at as lastLoginAt,
+            u.password_hash as passwordHash,
+            u.created_at as createdAt,
+            u.updated_at as updatedAt,
+            COALESCE(COUNT(DISTINCT p.id), 0) as postCount
+        FROM users u
+        LEFT JOIN posts p ON u.id = p.author_id AND p.deleted_at IS NULL
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (u.username LIKE CONCAT('%', #{keyword}, '%') OR u.email LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        GROUP BY u.id, u.username, u.email, u.nickname, u.avatar_url, u.bio, u.points, u.status, u.last_login_at, u.password_hash, u.created_at, u.updated_at
+        ORDER BY u.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 管理端查询用户总数 -->
+    <select id="countUsersForAdmin" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT u.id)
+        FROM users u
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (u.username LIKE CONCAT('%', #{keyword}, '%') OR u.email LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
 </mapper>

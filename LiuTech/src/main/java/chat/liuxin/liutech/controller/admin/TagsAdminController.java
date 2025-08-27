@@ -2,23 +2,26 @@ package chat.liuxin.liutech.controller.admin;
 
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
-import chat.liuxin.liutech.model.Tags;
+
 import chat.liuxin.liutech.resl.TagResl;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.service.TagsService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
  * 管理端标签控制器
+ * 需要管理员权限才能访问
  * 
  * @author 刘鑫
  */
 @RestController
 @RequestMapping("/api/admin/tags")
 @CrossOrigin(origins = "http://localhost:3000")
+@PreAuthorize("hasRole('ADMIN')")
 public class TagsAdminController {
 
     @Autowired
@@ -71,7 +74,7 @@ public class TagsAdminController {
      * @return 创建结果
      */
     @PostMapping
-    public Result<String> createTag(@RequestBody Tags tag) {
+    public Result<String> createTag(@RequestBody TagResl tag) {
         try {
             boolean success = tagsService.save(tag);
             if (success) {
@@ -92,7 +95,7 @@ public class TagsAdminController {
      * @return 更新结果
      */
     @PutMapping("/{id}")
-    public Result<String> updateTag(@PathVariable Long id, @RequestBody Tags tag) {
+    public Result<String> updateTag(@PathVariable Long id, @RequestBody TagResl tag) {
         try {
             tag.setId(id);
             boolean success = tagsService.updateById(tag);

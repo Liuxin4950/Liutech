@@ -67,4 +67,37 @@
         ORDER BY t.name
     </select>
 
+    <!-- 管理端分页查询标签列表 -->
+    <select id="selectTagsForAdmin" resultType="chat.liuxin.liutech.resl.TagResl">
+        SELECT 
+            t.id,
+            t.name,
+            t.description,
+            t.created_at,
+            t.updated_at,
+            COUNT(DISTINCT p.id) as post_count
+        FROM tags t
+        LEFT JOIN post_tags pt ON t.id = pt.tag_id
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        <where>
+            <if test="name != null and name != ''">
+                AND t.name LIKE CONCAT('%', #{name}, '%')
+            </if>
+        </where>
+        GROUP BY t.id, t.name, t.description, t.created_at, t.updated_at
+        ORDER BY t.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 管理端查询标签总数 -->
+    <select id="countTagsForAdmin" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT t.id)
+        FROM tags t
+        <where>
+            <if test="name != null and name != ''">
+                AND t.name LIKE CONCAT('%', #{name}, '%')
+            </if>
+        </where>
+    </select>
+
 </mapper>
