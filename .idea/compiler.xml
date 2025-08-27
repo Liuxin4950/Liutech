@@ -9,6 +9,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="LiuTech" />
         <module name="LiuTech (1)" />
+        <module name="liutech-backend" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="21" />
@@ -17,6 +18,7 @@
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="LiuTech" options="-parameters" />
       <module name="LiuTech (1)" options="-parameters" />
+      <module name="liutech-backend" options="-parameters" />
     </option>
   </component>
 </project>
