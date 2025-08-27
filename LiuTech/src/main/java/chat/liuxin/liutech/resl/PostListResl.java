@@ -80,6 +80,11 @@ public class PostListResl {
      */
     private Integer favoriteStatus;
 
+    /**
+     * 文章状态（draft: 草稿, published: 已发布, archived: 已归档）
+     */
+    private String status;
+
     /** 
      * 创建时间
      */

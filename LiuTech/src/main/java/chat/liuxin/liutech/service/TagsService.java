@@ -3,6 +3,7 @@ package chat.liuxin.liutech.service;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -37,10 +38,11 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     }
 
     /**
-     * 查询热门标签
+     * 获取热门标签（按文章数量排序）
      * @param limit 限制数量
      * @return 热门标签列表
      */
+    @Cacheable(value = "hotTags", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<Tags> getHotTags(Integer limit) {
         return tagsMapper.selectHotTags(limit);
     }

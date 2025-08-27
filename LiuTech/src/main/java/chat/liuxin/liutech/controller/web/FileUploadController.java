@@ -1,22 +1,16 @@
 package chat.liuxin.liutech.controller.web;
 
-import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resl.FileUploadResl;
 import chat.liuxin.liutech.service.FileUploadService;
 import chat.liuxin.liutech.service.UserService;
-import chat.liuxin.liutech.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**

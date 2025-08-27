@@ -46,7 +46,7 @@
 
       <!-- 文章列表 -->
       <div v-else class="posts-list">
-        <div v-for="post in filteredPosts" :key="post.id" class="post-card">
+        <div v-for="post in filteredPosts" :key="post.id" class="post-card bg-card">
           <img v-if="post.thumbnail" class="fit" :src="post.coverImage" alt="">
           <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="">
           <img v-else="post.coverImage" class="fit" src="@/assets/image/images.jpg" alt="">
@@ -94,6 +94,14 @@
             </button>
             <button class="action-btn edit-btn" @click="editPost(post.id)" title="编辑">
               <span class="btn-icon">✏️</span>
+            </button>
+            <button 
+              v-if="post.status === 'published'" 
+              class="action-btn unpublish-btn" 
+              @click="unpublishPost(post.id)" 
+              title="取消发布"
+            >
+              <span class="btn-icon">📤</span>
             </button>
             <button class="action-btn delete-btn" @click="deletePost(post.id)" title="删除">
               <span class="btn-icon">🗑️</span>
@@ -165,6 +173,8 @@ const loadPosts = async () => {
     })
 
     posts.value = response.records
+    console.log(posts.value);
+    
     totalCount.value = response.total
   }, {
     onError: (err) => {
@@ -218,6 +228,27 @@ const deletePost = async (postId: number) => {
     onError: (err) => {
       console.error('删除文章失败:', err)
       alert('删除文章失败，请稍后重试')
+    }
+  })
+}
+
+const unpublishPost = async (postId: number) => {
+  if (!confirm('确定要取消发布这篇文章吗？文章将转为草稿状态。')) {
+    return
+  }
+
+  await handleAsync(async () => {
+    await PostService.unpublishPost(postId)
+
+    // 重新加载文章列表
+    await loadPosts()
+
+    // 显示成功消息
+    alert('文章已取消发布，转为草稿状态！')
+  }, {
+    onError: (err) => {
+      console.error('取消发布文章失败:', err)
+      alert('取消发布文章失败，请稍后重试')
     }
   })
 }
@@ -384,7 +415,6 @@ onMounted(async () => {
 }
 
 .post-card {
-  background-color: var(--card-bg);
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 24px;
@@ -475,6 +505,15 @@ onMounted(async () => {
 
 .edit-btn:hover {
   background-color: #ffe0b2;
+}
+
+.unpublish-btn {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.unpublish-btn:hover {
+  background-color: #e1bee7;
 }
 
 .delete-btn {

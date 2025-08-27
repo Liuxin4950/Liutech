@@ -173,15 +173,6 @@ const getTagIcon = (tagName: string): string => {
   return iconMap[tagName] || '🔖'
 }
 
-// 标签大小类（用于字体和视觉权重）
-const getTagSizeClass = (postCount: number) => {
-  if (postCount >= 20) return 'text-lg font-bold bg-primary-light text-primary px-16 py-8'
-  if (postCount >= 15) return 'text-base font-semibold bg-gray-100 text-gray-800 px-14 py-7'
-  if (postCount >= 10) return 'text-sm font-medium bg-gray-50 text-gray-700 px-12 py-6'
-  if (postCount >= 5) return 'text-xs font-normal bg-gray-25 text-gray-600 px-10 py-5'
-  return 'text-xs opacity-60 italic bg-gray-10 text-gray-500 px-8 py-4'
-}
-
 // 初始化数据
 onMounted(async () => {
   await tagStore.initTags()

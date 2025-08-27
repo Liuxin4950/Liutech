@@ -1,8 +1,5 @@
 package chat.liuxin.liutech.model;
 
-import java.util.List;
-
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;

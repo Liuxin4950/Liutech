@@ -3,9 +3,6 @@ package chat.liuxin.liutech.controller.web;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,8 +27,6 @@ import chat.liuxin.liutech.resl.PostDetailResl;
 import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.service.UserService;
-import chat.liuxin.liutech.utils.JwtUtil;
-import chat.liuxin.liutech.model.Users;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -51,8 +46,6 @@ public class PostsController {
     @Autowired
     private UserService userService;
     
-    @Autowired
-    private JwtUtil jwtUtil;
 
     /**
      * 分页查询文章列表
@@ -90,6 +83,7 @@ public class PostsController {
         req.setTagId(tagId);
         req.setKeyword(keyword);
         req.setSort(sort);
+        req.setStatus("published"); // 公开接口只显示已发布的文章
         
         PageResl<PostListResl> result = postsService.getPostList(req, currentUserId);
         log.info("查询文章列表成功 - 总数: {}, 当前页: {}", result.getTotal(), result.getCurrent());
@@ -241,6 +235,7 @@ public class PostsController {
         req.setPage(page);
         req.setSize(size);
         req.setKeyword(keyword);
+        req.setStatus("published"); // 搜索时只显示已发布的文章
         
         PageResl<PostListResl> result = postsService.getPostList(req);
         log.info("搜索文章成功 - 关键词: {}, 总数: {}", keyword, result.getTotal());
@@ -419,6 +414,51 @@ public class PostsController {
         } catch (Exception e) {
             log.error("查询草稿箱失败", e);
             return Result.fail(ErrorCode.OPERATION_ERROR, "查询草稿箱失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取当前用户的已发布文章
+     * 查询当前登录用户的所有已发布文章
+     * 
+     * @param page 页码（从1开始）
+     * @param size 每页大小
+     * @param keyword 搜索关键词（可选）
+     * @param request HTTP请求对象
+     * @return 用户已发布文章列表
+     */
+    @GetMapping("/my")
+    public Result<PageResl<PostListResl>> getMyPosts(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String keyword,
+            HttpServletRequest request) {
+        
+        try {
+            // 获取当前用户ID
+            Long authorId = userService.getCurrentUserId();
+            if (authorId == null) {
+                return Result.fail(ErrorCode.UNAUTHORIZED);
+            }
+            
+            log.info("查询我的已发布文章 - 用户ID: {}, 页码: {}, 大小: {}, 关键词: {}", 
+                    authorId, page, size, keyword);
+            
+            PostQueryReq req = new PostQueryReq();
+            req.setPage(page);
+            req.setSize(size);
+            req.setKeyword(keyword);
+            req.setStatus("published"); // 只查询已发布状态的文章
+            req.setAuthorId(authorId); // 只查询当前用户的文章
+            req.setSort("latest"); // 按最新时间排序
+            
+            PageResl<PostListResl> result = postsService.getPostList(req, authorId);
+            log.info("查询我的已发布文章成功 - 用户ID: {}, 总数: {}", authorId, result.getTotal());
+            
+            return Result.success("查询成功", result);
+        } catch (Exception e) {
+            log.error("查询我的已发布文章失败", e);
+            return Result.fail(ErrorCode.OPERATION_ERROR, "查询我的已发布文章失败: " + e.getMessage());
         }
     }
 

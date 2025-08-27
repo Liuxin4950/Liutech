@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -127,6 +128,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @param createCommentReq 创建评论请求
      * @return 创建的评论
      */
+    @Transactional(rollbackFor = Exception.class)
     public CommentResl createComment(CreateCommentReq createCommentReq) {
         log.info("开始创建评论，请求参数: {}", createCommentReq);
         

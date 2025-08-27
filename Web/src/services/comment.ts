@@ -25,6 +25,8 @@ export interface PageResponse<T> {
   size: number
   current: number
   pages: number
+  hasNext?: boolean
+  hasPrevious?: boolean
 }
 
 // 创建评论请求接口

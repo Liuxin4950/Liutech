@@ -33,8 +33,9 @@ export interface PostListItem {
   viewCount: number
   likeCount: number
   favoriteCount: number
-  likeStatus: boolean
-  favoriteStatus: boolean
+  likeStatus: number  // 0-未点赞, 1-已点赞
+  favoriteStatus: number  // 0-未收藏, 1-已收藏
+  status: 'draft' | 'published' | 'archived'
   createdAt: string
   updatedAt?: string
 }
@@ -51,6 +52,8 @@ export interface PageResponse<T> {
   size: number
   current: number
   pages: number
+  hasNext?: boolean
+  hasPrevious?: boolean
 }
 
 // 文章查询参数接口
@@ -242,18 +245,28 @@ export class PostService {
   }
 
   /**
-   * 获取用户已发布文章列表
+   * 取消发布文章
+   * @param id 文章ID
+   * @returns 取消发布结果
+   */
+  static async unpublishPost(id: number): Promise<void> {
+    try {
+      await put(`/posts/${id}/unpublish`)
+    } catch (error) {
+      console.error('取消发布文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取用户文章列表（包括草稿和已发布）
    * @param params 查询参数
    * @returns 分页文章列表
    */
   static async getMyPosts(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
     try {
-      // 设置status为published来获取已发布的文章
-      const queryParams = {
-        ...params,
-        status: 'published' as const
-      }
-      const response = await get('/posts', queryParams)
+      // 不设置status过滤，获取用户所有文章
+      const response = await get('/posts/my', params)
       return response.data
     } catch (error) {
       console.error('获取我的文章失败:', error)

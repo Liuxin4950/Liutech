@@ -6,7 +6,10 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -30,7 +33,6 @@ import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.BusinessException;
 
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 文章服务类
@@ -209,6 +211,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @param limit 限制数量
      * @return 热门文章列表
      */
+    @Cacheable(value = "hotPosts", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<PostListResl> getHotPosts(Integer limit) {
         return getHotPosts(limit, null);
     }
@@ -228,6 +231,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @param limit 限制数量
      * @return 最新文章列表
      */
+    @Cacheable(value = "latestPosts", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<PostListResl> getLatestPosts(Integer limit) {
         return getLatestPosts(limit, null);
     }
@@ -251,6 +255,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 文章创建响应
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
     public PostCreateResl createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
@@ -290,6 +295,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 是否成功
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
     public boolean updatePost(PostUpdateReq req, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(req.getId());
@@ -326,6 +332,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 是否成功
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
     public boolean deletePost(Long id, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(id);
@@ -350,6 +357,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 是否成功
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
     public boolean publishPost(Long id, Long authorId) {
         return updatePostStatus(id, "published", authorId);
     }

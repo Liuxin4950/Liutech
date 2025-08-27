@@ -39,6 +39,7 @@
         <result property="commentCount" column="comment_count"/>
         <result property="likeStatus" column="like_status"/>
         <result property="favoriteStatus" column="favorite_status"/>
+        <result property="status" column="status"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <!-- 分类信息 -->

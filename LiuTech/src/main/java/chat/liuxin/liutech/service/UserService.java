@@ -15,6 +15,8 @@ import chat.liuxin.liutech.utils.JwtUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -124,6 +126,7 @@ public class UserService {
      * @return 注册成功的用户信息（脱敏后）
      * @throws BusinessException 当用户名已存在或邮箱已被注册时抛出
      */
+    @Transactional(rollbackFor = Exception.class)
     public UserResl register(RegisterReq registerReq) {
         log.info("开始用户注册流程，用户名: {}", registerReq.getUsername());
         
@@ -191,6 +194,7 @@ public class UserService {
      * @return 包含JWT token的登录响应
      * @throws BusinessException 当用户名或密码错误、账户被禁用时抛出
      */
+    @Transactional(rollbackFor = Exception.class)
     public LoginResl login(LoginReq loginReq) {
         log.info("用户登录尝试，用户名: {}", loginReq.getUsername());
         
@@ -373,6 +377,7 @@ public class UserService {
      * @param newPassword 新密码
      * @throws BusinessException 当验证失败或修改失败时抛出异常
      */
+    @Transactional(rollbackFor = Exception.class)
     public void changePassword(Long userId, String username, String tokenPasswordHash, 
                               String oldPassword, String newPassword) {
         log.info("开始修改用户密码，用户ID: {}, 用户名: {}", userId, username);
@@ -433,6 +438,8 @@ public class UserService {
      * @return 更新后的用户信息（脱敏后）
      * @throws BusinessException 当验证失败或更新失败时抛出异常
      */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = "userStats", key = "#root.target.getCurrentUserId()")
     public UserResl updateProfile(UpdateProfileReq updateProfileReq) {
         log.info("开始更新用户个人资料");
         
@@ -514,6 +521,7 @@ public class UserService {
      * @return 用户统计信息
      * @throws BusinessException 当用户未认证或不存在时抛出异常
      */
+    @Cacheable(value = "userStats", key = "#root.target.getCurrentUserId()", unless = "#result == null")
     public UserStatsResl getCurrentUserStats() {
         log.info("开始获取当前用户统计信息");
         

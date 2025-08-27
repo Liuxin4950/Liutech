@@ -249,8 +249,8 @@ const loadPostDetail = async () => {
     // 初始化点赞和收藏状态
     currentLikeCount.value = postData.likeCount || 0
     currentFavoriteCount.value = postData.favoriteCount || 0
-    isLiked.value = postData.likeStatus || false
-    isFavorited.value = postData.favoriteStatus || false
+    isLiked.value = postData.likeStatus === 1  // 1表示已点赞
+    isFavorited.value = postData.favoriteStatus === 1  // 1表示已收藏
 
 
 

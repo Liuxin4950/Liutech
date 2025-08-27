@@ -27,6 +27,8 @@ export interface PageResponse<T> {
   size: number
   current: number
   pages: number
+  hasNext?: boolean
+  hasPrevious?: boolean
 }
 
 // 注意：管理端相关的请求接口已移除

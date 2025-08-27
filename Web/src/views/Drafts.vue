@@ -47,7 +47,7 @@
 
       <!-- 草稿列表 -->
       <div v-else class="drafts-list">
-        <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card gap-12">
+        <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card bg-card gap-12">
           <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="">
           <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="">
           <img v-else="draft.coverImage" class="fit" src="@/assets/image/images.jpg" alt="">
@@ -272,7 +272,7 @@ onMounted(async () => {
 .create-btn:hover { background-color: var(--color-primary-dark); transform: translateY(-2px); }
 
 .drafts-list { display: grid; gap: 20px; }
-.draft-card { background: var(--card-bg); border: 1px solid var(--border-soft); border-radius: 12px; padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; transition: all 0.3s ease; gap: 20px; }
+.draft-card {  border: 1px solid var(--border-soft); border-radius: 12px; padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; transition: all 0.3s ease; gap: 20px; }
 .draft-card>img { width: 200px; height: 150px; }
 .draft-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
 

@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -62,6 +64,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param limit 限制数量
      * @return 最新公告列表
      */
+    @Cacheable(value = "announcements", key = "'latest_' + #limit", unless = "#result == null || #result.isEmpty()")
     public List<AnnouncementResl> getLatestAnnouncements(Integer limit) {
         if (limit == null || limit <= 0) {
             limit = 10; // 默认获取10条
@@ -75,6 +78,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param id 公告ID
      * @return 公告详情
      */
+    @Transactional(rollbackFor = Exception.class)
     public AnnouncementResl getAnnouncementById(Long id) {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID不能为空");
@@ -97,6 +101,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @return 公告ID
      */
     @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
     public Long createAnnouncement(AnnouncementReq req) {
         validateAnnouncementReq(req);
         
@@ -122,6 +127,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @return 是否成功
      */
     @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
     public boolean updateAnnouncement(AnnouncementReq req) {
         if (req.getId() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID不能为空");
@@ -146,6 +152,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @return 是否成功
      */
     @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
     public boolean deleteAnnouncement(Long id) {
         if (id == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID不能为空");

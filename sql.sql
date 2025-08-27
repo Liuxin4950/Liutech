@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS posts (
   thumbnail VARCHAR(512) DEFAULT NULL COMMENT '缩略图URL',
   category_id BIGINT NOT NULL COMMENT '分类ID',
   author_id BIGINT NOT NULL COMMENT '作者ID',
-  status TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '文章状态(0草稿,1已发布)',
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' COMMENT '文章状态(draft草稿,published已发布,archived已归档)',
   view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览次数',
   like_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点赞数',
   favorite_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '收藏数',
