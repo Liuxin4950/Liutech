@@ -4,17 +4,17 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { UserService, type UserInfo, type RegisterRequest } from '../services/user.ts'
+import { UserService, type User, type RegisterRequest } from '../services/user'
 import { handleApiError, showError } from '../utils/errorHandler'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
-  const userInfo = ref<UserInfo | null>(null)
+  const userInfo = ref<User | null>(null)
   const isLoading = ref(false)
 
   // 计算属性
   const isLoggedIn = computed(() => {
-    return !!userInfo.value && UserService.isLoggedIn()
+    return !!userInfo.value && !!localStorage.getItem('token')
   })
 
   const username = computed(() => {
@@ -22,11 +22,7 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const avatar = computed(() => {
-    return userInfo.value?.avatarUrl || ''
-  })
-
-  const points = computed(() => {
-    return userInfo.value?.points || 0
+    return userInfo.value?.avatar || ''
   })
 
   // 动作
@@ -38,9 +34,17 @@ export const useUserStore = defineStore('user', () => {
   const login = async (username: string, password: string) => {
     isLoading.value = true
     try {
-      await UserService.login({ username, password })
-      await fetchUserInfo()
-      return true
+      const response = await UserService.login({ username, password })
+      if (response.code === 200) {
+        // 保存token到localStorage
+        if (response.data.token) {
+          localStorage.setItem('token', response.data.token)
+        }
+        await fetchUserInfo()
+        return true
+      } else {
+        throw new Error(response.message || '登录失败')
+      }
     } catch (error) {
       handleApiError(error)
       return false
@@ -56,9 +60,13 @@ export const useUserStore = defineStore('user', () => {
   const register = async (registerData: RegisterRequest) => {
     isLoading.value = true
     try {
-      const userData = await UserService.register(registerData)
-      userInfo.value = userData
-      return true
+      const response = await UserService.register(registerData)
+      if (response.code === 200) {
+        // 注册成功后可以选择自动登录或跳转到登录页
+        return true
+      } else {
+        throw new Error(response.message || '注册失败')
+      }
     } catch (error) {
       handleApiError(error)
       return false
@@ -71,7 +79,7 @@ export const useUserStore = defineStore('user', () => {
    * 登出
    */
   const logout = () => {
-    UserService.logout()
+    localStorage.removeItem('token')
     userInfo.value = null
   }
 
@@ -79,14 +87,18 @@ export const useUserStore = defineStore('user', () => {
    * 获取用户信息
    */
   const fetchUserInfo = async () => {
-    if (!UserService.isLoggedIn()) {
+    if (!localStorage.getItem('token')) {
       userInfo.value = null
       return
     }
 
     try {
-      const userData = await UserService.getCurrentUser()
-      userInfo.value = userData
+      const response = await UserService.getCurrentUser()
+      if (response.code === 200) {
+        userInfo.value = response.data
+      } else {
+        throw new Error(response.message || '获取用户信息失败')
+      }
     } catch (error) {
       console.error('获取用户信息失败:', error)
       showError('获取用户信息失败，请重新登录')
@@ -100,7 +112,7 @@ export const useUserStore = defineStore('user', () => {
    * 应用启动时调用，检查本地存储的token并获取用户信息
    */
   const initUserState = async () => {
-    if (UserService.isLoggedIn()) {
+    if (localStorage.getItem('token')) {
       await fetchUserInfo()
     }
   }
@@ -109,7 +121,7 @@ export const useUserStore = defineStore('user', () => {
    * 更新用户信息
    * @param newUserInfo 新的用户信息
    */
-  const updateUserInfo = (newUserInfo: Partial<UserInfo>) => {
+  const updateUserInfo = (newUserInfo: Partial<User>) => {
     if (userInfo.value) {
       userInfo.value = { ...userInfo.value, ...newUserInfo }
     }
@@ -124,7 +136,6 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn,
     username,
     avatar,
-    points,
     
     // 动作
     login,
@@ -133,5 +144,11 @@ export const useUserStore = defineStore('user', () => {
     fetchUserInfo,
     initUserState,
     updateUserInfo
+  }
+}, {
+  persist: {
+    key: 'user-store',
+    storage: localStorage,
+    pick: ['userInfo']
   }
 })

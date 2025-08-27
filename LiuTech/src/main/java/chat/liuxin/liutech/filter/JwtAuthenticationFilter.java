@@ -41,6 +41,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
         try {
+            // 记录所有请求
+            log.info("处理请求: {} {}", request.getMethod(), request.getRequestURI());
             // 从请求头获取Authorization字段
             String authHeader = request.getHeader("Authorization");
             // 检查Authorization头是否存在且以"Bearer "开头
@@ -70,15 +72,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         // 将认证信息设置到安全上下文中
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                         // 记录认证成功日志
-                        log.debug("JWT认证成功，用户: {}, 角色: {}", username, authorities);
+                        log.info("JWT认证成功，用户: {}, 角色: {}, 请求路径: {}", username, authorities, request.getRequestURI());
                     }
                 } else {
                     // 记录无效token警告日志
-                    log.warn("无效的JWT token");
+                    log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
                 }
             }
         } catch (Exception e) {
-            log.error("JWT认证过程中发生错误: {}", e.getMessage());
+            log.error("JWT认证过程中发生错误，请求路径: {}, 错误: {}", request.getRequestURI(), e.getMessage());
         }
         filterChain.doFilter(request, response);
     }

@@ -19,7 +19,7 @@ import java.util.List;
  * @author 刘鑫
  */
 @RestController
-@RequestMapping("/api/admin/posts")
+@RequestMapping("/admin/posts")
 @CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
 public class PostsAdminController {

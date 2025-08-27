@@ -408,7 +408,8 @@
             AND EXISTS (SELECT 1 FROM post_tags pt2 WHERE pt2.post_id = p.id AND pt2.tag_id = #{tagId})
         </if>
         <if test="keyword != null and keyword != ''">
-            AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+            AND p.title LIKE CONCAT('%', #{keyword}, '%') 
+            <!-- OR p.content LIKE CONCAT('%', #{keyword}, '%') -->
         </if>
         <if test="status != null and status != ''">
             AND p.status = #{status}

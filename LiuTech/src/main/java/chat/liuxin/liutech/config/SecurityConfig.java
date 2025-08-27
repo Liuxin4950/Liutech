@@ -19,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // 新增：密码加密器Bean
+import org.springframework.http.HttpMethod; // 新增：显式允许预检请求
 
 import java.util.Arrays;
 
@@ -80,6 +81,12 @@ public class SecurityConfig {
                 // ========== 完全公开的接口（无需任何认证） ==========
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/user/register", "/user/login").permitAll()
+                // 预检请求必须放行，否则浏览器跨域会被拦截
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                
+                // ========== 管理端接口（需要认证，具体权限由@PreAuthorize控制） ==========
+                // 注意：必须放在 /tags/** 等通配符之前，避免被误匹配为公开接口
+                .requestMatchers("/admin/**").authenticated()  // 管理端接口需要认证
                 
                 // ========== 只读公开接口（GET请求） ==========
                 .requestMatchers("GET", "/posts/**").permitAll()  // 所有文章查询接口

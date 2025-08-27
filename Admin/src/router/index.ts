@@ -19,6 +19,42 @@ const routes: RouteRecordRaw[] = [
           section: 'home'
         }
       },
+      {
+        path: 'posts',
+        name: 'posts-management',
+        component: () => import('../views/admin/PostsManagement.vue'),
+        meta: {
+          title: '文章管理',
+          section: 'posts'
+        }
+      },
+      {
+        path: 'categories',
+        name: 'categories-management',
+        component: () => import('../views/admin/CategoriesManagement.vue'),
+        meta: {
+          title: '分类管理',
+          section: 'categories'
+        }
+      },
+      {
+        path: 'tags',
+        name: 'tags-management',
+        component: () => import('../views/admin/TagsManagement.vue'),
+        meta: {
+          title: '标签管理',
+          section: 'tags'
+        }
+      },
+      {
+        path: 'users',
+        name: 'users-management',
+        component: () => import('../views/admin/UsersManagement.vue'),
+        meta: {
+          title: '用户管理',
+          section: 'users'
+        }
+      }
     ]
   },{
     path: '/login',

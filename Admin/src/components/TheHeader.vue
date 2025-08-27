@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme.ts'
 import { useUserStore } from '../stores/user'
+import { UserOutlined, LogoutOutlined, DownOutlined } from '@ant-design/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -96,106 +97,79 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-100 ">
-    <div class=" px-20 flex flex-ac">
-      <div class="text-xl font-bold link text-primary">
-        <h2>LiuTech</h2>
+  <a-layout-header class="admin-header">
+    <div class="header-content">
+      <div class="logo">
+        <h2>LiuTech 管理后台</h2>
       </div>
-      
-      <!-- 桌面端导航 -->
-      <nav class="desktop-nav">
-        <ul class="flex gap-30">
-          <li><router-link to="/" class="nav-link transition" :class="{ 'is-active': isActive('home') }">首页</router-link></li>
-        </ul>
-      </nav>
-      
-
-      <div class="flex flex-ac gap-16 nav-user" >
-        <!-- 用户信息区域 -->
-        <div class="relative user-menu-container">
-          <!-- 已登录状态 -->
-          <div v-if="userStore.isLoggedIn" class="flex flex-ac gap-8 link rounded transition" @click="toggleUserMenu">
-            <div class="user-avatar rounded-full bg-primary flex flex-ct link">
-              <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="fit rounded-full" />
-              <div v-else class="text-white font-semibold text-sm">{{ userStore.username?.charAt(0).toUpperCase() }}</div>
-            </div>
-            <div class="flex flex-col link">
-              <span class="font-medium">{{ userStore.username }}</span>
-              <span class="text-sm text-muted">{{ userStore.points }}积分</span>
-            </div>
-          </div>
+      <div class="header-right">
+        <a-space>
+          <!-- 主题切换按钮 -->
+          <a-button type="text" @click="theme.toggle" class="theme-btn">
+            {{ theme.current.value === 'light' ? '🌙' : '☀️' }}
+          </a-button>
+          
+          <!-- 用户信息 -->
+          <a-dropdown v-if="userStore.isLoggedIn">
+            <template #overlay>
+              <a-menu>
+                <a-menu-item key="profile">
+                  <UserOutlined />
+                  个人资料
+                </a-menu-item>
+                <a-menu-divider />
+                <a-menu-item key="logout" @click="handleLogout">
+                  <LogoutOutlined />
+                  退出登录
+                </a-menu-item>
+              </a-menu>
+            </template>
+            <a-button type="text" class="user-btn">
+              <UserOutlined />
+              {{ userStore.username || 'Admin' }}
+              <DownOutlined />
+            </a-button>
+          </a-dropdown>
           
           <!-- 未登录状态 -->
-          <button v-else class=" text-white flex flex-ac gap-8 transition  rounded p-8 hover-lift" @click="navigateTo('/login')">
-            <span class="text-base">👤</span>
-            <span>登录</span>
-          </button>
-          
-          <!-- 用户下拉菜单 -->
-          <div v-show="isUserMenuOpen" class="avatar-menu absolute card transition bg-main" @click.stop>
-            <ul class="list">
-              <li @click="navigateTo('/profile')" class="transition link">个人资料</li>
-              <li @click="handleLogout" class="transition link border-t text-danger">退出登录</li>
-            </ul>
-          </div>
-        </div>
-        
-        <!-- 主题切换按钮 -->
-        <button @click="theme.toggle" class="rounded transition hover-bg p-8 text-lg">
-          {{ theme.current.value === 'light' ? '🌙' : '☀️' }}
-        </button>
+          <a-button v-else type="primary" @click="navigateTo('/login')">
+            <UserOutlined />
+            登录
+          </a-button>
+        </a-space>
       </div>
     </div>
-  </header>
+  </a-layout-header>
 </template>
 
-<style scoped lang="scss">
-header{
-  width: 100%;
-  height: 70px;
-  background-color: var(--bg-main);
-  box-shadow: var(--shadow-sm);
-}
-header > div{
-  height: 70px;
-}
-
-.user-avatar{
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-}
-
-ul,ol {
-  list-style: none;
+<style scoped>
+.admin-header {
+  background: #fff;
   padding: 0;
-  margin: 0;
-}
-.avatar-menu{
-  top: 70px;
-  width: 140px; 
-  z-index: 99;
-  bar
-  li{
-    margin-bottom: 12px;
-    cursor: pointer;
-  }
-  li:last-child {
-    margin-bottom: 0;
-  }
-  li:hover{
-    color: var(--color-primary);
-  }
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* 导航链接样式 */
-.nav-link {
-  color: var(--text-main);
-  text-decoration: none;
-  font-weight: 500;
-  position: relative;
-  padding: 8px 0;
-  cursor: pointer;
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  padding: 0 24px;
+}
+
+.logo h2 {
+  margin: 0;
+  color: #1890ff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.user-btn {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.theme-btn {
+  font-size: 16px;
 }
 
 .nav-link.router-link-exact-active,

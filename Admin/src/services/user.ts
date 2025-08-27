@@ -1,226 +1,136 @@
-import { get, post, put } from './api'
+import { post, get, put, del } from './api'
+import type { ApiResponse } from './api'
 
-// 登录请求参数接口
+// 用户相关接口类型定义
+export interface User {
+  id: number
+  username: string
+  email: string
+  nickname?: string
+  avatar?: string
+  status: number  // 用户状态：0禁用，1正常
+  role?: string
+  passwordHash?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface LoginRequest {
   username: string
   password: string
 }
 
-// 注册请求参数接口
 export interface RegisterRequest {
   username: string
   email: string
   password: string
-  avatar?: string
-  nickname?: string
 }
 
-// 修改密码请求参数接口
-export interface ChangePasswordRequest {
-  oldPassword: string
-  newPassword: string
-  confirmPassword: string
-}
-
-// 更新个人资料请求参数接口
-export interface UpdateProfileRequest {
-  email?: string
-  avatarUrl?: string
-  nickname?: string
-  bio?: string
-}
-
-// 用户信息接口
-export interface UserInfo {
-  id?: number
-  username: string
-  email: string
-  avatarUrl?: string
-  nickname?: string
-  bio?: string
-  points: number
-  status?: number
-  lastLoginAt?: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-// 个人资料统计信息接口
-export interface ProfileStats {
-  posts: number
-  comments: number
-  views: number
-}
-
-// 个人资料信息接口
-export interface ProfileInfo {
-  name: string
-  title: string
-  avatar: string
-  bio: string
-  stats: ProfileStats
-}
-
-// 用户统计信息接口
-export interface UserStats {
-  id?: number
-  username: string
-  email: string
-  avatarUrl?: string
-  nickname?: string
-  bio?: string
-  points: number
-  status?: number
-  lastLoginAt?: string
-  createdAt?: string
-  commentCount: number
-  postCount: number
-  draftCount: number
-  viewCount: number
-  lastCommentAt?: string
-  lastPostAt?: string
-}
-
-// 登录响应数据接口
 export interface LoginResponse {
   token: string
 }
 
+export interface UserListParams {
+  page?: number
+  size?: number
+  username?: string
+  email?: string
+  status?: number  // 用户状态：0禁用，1正常
+  role?: string
+}
+
+export interface PageResult<T> {
+  records: T[]
+  total: number
+  current: number
+  size: number
+  pages: number
+}
+
 /**
- * 用户服务类
+ * 用户服务
  */
 export class UserService {
+  private static readonly ADMIN_BASE_URL = '/admin/users'
   /**
    * 用户登录
-   * @param data 登录数据
-   * @returns Promise<LoginResponse>
    */
-  static async login(data: LoginRequest): Promise<LoginResponse> {
-    try {
-      const response = await post<LoginResponse>('/user/login', data)
-      
-      // 保存 token 到本地存储
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token)
-      }
-      
-      return response.data
-    } catch (error) {
-      console.error('登录失败', error)
-      throw error
-    }
+  static async login(data: LoginRequest): Promise<ApiResponse<LoginResponse>> {
+    return post<LoginResponse>('/user/login', data)
   }
 
   /**
    * 用户注册
-   * @param data 注册数据
-   * @returns Promise<UserInfo>
    */
-  static async register(data: RegisterRequest): Promise<UserInfo> {
-    try {
-      const response = await post<UserInfo>('/user/register', data)
-      return response.data
-    } catch (error) {
-      console.error('注册失败', error)
-      throw error
-    }
+  static async register(data: RegisterRequest): Promise<ApiResponse<string>> {
+    return post<string>('/user/register', data)
   }
 
   /**
    * 获取当前用户信息
-   * @returns Promise<UserInfo>
    */
-  static async getCurrentUser(): Promise<UserInfo> {
-    try {
-      const response = await get<UserInfo>('/user/current')
-      return response.data
-    } catch (error) {
-      console.error('获取用户信息失败', error)
-      throw error
-    }
+  static async getCurrentUser(): Promise<ApiResponse<User>> {
+    return get<User>('/user/current')
   }
 
   /**
-   * 修改密码
-   * @param data 修改密码数据
-   * @returns Promise<void>
+   * 更新用户信息
    */
-  static async changePassword(data: ChangePasswordRequest): Promise<void> {
-    try {
-      await put<null>('/user/password', data)
-    } catch (error) {
-      console.error('修改密码失败', error)
-      throw error
-    }
+  static async updateProfile(data: Partial<User>): Promise<ApiResponse<string>> {
+    return put<string>('/user/profile', data)
+  }
+
+  // === 管理端用户管理接口 ===
+
+  /**
+   * 分页查询用户列表（管理端）
+   */
+  static async getUserList(params: UserListParams = {}): Promise<ApiResponse<PageResult<User>>> {
+    return get<PageResult<User>>(this.ADMIN_BASE_URL, params)
   }
 
   /**
-   * 更新个人资料
-   * @param data 更新资料数据
-   * @returns Promise<UserInfo>
+   * 根据ID查询用户详情（管理端）
    */
-  static async updateProfile(data: UpdateProfileRequest): Promise<UserInfo> {
-    try {
-      const response = await put<UserInfo>('/user/profile', data)
-      return response.data
-    } catch (error) {
-      console.error('更新个人资料失败', error)
-      throw error
-    }
+  static async getUserById(id: number): Promise<ApiResponse<User>> {
+    return get<User>(`${this.ADMIN_BASE_URL}/${id}`)
   }
 
   /**
-   * 用户登出
+   * 创建用户（管理端）
    */
-  static logout(): void {
-    localStorage.removeItem('token')
-    // 可以在这里添加其他清理逻辑
+  static async createUser(user: User): Promise<ApiResponse<string>> {
+    return post<string>(this.ADMIN_BASE_URL, user)
   }
 
   /**
-   * 检查是否已登录
-   * @returns boolean
+   * 更新用户（管理端）
    */
-  static isLoggedIn(): boolean {
-    const token = localStorage.getItem('token')
-    return !!token
+  static async updateUser(id: number, user: User): Promise<ApiResponse<string>> {
+    return put<string>(`${this.ADMIN_BASE_URL}/${id}`, user)
   }
 
   /**
-   * 获取存储的 token
-   * @returns string | null
+   * 删除用户（管理端）
    */
-  static getToken(): string | null {
-    return localStorage.getItem('token')
+  static async deleteUser(id: number): Promise<ApiResponse<string>> {
+    return del<string>(`${this.ADMIN_BASE_URL}/${id}`)
   }
 
   /**
-   * 获取用户统计信息
-   * @returns Promise<UserStats>
+   * 批量删除用户（管理端）
    */
-  static async getUserStats(): Promise<UserStats> {
-    try {
-      const response = await get<UserStats>('/user/stats')
-      return response.data
-    } catch (error) {
-      console.error('获取用户统计信息失败', error)
-      throw error
-    }
+  static async batchDeleteUsers(ids: number[]): Promise<ApiResponse<string>> {
+    return del<string>(`${this.ADMIN_BASE_URL}/batch`, { data: ids })
   }
 
   /**
-   * 获取个人资料信息
-   * @returns Promise<ProfileInfo>
+   * 更新用户状态（管理端）
    */
-  static async getProfile(): Promise<ProfileInfo> {
-    try {
-      const response = await get<ProfileInfo>('/user/profile')
-      return response.data
-    } catch (error) {
-      console.error('获取个人资料失败', error)
-      throw error
-    }
+  static async updateUserStatus(id: number, enabled: boolean): Promise<ApiResponse<string>> {
+    return put<string>(`${this.ADMIN_BASE_URL}/${id}/status`, null, { params: { enabled } })
   }
+
 }
 
 // 导出便捷方法
@@ -228,13 +138,14 @@ export const {
   login,
   register,
   getCurrentUser,
-  changePassword,
   updateProfile,
-  logout,
-  isLoggedIn,
-  getToken,
-  getUserStats,
-  getProfile
+  getUserList,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
+  batchDeleteUsers,
+  updateUserStatus
 } = UserService
 
 export default UserService

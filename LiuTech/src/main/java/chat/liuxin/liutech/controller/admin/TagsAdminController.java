@@ -19,7 +19,7 @@ import java.util.List;
  * @author 刘鑫
  */
 @RestController
-@RequestMapping("/api/admin/tags")
+@RequestMapping("/admin/tags")
 @CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
 public class TagsAdminController {

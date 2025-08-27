@@ -8,6 +8,11 @@ import App from './App.vue'
 import router from './router'
 // 引入主题切换
 import theme from './utils/theme.ts'
+// 引入Ant Design Vue
+import Antd from 'ant-design-vue'
+import 'ant-design-vue/dist/reset.css'
+// 引入用户store
+import { useUserStore } from './stores/user'
 
 // 引入全局错误处理
 import { initGlobalErrorHandler, configureVueErrorHandler } from './utils/globalErrorHandler'
@@ -31,6 +36,12 @@ configureVueErrorHandler(app)
 app.use(pinia)
 // 使用路由
 app.use(router)
+// 使用Ant Design Vue
+app.use(Antd)
+
+// 初始化用户状态
+const userStore = useUserStore()
+userStore.initUserState()
 
 // 挂载应用
 app.mount('#app')
