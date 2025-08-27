@@ -165,10 +165,8 @@ public class PostsAdminController {
     @PutMapping("/{id}/status")
     public Result<String> updatePostStatus(@PathVariable Long id, @RequestParam String status) {
         try {
-            Posts post = new Posts();
-            post.setId(id);
-            post.setStatus(status);
-            boolean success = postsService.updateById(post);
+            // 使用专门的管理端状态更新方法，避免updateById导致其他字段为null
+            boolean success = postsService.updatePostStatusForAdmin(id, status, 1L); // TODO: 获取当前管理员ID
             if (success) {
                 return Result.success("文章状态更新成功");
             } else {

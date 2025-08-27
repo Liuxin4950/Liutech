@@ -16,6 +16,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import Editor from '@tinymce/tinymce-vue'
+import { ImageUploadService } from '@/services/upload'
 // 导入TinyMCE核心
 import 'tinymce/tinymce'
 // 导入TinyMCE主题
@@ -79,16 +80,8 @@ const content = ref(props.modelValue)
 // 编辑器加载状态
 const editorLoaded = ref(false)
 
-// 简化的图片上传处理函数
-const handleImageUpload = (blobInfo: any, progress: any) => {
-  return new Promise((resolve, reject) => {
-    // 这里可以实现图片上传到服务器的逻辑
-    // 暂时返回本地blob URL
-    const blob = blobInfo.blob()
-    const url = URL.createObjectURL(blob)
-    resolve(url)
-  })
-}
+// TinyMCE图片上传处理函数
+const handleImageUpload = ImageUploadService.uploadTinyMCEImage
 
 // TinyMCE配置
 const editorConfig = computed(() => ({
