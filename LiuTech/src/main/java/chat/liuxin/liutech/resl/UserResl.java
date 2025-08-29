@@ -71,4 +71,9 @@ public class UserResl {
      * 文章数量
      */
     private Integer postCount;
+
+    /**
+     * 删除时间（软删除）
+     */
+    private Date deletedAt;
 }

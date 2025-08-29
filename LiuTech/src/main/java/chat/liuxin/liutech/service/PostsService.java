@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -24,6 +25,8 @@ import chat.liuxin.liutech.mapper.PostLikesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.PostTags;
+import chat.liuxin.liutech.model.PostLikes;
+import chat.liuxin.liutech.model.PostFavorites;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
@@ -649,6 +652,56 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         } catch (Exception e) {
             log.error("管理端批量更新文章状态失败 - 错误: {}", e.getMessage(), e);
             throw new RuntimeException("批量更新文章状态失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 批量删除文章（管理端）- 软删除
+     * 同时删除相关的点赞、收藏、评论和标签关联
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param ids 文章ID列表
+     * @return 是否删除成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    public boolean removeByIds(List<Long> ids) {
+        try {
+            if (ids == null || ids.isEmpty()) {
+                return false;
+            }
+            
+            // 删除文章标签关联
+            LambdaQueryWrapper<PostTags> tagQueryWrapper = new LambdaQueryWrapper<>();
+            tagQueryWrapper.in(PostTags::getPostId, ids);
+            postTagsMapper.delete(tagQueryWrapper);
+            
+            // 软删除点赞记录
+            LambdaUpdateWrapper<PostLikes> likesUpdateWrapper = new LambdaUpdateWrapper<>();
+            likesUpdateWrapper.in(PostLikes::getPostId, ids)
+                    .set(PostLikes::getIsLike, 0)
+                    .set(PostLikes::getUpdatedAt, new Date());
+            postLikesMapper.update(null, likesUpdateWrapper);
+            
+            // 软删除收藏记录
+            LambdaUpdateWrapper<PostFavorites> favoritesUpdateWrapper = new LambdaUpdateWrapper<>();
+            favoritesUpdateWrapper.in(PostFavorites::getPostId, ids)
+                    .set(PostFavorites::getIsFavorite, 0)
+                    .set(PostFavorites::getUpdatedAt, new Date());
+            postFavoritesMapper.update(null, favoritesUpdateWrapper);
+            
+            // 软删除文章
+            LambdaUpdateWrapper<Posts> postsUpdateWrapper = new LambdaUpdateWrapper<>();
+            postsUpdateWrapper.in(Posts::getId, ids)
+                    .set(Posts::getDeletedAt, new Date());
+            
+            int result = postsMapper.update(null, postsUpdateWrapper);
+            log.info("管理端批量删除文章{} - 影响文章数: {}", result > 0 ? "成功" : "失败", ids.size());
+            return result > 0;
+        } catch (Exception e) {
+            log.error("批量删除文章失败: {}", e.getMessage(), e);
+            return false;
         }
     }
 }

@@ -21,18 +21,30 @@ public interface UserMapper extends BaseMapper<Users> {
      * 管理端分页查询用户列表（包含统计信息）
      * @param offset 偏移量
      * @param limit 限制数量
-     * @param keyword 关键词（可选，模糊搜索用户名或邮箱）
+     * @param username 用户名（可选，模糊搜索）
+     * @param email 邮箱（可选，模糊搜索）
+     * @param status 用户状态（可选，0禁用，1启用）
+     * @param includeDeleted 是否包含已删除用户
      * @return 用户列表
      */
     List<UserResl> selectUsersForAdmin(@Param("offset") Integer offset, 
                                       @Param("limit") Integer limit, 
-                                      @Param("keyword") String keyword);
+                                      @Param("username") String username,
+                                      @Param("email") String email,
+                                      @Param("status") Integer status,
+                                      @Param("includeDeleted") Boolean includeDeleted);
 
     /**
      * 管理端查询用户总数
-     * @param keyword 关键词（可选，模糊搜索用户名或邮箱）
+     * @param username 用户名（可选，模糊搜索）
+     * @param email 邮箱（可选，模糊搜索）
+     * @param status 用户状态（可选，0禁用，1启用）
+     * @param includeDeleted 是否包含已删除用户
      * @return 总数
      */
-    Integer countUsersForAdmin(@Param("keyword") String keyword);
+    Integer countUsersForAdmin(@Param("username") String username,
+                              @Param("email") String email,
+                              @Param("status") Integer status,
+                              @Param("includeDeleted") Boolean includeDeleted);
 
 }

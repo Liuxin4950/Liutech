@@ -1,26 +1,39 @@
 package chat.liuxin.liutech.service;
 
+import java.util.Date;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import chat.liuxin.liutech.mapper.TagsMapper;
+import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.model.Tags;
+import chat.liuxin.liutech.model.PostTags;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.resl.TagResl;
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 标签服务类
  */
+@Slf4j
 @Service
 public class TagsService extends ServiceImpl<TagsMapper, Tags> {
 
     @Autowired
     private TagsMapper tagsMapper;
+    
+    @Autowired
+    private PostTagsMapper postTagsMapper;
 
     /**
      * 查询所有标签（包含文章数量）
@@ -143,5 +156,39 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
         tag.setName(tagResl.getName());
         tag.setDescription(tagResl.getDescription());
         return super.updateById(tag);
+    }
+    
+    /**
+     * 批量删除标签（管理端）- 安全删除
+     * 检查是否有关联的文章，如果有则先删除关联关系
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param ids 标签ID列表
+     * @return 是否删除成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeByIds(List<Long> ids) {
+        try {
+            if (ids == null || ids.isEmpty()) {
+                return false;
+            }
+            
+            // 先删除标签与文章的关联关系
+            LambdaQueryWrapper<PostTags> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.in(PostTags::getTagId, ids);
+            postTagsMapper.delete(queryWrapper);
+            
+            // 使用软删除
+            LambdaUpdateWrapper<Tags> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.in(Tags::getId, ids)
+                    .set(Tags::getDeletedAt, new Date());
+            
+            int result = tagsMapper.update(null, updateWrapper);
+            return result > 0;
+        } catch (Exception e) {
+            log.error("批量删除标签失败: {}", e.getMessage(), e);
+            return false;
+        }
     }
 }

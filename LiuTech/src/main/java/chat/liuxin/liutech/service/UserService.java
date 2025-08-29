@@ -24,6 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional; // 新增：事务注解
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
@@ -720,30 +722,33 @@ public class UserService {
 
     /**
      * 管理端分页查询用户列表
-     * 支持按用户名和邮箱模糊搜索
+     * 支持多条件搜索（用户名、邮箱、状态）
      * 
      * @author 刘鑫
      * @date 2025-01-17
      * @param page 页码（从1开始）
      * @param size 每页大小
-     * @param keyword 搜索关键词（可选）
+     * @param username 用户名（可选）
+     * @param email 邮箱（可选）
+     * @param status 用户状态（可选，0禁用，1启用）
+     * @param includeDeleted 是否包含已删除用户
      * @return 分页用户列表
      */
-    public PageResl<UserResl> getUserListForAdmin(int page, int size, String keyword) {
-        log.info("管理端查询用户列表 - 页码: {}, 每页: {}, 关键词: {}", page, size, keyword);
+    public PageResl<UserResl> getUserListForAdmin(Integer page, Integer size, String username, String email, Integer status, Boolean includeDeleted) {
+        log.info("管理端查询用户列表 - 页码: {}, 每页: {}, 用户名: {}, 邮箱: {}, 状态: {}, 包含已删除: {}", page, size, username, email, status, includeDeleted);
         
         try {
             // 计算偏移量
             int offset = (page - 1) * size;
             
             // 查询用户列表
-            List<UserResl> users = userMapper.selectUsersForAdmin(offset, size, keyword);
+            List<UserResl> users = userMapper.selectUsersForAdmin(offset, size, username, email, status, includeDeleted);
             
             // 不返回密码等敏感信息
             users.forEach(user -> user.setPasswordHash(null));
             
             // 查询总数
-            int total = userMapper.countUsersForAdmin(keyword);
+            int total = userMapper.countUsersForAdmin(username, email, status, includeDeleted);
             
             // 构建分页结果
             PageResl<UserResl> pageResult = new PageResl<>();
@@ -821,7 +826,8 @@ public class UserService {
     }
 
     /**
-     * 根据ID删除用户（管理端）
+     * 根据ID删除用户（管理端）- 软删除
+     * 由于用户表存在多个外键约束关系，使用软删除避免约束冲突
      * 
      * @author 刘鑫
      * @date 2025-01-17
@@ -831,16 +837,29 @@ public class UserService {
     @Transactional(rollbackFor = Exception.class)
     public boolean removeById(Long id) {
         try {
-            int result = userMapper.deleteById(id);
-            return result > 0;
+            if (id == null) {
+                return false;
+            }
+            
+            // 使用软删除，设置deleted_at字段
+            LambdaUpdateWrapper<Users> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.eq(Users::getId, id)
+                    .set(Users::getDeletedAt, new Date())
+                    .set(Users::getUpdatedBy, getCurrentUserId());
+            
+            int result = userMapper.update(null, updateWrapper);
+            boolean success = result > 0;
+            log.info("用户删除{} - 用户ID: {}", success ? "成功" : "失败", id);
+            return success;
         } catch (Exception e) {
-            log.error("删除用户失败: {}", e.getMessage(), e);
+            log.error("删除用户失败 - 用户ID: {}, 错误: {}", id, e.getMessage(), e);
             return false;
         }
     }
 
     /**
-     * 批量删除用户（管理端）
+     * 批量删除用户（管理端）- 软删除
+     * 由于用户表存在多个外键约束关系，使用软删除避免约束冲突
      * 
      * @author 刘鑫
      * @date 2025-01-17
@@ -853,7 +872,14 @@ public class UserService {
             if (ids == null || ids.isEmpty()) {
                 return false;
             }
-            int result = userMapper.deleteBatchIds(ids);
+            
+            // 使用软删除，设置deleted_at字段
+            LambdaUpdateWrapper<Users> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.in(Users::getId, ids)
+                    .set(Users::getDeletedAt, new Date())
+                    .set(Users::getUpdatedBy, getCurrentUserId());
+            
+            int result = userMapper.update(null, updateWrapper);
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除用户失败: {}", e.getMessage(), e);

@@ -112,14 +112,43 @@ const handleTableChange = (p: any) => { current.value = p.current; pageSize.valu
 const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
 
 const handleDelete = async (id: number) => {
-  const res = await TagsService.deleteTag(id)
-  if (res.code === 200) { message.success('删除成功'); loadTags() } else { message.error(res.message || '删除失败') }
+  try {
+    const res = await TagsService.deleteTag(id)
+    if (res.code === 200) {
+      message.success('删除成功')
+      loadTags()
+    } else {
+      // 针对外键约束错误给出更友好的提示
+      if (res.message && res.message.includes('foreign key constraint')) {
+        message.error('无法删除该标签，因为还有文章正在使用此标签')
+      } else {
+        message.error(res.message || '删除失败')
+      }
+    }
+  } catch (error) {
+    message.error('删除操作失败，请稍后重试')
+  }
 }
 
 const handleBatchDelete = async () => {
   if (!selectedRowKeys.value.length) { message.warning('请选择要删除的标签'); return }
-  const res = await TagsService.batchDeleteTags(selectedRowKeys.value)
-  if (res.code === 200) { message.success('批量删除成功'); selectedRowKeys.value = []; loadTags() } else { message.error(res.message || '批量删除失败') }
+  try {
+    const res = await TagsService.batchDeleteTags(selectedRowKeys.value)
+    if (res.code === 200) {
+      message.success('批量删除成功')
+      selectedRowKeys.value = []
+      loadTags()
+    } else {
+      // 针对外键约束错误给出更友好的提示
+      if (res.message && res.message.includes('foreign key constraint')) {
+        message.error('无法删除选中的标签，因为还有文章正在使用这些标签')
+      } else {
+        message.error(res.message || '批量删除失败')
+      }
+    }
+  } catch (error) {
+    message.error('批量删除操作失败，请稍后重试')
+  }
 }
 
 onMounted(() => { loadTags() })

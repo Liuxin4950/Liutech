@@ -11,6 +11,7 @@
         FROM tags t
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
         LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY t.name
     </select>
@@ -22,7 +23,7 @@
             t.name
         FROM tags t
         INNER JOIN post_tags pt ON t.id = pt.tag_id
-        WHERE pt.post_id = #{postId}
+        WHERE pt.post_id = #{postId} AND t.deleted_at IS NULL
         ORDER BY t.name
     </select>
 
@@ -35,6 +36,7 @@
         FROM tags t
         INNER JOIN post_tags pt ON t.id = pt.tag_id
         INNER JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        WHERE t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY post_count DESC, t.name
         LIMIT #{limit}
@@ -49,7 +51,7 @@
         FROM tags t
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
         LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
-        WHERE t.id = #{id}
+        WHERE t.id = #{id} AND t.deleted_at IS NULL
         GROUP BY t.id, t.name
     </select>
 
@@ -62,7 +64,7 @@
         FROM tags t
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
         LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
-        WHERE t.name LIKE CONCAT('%', #{name}, '%')
+        WHERE t.name LIKE CONCAT('%', #{name}, '%') AND t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY t.name
     </select>
@@ -80,6 +82,7 @@
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
         LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
         <where>
+            t.deleted_at IS NULL
             <if test="name != null and name != ''">
                 AND t.name LIKE CONCAT('%', #{name}, '%')
             </if>
@@ -94,6 +97,7 @@
         SELECT COUNT(DISTINCT t.id)
         FROM tags t
         <where>
+            t.deleted_at IS NULL
             <if test="name != null and name != ''">
                 AND t.name LIKE CONCAT('%', #{name}, '%')
             </if>

@@ -118,7 +118,9 @@ public class TagsAdminController {
     @DeleteMapping("/{id}")
     public Result<String> deleteTag(@PathVariable Long id) {
         try {
-            boolean success = tagsService.removeById(id);
+            // 使用批量删除方法来正确处理外键约束
+            List<Long> ids = List.of(id);
+            boolean success = tagsService.removeByIds(ids);
             if (success) {
                 return Result.success("标签删除成功");
             } else {

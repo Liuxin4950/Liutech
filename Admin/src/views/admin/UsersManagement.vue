@@ -18,6 +18,7 @@ const searchParams = ref<UserListParams>({
   username: '',
   email: '',
   status: undefined,
+  includeDeleted: false,
   role: undefined
 })
 
@@ -198,6 +199,7 @@ const handleReset = () => {
     username: '',
     email: '',
     status: undefined,
+    includeDeleted: false,
     role: undefined
   }
   current.value = 1
@@ -257,11 +259,11 @@ const handleBatchDelete = async () => {
 // 更新用户状态
 const handleStatusChange = async (id: number, status: number) => {
   try {
-    // 将数字状态转换为boolean：1表示启用(true)，0表示禁用(false)
+    // status参数是要设置的目标状态：1表示启用(true)，0表示禁用(false)
     const enabled = status === 1
     const response = await UserService.updateUserStatus(id, enabled)
     if (response.code === 200) {
-      message.success('状态更新成功')
+      message.success(status === 1 ? '用户已启用' : '用户已禁用')
       loadUsers()
     } else {
       message.error(response.message || '状态更新失败')
@@ -336,6 +338,13 @@ onMounted(() => {
             </a-select-option>
           </a-select>
         </a-form-item>
+        <a-form-item label="显示已删除">
+          <a-switch 
+            v-model:checked="searchParams.includeDeleted" 
+            checked-children="是" 
+            un-checked-children="否"
+          />
+        </a-form-item>
         <a-form-item>
           <a-space>
             <a-button type="primary" @click="handleSearch">
@@ -388,9 +397,9 @@ onMounted(() => {
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-tag :color="record.status === 1 ? 'green' : 'red'">
-              {{ record.status === 1 ? '启用' : '禁用' }}
-            </a-tag>
+            <a-tag v-if="record.deletedAt" color="gray">已删除</a-tag>
+            <a-tag v-else-if="record.status === 1" color="green">启用</a-tag>
+            <a-tag v-else color="red">禁用</a-tag>
           </template>
           <template v-else-if="column.key === 'role'">
             <a-tag :color="record.role === 'admin' ? 'blue' : 'default'">
@@ -402,10 +411,16 @@ onMounted(() => {
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small" @click="openEdit(record)">
+              <a-button 
+                v-if="!record.deletedAt"
+                type="link" 
+                size="small" 
+                @click="openEdit(record)"
+              >
                 编辑
               </a-button>
               <a-button 
+                v-if="!record.deletedAt"
                 type="link" 
                 size="small"
                 :class="record.status === 1 ? 'text-orange-500' : 'text-green-500'"
@@ -414,6 +429,7 @@ onMounted(() => {
                 {{ record.status === 1 ? '禁用' : '启用' }}
               </a-button>
               <a-popconfirm
+                v-if="!record.deletedAt"
                 title="确定要删除这个用户吗？"
                 @confirm="handleDelete(record.id)"
               >
@@ -421,6 +437,9 @@ onMounted(() => {
                   删除
                 </a-button>
               </a-popconfirm>
+              <span v-if="record.deletedAt" class="text-gray-400">
+                已删除
+              </span>
             </a-space>
           </template>
         </template>

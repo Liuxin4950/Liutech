@@ -4,6 +4,7 @@ import java.util.Date;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -43,5 +44,6 @@ public abstract class BaseEntity extends IdEntity {
     /**
      * 删除时间（软删除）
      */
+    @TableLogic
     private Date deletedAt;
 }

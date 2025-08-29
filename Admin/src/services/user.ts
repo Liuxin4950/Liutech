@@ -13,6 +13,7 @@ export interface User {
   passwordHash?: string
   createdAt?: string
   updatedAt?: string
+  deletedAt?: string  // 软删除时间
 }
 
 export interface LoginRequest {
@@ -35,7 +36,8 @@ export interface UserListParams {
   size?: number
   username?: string
   email?: string
-  status?: number  // 用户状态：0禁用，1正常
+  status?: number  // 用户状态：0禁用，1启用
+  includeDeleted?: boolean  // 是否包含已删除用户
   role?: string
 }
 

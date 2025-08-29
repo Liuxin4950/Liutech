@@ -28,15 +28,31 @@
             u.password_hash as passwordHash,
             u.created_at as createdAt,
             u.updated_at as updatedAt,
+            u.deleted_at as deletedAt,
             COALESCE(COUNT(DISTINCT p.id), 0) as postCount
         FROM users u
         LEFT JOIN posts p ON u.id = p.author_id AND p.deleted_at IS NULL
         <where>
-            <if test="keyword != null and keyword != ''">
-                AND (u.username LIKE CONCAT('%', #{keyword}, '%') OR u.email LIKE CONCAT('%', #{keyword}, '%'))
+            <if test="username != null and username != ''">
+                AND u.username LIKE CONCAT('%', #{username}, '%')
             </if>
+            <if test="email != null and email != ''">
+                AND u.email LIKE CONCAT('%', #{email}, '%')
+            </if>
+            <if test="status != null">
+                AND u.status = #{status}
+            </if>
+            <choose>
+                <when test="includeDeleted != null and includeDeleted == true">
+                    <!-- 包含已删除用户，不过滤deleted_at -->
+                </when>
+                <otherwise>
+                    <!-- 默认不显示已删除用户 -->
+                    AND u.deleted_at IS NULL
+                </otherwise>
+            </choose>
         </where>
-        GROUP BY u.id, u.username, u.email, u.nickname, u.avatar_url, u.bio, u.points, u.status, u.last_login_at, u.password_hash, u.created_at, u.updated_at
+        GROUP BY u.id, u.username, u.email, u.nickname, u.avatar_url, u.bio, u.points, u.status, u.last_login_at, u.password_hash, u.created_at, u.updated_at, u.deleted_at
         ORDER BY u.created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -46,9 +62,24 @@
         SELECT COUNT(DISTINCT u.id)
         FROM users u
         <where>
-            <if test="keyword != null and keyword != ''">
-                AND (u.username LIKE CONCAT('%', #{keyword}, '%') OR u.email LIKE CONCAT('%', #{keyword}, '%'))
+            <if test="username != null and username != ''">
+                AND u.username LIKE CONCAT('%', #{username}, '%')
             </if>
+            <if test="email != null and email != ''">
+                AND u.email LIKE CONCAT('%', #{email}, '%')
+            </if>
+            <if test="status != null">
+                AND u.status = #{status}
+            </if>
+            <choose>
+                <when test="includeDeleted != null and includeDeleted == true">
+                    <!-- 包含已删除用户，不过滤deleted_at -->
+                </when>
+                <otherwise>
+                    <!-- 默认不显示已删除用户 -->
+                    AND u.deleted_at IS NULL
+                </otherwise>
+            </choose>
         </where>
     </select>
 

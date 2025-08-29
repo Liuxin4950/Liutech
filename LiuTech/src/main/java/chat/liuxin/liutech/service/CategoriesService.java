@@ -1,26 +1,39 @@
 package chat.liuxin.liutech.service;
 
+import java.util.Date;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import chat.liuxin.liutech.mapper.CategoriesMapper;
+import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.model.Categories;
+import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.resl.CategoryResl;
 import chat.liuxin.liutech.resl.PageResl;
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 分类服务类
  */
+@Slf4j
 @Service
 public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories> {
 
     @Autowired
     private CategoriesMapper categoriesMapper;
+    
+    @Autowired
+    private PostsMapper postsMapper;
 
     /**
      * 查询所有分类（包含文章数量）
@@ -107,5 +120,44 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
         category.setName(categoryResl.getName());
         category.setDescription(categoryResl.getDescription());
         return super.updateById(category);
+    }
+    
+    /**
+     * 批量删除分类（管理端）- 安全删除
+     * 检查是否有关联的文章，如果有则抛出异常
+     * 
+     * @author 刘鑫
+     * @date 2025-01-17
+     * @param ids 分类ID列表
+     * @return 是否删除成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeByIds(List<Long> ids) {
+        try {
+            if (ids == null || ids.isEmpty()) {
+                return false;
+            }
+            
+            // 先软删除关联的未删除文章
+            LambdaUpdateWrapper<Posts> postsUpdateWrapper = new LambdaUpdateWrapper<>();
+            postsUpdateWrapper.in(Posts::getCategoryId, ids)
+                    .isNull(Posts::getDeletedAt) // 只删除未删除的文章
+                    .set(Posts::getDeletedAt, new Date());
+            
+            int postsResult = postsMapper.update(null, postsUpdateWrapper);
+            log.info("删除分类时，软删除关联文章数量: {}", postsResult);
+            
+            // 然后软删除分类
+            LambdaUpdateWrapper<Categories> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.in(Categories::getId, ids)
+                    .set(Categories::getDeletedAt, new Date());
+            
+            int result = categoriesMapper.update(null, updateWrapper);
+            log.info("软删除分类数量: {}", result);
+            return result > 0;
+        } catch (Exception e) {
+            log.error("批量删除分类失败: {}", e.getMessage(), e);
+            return false;
+        }
     }
 }

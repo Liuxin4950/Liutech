@@ -34,18 +34,20 @@ public class UsersAdminController {
      * @param size 每页大小，默认10
      * @param username 用户名（可选，模糊搜索）
      * @param email 邮箱（可选，模糊搜索）
+     * @param status 用户状态（可选，0禁用，1启用）
+     * @param includeDeleted 是否包含已删除用户（可选，true包含，false不包含，默认false）
      * @return 分页用户列表
      */
     @GetMapping
     public Result<PageResl<UserResl>> getUserList(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String username,
-            @RequestParam(required = false) String email) {
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(defaultValue = "false") Boolean includeDeleted) {
         try {
-            // 将username和email合并为一个关键词参数
-            String keyword = username != null ? username : (email != null ? email : null);
-            PageResl<UserResl> result = userService.getUserListForAdmin(page, size, keyword);
+            PageResl<UserResl> result = userService.getUserListForAdmin(page, size, username, email, status, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return Result.fail(ErrorCode.SYSTEM_ERROR, "查询用户列表失败: " + e.getMessage());
@@ -174,7 +176,8 @@ public class UsersAdminController {
         try {
             Users user = new Users();
             user.setId(id);
-            // 这里假设Users实体有enabled字段，如果没有可以根据实际情况调整
+            // 设置status字段：enabled为true时status为1，enabled为false时status为0
+            user.setStatus(enabled ? 1 : 0);
             boolean success = userService.updateById(user);
             if (success) {
                 return Result.success(enabled ? "用户已启用" : "用户已禁用");

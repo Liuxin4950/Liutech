@@ -118,7 +118,8 @@ public class CategoriesAdminController {
     @DeleteMapping("/{id}")
     public Result<String> deleteCategory(@PathVariable Long id) {
         try {
-            boolean success = categoriesService.removeById(id);
+            // 使用自定义的软删除方法，先删除关联文章再删除分类
+            boolean success = categoriesService.removeByIds(List.of(id));
             if (success) {
                 return Result.success("分类删除成功");
             } else {

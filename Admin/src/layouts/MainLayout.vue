@@ -21,7 +21,7 @@ import TheSidebar from '@/components/TheSidebar.vue'
       </a-layout-content>
     </a-layout>
     <a-layout-footer class="footer">
-      <TheFooter />
+      <!-- <TheFooter /> -->
     </a-layout-footer>
   </a-layout>
 </template>

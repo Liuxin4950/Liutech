@@ -11,6 +11,7 @@
             COUNT(p.id) as post_count
         FROM categories c
         LEFT JOIN posts p ON c.id = p.category_id AND p.deleted_at IS NULL AND p.status = 'published'
+        WHERE c.deleted_at IS NULL
         GROUP BY c.id, c.name, c.description
         ORDER BY c.name
     </select>
@@ -27,6 +28,7 @@
         FROM categories c
         LEFT JOIN posts p ON c.id = p.category_id AND p.deleted_at IS NULL
         <where>
+            c.deleted_at IS NULL
             <if test="name != null and name != ''">
                 AND c.name LIKE CONCAT('%', #{name}, '%')
             </if>
@@ -41,6 +43,7 @@
         SELECT COUNT(DISTINCT c.id)
         FROM categories c
         <where>
+            c.deleted_at IS NULL
             <if test="name != null and name != ''">
                 AND c.name LIKE CONCAT('%', #{name}, '%')
             </if>

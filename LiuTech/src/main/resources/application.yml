@@ -32,8 +32,9 @@ mybatis-plus:
     db-config:
       id-type: auto
       table-underline: true
-      logic-delete-value: 1
-      logic-not-delete-value: 0
+      logic-delete-field: deletedAt
+      logic-delete-value: "NOW()"
+      logic-not-delete-value: "NULL"
   # 分页插件配置
   configuration-properties:
     helperDialect: mysql

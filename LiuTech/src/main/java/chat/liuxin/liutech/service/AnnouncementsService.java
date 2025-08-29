@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -159,11 +160,16 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         }
         
         Announcements announcement = this.getById(id);
-        if (announcement == null) {
+        if (announcement == null || announcement.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
         }
         
-        return this.removeById(id);
+        // 使用软删除，设置deleted_at字段
+        LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Announcements::getId, id)
+                .set(Announcements::getDeletedAt, new Date());
+        
+        return this.update(updateWrapper);
     }
 
     /**
@@ -177,6 +183,9 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
     public IPage<AnnouncementResl> getAllAnnouncements(long current, long size, Integer status, Integer type) {
         Page<Announcements> page = new Page<>(current, size);
         QueryWrapper<Announcements> queryWrapper = new QueryWrapper<>();
+        
+        // 过滤软删除的记录
+        queryWrapper.isNull("deleted_at");
         
         if (status != null) {
             queryWrapper.eq("status", status);

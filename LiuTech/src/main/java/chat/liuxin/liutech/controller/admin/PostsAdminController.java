@@ -124,7 +124,9 @@ public class PostsAdminController {
     @DeleteMapping("/{id}")
     public Result<String> deletePost(@PathVariable Long id) {
         try {
-            boolean success = postsService.removeById(id);
+            // 获取当前操作者ID（这里简化处理，实际应从SecurityContext获取）
+            Long operatorId = 1L; // TODO: 从SecurityContext获取当前管理员ID
+            boolean success = postsService.deletePostForAdmin(id, operatorId);
             if (success) {
                 return Result.success("文章删除成功");
             } else {
