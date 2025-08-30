@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, inject, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   DashboardOutlined,
@@ -14,8 +14,8 @@ import {
 const router = useRouter()
 const route = useRoute()
 
-// 侧边栏折叠状态
-const collapsed = ref(false)
+// 从父组件注入折叠状态
+const collapsed = inject<Ref<boolean>>('sidebarCollapsed')!
 
 // 当前选中的菜单项
 const selectedKeys = computed(() => {
@@ -69,6 +69,7 @@ const toggleCollapsed = () => {
       mode="inline"
       theme="light"
       class="sidebar-menu"
+      :inline-collapsed="collapsed"
       @click="handleMenuClick"
     >
       <a-menu-item key="dashboard">

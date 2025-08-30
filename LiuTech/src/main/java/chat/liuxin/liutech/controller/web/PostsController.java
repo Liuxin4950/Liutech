@@ -26,7 +26,7 @@ import chat.liuxin.liutech.resl.PostCreateResl;
 import chat.liuxin.liutech.resl.PostDetailResl;
 import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.service.PostsService;
-import chat.liuxin.liutech.service.UserService;
+import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -44,7 +44,7 @@ public class PostsController {
     private PostsService postsService;
     
     @Autowired
-    private UserService userService;
+    private UserUtils userUtils;
     
 
     /**
@@ -73,7 +73,7 @@ public class PostsController {
                 page, size, categoryId, tagId, keyword, sort);
         
         // 获取当前用户ID（如果已登录）
-        Long currentUserId = userService.getCurrentUserId();
+        Long currentUserId = userUtils.getCurrentUserId();
         log.debug("当前用户ID: {}", currentUserId);
         
         PostQueryReq req = new PostQueryReq();
@@ -102,7 +102,7 @@ public class PostsController {
         log.info("查询文章详情 - ID: {}", id);
         
         // 获取当前用户ID（可能为null）
-        Long currentUserId = userService.getCurrentUserId();
+        Long currentUserId = userUtils.getCurrentUserId();
         
         PostDetailResl post = postsService.getPostDetail(id, currentUserId);
         if (post == null) {
@@ -126,7 +126,7 @@ public class PostsController {
         log.info("切换文章点赞状态 - ID: {}", id);
         
         // 获取当前用户ID
-        Long currentUserId = userService.getCurrentUserId();
+        Long currentUserId = userUtils.getCurrentUserId();
         if (currentUserId == null) {
             log.warn("用户未登录，无法点赞文章 - ID: {}", id);
             return Result.fail(ErrorCode.UNAUTHORIZED);
@@ -157,7 +157,7 @@ public class PostsController {
         log.info("切换文章收藏状态 - ID: {}", id);
         
         // 获取当前用户ID
-        Long currentUserId = userService.getCurrentUserId();
+        Long currentUserId = userUtils.getCurrentUserId();
         if (currentUserId == null) {
             log.warn("用户未登录，无法收藏文章 - ID: {}", id);
             return Result.fail(ErrorCode.UNAUTHORIZED);
@@ -256,7 +256,7 @@ public class PostsController {
         try {
             // 从请求中获取当前用户ID（这里需要根据实际的认证机制获取）
             // 假设通过JWT或Session获取用户ID
-            Long authorId = userService.getCurrentUserId();
+            Long authorId = userUtils.getCurrentUserId();
             if (authorId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }
@@ -282,7 +282,7 @@ public class PostsController {
     public Result<Boolean> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req, HttpServletRequest request) {
         try {
             // 获取当前用户ID
-            Long authorId = userService.getCurrentUserId();
+            Long authorId = userUtils.getCurrentUserId();
             if (authorId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }
@@ -309,7 +309,7 @@ public class PostsController {
     public Result<Boolean> deletePost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID
-            Long authorId = userService.getCurrentUserId();
+            Long authorId = userUtils.getCurrentUserId();
             if (authorId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }
@@ -334,7 +334,7 @@ public class PostsController {
     public Result<Boolean> publishPost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID
-            Long authorId = userService.getCurrentUserId();
+            Long authorId = userUtils.getCurrentUserId();
             if (authorId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }
@@ -359,7 +359,7 @@ public class PostsController {
     public Result<Boolean> unpublishPost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID
-            Long authorId = userService.getCurrentUserId();
+            Long authorId = userUtils.getCurrentUserId();
             if (authorId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }
@@ -391,7 +391,7 @@ public class PostsController {
         
         try {
             // 获取当前用户ID
-            Long authorId = userService.getCurrentUserId();
+            Long authorId = userUtils.getCurrentUserId();
             if (authorId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }
@@ -436,7 +436,7 @@ public class PostsController {
         
         try {
             // 获取当前用户ID
-            Long authorId = userService.getCurrentUserId();
+            Long authorId = userUtils.getCurrentUserId();
             if (authorId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }

@@ -10,7 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resl.FileUploadResl;
 import chat.liuxin.liutech.service.FileUploadService;
-import chat.liuxin.liutech.service.UserService;
+import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -28,8 +28,7 @@ public class FileUploadController {
     private FileUploadService fileUploadService;
     
     @Autowired
-    private UserService userService;
-    
+    private UserUtils userUtils;
     
 
     
@@ -44,7 +43,7 @@ public class FileUploadController {
             @RequestParam("file") MultipartFile file,
             HttpServletRequest request) {
         
-        Long userId = userService.getCurrentUserId();
+        Long userId = userUtils.getCurrentUserId();
         log.info("接收到图片上传请求 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename());
         
         FileUploadResl result = fileUploadService.uploadImage(file, userId);
@@ -64,7 +63,7 @@ public class FileUploadController {
             @RequestParam(value = "description", required = false) String description,
             HttpServletRequest request) {
         
-        Long userId = userService.getCurrentUserId();
+        Long userId = userUtils.getCurrentUserId();
         log.info("接收到文档上传请求 - 用户ID: {}, 文件名: {}, 描述: {}", 
                 userId, file.getOriginalFilename(), description);
         
@@ -85,7 +84,7 @@ public class FileUploadController {
             @RequestParam(value = "description", required = false) String description,
             HttpServletRequest request) {
         
-        Long userId = userService.getCurrentUserId();
+        Long userId = userUtils.getCurrentUserId();
         log.info("接收到资源上传请求 - 用户ID: {}, 文件名: {}, 描述: {}", 
                 userId, file.getOriginalFilename(), description);
         
@@ -105,7 +104,7 @@ public class FileUploadController {
             @RequestParam("file") MultipartFile file,
             HttpServletRequest request) {
         
-        Long userId = userService.getCurrentUserId();
+        Long userId = userUtils.getCurrentUserId();
         log.info("接收到TinyMCE图片上传请求 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename());
         
         try {

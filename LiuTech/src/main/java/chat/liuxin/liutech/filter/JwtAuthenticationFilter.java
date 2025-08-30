@@ -41,48 +41,81 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
         try {
-            // 记录所有请求
             log.info("处理请求: {} {}", request.getMethod(), request.getRequestURI());
-            // 从请求头获取Authorization字段
-            String authHeader = request.getHeader("Authorization");
-            // 检查Authorization头是否存在且以"Bearer "开头
-            if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
-                // 提取token字符串(去除"Bearer "前缀)
-                String token = authHeader.substring(7);
-                // 验证token是否有效
-                if (jwtUtil.validateToken(token)) {
-                    // 从token中提取用户名和用户ID
-                    String username = jwtUtil.getUsernameFromToken(token);
-                    Long userId = jwtUtil.getUserIdFromToken(token);
-                    // 检查用户名是否存在且当前上下文中没有认证信息
-                    if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                        // 创建权限集合
-                        Collection<GrantedAuthority> authorities = new ArrayList<>();
-                        // 为所有用户添加基本用户角色
-                        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
-                        // 检查是否为管理员用户，是则添加管理员角色
-                        if (isAdminUser(username)) {
-                            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
-                        }
-                        // 创建认证token对象
-                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                                username, null, authorities);
-                        // 仅设置userId到details，供后续读取
-                        authToken.setDetails(userId);
-                        // 将认证信息设置到安全上下文中
-                        SecurityContextHolder.getContext().setAuthentication(authToken);
-                        // 记录认证成功日志
-                        log.info("JWT认证成功，用户: {}, 角色: {}, 请求路径: {}", username, authorities, request.getRequestURI());
-                    }
-                } else {
-                    // 记录无效token警告日志
-                    log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
-                }
+            
+            String token = extractTokenFromRequest(request);
+            if (token != null) {
+                processValidToken(token, request);
             }
         } catch (Exception e) {
             log.error("JWT认证过程中发生错误，请求路径: {}, 错误: {}", request.getRequestURI(), e.getMessage());
         }
         filterChain.doFilter(request, response);
+    }
+    
+    /**
+     * 从请求中提取JWT token
+     * @param request HTTP请求
+     * @return JWT token字符串，如果不存在则返回null
+     */
+    private String extractTokenFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
+    }
+    
+    /**
+     * 处理有效的JWT token
+     * @param token JWT token
+     * @param request HTTP请求
+     */
+    private void processValidToken(String token, HttpServletRequest request) {
+        if (!jwtUtil.validateToken(token)) {
+            log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
+            return;
+        }
+        
+        String username = jwtUtil.getUsernameFromToken(token);
+        Long userId = jwtUtil.getUserIdFromToken(token);
+        
+        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            setAuthenticationContext(username, userId, request);
+        }
+    }
+    
+    /**
+     * 设置Spring Security认证上下文
+     * @param username 用户名
+     * @param userId 用户ID
+     * @param request HTTP请求
+     */
+    private void setAuthenticationContext(String username, Long userId, HttpServletRequest request) {
+        Collection<GrantedAuthority> authorities = buildUserAuthorities(username);
+        
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                username, null, authorities);
+        authToken.setDetails(userId);
+        
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+        log.info("JWT认证成功，用户: {}, 角色: {}, 请求路径: {}", username, authorities, request.getRequestURI());
+    }
+    
+    /**
+     * 构建用户权限集合
+     * @param username 用户名
+     * @return 权限集合
+     */
+    private Collection<GrantedAuthority> buildUserAuthorities(String username) {
+        Collection<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+        
+        if (isAdminUser(username)) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        }
+        
+        return authorities;
     }
 
     private boolean isAdminUser(String username) {

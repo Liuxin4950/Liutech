@@ -24,6 +24,10 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 标签服务类
+ * 提供标签的增删改查、统计、搜索等核心业务功能
+ * 
+ * @author 刘鑫
+ * @date 2025-01-30
  */
 @Slf4j
 @Service
@@ -37,7 +41,11 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
 
     /**
      * 查询所有标签（包含文章数量）
-     * @return 标签列表
+     * 获取系统中所有标签及其关联的文章数量统计
+     * 
+     * @return 标签列表，包含标签信息和文章数量
+     * @author 刘鑫
+     * @date 2025-01-30
      */
     public List<TagResl> getAllTagsWithPostCount() {
         return tagsMapper.selectTagsWithPostCount();
@@ -64,8 +72,10 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
 
     /**
      * 根据ID查询标签详情（包含文章数量）
+     * 获取标签的详细信息，包括标签名称和关联的文章数量
+     * 
      * @param id 标签ID
-     * @return 标签详情
+     * @return 标签详情，包含文章数量统计
      */
     public TagResl getTagByIdWithPostCount(Long id) {
         return tagsMapper.selectTagByIdWithPostCount(id);
@@ -73,8 +83,10 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
 
     /**
      * 根据标签名字搜索标签（包含文章数量）
-     * @param name 标签名字（支持模糊搜索）
-     * @return 标签列表
+     * 支持模糊搜索标签名称，返回匹配的标签列表及其文章数量
+     * 
+     * @param name 标签名字，支持模糊搜索
+     * @return 匹配的标签列表，包含文章数量统计
      */
     public List<TagResl> getTagsByName(String name) {
         return tagsMapper.selectTagsByName(name);
@@ -82,10 +94,14 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
 
     /**
      * 管理端分页查询标签列表
-     * @param page 页码
-     * @param size 每页大小
+     * 管理员专用功能，支持按标签名称搜索和分页查询
+     * 
+     * @param page 页码，从1开始
+     * @param size 每页大小，建议10-50之间
      * @param name 标签名称（可选，模糊搜索）
-     * @return 分页标签列表
+     * @return 分页结果，包含标签列表和分页信息
+     * @author 刘鑫
+     * @date 2025-01-30
      */
     public PageResl<TagResl> getTagListForAdmin(Integer page, Integer size, String name) {
         // 计算偏移量
@@ -135,8 +151,13 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
 
     /**
      * 保存标签（接受TagResl参数）
-     * @param tagResl 标签信息
-     * @return 保存结果
+     * 创建新标签，自动设置创建时间和更新时间
+     * 
+     * @param tagResl 标签信息，必须包含标签名称
+     * @return 是否保存成功
+     * @throws BusinessException 当标签名称已存在时抛出
+     * @author 刘鑫
+     * @date 2025-01-30
      */
     public boolean save(TagResl tagResl) {
         Tags tag = new Tags();
@@ -147,8 +168,13 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
 
     /**
      * 根据ID更新标签（接受TagResl参数）
-     * @param tagResl 标签信息
-     * @return 更新结果
+     * 更新标签信息，自动设置更新时间
+     * 
+     * @param tagResl 标签信息，必须包含有效的ID
+     * @return 是否更新成功
+     * @throws BusinessException 当标签不存在时抛出
+     * @author 刘鑫
+     * @date 2025-01-30
      */
     public boolean updateById(TagResl tagResl) {
         Tags tag = new Tags();

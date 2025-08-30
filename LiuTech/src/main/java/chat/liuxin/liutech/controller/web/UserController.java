@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.controller.web;
 
 import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.LoginReq;
 import chat.liuxin.liutech.req.RegisterReq;
@@ -9,10 +10,14 @@ import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.resl.LoginResl;
 import chat.liuxin.liutech.resl.ProfileResl;
-import chat.liuxin.liutech.service.UserService;
+import chat.liuxin.liutech.service.UserAuthService;
+import chat.liuxin.liutech.service.UserProfileService;
+import chat.liuxin.liutech.service.UserManagementService;
+import chat.liuxin.liutech.utils.UserUtils;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +34,16 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     @Autowired
-    private UserService userService;
+    private UserAuthService userAuthService;
+    
+    @Autowired
+    private UserProfileService userProfileService;
+    
+    @Autowired
+    private UserManagementService userManagementService;
+    
+    @Autowired
+    private UserUtils userUtils;
     /**
      * 用户注册接口
      * 创建新用户账户，包括用户名唯一性检查、邮箱唯一性检查、密码加密等
@@ -40,7 +54,7 @@ public class UserController {
     @PostMapping("/register")
     public Result<UserResl> register(@Valid @RequestBody RegisterReq registerReq) {
         log.info("收到用户注册请求，用户名: {}", registerReq.getUsername());
-        UserResl userResl = userService.register(registerReq);
+        UserResl userResl = userAuthService.register(registerReq);
         log.info("用户注册成功，用户名: {}", registerReq.getUsername());
         return Result.success("注册成功", userResl);
     }
@@ -55,7 +69,7 @@ public class UserController {
     @PostMapping("/login")
     public Result<LoginResl> login(@Valid @RequestBody LoginReq loginReq) {
         log.info("收到用户登录请求，用户名: {}", loginReq.getUsername());
-        LoginResl loginResl = userService.login(loginReq);
+        LoginResl loginResl = userAuthService.login(loginReq);
         log.info("用户登录成功，用户名: {}", loginReq.getUsername());
         return Result.success("登录成功", loginResl);
     }
@@ -69,7 +83,12 @@ public class UserController {
     @GetMapping("/current")
     public Result<UserResl> getCurrentUser() {
         log.info("收到获取当前用户信息请求");
-        UserResl userResl = userService.getCurrentUser();
+        Users currentUser = userUtils.getCurrentUser();
+        if (currentUser == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
+        }
+        UserResl userResl = new UserResl();
+        BeanUtils.copyProperties(currentUser, userResl);
         log.info("获取当前用户信息成功");
         return Result.success("获取用户信息成功", userResl);
     }
@@ -84,7 +103,7 @@ public class UserController {
     @PutMapping("/password")
     public Result<String> changePassword(@Valid @RequestBody ChangePasswordReq changePasswordReq) {
         log.info("收到修改密码请求");
-        userService.changePasswordWithAuth(changePasswordReq);
+        userAuthService.changePasswordWithAuth(changePasswordReq);
         log.info("密码修改成功");
         return Result.success("密码修改成功");
     }
@@ -99,7 +118,7 @@ public class UserController {
     @PutMapping("/profile")
     public Result<UserResl> updateProfile(@Valid @RequestBody UpdateProfileReq updateProfileReq) {
         log.info("收到更新个人资料请求");
-        UserResl userResl = userService.updateProfile(updateProfileReq);
+        UserResl userResl = userProfileService.updateProfile(updateProfileReq);
         log.info("个人资料更新成功");
         return Result.success("个人资料更新成功", userResl);
     }
@@ -119,7 +138,7 @@ public class UserController {
             @RequestParam(required = false) Long id,
             @RequestParam(required = false) String username) {
         log.info("收到获取用户信息请求，ID: {}, 用户名: {}", id, username);
-        Object result = userService.getUsersByCondition(id, username);
+        Object result = userManagementService.getUsersByCondition(id, username);
         log.info("获取用户信息成功");
         return Result.success(result);
     }
@@ -135,7 +154,7 @@ public class UserController {
     public Result<Users> getUserById(
             @PathVariable Long id) {
         log.info("根据ID获取用户信息，ID: {}", id);
-        Users user = userService.findById(id);
+        Users user = userManagementService.findUserById(id);
         return Result.success(user);
     }
 
@@ -149,7 +168,7 @@ public class UserController {
     @PostMapping
     public Result<String> createUser(@Valid @RequestBody Users user) {
         log.info("管理员创建用户: {}", user.getUsername());
-        userService.addUser(user);
+        userManagementService.addUser(user);
         return Result.success("用户创建成功");
     }
 
@@ -167,7 +186,7 @@ public class UserController {
             @Valid @RequestBody Users user) {
         log.info("更新用户信息，ID: {}, 用户名: {}", id, user.getUsername());
         user.setId(id); // 确保ID一致
-        userService.updateUser(user);
+        userManagementService.updateUser(user);
         return Result.success("用户信息更新成功");
     }
 
@@ -182,7 +201,7 @@ public class UserController {
     public Result<String> deleteUser(
             @PathVariable Long id) {
         log.info("删除用户，ID: {}", id);
-        userService.deleteById(id);
+        userManagementService.deleteUserById(id);
         return Result.success("用户删除成功");
     }
 
@@ -195,7 +214,7 @@ public class UserController {
     @GetMapping("/stats")
     public Result<?> getUserStats() {
         log.info("收到获取用户统计信息请求");
-        Object stats = userService.getCurrentUserStats();
+        Object stats = userProfileService.getCurrentUserStats();
         log.info("获取用户统计信息成功");
         return Result.success("获取统计信息成功", stats);
     }
@@ -209,7 +228,7 @@ public class UserController {
     @GetMapping("/profile")
     public Result<ProfileResl> getProfile() {
         log.info("收到获取个人资料请求");
-        ProfileResl profile = userService.getProfile();
+        ProfileResl profile = userProfileService.getProfile();
         log.info("获取个人资料成功");
         return Result.success("获取个人资料成功", profile);
     }

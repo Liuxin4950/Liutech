@@ -5,7 +5,10 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.resl.UserResl;
-import chat.liuxin.liutech.service.UserService;
+import chat.liuxin.liutech.service.UserManagementService;
+import chat.liuxin.liutech.utils.ValidationUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,10 +25,12 @@ import java.util.List;
 @RequestMapping("/admin/users")
 @CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
-public class UsersAdminController {
+public class UsersAdminController extends BaseAdminController {
+
+    private static final Logger log = LoggerFactory.getLogger(UsersAdminController.class);
 
     @Autowired
-    private UserService userService;
+    private UserManagementService userManagementService;
 
     /**
      * 分页查询用户列表
@@ -46,11 +51,15 @@ public class UsersAdminController {
             @RequestParam(required = false) String email,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
+        
+        ValidationUtil.validateRange(page, "页码", 1, Integer.MAX_VALUE);
+        ValidationUtil.validateRange(size, "页面大小", 1, 100);
+        
         try {
-            PageResl<UserResl> result = userService.getUserListForAdmin(page, size, username, email, status, includeDeleted);
+            PageResl<UserResl> result = userManagementService.getUserListForAdmin(page, size, username, email, status, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "查询用户列表失败: " + e.getMessage());
+            return handleException(e, "查询用户列表");
         }
     }
 
@@ -62,8 +71,9 @@ public class UsersAdminController {
      */
     @GetMapping("/{id}")
     public Result<Users> getUserById(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "用户ID");
         try {
-            Users user = userService.findById(id);
+            Users user = userManagementService.findUserById(id);
             if (user == null) {
                 return Result.fail(ErrorCode.USER_NOT_FOUND);
             }
@@ -71,7 +81,7 @@ public class UsersAdminController {
             user.setPasswordHash(null);
             return Result.success(user);
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "查询用户详情失败: " + e.getMessage());
+            return handleException(e, "查询用户详情");
         }
     }
 
@@ -83,15 +93,15 @@ public class UsersAdminController {
      */
     @PostMapping
     public Result<String> createUser(@RequestBody Users user) {
+        ValidationUtil.validateNotNull(user, "用户信息");
+        ValidationUtil.validateUsername(user.getUsername());
+        ValidationUtil.validateEmail(user.getEmail());
+        
         try {
-            boolean success = userService.save(user);
-            if (success) {
-                return Result.success("用户创建成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            boolean success = userManagementService.saveUser(user);
+            return handleOperationResult(success, "用户创建成功", "用户创建");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "用户创建失败: " + e.getMessage());
+            return handleException(e, "用户创建");
         }
     }
 
@@ -104,23 +114,17 @@ public class UsersAdminController {
      */
     @PutMapping("/{id}")
     public Result<String> updateUser(@PathVariable Long id, @RequestBody Users user) {
+        ValidationUtil.validateId(id, "用户ID");
+        ValidationUtil.validateNotNull(user, "用户信息");
+        ValidationUtil.validateEmail(user.getEmail());
+        
         try {
             user.setId(id);
-            // 如果没有提供密码，则不更新密码字段
-            if (user.getPasswordHash() == null || user.getPasswordHash().trim().isEmpty()) {
-                Users existingUser = userService.findById(id);
-                if (existingUser != null) {
-                    user.setPasswordHash(existingUser.getPasswordHash());
-                }
-            }
-            boolean success = userService.updateById(user);
-            if (success) {
-                return Result.success("用户更新成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            preservePasswordIfEmpty(user, id);
+            boolean success = userManagementService.updateUserById(user);
+            return handleOperationResult(success, "用户更新成功", "用户更新");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "用户更新失败: " + e.getMessage());
+            return handleException(e, "用户更新");
         }
     }
 
@@ -132,15 +136,12 @@ public class UsersAdminController {
      */
     @DeleteMapping("/{id}")
     public Result<String> deleteUser(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "用户ID");
         try {
-            boolean success = userService.removeById(id);
-            if (success) {
-                return Result.success("用户删除成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            boolean success = userManagementService.removeUserById(id);
+            return handleOperationResult(success, "用户删除成功", "用户删除");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "用户删除失败: " + e.getMessage());
+            return handleException(e, "用户删除");
         }
     }
 
@@ -152,15 +153,12 @@ public class UsersAdminController {
      */
     @DeleteMapping("/batch")
     public Result<String> batchDeleteUsers(@RequestBody List<Long> ids) {
+        ValidationUtil.validateNotEmpty(ids, "用户ID列表");
         try {
-            boolean success = userService.removeByIds(ids);
-            if (success) {
-                return Result.success("批量删除用户成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            boolean success = userManagementService.removeUsersByIds(ids);
+            return handleOperationResult(success, "批量删除用户成功", "批量删除用户");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "批量删除用户失败: " + e.getMessage());
+            return handleException(e, "批量删除用户");
         }
     }
 
@@ -173,19 +171,47 @@ public class UsersAdminController {
      */
     @PutMapping("/{id}/status")
     public Result<String> updateUserStatus(@PathVariable Long id, @RequestParam Boolean enabled) {
+        ValidationUtil.validateId(id, "用户ID");
+        ValidationUtil.validateNotNull(enabled, "用户状态");
+        
         try {
-            Users user = new Users();
-            user.setId(id);
-            // 设置status字段：enabled为true时status为1，enabled为false时status为0
-            user.setStatus(enabled ? 1 : 0);
-            boolean success = userService.updateById(user);
-            if (success) {
-                return Result.success(enabled ? "用户已启用" : "用户已禁用");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            Users user = buildUserStatusUpdate(id, enabled);
+            boolean success = userManagementService.updateUserById(user);
+            String message = enabled ? "用户已启用" : "用户已禁用";
+            return handleOperationResult(success, message, "用户状态更新");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "用户状态更新失败: " + e.getMessage());
+            return handleException(e, "用户状态更新");
         }
+    }
+    
+
+    
+
+    
+    /**
+     * 如果密码为空则保留原密码
+     * @param user 用户对象
+     * @param id 用户ID
+     */
+    private void preservePasswordIfEmpty(Users user, Long id) {
+        if (user.getPasswordHash() == null || user.getPasswordHash().trim().isEmpty()) {
+            Users existingUser = userManagementService.findUserById(id);
+            if (existingUser != null) {
+                user.setPasswordHash(existingUser.getPasswordHash());
+            }
+        }
+    }
+    
+    /**
+     * 构建用户状态更新对象
+     * @param id 用户ID
+     * @param enabled 是否启用
+     * @return 用户对象
+     */
+    private Users buildUserStatusUpdate(Long id, Boolean enabled) {
+        Users user = new Users();
+        user.setId(id);
+        user.setStatus(enabled ? 1 : 0);
+        return user;
     }
 }

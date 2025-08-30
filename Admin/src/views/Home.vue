@@ -1,5 +1,39 @@
 <script setup lang="ts">
-// Home页面 - 管理后台首页
+import { ref, onMounted } from 'vue'
+import { getStatistics, type StatisticsData } from '@/services/statistics'
+import { message } from 'ant-design-vue'
+
+// 统计数据
+const statistics = ref<StatisticsData>({
+  postCount: 0,
+  categoryCount: 0,
+  tagCount: 0,
+  userCount: 0
+})
+
+// 加载状态
+const loading = ref(true)
+
+/**
+ * 加载统计数据
+ */
+const loadStatistics = async () => {
+  try {
+    loading.value = true
+    const data = await getStatistics()
+    statistics.value = data
+  } catch (error) {
+    console.error('加载统计数据失败:', error)
+    message.error('加载统计数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadStatistics()
+})
 </script>
 
 <template>
@@ -10,23 +44,39 @@
       
       <a-row :gutter="[16, 16]" class="stats-row">
         <a-col :span="6">
-          <a-card class="stat-card">
-            <a-statistic title="文章总数" :value="0" />
+          <a-card class="stat-card" :loading="loading">
+            <a-statistic 
+              title="文章总数" 
+              :value="statistics.postCount" 
+              :value-style="{ color: '#3f8600' }"
+            />
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card class="stat-card">
-            <a-statistic title="分类总数" :value="0" />
+          <a-card class="stat-card" :loading="loading">
+            <a-statistic 
+              title="分类总数" 
+              :value="statistics.categoryCount" 
+              :value-style="{ color: '#cf1322' }"
+            />
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card class="stat-card">
-            <a-statistic title="标签总数" :value="0" />
+          <a-card class="stat-card" :loading="loading">
+            <a-statistic 
+              title="标签总数" 
+              :value="statistics.tagCount" 
+              :value-style="{ color: '#1890ff' }"
+            />
           </a-card>
         </a-col>
         <a-col :span="6">
-          <a-card class="stat-card">
-            <a-statistic title="用户总数" :value="0" />
+          <a-card class="stat-card" :loading="loading">
+            <a-statistic 
+              title="用户总数" 
+              :value="statistics.userCount" 
+              :value-style="{ color: '#722ed1' }"
+            />
           </a-card>
         </a-col>
       </a-row>

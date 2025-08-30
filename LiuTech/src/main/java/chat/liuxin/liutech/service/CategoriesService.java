@@ -45,11 +45,15 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     }
 
     /**
-     * 管理端分页查询分类列表
-     * @param page 页码
-     * @param size 每页大小
+     * 获取分类列表（管理端）
+     * 管理员专用功能，支持分页查询和按名称模糊搜索
+     * 
+     * @param page 页码，从1开始
+     * @param size 每页大小，建议10-50之间
      * @param name 分类名称（可选，模糊搜索）
-     * @return 分页分类列表
+     * @return 分页结果，包含分类列表和分页信息
+     * @author 刘鑫
+     * @date 2025-01-30
      */
     public PageResl<CategoryResl> getCategoryListForAdmin(Integer page, Integer size, String name) {
         // 计算偏移量
@@ -75,9 +79,13 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     }
 
     /**
-     * 根据ID查询分类详情（返回CategoryResl）
-     * @param id 分类ID
-     * @return 分类详情
+     * 根据ID获取分类
+     * 查询指定ID的分类详细信息
+     * 
+     * @param id 分类ID，不能为null
+     * @return 分类信息，不存在时返回null
+     * @author 刘鑫
+     * @date 2025-01-30
      */
     public CategoryResl getById(Long id) {
         Categories category = super.getById(id);
@@ -98,9 +106,14 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     }
 
     /**
-     * 保存分类（接受CategoryResl参数）
-     * @param categoryResl 分类信息
-     * @return 保存结果
+     * 保存分类
+     * 创建新分类，自动设置创建时间和更新时间
+     * 
+     * @param categoryResl 分类信息，必须包含分类名称
+     * @return 是否保存成功
+     * @throws BusinessException 当分类名称已存在时抛出
+     * @author 刘鑫
+     * @date 2025-01-30
      */
     public boolean save(CategoryResl categoryResl) {
         Categories category = new Categories();
@@ -110,9 +123,14 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     }
 
     /**
-     * 根据ID更新分类（接受CategoryResl参数）
-     * @param categoryResl 分类信息
-     * @return 更新结果
+     * 根据ID更新分类
+     * 更新分类信息，自动设置更新时间
+     * 
+     * @param categoryResl 分类信息，必须包含有效的ID
+     * @return 是否更新成功
+     * @throws BusinessException 当分类不存在时抛出
+     * @author 刘鑫
+     * @date 2025-01-30
      */
     public boolean updateById(CategoryResl categoryResl) {
         Categories category = new Categories();

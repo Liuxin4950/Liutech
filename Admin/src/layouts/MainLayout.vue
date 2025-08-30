@@ -1,8 +1,14 @@
 <script setup lang="ts">
+import { ref, provide } from 'vue'
 import TheHeader from '@/components/TheHeader.vue'
 import TheFooter from '@/components/TheFooter.vue'
 import TheSidebar from '@/components/TheSidebar.vue'
 
+// 侧边栏折叠状态
+const collapsed = ref(false)
+
+// 提供给子组件使用
+provide('sidebarCollapsed', collapsed)
 </script>
 
 <template>
@@ -11,7 +17,12 @@ import TheSidebar from '@/components/TheSidebar.vue'
       <TheHeader />
     </a-layout-header>
     <a-layout class="content-layout">
-      <a-layout-sider class="sidebar" width="200" theme="light">
+      <a-layout-sider 
+        class="sidebar" 
+        :width="collapsed ? 80 : 200" 
+        :collapsed="collapsed"
+        theme="light"
+      >
         <TheSidebar />
       </a-layout-sider>
       <a-layout-content class="main-content">
@@ -21,7 +32,7 @@ import TheSidebar from '@/components/TheSidebar.vue'
       </a-layout-content>
     </a-layout>
     <a-layout-footer class="footer">
-      <!-- <TheFooter /> -->
+      <TheFooter />
     </a-layout-footer>
   </a-layout>
 </template>
@@ -59,8 +70,8 @@ import TheSidebar from '@/components/TheSidebar.vue'
 }
 
 .footer {
-  text-align: center;
-  background: #fff;
-  padding: 12px 0;
+  padding: 0;
+  background: transparent;
+  border-top: none;
 }
 </style>

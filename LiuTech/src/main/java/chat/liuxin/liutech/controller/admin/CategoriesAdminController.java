@@ -6,6 +6,8 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.resl.CategoryResl;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.service.CategoriesService;
+import chat.liuxin.liutech.utils.ValidationUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,11 +20,12 @@ import java.util.List;
  * 
  * @author 刘鑫
  */
+@Slf4j
 @RestController
 @RequestMapping("/admin/categories")
 @CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
-public class CategoriesAdminController {
+public class CategoriesAdminController extends BaseAdminController {
 
     @Autowired
     private CategoriesService categoriesService;
@@ -44,7 +47,7 @@ public class CategoriesAdminController {
             PageResl<CategoryResl> result = categoriesService.getCategoryListForAdmin(page, size, name);
             return Result.success(result);
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "查询分类列表失败: " + e.getMessage());
+            return handleException(e, "查询分类列表");
         }
     }
 
@@ -56,14 +59,12 @@ public class CategoriesAdminController {
      */
     @GetMapping("/{id}")
     public Result<CategoryResl> getCategoryById(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "分类ID");
         try {
             CategoryResl category = categoriesService.getById(id);
-            if (category == null) {
-                return Result.fail(ErrorCode.CATEGORY_NOT_FOUND);
-            }
-            return Result.success(category);
+            return checkResourceExists(category, ErrorCode.NOT_FOUND);
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "查询分类详情失败: " + e.getMessage());
+            return handleException(e, "查询分类详情");
         }
     }
 
@@ -75,15 +76,12 @@ public class CategoriesAdminController {
      */
     @PostMapping
     public Result<String> createCategory(@RequestBody CategoryResl category) {
+        ValidationUtil.validateNotNull(category, "分类信息");
         try {
             boolean success = categoriesService.save(category);
-            if (success) {
-                return Result.success("分类创建成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "分类创建成功", "分类创建");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "分类创建失败: " + e.getMessage());
+            return handleException(e, "分类创建");
         }
     }
 
@@ -96,16 +94,14 @@ public class CategoriesAdminController {
      */
     @PutMapping("/{id}")
     public Result<String> updateCategory(@PathVariable Long id, @RequestBody CategoryResl category) {
+        ValidationUtil.validateId(id, "分类ID");
+        ValidationUtil.validateNotNull(category, "分类信息");
         try {
             category.setId(id);
             boolean success = categoriesService.updateById(category);
-            if (success) {
-                return Result.success("分类更新成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "分类更新成功", "分类更新");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "分类更新失败: " + e.getMessage());
+            return handleException(e, "分类更新");
         }
     }
 
@@ -117,16 +113,12 @@ public class CategoriesAdminController {
      */
     @DeleteMapping("/{id}")
     public Result<String> deleteCategory(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "分类ID");
         try {
-            // 使用自定义的软删除方法，先删除关联文章再删除分类
             boolean success = categoriesService.removeByIds(List.of(id));
-            if (success) {
-                return Result.success("分类删除成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "分类删除成功", "分类删除");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "分类删除失败: " + e.getMessage());
+            return handleException(e, "分类删除");
         }
     }
 
@@ -138,15 +130,14 @@ public class CategoriesAdminController {
      */
     @DeleteMapping("/batch")
     public Result<String> batchDeleteCategories(@RequestBody List<Long> ids) {
+        ValidationUtil.validateNotEmpty(ids, "分类ID列表");
         try {
             boolean success = categoriesService.removeByIds(ids);
-            if (success) {
-                return Result.success("批量删除分类成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "批量删除分类成功", "批量删除分类");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "批量删除分类失败: " + e.getMessage());
+            return handleException(e, "批量删除分类");
         }
     }
+    
+
 }

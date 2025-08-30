@@ -22,7 +22,7 @@ import java.util.List;
 @RequestMapping("/admin/posts")
 @CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
-public class PostsAdminController {
+public class PostsAdminController extends BaseAdminController {
 
     @Autowired
     private PostsService postsService;
@@ -50,7 +50,7 @@ public class PostsAdminController {
             PageResl<PostListResl> result = postsService.getPostListForAdmin(page, size, title, categoryId, status, authorId);
             return Result.success(result);
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "查询文章列表失败: " + e.getMessage());
+            return handleException(e, "查询文章列表");
         }
     }
 
@@ -64,12 +64,9 @@ public class PostsAdminController {
     public Result<Posts> getPostById(@PathVariable Long id) {
         try {
             Posts post = postsService.getById(id);
-            if (post == null) {
-                return Result.fail(ErrorCode.ARTICLE_NOT_FOUND);
-            }
-            return Result.success(post);
+            return checkResourceExists(post, ErrorCode.ARTICLE_NOT_FOUND);
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "查询文章详情失败: " + e.getMessage());
+            return handleException(e, "查询文章详情");
         }
     }
 
@@ -83,13 +80,9 @@ public class PostsAdminController {
     public Result<String> createPost(@RequestBody Posts post) {
         try {
             boolean success = postsService.save(post);
-            if (success) {
-                return Result.success("文章创建成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "文章创建成功", "文章创建");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "文章创建失败: " + e.getMessage());
+            return handleException(e, "文章创建");
         }
     }
 
@@ -105,13 +98,9 @@ public class PostsAdminController {
         try {
             post.setId(id);
             boolean success = postsService.updateById(post);
-            if (success) {
-                return Result.success("文章更新成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "文章更新成功", "文章更新");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "文章更新失败: " + e.getMessage());
+            return handleException(e, "文章更新");
         }
     }
 
@@ -127,13 +116,9 @@ public class PostsAdminController {
             // 获取当前操作者ID（这里简化处理，实际应从SecurityContext获取）
             Long operatorId = 1L; // TODO: 从SecurityContext获取当前管理员ID
             boolean success = postsService.deletePostForAdmin(id, operatorId);
-            if (success) {
-                return Result.success("文章删除成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "文章删除成功", "文章删除");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "文章删除失败: " + e.getMessage());
+            return handleException(e, "文章删除");
         }
     }
 
@@ -147,13 +132,9 @@ public class PostsAdminController {
     public Result<String> batchDeletePosts(@RequestBody List<Long> ids) {
         try {
             boolean success = postsService.removeByIds(ids);
-            if (success) {
-                return Result.success("批量删除文章成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "批量删除文章成功", "批量删除文章");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "批量删除文章失败: " + e.getMessage());
+            return handleException(e, "批量删除文章");
         }
     }
 
@@ -169,13 +150,9 @@ public class PostsAdminController {
         try {
             // 使用专门的管理端状态更新方法，避免updateById导致其他字段为null
             boolean success = postsService.updatePostStatusForAdmin(id, status, 1L); // TODO: 获取当前管理员ID
-            if (success) {
-                return Result.success("文章状态更新成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "文章状态更新成功", "文章状态更新");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "文章状态更新失败: " + e.getMessage());
+            return handleException(e, "文章状态更新");
         }
     }
 
@@ -190,13 +167,9 @@ public class PostsAdminController {
     public Result<String> batchUpdatePostStatus(@RequestBody List<Long> ids, @RequestParam String status) {
         try {
             boolean success = postsService.batchUpdateStatus(ids, status);
-            if (success) {
-                return Result.success("批量更新文章状态成功");
-            } else {
-                return Result.fail(ErrorCode.OPERATION_ERROR);
-            }
+            return handleOperationResult(success, "批量更新文章状态成功", "批量更新文章状态");
         } catch (Exception e) {
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "批量更新文章状态失败: " + e.getMessage());
+            return handleException(e, "批量更新文章状态");
         }
     }
 }
