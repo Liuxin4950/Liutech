@@ -52,4 +52,9 @@ public class PostLikes {
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private Date updatedAt;
+    
+    /**
+     * 删除时间（软删除）
+     */
+    private Date deletedAt;
 }

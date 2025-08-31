@@ -84,9 +84,11 @@ CREATE TABLE IF NOT EXISTS post_likes (
   is_like TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '是否点赞(0取消点赞,1点赞)',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '删除时间（软删除）',
   UNIQUE KEY uk_user_post (user_id, post_id) COMMENT '用户文章唯一索引',
   INDEX idx_user_id (user_id),
   INDEX idx_post_id (post_id),
+  INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (post_id) REFERENCES posts(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章点赞表';
@@ -99,9 +101,11 @@ CREATE TABLE IF NOT EXISTS post_favorites (
   is_favorite TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '是否收藏(0取消收藏,1收藏)',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '删除时间（软删除）',
   UNIQUE KEY uk_user_post (user_id, post_id) COMMENT '用户文章唯一索引',
   INDEX idx_user_id (user_id),
   INDEX idx_post_id (post_id),
+  INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (post_id) REFERENCES posts(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章收藏表';

@@ -475,11 +475,14 @@ public class UserManagementService {
     
     /**
      * 根据ID删除用户
-     * 基础操作方法（物理删除）
+     * @deprecated 请使用 removeUserById 方法进行软删除，避免外键约束问题
+     * 物理删除用户会导致相关文章、点赞、收藏等数据变成孤儿数据
      * 
      * @param id 用户ID
      */
+    @Deprecated
     public void deleteUserById(Long id) {
+        log.warn("使用了已废弃的物理删除方法，建议使用 removeUserById 进行软删除");
         log.debug("删除用户: {}", id);
         userMapper.deleteById(id);
     }

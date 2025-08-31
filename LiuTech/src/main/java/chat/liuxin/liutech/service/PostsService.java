@@ -403,6 +403,21 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
         
+        // 删除文章与标签的关联关系（不删除标签本身）
+        postTagsMapper.deleteByPostId(id);
+        
+        // 软删除点赞记录
+        LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
+        likeUpdateWrapper.eq(PostLikes::getPostId, id)
+                .set(PostLikes::getDeletedAt, new Date());
+        postLikesMapper.update(null, likeUpdateWrapper);
+        
+        // 软删除收藏记录
+        LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
+        favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
+                .set(PostFavorites::getDeletedAt, new Date());
+        postFavoritesMapper.update(null, favoriteUpdateWrapper);
+        
         // 软删除文章
         int result = postsMapper.deleteById(id, new Date(), authorId);
         return result > 0;
@@ -713,6 +728,21 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
             
+            // 删除文章与标签的关联关系（不删除标签本身）
+            postTagsMapper.deleteByPostId(id);
+            
+            // 软删除点赞记录
+            LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
+            likeUpdateWrapper.eq(PostLikes::getPostId, id)
+                    .set(PostLikes::getDeletedAt, new Date());
+            postLikesMapper.update(null, likeUpdateWrapper);
+            
+            // 软删除收藏记录
+            LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
+            favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
+                    .set(PostFavorites::getDeletedAt, new Date());
+            postFavoritesMapper.update(null, favoriteUpdateWrapper);
+            
             // 管理员可以删除任何文章，无需权限检查
             int result = postsMapper.deleteById(id, new Date(), operatorId);
             boolean success = result > 0;
@@ -788,15 +818,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             // 软删除点赞记录
             LambdaUpdateWrapper<PostLikes> likesUpdateWrapper = new LambdaUpdateWrapper<>();
             likesUpdateWrapper.in(PostLikes::getPostId, ids)
-                    .set(PostLikes::getIsLike, 0)
-                    .set(PostLikes::getUpdatedAt, new Date());
+                    .set(PostLikes::getDeletedAt, new Date());
             postLikesMapper.update(null, likesUpdateWrapper);
             
             // 软删除收藏记录
             LambdaUpdateWrapper<PostFavorites> favoritesUpdateWrapper = new LambdaUpdateWrapper<>();
             favoritesUpdateWrapper.in(PostFavorites::getPostId, ids)
-                    .set(PostFavorites::getIsFavorite, 0)
-                    .set(PostFavorites::getUpdatedAt, new Date());
+                    .set(PostFavorites::getDeletedAt, new Date());
             postFavoritesMapper.update(null, favoritesUpdateWrapper);
             
             // 软删除文章
