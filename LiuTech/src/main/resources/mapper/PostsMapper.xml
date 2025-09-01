@@ -65,6 +65,8 @@
         <result property="summary" column="summary"/>
         <result property="coverImage" column="cover_image"/>
         <result property="thumbnail" column="thumbnail"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="status" column="status"/>
         <result property="viewCount" column="view_count"/>
         <result property="likeCount" column="like_count"/>
         <result property="favoriteCount" column="favorite_count"/>
@@ -75,13 +77,13 @@
         <result property="updatedAt" column="updated_at"/>
         <!-- 分类信息 -->
         <association property="category" javaType="chat.liuxin.liutech.resl.PostDetailResl$CategoryInfo">
-            <id property="id" column="cat_id"/>
-            <result property="name" column="cat_name"/>
-            <result property="description" column="cat_description"/>
+            <id property="id" column="category_info_id"/>
+            <result property="name" column="category_name"/>
+            <result property="description" column="category_description"/>
         </association>
         <!-- 作者信息 -->
         <association property="author" javaType="chat.liuxin.liutech.resl.PostDetailResl$AuthorInfo">
-            <id property="id" column="author_user_id"/>
+            <id property="id" column="author_info_id"/>
             <result property="username" column="author_username"/>
             <result property="avatarUrl" column="author_avatar_url"/>
         </association>
@@ -437,10 +439,10 @@
             p.favorite_count,
             p.created_at,
             p.updated_at,
-            c.id as category_id,
+            c.id as category_info_id,
             c.name as category_name,
             c.description as category_description,
-            u.id as author_id,
+            u.id as author_info_id,
             u.username as author_username,
             u.email as author_email,
             u.avatar_url as author_avatar_url,
@@ -616,8 +618,6 @@
             status = #{status},
             cover_image = #{coverImage},
             thumbnail = #{thumbnail},
-            view_count = #{viewCount},
-            like_count = #{likeCount},
             updated_at = #{updatedAt},
             updated_by = #{updatedBy}
         WHERE id = #{id}

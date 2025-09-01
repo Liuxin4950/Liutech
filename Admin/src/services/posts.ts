@@ -7,6 +7,8 @@ export interface Post {
   title: string
   content: string
   summary?: string
+  coverImage?: string
+  thumbnail?: string
   categoryId?: number
   authorId?: number
   tagIds?: number[]
@@ -39,6 +41,38 @@ export interface PostListItem {
   viewCount?: number
   likeCount?: number
   favoriteCount?: number
+  likeStatus?: number
+  favoriteStatus?: number
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PostDetail {
+  id: number
+  title: string
+  content: string
+  summary?: string
+  coverImage?: string
+  thumbnail?: string
+  categoryId?: number
+  category?: {
+    id: number
+    name: string
+  }
+  author?: {
+    id: number
+    username: string
+    avatarUrl?: string
+  }
+  tags?: Array<{
+    id: number
+    name: string
+  }>
+  viewCount?: number
+  likeCount?: number
+  favoriteCount?: number
+  commentCount?: number
   likeStatus?: number
   favoriteStatus?: number
   status: string
@@ -82,8 +116,8 @@ export class PostsService {
   /**
    * 根据ID查询文章详情
    */
-  static async getPostById(id: number): Promise<ApiResponse<Post>> {
-    return get<Post>(`${this.BASE_URL}/${id}`)
+  static async getPostById(id: number): Promise<ApiResponse<PostDetail>> {
+    return get<PostDetail>(`${this.BASE_URL}/${id}`)
   }
 
   /**

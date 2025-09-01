@@ -3,12 +3,19 @@ package chat.liuxin.liutech.controller.admin;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.model.Posts;
+import chat.liuxin.liutech.req.PostCreateReq;
+import chat.liuxin.liutech.req.PostUpdateReq;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.resl.PostListResl;
+import chat.liuxin.liutech.resl.PostCreateResl;
+import chat.liuxin.liutech.resl.PostDetailResl;
 import chat.liuxin.liutech.service.PostsService;
+import chat.liuxin.liutech.utils.UserUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
 
 import java.util.List;
 
@@ -26,6 +33,9 @@ public class PostsAdminController extends BaseAdminController {
 
     @Autowired
     private PostsService postsService;
+    
+    @Autowired
+    private UserUtils userUtils;
 
     /**
      * 分页查询文章列表
@@ -61,9 +71,9 @@ public class PostsAdminController extends BaseAdminController {
      * @return 文章详情
      */
     @GetMapping("/{id}")
-    public Result<Posts> getPostById(@PathVariable Long id) {
+    public Result<PostDetailResl> getPostById(@PathVariable Long id) {
         try {
-            Posts post = postsService.getById(id);
+            PostDetailResl post = postsService.getPostDetailForAdmin(id);
             return checkResourceExists(post, ErrorCode.ARTICLE_NOT_FOUND);
         } catch (Exception e) {
             return handleException(e, "查询文章详情");
@@ -73,14 +83,20 @@ public class PostsAdminController extends BaseAdminController {
     /**
      * 创建文章
      * 
-     * @param post 文章信息
+     * @param req 文章创建请求
      * @return 创建结果
      */
     @PostMapping
-    public Result<String> createPost(@RequestBody Posts post) {
+    public Result<PostCreateResl> createPost(@RequestBody PostCreateReq req) {
         try {
-            boolean success = postsService.save(post);
-            return handleOperationResult(success, "文章创建成功", "文章创建");
+            // 获取当前管理员用户ID
+            Long currentUserId = userUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
+            }
+            
+            PostCreateResl result = postsService.createPost(req, currentUserId);
+            return Result.success("文章创建成功", result);
         } catch (Exception e) {
             return handleException(e, "文章创建");
         }
@@ -90,14 +106,20 @@ public class PostsAdminController extends BaseAdminController {
      * 更新文章
      * 
      * @param id 文章ID
-     * @param post 文章信息
+     * @param req 文章更新请求
      * @return 更新结果
      */
     @PutMapping("/{id}")
-    public Result<String> updatePost(@PathVariable Long id, @RequestBody Posts post) {
+    public Result<String> updatePost(@PathVariable Long id, @RequestBody PostUpdateReq req) {
         try {
-            post.setId(id);
-            boolean success = postsService.updateById(post);
+            // 获取当前管理员用户ID
+            Long currentUserId = userUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
+            }
+            
+            req.setId(id);
+            boolean success = postsService.updatePost(req, currentUserId);
             return handleOperationResult(success, "文章更新成功", "文章更新");
         } catch (Exception e) {
             return handleException(e, "文章更新");

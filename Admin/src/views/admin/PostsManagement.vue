@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import PostsService from '../../services/posts'
 import CategoriesService from '../../services/categories'
 import TagsService from '../../services/tags'
 import type { PostListParams, Post, PostListItem } from '../../services/posts'
 import { formatDateTime } from '../../utils/uitls'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
+import { ImageUploadService } from '../../services/upload'
 
 // 响应式数据
 const loading = ref(false)
@@ -52,6 +54,9 @@ const formRef = ref()
 const formModel = ref<Partial<Post>>({
   title: '',
   content: '',
+  summary: '',
+  coverImage: '',
+  thumbnail: '',
   categoryId: undefined,
   tagIds: [],
   status: 0
@@ -63,13 +68,88 @@ const rules = {
   categoryId: [{ required: true, message: '请选择分类' }]
 }
 
-const openCreate = () => {
+// 图片上传相关
+const coverImageInput = ref<HTMLInputElement>()
+const thumbnailInput = ref<HTMLInputElement>()
+const uploadingCover = ref(false)
+const uploadingThumbnail = ref(false)
+
+// 触发封面图片上传
+const triggerCoverImageUpload = () => {
+  coverImageInput.value?.click()
+}
+
+// 触发缩略图上传
+const triggerThumbnailUpload = () => {
+  thumbnailInput.value?.click()
+}
+
+// 处理封面图片上传
+const handleCoverImageUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  try {
+    uploadingCover.value = true
+    const result = await ImageUploadService.uploadImage(file)
+    formModel.value.coverImage = result.fileUrl
+    message.success('封面图片上传成功')
+  } catch (error: any) {
+    message.error(error.message || '封面图片上传失败')
+  } finally {
+    uploadingCover.value = false
+    // 清空input值，允许重复选择同一文件
+    if (target) target.value = ''
+  }
+}
+
+// 处理缩略图上传
+const handleThumbnailUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  try {
+    uploadingThumbnail.value = true
+    const result = await ImageUploadService.uploadImage(file)
+    formModel.value.thumbnail = result.fileUrl
+    message.success('缩略图上传成功')
+  } catch (error: any) {
+    message.error(error.message || '缩略图上传失败')
+  } finally {
+    uploadingThumbnail.value = false
+    // 清空input值，允许重复选择同一文件
+    if (target) target.value = ''
+  }
+}
+
+// 删除封面图片
+const removeCoverImage = () => {
+  formModel.value.coverImage = ''
+}
+
+// 删除缩略图
+const removeThumbnail = () => {
+  formModel.value.thumbnail = ''
+}
+
+const openCreate = async () => {
   isEdit.value = false
   modalTitle.value = '新建文章'
   editingId.value = null
+  
+  // 确保分类和标签数据已加载
+  if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
+    await loadCategoriesAndTags()
+  }
+  
   formModel.value = {
     title: '',
     content: '',
+    summary: '',
+    coverImage: '',
+    thumbnail: '',
     categoryId: undefined,
     tagIds: [],
     status: 0
@@ -83,17 +163,27 @@ const openEdit = async (record: PostListItem) => {
     modalTitle.value = '编辑文章'
     editingId.value = record.id || null
     
+    // 确保分类和标签数据已加载
+    if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
+      await loadCategoriesAndTags()
+    }
+    
     // 获取完整的文章详情（包含content字段）
     const res = await PostsService.getPostById(record.id)
     if (res.code === 200) {
       const postDetail = res.data
+      
       formModel.value = {
         title: postDetail.title,
         content: postDetail.content || '',
-        categoryId: record.category?.id,
-        tagIds: record.tags?.map(tag => tag.id) || [],
-        status: record.status === 'published' ? 1 : 0
+        summary: postDetail.summary || '',
+        coverImage: postDetail.coverImage || '',
+        thumbnail: postDetail.thumbnail || '',
+        categoryId: postDetail.categoryId,
+        tagIds: postDetail.tags?.map(tag => tag.id) || [],
+        status: postDetail.status === 'published' ? 1 : 0
       }
+      
       modalVisible.value = true
     } else {
       message.error(res.message || '获取文章详情失败')
@@ -336,6 +426,67 @@ onMounted(async () => {
         <a-form-item name="title" label="标题" required>
           <a-input v-model:value="formModel.title" placeholder="请输入标题" />
         </a-form-item>
+        
+        <a-form-item label="文章摘要">
+          <a-textarea 
+            v-model:value="formModel.summary" 
+            placeholder="请输入文章摘要，用于SEO和文章预览" 
+            :rows="3"
+            :maxlength="200"
+            show-count
+          />
+        </a-form-item>
+
+        <a-form-item label="封面图片">
+          <div class="image-upload-container">
+            <div v-if="formModel.coverImage" class="image-preview">
+              <img :src="formModel.coverImage" alt="封面图片" class="preview-image" />
+              <div class="image-actions">
+                <a-button type="text" danger @click="removeCoverImage">
+                  <template #icon><DeleteOutlined /></template>
+                  删除
+                </a-button>
+              </div>
+            </div>
+            <div v-else class="upload-placeholder" @click="triggerCoverImageUpload">
+              <PlusOutlined />
+              <div class="upload-text">上传封面图片</div>
+            </div>
+            <input 
+              ref="coverImageInput"
+              type="file" 
+              accept="image/*" 
+              style="display: none" 
+              @change="handleCoverImageUpload"
+            />
+          </div>
+        </a-form-item>
+
+        <a-form-item label="缩略图">
+          <div class="image-upload-container">
+            <div v-if="formModel.thumbnail" class="image-preview">
+              <img :src="formModel.thumbnail" alt="缩略图" class="preview-image" />
+              <div class="image-actions">
+                <a-button type="text" danger @click="removeThumbnail">
+                  <template #icon><DeleteOutlined /></template>
+                  删除
+                </a-button>
+              </div>
+            </div>
+            <div v-else class="upload-placeholder" @click="triggerThumbnailUpload">
+              <PlusOutlined />
+              <div class="upload-text">上传缩略图</div>
+            </div>
+            <input 
+              ref="thumbnailInput"
+              type="file" 
+              accept="image/*" 
+              style="display: none" 
+              @change="handleThumbnailUpload"
+            />
+          </div>
+        </a-form-item>
+
         <a-form-item name="content" label="内容" required>
           <TinyMCEEditor v-model="formModel.content" placeholder="请输入文章内容" :height="400" />
         </a-form-item>
@@ -365,4 +516,69 @@ onMounted(async () => {
 .page-header { margin-bottom: 24px; }
 .page-header h2 { margin: 0; font-size: 24px; font-weight: 600; color: #262626; }
 .search-card, .action-card { margin-bottom: 16px; }
+
+/* 图片上传样式 */
+.image-upload-container {
+  width: 100%;
+}
+
+.image-preview {
+  position: relative;
+  display: inline-block;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.preview-image {
+  width: 200px;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+}
+
+.image-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.image-actions .ant-btn {
+  color: white;
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+  height: auto;
+}
+
+.image-actions .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.upload-placeholder {
+  width: 200px;
+  height: 120px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: #999;
+}
+
+.upload-placeholder:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+}
+
+.upload-text {
+  margin-top: 8px;
+  font-size: 14px;
+}
 </style>

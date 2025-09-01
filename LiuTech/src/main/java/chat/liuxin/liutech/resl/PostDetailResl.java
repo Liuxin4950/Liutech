@@ -95,6 +95,16 @@ public class PostDetailResl {
      */
     private Date updatedAt;
 
+    /**
+     * 分类ID（用于编辑表单）
+     */
+    private Long categoryId;
+
+    /**
+     * 文章状态
+     */
+    private String status;
+
     @Data
     public static class CategoryInfo {
         private Long id;

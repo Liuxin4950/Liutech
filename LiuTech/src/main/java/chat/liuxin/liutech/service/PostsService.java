@@ -37,7 +37,6 @@ import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.BusinessException;
 
-
 /**
  * 文章服务类
  * 提供文章的增删改查、点赞收藏、统计等核心业务功能
@@ -51,13 +50,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     @Autowired
     private PostsMapper postsMapper;
-    
+
     @Autowired
     private PostTagsMapper postTagsMapper;
-    
+
     @Autowired
     private PostLikesMapper postLikesMapper;
-    
+
     @Autowired
     private PostFavoritesMapper postFavoritesMapper;
 
@@ -74,13 +73,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public PageResl<PostListResl> getPostList(PostQueryReq req) {
         return getPostList(req, null);
     }
-    
+
     /**
      * 分页查询文章列表（支持用户状态）
      * 支持按分类、标签、关键词、状态、作者等条件进行筛选，同时返回当前用户的点赞收藏状态
      * 返回已发布的文章，包含用户的点赞收藏状态
      * 
-     * @param req 查询请求参数，包含分页信息和筛选条件
+     * @param req    查询请求参数，包含分页信息和筛选条件
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 分页结果，包含文章列表和分页信息，文章包含用户状态信息
      * @author 刘鑫
@@ -89,13 +88,14 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public PageResl<PostListResl> getPostList(PostQueryReq req, Long userId) {
         // 创建分页对象
         Page<PostListResl> page = new Page<>(req.getPage(), req.getSize());
-        
+
         // 处理搜索关键词
         String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
-        
+
         // 执行分页查询，直接返回PostListResl
-        IPage<PostListResl> result = postsMapper.selectPostListResl(page, req.getCategoryId(), req.getTagId(), keyword, req.getStatus(), req.getAuthorId(), userId);
-        
+        IPage<PostListResl> result = postsMapper.selectPostListResl(page, req.getCategoryId(), req.getTagId(), keyword,
+                req.getStatus(), req.getAuthorId(), userId);
+
         // 使用MyBatis-Plus自动统计的总数
         return new PageResl<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
@@ -114,12 +114,12 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public PostDetailResl getPostDetail(Long id) {
         return getPostDetail(id, null);
     }
-    
+
     /**
      * 根据ID查询文章详情（包含用户状态）
      * 查询文章详细信息并自动增加访问量，同时返回当前用户的点赞收藏状态
      * 
-     * @param id 文章ID
+     * @param id     文章ID
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 文章详情信息，包含内容、作者、标签、统计数据和用户状态
      * @throws BusinessException 当文章不存在时抛出异常
@@ -132,25 +132,40 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (postDetail == null) {
             return null;
         }
-        
+
         // 访问数自增
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Posts::getId, id)
-                     .setSql("view_count = IFNULL(view_count, 0) + 1");
+                .setSql("view_count = IFNULL(view_count, 0) + 1");
         this.update(updateWrapper);
-        
+
         // 更新返回对象中的访问数
         if (postDetail.getViewCount() == null) {
             postDetail.setViewCount(1);
         } else {
             postDetail.setViewCount(postDetail.getViewCount() + 1);
         }
-        
+
         return postDetail;
     }
-    
+
+    /**
+     * 管理端查询文章详情（不增加访问量）
+     * 查询文章详细信息，包含完整的关联数据，但不增加访问量
+     * 
+     * @param id 文章ID
+     * @return 文章详情信息，包含内容、作者、标签、统计数据等
+     * @throws BusinessException 当文章不存在时抛出异常
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    public PostDetailResl getPostDetailForAdmin(Long id) {
+        return postsMapper.selectPostDetailResl(id, null);
+    }
+
     /**
      * 点赞文章（已废弃，请使用toggleLike方法）
+     * 
      * @param id 文章ID
      * @return 是否成功
      * @deprecated 使用toggleLike(Long postId, Long userId)替代
@@ -163,14 +178,14 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (post == null || post.getDeletedAt() != null) {
             return false;
         }
-        
+
         // 点赞数自增
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Posts::getId, id)
-                     .setSql("like_count = IFNULL(like_count, 0) + 1");
+                .setSql("like_count = IFNULL(like_count, 0) + 1");
         return this.update(updateWrapper);
     }
-    
+
     /**
      * 切换文章点赞状态
      * 如果用户未点赞则点赞，如果已点赞则取消点赞，同时更新文章点赞数
@@ -187,25 +202,25 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (post == null || post.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         }
-        
+
         // 查询当前点赞状态
         Integer currentStatus = postLikesMapper.getLikeStatus(userId, postId);
         boolean isLiked = currentStatus != null && currentStatus == 1;
-        
+
         // 切换点赞状态
         boolean newStatus = !isLiked;
         postLikesMapper.insertOrUpdateLike(userId, postId, newStatus ? 1 : 0);
-        
+
         // 更新文章点赞数
         Integer likeCount = postLikesMapper.countLikesByPostId(postId);
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Posts::getId, postId)
-                     .set(Posts::getLikeCount, likeCount);
+                .set(Posts::getLikeCount, likeCount);
         this.update(updateWrapper);
-        
+
         return newStatus;
     }
-    
+
     /**
      * 切换文章收藏状态
      * 如果用户未收藏则收藏，如果已收藏则取消收藏，同时更新文章收藏数
@@ -222,22 +237,22 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (post == null || post.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         }
-        
+
         // 查询当前收藏状态
         Integer currentStatus = postFavoritesMapper.getFavoriteStatus(userId, postId);
         boolean isFavorited = currentStatus != null && currentStatus == 1;
-        
+
         // 切换收藏状态
         boolean newStatus = !isFavorited;
         postFavoritesMapper.insertOrUpdateFavorite(userId, postId, newStatus ? 1 : 0);
-        
+
         // 更新文章收藏数
         Integer favoriteCount = postFavoritesMapper.countFavoritesByPostId(postId);
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Posts::getId, postId)
-                     .set(Posts::getFavoriteCount, favoriteCount);
+                .set(Posts::getFavoriteCount, favoriteCount);
         this.update(updateWrapper);
-        
+
         return newStatus;
     }
 
@@ -252,12 +267,12 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public List<PostListResl> getHotPosts(Integer limit) {
         return getHotPosts(limit, null);
     }
-    
+
     /**
      * 查询热门文章（支持用户状态）
      * 根据点赞数、评论数、访问量等综合指标排序，同时返回用户点赞收藏状态
      * 
-     * @param limit 限制数量，最多返回的文章数
+     * @param limit  限制数量，最多返回的文章数
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 热门文章列表，按热度降序排列，包含用户状态信息
      */
@@ -276,12 +291,12 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public List<PostListResl> getLatestPosts(Integer limit) {
         return getLatestPosts(limit, null);
     }
-    
+
     /**
      * 查询最新文章（支持用户状态）
      * 按发布时间降序排列，同时返回用户点赞收藏状态
      * 
-     * @param limit 限制数量，最多返回的文章数
+     * @param limit  限制数量，最多返回的文章数
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 最新文章列表，按发布时间降序排列，包含用户状态信息
      */
@@ -289,13 +304,11 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         return postsMapper.selectLatestPostListResl(limit, userId);
     }
 
-
-
     /**
      * 创建文章
      * 创建新文章并处理标签关联，支持草稿和发布状态
      * 
-     * @param req 创建请求，包含文章标题、内容、分类、标签等信息
+     * @param req      创建请求，包含文章标题、内容、分类、标签等信息
      * @param authorId 作者ID
      * @return 文章创建响应，包含文章ID、标题、状态和创建时间
      * @throws BusinessException 当文章创建失败时抛出异常
@@ -303,7 +316,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
     public PostCreateResl createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
@@ -314,25 +327,32 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         post.setUpdatedAt(new Date());
         post.setCreatedBy(authorId);
         post.setUpdatedBy(authorId);
-        
+        // 设置默认计数值
+        if (post.getViewCount() == null) {
+            post.setViewCount(0);
+        }
+        if (post.getLikeCount() == null) {
+            post.setLikeCount(0);
+        }
+
         // 保存文章
         boolean saved = this.save(post);
         if (!saved) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章创建失败");
         }
-        
+
         // 处理标签关联
         if (req.getTagIds() != null && !req.getTagIds().isEmpty()) {
             savePostTags(post.getId(), req.getTagIds());
         }
-        
+
         // 构建响应对象
         PostCreateResl response = new PostCreateResl();
         response.setId(post.getId());
         response.setTitle(post.getTitle());
         response.setStatus(post.getStatus());
         response.setCreatedAt(post.getCreatedAt());
-        
+
         return response;
     }
 
@@ -340,7 +360,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 更新文章
      * 更新文章信息和标签关联，只有作者本人可以编辑
      * 
-     * @param req 更新请求，包含文章ID和需要更新的字段
+     * @param req      更新请求，包含文章ID和需要更新的字段
      * @param authorId 作者ID，用于权限验证
      * @return 是否更新成功
      * @throws BusinessException 当文章不存在或无权限时抛出异常
@@ -348,33 +368,33 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
     public boolean updatePost(PostUpdateReq req, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(req.getId());
         if (existPost == null || existPost.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
         }
-        
+
         // 检查权限（只有作者可以编辑）
         if (!existPost.getAuthorId().equals(authorId)) {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
-        
+
         // 更新文章信息
         Posts post = new Posts();
         BeanUtils.copyProperties(req, post);
         post.setUpdatedAt(new Date());
         post.setUpdatedBy(authorId);
-        
+
         boolean updated = this.updateById(post);
         if (!updated) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章更新失败");
         }
-        
+
         // 更新标签关联
         updatePostTags(req.getId(), req.getTagIds());
-        
+
         return true;
     }
 
@@ -382,7 +402,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 删除文章（软删除）
      * 软删除文章，只有作者本人可以删除，不会物理删除数据
      * 
-     * @param id 文章ID
+     * @param id       文章ID
      * @param authorId 作者ID，用于权限验证
      * @return 是否删除成功
      * @throws BusinessException 当文章不存在或无权限时抛出异常
@@ -390,34 +410,34 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
     public boolean deletePost(Long id, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(id);
         if (existPost == null || existPost.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
         }
-        
+
         // 检查权限（只有作者可以删除）
         if (!existPost.getAuthorId().equals(authorId)) {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
-        
+
         // 删除文章与标签的关联关系（不删除标签本身）
         postTagsMapper.deleteByPostId(id);
-        
+
         // 软删除点赞记录
         LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
         likeUpdateWrapper.eq(PostLikes::getPostId, id)
                 .set(PostLikes::getDeletedAt, new Date());
         postLikesMapper.update(null, likeUpdateWrapper);
-        
+
         // 软删除收藏记录
         LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
         favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
                 .set(PostFavorites::getDeletedAt, new Date());
         postFavoritesMapper.update(null, favoriteUpdateWrapper);
-        
+
         // 软删除文章
         int result = postsMapper.deleteById(id, new Date(), authorId);
         return result > 0;
@@ -427,7 +447,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 发布文章
      * 将草稿状态的文章发布为公开状态，只有作者本人可以操作
      * 
-     * @param id 文章ID
+     * @param id       文章ID
      * @param authorId 作者ID，用于权限验证
      * @return 是否发布成功
      * @throws BusinessException 当文章不存在或无权限时抛出异常
@@ -435,7 +455,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
     public boolean publishPost(Long id, Long authorId) {
         return updatePostStatus(id, "published", authorId);
     }
@@ -444,7 +464,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 取消发布文章
      * 将已发布的文章改为草稿状态，只有作者本人可以操作
      * 
-     * @param id 文章ID
+     * @param id       文章ID
      * @param authorId 作者ID，用于权限验证
      * @return 是否操作成功
      * @throws BusinessException 当文章不存在或无权限时抛出异常
@@ -460,8 +480,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 更新文章状态（私有方法）
      * 内部方法，用于统一处理文章状态更新逻辑
      * 
-     * @param id 文章ID
-     * @param status 新状态（draft/published等）
+     * @param id       文章ID
+     * @param status   新状态（draft/published等）
      * @param authorId 作者ID，用于权限验证
      * @return 是否更新成功
      * @throws BusinessException 当文章不存在或无权限时抛出异常
@@ -474,19 +494,19 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (existPost == null || existPost.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
         }
-        
+
         // 检查权限
         if (!existPost.getAuthorId().equals(authorId)) {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
-        
+
         // 使用 LambdaUpdateWrapper 只更新指定字段
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Posts::getId, id)
-                    .set(Posts::getStatus, status)
-                    .set(Posts::getUpdatedAt, new Date())
-                    .set(Posts::getUpdatedBy, authorId);
-        
+                .set(Posts::getStatus, status)
+                .set(Posts::getUpdatedAt, new Date())
+                .set(Posts::getUpdatedBy, authorId);
+
         return this.update(updateWrapper);
     }
 
@@ -503,7 +523,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (tagIds == null || tagIds.isEmpty()) {
             return;
         }
-        
+
         List<PostTags> postTags = tagIds.stream()
                 .map(tagId -> {
                     PostTags postTag = new PostTags();
@@ -512,7 +532,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     return postTag;
                 })
                 .collect(Collectors.toList());
-        
+
         postTagsMapper.batchInsert(postTags);
     }
 
@@ -528,13 +548,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     private void updatePostTags(Long postId, List<Long> tagIds) {
         // 删除原有关联
         postTagsMapper.deleteByPostId(postId);
-        
+
         // 添加新关联
         if (tagIds != null && !tagIds.isEmpty()) {
             savePostTags(postId, tagIds);
         }
     }
-    
+
     /**
      * 统计用户文章数量（已发布）
      * 统计指定用户已发布状态的文章总数
@@ -547,7 +567,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public Integer countPublishedPostsByUserId(Long userId) {
         return postsMapper.countPostsByUserIdAndStatus(userId, "published");
     }
-    
+
     /**
      * 统计用户草稿数量
      * 统计指定用户草稿状态的文章总数
@@ -560,7 +580,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public Integer countDraftsByUserId(Long userId) {
         return postsMapper.countPostsByUserIdAndStatus(userId, "draft");
     }
-    
+
     /**
      * 获取用户最后发文时间
      * 获取指定用户最近一次发布文章的时间
@@ -573,7 +593,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public Date getLastPostTimeByUserId(Long userId) {
         return postsMapper.getLastPostTimeByUserId(userId);
     }
-    
+
     /**
      * 统计用户文章数量（按状态）
      * 统计指定用户在指定状态下的文章总数
@@ -587,7 +607,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public Integer countPostsByUserId(Long userId, String status) {
         return postsMapper.countPostsByUserIdAndStatus(userId, status);
     }
-    
+
     /**
      * 统计全站已发布文章数量
      * 统计整个网站所有已发布状态的文章总数
@@ -599,7 +619,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public Integer countAllPublishedPosts() {
         return postsMapper.countAllPublishedPosts();
     }
-    
+
     /**
      * 统计全站文章总浏览量
      * 统计整个网站所有文章的浏览量总和
@@ -611,7 +631,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public Long countAllViews() {
         return postsMapper.countAllViews();
     }
-    
+
     /**
      * 统计用户所有文章的浏览量总和
      * 统计指定用户所有文章的浏览量累计总数
@@ -624,52 +644,54 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public Long countViewsByUserId(Long userId) {
         return postsMapper.countViewsByUserId(userId);
     }
-    
+
     /**
      * 管理端分页查询文章列表
      * 支持按标题、分类、状态、作者等条件进行筛选，管理员可查看所有状态的文章
      * 
-     * @param page 页码，从1开始
-     * @param size 每页大小，建议10-50之间
-     * @param title 文章标题（可选，模糊搜索）
+     * @param page       页码，从1开始
+     * @param size       每页大小，建议10-50之间
+     * @param title      文章标题（可选，模糊搜索）
      * @param categoryId 分类ID（可选，筛选指定分类）
-     * @param status 文章状态（可选，draft/published等）
-     * @param authorId 作者ID（可选，筛选指定作者）
+     * @param status     文章状态（可选，draft/published等）
+     * @param authorId   作者ID（可选，筛选指定作者）
      * @return 分页结果，包含文章列表和分页信息
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PageResl<PostListResl> getPostListForAdmin(int page, int size, String title, Long categoryId, String status, Long authorId) {
-        log.info("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}", 
+    public PageResl<PostListResl> getPostListForAdmin(int page, int size, String title, Long categoryId, String status,
+            Long authorId) {
+        log.info("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}",
                 page, size, title, categoryId, status, authorId);
-        
+
         try {
             // 创建分页对象
             Page<PostListResl> pageObj = new Page<>(page, size);
-            
+
             // 处理搜索关键词
             String keyword = StringUtils.hasText(title) ? title.trim() : null;
-            
+
             // 执行分页查询，复用现有的selectPostListResl方法
-            IPage<PostListResl> result = postsMapper.selectPostListResl(pageObj, categoryId, null, keyword, status, authorId, null);
-            
+            IPage<PostListResl> result = postsMapper.selectPostListResl(pageObj, categoryId, null, keyword, status,
+                    authorId, null);
+
             log.info("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
-            
+
             // 使用MyBatis-Plus自动统计的总数
             return new PageResl<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
-            
+
         } catch (Exception e) {
             log.error("管理端文章列表查询失败: {}", e.getMessage(), e);
             throw new RuntimeException("查询文章列表失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 管理端更新文章状态
      * 管理员可以修改任何文章的状态，支持发布、下架、删除等操作
      * 
-     * @param id 文章ID
-     * @param status 新状态（draft/published/deleted等）
+     * @param id         文章ID
+     * @param status     新状态（draft/published/deleted等）
      * @param operatorId 操作者ID，用于记录操作日志
      * @return 是否更新成功
      * @throws BusinessException 当文章不存在时抛出异常
@@ -677,39 +699,39 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
     public boolean updatePostStatusForAdmin(Long id, String status, Long operatorId) {
         log.info("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
-        
+
         try {
             // 检查文章是否存在
             Posts existPost = this.getById(id);
             if (existPost == null || existPost.getDeletedAt() != null) {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
-            
+
             // 管理员可以更新任何文章的状态，无需权限检查
             LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Posts::getId, id)
-                        .set(Posts::getStatus, status)
-                        .set(Posts::getUpdatedAt, new Date())
-                        .set(Posts::getUpdatedBy, operatorId);
-            
+                    .set(Posts::getStatus, status)
+                    .set(Posts::getUpdatedAt, new Date())
+                    .set(Posts::getUpdatedBy, operatorId);
+
             boolean result = this.update(updateWrapper);
             log.info("管理端文章状态更新{} - 文章ID: {}", result ? "成功" : "失败", id);
             return result;
-            
+
         } catch (Exception e) {
             log.error("管理端更新文章状态失败 - 文章ID: {}, 错误: {}", id, e.getMessage(), e);
             throw new RuntimeException("更新文章状态失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 管理端删除文章（软删除）
      * 管理员可以删除任何文章，执行软删除操作，不会物理删除数据
      * 
-     * @param id 文章ID
+     * @param id         文章ID
      * @param operatorId 操作者ID，用于记录操作日志
      * @return 是否删除成功
      * @throws BusinessException 当文章不存在时抛出异常
@@ -717,49 +739,49 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
     public boolean deletePostForAdmin(Long id, Long operatorId) {
         log.info("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
-        
+
         try {
             // 检查文章是否存在
             Posts existPost = this.getById(id);
             if (existPost == null || existPost.getDeletedAt() != null) {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
-            
+
             // 删除文章与标签的关联关系（不删除标签本身）
             postTagsMapper.deleteByPostId(id);
-            
+
             // 软删除点赞记录
             LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
             likeUpdateWrapper.eq(PostLikes::getPostId, id)
                     .set(PostLikes::getDeletedAt, new Date());
             postLikesMapper.update(null, likeUpdateWrapper);
-            
+
             // 软删除收藏记录
             LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
             favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
                     .set(PostFavorites::getDeletedAt, new Date());
             postFavoritesMapper.update(null, favoriteUpdateWrapper);
-            
+
             // 管理员可以删除任何文章，无需权限检查
             int result = postsMapper.deleteById(id, new Date(), operatorId);
             boolean success = result > 0;
             log.info("管理端文章删除{} - 文章ID: {}", success ? "成功" : "失败", id);
             return success;
-            
+
         } catch (Exception e) {
             log.error("管理端删除文章失败 - 文章ID: {}, 错误: {}", id, e.getMessage(), e);
             throw new RuntimeException("删除文章失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 管理端批量更新文章状态
      * 管理员可以批量修改多篇文章的状态，提高管理效率
      * 
-     * @param ids 文章ID列表，不能为空
+     * @param ids    文章ID列表，不能为空
      * @param status 新状态（draft/published/deleted等）
      * @return 是否批量更新成功
      * @throws BusinessException 当参数无效时抛出异常
@@ -767,31 +789,31 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
         log.info("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
-        
+
         try {
             if (ids == null || ids.isEmpty()) {
                 return false;
             }
-            
+
             // 批量更新文章状态
             LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.in(Posts::getId, ids)
-                        .set(Posts::getStatus, status)
-                        .set(Posts::getUpdatedAt, new Date());
-            
+                    .set(Posts::getStatus, status)
+                    .set(Posts::getUpdatedAt, new Date());
+
             boolean result = this.update(updateWrapper);
             log.info("管理端批量更新文章状态{} - 影响文章数: {}", result ? "成功" : "失败", ids.size());
             return result;
-            
+
         } catch (Exception e) {
             log.error("管理端批量更新文章状态失败 - 错误: {}", e.getMessage(), e);
             throw new RuntimeException("批量更新文章状态失败: " + e.getMessage());
         }
     }
-    
+
     /**
      * 批量删除文章（管理端）- 软删除
      * 管理员可以批量删除多篇文章，执行软删除操作，同时删除相关的点赞、收藏、评论和标签关联
@@ -803,35 +825,35 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotPosts", "latestPosts"}, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
                 return false;
             }
-            
+
             // 删除文章标签关联
             LambdaQueryWrapper<PostTags> tagQueryWrapper = new LambdaQueryWrapper<>();
             tagQueryWrapper.in(PostTags::getPostId, ids);
             postTagsMapper.delete(tagQueryWrapper);
-            
+
             // 软删除点赞记录
             LambdaUpdateWrapper<PostLikes> likesUpdateWrapper = new LambdaUpdateWrapper<>();
             likesUpdateWrapper.in(PostLikes::getPostId, ids)
                     .set(PostLikes::getDeletedAt, new Date());
             postLikesMapper.update(null, likesUpdateWrapper);
-            
+
             // 软删除收藏记录
             LambdaUpdateWrapper<PostFavorites> favoritesUpdateWrapper = new LambdaUpdateWrapper<>();
             favoritesUpdateWrapper.in(PostFavorites::getPostId, ids)
                     .set(PostFavorites::getDeletedAt, new Date());
             postFavoritesMapper.update(null, favoritesUpdateWrapper);
-            
+
             // 软删除文章
             LambdaUpdateWrapper<Posts> postsUpdateWrapper = new LambdaUpdateWrapper<>();
             postsUpdateWrapper.in(Posts::getId, ids)
                     .set(Posts::getDeletedAt, new Date());
-            
+
             int result = postsMapper.update(null, postsUpdateWrapper);
             log.info("管理端批量删除文章{} - 影响文章数: {}", result > 0 ? "成功" : "失败", ids.size());
             return result > 0;
