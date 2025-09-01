@@ -18,7 +18,7 @@ public class LiuTechAiApplication {
     public static void main(String[] args) {
         log.info("=== LiuTech AI 服务启动中... ===");
         SpringApplication.run(LiuTechAiApplication.class, args);
-        log.info("服务地址: http://localhost:8081");
+        log.info("服务地址: http://localhost:8081/api/ai/chat");
         log.info("=== LiuTech AI 服务启动完成！===");
     }
 }
