@@ -23,6 +23,7 @@
     <!-- 所有子模块放在这里 -->
     <modules>
         <module>LiuTech</module>
+        <module>LiuTech-AI</module>
     </modules>
 
     <properties>

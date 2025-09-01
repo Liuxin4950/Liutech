@@ -2,6 +2,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "LiuTechAiApplication",
+            "request": "launch",
+            "mainClass": "chat.liuxin.ai.LiuTechAiApplication",
+            "projectName": "liutech-ai"
+        },
+        {
+            "type": "java",
             "name": "Spring Boot-LiuTechApplication<LiuTech>",
             "request": "launch",
             "cwd": "${workspaceFolder}",
