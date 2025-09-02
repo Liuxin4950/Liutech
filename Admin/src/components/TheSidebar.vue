@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, type Ref } from 'vue'
+import { computed, inject, ref, watch, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   DashboardOutlined,
@@ -7,6 +7,7 @@ import {
   FolderOutlined,
   TagsOutlined,
   TeamOutlined,
+  NotificationOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons-vue'
@@ -25,8 +26,23 @@ const selectedKeys = computed(() => {
   if (path.startsWith('/categories')) return ['categories']
   if (path.startsWith('/tags')) return ['tags']
   if (path.startsWith('/users')) return ['users']
+  if (path.startsWith('/announcements')) return ['announcements']
   return ['dashboard']
 })
+
+// 菜单选中状态（用于双向绑定）
+const menuSelectedKeys = ref<string[]>(['dashboard'])
+
+// 监听路由变化，更新菜单选中状态
+watch(() => route.path, (newPath) => {
+  if (newPath === '/' || newPath === '/dashboard') menuSelectedKeys.value = ['dashboard']
+  else if (newPath.startsWith('/posts')) menuSelectedKeys.value = ['posts']
+  else if (newPath.startsWith('/categories')) menuSelectedKeys.value = ['categories']
+  else if (newPath.startsWith('/tags')) menuSelectedKeys.value = ['tags']
+  else if (newPath.startsWith('/users')) menuSelectedKeys.value = ['users']
+  else if (newPath.startsWith('/announcements')) menuSelectedKeys.value = ['announcements']
+  else menuSelectedKeys.value = ['dashboard']
+}, { immediate: true })
 
 // 菜单点击处理
 const handleMenuClick = ({ key }: { key: string }) => {
@@ -45,6 +61,9 @@ const handleMenuClick = ({ key }: { key: string }) => {
       break
     case 'users':
       router.push('/users')
+      break
+    case 'announcements':
+      router.push('/announcements')
       break
   }
 }
@@ -65,7 +84,7 @@ const toggleCollapsed = () => {
     
     <!-- 菜单 -->
     <a-menu
-      v-model:selectedKeys="selectedKeys"
+      v-model:selectedKeys="menuSelectedKeys"
       mode="inline"
       theme="light"
       class="sidebar-menu"
@@ -91,6 +110,10 @@ const toggleCollapsed = () => {
       <a-menu-item key="users">
         <TeamOutlined />
         <span>用户管理</span>
+      </a-menu-item>
+      <a-menu-item key="announcements">
+        <NotificationOutlined />
+        <span>公告管理</span>
       </a-menu-item>
     </a-menu>
   </div>

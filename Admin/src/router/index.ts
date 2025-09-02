@@ -54,6 +54,15 @@ const routes: RouteRecordRaw[] = [
           title: '用户管理',
           section: 'users'
         }
+      },
+      {
+        path: 'announcements',
+        name: 'announcements-management',
+        component: () => import('../views/admin/AnnouncementsManagement.vue'),
+        meta: {
+          title: '公告管理',
+          section: 'announcements'
+        }
       }
     ]
   },{

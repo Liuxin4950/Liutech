@@ -169,6 +169,13 @@ export function handleValidationError(errors: any) {
  */
 export function handleUnknownError(error: any) {
   console.error('未知错误:', error)
-  const message = error?.message || '发生未知错误，请稍后重试'
+  
+  // 如果错误为null或undefined，直接返回，不显示错误提示
+  if (error === null || error === undefined) {
+    console.warn('捕获到null/undefined错误，已忽略')
+    return
+  }
+  
+  const message = error?.message || error?.toString?.() || '发生未知错误，请稍后重试'
   showError(message, '系统错误')
 }

@@ -41,7 +41,11 @@ app.use(Antd)
 
 // 初始化用户状态
 const userStore = useUserStore()
-userStore.initUserState()
+// 使用 Promise.catch 处理可能的初始化错误，避免未处理的Promise拒绝
+userStore.initUserState().catch(error => {
+  console.warn('用户状态初始化失败:', error)
+  // 初始化失败不影响应用启动，只是用户需要重新登录
+})
 
 // 挂载应用
 app.mount('#app')

@@ -146,13 +146,127 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param size 每页大小
      * @param status 状态筛选
      * @param type 类型筛选
+     * @param includeDeleted 是否包含已删除的公告
      * @return 公告分页数据
      */
-    public IPage<AnnouncementResl> getAllAnnouncements(long current, long size, Integer status, Integer type) {
+    public IPage<AnnouncementResl> getAllAnnouncements(long current, long size, Integer status, Integer type, Boolean includeDeleted) {
         Page<Announcements> page = new Page<>(current, size);
-        QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type);
+        QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, includeDeleted);
         IPage<Announcements> announcementPage = this.page(page, queryWrapper);
         return announcementPage.convert(this::convertToResl);
+    }
+
+    /**
+     * 批量删除公告
+     * @param ids 公告ID列表
+     * @return 是否成功
+     */
+    @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
+    public boolean batchDeleteAnnouncements(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID列表不能为空");
+        }
+        
+        // 验证所有公告都存在且未删除
+        for (Long id : ids) {
+            validateAnnouncementExistsAndNotDeleted(id);
+        }
+        
+        // 批量软删除
+        LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(Announcements::getId, ids)
+                .set(Announcements::getDeletedAt, new Date());
+        return this.update(updateWrapper);
+    }
+
+    /**
+     * 更新公告状态
+     * @param id 公告ID
+     * @param status 新状态
+     * @return 是否成功
+     */
+    @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
+    public boolean updateAnnouncementStatus(Long id, Integer status) {
+        validateAnnouncementId(id);
+        validateAnnouncementStatus(status);
+        validateAnnouncementExistsAndNotDeleted(id);
+        
+        LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Announcements::getId, id)
+                .set(Announcements::getStatus, status);
+        return this.update(updateWrapper);
+    }
+
+    /**
+     * 批量更新公告状态
+     * @param ids 公告ID列表
+     * @param status 新状态
+     * @return 是否成功
+     */
+    @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
+    public boolean batchUpdateAnnouncementStatus(List<Long> ids, Integer status) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID列表不能为空");
+        }
+        validateAnnouncementStatus(status);
+        
+        // 验证所有公告都存在且未删除
+        for (Long id : ids) {
+            validateAnnouncementExistsAndNotDeleted(id);
+        }
+        
+        LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(Announcements::getId, ids)
+                .set(Announcements::getStatus, status);
+        return this.update(updateWrapper);
+    }
+
+    /**
+     * 恢复已删除的公告
+     * @param id 公告ID
+     * @return 是否成功
+     */
+    @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
+    public boolean restoreAnnouncement(Long id) {
+        validateAnnouncementId(id);
+        
+        Announcements announcement = this.getById(id);
+        if (announcement == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
+        }
+        if (announcement.getDeletedAt() == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "公告未被删除，无需恢复");
+        }
+        
+        LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Announcements::getId, id)
+                .set(Announcements::getDeletedAt, null);
+        return this.update(updateWrapper);
+    }
+
+    /**
+     * 置顶/取消置顶公告
+     * @param id 公告ID
+     * @param isTop 是否置顶(0否,1是)
+     * @return 是否成功
+     */
+    @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
+    public boolean toggleAnnouncementTop(Long id, Integer isTop) {
+        validateAnnouncementId(id);
+        if (isTop == null || (isTop != 0 && isTop != 1)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "置顶状态参数错误");
+        }
+        validateAnnouncementExistsAndNotDeleted(id);
+        
+        LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(Announcements::getId, id)
+                .set(Announcements::getIsTop, isTop);
+        return this.update(updateWrapper);
     }
 
     /**
@@ -272,13 +386,16 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * 构建公告查询条件
      * @param status 状态筛选
      * @param type 类型筛选
+     * @param includeDeleted 是否包含已删除的公告
      * @return 查询条件
      */
-    private QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type) {
+    private QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type, Boolean includeDeleted) {
         QueryWrapper<Announcements> queryWrapper = new QueryWrapper<>();
         
-        // 过滤软删除的记录
-        queryWrapper.isNull("deleted_at");
+        // 如果不包含已删除的公告，则只查询未删除的
+        if (includeDeleted == null || !includeDeleted) {
+            queryWrapper.isNull("deleted_at");
+        }
         
         if (status != null) {
             queryWrapper.eq("status", status);
@@ -289,6 +406,16 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         
         queryWrapper.orderByDesc("is_top", "priority", "created_at");
         return queryWrapper;
+    }
+
+    /**
+     * 构建公告查询条件（兼容旧方法）
+     * @param status 状态筛选
+     * @param type 类型筛选
+     * @return 查询条件
+     */
+    private QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type) {
+        return buildAnnouncementQueryWrapper(status, type, false);
     }
 
     /**

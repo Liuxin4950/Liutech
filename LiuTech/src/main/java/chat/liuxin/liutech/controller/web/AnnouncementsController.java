@@ -91,6 +91,7 @@ public class AnnouncementsController {
      * @param size 每页大小
      * @param status 状态筛选
      * @param type 类型筛选
+     * @param includeDeleted 是否包含已删除的公告
      * @return 公告分页数据
      */
     @GetMapping("/admin/list")
@@ -99,8 +100,9 @@ public class AnnouncementsController {
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) Integer status,
-            @RequestParam(required = false) Integer type) {
-        IPage<AnnouncementResl> result = announcementsService.getAllAnnouncements(current, size, status, type);
+            @RequestParam(required = false) Integer type,
+            @RequestParam(defaultValue = "false") Boolean includeDeleted) {
+        IPage<AnnouncementResl> result = announcementsService.getAllAnnouncements(current, size, status, type, includeDeleted);
         return Result.success(result);
     }
 
@@ -143,5 +145,128 @@ public class AnnouncementsController {
             @PathVariable Long id) {
         boolean success = announcementsService.deleteAnnouncement(id);
         return Result.success(success);
+    }
+
+    /**
+     * 批量删除公告
+     * @param ids 公告ID列表
+     * @return 是否成功
+     */
+    @DeleteMapping("/batch")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Boolean> batchDeleteAnnouncements(
+            @RequestBody List<Long> ids) {
+        boolean success = announcementsService.batchDeleteAnnouncements(ids);
+        return Result.success(success);
+    }
+
+    /**
+     * 更新公告状态
+     * @param id 公告ID
+     * @param request 状态更新请求
+     * @return 是否成功
+     */
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Boolean> updateAnnouncementStatus(
+            @PathVariable Long id,
+            @RequestBody StatusUpdateRequest request) {
+        boolean success = announcementsService.updateAnnouncementStatus(id, request.getStatus());
+        return Result.success(success);
+    }
+
+    /**
+     * 批量更新公告状态
+     * @param request 批量状态更新请求
+     * @return 是否成功
+     */
+    @PutMapping("/batch/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Boolean> batchUpdateAnnouncementStatus(
+            @RequestBody BatchStatusUpdateRequest request) {
+        boolean success = announcementsService.batchUpdateAnnouncementStatus(request.getIds(), request.getStatus());
+        return Result.success(success);
+    }
+
+    /**
+     * 恢复已删除的公告
+     * @param id 公告ID
+     * @return 是否成功
+     */
+    @PutMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Boolean> restoreAnnouncement(
+            @PathVariable Long id) {
+        boolean success = announcementsService.restoreAnnouncement(id);
+        return Result.success(success);
+    }
+
+    /**
+     * 置顶/取消置顶公告
+     * @param id 公告ID
+     * @param request 置顶状态更新请求
+     * @return 是否成功
+     */
+    @PutMapping("/{id}/top")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Boolean> toggleAnnouncementTop(
+            @PathVariable Long id,
+            @RequestBody TopUpdateRequest request) {
+        boolean success = announcementsService.toggleAnnouncementTop(id, request.getIsTop());
+        return Result.success(success);
+    }
+
+    /**
+     * 状态更新请求
+     */
+    public static class StatusUpdateRequest {
+        private Integer status;
+        
+        public Integer getStatus() {
+            return status;
+        }
+        
+        public void setStatus(Integer status) {
+            this.status = status;
+        }
+    }
+
+    /**
+     * 批量状态更新请求
+     */
+    public static class BatchStatusUpdateRequest {
+        private List<Long> ids;
+        private Integer status;
+        
+        public List<Long> getIds() {
+            return ids;
+        }
+        
+        public void setIds(List<Long> ids) {
+            this.ids = ids;
+        }
+        
+        public Integer getStatus() {
+            return status;
+        }
+        
+        public void setStatus(Integer status) {
+            this.status = status;
+        }
+    }
+
+    /**
+     * 置顶状态更新请求
+     */
+    public static class TopUpdateRequest {
+        private Integer isTop;
+        
+        public Integer getIsTop() {
+            return isTop;
+        }
+        
+        public void setIsTop(Integer isTop) {
+            this.isTop = isTop;
+        }
     }
 }

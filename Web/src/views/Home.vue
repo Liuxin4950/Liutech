@@ -75,7 +75,7 @@
           :bio="profileInfo.bio" :stats="profileInfo.stats" />
 
         <!-- 公告栏 -->
-        <AnnouncementCard :announcements="announcements" />
+        <AnnouncementCard @view-more="goToAnnouncements" />
 
         <!-- 分类展示 -->
         <CategoriesCard :categories="categories" :loading="categoriesLoading" />
@@ -99,7 +99,7 @@ import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
 import { formatDate } from '@/utils/uitls'
-import { AnnouncementService } from '@/services/announcement'
+
 import { UserService } from '@/services/user'
 import type { ProfileInfo } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
@@ -148,15 +148,7 @@ const profileInfo = ref<ProfileInfo>({
   }
 })
 const profileLoading = ref(false)
-// 定义简化的公告接口，匹配AnnouncementCard组件
-interface SimpleAnnouncement {
-  id: number
-  date: string
-  text: string
-}
-
-const announcements = ref<SimpleAnnouncement[]>([])
-const announcementsLoading = ref(false)
+// 公告相关数据已移至AnnouncementCard组件内部处理
 
 // 友情链接数据
 const friendLinks = ref([
@@ -275,26 +267,10 @@ const loadRecommendedPosts = async () => {
   })
 }
 
-// 加载公告
-const loadAnnouncements = async () => {
-  await handleAsync(async () => {
-    announcementsLoading.value = true
-    const response = await AnnouncementService.getLatestAnnouncements(5)
-    // 转换数据格式以适配AnnouncementCard组件
-    announcements.value = (response || []).map(item => ({
-      id: item.id,
-      date: item.createdAt ? item.createdAt.split(' ')[0] : '未知日期', // 安全处理日期
-      text: item.title // 使用标题作为显示文本
-    }))
-  }, {
-    onError: (err) => {
-      console.error('加载公告失败:', err)
-      announcements.value = []
-    },
-    onFinally: () => {
-      announcementsLoading.value = false
-    }
-  })
+// 跳转到公告页面
+const goToAnnouncements = () => {
+  // TODO: 实现公告列表页面路由跳转
+  console.log('跳转到公告列表页面')
 }
 
 // 加载个人资料
@@ -320,7 +296,6 @@ onMounted(() => {
     loadCategories(),
     loadHotTags(),
     loadRecommendedPosts(),
-    loadAnnouncements(),
     loadProfile()
   ])
 })

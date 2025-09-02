@@ -70,6 +70,10 @@ instance.interceptors.response.use(
     }
     
     // 重新抛出错误，保持原有的错误传播机制
+    // 确保抛出的是一个有效的错误对象，避免抛出null
+    if (error === null || error === undefined) {
+      throw new Error('网络请求失败')
+    }
     throw error
   }
 )
@@ -88,7 +92,8 @@ export const get = async <T = any>(
     return response.data
   } catch (error) {
     console.error(`GET 请求失败: ${url}`, error)
-    throw error
+    // 确保抛出的是一个有效的错误对象
+    throw error || new Error('请求失败')
   }
 }
 
@@ -103,7 +108,8 @@ export const post = async <T = any>(
     return response.data
   } catch (error) {
     console.error(`POST 请求失败: ${url}`, error)
-    throw error
+    // 确保抛出的是一个有效的错误对象
+    throw error || new Error('请求失败')
   }
 }
 
@@ -118,7 +124,8 @@ export const put = async <T = any>(
     return response.data
   } catch (error) {
     console.error(`PUT 请求失败: ${url}`, error)
-    throw error
+    // 确保抛出的是一个有效的错误对象
+    throw error || new Error('请求失败')
   }
 }
 
@@ -132,7 +139,8 @@ export const del = async <T = any>(
     return response.data
   } catch (error) {
     console.error(`DELETE 请求失败: ${url}`, error)
-    throw error
+    // 确保抛出的是一个有效的错误对象
+    throw error || new Error('请求失败')
   }
 }
 

@@ -11,13 +11,28 @@ export function initGlobalErrorHandler() {
   // 捕获未处理的JavaScript错误
   window.addEventListener('error', (event) => {
     console.error('全局错误:', event.error)
-    handleUnknownError(event.error)
+    // 过滤掉ResizeObserver错误，这是浏览器的已知问题
+    if (event.error && event.error.message && event.error.message.includes('ResizeObserver')) {
+      return
+    }
+    // 只处理非null/undefined的错误
+    if (event.error !== null && event.error !== undefined) {
+      handleUnknownError(event.error)
+    }
   })
 
   // 捕获未处理的Promise拒绝
   window.addEventListener('unhandledrejection', (event) => {
     console.error('未处理的Promise拒绝:', event.reason)
-    handleUnknownError(event.reason)
+    // 过滤掉ResizeObserver错误，这是浏览器的已知问题
+    if (event.reason && event.reason.message && event.reason.message.includes('ResizeObserver')) {
+      event.preventDefault()
+      return
+    }
+    // 只处理非null/undefined的错误
+    if (event.reason !== null && event.reason !== undefined) {
+      handleUnknownError(event.reason)
+    }
     // 阻止默认的控制台错误输出
     event.preventDefault()
   })
