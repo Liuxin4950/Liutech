@@ -7,8 +7,6 @@ import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.resl.UserResl;
 import chat.liuxin.liutech.service.UserManagementService;
 import chat.liuxin.liutech.utils.ValidationUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,8 +24,6 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
 public class UsersAdminController extends BaseAdminController {
-
-    private static final Logger log = LoggerFactory.getLogger(UsersAdminController.class);
 
     @Autowired
     private UserManagementService userManagementService;

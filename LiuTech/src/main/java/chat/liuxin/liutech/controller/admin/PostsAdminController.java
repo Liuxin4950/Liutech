@@ -2,7 +2,6 @@ package chat.liuxin.liutech.controller.admin;
 
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
-import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
 import chat.liuxin.liutech.resl.PageResl;
@@ -15,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Date;
 
 import java.util.List;
 

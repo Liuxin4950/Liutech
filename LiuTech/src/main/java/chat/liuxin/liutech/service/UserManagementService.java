@@ -9,7 +9,6 @@ import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.utils.BeanConvertUtil;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
