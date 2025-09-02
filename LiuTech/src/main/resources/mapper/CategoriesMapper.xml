@@ -24,16 +24,21 @@
             c.description,
             c.created_at,
             c.updated_at,
+            c.deleted_at,
+            u.username as creator_username,
             COUNT(p.id) as post_count
         FROM categories c
+        LEFT JOIN users u ON c.created_by = u.id
         LEFT JOIN posts p ON c.id = p.category_id AND p.deleted_at IS NULL
         <where>
-            c.deleted_at IS NULL
+            <if test="includeDeleted == null or includeDeleted == false">
+                c.deleted_at IS NULL
+            </if>
             <if test="name != null and name != ''">
                 AND c.name LIKE CONCAT('%', #{name}, '%')
             </if>
         </where>
-        GROUP BY c.id, c.name, c.description, c.created_at, c.updated_at
+        GROUP BY c.id, c.name, c.description, c.created_at, c.updated_at, c.deleted_at, u.username
         ORDER BY c.created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -43,11 +48,20 @@
         SELECT COUNT(DISTINCT c.id)
         FROM categories c
         <where>
-            c.deleted_at IS NULL
+            <if test="includeDeleted == null or includeDeleted == false">
+                c.deleted_at IS NULL
+            </if>
             <if test="name != null and name != ''">
                 AND c.name LIKE CONCAT('%', #{name}, '%')
             </if>
         </where>
     </select>
+
+    <!-- 恢复已删除的分类 -->
+    <update id="restoreCategoryById">
+        UPDATE categories 
+        SET deleted_at = NULL, updated_at = NOW() 
+        WHERE id = #{id} AND deleted_at IS NOT NULL
+    </update>
 
 </mapper>

@@ -50,4 +50,9 @@ public class TagResl {
      * 创建者用户名
      */
     private String creatorUsername;
+
+    /**
+     * 删除时间（软删除）
+     */
+    private Date deletedAt;
 }

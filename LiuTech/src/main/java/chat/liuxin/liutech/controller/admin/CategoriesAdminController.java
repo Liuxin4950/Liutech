@@ -36,15 +36,17 @@ public class CategoriesAdminController extends BaseAdminController {
      * @param page 页码，默认1
      * @param size 每页大小，默认10
      * @param name 分类名称（可选，模糊搜索）
+     * @param includeDeleted 是否包含已删除分类（可选，true包含，false不包含，默认false）
      * @return 分页分类列表
      */
     @GetMapping
     public Result<PageResl<CategoryResl>> getCategoryList(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String name) {
+            @RequestParam(required = false) String name,
+            @RequestParam(defaultValue = "false") Boolean includeDeleted) {
         try {
-            PageResl<CategoryResl> result = categoriesService.getCategoryListForAdmin(page, size, name);
+            PageResl<CategoryResl> result = categoriesService.getCategoryListForAdmin(page, size, name, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询分类列表");
@@ -138,6 +140,22 @@ public class CategoriesAdminController extends BaseAdminController {
             return handleException(e, "批量删除分类");
         }
     }
-    
+
+    /**
+     * 恢复已删除的分类
+     * 
+     * @param id 分类ID
+     * @return 恢复结果
+     */
+    @PutMapping("/{id}/restore")
+    public Result<String> restoreCategory(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "分类ID");
+        try {
+            boolean success = categoriesService.restoreCategory(id);
+            return handleOperationResult(success, "分类恢复成功", "分类恢复");
+        } catch (Exception e) {
+            return handleException(e, "分类恢复");
+        }
+    }
 
 }

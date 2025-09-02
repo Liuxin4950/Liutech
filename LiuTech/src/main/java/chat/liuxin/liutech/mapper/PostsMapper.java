@@ -100,6 +100,23 @@ public interface PostsMapper extends BaseMapper<Posts> {
     List<PostListResl> selectHotPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
 
     /**
+     * 管理端分页查询文章列表（返回PostListResl）
+     * @param page 分页参数
+     * @param categoryId 分类ID（可选）
+     * @param keyword 搜索关键词（可选）
+     * @param status 文章状态（可选）
+     * @param authorId 作者ID（可选）
+     * @param includeDeleted 是否包含已删除文章
+     * @return 文章列表
+     */
+    IPage<PostListResl> selectPostListForAdmin(Page<PostListResl> page, 
+                                               @Param("categoryId") Long categoryId,
+                                               @Param("keyword") String keyword,
+                                               @Param("status") String status,
+                                               @Param("authorId") Long authorId,
+                                               @Param("includeDeleted") Boolean includeDeleted);
+
+    /**
      * 查询最新文章列表（返回PostListResl）
      * @param limit 限制数量
      * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
@@ -129,11 +146,18 @@ public interface PostsMapper extends BaseMapper<Posts> {
     Integer countPostsByCategory(@Param("categoryId") Long categoryId);
 
     /**
-     * 根据标签ID统计文章数量
+     * 根据标签ID查询文章数量
      * @param tagId 标签ID
      * @return 文章数量
      */
-    Integer countPostsByTag(@Param("tagId") Long tagId);
+    Integer countPostsByTagId(@Param("tagId") Long tagId);
+
+    /**
+     * 恢复已删除的文章（绕过逻辑删除限制）
+     * @param id 文章ID
+     * @return 影响的行数
+     */
+    int restorePostById(@Param("id") Long id);
 
     /**
      * 插入文章
@@ -206,7 +230,22 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * 统计全站已发布文章数量
      * @return 已发布文章数量
      */
-    Integer countAllPublishedPosts();
+    Integer countPublishedPosts();
+    
+    /**
+     * 管理端统计文章总数
+     * @param categoryId 分类ID（可选）
+     * @param keyword 搜索关键词（可选）
+     * @param status 文章状态（可选）
+     * @param authorId 作者ID（可选）
+     * @param includeDeleted 是否包含已删除文章
+     * @return 文章总数
+     */
+    Integer countPostsForAdmin(@Param("categoryId") Long categoryId,
+                               @Param("keyword") String keyword,
+                               @Param("status") String status,
+                               @Param("authorId") Long authorId,
+                               @Param("includeDeleted") Boolean includeDeleted);
     
     /**
      * 统计全站文章总浏览量

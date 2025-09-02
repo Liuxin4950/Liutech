@@ -22,7 +22,8 @@ const selectedRowKeys = ref<number[]>([])
 const searchParams = ref<PostListParams>({
   title: '',
   categoryId: undefined,
-  status: undefined
+  status: undefined,
+  includeDeleted: false
 })
 
 // 表格列定义
@@ -31,6 +32,7 @@ const columns = [
   { title: '分类', dataIndex: 'category', key: 'category' },
   { title: '作者', dataIndex: 'author', key: 'author' },
   { title: '状态', dataIndex: 'status', key: 'status' },
+  { title: '删除状态', key: 'deleteStatus' },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
   { title: '操作', key: 'action' }
 ]
@@ -253,6 +255,8 @@ const loadPosts = async () => {
     const res = await PostsService.getPostList(params)
     if (res.code === 200) {
       dataSource.value = res.data.records
+      console.log(res.data.records);
+      
       total.value = res.data.total
     } else {
       message.error(res.message || '加载文章列表失败')
@@ -270,9 +274,15 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  searchParams.value = { title: '', categoryId: undefined, status: undefined }
+  searchParams.value = { title: '', categoryId: undefined, status: undefined, includeDeleted: false }
   current.value = 1
   loadPosts()
+}
+
+// 恢复删除
+const handleRestore = async (id: number) => {
+  const res = await PostsService.restorePost(id)
+  if (res.code === 200) { message.success('恢复成功'); loadPosts() } else { message.error(res.message || '恢复失败') }
 }
 
 const handleTableChange = (pagination: any) => {
@@ -364,6 +374,9 @@ onMounted(async () => {
             <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
           </a-select>
         </a-form-item>
+        <a-form-item label="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" />
+        </a-form-item>
         <a-form-item>
           <a-space>
             <a-button type="primary" @click="handleSearch">搜索</a-button>
@@ -402,18 +415,29 @@ onMounted(async () => {
           <template v-else-if="column.key === 'status'">
             <a-tag :color="record.status === 'published' ? 'green' : 'orange'">{{ record.status === 'published' ? '已发布' : '草稿' }}</a-tag>
           </template>
+          <template v-else-if="column.key === 'deleteStatus'">
+            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
+            <a-tag v-else color="green">正常</a-tag>
+          </template>
           <template v-else-if="column.key === 'createdAt'">
             {{ formatDateTime(record.createdAt) }}
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
-              <a-button type="link" size="small" :class="record.status === 'published' ? 'text-orange-500' : 'text-green-500'" @click="handleStatusChange(record.id, record.status === 'published' ? 'draft' : 'published')">
-                {{ record.status === 'published' ? '下线' : '发布' }}
-              </a-button>
-              <a-popconfirm title="确定删除该文章吗？" @confirm="handleDelete(record.id)">
-                <a-button type="link" size="small" danger>删除</a-button>
-              </a-popconfirm>
+              <template v-if="!record.deletedAt">
+                <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
+                <a-button type="link" size="small" :class="record.status === 'published' ? 'text-orange-500' : 'text-green-500'" @click="handleStatusChange(record.id, record.status === 'published' ? 'draft' : 'published')">
+                  {{ record.status === 'published' ? '下线' : '发布' }}
+                </a-button>
+                <a-popconfirm title="确定删除该文章吗？" @confirm="handleDelete(record.id)">
+                  <a-button type="link" size="small" danger>删除</a-button>
+                </a-popconfirm>
+              </template>
+              <template v-else>
+                <a-popconfirm title="确定恢复该文章吗？" @confirm="handleRestore(record.id)">
+                  <a-button type="link" size="small">恢复</a-button>
+                </a-popconfirm>
+              </template>
             </a-space>
           </template>
         </template>

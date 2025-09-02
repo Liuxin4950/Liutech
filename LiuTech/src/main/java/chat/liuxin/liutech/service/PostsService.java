@@ -617,7 +617,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     public Integer countAllPublishedPosts() {
-        return postsMapper.countAllPublishedPosts();
+        return postsMapper.countPublishedPosts();
     }
 
     /**
@@ -655,14 +655,15 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @param categoryId 分类ID（可选，筛选指定分类）
      * @param status     文章状态（可选，draft/published等）
      * @param authorId   作者ID（可选，筛选指定作者）
+     * @param includeDeleted 是否包含已删除文章
      * @return 分页结果，包含文章列表和分页信息
      * @author 刘鑫
      * @date 2025-01-30
      */
     public PageResl<PostListResl> getPostListForAdmin(int page, int size, String title, Long categoryId, String status,
-            Long authorId) {
-        log.info("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}",
-                page, size, title, categoryId, status, authorId);
+            Long authorId, Boolean includeDeleted) {
+        log.info("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}, 包含已删除: {}",
+                page, size, title, categoryId, status, authorId, includeDeleted);
 
         try {
             // 创建分页对象
@@ -671,9 +672,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             // 处理搜索关键词
             String keyword = StringUtils.hasText(title) ? title.trim() : null;
 
-            // 执行分页查询，复用现有的selectPostListResl方法
-            IPage<PostListResl> result = postsMapper.selectPostListResl(pageObj, categoryId, null, keyword, status,
-                    authorId, null);
+            // 执行分页查询，传递includeDeleted参数
+            IPage<PostListResl> result = postsMapper.selectPostListForAdmin(pageObj, categoryId, keyword, status,
+                    authorId, includeDeleted);
 
             log.info("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
 
@@ -859,6 +860,34 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除文章失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 恢复已删除的文章
+     * 将软删除的文章恢复为正常状态
+     * 
+     * @param id 文章ID
+     * @return 是否恢复成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    public boolean restorePost(Long id) {
+        try {
+            if (id == null) {
+                return false;
+            }
+            
+            // 使用原生SQL恢复文章，绕过MyBatis-Plus的逻辑删除限制
+            int result = postsMapper.restorePostById(id);
+            
+            log.info("恢复文章ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            return result > 0;
+        } catch (Exception e) {
+            log.error("恢复文章失败: {}", e.getMessage(), e);
             return false;
         }
     }

@@ -46,6 +46,7 @@ export interface PostListItem {
   status: string
   createdAt: string
   updatedAt: string
+  deletedAt?: string | null
 }
 
 export interface PostDetail {
@@ -87,6 +88,7 @@ export interface PostListParams {
   categoryId?: number
   status?: string
   authorId?: number
+  includeDeleted?: boolean
 }
 
 export interface PageResult<T> {
@@ -159,7 +161,14 @@ export class PostsService {
    * 批量更新文章状态
    */
   static async batchUpdatePostStatus(ids: number[], status: string): Promise<ApiResponse<string>> {
-    return put<string>(`${this.BASE_URL}/batch/status`, ids, { params: { status } })
+    return put<string>(`${this.BASE_URL}/batch/status?status=${status}`, ids)
+  }
+
+  /**
+   * 恢复已删除的文章
+   */
+  static async restorePost(id: number): Promise<ApiResponse<string>> {
+    return put<string>(`${this.BASE_URL}/${id}/restore`)
   }
 }
 

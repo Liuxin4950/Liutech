@@ -77,17 +77,22 @@
             t.description,
             t.created_at,
             t.updated_at,
+            t.deleted_at,
+            u.username as creator_username,
             COUNT(DISTINCT p.id) as post_count
         FROM tags t
+        LEFT JOIN users u ON t.created_by = u.id
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
         LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
         <where>
-            t.deleted_at IS NULL
+            <if test="includeDeleted == null or includeDeleted == false">
+                t.deleted_at IS NULL
+            </if>
             <if test="name != null and name != ''">
                 AND t.name LIKE CONCAT('%', #{name}, '%')
             </if>
         </where>
-        GROUP BY t.id, t.name, t.description, t.created_at, t.updated_at
+        GROUP BY t.id, t.name, t.description, t.created_at, t.updated_at, t.deleted_at, u.username
         ORDER BY t.created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -97,11 +102,20 @@
         SELECT COUNT(DISTINCT t.id)
         FROM tags t
         <where>
-            t.deleted_at IS NULL
+            <if test="includeDeleted == null or includeDeleted == false">
+                t.deleted_at IS NULL
+            </if>
             <if test="name != null and name != ''">
                 AND t.name LIKE CONCAT('%', #{name}, '%')
             </if>
         </where>
     </select>
+
+    <!-- 恢复已删除的标签（绕过逻辑删除限制） -->
+    <update id="restoreTagById">
+        UPDATE tags 
+        SET deleted_at = NULL, updated_at = NOW()
+        WHERE id = #{id} AND deleted_at IS NOT NULL
+    </update>
 
 </mapper>

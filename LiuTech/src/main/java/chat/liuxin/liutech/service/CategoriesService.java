@@ -49,19 +49,20 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @param page 页码，从1开始
      * @param size 每页大小，建议10-50之间
      * @param name 分类名称（可选，模糊搜索）
+     * @param includeDeleted 是否包含已删除分类
      * @return 分页结果，包含分类列表和分页信息
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PageResl<CategoryResl> getCategoryListForAdmin(Integer page, Integer size, String name) {
+    public PageResl<CategoryResl> getCategoryListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
         // 计算偏移量
         Integer offset = (page - 1) * size;
         
         // 查询分类列表
-        List<CategoryResl> categoryList = categoriesMapper.selectCategoriesForAdmin(offset, size, name);
+        List<CategoryResl> categoryList = categoriesMapper.selectCategoriesForAdmin(offset, size, name, includeDeleted);
         
         // 查询总数
-        Integer total = categoriesMapper.countCategoriesForAdmin(name);
+        Integer total = categoriesMapper.countCategoriesForAdmin(name, includeDeleted);
         
         // 构建分页结果
         PageResl<CategoryResl> pageResl = new PageResl<>();
@@ -173,6 +174,33 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除分类失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 恢复已删除的分类
+     * 将软删除的分类恢复为正常状态
+     * 
+     * @param id 分类ID
+     * @return 是否恢复成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean restoreCategory(Long id) {
+        try {
+            if (id == null) {
+                return false;
+            }
+            
+            // 使用原生SQL恢复分类，绕过MyBatis-Plus的逻辑删除限制
+            int result = categoriesMapper.restoreCategoryById(id);
+            
+            log.info("恢复分类ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            return result > 0;
+        } catch (Exception e) {
+            log.error("恢复分类失败: {}", e.getMessage(), e);
             return false;
         }
     }

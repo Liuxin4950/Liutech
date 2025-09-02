@@ -55,16 +55,26 @@ public interface TagsMapper extends BaseMapper<Tags> {
      * @param offset 偏移量
      * @param limit 限制数量
      * @param name 标签名称（可选，模糊搜索）
+     * @param includeDeleted 是否包含已删除标签
      * @return 标签列表
      */
     List<chat.liuxin.liutech.resl.TagResl> selectTagsForAdmin(@Param("offset") Integer offset, 
                                                               @Param("limit") Integer limit, 
-                                                              @Param("name") String name);
+                                                              @Param("name") String name,
+                                                              @Param("includeDeleted") Boolean includeDeleted);
 
     /**
      * 管理端查询标签总数
      * @param name 标签名称（可选，模糊搜索）
+     * @param includeDeleted 是否包含已删除标签
      * @return 总数
      */
-    Integer countTagsForAdmin(@Param("name") String name);
+    Integer countTagsForAdmin(@Param("name") String name, @Param("includeDeleted") Boolean includeDeleted);
+
+    /**
+     * 恢复已删除的标签（绕过逻辑删除限制）
+     * @param id 标签ID
+     * @return 影响的行数
+     */
+    int restoreTagById(@Param("id") Long id);
 }

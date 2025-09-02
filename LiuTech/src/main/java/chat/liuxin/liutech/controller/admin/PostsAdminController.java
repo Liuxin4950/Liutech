@@ -44,6 +44,7 @@ public class PostsAdminController extends BaseAdminController {
      * @param categoryId 分类ID（可选）
      * @param status 文章状态（可选）
      * @param authorId 作者ID（可选）
+     * @param includeDeleted 是否包含已删除文章（可选，true包含，false不包含，默认false）
      * @return 分页文章列表
      */
     @GetMapping
@@ -53,9 +54,10 @@ public class PostsAdminController extends BaseAdminController {
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Long authorId) {
+            @RequestParam(required = false) Long authorId,
+            @RequestParam(defaultValue = "false") Boolean includeDeleted) {
         try {
-            PageResl<PostListResl> result = postsService.getPostListForAdmin(page, size, title, categoryId, status, authorId);
+            PageResl<PostListResl> result = postsService.getPostListForAdmin(page, size, title, categoryId, status, authorId, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询文章列表");
@@ -190,6 +192,22 @@ public class PostsAdminController extends BaseAdminController {
             return handleOperationResult(success, "批量更新文章状态成功", "批量更新文章状态");
         } catch (Exception e) {
             return handleException(e, "批量更新文章状态");
+        }
+    }
+
+    /**
+     * 恢复已删除的文章
+     * 
+     * @param id 文章ID
+     * @return 恢复结果
+     */
+    @PutMapping("/{id}/restore")
+    public Result<String> restorePost(@PathVariable Long id) {
+        try {
+            boolean success = postsService.restorePost(id);
+            return handleOperationResult(success, "文章恢复成功", "文章恢复");
+        } catch (Exception e) {
+            return handleException(e, "文章恢复");
         }
     }
 }

@@ -14,6 +14,7 @@ export interface TagListParams {
   page?: number
   size?: number
   name?: string
+  includeDeleted?: boolean
 }
 
 export interface PageResult<T> {
@@ -73,6 +74,13 @@ export class TagsService {
    */
   static async batchDeleteTags(ids: number[]): Promise<ApiResponse<string>> {
     return del<string>(`${this.BASE_URL}/batch`, { data: ids })
+  }
+
+  /**
+   * 恢复已删除的标签
+   */
+  static async restoreTag(id: number): Promise<ApiResponse<string>> {
+    return put<string>(`${this.BASE_URL}/${id}/restore`)
   }
 }
 

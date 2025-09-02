@@ -98,19 +98,20 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param page 页码，从1开始
      * @param size 每页大小，建议10-50之间
      * @param name 标签名称（可选，模糊搜索）
+     * @param includeDeleted 是否包含已删除标签
      * @return 分页结果，包含标签列表和分页信息
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PageResl<TagResl> getTagListForAdmin(Integer page, Integer size, String name) {
+    public PageResl<TagResl> getTagListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
         // 计算偏移量
         Integer offset = (page - 1) * size;
         
         // 查询标签列表
-        List<TagResl> tagList = tagsMapper.selectTagsForAdmin(offset, size, name);
+        List<TagResl> tagList = tagsMapper.selectTagsForAdmin(offset, size, name, includeDeleted);
         
         // 查询总数
-        Integer total = tagsMapper.countTagsForAdmin(name);
+        Integer total = tagsMapper.countTagsForAdmin(name, includeDeleted);
         
         // 构建分页结果
         PageResl<TagResl> pageResl = new PageResl<>();
@@ -213,6 +214,33 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除标签失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 恢复已删除的标签
+     * 将软删除的标签恢复为正常状态
+     * 
+     * @param id 标签ID
+     * @return 是否恢复成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean restoreTag(Long id) {
+        try {
+            if (id == null) {
+                return false;
+            }
+            
+            // 使用原生SQL恢复标签，绕过MyBatis-Plus的逻辑删除限制
+            int result = tagsMapper.restoreTagById(id);
+            
+            log.info("恢复标签ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            return result > 0;
+        } catch (Exception e) {
+            log.error("恢复标签失败: {}", e.getMessage(), e);
             return false;
         }
     }

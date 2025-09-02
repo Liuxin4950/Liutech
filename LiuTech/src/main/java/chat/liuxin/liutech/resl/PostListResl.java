@@ -95,6 +95,11 @@ public class PostListResl {
      */
     private Date updatedAt;
 
+    /**
+     * 删除时间（软删除）
+     */
+    private Date deletedAt;
+
     @Data
     public static class CategoryInfo {
         private Long id;

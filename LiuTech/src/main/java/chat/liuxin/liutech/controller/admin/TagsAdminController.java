@@ -33,15 +33,17 @@ public class TagsAdminController extends BaseAdminController {
      * @param page 页码，默认1
      * @param size 每页大小，默认10
      * @param name 标签名称（可选，模糊搜索）
+     * @param includeDeleted 是否包含已删除标签（可选，true包含，false不包含，默认false）
      * @return 分页标签列表
      */
     @GetMapping
     public Result<PageResl<TagResl>> getTagList(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String name) {
+            @RequestParam(required = false) String name,
+            @RequestParam(defaultValue = "false") Boolean includeDeleted) {
         try {
-            PageResl<TagResl> result = tagsService.getTagListForAdmin(page, size, name);
+            PageResl<TagResl> result = tagsService.getTagListForAdmin(page, size, name, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询标签列表");
@@ -54,14 +56,16 @@ public class TagsAdminController extends BaseAdminController {
      * @param page 页码，默认1
      * @param size 每页大小，默认10
      * @param name 标签名称（可选，模糊搜索）
+     * @param includeDeleted 是否包含已删除标签（可选，true包含，false不包含，默认false）
      * @return 分页标签列表
      */
     @GetMapping("/list")
     public Result<PageResl<TagResl>> getTagListCompat(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String name) {
-        return getTagList(page, size, name);
+            @RequestParam(required = false) String name,
+            @RequestParam(defaultValue = "false") Boolean includeDeleted) {
+        return getTagList(page, size, name, includeDeleted);
     }
 
     /**
@@ -145,6 +149,22 @@ public class TagsAdminController extends BaseAdminController {
             return handleOperationResult(success, "批量删除标签成功", "批量删除标签");
         } catch (Exception e) {
             return handleException(e, "批量删除标签");
+        }
+    }
+
+    /**
+     * 恢复已删除的标签
+     * 
+     * @param id 标签ID
+     * @return 恢复结果
+     */
+    @PutMapping("/{id}/restore")
+    public Result<String> restoreTag(@PathVariable Long id) {
+        try {
+            boolean success = tagsService.restoreTag(id);
+            return handleOperationResult(success, "标签恢复成功", "标签恢复");
+        } catch (Exception e) {
+            return handleException(e, "标签恢复");
         }
     }
 }

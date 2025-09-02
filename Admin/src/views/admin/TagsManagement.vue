@@ -15,12 +15,15 @@ const selectedRowKeys = ref<number[]>([])
 
 // 搜索参数
 const searchParams = ref<TagListParams>({
-  name: ''
+  name: '',
+  includeDeleted: false
 })
 
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
   { title: '描述', dataIndex: 'description', key: 'description' },
+  { title: '状态', key: 'status' },
+  { title: '创建者', dataIndex: 'creatorUsername', key: 'creatorUsername' },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
   { title: '操作', key: 'action' }
 ]
@@ -107,7 +110,13 @@ const loadTags = async () => {
 }
 
 const handleSearch = () => { current.value = 1; loadTags() }
-const handleReset = () => { searchParams.value = { name: '' }; current.value = 1; loadTags() }
+const handleReset = () => { searchParams.value = { name: '', includeDeleted: false }; current.value = 1; loadTags() }
+
+// 恢复删除
+const handleRestore = async (id: number) => {
+  const res = await TagsService.restoreTag(id)
+  if (res.code === 200) { message.success('恢复成功'); loadTags() } else { message.error(res.message || '恢复失败') }
+}
 const handleTableChange = (p: any) => { current.value = p.current; pageSize.value = p.pageSize; loadTags() }
 const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
 
@@ -163,6 +172,9 @@ onMounted(() => { loadTags() })
         <a-form-item label="名称">
           <a-input v-model:value="searchParams.name" placeholder="请输入标签名称" allow-clear style="width: 220px" />
         </a-form-item>
+        <a-form-item label="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" />
+        </a-form-item>
         <a-form-item>
           <a-space>
             <a-button type="primary" @click="handleSearch">搜索</a-button>
@@ -190,13 +202,24 @@ onMounted(() => { loadTags() })
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'createdAt'">{{ formatDateTime(record.createdAt) }}</template>
+          <template v-if="column.key === 'status'">
+            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
+            <a-tag v-else color="green">正常</a-tag>
+          </template>
+          <template v-else-if="column.key === 'createdAt'">{{ formatDateTime(record.createdAt) }}</template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
-              <a-popconfirm title="确定删除该标签吗？" @confirm="handleDelete(record.id)">
-                <a-button type="link" size="small" danger>删除</a-button>
-              </a-popconfirm>
+              <template v-if="!record.deletedAt">
+                <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
+                <a-popconfirm title="确定删除该标签吗？" @confirm="handleDelete(record.id)">
+                  <a-button type="link" size="small" danger>删除</a-button>
+                </a-popconfirm>
+              </template>
+              <template v-else>
+                <a-popconfirm title="确定恢复该标签吗？" @confirm="handleRestore(record.id)">
+                  <a-button type="link" size="small">恢复</a-button>
+                </a-popconfirm>
+              </template>
             </a-space>
           </template>
         </template>
