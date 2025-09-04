@@ -1,6 +1,6 @@
 <template>
   <div class="card bg-card ">
-    <div class="flex flex-ac gap-12 mb-16">
+    <div class="flex flex-col flex-ac ">
       <img :src="avatar" :alt="name" class="avatar">
       <div class="flex-1">
         <h3 class="text-lg font-semibold mb-4">{{ name }}</h3>

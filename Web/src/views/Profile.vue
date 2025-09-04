@@ -52,40 +52,111 @@
     </div>
 
     <!-- 主要内容区域 -->
-    <div class="main-content content bg-main">
-      <!-- <div class="container">
-       <div class="info-card">
-              <div class="card-header">
-                <h3>👤 个人信息</h3>
+    <div class="content">
+      <div class="flex gap-20">
+        <!-- 左侧信息卡片 -->
+        <div class="flex-1">
+          <!-- 个人信息卡片 -->
+          <div class="card mb-20">
+            <div class="card-title flex flex-ac gap-8 mb-16">
+              <span>👤</span>
+              <span>个人信息</span>
+            </div>
+            <div class="list">
+              <div class="list-item flex flex-sb py-12">
+                <span class="text-subtle">用户名</span>
+                <span class="font-medium">{{ userInfo?.username || '未设置' }}</span>
               </div>
-              <div class="info-list">
-                <div class="info-item">
-                  <span class="info-label">用户名</span>
-                  <span class="info-value">{{ userInfo?.username || '未设置' }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">昵称</span>
-                  <span class="info-value">{{ userInfo?.nickname || '未设置' }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">邮箱</span>
-                  <span class="info-value">{{ userInfo?.email || '未设置' }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="info-label">注册时间</span>
-                  <span class="info-value">{{ formatDate(userInfo?.createdAt) }}</span>
-                </div>
-                <div class="info-item" v-if="userStats?.lastCommentAt">
-                  <span class="info-label">最后评论</span>
-                  <span class="info-value">{{ formatRelativeTime(userStats.lastCommentAt) }}</span>
-                </div>
-                <div class="info-item" v-if="userStats?.lastPostAt">
-                  <span class="info-label">最后发文</span>
-                  <span class="info-value">{{ formatRelativeTime(userStats.lastPostAt) }}</span>
-                </div>
+              <div class="list-item flex flex-sb py-12">
+                <span class="text-subtle">昵称</span>
+                <span class="font-medium">{{ userInfo?.nickname || '未设置' }}</span>
+              </div>
+              <div class="list-item flex flex-sb py-12">
+                <span class="text-subtle">邮箱</span>
+                <span class="font-medium">{{ userInfo?.email || '未设置' }}</span>
+              </div>
+              <div class="list-item flex flex-sb py-12">
+                <span class="text-subtle">注册时间</span>
+                <span class="font-medium">{{ formatDate(userInfo?.createdAt) }}</span>
+              </div>
+              <div class="list-item flex flex-sb py-12" v-if="userStats?.lastCommentAt">
+                <span class="text-subtle">最后评论</span>
+                <span class="font-medium">{{ formatRelativeTime(userStats.lastCommentAt) }}</span>
+              </div>
+              <div class="list-item flex flex-sb py-12" v-if="userStats?.lastPostAt">
+                <span class="text-subtle">最后发文</span>
+                <span class="font-medium">{{ formatRelativeTime(userStats.lastPostAt) }}</span>
               </div>
             </div>
-      </div> -->
+          </div>
+
+          <!-- 用户统计卡片 -->
+          <div class="card mb-20">
+            <div class="card-title flex flex-ac gap-8 mb-16">
+              <span>📊</span>
+              <span>数据统计</span>
+            </div>
+            <div v-if="statsLoading" class="flex flex-ct p-20">
+              <div class="text-subtle">加载中...</div>
+            </div>
+            <div v-else class="flex flex-sa">
+              <div class="stat-item text-center p-16 rounded-lg" style="background: var(--bg-soft);">
+                <div class="text-2xl font-bold" style="color: var(--color-primary);">{{ userStats?.postCount || 0 }}</div>
+                <div class="text-sm text-subtle mt-4">发布文章</div>
+              </div>
+              <div class="stat-item text-center p-16 rounded-lg" style="background: var(--bg-soft);">
+                <div class="text-2xl font-bold" style="color: var(--color-success);">{{ userStats?.commentCount || 0 }}</div>
+                <div class="text-sm text-subtle mt-4">发表评论</div>
+              </div>
+              <div class="stat-item text-center p-16 rounded-lg" style="background: var(--bg-soft);">
+                <div class="text-2xl font-bold" style="color: var(--color-warning);">{{ userStats?.viewCount || 0 }}</div>
+                <div class="text-sm text-subtle mt-4">文章浏览</div>
+              </div>
+              <div class="stat-item text-center p-16 rounded-lg" style="background: var(--bg-soft);">
+                <div class="text-2xl font-bold" style="color: var(--color-info);">{{ calculateLevel(userStats?.postCount || 0) }}</div>
+                <div class="text-sm text-subtle mt-4">用户等级</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧活动时间线 -->
+        <div style="width: 300px;">
+          <div class="card">
+            <div class="card-title flex flex-ac gap-8 mb-16">
+              <span>⏰</span>
+              <span>最近活动</span>
+            </div>
+            <div class="timeline">
+              <div class="timeline-item" v-if="userStats?.lastPostAt">
+                <div class="timeline-dot" style="background: var(--color-primary);"></div>
+                <div class="timeline-content">
+                  <div class="text-sm font-medium">发布了新文章</div>
+                  <div class="text-xs text-subtle mt-4">{{ formatRelativeTime(userStats.lastPostAt) }}</div>
+                </div>
+              </div>
+              <div class="timeline-item" v-if="userStats?.lastCommentAt">
+                <div class="timeline-dot" style="background: var(--color-success);"></div>
+                <div class="timeline-content">
+                  <div class="text-sm font-medium">发表了评论</div>
+                  <div class="text-xs text-subtle mt-4">{{ formatRelativeTime(userStats.lastCommentAt) }}</div>
+                </div>
+              </div>
+              <div class="timeline-item">
+                 <div class="timeline-dot" style="background: var(--color-info);"></div>
+                 <div class="timeline-content">
+                   <div class="text-sm font-medium">加入了平台</div>
+                   <div class="text-xs text-subtle mt-4">{{ formatRelativeTime(userInfo?.createdAt || '') }}</div>
+                 </div>
+               </div>
+              <div v-if="!userStats?.lastPostAt && !userStats?.lastCommentAt" class="text-center text-subtle p-20">
+                <div class="text-sm">暂无活动记录</div>
+                <div class="text-xs mt-4">快去发布第一篇文章吧！</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 编辑表单模态框 -->
@@ -118,8 +189,16 @@
           </div>
 
           <div class="form-group">
-            <label for="avatarUrl">头像链接</label>
-            <input id="avatarUrl" type="url" v-model="formData.avatarUrl" class="form-input" placeholder="请输入头像图片链接" />
+            <label for="avatarUrl">头像设置</label>
+            <div class="avatar-preview-section">
+              <div class="avatar-preview">
+                <img :src="formData.avatarUrl || '/default-avatar.svg'" alt="头像预览" class="preview-img" />
+              </div>
+              <div class="avatar-input-section flex-1">
+                <input id="avatarUrl" type="url" v-model="formData.avatarUrl" class="form-input" placeholder="请输入头像图片链接" />
+                <small class="form-hint">支持 JPG、PNG、GIF 格式，建议尺寸 200x200px</small>
+              </div>
+            </div>
           </div>
 
           <div class="form-actions">
@@ -572,7 +651,110 @@ onMounted(async () => {
   to { transform: rotate(360deg); }
 }
 
+/* 列表组件 */
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.list-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+/* 时间线样式 */
+.timeline {
+  position: relative;
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 24px;
+  margin-bottom: 16px;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 12px;
+  width: 2px;
+  height: calc(100% + 8px);
+  background: var(--border-soft);
+}
+
+.timeline-content {
+  margin-left: 8px;
+}
+
+/* 头像预览样式 */
+.avatar-preview-section {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.avatar-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--border-soft);
+  flex-shrink: 0;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* 响应式优化 */
+@media (max-width: 768px) {
+  .flex.gap-20 {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .grid.grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  
+  .avatar-preview-section {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .avatar-preview {
+    width: 100px;
+    height: 100px;
+  }
+}
+
 @media (max-width: 500px) {
   .modal-content {
     border-radius: 0;

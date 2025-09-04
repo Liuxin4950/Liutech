@@ -28,8 +28,8 @@
                 <div class="flex flex-col flex-sb flex-1 relative">
                   <span v-if="post.category" class="badge" @click.stop="goToCategory(post.category.id)">{{ post.category.name }}</span>
                   <div class="flex-1 flex flex-col gap-12">
-                    <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
-   
+                    <h3 class="font-semibold text-primary text-xl" style="padding-right: 70px">{{ post.title }}</h3>
+
                     <p v-if="post.summary" class="text-subtle text-base text-sm">{{ post.summary }}</p>
                     <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
                       <span @click.stop="goToTag(tag.id)" v-for="tag in post.tags" :key="tag.id" class="tag">
@@ -57,7 +57,7 @@
           </div>
 
           <!-- 分页器 -->
-          <Pagination 
+          <Pagination
             v-if="!postsLoading && allPosts.length > 0"
             :current-page="postsPagination.current"
             :total-pages="postsPagination.pages"
@@ -209,9 +209,9 @@ const loadAllPosts = async (page: number = 1) => {
 
     const response = await PostService.getPosts(params)
     console.log('response', response);
-    
+
     allPosts.value = response.records
-    
+
     postsPagination.value = {
       current: response.current,
       size: response.size,
