@@ -56,6 +56,9 @@
       <div class="flex gap-20">
         <!-- 左侧信息卡片 -->
         <div class="flex-1">
+          <!-- 签到卡片 -->
+          <CheckinCard @checkin-success="handleCheckinSuccess" class="mb-20" />
+          
           <!-- 个人信息卡片 -->
           <div class="card mb-20">
             <div class="card-title flex flex-ac gap-8 mb-16">
@@ -113,8 +116,8 @@
                 <div class="text-sm text-subtle mt-4">文章浏览</div>
               </div>
               <div class="stat-item text-center p-16 rounded-lg" style="background: var(--bg-soft);">
-                <div class="text-2xl font-bold" style="color: var(--color-info);">{{ calculateLevel(userStats?.postCount || 0) }}</div>
-                <div class="text-sm text-subtle mt-4">用户等级</div>
+                <div class="text-2xl font-bold" style="color: var(--color-info);">{{ userStats?.points || 0 }}</div>
+                <div class="text-sm text-subtle mt-4">积分余额</div>
               </div>
             </div>
           </div>
@@ -219,9 +222,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/user'
-import { UserService, type UpdateProfileRequest, type UserStats } from '../services/user'
+import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse } from '../services/user'
 import { showSuccess, showError } from '../utils/errorHandler'
 import { formatDate, formatRelativeTime } from '../utils/uitls'
+import CheckinCard from '../components/CheckinCard.vue'
 
 const userStore = useUserStore()
 const isLoading = ref(false)
@@ -336,6 +340,17 @@ const loadUserStats = async () => {
   } finally {
     statsLoading.value = false
   }
+}
+
+/**
+ * 处理签到成功
+ */
+const handleCheckinSuccess = (result: CheckinResponse) => {
+  // 更新用户统计信息中的积分
+  if (userStats.value) {
+    userStats.value.points = result.totalPoints
+  }
+  console.log('签到成功，获得积分:', result.pointsEarned)
 }
 
 // 生命周期

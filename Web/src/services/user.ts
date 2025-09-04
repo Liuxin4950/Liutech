@@ -81,6 +81,22 @@ export interface UserStats {
   lastPostAt?: string
 }
 
+// 签到响应接口
+export interface CheckinResponse {
+  pointsEarned: number
+  totalPoints: number
+  consecutiveDays: number
+  checkinDate: string
+}
+
+// 签到状态接口
+export interface CheckinStatus {
+  hasCheckedInToday: boolean
+  consecutiveDays: number
+  lastCheckinDate?: string
+  totalCheckins: number
+}
+
 // 登录响应数据接口
 export interface LoginResponse {
   token: string
@@ -209,6 +225,34 @@ export class UserService {
   }
 
   /**
+   * 每日签到
+   * @returns Promise<CheckinResponse>
+   */
+  static async checkin(): Promise<CheckinResponse> {
+    try {
+      const response = await post<CheckinResponse>('/user/checkin', {})
+      return response.data
+    } catch (error) {
+      console.error('签到失败', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取签到状态
+   * @returns Promise<CheckinStatus>
+   */
+  static async getCheckinStatus(): Promise<CheckinStatus> {
+    try {
+      const response = await get<CheckinStatus>('/user/checkin/status')
+      return response.data
+    } catch (error) {
+      console.error('获取签到状态失败', error)
+      throw error
+    }
+  }
+
+  /**
    * 获取个人资料信息
    * @returns Promise<ProfileInfo>
    */
@@ -234,7 +278,9 @@ export const {
   isLoggedIn,
   getToken,
   getUserStats,
-  getProfile
+  getProfile,
+  checkin,
+  getCheckinStatus
 } = UserService
 
 export default UserService
