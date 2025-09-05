@@ -23,7 +23,7 @@ import jakarta.validation.Valid;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/ai")
+@RequestMapping("/ai")
 @CrossOrigin(origins = "*")
 @Validated
 @RequiredArgsConstructor

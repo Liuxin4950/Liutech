@@ -75,14 +75,16 @@ public class AiChatServiceImpl implements AiChatService {
             String aiOutput = response.getResult().getOutput().getContent();
  
             return ChatResponse.builder()
-                    .success(true)
-                    .message(aiOutput)
-                    .userId(request.getUserId())
-                    .model(modelName)
-                    .historyCount(0) // 精简版不处理历史
-                    .timestamp(System.currentTimeMillis())
-                    .responseLength(aiOutput != null ? aiOutput.length() : 0)
+                    .success(true)//是否成功
+                    .message(aiOutput)//响应消息
+                    .userId(request.getUserId())//用户ID
+                    .model(modelName)//模型名称
+                    .historyCount(0)//历史消息数量
+                    .timestamp(System.currentTimeMillis())//响应时间戳
+                    .responseLength(aiOutput != null ? aiOutput.length() : 0)//响应长度
                     .build();
+
+            
         } catch (Exception e) {
             log.error("AI普通聊天失败", e);
             return ChatResponse.error("AI服务暂时不可用: " + e.getMessage(), request.getUserId());
@@ -94,9 +96,17 @@ public class AiChatServiceImpl implements AiChatService {
      */
     @Override
     public SseEmitter processChatStream(ChatRequest request) {
+        
+        // 创建SSE发射器,用于服务器向客户端推送事件流
+        // 设置超时时间为30秒,如果30秒内服务器没有发送任何数据,连接会自动关闭
         SseEmitter emitter = new SseEmitter(30000L);
         try {
             // 先把用户基本信息发给前端（可选）
+            // 向客户端发送用户信息事件
+            // name("user") - 事件名称为"user"
+            // data() - 事件数据是一个Map，包含用户ID
+            // Map.of() - 创建一个包含单个键值对的Map，键为"userId"，值为请求中的用户ID
+            // emitter.send() - 通过SSE发射器发送事件
             emitter.send(SseEmitter.event().name("user").data(Map.of("userId", request.getUserId())));
  
             CompletableFuture.runAsync(() -> {
@@ -105,16 +115,26 @@ public class AiChatServiceImpl implements AiChatService {
                     emitter.send(SseEmitter.event().name("start").data(Map.of("message", "AI正在思考中...")));
  
                     // 调用模型流式接口：输入就是用户本轮的问题
+                    // 调用模型的stream方法获取流式响应
+                    // 这里使用Spring AI的Flux响应式流来处理AI模型的实时输出
+                    // ChatResponse是Spring AI定义的标准响应格式
                     Flux<org.springframework.ai.chat.model.ChatResponse> stream = chatModel.stream(new Prompt(request.getMessage()));
  
+                    // 用于累积存储AI的完整响应文本
                     StringBuilder full = new StringBuilder();
+                    
                     stream.subscribe(
                             part -> {
                                 try {
+                                    // 从响应部分获取AI生成的文本内容
                                     String chunk = part.getResult().getOutput().getContent();
+                                    
                                     if (chunk != null && !chunk.isEmpty()) {
+
                                         full.append(chunk);
+                                        // 发送数据事件，包含当前块的内容
                                         emitter.send(SseEmitter.event().name("data").data(Map.of("chunk", chunk)));
+
                                     }
                                 } catch (IOException ioe) {
                                     log.error("SSE发送数据失败", ioe);
