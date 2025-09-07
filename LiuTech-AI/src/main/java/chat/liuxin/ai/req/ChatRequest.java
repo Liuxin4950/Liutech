@@ -3,7 +3,6 @@ package chat.liuxin.ai.req;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -18,20 +17,6 @@ import jakarta.validation.constraints.Size;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatRequest {
-    
-    /**
-     * 用户ID - 用于标识用户身份和管理聊天记忆
-     * 必填字段，不能为空或空白字符
-     */
-    @NotBlank(message = "用户ID不能为空")
-    @Size(max = 50, message = "用户ID长度不能超过50个字符")
-    private String userId;
-    
-    /**
-     * 会话ID（可选，用于区分不同对话会话）
-     * 如果不提供，系统会为该用户创建默认会话
-     */
-    private String sessionId;
     
     /**
      * 用户消息内容

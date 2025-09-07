@@ -30,13 +30,15 @@ import jakarta.validation.Valid;
 public class AiChatController {
 
     private final AiChatService aiChatService;
+    //这里的0 是固定的，只有会加入jwt认证，从jwt中解析token得到用户id，替换这里的0
 
     /**
      * 1) AI聊天接口 - 普通模式
      */
     @PostMapping("/chat")
     public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
-        log.debug("转发AI聊天请求到Service层 [用户:{}]", request.getUserId());
+        
+        log.debug("接受到了普通模式的请求:");
         return aiChatService.processChat(request);
     }
 
@@ -45,7 +47,7 @@ public class AiChatController {
      */
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chatStream(@Valid @RequestBody ChatRequest request) {
-        log.debug("转发AI流式聊天请求到Service层 [用户:{}]", request.getUserId());
+        log.debug("接受到了流式模式的请求:");
         return aiChatService.processChatStream(request);
     }
 }
