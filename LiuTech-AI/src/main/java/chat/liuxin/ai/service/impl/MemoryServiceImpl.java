@@ -4,7 +4,6 @@ import chat.liuxin.ai.entity.AiChatMessage;
 import chat.liuxin.ai.mapper.AiChatMessageMapper;
 import chat.liuxin.ai.service.MemoryService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,10 +34,11 @@ public class MemoryServiceImpl implements MemoryService {
     @Override
     public List<AiChatMessage> listRecentMessages(String userId, int limit) {
         if (limit <= 0) return Collections.emptyList();
-        // 1) 按创建时间倒序查询最近N条
+        // 1) 按创建时间倒序查询最近N条；同秒内用 id 作为稳定的二级排序，避免先存的user落到assistant之后
         List<AiChatMessage> desc = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getUserId, userId)
                 .orderByDesc(AiChatMessage::getCreatedAt)
+                .orderByDesc(AiChatMessage::getId)
                 .last("LIMIT " + limit)
         );
         // 2) 反转为升序（从旧到新）
@@ -101,8 +101,8 @@ public class MemoryServiceImpl implements MemoryService {
                 .last("LIMIT " + retainLastN + ",1") // 从第retainLastN条开始的第1条（即第N+1条）
         );
         if (desc == null || desc.isEmpty()) return; // 不足N条，无需清理
-        LocalDateTime boundary = desc.get(0).getCreatedAt();
-        int deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+        java.time.LocalDateTime boundary = desc.get(0).getCreatedAt();
+        int deleted = messageMapper.delete(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getUserId, userId)
                 .lt(AiChatMessage::getCreatedAt, boundary)
         );

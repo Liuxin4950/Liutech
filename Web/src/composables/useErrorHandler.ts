@@ -56,7 +56,8 @@ export function useErrorHandler() {
     } catch (err: any) {
       if (options?.onError) {
         options.onError(err)
-      } else if (!options?.silent) {
+      } else if (!options?.silent && !err?.isBusiness) {
+        // 业务错误已在拦截器里用Toast提示，这里避免再次弹模态框
         handleApiError(err)
       }
       setError(err?.response?.data?.message || err?.message || '操作失败')
@@ -85,7 +86,10 @@ export function useErrorHandler() {
         handleValidationError(err.response.data.errors)
         setError('表单验证失败')
       } else {
-        handleApiError(err)
+        // 业务错误已在拦截器里用Toast提示，这里避免再次弹模态框
+        if (!err?.isBusiness) {
+          handleApiError(err)
+        }
         setError(err?.response?.data?.message || err?.message || '提交失败')
       }
       return null

@@ -20,6 +20,83 @@
       <div class="editor-sidebar">
         <!-- 发布设置 -->
         <div class="sidebar-section">
+          <!-- 附件上传区域 -->
+          <div class="sidebar-item flex flex-ac gap-20">
+            <div class="sidebar-title">文章附件</div>
+            <div class="sidebar-content">
+              <!-- 附件上传按钮 -->
+              <div class="attachment-upload-area">
+                <button @click="triggerAttachmentUpload" class="btn-secondary w-full mb-12" :disabled="uploadingAttachment">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                  {{ uploadingAttachment ? '上传中...' : '上传附件' }}
+                </button>
+                <input ref="attachmentInput" type="file" @change="handleAttachmentUpload" style="display: none;" multiple>
+              </div>
+
+              <!-- 附件列表 -->
+              <div v-if="attachments.length > 0" class="attachment-list">
+                <div v-for="attachment in attachments" :key="attachment.id" class="attachment-item">
+                  <div class="attachment-info">
+                    <div class="attachment-icon">📎</div>
+                    <div class="attachment-details">
+                      <div class="attachment-name">{{ attachment.name }}</div>
+                      <div class="attachment-meta text-sm text-muted">
+                        {{ formatFileSize(attachment.size) }} • {{ attachment.type }}
+                      </div>
+                      <!-- 收费设置 -->
+                      <div class="attachment-pricing mt-8">
+                        <div class="flex flex-ac gap-12">
+                          <label class="flex flex-ac gap-4">
+                            <input 
+                              type="radio" 
+                              :name="`downloadType_${attachment.id}`" 
+                              :value="0" 
+                              v-model="attachment.downloadType"
+                              @change="onDownloadTypeChange(attachment)"
+                            >
+                            <span class="text-sm">免费</span>
+                          </label>
+                          <label class="flex flex-ac gap-4">
+                            <input 
+                              type="radio" 
+                              :name="`downloadType_${attachment.id}`" 
+                              :value="1" 
+                              v-model="attachment.downloadType"
+                              @change="onDownloadTypeChange(attachment)"
+                            >
+                            <span class="text-sm">积分</span>
+                          </label>
+                        </div>
+                        <div v-if="attachment.downloadType === 1" class="mt-8">
+                          <input 
+                            type="number" 
+                            v-model.number="attachment.pointsNeeded" 
+                            placeholder="所需积分" 
+                            min="1" 
+                            class="field-input text-sm" 
+                            style="width: 100px;"
+                            @focus="attachment._prevPointsNeeded = attachment.pointsNeeded"
+                            @change="onPointsNeededChange(attachment)"
+                          >
+                          <span class="text-sm text-muted ml-4">积分</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button @click="removeAttachment(attachment.id)" class="attachment-remove" title="删除附件">
+                    ×
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="attachments.length === 0" class="text-sm text-muted">
+                暂无附件
+              </div>
+            </div>
+          </div>
+
           <!-- 标签设置 -->
           <div class="sidebar-item flex flex-ac gap-20">
             <div class="sidebar-title">文章标签</div>
@@ -249,6 +326,18 @@ const form = ref({
   likeCount: 0
 })
 
+// 草稿键，用于关联附件
+const draftKey = ref('')
+
+// 生成UUID作为draftKey
+const generateDraftKey = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 // Pinia stores
 const categoryStore = useCategoryStore()
 const tagStore = useTagStore()
@@ -265,6 +354,21 @@ const showPreview = ref(false)
 const isEditMode = ref(false)
 const editingPostId = ref<number | null>(null)
 const loading = ref(false)
+
+// 附件相关状态
+const attachments = ref<Array<{
+  id: string
+  name: string
+  size: number
+  type: string
+  url: string
+  resourceId?: number
+  attachmentId?: number
+  downloadType: number // 0-免费，1-积分
+  pointsNeeded: number // 所需积分
+  _prevPointsNeeded?: number // 上次积分值（用于失败回滚）
+}>>([])
+const uploadingAttachment = ref(false)
 
 // 可选标签（排除已选择的）
 const availableTags = computed(() => {
@@ -397,7 +501,8 @@ const submitPost = async () => {
         status: form.value.status,
         tagIds: selectedTags.value.map(tag => tag.id),
         coverImage: form.value.coverImage || '',
-        thumbnail: form.value.thumbnail || ''
+        thumbnail: form.value.thumbnail || '',
+        draftKey: draftKey.value
       }
       result = await PostService.createPost(postData)
     }
@@ -508,6 +613,7 @@ const checkEditMode = () => {
 // 图片上传相关方法
 const coverImageInput = ref<HTMLInputElement>()
 const thumbnailInput = ref<HTMLInputElement>()
+const attachmentInput = ref<HTMLInputElement>()
 
 // 触发封面图片上传
 const triggerCoverImageUpload = () => {
@@ -567,15 +673,199 @@ const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
   })
 }
 
+// 附件相关方法
+// 触发附件上传
+const triggerAttachmentUpload = () => {
+  attachmentInput.value?.click()
+}
+
+// 处理附件上传
+const handleAttachmentUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+  if (!files || files.length === 0) return
+
+  uploadingAttachment.value = true
+
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      await uploadAttachment(file)
+    }
+
+    // 清空文件输入
+    target.value = ''
+  } catch (error) {
+    console.error('附件上传失败:', error)
+  } finally {
+    uploadingAttachment.value = false
+  }
+}
+
+// 上传单个附件
+const uploadAttachment = async (file: File) => {
+  await handleAsync(async () => {
+    // 默认为免费附件
+    const downloadType = 0
+    const pointsNeeded = 0
+    
+    const result = await PostService.uploadAttachment(file, draftKey.value, 'attachment', downloadType, pointsNeeded)
+
+    // 添加到附件列表
+    const attachment = {
+      id: result.resourceId?.toString() || Date.now().toString(),
+      name: file.name,
+      size: file.size,
+      type: file.type || '未知类型',
+      url: result.fileUrl,
+      resourceId: result.resourceId,
+      attachmentId: result.attachmentId,
+      downloadType: downloadType,
+      pointsNeeded: pointsNeeded
+    }
+
+    attachments.value.push(attachment)
+
+    Swal.fire('成功', `附件 "${file.name}" 上传成功！`, 'success')
+  }, {
+    onError: (err) => {
+      console.error('附件上传失败:', err)
+      Swal.fire('错误', `附件 "${file.name}" 上传失败，请重试`, 'error')
+    }
+  })
+}
+
+// 删除附件
+const removeAttachment = async (attachmentId: string) => {
+  const result = await Swal.fire({
+    title: '确认删除？',
+    text: '删除后无法恢复',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: '确认删除',
+    cancelButtonText: '取消'
+  })
+
+  if (result.isConfirmed) {
+    await handleAsync(async () => {
+      const attachment = attachments.value.find(att => att.id === attachmentId)
+      if (attachment && attachment.resourceId) {
+        await PostService.deleteAttachment(attachment.resourceId)
+      }
+
+      attachments.value = attachments.value.filter(att => att.id !== attachmentId)
+      Swal.fire('已删除', '附件已删除', 'success')
+    }, {
+      onError: (err) => {
+        console.error('删除附件失败:', err)
+        Swal.fire('错误', '删除附件失败，请重试', 'error')
+      }
+    })
+  }
+}
+
+// 当附件下载类型变更时，立即更新后端，失败回滚
+const onDownloadTypeChange = async (attachment: {
+  id: string
+  resourceId?: number
+  downloadType: number
+  pointsNeeded: number
+  _prevPointsNeeded?: number
+}) => {
+  const newType = attachment.downloadType
+  const prevType = newType === 0 ? 1 : 0
+
+  if (!attachment.resourceId) {
+    Swal.fire('错误', '资源标识缺失，无法更新附件设置', 'error')
+    // 回滚
+    attachment.downloadType = prevType
+    return
+  }
+
+  // 如果改为积分下载且积分未设置，默认设为 1 分
+  if (newType === 1 && (!attachment.pointsNeeded || attachment.pointsNeeded < 1)) {
+    attachment.pointsNeeded = 1
+  }
+
+  try {
+    await PostService.updateAttachmentMeta(
+      attachment.resourceId,
+      newType,
+      newType === 1 ? attachment.pointsNeeded : 0
+    )
+  } catch (err) {
+    console.error('更新附件下载类型失败:', err)
+    Swal.fire('错误', '更新附件下载类型失败，已为你恢复原值', 'error')
+    // 回滚
+    attachment.downloadType = prevType
+  }
+}
+
+// 当积分变更时，立即更新后端，失败回滚
+const onPointsNeededChange = async (attachment: {
+  id: string
+  resourceId?: number
+  downloadType: number
+  pointsNeeded: number
+  _prevPointsNeeded?: number
+}) => {
+  if (attachment.downloadType !== 1) return
+
+  const prevPoints = attachment._prevPointsNeeded ?? attachment.pointsNeeded
+
+  // 规范化数值：>=1 的整数
+  let newPoints = Number(attachment.pointsNeeded)
+  if (!Number.isFinite(newPoints) || newPoints < 1) {
+    newPoints = 1
+  }
+  newPoints = Math.floor(newPoints)
+  attachment.pointsNeeded = newPoints
+
+  if (!attachment.resourceId) {
+    Swal.fire('错误', '资源标识缺失，无法更新附件设置', 'error')
+    // 回滚
+    attachment.pointsNeeded = prevPoints
+    return
+  }
+
+  try {
+    await PostService.updateAttachmentMeta(
+      attachment.resourceId,
+      1,
+      newPoints
+    )
+  } catch (err) {
+    console.error('更新附件积分失败:', err)
+    Swal.fire('错误', '更新附件积分失败，已为你恢复原值', 'error')
+    // 回滚
+    attachment.pointsNeeded = prevPoints
+  }
+}
+
+// 格式化文件大小
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+ 
 // 组件挂载时加载数据
 onMounted(async () => {
   checkEditMode()
-
+ 
+  // 如果不是编辑模式，生成新的 draftKey
+  if (!isEditMode.value) {
+    draftKey.value = generateDraftKey()
+    console.log('生成草稿键:', draftKey.value)
+  }
+ 
   await Promise.all([
     loadCategories(),
     loadTags()
   ])
-
+ 
   // 如果是编辑模式，加载文章数据
   if (isEditMode.value && editingPostId.value) {
     await loadPostData(editingPostId.value)
@@ -630,6 +920,84 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.3s ease;
   background: var(--bg-main);
+}
+
+/* 附件上传样式 */
+.attachment-upload-area {
+  width: 100%;
+}
+
+.attachment-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-main);
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background-color 0.2s;
+}
+
+.attachment-item:last-child {
+  border-bottom: none;
+}
+
+.attachment-item:hover {
+  background: var(--bg-hover);
+}
+
+.attachment-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.attachment-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-name {
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachment-meta {
+  margin-top: 2px;
+}
+
+.attachment-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.attachment-remove:hover {
+  background: var(--color-danger);
+  color: white;
 }
 
 .image-preview-box:hover {

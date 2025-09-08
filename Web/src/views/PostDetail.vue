@@ -48,6 +48,38 @@
         <div class="markdown-content" v-html="renderedContent"></div>
       </article>
 
+      <!-- 附件列表 -->
+      <section v-if="post.attachments && post.attachments.length" class="mt-16">
+        <h3 class="mb-12">附件</h3>
+        <ul class="list-unstyled flex flex-col gap-8">
+          <li v-for="att in post.attachments" :key="att.attachmentId" class="flex flex-sb flex-ac bg-hover p-12 rounded">
+            <div class="flex flex-col">
+              <template v-if="att.purchased && att.fileUrl">
+                <a class="link" :href="att.fileUrl" target="_blank" rel="noopener" :title="att.fileName">📎 {{ att.fileName }}</a>
+              </template>
+              <template v-else>
+                <span class="text-muted">📎 {{ att.fileName }}</span>
+              </template>
+              <div class="text-sm text-muted flex gap-12 mt-4">
+                <span v-if="att.pointsNeeded && !att.purchased">需要积分：{{ att.pointsNeeded }}</span>
+                <span>上传时间：{{ formatDate(att.createdTime) }}</span>
+              </div>
+            </div>
+            <div class="flex gap-8">
+              <a v-if="att.purchased && att.fileUrl" class="action-btn" :href="att.fileUrl" target="_blank" rel="noopener">下载/查看</a>
+              <button
+                v-else-if="!att.purchased && att.pointsNeeded"
+                class="action-btn"
+                :disabled="purchasingId === att.resourceId"
+                @click="onPurchase(att.resourceId)"
+              >
+                {{ purchasingId === att.resourceId ? '购买中...' : (att.pointsNeeded ? `购买（${att.pointsNeeded} 积分）` : '购买') }}
+              </button>
+            </div>
+          </li>
+        </ul>
+      </section>
+
       <!-- 文章交互 -->
       <div class="post-actions">
         <div class="actions-left">
@@ -144,7 +176,7 @@
     </div>
     
     <!-- 登录弹窗 -->
-    <LoginModal v-model:visible="showLoginModal" message="点赞和收藏功能需要登录后才能使用" />
+    <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
   </div>
 </template>
 
@@ -184,10 +216,14 @@ const showShare = ref(false)
 
 // 登录弹窗相关状态
 const showLoginModal = ref(false)
+const loginMessage = ref('点赞和收藏功能需要登录后才能使用')
 
 // 图片预加载相关状态
 const imageLoading = ref(true)
 const displayImage = ref('/src/assets/image/images.jpg') // 默认图片
+
+// 购买状态
+const purchasingId = ref<number | null>(null)
 
 // 计算属性：渲染富文本内容
 const renderedContent = computed(() => {
@@ -267,12 +303,37 @@ const loadPostDetail = async () => {
   })
 }
 
+// 购买资源
+const onPurchase = async (resourceId: number) => {
+  if (!resourceId) return
+  if (!isLoggedIn()) {
+    loginMessage.value = '购买资源需要登录后才能进行'
+    showLoginModal.value = true
+    return
+  }
+  await handleAsync(async () => {
+    purchasingId.value = resourceId
+    await PostService.purchaseResource(resourceId)
+    showSuccessToast('购买成功！')
+    await loadPostDetail()
+  }, {
+    onError: (err) => {
+      console.error('购买失败:', err)
+      // 业务错误已通过拦截器Toast提示，这里不再额外弹模态框
+    },
+    onFinally: () => {
+      purchasingId.value = null
+    }
+  })
+}
+
 // 处理点赞
 const handleLike = async () => {
   if (!post.value || liking.value) return
 
   // 检查登录状态
   if (!isLoggedIn()) {
+    loginMessage.value = '点赞功能需要登录后才能使用'
     showLoginModal.value = true
     return
   }
@@ -306,6 +367,7 @@ const handleFavorite = async () => {
 
   // 检查登录状态
   if (!isLoggedIn()) {
+    loginMessage.value = '收藏功能需要登录后才能使用'
     showLoginModal.value = true
     return
   }
@@ -580,81 +642,38 @@ background-color: var(--bg-main);
 
 .action-btn:hover {
   background: var(--bg-hover);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--border-main);
 }
 
-.action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.action-btn.liked {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white;
-}
-
-.action-btn.liked svg {
-  fill: currentColor;
-}
-
-.action-btn.favorited {
-  background: #f59e0b;
-  border-color: #f59e0b;
-  color: white;
-}
-
-.action-btn.favorited svg {
-  fill: currentColor;
+.action-btn.liked, .action-btn.favorited {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
 
 .action-info {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--);
-  font-size: 14px;
+  color: var(--text-muted);
 }
 
-.action-info svg {
-  opacity: 0.7;
-}
-
-.count {
-  color: var(--);
-  font-size: 13px;
-}
-
-/* 分享功能样式 */
+/* 分享按钮 */
 .share-group {
   position: relative;
 }
 
-.share-btn {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white;
-}
-
-.share-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--primary-hover);
-  color: #000;
-}
-
 .share-options {
   position: absolute;
-  top: 100%;
   right: 0;
-  margin-top: 8px;
-  background: var(--bg-color);
+  top: 40px;
+  background: var(--bg-main);
   border: 1px solid var(--border-soft);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  min-width: 120px;
-  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
 }
 
 .share-option {

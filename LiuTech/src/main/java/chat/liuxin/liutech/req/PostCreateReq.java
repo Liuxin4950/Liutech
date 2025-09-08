@@ -67,4 +67,9 @@ public class PostCreateReq {
      * 点赞次数
      */
     private Integer likeCount = 0;
+    
+    /**
+     * 草稿关联键（用于绑定草稿附件）
+     */
+    private String draftKey;
 }

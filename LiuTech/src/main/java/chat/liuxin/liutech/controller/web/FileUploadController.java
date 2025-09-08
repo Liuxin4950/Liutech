@@ -76,20 +76,82 @@ public class FileUploadController {
      * 
      * @param file 资源文件
      * @param description 文件描述
+     * @param draftKey 草稿关联键（可选）
+     * @param type 附件类型（可选）
+     * @param downloadType 下载类型（0免费，1积分，默认0）
+     * @param pointsNeeded 下载所需积分（默认0）
      * @return 上传结果
      */
     @PostMapping("/resource")
     public Result<FileUploadResl> uploadResource(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "draftKey", required = false) String draftKey,
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "downloadType", required = false, defaultValue = "0") Integer downloadType,
+            @RequestParam(value = "pointsNeeded", required = false, defaultValue = "0") Integer pointsNeeded,
             HttpServletRequest request) {
         
         Long userId = userUtils.getCurrentUserId();
-        log.info("接收到资源上传请求 - 用户ID: {}, 文件名: {}, 描述: {}", 
-                userId, file.getOriginalFilename(), description);
+        log.info("接收到资源上传请求 - 用户ID: {}, 文件名: {}, 描述: {}, 草稿键: {}, 类型: {}, 下载类型: {}, 所需积分: {}", 
+                userId, file.getOriginalFilename(), description, draftKey, type, downloadType, pointsNeeded);
         
-        FileUploadResl result = fileUploadService.uploadResource(file, userId, description);
+        FileUploadResl result = fileUploadService.uploadResource(file, userId, description, draftKey, type, downloadType, pointsNeeded);
         return Result.success(result);
+    }
+    
+    /**
+     * 查询草稿附件列表
+     * 
+     * @param draftKey 草稿关联键
+     * @return 附件列表
+     */
+    @GetMapping("/attachments/draft/{draftKey}")
+    public Result<?> getDraftAttachments(
+            @PathVariable("draftKey") String draftKey,
+            HttpServletRequest request) {
+        
+        Long userId = userUtils.getCurrentUserId();
+        log.info("查询草稿附件 - 用户ID: {}, 草稿键: {}", userId, draftKey);
+        
+        var result = fileUploadService.getDraftAttachments(draftKey, userId);
+        return Result.success(result);
+    }
+    
+    /**
+     * 查询文章附件列表
+     * 
+     * @param postId 文章ID
+     * @return 附件列表
+     */
+    @GetMapping("/attachments/post/{postId}")
+    public Result<?> getPostAttachments(
+            @PathVariable("postId") Long postId,
+            HttpServletRequest request) {
+        
+        Long userId = userUtils.getCurrentUserId();
+        log.info("查询文章附件 - 用户ID: {}, 文章ID: {}", userId, postId);
+        
+        var result = fileUploadService.getPostAttachments(postId, userId);
+        return Result.success(result);
+    }
+    
+    /**
+     * 删除附件
+     * 
+     * @param resourceId 资源ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/attachments/{resourceId}")
+    public Result<?> deleteAttachment(
+            @PathVariable("resourceId") Long resourceId,
+            HttpServletRequest request) {
+        
+        Long userId = userUtils.getCurrentUserId();
+        log.info("删除附件 - 用户ID: {}, 资源ID: {}", userId, resourceId);
+        
+        fileUploadService.deleteAttachment(resourceId, userId);
+        return Result.success("附件删除成功");
     }
     
     /**
@@ -156,5 +218,20 @@ public class FileUploadController {
         public void setError(String error) {
             this.error = error;
         }
+    }
+
+    /**
+     * 更新附件元信息（下载类型、所需积分）
+     */
+    @PutMapping("/attachments/{resourceId}/meta")
+    public Result<?> updateAttachmentMeta(
+            @PathVariable("resourceId") Long resourceId,
+            @RequestParam(value = "downloadType", required = false, defaultValue = "0") Integer downloadType,
+            @RequestParam(value = "pointsNeeded", required = false, defaultValue = "0") Integer pointsNeeded,
+            HttpServletRequest request) {
+        Long userId = userUtils.getCurrentUserId();
+        log.info("更新附件元信息 - 用户ID: {}, 资源ID: {}, downloadType: {}, pointsNeeded: {}", userId, resourceId, downloadType, pointsNeeded);
+        fileUploadService.updateResourceMeta(resourceId, userId, downloadType, pointsNeeded);
+        return Result.success("附件设置已更新");
     }
 }

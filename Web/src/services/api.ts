@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import router from '../router'
-import { handleApiError } from '../utils/errorHandler'
+import { handleApiError, showErrorToast } from '../utils/errorHandler'
 
 // API 响应接口
 export interface ApiResponse<T = any> {
@@ -50,7 +50,11 @@ instance.interceptors.response.use(
     // 检查业务状态码
     if (data.code !== 200) {
       console.error('API 业务错误:', data.message)
-      throw new Error(data.message || '请求失败')
+      // 使用统一的错误Toast提示
+      showErrorToast(data.message || '请求失败')
+      const err: any = new Error(data.message || '请求失败')
+      err.isBusiness = true // 标记为业务错误，避免后续重复弹窗
+      throw err
     }
     
     return response

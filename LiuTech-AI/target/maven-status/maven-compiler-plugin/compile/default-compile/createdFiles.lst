@@ -1,7 +1,0 @@
-chat\liuxin\ai\service\AiChatService.class
-chat\liuxin\ai\req\ChatRequest.class
-chat\liuxin\ai\LiuTechAiApplication.class
-chat\liuxin\ai\controller\AiChatController.class
-chat\liuxin\ai\resp\ChatResponse.class
-chat\liuxin\ai\resp\ChatResponse$ChatResponseBuilder.class
-chat\liuxin\ai\service\impl\AiChatServiceImpl.class

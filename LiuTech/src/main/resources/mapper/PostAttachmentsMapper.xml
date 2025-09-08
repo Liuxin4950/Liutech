@@ -7,20 +7,20 @@
         SELECT * FROM post_attachments 
         WHERE draft_key = #{draftKey} 
         AND post_id IS NULL
-        ORDER BY created_time DESC
+        ORDER BY created_at DESC
     </select>
 
     <!-- 根据文章ID查询附件列表 -->
     <select id="selectByPostId" resultType="chat.liuxin.liutech.model.PostAttachments">
         SELECT * FROM post_attachments 
         WHERE post_id = #{postId}
-        ORDER BY created_time DESC
+        ORDER BY created_at DESC
     </select>
 
     <!-- 将草稿附件绑定到文章 -->
     <update id="bindDraftToPost">
         UPDATE post_attachments 
-        SET post_id = #{postId}, updated_time = NOW()
+        SET post_id = #{postId}, updated_at = NOW()
         WHERE draft_key = #{draftKey} 
         AND post_id IS NULL
     </update>
@@ -31,20 +31,17 @@
             pa.id as attachmentId,
             pa.resource_id as resourceId,
             pa.draft_key as draftKey,
-            r.file_name as fileName,
-            r.file_path as filePath,
+            r.name as fileName,
+            r.file_url as filePath,
             r.file_url as fileUrl,
-            r.file_size as fileSize,
-            r.file_type as fileType,
-            r.extension as extension,
-            r.description as description,
-            pa.created_time as createdTime
+            r.points_needed as pointsNeeded,
+            pa.created_at as createdTime
         FROM post_attachments pa
         LEFT JOIN resources r ON pa.resource_id = r.id
         WHERE pa.draft_key = #{draftKey}
         AND pa.post_id IS NULL
-        AND r.upload_user_id = #{userId}
-        ORDER BY pa.created_time DESC
+        AND r.uploader_id = #{userId}
+        ORDER BY pa.created_at DESC
     </select>
 
     <!-- 查询文章附件详细信息（关联 Resources 表） -->
@@ -53,19 +50,33 @@
             pa.id as attachmentId,
             pa.resource_id as resourceId,
             pa.post_id as postId,
-            r.file_name as fileName,
-            r.file_path as filePath,
+            r.name as fileName,
+            r.file_url as filePath,
             r.file_url as fileUrl,
-            r.file_size as fileSize,
-            r.file_type as fileType,
-            r.extension as extension,
-            r.description as description,
-            pa.created_time as createdTime
+            r.points_needed as pointsNeeded,
+            pa.created_at as createdTime
         FROM post_attachments pa
         LEFT JOIN resources r ON pa.resource_id = r.id
         WHERE pa.post_id = #{postId}
-        AND r.upload_user_id = #{userId}
-        ORDER BY pa.created_time DESC
+        AND r.uploader_id = #{userId}
+        ORDER BY pa.created_at DESC
+    </select>
+
+    <!-- 查询文章附件详细信息（公开，不限制上传者，供前台详情展示） -->
+    <select id="selectPostAttachmentsPublic" resultType="java.util.Map">
+        SELECT 
+            pa.id as attachmentId,
+            pa.resource_id as resourceId,
+            pa.post_id as postId,
+            r.name as fileName,
+            r.file_url as filePath,
+            r.file_url as fileUrl,
+            r.points_needed as pointsNeeded,
+            pa.created_at as createdTime
+        FROM post_attachments pa
+        LEFT JOIN resources r ON pa.resource_id = r.id
+        WHERE pa.post_id = #{postId}
+        ORDER BY pa.created_at DESC
     </select>
 
     <!-- 根据资源ID删除附件关联记录 -->

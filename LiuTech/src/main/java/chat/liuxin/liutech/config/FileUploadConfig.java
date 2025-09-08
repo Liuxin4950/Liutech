@@ -49,7 +49,8 @@ public class FileUploadConfig {
     /**
      * 允许的资源文件类型
      */
-    private String[] allowedResourceTypes = {"zip", "rar", "7z", "tar", "gz", "exe", "msi", "jar", "war"};
+    // 增加 mp3 支持，便于上传音频资源
+    private String[] allowedResourceTypes = {"zip", "rar", "7z", "tar", "gz", "exe", "msi", "jar", "war", "mp3"};
     
     /**
      * 最大文件大小（字节）

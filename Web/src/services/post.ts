@@ -43,6 +43,8 @@ export interface PostListItem {
 // 文章详情接口
 export interface PostDetail extends PostListItem {
   content: string
+  // 文章附件列表（公开查询，不限上传者）
+  attachments?: PostAttachment[]
 }
 
 // 分页响应接口
@@ -80,6 +82,7 @@ export interface CreatePostRequest {
   thumbnail?: string
   viewCount?: number
   likeCount?: number
+  draftKey?: string
 }
 
 // 创建文章响应接口
@@ -103,6 +106,38 @@ export interface UpdatePostRequest {
   thumbnail?: string
   viewCount?: number
   likeCount?: number
+}
+
+// 附件相关接口
+export interface AttachmentInfo {
+  id: number
+  name: string
+  size: number
+  type: string
+  url: string
+  resourceId: number
+  attachmentId?: number
+  createdAt: string
+}
+
+export interface AttachmentUploadResponse {
+  resourceId: number
+  attachmentId?: number
+  fileUrl: string
+  fileName: string
+  fileSize: number
+}
+
+// 文章详情返回中的附件信息（与后端 PostDetailResl.AttachmentInfo 对应）
+export interface PostAttachment {
+  attachmentId: number
+  resourceId: number
+  fileName: string
+  fileUrl: string
+  pointsNeeded?: number
+  createdTime: string
+  // 是否已购买（后端计算字段：免费、本人上传或已购买都为 true）
+  purchased?: boolean
 }
 
 /**
@@ -307,6 +342,84 @@ export class PostService {
       await post(`/posts/${id}/favorite`)
     } catch (error) {
       console.error('收藏文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 上传附件
+   * @param file 文件
+   * @param draftKey 草稿键
+   * @param type 附件类型（默认 attachment）
+   * @param downloadType 下载类型（0-免费，1-积分）
+   * @param pointsNeeded 所需积分
+   */
+  static async uploadAttachment(file: File, draftKey: string, type: string = 'attachment', downloadType: number = 0, pointsNeeded: number = 0): Promise<AttachmentUploadResponse> {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', type)
+      formData.append('draftKey', draftKey)
+      formData.append('downloadType', downloadType.toString())
+      formData.append('pointsNeeded', pointsNeeded.toString())
+
+      const response = await post('/upload/resource', formData as any, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      } as any)
+      return response.data
+    } catch (error) {
+      console.error('上传附件失败:', error)
+      throw error
+    }
+  }
+
+  /** 获取草稿附件 */
+  static async getDraftAttachments(draftKey: string): Promise<AttachmentInfo[]> {
+    try {
+      const response = await get(`/upload/attachments/draft/${draftKey}`)
+      return response.data as any
+    } catch (error) {
+      console.error('获取草稿附件失败:', error)
+      throw error
+    }
+  }
+
+  /** 获取文章附件 */
+  static async getPostAttachments(postId: number): Promise<AttachmentInfo[]> {
+    try {
+      const response = await get(`/upload/attachments/post/${postId}`)
+      return response.data as any
+    } catch (error) {
+      console.error('获取文章附件失败:', error)
+      throw error
+    }
+  }
+
+  /** 删除附件 */
+  static async deleteAttachment(resourceId: number): Promise<void> {
+    try {
+      await del(`/upload/attachments/${resourceId}`)
+    } catch (error) {
+      console.error('删除附件失败:', error)
+      throw error
+    }
+  }
+
+  /** 购买资源（扣积分） */
+  static async purchaseResource(resourceId: number): Promise<void> {
+    try {
+      await post(`/api/resource/purchase/${resourceId}`)
+    } catch (error) {
+      console.error('购买资源失败:', error)
+      throw error
+    }
+  }
+  /** 更新附件收费设置（下载类型与积分） */
+  static async updateAttachmentMeta(resourceId: number, downloadType: number = 0, pointsNeeded: number = 0): Promise<void> {
+    try {
+      await put(`/upload/attachments/${resourceId}/meta`, null as any, { params: { downloadType, pointsNeeded } } as any)
+    } catch (error) {
+      console.error('更新附件收费设置失败:', error)
       throw error
     }
   }

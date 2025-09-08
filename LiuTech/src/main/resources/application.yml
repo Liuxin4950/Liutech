@@ -48,6 +48,10 @@ logging:
 
 server:
   port: 8080
+
+# 文件上传配置
+file:
+  upload-dir: uploads
   tomcat:
     uri-encoding: UTF-8
 

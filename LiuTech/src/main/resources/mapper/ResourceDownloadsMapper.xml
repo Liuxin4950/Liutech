@@ -4,11 +4,10 @@
 
     <!-- 查询用户是否已购买某资源 -->
     <select id="countUserPurchase" resultType="int">
-        SELECT COUNT(*) 
-        FROM resource_downloads 
-        WHERE user_id = #{userId} 
-        AND resource_id = #{resourceId} 
-        AND status = 1
+        SELECT COUNT(*)
+        FROM download_logs
+        WHERE user_id = #{userId}
+        AND resource_id = #{resourceId}
         AND deleted_at IS NULL
     </select>
 

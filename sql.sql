@@ -212,5 +212,24 @@ CREATE TABLE IF NOT EXISTS user_checkins (
   FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户签到记录表';
 
+-- 新增：文章附件表（草稿与正式文章通用关联）
+CREATE TABLE IF NOT EXISTS post_attachments (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '附件关联ID',
+  draft_key VARCHAR(64) DEFAULT NULL COMMENT '草稿关联键（未创建文章前使用）',
+  post_id BIGINT DEFAULT NULL COMMENT '文章ID（创建文章后绑定）',
+  resource_id BIGINT NOT NULL COMMENT '资源ID（resources表主键）',
+  type VARCHAR(50) NOT NULL DEFAULT 'resource' COMMENT '附件类型（image, document, resource等）',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+  updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
+  INDEX idx_draft_key (draft_key),
+  INDEX idx_post_id (post_id),
+  INDEX idx_resource_id (resource_id),
+  FOREIGN KEY (post_id) REFERENCES posts(id),
+  FOREIGN KEY (resource_id) REFERENCES resources(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章附件表（草稿态与文章态通用）';
+
 -- 重新开启外键检查
 SET FOREIGN_KEY_CHECKS = 1;

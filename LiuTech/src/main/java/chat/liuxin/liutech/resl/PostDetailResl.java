@@ -105,6 +105,11 @@ public class PostDetailResl {
      */
     private String status;
 
+    /**
+     * 附件列表（文章详情展示用）
+     */
+    private List<AttachmentInfo> attachments;
+
     @Data
     public static class CategoryInfo {
         private Long id;
@@ -123,5 +128,27 @@ public class PostDetailResl {
     public static class TagInfo {
         private Long id;
         private String name;
+    }
+
+    /**
+     * 附件信息
+     * 作者：刘鑫；时间：2025-09-08
+     */
+    @Data
+    public static class AttachmentInfo {
+        /** 附件关联ID（post_attachments.id） */
+        private Long attachmentId;
+        /** 资源ID（resources.id） */
+        private Long resourceId;
+        /** 文件名（resources.name） */
+        private String fileName;
+        /** 文件访问URL（resources.file_url） */
+        private String fileUrl;
+        /** 下载所需积分（resources.points_needed，可选） */
+        private Integer pointsNeeded;
+        /** 关联时间（post_attachments.created_at） */
+        private Date createdTime;
+        /** 是否已购买（免费资源默认为true） */
+        private Boolean purchased;
     }
 }

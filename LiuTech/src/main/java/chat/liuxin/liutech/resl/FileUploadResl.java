@@ -49,4 +49,14 @@ public class FileUploadResl {
      * 上传时间戳
      */
     private Long uploadTime;
+    
+    /**
+     * 资源ID（resources表主键）
+     */
+    private Long resourceId;
+    
+    /**
+     * 附件关联ID（post_attachments表主键）
+     */
+    private Long attachmentId;
 }

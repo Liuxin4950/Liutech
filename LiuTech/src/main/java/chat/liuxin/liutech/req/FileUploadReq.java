@@ -26,8 +26,18 @@ public class FileUploadReq {
     private String description;
     
     /**
-     * 文件类型（image/document/resource）
+     * 文件类型（image, document, resource）
      */
     @NotBlank(message = "文件类型不能为空")
     private String fileType;
+    
+    /**
+     * 草稿关联键（可选，用于草稿附件）
+     */
+    private String draftKey;
+    
+    /**
+     * 附件类型（可选，如 image, document, resource 等）
+     */
+    private String type;
 }

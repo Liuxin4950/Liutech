@@ -46,12 +46,19 @@ public interface PostAttachmentsMapper extends BaseMapper<PostAttachments> {
     List<java.util.Map<String, Object>> selectDraftAttachments(@Param("draftKey") String draftKey, @Param("userId") Long userId);
     
     /**
-     * 查询文章附件详细信息（关联 Resources 表）
+     * 查询文章附件详细信息（关联 Resources 表，限制上传者）
      * @param postId 文章ID
      * @param userId 用户ID
      * @return 附件详细信息列表
      */
     List<java.util.Map<String, Object>> selectPostAttachments(@Param("postId") Long postId, @Param("userId") Long userId);
+
+    /**
+     * 查询文章附件详细信息（公开，不限制上传者，供前台详情展示）
+     * @param postId 文章ID
+     * @return 附件详细信息列表
+     */
+    List<java.util.Map<String, Object>> selectPostAttachmentsPublic(@Param("postId") Long postId);
     
     /**
      * 根据资源ID删除附件关联记录

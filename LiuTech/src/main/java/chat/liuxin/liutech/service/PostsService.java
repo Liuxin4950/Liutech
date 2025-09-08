@@ -23,6 +23,8 @@ import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.mapper.PostLikesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
+import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
+import chat.liuxin.liutech.service.ResourceDownloadService;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.PostTags;
 import chat.liuxin.liutech.model.PostLikes;
@@ -59,6 +61,12 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     @Autowired
     private PostFavoritesMapper postFavoritesMapper;
+    
+    @Autowired
+    private PostAttachmentsMapper postAttachmentsMapper;
+    
+    @Autowired
+    private ResourceDownloadService resourceDownloadService;
 
     /**
      * 分页查询文章列表（公开接口）
@@ -133,6 +141,46 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             return null;
         }
 
+        // 附件列表（公开，不限制上传者）
+        List<java.util.Map<String, Object>> list = postAttachmentsMapper.selectPostAttachmentsPublic(id);
+        if (list != null && !list.isEmpty()) {
+            List<PostDetailResl.AttachmentInfo> attachments = list.stream().map(map -> {
+                PostDetailResl.AttachmentInfo a = new PostDetailResl.AttachmentInfo();
+                Object v;
+                v = map.get("attachmentId"); if (v != null) a.setAttachmentId(((Number) v).longValue());
+                v = map.get("resourceId"); if (v != null) a.setResourceId(((Number) v).longValue());
+                v = map.get("fileName"); if (v != null) a.setFileName(String.valueOf(v));
+                v = map.get("pointsNeeded"); if (v != null) a.setPointsNeeded(((Number) v).intValue());
+                v = map.get("createdTime"); if (v instanceof java.util.Date) a.setCreatedTime((java.util.Date) v);
+                
+                // 根据积分需求和用户购买状态控制文件URL可见性
+                Long resourceId = a.getResourceId();
+                Integer pointsNeeded = a.getPointsNeeded();
+                boolean purchased = false;
+                if (pointsNeeded == null || pointsNeeded == 0) {
+                    purchased = true; // 免费资源视为已购买
+                } else if (userId != null) {
+                    purchased = resourceDownloadService.hasUserPurchased(userId, resourceId);
+                }
+                a.setPurchased(purchased);
+
+                if (pointsNeeded != null && pointsNeeded > 0) {
+                    // 积分资源：仅在已购买时返回URL，未登录或未购买一律隐藏URL
+                    if (purchased) {
+                        v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
+                    } else {
+                        a.setFileUrl(null);
+                    }
+                } else {
+                    // 免费资源：始终返回URL
+                    v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
+                }
+                
+                return a;
+            }).collect(Collectors.toList());
+            postDetail.setAttachments(attachments);
+        }
+
         // 访问数自增
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Posts::getId, id)
@@ -160,7 +208,26 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     public PostDetailResl getPostDetailForAdmin(Long id) {
-        return postsMapper.selectPostDetailResl(id, null);
+        PostDetailResl postDetail = postsMapper.selectPostDetailResl(id, null);
+        if (postDetail == null) {
+            return null;
+        }
+        List<java.util.Map<String, Object>> list = postAttachmentsMapper.selectPostAttachmentsPublic(id);
+        if (list != null && !list.isEmpty()) {
+            List<PostDetailResl.AttachmentInfo> attachments = list.stream().map(map -> {
+                PostDetailResl.AttachmentInfo a = new PostDetailResl.AttachmentInfo();
+                Object v;
+                v = map.get("attachmentId"); if (v != null) a.setAttachmentId(((Number) v).longValue());
+                v = map.get("resourceId"); if (v != null) a.setResourceId(((Number) v).longValue());
+                v = map.get("fileName"); if (v != null) a.setFileName(String.valueOf(v));
+                v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
+                v = map.get("pointsNeeded"); if (v != null) a.setPointsNeeded(((Number) v).intValue());
+                v = map.get("createdTime"); if (v instanceof java.util.Date) a.setCreatedTime((java.util.Date) v);
+                return a;
+            }).collect(Collectors.toList());
+            postDetail.setAttachments(attachments);
+        }
+        return postDetail;
     }
 
     /**
@@ -344,6 +411,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 处理标签关联
         if (req.getTagIds() != null && !req.getTagIds().isEmpty()) {
             savePostTags(post.getId(), req.getTagIds());
+        }
+        
+        // 绑定草稿附件到文章
+        if (StringUtils.hasText(req.getDraftKey())) {
+            int bindCount = postAttachmentsMapper.bindDraftToPost(req.getDraftKey(), post.getId());
+            log.info("绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}", 
+                    post.getId(), req.getDraftKey(), bindCount);
         }
 
         // 构建响应对象
