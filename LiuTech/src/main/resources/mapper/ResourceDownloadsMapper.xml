@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.ResourceDownloadsMapper">
+
+    <!-- 查询用户是否已购买某资源 -->
+    <select id="countUserPurchase" resultType="int">
+        SELECT COUNT(*) 
+        FROM resource_downloads 
+        WHERE user_id = #{userId} 
+        AND resource_id = #{resourceId} 
+        AND status = 1
+        AND deleted_at IS NULL
+    </select>
+
+</mapper>
