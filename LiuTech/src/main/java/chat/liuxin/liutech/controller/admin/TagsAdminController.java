@@ -167,4 +167,36 @@ public class TagsAdminController extends BaseAdminController {
             return handleException(e, "标签恢复");
         }
     }
+
+    /**
+     * 彻底删除标签（物理删除）
+     * 
+     * @param id 标签ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/{id}/permanent")
+    public Result<String> permanentDeleteTag(@PathVariable Long id) {
+        try {
+            boolean success = tagsService.permanentDeleteTag(id);
+            return handleOperationResult(success, "标签彻底删除成功", "标签彻底删除");
+        } catch (Exception e) {
+            return handleException(e, "标签彻底删除");
+        }
+    }
+
+    /**
+     * 批量彻底删除标签（物理删除）
+     * 
+     * @param ids 标签ID列表
+     * @return 删除结果
+     */
+    @DeleteMapping("/batch/permanent")
+    public Result<String> batchPermanentDeleteTags(@RequestBody List<Long> ids) {
+        try {
+            boolean success = tagsService.batchPermanentDeleteTags(ids);
+            return handleOperationResult(success, "批量彻底删除标签成功", "批量彻底删除标签");
+        } catch (Exception e) {
+            return handleException(e, "批量彻底删除标签");
+        }
+    }
 }

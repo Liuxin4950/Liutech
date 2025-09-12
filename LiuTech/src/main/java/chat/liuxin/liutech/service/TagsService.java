@@ -244,4 +244,76 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
             return false;
         }
     }
+
+    /**
+     * 彻底删除标签（物理删除）
+     * 永久删除标签及其关联的文章标签关系
+     * 
+     * @param id 标签ID
+     * @return 是否删除成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean permanentDeleteTag(Long id) {
+        log.info("彻底删除标签 - 标签ID: {}", id);
+        
+        try {
+            if (id == null) {
+                return false;
+            }
+
+            // 先删除标签与文章的关联关系
+            LambdaQueryWrapper<PostTags> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(PostTags::getTagId, id);
+            int relationResult = postTagsMapper.delete(queryWrapper);
+            log.info("彻底删除标签关联关系数量: {}", relationResult);
+
+            // 物理删除标签（使用XML中的deleteBatchIds以确保物理删除）
+            int result = tagsMapper.deleteBatchIds(java.util.Collections.singletonList(id));
+            boolean success = result > 0;
+            log.info("彻底删除标签{} - 标签ID: {}", success ? "成功" : "失败", id);
+            return success;
+
+        } catch (Exception e) {
+            log.error("彻底删除标签失败 - 标签ID: {}, 错误: {}", id, e.getMessage(), e);
+            throw new RuntimeException("彻底删除标签失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量彻底删除标签（物理删除）
+     * 永久删除多个标签及其关联的文章标签关系
+     * 
+     * @param ids 标签ID列表
+     * @return 是否删除成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean batchPermanentDeleteTags(List<Long> ids) {
+        log.info("批量彻底删除标签 - 标签数量: {}", ids.size());
+        
+        try {
+            if (ids == null || ids.isEmpty()) {
+                return false;
+            }
+
+            // 先删除标签与文章的关联关系
+            LambdaQueryWrapper<PostTags> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.in(PostTags::getTagId, ids);
+            int relationResult = postTagsMapper.delete(queryWrapper);
+            log.info("批量彻底删除标签关联关系数量: {}", relationResult);
+
+            // 物理删除标签
+            int result = tagsMapper.deleteBatchIds(ids);
+            boolean success = result > 0;
+            log.info("批量彻底删除标签{} - 影响标签数: {}", success ? "成功" : "失败", ids.size());
+            return success;
+
+        } catch (Exception e) {
+            log.error("批量彻底删除标签失败 - 错误: {}", e.getMessage(), e);
+            throw new RuntimeException("批量彻底删除标签失败: " + e.getMessage());
+        }
+    }
 }

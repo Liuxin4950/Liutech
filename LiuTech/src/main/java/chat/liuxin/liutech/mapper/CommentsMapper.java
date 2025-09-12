@@ -73,4 +73,21 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      * @return 评论数量
      */
     Integer countAllComments();
+    
+    /**
+     * 根据文章ID物理删除所有评论
+     * @param postId 文章ID
+     * @return 影响行数
+     */
+    int deleteByPostId(@Param("postId") Long postId);
+
+    /**
+     * 先删除子评论（parent_id 非空）
+     */
+    int deleteChildrenByPostId(@Param("postId") Long postId);
+
+    /**
+     * 再删除顶级评论（parent_id 为空）
+     */
+    int deleteRootsByPostId(@Param("postId") Long postId);
 }

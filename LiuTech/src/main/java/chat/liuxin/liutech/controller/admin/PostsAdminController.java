@@ -210,4 +210,36 @@ public class PostsAdminController extends BaseAdminController {
             return handleException(e, "文章恢复");
         }
     }
+
+    /**
+     * 彻底删除文章（物理删除）
+     * 
+     * @param id 文章ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/{id}/permanent")
+    public Result<String> permanentDeletePost(@PathVariable Long id) {
+        try {
+            boolean success = postsService.permanentDeletePost(id);
+            return handleOperationResult(success, "文章彻底删除成功", "文章彻底删除");
+        } catch (Exception e) {
+            return handleException(e, "文章彻底删除");
+        }
+    }
+
+    /**
+     * 批量彻底删除文章（物理删除）
+     * 
+     * @param ids 文章ID列表
+     * @return 删除结果
+     */
+    @DeleteMapping("/batch/permanent")
+    public Result<String> batchPermanentDeletePosts(@RequestBody List<Long> ids) {
+        try {
+            boolean success = postsService.batchPermanentDeletePosts(ids);
+            return handleOperationResult(success, "批量彻底删除文章成功", "批量彻底删除文章");
+        } catch (Exception e) {
+            return handleException(e, "批量彻底删除文章");
+        }
+    }
 }

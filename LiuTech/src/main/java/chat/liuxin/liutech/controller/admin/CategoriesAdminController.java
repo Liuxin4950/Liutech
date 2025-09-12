@@ -158,4 +158,38 @@ public class CategoriesAdminController extends BaseAdminController {
         }
     }
 
+    /**
+     * 彻底删除分类（物理删除）
+     * 
+     * @param id 分类ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/{id}/permanent")
+    public Result<String> permanentDeleteCategory(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "分类ID");
+        try {
+            boolean success = categoriesService.permanentDeleteCategory(id);
+            return handleOperationResult(success, "分类彻底删除成功", "分类彻底删除");
+        } catch (Exception e) {
+            return handleException(e, "分类彻底删除");
+        }
+    }
+
+    /**
+     * 批量彻底删除分类（物理删除）
+     * 
+     * @param ids 分类ID列表
+     * @return 删除结果
+     */
+    @DeleteMapping("/batch/permanent")
+    public Result<String> batchPermanentDeleteCategories(@RequestBody List<Long> ids) {
+        ValidationUtil.validateNotEmpty(ids, "分类ID列表");
+        try {
+            boolean success = categoriesService.batchPermanentDeleteCategories(ids);
+            return handleOperationResult(success, "批量彻底删除分类成功", "批量彻底删除分类");
+        } catch (Exception e) {
+            return handleException(e, "批量彻底删除分类");
+        }
+    }
+
 }

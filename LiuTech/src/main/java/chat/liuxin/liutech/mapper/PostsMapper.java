@@ -260,4 +260,32 @@ public interface PostsMapper extends BaseMapper<Posts> {
      */
     Long countViewsByUserId(@Param("userId") Long userId);
 
+    /**
+     * 根据分类ID列表物理删除文章
+     * @param categoryIds 分类ID列表
+     * @return 影响的行数
+     */
+    int deletePostsByCategoryIds(@Param("categoryIds") List<Long> categoryIds);
+
+    /**
+     * 根据标签ID列表删除文章标签关联关系
+     * @param tagIds 标签ID列表
+     * @return 影响的行数
+     */
+    int deletePostTagsByTagIds(@Param("tagIds") List<Long> tagIds);
+
+    /**
+     * 根据文章ID物理删除文章
+     * @param id 文章ID
+     * @return 影响的行数
+     */
+    int permanentDeleteById(@Param("id") Long id);
+
+    /**
+     * 根据文章ID列表物理删除文章
+     * @param ids 文章ID列表
+     * @return 影响的行数
+     */
+    int permanentDeleteByIds(@Param("ids") List<Long> ids);
+
 }

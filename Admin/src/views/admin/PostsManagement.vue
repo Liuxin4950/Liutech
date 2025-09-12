@@ -285,6 +285,33 @@ const handleRestore = async (id: number) => {
   if (res.code === 200) { message.success('恢复成功'); loadPosts() } else { message.error(res.message || '恢复失败') }
 }
 
+// 彻底删除
+const handlePermanentDelete = async (id: number) => {
+  const res = await PostsService.permanentDeletePost(id)
+  if (res.code === 200) {
+    message.success('彻底删除成功')
+    loadPosts()
+  } else {
+    message.error(res.message || '彻底删除失败')
+  }
+}
+
+// 批量彻底删除
+const handleBatchPermanentDelete = async () => {
+  if (!selectedRowKeys.value.length) {
+    message.warning('请选择要彻底删除的文章')
+    return
+  }
+  const res = await PostsService.batchPermanentDeletePosts(selectedRowKeys.value)
+  if (res.code === 200) {
+    message.success('批量彻底删除成功')
+    selectedRowKeys.value = []
+    loadPosts()
+  } else {
+    message.error(res.message || '批量彻底删除失败')
+  }
+}
+
 const handleTableChange = (pagination: any) => {
   current.value = pagination.current
   pageSize.value = pagination.pageSize
@@ -390,7 +417,16 @@ onMounted(async () => {
     <a-card class="action-card" :bordered="false">
       <a-space>
         <a-button type="primary" @click="openCreate">新建文章</a-button>
-        <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">批量删除</a-button>
+        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">批量删除</a-button>
+        <a-popconfirm 
+          v-else
+          title="确定要彻底删除选中的文章吗？此操作不可恢复！" 
+          ok-text="确定" 
+          cancel-text="取消"
+          @confirm="handleBatchPermanentDelete"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+        </a-popconfirm>
       </a-space>
     </a-card>
 
@@ -436,6 +472,14 @@ onMounted(async () => {
               <template v-else>
                 <a-popconfirm title="确定恢复该文章吗？" @confirm="handleRestore(record.id)">
                   <a-button type="link" size="small">恢复</a-button>
+                </a-popconfirm>
+                <a-popconfirm 
+                  title="确定要彻底删除该文章吗？此操作不可恢复！" 
+                  ok-text="确定" 
+                  cancel-text="取消"
+                  @confirm="handlePermanentDelete(record.id)"
+                >
+                  <a-button type="link" size="small" danger>彻底删除</a-button>
                 </a-popconfirm>
               </template>
             </a-space>

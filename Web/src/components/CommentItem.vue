@@ -36,14 +36,14 @@
             {{ showReplyForm ? '取消回复' : '回复' }}
           </button>
           
-          <button 
+          <!-- <button 
             @click="toggleLike"
             class="action-btn like-btn"
             :class="{ 'liked': isLiked }"
           >
             <span class="icon">{{ isLiked ? '❤️' : '🤍' }}</span>
             <span class="count">{{ likeCount }}</span>
-          </button>
+          </button> -->
         </div>
         
         <!-- 回复表单 -->

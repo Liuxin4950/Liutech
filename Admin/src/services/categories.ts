@@ -82,6 +82,20 @@ export class CategoriesService {
   static async restoreCategory(id: number): Promise<ApiResponse<string>> {
     return put<string>(`${this.BASE_URL}/${id}/restore`)
   }
+
+  /**
+   * 彻底删除分类（物理删除）
+   */
+  static async permanentDeleteCategory(id: number): Promise<ApiResponse<string>> {
+    return del<string>(`${this.BASE_URL}/${id}/permanent`)
+  }
+
+  /**
+   * 批量彻底删除分类（物理删除）
+   */
+  static async batchPermanentDeleteCategories(ids: number[]): Promise<ApiResponse<string>> {
+    return del<string>(`${this.BASE_URL}/batch/permanent`, { data: ids })
+  }
 }
 
 // 导出默认实例

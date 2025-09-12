@@ -2,23 +2,33 @@ package chat.liuxin.liutech.service;
 
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import chat.liuxin.liutech.mapper.CategoriesMapper;
+import chat.liuxin.liutech.mapper.CommentsMapper;
+import chat.liuxin.liutech.mapper.PostFavoritesMapper;
+import chat.liuxin.liutech.mapper.PostLikesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
+import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.model.Categories;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.resl.CategoryResl;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.common.BusinessException;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Collections;
 
 /**
  * 分类服务类
@@ -32,6 +42,21 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     
     @Autowired
     private PostsMapper postsMapper;
+    
+    @Autowired
+    private PostFavoritesMapper postFavoritesMapper;
+    
+    @Autowired
+    private PostLikesMapper postLikesMapper;
+    
+    @Autowired
+    private CommentsMapper commentsMapper;
+    
+    @Autowired
+    private PostTagsMapper postTagsMapper;
+
+    @Autowired
+    private chat.liuxin.liutech.mapper.PostAttachmentsMapper postAttachmentsMapper;
 
     /**
      * 查询所有分类（包含文章数量）
@@ -202,6 +227,126 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
         } catch (Exception e) {
             log.error("恢复分类失败: {}", e.getMessage(), e);
             return false;
+        }
+    }
+
+    /**
+     * 彻底删除分类（物理删除）
+     * 永久删除分类及其关联的文章数据
+     * 
+     * @param id 分类ID
+     * @return 是否删除成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean permanentDeleteCategory(Long id) {
+        log.info("彻底删除分类 - 分类ID: {}", id);
+        
+        try {
+            if (id == null) {
+                return false;
+            }
+
+            // 获取该分类下的所有文章ID
+            List<Long> postIds = postsMapper.selectList(
+                new LambdaQueryWrapper<Posts>()
+                    .eq(Posts::getCategoryId, id)
+                    .select(Posts::getId)
+            ).stream().map(Posts::getId).collect(Collectors.toList());
+
+            if (!postIds.isEmpty()) {
+                // 按正确顺序删除文章的关联数据
+                for (Long postId : postIds) {
+                    // 删除文章收藏记录
+                    postFavoritesMapper.deleteByPostId(postId);
+                    // 删除文章点赞记录
+                    postLikesMapper.deleteByPostId(postId);
+                    // 删除文章评论
+                    // commentsMapper.deleteByPostId(postId);
+                    commentsMapper.deleteChildrenByPostId(postId);
+                    // 删除顶级评论
+                    commentsMapper.deleteRootsByPostId(postId);
+                    // 删除文章标签关联
+                    postTagsMapper.deleteByPostId(postId);
+                    // 删除文章附件关联
+                    postAttachmentsMapper.deleteByPostId(postId);
+                }
+                
+                // 物理删除该分类下的所有文章
+                postsMapper.permanentDeleteByIds(postIds);
+                log.info("彻底删除分类关联文章数量: {}", postIds.size());
+            }
+
+            // 物理删除分类
+            int result = categoriesMapper.deleteBatchIds(Collections.singletonList(id));
+            boolean success = result > 0;
+            log.info("彻底删除分类{} - 分类ID: {}", success ? "成功" : "失败", id);
+            return success;
+
+        } catch (Exception e) {
+            log.error("彻底删除分类失败 - 分类ID: {}, 错误: {}", id, e.getMessage(), e);
+            throw new RuntimeException("彻底删除分类失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量彻底删除分类（物理删除）
+     * 永久删除多个分类及其关联的文章数据
+     * 
+     * @param ids 分类ID列表
+     * @return 是否删除成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean batchPermanentDeleteCategories(List<Long> ids) {
+        log.info("批量彻底删除分类 - 分类数量: {}", ids.size());
+        
+        try {
+            if (ids == null || ids.isEmpty()) {
+                return false;
+            }
+
+            // 获取这些分类下的所有文章ID
+            List<Long> postIds = postsMapper.selectList(
+                new LambdaQueryWrapper<Posts>()
+                    .in(Posts::getCategoryId, ids)
+                    .select(Posts::getId)
+            ).stream().map(Posts::getId).collect(Collectors.toList());
+
+            if (!postIds.isEmpty()) {
+                // 按正确顺序删除文章的关联数据
+                for (Long postId : postIds) {
+                    // 删除文章收藏记录
+                    postFavoritesMapper.deleteByPostId(postId);
+                    // 删除文章点赞记录
+                    postLikesMapper.deleteByPostId(postId);
+                    // 删除文章评论
+                    // commentsMapper.deleteByPostId(postId);
+                    commentsMapper.deleteChildrenByPostId(postId);
+                    // 删除顶级评论
+                    commentsMapper.deleteRootsByPostId(postId);
+                    // 删除文章标签关联
+                    postTagsMapper.deleteByPostId(postId);
+                    // 删除文章附件关联
+                    postAttachmentsMapper.deleteByPostId(postId);
+                }
+                
+                // 物理删除这些分类下的所有文章
+                postsMapper.permanentDeleteByIds(postIds);
+                log.info("批量彻底删除分类关联文章数量: {}", postIds.size());
+            }
+
+            // 物理删除分类
+            int result = categoriesMapper.deleteBatchIds(ids);
+            boolean success = result > 0;
+            log.info("批量彻底删除分类{} - 影响分类数: {}", success ? "成功" : "失败", ids.size());
+            return success;
+
+        } catch (Exception e) {
+            log.error("批量彻底删除分类失败 - 错误: {}", e.getMessage(), e);
+            throw new RuntimeException("批量彻底删除分类失败: " + e.getMessage());
         }
     }
 }

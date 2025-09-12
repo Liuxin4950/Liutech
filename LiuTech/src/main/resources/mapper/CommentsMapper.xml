@@ -100,5 +100,20 @@
         FROM comments c
         WHERE c.deleted_at IS NULL
     </select>
+    
+    <!-- 根据文章ID物理删除所有评论（旧：单条SQL，可能触发自引用外键） -->
+    <delete id="deleteByPostId">
+        DELETE FROM comments WHERE post_id = #{postId}
+    </delete>
+
+    <!-- 先删除子评论（parent_id 非空） -->
+    <delete id="deleteChildrenByPostId">
+        DELETE FROM comments WHERE post_id = #{postId} AND parent_id IS NOT NULL
+    </delete>
+
+    <!-- 再删除顶级评论（parent_id 为空） -->
+    <delete id="deleteRootsByPostId">
+        DELETE FROM comments WHERE post_id = #{postId} AND parent_id IS NULL
+    </delete>
 
 </mapper>

@@ -82,6 +82,20 @@ export class TagsService {
   static async restoreTag(id: number): Promise<ApiResponse<string>> {
     return put<string>(`${this.BASE_URL}/${id}/restore`)
   }
+
+  /**
+   * 彻底删除标签（物理删除）
+   */
+  static async permanentDeleteTag(id: number): Promise<ApiResponse<string>> {
+    return del<string>(`${this.BASE_URL}/${id}/permanent`)
+  }
+
+  /**
+   * 批量彻底删除标签（物理删除）
+   */
+  static async batchPermanentDeleteTags(ids: number[]): Promise<ApiResponse<string>> {
+    return del<string>(`${this.BASE_URL}/batch/permanent`, { data: ids })
+  }
 }
 
 // 导出默认实例

@@ -56,5 +56,10 @@
         is_favorite = #{status},
         updated_at = NOW()
     </insert>
+    
+    <!-- 根据文章ID删除所有收藏记录 -->
+    <delete id="deleteByPostId">
+        DELETE FROM post_favorites WHERE post_id = #{postId}
+    </delete>
 
 </mapper>

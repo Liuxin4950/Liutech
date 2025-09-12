@@ -646,9 +646,9 @@ background-color: var(--bg-main);
 }
 
 .action-btn.liked, .action-btn.favorited {
-  background: var(--primary);
+  background: var(--color-primary);
   color: #fff;
-  border-color: var(--primary);
+  border-color: var(--color-primary);
 }
 
 .action-info {

@@ -62,4 +62,11 @@ public interface PostLikesMapper extends BaseMapper<PostLikes> {
      * @return 影响行数
      */
     int insertOrUpdateLike(@Param("userId") Long userId, @Param("postId") Long postId, @Param("status") int status);
+    
+    /**
+     * 根据文章ID删除所有点赞记录
+     * @param postId 文章ID
+     * @return 影响行数
+     */
+    int deleteByPostId(@Param("postId") Long postId);
 }

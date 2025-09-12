@@ -117,6 +117,19 @@ const handleRestore = async (id: number) => {
   const res = await CategoriesService.restoreCategory(id)
   if (res.code === 200) { message.success('恢复成功'); loadCategories() } else { message.error(res.message || '恢复失败') }
 }
+
+// 彻底删除
+const handlePermanentDelete = async (id: number) => {
+  const res = await CategoriesService.permanentDeleteCategory(id)
+  if (res.code === 200) { message.success('彻底删除成功'); loadCategories() } else { message.error(res.message || '彻底删除失败') }
+}
+
+// 批量彻底删除
+const handleBatchPermanentDelete = async () => {
+  if (!selectedRowKeys.value.length) { message.warning('请选择要彻底删除的分类'); return }
+  const res = await CategoriesService.batchPermanentDeleteCategories(selectedRowKeys.value)
+  if (res.code === 200) { message.success('批量彻底删除成功'); selectedRowKeys.value = []; loadCategories() } else { message.error(res.message || '批量彻底删除失败') }
+}
 const handleTableChange = (p: any) => { current.value = p.current; pageSize.value = p.pageSize; loadCategories() }
 const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
 
@@ -158,7 +171,16 @@ onMounted(() => { loadCategories() })
     <a-card class="action-card" :bordered="false">
       <a-space>
         <a-button type="primary" @click="openCreate">新建分类</a-button>
-        <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">批量删除</a-button>
+        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">批量删除</a-button>
+        <a-popconfirm 
+          v-if="searchParams.includeDeleted"
+          title="确定要批量彻底删除选中的分类吗？此操作不可恢复！" 
+          ok-text="确定" 
+          cancel-text="取消"
+          @confirm="handleBatchPermanentDelete"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+        </a-popconfirm>
       </a-space>
     </a-card>
 
@@ -189,6 +211,14 @@ onMounted(() => { loadCategories() })
               <template v-else>
                 <a-popconfirm title="确定恢复该分类吗？" @confirm="handleRestore(record.id)">
                   <a-button type="link" size="small">恢复</a-button>
+                </a-popconfirm>
+                <a-popconfirm 
+                  title="确定要彻底删除该分类吗？此操作不可恢复！" 
+                  ok-text="确定" 
+                  cancel-text="取消"
+                  @confirm="handlePermanentDelete(record.id)"
+                >
+                  <a-button type="link" size="small" danger>彻底删除</a-button>
                 </a-popconfirm>
               </template>
             </a-space>

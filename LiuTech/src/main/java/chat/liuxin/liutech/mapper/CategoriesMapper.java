@@ -49,4 +49,11 @@ public interface CategoriesMapper extends BaseMapper<Categories> {
      * @return 影响的行数
      */
     int restoreCategoryById(@Param("id") Long id);
+
+    /**
+     * 根据ID列表物理删除分类
+     * @param ids 分类ID列表
+     * @return 影响的行数
+     */
+    int deleteBatchIds(@Param("ids") List<Long> ids);
 }

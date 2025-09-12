@@ -66,4 +66,11 @@ public interface PostAttachmentsMapper extends BaseMapper<PostAttachments> {
      * @return 删除行数
      */
     int deleteByResourceId(@Param("resourceId") Long resourceId);
+
+    /**
+     * 根据文章ID删除附件关联记录
+     * @param postId 文章ID
+     * @return 删除行数
+     */
+    int deleteByPostId(@Param("postId") Long postId);
 }

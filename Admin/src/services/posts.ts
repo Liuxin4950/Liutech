@@ -170,6 +170,20 @@ export class PostsService {
   static async restorePost(id: number): Promise<ApiResponse<string>> {
     return put<string>(`${this.BASE_URL}/${id}/restore`)
   }
+
+  /**
+   * 彻底删除文章（物理删除）
+   */
+  static async permanentDeletePost(id: number): Promise<ApiResponse<string>> {
+    return del<string>(`${this.BASE_URL}/${id}/permanent`)
+  }
+
+  /**
+   * 批量彻底删除文章（物理删除）
+   */
+  static async batchPermanentDeletePosts(ids: number[]): Promise<ApiResponse<string>> {
+    return del<string>(`${this.BASE_URL}/batch/permanent`, { data: ids })
+  }
 }
 
 // 导出默认实例

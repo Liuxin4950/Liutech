@@ -77,4 +77,11 @@ public interface TagsMapper extends BaseMapper<Tags> {
      * @return 影响的行数
      */
     int restoreTagById(@Param("id") Long id);
+
+    /**
+     * 根据ID列表物理删除标签
+     * @param ids 标签ID列表
+     * @return 影响的行数
+     */
+    int deleteBatchIds(@Param("ids") List<Long> ids);
 }

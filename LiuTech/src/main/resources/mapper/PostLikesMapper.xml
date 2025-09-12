@@ -56,5 +56,10 @@
         is_like = #{status},
         updated_at = NOW()
     </insert>
+    
+    <!-- 根据文章ID删除所有点赞记录 -->
+    <delete id="deleteByPostId">
+        DELETE FROM post_likes WHERE post_id = #{postId}
+    </delete>
 
 </mapper>

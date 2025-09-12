@@ -38,6 +38,8 @@ import chat.liuxin.liutech.resl.PostDetailResl;
 import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.model.Comments;
+import chat.liuxin.liutech.mapper.CommentsMapper;
 
 /**
  * 文章服务类
@@ -67,6 +69,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     
     @Autowired
     private ResourceDownloadService resourceDownloadService;
+
+    @Autowired
+    private CommentsMapper commentsMapper;
 
     /**
      * 分页查询文章列表（公开接口）
@@ -962,6 +967,105 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             return result > 0;
         } catch (Exception e) {
             log.error("恢复文章失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 彻底删除文章（物理删除）
+     * @param id 文章ID
+     * @param updatedBy 操作者ID
+     */
+    @Transactional
+    public void permanentDeletePost(Long id, Long updatedBy) {
+        if (id == null) {
+            throw new IllegalArgumentException("文章ID不能为空");
+        }
+
+        try {
+            // 删除文章的所有关联数据
+            // 删除文章收藏记录
+            postFavoritesMapper.deleteByPostId(id);
+            // 删除文章点赞记录
+            postLikesMapper.deleteByPostId(id);
+            // 删除文章评论
+            // commentsMapper.deleteByPostId(id);
+            commentsMapper.deleteChildrenByPostId(id);
+            // 删除顶级评论
+            commentsMapper.deleteRootsByPostId(id);
+            // 删除文章标签关联
+            postTagsMapper.deleteByPostId(id);
+            // 删除文章附件关联
+            postAttachmentsMapper.deleteByPostId(id);
+
+            // 物理删除文章
+            int result = postsMapper.permanentDeleteById(id);
+            if (result <= 0) {
+                throw new RuntimeException("文章删除失败，可能文章不存在");
+            }
+
+            log.info("彻底删除文章成功，文章ID: {}, 操作者: {}", id, updatedBy);
+        } catch (Exception e) {
+            log.error("彻底删除文章失败，文章ID: {}, 操作者: {}, 错误: {}", id, updatedBy, e.getMessage(), e);
+            throw new RuntimeException("彻底删除文章失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 批量彻底删除文章（物理删除）
+     * @param ids 文章ID列表
+     * @param updatedBy 操作者ID
+     */
+    @Transactional
+    public void batchPermanentDeletePosts(java.util.List<Long> ids, Long updatedBy) {
+        if (ids == null || ids.isEmpty()) {
+            throw new IllegalArgumentException("文章ID列表不能为空");
+        }
+
+        try {
+            // 删除文章的所有关联数据（按正确顺序）
+            for (Long postId : ids) {
+                // 删除文章收藏记录
+                postFavoritesMapper.deleteByPostId(postId);
+                // 删除文章点赞记录
+                postLikesMapper.deleteByPostId(postId);
+                // 删除文章评论
+                // commentsMapper.deleteByPostId(postId);
+                commentsMapper.deleteChildrenByPostId(postId);
+                // 删除顶级评论
+                commentsMapper.deleteRootsByPostId(postId);
+                // 删除文章标签关联
+                postTagsMapper.deleteByPostId(postId);
+                // 删除文章附件关联
+                postAttachmentsMapper.deleteByPostId(postId);
+            }
+
+            // 批量物理删除文章
+            postsMapper.permanentDeleteByIds(ids);
+
+            log.info("批量彻底删除文章成功，文章ID: {}, 操作者: {}", ids, updatedBy);
+        } catch (Exception e) {
+            log.error("批量彻底删除文章失败，文章ID: {}, 操作者: {}, 错误: {}", ids, updatedBy, e.getMessage(), e);
+            throw new RuntimeException("批量彻底删除文章失败: " + e.getMessage(), e);
+        }
+    }
+    
+    @Transactional
+    public boolean permanentDeletePost(Long id) {
+        try {
+            this.permanentDeletePost(id, null);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Transactional
+    public boolean batchPermanentDeletePosts(java.util.List<Long> ids) {
+        try {
+            this.batchPermanentDeletePosts(ids, null);
+            return true;
+        } catch (Exception e) {
             return false;
         }
     }

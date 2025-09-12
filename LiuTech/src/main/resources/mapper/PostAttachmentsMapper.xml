@@ -85,4 +85,10 @@
         WHERE resource_id = #{resourceId}
     </delete>
 
+    <!-- 根据文章ID删除附件关联记录 -->
+    <delete id="deleteByPostId">
+        DELETE FROM post_attachments 
+        WHERE post_id = #{postId}
+    </delete>
+
 </mapper>
