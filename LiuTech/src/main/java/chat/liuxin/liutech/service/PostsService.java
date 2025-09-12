@@ -24,7 +24,6 @@ import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.mapper.PostLikesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
-import chat.liuxin.liutech.service.ResourceDownloadService;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.PostTags;
 import chat.liuxin.liutech.model.PostLikes;
@@ -38,7 +37,6 @@ import chat.liuxin.liutech.resl.PostDetailResl;
 import chat.liuxin.liutech.resl.PostListResl;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.BusinessException;
-import chat.liuxin.liutech.model.Comments;
 import chat.liuxin.liutech.mapper.CommentsMapper;
 
 /**

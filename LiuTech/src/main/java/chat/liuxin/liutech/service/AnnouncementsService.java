@@ -408,15 +408,6 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         return queryWrapper;
     }
 
-    /**
-     * 构建公告查询条件（兼容旧方法）
-     * @param status 状态筛选
-     * @param type 类型筛选
-     * @return 查询条件
-     */
-    private QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type) {
-        return buildAnnouncementQueryWrapper(status, type, false);
-    }
 
     /**
      * 验证公告请求数据

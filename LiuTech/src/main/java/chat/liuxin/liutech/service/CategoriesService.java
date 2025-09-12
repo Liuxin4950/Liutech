@@ -24,9 +24,6 @@ import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.resl.CategoryResl;
 import chat.liuxin.liutech.resl.PageResl;
 import chat.liuxin.liutech.common.BusinessException;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Collections;
 
