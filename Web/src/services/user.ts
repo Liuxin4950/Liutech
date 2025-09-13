@@ -265,6 +265,20 @@ export class UserService {
       throw error
     }
   }
+
+  /**
+   * 获取网站作者资料
+   * @returns Promise<ProfileInfo>
+   */
+  static async getAuthorProfile(): Promise<ProfileInfo> {
+    try {
+      const response = await get<ProfileInfo>('/user/author/profile')
+      return response.data
+    } catch (error) {
+      console.error('获取网站作者资料失败', error)
+      throw error
+    }
+  }
 }
 
 // 导出便捷方法

@@ -9,6 +9,7 @@ import BottomNavigation from '@/components/BottomNavigation.vue'
 import Live2d from '@/components/Live2d.vue'
 // 全局页面加载（作者：刘鑫，修改时间：2025-08-26 16:01:05 +08:00）
 import GlobalPageLoader from '../components/GlobalPageLoader.vue'
+import AiChat from "@/components/AiChat.vue";
 
 const showLoader = ref(false)
 const router = useRouter()
@@ -21,31 +22,31 @@ onMounted(() => {
   // 页面加载时立即显示加载动画
   showLoader.value = true
   if (timer) { window.clearTimeout(timer) }
-  
+
   // 兜底 3s 自动结束
-  timer = window.setTimeout(() => { 
+  timer = window.setTimeout(() => {
     showLoader.value = false
-    timer = null 
+    timer = null
   }, 3000)
-  
+
   // 正常完成后，保证至少 1.6s 的可见时长
   const MIN = 1600
   const start = performance.now()
   const end = () => {
     const elapsed = performance.now() - start
     const remain = Math.max(0, MIN - elapsed)
-    window.setTimeout(() => { 
+    window.setTimeout(() => {
       showLoader.value = false
-      if (timer) { 
+      if (timer) {
         window.clearTimeout(timer)
-        timer = null 
+        timer = null
       }
     }, remain)
   }
-  
+
   // 延迟执行结束逻辑
   window.setTimeout(end, 100)
-  
+
   // 设置路由守卫，后续路由跳转不显示加载动画
   router.beforeEach((to, from, next) => {
     // 如果不是首次加载，则不显示加载动画
@@ -58,6 +59,14 @@ onMounted(() => {
   })
 })
 
+//显示/隐藏
+const showChat = ref(false)
+
+const toggleChat = () =>{
+  showChat.value = !showChat.value
+}
+
+
 </script>
 
 <template>
@@ -66,7 +75,14 @@ onMounted(() => {
     <main class="main-content">
       <Banner class="banner" />
       <Breadcrumb />
-      <Live2d class="live2d"></Live2d>
+      
+      <div class="ai-content">
+        <div class="ai-box">
+        <Live2d @click="toggleChat" class="live2d"></Live2d>
+        <AiChat v-show="showChat" class="ai-chat"></AiChat>
+        </div>
+      </div>
+      
       <router-view />
     </main>
     <TheFooter />
@@ -87,12 +103,27 @@ onMounted(() => {
 .banner{
   height: 300px;
 }
-.live2d{
+.ai-content{
+  width: 400px ;
+  height: 400px ;
   position: fixed;
   bottom: 0;
   right: 0;
-  width: 400px;
-  height: 400px;
   z-index: 10;
+}
+.ai-box,.live2d{
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+
+.ai-chat{
+  position: absolute;
+  top: -100px;
+  left: 0;
+  transform: translateX(-400px);
+  z-index: 11;
+
 }
 </style>

@@ -2,16 +2,16 @@
   <div class="card">
     <div class="card-title">🔍 文章搜索</div>
     <div class="search-container">
-      <input 
-        v-model="searchKeyword" 
-        type="text" 
+      <input
+        v-model="searchKeyword"
+        type="text"
         placeholder="搜索文章标题、内容或摘要..."
         class="search-input"
         @keyup.enter="handleSearch"
         @input="handleInput"
       >
-      <button 
-        @click="handleSearch" 
+      <button
+        @click="handleSearch"
         class="search-btn"
         :disabled="!searchKeyword.trim() || isSearching"
       >
@@ -19,26 +19,26 @@
         <span v-else>🔍</span>
       </button>
     </div>
-    
+
     <!-- 搜索结果 -->
     <div v-if="showResults" class="search-results">
       <div v-if="isSearching" class="loading-text">搜索中...</div>
-      
+
       <div v-else-if="searchError" class="error-text">
         <p>{{ searchError }}</p>
         <button @click="handleSearch" class="retry-btn">重试</button>
       </div>
-      
+
       <div v-else-if="searchResults.length === 0" class="empty-text">
         没有找到相关文章
       </div>
-      
+
       <div v-else class="results-list">
         <div class="results-header">
           <span class="results-count">找到 {{ totalResults }} 篇相关文章</span>
           <button @click="clearSearch" class="clear-btn">清除</button>
         </div>
-        
+
         <div class="list gap-8">
           <article
             v-for="post in searchResults"
@@ -54,11 +54,11 @@
             </div>
           </article>
         </div>
-        
+
         <!-- 分页 -->
         <div v-if="totalPages > 1" class="pagination">
-          <button 
-            v-for="page in totalPages" 
+          <button
+            v-for="page in totalPages"
             :key="page"
             @click="goToPage(page)"
             :class="['page-btn', { active: page === currentPage }]"
@@ -72,10 +72,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref,  } from 'vue'
 import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
-import type { PostListItem, PageResponse } from '@/services/post'
+import type { PostListItem,  } from '@/services/post'
 import { formatDate } from '@/utils/uitls'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 
@@ -103,13 +103,13 @@ const handleInput = () => {
   if (searchTimeout) {
     clearTimeout(searchTimeout)
   }
-  
+
   // 如果输入为空，隐藏结果
   if (!searchKeyword.value.trim()) {
     showResults.value = false
     return
   }
-  
+
   // 防抖搜索
   searchTimeout = setTimeout(() => {
     handleSearch()
@@ -123,22 +123,22 @@ const handleSearch = async () => {
     showResults.value = false
     return
   }
-  
+
   try {
     isSearching.value = true
     searchError.value = ''
     showResults.value = true
-    
+
     const response = await PostService.getPostList({
       keyword,
       page: currentPage.value,
       size: pageSize
     })
-    
+
     searchResults.value = response.records
     totalResults.value = response.total
     totalPages.value = response.pages
-    
+
   } catch (error) {
     console.error('搜索失败:', error)
     searchError.value = '搜索失败，请稍后重试'
@@ -169,7 +169,7 @@ const clearSearch = () => {
   currentPage.value = 1
   totalPages.value = 0
   searchError.value = ''
-  
+
   if (searchTimeout) {
     clearTimeout(searchTimeout)
     searchTimeout = null

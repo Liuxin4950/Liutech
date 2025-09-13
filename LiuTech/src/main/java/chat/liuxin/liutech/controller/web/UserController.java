@@ -233,6 +233,22 @@ public class UserController {
         return Result.success("获取个人资料成功", profile);
     }
 
+    /**
+     * 获取个人资料接口
+     * 用于首页个人信息卡片展示
+     * 
+     * @return 个人资料信息
+     */
+    @GetMapping("/author/profile")
+    public Result<ProfileResl> getAuthorProfile() {
+        log.info("收到获取网站作者资料请求");
+        ProfileResl profile = userProfileService.getDefaultProfile();
+        log.info("获取网站作者资料成功");
+        return Result.success("获取网站作者资料成功", profile);
+    }
+
+    
+
     
 
 

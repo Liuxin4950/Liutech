@@ -8,6 +8,17 @@
             "mainClass": "chat.liuxin.liutech.LiuTechApplication",
             "projectName": "liutech-backend",
             "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=56010 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dspring.jmx.enabled=true -Djava.rmi.server.hostname=localhost -Dspring.application.admin.enabled=true -Dspring.boot.project.name=liutech-backend"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-LiuTechAiApplication<liutech-ai>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "chat.liuxin.ai.LiuTechAiApplication",
+            "projectName": "liutech-ai",
+            "args": "",
             "envFile": "${workspaceFolder}/.env"
         }
     ]

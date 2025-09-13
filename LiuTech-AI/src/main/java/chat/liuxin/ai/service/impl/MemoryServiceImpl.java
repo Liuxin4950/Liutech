@@ -47,6 +47,31 @@ public class MemoryServiceImpl implements MemoryService {
     }
 
     /**
+     * 分页查询某用户的聊天历史记录（按创建时间倒序）
+     */
+    @Override
+    public List<AiChatMessage> listHistoryMessages(String userId, int page, int size) {
+        if (page < 1 || size <= 0) return Collections.emptyList();
+        int offset = (page - 1) * size;
+        return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getUserId, userId)
+                .orderByDesc(AiChatMessage::getCreatedAt)
+                .orderByDesc(AiChatMessage::getId)
+                .last("LIMIT " + offset + ", " + size)
+        );
+    }
+
+    /**
+     * 查询某用户的聊天历史记录总数
+     */
+    @Override
+    public long countHistoryMessages(String userId) {
+        return messageMapper.selectCount(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getUserId, userId)
+        );
+    }
+
+    /**
      * 保存一条用户消息（role=user，status固定1）
      */
     @Override

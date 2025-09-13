@@ -137,7 +137,7 @@ const postsPagination = ref({
 
 // 个人资料数据
 const profileInfo = ref<ProfileInfo>({
-  name: '刘鑫',
+  name: 'LiuTech',
   title: '全栈工程师',
   avatar: '/default-avatar.svg',
   bio: '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。',
@@ -273,11 +273,11 @@ const goToAnnouncements = () => {
   console.log('跳转到公告列表页面')
 }
 
-// 加载个人资料
+// 加载作者(开发者)个人资料
 const loadProfile = async () => {
   await handleAsync(async () => {
     profileLoading.value = true
-    const response = await UserService.getProfile()
+    const response = await UserService.getAuthorProfile()
     profileInfo.value = response
   }, {
     onError: (err) => {

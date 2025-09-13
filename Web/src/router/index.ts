@@ -122,6 +122,14 @@ const routes: RouteRecordRaw[] = [
           title: '关于我',
           section: 'about'
         }
+      },
+      {
+        path: 'chat-history',
+        name: 'chat-history',
+        component: () => import('../components/ChatHistory.vue'),
+        meta: {
+          title: '聊天历史记录'
+        }
       }
     ]
   },
@@ -169,7 +177,7 @@ router.beforeEach((to, from, next) => {
   document.title = `${to.meta.title || '博客'} - MyBlog`
   
   // 需要登录的页面
-  const requiresAuth = ['create-post', 'drafts', 'my-posts', 'profile']
+  const requiresAuth = ['create-post', 'drafts', 'my-posts', 'profile', 'chat-history']
   
   // 检查是否需要登录
   if (requiresAuth.includes(to.name as string)) {

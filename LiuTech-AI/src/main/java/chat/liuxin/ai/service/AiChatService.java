@@ -18,11 +18,15 @@ public interface AiChatService {
 
     /**
      * 1) 普通聊天：一次性返回完整AI回复
+     * @param request 聊天请求
+     * @param userId 用户ID（从JWT解析获得）
      */
-    ChatResponse processChat(ChatRequest request);
+    ChatResponse processChat(ChatRequest request, Long userId);
 
     /**
      * 2) 流式聊天：通过SSE按块推送AI回复
+     * @param request 聊天请求
+     * @param userId 用户ID（从JWT解析获得）
      */
-    SseEmitter processChatStream(ChatRequest request);
+    SseEmitter processChatStream(ChatRequest request, Long userId);
 }

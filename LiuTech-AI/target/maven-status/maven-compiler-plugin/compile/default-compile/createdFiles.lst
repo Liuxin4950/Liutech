@@ -1,0 +1,16 @@
+chat\liuxin\ai\utils\JwtUtil.class
+chat\liuxin\ai\service\AiChatService.class
+chat\liuxin\ai\req\ChatRequest.class
+chat\liuxin\ai\mapper\AiChatMessageMapper.class
+chat\liuxin\ai\filter\JwtAuthenticationFilter.class
+chat\liuxin\ai\service\impl\MemoryServiceImpl.class
+chat\liuxin\ai\entity\AiChatMessage.class
+chat\liuxin\ai\LiuTechAiApplication.class
+chat\liuxin\ai\controller\AiChatController.class
+chat\liuxin\ai\resp\ChatHistoryResponse$ChatHistoryResponseBuilder.class
+chat\liuxin\ai\resp\ChatHistoryResponse.class
+chat\liuxin\ai\resp\ChatResponse.class
+chat\liuxin\ai\resp\ChatResponse$ChatResponseBuilder.class
+chat\liuxin\ai\service\MemoryService.class
+chat\liuxin\ai\service\impl\AiChatServiceImpl.class
+chat\liuxin\ai\config\SecurityConfig.class

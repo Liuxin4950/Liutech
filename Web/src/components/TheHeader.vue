@@ -142,6 +142,7 @@ onUnmounted(() => {
               <li @click="navigateTo('/profile')" class="transition link">个人资料</li>
               <li @click="navigateTo('/my-posts')" class="transition link">我的文章</li>
               <li @click="navigateTo('/drafts')" class="transition link">草稿箱</li>
+              <li @click="navigateTo('/chat-history')" class="transition link">聊天历史</li>
               <li @click="navigateTo('/settings')" class="transition link">设置</li>
               <li @click="handleLogout" class="transition link border-t text-danger">退出登录</li>
             </ul>

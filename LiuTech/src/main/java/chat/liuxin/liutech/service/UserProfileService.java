@@ -248,9 +248,9 @@ public class UserProfileService {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    private ProfileResl getDefaultProfile() {
+    public ProfileResl getDefaultProfile() {
         ProfileResl profile = new ProfileResl();
-        profile.setName("访客");
+        profile.setName("LiuTech");
         profile.setTitle("欢迎访问");
         profile.setAvatar("/default-avatar.svg");
         profile.setBio("欢迎来到我的博客！这里分享技术文章、编程心得和生活感悟。");

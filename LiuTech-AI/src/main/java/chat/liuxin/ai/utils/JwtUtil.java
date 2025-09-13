@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.utils;
+package chat.liuxin.ai.utils;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -22,13 +22,13 @@ import java.util.Map;
 public class JwtUtil {
 
     /**
-     * JWT密钥 - 从配置文件中读取
+     * JWT密钥 - 从配置文件读取
      */
     @Value("${jwt.secret}")
     private String secretKey;
     
     /**
-     * token过期时间 - 从配置文件中读取
+     * token过期时间 - 从配置文件读取
      */
     @Value("${jwt.expiration}")
     private long expirationTime;
@@ -129,9 +129,8 @@ public class JwtUtil {
      */
     private Claims getClaimsFromToken(String token) {
         try {
-            return Jwts.parserBuilder()
+            return Jwts.parser()
                     .setSigningKey(getSigningKey())
-                    .build()
                     .parseClaimsJws(token)
                     .getBody();
         } catch (ExpiredJwtException e) {
