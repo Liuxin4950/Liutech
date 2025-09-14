@@ -85,13 +85,16 @@ public class SecurityConfig {
                 // 预检请求必须放行
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 
-                // AI聊天接口需要认证
+                // AI聊天接口需要认证 - 需要有效的JWT Token
                 .requestMatchers("/ai/**").authenticated()
                 
-                // 健康检查接口可以公开访问
+                // 健康检查接口可以公开访问 - 无需Token认证
                 .requestMatchers("/health", "/actuator/**").permitAll()
                 
-                // 其他所有请求都需要认证
+                // 静态资源文件可以公开访问 - 无需Token认证
+                .requestMatchers("/static/**").permitAll()
+                
+                // 其他所有请求都需要认证 - 需要有效的JWT Token
                 .anyRequest().authenticated()
             )
             // 添加JWT认证过滤器

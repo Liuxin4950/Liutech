@@ -1,6 +1,6 @@
 <template>
     <div class="container">
-        <canvas id="canvas"></canvas>
+        <canvas @click="playTestAudio" id="canvas"></canvas>
     </div>
 </template>
 
@@ -11,7 +11,8 @@
  * 作者: 刘鑫
  * 功能: 纯净的Live2D模型展示，支持基本交互和拖拽
  */
-import { onMounted } from 'vue';
+import { onMounted ,watch } from 'vue';
+import { ref } from 'vue';
 
 // 声明全局变量类型
 declare global {
@@ -32,6 +33,10 @@ let model: any = null;
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 
+// 音频播放状态
+const isAuto = ref<boolean>(true);//音频是否空闲
+let audioQueue = ref<string[]>([]); // 音频队列
+
 // 拖拽事件处理
 function onPointerDown(event: any) {
     isDragging = true;
@@ -39,7 +44,7 @@ function onPointerDown(event: any) {
     dragOffset.x = position.x - event.currentTarget.x;
     dragOffset.y = position.y - event.currentTarget.y;
 }
-
+// 鼠标移动事件处理
 function onPointerMove(event: any) {
     if (isDragging) {
         const position = event.data.getLocalPosition(event.currentTarget.parent);
@@ -47,9 +52,82 @@ function onPointerMove(event: any) {
         event.currentTarget.y = position.y - dragOffset.y;
     }
 }
-
+// 鼠标松开事件处理
 function onPointerUp() {
     isDragging = false;
+}
+//
+//播放音频，同步模型嘴部。
+function talk(audioPath:string) {
+    return new Promise((resolve, reject) => {
+        isAuto.value = false; // 播放开始
+        const audioChecker = new Audio(audioPath); // 用于判断播放完成
+
+        audioChecker.volume = 0; // 静音，用于检测播放状态
+        audioChecker.crossOrigin = "anonymous";
+
+        // 播放结束
+        audioChecker.onended = () => {
+            isAuto.value = true;
+            resolve(void 0);
+        };
+
+        // 播放失败
+        audioChecker.onerror = (err) => {
+            console.error("检测音频播放出错：", err);
+            isAuto.value = true; // 即使失败也恢复状态
+            reject(err);
+        };
+
+        // 播放检测对象
+        audioChecker.play().catch((err) => {
+            console.error("检测音频无法播放：", err);
+            isAuto.value = true;
+            reject(err);
+        });
+        let exp = Math.floor(Math.random() * 10) + 1;
+        // 实际播放音频
+        model.speak(audioPath, {
+            volume: 1,
+            expression: exp,
+            resetExpression: true,
+            crossOrigin: "anonymous",
+        });
+    });
+}
+
+// 监听队列播放音频
+watch(
+    audioQueue,
+    async () => {
+        // 队列非空且当前没有在播放时触发播放
+        if (audioQueue.value.length > 0 && isAuto.value) {
+            const audioPath = "http://127.0.0.1:8081" + `${audioQueue.value[0]}`;
+            try {
+                console.log("正在播放", audioPath);
+                isAuto.value = false;
+                await talk(audioPath); // 等待播放完成
+                audioQueue.value.shift(); // 播放完成后移除队列
+                isAuto.value = true;
+            } catch (error) {
+                console.error("音频播放失败：", error);
+                audioQueue.value.shift(); // 出现错误也移除队列
+                isAuto.value = true;
+            }
+        }
+    },
+    { deep: true }
+);
+
+// 播放测试音频
+function playTestAudio() {
+    // 判断是否已经有音频在播放了
+    if (!isAuto.value) {
+        return;
+    }
+    console.log("播放");
+    
+    audioQueue.value.push("/static/毕业旅行.flac");
 }
 
 onMounted(() => {
@@ -168,6 +246,8 @@ onMounted(() => {
     // 开始初始化
     initLive2D();
 });
+
+
 </script>
 
 <style lang="scss" scoped>

@@ -6,7 +6,7 @@ import { ref, nextTick, onUnmounted, onMounted } from 'vue'
  * AI聊天组件
  * 作者：刘鑫
  * 时间：2025-01-27
- * 功能：支持普通聊天和流式聊天，显示历史记录
+ * 功能：支持普通聊天，显示历史记录
  */
 
 // 消息类型定义
@@ -42,12 +42,12 @@ let statusCheckInterval: number | null = null
 const checkAiStatus = async () => {
   try {
     if (connectionStatus.value === 'connecting') return
-    
+
     connectionStatus.value = 'connecting'
     const response = await Ai.chatStatus()
     console.log('AI服务状态:', response);
-    
-    
+
+
     if (response) {
       connectionStatus.value = 'connected'
       errorMessage.value = ''
@@ -66,7 +66,7 @@ const checkAiStatus = async () => {
 const startStatusCheck = () => {
   // 立即检查一次
   checkAiStatus()
-  
+
   // 每60秒检查一次
   statusCheckInterval = window.setInterval(checkAiStatus, 60000)
 }
@@ -97,11 +97,11 @@ const sendChat = async () => {
     timestamp: new Date(),
     status: 'sending' as const
   }
-  
+
   messages.value.push(userMessage)
   const messageContent = chatInput.value.trim()
   chatInput.value = ''
-  
+
   // 模拟发送状态变化
   setTimeout(() => {
     const messageIndex = messages.value.findIndex(msg => msg.id === userMessage.id)
@@ -109,21 +109,21 @@ const sendChat = async () => {
       messages.value[messageIndex].status = 'sent'
     }
   }, 500)
-  
+
   // 滚动到底部
   await scrollToBottom()
-  
+
   try {
     isLoading.value = true
     connectionStatus.value = 'connecting'
     errorMessage.value = ''
-    
+
     const request: AiChatRequest = {
       message: messageContent
     }
-    
+
     const response: AiChatResponse = await Ai.chat(request)
-    
+
     // 添加AI回复消息
     const aiMessage = {
       id: ++messageIdCounter,
@@ -131,12 +131,12 @@ const sendChat = async () => {
       content: response.message || '抱歉，我现在无法回复。',
       timestamp: new Date()
     }
-    
+
     messages.value.push(aiMessage)
     connectionStatus.value = 'connected'
     retryCount.value = 0
     await scrollToBottom()
-    
+
   } catch (error) {
     console.error('发送聊天消息失败:', error)
     connectionStatus.value = 'error'
@@ -156,7 +156,7 @@ const sendChat = async () => {
 // 处理聊天错误
 const handleChatError = (error: any, originalMessage: string) => {
   let errorMsg = '发送消息失败'
-  
+
   if (error.code === 'NETWORK_ERROR' || !navigator.onLine) {
     errorMsg = '网络连接失败，请检查网络设置'
   } else if (error.status === 429) {
@@ -166,9 +166,9 @@ const handleChatError = (error: any, originalMessage: string) => {
   } else if (error.status === 503) {
     errorMsg = '服务暂时不可用，请稍后重试'
   }
-  
+
   errorMessage.value = errorMsg
-  
+
   // 添加错误消息到聊天记录
   const errorChatMessage = {
     id: ++messageIdCounter,
@@ -178,7 +178,7 @@ const handleChatError = (error: any, originalMessage: string) => {
     isError: true
   }
   messages.value.push(errorChatMessage)
-  
+
   // 如果重试次数未达到上限，显示重试选项
   if (retryCount.value < maxRetries) {
     showRetryOption(originalMessage)
@@ -202,13 +202,13 @@ const showRetryOption = (originalMessage: string) => {
 const retryMessage = async (retryData: any) => {
   retryCount.value++
   chatInput.value = retryData.message
-  
+
   // 移除重试消息
   const retryIndex = messages.value.findIndex(msg => msg.isRetry && msg.retryData?.message === retryData.message)
   if (retryIndex > -1) {
     messages.value.splice(retryIndex, 1)
   }
-  
+
   // 重新发送
   await sendChat()
 }
@@ -300,8 +300,8 @@ onUnmounted(() => {
           <div class="connection-status" :class="connectionStatus" @click="refreshStatus" title="点击刷新状态">
             <div class="status-dot"></div>
             <span class="status-text">
-              {{ connectionStatus === 'connected' ? '已连接' : 
-                 connectionStatus === 'connecting' ? '连接中...' : 
+              {{ connectionStatus === 'connected' ? '已连接' :
+                 connectionStatus === 'connecting' ? '连接中...' :
                  connectionStatus === 'error' ? '连接错误' : '未连接' }}
             </span>
             <div v-if="connectionStatus === 'connecting'" class="status-spinner"></div>
@@ -311,14 +311,14 @@ onUnmounted(() => {
           <button @click="clearChat" class="clear-btn" title="清空聊天">🗑️</button>
         </div>
       </div>
-      
+
       <!-- 错误消息提示 -->
       <div v-if="errorMessage" class="error-banner">
         <span class="error-icon">⚠️</span>
         <span class="error-text">{{ errorMessage }}</span>
         <button @click="errorMessage = ''" class="error-close">✕</button>
       </div>
-      
+
       <!-- 聊天消息列表 -->
       <div class="chat-messages" ref="chatContainer">
         <div v-if="messages.length === 0" class="empty-state">
@@ -328,10 +328,10 @@ onUnmounted(() => {
             <span>当前网络不可用</span>
           </div>
         </div>
-        
-        <div 
-          v-for="message in messages" 
-          :key="message.id" 
+
+        <div
+          v-for="message in messages"
+          :key="message.id"
           :class="['message', message.type, {
             'streaming': message.isStreaming,
             'error-message': message.isError,
@@ -348,8 +348,8 @@ onUnmounted(() => {
               <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
             </div>
             <div class="message-actions" v-if="message.isRetry">
-              <button 
-                @click="retryMessage(message.retryData)" 
+              <button
+                @click="retryMessage(message.retryData)"
                 class="retry-btn"
                 :disabled="isLoading || isStreaming"
               >
@@ -367,7 +367,7 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-        
+
         <!-- 加载指示器 -->
         <div v-if="isLoading" class="message ai">
           <div class="message-content">
@@ -377,27 +377,27 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-      
+
       <!-- 聊天输入区域 -->
       <div class="chat-input">
         <div class="input-container">
-          <textarea 
-            v-model="chatInput" 
+          <textarea
+            v-model="chatInput"
             @keypress="handleKeyPress"
-            placeholder="输入消息... (Enter发送，Shift+Enter换行)" 
+            placeholder="输入消息... (Enter发送，Shift+Enter换行)"
             rows="1"
             :disabled="isLoading || isStreaming"
           ></textarea>
           <div class="input-buttons">
-            <button 
-              @click="sendChat" 
+            <button
+              @click="sendChat"
               :disabled="!chatInput.trim() || isLoading || isStreaming"
               class="send-btn"
               title="发送普通消息"
             >
               📤
             </button>
-           
+
           </div>
         </div>
       </div>
@@ -698,7 +698,7 @@ onUnmounted(() => {
   .message-content {
     max-width: 85%;
   }
-  
+
   .message-text {
     font-size: 16px;
     padding: 14px 18px;
@@ -709,7 +709,7 @@ onUnmounted(() => {
   .message-content {
     max-width: 90%;
   }
-  
+
   .message-text {
     font-size: 16px;
     line-height: 1.6;
@@ -926,7 +926,7 @@ onUnmounted(() => {
     padding: 16px 12px;
     border-radius: 0;
   }
-  
+
   .input-container textarea {
     font-size: 16px;
     min-height: 48px;
@@ -939,11 +939,11 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .input-buttons {
     align-self: stretch;
   }
-  
+
   .input-buttons button {
     flex: 1;
   }
@@ -1142,12 +1142,12 @@ onUnmounted(() => {
     min-height: 44px;
     min-width: 44px;
   }
-  
+
   .send-btn, .stream-btn {
     min-height: 48px;
     min-width: 48px;
   }
-  
+
   .input-container textarea {
     font-size: 16px; /* 防止iOS缩放 */
   }
@@ -1158,11 +1158,11 @@ onUnmounted(() => {
   .chat-box {
     border-width: 2px;
   }
-  
+
   .message-text {
     border-width: 2px;
   }
-  
+
   .input-container textarea {
     border-width: 2px;
   }

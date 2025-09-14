@@ -1,5 +1,5 @@
 package chat.liuxin.ai.service.impl;
- 
+
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
@@ -18,12 +18,12 @@ import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
- 
+
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
- 
+
 /**
  * AI聊天核心服务实现（带“数据库记忆”版）
  * 学习顺序：
@@ -37,15 +37,14 @@ import java.util.stream.Collectors;
  *   普通模式：先写入 user，再调用模型，拿到完整AI回复后写入 assistant（status=1）。异常时写入 assistant（status=9，metadata记录错误）。
  *   流式模式：先写入 user；订阅流，累计文本。onComplete 时一次性写入 assistant（status=1）；onError 时写入 assistant（status=9，metadata记录错误）。
  * - 清理策略（示例实现在 MemoryService）：按用户仅保留最近N条（可配，默认1000），多余的定期清理。这里在每次写入后“尝试触发一次轻量清理”。
- *
  * 作者：刘鑫
  * 时间：2025-09-05
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor 
+@RequiredArgsConstructor
 public class AiChatServiceImpl implements AiChatService {
- 
+
     private final OllamaChatModel chatModel;
     private final MemoryService memoryService;           // 记忆服务（数据库）
     private final ObjectMapper objectMapper;             // 用于构造metadata的JSON
@@ -74,7 +73,7 @@ public class AiChatServiceImpl implements AiChatService {
             List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
             // 将历史转为Spring AI的 Message 序列（升序），末尾追加本轮用户输入
             List<Message> messages = toPromptMessages(recent);
-            
+
             // 将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
             // UserMessage是Spring AI提供的消息类型之一，用于表示用户输入的消息
             messages.add(new UserMessage(input));
@@ -118,7 +117,7 @@ public class AiChatServiceImpl implements AiChatService {
             return ChatResponse.error("AI服务暂时不可用: " + e.getMessage(), userIdStr);
         }
     }
- 
+
     /**
      * 2) 流式聊天：通过SSE按块推送AI回复（带记忆）
      * 关键点：

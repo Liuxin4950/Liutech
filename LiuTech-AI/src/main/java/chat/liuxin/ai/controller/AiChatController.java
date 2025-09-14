@@ -23,7 +23,6 @@ import java.util.List;
  * 学习顺序：
  * 1) 读 /chat 普通模式
  * 2) 读 /chat/stream 流式模式
- *
  * 作者：刘鑫
  * 时间：2025-09-05
  */
@@ -84,26 +83,36 @@ public class AiChatController {
             if (userId == null) {
                 return ChatHistoryResponse.error("用户未认证");
             }
-            
+
             String userIdStr = userId.toString();
             log.info("获取聊天历史记录，用户ID: {}, 页码: {}, 每页大小: {}", userIdStr, page, size);
-            
+
             // 参数校验
             if (page < 1) page = 1;
             if (size < 1) size = 20;
             if (size > 100) size = 100; // 限制最大每页数量
-            
+
             // 查询历史记录和总数
             List<AiChatMessage> messages = memoryService.listHistoryMessages(userIdStr, page, size);
             long total = memoryService.countHistoryMessages(userIdStr);
-            
+
             return ChatHistoryResponse.success(messages, page, size, total, userIdStr);
-            
+
         } catch (Exception e) {
             log.error("获取聊天历史记录失败", e);
             return ChatHistoryResponse.error("获取聊天历史记录失败: " + e.getMessage());
         }
     }
+
+
+
+
+
+
+
+
+
+
 
     /**
      * 从JWT认证上下文中获取当前用户ID
@@ -113,9 +122,9 @@ public class AiChatController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         log.info("认证对象: {}", authentication);
         if (authentication != null) {
-            log.info("认证状态: {}, 主体: {}, 详情: {}", 
-                authentication.isAuthenticated(), 
-                authentication.getPrincipal(), 
+            log.info("认证状态: {}, 主体: {}, 详情: {}",
+                authentication.isAuthenticated(),
+                authentication.getPrincipal(),
                 authentication.getDetails());
             if (authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
                 Object details = authentication.getDetails();
