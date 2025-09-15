@@ -384,7 +384,7 @@ onUnmounted(() => {
           <textarea
             v-model="chatInput"
             @keypress="handleKeyPress"
-            placeholder="输入消息... (Enter发送，Shift+Enter换行)"
+            placeholder="(Enter发送，Shift+Enter换行)"
             rows="1"
             :disabled="isLoading || isStreaming"
           ></textarea>
@@ -395,7 +395,7 @@ onUnmounted(() => {
               class="send-btn"
               title="发送普通消息"
             >
-              📤
+              发送
             </button>
 
           </div>
@@ -845,13 +845,6 @@ onUnmounted(() => {
 
 .message.ai .message-time {
   text-align: left;
-}
-
-/* 流式指示器 */
-.streaming-indicator {
-  animation: blink 1s infinite;
-  color: var(--color-primary);
-  font-weight: bold;
 }
 
 /* 加载状态 */

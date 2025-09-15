@@ -36,6 +36,7 @@ let dragOffset = { x: 0, y: 0 };
 // 音频播放状态
 const isAuto = ref<boolean>(true);//音频是否空闲
 let audioQueue = ref<string[]>([]); // 音频队列
+const audioChecker = ref<HTMLAudioElement|null>(null); // 音频检测对象
 
 // 拖拽事件处理
 function onPointerDown(event: any) {
@@ -61,26 +62,26 @@ function onPointerUp() {
 function talk(audioPath:string) {
     return new Promise((resolve, reject) => {
         isAuto.value = false; // 播放开始
-        const audioChecker = new Audio(audioPath); // 用于判断播放完成
+        audioChecker.value = new Audio(audioPath); // 用于判断播放完成
 
-        audioChecker.volume = 0; // 静音，用于检测播放状态
-        audioChecker.crossOrigin = "anonymous";
+        audioChecker.value.volume = 0; // 静音，用于检测播放状态
+        audioChecker.value.crossOrigin = "anonymous";
 
         // 播放结束
-        audioChecker.onended = () => {
+        audioChecker.value.onended = () => {
             isAuto.value = true;
             resolve(void 0);
         };
 
         // 播放失败
-        audioChecker.onerror = (err) => {
+        audioChecker.value.onerror = (err) => {
             console.error("检测音频播放出错：", err);
             isAuto.value = true; // 即使失败也恢复状态
             reject(err);
         };
 
         // 播放检测对象
-        audioChecker.play().catch((err) => {
+        audioChecker.value.play().catch((err) => {
             console.error("检测音频无法播放：", err);
             isAuto.value = true;
             reject(err);
@@ -89,7 +90,7 @@ function talk(audioPath:string) {
         // 实际播放音频
         model.speak(audioPath, {
             volume: 1,
-            expression: exp,
+            expression: exp,//随机动作
             resetExpression: true,
             crossOrigin: "anonymous",
         });
@@ -123,12 +124,47 @@ watch(
 function playTestAudio() {
     // 判断是否已经有音频在播放了
     if (!isAuto.value) {
+        console.log("停止音频播放");
+        
+        stopSpeak()
         return;
     }
     console.log("播放");
     
     audioQueue.value.push("/static/毕业旅行.flac");
 }
+function stopSpeak() {
+    try {
+        // 1. 停止检测用的 audioChecker
+        if (audioChecker.value) {
+            audioChecker.value.pause();
+            audioChecker.value.currentTime = 0;
+            audioChecker.value = null;
+        }
+
+        // 2. 尝试停止 Live2D 动作（如果支持）
+        if (model?.internalModel?.motionManager) {
+            model.internalModel.motionManager.stopAllMotions();
+        }
+
+        // 3. 强制关闭嘴型参数
+        if (model?.internalModel?.coreModel) {
+            model.internalModel.coreModel.setParameterValueById("ParamMouthOpenY", 0);
+        }
+
+        // 4. 恢复默认表情（防止 expression 卡住）
+        if (model?.expressionManager) {
+            model.expressionManager.setExpression(null);
+        }
+
+        // 5. 状态恢复
+        isAuto.value = true;
+        console.log("已强制终止 speak 播放");
+    } catch (err) {
+        console.error("stopSpeak 出错:", err);
+    }
+}
+
 
 onMounted(() => {
     // 等待全局脚本加载完成
