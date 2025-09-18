@@ -1,0 +1,623 @@
+{
+  "model": "soyo_other-25.moc",
+  "textures": [
+    "textures/texture_00.png",
+    "textures/texture_01.png"
+  ],
+  "controllers": {
+    "param_hit": {},
+    "param_loop": {},
+    "key_trigger": {},
+    "eye_blink": {
+      "min_interval": 500,
+      "max_interval": 6000,
+      "enabled": true
+    },
+    "lip_sync": {
+      "gain": 5.0,
+      "enabled": true
+    },
+    "mouse_tracking": {
+      "smooth_time": 0.15,
+      "enabled": true
+    },
+    "auto_breath": {
+      "enabled": true
+    },
+    "extra_motion": {
+      "enabled": true
+    },
+    "accelerometer": {
+      "enabled": true
+    },
+    "microphone": {},
+    "transform": {},
+    "face_tracking": {
+      "enabled": true
+    },
+    "param_value": {},
+    "part_opacity": {},
+    "artmesh_opacity": {},
+    "artmesh_color": {},
+    "artmesh_culling": {
+      "default_mode": 0
+    },
+    "intimacy_system": {}
+  },
+  "hit_areas": [
+    {
+      "name": "头部",
+      "id": "D_PSD.01",
+      "motion": "smile:微笑01"
+    },
+    {
+      "name": "左脸",
+      "id": "D_PSD.02", 
+      "motion": "wink:眨眼01"
+    },
+    {
+      "name": "右脸",
+      "id": "D_PSD.03",
+      "motion": "surprised:惊讶01"
+    },
+    {
+      "name": "左眼",
+      "id": "D_PSD.04",
+      "motion": "angry:生气01"
+    },
+    {
+      "name": "右眼",
+      "id": "D_PSD.05",
+      "motion": "cry:哭泣01"
+    },
+    {
+      "name": "嘴巴",
+      "id": "D_PSD.06",
+      "motion": "smile:微笑02"
+    },
+    {
+      "name": "左手",
+      "id": "D_PSD.07",
+      "motion": "bye:再见01"
+    },
+    {
+      "name": "右手",
+      "id": "D_PSD.08",
+      "motion": "kandou:感动01"
+    },
+    {
+      "name": "身体",
+      "id": "D_PSD.09",
+      "motion": "shame:害羞01"
+    },
+    {
+      "name": "左耳",
+      "id": "D_PSD.10",
+      "motion": "serious:认真01"
+    },
+    {
+      "name": "右耳",
+      "id": "D_PSD.11",
+      "motion": "thinking:思考01"
+    },
+    {
+      "name": "测试",
+      "id": "D_PSD.12",
+      "motion": "idle:空闲01"
+    },
+    {
+      "name": "左眉毛",
+      "id": "D_PSD.13",
+      "motion": "wink:眨眼01"
+    },
+    {
+      "name": "右眉毛", 
+      "id": "D_PSD.14",
+      "motion": "surprised:惊讶01"
+    },
+    {
+      "name": "额头",
+      "id": "D_PSD.15",
+      "motion": "angry:生气01"
+    },
+    {
+      "name": "下巴",
+      "id": "D_PSD.16",
+      "motion": "smile:微笑02"
+    },
+    {
+      "name": "左肩",
+      "id": "D_PSD.17",
+      "motion": "bye:再见01"
+    },
+    {
+      "name": "右肩",
+      "id": "D_PSD.18",
+      "motion": "kandou:感动01"
+    },
+    {
+      "name": "胸口",
+      "id": "D_PSD.19",
+      "motion": "shame:害羞01"
+    },
+    {
+      "name": "背部",
+      "id": "D_PSD.20",
+      "motion": "serious:认真01"
+    },
+    {
+      "name": "腰部",
+      "id": "D_PSD.21",
+      "motion": "thinking:思考01"
+    },
+    {
+      "name": "左脚",
+      "id": "D_PSD.22",
+      "motion": "idle:空闲02"
+    },
+    {
+      "name": "右脚", 
+      "id": "D_PSD.23",
+      "motion": "happy:开心01"
+    },
+    {
+      "name": "尾巴根部",
+      "id": "D_PSD.24",
+      "motion": "relaxed:放松01"
+    },
+    {
+      "name": "尾巴尖端",
+      "id": "D_PSD.25",
+      "motion": "excited:兴奋01"
+    },
+    {
+      "name": "左爪子",
+      "id": "D_PSD.26",
+      "motion": "sleepy:困倦01"
+    },
+    {
+      "name": "右爪子",
+      "id": "D_PSD.27",
+      "motion": "curious:好奇01"
+    },
+    {
+      "name": "肚子",
+      "id": "D_PSD.28",
+      "motion": "hungry:饥饿01"
+    },
+    {
+      "name": "脖子",
+      "id": "D_PSD.29",
+      "motion": "cold:寒冷01"
+    },
+    {
+      "name": "鼻子",
+      "id": "D_PSD.30",
+      "motion": "sneeze:打喷嚏01"
+    },
+    {
+      "name": "测试完成",
+      "id": "D_PSD.31",
+      "motion": "idle:空闲03"
+    }
+  ],
+  "motions": {
+    "idle": [
+      {
+        "name": "空闲01",
+        "file": "mtn/idle01.mtn",
+        "language": "en"
+      }
+    ],
+    "angry": [
+      {
+        "name": "生气01",
+        "file": "mtn/angry01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "生气02",
+        "file": "mtn/angry02.mtn",
+        "language": "en"
+      },
+      {
+        "name": "生气03",
+        "file": "mtn/angry03.mtn",
+        "language": "en"
+      },
+      {
+        "name": "生气04",
+        "file": "mtn/angry04.mtn",
+        "language": "en"
+      },
+      {
+        "name": "生气05",
+        "file": "mtn/angry05.mtn",
+        "language": "en"
+      },
+      {
+        "name": "生气06",
+        "file": "mtn/angry06.mtn",
+        "language": "en"
+      }
+    ],
+    "bye": [
+      {
+        "name": "再见01",
+        "file": "mtn/bye01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "再见02",
+        "file": "mtn/bye02.mtn",
+        "language": "en"
+      }
+    ],
+    "cry": [
+      {
+        "name": "哭泣01",
+        "file": "mtn/cry01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "哭泣02",
+        "file": "mtn/cry02.mtn",
+        "language": "en"
+      }
+    ],
+    "kandou": [
+      {
+        "name": "感动01",
+        "file": "mtn/kandou01.mtn",
+        "language": "en"
+      }
+    ],
+    "kime": [
+      {
+        "name": "決め01",
+        "file": "mtn/kime01.mtn",
+        "language": "en"
+      }
+    ],
+    "nf": [
+      {
+        "name": "nf01",
+        "file": "mtn/nf01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "nf02",
+        "file": "mtn/nf02.mtn",
+        "language": "en"
+      },
+      {
+        "name": "nf03",
+        "file": "mtn/nf03.mtn",
+        "language": "en"
+      },
+      {
+        "name": "nf04",
+        "file": "mtn/nf04.mtn",
+        "language": "en"
+      },
+      {
+        "name": "nf05",
+        "file": "mtn/nf05.mtn",
+        "language": "en"
+      }
+    ],
+    "nf_left": [
+      {
+        "name": "nf左01",
+        "file": "mtn/nf_left01.mtn",
+        "language": "en"
+      }
+    ],
+    "nf_right": [
+      {
+        "name": "nf右01",
+        "file": "mtn/nf_right01.mtn",
+        "language": "en"
+      }
+    ],
+    "nnf": [
+      {
+        "name": "nnf01",
+        "file": "mtn/nnf01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "nnf02",
+        "file": "mtn/nnf02.mtn",
+        "language": "en"
+      },
+      {
+        "name": "nnf03",
+        "file": "mtn/nnf03.mtn",
+        "language": "en"
+      },
+      {
+        "name": "nnf04",
+        "file": "mtn/nnf04.mtn",
+        "language": "en"
+      },
+      {
+        "name": "nnf05",
+        "file": "mtn/nnf05.mtn",
+        "language": "en"
+      }
+    ],
+    "nnf_left": [
+      {
+        "name": "nnf左01",
+        "file": "mtn/nnf_left01.mtn",
+        "language": "en"
+      }
+    ],
+    "nnf_right": [
+      {
+        "name": "nnf右01",
+        "file": "mtn/nnf_right01.mtn",
+        "language": "en"
+      }
+    ],
+    "odoodo": [
+      {
+        "name": "odoodo01",
+        "file": "mtn/odoodo01.mtn",
+        "language": "en"
+      }
+    ],
+    "sad": [
+      {
+        "name": "悲伤02",
+        "file": "mtn/sad02.mtn",
+        "language": "en"
+      },
+      {
+        "name": "悲伤03",
+        "file": "mtn/sad03.mtn",
+        "language": "en"
+      }
+    ],
+    "scared": [
+      {
+        "name": "害怕01",
+        "file": "mtn/scared01.mtn",
+        "language": "en"
+      }
+    ],
+    "serious": [
+      {
+        "name": "认真01",
+        "file": "mtn/serious01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "认真02",
+        "file": "mtn/serious02.mtn",
+        "language": "en"
+      },
+      {
+        "name": "认真03",
+        "file": "mtn/serious03.mtn",
+        "language": "en"
+      },
+      {
+        "name": "认真04",
+        "file": "mtn/serious04.mtn",
+        "language": "en"
+      }
+    ],
+    "shame": [
+      {
+        "name": "害羞01",
+        "file": "mtn/shame01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "害羞02",
+        "file": "mtn/shame02.mtn",
+        "language": "en"
+      }
+    ],
+    "smile": [
+      {
+        "name": "微笑01",
+        "file": "mtn/smile01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "微笑02",
+        "file": "mtn/smile02.mtn",
+        "language": "en"
+      },
+      {
+        "name": "微笑03",
+        "file": "mtn/smile03.mtn",
+        "language": "en"
+      },
+      {
+        "name": "微笑04",
+        "file": "mtn/smile04.mtn",
+        "language": "en"
+      },
+      {
+        "name": "微笑05",
+        "file": "mtn/smile05.mtn",
+        "language": "en"
+      },
+      {
+        "name": "微笑06",
+        "file": "mtn/smile06.mtn",
+        "language": "en"
+      }
+    ],
+    "surprised": [
+      {
+        "name": "惊讶01",
+        "file": "mtn/surprised01.mtn",
+        "language": "en"
+      }
+    ],
+    "thinking": [
+      {
+        "name": "思考01",
+        "file": "mtn/thinking01.mtn",
+        "language": "en"
+      },
+      {
+        "name": "思考02",
+        "file": "mtn/thinking02.mtn",
+        "language": "en"
+      }
+    ],
+    "wink": [
+      {
+        "name": "眨眼01",
+        "file": "mtn/wink01.mtn",
+        "language": "en"
+      }
+    ]
+  },
+  "expressions": [
+    {
+      "name": "ando01.exp",
+      "file": "exp/ando01.exp.json"
+    },
+    {
+      "name": "angry01.exp",
+      "file": "exp/angry01.exp.json"
+    },
+    {
+      "name": "angry02.exp",
+      "file": "exp/angry02.exp.json"
+    },
+    {
+      "name": "angry03.exp",
+      "file": "exp/angry03.exp.json"
+    },
+    {
+      "name": "angry04.exp",
+      "file": "exp/angry04.exp.json"
+    },
+    {
+      "name": "bye01.exp",
+      "file": "exp/bye01.exp.json"
+    },
+    {
+      "name": "bye02.exp",
+      "file": "exp/bye02.exp.json"
+    },
+    {
+      "name": "cry01.exp",
+      "file": "exp/cry01.exp.json"
+    },
+    {
+      "name": "cry02.exp",
+      "file": "exp/cry02.exp.json"
+    },
+    {
+      "name": "default.exp",
+      "file": "exp/default.exp.json"
+    },
+    {
+      "name": "idle01.exp",
+      "file": "exp/idle01.exp.json"
+    },
+    {
+      "name": "kandou01.exp",
+      "file": "exp/kandou01.exp.json"
+    },
+    {
+      "name": "kime01.exp",
+      "file": "exp/kime01.exp.json"
+    },
+    {
+      "name": "odoodo01.exp",
+      "file": "exp/odoodo01.exp.json"
+    },
+    {
+      "name": "sad01.exp",
+      "file": "exp/sad01.exp.json"
+    },
+    {
+      "name": "sad02.exp",
+      "file": "exp/sad02.exp.json"
+    },
+    {
+      "name": "sad03.exp",
+      "file": "exp/sad03.exp.json"
+    },
+    {
+      "name": "serious01.exp",
+      "file": "exp/serious01.exp.json"
+    },
+    {
+      "name": "serious02.exp",
+      "file": "exp/serious02.exp.json"
+    },
+    {
+      "name": "serious03.exp",
+      "file": "exp/serious03.exp.json"
+    },
+    {
+      "name": "serious04.exp",
+      "file": "exp/serious04.exp.json"
+    },
+    {
+      "name": "shame01.exp",
+      "file": "exp/shame01.exp.json"
+    },
+    {
+      "name": "shame02.exp",
+      "file": "exp/shame02.exp.json"
+    },
+    {
+      "name": "smile01.exp",
+      "file": "exp/smile01.exp.json"
+    },
+    {
+      "name": "smile02.exp",
+      "file": "exp/smile02.exp.json"
+    },
+    {
+      "name": "smile03.exp",
+      "file": "exp/smile03.exp.json"
+    },
+    {
+      "name": "smile04.exp",
+      "file": "exp/smile04.exp.json"
+    },
+    {
+      "name": "smile05.exp",
+      "file": "exp/smile05.exp.json"
+    },
+    {
+      "name": "smile06.exp",
+      "file": "exp/smile06.exp.json"
+    },
+    {
+      "name": "soyo_other-25.physics",
+      "file": "soyo_other-25.physics.json"
+    },
+    {
+      "name": "surprised01.exp",
+      "file": "exp/surprised01.exp.json"
+    },
+    {
+      "name": "thinking01.exp",
+      "file": "exp/thinking01.exp.json"
+    },
+    {
+      "name": "thinking02.exp",
+      "file": "exp/thinking02.exp.json"
+    },
+    {
+      "name": "wink01.exp",
+      "file": "exp/wink01.exp.json"
+    }
+  ],
+  "physics": "soyo_other-25.physics.json",
+  "options": {}
+}
