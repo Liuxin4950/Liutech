@@ -1,12 +1,13 @@
 package chat.liuxin.liutech.resl;
 
 import lombok.Data;
+
 import java.util.Date;
 
 /**
  * 标签响应类
  * 用于管理端标签列表展示
- * 
+ *
  * @author 刘鑫
  */
 @Data

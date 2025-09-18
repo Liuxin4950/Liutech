@@ -3,8 +3,8 @@
 <mapper namespace="chat.liuxin.liutech.mapper.TagsMapper">
 
     <!-- 查询所有标签（包含文章数量） -->
-    <select id="selectTagsWithPostCount" resultType="chat.liuxin.liutech.model.Tags">
-        SELECT 
+    <select id="selectTagsWithPostCount" resultType="chat.liuxin.liutech.resl.TagResl">
+        SELECT
             t.id,
             t.name,
             COUNT(DISTINCT p.id) as post_count
@@ -17,8 +17,8 @@
     </select>
 
     <!-- 根据文章ID查询标签列表 -->
-    <select id="selectTagsByPostId" resultType="chat.liuxin.liutech.model.Tags">
-        SELECT 
+    <select id="selectTagsByPostId" resultType="chat.liuxin.liutech.resl.TagResl">
+        SELECT
             t.id,
             t.name
         FROM tags t
@@ -28,23 +28,24 @@
     </select>
 
     <!-- 查询热门标签 -->
-    <select id="selectHotTags" resultType="chat.liuxin.liutech.model.Tags">
-        SELECT 
+    <select id="selectHotTags" resultType="chat.liuxin.liutech.resl.TagResl">
+        SELECT
             t.id,
             t.name,
-            COUNT(DISTINCT p.id) as post_count
+            COUNT(DISTINCT p.id) AS postCount
         FROM tags t
-        INNER JOIN post_tags pt ON t.id = pt.tag_id
-        INNER JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+                 LEFT JOIN post_tags pt ON t.id = pt.tag_id
+                 LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
         WHERE t.deleted_at IS NULL
         GROUP BY t.id, t.name
-        ORDER BY post_count DESC, t.name
+        ORDER BY postCount DESC, t.name
         LIMIT #{limit}
+
     </select>
 
     <!-- 根据ID查询标签详情（包含文章数量） -->
-    <select id="selectTagByIdWithPostCount" resultType="chat.liuxin.liutech.model.Tags">
-        SELECT 
+    <select id="selectTagByIdWithPostCount" resultType="chat.liuxin.liutech.resl.TagResl">
+        SELECT
             t.id,
             t.name,
             COUNT(DISTINCT p.id) as post_count
@@ -56,8 +57,8 @@
     </select>
 
     <!-- 根据标签名字搜索标签（包含文章数量） -->
-    <select id="selectTagsByName" resultType="chat.liuxin.liutech.model.Tags">
-        SELECT 
+    <select id="selectTagsByName" resultType="chat.liuxin.liutech.resl.TagResl">
+        SELECT
             t.id,
             t.name,
             COUNT(DISTINCT p.id) as post_count
@@ -71,7 +72,7 @@
 
     <!-- 管理端分页查询标签列表 -->
     <select id="selectTagsForAdmin" resultType="chat.liuxin.liutech.resl.TagResl">
-        SELECT 
+        SELECT
             t.id,
             t.name,
             t.description,
@@ -113,14 +114,14 @@
 
     <!-- 恢复已删除的标签（绕过逻辑删除限制） -->
     <update id="restoreTagById">
-        UPDATE tags 
+        UPDATE tags
         SET deleted_at = NULL, updated_at = NOW()
         WHERE id = #{id} AND deleted_at IS NOT NULL
     </update>
 
     <!-- 根据ID列表物理删除标签 -->
     <delete id="deleteBatchIds">
-        DELETE FROM tags 
+        DELETE FROM tags
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
