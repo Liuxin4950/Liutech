@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import {onMounted, ref} from 'vue'
+import {useRouter} from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
 import Banner from '@/components/Banner.vue'
@@ -49,6 +49,7 @@ onMounted(() => {
 
   // 设置路由守卫，后续路由跳转不显示加载动画
   router.beforeEach((to, from, next) => {
+    console.log(to, from)
     // 如果不是首次加载，则不显示加载动画
     if (!isFirstLoad.value) {
       next()
@@ -67,6 +68,13 @@ const toggleChat = () =>{
 }
 
 
+const aiChatActive = ref(false)
+// 子组件通过 $emit('status-change', true/false) 来通知父组件
+const handleStatusChange = (val: boolean) => {
+  aiChatActive.value = val
+  // showChat.value = val
+}
+
 </script>
 
 <template>
@@ -75,14 +83,15 @@ const toggleChat = () =>{
     <main class="main-content">
       <Banner class="banner" />
       <Breadcrumb />
-      
+
       <div class="ai-content">
         <div class="ai-box">
         <Live2d @click="toggleChat" class="live2d"></Live2d>
-        <AiChat v-show="showChat" class="ai-chat"></AiChat>
+          <AiChat v-show="showChat" :class="{ 'ai-chat-active': aiChatActive }" class="ai-chat"
+                  @status-change="handleStatusChange"></AiChat>
         </div>
       </div>
-      
+
       <router-view />
     </main>
     <TheFooter />
@@ -117,13 +126,24 @@ const toggleChat = () =>{
   height: 100%;
 }
 
-
 .ai-chat{
   position: absolute;
-  top: -100px;
+  top: 0;
   left: 0;
-  transform: translateX(-400px);
+  transform: translateY(-50px);
   z-index: 11;
-
+  transition: all 0.3s ease;
 }
+
+.ai-chat-active {
+  position: absolute;
+  top: auto;
+  bottom: 0;
+  left: 0;
+  transform: translate(-350px);
+
+  z-index: 11;
+}
+
+
 </style>

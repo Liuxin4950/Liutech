@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Ai, type AiChatRequest, type AiChatResponse } from '@/services/ai.ts'
-import { ref, nextTick, onUnmounted, onMounted } from 'vue'
+import {Ai, type AiChatRequest, type AiChatResponse} from '@/services/ai.ts'
+import {nextTick, onMounted, onUnmounted, ref} from 'vue'
 
 /**
  * AI聊天组件
@@ -37,6 +37,14 @@ const maxRetries = 3
 // 消息ID计数器
 let messageIdCounter = 0
 let statusCheckInterval: number | null = null
+
+
+//聊天显示面板
+let isActive = ref(false)
+
+const emit = defineEmits<{
+  (e: "status-change", value: boolean): void
+}>()
 
 // 检查AI服务状态
 const checkAiStatus = async () => {
@@ -223,6 +231,8 @@ const scrollToBottom = async () => {
 
 // 清空聊天记录
 const clearChat = () => {
+  isActive.value = false
+  emit("status-change", isActive.value)
   messages.value = []
   messageIdCounter = 0
   errorMessage.value = ''
@@ -260,6 +270,9 @@ if (typeof window !== 'undefined') {
 const handleKeyPress = (event: KeyboardEvent) => {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
+    //通知父组件已经开始聊天了
+    isActive.value = true
+    emit("status-change", isActive.value)
     sendChat()
   }
 }
@@ -292,47 +305,49 @@ onUnmounted(() => {
 <template>
   <div class="chat-box">
     <div class="chat-popup">
-      <!-- 聊天头部 -->
-      <div class="chat-header">
-        <div class="header-left">
-          <h3>AI助手</h3>
-          <!-- 连接状态指示器 -->
-          <div class="connection-status" :class="connectionStatus" @click="refreshStatus" title="点击刷新状态">
-            <div class="status-dot"></div>
-            <span class="status-text">
+      <div v-show="isActive" class="chat-top">
+        <!-- 聊天头部 -->
+        <div class="chat-header">
+          <div class="header-left">
+            <h3>AI助手</h3>
+            <!-- 连接状态指示器 -->
+            <div :class="connectionStatus" class="connection-status" title="点击刷新状态" @click="refreshStatus">
+              <div class="status-dot"></div>
+              <span class="status-text">
               {{ connectionStatus === 'connected' ? '已连接' :
-                 connectionStatus === 'connecting' ? '连接中...' :
-                 connectionStatus === 'error' ? '连接错误' : '未连接' }}
+                  connectionStatus === 'connecting' ? '连接中...' :
+                      connectionStatus === 'error' ? '连接错误' : '未连接'
+                }}
             </span>
-            <div v-if="connectionStatus === 'connecting'" class="status-spinner"></div>
+              <div v-if="connectionStatus === 'connecting'" class="status-spinner"></div>
+            </div>
           </div>
-        </div>
-        <div class="chat-controls">
-          <button @click="clearChat" class="clear-btn" title="清空聊天">🗑️</button>
-        </div>
-      </div>
-
-      <!-- 错误消息提示 -->
-      <div v-if="errorMessage" class="error-banner">
-        <span class="error-icon">⚠️</span>
-        <span class="error-text">{{ errorMessage }}</span>
-        <button @click="errorMessage = ''" class="error-close">✕</button>
-      </div>
-
-      <!-- 聊天消息列表 -->
-      <div class="chat-messages" ref="chatContainer">
-        <div v-if="messages.length === 0" class="empty-state">
-          <p>👋 你好！我是AI助手，有什么可以帮助你的吗？</p>
-          <div v-if="!isOnline()" class="offline-notice">
-            <span>📶</span>
-            <span>当前网络不可用</span>
+          <div class="chat-controls">
+            <button class="clear-btn" title="清空聊天" @click="clearChat">🗑️</button>
           </div>
         </div>
 
-        <div
-          v-for="message in messages"
-          :key="message.id"
-          :class="['message', message.type, {
+        <!-- 错误消息提示 -->
+        <div v-if="errorMessage" class="error-banner">
+          <span class="error-icon">⚠️</span>
+          <span class="error-text">{{ errorMessage }}</span>
+          <button class="error-close" @click="errorMessage = ''">✕</button>
+        </div>
+
+        <!-- 聊天消息列表 -->
+        <div ref="chatContainer" class="chat-messages">
+          <div v-if="messages.length === 0" class="empty-state">
+            <p>👋 你好！我是AI助手，有什么可以帮助你的吗？</p>
+            <div v-if="!isOnline()" class="offline-notice">
+              <span>📶</span>
+              <span>当前网络不可用</span>
+            </div>
+          </div>
+
+          <div
+              v-for="message in messages"
+              :key="message.id"
+              :class="['message', message.type, {
             'streaming': message.isStreaming,
             'error-message': message.isError,
             'retry-message': message.isRetry,
@@ -341,42 +356,45 @@ onUnmounted(() => {
             'status-delivered': message.status === 'delivered',
             'status-failed': message.status === 'failed'
           }]"
-        >
-          <div class="message-content">
-            <div class="message-text">
-              {{ message.content }}
-              <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
+          >
+            <div class="message-content">
+              <div class="message-text">
+                {{ message.content }}
+                <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
+              </div>
+              <div v-if="message.isRetry" class="message-actions">
+                <button
+                    :disabled="isLoading || isStreaming"
+                    class="retry-btn"
+                    @click="retryMessage(message.retryData)"
+                >
+                  🔄 重试
+                </button>
+              </div>
+              <div class="message-meta">
+                <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+                <div v-if="message.type === 'user'" class="message-status">
+                  <span v-if="message.status === 'sending'" class="status-icon sending" title="发送中">⏳</span>
+                  <span v-else-if="message.status === 'sent'" class="status-icon sent" title="已发送">✓</span>
+                  <span v-else-if="message.status === 'delivered'" class="status-icon delivered"
+                        title="已送达">✓✓</span>
+                  <span v-else-if="message.status === 'failed'" class="status-icon failed" title="发送失败">✗</span>
+                </div>
+              </div>
             </div>
-            <div class="message-actions" v-if="message.isRetry">
-              <button
-                @click="retryMessage(message.retryData)"
-                class="retry-btn"
-                :disabled="isLoading || isStreaming"
-              >
-                🔄 重试
-              </button>
-            </div>
-            <div class="message-meta">
-              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
-              <div class="message-status" v-if="message.type === 'user'">
-                <span v-if="message.status === 'sending'" class="status-icon sending" title="发送中">⏳</span>
-                <span v-else-if="message.status === 'sent'" class="status-icon sent" title="已发送">✓</span>
-                <span v-else-if="message.status === 'delivered'" class="status-icon delivered" title="已送达">✓✓</span>
-                <span v-else-if="message.status === 'failed'" class="status-icon failed" title="发送失败">✗</span>
+          </div>
+
+          <!-- 加载指示器 -->
+          <div v-if="isLoading" class="message ai">
+            <div class="message-content">
+              <div class="message-text loading">
+                <span class="loading-dots">思考中</span>
               </div>
             </div>
           </div>
         </div>
-
-        <!-- 加载指示器 -->
-        <div v-if="isLoading" class="message ai">
-          <div class="message-content">
-            <div class="message-text loading">
-              <span class="loading-dots">思考中</span>
-            </div>
-          </div>
-        </div>
       </div>
+
 
       <!-- 聊天输入区域 -->
       <div class="chat-input">
@@ -414,52 +432,23 @@ onUnmounted(() => {
  */
 
 .chat-box {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 380px;
-  height: 500px;
+  width: 100%;
+  height: auto;
   background: var(--bg-card);
   border: 1px solid var(--border-soft);
-  border-radius: 16px;
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  z-index: 1000;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 11;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .chat-box {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    border-radius: 0;
-    border: none;
-  }
-}
-
-@media (max-width: 480px) {
-  .chat-box {
-    width: 100vw;
-    height: 100vh;
-    max-width: none;
-    max-height: none;
-  }
-}
-
 .chat-popup {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
 }
 
 /* 聊天头部 */
@@ -606,6 +595,8 @@ onUnmounted(() => {
 
 /* 消息列表 */
 .chat-messages {
+  width: 100%;
+  min-height: 350px;
   flex: 1;
   padding: 16px;
   overflow-y: auto;
@@ -724,12 +715,12 @@ onUnmounted(() => {
 
 .message.user.status-sending .message-text {
   opacity: 0.7;
-  background: var(--color-primary-soft);
+  background: var(--color-primary);
 }
 
 .message.user.status-failed .message-text {
   background: var(--color-error);
-  border: 1px solid var(--color-error-soft);
+  border: 1px solid var(--color-primary);
 }
 
 .message.user.status-sent .message-text {
@@ -738,7 +729,7 @@ onUnmounted(() => {
 
 .message.user.status-delivered .message-text {
   opacity: 1;
-  box-shadow: 0 0 0 1px var(--color-primary-soft);
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 
 .message.ai .message-text {
@@ -751,7 +742,7 @@ onUnmounted(() => {
 .message.error-message .message-text {
   background: rgba(239, 68, 68, 0.1);
   border-color: var(--color-error);
-  color: var(--color-danger);
+  color: var(--color-error);
 }
 
 .message.retry-message .message-text {
@@ -876,111 +867,39 @@ onUnmounted(() => {
 
 .input-container textarea {
   flex: 1;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border: 1px solid var(--border-soft);
-  border-radius: 20px;
+  border-radius: 5px;
   font-size: 14px;
   font-family: inherit;
   resize: none;
   outline: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  max-height: 120px;
-  min-height: 44px;
   background: var(--bg-main);
   color: var(--text-main);
-  line-height: 1.5;
+  min-height: 40px;
 }
 
-.input-container textarea:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(107, 166, 197, 0.1);
-  transform: translateY(-1px);
-}
-
-.input-container textarea:disabled {
-  background: var(--bg-hover);
-  color: var(--text-subtle);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.input-container textarea::placeholder {
-  color: var(--text-subtle);
-  transition: color 0.2s ease;
-}
-
-.input-container textarea:focus::placeholder {
-  color: var(--text-subtle);
-}
-
-/* 响应式输入区域 */
-@media (max-width: 768px) {
-  .chat-input {
-    padding: 16px 12px;
-    border-radius: 0;
-  }
-
-  .input-container textarea {
-    font-size: 16px;
-    min-height: 48px;
-    padding: 14px 18px;
-  }
-}
-
-@media (max-width: 480px) {
-  .input-container {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .input-buttons {
-    align-self: stretch;
-  }
-
-  .input-buttons button {
-    flex: 1;
-  }
-}
 
 .input-buttons {
   display: flex;
   gap: 4px;
 }
 
-.send-btn, .stream-btn {
-  width: 40px;
-  height: 40px;
+.send-btn {
+  width: 60px;
+  min-height: 40px;
   border: none;
-  border-radius: 50%;
   font-size: 16px;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.send-btn {
   background: var(--color-primary);
   color: white;
 }
 
-.send-btn:hover:not(:disabled) {
-  background: var(--color-primary);
-  transform: scale(1.05);
-}
-
-.stream-btn {
-  background: var(--color-success);
-  color: white;
-}
-
-.stream-btn:hover:not(:disabled) {
-  background: var(--color-primary-light);
-  transform: scale(1.05);
-}
-
-.send-btn:disabled, .stream-btn:disabled {
+.send-btn:disabled {
   background: var(--bg-hover);
   color: var(--text-subtle);
   cursor: not-allowed;
@@ -1049,74 +968,8 @@ onUnmounted(() => {
   100% { content: ''; }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
 
-@keyframes buttonPulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
 
-@keyframes shake {
-  0%, 100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-2px);
-  }
-  75% {
-    transform: translateX(2px);
-  }
-}
-
-/* 加载动画优化 */
-@keyframes typingDots {
-  0%, 60%, 100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-10px);
-  }
-}
-
-.typing-indicator {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.typing-indicator span {
-  width: 4px;
-  height: 4px;
-  background: var(--color-primary);
-  border-radius: 50%;
-  animation: typingDots 1.4s infinite;
-}
-
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-/* 主题适配完成 - 使用项目统一的主题系统 */
-/* 深色主题通过 .dark 类自动应用，无需额外配置 */
 
 /* 性能优化 */
 .chat-box * {
@@ -1129,58 +982,4 @@ onUnmounted(() => {
   scrollbar-color: var(--border-base) transparent;
 }
 
-/* 触摸设备优化 */
-@media (hover: none) and (pointer: coarse) {
-  .clear-btn, .stop-btn {
-    min-height: 44px;
-    min-width: 44px;
-  }
-
-  .send-btn, .stream-btn {
-    min-height: 48px;
-    min-width: 48px;
-  }
-
-  .input-container textarea {
-    font-size: 16px; /* 防止iOS缩放 */
-  }
-}
-
-/* 高对比度模式支持 */
-@media (prefers-contrast: high) {
-  .chat-box {
-    border-width: 2px;
-  }
-
-  .message-text {
-    border-width: 2px;
-  }
-
-  .input-container textarea {
-    border-width: 2px;
-  }
-}
-
-/* 减少动画模式支持 */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* 焦点可见性优化 */
-.clear-btn:focus-visible,
-.stop-btn:focus-visible,
-.send-btn:focus-visible,
-.stream-btn:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.input-container textarea:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
 </style>
