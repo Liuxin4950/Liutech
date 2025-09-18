@@ -2,10 +2,10 @@
  * 标签状态管理
  * 使用 Pinia 管理标签数据，支持持久化存储
  */
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { TagService, type Tag } from '../services/tag'
-import { handleApiError } from '../utils/errorHandler'
+import {defineStore} from 'pinia'
+import {computed, ref} from 'vue'
+import {type Tag, TagService} from '../services/tag'
+import {handleApiError} from '../utils/errorHandler'
 
 export const useTagStore = defineStore('tag', () => {
   // 状态
@@ -15,27 +15,26 @@ export const useTagStore = defineStore('tag', () => {
   const isHotTagsLoading = ref(false)
   const lastFetchTime = ref<number>(0)
   const lastHotTagsFetchTime = ref<number>(0)
-  
+
   // 缓存时间（5分钟）
   const CACHE_DURATION = 5 * 60 * 1000
-  
   // 计算属性
   const tagsWithCount = computed(() => {
     return tags.value.filter(tag => tag.postCount && tag.postCount > 0)
   })
-  
+
   const getTagById = computed(() => {
     return (id: number) => tags.value.find(tag => tag.id === id)
   })
-  
+
   const isDataStale = computed(() => {
     return Date.now() - lastFetchTime.value > CACHE_DURATION
   })
-  
+
   const isHotTagsDataStale = computed(() => {
     return Date.now() - lastHotTagsFetchTime.value > CACHE_DURATION
   })
-  
+
   // 动作
   /**
    * 获取所有标签
@@ -46,15 +45,15 @@ export const useTagStore = defineStore('tag', () => {
     if (!forceRefresh && tags.value.length > 0 && !isDataStale.value) {
       return tags.value
     }
-    
+
     isLoading.value = true
     try {
       const response = await TagService.getTags()
       tags.value = response || []
       lastFetchTime.value = Date.now()
-      
+
       // 数据已通过Pinia persist自动持久化
-      
+
       return tags.value
     } catch (error) {
       console.error('获取标签列表失败:', error)
@@ -64,7 +63,7 @@ export const useTagStore = defineStore('tag', () => {
       isLoading.value = false
     }
   }
-  
+
   /**
    * 获取热门标签
    * @param limit 限制数量
@@ -75,15 +74,13 @@ export const useTagStore = defineStore('tag', () => {
     if (!forceRefresh && hotTags.value.length > 0 && !isHotTagsDataStale.value) {
       return hotTags.value
     }
-    
+
     isHotTagsLoading.value = true
     try {
       const response = await TagService.getHotTags(limit)
       hotTags.value = response || []
       lastHotTagsFetchTime.value = Date.now()
-      
-      // 数据已通过Pinia persist自动持久化
-      
+
       return hotTags.value
     } catch (error) {
       console.error('获取热门标签失败:', error)
@@ -93,7 +90,7 @@ export const useTagStore = defineStore('tag', () => {
       isHotTagsLoading.value = false
     }
   }
-  
+
   /**
    * 根据ID获取标签详情
    * @param id 标签ID
@@ -104,10 +101,10 @@ export const useTagStore = defineStore('tag', () => {
     if (localTag) {
       return localTag
     }
-    
+
     try {
       const response = await TagService.getTagById(id)
-      
+
       // 更新本地缓存
       if (response) {
         const existingIndex = tags.value.findIndex(tag => tag.id === id)
@@ -116,14 +113,14 @@ export const useTagStore = defineStore('tag', () => {
         } else {
           tags.value.push(response)
         }
-        
+
         // 更新持久化存储
         localStorage.setItem('blog_tags', JSON.stringify({
           data: tags.value,
           timestamp: lastFetchTime.value
         }))
       }
-      
+
       return response
     } catch (error) {
       console.error('获取标签详情失败:', error)
@@ -131,7 +128,7 @@ export const useTagStore = defineStore('tag', () => {
       return null
     }
   }
-  
+
   /**
    * 根据文章ID获取标签
    * @param postId 文章ID
@@ -146,7 +143,7 @@ export const useTagStore = defineStore('tag', () => {
       return []
     }
   }
-  
+
   /**
    * 初始化标签数据
    * 检查缓存数据是否过期，如果过期则重新获取
@@ -160,10 +157,10 @@ export const useTagStore = defineStore('tag', () => {
     if (hotTags.value.length === 0 || isHotTagsDataStale.value) {
       promises.push(fetchHotTags(10, true))
     }
-    
+
     await Promise.all(promises)
   }
-  
+
   /**
    * 清除缓存
    */
@@ -174,7 +171,7 @@ export const useTagStore = defineStore('tag', () => {
     lastHotTagsFetchTime.value = 0
     // Pinia persist会自动同步清理
   }
-  
+
   /**
    * 刷新标签数据
    */
@@ -185,7 +182,7 @@ export const useTagStore = defineStore('tag', () => {
     ]
     return await Promise.all(promises)
   }
-  
+
   /**
    * 搜索标签（本地过滤）
    * @param keyword 关键词
@@ -193,9 +190,9 @@ export const useTagStore = defineStore('tag', () => {
   const searchTags = computed(() => {
     return (keyword: string) => {
       if (!keyword.trim()) return tags.value
-      
+
       const lowerKeyword = keyword.toLowerCase()
-      return tags.value.filter(tag => 
+      return tags.value.filter(tag =>
         tag.name.toLowerCase().includes(lowerKeyword)
       )
     }
@@ -209,7 +206,7 @@ export const useTagStore = defineStore('tag', () => {
     if (!keyword.trim()) {
       return tags.value
     }
-    
+
     try {
       const result = await TagService.searchTagsByName(keyword.trim())
       return result
@@ -220,7 +217,7 @@ export const useTagStore = defineStore('tag', () => {
       return searchTags.value(keyword)
     }
   }
-  
+
   return {
     // 状态
     tags,
@@ -229,14 +226,14 @@ export const useTagStore = defineStore('tag', () => {
     isHotTagsLoading,
     lastFetchTime,
     lastHotTagsFetchTime,
-    
+
     // 计算属性
     tagsWithCount,
     getTagById,
     isDataStale,
     isHotTagsDataStale,
     searchTags,
-    
+
     // 动作
     fetchTags,
     fetchHotTags,
