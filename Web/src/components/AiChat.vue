@@ -5,7 +5,7 @@ import {nextTick, onMounted, onUnmounted, ref} from 'vue'
 /**
  * AI聊天组件
  * 作者：刘鑫
- * 时间：2025-01-27
+ * 时间：2025-09-27
  * 功能：支持普通聊天，显示历史记录
  */
 
@@ -74,7 +74,6 @@ const checkAiStatus = async () => {
 const startStatusCheck = () => {
   // 立即检查一次
   checkAiStatus()
-
   // 每60秒检查一次
   statusCheckInterval = window.setInterval(checkAiStatus, 60000)
 }
@@ -597,6 +596,7 @@ onUnmounted(() => {
 .chat-messages {
   width: 100%;
   min-height: 350px;
+  max-height: 500px;
   flex: 1;
   padding: 16px;
   overflow-y: auto;

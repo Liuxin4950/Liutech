@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 
 import lombok.Data;
@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 @Data
-public class UserResl {
+public class UserResp {
     /**
      * 用户名
      */

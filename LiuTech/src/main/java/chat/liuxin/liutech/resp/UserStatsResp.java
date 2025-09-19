@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import lombok.Data;
 import java.math.BigDecimal;
@@ -6,11 +6,11 @@ import java.util.Date;
 
 /**
  * 用户统计信息响应类
- * 
+ *
  * @author liuxin
  */
 @Data
-public class UserStatsResl {
+public class UserStatsResp {
     /**
      * 用户基本信息
      */
@@ -22,7 +22,7 @@ public class UserStatsResl {
     private BigDecimal points;
     private Date lastLoginAt;
     private Date createdAt;
-    
+
     /**
      * 统计信息
      */
@@ -30,7 +30,7 @@ public class UserStatsResl {
     private Long postCount;         // 文章数量
     private Long draftCount;        // 草稿数量
     private Long viewCount;         // 访问量（暂时设为0，后续可扩展）
-    
+
     /**
      * 最近活动
      */

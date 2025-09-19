@@ -3,8 +3,8 @@ package chat.liuxin.liutech.controller.admin;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.model.Users;
-import chat.liuxin.liutech.resl.PageResl;
-import chat.liuxin.liutech.resl.UserResl;
+import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.service.UserManagementService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * 管理端用户控制器
  * 需要管理员权限才能访问
- * 
+ *
  * @author 刘鑫
  */
 @RestController
@@ -30,7 +30,7 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 分页查询用户列表
-     * 
+     *
      * @param page 页码，默认1
      * @param size 每页大小，默认10
      * @param username 用户名（可选，模糊搜索）
@@ -40,19 +40,19 @@ public class UsersAdminController extends BaseAdminController {
      * @return 分页用户列表
      */
     @GetMapping
-    public Result<PageResl<UserResl>> getUserList(
+    public Result<PageResp<UserResp>> getUserList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String email,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        
+
         ValidationUtil.validateRange(page, "页码", 1, Integer.MAX_VALUE);
         ValidationUtil.validateRange(size, "页面大小", 1, 100);
-        
+
         try {
-            PageResl<UserResl> result = userManagementService.getUserListForAdmin(page, size, username, email, status, includeDeleted);
+            PageResp<UserResp> result = userManagementService.getUserListForAdmin(page, size, username, email, status, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询用户列表");
@@ -61,7 +61,7 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 根据ID查询用户详情
-     * 
+     *
      * @param id 用户ID
      * @return 用户详情
      */
@@ -83,7 +83,7 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 创建用户
-     * 
+     *
      * @param user 用户信息
      * @return 创建结果
      */
@@ -92,7 +92,7 @@ public class UsersAdminController extends BaseAdminController {
         ValidationUtil.validateNotNull(user, "用户信息");
         ValidationUtil.validateUsername(user.getUsername());
         ValidationUtil.validateEmail(user.getEmail());
-        
+
         try {
             boolean success = userManagementService.saveUser(user);
             return handleOperationResult(success, "用户创建成功", "用户创建");
@@ -103,7 +103,7 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 更新用户信息
-     * 
+     *
      * @param id 用户ID
      * @param user 用户信息
      * @return 更新结果
@@ -113,7 +113,7 @@ public class UsersAdminController extends BaseAdminController {
         ValidationUtil.validateId(id, "用户ID");
         ValidationUtil.validateNotNull(user, "用户信息");
         ValidationUtil.validateEmail(user.getEmail());
-        
+
         try {
             user.setId(id);
             preservePasswordIfEmpty(user, id);
@@ -126,7 +126,7 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 删除用户
-     * 
+     *
      * @param id 用户ID
      * @return 删除结果
      */
@@ -143,7 +143,7 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 批量删除用户
-     * 
+     *
      * @param ids 用户ID列表
      * @return 删除结果
      */
@@ -160,7 +160,7 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 启用/禁用用户
-     * 
+     *
      * @param id 用户ID
      * @param enabled 是否启用
      * @return 操作结果
@@ -169,7 +169,7 @@ public class UsersAdminController extends BaseAdminController {
     public Result<String> updateUserStatus(@PathVariable Long id, @RequestParam Boolean enabled) {
         ValidationUtil.validateId(id, "用户ID");
         ValidationUtil.validateNotNull(enabled, "用户状态");
-        
+
         try {
             Users user = buildUserStatusUpdate(id, enabled);
             boolean success = userManagementService.updateUserById(user);
@@ -179,11 +179,11 @@ public class UsersAdminController extends BaseAdminController {
             return handleException(e, "用户状态更新");
         }
     }
-    
 
-    
 
-    
+
+
+
     /**
      * 如果密码为空则保留原密码
      * @param user 用户对象
@@ -197,7 +197,7 @@ public class UsersAdminController extends BaseAdminController {
             }
         }
     }
-    
+
     /**
      * 构建用户状态更新对象
      * @param id 用户ID

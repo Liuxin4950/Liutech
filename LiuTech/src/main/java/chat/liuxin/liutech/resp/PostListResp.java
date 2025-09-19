@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import java.util.Date;
 import java.util.List;
@@ -9,7 +9,7 @@ import lombok.Data;
  * 文章列表响应
  */
 @Data
-public class PostListResl {
+public class PostListResp {
     /**
      * 文章ID
      */
@@ -74,7 +74,7 @@ public class PostListResl {
      * 当前用户点赞状态 (0-未点赞, 1-已点赞)
      */
     private Integer likeStatus;
-    
+
     /**
      * 当前用户收藏状态 (0-未收藏, 1-已收藏)
      */
@@ -85,7 +85,7 @@ public class PostListResl {
      */
     private String status;
 
-    /** 
+    /**
      * 创建时间
      */
     private Date createdAt;

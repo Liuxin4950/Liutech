@@ -22,23 +22,23 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.AnnouncementsMapper;
 import chat.liuxin.liutech.model.Announcements;
 import chat.liuxin.liutech.req.AnnouncementReq;
-import chat.liuxin.liutech.resl.AnnouncementResl;
+import chat.liuxin.liutech.resp.AnnouncementResp;
 
 /**
  * 公告服务类 - 重构优化版本
- * 
+ *
  * 主要功能：
  * 1. 公告的增删改查操作
  * 2. 公告有效性验证和时间范围检查
  * 3. 缓存管理和软删除支持
  * 4. 数据转换和业务逻辑处理
- * 
+ *
  * 重构优化：
  * - 将复杂函数拆分为更小的单一职责函数
  * - 提取公共验证逻辑，减少代码重复
  * - 优化查询条件构建和数据转换流程
  * - 增强代码可读性和可维护性
- * 
+ *
  * @author 刘鑫
  * @version 2.0 - 重构优化版本
  */
@@ -54,7 +54,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param size 每页大小
      * @return 公告分页数据
      */
-    public IPage<AnnouncementResl> getValidAnnouncements(long current, long size) {
+    public IPage<AnnouncementResp> getValidAnnouncements(long current, long size) {
         Page<Announcements> page = new Page<>(current, size);
         IPage<Announcements> announcementPage = announcementsMapper.selectValidAnnouncements(page);
         return announcementPage.convert(this::convertToResl);
@@ -65,7 +65,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param limit 限制数量
      * @return 置顶公告列表
      */
-    public List<AnnouncementResl> getTopAnnouncements(Integer limit) {
+    public List<AnnouncementResp> getTopAnnouncements(Integer limit) {
         Integer validLimit = validateAndSetDefaultLimit(limit, 5);
         List<Announcements> announcements = announcementsMapper.selectTopAnnouncements(validLimit);
         return convertAnnouncementsList(announcements);
@@ -76,8 +76,8 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param limit 限制数量
      * @return 最新公告列表
      */
-    @Cacheable(value = "announcements", key = "'latest_' + #limit", unless = "#result == null || #result.isEmpty()")
-    public List<AnnouncementResl> getLatestAnnouncements(Integer limit) {
+    @Cacheable(value = "announcements", key = "#limit", unless = "#result == null || #result.isEmpty()")
+    public List<AnnouncementResp> getLatestAnnouncements(Integer limit) {
         Integer validLimit = validateAndSetDefaultLimit(limit, 10);
         List<Announcements> announcements = announcementsMapper.selectLatestAnnouncements(validLimit);
         return convertAnnouncementsList(announcements);
@@ -89,7 +89,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @return 公告详情
      */
     @Transactional(rollbackFor = Exception.class)
-    public AnnouncementResl getAnnouncementById(Long id) {
+    public AnnouncementResp getAnnouncementById(Long id) {
         validateAnnouncementId(id);
         Announcements announcement = getValidAnnouncementById(id);
         incrementViewCount(announcement);
@@ -121,7 +121,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         validateAnnouncementId(req.getId());
         validateAnnouncementReq(req);
         validateAnnouncementExists(req.getId());
-        
+
         Announcements announcement = new Announcements();
         BeanUtils.copyProperties(req, announcement);
         return this.updateById(announcement);
@@ -149,7 +149,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param includeDeleted 是否包含已删除的公告
      * @return 公告分页数据
      */
-    public IPage<AnnouncementResl> getAllAnnouncements(long current, long size, Integer status, Integer type, Boolean includeDeleted) {
+    public IPage<AnnouncementResp> getAllAnnouncements(long current, long size, Integer status, Integer type, Boolean includeDeleted) {
         Page<Announcements> page = new Page<>(current, size);
         QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, includeDeleted);
         IPage<Announcements> announcementPage = this.page(page, queryWrapper);
@@ -167,12 +167,12 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         if (ids == null || ids.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID列表不能为空");
         }
-        
+
         // 验证所有公告都存在且未删除
         for (Long id : ids) {
             validateAnnouncementExistsAndNotDeleted(id);
         }
-        
+
         // 批量软删除
         LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.in(Announcements::getId, ids)
@@ -192,7 +192,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         validateAnnouncementId(id);
         validateAnnouncementStatus(status);
         validateAnnouncementExistsAndNotDeleted(id);
-        
+
         LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Announcements::getId, id)
                 .set(Announcements::getStatus, status);
@@ -212,12 +212,12 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID列表不能为空");
         }
         validateAnnouncementStatus(status);
-        
+
         // 验证所有公告都存在且未删除
         for (Long id : ids) {
             validateAnnouncementExistsAndNotDeleted(id);
         }
-        
+
         LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.in(Announcements::getId, ids)
                 .set(Announcements::getStatus, status);
@@ -233,7 +233,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean restoreAnnouncement(Long id) {
         validateAnnouncementId(id);
-        
+
         Announcements announcement = this.getById(id);
         if (announcement == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
@@ -241,7 +241,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         if (announcement.getDeletedAt() == null) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "公告未被删除，无需恢复");
         }
-        
+
         LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Announcements::getId, id)
                 .set(Announcements::getDeletedAt, null);
@@ -262,7 +262,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "置顶状态参数错误");
         }
         validateAnnouncementExistsAndNotDeleted(id);
-        
+
         LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Announcements::getId, id)
                 .set(Announcements::getIsTop, isTop);
@@ -284,7 +284,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param announcements 公告实体列表
      * @return 公告响应列表
      */
-    private List<AnnouncementResl> convertAnnouncementsList(List<Announcements> announcements) {
+    private List<AnnouncementResp> convertAnnouncementsList(List<Announcements> announcements) {
         return announcements.stream().map(this::convertToResl).collect(Collectors.toList());
     }
 
@@ -329,11 +329,11 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         Announcements announcement = new Announcements();
         BeanUtils.copyProperties(req, announcement);
         announcement.setViewCount(0);
-        
+
         if (announcement.getIsTop() == null) {
             announcement.setIsTop(0);
         }
-        
+
         return announcement;
     }
 
@@ -391,19 +391,19 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      */
     private QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type, Boolean includeDeleted) {
         QueryWrapper<Announcements> queryWrapper = new QueryWrapper<>();
-        
+
         // 如果不包含已删除的公告，则只查询未删除的
         if (includeDeleted == null || !includeDeleted) {
             queryWrapper.isNull("deleted_at");
         }
-        
+
         if (status != null) {
             queryWrapper.eq("status", status);
         }
         if (type != null) {
             queryWrapper.eq("type", type);
         }
-        
+
         queryWrapper.orderByDesc("is_top", "priority", "created_at");
         return queryWrapper;
     }
@@ -466,13 +466,13 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param announcement 公告实体
      * @return 公告响应数据
      */
-    private AnnouncementResl convertToResl(Announcements announcement) {
-        AnnouncementResl resl = new AnnouncementResl();
+    private AnnouncementResp convertToResl(Announcements announcement) {
+        AnnouncementResp resl = new AnnouncementResp();
         BeanUtils.copyProperties(announcement, resl);
-        
+
         setAnnouncementNames(resl, announcement);
         setAnnouncementValidity(resl, announcement);
-        
+
         return resl;
     }
 
@@ -481,7 +481,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param resl 响应对象
      * @param announcement 公告实体
      */
-    private void setAnnouncementNames(AnnouncementResl resl, Announcements announcement) {
+    private void setAnnouncementNames(AnnouncementResp resl, Announcements announcement) {
         resl.setTypeName(getTypeName(announcement.getType()));
         resl.setPriorityName(getPriorityName(announcement.getPriority()));
         resl.setStatusName(getStatusName(announcement.getStatus()));
@@ -492,7 +492,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param resl 响应对象
      * @param announcement 公告实体
      */
-    private void setAnnouncementValidity(AnnouncementResl resl, Announcements announcement) {
+    private void setAnnouncementValidity(AnnouncementResp resl, Announcements announcement) {
         Date now = new Date();
         boolean isValid = isAnnouncementValid(announcement, now);
         resl.setIsValid(isValid);
@@ -505,7 +505,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @return 是否有效
      */
     private boolean isAnnouncementValid(Announcements announcement, Date now) {
-        return announcement.getStatus() == 1 && 
+        return announcement.getStatus() == 1 &&
                isTimeRangeValid(announcement.getStartTime(), announcement.getEndTime(), now);
     }
 

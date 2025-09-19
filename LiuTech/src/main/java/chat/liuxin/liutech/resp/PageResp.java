@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import java.util.List;
 
@@ -8,7 +8,7 @@ import lombok.Data;
  * 分页响应
  */
 @Data
-public class PageResl<T> {
+public class PageResp<T> {
     /**
      * 数据列表
      */
@@ -44,9 +44,9 @@ public class PageResl<T> {
      */
     private Boolean hasPrevious;
 
-    public PageResl() {}
+    public PageResp() {}
 
-    public PageResl(List<T> records, Long total, Long current, Long size) {
+    public PageResp(List<T> records, Long total, Long current, Long size) {
         this.records = records;
         this.total = total;
         this.current = current;

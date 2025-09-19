@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import java.util.Date;
 
@@ -9,7 +9,7 @@ import lombok.Data;
  * @author liuxin
  */
 @Data
-public class AnnouncementResl {
+public class AnnouncementResp {
     /**
      * 公告ID
      */

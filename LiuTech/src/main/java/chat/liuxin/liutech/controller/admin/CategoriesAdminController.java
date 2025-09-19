@@ -3,8 +3,8 @@ package chat.liuxin.liutech.controller.admin;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
 
-import chat.liuxin.liutech.resl.CategoryResl;
-import chat.liuxin.liutech.resl.PageResl;
+import chat.liuxin.liutech.resp.CategoryResp;
+import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.CategoriesService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * 管理端分类控制器
  * 需要管理员权限才能访问
- * 
+ *
  * @author 刘鑫
  */
 @Slf4j
@@ -32,7 +32,7 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 分页查询分类列表
-     * 
+     *
      * @param page 页码，默认1
      * @param size 每页大小，默认10
      * @param name 分类名称（可选，模糊搜索）
@@ -40,13 +40,13 @@ public class CategoriesAdminController extends BaseAdminController {
      * @return 分页分类列表
      */
     @GetMapping
-    public Result<PageResl<CategoryResl>> getCategoryList(
+    public Result<PageResp<CategoryResp>> getCategoryList(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String name,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
         try {
-            PageResl<CategoryResl> result = categoriesService.getCategoryListForAdmin(page, size, name, includeDeleted);
+            PageResp<CategoryResp> result = categoriesService.getCategoryListForAdmin(page, size, name, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询分类列表");
@@ -55,15 +55,15 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 根据ID查询分类详情
-     * 
+     *
      * @param id 分类ID
      * @return 分类详情
      */
     @GetMapping("/{id}")
-    public Result<CategoryResl> getCategoryById(@PathVariable Long id) {
+    public Result<CategoryResp> getCategoryById(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
-            CategoryResl category = categoriesService.getById(id);
+            CategoryResp category = categoriesService.getById(id);
             return checkResourceExists(category, ErrorCode.NOT_FOUND);
         } catch (Exception e) {
             return handleException(e, "查询分类详情");
@@ -72,12 +72,12 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 创建分类
-     * 
+     *
      * @param category 分类信息
      * @return 创建结果
      */
     @PostMapping
-    public Result<String> createCategory(@RequestBody CategoryResl category) {
+    public Result<String> createCategory(@RequestBody CategoryResp category) {
         ValidationUtil.validateNotNull(category, "分类信息");
         try {
             boolean success = categoriesService.save(category);
@@ -89,13 +89,13 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 更新分类
-     * 
+     *
      * @param id 分类ID
      * @param category 分类信息
      * @return 更新结果
      */
     @PutMapping("/{id}")
-    public Result<String> updateCategory(@PathVariable Long id, @RequestBody CategoryResl category) {
+    public Result<String> updateCategory(@PathVariable Long id, @RequestBody CategoryResp category) {
         ValidationUtil.validateId(id, "分类ID");
         ValidationUtil.validateNotNull(category, "分类信息");
         try {
@@ -109,7 +109,7 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 删除分类
-     * 
+     *
      * @param id 分类ID
      * @return 删除结果
      */
@@ -126,7 +126,7 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 批量删除分类
-     * 
+     *
      * @param ids 分类ID列表
      * @return 删除结果
      */
@@ -143,7 +143,7 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 恢复已删除的分类
-     * 
+     *
      * @param id 分类ID
      * @return 恢复结果
      */
@@ -160,7 +160,7 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 彻底删除分类（物理删除）
-     * 
+     *
      * @param id 分类ID
      * @return 删除结果
      */
@@ -177,7 +177,7 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 批量彻底删除分类（物理删除）
-     * 
+     *
      * @param ids 分类ID列表
      * @return 删除结果
      */

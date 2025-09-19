@@ -8,14 +8,14 @@
     <select id="findByUserName" parameterType="string" resultType="chat.liuxin.liutech.model.Users">
         SELECT * FROM users WHERE username = #{username}
     </select>
-    
+
     <select id="findByEmail" parameterType="string" resultType="chat.liuxin.liutech.model.Users">
         SELECT * FROM users WHERE email = #{email}
     </select>
 
     <!-- 管理端分页查询用户列表 -->
-    <select id="selectUsersForAdmin" resultType="chat.liuxin.liutech.resl.UserResl">
-        SELECT 
+    <select id="selectUsersForAdmin" resultType="chat.liuxin.liutech.resp.UserResp">
+        SELECT
             u.id,
             u.username,
             u.email,

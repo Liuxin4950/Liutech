@@ -3,7 +3,7 @@
 <mapper namespace="chat.liuxin.liutech.mapper.TagsMapper">
 
     <!-- 查询所有标签（包含文章数量） -->
-    <select id="selectTagsWithPostCount" resultType="chat.liuxin.liutech.resl.TagResl">
+    <select id="selectTagsWithPostCount" resultType="chat.liuxin.liutech.resp.TagResp">
         SELECT
             t.id,
             t.name,
@@ -17,7 +17,7 @@
     </select>
 
     <!-- 根据文章ID查询标签列表 -->
-    <select id="selectTagsByPostId" resultType="chat.liuxin.liutech.resl.TagResl">
+    <select id="selectTagsByPostId" resultType="chat.liuxin.liutech.resp.TagResp">
         SELECT
             t.id,
             t.name
@@ -28,7 +28,7 @@
     </select>
 
     <!-- 查询热门标签 -->
-    <select id="selectHotTags" resultType="chat.liuxin.liutech.resl.TagResl">
+    <select id="selectHotTags" resultType="chat.liuxin.liutech.resp.TagResp">
         SELECT
             t.id,
             t.name,
@@ -44,7 +44,7 @@
     </select>
 
     <!-- 根据ID查询标签详情（包含文章数量） -->
-    <select id="selectTagByIdWithPostCount" resultType="chat.liuxin.liutech.resl.TagResl">
+    <select id="selectTagByIdWithPostCount" resultType="chat.liuxin.liutech.resp.TagResp">
         SELECT
             t.id,
             t.name,
@@ -57,7 +57,7 @@
     </select>
 
     <!-- 根据标签名字搜索标签（包含文章数量） -->
-    <select id="selectTagsByName" resultType="chat.liuxin.liutech.resl.TagResl">
+    <select id="selectTagsByName" resultType="chat.liuxin.liutech.resp.TagResp">
         SELECT
             t.id,
             t.name,
@@ -71,7 +71,7 @@
     </select>
 
     <!-- 管理端分页查询标签列表 -->
-    <select id="selectTagsForAdmin" resultType="chat.liuxin.liutech.resl.TagResl">
+    <select id="selectTagsForAdmin" resultType="chat.liuxin.liutech.resp.TagResp">
         SELECT
             t.id,
             t.name,

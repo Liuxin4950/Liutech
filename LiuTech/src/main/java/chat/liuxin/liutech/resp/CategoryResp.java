@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import lombok.Data;
 import java.util.Date;
@@ -6,11 +6,11 @@ import java.util.Date;
 /**
  * 分类响应类
  * 用于管理端分类列表展示
- * 
+ *
  * @author 刘鑫
  */
 @Data
-public class CategoryResl {
+public class CategoryResp {
     /**
      * 分类ID
      */

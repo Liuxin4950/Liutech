@@ -5,8 +5,8 @@ import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.mapper.TagsMapper;
 import chat.liuxin.liutech.model.PostTags;
 import chat.liuxin.liutech.model.Tags;
-import chat.liuxin.liutech.resl.PageResl;
-import chat.liuxin.liutech.resl.TagResl;
+import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.TagResp;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -45,7 +45,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public List<TagResl> getAllTagsWithPostCount() {
+    public List<TagResp> getAllTagsWithPostCount() {
         return tagsMapper.selectTagsWithPostCount();
     }
 
@@ -54,7 +54,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param postId 文章ID
      * @return 标签列表
      */
-    public List<TagResl> getTagsByPostId(Long postId) {
+    public List<TagResp> getTagsByPostId(Long postId) {
         return tagsMapper.selectTagsByPostId(postId);
     }
 
@@ -64,7 +64,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @return 热门标签列表
      */
     @Cacheable(value = "hotTags", key = "#limit", unless = "#result == null || #result.isEmpty()")
-    public List<TagResl> getHotTags(Integer limit) {
+    public List<TagResp> getHotTags(Integer limit) {
         return tagsMapper.selectHotTags(limit);
     }
 
@@ -75,7 +75,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param id 标签ID
      * @return 标签详情，包含文章数量统计
      */
-    public TagResl getTagByIdWithPostCount(Long id) {
+    public TagResp getTagByIdWithPostCount(Long id) {
         return tagsMapper.selectTagByIdWithPostCount(id);
     }
 
@@ -86,7 +86,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param name 标签名字，支持模糊搜索
      * @return 匹配的标签列表，包含文章数量统计
      */
-    public List<TagResl> getTagsByName(String name) {
+    public List<TagResp> getTagsByName(String name) {
         return tagsMapper.selectTagsByName(name);
     }
 
@@ -102,27 +102,27 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PageResl<TagResl> getTagListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
+    public PageResp<TagResp> getTagListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
         // 计算偏移量
         Integer offset = (page - 1) * size;
 
         // 查询标签列表
-        List<TagResl> tagList = tagsMapper.selectTagsForAdmin(offset, size, name, includeDeleted);
+        List<TagResp> tagList = tagsMapper.selectTagsForAdmin(offset, size, name, includeDeleted);
 
         // 查询总数
         Integer total = tagsMapper.countTagsForAdmin(name, includeDeleted);
 
         // 构建分页结果
-        PageResl<TagResl> pageResl = new PageResl<>();
-        pageResl.setRecords(tagList);
-        pageResl.setTotal(total.longValue());
-        pageResl.setCurrent(page.longValue());
-        pageResl.setSize(size.longValue());
-        pageResl.setPages((long) Math.ceil((double) total / size));
-        pageResl.setHasNext(page.longValue() < pageResl.getPages());
-        pageResl.setHasPrevious(page.longValue() > 1);
+        PageResp<TagResp> pageResp = new PageResp<>();
+        pageResp.setRecords(tagList);
+        pageResp.setTotal(total.longValue());
+        pageResp.setCurrent(page.longValue());
+        pageResp.setSize(size.longValue());
+        pageResp.setPages((long) Math.ceil((double) total / size));
+        pageResp.setHasNext(page.longValue() < pageResp.getPages());
+        pageResp.setHasPrevious(page.longValue() > 1);
 
-        return pageResl;
+        return pageResp;
     }
 
     /**
@@ -130,39 +130,39 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param id 标签ID
      * @return 标签详情
      */
-    public TagResl getById(Long id) {
+    public TagResp getById(Long id) {
         Tags tag = super.getById(id);
         if (tag == null) {
             return null;
         }
 
-        TagResl tagResl = new TagResl();
-        tagResl.setId(tag.getId());
-        tagResl.setName(tag.getName());
-        tagResl.setDescription(tag.getDescription());
-        tagResl.setCreatedAt(tag.getCreatedAt());
-        tagResl.setUpdatedAt(tag.getUpdatedAt());
+        TagResp tagResp = new TagResp();
+        tagResp.setId(tag.getId());
+        tagResp.setName(tag.getName());
+        tagResp.setDescription(tag.getDescription());
+        tagResp.setCreatedAt(tag.getCreatedAt());
+        tagResp.setUpdatedAt(tag.getUpdatedAt());
         // postCount 在单个查询时设为0，如需要可以单独查询
-        tagResl.setPostCount(0);
+        tagResp.setPostCount(0);
 
-        return tagResl;
+        return tagResp;
     }
 
     /**
      * 保存标签（接受TagResl参数）
      * 创建新标签，自动设置创建时间和更新时间
      *
-     * @param tagResl 标签信息，必须包含标签名称
+     * @param tagResp 标签信息，必须包含标签名称
      * @return 是否保存成功
      * @throws BusinessException 当标签名称已存在时抛出
      * @author 刘鑫
      * @date 2025-01-30
      */
     @CacheEvict(value = "hotTags", allEntries = true)
-    public boolean save(TagResl tagResl) {
+    public boolean save(TagResp tagResp) {
         Tags tag = new Tags();
-        tag.setName(tagResl.getName());
-        tag.setDescription(tagResl.getDescription());
+        tag.setName(tagResp.getName());
+        tag.setDescription(tagResp.getDescription());
         return super.save(tag);
     }
 
@@ -170,18 +170,18 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * 根据ID更新标签（接受TagResl参数）
      * 更新标签信息，自动设置更新时间
      *
-     * @param tagResl 标签信息，必须包含有效的ID
+     * @param tagResp 标签信息，必须包含有效的ID
      * @return 是否更新成功
      * @throws BusinessException 当标签不存在时抛出
      * @author 刘鑫
      * @date 2025-01-30
      */
     @CacheEvict(value = "hotTags", allEntries = true)
-    public boolean updateById(TagResl tagResl) {
+    public boolean updateById(TagResp tagResp) {
         Tags tag = new Tags();
-        tag.setId(tagResl.getId());
-        tag.setName(tagResl.getName());
-        tag.setDescription(tagResl.getDescription());
+        tag.setId(tagResp.getId());
+        tag.setName(tagResp.getName());
+        tag.setDescription(tagResp.getDescription());
         return super.updateById(tag);
     }
 

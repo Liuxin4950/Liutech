@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import lombok.Data;
 
@@ -11,7 +11,7 @@ import java.util.Date;
  * @author 刘鑫
  */
 @Data
-public class TagResl {
+public class TagResp {
     /**
      * 标签ID
      */

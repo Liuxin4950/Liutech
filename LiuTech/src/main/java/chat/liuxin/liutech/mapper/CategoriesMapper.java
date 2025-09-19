@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 import chat.liuxin.liutech.model.Categories;
-import chat.liuxin.liutech.resl.CategoryResl;
+import chat.liuxin.liutech.resp.CategoryResp;
 
 /**
  * 分类Mapper接口
@@ -20,7 +20,7 @@ public interface CategoriesMapper extends BaseMapper<Categories> {
      * 查询所有分类（包含文章数量）
      * @return 分类列表
      */
-    List<CategoryResl> selectCategoriesWithPostCount();
+    List<CategoryResp> selectCategoriesWithPostCount();
 
     /**
      * 管理端分页查询分类列表（包含创建者信息）
@@ -30,10 +30,10 @@ public interface CategoriesMapper extends BaseMapper<Categories> {
      * @param includeDeleted 是否包含已删除分类
      * @return 分类列表
      */
-    List<chat.liuxin.liutech.resl.CategoryResl> selectCategoriesForAdmin(@Param("offset") Integer offset, 
-                                                                         @Param("limit") Integer limit, 
-                                                                         @Param("name") String name,
-                                                                         @Param("includeDeleted") Boolean includeDeleted);
+    List<CategoryResp> selectCategoriesForAdmin(@Param("offset") Integer offset,
+                                                @Param("limit") Integer limit,
+                                                @Param("name") String name,
+                                                @Param("includeDeleted") Boolean includeDeleted);
 
     /**
      * 管理端查询分类总数

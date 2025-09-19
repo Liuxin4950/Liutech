@@ -31,10 +31,10 @@ import chat.liuxin.liutech.model.PostFavorites;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
-import chat.liuxin.liutech.resl.PageResl;
-import chat.liuxin.liutech.resl.PostCreateResl;
-import chat.liuxin.liutech.resl.PostDetailResl;
-import chat.liuxin.liutech.resl.PostListResl;
+import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.PostCreateResp;
+import chat.liuxin.liutech.resp.PostDetailResp;
+import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.mapper.CommentsMapper;
@@ -42,7 +42,7 @@ import chat.liuxin.liutech.mapper.CommentsMapper;
 /**
  * 文章服务类
  * 提供文章的增删改查、点赞收藏、统计等核心业务功能
- * 
+ *
  * @author 刘鑫
  * @date 2025-08-30
  */
@@ -61,10 +61,10 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     @Autowired
     private PostFavoritesMapper postFavoritesMapper;
-    
+
     @Autowired
     private PostAttachmentsMapper postAttachmentsMapper;
-    
+
     @Autowired
     private ResourceDownloadService resourceDownloadService;
 
@@ -75,13 +75,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 分页查询文章列表（公开接口）
      * 支持按分类、标签、关键词、状态、作者等条件进行筛选
      * 只返回已发布的文章，不包含用户交互状态
-     * 
+     *
      * @param req 查询请求参数，包含分页信息和筛选条件
      * @return 分页结果，包含文章列表和分页信息，不包含点赞收藏状态
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PageResl<PostListResl> getPostList(PostQueryReq req) {
+    public PageResp<PostListResp> getPostList(PostQueryReq req) {
         return getPostList(req, null);
     }
 
@@ -89,32 +89,32 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 分页查询文章列表（支持用户状态）
      * 支持按分类、标签、关键词、状态、作者等条件进行筛选，同时返回当前用户的点赞收藏状态
      * 返回已发布的文章，包含用户的点赞收藏状态
-     * 
+     *
      * @param req    查询请求参数，包含分页信息和筛选条件
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 分页结果，包含文章列表和分页信息，文章包含用户状态信息
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PageResl<PostListResl> getPostList(PostQueryReq req, Long userId) {
+    public PageResp<PostListResp> getPostList(PostQueryReq req, Long userId) {
         // 创建分页对象
-        Page<PostListResl> page = new Page<>(req.getPage(), req.getSize());
+        Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
 
         // 处理搜索关键词
         String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
 
         // 执行分页查询，直接返回PostListResl
-        IPage<PostListResl> result = postsMapper.selectPostListResl(page, req.getCategoryId(), req.getTagId(), keyword,
+        IPage<PostListResp> result = postsMapper.selectPostListResl(page, req.getCategoryId(), req.getTagId(), keyword,
                 req.getStatus(), req.getAuthorId(), userId);
 
         // 使用MyBatis-Plus自动统计的总数
-        return new PageResl<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+        return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 
     /**
      * 根据ID查询文章详情（公开接口）
      * 查询文章详细信息并自动增加访问量，不包含用户交互状态
-     * 
+     *
      * @param id 文章ID
      * @return 文章详情信息，包含内容、作者、标签、统计数据等，不包含用户的点赞收藏状态
      * @throws BusinessException 当文章不存在时抛出异常
@@ -122,14 +122,14 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    public PostDetailResl getPostDetail(Long id) {
+    public PostDetailResp getPostDetail(Long id) {
         return getPostDetail(id, null);
     }
 
     /**
      * 根据ID查询文章详情（包含用户状态）
      * 查询文章详细信息并自动增加访问量，同时返回当前用户的点赞收藏状态
-     * 
+     *
      * @param id     文章ID
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 文章详情信息，包含内容、作者、标签、统计数据和用户状态
@@ -138,8 +138,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    public PostDetailResl getPostDetail(Long id, Long userId) {
-        PostDetailResl postDetail = postsMapper.selectPostDetailResl(id, userId);
+    public PostDetailResp getPostDetail(Long id, Long userId) {
+        PostDetailResp postDetail = postsMapper.selectPostDetailResl(id, userId);
         if (postDetail == null) {
             return null;
         }
@@ -147,15 +147,15 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 附件列表（公开，不限制上传者）
         List<java.util.Map<String, Object>> list = postAttachmentsMapper.selectPostAttachmentsPublic(id);
         if (list != null && !list.isEmpty()) {
-            List<PostDetailResl.AttachmentInfo> attachments = list.stream().map(map -> {
-                PostDetailResl.AttachmentInfo a = new PostDetailResl.AttachmentInfo();
+            List<PostDetailResp.AttachmentInfo> attachments = list.stream().map(map -> {
+                PostDetailResp.AttachmentInfo a = new PostDetailResp.AttachmentInfo();
                 Object v;
                 v = map.get("attachmentId"); if (v != null) a.setAttachmentId(((Number) v).longValue());
                 v = map.get("resourceId"); if (v != null) a.setResourceId(((Number) v).longValue());
                 v = map.get("fileName"); if (v != null) a.setFileName(String.valueOf(v));
                 v = map.get("pointsNeeded"); if (v != null) a.setPointsNeeded(((Number) v).intValue());
                 v = map.get("createdTime"); if (v instanceof java.util.Date) a.setCreatedTime((java.util.Date) v);
-                
+
                 // 根据积分需求和用户购买状态控制文件URL可见性
                 Long resourceId = a.getResourceId();
                 Integer pointsNeeded = a.getPointsNeeded();
@@ -178,7 +178,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     // 免费资源：始终返回URL
                     v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
                 }
-                
+
                 return a;
             }).collect(Collectors.toList());
             postDetail.setAttachments(attachments);
@@ -203,22 +203,22 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 管理端查询文章详情（不增加访问量）
      * 查询文章详细信息，包含完整的关联数据，但不增加访问量
-     * 
+     *
      * @param id 文章ID
      * @return 文章详情信息，包含内容、作者、标签、统计数据等
      * @throws BusinessException 当文章不存在时抛出异常
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PostDetailResl getPostDetailForAdmin(Long id) {
-        PostDetailResl postDetail = postsMapper.selectPostDetailResl(id, null);
+    public PostDetailResp getPostDetailForAdmin(Long id) {
+        PostDetailResp postDetail = postsMapper.selectPostDetailResl(id, null);
         if (postDetail == null) {
             return null;
         }
         List<java.util.Map<String, Object>> list = postAttachmentsMapper.selectPostAttachmentsPublic(id);
         if (list != null && !list.isEmpty()) {
-            List<PostDetailResl.AttachmentInfo> attachments = list.stream().map(map -> {
-                PostDetailResl.AttachmentInfo a = new PostDetailResl.AttachmentInfo();
+            List<PostDetailResp.AttachmentInfo> attachments = list.stream().map(map -> {
+                PostDetailResp.AttachmentInfo a = new PostDetailResp.AttachmentInfo();
                 Object v;
                 v = map.get("attachmentId"); if (v != null) a.setAttachmentId(((Number) v).longValue());
                 v = map.get("resourceId"); if (v != null) a.setResourceId(((Number) v).longValue());
@@ -235,7 +235,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     /**
      * 点赞文章（已废弃，请使用toggleLike方法）
-     * 
+     *
      * @param id 文章ID
      * @return 是否成功
      * @deprecated 使用toggleLike(Long postId, Long userId)替代
@@ -259,7 +259,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 切换文章点赞状态
      * 如果用户未点赞则点赞，如果已点赞则取消点赞，同时更新文章点赞数
-     * 
+     *
      * @param postId 文章ID
      * @param userId 用户ID
      * @return 点赞后的状态（true=已点赞，false=已取消点赞）
@@ -294,7 +294,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 切换文章收藏状态
      * 如果用户未收藏则收藏，如果已收藏则取消收藏，同时更新文章收藏数
-     * 
+     *
      * @param postId 文章ID
      * @param userId 用户ID
      * @return 收藏后的状态（true=已收藏，false=已取消收藏）
@@ -329,55 +329,55 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 查询热门文章
      * 根据点赞数、评论数、访问量等综合指标排序，支持缓存
-     * 
+     *
      * @param limit 限制数量，最多返回的文章数
      * @return 热门文章列表，按热度降序排列
      */
     @Cacheable(value = "hotPosts", key = "#limit", unless = "#result == null || #result.isEmpty()")
-    public List<PostListResl> getHotPosts(Integer limit) {
+    public List<PostListResp> getHotPosts(Integer limit) {
         return getHotPosts(limit, null);
     }
 
     /**
      * 查询热门文章（支持用户状态）
      * 根据点赞数、评论数、访问量等综合指标排序，同时返回用户点赞收藏状态
-     * 
+     *
      * @param limit  限制数量，最多返回的文章数
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 热门文章列表，按热度降序排列，包含用户状态信息
      */
-    public List<PostListResl> getHotPosts(Integer limit, Long userId) {
+    public List<PostListResp> getHotPosts(Integer limit, Long userId) {
         return postsMapper.selectHotPostListResl(limit, userId);
     }
 
     /**
      * 查询最新文章
      * 按发布时间降序排列，支持缓存
-     * 
+     *
      * @param limit 限制数量，最多返回的文章数
      * @return 最新文章列表，按发布时间降序排列
      */
     @Cacheable(value = "latestPosts", key = "#limit", unless = "#result == null || #result.isEmpty()")
-    public List<PostListResl> getLatestPosts(Integer limit) {
+    public List<PostListResp> getLatestPosts(Integer limit) {
         return getLatestPosts(limit, null);
     }
 
     /**
      * 查询最新文章（支持用户状态）
      * 按发布时间降序排列，同时返回用户点赞收藏状态
-     * 
+     *
      * @param limit  限制数量，最多返回的文章数
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 最新文章列表，按发布时间降序排列，包含用户状态信息
      */
-    public List<PostListResl> getLatestPosts(Integer limit, Long userId) {
+    public List<PostListResp> getLatestPosts(Integer limit, Long userId) {
         return postsMapper.selectLatestPostListResl(limit, userId);
     }
 
     /**
      * 创建文章
      * 创建新文章并处理标签关联，支持草稿和发布状态
-     * 
+     *
      * @param req      创建请求，包含文章标题、内容、分类、标签等信息
      * @param authorId 作者ID
      * @return 文章创建响应，包含文章ID、标题、状态和创建时间
@@ -387,7 +387,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
-    public PostCreateResl createPost(PostCreateReq req, Long authorId) {
+    public PostCreateResp createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
         BeanUtils.copyProperties(req, post);
@@ -415,16 +415,16 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (req.getTagIds() != null && !req.getTagIds().isEmpty()) {
             savePostTags(post.getId(), req.getTagIds());
         }
-        
+
         // 绑定草稿附件到文章
         if (StringUtils.hasText(req.getDraftKey())) {
             int bindCount = postAttachmentsMapper.bindDraftToPost(req.getDraftKey(), post.getId());
-            log.info("绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}", 
+            log.info("绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
                     post.getId(), req.getDraftKey(), bindCount);
         }
 
         // 构建响应对象
-        PostCreateResl response = new PostCreateResl();
+        PostCreateResp response = new PostCreateResp();
         response.setId(post.getId());
         response.setTitle(post.getTitle());
         response.setStatus(post.getStatus());
@@ -436,7 +436,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 更新文章
      * 更新文章信息和标签关联，只有作者本人可以编辑
-     * 
+     *
      * @param req      更新请求，包含文章ID和需要更新的字段
      * @param authorId 作者ID，用于权限验证
      * @return 是否更新成功
@@ -478,7 +478,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 删除文章（软删除）
      * 软删除文章，只有作者本人可以删除，不会物理删除数据
-     * 
+     *
      * @param id       文章ID
      * @param authorId 作者ID，用于权限验证
      * @return 是否删除成功
@@ -523,7 +523,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 发布文章
      * 将草稿状态的文章发布为公开状态，只有作者本人可以操作
-     * 
+     *
      * @param id       文章ID
      * @param authorId 作者ID，用于权限验证
      * @return 是否发布成功
@@ -540,7 +540,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 取消发布文章
      * 将已发布的文章改为草稿状态，只有作者本人可以操作
-     * 
+     *
      * @param id       文章ID
      * @param authorId 作者ID，用于权限验证
      * @return 是否操作成功
@@ -556,7 +556,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 更新文章状态（私有方法）
      * 内部方法，用于统一处理文章状态更新逻辑
-     * 
+     *
      * @param id       文章ID
      * @param status   新状态（draft/published等）
      * @param authorId 作者ID，用于权限验证
@@ -590,7 +590,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 保存文章标签关联（私有方法）
      * 批量创建文章与标签的关联关系
-     * 
+     *
      * @param postId 文章ID
      * @param tagIds 标签ID列表，为空时不执行任何操作
      * @author 刘鑫
@@ -616,7 +616,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 更新文章标签关联（私有方法）
      * 先删除原有关联，再创建新的关联关系
-     * 
+     *
      * @param postId 文章ID
      * @param tagIds 新的标签ID列表，为空时只删除原有关联
      * @author 刘鑫
@@ -635,7 +635,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 统计用户文章数量（已发布）
      * 统计指定用户已发布状态的文章总数
-     * 
+     *
      * @param userId 用户ID
      * @return 已发布文章数量
      * @author 刘鑫
@@ -648,7 +648,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 统计用户草稿数量
      * 统计指定用户草稿状态的文章总数
-     * 
+     *
      * @param userId 用户ID
      * @return 草稿文章数量
      * @author 刘鑫
@@ -661,7 +661,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 获取用户最后发文时间
      * 获取指定用户最近一次发布文章的时间
-     * 
+     *
      * @param userId 用户ID
      * @return 最后发文时间，如果用户没有发布过文章则返回null
      * @author 刘鑫
@@ -674,7 +674,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 统计用户文章数量（按状态）
      * 统计指定用户在指定状态下的文章总数
-     * 
+     *
      * @param userId 用户ID
      * @param status 文章状态（draft/published等）
      * @return 指定状态的文章数量
@@ -688,7 +688,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 统计全站已发布文章数量
      * 统计整个网站所有已发布状态的文章总数
-     * 
+     *
      * @return 全站已发布文章数量
      * @author 刘鑫
      * @date 2025-01-30
@@ -700,7 +700,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 统计全站文章总浏览量
      * 统计整个网站所有文章的浏览量总和
-     * 
+     *
      * @return 全站文章总浏览量
      * @author 刘鑫
      * @date 2025-01-30
@@ -712,7 +712,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 统计用户所有文章的浏览量总和
      * 统计指定用户所有文章的浏览量累计总数
-     * 
+     *
      * @param userId 用户ID
      * @return 用户文章总浏览量
      * @author 刘鑫
@@ -725,7 +725,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 管理端分页查询文章列表
      * 支持按标题、分类、状态、作者等条件进行筛选，管理员可查看所有状态的文章
-     * 
+     *
      * @param page       页码，从1开始
      * @param size       每页大小，建议10-50之间
      * @param title      文章标题（可选，模糊搜索）
@@ -737,26 +737,26 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PageResl<PostListResl> getPostListForAdmin(int page, int size, String title, Long categoryId, String status,
-            Long authorId, Boolean includeDeleted) {
+    public PageResp<PostListResp> getPostListForAdmin(int page, int size, String title, Long categoryId, String status,
+                                                      Long authorId, Boolean includeDeleted) {
         log.info("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}, 包含已删除: {}",
                 page, size, title, categoryId, status, authorId, includeDeleted);
 
         try {
             // 创建分页对象
-            Page<PostListResl> pageObj = new Page<>(page, size);
+            Page<PostListResp> pageObj = new Page<>(page, size);
 
             // 处理搜索关键词
             String keyword = StringUtils.hasText(title) ? title.trim() : null;
 
             // 执行分页查询，传递includeDeleted参数
-            IPage<PostListResl> result = postsMapper.selectPostListForAdmin(pageObj, categoryId, keyword, status,
+            IPage<PostListResp> result = postsMapper.selectPostListForAdmin(pageObj, categoryId, keyword, status,
                     authorId, includeDeleted);
 
             log.info("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
 
             // 使用MyBatis-Plus自动统计的总数
-            return new PageResl<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+            return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
 
         } catch (Exception e) {
             log.error("管理端文章列表查询失败: {}", e.getMessage(), e);
@@ -767,7 +767,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 管理端更新文章状态
      * 管理员可以修改任何文章的状态，支持发布、下架、删除等操作
-     * 
+     *
      * @param id         文章ID
      * @param status     新状态（draft/published/deleted等）
      * @param operatorId 操作者ID，用于记录操作日志
@@ -808,7 +808,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 管理端删除文章（软删除）
      * 管理员可以删除任何文章，执行软删除操作，不会物理删除数据
-     * 
+     *
      * @param id         文章ID
      * @param operatorId 操作者ID，用于记录操作日志
      * @return 是否删除成功
@@ -858,7 +858,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 管理端批量更新文章状态
      * 管理员可以批量修改多篇文章的状态，提高管理效率
-     * 
+     *
      * @param ids    文章ID列表，不能为空
      * @param status 新状态（draft/published/deleted等）
      * @return 是否批量更新成功
@@ -895,7 +895,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 批量删除文章（管理端）- 软删除
      * 管理员可以批量删除多篇文章，执行软删除操作，同时删除相关的点赞、收藏、评论和标签关联
-     * 
+     *
      * @param ids 文章ID列表，不能为空
      * @return 是否批量删除成功
      * @throws BusinessException 当参数无效时抛出异常
@@ -944,7 +944,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 恢复已删除的文章
      * 将软删除的文章恢复为正常状态
-     * 
+     *
      * @param id 文章ID
      * @return 是否恢复成功
      * @author 刘鑫
@@ -957,10 +957,10 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             if (id == null) {
                 return false;
             }
-            
+
             // 使用原生SQL恢复文章，绕过MyBatis-Plus的逻辑删除限制
             int result = postsMapper.restorePostById(id);
-            
+
             log.info("恢复文章ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
@@ -1047,7 +1047,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new RuntimeException("批量彻底删除文章失败: " + e.getMessage(), e);
         }
     }
-    
+
     @Transactional
     public boolean permanentDeletePost(Long id) {
         try {

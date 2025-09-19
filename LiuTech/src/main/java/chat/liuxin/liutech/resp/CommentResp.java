@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import java.util.Date;
 import java.util.List;
@@ -10,7 +10,7 @@ import lombok.Data;
  * 用于控制API返回的评论数据字段
  */
 @Data
-public class CommentResl {
+public class CommentResp {
     /**
      * 评论ID
      */
@@ -44,7 +44,7 @@ public class CommentResl {
     /**
      * 子评论列表
      */
-    private List<CommentResl> children;
+    private List<CommentResp> children;
 
     /**
      * 用户信息内部类

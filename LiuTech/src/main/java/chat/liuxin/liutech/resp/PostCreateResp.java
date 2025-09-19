@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import java.util.Date;
 
@@ -8,7 +8,7 @@ import lombok.Data;
  * 文章创建响应
  */
 @Data
-public class PostCreateResl {
+public class PostCreateResp {
     /**
      * 文章ID
      */

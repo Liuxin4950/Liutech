@@ -4,8 +4,8 @@ import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.mapper.*;
 import chat.liuxin.liutech.model.Categories;
 import chat.liuxin.liutech.model.Posts;
-import chat.liuxin.liutech.resl.CategoryResl;
-import chat.liuxin.liutech.resl.PageResl;
+import chat.liuxin.liutech.resp.CategoryResp;
+import chat.liuxin.liutech.resp.PageResp;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -54,7 +54,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @return 分类列表
      */
     @Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()")
-    public List<CategoryResl> getAllCategoriesWithPostCount() {
+    public List<CategoryResp> getAllCategoriesWithPostCount() {
         return categoriesMapper.selectCategoriesWithPostCount();
     }
 
@@ -70,27 +70,27 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public PageResl<CategoryResl> getCategoryListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
+    public PageResp<CategoryResp> getCategoryListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
         // 计算偏移量
         Integer offset = (page - 1) * size;
 
         // 查询分类列表
-        List<CategoryResl> categoryList = categoriesMapper.selectCategoriesForAdmin(offset, size, name, includeDeleted);
+        List<CategoryResp> categoryList = categoriesMapper.selectCategoriesForAdmin(offset, size, name, includeDeleted);
 
         // 查询总数
         Integer total = categoriesMapper.countCategoriesForAdmin(name, includeDeleted);
 
         // 构建分页结果
-        PageResl<CategoryResl> pageResl = new PageResl<>();
-        pageResl.setRecords(categoryList);
-        pageResl.setTotal(total.longValue());
-        pageResl.setCurrent(page.longValue());
-        pageResl.setSize(size.longValue());
-        pageResl.setPages((long) Math.ceil((double) total / size));
-        pageResl.setHasNext(page.longValue() < pageResl.getPages());
-        pageResl.setHasPrevious(page.longValue() > 1);
+        PageResp<CategoryResp> pageResp = new PageResp<>();
+        pageResp.setRecords(categoryList);
+        pageResp.setTotal(total.longValue());
+        pageResp.setCurrent(page.longValue());
+        pageResp.setSize(size.longValue());
+        pageResp.setPages((long) Math.ceil((double) total / size));
+        pageResp.setHasNext(page.longValue() < pageResp.getPages());
+        pageResp.setHasPrevious(page.longValue() > 1);
 
-        return pageResl;
+        return pageResp;
     }
 
     /**
@@ -102,39 +102,39 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @author 刘鑫
      * @date 2025-01-30
      */
-    public CategoryResl getById(Long id) {
+    public CategoryResp getById(Long id) {
         Categories category = super.getById(id);
         if (category == null) {
             return null;
         }
 
-        CategoryResl categoryResl = new CategoryResl();
-        categoryResl.setId(category.getId());
-        categoryResl.setName(category.getName());
-        categoryResl.setDescription(category.getDescription());
-        categoryResl.setCreatedAt(category.getCreatedAt());
-        categoryResl.setUpdatedAt(category.getUpdatedAt());
+        CategoryResp categoryResp = new CategoryResp();
+        categoryResp.setId(category.getId());
+        categoryResp.setName(category.getName());
+        categoryResp.setDescription(category.getDescription());
+        categoryResp.setCreatedAt(category.getCreatedAt());
+        categoryResp.setUpdatedAt(category.getUpdatedAt());
         // postCount 在单个查询时设为0，如需要可以单独查询
-        categoryResl.setPostCount(0);
+        categoryResp.setPostCount(0);
 
-        return categoryResl;
+        return categoryResp;
     }
 
     /**
      * 保存分类
      * 创建新分类，自动设置创建时间和更新时间
      *
-     * @param categoryResl 分类信息，必须包含分类名称
+     * @param categoryResp 分类信息，必须包含分类名称
      * @return 是否保存成功
      * @throws BusinessException 当分类名称已存在时抛出
      * @author 刘鑫
      * @date 2025-01-30
      */
     @CacheEvict(value = "categories", allEntries = true)
-    public boolean save(CategoryResl categoryResl) {
+    public boolean save(CategoryResp categoryResp) {
         Categories category = new Categories();
-        category.setName(categoryResl.getName());
-        category.setDescription(categoryResl.getDescription());
+        category.setName(categoryResp.getName());
+        category.setDescription(categoryResp.getDescription());
         return super.save(category);
     }
 
@@ -142,18 +142,18 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * 根据ID更新分类
      * 更新分类信息，自动设置更新时间
      *
-     * @param categoryResl 分类信息，必须包含有效的ID
+     * @param categoryResp 分类信息，必须包含有效的ID
      * @return 是否更新成功
      * @throws BusinessException 当分类不存在时抛出
      * @author 刘鑫
      * @date 2025-01-30
      */
     @CacheEvict(value = "categories", allEntries = true)
-    public boolean updateById(CategoryResl categoryResl) {
+    public boolean updateById(CategoryResp categoryResp) {
         Categories category = new Categories();
-        category.setId(categoryResl.getId());
-        category.setName(categoryResl.getName());
-        category.setDescription(categoryResl.getDescription());
+        category.setId(categoryResp.getId());
+        category.setName(categoryResp.getName());
+        category.setDescription(categoryResp.getDescription());
         return super.updateById(category);
     }
 

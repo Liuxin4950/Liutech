@@ -27,7 +27,7 @@
     </resultMap>
 
     <!-- PostListResl响应类结果映射 -->
-    <resultMap id="PostListReslMap" type="chat.liuxin.liutech.resl.PostListResl">
+    <resultMap id="PostListReslMap" type="chat.liuxin.liutech.resp.PostListResp">
         <id property="id" column="id"/>
         <result property="title" column="title"/>
         <result property="summary" column="summary"/>
@@ -44,22 +44,22 @@
         <result property="updatedAt" column="updated_at"/>
         <result property="deletedAt" column="deleted_at"/>
         <!-- 分类信息 -->
-        <association property="category" javaType="chat.liuxin.liutech.resl.PostListResl$CategoryInfo">
+        <association property="category" javaType="chat.liuxin.liutech.resp.PostListResp$CategoryInfo">
             <id property="id" column="cat_id"/>
             <result property="name" column="cat_name"/>
         </association>
         <!-- 作者信息 -->
-        <association property="author" javaType="chat.liuxin.liutech.resl.PostListResl$AuthorInfo">
+        <association property="author" javaType="chat.liuxin.liutech.resp.PostListResp$AuthorInfo">
             <id property="id" column="author_user_id"/>
             <result property="username" column="author_username"/>
             <result property="avatarUrl" column="author_avatar_url"/>
         </association>
         <!-- 标签信息（使用嵌套查询，避免主查询JOIN导致分页数量减少） -->
-        <collection property="tags" ofType="chat.liuxin.liutech.resl.PostListResl$TagInfo" column="{postId=id}" select="selectTagInfosByPostId"/>
+        <collection property="tags" ofType="chat.liuxin.liutech.resp.PostListResp$TagInfo" column="{postId=id}" select="selectTagInfosByPostId"/>
     </resultMap>
 
     <!-- PostDetailResl响应类结果映射 -->
-    <resultMap id="PostDetailReslMap" type="chat.liuxin.liutech.resl.PostDetailResl">
+    <resultMap id="PostDetailReslMap" type="chat.liuxin.liutech.resp.PostDetailResp">
         <id property="id" column="id"/>
         <result property="title" column="title"/>
         <result property="content" column="content"/>
@@ -77,19 +77,19 @@
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <!-- 分类信息 -->
-        <association property="category" javaType="chat.liuxin.liutech.resl.PostDetailResl$CategoryInfo">
+        <association property="category" javaType="chat.liuxin.liutech.resp.PostDetailResp$CategoryInfo">
             <id property="id" column="category_info_id"/>
             <result property="name" column="category_name"/>
             <result property="description" column="category_description"/>
         </association>
         <!-- 作者信息 -->
-        <association property="author" javaType="chat.liuxin.liutech.resl.PostDetailResl$AuthorInfo">
+        <association property="author" javaType="chat.liuxin.liutech.resp.PostDetailResp$AuthorInfo">
             <id property="id" column="author_info_id"/>
             <result property="username" column="author_username"/>
             <result property="avatarUrl" column="author_avatar_url"/>
         </association>
         <!-- 标签信息 -->
-        <collection property="tags" ofType="chat.liuxin.liutech.resl.PostDetailResl$TagInfo">
+        <collection property="tags" ofType="chat.liuxin.liutech.resp.PostDetailResp$TagInfo">
             <id property="id" column="tag_id"/>
             <result property="name" column="tag_name"/>
         </collection>
@@ -97,7 +97,7 @@
 
     <!-- 基础查询SQL片段 -->
     <sql id="baseSelectSql">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.content,
@@ -135,7 +135,7 @@
 
     <!-- 分页查询文章列表 -->
     <select id="selectPostsWithDetails" resultMap="PostWithDetailsMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.content,
@@ -180,7 +180,7 @@
             AND EXISTS (SELECT 1 FROM post_tags pt2 WHERE pt2.post_id = p.id AND pt2.tag_id = #{tagId})
         </if>
         <if test="keyword != null and keyword != ''">
-            AND (p.title LIKE CONCAT('%', #{keyword}, '%') 
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%')
                  OR p.content LIKE CONCAT('%', #{keyword}, '%')
                  OR p.summary LIKE CONCAT('%', #{keyword}, '%'))
         </if>
@@ -189,7 +189,7 @@
 
     <!-- 分页查询文章列表（包含用户点赞收藏状态） -->
     <select id="selectPostsWithDetailsAndUserStatus" resultMap="PostWithDetailsMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.content,
@@ -239,7 +239,7 @@
             AND EXISTS (SELECT 1 FROM post_tags pt2 WHERE pt2.post_id = p.id AND pt2.tag_id = #{tagId})
         </if>
         <if test="keyword != null and keyword != ''">
-            AND (p.title LIKE CONCAT('%', #{keyword}, '%') 
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%')
                  OR p.content LIKE CONCAT('%', #{keyword}, '%')
                  OR p.summary LIKE CONCAT('%', #{keyword}, '%'))
         </if>
@@ -248,7 +248,7 @@
 
     <!-- 根据ID查询文章详情 -->
     <select id="selectPostWithDetails" resultMap="PostWithDetailsMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.content,
@@ -291,7 +291,7 @@
 
     <!-- 查询热门文章 -->
     <select id="selectHotPosts" resultMap="PostWithDetailsMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.summary,
@@ -326,7 +326,7 @@
 
     <!-- 查询最新文章列表（返回PostListResl） -->
     <select id="selectLatestPostListResl" resultMap="PostListReslMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.summary,
@@ -368,7 +368,7 @@
 
     <!-- 分页查询文章列表（返回PostListResl） -->
     <select id="selectPostListResl" resultMap="PostListReslMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.summary,
@@ -411,7 +411,7 @@
             AND EXISTS (SELECT 1 FROM post_tags pt2 WHERE pt2.post_id = p.id AND pt2.tag_id = #{tagId})
         </if>
         <if test="keyword != null and keyword != ''">
-            AND p.title LIKE CONCAT('%', #{keyword}, '%') 
+            AND p.title LIKE CONCAT('%', #{keyword}, '%')
             <!-- OR p.content LIKE CONCAT('%', #{keyword}, '%') -->
         </if>
         <if test="status != null and status != ''">
@@ -425,7 +425,7 @@
 
     <!-- 查询文章详情（返回PostDetailResl） -->
     <select id="selectPostDetailResl" resultMap="PostDetailReslMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.content,
@@ -473,7 +473,7 @@
 
     <!-- 查询热门文章列表（返回PostListResl） -->
     <select id="selectHotPostListResl" resultMap="PostListReslMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.summary,
@@ -517,7 +517,7 @@
 
     <!-- 查询最新文章列表（返回PostListResl） -->
     <select id="selectLatestPostListResl" resultMap="PostListReslMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.summary,
@@ -576,7 +576,7 @@
 
     <!-- 恢复已删除的文章（绕过逻辑删除限制） -->
     <update id="restorePostById">
-        UPDATE posts 
+        UPDATE posts
         SET deleted_at = NULL, updated_at = NOW()
         WHERE id = #{id} AND deleted_at IS NOT NULL
     </update>
@@ -653,7 +653,7 @@
 
     <!-- 根据ID查询文章（不包含关联信息） -->
     <select id="selectById" resultType="chat.liuxin.liutech.model.Posts">
-        SELECT 
+        SELECT
             id,
             title,
             content,
@@ -678,7 +678,7 @@
         WHERE id = #{id}
         AND deleted_at IS NULL
     </select>
-    
+
     <!-- 根据用户ID和状态统计文章数量 -->
     <select id="countPostsByUserIdAndStatus" resultType="java.lang.Integer">
         SELECT COUNT(*)
@@ -696,7 +696,7 @@
         AND p.status = 'published'
         AND p.deleted_at IS NULL
     </select>
-    
+
     <!-- 统计全站已发布文章数量 -->
     <select id="countAllPublishedPosts" resultType="java.lang.Integer">
         SELECT COUNT(*)
@@ -704,7 +704,7 @@
         WHERE p.status = 'published'
         AND p.deleted_at IS NULL
     </select>
-    
+
     <!-- 统计全站文章总浏览量 -->
     <select id="countAllViews" resultType="java.lang.Long">
         SELECT IFNULL(SUM(p.view_count), 0)
@@ -712,7 +712,7 @@
         WHERE p.status = 'published'
         AND p.deleted_at IS NULL
     </select>
-    
+
     <!-- 统计用户所有文章的浏览量总和 -->
     <select id="countViewsByUserId" resultType="java.lang.Long">
         SELECT IFNULL(SUM(p.view_count), 0)
@@ -725,8 +725,8 @@
     <!-- 分页查询文章列表（返回PostListResl）- 已上移至文件底部，保持逻辑清晰 -->
 
     <!-- 嵌套查询：根据文章ID获取标签信息（用于PostListReslMap.tags） -->
-    <select id="selectTagInfosByPostId" resultType="chat.liuxin.liutech.resl.PostListResl$TagInfo">
-        SELECT 
+    <select id="selectTagInfosByPostId" resultType="chat.liuxin.liutech.resp.PostListResp$TagInfo">
+        SELECT
             t.id AS id,
             t.name AS name
         FROM tags t
@@ -737,7 +737,7 @@
 
     <!-- 管理端分页查询文章列表（返回PostListResl） -->
     <select id="selectPostListForAdmin" resultMap="PostListReslMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.summary,
@@ -808,7 +808,7 @@
 
     <!-- 根据分类ID列表物理删除文章 -->
     <delete id="deletePostsByCategoryIds">
-        DELETE FROM posts 
+        DELETE FROM posts
         WHERE category_id IN
         <foreach collection="categoryIds" item="categoryId" open="(" separator="," close=")">
             #{categoryId}
@@ -817,7 +817,7 @@
 
     <!-- 根据标签ID列表删除文章标签关联关系 -->
     <delete id="deletePostTagsByTagIds">
-        DELETE FROM post_tags 
+        DELETE FROM post_tags
         WHERE tag_id IN
         <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
             #{tagId}
@@ -831,7 +831,7 @@
 
     <!-- 根据文章ID列表物理删除文章 -->
     <delete id="permanentDeleteByIds">
-        DELETE FROM posts 
+        DELETE FROM posts
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}

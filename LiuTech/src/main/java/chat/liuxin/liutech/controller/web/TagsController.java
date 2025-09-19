@@ -11,14 +11,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.resl.TagResl;
+import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 标签控制器
  * 提供文章标签相关的REST API接口
- * 
+ *
  * @author liuxin
  */
 @Slf4j
@@ -31,35 +31,35 @@ public class TagsController {
 
     /**
      * 查询所有标签（包含文章数量）
-     * 
+     *
      * @return 标签列表
      */
     @GetMapping
-    public Result<List<TagResl>> getAllTags() {
+    public Result<List<TagResp>> getAllTags() {
         log.info("查询所有标签");
-        
-        List<TagResl> tags = tagsService.getAllTagsWithPostCount();
+
+        List<TagResp> tags = tagsService.getAllTagsWithPostCount();
         log.info("查询标签成功 - 数量: {}", tags.size());
-        
+
         return Result.success("查询成功", tags);
     }
 
     /**
      * 根据ID查询标签详情（包含文章数量）
-     * 
+     *
      * @param id 标签ID
      * @return 标签详情
      */
     @GetMapping("/{id}")
-    public Result<TagResl> getTagById(@PathVariable Long id) {
+    public Result<TagResp> getTagById(@PathVariable Long id) {
         log.info("查询标签详情 - ID: {}", id);
-        
-        TagResl tag = tagsService.getTagByIdWithPostCount(id);
+
+        TagResp tag = tagsService.getTagByIdWithPostCount(id);
         if (tag == null) {
             log.warn("标签不存在 - ID: {}", id);
             return Result.fail(ErrorCode.TAG_NOT_FOUND);
         }
-        
+
         log.info("查询标签详情成功 - 名称: {}, 文章数量: {}", tag.getName(), tag.getPostCount());
         return Result.success("查询成功", tag);
     }
@@ -67,56 +67,56 @@ public class TagsController {
     /**
      * 查询热门标签
      * 根据文章数量排序
-     * 
+     *
      * @param limit 限制数量，默认20
      * @return 热门标签列表
      */
     @GetMapping("/hot")
-    public Result<List<TagResl>> getHotTags(
+    public Result<List<TagResp>> getHotTags(
             @RequestParam(defaultValue = "20") Integer limit) {
-        
+
         log.info("查询热门标签 - 限制数量: {}", limit);
-        
-        List<TagResl> tags = tagsService.getHotTags(limit);
+
+        List<TagResp> tags = tagsService.getHotTags(limit);
         log.info("查询热门标签成功 - 数量: {}", tags.size());
-        
+
         return Result.success("查询成功", tags);
     }
 
     /**
      * 根据文章ID查询标签列表
-     * 
+     *
      * @param postId 文章ID
      * @return 标签列表
      */
     @GetMapping("/post/{postId}")
-    public Result<List<TagResl>> getTagsByPostId(@PathVariable Long postId) {
+    public Result<List<TagResp>> getTagsByPostId(@PathVariable Long postId) {
         log.info("查询文章标签 - 文章ID: {}", postId);
-        
-        List<TagResl> tags = tagsService.getTagsByPostId(postId);
+
+        List<TagResp> tags = tagsService.getTagsByPostId(postId);
         log.info("查询文章标签成功 - 文章ID: {}, 标签数量: {}", postId, tags.size());
-        
+
         return Result.success("查询成功", tags);
     }
 
     /**
      * 根据标签名字搜索标签
-     * 
+     *
      * @param name 标签名字（支持模糊搜索）
      * @return 标签列表
      */
     @GetMapping("/search")
-    public Result<List<TagResl>> searchTagsByName(@RequestParam String name) {
+    public Result<List<TagResp>> searchTagsByName(@RequestParam String name) {
         log.info("搜索标签 - 关键词: {}", name);
-        
+
         if (name == null || name.trim().isEmpty()) {
             log.warn("搜索关键词为空");
             return Result.fail(ErrorCode.PARAMS_ERROR.getCode(), "搜索关键词不能为空");
         }
-        
-        List<TagResl> tags = tagsService.getTagsByName(name.trim());
+
+        List<TagResp> tags = tagsService.getTagsByName(name.trim());
         log.info("搜索标签成功 - 关键词: {}, 结果数量: {}", name, tags.size());
-        
+
         return Result.success("搜索成功", tags);
     }
 }

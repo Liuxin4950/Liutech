@@ -11,8 +11,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import chat.liuxin.liutech.model.Posts;
-import chat.liuxin.liutech.resl.PostListResl;
-import chat.liuxin.liutech.resl.PostDetailResl;
+import chat.liuxin.liutech.resp.PostListResp;
+import chat.liuxin.liutech.resp.PostDetailResp;
 
 /**
  * 文章Mapper接口
@@ -30,7 +30,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param authorId 作者ID（可选）
      * @return 文章列表
      */
-    IPage<Posts> selectPostsWithDetails(Page<Posts> page, 
+    IPage<Posts> selectPostsWithDetails(Page<Posts> page,
                                        @Param("categoryId") Long categoryId,
                                        @Param("tagId") Long tagId,
                                        @Param("keyword") String keyword,
@@ -48,7 +48,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param userId 当前用户ID（用于查询点赞收藏状态）
      * @return 文章列表
      */
-    IPage<Posts> selectPostsWithDetailsAndUserStatus(Page<Posts> page, 
+    IPage<Posts> selectPostsWithDetailsAndUserStatus(Page<Posts> page,
                                                      @Param("categoryId") Long categoryId,
                                                      @Param("tagId") Long tagId,
                                                      @Param("keyword") String keyword,
@@ -75,7 +75,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param userId 当前用户ID（用于查询点赞收藏状态）
      * @return 文章列表
      */
-    IPage<PostListResl> selectPostListResl(Page<PostListResl> page, 
+    IPage<PostListResp> selectPostListResl(Page<PostListResp> page,
                                            @Param("categoryId") Long categoryId,
                                            @Param("tagId") Long tagId,
                                            @Param("keyword") String keyword,
@@ -89,7 +89,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
      * @return 文章详情
      */
-    PostDetailResl selectPostDetailResl(@Param("id") Long id, @Param("userId") Long userId);
+    PostDetailResp selectPostDetailResl(@Param("id") Long id, @Param("userId") Long userId);
 
     /**
      * 查询热门文章列表（返回PostListResl）
@@ -97,7 +97,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
      * @return 热门文章列表
      */
-    List<PostListResl> selectHotPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
+    List<PostListResp> selectHotPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
 
     /**
      * 管理端分页查询文章列表（返回PostListResl）
@@ -109,7 +109,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param includeDeleted 是否包含已删除文章
      * @return 文章列表
      */
-    IPage<PostListResl> selectPostListForAdmin(Page<PostListResl> page, 
+    IPage<PostListResp> selectPostListForAdmin(Page<PostListResp> page,
                                                @Param("categoryId") Long categoryId,
                                                @Param("keyword") String keyword,
                                                @Param("status") String status,
@@ -122,7 +122,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
      * @return 最新文章列表
      */
-    List<PostListResl> selectLatestPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
+    List<PostListResp> selectLatestPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
 
     /**
      * 查询热门文章（根据评论数排序）
@@ -180,7 +180,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param updatedBy 更新人ID
      * @return 影响行数
      */
-    int deleteById(@Param("id") Long id, 
+    int deleteById(@Param("id") Long id,
                    @Param("deletedAt") java.util.Date deletedAt,
                    @Param("updatedBy") Long updatedBy);
 
@@ -210,7 +210,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @return 是否存在
      */
     Boolean existsById(@Param("id") Long id);
-    
+
     /**
      * 根据用户ID和状态统计文章数量
      * @param userId 用户ID
@@ -218,20 +218,20 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @return 文章数量
      */
     Integer countPostsByUserIdAndStatus(@Param("userId") Long userId, @Param("status") String status);
-    
+
     /**
      * 获取用户最后发文时间
      * @param userId 用户ID
      * @return 最后发文时间
      */
     Date getLastPostTimeByUserId(@Param("userId") Long userId);
-    
+
     /**
      * 统计全站已发布文章数量
      * @return 已发布文章数量
      */
     Integer countPublishedPosts();
-    
+
     /**
      * 管理端统计文章总数
      * @param categoryId 分类ID（可选）
@@ -246,13 +246,13 @@ public interface PostsMapper extends BaseMapper<Posts> {
                                @Param("status") String status,
                                @Param("authorId") Long authorId,
                                @Param("includeDeleted") Boolean includeDeleted);
-    
+
     /**
      * 统计全站文章总浏览量
      * @return 总浏览量
      */
     Long countAllViews();
-    
+
     /**
      * 统计用户所有文章的浏览量总和
      * @param userId 用户ID

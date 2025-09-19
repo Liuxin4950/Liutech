@@ -4,10 +4,10 @@ import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
-import chat.liuxin.liutech.resl.PageResl;
-import chat.liuxin.liutech.resl.PostListResl;
-import chat.liuxin.liutech.resl.PostCreateResl;
-import chat.liuxin.liutech.resl.PostDetailResl;
+import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.PostListResp;
+import chat.liuxin.liutech.resp.PostCreateResp;
+import chat.liuxin.liutech.resp.PostDetailResp;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * 管理端文章控制器
  * 需要管理员权限才能访问
- * 
+ *
  * @author 刘鑫
  */
 @RestController
@@ -31,13 +31,13 @@ public class PostsAdminController extends BaseAdminController {
 
     @Autowired
     private PostsService postsService;
-    
+
     @Autowired
     private UserUtils userUtils;
 
     /**
      * 分页查询文章列表
-     * 
+     *
      * @param page 页码，默认1
      * @param size 每页大小，默认10
      * @param title 文章标题（可选，模糊搜索）
@@ -48,7 +48,7 @@ public class PostsAdminController extends BaseAdminController {
      * @return 分页文章列表
      */
     @GetMapping
-    public Result<PageResl<PostListResl>> getPostList(
+    public Result<PageResp<PostListResp>> getPostList(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String title,
@@ -57,7 +57,7 @@ public class PostsAdminController extends BaseAdminController {
             @RequestParam(required = false) Long authorId,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
         try {
-            PageResl<PostListResl> result = postsService.getPostListForAdmin(page, size, title, categoryId, status, authorId, includeDeleted);
+            PageResp<PostListResp> result = postsService.getPostListForAdmin(page, size, title, categoryId, status, authorId, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询文章列表");
@@ -66,14 +66,14 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 根据ID查询文章详情
-     * 
+     *
      * @param id 文章ID
      * @return 文章详情
      */
     @GetMapping("/{id}")
-    public Result<PostDetailResl> getPostById(@PathVariable Long id) {
+    public Result<PostDetailResp> getPostById(@PathVariable Long id) {
         try {
-            PostDetailResl post = postsService.getPostDetailForAdmin(id);
+            PostDetailResp post = postsService.getPostDetailForAdmin(id);
             return checkResourceExists(post, ErrorCode.ARTICLE_NOT_FOUND);
         } catch (Exception e) {
             return handleException(e, "查询文章详情");
@@ -82,20 +82,20 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 创建文章
-     * 
+     *
      * @param req 文章创建请求
      * @return 创建结果
      */
     @PostMapping
-    public Result<PostCreateResl> createPost(@RequestBody PostCreateReq req) {
+    public Result<PostCreateResp> createPost(@RequestBody PostCreateReq req) {
         try {
             // 获取当前管理员用户ID
             Long currentUserId = userUtils.getCurrentUserId();
             if (currentUserId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
-            
-            PostCreateResl result = postsService.createPost(req, currentUserId);
+
+            PostCreateResp result = postsService.createPost(req, currentUserId);
             return Result.success("文章创建成功", result);
         } catch (Exception e) {
             return handleException(e, "文章创建");
@@ -104,7 +104,7 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 更新文章
-     * 
+     *
      * @param id 文章ID
      * @param req 文章更新请求
      * @return 更新结果
@@ -117,7 +117,7 @@ public class PostsAdminController extends BaseAdminController {
             if (currentUserId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
-            
+
             req.setId(id);
             boolean success = postsService.updatePost(req, currentUserId);
             return handleOperationResult(success, "文章更新成功", "文章更新");
@@ -128,7 +128,7 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 删除文章
-     * 
+     *
      * @param id 文章ID
      * @return 删除结果
      */
@@ -146,7 +146,7 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 批量删除文章
-     * 
+     *
      * @param ids 文章ID列表
      * @return 删除结果
      */
@@ -162,7 +162,7 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 更新文章状态
-     * 
+     *
      * @param id 文章ID
      * @param status 文章状态
      * @return 操作结果
@@ -180,7 +180,7 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 批量更新文章状态
-     * 
+     *
      * @param ids 文章ID列表
      * @param status 文章状态
      * @return 操作结果
@@ -197,7 +197,7 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 恢复已删除的文章
-     * 
+     *
      * @param id 文章ID
      * @return 恢复结果
      */
@@ -213,7 +213,7 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 彻底删除文章（物理删除）
-     * 
+     *
      * @param id 文章ID
      * @return 删除结果
      */
@@ -229,7 +229,7 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 批量彻底删除文章（物理删除）
-     * 
+     *
      * @param ids 文章ID列表
      * @return 删除结果
      */

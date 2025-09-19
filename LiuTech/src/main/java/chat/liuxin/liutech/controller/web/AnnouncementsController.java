@@ -20,7 +20,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.AnnouncementReq;
-import chat.liuxin.liutech.resl.AnnouncementResl;
+import chat.liuxin.liutech.resp.AnnouncementResp;
 import chat.liuxin.liutech.service.AnnouncementsService;
 // Swagger注解已移除，项目暂不使用API文档
 
@@ -42,10 +42,10 @@ public class AnnouncementsController {
      * @return 公告分页数据
      */
     @GetMapping("/list")
-    public Result<IPage<AnnouncementResl>> getValidAnnouncements(
+    public Result<IPage<AnnouncementResp>> getValidAnnouncements(
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size) {
-        IPage<AnnouncementResl> result = announcementsService.getValidAnnouncements(current, size);
+        IPage<AnnouncementResp> result = announcementsService.getValidAnnouncements(current, size);
         return Result.success(result);
     }
 
@@ -55,9 +55,9 @@ public class AnnouncementsController {
      * @return 置顶公告列表
      */
     @GetMapping("/top")
-    public Result<List<AnnouncementResl>> getTopAnnouncements(
+    public Result<List<AnnouncementResp>> getTopAnnouncements(
             @RequestParam(defaultValue = "5") Integer limit) {
-        List<AnnouncementResl> result = announcementsService.getTopAnnouncements(limit);
+        List<AnnouncementResp> result = announcementsService.getTopAnnouncements(limit);
         return Result.success(result);
     }
 
@@ -67,9 +67,9 @@ public class AnnouncementsController {
      * @return 最新公告列表
      */
     @GetMapping("/latest")
-    public Result<List<AnnouncementResl>> getLatestAnnouncements(
+    public Result<List<AnnouncementResp>> getLatestAnnouncements(
             @RequestParam(defaultValue = "10") Integer limit) {
-        List<AnnouncementResl> result = announcementsService.getLatestAnnouncements(limit);
+        List<AnnouncementResp> result = announcementsService.getLatestAnnouncements(limit);
         return Result.success(result);
     }
 
@@ -79,9 +79,9 @@ public class AnnouncementsController {
      * @return 公告详情
      */
     @GetMapping("/{id}")
-    public Result<AnnouncementResl> getAnnouncementById(
+    public Result<AnnouncementResp> getAnnouncementById(
             @PathVariable Long id) {
-        AnnouncementResl result = announcementsService.getAnnouncementById(id);
+        AnnouncementResp result = announcementsService.getAnnouncementById(id);
         return Result.success(result);
     }
 
@@ -96,13 +96,13 @@ public class AnnouncementsController {
      */
     @GetMapping("/admin/list")
     @PreAuthorize("hasRole('ADMIN')")
-    public Result<IPage<AnnouncementResl>> getAllAnnouncements(
+    public Result<IPage<AnnouncementResp>> getAllAnnouncements(
             @RequestParam(defaultValue = "1") long current,
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Integer type,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        IPage<AnnouncementResl> result = announcementsService.getAllAnnouncements(current, size, status, type, includeDeleted);
+        IPage<AnnouncementResp> result = announcementsService.getAllAnnouncements(current, size, status, type, includeDeleted);
         return Result.success(result);
     }
 
@@ -221,11 +221,11 @@ public class AnnouncementsController {
      */
     public static class StatusUpdateRequest {
         private Integer status;
-        
+
         public Integer getStatus() {
             return status;
         }
-        
+
         public void setStatus(Integer status) {
             this.status = status;
         }
@@ -237,19 +237,19 @@ public class AnnouncementsController {
     public static class BatchStatusUpdateRequest {
         private List<Long> ids;
         private Integer status;
-        
+
         public List<Long> getIds() {
             return ids;
         }
-        
+
         public void setIds(List<Long> ids) {
             this.ids = ids;
         }
-        
+
         public Integer getStatus() {
             return status;
         }
-        
+
         public void setStatus(Integer status) {
             this.status = status;
         }
@@ -260,11 +260,11 @@ public class AnnouncementsController {
      */
     public static class TopUpdateRequest {
         private Integer isTop;
-        
+
         public Integer getIsTop() {
             return isTop;
         }
-        
+
         public void setIsTop(Integer isTop) {
             this.isTop = isTop;
         }

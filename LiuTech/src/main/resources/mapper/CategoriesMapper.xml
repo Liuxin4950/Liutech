@@ -4,7 +4,7 @@
 
     <!-- 查询所有分类（包含文章数量） -->
     <select id="selectCategoriesWithPostCount" resultType="chat.liuxin.liutech.model.Categories">
-        SELECT 
+        SELECT
             c.id,
             c.name,
             c.description,
@@ -17,8 +17,8 @@
     </select>
 
     <!-- 管理端分页查询分类列表 -->
-    <select id="selectCategoriesForAdmin" resultType="chat.liuxin.liutech.resl.CategoryResl">
-        SELECT 
+    <select id="selectCategoriesForAdmin" resultType="chat.liuxin.liutech.resp.CategoryResp">
+        SELECT
             c.id,
             c.name,
             c.description,
@@ -59,14 +59,14 @@
 
     <!-- 恢复已删除的分类 -->
     <update id="restoreCategoryById">
-        UPDATE categories 
-        SET deleted_at = NULL, updated_at = NOW() 
+        UPDATE categories
+        SET deleted_at = NULL, updated_at = NOW()
         WHERE id = #{id} AND deleted_at IS NOT NULL
     </update>
 
     <!-- 根据ID列表物理删除分类 -->
     <delete id="deleteBatchIds">
-        DELETE FROM categories 
+        DELETE FROM categories
         WHERE id IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}

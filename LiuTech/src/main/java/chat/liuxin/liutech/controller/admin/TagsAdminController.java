@@ -2,8 +2,8 @@ package chat.liuxin.liutech.controller.admin;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.resl.PageResl;
-import chat.liuxin.liutech.resl.TagResl;
+import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * 标签管理控制器
  * 提供标签的增删改查功能
- * 
+ *
  * @author 刘鑫
  * @date 2024-01-30
  */
@@ -29,7 +29,7 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 分页查询标签列表
-     * 
+     *
      * @param page 页码，默认1
      * @param size 每页大小，默认10
      * @param name 标签名称（可选，模糊搜索）
@@ -37,13 +37,13 @@ public class TagsAdminController extends BaseAdminController {
      * @return 分页标签列表
      */
     @GetMapping
-    public Result<PageResl<TagResl>> getTagList(
+    public Result<PageResp<TagResp>> getTagList(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String name,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
         try {
-            PageResl<TagResl> result = tagsService.getTagListForAdmin(page, size, name, includeDeleted);
+            PageResp<TagResp> result = tagsService.getTagListForAdmin(page, size, name, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询标签列表");
@@ -52,7 +52,7 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 分页查询标签列表（兼容/list路径）
-     * 
+     *
      * @param page 页码，默认1
      * @param size 每页大小，默认10
      * @param name 标签名称（可选，模糊搜索）
@@ -60,7 +60,7 @@ public class TagsAdminController extends BaseAdminController {
      * @return 分页标签列表
      */
     @GetMapping("/list")
-    public Result<PageResl<TagResl>> getTagListCompat(
+    public Result<PageResp<TagResp>> getTagListCompat(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String name,
@@ -70,14 +70,14 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 根据ID查询标签详情
-     * 
+     *
      * @param id 标签ID
      * @return 标签详情
      */
     @GetMapping("/{id}")
-    public Result<TagResl> getTagById(@PathVariable Long id) {
+    public Result<TagResp> getTagById(@PathVariable Long id) {
         try {
-            TagResl tag = tagsService.getById(id);
+            TagResp tag = tagsService.getById(id);
             return checkResourceExists(tag, ErrorCode.TAG_NOT_FOUND);
         } catch (Exception e) {
             return handleException(e, "查询标签详情");
@@ -86,12 +86,12 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 创建标签
-     * 
+     *
      * @param tag 标签信息
      * @return 创建结果
      */
     @PostMapping
-    public Result<String> createTag(@RequestBody TagResl tag) {
+    public Result<String> createTag(@RequestBody TagResp tag) {
         try {
             boolean success = tagsService.save(tag);
             return handleOperationResult(success, "标签创建成功", "标签创建");
@@ -102,13 +102,13 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 更新标签
-     * 
+     *
      * @param id 标签ID
      * @param tag 标签信息
      * @return 更新结果
      */
     @PutMapping("/{id}")
-    public Result<String> updateTag(@PathVariable Long id, @RequestBody TagResl tag) {
+    public Result<String> updateTag(@PathVariable Long id, @RequestBody TagResp tag) {
         try {
             tag.setId(id);
             boolean success = tagsService.updateById(tag);
@@ -120,7 +120,7 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 删除标签
-     * 
+     *
      * @param id 标签ID
      * @return 删除结果
      */
@@ -138,7 +138,7 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 批量删除标签
-     * 
+     *
      * @param ids 标签ID列表
      * @return 删除结果
      */
@@ -154,7 +154,7 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 恢复已删除的标签
-     * 
+     *
      * @param id 标签ID
      * @return 恢复结果
      */
@@ -170,7 +170,7 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 彻底删除标签（物理删除）
-     * 
+     *
      * @param id 标签ID
      * @return 删除结果
      */
@@ -186,7 +186,7 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 批量彻底删除标签（物理删除）
-     * 
+     *
      * @param ids 标签ID列表
      * @return 删除结果
      */

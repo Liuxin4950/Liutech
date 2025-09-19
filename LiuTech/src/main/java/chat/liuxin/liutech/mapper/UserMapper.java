@@ -1,7 +1,7 @@
 package chat.liuxin.liutech.mapper;
 
 import chat.liuxin.liutech.model.Users;
-import chat.liuxin.liutech.resl.UserResl;
+import chat.liuxin.liutech.resp.UserResp;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -13,7 +13,7 @@ public interface UserMapper extends BaseMapper<Users> {
     // 这里可以添加自定义查询方法
     // 例如：List<User> findByUserName(String userName);
     List<Users> findByUserName(String username);
-    
+
     // 根据邮箱查询用户
     List<Users> findByEmail(String email);
 
@@ -27,12 +27,12 @@ public interface UserMapper extends BaseMapper<Users> {
      * @param includeDeleted 是否包含已删除用户
      * @return 用户列表
      */
-    List<UserResl> selectUsersForAdmin(@Param("offset") Integer offset, 
-                                      @Param("limit") Integer limit, 
-                                      @Param("username") String username,
-                                      @Param("email") String email,
-                                      @Param("status") Integer status,
-                                      @Param("includeDeleted") Boolean includeDeleted);
+    List<UserResp> selectUsersForAdmin(@Param("offset") Integer offset,
+                                       @Param("limit") Integer limit,
+                                       @Param("username") String username,
+                                       @Param("email") String email,
+                                       @Param("status") Integer status,
+                                       @Param("includeDeleted") Boolean includeDeleted);
 
     /**
      * 管理端查询用户总数

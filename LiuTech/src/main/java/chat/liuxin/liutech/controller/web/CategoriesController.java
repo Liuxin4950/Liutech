@@ -10,14 +10,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.resl.CategoryResl;
+import chat.liuxin.liutech.resp.CategoryResp;
 import chat.liuxin.liutech.service.CategoriesService;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 分类控制器
  * 提供文章分类相关的REST API接口
- * 
+ *
  * @author liuxin
  */
 @Slf4j
@@ -30,35 +30,35 @@ public class CategoriesController {
 
     /**
      * 查询所有分类（包含文章数量）
-     * 
+     *
      * @return 分类列表
      */
     @GetMapping
-    public Result<List<CategoryResl>> getAllCategories() {
+    public Result<List<CategoryResp>> getAllCategories() {
         log.info("查询所有分类");
-        
-        List<CategoryResl> categories = categoriesService.getAllCategoriesWithPostCount();
+
+        List<CategoryResp> categories = categoriesService.getAllCategoriesWithPostCount();
         log.info("查询分类成功 - 数量: {}", categories.size());
-        
+
         return Result.success("查询成功", categories);
     }
 
     /**
      * 根据ID查询分类详情
-     * 
+     *
      * @param id 分类ID
      * @return 分类详情
      */
     @GetMapping("/{id}")
-    public Result<CategoryResl> getCategoryById(@PathVariable Long id) {
+    public Result<CategoryResp> getCategoryById(@PathVariable Long id) {
         log.info("查询分类详情 - ID: {}", id);
-        
-        CategoryResl category = categoriesService.getById(id);
+
+        CategoryResp category = categoriesService.getById(id);
         if (category == null) {
             log.warn("分类不存在 - ID: {}", id);
             return Result.fail(ErrorCode.CATEGORY_NOT_FOUND);
         }
-        
+
         log.info("查询分类详情成功 - 名称: {}", category.getName());
         return Result.success("查询成功", category);
     }

@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.resl;
+package chat.liuxin.liutech.resp;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -8,13 +8,13 @@ import java.time.LocalDate;
 
 /**
  * 签到响应类
- * 
+ *
  * @author 刘鑫
  * @since 2025-01-30
  */
 @Data
 @Accessors(chain = true)
-public class CheckinResl {
+public class CheckinResp {
 
     /**
      * 获得积分
