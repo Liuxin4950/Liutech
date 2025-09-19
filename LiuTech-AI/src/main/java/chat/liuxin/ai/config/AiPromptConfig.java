@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
  * 定义智能助手的角色、行为规范和知识边界
  * 
  * 作者：刘鑫
- * 时间：2025-09-05
+ * 时间：2025-09-19
  */
 @Data
 @Configuration

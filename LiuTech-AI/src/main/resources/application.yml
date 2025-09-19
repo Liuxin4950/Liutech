@@ -25,7 +25,7 @@ spring:
       chat:
         options:
           model: gemma3:1b
-          temperature: 0.7
+          temperature: 0.3  # 降低温度，提升遵循JSON格式概率
 
 # MyBatis-Plus 配置
 mybatis-plus:

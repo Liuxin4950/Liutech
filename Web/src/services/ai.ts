@@ -5,22 +5,26 @@ import { post, get, ServiceType } from './api'
  * AI聊天请求接口
  */
 export interface AiChatRequest {
-    message: string
-    model?: string
+  message: string
+  /** 前端上下文，便于后端提示词决策，例如 { page: 'post-detail', articleId: 123 } */
+  context?: Record<string, any>
 }
 
-/**
- * AI聊天响应接口
- */
 export interface AiChatResponse {
-    success: boolean
-    message: string
-    userId?: number
-    model?: string
-    historyCount?: number
-    timestamp?: number
-    processingTime?: number
-    responseLength?: number
+  success: boolean
+  message: string
+  userId: string
+  model: string
+  historyCount: number
+  timestamp: number
+  processingTime?: number
+  responseLength?: number
+  /** AI识别的情绪标签，如 happy/angry/thinking/neutral */
+  emotion?: string | null
+  /** 动作指令，如 open_latest_articles/favorite_article/open_home */
+  action?: string | null
+  /** 元数据，例如 { articleId: 123 } */
+  metadata?: Record<string, any> | null
 }
 
 /**
@@ -68,7 +72,7 @@ export class Ai {
      * 使用AI服务8081端口
      */
     static async chatStatus(): Promise<AiChatResponse> {
-        // post 返回的已是服务端响应体，AI服务为 {success, message, ...}
+        // get 返回的已是服务端响应体，AI服务为 {success, message, ...}
         const response = await get<AiChatResponse>('/ai/status', {}, {
             serviceType: ServiceType.AI
         })

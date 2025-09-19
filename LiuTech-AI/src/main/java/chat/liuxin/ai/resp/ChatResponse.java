@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import java.util.Map;
 
 /**
  * AI聊天响应类
@@ -64,6 +65,26 @@ public class ChatResponse {
      * AI回复内容的字符数
      */
     private Integer responseLength;
+
+    // ================== 扩展字段：情绪/动作/元数据 ==================
+    /**
+     * 情绪标签
+     * 例如: happy, sad, angry, thinking, neutral
+     */
+    private String emotion;
+
+    /**
+     * 动作指令
+     * 用于前端执行页面跳转、收藏文章等
+     * 例如: open_latest_articles, favorite_article, open_home
+     */
+    private String action;
+
+    /**
+     * 元数据
+     * 用于扩展，例如上下文信息、文章ID、推荐内容等
+     */
+    private Map<String, Object> metadata;
     
     /**
      * 创建成功响应的便捷方法

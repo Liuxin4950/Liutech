@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // 全屏页面加载动画 - LiuTech字母方块动画（适配主题颜色）
 // 作者：刘鑫  修改时间：2025-08-26 15:50:49 +08:00
-const props = defineProps<{ show: boolean }>()
+// 仅声明类型，不接收到局部变量，避免 TS6133
+defineProps<{ show: boolean }>()
 </script>
 
  <template>

@@ -35,15 +35,6 @@
             <span class="icon">💬</span>
             {{ showReplyForm ? '取消回复' : '回复' }}
           </button>
-          
-          <!-- <button 
-            @click="toggleLike"
-            class="action-btn like-btn"
-            :class="{ 'liked': isLiked }"
-          >
-            <span class="icon">{{ isLiked ? '❤️' : '🤍' }}</span>
-            <span class="count">{{ likeCount }}</span>
-          </button> -->
         </div>
         
         <!-- 回复表单 -->
@@ -129,12 +120,6 @@ const toggleReplyForm = () => {
 
 const toggleChildren = () => {
   showChildren.value = !showChildren.value
-}
-
-const toggleLike = () => {
-  // TODO: 实现点赞功能
-  isLiked.value = !isLiked.value
-  likeCount.value += isLiked.value ? 1 : -1
 }
 
 const handleReplyCreated = (newReply: Comment) => {

@@ -18,7 +18,6 @@
 
 <script setup lang="ts">
 
-
 // 定义props
 interface Link {
   id: number
@@ -31,7 +30,7 @@ interface Props {
   links: Link[]
 }
 
-const props = withDefaults(defineProps<Props>(), {
+const { links } = withDefaults(defineProps<Props>(), {
   links: () => [
     {
       id: 1,

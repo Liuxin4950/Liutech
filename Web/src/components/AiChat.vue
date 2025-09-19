@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {Ai, type AiChatRequest, type AiChatResponse} from '@/services/ai.ts'
 import {nextTick, onMounted, onUnmounted, ref} from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import PostService from '@/services/post'
 
 /**
  * AI聊天组件
@@ -21,7 +23,8 @@ interface ChatMessage {
   retryData?: any
   status?: 'sending' | 'sent' | 'delivered' | 'failed'
 }
-
+const route = useRoute()
+const router = useRouter()
 // 聊天相关状态
 const chatInput = ref('')
 const messages = ref<ChatMessage[]>([])
@@ -125,11 +128,35 @@ const sendChat = async () => {
     connectionStatus.value = 'connecting'
     errorMessage.value = ''
 
+    // 采集前端上下文
+    const context: Record<string, any> = {}
+    // 页面标识
+    context.page = route.name || route.path
+    // 若是文章详情，采集文章ID
+    if (route.name === 'post-detail' && route.params?.id) {
+      context.articleId = Number(route.params.id)
+    }
+
     const request: AiChatRequest = {
-      message: messageContent
+      message: messageContent,
+      context
     }
 
     const response: AiChatResponse = await Ai.chat(request)
+
+    // TODO: Live2D 表情驱动（占位）
+    if (response.emotion) {
+      // triggerLive2DExpression(response.emotion)
+      console.debug('emotion:', response.emotion)
+    }
+    // TODO: 动作分发（占位）
+    if (response.action) {
+      try {
+        await dispatchAction(response.action, response.metadata || context)
+      } catch (e) {
+        console.warn('动作执行失败:', e)
+      }
+    }
 
     // 添加AI回复消息
     const aiMessage = {
@@ -156,6 +183,116 @@ const sendChat = async () => {
     await scrollToBottom()
   } finally {
     isLoading.value = false
+  }
+}
+
+
+// 根据AI返回的动作执行页面跳转或业务操作
+const dispatchAction = async (action: string, meta: Record<string, any> = {}) => {
+  try {
+    const normalizeId = () => {
+      return meta.postId ?? meta.articleId ?? meta.id ?? (route.name === 'post-detail' ? Number(route.params.id) : undefined)
+    }
+
+    switch (action) {
+      // 导航类
+      case 'navigate_home':
+      case 'go_home':
+        await router.push({ name: 'home' })
+        break
+      case 'open_post': {
+        const id = normalizeId()
+        if (!id) throw new Error('缺少文章ID')
+        await router.push({ name: 'post-detail', params: { id } })
+        break
+      }
+      case 'open_posts':
+        await router.push({ name: 'posts' })
+        break
+      case 'create_post':
+        await router.push({ name: 'create-post' })
+        break
+      case 'open_my_posts':
+        await router.push({ name: 'my-posts' })
+        break
+      case 'open_drafts':
+        await router.push({ name: 'drafts' })
+        break
+      case 'open_categories':
+        await router.push({ name: 'category-list' })
+        break
+      case 'open_category_detail': {
+        const id = meta.categoryId ?? meta.id
+        if (!id) throw new Error('缺少分类ID')
+        await router.push({ name: 'category-detail', params: { id } })
+        break
+      }
+      case 'open_tags':
+        await router.push({ name: 'tags' })
+        break
+      case 'open_tag_detail': {
+        const id = meta.tagId ?? meta.id
+        if (!id) throw new Error('缺少标签ID')
+        await router.push({ name: 'tag-detail', params: { id } })
+        break
+      }
+      case 'open_profile':
+        await router.push({ name: 'profile' })
+        break
+      case 'open_about':
+        await router.push({ name: 'about' })
+        break
+      case 'open_chat_history':
+        await router.push({ name: 'chat-history' })
+        break
+
+      // 文章交互
+      case 'like_post': {
+        const id = normalizeId()
+        if (!id) throw new Error('缺少文章ID')
+        await PostService.likePost(Number(id))
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `已为你点赞文章（ID: ${id}）`,
+          timestamp: new Date()
+        })
+        break
+      }
+      case 'favorite_post': {
+        const id = normalizeId()
+        if (!id) throw new Error('缺少文章ID')
+        await PostService.favoritePost(Number(id))
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `已为你收藏文章（ID: ${id}）`,
+          timestamp: new Date()
+        })
+        break
+      }
+
+      default:
+        console.debug('未识别的动作：', action, meta)
+        // 给用户一个温柔提示
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `我收到一个暂不支持的动作：${action}`,
+          timestamp: new Date()
+        })
+    }
+  } catch (err: any) {
+    console.warn('动作执行异常:', err)
+    messages.value.push({
+      id: ++messageIdCounter,
+      type: 'ai',
+      content: `❌ 动作执行失败：${err?.message || '未知错误'}`,
+      timestamp: new Date(),
+      isError: true
+    })
+  } finally {
+    await scrollToBottom()
   }
 }
 
@@ -983,3 +1120,4 @@ onUnmounted(() => {
 }
 
 </style>
+

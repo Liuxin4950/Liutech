@@ -5,6 +5,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.Map;
 
 /**
  * AI聊天请求类
@@ -51,4 +52,11 @@ public class ChatRequest {
      * 控制AI回复的最大长度
      */
     private Integer maxTokens;
+
+    /**
+     * 前端上下文（可选）
+     * 例如：{"page":"article_detail","articleId":123,"user":"liuxin"}
+     * 模型可据此决定 emotion/action，并在 metadata 中回传
+     */
+    private Map<String, Object> context;
 }

@@ -27,7 +27,6 @@
 
 <script setup lang="ts">
 
-
 // 定义props
 interface Stats {
   posts: number
@@ -43,7 +42,7 @@ interface Props {
   stats: Stats
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   avatar: '/default-avatar.svg',
   bio: '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。'
 })

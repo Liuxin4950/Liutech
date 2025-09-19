@@ -43,7 +43,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   loading: false
 })
-
 // 定义事件
 const emit = defineEmits<{
   postClick: [postId: number]

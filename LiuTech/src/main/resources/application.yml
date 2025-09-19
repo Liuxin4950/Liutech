@@ -21,6 +21,12 @@ spring:
       max-lifetime: 1800000
       leak-detection-threshold: 60000
       pool-name: HikariCP-Blog
+  # data:
+  #   redis:
+  #     host: localhost
+  #     port: 6379
+  #     password: ""    # 如果 Redis 没有密码可以留空
+  #     database: 0     # Redis 默认数据库 0
 
 mybatis-plus:
   mapper-locations: classpath:/mapper/**/*.xml

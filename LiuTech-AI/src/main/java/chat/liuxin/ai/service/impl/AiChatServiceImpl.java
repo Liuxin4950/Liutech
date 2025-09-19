@@ -4,11 +4,15 @@ import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.MemoryService;
+import chat.liuxin.ai.service.RagService;
+import chat.liuxin.ai.config.AiPromptConfig;
 import chat.liuxin.ai.entity.AiChatMessage;
+import chat.liuxin.ai.entity.KnowledgeDocument;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-// 删除别名导入，Java不支持；下方使用全限定名避免冲突
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -48,6 +52,8 @@ public class AiChatServiceImpl implements AiChatService {
     private final OllamaChatModel chatModel;
     private final MemoryService memoryService;           // 记忆服务（数据库）
     private final ObjectMapper objectMapper;             // 用于构造metadata的JSON
+    private final RagService ragService;                 // RAG知识检索服务
+    private final AiPromptConfig aiPromptConfig;         // 系统提示词配置
 
     /**
      * 控制上下文窗口大小：最多拼接最近N条历史（不含本轮输入）
@@ -71,11 +77,32 @@ public class AiChatServiceImpl implements AiChatService {
 
             // 读取最近历史（最多19条），用于作为上下文
             List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
-            // 将历史转为Spring AI的 Message 序列（升序），末尾追加本轮用户输入
-            List<Message> messages = toPromptMessages(recent);
+
+            // 构造消息序列：系统提示词 -> 历史 -> （可选）RAG上下文 -> JSON输出约束 -> 本轮用户输入
+            List<Message> messages = new ArrayList<>();
+            String systemPrompt = aiPromptConfig.getFullSystemPrompt();
+            messages.add(new SystemMessage(systemPrompt));
+            messages.addAll(toPromptMessages(recent));
+
+            List<KnowledgeDocument> docs = null;
+            if (aiPromptConfig.isEnableRag()) {
+                docs = ragService.searchRelevantKnowledge(input);
+                if (docs != null && !docs.isEmpty()) {
+                    messages.add(new SystemMessage(buildRagContext(docs)));
+                }
+            }
+            // 注入前端上下文（若有）以及JSON输出规范
+            if (request.getContext() != null && !request.getContext().isEmpty()) {
+                messages.add(new SystemMessage("前端上下文（仅供决策，不要复述）：" + toJson(request.getContext())));
+            }
+            messages.add(new SystemMessage(buildJsonOutputInstruction()));
+            // 调试：打印系统提示词片段和RAG注入信息
+            if (log.isDebugEnabled()) {
+                String head = systemPrompt != null ? systemPrompt.substring(0, Math.min(60, systemPrompt.length())) : "";
+                log.debug("Prompt调试：systemPrompt.head60='{}'，enableRag={}，ragDocs={}，historyCount={}", head, aiPromptConfig.isEnableRag(), (docs == null ? 0 : docs.size()), recent.size());
+            }
 
             // 将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
-            // UserMessage是Spring AI提供的消息类型之一，用于表示用户输入的消息
             messages.add(new UserMessage(input));
 
             // 先落库"用户消息"（立即写入，便于审计/追踪）
@@ -84,25 +111,34 @@ public class AiChatServiceImpl implements AiChatService {
             // 调用模型（一次性返回完整答案）
             var response = chatModel.call(new Prompt(messages));
             String aiOutput = response.getResult().getOutput().getContent();
+            // 解析模型输出：尝试按JSON提取 message/emotion/action/metadata
+            ParsedResult parsed = parseModelOutput(aiOutput);
 
-            // 成功后落库"AI消息"（status=1）
-            memoryService.saveAssistantMessage(userIdStr, aiOutput, modelName, 1, null);
-            // 可选：轻量清理，保留每用户最近1000条（或按需配置）
-            memoryService.cleanupByRetainLastN(userIdStr, 1000);
+            // 成功后落库"AI消息"（status=1），并记录元数据（含情绪/动作/metadata）
+            Map<String, Object> metaSave = new HashMap<>();
+            if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
+            if (parsed.action != null) metaSave.put("action", parsed.action);
+            if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
+            memoryService.saveAssistantMessage(userIdStr, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
+             // 可选：轻量清理，保留每用户最近1000条（或按需配置）
+             memoryService.cleanupByRetainLastN(userIdStr, 1000);
 
-            long cost = System.currentTimeMillis() - begin;
-            log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(), aiOutput != null ? aiOutput.length() : 0, cost);
+             long cost = System.currentTimeMillis() - begin;
+             log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(), parsed.message != null ? parsed.message.length() : 0, cost);
 
-            return ChatResponse.builder()
-                    .success(true)
-                    .message(aiOutput)
-                    .userId(userIdStr) // 使用字符串类型的userId,与其他地方保持一致
-                    .model(modelName)
-                    .historyCount(recent.size() + 1) // 仅统计历史条数（不含AI本轮）
-                    .timestamp(System.currentTimeMillis())
-                    .processingTime(cost)
-                    .responseLength(aiOutput != null ? aiOutput.length() : 0)
-                    .build();
+             return ChatResponse.builder()
+                     .success(true)
+                     .message(parsed.message)
+                     .emotion(parsed.emotion)
+                     .action(parsed.action)
+                     .metadata(parsed.metadata)
+                     .userId(userIdStr) // 使用字符串类型的userId,与其他地方保持一致
+                     .model(modelName)
+                     .historyCount(recent.size() + 1) // 仅统计历史条数（不含AI本轮）
+                     .timestamp(System.currentTimeMillis())
+                     .processingTime(cost)
+                     .responseLength(parsed.message != null ? parsed.message.length() : 0)
+                     .build();
 
         } catch (Exception e) {
             log.error("AI普通聊天失败", e);
@@ -140,7 +176,30 @@ public class AiChatServiceImpl implements AiChatService {
 
                     // 读取最近历史（最多19条），末尾不会包含本轮输入
                     List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
-                    List<Message> messages = toPromptMessages(recent);
+
+                    // 构造消息序列：系统提示词 -> 历史 -> （可选）RAG上下文 -> 本轮用户输入
+                    List<Message> messages = new ArrayList<>();
+                    String systemPrompt = aiPromptConfig.getFullSystemPrompt();
+                    messages.add(new SystemMessage(systemPrompt));
+                    messages.addAll(toPromptMessages(recent));
+
+                    List<KnowledgeDocument> docs = null;
+                    if (aiPromptConfig.isEnableRag()) {
+                        docs = ragService.searchRelevantKnowledge(request.getMessage());
+                        if (docs != null && !docs.isEmpty()) {
+                            messages.add(new SystemMessage(buildRagContext(docs)));
+                        }
+                    }
+                    if (request.getContext() != null && !request.getContext().isEmpty()) {
+                        messages.add(new SystemMessage("前端上下文（仅供决策，不要复述）：" + toJson(request.getContext())));
+                    }
+                    messages.add(new SystemMessage(buildJsonOutputInstruction()));
+                    // 调试：打印系统提示词片段和RAG注入信息
+                    if (log.isDebugEnabled()) {
+                        String head = systemPrompt != null ? systemPrompt.substring(0, Math.min(60, systemPrompt.length())) : "";
+                        log.debug("Prompt调试(Stream)：systemPrompt.head60='{}'，enableRag={}，ragDocs={}，historyCount={}，hasContext={}", head, aiPromptConfig.isEnableRag(), (docs == null ? 0 : docs.size()), recent.size(), request.getContext() != null && !request.getContext().isEmpty());
+                    }
+
                     messages.add(new UserMessage(request.getMessage()));
 
                     // 先落库"用户消息"
@@ -180,12 +239,23 @@ public class AiChatServiceImpl implements AiChatService {
                             },
                             () -> {
                                 try {
-                                    // onComplete：一次性写入完整AI消息（status=1）
-                                    memoryService.saveAssistantMessage(userIdStr, full.toString(), modelName, 1, null);
-                                    memoryService.cleanupByRetainLastN(userIdStr, 1000);
+                                    // onComplete：解析并一次性写入完整AI消息（status=1）
+                                    ParsedResult parsed = parseModelOutput(full.toString());
+                                    Map<String, Object> metaSave = new HashMap<>();
+                                    if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
+                                    if (parsed.action != null) metaSave.put("action", parsed.action);
+                                    if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
+                                    memoryService.saveAssistantMessage(userIdStr, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
+                                     memoryService.cleanupByRetainLastN(userIdStr, 1000);
 
-                                    emitter.send(SseEmitter.event().name("complete").data(Map.of("success", true, "totalLength", full.length())));
-                                    emitter.complete();
+                                    // 完成事件可附带解析后的辅助信息，前端可按需消费
+                                    emitter.send(SseEmitter.event().name("complete").data(Map.of(
+                                            "success", true,
+                                            "totalLength", full.length(),
+                                            "emotion", parsed.emotion,
+                                            "action", parsed.action
+                                    )));
+                                     emitter.complete();
                                 } catch (IOException ioe) {
                                     log.error("SSE发送完成事件失败", ioe);
                                     emitter.completeWithError(ioe);
@@ -240,9 +310,103 @@ public class AiChatServiceImpl implements AiChatService {
         }).collect(Collectors.toList());
     }
 
+    /**
+     * 将检索到的知识片段转为可注入的系统提示词内容
+     */
+    private String buildRagContext(List<KnowledgeDocument> docs) {
+        StringBuilder sb = new StringBuilder("以下为知识库检索到的相关片段（仅供参考）：\n\n");
+        for (int i = 0; i < docs.size(); i++) {
+            KnowledgeDocument d = docs.get(i);
+            sb.append("【片段 ").append(i + 1).append("】\n");
+            sb.append("标题: ").append(Optional.ofNullable(d.getTitle()).orElse("无")).append("\n");
+            sb.append("内容: ").append(Optional.ofNullable(d.getContent()).orElse("")).append("\n");
+            if (d.getSource() != null && !d.getSource().isEmpty()) {
+                sb.append("来源: ").append(d.getSource()).append("\n");
+            }
+            sb.append("\n");
+        }
+        sb.append("请优先基于上述片段进行回答；如无相关信息，请明确说明并避免编造。");
+        return sb.toString();
+    }
+
     /** 将对象转为JSON字符串（用于metadata存储） */
     private String toJson(Object obj) {
         try { return objectMapper.writeValueAsString(obj); }
         catch (Exception e) { return null; }
+    }
+
+    /**
+     * 构建JSON输出约束说明，强制模型仅返回JSON对象
+     */
+    private String buildJsonOutputInstruction() {
+        return "你是博客站点的AI助手。务必仅以一个JSON对象响应，且不包含额外文字或代码块。" +
+                "\n返回格式严格为：{" +
+                "\n  \"message\": string,            // 给用户看的自然语言回复" +
+                "\n  \"emotion\": string|null,       // 情绪：happy|sad|angry|thinking|neutral" +
+                "\n  \"action\": string|null,        // 动作：open_latest_articles|favorite_article|open_home 等" +
+                "\n  \"metadata\": object|null        // 附加信息，例如 {page, articleId, ...}，若前端提供context请原样或加工返回" +
+                "\n}" +
+                "\n注意：不要输出Markdown代码块、不要多余文本。若无法确定action，请置为null。";
+    }
+
+    // ============== JSON解析辅助 ==============
+    private static class ParsedResult {
+        String message;
+        String emotion;
+        String action;
+        Map<String, Object> metadata;
+    }
+
+    /**
+     * 解析模型输出字符串。如果是JSON对象，则提取 message/emotion/action/metadata 字段；
+     * 如果不是合法JSON，则将全文作为 message 返回。
+     */
+    private ParsedResult parseModelOutput(String output) {
+        ParsedResult r = new ParsedResult();
+        if (output == null) {
+            r.message = null;
+            return r;
+        }
+        String s = output.trim();
+        // 去除可能的代码块围栏 ```json ... ```
+        if (s.startsWith("```")) {
+            int firstNl = s.indexOf('\n');
+            if (firstNl > 0) {
+                s = s.substring(firstNl + 1);
+            }
+            int fence = s.lastIndexOf("```");
+            if (fence > 0) s = s.substring(0, fence);
+            s = s.trim();
+        }
+        try {
+            JsonNode root = objectMapper.readTree(s);
+            if (root != null && root.isObject()) {
+                JsonNode msgNode = root.get("message");
+                if (msgNode == null) msgNode = root.get("text");
+                r.message = msgNode != null && !msgNode.isNull() ? msgNode.asText("") : null;
+                JsonNode emoNode = root.get("emotion");
+                r.emotion = emoNode != null && !emoNode.isNull() ? emoNode.asText() : null;
+                JsonNode actNode = root.get("action");
+                r.action = actNode != null && !actNode.isNull() ? actNode.asText() : null;
+                JsonNode metaNode = root.get("metadata");
+                if (metaNode != null && metaNode.isObject()) {
+                    r.metadata = objectMapper.convertValue(metaNode, new TypeReference<Map<String, Object>>() {});
+                } else {
+                    r.metadata = null;
+                }
+                // 若未提供message，则回退为原始文本
+                if (r.message == null || r.message.isEmpty()) {
+                    r.message = output;
+                }
+                return r;
+            }
+        } catch (Exception ignore) {
+            // 非JSON，直接回退为文本
+        }
+        r.message = output;
+        r.emotion = null;
+        r.action = null;
+        r.metadata = null;
+        return r;
     }
 }
