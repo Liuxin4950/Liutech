@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import {Ai, type AiChatRequest, type AiChatResponse} from '@/services/ai.ts'
 import {nextTick, onMounted, onUnmounted, ref} from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import PostService from '@/services/post'
+import {useRoute, useRouter} from 'vue-router'
 
 /**
  * AI聊天组件
@@ -78,7 +77,7 @@ const startStatusCheck = () => {
   // 立即检查一次
   checkAiStatus()
   // 每60秒检查一次
-  statusCheckInterval = window.setInterval(checkAiStatus, 60000)
+  // statusCheckInterval = window.setInterval(checkAiStatus, 60000)
 }
 
 // 停止定时检查
@@ -193,85 +192,15 @@ const dispatchAction = async (action: string, meta: Record<string, any> = {}) =>
     const normalizeId = () => {
       return meta.postId ?? meta.articleId ?? meta.id ?? (route.name === 'post-detail' ? Number(route.params.id) : undefined)
     }
-
+    console.log("当前参数:" + normalizeId)
     switch (action) {
       // 导航类
-      case 'navigate_home':
       case 'go_home':
+        console.log("触发动作，跳转首页")
         await router.push({ name: 'home' })
         break
-      case 'open_post': {
-        const id = normalizeId()
-        if (!id) throw new Error('缺少文章ID')
-        await router.push({ name: 'post-detail', params: { id } })
+      case 'none':
         break
-      }
-      case 'open_posts':
-        await router.push({ name: 'posts' })
-        break
-      case 'create_post':
-        await router.push({ name: 'create-post' })
-        break
-      case 'open_my_posts':
-        await router.push({ name: 'my-posts' })
-        break
-      case 'open_drafts':
-        await router.push({ name: 'drafts' })
-        break
-      case 'open_categories':
-        await router.push({ name: 'category-list' })
-        break
-      case 'open_category_detail': {
-        const id = meta.categoryId ?? meta.id
-        if (!id) throw new Error('缺少分类ID')
-        await router.push({ name: 'category-detail', params: { id } })
-        break
-      }
-      case 'open_tags':
-        await router.push({ name: 'tags' })
-        break
-      case 'open_tag_detail': {
-        const id = meta.tagId ?? meta.id
-        if (!id) throw new Error('缺少标签ID')
-        await router.push({ name: 'tag-detail', params: { id } })
-        break
-      }
-      case 'open_profile':
-        await router.push({ name: 'profile' })
-        break
-      case 'open_about':
-        await router.push({ name: 'about' })
-        break
-      case 'open_chat_history':
-        await router.push({ name: 'chat-history' })
-        break
-
-      // 文章交互
-      case 'like_post': {
-        const id = normalizeId()
-        if (!id) throw new Error('缺少文章ID')
-        await PostService.likePost(Number(id))
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `已为你点赞文章（ID: ${id}）`,
-          timestamp: new Date()
-        })
-        break
-      }
-      case 'favorite_post': {
-        const id = normalizeId()
-        if (!id) throw new Error('缺少文章ID')
-        await PostService.favoritePost(Number(id))
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `已为你收藏文章（ID: ${id}）`,
-          timestamp: new Date()
-        })
-        break
-      }
-
       default:
         console.debug('未识别的动作：', action, meta)
         // 给用户一个温柔提示

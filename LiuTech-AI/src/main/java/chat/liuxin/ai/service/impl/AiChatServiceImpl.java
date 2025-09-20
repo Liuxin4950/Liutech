@@ -1,16 +1,14 @@
 package chat.liuxin.ai.service.impl;
 
+import chat.liuxin.ai.config.AiPromptConfig;
+import chat.liuxin.ai.entity.AiChatMessage;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.MemoryService;
-import chat.liuxin.ai.service.RagService;
-import chat.liuxin.ai.config.AiPromptConfig;
-import chat.liuxin.ai.entity.AiChatMessage;
-import chat.liuxin.ai.entity.KnowledgeDocument;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -52,14 +50,13 @@ public class AiChatServiceImpl implements AiChatService {
     private final OllamaChatModel chatModel;
     private final MemoryService memoryService;           // 记忆服务（数据库）
     private final ObjectMapper objectMapper;             // 用于构造metadata的JSON
-    private final RagService ragService;                 // RAG知识检索服务
     private final AiPromptConfig aiPromptConfig;         // 系统提示词配置
 
     /**
      * 控制上下文窗口大小：最多拼接最近N条历史（不含本轮输入）
      * 你提出“暂时只保留20条”，这里按19条历史 + 1条本轮输入 组成本次Prompt
      */
-    private static final int HISTORY_LIMIT = 19; // 历史条数（不含本轮输入）
+    private static final int HISTORY_LIMIT = 9; // 历史条数（不含本轮输入）
 
     /**
      * 1) 普通聊天：一次性返回完整AI回复（带记忆）
@@ -80,30 +77,28 @@ public class AiChatServiceImpl implements AiChatService {
 
             // 构造消息序列：系统提示词 -> 历史 -> （可选）RAG上下文 -> JSON输出约束 -> 本轮用户输入
             List<Message> messages = new ArrayList<>();
-            String systemPrompt = aiPromptConfig.getFullSystemPrompt();
-            messages.add(new SystemMessage(systemPrompt));
+
+            messages.add(new SystemMessage(
+                    aiPromptConfig.getFullSystemPrompt()
+            ));
+
+
+
             messages.addAll(toPromptMessages(recent));
 
-            List<KnowledgeDocument> docs = null;
-            if (aiPromptConfig.isEnableRag()) {
-                docs = ragService.searchRelevantKnowledge(input);
-                if (docs != null && !docs.isEmpty()) {
-                    messages.add(new SystemMessage(buildRagContext(docs)));
-                }
-            }
+
             // 注入前端上下文（若有）以及JSON输出规范
             if (request.getContext() != null && !request.getContext().isEmpty()) {
-                messages.add(new SystemMessage("前端上下文（仅供决策，不要复述）：" + toJson(request.getContext())));
+                messages.add(new SystemMessage(
+                        "前端路由页面上下文（仅供决策参考，不要放入 message）："
+                                + toJson(request.getContext())
+                ));
             }
-            messages.add(new SystemMessage(buildJsonOutputInstruction()));
-            // 调试：打印系统提示词片段和RAG注入信息
-            if (log.isDebugEnabled()) {
-                String head = systemPrompt != null ? systemPrompt.substring(0, Math.min(60, systemPrompt.length())) : "";
-                log.debug("Prompt调试：systemPrompt.head60='{}'，enableRag={}，ragDocs={}，historyCount={}", head, aiPromptConfig.isEnableRag(), (docs == null ? 0 : docs.size()), recent.size());
-            }
+
 
             // 将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
             messages.add(new UserMessage(input));
+
 
             // 先落库"用户消息"（立即写入，便于审计/追踪）
             memoryService.saveUserMessage(userIdStr, input, modelName, null);
@@ -111,6 +106,8 @@ public class AiChatServiceImpl implements AiChatService {
             // 调用模型（一次性返回完整答案）
             var response = chatModel.call(new Prompt(messages));
             String aiOutput = response.getResult().getOutput().getContent();
+            System.out.println("AI回复：\n" + aiOutput + '\n');
+
             // 解析模型输出：尝试按JSON提取 message/emotion/action/metadata
             ParsedResult parsed = parseModelOutput(aiOutput);
 
@@ -179,27 +176,17 @@ public class AiChatServiceImpl implements AiChatService {
 
                     // 构造消息序列：系统提示词 -> 历史 -> （可选）RAG上下文 -> 本轮用户输入
                     List<Message> messages = new ArrayList<>();
+                    // 系统提示词
                     String systemPrompt = aiPromptConfig.getFullSystemPrompt();
-                    messages.add(new SystemMessage(systemPrompt));
-                    messages.addAll(toPromptMessages(recent));
 
-                    List<KnowledgeDocument> docs = null;
-                    if (aiPromptConfig.isEnableRag()) {
-                        docs = ragService.searchRelevantKnowledge(request.getMessage());
-                        if (docs != null && !docs.isEmpty()) {
-                            messages.add(new SystemMessage(buildRagContext(docs)));
-                        }
-                    }
+                    messages.add(new SystemMessage(systemPrompt));
+                    // 转换为信息列表格式
+                    messages.addAll(toPromptMessages(recent));
+                    // 前端上下文（如果有）
                     if (request.getContext() != null && !request.getContext().isEmpty()) {
                         messages.add(new SystemMessage("前端上下文（仅供决策，不要复述）：" + toJson(request.getContext())));
                     }
-                    messages.add(new SystemMessage(buildJsonOutputInstruction()));
-                    // 调试：打印系统提示词片段和RAG注入信息
-                    if (log.isDebugEnabled()) {
-                        String head = systemPrompt != null ? systemPrompt.substring(0, Math.min(60, systemPrompt.length())) : "";
-                        log.debug("Prompt调试(Stream)：systemPrompt.head60='{}'，enableRag={}，ragDocs={}，historyCount={}，hasContext={}", head, aiPromptConfig.isEnableRag(), (docs == null ? 0 : docs.size()), recent.size(), request.getContext() != null && !request.getContext().isEmpty());
-                    }
-
+                    // 本轮用户输入
                     messages.add(new UserMessage(request.getMessage()));
 
                     // 先落库"用户消息"
@@ -310,44 +297,12 @@ public class AiChatServiceImpl implements AiChatService {
         }).collect(Collectors.toList());
     }
 
-    /**
-     * 将检索到的知识片段转为可注入的系统提示词内容
-     */
-    private String buildRagContext(List<KnowledgeDocument> docs) {
-        StringBuilder sb = new StringBuilder("以下为知识库检索到的相关片段（仅供参考）：\n\n");
-        for (int i = 0; i < docs.size(); i++) {
-            KnowledgeDocument d = docs.get(i);
-            sb.append("【片段 ").append(i + 1).append("】\n");
-            sb.append("标题: ").append(Optional.ofNullable(d.getTitle()).orElse("无")).append("\n");
-            sb.append("内容: ").append(Optional.ofNullable(d.getContent()).orElse("")).append("\n");
-            if (d.getSource() != null && !d.getSource().isEmpty()) {
-                sb.append("来源: ").append(d.getSource()).append("\n");
-            }
-            sb.append("\n");
-        }
-        sb.append("请优先基于上述片段进行回答；如无相关信息，请明确说明并避免编造。");
-        return sb.toString();
-    }
-
     /** 将对象转为JSON字符串（用于metadata存储） */
     private String toJson(Object obj) {
         try { return objectMapper.writeValueAsString(obj); }
         catch (Exception e) { return null; }
     }
 
-    /**
-     * 构建JSON输出约束说明，强制模型仅返回JSON对象
-     */
-    private String buildJsonOutputInstruction() {
-        return "你是博客站点的AI助手。务必仅以一个JSON对象响应，且不包含额外文字或代码块。" +
-                "\n返回格式严格为：{" +
-                "\n  \"message\": string,            // 给用户看的自然语言回复" +
-                "\n  \"emotion\": string|null,       // 情绪：happy|sad|angry|thinking|neutral" +
-                "\n  \"action\": string|null,        // 动作：open_latest_articles|favorite_article|open_home 等" +
-                "\n  \"metadata\": object|null        // 附加信息，例如 {page, articleId, ...}，若前端提供context请原样或加工返回" +
-                "\n}" +
-                "\n注意：不要输出Markdown代码块、不要多余文本。若无法确定action，请置为null。";
-    }
 
     // ============== JSON解析辅助 ==============
     private static class ParsedResult {
