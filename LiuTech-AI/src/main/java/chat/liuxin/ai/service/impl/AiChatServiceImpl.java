@@ -78,7 +78,12 @@ public class AiChatServiceImpl implements AiChatService {
             // 处理上下文信息，获取文章内容（如果在文章详情页）
              Map<String, Object> context = request.getContext();
              if (context != null && "post-detail".equals(context.get("page"))) {
-                 Object articleIdObj = context.get("articleId");
+                 // 同时支持postId和articleId两种字段名
+                 Object articleIdObj = context.get("postId");
+                 if (articleIdObj == null) {
+                     articleIdObj = context.get("articleId"); // 兼容可能使用articleId的情况
+                 }
+                 
                  if (articleIdObj != null) {
                      Long articleId = null;
                      if (articleIdObj instanceof Number) {
@@ -97,9 +102,11 @@ public class AiChatServiceImpl implements AiChatService {
                          if (articleContent != null) {
                              // 将文章内容添加到用户输入中，增强AI的回答能力
                              enhancedInput = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + input;
-                             log.info("已获取文章内容，文章ID: {}", articleId);
+                             log.info("已获取文章内容，文章ID: {}\n\n\n文章内容: {}\n\n", articleId, articleContent);
                          }
                      }
+                 } else {
+                     log.warn("文章详情页缺少文章ID: context={}", toJson(context));
                  }
              }
 
@@ -117,12 +124,23 @@ public class AiChatServiceImpl implements AiChatService {
 
             // 注入前端上下文（若有）以及JSON输出规范
             if (request.getContext() != null && !request.getContext().isEmpty()) {
-                messages.add(new SystemMessage(
-                        "前端用户当前路由位置（仅供决策active动作，不要放入 message正常对话）："
-                                + toJson(request.getContext())
-                ));
+                // 使用已有的context变量,避免重复声明
+                String contextPrompt = "前端用户当前路由位置（仅供决策active动作，不要放入message正常对话）：" + toJson(context);
+                
+                // 为文章详情页添加特殊提示
+                if ("post-detail".equals(context.get("page"))) {
+                    Object postId = context.get("postId");
+                    if (postId == null) {
+                        postId = context.get("articleId");
+                    }
+                    if (postId != null) {
+                        contextPrompt += "\n\n注意：用户当前正在浏览文章详情页，文章ID为" + postId + 
+                                        "。你可以针对当前文章内容回答用户问题，如果用户询问'当前文章'相关内容，请理解用户是在询问他正在浏览的这篇文章。";
+                    }
+                }
+                
+                messages.add(new SystemMessage(contextPrompt));
             }
-
 
             // 将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
             messages.add(new UserMessage(enhancedInput));
