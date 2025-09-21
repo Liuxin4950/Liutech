@@ -2,6 +2,8 @@
 import {Ai, type AiChatRequest, type AiChatResponse} from '@/services/ai.ts'
 import {nextTick, onMounted, onUnmounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
+import { post } from '@/services/api'
+import { usePostInteractionStore } from '@/stores/postInteraction'
 
 /**
  * AI聊天组件
@@ -34,7 +36,7 @@ const connectionStatus = ref<'connected' | 'connecting' | 'disconnected' | 'erro
 const errorMessage = ref('')
 const retryCount = ref(0)
 const maxRetries = 3
-
+let lastUserMessage = '' // 定义全局变量用于存储最后一条用户消息，用于意图检测
 
 // 消息ID计数器
 let messageIdCounter = 0
@@ -95,93 +97,67 @@ const refreshStatus = async () => {
 
 // 发送普通聊天消息
 const sendChat = async () => {
-  if (!chatInput.value.trim() || isLoading.value || isStreaming.value) {
-    return
-  }
+  if (!chatInput.value.trim() || isLoading.value || isStreaming.value) return
 
-  const userMessage = {
-    id: ++messageIdCounter,
-    type: 'user' as const,
-    content: chatInput.value.trim(),
+  const text = chatInput.value.trim()
+  // 记录最后一条用户输入（用于客户端保护）
+  lastUserMessage = text
+
+  // 推送用户消息
+  const msgId = ++messageIdCounter
+  messages.value.push({
+    id: msgId,
+    type: 'user',
+    content: text,
     timestamp: new Date(),
-    status: 'sending' as const
-  }
-
-  messages.value.push(userMessage)
-  const messageContent = chatInput.value.trim()
+    status: 'sending'
+  })
   chatInput.value = ''
 
-  // 模拟发送状态变化
-  setTimeout(() => {
-    const messageIndex = messages.value.findIndex(msg => msg.id === userMessage.id)
-    if (messageIndex !== -1) {
-      messages.value[messageIndex].status = 'sent'
-    }
-  }, 500)
-
-  // 滚动到底部
+  // 显示“思考中”
+  isLoading.value = true
   await scrollToBottom()
 
   try {
-    isLoading.value = true
-    connectionStatus.value = 'connecting'
-    errorMessage.value = ''
-
-    // 采集前端上下文
-    const context: Record<string, any> = {}
-    // 页面标识
-    context.page = route.name || route.path
-    // 若是文章详情，采集文章ID
-    if (route.name === 'post-detail' && route.params?.id) {
-      context.articleId = Number(route.params.id)
+    const context: Record<string, any> = {
+      page: route.name || '',
     }
-
-    const request: AiChatRequest = {
-      message: messageContent,
-      context
-    }
-
-    const response: AiChatResponse = await Ai.chat(request)
-
-    // TODO: Live2D 表情驱动（占位）
-    if (response.emotion) {
-      // triggerLive2DExpression(response.emotion)
-      console.debug('emotion:', response.emotion)
-    }
-    // TODO: 动作分发（占位）
-    if (response.action) {
-      try {
-        await dispatchAction(response.action, response.metadata || context)
-      } catch (e) {
-        console.warn('动作执行失败:', e)
+    if (route.name === 'post-detail' && route.params.id) {
+      const n = Number(route.params.id)
+      if (Number.isFinite(n)) {
+        context.postId = n
       }
     }
 
-    // 添加AI回复消息
-    const aiMessage = {
-      id: ++messageIdCounter,
-      type: 'ai' as const,
-      content: response.message || '抱歉，我现在无法回复。',
-      timestamp: new Date()
+    const req: AiChatRequest = { message: text, context }
+    const resp: AiChatResponse = await Ai.chat(req)
+
+    // 更新用户消息状态
+    const idx = messages.value.findIndex(m => m.id === msgId)
+    if (idx > -1) messages.value[idx].status = 'delivered'
+
+    // 展示AI回复
+    if (resp?.message) {
+      messages.value.push({
+        id: ++messageIdCounter,
+        type: 'ai',
+        content: resp.message,
+        timestamp: new Date()
+      })
     }
 
-    messages.value.push(aiMessage)
-    connectionStatus.value = 'connected'
-    retryCount.value = 0
-    await scrollToBottom()
-
-  } catch (error) {
-    console.error('发送聊天消息失败:', error)
-    connectionStatus.value = 'error'
-    // 更新用户消息状态为失败
-    const messageIndex = messages.value.findIndex(msg => msg.id === userMessage.id)
-    if (messageIndex !== -1) {
-      messages.value[messageIndex].status = 'failed'
-    }
-    handleChatError(error, messageContent)
-    await scrollToBottom()
+    // 动作分发（默认none不执行）
+    const action = resp?.action || 'none'
+    const meta = resp?.metadata || {}
+    await dispatchAction(action, meta)
+  } catch (err) {
+    // 标记失败
+    const idx = messages.value.findIndex(m => m.id === msgId)
+    if (idx > -1) messages.value[idx].status = 'failed'
+    handleChatError(err, text)
   } finally {
     isLoading.value = false
+    await scrollToBottom()
   }
 }
 
@@ -189,16 +165,91 @@ const sendChat = async () => {
 // 根据AI返回的动作执行页面跳转或业务操作
 const dispatchAction = async (action: string, meta: Record<string, any> = {}) => {
   try {
-    const normalizeId = () => {
-      return meta.postId ?? meta.articleId ?? meta.id ?? (route.name === 'post-detail' ? Number(route.params.id) : undefined)
+    const normalizeId = (): number | undefined => {
+      const raw = meta.postId ?? meta.articleId ?? meta.id ?? (route.name === 'post-detail' ? route.params.id : undefined)
+      const n = Number(raw)
+      return Number.isFinite(n) ? n : undefined
     }
-    console.log("当前参数:" + normalizeId)
+    const hasLikeIntent = (text: string) => /((给)?(这篇)?(文|文章)?点个?赞|点赞|喜欢|like)/i.test(text)
+    const hasFavoriteIntent = (text: string) => /(收藏|加(个)?星|favorite|mark)/i.test(text)
+    console.log('当前参数:', normalizeId())
     switch (action) {
       // 导航类
       case 'go_home':
         console.log("触发动作，跳转首页")
         await router.push({ name: 'home' })
         break
+      // 文章操作类
+      case 'like_post': {
+        // 客户端保护：只有当用户输入里出现明显的点赞意图时才执行
+        if (!hasLikeIntent(lastUserMessage)) {
+          messages.value.push({
+            id: ++messageIdCounter,
+            type: 'ai',
+            content: `已为您解析到可能的操作：点赞。但未检测到明确的“点赞”指令，因此未执行。如需点赞请明确说明。`,
+            timestamp: new Date()
+          })
+          break
+        }
+        const likePostId = normalizeId()
+        if (likePostId) {
+          console.log("触发动作，点赞文章", likePostId)
+          await likePost(likePostId)
+          // 同步全局交互状态
+          usePostInteractionStore().toggleLike(likePostId)
+          messages.value.push({
+            id: ++messageIdCounter,
+            type: 'ai',
+            content: `✅ 已为您点赞文章`,
+            timestamp: new Date()
+          })
+        } else {
+          console.warn("点赞失败：未找到文章ID")
+          messages.value.push({
+            id: ++messageIdCounter,
+            type: 'ai',
+            content: `❌ 点赞失败：未找到文章ID`,
+            timestamp: new Date(),
+            isError: true
+          })
+        }
+        break
+      }
+      case 'favorite_post': {
+        // 客户端保护：只有当用户输入里出现明显的收藏意图时才执行
+        if (!hasFavoriteIntent(lastUserMessage)) {
+          messages.value.push({
+            id: ++messageIdCounter,
+            type: 'ai',
+            content: `已为您解析到可能的操作：收藏。但未检测到明确的“收藏”指令，因此未执行。如需收藏请明确说明。`,
+            timestamp: new Date()
+          })
+          break
+        }
+        const favoritePostId = normalizeId()
+        if (favoritePostId) {
+          console.log("触发动作，收藏文章", favoritePostId)
+          await favoritePost(favoritePostId)
+          // 同步全局交互状态
+          usePostInteractionStore().toggleFavorite(favoritePostId)
+          messages.value.push({
+            id: ++messageIdCounter,
+            type: 'ai',
+            content: `✅ 已为您收藏文章`,
+            timestamp: new Date()
+          })
+        } else {
+          console.warn("收藏失败：未找到文章ID")
+          messages.value.push({
+            id: ++messageIdCounter,
+            type: 'ai',
+            content: `❌ 收藏失败：未找到文章ID`,
+            timestamp: new Date(),
+            isError: true
+          })
+        }
+        break
+      }
       case 'none':
         break
       default:
@@ -222,6 +273,38 @@ const dispatchAction = async (action: string, meta: Record<string, any> = {}) =>
     })
   } finally {
     await scrollToBottom()
+  }
+}
+
+// 点赞文章
+const likePost = async (postId: number) => {
+  try {
+    // 调用点赞API
+    const response = await post(`/posts/${postId}/like`, {})
+    if (response.code === 200) {
+      return true
+    } else {
+      throw new Error(response.message || '点赞失败')
+    }
+  } catch (error) {
+    console.error('点赞失败:', error)
+    throw error
+  }
+}
+
+// 收藏文章
+const favoritePost = async (postId: number) => {
+  try {
+    // 调用收藏API
+    const response = await post(`/posts/${postId}/favorite`, {})
+    if (response.code === 200) {
+      return true
+    } else {
+      throw new Error(response.message || '收藏失败')
+    }
+  } catch (error) {
+    console.error('收藏失败:', error)
+    throw error
   }
 }
 

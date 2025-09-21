@@ -18,6 +18,8 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.stereotype.Service;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
@@ -71,6 +73,35 @@ public class AiChatServiceImpl implements AiChatService {
         try {
             // 提取用户输入
             String input = request.getMessage();
+            String enhancedInput = input;
+            
+            // 处理上下文信息，获取文章内容（如果在文章详情页）
+             Map<String, Object> context = request.getContext();
+             if (context != null && "post-detail".equals(context.get("page"))) {
+                 Object articleIdObj = context.get("articleId");
+                 if (articleIdObj != null) {
+                     Long articleId = null;
+                     if (articleIdObj instanceof Number) {
+                         articleId = ((Number) articleIdObj).longValue();
+                     } else if (articleIdObj instanceof String) {
+                         try {
+                             articleId = Long.parseLong((String) articleIdObj);
+                         } catch (NumberFormatException e) {
+                             log.warn("文章ID格式错误: {}", articleIdObj);
+                         }
+                     }
+                     
+                     if (articleId != null) {
+                         // 获取文章内容的逻辑
+                         String articleContent = fetchArticleContent(articleId);
+                         if (articleContent != null) {
+                             // 将文章内容添加到用户输入中，增强AI的回答能力
+                             enhancedInput = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + input;
+                             log.info("已获取文章内容，文章ID: {}", articleId);
+                         }
+                     }
+                 }
+             }
 
             // 读取最近历史（最多19条），用于作为上下文
             List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
@@ -81,11 +112,8 @@ public class AiChatServiceImpl implements AiChatService {
             messages.add(new SystemMessage(
                     aiPromptConfig.getFullSystemPrompt()
             ));
-
-
-
+            // 重构历史列表
             messages.addAll(toPromptMessages(recent));
-
 
             // 注入前端上下文（若有）以及JSON输出规范
             if (request.getContext() != null && !request.getContext().isEmpty()) {
@@ -97,7 +125,7 @@ public class AiChatServiceImpl implements AiChatService {
 
 
             // 将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
-            messages.add(new UserMessage(input));
+            messages.add(new UserMessage(enhancedInput));
 
 
             // 先落库"用户消息"（立即写入，便于审计/追踪）
@@ -301,6 +329,59 @@ public class AiChatServiceImpl implements AiChatService {
     private String toJson(Object obj) {
         try { return objectMapper.writeValueAsString(obj); }
         catch (Exception e) { return null; }
+    }
+    
+    /**
+     * 从主服务获取文章内容
+     * 
+     * @param articleId 文章ID
+     * @return 文章内容，包含标题和正文
+     */
+    private String fetchArticleContent(Long articleId) {
+        try {
+            // 构建请求URL
+            String apiUrl = "http://localhost:8080/posts/" + articleId;
+            
+            // 创建RestTemplate实例
+            RestTemplate restTemplate = new RestTemplate();
+            
+            // 发送GET请求获取文章详情
+            ResponseEntity<String> response = restTemplate.getForEntity(apiUrl, String.class);
+            
+            if (response.getStatusCode().is2xxSuccessful()) {
+                // 解析响应JSON
+                JsonNode root = objectMapper.readTree(response.getBody());
+                
+                // 检查请求是否成功
+                if (root.has("code") && root.get("code").asInt() == 200) {
+                    JsonNode data = root.get("data");
+                    
+                    if (data != null) {
+                        String title = data.has("title") ? data.get("title").asText() : "未知标题";
+                        String content = data.has("content") ? data.get("content").asText() : "";
+                        String summary = data.has("summary") ? data.get("summary").asText() : "";
+                        
+                        // 构建文章内容摘要
+                        StringBuilder articleInfo = new StringBuilder();
+                        articleInfo.append("文章标题: ").append(title).append("\n\n");
+                        
+                        if (!summary.isEmpty()) {
+                            articleInfo.append("文章摘要: ").append(summary).append("\n\n");
+                        }
+                        
+                        articleInfo.append("文章内容: ").append(content);
+                        
+                        return articleInfo.toString();
+                    }
+                }
+            }
+            
+            log.warn("获取文章内容失败，状态码: {}", response.getStatusCodeValue());
+            return null;
+        } catch (Exception e) {
+            log.error("获取文章内容异常", e);
+            return null;
+        }
     }
 
 

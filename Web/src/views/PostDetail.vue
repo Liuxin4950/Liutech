@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
@@ -190,6 +190,7 @@ import { formatDate } from '@/utils/uitls'
 import CommentSection from '@/components/CommentSection.vue'
 import { isLoggedIn } from '../utils/auth'
 import LoginModal from '../components/LoginModal.vue'
+import { usePostInteractionStore } from '@/stores/postInteraction'
 
 const route = useRoute()
 const router = useRouter()
@@ -497,6 +498,28 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
+
+const interactionStore = usePostInteractionStore()
+// 订阅 AiChat 触发的点赞/收藏事件以同步本地UI状态
+watch(() => interactionStore.lastLikeEvent, (ev) => {
+  const e = ev as any
+  if (!e?.postId || !post.value || post.value.id !== e.postId) return
+  const wasLiked = isLiked.value
+  isLiked.value = e.isLiked
+  if (isLiked.value !== wasLiked) {
+    currentLikeCount.value += isLiked.value ? 1 : -1
+  }
+}, { deep: true })
+
+watch(() => interactionStore.lastFavoriteEvent, (ev) => {
+  const e = ev as any
+  if (!e?.postId || !post.value || post.value.id !== e.postId) return
+  const wasFavorited = isFavorited.value
+  isFavorited.value = e.isFavorited
+  if (isFavorited.value !== wasFavorited) {
+    currentFavoriteCount.value += isFavorited.value ? 1 : -1
+  }
+}, { deep: true })
 </script>
 
 <style scoped>
@@ -611,7 +634,7 @@ background-color: var(--bg-main);
   background: var(--bg-main);
   position: sticky;
   bottom: 0;
-  z-index: 999;
+  z-index: 1;
 }
 
 .actions-left {
@@ -753,7 +776,7 @@ background-color: var(--bg-main);
   .post-header {
     padding: 50px 20px 20px 20px;
   }
-
+ 
   .back-btn-top {
     top: 16px;
     left: 16px;

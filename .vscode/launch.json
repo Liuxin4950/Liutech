@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-LiuTechAiApplication<liutech-ai>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "chat.liuxin.ai.LiuTechAiApplication",
+            "projectName": "liutech-ai",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-LiuTechApplication<liutech-backend>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "chat.liuxin.liutech.LiuTechApplication",
+            "projectName": "liutech-backend",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
