@@ -163,8 +163,8 @@ public class AiChatServiceImpl implements AiChatService {
             if (parsed.action != null) metaSave.put("action", parsed.action);
             if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
             memoryService.saveAssistantMessage(userIdStr, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
-             // 可选：轻量清理，保留每用户最近1000条（或按需配置）
-             memoryService.cleanupByRetainLastN(userIdStr, 1000);
+             // 可选：轻量清理，保留每用户最近10条（或按需配置）
+             memoryService.cleanupByRetainLastN(userIdStr, 10);
 
              long cost = System.currentTimeMillis() - begin;
              log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(), parsed.message != null ? parsed.message.length() : 0, cost);
@@ -279,7 +279,7 @@ public class AiChatServiceImpl implements AiChatService {
                                     if (parsed.action != null) metaSave.put("action", parsed.action);
                                     if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
                                     memoryService.saveAssistantMessage(userIdStr, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
-                                     memoryService.cleanupByRetainLastN(userIdStr, 1000);
+                                     memoryService.cleanupByRetainLastN(userIdStr, 10);
 
                                     // 完成事件可附带解析后的辅助信息，前端可按需消费
                                     emitter.send(SseEmitter.event().name("complete").data(Map.of(

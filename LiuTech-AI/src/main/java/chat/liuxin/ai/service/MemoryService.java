@@ -29,6 +29,6 @@ public interface MemoryService {
     /** 保存一条AI消息（role=assistant，status=1成功；9错误），content可为空（错误时） */
     void saveAssistantMessage(String userId, String content, String model, int status, String metadataJson);
 
-    /** 轻量清理：仅保留该用户最后N条记录（例如1000） */
+    /** 轻量清理：仅保留该用户最后N条记录（例如10条） */
     void cleanupByRetainLastN(String userId, int retainLastN);
 }
