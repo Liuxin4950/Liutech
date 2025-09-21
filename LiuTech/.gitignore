@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### 编译文件 ###
+*.class
+
+### 上传文件 ###
+/uploads/
+/f:/工程代码/Liutech/LiuTech/uploads/

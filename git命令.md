@@ -1,17 +1,4 @@
 
-
-
-          
-我需要先查看当前的git命令笔记内容，然后完善它，添加更多常用的git命令和场景。
-        
-            
-toolName: view_files
-            
-status: success
-          
-            
-filePath: e:\MyBlog\git命令.md
-          
 # Git 常用命令笔记
 
 ## 撤销与重置
