@@ -90,7 +90,7 @@ public class AiChatServiceImpl implements AiChatService {
             // 注入前端上下文（若有）以及JSON输出规范
             if (request.getContext() != null && !request.getContext().isEmpty()) {
                 messages.add(new SystemMessage(
-                        "前端路由页面上下文（仅供决策参考，不要放入 message）："
+                        "前端用户当前路由位置（仅供决策active动作，不要放入 message正常对话）："
                                 + toJson(request.getContext())
                 ));
             }
