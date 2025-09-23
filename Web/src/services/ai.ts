@@ -1,5 +1,5 @@
 
-import { post, get, ServiceType } from './api'
+import { post, get, del, ServiceType } from './api'
 
 /**
  * AI聊天请求接口
@@ -99,6 +99,18 @@ export class Ai {
             serviceType: ServiceType.AI
         })
         return response as unknown as ChatHistoryResponse
+    }
+
+    /**
+     * 清空聊天记忆
+     * 使用AI服务8081端口
+     */
+    static async clearChatMemory(): Promise<AiChatResponse> {
+        // del 返回的已是服务端响应体，AI服务为 {success, message, ...}
+        const response = await del<AiChatResponse>('/ai/chat/memory', {
+            serviceType: ServiceType.AI
+        })
+        return response as unknown as AiChatResponse
     }
 
 

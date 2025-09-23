@@ -24,7 +24,7 @@ import java.util.List;
  * 1) 读 /chat 普通模式
  * 2) 读 /chat/stream 流式模式
  * 作者：刘鑫
- * 时间：2025-09-05
+ * 时间：2025-09-24
  */
 @Slf4j
 @RestController
@@ -101,6 +101,31 @@ public class AiChatController {
         } catch (Exception e) {
             log.error("获取聊天历史记录失败", e);
             return ChatHistoryResponse.error("获取聊天历史记录失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 4) 清空用户聊天记忆接口
+     */
+    @DeleteMapping("/chat/memory")
+    public ChatResponse clearChatMemory() {
+        try {
+            Long userId = getCurrentUserId();
+            if (userId == null) {
+                return ChatResponse.error("用户未认证");
+            }
+
+            String userIdStr = userId.toString();
+            log.info("清空用户聊天记忆，用户ID: {}", userIdStr);
+
+            // 调用记忆服务清空用户所有记忆
+            memoryService.clearAllMemory(userIdStr);
+
+            return ChatResponse.success("聊天记忆已清空");
+
+        } catch (Exception e) {
+            log.error("清空聊天记忆失败", e);
+            return ChatResponse.error("清空聊天记忆失败: " + e.getMessage());
         }
     }
 

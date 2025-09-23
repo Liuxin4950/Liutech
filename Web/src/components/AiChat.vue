@@ -376,16 +376,39 @@ const scrollToBottom = async () => {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight
   }
 }
-
+//emit("status-change", isActive.value)
 // 清空聊天记录
-const clearChat = () => {
-  isActive.value = false
-  emit("status-change", isActive.value)
-  messages.value = []
-  messageIdCounter = 0
-  errorMessage.value = ''
-  connectionStatus.value = 'disconnected'
-  retryCount.value = 0
+const clearChat = async () => {
+  try {
+      //隐藏聊天框
+      isActive.value = false
+      emit("status-change", isActive.value)
+      messages.value = []
+      messageIdCounter = 0
+      errorMessage.value = ''
+      connectionStatus.value = 'disconnected'
+      retryCount.value = 0
+    // // 调用后端API清空聊天记忆
+    // const response = await Ai.clearChatMemory()
+    
+    // if (response.success) {
+    //   // 后端清空成功，清空前端显示
+    //   isActive.value = false
+    //   emit("status-change", isActive.value)
+    //   messages.value = []
+    //   messageIdCounter = 0
+    //   errorMessage.value = ''
+    //   connectionStatus.value = 'disconnected'
+    //   retryCount.value = 0
+      
+    //   console.log('聊天记忆已清空')
+    // } else {
+    //   errorMessage.value = response.message || '清空聊天记忆失败'
+    // }
+  } catch (error) {
+    console.error('清空聊天记忆失败:', error)
+    errorMessage.value = '清空聊天记忆失败，请稍后重试'
+  }
 }
 
 // 检查网络状态
@@ -471,7 +494,7 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="chat-controls">
-            <button class="clear-btn" title="清空聊天" @click="clearChat">🗑️</button>
+            <button class="clear-btn" title="清空聊天" @click="clearChat">隐藏</button>
           </div>
         </div>
 
@@ -485,7 +508,7 @@ onUnmounted(() => {
         <!-- 聊天消息列表 -->
         <div ref="chatContainer" class="chat-messages">
           <div v-if="messages.length === 0" class="empty-state">
-            <p>👋 你好！我是AI助手，有什么可以帮助你的吗？</p>
+            <p>👋 你好！欢迎来到我的博客，有什么可以我帮助你的吗？我可以为你总结文章，跳转页面哦！</p>
             <div v-if="!isOnline()" class="offline-notice">
               <span>📶</span>
               <span>当前网络不可用</span>

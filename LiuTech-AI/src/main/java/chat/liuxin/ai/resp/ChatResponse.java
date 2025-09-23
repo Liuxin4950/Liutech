@@ -106,6 +106,19 @@ public class ChatResponse {
                 .responseLength(message != null ? message.length() : 0)
                 .build();
     }
+    /**
+     * 创建成功响应的便捷方法
+     * 
+     * @param message 响应消息
+     * @return 成功响应对象
+     */
+    public static ChatResponse success(String message) {
+        return ChatResponse.builder()
+                .success(true)
+                .message(message)
+                .timestamp(System.currentTimeMillis())
+                .build();
+    }
     
     /**
      * 创建失败响应的便捷方法

@@ -14,12 +14,9 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 记忆服务实现（最佳实践 + 引导注释）
- *
- * 要点：
- * - 读：按 userId 倒序取最近N条，再反转为升序，方便Prompt拼接。
- * - 写：用户消息始终status=1；AI消息分成功/错误两种。
- * - 清理：按用户保留最后N条，超出部分批量删除（单条SQL）。
+ * 记忆服务实现类
+ * 作者：刘鑫
+ * 时间：2025-09-24
  */
 @Slf4j
 @Service
@@ -134,5 +131,17 @@ public class MemoryServiceImpl implements MemoryService {
         if (deleted > 0) {
             log.info("记忆清理：userId={}, 删除{}条，保留最近{}条", userId, deleted, retainLastN);
         }
+    }
+
+    /**
+     * 清空用户所有聊天记忆（物理删除）
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void clearAllMemory(String userId) {
+        int deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getUserId, userId)
+        );
+        log.info("清空用户记忆：userId={}, 删除{}条记录", userId, deleted);
     }
 }
