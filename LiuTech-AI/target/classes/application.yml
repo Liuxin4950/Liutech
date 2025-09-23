@@ -15,10 +15,12 @@ spring:
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 10
+      maximum-pool-size: 20
       minimum-idle: 5
-      idle-timeout: 30000
       connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
   ai:
     ollama:
       base-url: http://localhost:11434
@@ -26,7 +28,27 @@ spring:
         options:
           model: gemma3:4b
           temperature: 0.2  # 降低温度，提升遵循JSON格式概率
-
+          timeout: 30s      # 添加超时配置
+    
+  # 健康检查配置
+  health-check:
+    enabled: true
+    timeout: 5000
+    interval: 30000
+    
+  # 熔断器配置
+  circuit-breaker:
+    enabled: true
+    failure-threshold: 5
+    recovery-timeout: 30000
+    
+  ## 重试配置
+  retry:
+    max-attempts: 3
+    initial-interval: 1000
+    max-interval: 10000
+    multiplier: 2.0
+ 
 # MyBatis-Plus 配置
 mybatis-plus:
   # Mapper XML 文件位置
@@ -59,13 +81,32 @@ jwt:
 # 日志配置
 logging:
   level:
-    chat.liuxin.ai: INFO
-    org.springframework.ai: INFO
+    chat.liuxin.ai: DEBUG
+    org.springframework.ai: DEBUG
+    org.springframework.retry: DEBUG
     # 屏蔽MyBatis的SQL日志
     chat.liuxin.ai.mapper: ERROR
     com.baomidou.mybatisplus: ERROR
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/liutech-ai.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    defaults:
+      enabled: true
 
 
 # AI 提示词配置

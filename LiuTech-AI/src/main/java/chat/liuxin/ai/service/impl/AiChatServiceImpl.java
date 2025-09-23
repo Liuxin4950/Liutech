@@ -2,9 +2,13 @@ package chat.liuxin.ai.service.impl;
 
 import chat.liuxin.ai.config.AiPromptConfig;
 import chat.liuxin.ai.entity.AiChatMessage;
+import chat.liuxin.ai.exception.AIServiceException;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
+import chat.liuxin.ai.service.HealthCheckService;
+import chat.liuxin.ai.service.ContextEnhancementService;
+import chat.liuxin.ai.service.IntentRecognitionService;
 import chat.liuxin.ai.service.MemoryService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -17,6 +21,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
@@ -51,6 +56,10 @@ public class AiChatServiceImpl implements AiChatService {
 
     private final OllamaChatModel chatModel;
     private final MemoryService memoryService;           // 记忆服务（数据库）
+    private final HealthCheckService healthCheckService; // 健康检查服务
+    private final RetryTemplate retryTemplate;          // 重试模板
+    private final ContextEnhancementService contextEnhancementService;
+    private final IntentRecognitionService intentRecognitionService;
     private final ObjectMapper objectMapper;             // 用于构造metadata的JSON
     private final AiPromptConfig aiPromptConfig;         // 系统提示词配置
 
@@ -71,9 +80,25 @@ public class AiChatServiceImpl implements AiChatService {
         String modelName = request.getModel() != null ? request.getModel() : "ollama";
 
         try {
+            // 健康检查：确保AI服务可用
+            healthCheckService.checkServiceAvailability();
+            
             // 提取用户输入
             String input = request.getMessage();
-            String enhancedInput = input;
+            
+            // 上下文增强和意图识别
+            List<AiChatMessage> recentHistory = memoryService.listRecentMessages(userIdStr, 5);
+            ContextEnhancementService.EnhancedContext enhancedContext = 
+                contextEnhancementService.enhanceUserInput(input, request.getContext(), recentHistory);
+            IntentRecognitionService.IntentResult intentResult = 
+                intentRecognitionService.recognizeIntent(input);
+            
+            log.info("用户意图识别 - 主要意图: {}, 置信度: {:.2f}, 紧急程度: {}", 
+                intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent());
+            log.debug("上下文增强 - 意图: {}, 情感: {}, 关键词: {}", 
+                enhancedContext.getIntent(), enhancedContext.getEmotion(), enhancedContext.getKeywords());
+            
+            String enhancedInput = enhancedContext.getEnhancedInput();
             
             // 处理上下文信息，获取文章内容（如果在文章详情页）
              Map<String, Object> context = request.getContext();
@@ -101,7 +126,7 @@ public class AiChatServiceImpl implements AiChatService {
                          String articleContent = fetchArticleContent(articleId);
                          if (articleContent != null) {
                              // 将文章内容添加到用户输入中，增强AI的回答能力
-                             enhancedInput = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + input;
+                             enhancedInput = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + enhancedInput;
                              log.info("已获取文章内容，文章ID: {}\n\n\n文章内容: {}\n\n", articleId, articleContent);
                          }
                      }
@@ -149,8 +174,12 @@ public class AiChatServiceImpl implements AiChatService {
             // 先落库"用户消息"（立即写入，便于审计/追踪）
             memoryService.saveUserMessage(userIdStr, input, modelName, null);
 
-            // 调用模型（一次性返回完整答案）
-            var response = chatModel.call(new Prompt(messages));
+            // 使用重试模板调用模型（一次性返回完整答案）
+            var response = retryTemplate.execute(retryContext -> {
+                log.debug("调用AI模型，第{}次尝试", retryContext.getRetryCount() + 1);
+                return chatModel.call(new Prompt(messages));
+            });
+            
             String aiOutput = response.getResult().getOutput().getContent();
             System.out.println("AI回复：\n" + aiOutput + '\n');
 
@@ -183,17 +212,32 @@ public class AiChatServiceImpl implements AiChatService {
                      .responseLength(parsed.message != null ? parsed.message.length() : 0)
                      .build();
 
+        } catch (AIServiceException e) {
+            // AI服务特定异常，直接抛出让全局异常处理器处理
+            log.error("AI服务异常: {}", e.getMessage(), e);
+            throw e;
         } catch (Exception e) {
             log.error("AI普通聊天失败", e);
-            // 失败时也尝试记录一条“AI错误消息”，status=9，metadata带错误信息（帮助排查）
+            // 失败时也尝试记录一条"AI错误消息"，status=9，metadata带错误信息（帮助排查）
             try {
                 Map<String, Object> meta = new HashMap<>();
                 meta.put("error", e.getMessage());
+                meta.put("errorType", e.getClass().getSimpleName());
+                meta.put("timestamp", System.currentTimeMillis());
                 memoryService.saveAssistantMessage(userIdStr, null, modelName, 9, toJson(meta));
             } catch (Exception ignore) {
                 log.warn("记录AI错误消息失败: {}", ignore.getMessage());
             }
-            return ChatResponse.error("AI服务暂时不可用: " + e.getMessage(), userIdStr);
+            
+            // 根据异常类型抛出相应的AI服务异常
+            if (e.getCause() instanceof java.net.ConnectException || 
+                e.getCause() instanceof java.net.SocketTimeoutException) {
+                throw new AIServiceException.ConnectionException("AI服务连接失败: " + e.getMessage(), e);
+            } else if (e.getMessage() != null && e.getMessage().contains("timeout")) {
+                throw new AIServiceException.TimeoutException("AI服务响应超时: " + e.getMessage(), e);
+            } else {
+                throw new AIServiceException("AI服务处理异常: " + e.getMessage(), e);
+            }
         }
     }
 
@@ -211,11 +255,27 @@ public class AiChatServiceImpl implements AiChatService {
         // 创建SSE发射器,用于服务器向客户端推送事件流
         SseEmitter emitter = new SseEmitter(30000L);
         try {
+            // 健康检查：确保AI服务可用
+            if (!healthCheckService.isServiceAvailable()) {
+                emitter.completeWithError(new AIServiceException("AI服务当前不可用，请稍后重试"));
+                return emitter;
+            }
+        
             emitter.send(SseEmitter.event().name("user").data(Map.of("userId", userId)));
 
             CompletableFuture.runAsync(() -> {
                 try {
                     emitter.send(SseEmitter.event().name("start").data(Map.of("message", "AI正在思考中...")));
+
+                    // 上下文增强和意图识别
+                    List<AiChatMessage> recentHistory = memoryService.listRecentMessages(userIdStr, 5);
+                    ContextEnhancementService.EnhancedContext enhancedContext = 
+                        contextEnhancementService.enhanceUserInput(request.getMessage(), request.getContext(), recentHistory);
+                    IntentRecognitionService.IntentResult intentResult = 
+                        intentRecognitionService.recognizeIntent(request.getMessage());
+                    
+                    log.info("流式聊天 - 用户意图: {}, 置信度: {:.2f}, 紧急程度: {}", 
+                        intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent());
 
                     // 读取最近历史（最多19条），末尾不会包含本轮输入
                     List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
@@ -232,8 +292,8 @@ public class AiChatServiceImpl implements AiChatService {
                     if (request.getContext() != null && !request.getContext().isEmpty()) {
                         messages.add(new SystemMessage("前端上下文（仅供决策，不要复述）：" + toJson(request.getContext())));
                     }
-                    // 本轮用户输入
-                    messages.add(new UserMessage(request.getMessage()));
+                    // 使用增强后的用户输入
+                    messages.add(new UserMessage(enhancedContext.getEnhancedInput()));
 
                     // 先落库"用户消息"
                     memoryService.saveUserMessage(userIdStr, request.getMessage(), modelName, null);
