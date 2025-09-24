@@ -111,7 +111,7 @@ import { formatRelativeTime } from '@/utils/uitls'
 import Pagination from '@/components/Pagination.vue'
 
 const router = useRouter()
-const { handleAsync } = useErrorHandler()
+const { handleAsync,showToastSuccess,showToastError,confirm } = useErrorHandler()
 
 // 响应式数据
 const drafts = ref<PostListItem[]>([])
@@ -184,7 +184,8 @@ const editDraft = (draftId: number) => {
 }
 
 const publishDraft = async (draftId: number) => {
-  if (!confirm('确定要发布这篇草稿吗？')) {
+  const confirmed = await confirm('确定要发布这篇草稿吗？')
+  if (!confirmed) {
     return
   }
 
@@ -194,17 +195,18 @@ const publishDraft = async (draftId: number) => {
     // 重新加载草稿列表
     await loadDrafts()
 
-    alert('草稿发布成功！')
+    showToastSuccess('草稿发布成功！')
   }, {
     onError: (err) => {
       console.error('发布草稿失败:', err)
-      alert('发布失败，请稍后重试')
+      showToastError('发布失败，请稍后重试')
     }
   })
 }
 
 const deleteDraft = async (draftId: number) => {
-  if (!confirm('确定要删除这篇草稿吗？此操作不可恢复。')) {
+  const confirmed = await confirm('确定要删除这篇草稿吗？此操作不可恢复。')
+  if (!confirmed) {
     return
   }
 
@@ -214,11 +216,11 @@ const deleteDraft = async (draftId: number) => {
     // 重新加载草稿列表
     await loadDrafts()
 
-    alert('草稿已删除')
+    showToastSuccess('草稿已删除')
   }, {
     onError: (err) => {
       console.error('删除草稿失败:', err)
-      alert('删除失败，请稍后重试')
+      showToastError('删除失败，请稍后重试')
     }
   })
 }

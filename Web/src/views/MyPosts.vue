@@ -140,7 +140,7 @@ import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate } from '@/utils/uitls'
 
 const router = useRouter()
-const { handleAsync } = useErrorHandler()
+const { handleAsync,showToastSuccess,showToastError,confirm } = useErrorHandler()
 
 // 响应式数据
 const posts = ref<PostListItem[]>([])
@@ -224,7 +224,8 @@ const editPost = (postId: number) => {
 }
 
 const deletePost = async (postId: number) => {
-  if (!confirm('确定要删除这篇文章吗？删除后无法恢复！')) {
+  const confirmed = await confirm('确定要删除这篇文章吗？删除后无法恢复！')
+  if (!confirmed) {
     return
   }
 
@@ -235,17 +236,18 @@ const deletePost = async (postId: number) => {
     await loadPosts()
 
     // 显示成功消息
-    alert('文章删除成功！')
+    showToastSuccess('文章删除成功！')
   }, {
     onError: (err) => {
       console.error('删除文章失败:', err)
-      alert('删除文章失败，请稍后重试')
+      showToastError('删除文章失败，请稍后重试')
     }
   })
 }
 
 const unpublishPost = async (postId: number) => {
-  if (!confirm('确定要取消发布这篇文章吗？文章将转为草稿状态。')) {
+  const confirmed = await confirm('文章将转为草稿状态。')
+  if (!confirmed) {
     return
   }
 
@@ -256,11 +258,11 @@ const unpublishPost = async (postId: number) => {
     await loadPosts()
 
     // 显示成功消息
-    alert('文章已取消发布，转为草稿状态！')
+    showToastSuccess('文章已取消发布，转为草稿状态！')
   }, {
     onError: (err) => {
       console.error('取消发布文章失败:', err)
-      alert('取消发布文章失败，请稍后重试')
+      showToastError('取消发布文章失败，请稍后重试')
     }
   })
 }
