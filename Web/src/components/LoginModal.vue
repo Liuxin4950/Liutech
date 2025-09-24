@@ -68,7 +68,7 @@ const goToLogin = () => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-soft);
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   max-width: 400px;
@@ -82,14 +82,14 @@ const goToLogin = () => {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-main);
 }
 
 .close-btn {
@@ -97,14 +97,14 @@ const goToLogin = () => {
   border: none;
   padding: 4px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-subtle);
   border-radius: 4px;
   transition: all 0.2s;
 }
 
 .close-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg-card);
+  color: var(--text-subtle);
 }
 
 .modal-body {
@@ -113,7 +113,7 @@ const goToLogin = () => {
 
 .modal-body p {
   margin: 0;
-  color: #4b5563;
+  color: var(--text-subtle);
   line-height: 1.6;
 }
 
@@ -122,7 +122,7 @@ const goToLogin = () => {
   gap: 12px;
   justify-content: flex-end;
   padding: 16px 24px 20px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-soft);
 }
 
 .btn {
@@ -136,22 +136,23 @@ const goToLogin = () => {
 }
 
 .btn-secondary {
-  background: #f9fafb;
-  color: #374151;
-  border-color: #d1d5db;
+  background: var(--bg-card);
+  color: var(--text-subtle);
+  border-color: var(--border-soft);
 }
 
 .btn-secondary:hover {
-  background: #f3f4f6;
-  border-color: #9ca3af;
+  background: var(--color-error);
+  border-color: var(--border-soft);
+  color: white;
 }
 
 .btn-primary {
-  background: #3b82f6;
+  background: var(--color-primary);
   color: white;
 }
 
 .btn-primary:hover {
-  background: #2563eb;
+  background:var(--color-info);
 }
 </style>

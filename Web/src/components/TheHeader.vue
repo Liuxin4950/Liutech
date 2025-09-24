@@ -121,16 +121,16 @@ onUnmounted(() => {
           <div v-if="userStore.isLoggedIn" class="flex flex-ac gap-8 link rounded transition" @click="toggleUserMenu">
             <div class="user-avatar rounded-full bg-primary flex flex-ct link">
               <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="fit rounded-full" />
-              <div v-else class="text-white font-semibold text-sm">{{ userStore.username?.charAt(0).toUpperCase() }}</div>
+              <div v-else class="text-main font-semibold text-sm">{{ userStore.username?.charAt(0).toUpperCase() }}</div>
             </div>
             <div class="flex flex-col link">
               <span class="font-medium">{{ userStore.username }}</span>
-              <span class="text-sm text-muted">{{ userStore.points }}积分</span>
+              <span class="flex text-sm text-muted"> <div class="user-points">{{ userStore.points }}</div>积分</span>
             </div>
           </div>
           
           <!-- 未登录状态 -->
-          <button v-else class=" text-white flex flex-ac gap-8 transition  rounded p-8 hover-lift" @click="navigateTo('/login')">
+          <button v-else class="text-main flex flex-ac gap-8 transition  rounded p-8 hover-lift" @click="navigateTo('/login')">
             <span class="text-base">👤</span>
             <span>登录/注册</span>
           </button>
@@ -194,6 +194,17 @@ header > div{
   width: 40px;
   height: 40px;
   cursor: pointer;
+}
+.user-points{
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--color-warning);
+  border-radius: 50%;
+  color: var(--text-main);
 }
 ul,ol {
   list-style: none;

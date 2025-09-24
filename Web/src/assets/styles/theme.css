@@ -8,7 +8,7 @@
    /* ===== 主色调（青蓝系） ===== */
    --color-primary: #5f91ad;
    /* 主色：青蓝，按钮、链接 */
-   --color-primary-light: #608768;
+   --color-primary-light: #2a8e52;
    /* 浅青绿，hover/次要按钮 */
    --color-primary-dark: #1b4965;
    /* 深青蓝，用于导航/强调 */
@@ -30,10 +30,10 @@
 
    /* ===== 文本色 ===== */
    --text-main: #253237;
-   /* 主正文颜色（深灰蓝） */
+   /* 主正文颜色（深灰） */
    --text-subtle: #52575a;
-   /* 次要文字（灰蓝） */
-   --text-muted: #9db4c0;
+   /* 次要文字（） */
+   --text-muted: #55585b;
    /* 更淡文字（已修正为标准命名） */
    --text-title: #1b263b;
    /* 标题（深蓝灰） */
@@ -48,8 +48,8 @@
    /* 深边框 */
 
    /* ===== 状态色（柔和） ===== */
-   --color-success: #2a9d8f;
-   --color-warning: #f4a261;
+   --color-success: #2a8e52;
+   --color-warning: #ffb703;
    --color-error: #e63946;
    --color-info: #3a86ff;
 
@@ -90,7 +90,7 @@
    /* 主正文（浅灰白） */
    --text-subtle: #c1c5c9;
    /* 次要文字 */
-   --text-subtle: #6c757d;
+   --text-muted: #9ea1a4;
    /* 更淡文字 */
    --text-title: #f8f9fa;
    /* 标题（接近白） */
@@ -101,7 +101,7 @@
    --border-strong: #9db4c0;
 
    /* ===== 状态色（稍亮以突出） ===== */
-   --color-success: #2ec4b6;
+   --color-success: #2a8e52;
    --color-warning: #ffb703;
    --color-error: #ef476f;
    --color-info: #4cc9f0;

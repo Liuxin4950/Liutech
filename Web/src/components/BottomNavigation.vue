@@ -73,11 +73,9 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+
 const router = useRouter()
-// 定义 emit 函数
-const emit = defineEmits(['ai-chat-active'])
-
-
+const emit = defineEmits(['ai-chat-active', 'auth-required'])
 
 const scrollToTop = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -88,11 +86,13 @@ const scrollToBottom = () => {
 }
 
 const goCreate = () => {
-  router.push('/create')
+  // 需要登录验证的操作
+  emit('auth-required', () => router.push('/create'), '发布文章需要登录，请先登录您的账户。')
 }
 
 const goMyPosts = () => {
-  router.push('/my-posts')
+  // 需要登录验证的操作
+  emit('auth-required', () => router.push('/my-posts'), '查看我的文章需要登录，请先登录您的账户。')
 }
 
 const goAiChat = () => {

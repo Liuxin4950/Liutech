@@ -276,9 +276,9 @@ const goToAnnouncements = () => {
 // 加载作者(开发者)个人资料
 const loadProfile = async () => {
   await handleAsync(async () => {
-    profileLoading.value = true
-    const response = await UserService.getAuthorProfile()
-    profileInfo.value = response
+    // profileLoading.value = true
+    // const response = await UserService.getAuthorProfile()
+    // profileInfo.value = response
   }, {
     onError: (err) => {
       console.error('加载个人资料失败:', err)

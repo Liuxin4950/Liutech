@@ -7,9 +7,11 @@ import Banner from '@/components/Banner.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
 import Live2d from '@/components/Live2d.vue'
-// 全局页面加载（作者：刘鑫，修改时间：2025-08-26 16:01:05 +08:00）
+// 全局页面加载（作者：刘鑫，修改时间：2025-09-24 20:11:17 +08:00）
 import GlobalPageLoader from '../components/GlobalPageLoader.vue'
-import AiChat from "@/components/AiChat.vue";
+import AiChat from "@/components/AiChat.vue"
+import LoginModal from '@/components/LoginModal.vue'
+import { requireAuth } from '@/utils/auth'
 
 const showLoader = ref(false)
 const router = useRouter()
@@ -21,6 +23,10 @@ const isFirstLoad = ref(true)
 // 显示模型和聊天
 const showModel = ref(false)
 const showChat = ref(false)
+
+// 登录弹窗控制
+const showLoginModal = ref(false)
+const loginMessage = ref('')
 
 // 防抖处理，避免频繁点击
 let modelToggleTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -91,6 +97,17 @@ const handleModelStatusChange = () => {
   }, 300); // 300ms防抖延迟
 }
 
+// 显示登录弹窗
+const showLoginModalWithMessage = (message?: string) => {
+  loginMessage.value = message || '此功能需要登录后才能使用，请先登录您的账户。'
+  showLoginModal.value = true
+}
+
+// 处理需要登录的操作
+const handleAuthRequired = (action: () => void, message?: string) => {
+  requireAuth(action, () => showLoginModalWithMessage(message))
+}
+
 </script>
 
 <template>
@@ -110,8 +127,17 @@ const handleModelStatusChange = () => {
       <router-view />
     </main>
     <TheFooter />
-    <BottomNavigation @ai-chat-active="handleModelStatusChange"></BottomNavigation>
+    <BottomNavigation 
+      @ai-chat-active="handleModelStatusChange"
+      @auth-required="handleAuthRequired"
+    ></BottomNavigation>
     <GlobalPageLoader :show="showLoader" />
+    
+    <!-- 登录弹窗 -->
+    <LoginModal 
+      v-model:visible="showLoginModal" 
+      :message="loginMessage" 
+    />
   </div>
 </template>
 
