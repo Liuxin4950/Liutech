@@ -9,9 +9,10 @@
 /**
  * Live2D 模型展示组件
  * 作者: 刘鑫
- * 功能: 纯净的Live2D模型展示，支持基本交互和拖拽
+ * 修改时间: 2025-09-24 19:33:22 +08:00
+ * 功能: 纯净的Live2D模型展示，支持基本交互和拖拽，优化资源管理
  */
-import { onMounted ,watch } from 'vue';
+import { onMounted, onBeforeUnmount, watch } from 'vue';
 import { ref } from 'vue';
 
 // 声明全局变量类型
@@ -26,8 +27,10 @@ declare global {
 // Live2D模型路径
 const cubism4Model = '/live2d/model/Nahida/Nahida_1080.model3.json';
 
-// 模型实例
+// 模型实例和PIXI应用实例
 let model: any = null;
+let app: any = null;
+let isInitialized = false; // 初始化状态标记
 
 // 拖拽相关变量
 let isDragging = false;
@@ -37,6 +40,9 @@ let dragOffset = { x: 0, y: 0 };
 const isAuto = ref<boolean>(true);//音频是否空闲
 let audioQueue = ref<string[]>([]); // 音频队列
 const audioChecker = ref<HTMLAudioElement|null>(null); // 音频检测对象
+
+// 窗口大小调整处理器
+let resizeHandler: (() => void) | null = null;
 
 // 拖拽事件处理
 function onPointerDown(event: any) {
@@ -167,6 +173,12 @@ function stopSpeak() {
 
 
 onMounted(() => {
+    // 防止重复初始化
+    if (isInitialized) {
+        console.log('Live2D已经初始化，跳过重复初始化');
+        return;
+    }
+    
     // 等待全局脚本加载完成
     const initLive2D = () => {
         console.log('检查Live2D依赖:', {
@@ -189,13 +201,16 @@ onMounted(() => {
 
         console.log('开始初始化Live2D模型');
         
+        // 标记为已初始化
+        isInitialized = true;
+        
         // 创建 PIXI 应用
         const canvas = document.getElementById('canvas') as HTMLCanvasElement;
         const container = canvas.parentElement;
         const containerWidth = container?.clientWidth || 400;
         const containerHeight = container?.clientHeight || 400;
         
-        const app = new window.PIXI.Application({
+        app = new window.PIXI.Application({
             view: canvas,
             width: containerWidth,
             height: containerHeight,
@@ -256,14 +271,16 @@ onMounted(() => {
         });
 
         // 窗口大小调整
-        const handleResize = () => {
+        resizeHandler = () => {
             // 动态获取容器尺寸
             const canvas = document.getElementById('canvas') as HTMLCanvasElement;
             const container = canvas.parentElement;
             const currentWidth = container?.clientWidth || 400;
             const currentHeight = container?.clientHeight || 400;
             
-            app.renderer.resize(currentWidth, currentHeight);
+            if (app && app.renderer) {
+                app.renderer.resize(currentWidth, currentHeight);
+            }
             if (model) {
                 // 模型位置居中显示 - 动态计算
                 model.x = currentWidth / 2;
@@ -273,14 +290,90 @@ onMounted(() => {
             }
         };
         
-        window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', resizeHandler);
         
         // 初始调整大小
-        handleResize();
+        if (resizeHandler) {
+            resizeHandler();
+        }
     };
 
     // 开始初始化
     initLive2D();
+});
+
+// 资源清理函数
+const cleanup = () => {
+    console.log('开始清理Live2D资源...');
+    
+    // 重置初始化状态
+    isInitialized = false;
+    
+    // 1. 停止音频播放
+    stopSpeak();
+    
+    // 2. 清理音频队列
+    audioQueue.value = [];
+    
+    // 3. 移除窗口事件监听器
+    if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler);
+        resizeHandler = null;
+    }
+    
+    // 4. 清理模型资源
+    if (model) {
+        try {
+            // 移除所有事件监听器
+            model.removeAllListeners();
+            
+            // 停止所有动作
+            if (model.internalModel?.motionManager) {
+                model.internalModel.motionManager.stopAllMotions();
+            }
+            
+            // 从舞台移除模型
+            if (app && app.stage && model.parent) {
+                app.stage.removeChild(model);
+            }
+            
+            // 销毁模型
+            if (model.destroy) {
+                model.destroy();
+            }
+        } catch (error) {
+            console.error('清理模型时出错:', error);
+        }
+        model = null;
+    }
+    
+    // 5. 清理PIXI应用
+    if (app) {
+        try {
+            // 移除舞台事件监听器
+            if (app.stage) {
+                app.stage.removeAllListeners();
+                app.stage.interactive = false;
+            }
+            
+            // 销毁应用
+            app.destroy(true, {
+                children: true,
+                texture: true,
+                baseTexture: true
+            });
+        } catch (error) {
+            console.error('清理PIXI应用时出错:', error);
+        }
+        app = null;
+    }
+    
+    console.log('Live2D资源清理完成');
+};
+
+// 组件卸载时清理资源
+onBeforeUnmount(() => {
+    cleanup();
 });
 
 

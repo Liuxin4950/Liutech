@@ -53,7 +53,8 @@
           </div>
 
           <!-- 内容区统一 -->
-          <div class="flex flex-col flex-sb flex-1">
+          <div class="flex flex-col flex-sb flex-1 relative">
+            <span v-if="post.category" class="badge">{{ post.category.name }}</span>
             <div class="flex-1 flex flex-col gap-12">
               <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
               <p v-if="post.summary" class="text-subtle text-base">{{ post.summary }}</p>
@@ -64,7 +65,8 @@
               </div>
             </div>
             <div class="flex flex-sb flex-ac mt-8">
-              <div class="flex flex-ac gap-8 text-subtle">
+                <div class="flex flex-ac gap-8 text-subtle">
+                <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username" class="rounded" style="width: 24px; height: 24px; object-fit: cover;" />
                 <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
               </div>
               <div class="flex gap-12 text-sm text-subtle">
@@ -285,15 +287,6 @@ onMounted(() => {
   margin: 0 auto 20px;
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
 
 /* 统一图片尺寸与卡片结构 */
 .posts-img {
@@ -319,6 +312,26 @@ onMounted(() => {
   background: var(--color-primary);
   color: white;
   border-color: var(--color-primary);
+}
+
+.relative > .badge{
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0;
+  transition: .5s;
+}
+.relative:hover .badge{
+  opacity: 1;
+}
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 768px) {

@@ -18,6 +18,15 @@ let timer: number | null = null
 // 检查是否为首次访问（页面刷新或首次打开）
 const isFirstLoad = ref(true)
 
+// 显示模型和聊天
+const showModel = ref(false)
+const showChat = ref(false)
+
+// 防抖处理，避免频繁点击
+let modelToggleTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const aiChatActive = ref(false)
+
 onMounted(() => {
   // 页面加载时立即显示加载动画
   showLoader.value = true
@@ -60,19 +69,26 @@ onMounted(() => {
   })
 })
 
-//显示/隐藏
-const showChat = ref(false)
-
-const toggleChat = () =>{
+const toggleChat = () => {
   showChat.value = !showChat.value
 }
 
-
-const aiChatActive = ref(false)
 // 子组件通过 $emit('status-change', true/false) 来通知父组件
-const handleStatusChange = (val: boolean) => {
+const handleAIChat = (val: boolean) => {
   aiChatActive.value = val
-  // showChat.value = val
+}
+
+const handleModelStatusChange = () => {
+  // 清除之前的定时器
+  if (modelToggleTimeout) {
+    clearTimeout(modelToggleTimeout);
+  }
+  
+  // 设置防抖延迟
+  modelToggleTimeout = setTimeout(() => {
+    showModel.value = !showModel.value
+    modelToggleTimeout = null;
+  }, 300); // 300ms防抖延迟
 }
 
 </script>
@@ -84,18 +100,17 @@ const handleStatusChange = (val: boolean) => {
       <Banner class="banner" />
       <Breadcrumb />
 
-      <div class="ai-content">
+      <div v-if="showModel" class="ai-content">
         <div class="ai-box">
-        <Live2d @click="toggleChat" class="live2d"></Live2d>
-          <AiChat v-show="showChat" :class="{ 'ai-chat-active': aiChatActive }" class="ai-chat"
-                  @status-change="handleStatusChange"></AiChat>
+          <Live2d @click="toggleChat" class="live2d"></Live2d>
+          <AiChat v-show="showChat" :class="{ 'ai-chat-active': aiChatActive }" class="ai-chat" @status-change="handleAIChat"></AiChat>
         </div>
       </div>
 
       <router-view />
     </main>
     <TheFooter />
-    <BottomNavigation></BottomNavigation>
+    <BottomNavigation @ai-chat-active="handleModelStatusChange"></BottomNavigation>
     <GlobalPageLoader :show="showLoader" />
   </div>
 </template>
@@ -110,7 +125,7 @@ const handleStatusChange = (val: boolean) => {
   flex: 1;
 }
 .banner{
-  height: 300px;
+  height: 400px;
 }
 .ai-content{
   width: 400px ;
@@ -120,6 +135,7 @@ const handleStatusChange = (val: boolean) => {
   right: 0;
   z-index: 10;
 }
+
 .ai-box,.live2d{
   position: relative;
   width: 100%;

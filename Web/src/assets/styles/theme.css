@@ -6,9 +6,9 @@
    line-height: 1.6;
 
    /* ===== 主色调（青蓝系） ===== */
-   --color-primary: #6ba6c5;
+   --color-primary: #5f91ad;
    /* 主色：青蓝，按钮、链接 */
-   --color-primary-light: #84a98c;
+   --color-primary-light: #608768;
    /* 浅青绿，hover/次要按钮 */
    --color-primary-dark: #1b4965;
    /* 深青蓝，用于导航/强调 */
@@ -66,7 +66,7 @@
    /* ===== 主色调（青蓝系） ===== */
    --color-primary: #5dade2;
    /* 主色：亮青蓝 */
-   --color-primary-light: #a8dadc;
+   --color-primary-light: #608768;
    /* 浅青蓝，用于次按钮 */
    --color-primary-dark: #0d1b2a;
    /* 深青蓝，用于导航栏 */

@@ -34,7 +34,7 @@
         <article
           v-for="post in posts"
           :key="post.id"
-          class="flex gap-16 p-16 rounded-lg transition link card bg-card"
+          class="flex gap-16 p-16 rounded-lg transition link card bg-card "
           @click="goToPost(post.id)"
         >
           <!-- 缩略图与尺寸统一 -->
@@ -43,7 +43,7 @@
           </div>
 
           <!-- 文章内容，结构与首页一致 -->
-          <div class="flex flex-col flex-sb flex-1">
+          <div class="flex flex-col flex-sb flex-1 relative">
             <span v-if="post.category" class="badge">{{ post.category.name }}</span>
             <div class="flex-1 flex flex-col gap-12">
               <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
@@ -213,6 +213,17 @@ onMounted(() => {
 .posts-img { width: 200px; height: 150px; background-color: white; border-radius: 12px; overflow: hidden; }
 
 .loading-text { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+
+.relative > .badge{
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0;
+  transition: .5s;
+}
+.relative:hover .badge{
+  opacity: 1;
+}
 
 @media (max-width: 768px) {
   .category-posts { padding: 15px; }

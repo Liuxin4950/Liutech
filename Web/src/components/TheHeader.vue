@@ -110,7 +110,6 @@ onUnmounted(() => {
           <li><router-link to="/tags" class="nav-link transition" :class="{ 'is-active': isActive('tags') }">标签</router-link></li>
           <li><router-link to="/archive" class="nav-link transition" :class="{ 'is-active': isActive('archive') }">归档</router-link></li>
           <li><router-link to="/about" class="nav-link transition" :class="{ 'is-active': isActive('about') }">关于我</router-link></li>
-        
         </ul>
       </nav>
       
@@ -133,16 +132,16 @@ onUnmounted(() => {
           <!-- 未登录状态 -->
           <button v-else class=" text-white flex flex-ac gap-8 transition  rounded p-8 hover-lift" @click="navigateTo('/login')">
             <span class="text-base">👤</span>
-            <span>登录</span>
+            <span>登录/注册</span>
           </button>
           
           <!-- 用户下拉菜单 -->
           <div v-show="isUserMenuOpen" class="avatar-menu absolute card transition bg-main" @click.stop>
             <ul class="list">
               <li @click="navigateTo('/profile')" class="transition link">个人资料</li>
+              <li @click="navigateTo('/chat-history')" class="transition link">聊天历史</li>
               <li @click="navigateTo('/my-posts')" class="transition link">我的文章</li>
               <li @click="navigateTo('/drafts')" class="transition link">草稿箱</li>
-              <li @click="navigateTo('/chat-history')" class="transition link">聊天历史</li>
               <li @click="navigateTo('/settings')" class="transition link">设置</li>
               <li @click="handleLogout" class="transition link border-t text-danger">退出登录</li>
             </ul>
@@ -150,7 +149,7 @@ onUnmounted(() => {
         </div>
         
         <!-- 主题切换按钮 -->
-        <button @click="theme.toggle" class="rounded transition hover-bg p-8 text-lg">
+        <button @click="theme.toggle" class="link transition p-8 text-xl">
           {{ theme.current.value === 'light' ? '🌙' : '☀️' }}
         </button>
       </div>
@@ -161,7 +160,6 @@ onUnmounted(() => {
         <div class=""></div>
         <div class=""></div>
         <div class=""></div>
-
       </button>
       
       <!-- 移动端菜单 -->
@@ -197,26 +195,28 @@ header > div{
   height: 40px;
   cursor: pointer;
 }
-
 ul,ol {
   list-style: none;
   padding: 0;
   margin: 0;
 }
+
 .avatar-menu{
-  top: 70px;
+  padding: 0;
+  top: 60px;
   width: 140px; 
   z-index: 99;
-  bar
+  overflow: hidden;
   li{
-    margin-bottom: 12px;
+    padding: 6px 16px;
     cursor: pointer;
   }
   li:last-child {
-    margin-bottom: 0;
+    color: red;
   }
   li:hover{
-    color: var(--color-primary);
+    color: white;
+    background:var( --color-primary);
   }
 }
 
@@ -265,7 +265,8 @@ ul,ol {
   left: 0;
   background-color: var(--bg-main);
   li:hover{
-    color: var(--color-primary);
+    background-color: var(--color-primary);
+    color: white;
   }
 }
 

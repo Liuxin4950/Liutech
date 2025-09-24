@@ -111,10 +111,10 @@ public class MemoryServiceImpl implements MemoryService {
         // 删除该用户除最后N条之外的其他记录
         // SQL思路：找出第N条的created_at边界，再删除更早的记录
         // 这里用子查询 + <= 边界的方式实现（不同数据库略有差异，MySQL 8 OK）
-        String sql = "DELETE FROM ai_chat_message " +
-                "WHERE user_id = #{userId} AND id NOT IN (" +
-                "  SELECT id FROM (SELECT id FROM ai_chat_message WHERE user_id = #{userId} ORDER BY created_at DESC LIMIT #{retainLastN}) t" +
-                ")";
+        // String sql = "DELETE FROM ai_chat_message " +
+        //         "WHERE user_id = #{userId} AND id NOT IN (" +
+        //         "  SELECT id FROM (SELECT id FROM ai_chat_message WHERE user_id = #{userId} ORDER BY created_at DESC LIMIT #{retainLastN}) t" +
+        //         ")";
         // MyBatis-Plus不支持直接写上面的原生SQL在Service，这里退一步：
         // 方案B：查询第N条的时间边界，再按时间删除更早的（两步法）。
         List<AiChatMessage> desc = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()

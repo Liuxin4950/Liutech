@@ -12,10 +12,17 @@
           @keyup.enter="handleSearch" />
         <span class="search-icon">🔍</span>
       </div>
-      <button class="create-btn" @click="createNewPost">
-        <span class="btn-icon">✏️</span>
-        新建文章
-      </button>
+      <div class="flex gap-20">
+        <button class="create-btn" @click="createNewPost">
+          <!-- <span class="btn-icon"></span> -->
+          新建文章
+        </button>
+        <button class="create-btn" @click="goDrafts">
+          <!-- <span class="btn-icon"></span> -->
+          草稿箱 
+        </button>
+      </div>
+   
     </div>
 
     <!-- 文章列表 -->
@@ -198,10 +205,15 @@ const loadCategories = async () => {
 const goToTag = (tagId: number) => {
   router.push(`/tags/${tagId}`)
 }
-
+// 跳转新建文章
 const createNewPost = () => {
   router.push('/create')
 }
+
+const goDrafts = () => {
+  router.push('/drafts')
+}
+
 
 const viewPost = (postId: number) => {
   router.push(`/post/${postId}?from=my-posts`)

@@ -1,5 +1,5 @@
 <template>
-  <div class="card bg-card ">
+  <div class="card bg-card relative gap-20">
     <div class="flex flex-col flex-ac ">
       <img :src="avatar" :alt="name" class="avatar">
       <div class="flex flex-col flex-ac">
@@ -7,7 +7,9 @@
         <p class="text-muted text-lg mb-0">{{ title }}</p>
       </div>
     </div>
-    <p class="text-light text-lg mb-0" style="line-height: 1.5;">{{ bio }}</p>
+
+    <div class="text-light text-lg mb-0" style="line-height: 1.5">{{ bio }}</div>
+
     <div class="flex flex-sb mb-16 p-12 border-t border-b">
       <div class="flex-1 text-center">
         <span class="stat-number">{{ stats.posts }}</span>
@@ -49,5 +51,10 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <style scoped>
+.avatar{
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+}
 
 </style>

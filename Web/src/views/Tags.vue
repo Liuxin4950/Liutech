@@ -1,7 +1,7 @@
 <template>
   <div class="tags-page content">
     <!-- 页面头部 -->
-    <div class="card bg-soft mb-16">
+    <div class="card bg-card mb-16">
       <div class="flex flex-col gap-16">
         <div class="flex flex-col gap-12">
           <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">

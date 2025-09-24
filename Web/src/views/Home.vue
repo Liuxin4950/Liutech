@@ -21,7 +21,7 @@
                 class="flex gap-16 p-16 rounded-lg transition link card bg-card" @click="goToPost(post.id)">
                 <!-- 缩略图 -->
                 <div class="posts-img">
-                  <img :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" :alt="post.title"
+                  <img :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'" :alt="post.title"
                     class="fit">
                 </div>
 
@@ -311,8 +311,12 @@ onMounted(() => {
   position: absolute;
   top: 0;
   right: 0;
+  opacity: 0;
+  transition: .5s;
 }
-
+.relative:hover .badge{
+  opacity: 1;
+}
 .posts-img {
   width: 200px;
   height: 150px;

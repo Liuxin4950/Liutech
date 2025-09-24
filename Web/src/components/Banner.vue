@@ -1,5 +1,6 @@
 <template>
     <div class="banner-header">
+        <img class="banner-image" src="@/assets/image/banner/墨提斯.jpg" alt="">
         <div class="wave-container">
             <svg class="waves" xmlns="http://www.w3.org/2000/svg" viewBox="0 24 150 28" preserveAspectRatio="none">
                 <defs>
@@ -24,9 +25,14 @@
 <style scoped>
 .banner-header {
     width: 100%;
+    height: 100%;
     position: relative;
     background: linear-gradient(60deg, var(--color-primary) 0%, var(--color-primary) 100%);
-    color: white;
+    overflow: hidden;
+}
+.banner-image{
+    width: 100%;
+    object-fit: cover;
 }
 
 .waves {
