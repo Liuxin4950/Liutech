@@ -557,6 +557,49 @@
         LIMIT #{limit}
     </select>
 
+
+    <!-- 查询当前用户的收藏文章列表（返回PostListResl） -->
+    <select id="selectFavoritePostList" resultMap="PostListReslMap">
+        SELECT 
+            p.id,
+            p.title,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            p.status,
+            p.created_at,
+            p.updated_at,
+            p.deleted_at,
+            -- 分类信息
+            c.id as cat_id,
+            c.name as cat_name,
+            -- 作者信息
+            u.id as author_user_id,
+            u.username as author_username,
+            u.avatar_url as author_avatar_url,
+            -- 用户状态（收藏状态固定为1，点赞状态需要查询）
+            CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
+            1 as favorite_status
+        FROM posts p
+        INNER JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1 AND pf.deleted_at IS NULL
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1 AND pl.deleted_at IS NULL
+        WHERE p.status = 'published' 
+        AND p.deleted_at IS NULL
+        <if test="keyword != null and keyword != ''">
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%') 
+                 OR p.summary LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY pf.created_at DESC
+    </select>
+
+
+
     <!-- 根据分类ID查询文章数量 -->
     <select id="countPostsByCategory" resultType="java.lang.Integer">
         SELECT COUNT(*)

@@ -99,8 +99,6 @@ import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
 import { formatDate } from '@/utils/uitls'
-
-import { UserService } from '@/services/user'
 import type { ProfileInfo } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'

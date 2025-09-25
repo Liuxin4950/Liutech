@@ -423,6 +423,23 @@ export class PostService {
       throw error
     }
   }
+
+  /**
+   * 获取用户收藏的文章列表
+   * @param params 查询参数
+   * @returns 分页收藏文章列表
+   * @author 刘鑫
+   * @date 2025-09-26T00:20:02+08:00
+   */
+  static async getFavoritePosts(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
+    try {
+      const response = await get('/posts/favorites', params)
+      return response.data
+    } catch (error) {
+      console.error('获取收藏文章列表失败:', error)
+      throw error
+    }
+  }
 }
 
 export default PostService

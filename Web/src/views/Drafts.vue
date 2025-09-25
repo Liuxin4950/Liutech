@@ -1,7 +1,7 @@
 <template>
   <div class="drafts-page">
     <div class="page-header">
-      <h1 class="page-title">📄 草稿箱</h1>
+      <h1 class="page-title">📄 草稿子箱</h1>
       <p class="page-description">管理您的草稿文章，继续编辑或发布</p>
     </div>
 

@@ -1067,4 +1067,26 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             return false;
         }
     }
+
+    /**
+     * 获取用户收藏的文章列表
+     * @param req 查询请求参数
+     * @param userId 用户ID
+     * @return 分页的文章列表
+     * @author 刘鑫
+     * @date 2025-09-26T00:20:02+08:00
+     */
+    public PageResp<PostListResp> getFavoritePosts(PostQueryReq req, Long userId) {
+        // 创建分页对象
+        Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
+
+        // 处理搜索关键词
+        String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
+
+        // 执行分页查询，查询用户收藏的文章
+        IPage<PostListResp> result = postsMapper.selectFavoritePostList(page, userId, keyword);
+
+        // 使用MyBatis-Plus自动统计的总数
+        return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+    }
 }

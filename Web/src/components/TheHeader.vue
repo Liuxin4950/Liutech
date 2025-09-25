@@ -141,7 +141,8 @@ onUnmounted(() => {
               <li @click="navigateTo('/profile')" class="transition link">个人资料</li>
               <li @click="navigateTo('/chat-history')" class="transition link">聊天历史</li>
               <li @click="navigateTo('/my-posts')" class="transition link">我的文章</li>
-              <li @click="navigateTo('/drafts')" class="transition link">草稿箱</li>
+              <li @click="navigateTo('/drafts')" class="transition link">草稿子箱</li>
+              <li @click="navigateTo('/favorites')" class="transition link">我的收藏</li>
               <li @click="navigateTo('/settings')" class="transition link">设置</li>
               <li @click="handleLogout" class="transition link border-t text-danger">退出登录</li>
             </ul>
@@ -170,7 +171,8 @@ onUnmounted(() => {
           <li @click="navigateTo('/')" class="p-16 hover-bg transition border-b link">🏠 首页</li>
           <li @click="navigateTo('/posts')" class="p-16 hover-bg transition border-b link">📚 全部文章</li>
           <li @click="navigateTo('/categories')" class="p-16 hover-bg transition border-b link">📂 分类</li>
-          <li @click="navigateTo('/tags')" class="p-16 hover-bg transition border-b link">📂 标签</li>
+          <li @click="navigateTo('/tags')" class="p-16 hover-bg transition border-b link">🏷️ 标签</li>
+          <li @click="navigateTo('/favorites')" class="p-16 hover-bg transition border-b link">⭐ 我的收藏</li>
           <li @click="navigateTo('/archive')" class="p-16 hover-bg transition border-b link">📂 归档</li>
           <li @click="navigateTo('/about')" class="p-16 hover-bg transition border-b link">👤 关于我</li>
         </ul>

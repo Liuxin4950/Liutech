@@ -463,4 +463,42 @@ public class PostsController {
     }
 
 
+    /**
+     * 获取当前用户的收藏文章
+     * @author 刘鑫
+     * @date 2025-09-26T00:20:02+08:00
+     */
+    @GetMapping("/favorites")
+    public Result<PageResp<PostListResp>> getFavoritePosts(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(required = false) String keyword,
+            HttpServletRequest request) {
+
+        try {
+            // 获取当前用户ID
+            Long userId = userUtils.getCurrentUserId();
+            if (userId == null) {
+                return Result.fail(ErrorCode.UNAUTHORIZED);
+            }
+
+            log.info("查询用户收藏文章 - 用户ID: {}, 页码: {}, 大小: {}, 关键词: {}",
+                    userId, page, size, keyword);
+
+            PostQueryReq req = new PostQueryReq();
+            req.setPage(page);
+            req.setSize(size);
+            req.setKeyword(keyword);
+            req.setSort("latest"); // 按最新收藏时间排序
+
+            PageResp<PostListResp> result = postsService.getFavoritePosts(req, userId);
+            log.info("查询用户收藏文章成功 - 用户ID: {}, 总数: {}", userId, result.getTotal());
+
+            return Result.success("查询成功", result);
+        } catch (Exception e) {
+            log.error("查询用户收藏文章失败", e);
+            return Result.fail(ErrorCode.OPERATION_ERROR, "查询用户收藏文章失败: " + e.getMessage());
+        }
+    }
+
 }

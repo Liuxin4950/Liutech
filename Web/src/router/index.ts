@@ -53,6 +53,14 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'favorites',
+        name: 'favorites',
+        component: () => import('../views/Favorites.vue'),
+        meta: {
+          title: '我的收藏'
+        }
+      },
+      {
         path: 'posts',
         name: 'posts',
         component: () => import('../views/Posts.vue'),
@@ -159,6 +167,8 @@ const router = createRouter({
   linkExactActiveClass: 'router-link-exact-active',
   // 滚动行为配置 - 每次路由跳转都回到页面顶部
   scrollBehavior(to, from, savedPosition) {
+    console.log(to,from);
+    
     // 如果有保存的滚动位置（浏览器前进后退），则恢复到该位置
     if (savedPosition) {
       return savedPosition
@@ -173,8 +183,10 @@ const router = createRouter({
  * 设置页面标题和权限检查
  */
 router.beforeEach((to, from, next) => {
+  console.log(to,from);
+  
   // 设置页面标题
-  document.title = `${to.meta.title || '博客'} - MyBlog`
+  document.title = `Liutech-${to.meta.title || '博客'}`
   
   // 需要登录的页面
   const requiresAuth = ['create-post', 'drafts', 'my-posts', 'profile', 'chat-history']
