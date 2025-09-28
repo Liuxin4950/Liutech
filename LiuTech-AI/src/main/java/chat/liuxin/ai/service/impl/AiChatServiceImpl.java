@@ -93,8 +93,11 @@ public class AiChatServiceImpl implements AiChatService {
             IntentRecognitionService.IntentResult intentResult = 
                 intentRecognitionService.recognizeIntent(input);
             
-            log.info("用户意图识别 - 主要意图: {}, 置信度: {:.2f}, 紧急程度: {}", 
-                intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent());
+            // 基于意图识别结果生成可能的动作列表
+            List<String> possibleActions = intentRecognitionService.generatePossibleActions(intentResult);
+            
+            log.info("用户意图识别 - 主要意图: {}, 置信度: {:.2f}, 紧急程度: {}, 可能动作: {}", 
+                intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent(), possibleActions);
             log.debug("上下文增强 - 意图: {}, 情感: {}, 关键词: {}", 
                 enhancedContext.getIntent(), enhancedContext.getEmotion(), enhancedContext.getKeywords());
             
@@ -165,6 +168,13 @@ public class AiChatServiceImpl implements AiChatService {
                 }
                 
                 messages.add(new SystemMessage(contextPrompt));
+            }
+            
+            // 添加意图识别结果和可能的动作提示
+            if (!possibleActions.isEmpty()) {
+                String actionPrompt = "基于意图识别，用户可能需要的动作有：" + String.join(", ", possibleActions) + 
+                                    "。请从这些动作中选择最合适的一个作为action字段返回，如果都不合适则返回none。";
+                messages.add(new SystemMessage(actionPrompt));
             }
 
             // 将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
@@ -274,8 +284,11 @@ public class AiChatServiceImpl implements AiChatService {
                     IntentRecognitionService.IntentResult intentResult = 
                         intentRecognitionService.recognizeIntent(request.getMessage());
                     
-                    log.info("流式聊天 - 用户意图: {}, 置信度: {:.2f}, 紧急程度: {}", 
-                        intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent());
+                    // 基于意图识别结果生成可能的动作列表
+                    List<String> possibleActions = intentRecognitionService.generatePossibleActions(intentResult);
+                    
+                    log.info("流式聊天 - 用户意图: {}, 置信度: {:.2f}, 紧急程度: {}, 可能动作: {}", 
+                        intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent(), possibleActions);
 
                     // 读取最近历史（最多19条），末尾不会包含本轮输入
                     List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
@@ -292,6 +305,14 @@ public class AiChatServiceImpl implements AiChatService {
                     if (request.getContext() != null && !request.getContext().isEmpty()) {
                         messages.add(new SystemMessage("前端上下文（仅供决策，不要复述）：" + toJson(request.getContext())));
                     }
+                    
+                    // 添加意图识别结果和可能的动作提示
+                    if (!possibleActions.isEmpty()) {
+                        String actionPrompt = "基于意图识别，用户可能需要的动作有：" + String.join(", ", possibleActions) + 
+                                            "。请从这些动作中选择最合适的一个作为action字段返回，如果都不合适则返回none。";
+                        messages.add(new SystemMessage(actionPrompt));
+                    }
+                    
                     // 使用增强后的用户输入
                     messages.add(new UserMessage(enhancedContext.getEnhancedInput()));
 

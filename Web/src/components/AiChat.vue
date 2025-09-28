@@ -174,11 +174,142 @@ const dispatchAction = async (action: string, meta: Record<string, any> = {}) =>
     const hasFavoriteIntent = (text: string) => /(收藏|加(个)?星|favorite|mark)/i.test(text)
     console.log('当前参数:', normalizeId())
     switch (action) {
-      // 导航类
+      // 导航类 - 首页
       case 'go_home':
         console.log("触发动作，跳转首页")
         await router.push({ name: 'home' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到首页`,
+          timestamp: new Date()
+        })
         break
+      
+      // 导航类 - 文章相关页面
+      case 'go_create_post':
+        console.log("触发动作，跳转发布文章页面")
+        await router.push({ name: 'create-post' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到发布文章页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      case 'go_my_posts':
+        console.log("触发动作，跳转我的文章页面")
+        await router.push({ name: 'my-posts' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到我的文章页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      case 'go_drafts':
+        console.log("触发动作，跳转草稿箱页面")
+        await router.push({ name: 'drafts' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到草稿箱页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      case 'go_favorites':
+        console.log("触发动作，跳转我的收藏页面")
+        await router.push({ name: 'favorites' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到我的收藏页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      case 'go_posts':
+        console.log("触发动作，跳转全部文章页面")
+        await router.push({ name: 'posts' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到全部文章页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      // 导航类 - 分类和标签
+      case 'go_categories':
+        console.log("触发动作，跳转分类页面")
+        await router.push({ name: 'category-list' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到分类页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      case 'go_tags':
+        console.log("触发动作，跳转标签页面")
+        await router.push({ name: 'tags' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到标签页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      case 'go_archive':
+        console.log("触发动作，跳转文章归档页面")
+        await router.push({ name: 'archive' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到文章归档页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      // 导航类 - 个人相关
+      case 'go_profile':
+        console.log("触发动作，跳转个人资料页面")
+        await router.push({ name: 'profile' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到个人资料页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      case 'go_about':
+        console.log("触发动作，跳转关于我页面")
+        await router.push({ name: 'about' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到关于我页面`,
+          timestamp: new Date()
+        })
+        break
+      
+      case 'go_chat_history':
+        console.log("触发动作，跳转聊天历史记录页面")
+        await router.push({ name: 'chat-history' })
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您跳转到聊天历史记录页面`,
+          timestamp: new Date()
+        })
+        break
+      
       // 文章操作类
       case 'like_post': {
         // 客户端保护：只有当用户输入里出现明显的点赞意图时才执行

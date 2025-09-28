@@ -76,9 +76,26 @@ public class IntentRecognitionService {
             Pattern.compile(".*[建议|意见|评价|反馈].*")
         ),
         PrimaryIntent.NAVIGATION, Arrays.asList(
-            Pattern.compile(".*[首页|返回|后退|前进|刷新].*"),
-            Pattern.compile(".*[菜单|设置|配置|选项].*"),
-            Pattern.compile(".*[跳转|导航|链接].*")
+            // 首页相关
+            Pattern.compile(".*[首页|主页|回到首页|返回首页|home].*"),
+            // 文章相关页面
+            Pattern.compile(".*[发布文章|写文章|创建文章|发表文章|create].*"),
+            Pattern.compile(".*[我的文章|个人文章|my.?posts].*"),
+            Pattern.compile(".*[草稿箱|草稿|drafts].*"),
+            Pattern.compile(".*[收藏|我的收藏|favorites].*"),
+            Pattern.compile(".*[全部文章|所有文章|文章列表|posts].*"),
+            // 分类和标签
+            Pattern.compile(".*[分类|类别|categories].*"),
+            Pattern.compile(".*[标签|tags].*"),
+            Pattern.compile(".*[归档|文章归档|archive].*"),
+            // 个人相关
+            Pattern.compile(".*[个人资料|个人信息|profile].*"),
+            Pattern.compile(".*[关于我|关于|about].*"),
+            Pattern.compile(".*[聊天记录|聊天历史|chat.?history].*"),
+            // 通用导航
+            Pattern.compile(".*[跳转|导航|链接|去|到].*"),
+            Pattern.compile(".*[页面|打开|进入|访问].*"),
+            Pattern.compile(".*[返回|后退|前进|刷新].*")
         )
     );
     
@@ -239,6 +256,77 @@ public class IntentRecognitionService {
         return Math.min(10, complexity);
     }
     
+    /**
+     * 根据意图识别结果生成可能的动作列表
+     */
+    public List<String> generatePossibleActions(IntentResult intentResult) {
+        List<String> possibleActions = new ArrayList<>();
+        String input = intentResult.getOriginalInput().toLowerCase();
+        
+        // 如果是导航意图，根据具体内容生成对应的动作
+        if (intentResult.getPrimaryIntent() == PrimaryIntent.NAVIGATION) {
+            // 首页相关
+            if (input.matches(".*[首页|主页|回到首页|返回首页|home].*")) {
+                possibleActions.add("go_home");
+            }
+            // 文章相关页面
+            if (input.matches(".*[发布文章|写文章|创建文章|发表文章|create].*")) {
+                possibleActions.add("go_create_post");
+            }
+            if (input.matches(".*[我的文章|个人文章|my.?posts].*")) {
+                possibleActions.add("go_my_posts");
+            }
+            if (input.matches(".*[草稿箱|草稿|drafts].*")) {
+                possibleActions.add("go_drafts");
+            }
+            if (input.matches(".*[收藏|我的收藏|favorites].*")) {
+                possibleActions.add("go_favorites");
+            }
+            if (input.matches(".*[全部文章|所有文章|文章列表|posts].*")) {
+                possibleActions.add("go_posts");
+            }
+            // 分类和标签
+            if (input.matches(".*[分类|类别|categories].*")) {
+                possibleActions.add("go_categories");
+            }
+            if (input.matches(".*[标签|tags].*")) {
+                possibleActions.add("go_tags");
+            }
+            if (input.matches(".*[归档|文章归档|archive].*")) {
+                possibleActions.add("go_archive");
+            }
+            // 个人相关
+            if (input.matches(".*[个人资料|个人信息|profile].*")) {
+                possibleActions.add("go_profile");
+            }
+            if (input.matches(".*[关于我|关于|about].*")) {
+                possibleActions.add("go_about");
+            }
+            if (input.matches(".*[聊天记录|聊天历史|chat.?history].*")) {
+                possibleActions.add("go_chat_history");
+            }
+        }
+        
+        // 如果是社交意图，检查是否有点赞或收藏的意图
+        if (intentResult.getPrimaryIntent() == PrimaryIntent.SOCIAL || 
+            intentResult.getPrimaryIntent() == PrimaryIntent.FEEDBACK) {
+            if (input.matches(".*[点赞|赞|喜欢|like].*")) {
+                possibleActions.add("like_post");
+            }
+            if (input.matches(".*[收藏|加星|favorite|mark].*")) {
+                possibleActions.add("favorite_post");
+            }
+        }
+        
+        // 如果没有匹配到任何动作，返回none
+        if (possibleActions.isEmpty()) {
+            possibleActions.add("none");
+        }
+        
+        log.debug("为意图 {} 生成的可能动作: {}", intentResult.getPrimaryIntent(), possibleActions);
+        return possibleActions;
+    }
+
     /**
      * 生成处理建议
      */
