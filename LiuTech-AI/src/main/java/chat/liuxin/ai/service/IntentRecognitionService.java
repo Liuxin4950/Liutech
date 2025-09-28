@@ -32,6 +32,7 @@ public class IntentRecognitionService {
         SOCIAL,         // 社交互动
         FEEDBACK,       // 反馈评价
         NAVIGATION,     // 导航操作
+        CAPABILITY_INQUIRY, // 功能查询
         UNKNOWN         // 未知意图
     }
     
@@ -74,6 +75,14 @@ public class IntentRecognitionService {
             Pattern.compile(".*[好|棒|不错|优秀|赞|喜欢|厉害].*"),
             Pattern.compile(".*[不好|差|糟糕|问题|错误|失望].*"),
             Pattern.compile(".*[建议|意见|评价|反馈].*")
+        ),
+        PrimaryIntent.CAPABILITY_INQUIRY, Arrays.asList(
+            Pattern.compile(".*[你能|你会|你可以|能做|会做|可以做].*[什么|哪些|那些].*"),
+            Pattern.compile(".*[功能|能力|本领|技能].*[有哪些|是什么|都有什么].*"),
+            Pattern.compile(".*[还有|还能|还会|还可以].*[什么|哪些|那些].*"),
+            Pattern.compile(".*[纳西妲|AI|助手].*[能|会|可以].*[干|做|帮].*[什么|哪些].*"),
+            Pattern.compile(".*[跳转|导航].*[那些|哪些|什么].*[页面|地方].*"),
+            Pattern.compile(".*[有什么|都有什么|还有什么].*[功能|能力|页面].*")
         ),
         PrimaryIntent.NAVIGATION, Arrays.asList(
             // 首页相关
@@ -305,6 +314,11 @@ public class IntentRecognitionService {
             if (input.matches(".*[聊天记录|聊天历史|chat.?history].*")) {
                 possibleActions.add("go_chat_history");
             }
+        }
+        
+        // 如果是功能查询意图，添加展示功能的动作
+        if (intentResult.getPrimaryIntent() == PrimaryIntent.CAPABILITY_INQUIRY) {
+            possibleActions.add("show_capabilities");
         }
         
         // 如果是社交意图，检查是否有点赞或收藏的意图

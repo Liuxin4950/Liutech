@@ -124,7 +124,7 @@ ai:
       {
         "message": "主要回答内容",
         "emotion": "暂无",
-        "action": "go_home|go_create_post|go_my_posts|go_drafts|go_favorites|go_posts|go_categories|go_tags|go_archive|go_profile|go_about|go_chat_history|like_post|favorite_post|none",
+        "action": "go_home|go_create_post|go_my_posts|go_drafts|go_favorites|go_posts|go_categories|go_tags|go_archive|go_profile|go_about|go_chat_history|like_post|favorite_post|show_capabilities|none",
         "metadata": { "postId": 12 }
       }
 
@@ -146,3 +146,4 @@ ai:
         * go_profile: 跳转个人资料页面
         * go_about: 跳转关于我页面
         * go_chat_history: 跳转聊天历史记录页面
+        * show_capabilities: 展示AI功能介绍
