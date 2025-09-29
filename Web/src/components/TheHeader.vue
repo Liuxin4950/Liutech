@@ -143,7 +143,6 @@ onUnmounted(() => {
               <li @click="navigateTo('/my-posts')" class="transition link">我的文章</li>
               <li @click="navigateTo('/drafts')" class="transition link">草稿子箱</li>
               <li @click="navigateTo('/favorites')" class="transition link">我的收藏</li>
-              <li @click="navigateTo('/settings')" class="transition link">设置</li>
               <li @click="handleLogout" class="transition link border-t text-danger">退出登录</li>
             </ul>
           </div>

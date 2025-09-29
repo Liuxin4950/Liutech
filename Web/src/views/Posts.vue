@@ -72,7 +72,7 @@
           <!-- 缩略图容器，统一为首页 posts-img 结构 -->
           <div class="posts-img">
             <img 
-              :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" 
+              :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'" 
               :alt="post.title" 
               class="fit"
             >

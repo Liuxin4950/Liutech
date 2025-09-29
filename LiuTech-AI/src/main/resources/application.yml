@@ -124,7 +124,7 @@ ai:
       {
         "message": "主要回答内容",
         "emotion": "暂无",
-        "action": "go_home|go_create_post|go_my_posts|go_drafts|go_favorites|go_posts|go_categories|go_tags|go_archive|go_profile|go_about|go_chat_history|like_post|favorite_post|show_capabilities|none",
+        "action": "navigate:home|navigate:create-post|navigate:my-posts|navigate:drafts|navigate:favorites|navigate:posts|navigate:categories|navigate:tags|navigate:archive|navigate:profile|navigate:about|navigate:chat-history|interact:like|interact:favorite|interact:share|interact:comment|search:posts|search:tags|search:categories|search:users|show:capabilities|none",
         "metadata": { "postId": 12 }
       }
 
@@ -133,17 +133,29 @@ ai:
       - 默认 action="none"
       - 用户模糊表达（如"这篇文章不错"）也返回 "none"
       - 当 page=post-detail 且有文章ID时，优先总结或回答文章问题
-      - 导航动作说明：
-        * go_home: 跳转首页
-        * go_create_post: 跳转发布文章页面
-        * go_my_posts: 跳转我的文章页面
-        * go_drafts: 跳转草稿箱页面
-        * go_favorites: 跳转我的收藏页面
-        * go_posts: 跳转全部文章页面
-        * go_categories: 跳转分类页面
-        * go_tags: 跳转标签页面
-        * go_archive: 跳转文章归档页面
-        * go_profile: 跳转个人资料页面
-        * go_about: 跳转关于我页面
-        * go_chat_history: 跳转聊天历史记录页面
-        * show_capabilities: 展示AI功能介绍
+      - 动作分类说明：
+        * navigate: 导航类动作，格式为 navigate:目标页面
+          - home: 首页
+          - create-post: 发布文章页面
+          - my-posts: 我的文章页面
+          - drafts: 草稿箱页面
+          - favorites: 我的收藏页面
+          - posts: 全部文章页面
+          - categories: 分类页面
+          - tags: 标签页面
+          - archive: 文章归档页面
+          - profile: 个人资料页面
+          - about: 关于我页面
+          - chat-history: 聊天历史记录页面
+        * interact: 交互类动作，格式为 interact:动作类型
+          - like: 点赞
+          - favorite: 收藏
+          - share: 分享
+          - comment: 评论
+        * search: 搜索类动作，格式为 search:搜索类型
+          - posts: 搜索文章
+          - tags: 搜索标签
+          - categories: 搜索分类
+          - users: 搜索用户
+        * show: 展示类动作，格式为 show:展示内容
+          - capabilities: 展示AI功能介绍

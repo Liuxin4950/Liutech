@@ -88,16 +88,17 @@ public class AiChatServiceImpl implements AiChatService {
             
             // 上下文增强和意图识别
             List<AiChatMessage> recentHistory = memoryService.listRecentMessages(userIdStr, 5);
+            
             ContextEnhancementService.EnhancedContext enhancedContext = 
                 contextEnhancementService.enhanceUserInput(input, request.getContext(), recentHistory);
             IntentRecognitionService.IntentResult intentResult = 
                 intentRecognitionService.recognizeIntent(input);
             
-            // 基于意图识别结果生成可能的动作列表
-            List<String> possibleActions = intentRecognitionService.generatePossibleActions(intentResult);
+            // 基于意图识别结果生成结构化动作
+            String structuredAction = intentRecognitionService.generateStructuredAction(intentResult);
             
-            log.info("用户意图识别 - 主要意图: {}, 置信度: {:.2f}, 紧急程度: {}, 可能动作: {}", 
-                intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent(), possibleActions);
+            log.info("用户意图识别 - 主要意图: {}, 置信度: {:.2f}, 紧急程度: {}, 结构化动作: {}", 
+                intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent(), structuredAction);
             log.debug("上下文增强 - 意图: {}, 情感: {}, 关键词: {}", 
                 enhancedContext.getIntent(), enhancedContext.getEmotion(), enhancedContext.getKeywords());
             
@@ -170,10 +171,10 @@ public class AiChatServiceImpl implements AiChatService {
                 messages.add(new SystemMessage(contextPrompt));
             }
             
-            // 添加意图识别结果和可能的动作提示
-            if (!possibleActions.isEmpty()) {
-                String actionPrompt = "基于意图识别，用户可能需要的动作有：" + String.join(", ", possibleActions) + 
-                                    "。请从这些动作中选择最合适的一个作为action字段返回，如果都不合适则返回none。";
+            // 添加意图识别结果和结构化动作提示
+            if (structuredAction != null && !structuredAction.equals("none")) {
+                String actionPrompt = "基于意图识别，用户可能需要的动作是：" + structuredAction + 
+                                    "。请将此动作作为action字段返回，如果不合适则返回none。";
                 messages.add(new SystemMessage(actionPrompt));
             }
 
@@ -284,11 +285,11 @@ public class AiChatServiceImpl implements AiChatService {
                     IntentRecognitionService.IntentResult intentResult = 
                         intentRecognitionService.recognizeIntent(request.getMessage());
                     
-                    // 基于意图识别结果生成可能的动作列表
-                    List<String> possibleActions = intentRecognitionService.generatePossibleActions(intentResult);
+                    // 基于意图识别结果生成结构化动作
+                    String structuredAction = intentRecognitionService.generateStructuredAction(intentResult);
                     
-                    log.info("流式聊天 - 用户意图: {}, 置信度: {:.2f}, 紧急程度: {}, 可能动作: {}", 
-                        intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent(), possibleActions);
+                    log.info("流式聊天 - 用户意图: {}, 置信度: {:.2f}, 紧急程度: {}, 结构化动作: {}", 
+                        intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent(), structuredAction);
 
                     // 读取最近历史（最多19条），末尾不会包含本轮输入
                     List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
@@ -306,10 +307,10 @@ public class AiChatServiceImpl implements AiChatService {
                         messages.add(new SystemMessage("前端上下文（仅供决策，不要复述）：" + toJson(request.getContext())));
                     }
                     
-                    // 添加意图识别结果和可能的动作提示
-                    if (!possibleActions.isEmpty()) {
-                        String actionPrompt = "基于意图识别，用户可能需要的动作有：" + String.join(", ", possibleActions) + 
-                                            "。请从这些动作中选择最合适的一个作为action字段返回，如果都不合适则返回none。";
+                    // 添加意图识别结果和结构化动作提示
+                    if (structuredAction != null && !structuredAction.equals("none")) {
+                        String actionPrompt = "基于意图识别，用户可能需要的动作是：" + structuredAction + 
+                                            "。请将此动作作为action字段返回，如果不合适则返回none。";
                         messages.add(new SystemMessage(actionPrompt));
                     }
                     

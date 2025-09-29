@@ -172,254 +172,30 @@ const dispatchAction = async (action: string, meta: Record<string, any> = {}) =>
     }
     const hasLikeIntent = (text: string) => /((给)?(这篇)?(文|文章)?点个?赞|点赞|喜欢|like)/i.test(text)
     const hasFavoriteIntent = (text: string) => /(收藏|加(个)?星|favorite|mark)/i.test(text)
-    console.log('当前参数:', normalizeId())
-    switch (action) {
-      // 导航类 - 首页
-      case 'go_home':
-        console.log("触发动作，跳转首页")
-        await router.push({ name: 'home' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到首页`,
-          timestamp: new Date()
-        })
+    
+    console.log('执行动作:', action, '参数:', meta)
+    
+    // 解析结构化动作
+    const [actionType, actionValue] = action.split(':')
+    
+    switch (actionType) {
+      case 'navigate':
+        await handleNavigateAction(actionValue)
         break
-      
-      // 导航类 - 文章相关页面
-      case 'go_create_post':
-        console.log("触发动作，跳转发布文章页面")
-        await router.push({ name: 'create-post' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到发布文章页面`,
-          timestamp: new Date()
-        })
+      case 'interact':
+        await handleInteractAction(actionValue, normalizeId(), hasLikeIntent, hasFavoriteIntent)
         break
-      
-      case 'go_my_posts':
-        console.log("触发动作，跳转我的文章页面")
-        await router.push({ name: 'my-posts' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到我的文章页面`,
-          timestamp: new Date()
-        })
+      case 'search':
+        await handleSearchAction(actionValue, meta)
         break
-      
-      case 'go_drafts':
-        console.log("触发动作，跳转草稿箱页面")
-        await router.push({ name: 'drafts' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到草稿箱页面`,
-          timestamp: new Date()
-        })
+      case 'show':
+        await handleShowAction(actionValue)
         break
-      
-      case 'go_favorites':
-        console.log("触发动作，跳转我的收藏页面")
-        await router.push({ name: 'favorites' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到我的收藏页面`,
-          timestamp: new Date()
-        })
-        break
-      
-      case 'go_posts':
-        console.log("触发动作，跳转全部文章页面")
-        await router.push({ name: 'posts' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到全部文章页面`,
-          timestamp: new Date()
-        })
-        break
-      
-      // 导航类 - 分类和标签
-      case 'go_categories':
-        console.log("触发动作，跳转分类页面")
-        await router.push({ name: 'category-list' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到分类页面`,
-          timestamp: new Date()
-        })
-        break
-      
-      case 'go_tags':
-        console.log("触发动作，跳转标签页面")
-        await router.push({ name: 'tags' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到标签页面`,
-          timestamp: new Date()
-        })
-        break
-      
-      case 'go_archive':
-        console.log("触发动作，跳转文章归档页面")
-        await router.push({ name: 'archive' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到文章归档页面`,
-          timestamp: new Date()
-        })
-        break
-      
-      // 导航类 - 个人相关
-      case 'go_profile':
-        console.log("触发动作，跳转个人资料页面")
-        await router.push({ name: 'profile' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到个人资料页面`,
-          timestamp: new Date()
-        })
-        break
-      
-      case 'go_about':
-        console.log("触发动作，跳转关于我页面")
-        await router.push({ name: 'about' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到关于我页面`,
-          timestamp: new Date()
-        })
-        break
-      
-      case 'go_chat_history':
-        console.log("触发动作，跳转聊天历史记录页面")
-        await router.push({ name: 'chat-history' })
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `✅ 已为您跳转到聊天历史记录页面`,
-          timestamp: new Date()
-        })
-        break
-      
-      // 文章操作类
-      case 'like_post': {
-        // 客户端保护：只有当用户输入里出现明显的点赞意图时才执行
-        if (!hasLikeIntent(lastUserMessage)) {
-          messages.value.push({
-            id: ++messageIdCounter,
-            type: 'ai',
-            content: `已为您解析到可能的操作：点赞。但未检测到明确的“点赞”指令，因此未执行。如需点赞请明确说明。`,
-            timestamp: new Date()
-          })
-          break
-        }
-        const likePostId = normalizeId()
-        if (likePostId) {
-          console.log("触发动作，点赞文章", likePostId)
-          await likePost(likePostId)
-          // 同步全局交互状态
-          usePostInteractionStore().toggleLike(likePostId)
-          messages.value.push({
-            id: ++messageIdCounter,
-            type: 'ai',
-            content: `✅ 已为您点赞文章`,
-            timestamp: new Date()
-          })
-        } else {
-          console.warn("点赞失败：未找到文章ID")
-          messages.value.push({
-            id: ++messageIdCounter,
-            type: 'ai',
-            content: `❌ 点赞失败：未找到文章ID`,
-            timestamp: new Date(),
-            isError: true
-          })
-        }
-        break
-      }
-      case 'favorite_post': {
-        // 客户端保护：只有当用户输入里出现明显的收藏意图时才执行
-        if (!hasFavoriteIntent(lastUserMessage)) {
-          messages.value.push({
-            id: ++messageIdCounter,
-            type: 'ai',
-            content: `已为您解析到可能的操作：收藏。但未检测到明确的“收藏”指令，因此未执行。如需收藏请明确说明。`,
-            timestamp: new Date()
-          })
-          break
-        }
-        const favoritePostId = normalizeId()
-        if (favoritePostId) {
-          console.log("触发动作，收藏文章", favoritePostId)
-          await favoritePost(favoritePostId)
-          // 同步全局交互状态
-          usePostInteractionStore().toggleFavorite(favoritePostId)
-          messages.value.push({
-            id: ++messageIdCounter,
-            type: 'ai',
-            content: `✅ 已为您收藏文章`,
-            timestamp: new Date()
-          })
-        } else {
-          console.warn("收藏失败：未找到文章ID")
-          messages.value.push({
-            id: ++messageIdCounter,
-            type: 'ai',
-            content: `❌ 收藏失败：未找到文章ID`,
-            timestamp: new Date(),
-            isError: true
-          })
-        }
-        break
-      }
-      
-      // 功能查询类
-      case 'show_capabilities':
-        console.log("触发动作，展示AI功能介绍")
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `🌟 我是纳西妲，我可以为你提供以下服务：
-        📍 **页面导航**
-        • 跳转到首页、文章列表、分类、标签等页面
-        • 访问个人资料、关于我、聊天记录等个人页面
-        • 快速进入发布文章、草稿箱、收藏夹等功能页面
-
-        📝 **文章操作**
-        • 为你总结文章内容和要点
-        • 回答关于文章的问题
-        • 帮你点赞和收藏喜欢的文章
-
-        💬 **智能对话**
-        • 回答你的各种问题
-        • 提供专业建议和帮助
-        • 陪你聊天，让浏览更有趣
-
-        只需要告诉我你想做什么，比如"跳转到首页"、"总结这篇文章"、"点赞这篇文章"等，我就能帮你完成！有什么需要帮助的吗？ 🍄`,
-          timestamp: new Date()
-        })
-        break
-      
       case 'none':
         break
       default:
-        console.debug('未识别的动作：', action, meta)
-        // 给用户一个温柔提示
-        messages.value.push({
-          id: ++messageIdCounter,
-          type: 'ai',
-          content: `我收到一个暂不支持的动作：${action}`,
-          timestamp: new Date()
-        })
+        // 兼容旧格式的动作
+        await handleLegacyAction(action, normalizeId(), hasLikeIntent, hasFavoriteIntent)
     }
   } catch (err: any) {
     console.warn('动作执行异常:', err)
@@ -435,38 +211,209 @@ const dispatchAction = async (action: string, meta: Record<string, any> = {}) =>
   }
 }
 
-// 点赞文章
-const likePost = async (postId: number) => {
-  try {
-    // 调用点赞API
-    const response = await post(`/posts/${postId}/like`, {})
-    if (response.code === 200) {
-      return true
-    } else {
-      throw new Error(response.message || '点赞失败')
-    }
-  } catch (error) {
-    console.error('点赞失败:', error)
-    throw error
+// 处理导航类动作
+const handleNavigateAction = async (target: string) => {
+  const navigationMap:any = {
+    'home': { route: 'home', message: '首页' },
+    'create-post': { route: 'create-post', message: '发布文章页面' },
+    'my-posts': { route: 'my-posts', message: '我的文章页面' },
+    'drafts': { route: 'drafts', message: '草稿箱页面' },
+    'favorites': { route: 'favorites', message: '我的收藏页面' },
+    'posts': { route: 'posts', message: '全部文章页面' },
+    'categories': { route: 'category-list', message: '分类页面' },
+    'tags': { route: 'tags', message: '标签页面' },
+    'archive': { route: 'archive', message: '文章归档页面' },
+    'profile': { route: 'profile', message: '个人资料页面' },
+    'about': { route: 'about', message: '关于我页面' },
+    'chat-history': { route: 'chat-history', message: '聊天历史记录页面' }
+  }
+  
+  const navInfo = navigationMap[target]
+  if (navInfo) {
+    console.log(`触发导航动作，跳转${navInfo.message}`)
+    await router.push({ name: navInfo.route })
+    messages.value.push({
+      id: ++messageIdCounter,
+      type: 'ai',
+      content: `✅ 已为您跳转到${navInfo.message}`,
+      timestamp: new Date()
+    })
+  } else {
+    throw new Error(`未知的导航目标：${target}`)
   }
 }
 
-// 收藏文章
-const favoritePost = async (postId: number) => {
-  try {
-    // 调用收藏API
-    const response = await post(`/posts/${postId}/favorite`, {})
-    if (response.code === 200) {
-      return true
-    } else {
-      throw new Error(response.message || '收藏失败')
-    }
-  } catch (error) {
-    console.error('收藏失败:', error)
-    throw error
+// 处理交互类动作
+const handleInteractAction = async (actionType: string, postId: number | undefined, hasLikeIntent: Function, hasFavoriteIntent: Function) => {
+  switch (actionType) {
+    case 'like':
+      // 客户端保护：只有当用户输入里出现明显的点赞意图时才执行
+      if (!hasLikeIntent(lastUserMessage)) {
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `已为您解析到可能的操作：点赞。但未检测到明确的"点赞"指令，因此未执行。如需点赞请明确说明。`,
+          timestamp: new Date()
+        })
+        break
+      }
+      if (postId) {
+        console.log("触发交互动作，点赞文章", postId)
+        await likePost(postId)
+        // 同步全局交互状态
+        usePostInteractionStore().toggleLike(postId)
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您点赞文章`,
+          timestamp: new Date()
+        })
+      } else {
+        throw new Error('点赞失败：未找到文章ID')
+      }
+      break
+      
+    case 'favorite':
+      // 客户端保护：只有当用户输入里出现明显的收藏意图时才执行
+      if (!hasFavoriteIntent(lastUserMessage)) {
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `已为您解析到可能的操作：收藏。但未检测到明确的"收藏"指令，因此未执行。如需收藏请明确说明。`,
+          timestamp: new Date()
+        })
+        break
+      }
+      if (postId) {
+        console.log("触发交互动作，收藏文章", postId)
+        await favoritePost(postId)
+        // 同步全局交互状态
+        usePostInteractionStore().toggleFavorite(postId)
+        messages.value.push({
+          id: ++messageIdCounter,
+          type: 'ai',
+          content: `✅ 已为您收藏文章`,
+          timestamp: new Date()
+        })
+      } else {
+        throw new Error('收藏失败：未找到文章ID')
+      }
+      break
+      
+    case 'share':
+      messages.value.push({
+        id: ++messageIdCounter,
+        type: 'ai',
+        content: `📤 分享功能正在开发中，敬请期待！`,
+        timestamp: new Date()
+      })
+      break
+      
+    case 'comment':
+      messages.value.push({
+        id: ++messageIdCounter,
+        type: 'ai',
+        content: `💬 评论功能正在开发中，敬请期待！`,
+        timestamp: new Date()
+      })
+      break
+      
+    default:
+      throw new Error(`未知的交互动作：${actionType}`)
   }
 }
 
+// 处理搜索类动作
+const handleSearchAction = async (searchType: string, meta: Record<string, any>) => {
+  const searchMap:any = {
+    'posts': '文章',
+    'tags': '标签',
+    'categories': '分类',
+    'users': '用户'
+  }
+  
+  const searchName = searchMap[searchType]
+  if (searchName) {
+    console.log(`触发搜索动作，搜索${searchName}`)
+    messages.value.push({
+      id: ++messageIdCounter,
+      type: 'ai',
+      content: `🔍 ${searchName}搜索功能正在开发中，敬请期待！`,
+      timestamp: new Date()
+    })
+  } else {
+    throw new Error(`未知的搜索类型：${searchType}`)
+  }
+}
+
+// 处理展示类动作
+const handleShowAction = async (showType: string) => {
+  switch (showType) {
+    case 'capabilities':
+      console.log("触发展示动作，展示AI功能介绍")
+      messages.value.push({
+        id: ++messageIdCounter,
+        type: 'ai',
+        content: `🌟 我是纳西妲，我可以为你提供以下服务：
+📍 **页面导航**
+• 跳转到首页、文章列表、分类、标签等页面
+• 访问个人资料、关于我、聊天记录等个人页面
+• 快速进入发布文章、草稿箱、收藏夹等功能页面
+
+📝 **文章操作**
+• 为你总结文章内容和要点
+• 回答关于文章的问题
+• 帮你点赞和收藏喜欢的文章
+
+💬 **智能对话**
+• 回答你的各种问题
+• 提供专业建议和帮助
+• 陪你聊天，让浏览更有趣
+
+只需要告诉我你想做什么，比如"跳转到首页"、"总结这篇文章"、"点赞这篇文章"等，我就能帮你完成！有什么需要帮助的吗？ 🍄`,
+        timestamp: new Date()
+      })
+      break
+    default:
+      throw new Error(`未知的展示类型：${showType}`)
+  }
+}
+
+// 处理旧格式动作（兼容性）
+const handleLegacyAction = async (action: string, postId: number | undefined, hasLikeIntent: Function, hasFavoriteIntent: Function) => {
+  const legacyActionMap:any = {
+    'go_home': () => handleNavigateAction('home'),
+    'go_create_post': () => handleNavigateAction('create-post'),
+    'go_my_posts': () => handleNavigateAction('my-posts'),
+    'go_drafts': () => handleNavigateAction('drafts'),
+    'go_favorites': () => handleNavigateAction('favorites'),
+    'go_posts': () => handleNavigateAction('posts'),
+    'go_categories': () => handleNavigateAction('categories'),
+    'go_tags': () => handleNavigateAction('tags'),
+    'go_archive': () => handleNavigateAction('archive'),
+    'go_profile': () => handleNavigateAction('profile'),
+    'go_about': () => handleNavigateAction('about'),
+    'go_chat_history': () => handleNavigateAction('chat-history'),
+    'like_post': () => handleInteractAction('like', postId, hasLikeIntent, hasFavoriteIntent),
+    'favorite_post': () => handleInteractAction('favorite', postId, hasLikeIntent, hasFavoriteIntent),
+    'show_capabilities': () => handleShowAction('capabilities')
+  }
+  
+  const handler = legacyActionMap[action]
+  if (handler) {
+    await handler()
+  } else {
+    console.debug('未识别的动作：', action)
+    messages.value.push({
+      id: ++messageIdCounter,
+      type: 'ai',
+      content: `我收到一个暂不支持的动作：${action}`,
+      timestamp: new Date()
+    })
+  }
+}
+
+// ... existing code ...
 
 // 处理聊天错误
 const handleChatError = (error: any, originalMessage: string) => {
@@ -613,6 +560,34 @@ const formatTime = (date: Date) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 点赞功能
+const likePost = async (postId: number) => {
+  try {
+    console.log('点赞帖子:', postId)
+    // 这里可以添加实际的点赞API调用
+    // const response = await api.likePost(postId)
+    // if (response.success) {
+    //   console.log('点赞成功')
+    // }
+  } catch (error) {
+    console.error('点赞失败:', error)
+  }
+}
+
+// 收藏功能
+const favoritePost = async (postId: number) => {
+  try {
+    console.log('收藏帖子:', postId)
+    // 这里可以添加实际的收藏API调用
+    // const response = await api.favoritePost(postId)
+    // if (response.success) {
+    //   console.log('收藏成功')
+    // }
+  } catch (error) {
+    console.error('收藏失败:', error)
+  }
 }
 
 // 组件挂载时启动状态检查

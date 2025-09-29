@@ -265,80 +265,152 @@ public class IntentRecognitionService {
         return Math.min(10, complexity);
     }
     
+    // 动作类型枚举
+    public enum ActionType {
+        NAVIGATE,    // 导航类：navigate:home, navigate:posts
+        INTERACT,    // 交互类：interact:like, interact:favorite
+        SEARCH,      // 搜索类：search:posts, search:tags
+        SHOW,        // 展示类：show:capabilities, show:help
+        NONE         // 无动作
+    }
+    
+    // 导航目标映射
+    private static final Map<String, String> NAVIGATION_TARGETS = createNavigationTargets();
+    
+    private static Map<String, String> createNavigationTargets() {
+        Map<String, String> map = new HashMap<>();
+        map.put("首页|主页|回到首页|返回首页|home", "home");
+        map.put("发布文章|写文章|创建文章|发表文章|create", "create-post");
+        map.put("我的文章|个人文章|my.?posts", "my-posts");
+        map.put("草稿箱|草稿|drafts", "drafts");
+        map.put("收藏|我的收藏|favorites", "favorites");
+        map.put("全部文章|所有文章|文章列表|posts", "posts");
+        map.put("分类|类别|categories", "categories");
+        map.put("标签|tags", "tags");
+        map.put("归档|文章归档|archive", "archive");
+        map.put("个人资料|个人信息|profile", "profile");
+        map.put("关于我|关于|about", "about");
+        map.put("聊天记录|聊天历史|chat.?history", "chat-history");
+        return map;
+    }
+
+    // 交互动作映射
+    private static final Map<String, String> INTERACTION_ACTIONS = createInteractionActions();
+    
+    private static Map<String, String> createInteractionActions() {
+        Map<String, String> map = new HashMap<>();
+        map.put("点赞|喜欢|like|赞", "like");
+        map.put("收藏|加星|favorite|mark", "favorite");
+        map.put("分享|share", "share");
+        map.put("评论|comment", "comment");
+        return map;
+    }
+
+    // 搜索类型映射
+    private static final Map<String, String> SEARCH_TYPES = createSearchTypes();
+    
+    private static Map<String, String> createSearchTypes() {
+        Map<String, String> map = new HashMap<>();
+        map.put("文章|帖子|posts", "posts");
+        map.put("标签|tags", "tags");
+        map.put("分类|类别|categories", "categories");
+        map.put("用户|users", "users");
+        return map;
+    }
+    
     /**
-     * 根据意图识别结果生成可能的动作列表
+     * 根据意图识别结果生成结构化动作
      */
-    public List<String> generatePossibleActions(IntentResult intentResult) {
-        List<String> possibleActions = new ArrayList<>();
+    public String generateStructuredAction(IntentResult intentResult) {
         String input = intentResult.getOriginalInput().toLowerCase();
         
-        // 如果是导航意图，根据具体内容生成对应的动作
+        // 导航类动作
         if (intentResult.getPrimaryIntent() == PrimaryIntent.NAVIGATION) {
-            // 首页相关
-            if (input.matches(".*[首页|主页|回到首页|返回首页|home].*")) {
-                possibleActions.add("go_home");
-            }
-            // 文章相关页面
-            if (input.matches(".*[发布文章|写文章|创建文章|发表文章|create].*")) {
-                possibleActions.add("go_create_post");
-            }
-            if (input.matches(".*[我的文章|个人文章|my.?posts].*")) {
-                possibleActions.add("go_my_posts");
-            }
-            if (input.matches(".*[草稿箱|草稿|drafts].*")) {
-                possibleActions.add("go_drafts");
-            }
-            if (input.matches(".*[收藏|我的收藏|favorites].*")) {
-                possibleActions.add("go_favorites");
-            }
-            if (input.matches(".*[全部文章|所有文章|文章列表|posts].*")) {
-                possibleActions.add("go_posts");
-            }
-            // 分类和标签
-            if (input.matches(".*[分类|类别|categories].*")) {
-                possibleActions.add("go_categories");
-            }
-            if (input.matches(".*[标签|tags].*")) {
-                possibleActions.add("go_tags");
-            }
-            if (input.matches(".*[归档|文章归档|archive].*")) {
-                possibleActions.add("go_archive");
-            }
-            // 个人相关
-            if (input.matches(".*[个人资料|个人信息|profile].*")) {
-                possibleActions.add("go_profile");
-            }
-            if (input.matches(".*[关于我|关于|about].*")) {
-                possibleActions.add("go_about");
-            }
-            if (input.matches(".*[聊天记录|聊天历史|chat.?history].*")) {
-                possibleActions.add("go_chat_history");
+            String target = findMatchingTarget(input, NAVIGATION_TARGETS);
+            if (target != null) {
+                return "navigate:" + target;
             }
         }
         
-        // 如果是功能查询意图，添加展示功能的动作
-        if (intentResult.getPrimaryIntent() == PrimaryIntent.CAPABILITY_INQUIRY) {
-            possibleActions.add("show_capabilities");
-        }
-        
-        // 如果是社交意图，检查是否有点赞或收藏的意图
+        // 交互类动作
         if (intentResult.getPrimaryIntent() == PrimaryIntent.SOCIAL || 
             intentResult.getPrimaryIntent() == PrimaryIntent.FEEDBACK) {
-            if (input.matches(".*[点赞|赞|喜欢|like].*")) {
-                possibleActions.add("like_post");
-            }
-            if (input.matches(".*[收藏|加星|favorite|mark].*")) {
-                possibleActions.add("favorite_post");
+            String action = findMatchingTarget(input, INTERACTION_ACTIONS);
+            if (action != null) {
+                return "interact:" + action;
             }
         }
         
-        // 如果没有匹配到任何动作，返回none
-        if (possibleActions.isEmpty()) {
-            possibleActions.add("none");
+        // 搜索类动作
+        if (intentResult.getPrimaryIntent() == PrimaryIntent.INFORMATION ||
+            intentResult.getPrimaryIntent() == PrimaryIntent.QUESTION) {
+            String searchType = findMatchingTarget(input, SEARCH_TYPES);
+            if (searchType != null) {
+                return "search:" + searchType;
+            }
         }
         
-        log.debug("为意图 {} 生成的可能动作: {}", intentResult.getPrimaryIntent(), possibleActions);
-        return possibleActions;
+        // 展示类动作
+        if (intentResult.getPrimaryIntent() == PrimaryIntent.CAPABILITY_INQUIRY) {
+            return "show:capabilities";
+        }
+        
+        // 默认无动作
+        return "none";
+    }
+    
+    /**
+     * 在映射中查找匹配的目标
+     */
+    private String findMatchingTarget(String input, Map<String, String> targetMap) {
+        for (Map.Entry<String, String> entry : targetMap.entrySet()) {
+            String pattern = entry.getKey();
+            String target = entry.getValue();
+            
+            if (input.matches(".*[" + pattern + "].*")) {
+                return target;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 解析结构化动作
+     */
+    public ActionInfo parseAction(String structuredAction) {
+        if ("none".equals(structuredAction)) {
+            return new ActionInfo(ActionType.NONE, null, null);
+        }
+        
+        String[] parts = structuredAction.split(":", 2);
+        if (parts.length != 2) {
+            return new ActionInfo(ActionType.NONE, null, null);
+        }
+        
+        ActionType type;
+        try {
+            type = ActionType.valueOf(parts[0].toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return new ActionInfo(ActionType.NONE, null, null);
+        }
+        
+        return new ActionInfo(type, parts[0], parts[1]);
+    }
+    
+    /**
+     * 动作信息类
+     */
+    @lombok.Data
+    public static class ActionInfo {
+        private ActionType type;
+        private String category;
+        private String value;
+        
+        public ActionInfo(ActionType type, String category, String value) {
+            this.type = type;
+            this.category = category;
+            this.value = value;
+        }
     }
 
     /**

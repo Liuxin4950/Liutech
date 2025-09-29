@@ -1,22 +1,22 @@
-2025-09-28 16:07:19 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 12996 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
-2025-09-28 16:07:19 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.4, Spring v6.2.9
-2025-09-28 16:07:19 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
-2025-09-28 16:07:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2025-09-28 16:07:20 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 8 ms. Found 0 JPA repository interfaces.
-2025-09-28 16:07:20 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
-2025-09-28 16:07:20 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2025-09-28 16:07:20 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.43]
-2025-09-28 16:07:20 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2025-09-28 16:07:20 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1110 ms
-2025-09-28 16:07:20 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
-2025-09-28 16:07:20 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2025-09-28 16:07:21 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@590013c7
-2025-09-28 16:07:21 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2025-09-28 16:07:21 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2025-09-28 16:07:21 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.22.Final
-2025-09-28 16:07:21 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2025-09-28 16:07:21 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2025-09-28 16:07:21 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+2025-09-29 14:57:56 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 15952 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
+2025-09-29 14:57:56 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.4, Spring v6.2.9
+2025-09-29 14:57:56 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-09-29 14:57:57 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-09-29 14:57:57 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 11 ms. Found 0 JPA repository interfaces.
+2025-09-29 14:57:58 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2025-09-29 14:57:58 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-09-29 14:57:58 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.43]
+2025-09-29 14:57:58 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-09-29 14:57:58 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 2056 ms
+2025-09-29 14:57:58 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
+2025-09-29 14:57:58 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-09-29 14:57:58 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@6be766d1
+2025-09-29 14:57:58 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-09-29 14:57:58 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-09-29 14:57:59 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.22.Final
+2025-09-29 14:57:59 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-09-29 14:57:59 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-09-29 14:57:59 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
 	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
 	Database driver: undefined/unknown
 	Database version: 8.0.41
@@ -24,33 +24,32 @@
 	Isolation level: undefined/unknown
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2025-09-28 16:07:21 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2025-09-28 16:07:21 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2025-09-28 16:07:22 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2025-09-28 16:07:22 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+2025-09-29 14:57:59 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-09-29 14:57:59 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-09-29 14:58:00 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-09-29 14:58:00 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
 
-Using generated security password: 662a800c-0d8f-4a88-b0e3-de6efdf4e58c
+Using generated security password: 15c113a9-034c-4d59-8fe8-bdb0041c9817
 
 This generated password is for development use only. Your security configuration must be updated before running your application in production.
 
-2025-09-28 16:07:22 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
-2025-09-28 16:07:22 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path '/'
-2025-09-28 16:07:22 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Started LiuTechAiApplication in 3.255 seconds (process running for 3.497)
-2025-09-28 16:07:22 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - 服务地址: http://localhost:8081/api/ai/chat
-2025-09-28 16:07:22 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - === LiuTech AI 服务启动完成！===
-2025-09-28 16:09:39 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2025-09-28 16:09:39 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2025-09-28 16:09:39 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
-2025-09-28 16:09:39 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
-2025-09-28 16:09:51 [http-nio-8081-exec-2] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
-2025-09-28 16:09:51 [http-nio-8081-exec-2] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:09:51 [http-nio-8081-exec-2] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:09:51 [http-nio-8081-exec-2] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:09:51 [http-nio-8081-exec-2] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:09:51 [http-nio-8081-exec-2] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
-2025-09-28 16:09:52 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /static/%E6%AF%95%E4%B8%9A%E6%97%85%E8%A1%8C.flac
-2025-09-28 16:09:52 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /static/%E6%AF%95%E4%B8%9A%E6%97%85%E8%A1%8C.flac
-2025-09-28 16:09:52 [http-nio-8081-exec-6] ERROR c.l.a.e.GlobalExceptionHandler - 系统异常: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
+2025-09-29 14:58:00 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2025-09-29 14:58:01 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path '/'
+2025-09-29 14:58:01 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Started LiuTechAiApplication in 5.378 seconds (process running for 5.837)
+2025-09-29 14:58:01 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - 服务地址: http://localhost:8081/api/ai/chat
+2025-09-29 14:58:01 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - === LiuTech AI 服务启动完成！===
+2025-09-29 14:59:10 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-09-29 14:59:10 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2025-09-29 14:59:10 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2025-09-29 14:59:10 [http-nio-8081-exec-2] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
+2025-09-29 14:59:10 [http-nio-8081-exec-2] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 14:59:10 [http-nio-8081-exec-2] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 14:59:10 [http-nio-8081-exec-2] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 14:59:10 [http-nio-8081-exec-2] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 14:59:10 [http-nio-8081-exec-2] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
+2025-09-29 14:59:16 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /static/%E6%AF%95%E4%B8%9A%E6%97%85%E8%A1%8C.flac
+2025-09-29 14:59:16 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /static/%E6%AF%95%E4%B8%9A%E6%97%85%E8%A1%8C.flac
+2025-09-29 14:59:16 [http-nio-8081-exec-5] ERROR c.l.a.e.GlobalExceptionHandler - 系统异常: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
 org.apache.catalina.connector.ClientAbortException: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
 	at org.apache.catalina.connector.OutputBuffer.realWriteBytes(OutputBuffer.java:342)
 	at org.apache.catalina.connector.OutputBuffer.flushByteBuffer(OutputBuffer.java:777)
@@ -183,7 +182,7 @@ Caused by: java.io.IOException: 你的主机中的软件中止了一个已建立
 	at org.apache.coyote.Response.doWrite(Response.java:628)
 	at org.apache.catalina.connector.OutputBuffer.realWriteBytes(OutputBuffer.java:330)
 	... 112 common frames omitted
-2025-09-28 16:09:52 [http-nio-8081-exec-6] WARN  o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - Failure in @ExceptionHandler chat.liuxin.ai.exception.GlobalExceptionHandler#handleGenericException(Exception, WebRequest)
+2025-09-29 14:59:16 [http-nio-8081-exec-5] WARN  o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - Failure in @ExceptionHandler chat.liuxin.ai.exception.GlobalExceptionHandler#handleGenericException(Exception, WebRequest)
 org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.HashMap] with preset Content-Type 'audio/flac'
 	at org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodProcessor.writeWithMessageConverters(AbstractMessageConverterMethodProcessor.java:365)
 	at org.springframework.web.servlet.mvc.method.annotation.HttpEntityMethodProcessor.handleReturnValue(HttpEntityMethodProcessor.java:263)
@@ -294,133 +293,114 @@ org.springframework.http.converter.HttpMessageNotWritableException: No converter
 	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
 	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
 	at java.base/java.lang.Thread.run(Thread.java:1583)
-2025-09-28 16:10:03 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
-2025-09-28 16:10:03 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:10:03 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:10:03 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
-2025-09-28 16:10:03 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:10:03 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:10:03 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
-2025-09-28 16:10:04 [http-nio-8081-exec-4] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 2, 历史记录数: 5
-2025-09-28 16:10:04 [http-nio-8081-exec-4] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: praise, 情感: neutral, 关键词数: 1
-2025-09-28 16:10:04 [http-nio-8081-exec-4] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 你好
-2025-09-28 16:10:04 [http-nio-8081-exec-4] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: FEEDBACK, 置信度: 0.472
-2025-09-28 16:10:04 [http-nio-8081-exec-4] DEBUG c.l.a.s.IntentRecognitionService - 为意图 FEEDBACK 生成的可能动作: [none]
-2025-09-28 16:10:04 [http-nio-8081-exec-4] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: FEEDBACK, 置信度: {:.2f}, 紧急程度: 0.472, 可能动作: NORMAL
-2025-09-28 16:10:04 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: praise, 情感: neutral, 关键词: [你好]
-2025-09-28 16:10:04 [http-nio-8081-exec-4] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
-2025-09-28 16:10:04 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
-2025-09-28 16:10:10 [http-nio-8081-exec-4] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
-2025-09-28 16:10:10 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:2，输出长度:16，耗时:6213ms
-2025-09-28 16:10:18 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
-2025-09-28 16:10:18 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:10:18 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:10:18 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
-2025-09-28 16:10:18 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:10:18 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:10:18 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
-2025-09-28 16:10:18 [http-nio-8081-exec-7] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 9, 历史记录数: 5
-2025-09-28 16:10:18 [http-nio-8081-exec-7] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: request, 情感: neutral, 关键词数: 1
-2025-09-28 16:10:18 [http-nio-8081-exec-7] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 你可以跳转那些页面
-2025-09-28 16:10:18 [http-nio-8081-exec-7] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.1472
-2025-09-28 16:10:18 [http-nio-8081-exec-7] DEBUG c.l.a.s.IntentRecognitionService - 为意图 NAVIGATION 生成的可能动作: [go_home]
-2025-09-28 16:10:18 [http-nio-8081-exec-7] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.1472, 可能动作: NORMAL
-2025-09-28 16:10:18 [http-nio-8081-exec-7] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: request, 情感: neutral, 关键词: [你可以跳转那些页面]
-2025-09-28 16:10:18 [http-nio-8081-exec-7] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
-2025-09-28 16:10:18 [http-nio-8081-exec-7] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
-2025-09-28 16:10:20 [http-nio-8081-exec-7] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
-2025-09-28 16:10:20 [http-nio-8081-exec-7] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:9，输出长度:19，耗时:1894ms
-2025-09-28 16:10:27 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
-2025-09-28 16:10:27 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:10:27 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:10:27 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
-2025-09-28 16:10:27 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:10:27 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:10:27 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
-2025-09-28 16:10:27 [http-nio-8081-exec-9] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 3, 历史记录数: 5
-2025-09-28 16:10:27 [http-nio-8081-exec-9] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: general, 情感: neutral, 关键词数: 1
-2025-09-28 16:10:27 [http-nio-8081-exec-9] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 还有呢
-2025-09-28 16:10:27 [http-nio-8081-exec-9] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.047466666666666664
-2025-09-28 16:10:27 [http-nio-8081-exec-9] DEBUG c.l.a.s.IntentRecognitionService - 为意图 NAVIGATION 生成的可能动作: [go_posts]
-2025-09-28 16:10:27 [http-nio-8081-exec-9] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.047466666666666664, 可能动作: NORMAL
-2025-09-28 16:10:27 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: general, 情感: neutral, 关键词: [还有呢]
-2025-09-28 16:10:27 [http-nio-8081-exec-9] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
-2025-09-28 16:10:27 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
-2025-09-28 16:10:29 [http-nio-8081-exec-9] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
-2025-09-28 16:10:29 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:3，输出长度:12，耗时:1774ms
-2025-09-28 16:10:45 [http-nio-8081-exec-10] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
-2025-09-28 16:10:45 [http-nio-8081-exec-10] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:10:45 [http-nio-8081-exec-10] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:10:45 [http-nio-8081-exec-10] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
-2025-09-28 16:10:45 [http-nio-8081-exec-10] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:10:45 [http-nio-8081-exec-10] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:10:45 [http-nio-8081-exec-10] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
-2025-09-28 16:10:45 [http-nio-8081-exec-10] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 7, 历史记录数: 5
-2025-09-28 16:10:45 [http-nio-8081-exec-10] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: general, 情感: neutral, 关键词数: 1
-2025-09-28 16:10:45 [http-nio-8081-exec-10] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 跳转到我的页面
-2025-09-28 16:10:45 [http-nio-8081-exec-10] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.2912
-2025-09-28 16:10:45 [http-nio-8081-exec-10] DEBUG c.l.a.s.IntentRecognitionService - 为意图 NAVIGATION 生成的可能动作: [go_home, go_my_posts, go_favorites, go_about]
-2025-09-28 16:10:45 [http-nio-8081-exec-10] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.2912, 可能动作: NORMAL
-2025-09-28 16:10:45 [http-nio-8081-exec-10] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: general, 情感: neutral, 关键词: [跳转到我的页面]
-2025-09-28 16:10:45 [http-nio-8081-exec-10] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
-2025-09-28 16:10:45 [http-nio-8081-exec-10] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
-2025-09-28 16:10:47 [http-nio-8081-exec-10] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
-2025-09-28 16:10:47 [http-nio-8081-exec-10] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:7，输出长度:19，耗时:1955ms
-2025-09-28 16:11:11 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
-2025-09-28 16:11:11 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:11:11 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:11:11 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
-2025-09-28 16:11:11 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:11:11 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:11:11 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
-2025-09-28 16:11:11 [http-nio-8081-exec-1] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 9, 历史记录数: 5
-2025-09-28 16:11:11 [http-nio-8081-exec-1] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: request, 情感: neutral, 关键词数: 1
-2025-09-28 16:11:11 [http-nio-8081-exec-1] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 归档页面可以跳转吗
-2025-09-28 16:11:11 [http-nio-8081-exec-1] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.19626666666666667
-2025-09-28 16:11:11 [http-nio-8081-exec-1] DEBUG c.l.a.s.IntentRecognitionService - 为意图 NAVIGATION 生成的可能动作: [go_home, go_archive]
-2025-09-28 16:11:11 [http-nio-8081-exec-1] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.19626666666666667, 可能动作: NORMAL
-2025-09-28 16:11:11 [http-nio-8081-exec-1] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: request, 情感: neutral, 关键词: [归档页面可以跳转吗]
-2025-09-28 16:11:11 [http-nio-8081-exec-1] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
-2025-09-28 16:11:11 [http-nio-8081-exec-1] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
-2025-09-28 16:11:13 [http-nio-8081-exec-1] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
-2025-09-28 16:11:13 [http-nio-8081-exec-1] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:9，输出长度:22，耗时:1977ms
-2025-09-28 16:11:29 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
-2025-09-28 16:11:29 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:11:29 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:11:29 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
-2025-09-28 16:11:29 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:11:29 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:11:29 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
-2025-09-28 16:11:29 [http-nio-8081-exec-5] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 11, 历史记录数: 5
-2025-09-28 16:11:29 [http-nio-8081-exec-5] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: request, 情感: neutral, 关键词数: 1
-2025-09-28 16:11:29 [http-nio-8081-exec-5] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 个人信息页面可以跳转吗
-2025-09-28 16:11:29 [http-nio-8081-exec-5] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.248
-2025-09-28 16:11:29 [http-nio-8081-exec-5] DEBUG c.l.a.s.IntentRecognitionService - 为意图 NAVIGATION 生成的可能动作: [go_home, go_my_posts, go_profile]
-2025-09-28 16:11:29 [http-nio-8081-exec-5] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.248, 可能动作: NORMAL
-2025-09-28 16:11:29 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: request, 情感: neutral, 关键词: [个人信息页面可以跳转吗]
-2025-09-28 16:11:29 [http-nio-8081-exec-5] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
-2025-09-28 16:11:29 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
-2025-09-28 16:11:31 [http-nio-8081-exec-5] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
-2025-09-28 16:11:31 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:11，输出长度:22，耗时:2032ms
-2025-09-28 16:25:26 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 9164 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
-2025-09-28 16:25:26 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.4, Spring v6.2.9
-2025-09-28 16:25:26 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
-2025-09-28 16:25:26 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2025-09-28 16:25:26 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 8 ms. Found 0 JPA repository interfaces.
-2025-09-28 16:25:27 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
-2025-09-28 16:25:27 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2025-09-28 16:25:27 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.43]
-2025-09-28 16:25:27 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2025-09-28 16:25:27 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1036 ms
-2025-09-28 16:25:27 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
-2025-09-28 16:25:27 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2025-09-28 16:25:27 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@20a1b3ae
-2025-09-28 16:25:27 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2025-09-28 16:25:27 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2025-09-28 16:25:27 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.22.Final
-2025-09-28 16:25:27 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2025-09-28 16:25:27 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2025-09-28 16:25:27 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+2025-09-29 14:59:23 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 14:59:23 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 14:59:23 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 14:59:23 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 14:59:23 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 14:59:23 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 14:59:23 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 14:59:23 [http-nio-8081-exec-6] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 6, 历史记录数: 5
+2025-09-29 14:59:23 [http-nio-8081-exec-6] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: action, 情感: neutral, 关键词数: 1
+2025-09-29 14:59:23 [http-nio-8081-exec-6] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 打开全部文章
+2025-09-29 14:59:23 [http-nio-8081-exec-6] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.24133333333333332
+2025-09-29 14:59:23 [http-nio-8081-exec-6] DEBUG c.l.a.s.IntentRecognitionService - 为意图 NAVIGATION 生成的可能动作: [go_create_post, go_my_posts, go_posts, go_archive]
+2025-09-29 14:59:23 [http-nio-8081-exec-6] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.24133333333333332, 可能动作: NORMAL
+2025-09-29 14:59:23 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: action, 情感: neutral, 关键词: [打开全部文章]
+2025-09-29 14:59:23 [http-nio-8081-exec-6] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 14:59:23 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 14:59:29 [http-nio-8081-exec-6] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除1条，保留最近10条
+2025-09-29 14:59:29 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:6，输出长度:15，耗时:6511ms
+2025-09-29 15:01:02 [http-nio-8081-exec-8] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 15:01:02 [http-nio-8081-exec-8] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 15:01:02 [http-nio-8081-exec-8] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 15:01:02 [http-nio-8081-exec-8] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 15:01:02 [http-nio-8081-exec-8] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 15:01:02 [http-nio-8081-exec-8] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 15:01:02 [http-nio-8081-exec-8] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 15:01:02 [http-nio-8081-exec-8] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 6, 历史记录数: 5
+2025-09-29 15:01:02 [http-nio-8081-exec-8] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: action, 情感: neutral, 关键词数: 1
+2025-09-29 15:01:02 [http-nio-8081-exec-8] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 打开归档页面
+2025-09-29 15:01:02 [http-nio-8081-exec-8] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.1448
+2025-09-29 15:01:02 [http-nio-8081-exec-8] DEBUG c.l.a.s.IntentRecognitionService - 为意图 NAVIGATION 生成的可能动作: [go_home, go_archive]
+2025-09-29 15:01:02 [http-nio-8081-exec-8] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.1448, 可能动作: NORMAL
+2025-09-29 15:01:02 [http-nio-8081-exec-8] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: action, 情感: neutral, 关键词: [打开归档页面]
+2025-09-29 15:01:02 [http-nio-8081-exec-8] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 15:01:02 [http-nio-8081-exec-8] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 15:01:03 [http-nio-8081-exec-8] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除3条，保留最近10条
+2025-09-29 15:01:03 [http-nio-8081-exec-8] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:6，输出长度:12，耗时:1797ms
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 15:01:18 [http-nio-8081-exec-9] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 8, 历史记录数: 5
+2025-09-29 15:01:18 [http-nio-8081-exec-9] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: question, 情感: neutral, 关键词数: 1
+2025-09-29 15:01:18 [http-nio-8081-exec-9] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 这篇文章讲了什么
+2025-09-29 15:01:18 [http-nio-8081-exec-9] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.19519999999999998
+2025-09-29 15:01:18 [http-nio-8081-exec-9] DEBUG c.l.a.s.IntentRecognitionService - 为意图 NAVIGATION 生成的可能动作: [go_create_post, go_my_posts, go_posts, go_archive]
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.19519999999999998, 可能动作: NORMAL
+2025-09-29 15:01:18 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: question, 情感: neutral, 关键词: [这篇文章讲了什么]
+2025-09-29 15:01:18 [http-nio-8081-exec-9] INFO  c.l.a.service.impl.AiChatServiceImpl - 已获取文章内容，文章ID: 15
+
+
+文章内容: 文章标题: 测试文章
+
+文章摘要: 测试
+
+文章内容: <p>测试</p>
+
+
+2025-09-29 15:01:18 [http-nio-8081-exec-9] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 15:01:18 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 15:01:20 [http-nio-8081-exec-9] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 15:01:20 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:8，输出长度:32，耗时:2328ms
+2025-09-29 15:14:50 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
+2025-09-29 15:14:50 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 15:14:50 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 15:14:50 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 15:14:50 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 15:14:50 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
+2025-09-29 15:16:41 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
+2025-09-29 15:16:41 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 15:16:41 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 15:16:41 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 15:16:41 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 15:16:41 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
+2025-09-29 15:22:17 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
+2025-09-29 15:22:17 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 15:22:17 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 15:22:17 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 15:22:17 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 15:22:17 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
+2025-09-29 15:22:45 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
+2025-09-29 15:22:45 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 15:22:45 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 15:22:45 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 15:22:45 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 15:22:45 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
+2025-09-29 15:43:33 [HikariPool-1:housekeeper] WARN  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=6m4s212ms256µs500ns).
+2025-09-29 16:02:07 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 1884 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
+2025-09-29 16:02:07 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.4, Spring v6.2.9
+2025-09-29 16:02:07 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-09-29 16:02:07 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-09-29 16:02:07 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 9 ms. Found 0 JPA repository interfaces.
+2025-09-29 16:02:08 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2025-09-29 16:02:08 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-09-29 16:02:08 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.43]
+2025-09-29 16:02:08 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-09-29 16:02:08 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1150 ms
+2025-09-29 16:02:08 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
+2025-09-29 16:02:08 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-09-29 16:02:08 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@4baf997
+2025-09-29 16:02:08 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-09-29 16:02:08 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-09-29 16:02:08 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.22.Final
+2025-09-29 16:02:08 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-09-29 16:02:08 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-09-29 16:02:08 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
 	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
 	Database driver: undefined/unknown
 	Database version: 8.0.41
@@ -428,39 +408,104 @@ org.springframework.http.converter.HttpMessageNotWritableException: No converter
 	Isolation level: undefined/unknown
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2025-09-28 16:25:28 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2025-09-28 16:25:28 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2025-09-28 16:25:28 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2025-09-28 16:25:28 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+2025-09-29 16:02:09 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-09-29 16:02:09 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-09-29 16:02:09 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiChatController' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\controller\AiChatController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'aiChatServiceImpl' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\impl\AiChatServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 5: Error creating bean with name 'intentRecognitionService' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\IntentRecognitionService.class]: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+2025-09-29 16:02:09 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-09-29 16:02:09 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-09-29 16:02:09 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-09-29 16:02:09 [main] INFO  o.a.catalina.core.StandardService - Stopping service [Tomcat]
+2025-09-29 16:02:09 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
 
-Using generated security password: 5c9e8e4f-deb0-44cd-807b-5adb6158a9b2
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-09-29 16:02:09 [main] ERROR o.s.boot.SpringApplication - Application run failed
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiChatController' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\controller\AiChatController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'aiChatServiceImpl' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\impl\AiChatServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 5: Error creating bean with name 'intentRecognitionService' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\IntentRecognitionService.class]: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1395)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1232)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1222)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1188)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1123)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:752)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:318)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1361)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1350)
+	at chat.liuxin.ai.LiuTechAiApplication.main(LiuTechAiApplication.java:20)
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiChatServiceImpl' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\impl\AiChatServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 5: Error creating bean with name 'intentRecognitionService' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\IntentRecognitionService.class]: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1395)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1232)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1745)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1628)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791)
+	... 21 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'intentRecognitionService' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\IntentRecognitionService.class]: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateBean(AbstractAutowireCapableBeanFactory.java:1357)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1242)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1683)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1628)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791)
+	... 35 common frames omitted
+Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+	at org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:223)
+	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:123)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateBean(AbstractAutowireCapableBeanFactory.java:1351)
+	... 46 common frames omitted
+Caused by: java.lang.Error: Unresolved compilation problem: 
+	The method of(K, V, K, V, K, V, K, V, K, V, K, V, K, V, K, V, K, V, K, V) in the type Map is not applicable for the arguments (String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String)
 
-This generated password is for development use only. Your security configuration must be updated before running your application in production.
-
-2025-09-28 16:25:28 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
-2025-09-28 16:25:29 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path '/'
-2025-09-28 16:25:29 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Started LiuTechAiApplication in 3.053 seconds (process running for 3.257)
-2025-09-28 16:25:29 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - 服务地址: http://localhost:8081/api/ai/chat
-2025-09-28 16:25:29 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - === LiuTech AI 服务启动完成！===
-2025-09-28 16:25:42 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 15536 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
-2025-09-28 16:25:42 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.4, Spring v6.2.9
-2025-09-28 16:25:42 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
-2025-09-28 16:25:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2025-09-28 16:25:43 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 12 ms. Found 0 JPA repository interfaces.
-2025-09-28 16:25:44 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
-2025-09-28 16:25:44 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2025-09-28 16:25:44 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.43]
-2025-09-28 16:25:44 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2025-09-28 16:25:44 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 2261 ms
-2025-09-28 16:25:45 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
-2025-09-28 16:25:45 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2025-09-28 16:25:45 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@7e5e6573
-2025-09-28 16:25:45 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2025-09-28 16:25:45 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2025-09-28 16:25:45 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.22.Final
-2025-09-28 16:25:45 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2025-09-28 16:25:45 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2025-09-28 16:25:45 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	at chat.liuxin.ai.service.IntentRecognitionService.<init>(IntentRecognitionService.java:58)
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:502)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:486)
+	at org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:197)
+	... 48 common frames omitted
+2025-09-29 16:42:59 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 18492 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
+2025-09-29 16:42:59 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.4, Spring v6.2.9
+2025-09-29 16:42:59 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-09-29 16:43:00 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-09-29 16:43:00 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 7 ms. Found 0 JPA repository interfaces.
+2025-09-29 16:43:00 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2025-09-29 16:43:00 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-09-29 16:43:00 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.43]
+2025-09-29 16:43:00 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-09-29 16:43:00 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1020 ms
+2025-09-29 16:43:00 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
+2025-09-29 16:43:00 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-09-29 16:43:01 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@4baf997
+2025-09-29 16:43:01 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-09-29 16:43:01 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-09-29 16:43:01 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.22.Final
+2025-09-29 16:43:01 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-09-29 16:43:01 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-09-29 16:43:01 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
 	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
 	Database driver: undefined/unknown
 	Database version: 8.0.41
@@ -468,32 +513,177 @@ This generated password is for development use only. Your security configuration
 	Isolation level: undefined/unknown
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2025-09-28 16:25:46 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2025-09-28 16:25:46 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2025-09-28 16:25:47 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2025-09-28 16:25:47 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+2025-09-29 16:43:01 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-09-29 16:43:01 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-09-29 16:43:02 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiChatController' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\controller\AiChatController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'aiChatServiceImpl' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\impl\AiChatServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 5: Error creating bean with name 'intentRecognitionService' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\IntentRecognitionService.class]: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+2025-09-29 16:43:02 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2025-09-29 16:43:02 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2025-09-29 16:43:02 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
+2025-09-29 16:43:02 [main] INFO  o.a.catalina.core.StandardService - Stopping service [Tomcat]
+2025-09-29 16:43:02 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
 
-Using generated security password: ecd64c09-ea37-4fa5-b4d2-37a60f0b9402
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2025-09-29 16:43:02 [main] ERROR o.s.boot.SpringApplication - Application run failed
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiChatController' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\controller\AiChatController.class]: Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'aiChatServiceImpl' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\impl\AiChatServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 5: Error creating bean with name 'intentRecognitionService' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\IntentRecognitionService.class]: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1395)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1232)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1222)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1188)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1123)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:987)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:752)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:439)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:318)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1361)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1350)
+	at chat.liuxin.ai.LiuTechAiApplication.main(LiuTechAiApplication.java:20)
+Caused by: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'aiChatServiceImpl' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\impl\AiChatServiceImpl.class]: Unsatisfied dependency expressed through constructor parameter 5: Error creating bean with name 'intentRecognitionService' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\IntentRecognitionService.class]: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804)
+	at org.springframework.beans.factory.support.ConstructorResolver.autowireConstructor(ConstructorResolver.java:240)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.autowireConstructor(AbstractAutowireCapableBeanFactory.java:1395)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1232)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
+	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1745)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1628)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791)
+	... 21 common frames omitted
+Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'intentRecognitionService' defined in file [F:\工程代码\Liutech\LiuTech-AI\target\classes\chat\liuxin\ai\service\IntentRecognitionService.class]: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateBean(AbstractAutowireCapableBeanFactory.java:1357)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1242)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:569)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:529)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:339)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:373)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:337)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:202)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1683)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1628)
+	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:913)
+	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791)
+	... 35 common frames omitted
+Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [chat.liuxin.ai.service.IntentRecognitionService]: Constructor threw exception
+	at org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:223)
+	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:123)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateBean(AbstractAutowireCapableBeanFactory.java:1351)
+	... 46 common frames omitted
+Caused by: java.lang.Error: Unresolved compilation problem: 
+	The method of(K, V, K, V, K, V, K, V, K, V, K, V, K, V, K, V, K, V, K, V) in the type Map is not applicable for the arguments (String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String, String)
+
+	at chat.liuxin.ai.service.IntentRecognitionService.<init>(IntentRecognitionService.java:278)
+	at java.base/jdk.internal.reflect.DirectConstructorHandleAccessor.newInstance(DirectConstructorHandleAccessor.java:62)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:502)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:486)
+	at org.springframework.beans.BeanUtils.instantiateClass(BeanUtils.java:197)
+	... 48 common frames omitted
+2025-09-29 16:45:24 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 17316 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
+2025-09-29 16:45:24 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.4, Spring v6.2.9
+2025-09-29 16:45:24 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-09-29 16:45:24 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-09-29 16:45:24 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 8 ms. Found 0 JPA repository interfaces.
+2025-09-29 16:45:25 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2025-09-29 16:45:25 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-09-29 16:45:25 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.43]
+2025-09-29 16:45:25 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-09-29 16:45:25 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 963 ms
+2025-09-29 16:45:25 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
+2025-09-29 16:45:25 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-09-29 16:45:25 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@4baf997
+2025-09-29 16:45:25 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-09-29 16:45:25 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-09-29 16:45:25 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.22.Final
+2025-09-29 16:45:25 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-09-29 16:45:25 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-09-29 16:45:25 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 8.0.41
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2025-09-29 16:45:26 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-09-29 16:45:26 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-09-29 16:45:26 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-09-29 16:45:26 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: d8434eee-f7a1-46f2-b48f-f02e012329d5
 
 This generated password is for development use only. Your security configuration must be updated before running your application in production.
 
-2025-09-28 16:25:47 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
-2025-09-28 16:25:47 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path '/'
-2025-09-28 16:25:47 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Started LiuTechAiApplication in 5.631 seconds (process running for 6.105)
-2025-09-28 16:25:47 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - 服务地址: http://localhost:8081/api/ai/chat
-2025-09-28 16:25:47 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - === LiuTech AI 服务启动完成！===
-2025-09-28 16:26:30 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2025-09-28 16:26:30 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
-2025-09-28 16:26:30 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
-2025-09-28 16:26:31 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
-2025-09-28 16:26:31 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:26:31 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:26:31 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:26:31 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:26:31 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
-2025-09-28 16:26:32 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /static/%E6%AF%95%E4%B8%9A%E6%97%85%E8%A1%8C.flac
-2025-09-28 16:26:32 [http-nio-8081-exec-2] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /static/%E6%AF%95%E4%B8%9A%E6%97%85%E8%A1%8C.flac
-2025-09-28 16:26:32 [http-nio-8081-exec-2] ERROR c.l.a.e.GlobalExceptionHandler - 系统异常: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
+2025-09-29 16:45:26 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2025-09-29 16:45:26 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path '/'
+2025-09-29 16:45:26 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Started LiuTechAiApplication in 2.943 seconds (process running for 3.149)
+2025-09-29 16:45:26 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - 服务地址: http://localhost:8081/api/ai/chat
+2025-09-29 16:45:26 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - === LiuTech AI 服务启动完成！===
+2025-09-29 17:13:14 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 1792 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
+2025-09-29 17:13:14 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.4, Spring v6.2.9
+2025-09-29 17:13:14 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
+2025-09-29 17:13:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2025-09-29 17:13:16 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 18 ms. Found 0 JPA repository interfaces.
+2025-09-29 17:13:16 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2025-09-29 17:13:16 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2025-09-29 17:13:16 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.43]
+2025-09-29 17:13:17 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2025-09-29 17:13:17 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 2032 ms
+2025-09-29 17:13:17 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
+2025-09-29 17:13:17 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2025-09-29 17:13:17 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@c11332b
+2025-09-29 17:13:17 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2025-09-29 17:13:17 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-09-29 17:13:17 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.22.Final
+2025-09-29 17:13:17 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2025-09-29 17:13:17 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-09-29 17:13:17 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
+	Database driver: undefined/unknown
+	Database version: 8.0.41
+	Autocommit mode: undefined/unknown
+	Isolation level: undefined/unknown
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2025-09-29 17:13:18 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-09-29 17:13:18 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-09-29 17:13:19 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2025-09-29 17:13:19 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: cd4bea0b-3555-4410-b287-d87b0b4e76ce
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2025-09-29 17:13:19 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2025-09-29 17:13:19 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path '/'
+2025-09-29 17:13:19 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Started LiuTechAiApplication in 5.198 seconds (process running for 5.692)
+2025-09-29 17:13:19 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - 服务地址: http://localhost:8081/api/ai/chat
+2025-09-29 17:13:19 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - === LiuTech AI 服务启动完成！===
+2025-09-29 17:13:34 [http-nio-8081-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-09-29 17:13:34 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2025-09-29 17:13:34 [http-nio-8081-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2025-09-29 17:13:34 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
+2025-09-29 17:13:34 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:13:34 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:13:34 [http-nio-8081-exec-3] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:13:34 [http-nio-8081-exec-3] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:13:34 [http-nio-8081-exec-3] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
+2025-09-29 17:13:35 [http-nio-8081-exec-2] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /static/%E6%AF%95%E4%B8%9A%E6%97%85%E8%A1%8C.flac
+2025-09-29 17:13:35 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /static/%E6%AF%95%E4%B8%9A%E6%97%85%E8%A1%8C.flac
+2025-09-29 17:13:35 [http-nio-8081-exec-4] ERROR c.l.a.e.GlobalExceptionHandler - 系统异常: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
 org.apache.catalina.connector.ClientAbortException: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
 	at org.apache.catalina.connector.OutputBuffer.realWriteBytes(OutputBuffer.java:342)
 	at org.apache.catalina.connector.OutputBuffer.flushByteBuffer(OutputBuffer.java:777)
@@ -626,7 +816,7 @@ Caused by: java.io.IOException: 你的主机中的软件中止了一个已建立
 	at org.apache.coyote.Response.doWrite(Response.java:628)
 	at org.apache.catalina.connector.OutputBuffer.realWriteBytes(OutputBuffer.java:330)
 	... 112 common frames omitted
-2025-09-28 16:26:32 [http-nio-8081-exec-2] WARN  o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - Failure in @ExceptionHandler chat.liuxin.ai.exception.GlobalExceptionHandler#handleGenericException(Exception, WebRequest)
+2025-09-29 17:13:35 [http-nio-8081-exec-4] WARN  o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - Failure in @ExceptionHandler chat.liuxin.ai.exception.GlobalExceptionHandler#handleGenericException(Exception, WebRequest)
 org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.HashMap] with preset Content-Type 'audio/flac'
 	at org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodProcessor.writeWithMessageConverters(AbstractMessageConverterMethodProcessor.java:365)
 	at org.springframework.web.servlet.mvc.method.annotation.HttpEntityMethodProcessor.handleReturnValue(HttpEntityMethodProcessor.java:263)
@@ -737,289 +927,203 @@ org.springframework.http.converter.HttpMessageNotWritableException: No converter
 	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
 	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
 	at java.base/java.lang.Thread.run(Thread.java:1583)
-2025-09-28 16:26:51 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
-2025-09-28 16:26:51 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:26:51 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:26:51 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
-2025-09-28 16:26:51 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:26:51 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:26:51 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
-2025-09-28 16:26:51 [http-nio-8081-exec-4] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 2, 历史记录数: 5
-2025-09-28 16:26:51 [http-nio-8081-exec-4] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: praise, 情感: neutral, 关键词数: 1
-2025-09-28 16:26:51 [http-nio-8081-exec-4] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 你好
-2025-09-28 16:26:51 [http-nio-8081-exec-4] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: FEEDBACK, 置信度: 0.472
-2025-09-28 16:26:51 [http-nio-8081-exec-4] DEBUG c.l.a.s.IntentRecognitionService - 为意图 FEEDBACK 生成的可能动作: [none]
-2025-09-28 16:26:51 [http-nio-8081-exec-4] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: FEEDBACK, 置信度: {:.2f}, 紧急程度: 0.472, 可能动作: NORMAL
-2025-09-28 16:26:51 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: praise, 情感: neutral, 关键词: [你好]
-2025-09-28 16:26:51 [http-nio-8081-exec-4] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
-2025-09-28 16:26:51 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
-2025-09-28 16:26:56 [http-nio-8081-exec-4] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
-2025-09-28 16:26:56 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:2，输出长度:14，耗时:4334ms
-2025-09-28 16:27:06 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
-2025-09-28 16:27:06 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:27:06 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:27:06 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
-2025-09-28 16:27:06 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:27:06 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:27:06 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
-2025-09-28 16:27:06 [http-nio-8081-exec-5] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 7, 历史记录数: 5
-2025-09-28 16:27:06 [http-nio-8081-exec-5] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: request, 情感: neutral, 关键词数: 1
-2025-09-28 16:27:06 [http-nio-8081-exec-5] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 你可以做些什么
-2025-09-28 16:27:06 [http-nio-8081-exec-5] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: CAPABILITY_INQUIRY, 置信度: 0.24266666666666664
-2025-09-28 16:27:06 [http-nio-8081-exec-5] DEBUG c.l.a.s.IntentRecognitionService - 为意图 CAPABILITY_INQUIRY 生成的可能动作: [show_capabilities]
-2025-09-28 16:27:06 [http-nio-8081-exec-5] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: CAPABILITY_INQUIRY, 置信度: {:.2f}, 紧急程度: 0.24266666666666664, 可能动作: NORMAL
-2025-09-28 16:27:06 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: request, 情感: neutral, 关键词: [你可以做些什么]
-2025-09-28 16:27:06 [http-nio-8081-exec-5] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
-2025-09-28 16:27:06 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
-2025-09-28 16:27:08 [http-nio-8081-exec-5] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
-2025-09-28 16:27:08 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:7，输出长度:23，耗时:1981ms
-2025-09-28 16:27:34 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
-2025-09-28 16:27:34 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
-2025-09-28 16:27:34 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
-2025-09-28 16:27:34 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
-2025-09-28 16:27:34 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
-2025-09-28 16:27:34 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
-2025-09-28 16:27:44 [http-nio-8081-exec-3] ERROR c.l.a.e.GlobalExceptionHandler - 系统异常: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
-org.apache.catalina.connector.ClientAbortException: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
-	at org.apache.catalina.connector.OutputBuffer.realWriteBytes(OutputBuffer.java:342)
-	at org.apache.catalina.connector.OutputBuffer.flushByteBuffer(OutputBuffer.java:777)
-	at org.apache.catalina.connector.OutputBuffer.append(OutputBuffer.java:674)
-	at org.apache.catalina.connector.OutputBuffer.writeBytes(OutputBuffer.java:377)
-	at org.apache.catalina.connector.OutputBuffer.write(OutputBuffer.java:355)
-	at org.apache.catalina.connector.CoyoteOutputStream.write(CoyoteOutputStream.java:102)
-	at org.springframework.security.web.util.OnCommittedResponseWrapper$SaveContextServletOutputStream.write(OnCommittedResponseWrapper.java:639)
-	at org.springframework.util.StreamUtils.copyRange(StreamUtils.java:187)
-	at org.springframework.http.converter.ResourceRegionHttpMessageConverter.writeResourceRegion(ResourceRegionHttpMessageConverter.java:179)
-	at org.springframework.http.converter.ResourceRegionHttpMessageConverter.writeInternal(ResourceRegionHttpMessageConverter.java:117)
-	at org.springframework.http.converter.AbstractGenericHttpMessageConverter.writeInternal(AbstractGenericHttpMessageConverter.java:135)
-	at org.springframework.http.converter.AbstractHttpMessageConverter.write(AbstractHttpMessageConverter.java:235)
-	at org.springframework.web.servlet.resource.ResourceHttpRequestHandler.handleRequest(ResourceHttpRequestHandler.java:630)
-	at org.springframework.web.servlet.mvc.HttpRequestHandlerAdapter.handle(HttpRequestHandlerAdapter.java:52)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
-	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:195)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
-	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:101)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:125)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:119)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at chat.liuxin.ai.filter.JwtAuthenticationFilter.doFilterInternal(JwtAuthenticationFilter.java:53)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
-	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
-	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.ServletRequestPathFilter.doFilter(ServletRequestPathFilter.java:52)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebSecurityConfiguration.java:319)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$4(HandlerMappingIntrospector.java:267)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:240)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:362)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:278)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:483)
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:116)
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:398)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1769)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1189)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
-	at java.base/java.lang.Thread.run(Thread.java:1583)
-Caused by: java.io.IOException: 你的主机中的软件中止了一个已建立的连接。
-	at java.base/sun.nio.ch.SocketDispatcher.write0(Native Method)
-	at java.base/sun.nio.ch.SocketDispatcher.write(SocketDispatcher.java:54)
-	at java.base/sun.nio.ch.IOUtil.writeFromNativeBuffer(IOUtil.java:137)
-	at java.base/sun.nio.ch.IOUtil.write(IOUtil.java:102)
-	at java.base/sun.nio.ch.IOUtil.write(IOUtil.java:58)
-	at java.base/sun.nio.ch.SocketChannelImpl.write(SocketChannelImpl.java:542)
-	at org.apache.tomcat.util.net.NioChannel.write(NioChannel.java:125)
-	at org.apache.tomcat.util.net.NioEndpoint$NioSocketWrapper.doWrite(NioEndpoint.java:1411)
-	at org.apache.tomcat.util.net.SocketWrapperBase.doWrite(SocketWrapperBase.java:732)
-	at org.apache.tomcat.util.net.SocketWrapperBase.writeBlocking(SocketWrapperBase.java:572)
-	at org.apache.tomcat.util.net.SocketWrapperBase.write(SocketWrapperBase.java:520)
-	at org.apache.coyote.http11.Http11OutputBuffer$SocketOutputBuffer.doWrite(Http11OutputBuffer.java:548)
-	at org.apache.coyote.http11.filters.IdentityOutputFilter.doWrite(IdentityOutputFilter.java:73)
-	at org.apache.coyote.http11.Http11OutputBuffer.doWrite(Http11OutputBuffer.java:193)
-	at org.apache.coyote.Response.doWrite(Response.java:628)
-	at org.apache.catalina.connector.OutputBuffer.realWriteBytes(OutputBuffer.java:330)
-	... 112 common frames omitted
-2025-09-28 16:27:44 [http-nio-8081-exec-3] WARN  o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - Failure in @ExceptionHandler chat.liuxin.ai.exception.GlobalExceptionHandler#handleGenericException(Exception, WebRequest)
-org.springframework.http.converter.HttpMessageNotWritableException: No converter for [class java.util.HashMap] with preset Content-Type 'audio/flac'
-	at org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodProcessor.writeWithMessageConverters(AbstractMessageConverterMethodProcessor.java:365)
-	at org.springframework.web.servlet.mvc.method.annotation.HttpEntityMethodProcessor.handleReturnValue(HttpEntityMethodProcessor.java:263)
-	at org.springframework.web.method.support.HandlerMethodReturnValueHandlerComposite.handleReturnValue(HandlerMethodReturnValueHandlerComposite.java:78)
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:136)
-	at org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver.doResolveHandlerMethodException(ExceptionHandlerExceptionResolver.java:471)
-	at org.springframework.web.servlet.handler.AbstractHandlerMethodExceptionResolver.doResolveException(AbstractHandlerMethodExceptionResolver.java:73)
-	at org.springframework.web.servlet.handler.AbstractHandlerExceptionResolver.resolveException(AbstractHandlerExceptionResolver.java:182)
-	at org.springframework.web.servlet.handler.HandlerExceptionResolverComposite.resolveException(HandlerExceptionResolverComposite.java:80)
-	at org.springframework.web.servlet.DispatcherServlet.processHandlerException(DispatcherServlet.java:1360)
-	at org.springframework.web.servlet.DispatcherServlet.processDispatchResult(DispatcherServlet.java:1161)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1106)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
-	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:195)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:365)
-	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:101)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:125)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:119)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at chat.liuxin.ai.filter.JwtAuthenticationFilter.doFilterInternal(JwtAuthenticationFilter.java:53)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
-	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.FilterChainProxy$VirtualFilterChain.doFilter(FilterChainProxy.java:374)
-	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233)
-	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.ServletRequestPathFilter.doFilter(ServletRequestPathFilter.java:52)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebSecurityConfiguration.java:319)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$4(HandlerMappingIntrospector.java:267)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:240)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:362)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:278)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140)
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:483)
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:116)
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:398)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1769)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1189)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:658)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63)
-	at java.base/java.lang.Thread.run(Thread.java:1583)
+2025-09-29 17:13:39 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:13:39 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:13:39 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:13:39 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:13:39 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:13:39 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:13:39 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:13:39 [http-nio-8081-exec-6] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 2, 历史记录数: 5
+2025-09-29 17:13:39 [http-nio-8081-exec-6] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: praise, 情感: neutral, 关键词数: 1
+2025-09-29 17:13:39 [http-nio-8081-exec-6] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 你好
+2025-09-29 17:13:39 [http-nio-8081-exec-6] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: FEEDBACK, 置信度: 0.472
+2025-09-29 17:13:39 [http-nio-8081-exec-6] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: FEEDBACK, 置信度: {:.2f}, 紧急程度: 0.472, 结构化动作: NORMAL
+2025-09-29 17:13:39 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: praise, 情感: neutral, 关键词: [你好]
+2025-09-29 17:13:39 [http-nio-8081-exec-6] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:13:39 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:13:42 [http-nio-8081-exec-6] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:13:42 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:2，输出长度:15，耗时:3420ms
+2025-09-29 17:13:55 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:13:55 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:13:55 [http-nio-8081-exec-7] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:13:55 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:13:55 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:13:55 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:13:55 [http-nio-8081-exec-7] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:13:55 [http-nio-8081-exec-7] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 13, 历史记录数: 5
+2025-09-29 17:13:55 [http-nio-8081-exec-7] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: request, 情感: neutral, 关键词数: 1
+2025-09-29 17:13:55 [http-nio-8081-exec-7] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 你可以帮我跳转到个人中心吗
+2025-09-29 17:13:55 [http-nio-8081-exec-7] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.3008
+2025-09-29 17:13:55 [http-nio-8081-exec-7] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.3008, 结构化动作: NORMAL
+2025-09-29 17:13:55 [http-nio-8081-exec-7] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: request, 情感: neutral, 关键词: [你可以帮我跳转到个人中心吗]
+2025-09-29 17:13:55 [http-nio-8081-exec-7] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:13:55 [http-nio-8081-exec-7] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:13:56 [http-nio-8081-exec-7] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:13:56 [http-nio-8081-exec-7] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:13，输出长度:17，耗时:1663ms
+2025-09-29 17:14:12 [http-nio-8081-exec-8] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:14:12 [http-nio-8081-exec-8] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:14:12 [http-nio-8081-exec-8] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:14:12 [http-nio-8081-exec-8] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:14:12 [http-nio-8081-exec-8] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:14:12 [http-nio-8081-exec-8] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:14:12 [http-nio-8081-exec-8] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:14:12 [http-nio-8081-exec-8] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 7, 历史记录数: 5
+2025-09-29 17:14:12 [http-nio-8081-exec-8] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: general, 情感: neutral, 关键词数: 1
+2025-09-29 17:14:12 [http-nio-8081-exec-8] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 跳转到我的文章
+2025-09-29 17:14:12 [http-nio-8081-exec-8] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.38826666666666665
+2025-09-29 17:14:12 [http-nio-8081-exec-8] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.38826666666666665, 结构化动作: NORMAL
+2025-09-29 17:14:12 [http-nio-8081-exec-8] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: general, 情感: neutral, 关键词: [跳转到我的文章]
+2025-09-29 17:14:12 [http-nio-8081-exec-8] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:14:12 [http-nio-8081-exec-8] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:14:13 [http-nio-8081-exec-8] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:14:13 [http-nio-8081-exec-8] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:7，输出长度:17，耗时:1778ms
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:14:41 [http-nio-8081-exec-9] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 5, 历史记录数: 5
+2025-09-29 17:14:41 [http-nio-8081-exec-9] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: praise, 情感: neutral, 关键词数: 1
+2025-09-29 17:14:41 [http-nio-8081-exec-9] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 帮我点个赞
+2025-09-29 17:14:41 [http-nio-8081-exec-9] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.192
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.192, 结构化动作: NORMAL
+2025-09-29 17:14:41 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: praise, 情感: neutral, 关键词: [帮我点个赞]
+2025-09-29 17:14:41 [http-nio-8081-exec-9] INFO  c.l.a.service.impl.AiChatServiceImpl - 已获取文章内容，文章ID: 15
+
+
+文章内容: 文章标题: 测试文章
+
+文章摘要: 测试
+
+文章内容: <p>测试</p>
+
+
+2025-09-29 17:14:41 [http-nio-8081-exec-9] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:14:41 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:14:42 [http-nio-8081-exec-9] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:14:42 [http-nio-8081-exec-9] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:5，输出长度:12，耗时:1622ms
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:14:49 [http-nio-8081-exec-10] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 6, 历史记录数: 5
+2025-09-29 17:14:49 [http-nio-8081-exec-10] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: action, 情感: neutral, 关键词数: 1
+2025-09-29 17:14:49 [http-nio-8081-exec-10] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 帮我收藏一波
+2025-09-29 17:14:49 [http-nio-8081-exec-10] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.1448
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.1448, 结构化动作: NORMAL
+2025-09-29 17:14:49 [http-nio-8081-exec-10] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: action, 情感: neutral, 关键词: [帮我收藏一波]
+2025-09-29 17:14:49 [http-nio-8081-exec-10] INFO  c.l.a.service.impl.AiChatServiceImpl - 已获取文章内容，文章ID: 15
+
+
+文章内容: 文章标题: 测试文章
+
+文章摘要: 测试
+
+文章内容: <p>测试</p>
+
+
+2025-09-29 17:14:49 [http-nio-8081-exec-10] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:14:49 [http-nio-8081-exec-10] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:14:50 [http-nio-8081-exec-10] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:14:50 [http-nio-8081-exec-10] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:6，输出长度:19，耗时:1493ms
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:14:58 [http-nio-8081-exec-1] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 7, 历史记录数: 5
+2025-09-29 17:14:58 [http-nio-8081-exec-1] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: action, 情感: neutral, 关键词数: 1
+2025-09-29 17:14:58 [http-nio-8081-exec-1] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 我们返回首页把
+2025-09-29 17:14:58 [http-nio-8081-exec-1] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.2912
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.2912, 结构化动作: NORMAL
+2025-09-29 17:14:58 [http-nio-8081-exec-1] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: action, 情感: neutral, 关键词: [我们返回首页把]
+2025-09-29 17:14:58 [http-nio-8081-exec-1] INFO  c.l.a.service.impl.AiChatServiceImpl - 已获取文章内容，文章ID: 15
+
+
+文章内容: 文章标题: 测试文章
+
+文章摘要: 测试
+
+文章内容: <p>测试</p>
+
+
+2025-09-29 17:14:58 [http-nio-8081-exec-1] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:14:58 [http-nio-8081-exec-1] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:14:59 [http-nio-8081-exec-1] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:14:59 [http-nio-8081-exec-1] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:7，输出长度:13，耗时:1455ms
+2025-09-29 17:15:15 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:15:15 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:15:15 [http-nio-8081-exec-3] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:15:15 [http-nio-8081-exec-3] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:15:15 [http-nio-8081-exec-3] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:15:15 [http-nio-8081-exec-3] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:15:15 [http-nio-8081-exec-3] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:15:15 [http-nio-8081-exec-3] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 16, 历史记录数: 5
+2025-09-29 17:15:15 [http-nio-8081-exec-3] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: request, 情感: neutral, 关键词数: 1
+2025-09-29 17:15:15 [http-nio-8081-exec-3] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 可以帮我搜索关于java的文章吗
+2025-09-29 17:15:15 [http-nio-8081-exec-3] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.5093333333333333
+2025-09-29 17:15:15 [http-nio-8081-exec-3] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.5093333333333333, 结构化动作: NORMAL
+2025-09-29 17:15:15 [http-nio-8081-exec-3] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: request, 情感: neutral, 关键词: [可以帮我搜索关于java的文章吗]
+2025-09-29 17:15:15 [http-nio-8081-exec-3] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:15:15 [http-nio-8081-exec-3] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:15:16 [http-nio-8081-exec-3] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:15:16 [http-nio-8081-exec-3] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:16，输出长度:35，耗时:1400ms
+2025-09-29 17:15:38 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:15:38 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:15:38 [http-nio-8081-exec-4] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:15:38 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:15:38 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:15:38 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:15:38 [http-nio-8081-exec-4] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:15:38 [http-nio-8081-exec-4] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 4, 历史记录数: 5
+2025-09-29 17:15:38 [http-nio-8081-exec-4] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: general, 情感: neutral, 关键词数: 1
+2025-09-29 17:15:38 [http-nio-8081-exec-4] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 查找前端
+2025-09-29 17:15:38 [http-nio-8081-exec-4] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.04773333333333333
+2025-09-29 17:15:38 [http-nio-8081-exec-4] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.04773333333333333, 结构化动作: NORMAL
+2025-09-29 17:15:38 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: general, 情感: neutral, 关键词: [查找前端]
+2025-09-29 17:15:38 [http-nio-8081-exec-4] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:15:38 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:15:39 [http-nio-8081-exec-4] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:15:39 [http-nio-8081-exec-4] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:4，输出长度:26，耗时:1662ms
+2025-09-29 17:15:56 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:15:56 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:15:56 [http-nio-8081-exec-5] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:15:56 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:15:56 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:15:56 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:15:56 [http-nio-8081-exec-5] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:15:56 [http-nio-8081-exec-5] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 11, 历史记录数: 5
+2025-09-29 17:15:56 [http-nio-8081-exec-5] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: question, 情感: neutral, 关键词数: 1
+2025-09-29 17:15:56 [http-nio-8081-exec-5] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 我们的第一局聊天是什么
+2025-09-29 17:15:56 [http-nio-8081-exec-5] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.1984
+2025-09-29 17:15:56 [http-nio-8081-exec-5] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.1984, 结构化动作: NORMAL
+2025-09-29 17:15:56 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: question, 情感: neutral, 关键词: [我们的第一局聊天是什么]
+2025-09-29 17:15:56 [http-nio-8081-exec-5] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:15:56 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:15:58 [http-nio-8081-exec-5] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:15:58 [http-nio-8081-exec-5] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:11，输出长度:74，耗时:1978ms
+2025-09-29 17:16:11 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 处理请求: POST /ai/chat
+2025-09-29 17:16:11 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-09-29 17:16:11 [http-nio-8081-exec-6] INFO  c.l.a.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-09-29 17:16:11 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - === AI聊天控制器被调用 ===
+2025-09-29 17:16:11 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-09-29 17:16:11 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-09-29 17:16:11 [http-nio-8081-exec-6] INFO  c.l.ai.controller.AiChatController - 接受到了普通模式的请求，用户ID: 1
+2025-09-29 17:16:11 [http-nio-8081-exec-6] DEBUG c.l.a.s.ContextEnhancementService - 开始增强用户输入上下文，输入长度: 12, 历史记录数: 5
+2025-09-29 17:16:11 [http-nio-8081-exec-6] DEBUG c.l.a.s.ContextEnhancementService - 上下文增强完成，意图: question, 情感: neutral, 关键词数: 1
+2025-09-29 17:16:11 [http-nio-8081-exec-6] DEBUG c.l.a.s.IntentRecognitionService - 开始识别用户意图，输入: 我们聊天的第一句话是什么
+2025-09-29 17:16:11 [http-nio-8081-exec-6] DEBUG c.l.a.s.IntentRecognitionService - 意图识别完成，主要意图: NAVIGATION, 置信度: 0.19946666666666665
+2025-09-29 17:16:11 [http-nio-8081-exec-6] INFO  c.l.a.service.impl.AiChatServiceImpl - 用户意图识别 - 主要意图: NAVIGATION, 置信度: {:.2f}, 紧急程度: 0.19946666666666665, 结构化动作: NORMAL
+2025-09-29 17:16:11 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - 上下文增强 - 意图: question, 情感: neutral, 关键词: [我们聊天的第一句话是什么]
+2025-09-29 17:16:11 [http-nio-8081-exec-6] DEBUG o.s.retry.support.RetryTemplate - Retry: count=0
+2025-09-29 17:16:11 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - 调用AI模型，第1次尝试
+2025-09-29 17:16:13 [http-nio-8081-exec-6] INFO  c.l.a.service.impl.MemoryServiceImpl - 记忆清理：userId=1, 删除2条，保留最近10条
+2025-09-29 17:16:13 [http-nio-8081-exec-6] DEBUG c.l.a.service.impl.AiChatServiceImpl - AI普通聊天成功，模型:ollama，输入长度:12，输出长度:74，耗时:1994ms
