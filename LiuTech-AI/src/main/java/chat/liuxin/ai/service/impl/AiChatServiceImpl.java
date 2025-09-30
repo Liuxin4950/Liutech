@@ -7,8 +7,7 @@ import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.HealthCheckService;
-import chat.liuxin.ai.service.ContextEnhancementService;
-import chat.liuxin.ai.service.IntentRecognitionService;
+
 import chat.liuxin.ai.service.MemoryService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,8 +57,6 @@ public class AiChatServiceImpl implements AiChatService {
     private final MemoryService memoryService;           // 记忆服务（数据库）
     private final HealthCheckService healthCheckService; // 健康检查服务
     private final RetryTemplate retryTemplate;          // 重试模板
-    private final ContextEnhancementService contextEnhancementService;
-    private final IntentRecognitionService intentRecognitionService;
     private final ObjectMapper objectMapper;             // 用于构造metadata的JSON
     private final AiPromptConfig aiPromptConfig;         // 系统提示词配置
 
@@ -67,7 +64,32 @@ public class AiChatServiceImpl implements AiChatService {
      * 控制上下文窗口大小：最多拼接最近N条历史（不含本轮输入）
      * 你提出“暂时只保留20条”，这里按19条历史 + 1条本轮输入 组成本次Prompt
      */
-    private static final int HISTORY_LIMIT = 9; // 历史条数（不含本轮输入）
+    private static final int HISTORY_LIMIT = 19; // 历史条数（不含本轮输入）
+    // 与 application.yml 示例一致的允许 action 列表
+    private static final Set<String> ALLOWED_ACTIONS = Set.of(
+            "navigate:home",
+            "navigate:create-post",
+            "navigate:my-posts",
+            "navigate:drafts",
+            "navigate:favorites",
+            "navigate:posts",
+            "navigate:categories",
+            "navigate:tags",
+            "navigate:archive",
+            "navigate:profile",
+            "navigate:about",
+            "navigate:chat-history",
+            "interact:like",
+            "interact:favorite",
+            "interact:share",
+            "interact:comment",
+            "search:posts",
+            "search:tags",
+            "search:categories",
+            "search:users",
+            "show:capabilities",
+            "none"
+    );
 
     /**
      * 1) 普通聊天：一次性返回完整AI回复（带记忆）
@@ -86,100 +108,60 @@ public class AiChatServiceImpl implements AiChatService {
             // 提取用户输入
             String input = request.getMessage();
             
-            // 上下文增强和意图识别
-            List<AiChatMessage> recentHistory = memoryService.listRecentMessages(userIdStr, 5);
-            
-            ContextEnhancementService.EnhancedContext enhancedContext = 
-                contextEnhancementService.enhanceUserInput(input, request.getContext(), recentHistory);
-            IntentRecognitionService.IntentResult intentResult = 
-                intentRecognitionService.recognizeIntent(input);
-            
-            // 基于意图识别结果生成结构化动作
-            String structuredAction = intentRecognitionService.generateStructuredAction(intentResult);
-            
-            log.info("用户意图识别 - 主要意图: {}, 置信度: {:.2f}, 紧急程度: {}, 结构化动作: {}", 
-                intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent(), structuredAction);
-            log.debug("上下文增强 - 意图: {}, 情感: {}, 关键词: {}", 
-                enhancedContext.getIntent(), enhancedContext.getEmotion(), enhancedContext.getKeywords());
-            
-            String enhancedInput = enhancedContext.getEnhancedInput();
-            
-            // 处理上下文信息，获取文章内容（如果在文章详情页）
-             Map<String, Object> context = request.getContext();
-             if (context != null && "post-detail".equals(context.get("page"))) {
-                 // 同时支持postId和articleId两种字段名
-                 Object articleIdObj = context.get("postId");
-                 if (articleIdObj == null) {
-                     articleIdObj = context.get("articleId"); // 兼容可能使用articleId的情况
-                 }
-                 
-                 if (articleIdObj != null) {
-                     Long articleId = null;
-                     if (articleIdObj instanceof Number) {
-                         articleId = ((Number) articleIdObj).longValue();
-                     } else if (articleIdObj instanceof String) {
-                         try {
-                             articleId = Long.parseLong((String) articleIdObj);
-                         } catch (NumberFormatException e) {
-                             log.warn("文章ID格式错误: {}", articleIdObj);
-                         }
-                     }
-                     
-                     if (articleId != null) {
-                         // 获取文章内容的逻辑
-                         String articleContent = fetchArticleContent(articleId);
-                         if (articleContent != null) {
-                             // 将文章内容添加到用户输入中，增强AI的回答能力
-                             enhancedInput = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + enhancedInput;
-                             log.info("已获取文章内容，文章ID: {}\n\n\n文章内容: {}\n\n", articleId, articleContent);
-                         }
-                     }
-                 } else {
-                     log.warn("文章详情页缺少文章ID: context={}", toJson(context));
-                 }
-             }
+            // 处理前端上下文信息
+            Map<String, Object> context = request.getContext();
+            String contextPrompt = null;
+            if (context != null && !context.isEmpty()) {
+                // 构建基础上下文提示
+                contextPrompt = "前端用户当前路由位置（仅供决策active动作，不参与输出）：" + toJson(context);
+                
+                // 如果在文章详情页，获取文章内容并增强用户输入
+                if ("post-detail".equals(context.get("page"))) {
+                    // 同时支持postId和articleId两种字段名
+                    Object articleIdObj = context.get("postId");
+                    if (articleIdObj == null) {
+                        articleIdObj = context.get("articleId");
+                    }
+                    
+                    if (articleIdObj != null) {
+                        Long articleId = parseArticleId(articleIdObj);
+                        if (articleId != null) {
+                            // 获取文章内容并增强用户输入
+                            String articleContent = fetchArticleContent(articleId);
+                            if (articleContent != null) {
+                                input = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + input;
+                                log.info("已获取文章内容，文章ID: {}", articleId);
+                            }
+                            // 添加文章ID到上下文提示
+                            contextPrompt += "\n\n注意：用户当前正在浏览文章详情页，文章ID为" + articleId;
+                        }
+                    } else {
+                        log.warn("文章详情页缺少文章ID: context={}", toJson(context));
+                    }
+                }
+            }
 
             // 读取最近历史（最多19条），用于作为上下文
             List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
 
-            // 构造消息序列：系统提示词 -> 历史 -> （可选）RAG上下文 -> JSON输出约束 -> 本轮用户输入
+            // 构造消息序列：系统提示词 -> 历史 -> 上下文信息 -> 本轮用户输入
             List<Message> messages = new ArrayList<>();
 
+
+            // 1.系统提示词
             messages.add(new SystemMessage(
                     aiPromptConfig.getFullSystemPrompt()
             ));
-            // 重构历史列表
+            // 2.历史信息列表
             messages.addAll(toPromptMessages(recent));
-
-            // 注入前端上下文（若有）以及JSON输出规范
-            if (request.getContext() != null && !request.getContext().isEmpty()) {
-                // 使用已有的context变量,避免重复声明
-                String contextPrompt = "前端用户当前路由位置（仅供决策active动作，不要放入message正常对话）：" + toJson(context);
-                
-                // 为文章详情页添加特殊提示
-                if ("post-detail".equals(context.get("page"))) {
-                    Object postId = context.get("postId");
-                    if (postId == null) {
-                        postId = context.get("articleId");
-                    }
-                    if (postId != null) {
-                        contextPrompt += "\n\n注意：用户当前正在浏览文章详情页，文章ID为" + postId + 
-                                        "。你可以针对当前文章内容回答用户问题，如果用户询问'当前文章'相关内容，请理解用户是在询问他正在浏览的这篇文章。";
-                    }
-                }
-                
+            
+            // 3.前端上下文信息（如果有）
+            if (contextPrompt != null) {
                 messages.add(new SystemMessage(contextPrompt));
             }
             
-            // 添加意图识别结果和结构化动作提示
-            if (structuredAction != null && !structuredAction.equals("none")) {
-                String actionPrompt = "基于意图识别，用户可能需要的动作是：" + structuredAction + 
-                                    "。请将此动作作为action字段返回，如果不合适则返回none。";
-                messages.add(new SystemMessage(actionPrompt));
-            }
-
-            // 将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
-            messages.add(new UserMessage(enhancedInput));
+            // 4.将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
+            messages.add(new UserMessage(input));
 
 
             // 先落库"用户消息"（立即写入，便于审计/追踪）
@@ -190,12 +172,19 @@ public class AiChatServiceImpl implements AiChatService {
                 log.debug("调用AI模型，第{}次尝试", retryContext.getRetryCount() + 1);
                 return chatModel.call(new Prompt(messages));
             });
-            
+            // 5.提取AI模型的回复内容
             String aiOutput = response.getResult().getOutput().getContent();
             System.out.println("AI回复：\n" + aiOutput + '\n');
 
-            // 解析模型输出：尝试按JSON提取 message/emotion/action/metadata
-            ParsedResult parsed = parseModelOutput(aiOutput);
+            // 解析并校验模型输出；必要时追加严格格式要求让AI重生成
+            ParsedResult parsed = ensureValidStructuredOutput(messages, aiOutput);
+            // 服务器侧动作门控：普通问答不触发动作，除非用户明确下达指令
+            if (parsed.action != null && !"none".equals(parsed.action)) {
+                if (!isExplicitActionRequest(input)) {
+                    log.debug("非明确指令，强制置 action=none：原action={}", parsed.action);
+                    parsed.action = "none";
+                }
+            }
 
             // 成功后落库"AI消息"（status=1），并记录元数据（含情绪/动作/metadata）
             Map<String, Object> metaSave = new HashMap<>();
@@ -278,52 +267,66 @@ public class AiChatServiceImpl implements AiChatService {
                 try {
                     emitter.send(SseEmitter.event().name("start").data(Map.of("message", "AI正在思考中...")));
 
-                    // 上下文增强和意图识别
-                    List<AiChatMessage> recentHistory = memoryService.listRecentMessages(userIdStr, 5);
-                    ContextEnhancementService.EnhancedContext enhancedContext = 
-                        contextEnhancementService.enhanceUserInput(request.getMessage(), request.getContext(), recentHistory);
-                    IntentRecognitionService.IntentResult intentResult = 
-                        intentRecognitionService.recognizeIntent(request.getMessage());
+                    // 处理用户输入和前端上下文
+                    String input = request.getMessage();
+                    Map<String, Object> context = request.getContext();
+                    String contextPrompt = null;
                     
-                    // 基于意图识别结果生成结构化动作
-                    String structuredAction = intentRecognitionService.generateStructuredAction(intentResult);
-                    
-                    log.info("流式聊天 - 用户意图: {}, 置信度: {:.2f}, 紧急程度: {}, 结构化动作: {}", 
-                        intentResult.getPrimaryIntent(), intentResult.getConfidence(), intentResult.getSecondaryIntent(), structuredAction);
+                    if (context != null && !context.isEmpty()) {
+                        // 构建基础上下文提示
+                        contextPrompt = "前端用户当前路由位置（仅供决策active动作，不参与输出）：" + toJson(context);
+                        
+                        // 如果在文章详情页，获取文章内容并增强用户输入
+                        if ("post-detail".equals(context.get("page"))) {
+                            // 同时支持postId和articleId两种字段名
+                            Object articleIdObj = context.get("postId");
+                            if (articleIdObj == null) {
+                                articleIdObj = context.get("articleId");
+                            }
+                            
+                            if (articleIdObj != null) {
+                                Long articleId = parseArticleId(articleIdObj);
+                                if (articleId != null) {
+                                    // 获取文章内容并增强用户输入
+                                    String articleContent = fetchArticleContent(articleId);
+                                    if (articleContent != null) {
+                                        input = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + input;
+                                        log.info("已获取文章内容，文章ID: {}", articleId);
+                                    }
+                                    // 添加文章ID到上下文提示
+                                    contextPrompt += "\n\n注意：用户当前正在浏览文章详情页，文章ID为" + articleId;
+                                }
+                            } else {
+                                log.warn("文章详情页缺少文章ID: context={}", toJson(context));
+                            }
+                        }
+                    }
 
                     // 读取最近历史（最多19条），末尾不会包含本轮输入
                     List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
 
-                    // 构造消息序列：系统提示词 -> 历史 -> （可选）RAG上下文 -> 本轮用户输入
+                    // 构造消息序列：系统提示词 -> 历史 -> 上下文信息 -> 本轮用户输入
                     List<Message> messages = new ArrayList<>();
-                    // 系统提示词
-                    String systemPrompt = aiPromptConfig.getFullSystemPrompt();
-
-                    messages.add(new SystemMessage(systemPrompt));
-                    // 转换为信息列表格式
+                    // 1.系统提示词
+                    messages.add(new SystemMessage(aiPromptConfig.getFullSystemPrompt()));
+                    // 2.历史信息列表
                     messages.addAll(toPromptMessages(recent));
-                    // 前端上下文（如果有）
-                    if (request.getContext() != null && !request.getContext().isEmpty()) {
-                        messages.add(new SystemMessage("前端上下文（仅供决策，不要复述）：" + toJson(request.getContext())));
+                    // 3.前端上下文信息（如果有）
+                    if (contextPrompt != null) {
+                        messages.add(new SystemMessage(contextPrompt));
                     }
-                    
-                    // 添加意图识别结果和结构化动作提示
-                    if (structuredAction != null && !structuredAction.equals("none")) {
-                        String actionPrompt = "基于意图识别，用户可能需要的动作是：" + structuredAction + 
-                                            "。请将此动作作为action字段返回，如果不合适则返回none。";
-                        messages.add(new SystemMessage(actionPrompt));
-                    }
-                    
-                    // 使用增强后的用户输入
-                    messages.add(new UserMessage(enhancedContext.getEnhancedInput()));
+                    // 4.用户输入
+                    messages.add(new UserMessage(input));
 
                     // 先落库"用户消息"
-                    memoryService.saveUserMessage(userIdStr, request.getMessage(), modelName, null);
+                    memoryService.saveUserMessage(userIdStr, input, modelName, null);
 
                     // 调用模型流式接口
                     Flux<org.springframework.ai.chat.model.ChatResponse> stream = chatModel.stream(new Prompt(messages));
 
                     StringBuilder full = new StringBuilder();
+                    // 供lambda使用的最终变量快照，避免编译错误
+                    final String userInputSnapshot = input;
 
                     stream.subscribe(
                             part -> {
@@ -354,8 +357,15 @@ public class AiChatServiceImpl implements AiChatService {
                             },
                             () -> {
                                 try {
-                                    // onComplete：解析并一次性写入完整AI消息（status=1）
-                                    ParsedResult parsed = parseModelOutput(full.toString());
+                                    // onComplete：解析并校验；必要时追加严格格式要求让AI重生成（status=1）
+                                    ParsedResult parsed = ensureValidStructuredOutput(messages, full.toString());
+                                    // 流式完成后的服务器侧动作门控
+                                    if (parsed.action != null && !"none".equals(parsed.action)) {
+                                        if (!isExplicitActionRequest(userInputSnapshot)) {
+                                            log.debug("[stream] 非明确指令，强制置 action=none：原action={}", parsed.action);
+                                            parsed.action = "none";
+                                        }
+                                    }
                                     Map<String, Object> metaSave = new HashMap<>();
                                     if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
                                     if (parsed.action != null) metaSave.put("action", parsed.action);
@@ -476,7 +486,7 @@ public class AiChatServiceImpl implements AiChatService {
                 }
             }
             
-            log.warn("获取文章内容失败，状态码: {}", response.getStatusCodeValue());
+            log.warn("获取文章内容失败，状态码: {}", response.getStatusCode().value());
             return null;
         } catch (Exception e) {
             log.error("获取文章内容异常", e);
@@ -491,6 +501,11 @@ public class AiChatServiceImpl implements AiChatService {
         String emotion;
         String action;
         Map<String, Object> metadata;
+        // 校验辅助标记
+        boolean isJsonObject;
+        boolean hasMessage;
+        boolean hasAction;
+        boolean isActionAllowed;
     }
 
     /**
@@ -516,33 +531,139 @@ public class AiChatServiceImpl implements AiChatService {
         }
         try {
             JsonNode root = objectMapper.readTree(s);
-            if (root != null && root.isObject()) {
+            r.isJsonObject = root != null && root.isObject();
+            if (r.isJsonObject) {
                 JsonNode msgNode = root.get("message");
                 if (msgNode == null) msgNode = root.get("text");
                 r.message = msgNode != null && !msgNode.isNull() ? msgNode.asText("") : null;
+                r.hasMessage = r.message != null && !r.message.isEmpty();
                 JsonNode emoNode = root.get("emotion");
                 r.emotion = emoNode != null && !emoNode.isNull() ? emoNode.asText() : null;
                 JsonNode actNode = root.get("action");
                 r.action = actNode != null && !actNode.isNull() ? actNode.asText() : null;
+                r.hasAction = r.action != null && !r.action.isEmpty();
+                r.isActionAllowed = r.action == null || ALLOWED_ACTIONS.contains(r.action);
                 JsonNode metaNode = root.get("metadata");
                 if (metaNode != null && metaNode.isObject()) {
                     r.metadata = objectMapper.convertValue(metaNode, new TypeReference<Map<String, Object>>() {});
                 } else {
-                    r.metadata = null;
+                    r.metadata = Collections.emptyMap();
                 }
-                // 若未提供message，则回退为原始文本
-                if (r.message == null || r.message.isEmpty()) {
-                    r.message = output;
-                }
-                return r;
+            } else {
+                r.message = s; // 非JSON时，直接使用全文作为消息
+                r.hasMessage = r.message != null && !r.message.isEmpty();
+                r.metadata = Collections.emptyMap();
             }
-        } catch (Exception ignore) {
-            // 非JSON，直接回退为文本
+        } catch (Exception e) {
+            // 不是合法JSON：直接将原文作为message返回
+            r.message = s;
+            r.hasMessage = r.message != null && !r.message.isEmpty();
+            r.metadata = Collections.emptyMap();
         }
-        r.message = output;
-        r.emotion = null;
-        r.action = null;
-        r.metadata = null;
         return r;
+    }
+
+    /**
+     * 输出格式校验与修复：若不满足严格JSON结构或action不在允许集合中，则追加强制说明让模型重生成一次。
+     */
+    private ParsedResult ensureValidStructuredOutput(List<Message> baseMessages, String initialOutput) {
+        ParsedResult first = parseModelOutput(initialOutput);
+        if (first.isJsonObject && first.hasMessage && first.hasAction && first.isActionAllowed) {
+            return first;
+        }
+
+        String allowed = String.join("|", ALLOWED_ACTIONS);
+        String instruction = "严格格式要求：仅输出一个 JSON 对象，不包含任何解释或额外文本。" +
+                "必须包含字段：message(string)、emotion(string)、action(string)、metadata(object)。" +
+                "其中 action 的取值只能是以下之一：" + allowed + "。" +
+                "请将你上一次的回答改写为上述格式，并仅输出 JSON 对象本身。";
+
+        List<Message> fixMessages = new ArrayList<>(baseMessages);
+        fixMessages.add(new SystemMessage(instruction));
+        fixMessages.add(new UserMessage("原回答如下：\n" + initialOutput));
+
+        try {
+            var fixResp = chatModel.call(new Prompt(fixMessages));
+            String fixed = fixResp.getResult().getOutput().getContent();
+            ParsedResult second = parseModelOutput(fixed);
+            if (second.isJsonObject && second.hasMessage && second.hasAction && second.isActionAllowed) {
+                return second;
+            }
+            // 仍不合规则兜底：保留message，action置为none
+            if (second.message == null || second.message.isEmpty()) {
+                second.message = first.message;
+                second.hasMessage = second.message != null && !second.message.isEmpty();
+            }
+            if (!second.hasAction || !second.isActionAllowed) {
+                second.action = "none";
+                second.hasAction = true;
+                second.isActionAllowed = true;
+            }
+            if (second.metadata == null) {
+                second.metadata = Collections.emptyMap();
+            }
+            return second;
+        } catch (Exception e) {
+            log.warn("格式修复调用失败，使用初次解析结果兜底: {}", e.getMessage());
+            if (!first.hasAction || !first.isActionAllowed) {
+                first.action = "none";
+                first.hasAction = true;
+                first.isActionAllowed = true;
+            }
+            if (first.metadata == null) {
+                first.metadata = Collections.emptyMap();
+            }
+            return first;
+        }
+    }
+
+    /**
+     * 解析文章ID
+     * 
+     * @param articleIdObj 文章ID对象
+     * @return 解析后的文章ID，解析失败返回null
+     */
+    private Long parseArticleId(Object articleIdObj) {
+        if (articleIdObj instanceof Number) {
+            return ((Number) articleIdObj).longValue();
+        } else if (articleIdObj instanceof String) {
+            try {
+                return Long.parseLong((String) articleIdObj);
+            } catch (NumberFormatException e) {
+                log.warn("文章ID格式错误: {}", articleIdObj);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 判定用户是否明确请求触发动作（导航/交互/搜索/展示）。
+     * 使用简单关键词匹配，避免在普通问答中误触发。
+     */
+    private boolean isExplicitActionRequest(String input) {
+        if (input == null) return false;
+        String s = input.trim();
+        if (s.isEmpty()) return false;
+        // 关键动词与常见表达（中文）
+        String[] keywords = {
+                "跳转", "打开", "进入", "去", "前往", "导航", "切换",
+                "点赞", "收藏", "分享", "评论",
+                "搜索", "查找",
+                "展示", "显示"
+        };
+        String lower = s.toLowerCase();
+        for (String kw : keywords) {
+            if (lower.contains(kw)) {
+                return true;
+            }
+        }
+        // 简单指令格式，例如：navigate:home / interact:like 等
+        for (String allowed : ALLOWED_ACTIONS) {
+            if (lower.contains(allowed)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

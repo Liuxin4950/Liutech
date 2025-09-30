@@ -201,7 +201,7 @@ public class UserController {
     public Result<String> deleteUser(
             @PathVariable Long id) {
         log.info("删除用户，ID: {}", id);
-        userManagementService.deleteUserById(id);
+        userManagementService.removeUserById(id);
         return Result.success("用户删除成功");
     }
 

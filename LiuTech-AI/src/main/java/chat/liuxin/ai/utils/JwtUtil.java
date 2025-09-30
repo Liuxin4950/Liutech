@@ -129,8 +129,9 @@ public class JwtUtil {
      */
     private Claims getClaimsFromToken(String token) {
         try {
-            return Jwts.parser()
+            return Jwts.parserBuilder()
                     .setSigningKey(getSigningKey())
+                    .build()
                     .parseClaimsJws(token)
                     .getBody();
         } catch (ExpiredJwtException e) {
