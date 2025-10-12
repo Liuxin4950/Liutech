@@ -1,10 +1,15 @@
-import { get } from './api'
+import { get, post } from './api'
 
 // 标签接口类型定义
 export interface Tag {
   id: number
   name: string
   postCount: number
+}
+
+// 创建标签请求接口
+export interface CreateTagRequest {
+  name: string
 }
 
 // 标签服务类
@@ -46,6 +51,14 @@ export class TagService {
    */
   static async searchTagsByName(name: string): Promise<Tag[]> {
     const response = await get('/tags/search', { name })
+    return response.data
+  }
+
+  /**
+   * 创建新标签
+   */
+  static async createTag(data: CreateTagRequest): Promise<Tag> {
+    const response = await post('/tags', data)
     return response.data
   }
 }

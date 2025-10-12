@@ -109,12 +109,26 @@
                   </button>
                 </span>
               </div>
-              <select v-model="selectedTagId" @change="addTag" class="field-select">
-                <option value="">选择标签</option>
-                <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">
-                  {{ tag.name }}
-                </option>
-              </select>
+              <div class="flex gap-8">
+                <select v-model="selectedTagId" @change="addTag" class="field-select" style="flex: 1;">
+                  <option value="">选择标签</option>
+                  <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">
+                    {{ tag.name }}
+                  </option>
+                </select>
+                <button 
+                  type="button" 
+                  @click="showCreateTagDialog" 
+                  class="btn-secondary" 
+                  title="创建新标签"
+                  style="padding: 8px 12px; min-width: auto;"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
           <!-- 图片 -->
@@ -167,16 +181,30 @@
           <div class="sidebar-item flex flex-ac gap-20">
             <div class="sidebar-title">文章分类</div>
             <div class="sidebar-content">
-              <select v-model="form.categoryId" class="field-select" required>
-              <option value="">请选择分类</option>
-              <option
-                v-for="category in categories"
-                :key="category.id"
-                :value="category.id"
-              >
-                {{ category.name }}
-              </option>
-            </select>
+              <div class="flex gap-8">
+                <select v-model="form.categoryId" class="field-select" required style="flex: 1;">
+                  <option value="">请选择分类</option>
+                  <option
+                    v-for="category in categories"
+                    :key="category.id"
+                    :value="category.id"
+                  >
+                    {{ category.name }}
+                  </option>
+                </select>
+                <button 
+                  type="button" 
+                  @click="showCreateCategoryDialog" 
+                  class="btn-secondary" 
+                  title="创建新分类"
+                  style="padding: 8px 12px; min-width: auto;"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -294,6 +322,71 @@
       </div>
     </div>
   </div>
+
+  <!-- 创建分类对话框 -->
+  <div v-if="showCreateCategoryDialogVisible" class="modal-overlay" @click="showCreateCategoryDialogVisible = false">
+    <div class="modal-content" @click.stop>
+      <div class="modal-header">
+        <h3>创建新分类</h3>
+        <button @click="showCreateCategoryDialogVisible = false" class="close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>分类名称 *</label>
+          <input 
+            v-model="newCategoryName" 
+            type="text" 
+            placeholder="请输入分类名称"
+            maxlength="50"
+            @keyup.enter="createCategory"
+          >
+        </div>
+        <div class="form-group">
+          <label>分类描述</label>
+          <textarea 
+            v-model="newCategoryDescription" 
+            placeholder="请输入分类描述（可选）"
+            maxlength="200"
+            rows="3"
+          ></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button @click="showCreateCategoryDialogVisible = false" class="btn btn-secondary">取消</button>
+        <button @click="createCategory" :disabled="creatingCategory" class="btn btn-primary">
+          {{ creatingCategory ? '创建中...' : '创建' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 创建标签对话框 -->
+  <div v-if="showCreateTagDialogVisible" class="modal-overlay" @click="showCreateTagDialogVisible = false">
+    <div class="modal-content" @click.stop>
+      <div class="modal-header">
+        <h3>创建新标签</h3>
+        <button @click="showCreateTagDialogVisible = false" class="close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>标签名称 *</label>
+          <input 
+            v-model="newTagName" 
+            type="text" 
+            placeholder="请输入标签名称"
+            maxlength="30"
+            @keyup.enter="createTag"
+          >
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button @click="showCreateTagDialogVisible = false" class="btn btn-secondary">取消</button>
+        <button @click="createTag" :disabled="creatingTag" class="btn btn-primary">
+          {{ creatingTag ? '创建中...' : '创建' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -302,6 +395,8 @@ import { useRouter, useRoute } from 'vue-router'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 import { PostService, type PostDetail } from '@/services/post'
 import { type Tag } from '@/services/tag'
+import { CategoryService, type CreateCategoryRequest } from '@/services/category'
+import { TagService, type CreateTagRequest } from '@/services/tag'
 import { ImageUploadService } from '@/services/utils'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -369,6 +464,15 @@ const attachments = ref<Array<{
   _prevPointsNeeded?: number // 上次积分值（用于失败回滚）
 }>>([])
 const uploadingAttachment = ref(false)
+
+// 创建分类和标签相关状态
+const showCreateCategoryDialogVisible = ref(false)
+const showCreateTagDialogVisible = ref(false)
+const creatingCategory = ref(false)
+const creatingTag = ref(false)
+const newCategoryName = ref('')
+const newCategoryDescription = ref('')
+const newTagName = ref('')
 
 // 可选标签（排除已选择的）
 const availableTags = computed(() => {
@@ -850,6 +954,103 @@ const formatFileSize = (bytes: number): string => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+
+// 显示创建分类对话框
+const showCreateCategoryDialog = () => {
+  showCreateCategoryDialogVisible.value = true
+  newCategoryName.value = ''
+  newCategoryDescription.value = ''
+}
+
+// 显示创建标签对话框
+const showCreateTagDialog = () => {
+  showCreateTagDialogVisible.value = true
+  newTagName.value = ''
+}
+
+// 创建新分类
+const createCategory = async () => {
+  if (!newCategoryName.value.trim()) {
+    Swal.fire('提示', '请输入分类名称', 'warning')
+    return
+  }
+
+  await handleAsync(async () => {
+    creatingCategory.value = true
+    
+    const categoryData: CreateCategoryRequest = {
+      name: newCategoryName.value.trim(),
+      description: newCategoryDescription.value.trim() || undefined
+    }
+    
+    const newCategory = await CategoryService.createCategory(categoryData)
+    
+    // 刷新分类列表
+    await categoryStore.fetchCategories(true)
+    
+    // 自动选择新创建的分类（添加空值检查）
+    if (newCategory && newCategory.id) {
+      form.value.categoryId = newCategory.id.toString()
+    }
+    
+    Swal.fire('成功', '分类创建成功！', 'success')
+  }, {
+    onError: (err) => {
+      console.error('创建分类失败:', err)
+      Swal.fire('错误', `创建分类失败: ${err.message || '请重试'}`, 'error')
+    },
+    onFinally: () => {
+      // 无论成功还是失败，都要执行清理操作
+      creatingCategory.value = false
+      // 清空输入框
+      newCategoryName.value = ''
+      newCategoryDescription.value = ''
+      // 关闭对话框
+      showCreateCategoryDialogVisible.value = false
+    }
+  })
+}
+
+// 创建新标签
+const createTag = async () => {
+  if (!newTagName.value.trim()) {
+    Swal.fire('提示', '请输入标签名称', 'warning')
+    return
+  }
+
+  await handleAsync(async () => {
+    creatingTag.value = true
+    
+    const tagData: CreateTagRequest = {
+      name: newTagName.value.trim()
+    }
+    
+    const newTag = await TagService.createTag(tagData)
+    
+    // 刷新标签列表
+    await tagStore.fetchTags(true)
+    
+    // 自动添加新创建的标签到已选择列表（添加空值检查）
+    if (newTag && newTag.id) {
+      selectedTags.value.push(newTag)
+    }
+    
+    Swal.fire('成功', '标签创建成功！', 'success')
+  }, {
+    onError: (err) => {
+      console.error('创建标签失败:', err)
+      Swal.fire('错误', `创建标签失败: ${err.message || '请重试'}`, 'error')
+    },
+    onFinally: () => {
+      // 无论成功还是失败，都要执行清理操作
+      creatingTag.value = false
+      // 清空输入框
+      newTagName.value = ''
+      // 关闭对话框
+      showCreateTagDialogVisible.value = false
+    }
+  })
+}
  
 // 组件挂载时加载数据
 onMounted(async () => {
@@ -1318,5 +1519,166 @@ onMounted(async () => {
     width: 95%;
     max-height: 90vh;
   }
+}
+
+/* 弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: var(--bg-main);
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-soft);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-soft);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--text-title);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-subtle);
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  background: var(--bg-main);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-soft);
+}
+
+.modal-footer .btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.modal-footer .btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-base);
+}
+
+.modal-footer .btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.modal-footer .btn-primary {
+  background: var(--color-primary);
+  color: white;
+  border: 1px solid var(--color-primary);
+}
+
+.modal-footer .btn-primary:hover {
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+}
+
+.modal-footer .btn-primary:disabled {
+  background: var(--text-muted);
+  border-color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-main);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(95, 145, 173, 0.1);
+}
+
+.form-group input:hover,
+.form-group textarea:hover {
+  border-color: var(--border-base);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
 }
 </style>

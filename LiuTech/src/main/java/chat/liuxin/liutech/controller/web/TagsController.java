@@ -3,8 +3,11 @@ package chat.liuxin.liutech.controller.web;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,6 +16,7 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
+import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -117,6 +121,41 @@ public class TagsController {
         List<TagResp> tags = tagsService.getTagsByName(name.trim());
         log.info("搜索标签成功 - 关键词: {}, 结果数量: {}", name, tags.size());
 
-        return Result.success("搜索成功", tags);
+        return Result.success("查询成功", tags);
+    }
+
+    /**
+     * 创建标签（需要登录）
+     *
+     * @param tag 标签信息
+     * @return 创建结果
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    public Result<TagResp> createTag(@RequestBody TagResp tag) {
+        log.info("创建标签 - 名称: {}", tag.getName());
+        
+        ValidationUtil.validateNotNull(tag, "标签信息");
+        ValidationUtil.validateNotBlank(tag.getName(), "标签名称");
+        
+        try {
+            boolean success = tagsService.save(tag);
+            if (success) {
+                log.info("标签创建成功 - 名称: {}", tag.getName());
+                return Result.success("标签创建成功", tag);
+            } else {
+                log.warn("标签创建失败 - 名称: {}", tag.getName());
+                return Result.fail(ErrorCode.TAG_CREATE_FAILED, "标签创建失败");
+            }
+        } catch (Exception e) {
+            log.error("标签创建异常 - 名称: {}, 错误:", tag.getName(), e);
+            
+            // 检查是否是重复名称错误
+            if (e.getMessage() != null && e.getMessage().contains("Duplicate entry") && e.getMessage().contains("tags.name")) {
+                return Result.fail(ErrorCode.TAG_CREATE_FAILED, "标签名称已存在，请使用其他名称");
+            }
+            
+            return Result.fail(ErrorCode.TAG_CREATE_FAILED, "系统错误，请稍后重试");
+        }
     }
 }

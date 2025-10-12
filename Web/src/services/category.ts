@@ -1,4 +1,4 @@
-import { get } from './api'
+import { get, post } from './api'
 
 // 分类接口类型定义
 export interface Category {
@@ -6,6 +6,12 @@ export interface Category {
   name: string
   description?: string
   postCount?: number
+}
+
+// 创建分类请求接口
+export interface CreateCategoryRequest {
+  name: string
+  description?: string
 }
 
 // 分类服务类
@@ -23,6 +29,14 @@ export class CategoryService {
    */
   static async getCategoryById(id: number): Promise<Category> {
     const response = await get(`/categories/${id}`)
+    return response.data
+  }
+
+  /**
+   * 创建新分类
+   */
+  static async createCategory(data: CreateCategoryRequest): Promise<Category> {
+    const response = await post('/categories', data)
     return response.data
   }
 }
