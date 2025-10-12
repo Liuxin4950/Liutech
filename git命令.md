@@ -1,7 +1,22 @@
 
-# Git 常用命令笔记
+# 📚 Git 常用命令笔记
 
-## 撤销与重置
+<div align="center">
+
+**Git 版本控制操作指南**
+
+![Git](https://img.shields.io/badge/Git-版本控制-F05032?style=flat-square&logo=git)
+![实用性](https://img.shields.io/badge/实用性-高频使用-brightgreen?style=flat-square)
+
+</div>
+
+> **作者**：刘鑫  
+> **更新时间**：2025-01-01  
+> **适用场景**：日常开发与版本管理
+
+---
+
+## 🔄 撤销与重置
 
 ### 场景 1：丢弃工作区未暂存的修改（让工作区和最后一次提交一致）
 如果工作区有未 git add 的修改，想丢弃这些改动，恢复到最后一次提交的文件状态，执行：
