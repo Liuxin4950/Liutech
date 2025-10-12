@@ -167,7 +167,7 @@ const editorConfig = computed(() => ({
   readonly: false, // 确保编辑器不是只读模式
   language_url: '/tinymce/langs/zh_CN.js', // 中文语言包路径
   language: 'zh_CN', // 设置语言为中文
-  base_url: '/node_modules/tinymce', // 设置TinyMCE资源基础路径
+  base_url: '/tinymce', // 设置TinyMCE资源基础路径
   suffix: '.min', // 使用压缩版本
   plugins: [
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',

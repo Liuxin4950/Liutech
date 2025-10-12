@@ -15,9 +15,30 @@ export interface RequestConfig extends AxiosRequestConfig {
   skipErrorHandler?: boolean // 是否跳过统一错误处理
 }
 
+// 动态获取后端URL（优先使用环境变量）
+const getBackendURL = (): string => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl
+  }
+  // 说明：优先使用 VITE_API_BASE_URL；若未配置，以下为兜底策略。
+  // 不建议在生产返回 'backend:8080'，该主机名仅在 Docker 网络内可解析，
+  // 浏览器在用户侧无法解析容器名，会导致请求失败。
+  // 开发环境兜底
+  if (import.meta.env.DEV) {
+    return 'http://127.0.0.1:8080'
+  }
+  // 生产环境兜底
+  const hostname = window.location.hostname
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return '/api'
+  }
+  return 'https://api.liutech.com'
+}
+
 // 创建 axios 实例
 const instance: AxiosInstance = axios.create({
-  baseURL: 'http://127.0.0.1:8080', // 后端接口的根地址
+  baseURL: getBackendURL(), // 后端接口的根地址
   timeout: 30000, // 请求超时的时间，单位是毫秒
   headers: {
     'Content-Type': 'application/json'

@@ -95,83 +95,110 @@ const refreshStatus = async () => {
   await checkAiStatus()
 }
 
-// 发送普通聊天消息
-const sendChat = async () => {
-  if (!chatInput.value.trim() || isLoading.value || isStreaming.value) return
+/**
+ * 上下文与消息工具函数
+ * 说明：这些工具仅做封装以提升代码可读性，不改变原有行为。
+ */
+type ActionMeta = Record<string, any>
 
-  const text = chatInput.value.trim()
-  // 记录最后一条用户输入（用于客户端保护）
-  lastUserMessage = text
+// 从当前路由构建聊天上下文
+const buildChatContext = (): Record<string, any> => {
+  const ctx: Record<string, any> = { page: route.name || '' }
+  if (route.name === 'post-detail' && route.params.id) {
+    const n = Number(route.params.id)
+    if (Number.isFinite(n)) ctx.postId = n
+  }
+  return ctx
+}
 
-  // 推送用户消息
-  const msgId = ++messageIdCounter
+// 推送一条用户消息并返回其ID
+const pushUserMessage = (text: string): number => {
+  const id = ++messageIdCounter
   messages.value.push({
-    id: msgId,
+    id,
     type: 'user',
     content: text,
     timestamp: new Date(),
     status: 'sending'
   })
+  return id
+}
+
+// 更新用户消息的投递状态
+const updateUserMessageStatus = (id: number, status: ChatMessage['status']) => {
+  const idx = messages.value.findIndex(m => m.id === id)
+  if (idx > -1) messages.value[idx].status = status
+}
+
+// 推送一条AI消息（支持错误标记）
+const pushAiMessage = (text: string, opts?: { isError?: boolean }) => {
+  messages.value.push({
+    id: ++messageIdCounter,
+    type: 'ai',
+    content: text,
+    timestamp: new Date(),
+    isError: !!opts?.isError
+  })
+}
+
+// 安全滚动到底部
+const safeScrollToBottom = async () => { await scrollToBottom() }
+
+// 意图检测：点赞/收藏（保持原有正则）
+const hasLikeIntent = (text: string) => /((给)?(这篇)?(文|文章)?点个?赞|点赞|喜欢|like)/i.test(text)
+const hasFavoriteIntent = (text: string) => /(收藏|加(个)?星|favorite|mark)/i.test(text)
+
+// 提取当前活跃文章ID（优先使用AI返回的meta，其次路由）
+const getActivePostId = (meta: ActionMeta): number | undefined => {
+  const raw = meta.postId ?? meta.articleId ?? meta.id ?? (route.name === 'post-detail' ? route.params.id : undefined)
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : undefined
+}
+
+// 发送普通聊天消息
+const sendChat = async () => {
+  if (!chatInput.value.trim() || isLoading.value || isStreaming.value) return
+
+  const text = chatInput.value.trim()
+  lastUserMessage = text // 用于客户端意图保护
+
+  const msgId = pushUserMessage(text)
   chatInput.value = ''
 
-  // 显示“思考中”
   isLoading.value = true
-  await scrollToBottom()
+  await safeScrollToBottom()
 
   try {
-    const context: Record<string, any> = {
-      page: route.name || '',
-    }
-    if (route.name === 'post-detail' && route.params.id) {
-      const n = Number(route.params.id)
-      if (Number.isFinite(n)) {
-        context.postId = n
-      }
-    }
-
-    const req: AiChatRequest = { message: text, context }
+    const req: AiChatRequest = { message: text, context: buildChatContext() }
     const resp: AiChatResponse = await Ai.chat(req)
 
-    // 更新用户消息状态
-    const idx = messages.value.findIndex(m => m.id === msgId)
-    if (idx > -1) messages.value[idx].status = 'delivered'
+    updateUserMessageStatus(msgId, 'delivered')
 
-    // 展示AI回复
     if (resp?.message) {
-      messages.value.push({
-        id: ++messageIdCounter,
-        type: 'ai',
-        content: resp.message,
-        timestamp: new Date()
-      })
+      pushAiMessage(resp.message)
     }
 
-    // 动作分发（默认none不执行）
     const action = resp?.action || 'none'
     const meta = resp?.metadata || {}
     await dispatchAction(action, meta)
   } catch (err) {
-    // 标记失败
-    const idx = messages.value.findIndex(m => m.id === msgId)
-    if (idx > -1) messages.value[idx].status = 'failed'
+    updateUserMessageStatus(msgId, 'failed')
     handleChatError(err, text)
   } finally {
     isLoading.value = false
-    await scrollToBottom()
+    await safeScrollToBottom()
   }
 }
 
 
 // 根据AI返回的动作执行页面跳转或业务操作
-const dispatchAction = async (action: string, meta: Record<string, any> = {}) => {
+/**
+ * 根据AI返回的动作执行页面跳转或业务操作
+ * 说明：保留原有动作集合与行为，仅整理结构与注释。
+ */
+const dispatchAction = async (action: string, meta: ActionMeta = {}) => {
   try {
-    const normalizeId = (): number | undefined => {
-      const raw = meta.postId ?? meta.articleId ?? meta.id ?? (route.name === 'post-detail' ? route.params.id : undefined)
-      const n = Number(raw)
-      return Number.isFinite(n) ? n : undefined
-    }
-    const hasLikeIntent = (text: string) => /((给)?(这篇)?(文|文章)?点个?赞|点赞|喜欢|like)/i.test(text)
-    const hasFavoriteIntent = (text: string) => /(收藏|加(个)?星|favorite|mark)/i.test(text)
+    const postId = getActivePostId(meta)
     
     console.log('执行动作:', action, '参数:', meta)
     
@@ -183,7 +210,7 @@ const dispatchAction = async (action: string, meta: Record<string, any> = {}) =>
         await handleNavigateAction(actionValue)
         break
       case 'interact':
-        await handleInteractAction(actionValue, normalizeId(), hasLikeIntent, hasFavoriteIntent)
+        await handleInteractAction(actionValue, postId, hasLikeIntent, hasFavoriteIntent)
         break
       case 'search':
         await handleSearchAction(actionValue, meta)
@@ -195,19 +222,13 @@ const dispatchAction = async (action: string, meta: Record<string, any> = {}) =>
         break
       default:
         // 兼容旧格式的动作
-        await handleLegacyAction(action, normalizeId(), hasLikeIntent, hasFavoriteIntent)
+        await handleLegacyAction(action, postId, hasLikeIntent, hasFavoriteIntent)
     }
   } catch (err: any) {
     console.warn('动作执行异常:', err)
-    messages.value.push({
-      id: ++messageIdCounter,
-      type: 'ai',
-      content: `❌ 动作执行失败：${err?.message || '未知错误'}`,
-      timestamp: new Date(),
-      isError: true
-    })
+    pushAiMessage(`❌ 动作执行失败：${err?.message || '未知错误'}`, { isError: true })
   } finally {
-    await scrollToBottom()
+    await safeScrollToBottom()
   }
 }
 
@@ -484,6 +505,10 @@ const scrollToBottom = async () => {
 }
 //emit("status-change", isActive.value)
 // 清空聊天记录
+/**
+ * 清空聊天记录并隐藏窗口
+ * 说明：保留原有重置项，额外复位 lastUserMessage。
+ */
 const clearChat = async () => {
   try {
       //隐藏聊天框
@@ -494,6 +519,7 @@ const clearChat = async () => {
       errorMessage.value = ''
       connectionStatus.value = 'disconnected'
       retryCount.value = 0
+      lastUserMessage = ''
     // // 调用后端API清空聊天记忆
     // const response = await Ai.clearChatMemory()
     

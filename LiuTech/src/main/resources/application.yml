@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    active: dev
   application:
     name: LiuTech
   main:
@@ -9,18 +11,21 @@ spring:
       max-request-size: 100MB
       enabled: true
   datasource:
-    url: jdbc:mysql://localhost:3306/liutech?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&autoReconnect=true&failOverReadOnly=false
+    # 数据源URL由不同环境的配置文件覆盖：
+    # - application-dev.yml：本地开发（示例使用 127.0.0.1:3307）
+    # - application-prod.yml：Docker/生产（示例使用 docker 网络主机名 mysql:3306）
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 10
-      idle-timeout: 600000
-      connection-timeout: 30000
-      max-lifetime: 1800000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 60000
+      max-lifetime: 900000
       leak-detection-threshold: 60000
       pool-name: HikariCP-Blog
+      connection-test-query: SELECT 1
   # data:
   #   redis:
   #     host: localhost
@@ -57,7 +62,12 @@ server:
 
 # 文件上传配置
 file:
-  upload-dir: uploads
+  upload:
+    base-path: ${FILE_UPLOAD_BASE_PATH:/app/uploads}  # 支持环境变量，默认Docker路径
+    max-file-size: 104857600  # 100MB = 100 * 1024 * 1024 字节
+    max-image-size: 10485760  # 10MB = 10 * 1024 * 1024 字节
+    url-prefix: /uploads
+  upload-dir: uploads  # 保持向后兼容
   tomcat:
     uri-encoding: UTF-8
 
