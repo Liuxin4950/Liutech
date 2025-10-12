@@ -11,7 +11,7 @@ WORKDIR /app
 # 复制package.json和package-lock.json到工作目录
 COPY package*.json ./
 
-# 安装依赖
+# 安装依赖 
 RUN npm ci
 
 # 复制源代码
