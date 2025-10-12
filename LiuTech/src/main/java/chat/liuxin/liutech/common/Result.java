@@ -77,6 +77,7 @@ public class Result<T> {
      * @return 成功的Result对象
      */
     public static <T> Result<T> success(String message, T data) {
+        
         return new Result<>(ErrorCode.SUCCESS.getCode(), message, data);
     }
 

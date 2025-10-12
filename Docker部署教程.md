@@ -196,3 +196,102 @@ services:
 ---
 
 以上就是“最简同域代理版”的全栈 Docker 部署教程。按此流程即可在本地或服务器快速上线，且配置集中、易于学习与维护。出现问题时，优先检查 Nginx `/api` 代理与前端 `VITE_API_BASE_URL`，通常即可定位并解决。
+
+## 八、命令详解与一步一步操作
+
+### 1）核心一键命令详解
+
+```bash
+docker-compose up --build -d
+```
+
+- `up`：按 `docker-compose.yml` 启动/创建所有服务。
+- `--build`：在启动前先构建有 `build:` 的服务镜像（`Web/`、`Admin/`、`LiuTech/`）。代码改动后需要它来重新打包镜像。
+- `-d`：以后台模式运行（detached），终端不阻塞。
+
+配套查看状态与日志：
+
+```bash
+docker-compose ps           # 查看服务运行状态
+docker-compose logs -f      # 跟随查看所有服务日志（按 Ctrl+C 退出）
+docker-compose logs -f web  # 只看某个服务日志（例如 web）
+```
+
+停止/重启/清理：
+
+```bash
+docker-compose restart backend  # 重启后端服务（不重建镜像）
+docker-compose down             # 停止并移除容器、网络（镜像保留）
+docker system prune -f          # 清理无用数据（谨慎使用）
+```
+
+容器与镜像基础：
+
+```bash
+docker ps -a      # 查看所有容器（包含已退出的）
+docker images     # 查看本地镜像列表
+docker exec -it backend sh  # 进入后端容器（Alpine 用 sh，Debian/Ubuntu 可用 bash）
+```
+
+### 2）从零到运行：最简 6 步
+
+1. 克隆/解压项目，确认根目录存在 `docker-compose.yml`、`nginx/` 等。
+2. 检查根 `.env` 端口是否可用（80、3306、8080、3000、3001）。若被占用，改 `.env` 即可。
+3. 确认前端生产环境：`Web/.env.production` 与 `Admin/.env.production` 都为 `VITE_API_BASE_URL=/api`。
+4. 一键启动：
+   ```bash
+   docker-compose up --build -d
+   ```
+5. 验证服务：
+   ```bash
+   docker-compose ps
+   # 访问：
+   # Web:   http://localhost
+   # Admin: http://admin.localhost
+   ```
+6. 若接口异常，查看日志定位：
+   ```bash
+   docker-compose logs -f nginx
+   docker-compose logs -f backend
+   ```
+
+### 3）更新代码后的正确姿势
+
+代码或依赖改动后，需要重新构建镜像：
+
+```bash
+docker-compose up -d --build
+```
+
+仅重启不生效的典型场景：修改了前端/后端代码，但只执行了 `docker-compose restart`，这不会重建镜像。必须带 `--build`。
+
+### 4）上传/静态资源目录说明
+
+- 后端文件上传目录由环境变量控制：`FILE_UPLOAD_BASE_PATH=/app/uploads`
+- 如需将上传文件持久化到宿主机，可在 `docker-compose.yml` 的 `backend` 服务里添加卷映射：
+
+```yaml
+services:
+  backend:
+    volumes:
+      - ./uploads:/app/uploads
+```
+
+这样容器内 `/app/uploads` 会映射到项目根的 `./uploads`，容器销毁仍保留数据。
+
+### 5）常见误区与修复
+
+- 前端 `.env.production` 写成了后端容器名（如 `http://backend:8080`）：浏览器无法解析容器内主机名，应统一写 `VITE_API_BASE_URL=/api` 并交由根 Nginx 反代。
+- 变更端口却未更新 `.env`：主机端口冲突导致容器启动失败，修改 `.env` 后重新 `up --build -d`。
+- 只编译未打包后端：`mvn clean compile` 不会生成 `target/*.jar`，导致 Dockerfile 的 `COPY target/liutech-backend-*.jar app.jar` 报错。应执行：
+  ```bash
+  mvn clean package -DskipTests
+  docker-compose up --build -d
+  ```
+
+### 6）快速排错清单
+
+- 检查 Nginx `/api` 反代：`docker-compose logs -f nginx`，确认转发到 `backend:8080`。
+- 后端 401：这是正常的未登录响应，先完成登录流程或在请求头带 `Authorization: Bearer <token>`。
+- 数据库连接失败：确认 `mysql` 服务 `Up`，并检查 `SPRING_DATASOURCE_URL`、用户名密码。
+- 端口占用：调整 `.env` 中相关端口，重新 `up --build -d`。
