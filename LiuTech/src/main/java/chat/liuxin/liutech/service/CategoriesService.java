@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.*;
 import chat.liuxin.liutech.model.Categories;
 import chat.liuxin.liutech.model.Posts;
@@ -121,6 +122,26 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     }
 
     /**
+     * 根据分类名称查询分类
+     * 用于检查分类名称是否已存在
+     *
+     * @param name 分类名称
+     * @return 分类信息，不存在时返回null
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Cacheable(value = "categories", key = "#name")
+    public Categories getCategoryByName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        
+        LambdaQueryWrapper<Categories> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Categories::getName, name.trim());
+        return super.getOne(queryWrapper);
+    }
+
+    /**
      * 保存分类
      * 创建新分类，自动设置创建时间和更新时间
      *
@@ -132,6 +153,11 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      */
     @CacheEvict(value = "categories", allEntries = true)
     public boolean save(CategoryResp categoryResp) {
+        // 检查分类名称是否已存在
+        if (getCategoryByName(categoryResp.getName()) != null) {
+            throw new BusinessException(ErrorCode.CATEGORY_NAME_EXISTS);
+        }
+        
         Categories category = new Categories();
         category.setName(categoryResp.getName());
         category.setDescription(categoryResp.getDescription());

@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.mapper.TagsMapper;
 import chat.liuxin.liutech.model.PostTags;
@@ -87,6 +88,11 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @return 匹配的标签列表，包含文章数量统计
      */
     public List<TagResp> getTagsByName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            log.warn("搜索关键词为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+
         return tagsMapper.selectTagsByName(name);
     }
 
@@ -149,6 +155,25 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     }
 
     /**
+     * 根据标签名称查询标签
+     * 用于检查标签名称是否已存在
+     *
+     * @param name 标签名称
+     * @return 标签信息，不存在时返回null
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    public Tags getTagByName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            return null;
+        }
+        
+        LambdaQueryWrapper<Tags> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Tags::getName, name.trim());
+        return super.getOne(queryWrapper);
+    }
+
+    /**
      * 保存标签（接受TagResl参数）
      * 创建新标签，自动设置创建时间和更新时间
      *
@@ -160,6 +185,11 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      */
     @CacheEvict(value = "hotTags", allEntries = true)
     public boolean save(TagResp tagResp) {
+        // 检查标签名称是否已存在
+        if (getTagByName(tagResp.getName()) != null) {
+            throw new BusinessException(ErrorCode.TAG_NAME_EXISTS);
+        }
+        
         Tags tag = new Tags();
         tag.setName(tagResp.getName());
         tag.setDescription(tagResp.getDescription());
