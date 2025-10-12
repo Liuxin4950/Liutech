@@ -90,7 +90,7 @@ const editorConfig = computed(() => ({
   readonly: false,
   language_url: '/tinymce/langs/zh_CN.js', // 中文语言包路径
   language: 'zh_CN',
-  base_url: '/node_modules/tinymce',
+  base_url: '/tinymce',
   suffix: '.min',
   plugins: [
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',

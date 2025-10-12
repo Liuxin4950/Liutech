@@ -361,14 +361,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.profile-page {
-  background: var(--bg-main);
-}
-
 /* 个人资料横幅 */
 .profile-banner {
   width: 100%;
-  height: 220px;
+  height: 400px;
+  background: var(--color-primary);
   overflow: hidden;
   z-index: 1;
   position: absolute;
@@ -378,6 +375,7 @@ onMounted(async () => {
 }
 
 .profile-header {
+  margin-top: 50px;
   height: 100%;
   position: relative;
   z-index: 2;
@@ -640,7 +638,7 @@ onMounted(async () => {
 
 .btn-secondary {
   background-color: var(--color-primary-light);
-  color: var(--text-title);
+  color: var(--text-main);
 }
 
 .btn-secondary:hover {

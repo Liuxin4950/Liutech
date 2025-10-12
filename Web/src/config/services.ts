@@ -22,11 +22,27 @@ export interface ServiceConfig {
 
 // 环境配置
 const isDevelopment = import.meta.env.DEV
+const isProduction = import.meta.env.PROD
+
+// 获取后端服务地址（优先使用环境变量）
+const getBackendURL = (): string => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl
+  }
+  if (isDevelopment) {
+    return 'http://127.0.0.1:8080'
+  }
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return '/api'
+  }
+  return 'https://api.liutech.com'
+}
 
 // 服务配置映射
 export const SERVICE_CONFIG: Record<ServiceType, ServiceConfig> = {
   [ServiceType.MAIN]: {
-    baseURL: isDevelopment ? 'http://127.0.0.1:8080' : 'https://api.liutech.com',
+    baseURL: getBackendURL(),
     timeout: 30000,
     name: '主服务'
   },

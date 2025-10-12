@@ -83,11 +83,11 @@ public class SecurityConfig {
                 .requestMatchers("/user/register", "/user/login").permitAll()
                 // 预检请求必须放行，否则浏览器跨域会被拦截
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                
+
                 // ========== 管理端接口（需要认证，具体权限由@PreAuthorize控制） ==========
                 // 注意：必须放在 /tags/** 等通配符之前，避免被误匹配为公开接口
                 .requestMatchers("/admin/**").authenticated()  // 管理端接口需要认证
-                
+
                 // ========== 只读公开接口（GET请求） ==========
                 .requestMatchers("GET", "/posts/**").permitAll()  // 所有文章查询接口
                 .requestMatchers("GET", "/categories/**").permitAll()  // 所有分类接口
@@ -96,14 +96,14 @@ public class SecurityConfig {
                 .requestMatchers("GET", "/announcements/**").permitAll()  // 所有公告查询接口
                 .requestMatchers("GET", "/user/{id}").permitAll()  // 用户信息查询
                 .requestMatchers("GET", "/user/profile").permitAll()  // 个人资料信息（首页展示）
-                
+
                 // ========== 静态资源访问（无需认证） ==========
                 .requestMatchers("/uploads/**").permitAll()  // 上传文件访问
                 .requestMatchers("/files/**").permitAll()  // 文件访问路径
-                
+
                 // ========== 文件上传接口（需要认证） ==========
                 .requestMatchers("POST", "/upload/**").authenticated()  // 文件上传需要认证
-                
+
                 // ========== 其他所有请求都需要认证 ==========
                 // 包括：POST、PUT、DELETE等写操作
                 // 这样就不用一个个配置了，默认保护所有写操作

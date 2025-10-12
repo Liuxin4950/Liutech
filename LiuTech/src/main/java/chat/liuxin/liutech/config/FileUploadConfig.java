@@ -19,7 +19,28 @@ public class FileUploadConfig {
     /**
      * 文件上传根目录
      */
-    private String basePath = System.getProperty("user.dir") + "/uploads";
+    private String basePath = getDefaultBasePath();
+    
+    /**
+     * 获取默认的文件上传根目录（为了兼容docker，不知道文件放哪里的问题）
+     * 优先使用环境变量，其次使用系统属性，最后使用默认路径
+     */
+    private String getDefaultBasePath() {
+        // 1. 优先使用环境变量（Docker环境）
+        String envPath = System.getenv("FILE_UPLOAD_BASE_PATH");
+        if (envPath != null && !envPath.trim().isEmpty()) {
+            return envPath;
+        }
+        
+        // 2. 使用系统属性
+        String propPath = System.getProperty("file.upload.base-path");
+        if (propPath != null && !propPath.trim().isEmpty()) {
+            return propPath;
+        }
+        
+        // 3. 默认路径（开发环境）
+        return System.getProperty("user.dir") + "/uploads";
+    }
     
     /**
      * 图片上传目录
