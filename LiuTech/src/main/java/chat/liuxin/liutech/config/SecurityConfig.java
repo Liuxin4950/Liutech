@@ -89,20 +89,14 @@ public class SecurityConfig {
                 .requestMatchers("/admin/**").authenticated()  // 管理端接口需要认证
 
                 // ========== 只读公开接口（GET请求） ==========
-                .requestMatchers("GET", "/posts/**").permitAll()  // 所有文章查询接口
-                .requestMatchers("GET", "/categories/**").permitAll()  // 所有分类接口
-                .requestMatchers("GET", "/tags/**").permitAll()  // 所有标签接口
-                .requestMatchers("GET", "/comments/**").permitAll()  // 所有评论查询接口
-                .requestMatchers("GET", "/announcements/**").permitAll()  // 所有公告查询接口
-                .requestMatchers("GET", "/user/{id}").permitAll()  // 用户信息查询
-                .requestMatchers("GET", "/user/profile").permitAll()  // 个人资料信息（首页展示）
-
-                // ========== 静态资源访问（无需认证） ==========
-                .requestMatchers("/uploads/**").permitAll()  // 上传文件访问
-                .requestMatchers("/files/**").permitAll()  // 文件访问路径
-
-                // ========== 文件上传接口（需要认证） ==========
-                .requestMatchers("POST", "/upload/**").authenticated()  // 文件上传需要认证
+                .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/tags/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/announcements/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/user/{id}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/user/profile").permitAll()
+                .requestMatchers(HttpMethod.POST, "/upload/**").authenticated()
 
                 // ========== 其他所有请求都需要认证 ==========
                 // 包括：POST、PUT、DELETE等写操作
@@ -124,32 +118,38 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-
-        // 允许的源（前端地址）
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:3001",
-            "http://127.0.0.1:3001"
+    
+        // 允许的源（前端地址）——使用patterns支持端口与子域名，解决服务器环境 liuxin.chat:3000 的跨域
+        configuration.setAllowedOriginPatterns(Arrays.asList(
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "http://liuxin.chat",
+            "https://liuxin.chat",
+            "http://liuxin.chat:*",
+            "https://liuxin.chat:*",
+            "http://www.liuxin.chat",
+            "https://www.liuxin.chat",
+            "http://www.liuxin.chat:*",
+            "https://www.liuxin.chat:*"
         ));
-
+    
         // 允许的HTTP方法
         configuration.setAllowedMethods(Arrays.asList(
             "GET", "POST", "PUT", "DELETE", "OPTIONS"
         ));
-
+    
         // 允许的请求头
         configuration.setAllowedHeaders(Arrays.asList("*"));
-
+    
         // 允许发送凭证（如cookies）
         configuration.setAllowCredentials(true);
-
+    
         // 预检请求的缓存时间（秒）
         configuration.setMaxAge(3600L);
-
+    
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
+    
         return source;
     }
 

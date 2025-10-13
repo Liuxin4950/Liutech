@@ -39,7 +39,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request,HttpServletResponse response,FilterChain filterChain) throws ServletException, IOException {
         try {
-            log.info("处理请求: {} {}", request.getMethod(), request.getRequestURI());
+            String requestURI = request.getRequestURI();
+            String method = request.getMethod();
+            log.info("处理请求: {} {}", method, requestURI);
+            
+            // 跳过公开接口，不进行JWT验证
+            if (shouldSkipAuthentication(requestURI, method)) {
+                log.info("跳过JWT验证的公开接口: {} {}", method, requestURI);
+                filterChain.doFilter(request, response);
+                return;
+            }
             
             String token = extractTokenFromRequest(request);
             if (token != null) {
@@ -49,6 +58,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.error("JWT认证过程中发生错误，请求路径: {}, 错误: {}", request.getRequestURI(), e.getMessage());
         }
         filterChain.doFilter(request, response);
+    }
+    
+    /**
+     * 判断是否应该跳过JWT认证
+     * @param requestURI 请求URI
+     * @param method HTTP方法
+     * @return 是否跳过认证
+     */
+    private boolean shouldSkipAuthentication(String requestURI, String method) {
+        // 跳过登录注册接口
+        if ("/user/login".equals(requestURI) || "/user/register".equals(requestURI)) {
+            return true;
+        }
+        
+        // 跳过OPTIONS预检请求
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
+        
+        // 跳过根路径
+        if ("/".equals(requestURI)) {
+            return true;
+        }
+        
+        // 跳过静态资源
+        if (requestURI.startsWith("/uploads/") || requestURI.startsWith("/files/")) {
+            return true;
+        }
+        
+        // 跳过只读公开接口（GET请求）
+        if ("GET".equalsIgnoreCase(method)) {
+            if (requestURI.startsWith("/posts/") || 
+                requestURI.startsWith("/categories/") || 
+                requestURI.startsWith("/tags/") || 
+                requestURI.startsWith("/comments/") || 
+                requestURI.startsWith("/announcements/") ||
+                requestURI.matches("/user/\\d+") ||
+                "/user/profile".equals(requestURI)) {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     /**

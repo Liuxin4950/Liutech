@@ -1,0 +1,105 @@
+@echo off
+chcp 65001 >nul
+REM LiuTech Project Build Script (Windows)
+REM Author: Liu Xin
+REM Description: Ensure JAR is repackaged and images are rebuilt after code changes
+
+echo ==========================================
+echo LiuTech Project Build Started
+echo Time: %date% %time%
+echo ==========================================
+
+REM 1. Build Backend
+echo [1/4] Building Backend Service...
+echo Cleaning and compiling backend project...
+call mvn -f LiuTech/pom.xml clean package -DskipTests
+if %errorlevel% neq 0 (
+    echo [ERROR] Backend compilation failed!
+    pause
+    exit /b 1
+)
+
+echo Building backend Docker image...
+call docker build -t liutech-backend:latest -f LiuTech/Dockerfile LiuTech
+if %errorlevel% neq 0 (
+    echo [ERROR] Backend image build failed!
+    pause
+    exit /b 1
+)
+
+REM 2. Build Web Frontend
+echo [2/4] Building Web Frontend...
+cd Web
+call npm ci
+if %errorlevel% neq 0 (
+    echo [ERROR] Web frontend dependency installation failed!
+    cd ..
+    pause
+    exit /b 1
+)
+
+call npm run build
+if %errorlevel% neq 0 (
+    echo [ERROR] Web frontend build failed!
+    cd ..
+    pause
+    exit /b 1
+)
+
+call docker build -t liutech-web:latest .
+if %errorlevel% neq 0 (
+    echo [ERROR] Web frontend image build failed!
+    cd ..
+    pause
+    exit /b 1
+)
+cd ..
+
+REM 3. Build Admin Frontend
+echo [3/4] Building Admin Frontend...
+cd Admin
+call npm ci
+if %errorlevel% neq 0 (
+    echo [ERROR] Admin frontend dependency installation failed!
+    cd ..
+    pause
+    exit /b 1
+)
+
+call npm run build
+if %errorlevel% neq 0 (
+    echo [ERROR] Admin frontend build failed!
+    cd ..
+    pause
+    exit /b 1
+)
+
+call docker build -t liutech-admin:latest .
+if %errorlevel% neq 0 (
+    echo [ERROR] Admin frontend image build failed!
+    cd ..
+    pause
+    exit /b 1
+)
+cd ..
+
+REM 4. Build Nginx
+echo [4/4] Building Nginx Service...
+call docker build -t liutech-nginx:latest nginx/
+if %errorlevel% neq 0 (
+    echo [ERROR] Nginx image build failed!
+    pause
+    exit /b 1
+)
+
+REM 5. Display build results
+echo ==========================================
+echo [SUCCESS] Build completed! Image list:
+call docker images | findstr liutech
+echo ==========================================
+
+echo [INFO] Use the following commands to start services:
+echo   Local development: docker-compose up -d
+echo ==========================================
+echo Build script completed successfully!
+pause
