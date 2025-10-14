@@ -38,3 +38,8 @@ build/
 ### 上传文件 ###
 /uploads/
 /f:/工程代码/Liutech/LiuTech/uploads/
+
+### Docker镜像文件 ###
+*.tar
+docker-images/
+*.tar.gz
