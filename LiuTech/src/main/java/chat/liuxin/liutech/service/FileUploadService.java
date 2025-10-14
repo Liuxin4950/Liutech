@@ -414,7 +414,7 @@ public class FileUploadService {
             // 删除物理文件
             if (resource.getFileUrl() != null) {
                 String fileUrl = resource.getFileUrl();
-                String prefix = "http://localhost:8080" + fileUploadConfig.getUrlPrefix() + "/";
+                String prefix = fileUploadConfig.getServerBaseUrl() + fileUploadConfig.getUrlPrefix() + "/";
                 String relativePath = fileUrl;
                 if (fileUrl.startsWith(prefix)) {
                     relativePath = fileUrl.substring(prefix.length());

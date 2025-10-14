@@ -1,4 +1,5 @@
 import { post } from './api'
+import { getServiceBaseURL, ServiceType } from '../config/services'
 
 /**
  * 图片上传响应接口
@@ -73,7 +74,7 @@ export class ImageUploadService {
         // 获取token
         const token = localStorage.getItem('token')
         
-        fetch('http://localhost:8080/upload/tinymce/image', {
+        fetch(`${getServiceBaseURL(ServiceType.MAIN)}/upload/tinymce/image`, {
           method: 'POST',
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''

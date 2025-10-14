@@ -142,7 +142,7 @@ public class FileUtil {
      */
     public String generateFileUrl(String relativePath) {
         // 返回完整的URL，TinyMCE需要完整URL才能正确获取图片尺寸
-        return "http://localhost:8080" + fileUploadConfig.getUrlPrefix() + "/" + relativePath;
+        return fileUploadConfig.getServerBaseUrl() + fileUploadConfig.getUrlPrefix() + "/" + relativePath;
     }
     
     /**

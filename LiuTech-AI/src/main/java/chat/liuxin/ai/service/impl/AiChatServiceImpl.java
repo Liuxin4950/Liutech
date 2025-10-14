@@ -20,6 +20,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.ollama.OllamaChatModel;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +60,9 @@ public class AiChatServiceImpl implements AiChatService {
     private final RetryTemplate retryTemplate;          // 重试模板
     private final ObjectMapper objectMapper;             // 用于构造metadata的JSON
     private final AiPromptConfig aiPromptConfig;         // 系统提示词配置
+
+    @Value("${server.base-url:http://localhost:8080}")
+    private String serverBaseUrl;
 
     /**
      * 控制上下文窗口大小：最多拼接最近N条历史（不含本轮输入）
@@ -450,7 +454,7 @@ public class AiChatServiceImpl implements AiChatService {
     private String fetchArticleContent(Long articleId) {
         try {
             // 构建请求URL
-            String apiUrl = "http://localhost:8080/posts/" + articleId;
+            String apiUrl = serverBaseUrl + "/posts/" + articleId;
             
             // 创建RestTemplate实例
             RestTemplate restTemplate = new RestTemplate();

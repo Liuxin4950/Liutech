@@ -1,5 +1,23 @@
 import { post } from './api'
 
+// 动态获取后端URL（优先使用环境变量）
+const getBackendURL = (): string => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl
+  }
+  // 开发环境兜底
+  if (import.meta.env.DEV) {
+    return 'http://127.0.0.1:8080'
+  }
+  // 生产环境兜底
+  const hostname = window.location.hostname
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return '/api'
+  }
+  return 'https://liutech.com'
+}
+
 /**
  * 图片上传响应接口
  * @author 刘鑫
@@ -75,7 +93,7 @@ export class ImageUploadService {
         // 获取token
         const token = localStorage.getItem('token')
         
-        fetch('http://localhost:8080/upload/tinymce/image', {
+        fetch(`${getBackendURL()}/upload/tinymce/image`, {
           method: 'POST',
           headers: {
             'Authorization': token ? `Bearer ${token}` : ''

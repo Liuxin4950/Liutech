@@ -14,6 +14,7 @@
  */
 import { onMounted, onBeforeUnmount, watch } from 'vue';
 import { ref } from 'vue';
+import { getServiceBaseURL, ServiceType } from '../config/services';
 
 // 声明全局变量类型
 declare global {
@@ -109,7 +110,7 @@ watch(
     async () => {
         // 队列非空且当前没有在播放时触发播放
         if (audioQueue.value.length > 0 && isAuto.value) {
-            const audioPath = "http://127.0.0.1:8081" + `${audioQueue.value[0]}`;
+            const audioPath = getServiceBaseURL(ServiceType.AI) + `${audioQueue.value[0]}`;
             try {
                 console.log("正在播放", audioPath);
                 isAuto.value = false;

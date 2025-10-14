@@ -2,7 +2,8 @@
 # 作者: 刘鑫
 # 时间: 2025-01-01
 
-FROM nginx:latest
+# 明确指定x86_64架构的nginx镜像
+FROM nginx:alpine
 
 # 复制自定义配置文件
 COPY nginx.conf /etc/nginx/nginx.conf

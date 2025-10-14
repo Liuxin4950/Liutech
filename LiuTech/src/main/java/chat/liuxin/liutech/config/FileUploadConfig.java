@@ -87,4 +87,31 @@ public class FileUploadConfig {
      * 访问URL前缀
      */
     private String urlPrefix = "/uploads";
+    
+    /**
+     * 服务器基础URL（用于生成完整的文件访问URL）
+     * 优先使用环境变量，其次使用配置文件，最后使用默认值
+     */
+    private String serverBaseUrl = getDefaultServerBaseUrl();
+    
+    /**
+     * 获取默认的服务器基础URL
+     * 优先使用环境变量（Docker环境），其次使用系统属性，最后使用默认值
+     */
+    private String getDefaultServerBaseUrl() {
+        // 1. 优先使用环境变量（Docker环境）
+        String envUrl = System.getenv("SERVER_BASE_URL");
+        if (envUrl != null && !envUrl.trim().isEmpty()) {
+            return envUrl;
+        }
+        
+        // 2. 使用系统属性
+        String propUrl = System.getProperty("server.base-url");
+        if (propUrl != null && !propUrl.trim().isEmpty()) {
+            return propUrl;
+        }
+        
+        // 3. 默认值（开发环境）
+        return "http://localhost:8080";
+    }
 }
