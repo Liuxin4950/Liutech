@@ -43,8 +43,9 @@ public class FileUtil {
         String datePath = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
         String relativePath = subPath + "/" + datePath + "/" + fileName;
         
-        // 创建完整的文件路径
-        Path fullPath = Paths.get(fileUploadConfig.getBasePath(), relativePath);
+        // 创建完整的文件路径（确保为绝对路径，避免Tomcat相对路径解析到临时目录）
+        Path base = Paths.get(fileUploadConfig.getBasePath());
+        Path fullPath = (base.isAbsolute() ? base : base.toAbsolutePath()).resolve(relativePath);
         
         // 确保目录存在
         Files.createDirectories(fullPath.getParent());

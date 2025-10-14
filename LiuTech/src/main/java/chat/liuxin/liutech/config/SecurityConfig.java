@@ -87,8 +87,12 @@ public class SecurityConfig {
                 // ========== 管理端接口（需要认证，具体权限由@PreAuthorize控制） ==========
                 // 注意：必须放在 /tags/** 等通配符之前，避免被误匹配为公开接口
                 .requestMatchers("/admin/**").authenticated()  // 管理端接口需要认证
-
                 // ========== 只读公开接口（GET请求） ==========
+                // 需要认证的文章接口
+                .requestMatchers(HttpMethod.GET, "/posts/my").authenticated()
+                .requestMatchers(HttpMethod.GET, "/posts/drafts").authenticated()
+                .requestMatchers(HttpMethod.GET, "/posts/favorites").authenticated()
+                // 公开的文章接口
                 .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/tags/**").permitAll()
@@ -96,6 +100,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/announcements/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/user/{id}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/user/profile").permitAll()
+                // 静态文件访问：允许无需登录访问 /uploads/**（由 WebMvc 静态资源映射提供文件）
+                .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                .requestMatchers(HttpMethod.HEAD, "/uploads/**").permitAll()
+                .requestMatchers(HttpMethod.OPTIONS, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/upload/**").authenticated()
 
                 // ========== 其他所有请求都需要认证 ==========
