@@ -89,6 +89,11 @@ public class SecurityConfig {
                 .requestMatchers("/admin/**").authenticated()  // 管理端接口需要认证
 
                 // ========== 只读公开接口（GET请求） ==========
+                // 需要认证的文章接口
+                .requestMatchers(HttpMethod.GET, "/posts/my").authenticated()
+                .requestMatchers(HttpMethod.GET, "/posts/drafts").authenticated()
+                .requestMatchers(HttpMethod.GET, "/posts/favorites").authenticated()
+                // 公开的文章接口
                 .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/tags/**").permitAll()

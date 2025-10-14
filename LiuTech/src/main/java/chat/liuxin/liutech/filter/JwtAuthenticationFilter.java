@@ -87,19 +87,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
         
-        // 跳过只读公开接口（GET请求）
-        if ("GET".equalsIgnoreCase(method)) {
-            if (requestURI.startsWith("/posts/") || 
-                requestURI.startsWith("/categories/") || 
-                requestURI.startsWith("/tags/") || 
-                requestURI.startsWith("/comments/") || 
-                requestURI.startsWith("/announcements/") ||
-                requestURI.matches("/user/\\d+") ||
-                "/user/profile".equals(requestURI)) {
-                return true;
-            }
-        }
-        
         return false;
     }
     
