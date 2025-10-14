@@ -49,6 +49,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=123456
+      - SERVER_BASE_URL=${SERVER_BASE_URL:-http://liuxin.chat}
     volumes:
       - upload_files:/app/uploads
     depends_on:
@@ -124,9 +125,9 @@ WEB_PORT=3000
 ADMIN_PORT=3001
 BACKEND_PORT=8080
 MYSQL_PORT=3306
-MYSQL_ROOT_PASSWORD=123456
 NGINX_HTTP=8888
 NGINX_HTTPS=8443
+MYSQL_ROOT_PASSWORD=123456
 EOF
 
 echo "环境配置文件创建完成！"
