@@ -472,6 +472,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 更新标签关联
         updatePostTags(req.getId(), req.getTagIds());
 
+        // 绑定草稿附件到文章（编辑模式下上传的新附件）
+        if (org.springframework.util.StringUtils.hasText(req.getDraftKey())) {
+            int bindCount = postAttachmentsMapper.bindDraftToPost(req.getDraftKey(), req.getId());
+            log.info("编辑时绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
+                    req.getId(), req.getDraftKey(), bindCount);
+        }
+
         return true;
     }
 

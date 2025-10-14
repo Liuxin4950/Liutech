@@ -73,4 +73,9 @@ public class PostUpdateReq {
      * 点赞次数
      */
     private Integer likeCount;
+
+    /**
+     * 草稿关联键（用于编辑时绑定新上传的附件）
+     */
+    private String draftKey;
 }

@@ -78,6 +78,7 @@
                             class="field-input text-sm" 
                             style="width: 100px;"
                             @focus="attachment._prevPointsNeeded = attachment.pointsNeeded"
+                            @input="onPointsNeededInput(attachment)"
                             @change="onPointsNeededChange(attachment)"
                           >
                           <span class="text-sm text-muted ml-4">积分</span>
@@ -462,6 +463,7 @@ const attachments = ref<Array<{
   downloadType: number // 0-免费，1-积分
   pointsNeeded: number // 所需积分
   _prevPointsNeeded?: number // 上次积分值（用于失败回滚）
+  _updateTimer?: any // 用于防抖更新的定时器句柄
 }>>([])
 const uploadingAttachment = ref(false)
 
@@ -579,6 +581,8 @@ const submitPost = async () => {
 
   await handleAsync(async () => {
     saving.value = true
+    // 提交前统一刷新附件收费设置，确保后端已持久化
+    await flushAttachmentMetaUpdates()
 
     let result
     if (isEditMode.value && editingPostId.value) {
@@ -592,7 +596,8 @@ const submitPost = async () => {
         status: form.value.status,
         tagIds: selectedTags.value.map(tag => tag.id),
         coverImage: form.value.coverImage || '',
-        thumbnail: form.value.thumbnail || ''
+        thumbnail: form.value.thumbnail || '',
+        draftKey: draftKey.value
       }
       result = await PostService.updatePost(editingPostId.value, updateData)
     } else {
@@ -633,6 +638,29 @@ const submitPost = async () => {
   })
 }
 
+// 刷新所有附件的收费设置到后端，避免输入未触发change导致未保存
+const flushAttachmentMetaUpdates = async () => {
+  const list = attachments.value
+  for (const att of list) {
+    // 取消未执行的定时器，改为立即同步
+    if (att._updateTimer) {
+      clearTimeout(att._updateTimer)
+      att._updateTimer = null
+    }
+    if (!att.resourceId) continue
+    try {
+      await PostService.updateAttachmentMeta(
+        att.resourceId,
+        att.downloadType === 1 ? 1 : 0,
+        att.downloadType === 1 ? Math.max(1, Math.floor(Number(att.pointsNeeded || 1))) : 0
+      )
+    } catch (err) {
+      console.error('同步附件收费设置失败:', err)
+      // 不阻塞整体提交，仅记录错误；如需更严格可在此抛出
+    }
+  }
+}
+
 // 返回上一页
 const goBack = () => {
   if (form.value.title || form.value.content) {
@@ -651,6 +679,48 @@ const goBack = () => {
   } else {
     router.back()
   }
+}
+
+// 输入时防抖更新积分，避免未触发change导致未保存
+const META_UPDATE_DELAY = 500
+const onPointsNeededInput = async (attachment: {
+  id: string
+  resourceId?: number
+  downloadType: number
+  pointsNeeded: number
+  _prevPointsNeeded?: number
+  _updateTimer?: any
+}) => {
+  if (attachment.downloadType !== 1) return
+
+  // 规范化为 >=1 的整数，但不在此处回滚，仅修正展示值
+  let val = Number(attachment.pointsNeeded)
+  if (!Number.isFinite(val) || val < 1) val = 1
+  attachment.pointsNeeded = Math.floor(val)
+
+  if (!attachment.resourceId) return
+
+  // 防抖：取消上次计划
+  if (attachment._updateTimer) {
+    clearTimeout(attachment._updateTimer)
+    attachment._updateTimer = null
+  }
+
+  // 计划一次更新
+  attachment._updateTimer = setTimeout(async () => {
+    try {
+      await PostService.updateAttachmentMeta(
+        attachment.resourceId!,
+        1,
+        attachment.pointsNeeded
+      )
+    } catch (err) {
+      console.error('防抖更新附件积分失败:', err)
+      // 不在输入过程中弹窗打断，留给提交前统一校验
+    } finally {
+      attachment._updateTimer = null
+    }
+  }, META_UPDATE_DELAY)
 }
 
 // 加载文章数据（编辑模式）
@@ -680,6 +750,26 @@ const loadPostData = async (postId: number) => {
         name: tag.name,
         postCount: 0  // 为编辑模式的标签添加默认的文章数量
       }))
+    }
+
+    // 加载该文章已有关联的附件（当前用户上传的，可编辑）
+    try {
+      const existing = await PostService.getPostAttachments(postId)
+      // 后端返回字段：attachmentId, resourceId, fileName, fileUrl, downloadType, pointsNeeded, createdTime
+      attachments.value = (existing as any[]).map(item => ({
+        id: (item.resourceId ?? item.attachmentId ?? Date.now()).toString(),
+        name: item.fileName || '未命名文件',
+        size: 0,
+        type: '未知类型',
+        url: item.fileUrl,
+        resourceId: item.resourceId,
+        attachmentId: item.attachmentId,
+        downloadType: Number(item.downloadType ?? 0),
+        pointsNeeded: Number(item.pointsNeeded ?? 0)
+      }))
+    } catch (e) {
+      console.error('加载文章附件失败:', e)
+      // 不影响编辑表单，附件区域留空
     }
   }, {
     onError: (err) => {
@@ -912,6 +1002,7 @@ const onPointsNeededChange = async (attachment: {
   downloadType: number
   pointsNeeded: number
   _prevPointsNeeded?: number
+  _updateTimer?: any
 }) => {
   if (attachment.downloadType !== 1) return
 
@@ -1055,18 +1146,16 @@ const createTag = async () => {
 // 组件挂载时加载数据
 onMounted(async () => {
   checkEditMode()
- 
-  // 如果不是编辑模式，生成新的 draftKey
-  if (!isEditMode.value) {
-    draftKey.value = generateDraftKey()
-    console.log('生成草稿键:', draftKey.value)
-  }
- 
+
+  // 无论是否编辑模式，都生成一个草稿键用于附件关联（编辑模式下用于绑定新上传的附件）
+  draftKey.value = generateDraftKey()
+  console.log('当前草稿键:', draftKey.value)
+
   await Promise.all([
     loadCategories(),
     loadTags()
   ])
- 
+
   // 如果是编辑模式，加载文章数据
   if (isEditMode.value && editingPostId.value) {
     await loadPostData(editingPostId.value)

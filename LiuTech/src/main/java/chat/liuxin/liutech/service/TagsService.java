@@ -64,6 +64,12 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param limit 限制数量
      * @return 热门标签列表
      */
+    /**
+     * Spring Cache 注解：缓存热点标签列表
+     * value = "hotTags" 指定缓存名
+     * key = "#limit" 以方法参数 limit 作为缓存键
+     * unless = "#result == null || #result.isEmpty()" 当返回值为 null 或空列表时不缓存
+     */
     @Cacheable(value = "hotTags", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<TagResp> getHotTags(Integer limit) {
         return tagsMapper.selectHotTags(limit);

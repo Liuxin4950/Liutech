@@ -34,6 +34,7 @@
             r.name as fileName,
             r.file_url as filePath,
             r.file_url as fileUrl,
+            r.download_type as downloadType,
             r.points_needed as pointsNeeded,
             pa.created_at as createdTime
         FROM post_attachments pa
@@ -53,6 +54,7 @@
             r.name as fileName,
             r.file_url as filePath,
             r.file_url as fileUrl,
+            r.download_type as downloadType,
             r.points_needed as pointsNeeded,
             pa.created_at as createdTime
         FROM post_attachments pa
@@ -71,6 +73,7 @@
             r.name as fileName,
             r.file_url as filePath,
             r.file_url as fileUrl,
+            r.download_type as downloadType,
             r.points_needed as pointsNeeded,
             pa.created_at as createdTime
         FROM post_attachments pa
