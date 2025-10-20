@@ -279,3 +279,31 @@ onMounted(() => {
     }
 }
 </style>
+
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  
+  @include respond(md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.category-card {
+  @include respond(sm) {
+    .flex.flex-ac.gap-16 {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    
+    .category-icon {
+      width: 40px;
+      height: 40px;
+    }
+  }
+}
+</style>

@@ -52,10 +52,12 @@
       <section v-if="post.attachments && post.attachments.length" class="mt-16">
         <h3 class="mb-12">附件</h3>
         <ul class="list-unstyled flex flex-col gap-8">
-          <li v-for="att in post.attachments" :key="att.attachmentId" class="flex flex-sb flex-ac bg-hover p-12 rounded">
+          <li v-for="att in post.attachments" :key="att.attachmentId"
+            class="flex flex-sb flex-ac bg-hover p-12 rounded">
             <div class="flex flex-col">
               <template v-if="att.purchased && att.fileUrl">
-                <a class="link" :href="att.fileUrl" target="_blank" rel="noopener" :title="att.fileName">📎 {{ att.fileName }}</a>
+                <a class="link" :href="att.fileUrl" target="_blank" rel="noopener" :title="att.fileName">📎 {{
+                  att.fileName }}</a>
               </template>
               <template v-else>
                 <span class="text-muted">📎 {{ att.fileName }}</span>
@@ -66,14 +68,12 @@
               </div>
             </div>
             <div class="flex gap-8">
-              <a v-if="att.purchased && att.fileUrl" class="action-btn" :href="att.fileUrl" target="_blank" rel="noopener">下载/查看</a>
-              <button
-                v-else-if="!att.purchased && att.pointsNeeded"
-                class="action-btn"
-                :disabled="purchasingId === att.resourceId"
-                @click="onPurchase(att.resourceId)"
-              >
-                {{ purchasingId === att.resourceId ? '购买中...' : (att.pointsNeeded ? `购买（${att.pointsNeeded} 积分）` : '购买') }}
+              <a v-if="att.purchased && att.fileUrl" class="action-btn" :href="att.fileUrl" target="_blank"
+                rel="noopener">下载/查看</a>
+              <button v-else-if="!att.purchased && att.pointsNeeded" class="action-btn"
+                :disabled="purchasingId === att.resourceId" @click="onPurchase(att.resourceId)">
+                {{ purchasingId === att.resourceId ? '购买中...' : (att.pointsNeeded ? `购买（${att.pointsNeeded} 积分）` : '购买')
+                }}
               </button>
             </div>
           </li>
@@ -174,9 +174,14 @@
       <p>文章不存在</p>
       <button @click="goBack" class="bg-primary text-center rounded transition mt-8">返回首页</button>
     </div>
-    
+
     <!-- 登录弹窗 -->
     <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
+
+    <!-- 目录导航 -->
+    <div class="table-of-contents-container">
+      <TableOfContents class="table-of-contents" v-if="post && !loading && !error" />
+    </div>
   </div>
 </template>
 
@@ -191,10 +196,11 @@ import CommentSection from '@/components/CommentSection.vue'
 import { isLoggedIn } from '../utils/auth'
 import LoginModal from '../components/LoginModal.vue'
 import { usePostInteractionStore } from '@/stores/postInteraction'
+import TableOfContents from '@/components/TableOfContents.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { handleAsync,showSuccessToast,showError } = useErrorHandler()
+const { handleAsync, showSuccessToast, showError } = useErrorHandler()
 
 // 已移除：旧的基于 referrer 的导航激活逻辑，改由 Header 基于当前路径自动判定
 // 响应式数据
@@ -522,10 +528,39 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }, { deep: true })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+.table-of-contents-container {
+  position: absolute;
+  right: -280px;
+  top: 20px;
+  width: 280px;
+  height: 100%;
+
+  .table-of-contents {
+    position: sticky;
+    right: 20px;
+    top: 90px;
+    width: 280px;
+    overflow-y: auto;
+    float: right;
+    margin-left: 20px;
+  }
+
+}
+
+
+
+
+
+
+
+
 .post-detail {
+  position: relative;
   margin: 0 auto;
 }
+
 .retry-btn {
   padding: 8px 16px;
   color: white;
@@ -594,14 +629,16 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .markdown-content :deep(*) {
   color: inherit;
 }
-.markdown-content :deep(span.td-span){
+
+.markdown-content :deep(span.td-span) {
   color: var(--text-main);
 }
 
-.markdown-content :deep(span.md-plain){
+.markdown-content :deep(span.md-plain) {
   color: var(--text-main);
 }
-.markdown-content :deep(code.box-sizing){
+
+.markdown-content :deep(code.box-sizing) {
   background-color: var(--text-main);
 }
 
@@ -610,7 +647,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .markdown-content :deep(th),
 .markdown-content :deep(td),
 .markdown-content :deep(th) {
-background-color: var(--bg-main);
+  background-color: var(--bg-main);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -668,7 +705,8 @@ background-color: var(--bg-main);
   border-color: var(--border-main);
 }
 
-.action-btn.liked, .action-btn.favorited {
+.action-btn.liked,
+.action-btn.favorited {
   background: var(--color-primary);
   color: #fff;
   border-color: var(--color-primary);
@@ -693,7 +731,7 @@ background-color: var(--bg-main);
   background: var(--bg-main);
   border: 1px solid var(--border-soft);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   gap: 8px;
   padding: 8px;
@@ -733,12 +771,15 @@ background-color: var(--bg-main);
   color: white;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
+// 响应式样式
+@include respond(md) {
+  .post-title {
+    font-size: 1.8rem;
+  }
+
   .post-actions {
     flex-direction: column;
     gap: 16px;
-    align-items: stretch;
   }
 
   .actions-left {
@@ -750,47 +791,10 @@ background-color: var(--bg-main);
     justify-content: center;
   }
 
-  .action-btn {
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-
-  .action-info {
-    font-size: 13px;
-  }
-
   .share-options {
     right: auto;
     left: 50%;
     transform: translateX(-50%);
-  }
-}
-
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .post-detail {
-    padding: 16px;
-  }
-
-  .post-header {
-    padding: 50px 20px 20px 20px;
-  }
- 
-  .back-btn-top {
-    top: 16px;
-    left: 16px;
-    padding: 6px 12px;
-    font-size: 13px;
-  }
-
-  .back-btn-top svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  .post-title {
-    font-size: 1.8rem;
   }
 }
 </style>

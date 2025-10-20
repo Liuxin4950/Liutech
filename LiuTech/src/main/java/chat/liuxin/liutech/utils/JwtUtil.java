@@ -21,6 +21,11 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
+    // 依赖说明：
+    // - 配置属性：jwt.secret（签名密钥）、jwt.expiration（过期毫秒数）
+    // - 第三方库：io.jsonwebtoken（JJWT）用于签名与解析
+    // - 本类仅封装 JWT 的生成/解析/校验，不做任何业务判定
+    
     /**
      * JWT密钥 - 从配置文件中读取
      */
@@ -49,11 +54,12 @@ public class JwtUtil {
      * @return JWT token字符串
      */
     public String generateToken(Long userId, String username, String passwordHash) {
+        // 说明：当前 claims 包含 userId/username/passwordHash
+        // 提示：passwordHash 仅用于校验旧密码变更导致的失效；不建议长期保留于token，后续可替换为 tokenVersion 或 lastPasswordChangeAt
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
         claims.put("passwordHash", passwordHash);
-        
         return createToken(claims, username);
     }
 
@@ -135,6 +141,7 @@ public class JwtUtil {
                     .parseClaimsJws(token)
                     .getBody();
         } catch (ExpiredJwtException e) {
+            // 过期：返回 null，由调用方决定是否提示重新登录
             log.warn("JWT token已过期: {}", e.getMessage());
             return null;
         } catch (UnsupportedJwtException e) {
@@ -171,6 +178,7 @@ public class JwtUtil {
      * @return true表示有效，false表示无效
      */
     public boolean validateToken(String token, String username) {
+        // 强校验：同时匹配用户名与未过期
         String tokenUsername = getUsernameFromToken(token);
         return tokenUsername != null && 
                tokenUsername.equals(username) && 
@@ -184,6 +192,7 @@ public class JwtUtil {
      * @return true表示有效，false表示无效
      */
     public boolean validateToken(String token) {
+        // 弱校验：只校验签名与未过期（不校验用户名）
         return getClaimsFromToken(token) != null && !isTokenExpired(token);
     }
 
@@ -194,15 +203,14 @@ public class JwtUtil {
      * @return 新的JWT token
      */
     public String refreshToken(String token) {
+        // 简单刷新：沿用旧claims生成新token（过期时间更新）
         Claims claims = getClaimsFromToken(token);
         if (claims == null) {
             return null;
         }
-        
         Long userId = ((Number) claims.get("userId")).longValue();
         String username = claims.getSubject();
         String passwordHash = (String) claims.get("passwordHash");
-        
         return generateToken(userId, username, passwordHash);
     }
 }

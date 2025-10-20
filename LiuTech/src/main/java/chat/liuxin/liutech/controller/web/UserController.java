@@ -33,6 +33,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/user")
 public class UserController {
 
+    // 依赖说明：
+    // - 应用服务：UserAuthService（认证流程：注册/登录/改密）、UserProfileService（资料与统计）、UserManagementService（用户管理）
+    // - 会话获取：UserUtils（从SecurityContext获取当前用户）
+    // 安全说明：
+    // - 根据 SecurityConfig：/user/register、/user/login 允许匿名，其余接口默认需要JWT认证
+    // - JwtAuthenticationFilter 在每次请求中解析JWT并注入 Authentication，供 UserUtils 与 @PreAuthorize 使用
+    // - 管理员接口建议使用 /admin/users 控制器（已加 @PreAuthorize('hasRole('ADMIN')')），本控制器的管理类接口默认仅需认证
+
     @Autowired
     private UserAuthService userAuthService;
 
@@ -53,6 +61,7 @@ public class UserController {
      */
     @PostMapping("/register")
     public Result<UserResp> register(@Valid @RequestBody RegisterReq registerReq) {
+        // 安全：匿名可调用；入参校验由 @Valid 驱动
         log.info("收到用户注册请求，用户名: {}", registerReq.getUsername());
         UserResp userResp = userAuthService.register(registerReq);
         log.info("用户注册成功，用户名: {}", registerReq.getUsername());
@@ -68,6 +77,7 @@ public class UserController {
      */
     @PostMapping("/login")
     public Result<LoginResp> login(@Valid @RequestBody LoginReq loginReq) {
+        // 安全：匿名可调用；返回 JWT token，前端保存并放入 Authorization: Bearer {token}
         log.info("收到用户登录请求，用户名: {}", loginReq.getUsername());
         LoginResp loginResp = userAuthService.login(loginReq);
         log.info("用户登录成功，用户名: {}", loginReq.getUsername());
@@ -82,6 +92,7 @@ public class UserController {
      */
     @GetMapping("/current")
     public Result<UserResp> getCurrentUser() {
+        // 安全：默认需认证；依赖 JwtAuthenticationFilter 提供的 Authentication，UserUtils 获取当前用户
         log.info("收到获取当前用户信息请求");
         Users currentUser = userUtils.getCurrentUser();
         if (currentUser == null) {
@@ -102,6 +113,7 @@ public class UserController {
      */
     @PutMapping("/password")
     public Result<String> changePassword(@Valid @RequestBody ChangePasswordReq changePasswordReq) {
+        // 安全：默认需认证；UserAuthService.changePasswordWithAuth 内部使用 UserUtils 获取当前用户并完成改密
         log.info("收到修改密码请求");
         userAuthService.changePasswordWithAuth(changePasswordReq);
         log.info("密码修改成功");
@@ -117,6 +129,7 @@ public class UserController {
      */
     @PutMapping("/profile")
     public Result<UserResp> updateProfile(@Valid @RequestBody UpdateProfileReq updateProfileReq) {
+        // 安全：默认需认证；Profile 更新由 UserProfileService 完成并返回脱敏信息
         log.info("收到更新个人资料请求");
         UserResp userResp = userProfileService.updateProfile(updateProfileReq);
         log.info("个人资料更新成功");
@@ -167,6 +180,7 @@ public class UserController {
      */
     @PostMapping
     public Result<String> createUser(@Valid @RequestBody Users user) {
+        // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验
         log.info("管理员创建用户: {}", user.getUsername());
         userManagementService.addUser(user);
         return Result.success("用户创建成功");
@@ -184,6 +198,7 @@ public class UserController {
     public Result<String> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody Users user) {
+        // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验
         log.info("更新用户信息，ID: {}, 用户名: {}", id, user.getUsername());
         user.setId(id); // 确保ID一致
         userManagementService.updateUser(user);
@@ -200,6 +215,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     public Result<String> deleteUser(
             @PathVariable Long id) {
+        // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验
         log.info("删除用户，ID: {}", id);
         userManagementService.removeUserById(id);
         return Result.success("用户删除成功");
@@ -213,6 +229,7 @@ public class UserController {
      */
     @GetMapping("/stats")
     public Result<?> getUserStats() {
+        // 安全：默认需认证；统计信息由 UserProfileService 聚合
         log.info("收到获取用户统计信息请求");
         Object stats = userProfileService.getCurrentUserStats();
         log.info("获取用户统计信息成功");
@@ -227,6 +244,7 @@ public class UserController {
      */
     @GetMapping("/profile")
     public Result<ProfileResp> getProfile() {
+        // 安全：此接口一般允许认证用户调用，返回当前用户资料卡片
         log.info("收到获取个人资料请求");
         ProfileResp profile = userProfileService.getProfile();
         log.info("获取个人资料成功");
@@ -241,6 +259,7 @@ public class UserController {
      */
     @GetMapping("/author/profile")
     public Result<ProfileResp> getAuthorProfile() {
+        // 安全：此接口通常为公开展示，可按需在 SecurityConfig 白名单中放行
         log.info("收到获取网站作者资料请求");
         ProfileResp profile = userProfileService.getDefaultProfile();
         log.info("获取网站作者资料成功");

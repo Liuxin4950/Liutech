@@ -281,7 +281,7 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .posts-page {
   max-width: 1200px;
   margin: 0 auto;
@@ -395,4 +395,39 @@ onMounted(async () => {
 
 /* 统一首页与全部文章列表的图片容器尺寸与样式 */
 .posts-img { width: 200px; height: 150px; background-color: white; border-radius: 12px; overflow: hidden; }
+
+@use "@/assets/styles/tokens" as *;
+
+.card.bg-card.flex.flex-fw.gap-16.flex-ac {
+  @include respond(md) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    
+    .flex.flex-ac.gap-8 {
+      flex-wrap: wrap;
+      
+      &.flex-1 {
+        flex: none;
+      }
+    }
+  }
+}
+
+.posts-img {
+  @include respond(md) {
+    aspect-ratio: 16/9;
+  }
+  
+  @include respond(sm) {
+    aspect-ratio: 16/9;
+  }
+}
+
+article.flex.gap-16 {
+  @include respond(md) {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
 </style>

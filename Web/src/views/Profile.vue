@@ -360,6 +360,56 @@ onMounted(async () => {
 })
 </script>
 
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+
+.profile-main {
+  @include respond(md) {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+  }
+}
+
+.user-header {
+  @include respond(sm) {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.user-meta {
+  @include respond(sm) {
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+}
+
+.flex.gap-20 {
+  @include respond(md) {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.stats-grid {
+  @include respond(sm) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+.user-badges {
+  @include respond(sm) {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+</style>
+
 <style scoped>
 /* 个人资料横幅 */
 .profile-banner {

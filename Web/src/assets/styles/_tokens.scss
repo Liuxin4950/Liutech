@@ -1,0 +1,20 @@
+// 全局 SCSS 设计 tokens：断点、间距、圆角、响应式混入
+$lg: 1024px;
+$md: 768px;
+$sm: 480px;
+
+$card-radius: 12px;
+$gap-lg: 20px;
+$gap-md: 16px;
+$gap-sm: 12px;
+
+// 通用响应式混入：在不同断点下注入样式
+@mixin respond($bp) {
+  @if $bp == lg {
+    @media (max-width: $lg) { @content; }
+  } @else if $bp == md {
+    @media (max-width: $md) { @content; }
+  } @else if $bp == sm {
+    @media (max-width: $sm) { @content; }
+  }
+}

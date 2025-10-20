@@ -2,7 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import './assets/styles/theme.css'
-import './assets/styles/styles.css'
+import './assets/styles/styles.scss'
 import App from './App.vue'
 // 引入路由
 import router from './router'

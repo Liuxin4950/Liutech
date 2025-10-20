@@ -205,7 +205,9 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+
 .section-header {
   margin-bottom: 24px;
   text-align: center;
@@ -320,5 +322,37 @@ onMounted(async () => {
   background-color: white;
   border-radius: 12px;
   overflow: hidden;
+}
+
+// 响应式样式
+@include respond(md) {
+  .actions-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .search-box {
+    max-width: none;
+  }
+
+  .list article {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .posts-img {
+    width: 100%;
+    height: 200px;
+  }
+
+  .relative h3 {
+    padding-right: 0 !important;
+  }
+
+  .flex.gap-12.text-sm.text-subtle {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 }
 </style>

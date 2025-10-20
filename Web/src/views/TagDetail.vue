@@ -260,7 +260,9 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+
 /* 修改人：刘鑫；修改时间：2025-08-26；统一列表为首页样式，仅保留必要差异化样式 */
 .tag-header {
   background: linear-gradient(135deg, var(--color-primary), var(--secondary-color));
@@ -286,7 +288,6 @@ onMounted(() => {
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
 }
-
 
 /* 统一图片尺寸与卡片结构 */
 .posts-img {
@@ -321,9 +322,11 @@ onMounted(() => {
   opacity: 0;
   transition: .5s;
 }
+
 .relative:hover .badge{
   opacity: 1;
 }
+
 @keyframes spin {
   0% {
     transform: rotate(0deg);
@@ -334,12 +337,26 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 768px) {
-
-  .post-cover,
-  .posts-img {
-    width: 100%;
-    height: auto;
+/* 简洁的移动端适配 */
+@include respond(md) {
+  .list article {
+    flex-direction: column;
+    
+    .posts-img {
+      width: 100%;
+      height: 200px;
+    }
+    
+    .flex.flex-sb.flex-ac {
+      align-items: flex-start;
+      gap: 8px;
+    }
+  }
+  
+  .flex.flex-sb.flex-ac.mb-20.flex-fw {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 }
 </style>

@@ -190,16 +190,19 @@ public class UserAuthService {
     public LoginResp login(LoginReq loginReq) {
         log.info("用户登录尝试，用户名: {}", loginReq.getUsername());
 
-        // 1. 查询并验证用户
+        // 依赖说明：查询与密码校验依赖 UserMapper/BCrypt；生成token依赖 JwtUtil
+        // 授权说明：后续请求由 JwtAuthenticationFilter 解析 token 并注入 Authentication
+
+        // 1. 查询并验证用户（存在且状态为启用）
         Users user = validateUserForLogin(loginReq);
 
-        // 2. 验证密码
+        // 2. 验证密码（BCrypt匹配）
         validatePassword(loginReq.getPassword(), user);
 
-        // 3. 更新最后登录时间
+        // 3. 更新最后登录时间（尽力而为，失败不影响登录）
         updateLastLoginTime(user);
 
-        // 4. 生成并返回JWT token
+        // 4. 生成并返回JWT token（claims: userId/username/passwordHash）
         return generateLoginResponse(user);
     }
 
@@ -277,6 +280,8 @@ public class UserAuthService {
      * @date 2025-01-30
      */
     private LoginResp generateLoginResponse(Users user) {
+        // 生成访问令牌：当前策略将 passwordHash 放入claims用于失效校验
+        // 建议后续替换为 tokenVersion 或 lastPasswordChangeAt，避免敏感信息进token
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getPasswordHash());
         log.info("为用户 {} 生成JWT token成功", user.getUsername());
 

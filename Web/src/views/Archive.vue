@@ -251,7 +251,9 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+
 .loading-spinner {
   width: 40px;
   height: 40px;
@@ -275,23 +277,36 @@ onMounted(() => {
   color: var(--color-primary);
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .content {
-    padding: 16px;
+.stat-item {
+  @include respond(md) {
+    flex: 1;
   }
-  
-  .posts-list {
-    margin-left: 12px;
+}
+
+.flex.flex-jc.gap-30 {
+  @include respond(md) {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.post-item {
+  @include respond(md) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
   
   .post-date {
-    width: 50px;
-    font-size: 11px;
+    @include respond(md) {
+      width: auto;
+    }
   }
-  
-  .stat-item {
-    text-align: center;
+}
+
+.posts-list {
+  @include respond(md) {
+    margin-left: 0;
   }
 }
 </style>

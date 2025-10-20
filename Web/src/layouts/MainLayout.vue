@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import {onMounted, ref} from 'vue'
-import {useRouter} from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
 import Banner from '@/components/Banner.vue'
@@ -89,7 +89,7 @@ const handleModelStatusChange = () => {
   if (modelToggleTimeout) {
     clearTimeout(modelToggleTimeout);
   }
-  
+
   // 设置防抖延迟
   modelToggleTimeout = setTimeout(() => {
     showModel.value = !showModel.value
@@ -120,24 +120,19 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       <div v-if="showModel" class="ai-content">
         <div class="ai-box">
           <Live2d @click="toggleChat" class="live2d"></Live2d>
-          <AiChat v-show="showChat" :class="{ 'ai-chat-active': aiChatActive }" class="ai-chat" @status-change="handleAIChat"></AiChat>
+          <AiChat v-show="showChat" :class="{ 'ai-chat-active': aiChatActive }" class="ai-chat"
+            @status-change="handleAIChat"></AiChat>
         </div>
       </div>
 
       <router-view />
     </main>
     <TheFooter />
-    <BottomNavigation 
-      @ai-chat-active="handleModelStatusChange"
-      @auth-required="handleAuthRequired"
-    ></BottomNavigation>
+    <BottomNavigation @ai-chat-active="handleModelStatusChange" @auth-required="handleAuthRequired"></BottomNavigation>
     <GlobalPageLoader :show="showLoader" />
-    
+
     <!-- 登录弹窗 -->
-    <LoginModal 
-      v-model:visible="showLoginModal" 
-      :message="loginMessage" 
-    />
+    <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
   </div>
 </template>
 
@@ -147,28 +142,32 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   display: flex;
   flex-direction: column;
 }
+
 .main-content {
   flex: 1;
 }
-.banner{
+
+.banner {
   height: 400px;
 }
-.ai-content{
-  width: 400px ;
-  height: 400px ;
+
+.ai-content {
+  width: 400px;
+  height: 400px;
   position: fixed;
   bottom: 0;
   right: 0;
   z-index: 10;
 }
 
-.ai-box,.live2d{
+.ai-box,
+.live2d {
   position: relative;
   width: 100%;
   height: 100%;
 }
 
-.ai-chat{
+.ai-chat {
   position: absolute;
   top: 0;
   left: 0;
@@ -187,5 +186,10 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   z-index: 11;
 }
 
-
+/* 响应式布局 */
+@media screen and (max-width: 768px) {
+  .banner {
+    height: 200px;
+  }
+}
 </style>

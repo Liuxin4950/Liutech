@@ -24,7 +24,7 @@
         <h2 class="text-lg text-primary flex flex-ac">
           <span class="text-xl">🔥</span> 热门标签
         </h2>
-        <div class="flex flex-wrap gap-12">
+        <div class="flex flex-wrap flex-fw gap-12" >
           <router-link
             v-for="tag in popularTags"
             :key="tag.id"
@@ -180,29 +180,34 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-/* 搜索框 */
-.search-section{
-  width: 100%;
-  .search-box {
-    width: 100%;
-    height: 40px;
-    input{
-      width: 100%;
-      height: 40px;
-      border-radius: 20px;
-      padding-left: 20px;
-      outline: none;
-      border: 1px solid var(--border-soft);
-    }
+@use "@/assets/styles/tokens" as *;
 
+.flex.flex-wrap.gap-12 {
+  @include respond(sm) {
+    gap: 8px;
+    
+    .tag {
+      font-size: 12px;
+      padding: 6px 10px;
+    }
   }
 }
 
+.tags-cloud {
+  @include respond(sm) {
+    gap: 8px;
+    
+    .tag-item {
+      font-size: 12px;
+      padding: 6px 10px;
+    }
+  }
+}
 
-
-/* 标签云内间距响应式优化 */
-@media (max-width: 768px) {
-
-
+.search-box input {
+  @include respond(sm) {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
 }
 </style>

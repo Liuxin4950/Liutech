@@ -37,6 +37,10 @@ import java.util.Arrays;
 @EnableMethodSecurity // 新增：启用方法级安全控制（如 @PreAuthorize）
 public class SecurityConfig {
 
+    // 依赖说明：
+    // - 依赖 JwtAuthenticationFilter 进行无状态认证
+    // - 使用统一响应体 Result 与错误码 ErrorCode 输出401/403
+    // - 通过 @EnableMethodSecurity 激活 @PreAuthorize 等注解
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -49,50 +53,42 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // 核心职责：统一安全策略
+        // - 关闭CSRF（REST场景）
+        // - 开启CORS（前端跨域）
+        // - 401/403 统一JSON返回（前端一致处理）
+        // - 会话无状态（走JWT）
+        // - 白名单优先（只放行公开接口）
+        // - 其他默认认证保护
+        // - 在 UsernamePasswordAuthenticationFilter 之前加入 JWT 认证过滤器
         http
-            // 禁用CSRF保护（对于REST API通常不需要）
             .csrf(AbstractHttpConfigurer::disable)
-            // 启用CORS
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            // 统一处理：未登录/权限不足时返回JSON（解决默认返回HTML的问题）
-            // 这样前端 http://localhost:3000 可以直接解析为统一的Result结构
             .exceptionHandling(ex -> ex
-                // 未认证（如未携带/携带无效Token）
                 .authenticationEntryPoint((request, response, authException) -> {
+                    // 统一401返回
                     response.setStatus(HttpStatus.UNAUTHORIZED.value());
                     response.setContentType("application/json;charset=UTF-8");
-                    // 统一响应体，错误码使用 ErrorCode.UNAUTHORIZED
                     Result<Void> body = Result.fail(ErrorCode.UNAUTHORIZED, "未登录或Token已失效");
                     new ObjectMapper().writeValue(response.getWriter(), body);
                 })
-                // 已认证但权限不足（如没有ADMIN角色）
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    // 统一403返回
                     response.setStatus(HttpStatus.FORBIDDEN.value());
                     response.setContentType("application/json;charset=UTF-8");
-                    // 统一响应体，错误码使用 ErrorCode.FORBIDDEN
                     Result<Void> body = Result.fail(ErrorCode.FORBIDDEN, "权限不足，拒绝访问");
                     new ObjectMapper().writeValue(response.getWriter(), body);
                 })
             )
-            // 设置会话管理为无状态（JWT不需要session）
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // 配置请求授权 - 优化版本：白名单模式，只配置公开接口
             .authorizeHttpRequests(authz -> authz
-                // ========== 完全公开的接口（无需任何认证） ==========
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/user/register", "/user/login").permitAll()
-                // 预检请求必须放行，否则浏览器跨域会被拦截
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                // ========== 管理端接口（需要认证，具体权限由@PreAuthorize控制） ==========
-                // 注意：必须放在 /tags/** 等通配符之前，避免被误匹配为公开接口
-                .requestMatchers("/admin/**").authenticated()  // 管理端接口需要认证
-                // ========== 只读公开接口（GET请求） ==========
-                // 需要认证的文章接口
+                .requestMatchers("/admin/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/posts/my").authenticated()
                 .requestMatchers(HttpMethod.GET, "/posts/drafts").authenticated()
                 .requestMatchers(HttpMethod.GET, "/posts/favorites").authenticated()
-                // 公开的文章接口
                 .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/tags/**").permitAll()
@@ -100,18 +96,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/announcements/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/user/{id}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/user/profile").permitAll()
-                // 静态文件访问：允许无需登录访问 /uploads/**（由 WebMvc 静态资源映射提供文件）
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/upload/**").authenticated()
-
-                // ========== 其他所有请求都需要认证 ==========
-                // 包括：POST、PUT、DELETE等写操作
-                // 这样就不用一个个配置了，默认保护所有写操作
                 .anyRequest().authenticated()
             )
-            // 添加JWT认证过滤器
+            // 依赖：JwtAuthenticationFilter 提供身份认证上下文
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
