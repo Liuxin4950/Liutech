@@ -5,6 +5,7 @@ spring:
     name: LiuTech
   main:
     allow-circular-references: true
+    banner-mode: off
   servlet:
     multipart:
       max-file-size: 100MB
@@ -26,19 +27,20 @@ spring:
       leak-detection-threshold: 60000
       pool-name: HikariCP-Blog
       connection-test-query: SELECT 1
+  # 关闭Redis自动配置（双保险，移除依赖同时也排除自动配置）
   # data:
-  #   redis:
-  #     host: localhost
-  #     port: 6379
-  #     password: ""    # 如果 Redis 没有密码可以留空
-  #     database: 0     # Redis 默认数据库 0
+    #   redis:
+    #     host: localhost
+    #     port: 6379
+    #     password: ""    # 如果 Redis 没有密码可以留空
+    #     database: 0     # Redis 默认数据库 0
 
 mybatis-plus:
   mapper-locations: classpath:/mapper/**/*.xml
   type-aliases-package: chat.liuxin.liutech.model
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       id-type: auto
@@ -52,10 +54,15 @@ mybatis-plus:
     reasonable: true
     supportMethodsArguments: true
     params: count=countSql
+
 logging:
   level:
-    com.baomidou.mybatisplus: debug  # 可选：显示生成的 SQL
-    org.hibernate.orm.connections.pooling: WARN
+    root: INFO
+    org.apache.ibatis: WARN
+    com.baomidou.mybatisplus: WARN
+    chat.liuxin.liutech.mapper: WARN
+    org.springframework.data.repository.config.RepositoryConfigurationDelegate: WARN
+    org.springframework.data.redis: WARN
 
 server:
   port: 8080

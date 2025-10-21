@@ -26,7 +26,7 @@ import java.util.Collection;
  * - 默认给所有登录用户 ROLE_USER
  * - 通过用户名匹配 admin 列表赋予 ROLE_ADMIN（可后续替换为数据库角色表）
  * 这样可让 @PreAuthorize("hasRole('ADMIN')") 立即生效，后续再演进为真正的RBAC。
- * 
+ *
  * 作者：刘鑫，时间：2025-08-26（Asia/Shanghai）
  */
 @Slf4j
@@ -46,15 +46,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String requestURI = request.getRequestURI();
             String method = request.getMethod();
-            log.info("处理请求: {} {}", method, requestURI);
-            
             // 跳过公开接口，不进行JWT验证
             if (shouldSkipAuthentication(requestURI, method)) {
                 log.info("跳过JWT验证的公开接口: {} {}", method, requestURI);
                 filterChain.doFilter(request, response);
                 return;
             }
-            
+
             String token = extractTokenFromRequest(request);
             if (token != null) {
                 processValidToken(token, request);
@@ -64,7 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         filterChain.doFilter(request, response);
     }
-    
+
     /**
      * 判断是否应该跳过JWT认证
      * @param requestURI 请求URI
@@ -92,7 +90,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return false;
     }
-    
+
     /**
      * 从请求中提取JWT token
      * @param request HTTP请求
@@ -105,7 +103,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return null;
     }
-    
+
     /**
      * 处理有效的JWT token
      * @param token JWT token
@@ -116,15 +114,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
             return;
         }
-        
+
         String username = jwtUtil.getUsernameFromToken(token);
         Long userId = jwtUtil.getUserIdFromToken(token);
-        
+
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             setAuthenticationContext(username, userId, request);
         }
     }
-    
+
     /**
      * 设置Spring Security认证上下文
      * @param username 用户名
@@ -144,7 +142,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 记录认证成功日志，包含用户名与角色
         log.info("JWT认证成功，用户: {}, 角色: {}, 请求路径: {}", username, authorities, request.getRequestURI());
     }
-    
+
     /**
      * 构建用户权限集合
      * @param username 用户名

@@ -85,9 +85,12 @@
             <appender-ref ref="ASYNC_ERROR_FILE"/>
         </root>
         
-        <!-- 开发环境显示SQL日志 -->
-        <logger name="chat.liuxin.liutech.mapper" level="DEBUG"/>
-        <logger name="com.baomidou.mybatisplus" level="DEBUG"/>
+        <!-- 开发环境下减少启动噪声 -->
+        <logger name="chat.liuxin.liutech.mapper" level="WARN"/>
+        <logger name="com.baomidou.mybatisplus" level="WARN"/>
+        <logger name="org.apache.ibatis" level="WARN"/>
+        <logger name="org.springframework.data.repository.config.RepositoryConfigurationDelegate" level="WARN"/>
+        <logger name="org.springframework.data.redis" level="WARN"/>
     </springProfile>
 
     <!-- 生产环境配置 -->
