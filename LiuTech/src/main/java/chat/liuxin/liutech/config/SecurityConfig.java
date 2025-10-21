@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.config;
 
 import chat.liuxin.liutech.filter.JwtAuthenticationFilter;
+import chat.liuxin.liutech.filter.RequestTraceFilter;
 import chat.liuxin.liutech.common.ErrorCode; // 新增：统一错误码
 import chat.liuxin.liutech.common.Result;    // 新增：统一响应体
 import com.fasterxml.jackson.databind.ObjectMapper; // 新增：用于将对象写为JSON
@@ -43,6 +44,9 @@ public class SecurityConfig {
     // - 通过 @EnableMethodSecurity 激活 @PreAuthorize 等注解
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
+    private RequestTraceFilter requestTraceFilter;
 
     /**
      * 配置安全过滤器链
@@ -103,6 +107,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             // 依赖：JwtAuthenticationFilter 提供身份认证上下文
+            .addFilterBefore(requestTraceFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
