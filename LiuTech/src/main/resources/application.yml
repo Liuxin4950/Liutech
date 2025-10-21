@@ -27,7 +27,6 @@ spring:
       leak-detection-threshold: 60000
       pool-name: HikariCP-Blog
       connection-test-query: SELECT 1
-  # 关闭Redis自动配置（双保险，移除依赖同时也排除自动配置）
   # data:
     #   redis:
     #     host: localhost

@@ -40,11 +40,11 @@ public class RequestTraceFilter extends OncePerRequestFilter {
 
         long start = System.currentTimeMillis();
         try {
-            log.info("请求开始: {} {} [traceId={}]", request.getMethod(), request.getRequestURI(), traceId);
+            log.info("===============================请求开始: {} {} [traceId={}]==================================", request.getMethod(), request.getRequestURI(), traceId);
             filterChain.doFilter(request, response);
         } finally {
             long cost = System.currentTimeMillis() - start;
-            log.info("请求结束: {} {} [traceId={}] - 用时: {} ms", request.getMethod(), request.getRequestURI(), traceId, cost);
+            log.info("==========================请求结束: {} {} [traceId={}] - 用时: {} ms==========================", request.getMethod(), request.getRequestURI(), traceId, cost);
             MDC.remove(TRACE_ID_KEY);
         }
     }

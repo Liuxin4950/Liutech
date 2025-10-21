@@ -67,7 +67,6 @@ public class RequestTimingAspect {
 
         // 记录请求开始
         long startTime = System.currentTimeMillis();
-        log.info("========== 请求开始 ==========");
         log.info("请求URL: {} {}", httpMethod, requestUrl);
         log.info("调用方法: {}.{}", className, methodName);
         log.info("客户端IP: {}", clientIp);
@@ -79,9 +78,6 @@ public class RequestTimingAspect {
             argsStr = filterSensitiveInfo(argsStr);
             log.info("请求参数: {}", argsStr);
         }
-
-        log.info("开始时间: {}", new java.util.Date(startTime));
-
         Object result;
         boolean success = true;
         String errorMessage = null;
@@ -99,7 +95,6 @@ public class RequestTimingAspect {
             long endTime = System.currentTimeMillis();
             long executionTime = endTime - startTime;
 
-            log.info("========== 请求结束 耗时:{} 执行结果:{} ==========",executionTime,success ? "成功" : "失败");
 
             if (!success && errorMessage != null) {
                 log.info("错误信息: {}", errorMessage);
@@ -107,12 +102,11 @@ public class RequestTimingAspect {
 
             // 性能警告
             if (executionTime > 3000) {
-                log.warn("⚠️ 请求执行时间过长: {} ms，建议优化性能", executionTime);
+                log.warn("== 警告：请求执行时间过长: {} ms，建议优化性能 ==", executionTime);
             } else if (executionTime > 1000) {
-                log.warn("⚠️ 请求执行时间较长: {} ms", executionTime);
+                log.warn("=== 警告：请求执行时间较长: {} ms ==", executionTime);
             }
 
-            log.info("================================");
         }
 
         return result;
