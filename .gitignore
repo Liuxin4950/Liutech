@@ -18,6 +18,8 @@ target/
 *.iws
 *.iml
 *.ipr
+*.log
+
 
 ### NetBeans ###
 /nbproject/private/
@@ -35,6 +37,11 @@ build/
 ### 编译文件 ###
 *.class
 
+# 日志文件与目录
+logs/
+**/logs/
+**/*.log
+
 ### 上传文件 ###
 /uploads/
 /f:/工程代码/Liutech/LiuTech/uploads/
@@ -43,3 +50,42 @@ build/
 *.tar
 docker-images/
 *.tar.gz
+# 作者：刘鑫
+# 修改时间：2025-11-12
+
+### 通用：不提交编译产物与日志文件 ###
+# Java/Maven 编译目录与包
+**/target/
+**/*.jar
+**/*.war
+**/*.ear
+
+# 前端(Node/Vite) 编译目录与依赖
+**/dist/
+**/node_modules/
+**/.vite/
+**/.cache/
+**/.eslintcache
+
+# 日志文件与目录
+logs/
+**/logs/
+**/*.log
+
+# 临时与系统文件
+**/*.tmp
+**/*.temp
+**/*.swp
+**/.DS_Store
+**/Thumbs.db
+
+# 项目子模块明确忽略（双保险）
+LiuTech/target/
+LiuTech-AI/target/
+Admin/dist/
+Web/dist/
+Admin/node_modules/
+Web/node_modules/
+LiuTech/logs/
+LiuTech-AI/logs/
+nginx/logs/

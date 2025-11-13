@@ -29,7 +29,7 @@
       </button>
 
       <!-- 发布文章（主操作） -->
-      <button
+      <button v-if="userStore.isAdmin"
         class="fab fab--primary"
         @click="goCreate"
         aria-label="发布文章"
@@ -42,7 +42,7 @@
       </button>
 
       <!-- 我的文章 -->
-      <button
+      <button v-if="userStore.isAdmin"
         class="fab"
         @click="goMyPosts"
         aria-label="我的文章"
@@ -73,8 +73,10 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const emit = defineEmits(['ai-chat-active', 'auth-required'])
 
 const scrollToTop = () => {

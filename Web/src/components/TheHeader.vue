@@ -72,7 +72,7 @@ const isActive = (section: string) => {
  */
 const handleClickOutside = (event: Event) => {
   const target = event.target as HTMLElement
-  
+
   // 只有点击在header外部时才关闭菜单
   if (!target.closest('header')) {
     if (isUserMenuOpen.value) {
@@ -101,71 +101,78 @@ onUnmounted(() => {
       <div class="text-xl font-bold link text-primary">
         <h2>LiuTech</h2>
       </div>
-      
+
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
         <ul class="flex gap-30">
-          <li><router-link to="/" class="nav-link transition" :class="{ 'is-active': isActive('home') }">首页</router-link></li>
-          <li><router-link to="/categories" class="nav-link transition" :class="{ 'is-active': isActive('categories') }">分类</router-link></li>
-          <li><router-link to="/tags" class="nav-link transition" :class="{ 'is-active': isActive('tags') }">标签</router-link></li>
-          <li><router-link to="/archive" class="nav-link transition" :class="{ 'is-active': isActive('archive') }">归档</router-link></li>
-          <li><router-link to="/about" class="nav-link transition" :class="{ 'is-active': isActive('about') }">关于我</router-link></li>
+          <li><router-link to="/" class="nav-link transition"
+              :class="{ 'is-active': isActive('home') }">首页</router-link></li>
+          <li><router-link to="/categories" class="nav-link transition"
+              :class="{ 'is-active': isActive('categories') }">分类</router-link></li>
+          <li><router-link to="/tags" class="nav-link transition"
+              :class="{ 'is-active': isActive('tags') }">标签</router-link></li>
+          <li><router-link to="/archive" class="nav-link transition"
+              :class="{ 'is-active': isActive('archive') }">归档</router-link></li>
+          <li><router-link to="/about" class="nav-link transition"
+              :class="{ 'is-active': isActive('about') }">关于我</router-link></li>
         </ul>
       </nav>
-      
 
-      <div class="flex flex-ac gap-16 nav-user" >
+
+      <div class="flex flex-ac gap-16 nav-user">
         <!-- 用户信息区域 -->
         <div class="relative user-menu-container">
           <!-- 已登录状态 -->
           <div v-if="userStore.isLoggedIn" class="flex flex-ac gap-8 link rounded transition" @click="toggleUserMenu">
             <div class="user-avatar rounded-full bg-primary flex flex-ct link">
               <img v-if="userStore.avatar" :src="userStore.avatar" :alt="userStore.username" class="fit rounded-full" />
-              <div v-else class="text-main font-semibold text-sm">{{ userStore.username?.charAt(0).toUpperCase() }}</div>
+              <div v-else class="text-main font-semibold text-sm">{{ userStore.username?.charAt(0).toUpperCase() }}
+              </div>
             </div>
             <div class="flex flex-col link">
               <span class="font-medium">{{ userStore.username }}</span>
-              <span class="flex text-sm text-muted"> <div class="user-points">{{ userStore.points }}</div>积分</span>
+              <span class="flex text-sm text-muted">
+                <div class="user-points">{{ userStore.points }}</div>积分
+              </span>
             </div>
           </div>
-          
+
           <!-- 未登录状态 -->
-          <button v-else class="text-main flex flex-ac gap-8 transition  rounded p-8 hover-lift" @click="navigateTo('/login')">
+          <button v-else class="text-main flex flex-ac gap-8 transition  rounded p-8 hover-lift"
+            @click="navigateTo('/login')">
             <span class="text-base">👤</span>
             <span>登录/注册</span>
           </button>
-          
+
           <!-- 用户下拉菜单 -->
           <div v-show="isUserMenuOpen" class="avatar-menu absolute card transition bg-main" @click.stop>
             <ul class="list">
               <li @click="navigateTo('/profile')" class="transition link">个人资料</li>
               <li @click="navigateTo('/chat-history')" class="transition link">聊天历史</li>
-              <li @click="navigateTo('/my-posts')" class="transition link">我的文章</li>
-              <li @click="navigateTo('/drafts')" class="transition link">草稿子箱</li>
+              <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="transition link">我的文章</li>
+              <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="transition link">草稿子箱</li>
               <li @click="navigateTo('/favorites')" class="transition link">我的收藏</li>
               <li @click="handleLogout" class="transition link border-t text-danger">退出登录</li>
             </ul>
           </div>
         </div>
-        
+        <div class="flex flex-ac gap-8">
         <!-- 主题切换按钮 -->
         <button @click="theme.toggle" class="link transition p-8 text-xl">
           {{ theme.current.value === 'light' ? '🌙' : '☀️' }}
         </button>
+        <button class="mobile-menu-btn flex flex-col flex-sb" @click="toggleMenu">
+          <div class=""></div>
+          <div class=""></div>
+          <div class=""></div>
+        </button>
       </div>
-     
-      
-      <!-- 移动端菜单按钮 -->
-      <button class="mobile-menu-btn flex flex-col flex-sb" @click="toggleMenu">
-        <div class=""></div>
-        <div class=""></div>
-        <div class=""></div>
-      </button>
-      
-      <!-- 移动端菜单 -->
-      <div class="mobile-menu " 
-          v-show="isMenuOpen"
-           @click.stop>
+
+      </div>
+
+
+      <div v-show="isMenuOpen" class="drawer-overlay" @click="isMenuOpen = false"></div>
+      <div class="mobile-drawer" :class="{ open: isMenuOpen }" @click.stop>
         <ul class="list">
           <li @click="navigateTo('/')" class="p-16 hover-bg transition border-b link">🏠 首页</li>
           <li @click="navigateTo('/posts')" class="p-16 hover-bg transition border-b link">📚 全部文章</li>
@@ -175,28 +182,48 @@ onUnmounted(() => {
           <li @click="navigateTo('/archive')" class="p-16 hover-bg transition border-b link">📂 归档</li>
           <li @click="navigateTo('/about')" class="p-16 hover-bg transition border-b link">👤 关于我</li>
         </ul>
+
+        <div class="drawer-section">
+          <ul class="list">
+           
+            <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')"
+              class="p-16 hover-bg transition border-b link">个人资料</li>
+            <li v-if="userStore.isLoggedIn" @click="navigateTo('/chat-history')"
+              class="p-16 hover-bg transition border-b link">聊天历史</li>
+            <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')"
+              class="p-16 hover-bg transition border-b link">我的文章</li>
+            <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')"
+              class="p-16 hover-bg transition border-b link">草稿子箱</li>
+            <li v-if="userStore.isLoggedIn" @click="navigateTo('/favorites')"
+              class="p-16 hover-bg transition border-b link">我的收藏</li>
+            <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 transition border-b link text-error">退出登录
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </header>
 </template>
 
 <style scoped lang="scss">
-header{
+header {
   width: 100%;
   height: 70px;
   background-color: var(--bg-main);
   box-shadow: var(--shadow-sm);
 }
-header > div{
+
+header>div {
   height: 70px;
 }
 
-.user-avatar{
+.user-avatar {
   width: 40px;
   height: 40px;
   cursor: pointer;
 }
-.user-points{
+
+.user-points {
   width: 18px;
   height: 18px;
   margin-right: 5px;
@@ -207,28 +234,33 @@ header > div{
   border-radius: 50%;
   color: var(--text-main);
 }
-ul,ol {
+
+ul,
+ol {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.avatar-menu{
+.avatar-menu {
   padding: 0;
   top: 60px;
-  width: 140px; 
+  width: 140px;
   z-index: 99;
   overflow: hidden;
-  li{
+
+  li {
     padding: 6px 16px;
     cursor: pointer;
   }
+
   li:last-child {
     color: red;
   }
-  li:hover{
+
+  li:hover {
     color: white;
-    background:var( --color-primary);
+    background: var(--color-primary);
   }
 }
 
@@ -265,21 +297,51 @@ ul,ol {
   padding: 5px;
   display: none;
 }
-.mobile-menu-btn div{
+
+.mobile-menu-btn div {
   width: 100%;
   height: 3px;
   background-color: var(--text-main);
 }
-.mobile-menu {
-  width: 100%;
+
+.drawer-overlay {
   position: fixed;
   top: 70px;
   left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 999;
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 70px;
+  right: 0;
+  width: 80%;
+  max-width: 320px;
+  height: calc(100vh - 70px);
   background-color: var(--bg-main);
-  li:hover{
-    background-color: var(--color-primary);
-    color: white;
-  }
+  box-shadow: var(--shadow-lg);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-drawer.open {
+  transform: translateX(0);
+}
+
+.mobile-drawer .list li:hover {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.drawer-section {
+  margin-top: 12px;
+  border-top: 1px solid var(--border-soft);
 }
 
 /* 移动端响应式 */
@@ -291,8 +353,6 @@ ul,ol {
   .mobile-menu-btn {
     display: flex;
   }
-  .nav-user{
-    display: none;
-  }
+
 }
 </style>

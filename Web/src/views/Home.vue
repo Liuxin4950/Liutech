@@ -99,7 +99,8 @@ import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
 import { formatDate } from '@/utils/uitls'
-import type { ProfileInfo } from '@/services/user'
+import type { ProfileInfo} from '@/services/user'
+import { getProfile } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -133,7 +134,7 @@ const postsPagination = ref({
   pages: 0
 })
 
-// 个人资料数据
+// 作者的个人资料数据
 const profileInfo = ref<ProfileInfo>({
   name: 'LiuTech',
   title: '全栈工程师',
@@ -145,6 +146,8 @@ const profileInfo = ref<ProfileInfo>({
     views: 0
   }
 })
+
+
 const profileLoading = ref(false)
 // 公告相关数据已移至AnnouncementCard组件内部处理
 
@@ -236,8 +239,6 @@ const goToPostsPage = (page: number) => {
   loadAllPosts(page)
 }
 
-
-
 // 加载分类
 const loadCategories = async () => {
   await categoryStore.fetchCategories()
@@ -265,6 +266,7 @@ const loadRecommendedPosts = async () => {
   })
 }
 
+
 // 跳转到公告页面
 const goToAnnouncements = () => {
   // TODO: 实现公告列表页面路由跳转
@@ -274,13 +276,15 @@ const goToAnnouncements = () => {
 // 加载作者(开发者)个人资料
 const loadProfile = async () => {
   await handleAsync(async () => {
-    // profileLoading.value = true
-    // const response = await UserService.getAuthorProfile()
-    // profileInfo.value = response
+
+    profileLoading.value = true
+    const response = await getProfile()
+    console.log('作者数据', response);
+    
+    profileInfo.value = response || {}
   }, {
     onError: (err) => {
       console.error('加载个人资料失败:', err)
-      // 保持默认值
     },
     onFinally: () => {
       profileLoading.value = false
@@ -291,10 +295,10 @@ const loadProfile = async () => {
 onMounted(() => {
   Promise.all([
     loadAllPosts(), // 加载全部文章
-    loadCategories(),
-    loadHotTags(),
-    loadRecommendedPosts(),
-    loadProfile()
+    loadCategories(), // 加载分类
+    loadHotTags(), // 加载热门标签
+    loadRecommendedPosts(), // 加载推荐文章
+    loadProfile() // 加载作者个人资料
   ])
 })
 </script>

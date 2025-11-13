@@ -29,6 +29,10 @@ export const useUserStore = defineStore('user', () => {
     return userInfo.value?.points || 0
   })
 
+  const isAdmin = computed(() => {
+    return (userInfo.value?.username || '') === 'admin'
+  })
+
   // 动作
   /**
    * 登录
@@ -125,6 +129,7 @@ export const useUserStore = defineStore('user', () => {
     username,
     avatar,
     points,
+    isAdmin,
     
     // 动作
     login,

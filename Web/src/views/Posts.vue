@@ -282,6 +282,7 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+ @use "@/assets/styles/tokens" as *;
 .posts-page {
   max-width: 1200px;
   margin: 0 auto;
@@ -395,8 +396,6 @@ onMounted(async () => {
 
 /* 统一首页与全部文章列表的图片容器尺寸与样式 */
 .posts-img { width: 200px; height: 150px; background-color: white; border-radius: 12px; overflow: hidden; }
-
-@use "@/assets/styles/tokens" as *;
 
 .card.bg-card.flex.flex-fw.gap-16.flex-ac {
   @include respond(md) {

@@ -12,7 +12,7 @@
 
     <div class="flex flex-sb mb-16 p-12 border-t border-b">
       <div class="flex-1 text-center">
-        <span class="stat-number">{{ stats.posts }}</span>
+        <span class="stat-number">{{stats.posts }}</span>
         <span class="stat-label">文章</span>
       </div>
       <div class="flex-1 text-center">
@@ -28,6 +28,7 @@
 </template>
 
 <script setup lang="ts">
+import { getUserStats } from '@/services/user.ts'
 
 // 定义props
 interface Stats {
@@ -43,6 +44,7 @@ interface Props {
   bio: string
   stats: Stats
 }
+
 
 withDefaults(defineProps<Props>(), {
   avatar: '/default-avatar.svg',

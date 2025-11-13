@@ -1,5 +1,5 @@
 @echo off
-chcp 65001 >nul
+chcp 65001
 REM LiuTech Project Build Script (Windows)
 REM Author: Liu Xin
 REM Description: Ensure JAR is repackaged and images are rebuilt after code changes
