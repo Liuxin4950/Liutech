@@ -18,7 +18,6 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.prompt.Prompt;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.support.RetryTemplate;
@@ -26,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.util.*;
@@ -102,8 +100,10 @@ public class AiChatServiceImpl implements AiChatService {
     public ChatResponse processChat(ChatRequest request, Long userId) {
         // 记录开始时间,用于计算处理耗时
         long begin = System.currentTimeMillis();
-        String userIdStr = userId != null ? userId.toString() : "0"; // 从JWT解析获得的用户ID
+        String userIdStr = userId != null ? userId.toString() : "0";
         String modelName = request.getModel() != null ? request.getModel() : "THUDM/glm-4-9b-chat";
+        Long conversationId = request.getConversationId();
+        String convType = request.getType() != null ? request.getType() : "general";
 
         try {
             // 健康检查：确保AI服务可用
@@ -145,8 +145,10 @@ public class AiChatServiceImpl implements AiChatService {
                 }
             }
 
-            // 读取最近历史（最多19条），用于作为上下文
-            List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
+            // 读取当前会话的最近历史（最多19条），用于作为上下文
+            List<AiChatMessage> recent = conversationId != null ?
+                    memoryService.listLastMessagesByConversation(conversationId, HISTORY_LIMIT) :
+                    java.util.Collections.emptyList();
 
             // 构造消息序列：系统提示词 -> 历史 -> 上下文信息 -> 本轮用户输入
             List<Message> messages = new ArrayList<>();
@@ -168,8 +170,11 @@ public class AiChatServiceImpl implements AiChatService {
             messages.add(new UserMessage(input));
 
 
-            // 先落库"用户消息"（立即写入，便于审计/追踪）
-            memoryService.saveUserMessage(userIdStr, input, modelName, null);
+            if (conversationId == null) {
+                String title = "新会话";
+                conversationId = memoryService.createConversation(userIdStr, convType, title, null);
+            }
+            memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
 
             // 使用重试模板调用模型（一次性返回完整答案）
             String aiOutput = retryTemplate.execute(retryContext -> {
@@ -193,9 +198,8 @@ public class AiChatServiceImpl implements AiChatService {
             if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
             if (parsed.action != null) metaSave.put("action", parsed.action);
             if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
-            memoryService.saveAssistantMessage(userIdStr, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
-             // 可选：轻量清理，保留每用户最近10条（或按需配置）
-             memoryService.cleanupByRetainLastN(userIdStr, 10);
+            memoryService.saveAssistantMessage(userIdStr, conversationId, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
+            
 
              long cost = System.currentTimeMillis() - begin;
              log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(), parsed.message != null ? parsed.message.length() : 0, cost);
@@ -212,6 +216,7 @@ public class AiChatServiceImpl implements AiChatService {
                      .timestamp(System.currentTimeMillis())
                      .processingTime(cost)
                      .responseLength(parsed.message != null ? parsed.message.length() : 0)
+                     .conversationId(conversationId)
                      .build();
 
         } catch (AIServiceException e) {
@@ -226,7 +231,7 @@ public class AiChatServiceImpl implements AiChatService {
                 meta.put("error", e.getMessage());
                 meta.put("errorType", e.getClass().getSimpleName());
                 meta.put("timestamp", System.currentTimeMillis());
-                memoryService.saveAssistantMessage(userIdStr, null, modelName, 9, toJson(meta));
+                memoryService.saveAssistantMessage(userIdStr, conversationId, null, modelName, 9, toJson(meta));
             } catch (Exception ignore) {
                 log.warn("记录AI错误消息失败: {}", ignore.getMessage());
             }
@@ -251,8 +256,10 @@ public class AiChatServiceImpl implements AiChatService {
      */
     @Override
     public SseEmitter processChatStream(ChatRequest request, Long userId) {
-        String userIdStr = userId != null ? userId.toString() : "0"; // 从JWT解析获得的用户ID
+        String userIdStr = userId != null ? userId.toString() : "0";
         String modelName = request.getModel() != null ? request.getModel() : "THUDM/glm-4-9b-chat";
+        Long conversationId = request.getConversationId();
+        String convType = request.getType() != null ? request.getType() : "general";
 
         // 创建SSE发射器,用于服务器向客户端推送事件流
         SseEmitter emitter = new SseEmitter(30000L);
@@ -266,6 +273,8 @@ public class AiChatServiceImpl implements AiChatService {
             emitter.send(SseEmitter.event().name("user").data(Map.of("userId", userId)));
 
             CompletableFuture.runAsync(() -> {
+                Long convId = request.getConversationId();
+                String convTypeLocal = request.getType() != null ? request.getType() : "general";
                 try {
                     emitter.send(SseEmitter.event().name("start").data(Map.of("message", "AI正在思考中...")));
 
@@ -304,8 +313,10 @@ public class AiChatServiceImpl implements AiChatService {
                         }
                     }
 
-                    // 读取最近历史（最多19条），末尾不会包含本轮输入
-                    List<AiChatMessage> recent = memoryService.listRecentMessages(userIdStr, HISTORY_LIMIT);
+                    // 读取当前会话最近历史（最多19条），末尾不会包含本轮输入
+                    List<AiChatMessage> recent = convId != null ?
+                            memoryService.listLastMessagesByConversation(convId, HISTORY_LIMIT) :
+                            java.util.Collections.emptyList();
 
                     // 构造消息序列：系统提示词 -> 历史 -> 上下文信息 -> 本轮用户输入
                     List<Message> messages = new ArrayList<>();
@@ -320,8 +331,11 @@ public class AiChatServiceImpl implements AiChatService {
                     // 4.用户输入
                     messages.add(new UserMessage(input));
 
-                    // 先落库"用户消息"
-                    memoryService.saveUserMessage(userIdStr, input, modelName, null);
+                    if (convId == null) {
+                        String title = "新会话";
+                        convId = memoryService.createConversation(userIdStr, convTypeLocal, title, null);
+                    }
+                    memoryService.saveUserMessage(userIdStr, convId, input, modelName, null);
 
                     String full = siliconFlowChatClient.chat(messages);
                     if (full == null) full = "";
@@ -336,8 +350,8 @@ public class AiChatServiceImpl implements AiChatService {
                     if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
                     if (parsed.action != null) metaSave.put("action", parsed.action);
                     if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
-                    memoryService.saveAssistantMessage(userIdStr, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
-                    memoryService.cleanupByRetainLastN(userIdStr, 10);
+                    memoryService.saveAssistantMessage(userIdStr, convId, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
+                    
                     emitter.send(SseEmitter.event().name("complete").data(Map.of(
                             "success", true,
                             "totalLength", full.length(),
@@ -351,7 +365,7 @@ public class AiChatServiceImpl implements AiChatService {
                         emitter.send(SseEmitter.event().name("error").data(Map.of("success", false, "message", "处理请求异常: " + ex.getMessage())));
                         Map<String, Object> meta = new HashMap<>();
                         meta.put("error", ex.getMessage());
-                        memoryService.saveAssistantMessage(userIdStr, null, modelName, 9, toJson(meta));
+                        memoryService.saveAssistantMessage(userIdStr, convId, null, modelName, 9, toJson(meta));
                     } catch (IOException ioe) {
                         log.error("SSE发送异常事件失败", ioe);
                     }

@@ -34,6 +34,7 @@ const isLoading = ref(false)
 const isStreaming = ref(false)
 const isSearchOpen = ref(false)
 const searchQuery = ref('')
+const conversationId = ref<number|null>(null)
 const chatContainer = ref<HTMLElement>()
 const connectionStatus = ref<'connected' | 'connecting' | 'disconnected' | 'error'>('disconnected')
 const errorMessage = ref('')
@@ -172,11 +173,14 @@ const sendChat = async () => {
   await safeScrollToBottom()
 
   try {
-    const req: AiChatRequest = { message: text, context: buildChatContext() }
+    const req: AiChatRequest = { message: text, context: buildChatContext(), conversationId: conversationId.value ?? undefined }
     const resp: AiChatResponse = await Ai.chat(req)
 
     updateUserMessageStatus(msgId, 'delivered')
 
+    if (resp?.conversationId && !conversationId.value) {
+      conversationId.value = resp.conversationId
+    }
     if (resp?.message) {
       pushAiMessage(resp.message)
     }
@@ -618,9 +622,10 @@ onUnmounted(() => {
               <div v-if="connectionStatus === 'connecting'" class="status-spinner"></div>
             </div>
           </div>
-          <div class="chat-controls">
+        <div class="chat-controls">
+            <button class="clear-btn" title="打开完整聊天" @click="router.push({ name: 'ai-chat-full' })">完整聊天</button>
             <button class="clear-btn" title="清空聊天" @click="clearChat">隐藏</button>
-          </div>
+        </div>
         </div>
 
         <!-- 错误消息提示 -->

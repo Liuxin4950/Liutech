@@ -21,14 +21,30 @@ public interface MemoryService {
     long countHistoryMessages(String userId);
 
     /** 保存一条用户消息（role=user，status固定1） */
-    void saveUserMessage(String userId, String content, String model, String metadataJson);
+    void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson);
 
     /** 保存一条AI消息（role=assistant，status=1成功；9错误），content可为空（错误时） */
-    void saveAssistantMessage(String userId, String content, String model, int status, String metadataJson);
+    void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson);
 
     /** 轻量清理：仅保留该用户最后N条记录（例如10条） */
     void cleanupByRetainLastN(String userId, int retainLastN);
 
     /** 清空用户所有聊天记忆（物理删除） */
     void clearAllMemory(String userId);
+
+    Long createConversation(String userId, String type, String title, String metadataJson);
+
+    java.util.List<chat.liuxin.ai.entity.AiConversation> listConversations(String userId, String type, int page, int size);
+
+    chat.liuxin.ai.entity.AiConversation getConversation(Long conversationId);
+
+    java.util.List<AiChatMessage> listMessagesByConversation(Long conversationId, int page, int size);
+
+    java.util.List<AiChatMessage> listLastMessagesByConversation(Long conversationId, int limit);
+
+    void renameConversation(Long conversationId, String title);
+
+    void archiveConversation(Long conversationId);
+
+    void deleteConversation(Long conversationId);
 }

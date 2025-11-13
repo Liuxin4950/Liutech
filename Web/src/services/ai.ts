@@ -8,6 +8,7 @@ export interface AiChatRequest {
   message: string
   /** 前端上下文，便于后端提示词决策，例如 { page: 'post-detail', articleId: 123 } */
   context?: Record<string, any>
+  conversationId?: number
 }
 
 export interface AiChatResponse {
@@ -25,6 +26,7 @@ export interface AiChatResponse {
   action?: string | null
   /** 元数据，例如 { articleId: 123 } */
   metadata?: Record<string, any> | null
+  conversationId?: number
 }
 
 /**

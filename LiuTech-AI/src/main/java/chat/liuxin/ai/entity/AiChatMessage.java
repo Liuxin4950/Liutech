@@ -23,6 +23,9 @@ public class AiChatMessage {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
+    @TableField("conversation_id")
+    private Long conversationId;
+
     /** 用户ID：当前阶段固定为 "0"，未来接入JWT后替换 */
     @TableField("user_id")
     private String userId;

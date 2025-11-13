@@ -22,6 +22,7 @@ USE liutech_ai;
 -- - 索引 idx_user_created 支撑“按用户取最近N条”的高频查询
 CREATE TABLE IF NOT EXISTS ai_chat_message (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '主键',
+  conversation_id BIGINT UNSIGNED NOT NULL COMMENT '会话ID',
   user_id VARCHAR(64) NOT NULL COMMENT '用户ID（当前用0，未来接入真实用户可复用）',
   role ENUM('user','assistant','system') NOT NULL COMMENT '消息角色',
   content LONGTEXT NULL COMMENT '消息内容（错误时可为空）',
@@ -33,7 +34,8 @@ CREATE TABLE IF NOT EXISTS ai_chat_message (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (id),
   KEY idx_user_created (user_id, created_at),
-  KEY idx_user_role (user_id, role)
+  KEY idx_user_role (user_id, role),
+  KEY idx_conv_created (conversation_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI聊天消息明细（按用户聚合）';
 
 -- 2) 可选：用户级摘要表（后续做滚动摘要/长上下文优化时启用）
@@ -47,3 +49,18 @@ CREATE TABLE IF NOT EXISTS ai_chat_memory_summary (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户级记忆摘要（可选）';
+CREATE TABLE IF NOT EXISTS ai_conversation (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id VARCHAR(64) NOT NULL,
+  type VARCHAR(32) NOT NULL,
+  title VARCHAR(200) NULL,
+  status TINYINT NOT NULL DEFAULT 0,
+  message_count INT NOT NULL DEFAULT 0,
+  last_message_at DATETIME NULL,
+  metadata JSON NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_user_type (user_id, type),
+  KEY idx_user_last (user_id, last_message_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI会话';

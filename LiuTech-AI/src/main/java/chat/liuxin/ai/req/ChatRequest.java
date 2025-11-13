@@ -59,4 +59,8 @@ public class ChatRequest {
      * 模型可据此决定 emotion/action，并在 metadata 中回传
      */
     private Map<String, Object> context;
+
+    private Long conversationId;
+
+    private String type;
 }

@@ -85,6 +85,8 @@ public class ChatResponse {
      * 用于扩展，例如上下文信息、文章ID、推荐内容等
      */
     private Map<String, Object> metadata;
+
+    private Long conversationId;
     
     /**
      * 创建成功响应的便捷方法
@@ -104,6 +106,7 @@ public class ChatResponse {
                 .historyCount(historyCount)
                 .timestamp(System.currentTimeMillis())
                 .responseLength(message != null ? message.length() : 0)
+                .conversationId(null)
                 .build();
     }
     /**

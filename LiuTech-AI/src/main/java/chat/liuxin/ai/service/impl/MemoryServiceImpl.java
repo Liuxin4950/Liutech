@@ -24,6 +24,7 @@ import java.util.List;
 public class MemoryServiceImpl implements MemoryService {
 
     private final AiChatMessageMapper messageMapper;
+    private final chat.liuxin.ai.mapper.AiConversationMapper conversationMapper;
 
     /**
      * 按用户ID查询最近N条消息（按创建时间升序）
@@ -73,9 +74,10 @@ public class MemoryServiceImpl implements MemoryService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void saveUserMessage(String userId, String content, String model, String metadataJson) {
+    public void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson) {
         AiChatMessage m = new AiChatMessage();
         m.setUserId(userId);
+        m.setConversationId(conversationId);
         m.setRole("user");
         m.setContent(content);
         m.setModel(model);
@@ -84,6 +86,14 @@ public class MemoryServiceImpl implements MemoryService {
         m.setCreatedAt(LocalDateTime.now());
         m.setUpdatedAt(LocalDateTime.now());
         messageMapper.insert(m);
+        if (conversationId != null) {
+            var c = conversationMapper.selectById(conversationId);
+            if (c != null) {
+                c.setMessageCount((c.getMessageCount() == null ? 0 : c.getMessageCount()) + 1);
+                c.setLastMessageAt(LocalDateTime.now());
+                conversationMapper.updateById(c);
+            }
+        }
     }
 
     /**
@@ -91,9 +101,10 @@ public class MemoryServiceImpl implements MemoryService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void saveAssistantMessage(String userId, String content, String model, int status, String metadataJson) {
+    public void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson) {
         AiChatMessage m = new AiChatMessage();
         m.setUserId(userId);
+        m.setConversationId(conversationId);
         m.setRole("assistant");
         m.setContent(content);
         m.setModel(model);
@@ -102,6 +113,14 @@ public class MemoryServiceImpl implements MemoryService {
         m.setCreatedAt(LocalDateTime.now());
         m.setUpdatedAt(LocalDateTime.now());
         messageMapper.insert(m);
+        if (conversationId != null) {
+            var c = conversationMapper.selectById(conversationId);
+            if (c != null) {
+                c.setMessageCount((c.getMessageCount() == null ? 0 : c.getMessageCount()) + 1);
+                c.setLastMessageAt(LocalDateTime.now());
+                conversationMapper.updateById(c);
+            }
+        }
     }
 
     @Override
@@ -143,5 +162,105 @@ public class MemoryServiceImpl implements MemoryService {
                 .eq(AiChatMessage::getUserId, userId)
         );
         log.info("清空用户记忆：userId={}, 删除{}条记录", userId, deleted);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createConversation(String userId, String type, String title, String metadataJson) {
+        chat.liuxin.ai.entity.AiConversation c = new chat.liuxin.ai.entity.AiConversation();
+        c.setUserId(userId);
+        c.setType(type);
+        c.setTitle(title);
+        c.setStatus(0);
+        c.setMessageCount(0);
+        c.setMetadata(metadataJson);
+        c.setCreatedAt(LocalDateTime.now());
+        c.setUpdatedAt(LocalDateTime.now());
+        conversationMapper.insert(c);
+        return c.getId();
+    }
+
+    @Override
+    public java.util.List<chat.liuxin.ai.entity.AiConversation> listConversations(String userId, String type, int page, int size) {
+        int offset = Math.max(0, (page - 1) * size);
+        var qw = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<chat.liuxin.ai.entity.AiConversation>()
+                .select(chat.liuxin.ai.entity.AiConversation::getId,
+                        chat.liuxin.ai.entity.AiConversation::getUserId,
+                        chat.liuxin.ai.entity.AiConversation::getType,
+                        chat.liuxin.ai.entity.AiConversation::getTitle,
+                        chat.liuxin.ai.entity.AiConversation::getStatus,
+                        chat.liuxin.ai.entity.AiConversation::getMessageCount,
+                        chat.liuxin.ai.entity.AiConversation::getLastMessageAt)
+                .eq(chat.liuxin.ai.entity.AiConversation::getUserId, userId)
+                .eq(type != null && !type.isEmpty(), chat.liuxin.ai.entity.AiConversation::getType, type)
+                .orderByDesc(chat.liuxin.ai.entity.AiConversation::getLastMessageAt)
+                .orderByDesc(chat.liuxin.ai.entity.AiConversation::getId)
+                .last("LIMIT " + offset + ", " + size);
+        return conversationMapper.selectList(qw);
+    }
+
+    @Override
+    public chat.liuxin.ai.entity.AiConversation getConversation(Long conversationId) {
+        return conversationMapper.selectById(conversationId);
+    }
+
+    @Override
+    public java.util.List<AiChatMessage> listMessagesByConversation(Long conversationId, int page, int size) {
+        int offset = Math.max(0, (page - 1) * size);
+        return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .select(AiChatMessage::getId,
+                        AiChatMessage::getRole,
+                        AiChatMessage::getContent,
+                        AiChatMessage::getCreatedAt)
+                .eq(AiChatMessage::getConversationId, conversationId)
+                .orderByDesc(AiChatMessage::getCreatedAt)
+                .orderByDesc(AiChatMessage::getId)
+                .last("LIMIT " + offset + ", " + size)
+        );
+    }
+
+    @Override
+    public java.util.List<AiChatMessage> listLastMessagesByConversation(Long conversationId, int limit) {
+        if (limit <= 0) return java.util.Collections.emptyList();
+        java.util.List<AiChatMessage> desc = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getConversationId, conversationId)
+                .orderByDesc(AiChatMessage::getCreatedAt)
+                .orderByDesc(AiChatMessage::getId)
+                .last("LIMIT " + limit)
+        );
+        java.util.Collections.reverse(desc);
+        return desc;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void renameConversation(Long conversationId, String title) {
+        var c = conversationMapper.selectById(conversationId);
+        if (c != null) {
+            c.setTitle(title);
+            c.setUpdatedAt(LocalDateTime.now());
+            conversationMapper.updateById(c);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void archiveConversation(Long conversationId) {
+        var c = conversationMapper.selectById(conversationId);
+        if (c != null) {
+            c.setStatus(9);
+            c.setUpdatedAt(LocalDateTime.now());
+            conversationMapper.updateById(c);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteConversation(Long conversationId) {
+        // 先删除该会话的消息，再删除会话
+        messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getConversationId, conversationId)
+        );
+        conversationMapper.deleteById(conversationId);
     }
 }
