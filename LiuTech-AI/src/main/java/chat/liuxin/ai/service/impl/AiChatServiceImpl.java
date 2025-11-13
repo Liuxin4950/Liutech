@@ -19,7 +19,7 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.ollama.OllamaChatModel;
+import chat.liuxin.ai.service.SiliconFlowChatClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
@@ -54,7 +54,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AiChatServiceImpl implements AiChatService {
 
-    private final OllamaChatModel chatModel;
+    private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;           // 记忆服务（数据库）
     private final HealthCheckService healthCheckService; // 健康检查服务
     private final RetryTemplate retryTemplate;          // 重试模板
@@ -103,7 +103,7 @@ public class AiChatServiceImpl implements AiChatService {
         // 记录开始时间,用于计算处理耗时
         long begin = System.currentTimeMillis();
         String userIdStr = userId != null ? userId.toString() : "0"; // 从JWT解析获得的用户ID
-        String modelName = request.getModel() != null ? request.getModel() : "ollama";
+        String modelName = request.getModel() != null ? request.getModel() : "THUDM/glm-4-9b-chat";
 
         try {
             // 健康检查：确保AI服务可用
@@ -172,13 +172,11 @@ public class AiChatServiceImpl implements AiChatService {
             memoryService.saveUserMessage(userIdStr, input, modelName, null);
 
             // 使用重试模板调用模型（一次性返回完整答案）
-            var response = retryTemplate.execute(retryContext -> {
+            String aiOutput = retryTemplate.execute(retryContext -> {
                 log.debug("调用AI模型，第{}次尝试", retryContext.getRetryCount() + 1);
-                return chatModel.call(new Prompt(messages));
+                return siliconFlowChatClient.chat(messages);
             });
-            // 5.提取AI模型的回复内容
-            String aiOutput = response.getResult().getOutput().getContent();
-            System.out.println("AI回复：\n" + aiOutput + '\n');
+            System.out.println("AI回复：\n" + (aiOutput == null ? "" : aiOutput) + '\n');
 
             // 解析并校验模型输出；必要时追加严格格式要求让AI重生成
             ParsedResult parsed = ensureValidStructuredOutput(messages, aiOutput);
@@ -254,7 +252,7 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     public SseEmitter processChatStream(ChatRequest request, Long userId) {
         String userIdStr = userId != null ? userId.toString() : "0"; // 从JWT解析获得的用户ID
-        String modelName = request.getModel() != null ? request.getModel() : "ollama";
+        String modelName = request.getModel() != null ? request.getModel() : "THUDM/glm-4-9b-chat";
 
         // 创建SSE发射器,用于服务器向客户端推送事件流
         SseEmitter emitter = new SseEmitter(30000L);
@@ -325,72 +323,28 @@ public class AiChatServiceImpl implements AiChatService {
                     // 先落库"用户消息"
                     memoryService.saveUserMessage(userIdStr, input, modelName, null);
 
-                    // 调用模型流式接口
-                    Flux<org.springframework.ai.chat.model.ChatResponse> stream = chatModel.stream(new Prompt(messages));
-
-                    StringBuilder full = new StringBuilder();
-                    // 供lambda使用的最终变量快照，避免编译错误
-                    final String userInputSnapshot = input;
-
-                    stream.subscribe(
-                            part -> {
-                                try {
-                                    String chunk = part.getResult().getOutput().getContent();
-                                    if (chunk != null && !chunk.isEmpty()) {
-                                        full.append(chunk);
-                                        emitter.send(SseEmitter.event().name("data").data(Map.of("chunk", chunk)));
-                                    }
-                                } catch (IOException ioe) {
-                                    log.error("SSE发送数据失败", ioe);
-                                    emitter.completeWithError(ioe);
-                                }
-                            },
-                            err -> {
-                                log.error("AI流式响应异常", err);
-                                try {
-                                    // onError：发给前端错误，同时记录错误版AI消息（status=9）
-                                    emitter.send(SseEmitter.event().name("error").data(Map.of("success", false, "message", "AI服务异常: " + err.getMessage())));
-                                    Map<String, Object> meta = new HashMap<>();
-                                    meta.put("error", err.getMessage());
-                                    memoryService.saveAssistantMessage(userIdStr, full.length() > 0 ? full.toString() : null, modelName, 9, toJson(meta));
-                                } catch (IOException ioe) {
-                                    log.error("SSE发送错误事件失败", ioe);
-                                } finally {
-                                    emitter.completeWithError(err);
-                                }
-                            },
-                            () -> {
-                                try {
-                                    // onComplete：解析并校验；必要时追加严格格式要求让AI重生成（status=1）
-                                    ParsedResult parsed = ensureValidStructuredOutput(messages, full.toString());
-                                    // 流式完成后的服务器侧动作门控
-                                    if (parsed.action != null && !"none".equals(parsed.action)) {
-                                        if (!isExplicitActionRequest(userInputSnapshot)) {
-                                            log.debug("[stream] 非明确指令，强制置 action=none：原action={}", parsed.action);
-                                            parsed.action = "none";
-                                        }
-                                    }
-                                    Map<String, Object> metaSave = new HashMap<>();
-                                    if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
-                                    if (parsed.action != null) metaSave.put("action", parsed.action);
-                                    if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
-                                    memoryService.saveAssistantMessage(userIdStr, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
-                                     memoryService.cleanupByRetainLastN(userIdStr, 10);
-
-                                    // 完成事件可附带解析后的辅助信息，前端可按需消费
-                                    emitter.send(SseEmitter.event().name("complete").data(Map.of(
-                                            "success", true,
-                                            "totalLength", full.length(),
-                                            "emotion", parsed.emotion,
-                                            "action", parsed.action
-                                    )));
-                                     emitter.complete();
-                                } catch (IOException ioe) {
-                                    log.error("SSE发送完成事件失败", ioe);
-                                    emitter.completeWithError(ioe);
-                                }
-                            }
-                    );
+                    String full = siliconFlowChatClient.chat(messages);
+                    if (full == null) full = "";
+                    emitter.send(SseEmitter.event().name("data").data(Map.of("chunk", full)));
+                    ParsedResult parsed = ensureValidStructuredOutput(messages, full);
+                    if (parsed.action != null && !"none".equals(parsed.action)) {
+                        if (!isExplicitActionRequest(input)) {
+                            parsed.action = "none";
+                        }
+                    }
+                    Map<String, Object> metaSave = new HashMap<>();
+                    if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
+                    if (parsed.action != null) metaSave.put("action", parsed.action);
+                    if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
+                    memoryService.saveAssistantMessage(userIdStr, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
+                    memoryService.cleanupByRetainLastN(userIdStr, 10);
+                    emitter.send(SseEmitter.event().name("complete").data(Map.of(
+                            "success", true,
+                            "totalLength", full.length(),
+                            "emotion", parsed.emotion,
+                            "action", parsed.action
+                    )));
+                    emitter.complete();
                 } catch (Exception ex) {
                     log.error("处理SSE流异常", ex);
                     try {
@@ -587,8 +541,7 @@ public class AiChatServiceImpl implements AiChatService {
         fixMessages.add(new UserMessage("原回答如下：\n" + initialOutput));
 
         try {
-            var fixResp = chatModel.call(new Prompt(fixMessages));
-            String fixed = fixResp.getResult().getOutput().getContent();
+            String fixed = siliconFlowChatClient.chat(fixMessages);
             ParsedResult second = parseModelOutput(fixed);
             if (second.isJsonObject && second.hasMessage && second.hasAction && second.isActionAllowed) {
                 return second;

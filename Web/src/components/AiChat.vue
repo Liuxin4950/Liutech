@@ -4,6 +4,7 @@ import {nextTick, onMounted, onUnmounted, ref} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import { post } from '@/services/api'
 import { usePostInteractionStore } from '@/stores/postInteraction'
+import SearchPanel from '@/components/SearchPanel.vue'
 
 /**
  * AI聊天组件
@@ -31,6 +32,8 @@ const chatInput = ref('')
 const messages = ref<ChatMessage[]>([])
 const isLoading = ref(false)
 const isStreaming = ref(false)
+const isSearchOpen = ref(false)
+const searchQuery = ref('')
 const chatContainer = ref<HTMLElement>()
 const connectionStatus = ref<'connected' | 'connecting' | 'disconnected' | 'error'>('disconnected')
 const errorMessage = ref('')
@@ -220,9 +223,6 @@ const dispatchAction = async (action: string, meta: ActionMeta = {}) => {
         break
       case 'none':
         break
-      default:
-        // 兼容旧格式的动作
-        await handleLegacyAction(action, postId, hasLikeIntent, hasFavoriteIntent)
     }
   } catch (err: any) {
     console.warn('动作执行异常:', err)
@@ -355,13 +355,10 @@ const handleSearchAction = async (searchType: string, meta: Record<string, any>)
   
   const searchName = searchMap[searchType]
   if (searchName) {
-    console.log(`触发搜索动作，搜索${searchName}`)
-    messages.value.push({
-      id: ++messageIdCounter,
-      type: 'ai',
-      content: `🔍 ${searchName}搜索功能正在开发中，敬请期待！`,
-      timestamp: new Date()
-    })
+    const q = String(meta?.query ?? meta?.keyword ?? lastUserMessage ?? '')
+    searchQuery.value = q
+    isSearchOpen.value = true
+    messages.value.push({ id: ++messageIdCounter, type: 'ai', content: `🔍 已为您打开${searchName}搜索`, timestamp: new Date() })
   } else {
     throw new Error(`未知的搜索类型：${searchType}`)
   }
@@ -400,39 +397,7 @@ const handleShowAction = async (showType: string) => {
   }
 }
 
-// 处理旧格式动作（兼容性）
-const handleLegacyAction = async (action: string, postId: number | undefined, hasLikeIntent: Function, hasFavoriteIntent: Function) => {
-  const legacyActionMap:any = {
-    'go_home': () => handleNavigateAction('home'),
-    'go_create_post': () => handleNavigateAction('create-post'),
-    'go_my_posts': () => handleNavigateAction('my-posts'),
-    'go_drafts': () => handleNavigateAction('drafts'),
-    'go_favorites': () => handleNavigateAction('favorites'),
-    'go_posts': () => handleNavigateAction('posts'),
-    'go_categories': () => handleNavigateAction('categories'),
-    'go_tags': () => handleNavigateAction('tags'),
-    'go_archive': () => handleNavigateAction('archive'),
-    'go_profile': () => handleNavigateAction('profile'),
-    'go_about': () => handleNavigateAction('about'),
-    'go_chat_history': () => handleNavigateAction('chat-history'),
-    'like_post': () => handleInteractAction('like', postId, hasLikeIntent, hasFavoriteIntent),
-    'favorite_post': () => handleInteractAction('favorite', postId, hasLikeIntent, hasFavoriteIntent),
-    'show_capabilities': () => handleShowAction('capabilities')
-  }
-  
-  const handler = legacyActionMap[action]
-  if (handler) {
-    await handler()
-  } else {
-    console.debug('未识别的动作：', action)
-    messages.value.push({
-      id: ++messageIdCounter,
-      type: 'ai',
-      content: `我收到一个暂不支持的动作：${action}`,
-      timestamp: new Date()
-    })
-  }
-}
+
 
 // ... existing code ...
 
@@ -751,6 +716,7 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+    <SearchPanel :visible="isSearchOpen" :query="searchQuery" @close="isSearchOpen = false" />
   </div>
 </template>
 

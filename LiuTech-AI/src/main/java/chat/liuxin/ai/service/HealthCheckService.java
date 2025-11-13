@@ -33,6 +33,10 @@ public class HealthCheckService {
     
     @Value("${ai.ollama.base-url:http://localhost:11434}")
     private String ollamaBaseUrl;
+    @Value("${siliconflow.base-url:}")
+    private String siliconBaseUrl;
+    @Value("${siliconflow.api-key:}")
+    private String siliconApiKey;
     
     @Value("${ai.health-check.enabled:true}")
     private boolean healthCheckEnabled;
@@ -75,8 +79,18 @@ public class HealthCheckService {
             long startTime = System.currentTimeMillis();
             
             // 发送健康检查请求
-            String healthUrl = ollamaBaseUrl + "/api/tags";
-            restTemplate.getForObject(healthUrl, String.class);
+            String healthUrl;
+            org.springframework.http.HttpEntity<Void> entity = null;
+            if (siliconBaseUrl != null && !siliconBaseUrl.isEmpty()) {
+                healthUrl = siliconBaseUrl + "/v1/models";
+                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                if (siliconApiKey != null && !siliconApiKey.isEmpty()) headers.setBearerAuth(siliconApiKey);
+                entity = new org.springframework.http.HttpEntity<>(headers);
+                restTemplate.exchange(healthUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
+            } else {
+                healthUrl = ollamaBaseUrl + "/api/tags";
+                restTemplate.getForObject(healthUrl, String.class);
+            }
             
             long responseTime = System.currentTimeMillis() - startTime;
             
@@ -98,8 +112,18 @@ public class HealthCheckService {
     public CompletableFuture<Boolean> checkHealthAsync() {
         try {
             long startTime = System.currentTimeMillis();
-            String healthUrl = ollamaBaseUrl + "/api/tags";
-            restTemplate.getForObject(healthUrl, String.class);
+            String healthUrl;
+            org.springframework.http.HttpEntity<Void> entity = null;
+            if (siliconBaseUrl != null && !siliconBaseUrl.isEmpty()) {
+                healthUrl = siliconBaseUrl + "/v1/models";
+                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                if (siliconApiKey != null && !siliconApiKey.isEmpty()) headers.setBearerAuth(siliconApiKey);
+                entity = new org.springframework.http.HttpEntity<>(headers);
+                restTemplate.exchange(healthUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
+            } else {
+                healthUrl = ollamaBaseUrl + "/api/tags";
+                restTemplate.getForObject(healthUrl, String.class);
+            }
             long responseTime = System.currentTimeMillis() - startTime;
             
             recordSuccess(responseTime);

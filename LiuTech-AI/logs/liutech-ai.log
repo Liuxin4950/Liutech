@@ -1,40 +1,12 @@
-2025-10-07 17:02:29 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Starting LiuTechAiApplication using Java 21.0.5 with PID 4424 (F:\工程代码\Liutech\LiuTech-AI\target\classes started by Liuxin in F:\工程代码\Liutech\LiuTech-AI)
-2025-10-07 17:02:29 [main] DEBUG chat.liuxin.ai.LiuTechAiApplication - Running with Spring Boot v3.5.6, Spring v6.2.9
-2025-10-07 17:02:29 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - No active profile set, falling back to 1 default profile: "default"
-2025-10-07 17:02:30 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2025-10-07 17:02:30 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 12 ms. Found 0 JPA repository interfaces.
-2025-10-07 17:02:30 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
-2025-10-07 17:02:30 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
-2025-10-07 17:02:30 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.46]
-2025-10-07 17:02:31 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2025-10-07 17:02:31 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1908 ms
-2025-10-07 17:02:31 [main] DEBUG c.l.a.filter.JwtAuthenticationFilter - Filter 'jwtAuthenticationFilter' configured for use
-2025-10-07 17:02:31 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2025-10-07 17:02:31 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@5a48d186
-2025-10-07 17:02:31 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2025-10-07 17:02:31 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2025-10-07 17:02:31 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.6.29.Final
-2025-10-07 17:02:31 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2025-10-07 17:02:32 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2025-10-07 17:02:32 [main] INFO  o.hibernate.orm.connections.pooling - HHH10001005: Database info:
-	Database JDBC URL [Connecting through datasource 'HikariDataSource (HikariPool-1)']
-	Database driver: undefined/unknown
-	Database version: 8.0.41
-	Autocommit mode: undefined/unknown
-	Isolation level: undefined/unknown
-	Minimum pool size: undefined/unknown
-	Maximum pool size: undefined/unknown
-2025-10-07 17:02:32 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2025-10-07 17:02:32 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2025-10-07 17:02:33 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2025-10-07 17:02:33 [main] WARN  o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
-
-Using generated security password: e45f0b05-3839-43d1-959f-461d88731c7c
-
-This generated password is for development use only. Your security configuration must be updated before running your application in production.
-
-2025-10-07 17:02:33 [main] INFO  o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
-2025-10-07 17:02:34 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path '/'
-2025-10-07 17:02:34 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - Started LiuTechAiApplication in 5.544 seconds (process running for 5.989)
-2025-10-07 17:02:34 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - 服务地址: http://localhost:8081/api/ai/chat
-2025-10-07 17:02:34 [main] INFO  chat.liuxin.ai.LiuTechAiApplication - === LiuTech AI 服务启动完成！===
+2025-11-14 00:03:06.271 [http-nio-8081-exec-10] INFO  chat.liuxin.ai.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
+2025-11-14 00:03:06.278 [http-nio-8081-exec-10] INFO  chat.liuxin.ai.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-11-14 00:03:06.278 [http-nio-8081-exec-10] INFO  chat.liuxin.ai.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-11-14 00:03:06.280 [http-nio-8081-exec-10] INFO  chat.liuxin.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-11-14 00:03:06.280 [http-nio-8081-exec-10] INFO  chat.liuxin.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-11-14 00:03:06.280 [http-nio-8081-exec-10] INFO  chat.liuxin.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
+2025-11-14 00:03:06.287 [http-nio-8081-exec-1] INFO  chat.liuxin.ai.filter.JwtAuthenticationFilter - 处理请求: GET /ai/status
+2025-11-14 00:03:06.293 [http-nio-8081-exec-1] INFO  chat.liuxin.ai.filter.JwtAuthenticationFilter - 认证对象创建完成，认证状态: true
+2025-11-14 00:03:06.293 [http-nio-8081-exec-1] INFO  chat.liuxin.ai.filter.JwtAuthenticationFilter - JWT认证成功，用户: admin, 角色: [ROLE_USER, ROLE_ADMIN], 用户ID: 1
+2025-11-14 00:03:06.294 [http-nio-8081-exec-1] INFO  chat.liuxin.ai.controller.AiChatController - 认证对象: UsernamePasswordAuthenticationToken [Principal=admin, Credentials=[PROTECTED], Authenticated=true, Details=1, Granted Authorities=[ROLE_USER, ROLE_ADMIN]]
+2025-11-14 00:03:06.295 [http-nio-8081-exec-1] INFO  chat.liuxin.ai.controller.AiChatController - 认证状态: true, 主体: admin, 详情: 1
+2025-11-14 00:03:06.296 [http-nio-8081-exec-1] INFO  chat.liuxin.ai.controller.AiChatController - 测试服务是否可用，用户ID: 1
