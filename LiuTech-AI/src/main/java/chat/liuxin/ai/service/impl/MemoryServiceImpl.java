@@ -1,6 +1,7 @@
 package chat.liuxin.ai.service.impl;
 
 import chat.liuxin.ai.entity.AiChatMessage;
+import chat.liuxin.ai.entity.AiConversation;
 import chat.liuxin.ai.mapper.AiChatMessageMapper;
 import chat.liuxin.ai.service.MemoryService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -27,7 +28,8 @@ public class MemoryServiceImpl implements MemoryService {
     private final chat.liuxin.ai.mapper.AiConversationMapper conversationMapper;
 
     /**
-     * 按用户ID查询最近N条消息（按创建时间升序）
+     * 按用户 ID 查询最近 N 条消息（最终返回升序），用于提示词上下文拼接。
+     * 查询策略：先按 created_at、id 倒序抓取 N 条，再反转为升序。
      */
     @Override
     public List<AiChatMessage> listRecentMessages(String userId, int limit) {
@@ -45,7 +47,7 @@ public class MemoryServiceImpl implements MemoryService {
     }
 
     /**
-     * 分页查询某用户的聊天历史记录（按创建时间倒序）
+     * 分页查询某用户的聊天历史记录（按 created_at 与 id 倒序）。
      */
     @Override
     public List<AiChatMessage> listHistoryMessages(String userId, int page, int size) {
@@ -59,9 +61,7 @@ public class MemoryServiceImpl implements MemoryService {
         );
     }
 
-    /**
-     * 查询某用户的聊天历史记录总数
-     */
+    /** 查询某用户的聊天历史记录总数 */
     @Override
     public long countHistoryMessages(String userId) {
         return messageMapper.selectCount(new LambdaQueryWrapper<AiChatMessage>()
@@ -69,9 +69,7 @@ public class MemoryServiceImpl implements MemoryService {
         );
     }
 
-    /**
-     * 保存一条用户消息（role=user，status固定1）
-     */
+    /** 保存一条用户消息（role=user，status 固定 1），并同步维护会话指标 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson) {
@@ -96,13 +94,12 @@ public class MemoryServiceImpl implements MemoryService {
         }
     }
 
-    /**
-     * 保存一条AI消息（role=assistant，status根据实现分成功/错误）
-     */
+    /** 保存一条 AI 消息（role=assistant；status=1/9），并同步维护会话指标 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson) {
         AiChatMessage m = new AiChatMessage();
+        LocalDateTime time = LocalDateTime.now();
         m.setUserId(userId);
         m.setConversationId(conversationId);
         m.setRole("assistant");
@@ -110,14 +107,14 @@ public class MemoryServiceImpl implements MemoryService {
         m.setModel(model);
         m.setStatus(status);
         m.setMetadata(metadataJson);
-        m.setCreatedAt(LocalDateTime.now());
-        m.setUpdatedAt(LocalDateTime.now());
+        m.setCreatedAt(time);
+        m.setUpdatedAt(time);
         messageMapper.insert(m);
         if (conversationId != null) {
             var c = conversationMapper.selectById(conversationId);
             if (c != null) {
                 c.setMessageCount((c.getMessageCount() == null ? 0 : c.getMessageCount()) + 1);
-                c.setLastMessageAt(LocalDateTime.now());
+                c.setLastMessageAt(time);
                 conversationMapper.updateById(c);
             }
         }
@@ -127,15 +124,6 @@ public class MemoryServiceImpl implements MemoryService {
     @Transactional(rollbackFor = Exception.class)
     public void cleanupByRetainLastN(String userId, int retainLastN) {
         if (retainLastN <= 0) return;
-        // 删除该用户除最后N条之外的其他记录
-        // SQL思路：找出第N条的created_at边界，再删除更早的记录
-        // 这里用子查询 + <= 边界的方式实现（不同数据库略有差异，MySQL 8 OK）
-        // String sql = "DELETE FROM ai_chat_message " +
-        //         "WHERE user_id = #{userId} AND id NOT IN (" +
-        //         "  SELECT id FROM (SELECT id FROM ai_chat_message WHERE user_id = #{userId} ORDER BY created_at DESC LIMIT #{retainLastN}) t" +
-        //         ")";
-        // MyBatis-Plus不支持直接写上面的原生SQL在Service，这里退一步：
-        // 方案B：查询第N条的时间边界，再按时间删除更早的（两步法）。
         List<AiChatMessage> desc = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getUserId, userId)
                 .orderByDesc(AiChatMessage::getCreatedAt)
@@ -152,9 +140,7 @@ public class MemoryServiceImpl implements MemoryService {
         }
     }
 
-    /**
-     * 清空用户所有聊天记忆（物理删除）
-     */
+    /** 清空用户所有聊天记忆（物理删除） */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void clearAllMemory(String userId) {
@@ -167,40 +153,41 @@ public class MemoryServiceImpl implements MemoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createConversation(String userId, String type, String title, String metadataJson) {
-        chat.liuxin.ai.entity.AiConversation c = new chat.liuxin.ai.entity.AiConversation();
+        AiConversation c = new AiConversation();
+        LocalDateTime time = LocalDateTime.now();
         c.setUserId(userId);
         c.setType(type);
         c.setTitle(title);
         c.setStatus(0);
         c.setMessageCount(0);
         c.setMetadata(metadataJson);
-        c.setCreatedAt(LocalDateTime.now());
-        c.setUpdatedAt(LocalDateTime.now());
+        c.setCreatedAt(time);
+        c.setUpdatedAt(time);
         conversationMapper.insert(c);
         return c.getId();
     }
 
     @Override
-    public java.util.List<chat.liuxin.ai.entity.AiConversation> listConversations(String userId, String type, int page, int size) {
+    public java.util.List<AiConversation> listConversations(String userId, String type, int page, int size) {
         int offset = Math.max(0, (page - 1) * size);
-        var qw = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<chat.liuxin.ai.entity.AiConversation>()
-                .select(chat.liuxin.ai.entity.AiConversation::getId,
-                        chat.liuxin.ai.entity.AiConversation::getUserId,
-                        chat.liuxin.ai.entity.AiConversation::getType,
-                        chat.liuxin.ai.entity.AiConversation::getTitle,
-                        chat.liuxin.ai.entity.AiConversation::getStatus,
-                        chat.liuxin.ai.entity.AiConversation::getMessageCount,
-                        chat.liuxin.ai.entity.AiConversation::getLastMessageAt)
-                .eq(chat.liuxin.ai.entity.AiConversation::getUserId, userId)
-                .eq(type != null && !type.isEmpty(), chat.liuxin.ai.entity.AiConversation::getType, type)
-                .orderByDesc(chat.liuxin.ai.entity.AiConversation::getLastMessageAt)
-                .orderByDesc(chat.liuxin.ai.entity.AiConversation::getId)
+        var qw = new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiConversation>()
+                .select(AiConversation::getId,
+                        AiConversation::getUserId,
+                        AiConversation::getType,
+                        AiConversation::getTitle,
+                        AiConversation::getStatus,
+                        AiConversation::getMessageCount,
+                        AiConversation::getLastMessageAt)
+                .eq(AiConversation::getUserId, userId)
+                .eq(type != null && !type.isEmpty(), AiConversation::getType, type)
+                .orderByDesc(AiConversation::getLastMessageAt)
+                .orderByDesc(AiConversation::getId)
                 .last("LIMIT " + offset + ", " + size);
         return conversationMapper.selectList(qw);
     }
 
     @Override
-    public chat.liuxin.ai.entity.AiConversation getConversation(Long conversationId) {
+    public AiConversation getConversation(Long conversationId) {
         return conversationMapper.selectById(conversationId);
     }
 
@@ -254,6 +241,9 @@ public class MemoryServiceImpl implements MemoryService {
         }
     }
 
+    /**
+     * 删除会话：先删除消息，再删除会话，避免残留孤儿消息。
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteConversation(Long conversationId) {

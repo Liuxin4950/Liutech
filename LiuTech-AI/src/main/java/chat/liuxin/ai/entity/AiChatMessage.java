@@ -10,11 +10,12 @@ import java.time.LocalDateTime;
 
 /**
  * 聊天消息明细实体，对应表 ai_chat_message。
- * 设计说明：
- * - 不区分会话维度，按 userId 聚合一条时间线，便于后续做全局检索/摘要。
- * - role 仅允许 user/assistant/system 三类，和Spring AI消息类型一一对应。
- * - metadata 预留JSON字符串（如错误信息、补充上下文ID等）。
- * - createdAt/updatedAt 由数据库默认值与触发器自动维护。
+ * 关系与设计：
+ * - 与 AiConversation 为多对一关系，通过 conversation_id 进行关联；允许为 null 表示临时消息（不推荐）。
+ * - role 仅允许 user/assistant/system 三类，和 Spring AI 消息类型一一对应。
+ * - status 约定：1=成功入库；9=错误（如下游模型失败或被客户端中断时存储错误元信息）。
+ * - metadata 存储 JSON 字符串（错误原因、动作/情绪、RAG片段ID等），便于后续排查与分析。
+ * - 排序约定：查询时优先按 created_at 倒序，二级按 id 倒序；近期列表再反转为升序拼接上下文。
  */
 @Data
 @TableName("ai_chat_message")

@@ -9,41 +9,18 @@ spring:
     name: LiuTech-AI
   profiles:
     active: dev
+  mvc:
+    async:
+      request-timeout: 120s
   ai:
-    ollama:
-      base-url: http://localhost:11434
+    openai:
+      base-url: https://api.siliconflow.cn
+      api-key: "sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo"
       chat:
         options:
-          model: gemma3:4b
+          model: THUDM/glm-4-9b-chat
           temperature: 0.2
-          timeout: 30s
 
-siliconflow:
-  base-url: https://api.siliconflow.cn
-  api-key: "sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo"
-  chat:
-    model: THUDM/glm-4-9b-chat
-    temperature: 0.2
-    
-  # 健康检查配置
-  health-check:
-    enabled: true
-    timeout: 5000
-    interval: 30000
-    
-  # 熔断器配置
-  circuit-breaker:
-    enabled: true
-    failure-threshold: 5
-    recovery-timeout: 30000
-    
-  ## 重试配置
-  retry:
-    max-attempts: 3
-    initial-interval: 1000
-    max-interval: 10000
-    multiplier: 2.0
- 
 # MyBatis-Plus 配置
 mybatis-plus:
   # Mapper XML 文件位置

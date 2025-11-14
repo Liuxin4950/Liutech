@@ -129,6 +129,7 @@ watch(
 
 // 播放测试音频
 function playTestAudio() {
+    return
     // 判断是否已经有音频在播放了
     if (!isAuto.value) {
         console.log("停止音频播放");

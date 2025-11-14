@@ -1,12 +1,19 @@
 package chat.liuxin.ai.service.impl;
 
+/**
+ * AI聊天服务实现
+ * 流式过程说明：
+ * - 初始化 SseEmitter 并发送事件：user -> start -> data -> complete|error。
+ * - 入库策略：仅在 complete 或 error 时落库 assistant，避免保存半截文本；用户输入在生成前落库。
+ * - 会话维护：若无 conversationId 则创建新会话，并在消息保存时更新 messageCount 与 lastMessageAt。
+ */
+
 import chat.liuxin.ai.config.AiPromptConfig;
 import chat.liuxin.ai.entity.AiChatMessage;
 import chat.liuxin.ai.exception.AIServiceException;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
-import chat.liuxin.ai.service.HealthCheckService;
 
 import chat.liuxin.ai.service.MemoryService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -24,29 +31,10 @@ import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/**
- * AI聊天核心服务实现（带“数据库记忆”版）
- * 学习顺序：
- * 1) 先读 processChat：最小可运行的一问一答 + 记忆写入/读取（窗口=20条）
- * 2) 再读 processChatStream：SSE按块推送 + 在完成/错误时再落库AI消息
- *
- * 设计要点（引导说明）：
- * - 记忆域：不分会话，一个 userId 对应一条时间线；当前用固定 "0"，未来接入JWT替换即可。
- * - 读取策略：每次调用前，取该用户最近19条历史（user/assistant/system均可）。末尾再追加本轮用户输入，组成Prompt。
- * - 写入策略：
- *   普通模式：先写入 user，再调用模型，拿到完整AI回复后写入 assistant（status=1）。异常时写入 assistant（status=9，metadata记录错误）。
- *   流式模式：先写入 user；订阅流，累计文本。onComplete 时一次性写入 assistant（status=1）；onError 时写入 assistant（status=9，metadata记录错误）。
- * - 清理策略（示例实现在 MemoryService）：按用户仅保留最近N条（可配，默认1000），多余的定期清理。这里在每次写入后“尝试触发一次轻量清理”。
- * 作者：刘鑫
- * 时间：2025-09-05
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -54,7 +42,6 @@ public class AiChatServiceImpl implements AiChatService {
 
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;           // 记忆服务（数据库）
-    private final HealthCheckService healthCheckService; // 健康检查服务
     private final RetryTemplate retryTemplate;          // 重试模板
     private final ObjectMapper objectMapper;             // 用于构造metadata的JSON
     private final AiPromptConfig aiPromptConfig;         // 系统提示词配置
@@ -106,13 +93,10 @@ public class AiChatServiceImpl implements AiChatService {
         String convType = request.getType() != null ? request.getType() : "general";
 
         try {
-            // 健康检查：确保AI服务可用
-            healthCheckService.checkServiceAvailability();
-            
             // 提取用户输入
             String input = request.getMessage();
             
-            // 处理前端上下文信息
+            // 处理前端上下文信息(前端当前页面路由信息，仅用于决策active动作，不参与输出)
             Map<String, Object> context = request.getContext();
             String contextPrompt = null;
             if (context != null && !context.isEmpty()) {
@@ -148,16 +132,12 @@ public class AiChatServiceImpl implements AiChatService {
             // 读取当前会话的最近历史（最多19条），用于作为上下文
             List<AiChatMessage> recent = conversationId != null ?
                     memoryService.listLastMessagesByConversation(conversationId, HISTORY_LIMIT) :
-                    java.util.Collections.emptyList();
+                    Collections.emptyList();
 
             // 构造消息序列：系统提示词 -> 历史 -> 上下文信息 -> 本轮用户输入
             List<Message> messages = new ArrayList<>();
 
-
-            // 1.系统提示词
-            messages.add(new SystemMessage(
-                    aiPromptConfig.getFullSystemPrompt()
-            ));
+            // 1.系统提示词由 ChatClient 的 defaultSystem 提供，这里不再重复注入
             // 2.历史信息列表
             messages.addAll(toPromptMessages(recent));
             
@@ -169,11 +149,13 @@ public class AiChatServiceImpl implements AiChatService {
             // 4.将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
             messages.add(new UserMessage(input));
 
-
+            //如果没有会话id就新建会话id，并返回前端
             if (conversationId == null) {
                 String title = "新会话";
                 conversationId = memoryService.createConversation(userIdStr, convType, title, null);
             }
+
+            //保存用户消息
             memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
 
             // 使用重试模板调用模型（一次性返回完整答案）
@@ -248,142 +230,7 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
-    /**
-     * 2) 流式聊天：通过SSE按块推送AI回复（带记忆）
-     * 关键点：
-     * - 仅在 onComplete 或 onError 时落库 assistant，避免保存半截文本。
-     * - onError 时写入 status=9，并将错误信息写入 metadata 便于排查。
-     */
-    @Override
-    public SseEmitter processChatStream(ChatRequest request, Long userId) {
-        String userIdStr = userId != null ? userId.toString() : "0";
-        String modelName = request.getModel() != null ? request.getModel() : "THUDM/glm-4-9b-chat";
-        Long conversationId = request.getConversationId();
-        String convType = request.getType() != null ? request.getType() : "general";
-
-        // 创建SSE发射器,用于服务器向客户端推送事件流
-        SseEmitter emitter = new SseEmitter(30000L);
-        try {
-            // 健康检查：确保AI服务可用
-            if (!healthCheckService.isServiceAvailable()) {
-                emitter.completeWithError(new AIServiceException("AI服务当前不可用，请稍后重试"));
-                return emitter;
-            }
-        
-            emitter.send(SseEmitter.event().name("user").data(Map.of("userId", userId)));
-
-            CompletableFuture.runAsync(() -> {
-                Long convId = request.getConversationId();
-                String convTypeLocal = request.getType() != null ? request.getType() : "general";
-                try {
-                    emitter.send(SseEmitter.event().name("start").data(Map.of("message", "AI正在思考中...")));
-
-                    // 处理用户输入和前端上下文
-                    String input = request.getMessage();
-                    Map<String, Object> context = request.getContext();
-                    String contextPrompt = null;
-                    
-                    if (context != null && !context.isEmpty()) {
-                        // 构建基础上下文提示
-                        contextPrompt = "前端用户当前路由位置（仅供决策active动作，不参与输出）：" + toJson(context);
-                        
-                        // 如果在文章详情页，获取文章内容并增强用户输入
-                        if ("post-detail".equals(context.get("page"))) {
-                            // 同时支持postId和articleId两种字段名
-                            Object articleIdObj = context.get("postId");
-                            if (articleIdObj == null) {
-                                articleIdObj = context.get("articleId");
-                            }
-                            
-                            if (articleIdObj != null) {
-                                Long articleId = parseArticleId(articleIdObj);
-                                if (articleId != null) {
-                                    // 获取文章内容并增强用户输入
-                                    String articleContent = fetchArticleContent(articleId);
-                                    if (articleContent != null) {
-                                        input = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + input;
-                                        log.info("已获取文章内容，文章ID: {}", articleId);
-                                    }
-                                    // 添加文章ID到上下文提示
-                                    contextPrompt += "\n\n注意：用户当前正在浏览文章详情页，文章ID为" + articleId;
-                                }
-                            } else {
-                                log.warn("文章详情页缺少文章ID: context={}", toJson(context));
-                            }
-                        }
-                    }
-
-                    // 读取当前会话最近历史（最多19条），末尾不会包含本轮输入
-                    List<AiChatMessage> recent = convId != null ?
-                            memoryService.listLastMessagesByConversation(convId, HISTORY_LIMIT) :
-                            java.util.Collections.emptyList();
-
-                    // 构造消息序列：系统提示词 -> 历史 -> 上下文信息 -> 本轮用户输入
-                    List<Message> messages = new ArrayList<>();
-                    // 1.系统提示词
-                    messages.add(new SystemMessage(aiPromptConfig.getFullSystemPrompt()));
-                    // 2.历史信息列表
-                    messages.addAll(toPromptMessages(recent));
-                    // 3.前端上下文信息（如果有）
-                    if (contextPrompt != null) {
-                        messages.add(new SystemMessage(contextPrompt));
-                    }
-                    // 4.用户输入
-                    messages.add(new UserMessage(input));
-
-                    if (convId == null) {
-                        String title = "新会话";
-                        convId = memoryService.createConversation(userIdStr, convTypeLocal, title, null);
-                    }
-                    memoryService.saveUserMessage(userIdStr, convId, input, modelName, null);
-
-                    String full = siliconFlowChatClient.chat(messages);
-                    if (full == null) full = "";
-                    emitter.send(SseEmitter.event().name("data").data(Map.of("chunk", full)));
-                    ParsedResult parsed = ensureValidStructuredOutput(messages, full);
-                    if (parsed.action != null && !"none".equals(parsed.action)) {
-                        if (!isExplicitActionRequest(input)) {
-                            parsed.action = "none";
-                        }
-                    }
-                    Map<String, Object> metaSave = new HashMap<>();
-                    if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
-                    if (parsed.action != null) metaSave.put("action", parsed.action);
-                    if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
-                    memoryService.saveAssistantMessage(userIdStr, convId, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
-                    
-                    emitter.send(SseEmitter.event().name("complete").data(Map.of(
-                            "success", true,
-                            "totalLength", full.length(),
-                            "emotion", parsed.emotion,
-                            "action", parsed.action
-                    )));
-                    emitter.complete();
-                } catch (Exception ex) {
-                    log.error("处理SSE流异常", ex);
-                    try {
-                        emitter.send(SseEmitter.event().name("error").data(Map.of("success", false, "message", "处理请求异常: " + ex.getMessage())));
-                        Map<String, Object> meta = new HashMap<>();
-                        meta.put("error", ex.getMessage());
-                        memoryService.saveAssistantMessage(userIdStr, convId, null, modelName, 9, toJson(meta));
-                    } catch (IOException ioe) {
-                        log.error("SSE发送异常事件失败", ioe);
-                    }
-                    emitter.completeWithError(ex);
-                }
-            });
-            log.debug("AI流式聊天启动成功");
-        } catch (Exception e) {
-            log.error("创建SSE失败", e);
-            try {
-                emitter.send(SseEmitter.event().name("error").data(Map.of("success", false, "message", "创建流式连接失败: " + e.getMessage())));
-            } catch (IOException ioe) {
-                log.error("SSE发送初始化错误失败", ioe);
-            }
-            emitter.completeWithError(e);
-        }
-        return emitter;
-    }
+    
 
     // ==================== 辅助方法 ====================
 
@@ -412,7 +259,7 @@ public class AiChatServiceImpl implements AiChatService {
         try { return objectMapper.writeValueAsString(obj); }
         catch (Exception e) { return null; }
     }
-    
+
     /**
      * 从主服务获取文章内容
      * 

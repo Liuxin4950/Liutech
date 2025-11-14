@@ -80,19 +80,5 @@ public class ErrorHandlingConfig {
         return executor;
     }
     
-    /**
-     * AI服务健康检查执行器
-     * 专门用于健康检查任务，避免阻塞主线程池
-     */
-    @Bean(name = "healthCheckExecutor")
-    public Executor healthCheckExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(5);
-        executor.setQueueCapacity(50);
-        executor.setThreadNamePrefix("Health-Check-");
-        executor.setKeepAliveSeconds(60);
-        executor.initialize();
-        return executor;
-    }
+    
 }

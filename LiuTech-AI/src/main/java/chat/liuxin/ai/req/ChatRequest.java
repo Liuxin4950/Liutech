@@ -60,7 +60,11 @@ public class ChatRequest {
      */
     private Map<String, Object> context;
 
+    // 会话ID（可选）
+    // 用于维护上下文，若不指定则创建新会话
     private Long conversationId;
 
+
+    //区分对话类型
     private String type;
 }

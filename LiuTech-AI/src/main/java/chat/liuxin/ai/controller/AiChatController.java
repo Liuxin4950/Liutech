@@ -8,23 +8,25 @@ import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.entity.AiChatMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.validation.Valid;
 import java.util.List;
 
 /**
- * AI聊天控制器（精简版）
- * 学习顺序：
- * 1) 读 /chat 普通模式
- * 2) 读 /chat/stream 流式模式
- * 作者：刘鑫
- * 时间：2025-09-24
+ * AI聊天控制器
+ * 路由说明：
+ * - POST /ai/chat        普通模式：一次性返回完整 AI 回复，并按会话落库 user/assistant 消息。
+ * - POST /ai/chat/stream 流式模式：SSE 推送事件流（user/start/data/complete/error），在 complete 或 error 时入库 assistant。
+ * - GET  /ai/chat/history 分页查询用户全局历史（倒序），便于回放与列表展示。
+ * - DELETE /ai/chat/memory 清空用户所有聊天消息（物理删除，仅消息表）。
+ *
+ * 会话与消息副作用：
+ * - 当 request.conversationId 为空时将创建新会话（在服务层处理），随后保存消息；否则直接使用现有会话。
+ * - 每次保存消息会同步维护会话的 messageCount 与 lastMessageAt。
  */
 @Slf4j
 @RestController
@@ -48,11 +50,13 @@ public class AiChatController {
     }
 
     /**
-     * 1) AI聊天接口 - 普通模式
+     * AI聊天接口 - 普通模式
+     * 请求体：ChatRequest（包含 message、model、conversationId、context 等）
+     * 返回体：ChatResponse（包含 success、message、conversationId、historyCount 等）
+     * 持久化副作用：保存 user 与 assistant 消息；必要时创建会话。
      */
     @PostMapping("/chat")
     public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
-        log.info("=== AI聊天控制器被调用 ===");
         Long userId = getCurrentUserId();
         log.info("接受到了普通模式的请求，用户ID: {}", userId);
         if (userId == null) {
@@ -61,18 +65,12 @@ public class AiChatController {
         return aiChatService.processChat(request, userId);
     }
 
-    /**
-     * 2) AI聊天接口 - 流式输出模式（SSE）
-     */
-    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatStream(@Valid @RequestBody ChatRequest request) {
-        Long userId = getCurrentUserId();
-        log.debug("接受到了流式模式的请求，用户ID: {}", userId);
-        return aiChatService.processChatStream(request, userId);
-    }
+    
 
     /**
-     * 3) 获取聊天历史记录接口 - 分页查询
+     * 获取聊天历史记录接口 - 分页查询（用户维度，倒序）
+     * 参数：page（>=1）、size（<=100）
+     * 返回：ChatHistoryResponse（列表与总数）
      */
     @GetMapping("/chat/history")
     public ChatHistoryResponse getChatHistory(
@@ -104,9 +102,7 @@ public class AiChatController {
         }
     }
 
-    /**
-     * 4) 清空用户聊天记忆接口
-     */
+    /** 清空用户聊天记忆接口（仅删除消息表，不影响会话表） */
     @DeleteMapping("/chat/memory")
     public ChatResponse clearChatMemory() {
         try {
