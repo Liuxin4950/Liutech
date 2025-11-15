@@ -14,8 +14,8 @@ import chat.liuxin.ai.exception.AIServiceException;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
-
 import chat.liuxin.ai.service.MemoryService;
+import chat.liuxin.ai.service.SiliconFlowChatClient;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,11 +25,10 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
-import chat.liuxin.ai.service.SiliconFlowChatClient;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -95,14 +94,14 @@ public class AiChatServiceImpl implements AiChatService {
         try {
             // 提取用户输入
             String input = request.getMessage();
-            
+
             // 处理前端上下文信息(前端当前页面路由信息，仅用于决策active动作，不参与输出)
             Map<String, Object> context = request.getContext();
             String contextPrompt = null;
             if (context != null && !context.isEmpty()) {
                 // 构建基础上下文提示
                 contextPrompt = "前端用户当前路由位置（仅供决策active动作，不参与输出）：" + toJson(context);
-                
+
                 // 如果在文章详情页，获取文章内容并增强用户输入
                 if ("post-detail".equals(context.get("page"))) {
                     // 同时支持postId和articleId两种字段名
@@ -110,7 +109,7 @@ public class AiChatServiceImpl implements AiChatService {
                     if (articleIdObj == null) {
                         articleIdObj = context.get("articleId");
                     }
-                    
+
                     if (articleIdObj != null) {
                         Long articleId = parseArticleId(articleIdObj);
                         if (articleId != null) {
@@ -140,12 +139,12 @@ public class AiChatServiceImpl implements AiChatService {
             // 1.系统提示词由 ChatClient 的 defaultSystem 提供，这里不再重复注入
             // 2.历史信息列表
             messages.addAll(toPromptMessages(recent));
-            
+
             // 3.前端上下文信息（如果有）
             if (contextPrompt != null) {
                 messages.add(new SystemMessage(contextPrompt));
             }
-            
+
             // 4.将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
             messages.add(new UserMessage(input));
 
@@ -181,7 +180,7 @@ public class AiChatServiceImpl implements AiChatService {
             if (parsed.action != null) metaSave.put("action", parsed.action);
             if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
             memoryService.saveAssistantMessage(userIdStr, conversationId, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
-            
+
 
              long cost = System.currentTimeMillis() - begin;
              log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(), parsed.message != null ? parsed.message.length() : 0, cost);
@@ -217,9 +216,9 @@ public class AiChatServiceImpl implements AiChatService {
             } catch (Exception ignore) {
                 log.warn("记录AI错误消息失败: {}", ignore.getMessage());
             }
-            
+
             // 根据异常类型抛出相应的AI服务异常
-            if (e.getCause() instanceof java.net.ConnectException || 
+            if (e.getCause() instanceof java.net.ConnectException ||
                 e.getCause() instanceof java.net.SocketTimeoutException) {
                 throw new AIServiceException.ConnectionException("AI服务连接失败: " + e.getMessage(), e);
             } else if (e.getMessage() != null && e.getMessage().contains("timeout")) {
@@ -230,7 +229,7 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
-    
+
 
     // ==================== 辅助方法 ====================
 
@@ -262,49 +261,49 @@ public class AiChatServiceImpl implements AiChatService {
 
     /**
      * 从主服务获取文章内容
-     * 
+     *
      * @param articleId 文章ID
      * @return 文章内容，包含标题和正文
      */
     private String fetchArticleContent(Long articleId) {
         try {
             // 构建请求URL
-            String apiUrl = serverBaseUrl + "/posts/" + articleId;
-            
+            String apiUrl = serverBaseUrl + "/api/posts/" + articleId;
+
             // 创建RestTemplate实例
             RestTemplate restTemplate = new RestTemplate();
-            
+
             // 发送GET请求获取文章详情
             ResponseEntity<String> response = restTemplate.getForEntity(apiUrl, String.class);
-            
+
             if (response.getStatusCode().is2xxSuccessful()) {
                 // 解析响应JSON
                 JsonNode root = objectMapper.readTree(response.getBody());
-                
+
                 // 检查请求是否成功
                 if (root.has("code") && root.get("code").asInt() == 200) {
                     JsonNode data = root.get("data");
-                    
+
                     if (data != null) {
                         String title = data.has("title") ? data.get("title").asText() : "未知标题";
                         String content = data.has("content") ? data.get("content").asText() : "";
                         String summary = data.has("summary") ? data.get("summary").asText() : "";
-                        
+
                         // 构建文章内容摘要
                         StringBuilder articleInfo = new StringBuilder();
                         articleInfo.append("文章标题: ").append(title).append("\n\n");
-                        
+
                         if (!summary.isEmpty()) {
                             articleInfo.append("文章摘要: ").append(summary).append("\n\n");
                         }
-                        
+
                         articleInfo.append("文章内容: ").append(content);
-                        
+
                         return articleInfo.toString();
                     }
                 }
             }
-            
+
             log.warn("获取文章内容失败，状态码: {}", response.getStatusCode().value());
             return null;
         } catch (Exception e) {
@@ -437,7 +436,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     /**
      * 解析文章ID
-     * 
+     *
      * @param articleIdObj 文章ID对象
      * @return 解析后的文章ID，解析失败返回null
      */

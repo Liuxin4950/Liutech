@@ -4,3 +4,13 @@ spring:
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
+  ai:
+    openai:
+      base-url: https://api.siliconflow.cn
+      api-key: ${SPRING_AI_OPENAI_API_KEY}
+      chat:
+        options:
+          model: THUDM/glm-4-9b-chat
+          temperature: 0.2
+server:
+  base-url: http://backend:8080

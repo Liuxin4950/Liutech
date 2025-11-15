@@ -1,7 +1,7 @@
 /**
  * 多服务配置文件
  * 支持主服务和AI服务的端口配置
- * 
+ *
  * 作者：刘鑫
  * 时间：2025-01-27
  */
@@ -47,7 +47,11 @@ export const SERVICE_CONFIG: Record<ServiceType, ServiceConfig> = {
     name: '主服务'
   },
   [ServiceType.AI]: {
-    baseURL: isDevelopment ? 'http://127.0.0.1:8081' : 'https://ai.liutech.com',
+      baseURL: (() => {
+          const envUrl = import.meta.env.VITE_AI_BASE_URL as string | undefined
+          if (envUrl && envUrl.trim().length > 0) return envUrl
+          return isDevelopment ? 'http://127.0.0.1:8081' : '/ai'
+      })(),
     timeout: 60000, // AI服务可能需要更长的超时时间
     name: 'AI服务'
   }

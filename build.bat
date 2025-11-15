@@ -10,7 +10,7 @@ echo Time: %date% %time%
 echo ==========================================
 
 REM 1. Build Backend
-echo [1/4] Building Backend Service...
+echo [1/5] Building Backend Service...
 echo Cleaning and compiling backend project...
 call mvn -f LiuTech/pom.xml clean package -DskipTests
 if %errorlevel% neq 0 (
@@ -27,8 +27,26 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM 2. Build Web Frontend
-echo [2/4] Building Web Frontend...
+REM 2. Build AI Service
+echo [2/5] Building AI Service...
+echo Cleaning and compiling AI project...
+call mvn -f LiuTech-AI/pom.xml clean package -DskipTests
+if %errorlevel% neq 0 (
+    echo [ERROR] AI service compilation failed!
+    pause
+    exit /b 1
+)
+
+echo Building AI Docker image...
+call docker build -t liutech-ai:latest -f LiuTech-AI/Dockerfile LiuTech-AI
+if %errorlevel% neq 0 (
+    echo [ERROR] AI image build failed!
+    pause
+    exit /b 1
+)
+
+REM 3. Build Web Frontend
+echo [3/5] Building Web Frontend...
 cd Web
 call npm ci
 if %errorlevel% neq 0 (
@@ -55,8 +73,8 @@ if %errorlevel% neq 0 (
 )
 cd ..
 
-REM 3. Build Admin Frontend
-echo [3/4] Building Admin Frontend...
+REM 4. Build Admin Frontend
+echo [4/5] Building Admin Frontend...
 cd Admin
 call npm ci
 if %errorlevel% neq 0 (
@@ -83,8 +101,8 @@ if %errorlevel% neq 0 (
 )
 cd ..
 
-REM 4. Build Nginx
-echo [4/4] Building Nginx Service...
+REM 5. Build Nginx
+echo [5/5] Building Nginx Service...
 call docker build -t liutech-nginx:latest nginx/
 if %errorlevel% neq 0 (
     echo [ERROR] Nginx image build failed!

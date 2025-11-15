@@ -12,6 +12,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./ai_chat_tables.sql:/docker-entrypoint-initdb.d/ai_chat_tables.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
@@ -35,6 +36,23 @@ services:
       - SERVER_BASE_URL=${SERVER_BASE_URL:-http://liuxin.chat}
     volumes:
       - upload_files:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    # AI服务
+  ai:
+    image: liutech-ai:latest
+    container_name: liutech-ai
+    restart: unless-stopped
+    ports:
+      - "${AI_PORT:-8081}:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=123456
+      - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
     depends_on:
       mysql:
         condition: service_healthy
@@ -67,12 +85,16 @@ services:
     ports:
       - "${NGINX_HTTP:-80}:80"
       - "${NGINX_HTTPS:-443}:443"
+      - "81:81"
     volumes:
       - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - backend
       - web
       - admin
+      - ai
+
+
 
 # 数据卷配置
 volumes:

@@ -15,7 +15,7 @@ spring:
   ai:
     openai:
       base-url: https://api.siliconflow.cn
-      api-key: "sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo"
+      api-key: ${SPRING_AI_OPENAI_API_KEY}
       chat:
         options:
           model: THUDM/glm-4-9b-chat
