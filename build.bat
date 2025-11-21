@@ -120,4 +120,5 @@ echo [INFO] Use the following commands to start services:
 echo   Local development: docker-compose up -d
 echo ==========================================
 echo Build script completed successfully!
+echo 打包完成！使用以下命令 docker-compose up -d 在根目录启动容器编排启动服务：
 pause

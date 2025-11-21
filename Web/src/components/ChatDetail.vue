@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref, watch, nextTick } from 'vue'
-import ConversationService, { type ChatMessageItem } from '@/services/conversation'
-import { Ai, type AiChatRequest, type AiChatResponse } from '@/services/ai.ts'
+import {nextTick, onMounted, ref, watch} from 'vue'
+import ConversationService, {type ChatMessageItem} from '@/services/conversation'
+import {Ai, type AiChatRequest, type AiChatResponse} from '@/services/ai.ts'
 
 const props = defineProps<{ conversationId: number | null }>()
 

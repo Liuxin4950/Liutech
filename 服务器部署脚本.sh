@@ -107,6 +107,9 @@ docker load -i liutech-nginx.tar
 echo "正在加载后端应用镜像..."
 docker load -i liutech-backend.tar
 
+echo "正在加载后端AI应用镜像..."
+docker load -i liutech-ai.tar
+
 echo "正在加载Web前端镜像..."
 docker load -i liutech-web.tar
 
