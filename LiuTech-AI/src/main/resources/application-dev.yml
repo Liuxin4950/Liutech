@@ -12,6 +12,5 @@ spring:
         options:
           model: THUDM/glm-4-9b-chat
           temperature: 0.2
-
-siliconflow:
-  api-key: "sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo"
+server:
+  base-url: http://localhost:8080

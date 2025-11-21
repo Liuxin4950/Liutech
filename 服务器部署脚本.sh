@@ -125,9 +125,11 @@ WEB_PORT=3000
 ADMIN_PORT=3001
 BACKEND_PORT=8080
 MYSQL_PORT=3306
-NGINX_HTTP=8888
-NGINX_HTTPS=8443
-SERVER_BASE_URL=http://liuxin.chat:8888
+NGINX_HTTP=80
+NGINX_HTTPS=443
+AI_PORT=8081
+SERVER_BASE_URL=http://liuxin.chat:80
+SPRING_AI_OPENAI_API_KEY="sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo"
 EOF
 
 echo "环境配置文件创建完成！"

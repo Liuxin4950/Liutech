@@ -50,7 +50,7 @@ export const SERVICE_CONFIG: Record<ServiceType, ServiceConfig> = {
       baseURL: (() => {
           const envUrl = import.meta.env.VITE_AI_BASE_URL as string | undefined
           if (envUrl && envUrl.trim().length > 0) return envUrl
-          return isDevelopment ? 'http://127.0.0.1:8081' : '/ai'
+          return isDevelopment ? 'http://127.0.0.1:8081/ai' : '/ai'
       })(),
     timeout: 60000, // AI服务可能需要更长的超时时间
     name: 'AI服务'

@@ -1,5 +1,4 @@
-
-import { post, get, del, ServiceType } from './api'
+import {del, get, post, ServiceType} from './api'
 
 /**
  * AI聊天请求接口
@@ -64,7 +63,7 @@ export interface ChatHistoryResponse {
 /**
  * AI服务类
  * 使用AI服务专用端口8081
- * 
+ *
  * 作者：刘鑫
  * 时间：2025-01-27
  */
@@ -75,7 +74,7 @@ export class Ai {
      */
     static async chatStatus(): Promise<AiChatResponse> {
         // get 返回的已是服务端响应体，AI服务为 {success, message, ...}
-        const response = await get<AiChatResponse>('/ai/status', {}, {
+        const response = await get<AiChatResponse>('/status', {}, {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse
@@ -86,7 +85,7 @@ export class Ai {
      */
     static async chat(request: AiChatRequest): Promise<AiChatResponse> {
         // post 返回的已是服务端响应体，AI服务为 {success, message, ...}
-        const response = await post<AiChatResponse>('/ai/chat', request, {
+        const response = await post<AiChatResponse>('/chat', request, {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse
@@ -97,7 +96,7 @@ export class Ai {
      */
     static async chatHistory(page: number = 1, size: number = 20): Promise<ChatHistoryResponse> {
         // get 返回的已是服务端响应体，AI服务为 {success, message, ...}
-        const response = await get<ChatHistoryResponse>(`/ai/chat/history?page=${page}&size=${size}`,{}, {
+         const response = await get<ChatHistoryResponse>(`/chat/history?page=${page}&size=${size}`, {}, {
             serviceType: ServiceType.AI
         })
         return response as unknown as ChatHistoryResponse
@@ -109,7 +108,7 @@ export class Ai {
      */
     static async clearChatMemory(): Promise<AiChatResponse> {
         // del 返回的已是服务端响应体，AI服务为 {success, message, ...}
-        const response = await del<AiChatResponse>('/ai/chat/memory', {
+        const response = await del<AiChatResponse>('/chat/memory', {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse
@@ -117,5 +116,5 @@ export class Ai {
 
 
 
-   
+
 }

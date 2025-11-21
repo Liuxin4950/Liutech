@@ -8,7 +8,6 @@ package chat.liuxin.ai.service.impl;
  * - 会话维护：若无 conversationId 则创建新会话，并在消息保存时更新 messageCount 与 lastMessageAt。
  */
 
-import chat.liuxin.ai.config.AiPromptConfig;
 import chat.liuxin.ai.entity.AiChatMessage;
 import chat.liuxin.ai.exception.AIServiceException;
 import chat.liuxin.ai.req.ChatRequest;
@@ -40,12 +39,12 @@ import java.util.stream.Collectors;
 public class AiChatServiceImpl implements AiChatService {
 
     private final SiliconFlowChatClient siliconFlowChatClient;
-    private final MemoryService memoryService;           // 记忆服务（数据库）
-    private final RetryTemplate retryTemplate;          // 重试模板
-    private final ObjectMapper objectMapper;             // 用于构造metadata的JSON
-    private final AiPromptConfig aiPromptConfig;         // 系统提示词配置
+    private final MemoryService memoryService;
+    private final RetryTemplate retryTemplate;
+    private final ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
 
-    @Value("${server.base-url:http://localhost:8080}")
+    @Value("${server.base-url}")
     private String serverBaseUrl;
 
     /**
@@ -53,6 +52,7 @@ public class AiChatServiceImpl implements AiChatService {
      * 你提出“暂时只保留20条”，这里按19条历史 + 1条本轮输入 组成本次Prompt
      */
     private static final int HISTORY_LIMIT = 19; // 历史条数（不含本轮输入）
+
     // 与 application.yml 示例一致的允许 action 列表
     private static final Set<String> ALLOWED_ACTIONS = Set.of(
             "navigate:home",
@@ -115,8 +115,10 @@ public class AiChatServiceImpl implements AiChatService {
                         if (articleId != null) {
                             // 获取文章内容并增强用户输入
                             String articleContent = fetchArticleContent(articleId);
+                            log.info("获取文章内容，文章ID: {}, 内容: {}", articleId, articleContent);
+
                             if (articleContent != null) {
-                                input = "用户在查看以下文章时提问：\n\n" + articleContent + "\n\n用户的问题是：" + input;
+                                input = "用户在查看以下文章：\n\n" + articleContent + "\n\n用户的问题是：" + input;
                                 log.info("已获取文章内容，文章ID: {}", articleId);
                             }
                             // 添加文章ID到上下文提示
@@ -166,11 +168,14 @@ public class AiChatServiceImpl implements AiChatService {
 
             // 解析并校验模型输出；必要时追加严格格式要求让AI重生成
             ParsedResult parsed = ensureValidStructuredOutput(messages, aiOutput);
-            // 服务器侧动作门控：普通问答不触发动作，除非用户明确下达指令
-            if (parsed.action != null && !"none".equals(parsed.action)) {
-                if (!isExplicitActionRequest(input)) {
-                    log.debug("非明确指令，强制置 action=none：原action={}", parsed.action);
-                    parsed.action = "none";
+            String inferred = inferActionFromInput(input);
+            if (inferred != null && !"none".equals(inferred)) {
+                parsed.action = inferred;
+            } else {
+                if (parsed.action != null && !"none".equals(parsed.action)) {
+                    if (!isExplicitActionRequest(input)) {
+                        parsed.action = "none";
+                    }
                 }
             }
 
@@ -268,11 +273,9 @@ public class AiChatServiceImpl implements AiChatService {
     private String fetchArticleContent(Long articleId) {
         try {
             // 构建请求URL
-            String apiUrl = serverBaseUrl + "/api/posts/" + articleId;
+            String apiUrl = serverBaseUrl + "/posts/" + articleId;
 
             // 创建RestTemplate实例
-            RestTemplate restTemplate = new RestTemplate();
-
             // 发送GET请求获取文章详情
             ResponseEntity<String> response = restTemplate.getForEntity(apiUrl, String.class);
 
@@ -464,10 +467,11 @@ public class AiChatServiceImpl implements AiChatService {
         if (s.isEmpty()) return false;
         // 关键动词与常见表达（中文）
         String[] keywords = {
-                "跳转", "打开", "进入", "去", "前往", "导航", "切换",
+                "跳转", "打开", "进入", "去", "前往", "导航", "切换", "返回", "回到",
                 "点赞", "收藏", "分享", "评论",
                 "搜索", "查找",
-                "展示", "显示"
+                "展示", "显示",
+                "首页", "主页", "home"
         };
         String lower = s.toLowerCase();
         for (String kw : keywords) {
@@ -482,5 +486,20 @@ public class AiChatServiceImpl implements AiChatService {
             }
         }
         return false;
+    }
+
+    private String inferActionFromInput(String input) {
+        if (input == null) return "none";
+        String s = input.trim().toLowerCase();
+        if (s.isEmpty()) return "none";
+        boolean wantHome = s.contains("首页") || s.contains("主页") || s.contains("home");
+        boolean hasNavVerb = s.contains("跳转") || s.contains("打开") || s.contains("进入") || s.contains("前往") || s.contains("去") || s.contains("导航") || s.contains("切换") || s.contains("返回") || s.contains("回到");
+        if (wantHome && (hasNavVerb || s.contains("首页") || s.contains("home"))) {
+            return "navigate:home";
+        }
+        if (s.contains("搜索") || s.contains("查找")) {
+            return "search:posts";
+        }
+        return "none";
     }
 }

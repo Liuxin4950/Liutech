@@ -32,6 +32,7 @@ build/
 
 ### 编译文件 ###
 *.class
+**/*.class
 
 # 日志文件与目录
 logs/
