@@ -222,9 +222,6 @@ const dispatchAction = async (action: string, meta: ActionMeta = {}) => {
       case 'search':
         await handleSearchAction(actionValue, meta)
         break
-      case 'show':
-        await handleShowAction(actionValue)
-        break
       case 'none':
         break
     }
@@ -368,42 +365,7 @@ const handleSearchAction = async (searchType: string, meta: Record<string, any>)
   }
 }
 
-// 处理展示类动作
-const handleShowAction = async (showType: string) => {
-  switch (showType) {
-    case 'capabilities':
-      console.log("触发展示动作，展示AI功能介绍")
-      messages.value.push({
-        id: ++messageIdCounter,
-        type: 'ai',
-        content: `🌟 我是纳西妲，我可以为你提供以下服务：
-📍 **页面导航**
-• 跳转到首页、文章列表、分类、标签等页面
-• 访问个人资料、关于我、聊天记录等个人页面
-• 快速进入发布文章、草稿箱、收藏夹等功能页面
 
-📝 **文章操作**
-• 为你总结文章内容和要点
-• 回答关于文章的问题
-• 帮你点赞和收藏喜欢的文章
-
-💬 **智能对话**
-• 回答你的各种问题
-• 提供专业建议和帮助
-• 陪你聊天，让浏览更有趣
-
-只需要告诉我你想做什么，比如"跳转到首页"、"总结这篇文章"、"点赞这篇文章"等，我就能帮你完成！有什么需要帮助的吗？ 🍄`,
-        timestamp: new Date()
-      })
-      break
-    default:
-      throw new Error(`未知的展示类型：${showType}`)
-  }
-}
-
-
-
-// ... existing code ...
 
 // 处理聊天错误
 const handleChatError = (error: any, originalMessage: string) => {

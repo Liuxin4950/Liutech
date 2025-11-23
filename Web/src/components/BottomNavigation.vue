@@ -62,9 +62,10 @@
         title="AI助手"
       >
         <!-- AI机器人图标 -->
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <!-- <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
           <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V7H1V9H3V15C3 16.1 3.9 17 5 17H8.5C8.5 18.4 9.6 19.5 11 19.5S13.5 18.4 13.5 17H19C20.1 17 21 16.1 21 15V9H21ZM7.5 11.5C7.5 10.7 8.2 10 9 10S10.5 10.7 10.5 11.5S9.8 13 9 13S7.5 12.3 7.5 11.5ZM16.5 11.5C16.5 12.3 15.8 13 15 13S13.5 12.3 13.5 11.5S14.2 10 15 10S16.5 10.7 16.5 11.5ZM11 16H13C13 16.6 12.6 17 12 17S11 16.6 11 16Z"/>
-        </svg>
+        </svg> -->
+        <img class="fit" src="@/assets/aifile/纳西妲.webp" alt="">
       </button>
 
     </div>
@@ -104,7 +105,14 @@ const goAiChat = () => {
 
 </script>
 
+
+
 <style scoped lang="scss">
+.fit {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .bottom-nav {
   z-index: 1000;
 

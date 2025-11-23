@@ -203,7 +203,6 @@ defineExpose({
   border: 1px solid var(--border-soft);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 100;
   overflow: hidden;
   transition: all 0.3s ease;
 
