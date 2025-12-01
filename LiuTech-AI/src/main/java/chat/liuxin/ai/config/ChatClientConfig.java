@@ -11,7 +11,6 @@ public class ChatClientConfig {
     public ChatClient chatClient(ChatClient.Builder builder, AiPromptConfig aiPromptConfig) {
         return builder
                 .defaultSystem(aiPromptConfig.getFullSystemPrompt())
-                // .defaultAdvisors(new SimpleLoggerAdvisor())
                 .build();
     }
 }

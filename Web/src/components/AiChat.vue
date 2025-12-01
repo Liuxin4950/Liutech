@@ -154,7 +154,8 @@ const hasFavoriteIntent = (text: string) => /(收藏|加(个)?星|favorite|mark)
 
 // 提取当前活跃文章ID（优先使用AI返回的meta，其次路由）
 const getActivePostId = (meta: ActionMeta): number | undefined => {
-  const raw = meta.postId ?? meta.articleId ?? meta.id ?? (route.name === 'post-detail' ? route.params.id : undefined)
+  // 由于后端已移除metadata字段，直接从路由中获取文章ID
+  const raw = (route.name === 'post-detail' ? route.params.id : undefined)
   const n = Number(raw)
   return Number.isFinite(n) ? n : undefined
 }
@@ -186,7 +187,8 @@ const sendChat = async () => {
     }
 
     const action = resp?.action || 'none'
-    const meta = resp?.metadata || {}
+    // 由于后端已移除metadata字段，这里使用空对象
+    const meta = {}
     await dispatchAction(action, meta)
   } catch (err) {
     updateUserMessageStatus(msgId, 'failed')
@@ -356,7 +358,8 @@ const handleSearchAction = async (searchType: string, meta: Record<string, any>)
   
   const searchName = searchMap[searchType]
   if (searchName) {
-    const q = String(meta?.query ?? meta?.keyword ?? lastUserMessage ?? '')
+    // 由于后端已移除metadata字段，使用最后一条用户消息作为搜索关键词
+    const q = lastUserMessage ?? ''
     searchQuery.value = q
     isSearchOpen.value = true
     messages.value.push({ id: ++messageIdCounter, type: 'ai', content: `🔍 已为您打开${searchName}搜索`, timestamp: new Date() })

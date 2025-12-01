@@ -45,13 +45,11 @@ public class AiConversationController {
     public ChatResponse create(@RequestParam(required = false) String type,
             @RequestParam(required = false) String title) {
         String userId = getCurrentUserIdStr();
-        Long id = memoryService.createConversation(userId, type != null ? type : "general",
-                title != null ? title : "新会话", null);
+        Long id = memoryService.createConversation(userId, title != null ? title : "新会话");
         return ChatResponse.builder()
                 .success(true)
                 .message("会话创建成功")
                 .conversationId(id)
-                .timestamp(System.currentTimeMillis())
                 .build();
     }
 

@@ -2,10 +2,13 @@ package chat.liuxin.ai.service.impl;
 
 /**
  * AI聊天服务实现
+ * 作者：刘鑫
+ * 时间：2025-12-01
+ * 重构说明：适配新的数据库表结构，简化设计，优化性能
  * 流式过程说明：
  * - 初始化 SseEmitter 并发送事件：user -> start -> data -> complete|error。
  * - 入库策略：仅在 complete 或 error 时落库 assistant，避免保存半截文本；用户输入在生成前落库。
- * - 会话维护：若无 conversationId 则创建新会话，并在消息保存时更新 messageCount 与 lastMessageAt。
+ * - 会话维护：若无 conversationId 则创建新会话。
  */
 
 import chat.liuxin.ai.entity.AiChatMessage;
@@ -89,7 +92,6 @@ public class AiChatServiceImpl implements AiChatService {
         String userIdStr = userId != null ? userId.toString() : "0";
         String modelName = request.getModel() != null ? request.getModel() : "THUDM/glm-4-9b-chat";
         Long conversationId = request.getConversationId();
-        String convType = request.getType() != null ? request.getType() : "general";
 
         try {
             // 提取用户输入
@@ -153,7 +155,7 @@ public class AiChatServiceImpl implements AiChatService {
             //如果没有会话id就新建会话id，并返回前端
             if (conversationId == null) {
                 String title = "新会话";
-                conversationId = memoryService.createConversation(userIdStr, convType, title, null);
+                conversationId = memoryService.createConversation(userIdStr, title);
             }
 
             //保存用户消息
@@ -179,12 +181,9 @@ public class AiChatServiceImpl implements AiChatService {
                 }
             }
 
-            // 成功后落库"AI消息"（status=1），并记录元数据（含情绪/动作/metadata）
-            Map<String, Object> metaSave = new HashMap<>();
-            if (parsed.emotion != null) metaSave.put("emotion", parsed.emotion);
-            if (parsed.action != null) metaSave.put("action", parsed.action);
-            if (parsed.metadata != null && !parsed.metadata.isEmpty()) metaSave.put("metadata", parsed.metadata);
-            memoryService.saveAssistantMessage(userIdStr, conversationId, parsed.message, modelName, 1, metaSave.isEmpty() ? null : toJson(metaSave));
+            // 成功后落库"AI消息"（status=1）
+            // 重构说明：新表结构中移除了metadata字段，简化存储
+            memoryService.saveAssistantMessage(userIdStr, conversationId, parsed.message, modelName, 1, null);
 
 
              long cost = System.currentTimeMillis() - begin;
@@ -195,11 +194,7 @@ public class AiChatServiceImpl implements AiChatService {
                      .message(parsed.message)
                      .emotion(parsed.emotion)
                      .action(parsed.action)
-                     .metadata(parsed.metadata)
-                     .userId(userIdStr) // 使用字符串类型的userId,与其他地方保持一致
                      .model(modelName)
-                     .historyCount(recent.size() + 1) // 仅统计历史条数（不含AI本轮）
-                     .timestamp(System.currentTimeMillis())
                      .processingTime(cost)
                      .responseLength(parsed.message != null ? parsed.message.length() : 0)
                      .conversationId(conversationId)
@@ -211,13 +206,10 @@ public class AiChatServiceImpl implements AiChatService {
             throw e;
         } catch (Exception e) {
             log.error("AI普通聊天失败", e);
-            // 失败时也尝试记录一条"AI错误消息"，status=9，metadata带错误信息（帮助排查）
+            // 失败时也尝试记录一条"AI错误消息"，status=9
+            // 重构说明：新表结构中移除了metadata字段，简化存储
             try {
-                Map<String, Object> meta = new HashMap<>();
-                meta.put("error", e.getMessage());
-                meta.put("errorType", e.getClass().getSimpleName());
-                meta.put("timestamp", System.currentTimeMillis());
-                memoryService.saveAssistantMessage(userIdStr, conversationId, null, modelName, 9, toJson(meta));
+                memoryService.saveAssistantMessage(userIdStr, conversationId, null, modelName, 9, null);
             } catch (Exception ignore) {
                 log.warn("记录AI错误消息失败: {}", ignore.getMessage());
             }
@@ -225,11 +217,11 @@ public class AiChatServiceImpl implements AiChatService {
             // 根据异常类型抛出相应的AI服务异常
             if (e.getCause() instanceof java.net.ConnectException ||
                 e.getCause() instanceof java.net.SocketTimeoutException) {
-                throw new AIServiceException.ConnectionException("AI服务连接失败: " + e.getMessage(), e);
+                throw new AIServiceException.ConnectionException("AI服务连接失败: " + e.getMessage());
             } else if (e.getMessage() != null && e.getMessage().contains("timeout")) {
-                throw new AIServiceException.TimeoutException("AI服务响应超时: " + e.getMessage(), e);
+                throw new AIServiceException.TimeoutException("AI服务响应超时: " + e.getMessage());
             } else {
-                throw new AIServiceException("AI服务处理异常: " + e.getMessage(), e);
+                throw new AIServiceException("AI服务处理异常: " + e.getMessage());
             }
         }
     }

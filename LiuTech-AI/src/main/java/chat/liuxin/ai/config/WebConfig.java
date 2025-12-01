@@ -17,6 +17,17 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
     /**
+     * 配置RestTemplate Bean
+     * 用于HTTP请求调用
+     * 
+     * @return RestTemplate实例
+     */
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+    /**
      * 配置静态资源映射
      * 将/static/**映射到classpath:/static/目录
      */
@@ -24,14 +35,5 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/static/**")
                 .addResourceLocations("classpath:/static/");
-    }
-    
-    /**
-     * 配置RestTemplate Bean
-     * 用于HTTP客户端请求，支持健康检查等功能
-     */
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
     }
 }

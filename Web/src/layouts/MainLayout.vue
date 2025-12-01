@@ -84,6 +84,7 @@ const handleAIChat = (val: boolean) => {
   aiChatActive.value = val
 }
 
+
 const handleModelStatusChange = () => {
   // 清除之前的定时器
   if (modelToggleTimeout) {

@@ -8,16 +8,17 @@ import java.util.List;
 /**
  * 记忆服务接口
  * 作者：刘鑫
- * 时间：2025-09-24
+ * 时间：2025-12-01
+ * 重构说明：适配新的数据库表结构，简化设计，优化性能
  *
  * 存储模型：
  * - 会话（AiConversation）与消息（AiChatMessage）为一对多关系，通过 conversation_id 关联。
- * - 每次保存消息会同步维护会话的 messageCount 与 lastMessageAt。
- * - 删除会话时采取“先删消息、再删会话”的顺序，避免产生孤儿消息。
+ * - 简化设计，移除了冗余字段，保留核心功能。
+ * - 删除会话时通过外键约束自动删除消息。
  *
  * 排序与分页约定：
  * - 用户全局历史：按 created_at 与 id 倒序分页返回；近期拼接上下文时再反转为升序。
- * - 会话内消息：同样按 created_at 与 id 倒序分页；最近 N 条再反转为升序用于提示词构造。
+ * - 会话内消息：按 seq_no 倒序分页；最近 N 条再反转为升序用于提示词构造。
  */
 public interface MemoryService {
 
@@ -46,24 +47,24 @@ public interface MemoryService {
     long countHistoryMessages(String userId);
 
     /**
-     * 保存一条用户消息（role=user，status 固定为 1）并同步更新会话指标
+     * 保存一条用户消息（role=user，status 固定为 1）
+     * 重构说明：移除了metadata字段，简化存储
      * @param userId         用户ID
-     * @param conversationId 会话ID（可为 null，建议始终提供）
+     * @param conversationId 会话ID
      * @param content        文本内容
      * @param model          模型名称
-     * @param metadataJson   额外元数据（JSON字符串，可为空）
      */
     void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson);
 
     /**
-     * 保存一条 AI 消息（role=assistant）并同步更新会话指标
+     * 保存一条 AI 消息（role=assistant）
      * 状态约定：status=1 表示成功；status=9 表示错误（content 可为空）
+     * 重构说明：移除了metadata字段，简化存储
      * @param userId         用户ID
      * @param conversationId 会话ID
      * @param content        AI输出文本（错误时可为空）
      * @param model          模型名称
      * @param status         1成功；9错误
-     * @param metadataJson   额外元数据（JSON字符串）
      */
     void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson);
 
@@ -82,13 +83,12 @@ public interface MemoryService {
 
     /**
      * 创建会话
+     * 重构说明：移除了type和metadata字段，简化创建逻辑
      * @param userId       用户ID
-     * @param type         会话类型（如 general）
      * @param title        会话标题
-     * @param metadataJson 元数据（JSON字符串）
      * @return 新建会话ID
      */
-    Long createConversation(String userId, String type, String title, String metadataJson);
+    Long createConversation(String userId, String title);
 
     /**
      * 列出用户的会话
@@ -115,9 +115,9 @@ public interface MemoryService {
     /** 重命名会话标题 */
     void renameConversation(Long conversationId, String title);
 
-    /** 归档会话（status=9） */
+    /** 归档会话（直接删除） */
     void archiveConversation(Long conversationId);
 
-    /** 删除会话（先删消息，再删会话） */
+    /** 删除会话（通过外键约束自动删除消息） */
     void deleteConversation(Long conversationId);
 }

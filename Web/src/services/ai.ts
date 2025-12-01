@@ -13,18 +13,18 @@ export interface AiChatRequest {
 export interface AiChatResponse {
   success: boolean
   message: string
-  userId: string
-  model: string
-  historyCount: number
-  timestamp: number
-  processingTime?: number
-  responseLength?: number
+  code?: number
   /** AI识别的情绪标签，如 happy/angry/thinking/neutral */
   emotion?: string | null
   /** 动作指令，如 open_latest_articles/favorite_article/open_home */
   action?: string | null
-  /** 元数据，例如 { articleId: 123 } */
-  metadata?: Record<string, any> | null
+  /** 模型名称 */
+  model?: string
+  /** 处理时间（毫秒） */
+  processingTime?: number
+  /** 响应长度 */
+  responseLength?: number
+  /** 对话ID */
   conversationId?: number
 }
 
