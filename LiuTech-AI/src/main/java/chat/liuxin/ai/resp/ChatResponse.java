@@ -4,9 +4,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import java.util.Map;
-
-import groovy.util.logging.Log;
 
 /**
  * AI聊天响应类

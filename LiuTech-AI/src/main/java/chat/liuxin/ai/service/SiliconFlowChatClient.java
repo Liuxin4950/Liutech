@@ -15,12 +15,16 @@ public class SiliconFlowChatClient {
     private final ChatClient chatClient;
 
     public String chat(List<Message> messages) {
+        return chat(messages, "THUDM/glm-4-9b-chat");
+    }
+    
+    public String chat(List<Message> messages, String modelName) {
         return chatClient
                 .prompt()
                 .messages(messages)
                 .options(OpenAiChatOptions.builder()
-                        .withModel("THUDM/glm-4-9b-chat")
-                        .withTemperature(0.2)
+                        .model(modelName != null ? modelName : "THUDM/glm-4-9b-chat")
+                        .temperature(0.2)
                         .build())
                 .call()
                 .content();

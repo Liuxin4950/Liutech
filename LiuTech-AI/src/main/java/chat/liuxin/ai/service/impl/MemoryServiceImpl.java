@@ -7,12 +7,19 @@ import chat.liuxin.ai.service.MemoryService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 记忆服务实现类
@@ -30,86 +37,42 @@ public class MemoryServiceImpl implements MemoryService {
 
     /**
      * 按用户 ID 查询最近 N 条消息（最终返回升序），用于提示词上下文拼接。
-     * 查询策略：先按 created_at、id 倒序抓取 N 条，再反转为升序。
-     * 注意：新表结构中移除了user_id字段，需要通过conversation关联查询
+     * 优化说明：使用JOIN查询一次数据库操作，避免N+1查询问题
+     * 注意：聊天系统实时性要求高，不适合使用缓存
      */
     @Override
     public List<AiChatMessage> listRecentMessages(String userId, int limit) {
         if (limit <= 0) return Collections.emptyList();
         
-        // 1) 先查询用户的所有会话ID
-        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
-                .eq(AiConversation::getUserId, userId)
-                .select(AiConversation::getId)
-        ).stream().map(AiConversation::getId).toList();
-        
-        if (conversationIds.isEmpty()) {
-            return Collections.emptyList();
-        }
-        
-        // 2) 按创建时间倒序查询最近N条消息；同秒内用 id 作为稳定的二级排序
-        List<AiChatMessage> desc = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
-                .in(AiChatMessage::getConversationId, conversationIds)
-                .orderByDesc(AiChatMessage::getCreatedAt)
-                .orderByDesc(AiChatMessage::getId)
-                .last("LIMIT " + limit)
-        );
-        
-        // 3) 反转为升序（从旧到新）
-        Collections.reverse(desc);
-        return desc;
+        // 优化：直接使用JOIN查询，一次数据库操作获取结果
+        return messageMapper.selectRecentMessagesByUserId(userId, limit);
     }
 
     /**
      * 分页查询某用户的聊天历史记录（按 created_at 与 id 倒序）。
-     * 注意：新表结构中移除了user_id字段，需要通过conversation关联查询
+     * 优化说明：使用JOIN查询一次数据库操作，避免N+1查询问题
+     * 注意：聊天系统实时性要求高，不适合使用缓存
      */
     @Override
     public List<AiChatMessage> listHistoryMessages(String userId, int page, int size) {
         if (page < 1 || size <= 0) return Collections.emptyList();
         
-        // 1) 先查询用户的所有会话ID
-        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
-                .eq(AiConversation::getUserId, userId)
-                .select(AiConversation::getId)
-        ).stream().map(AiConversation::getId).toList();
-        
-        if (conversationIds.isEmpty()) {
-            return Collections.emptyList();
-        }
-        
-        // 2) 分页查询消息
+        // 优化：直接使用JOIN查询，一次数据库操作获取结果
         int offset = (page - 1) * size;
-        return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
-                .in(AiChatMessage::getConversationId, conversationIds)
-                .orderByDesc(AiChatMessage::getCreatedAt)
-                .orderByDesc(AiChatMessage::getId)
-                .last("LIMIT " + offset + ", " + size)
-        );
+        return messageMapper.selectHistoryMessagesByUserId(userId, offset, size);
     }
 
     /** 查询某用户的聊天历史记录总数 */
     @Override
     public long countHistoryMessages(String userId) {
-        // 1) 先查询用户的所有会话ID
-        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
-                .eq(AiConversation::getUserId, userId)
-                .select(AiConversation::getId)
-        ).stream().map(AiConversation::getId).toList();
-        
-        if (conversationIds.isEmpty()) {
-            return 0;
-        }
-        
-        // 2) 统计消息总数
-        return messageMapper.selectCount(new LambdaQueryWrapper<AiChatMessage>()
-                .in(AiChatMessage::getConversationId, conversationIds)
-        );
+        // 优化：直接使用JOIN查询，一次数据库操作获取结果
+        return messageMapper.countMessagesByUserId(userId);
     }
 
     /** 
      * 保存一条用户消息（role=user，status 固定 1）
      * 重构说明：移除了metadata字段，简化存储
+     * 注意：聊天系统实时性要求高，不适合使用缓存
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -131,6 +94,7 @@ public class MemoryServiceImpl implements MemoryService {
     /** 
      * 保存一条 AI 消息（role=assistant；status=1/9）
      * 重构说明：移除了metadata字段，简化存储
+     * 注意：聊天系统实时性要求高，不适合使用缓存
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -169,28 +133,28 @@ public class MemoryServiceImpl implements MemoryService {
     public void cleanupByRetainLastN(String userId, int retainLastN) {
         if (retainLastN <= 0) return;
         
-        // 1) 先查询用户的所有会话ID
-        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
-                .eq(AiConversation::getUserId, userId)
-                .select(AiConversation::getId)
-        ).stream().map(AiConversation::getId).toList();
-        
-        if (conversationIds.isEmpty()) {
-            return;
-        }
-        
-        // 2) 查询第N+1条消息作为边界
-        List<AiChatMessage> desc = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
-                .in(AiChatMessage::getConversationId, conversationIds)
+        // 优化：使用JOIN查询一次数据库操作确定边界时间
+        List<AiChatMessage> boundaryMessages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .in(AiChatMessage::getConversationId, 
+                    conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
+                            .eq(AiConversation::getUserId, userId)
+                            .select(AiConversation::getId))
+                    .stream().map(AiConversation::getId).toList())
                 .orderByDesc(AiChatMessage::getCreatedAt)
-                .last("LIMIT " + retainLastN + ",1") // 从第retainLastN条开始的第1条（即第N+1条）
+                .orderByDesc(AiChatMessage::getId)
+                .last("LIMIT " + retainLastN + ", 1")
         );
         
-        if (desc == null || desc.isEmpty()) return; // 不足N条，无需清理
+        if (boundaryMessages == null || boundaryMessages.isEmpty()) {
+            return; // 不足N条，无需清理
+        }
         
-        java.time.LocalDateTime boundary = desc.get(0).getCreatedAt();
-        int deleted = messageMapper.delete(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiChatMessage>()
-                .in(AiChatMessage::getConversationId, conversationIds)
+        LocalDateTime boundary = boundaryMessages.get(0).getCreatedAt();
+        
+        // 优化：使用JOIN查询删除旧消息
+        int deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+                .inSql(AiChatMessage::getConversationId, 
+                       "SELECT id FROM ai_conversation WHERE user_id = '" + userId + "'")
                 .lt(AiChatMessage::getCreatedAt, boundary)
         );
         
@@ -203,22 +167,15 @@ public class MemoryServiceImpl implements MemoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void clearAllMemory(String userId) {
-        // 1) 先查询用户的所有会话ID
-        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
-                .eq(AiConversation::getUserId, userId)
-                .select(AiConversation::getId)
-        ).stream().map(AiConversation::getId).toList();
+        // 优化：使用子查询删除，减少数据库往返次数
         
-        if (conversationIds.isEmpty()) {
-            return;
-        }
-        
-        // 2) 删除所有消息
+        // 1) 删除所有消息（使用子查询）
         int deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
-                .in(AiChatMessage::getConversationId, conversationIds)
+                .inSql(AiChatMessage::getConversationId, 
+                       "SELECT id FROM ai_conversation WHERE user_id = '" + userId + "'")
         );
         
-        // 3) 删除所有会话
+        // 2) 删除所有会话
         conversationMapper.delete(new LambdaQueryWrapper<AiConversation>()
                 .eq(AiConversation::getUserId, userId)
         );
@@ -299,6 +256,24 @@ public class MemoryServiceImpl implements MemoryService {
         );
         java.util.Collections.reverse(desc);
         return desc;
+    }
+    
+    @Override
+    public List<Message> listLastMessagesAsPromptMessages(Long conversationId, int limit) {
+        if (limit <= 0) return new ArrayList<>();
+        
+        List<AiChatMessage> messages = listLastMessagesByConversation(conversationId, limit);
+        
+        return messages.stream().map(m -> {
+            String role = Optional.ofNullable(m.getRole()).orElse("user");
+            String content = Optional.ofNullable(m.getContent()).orElse("");
+            switch (role) {
+                case "system": return new SystemMessage(content);
+                case "assistant": return new AssistantMessage(content);
+                case "user":
+                default: return new UserMessage(content);
+            }
+        }).collect(Collectors.toList());
     }
 
     /**

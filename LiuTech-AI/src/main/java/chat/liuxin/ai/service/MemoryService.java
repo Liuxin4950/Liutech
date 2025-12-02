@@ -2,6 +2,7 @@ package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.entity.AiChatMessage;
 import chat.liuxin.ai.entity.AiConversation;
+import org.springframework.ai.chat.messages.Message;
 
 import java.util.List;
 
@@ -97,7 +98,7 @@ public interface MemoryService {
      * @param page   页码
      * @param size   每页大小
      */
-    java.util.List<AiConversation> listConversations(String userId, String type, int page, int size);
+    List<AiConversation> listConversations(String userId, String type, int page, int size);
 
     /** 获取会话详情 */
     AiConversation getConversation(Long conversationId);
@@ -105,12 +106,20 @@ public interface MemoryService {
     /**
      * 分页列出会话内的消息（倒序）
      */
-    java.util.List<AiChatMessage> listMessagesByConversation(Long conversationId, int page, int size);
+    List<AiChatMessage> listMessagesByConversation(Long conversationId, int page, int size);
 
     /**
      * 列出会话内最近 N 条消息（返回升序，便于拼接上下文）
      */
-    java.util.List<AiChatMessage> listLastMessagesByConversation(Long conversationId, int limit);
+    List<AiChatMessage> listLastMessagesByConversation(Long conversationId, int limit);
+    
+    /**
+     * 获取会话内最近 N 条消息并转换为 Spring AI Message 列表（返回升序，便于直接用于AI调用）
+     * @param conversationId 会话ID
+     * @param limit 限制条数
+     * @return Spring AI Message 列表
+     */
+    List<Message> listLastMessagesAsPromptMessages(Long conversationId, int limit);
 
     /** 重命名会话标题 */
     void renameConversation(Long conversationId, String title);

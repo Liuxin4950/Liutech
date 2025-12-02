@@ -13,21 +13,21 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.Executor;
 
 /**
- * 错误处理和重试配置
+ * AI服务统一配置类
  * 
  * 功能：
  * 1. 配置重试模板，支持指数退避策略
- * 2. 配置异步执行器，用于健康检查和后台任务
+ * 2. 配置优化的线程池，提高并发处理能力
  * 3. 提供统一的错误处理策略
  * 
  * 作者：刘鑫
- * 时间：2025-09-24
+ * 时间：2025-12-02
  */
 @Slf4j
 @Configuration
 @EnableRetry
 @EnableAsync
-public class ErrorHandlingConfig {
+public class AiServiceConfig {
 
     /**
      * 重试模板配置
@@ -65,20 +65,26 @@ public class ErrorHandlingConfig {
     }
     
     /**
-     * 异步任务执行器配置
-     * 用于健康检查、后台任务等异步操作
+     * 优化的AI任务线程池
+     * 增加核心线程数和最大线程数，提高并发处理能力
+     * 注意：聊天系统实时性要求高，不适合使用缓存
      */
-    @Bean(name = "aiTaskExecutor")
-    public Executor aiTaskExecutor() {
+    @Bean(name = "optimizedAiTaskExecutor")
+    public Executor optimizedAiTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(20);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("AI-Task-");
+        executor.setCorePoolSize(20); // 增加核心线程数
+        executor.setMaxPoolSize(100); // 增加最大线程数
+        executor.setQueueCapacity(500); // 增加队列容量
+        executor.setKeepAliveSeconds(60); // 线程空闲时间60秒
+        executor.setThreadNamePrefix("Optimized-AI-");
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
+        
+        log.info("优化AI任务线程池初始化完成：核心线程数={}, 最大线程数={}, 队列容量={}", 
+                executor.getCorePoolSize(), executor.getMaxPoolSize(), executor.getQueueCapacity());
+        
         return executor;
     }
-    
-    
 }

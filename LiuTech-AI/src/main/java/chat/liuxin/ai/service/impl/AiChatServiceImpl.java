@@ -18,20 +18,15 @@ import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -44,46 +39,10 @@ public class AiChatServiceImpl implements AiChatService {
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final RetryTemplate retryTemplate;
-    private final ObjectMapper objectMapper;
-    private final RestTemplate restTemplate;
-
-    @Value("${server.base-url}")
-    private String serverBaseUrl;
-
-    /**
-     * 控制上下文窗口大小：最多拼接最近N条历史（不含本轮输入）
-     * 你提出“暂时只保留20条”，这里按19条历史 + 1条本轮输入 组成本次Prompt
-     */
     private static final int HISTORY_LIMIT = 19; // 历史条数（不含本轮输入）
 
-    // 与 application.yml 示例一致的允许 action 列表
-    private static final Set<String> ALLOWED_ACTIONS = Set.of(
-            "navigate:home",
-            "navigate:create-post",
-            "navigate:my-posts",
-            "navigate:drafts",
-            "navigate:favorites",
-            "navigate:posts",
-            "navigate:categories",
-            "navigate:tags",
-            "navigate:archive",
-            "navigate:profile",
-            "navigate:about",
-            "navigate:chat-history",
-            "interact:like",
-            "interact:favorite",
-            "interact:share",
-            "interact:comment",
-            "search:posts",
-            "search:tags",
-            "search:categories",
-            "search:users",
-            "show:capabilities",
-            "none"
-    );
-
     /**
-     * 1) 普通聊天：一次性返回完整AI回复（带记忆）
+     * 1) 普通聊天：一次性返回完整AI回复
      */
     @Override
     public ChatResponse processChat(ChatRequest request, Long userId) {
@@ -91,50 +50,14 @@ public class AiChatServiceImpl implements AiChatService {
         long begin = System.currentTimeMillis();
         String userIdStr = userId != null ? userId.toString() : "0";
         String modelName = request.getModel() != null ? request.getModel() : "THUDM/glm-4-9b-chat";
-        Long conversationId = request.getConversationId();
-
+        Long conversationId = request.getConversationId();// 会话ID，若为空则创建新会话
         try {
             // 提取用户输入
             String input = request.getMessage();
 
-            // 处理前端上下文信息(前端当前页面路由信息，仅用于决策active动作，不参与输出)
-            Map<String, Object> context = request.getContext();
-            String contextPrompt = null;
-            if (context != null && !context.isEmpty()) {
-                // 构建基础上下文提示
-                contextPrompt = "前端用户当前路由位置（仅供决策active动作，不参与输出）：" + toJson(context);
-
-                // 如果在文章详情页，获取文章内容并增强用户输入
-                if ("post-detail".equals(context.get("page"))) {
-                    // 同时支持postId和articleId两种字段名
-                    Object articleIdObj = context.get("postId");
-                    if (articleIdObj == null) {
-                        articleIdObj = context.get("articleId");
-                    }
-
-                    if (articleIdObj != null) {
-                        Long articleId = parseArticleId(articleIdObj);
-                        if (articleId != null) {
-                            // 获取文章内容并增强用户输入
-                            String articleContent = fetchArticleContent(articleId);
-                            log.info("获取文章内容，文章ID: {}, 内容: {}", articleId, articleContent);
-
-                            if (articleContent != null) {
-                                input = "用户在查看以下文章：\n\n" + articleContent + "\n\n用户的问题是：" + input;
-                                log.info("已获取文章内容，文章ID: {}", articleId);
-                            }
-                            // 添加文章ID到上下文提示
-                            contextPrompt += "\n\n注意：用户当前正在浏览文章详情页，文章ID为" + articleId;
-                        }
-                    } else {
-                        log.warn("文章详情页缺少文章ID: context={}", toJson(context));
-                    }
-                }
-            }
-
             // 读取当前会话的最近历史（最多19条），用于作为上下文
-            List<AiChatMessage> recent = conversationId != null ?
-                    memoryService.listLastMessagesByConversation(conversationId, HISTORY_LIMIT) :
+            List<Message> historyMessages = conversationId != null ?
+                    memoryService.listLastMessagesAsPromptMessages(conversationId, HISTORY_LIMIT) :
                     Collections.emptyList();
 
             // 构造消息序列：系统提示词 -> 历史 -> 上下文信息 -> 本轮用户输入
@@ -142,12 +65,7 @@ public class AiChatServiceImpl implements AiChatService {
 
             // 1.系统提示词由 ChatClient 的 defaultSystem 提供，这里不再重复注入
             // 2.历史信息列表
-            messages.addAll(toPromptMessages(recent));
-
-            // 3.前端上下文信息（如果有）
-            if (contextPrompt != null) {
-                messages.add(new SystemMessage(contextPrompt));
-            }
+            messages.addAll(historyMessages);
 
             // 4.将用户当前输入的消息添加到消息列表末尾，作为最新一条用户消息
             messages.add(new UserMessage(input));
@@ -158,45 +76,31 @@ public class AiChatServiceImpl implements AiChatService {
                 conversationId = memoryService.createConversation(userIdStr, title);
             }
 
-            //保存用户消息
-            memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
+            // 异步保存用户消息
+            saveUserMessageAsync(userIdStr, conversationId, input, modelName);
 
             // 使用重试模板调用模型（一次性返回完整答案）
             String aiOutput = retryTemplate.execute(retryContext -> {
                 log.debug("调用AI模型，第{}次尝试", retryContext.getRetryCount() + 1);
-                return siliconFlowChatClient.chat(messages);
+                return siliconFlowChatClient.chat(messages, modelName);
             });
             System.out.println("AI回复：\n" + (aiOutput == null ? "" : aiOutput) + '\n');
-
-            // 解析并校验模型输出；必要时追加严格格式要求让AI重生成
-            ParsedResult parsed = ensureValidStructuredOutput(messages, aiOutput);
-            String inferred = inferActionFromInput(input);
-            if (inferred != null && !"none".equals(inferred)) {
-                parsed.action = inferred;
-            } else {
-                if (parsed.action != null && !"none".equals(parsed.action)) {
-                    if (!isExplicitActionRequest(input)) {
-                        parsed.action = "none";
-                    }
-                }
-            }
-
-            // 成功后落库"AI消息"（status=1）
+            // 异步落库"AI消息"（status=1）
             // 重构说明：新表结构中移除了metadata字段，简化存储
-            memoryService.saveAssistantMessage(userIdStr, conversationId, parsed.message, modelName, 1, null);
+            saveAssistantMessageAsync(userIdStr, conversationId, aiOutput, modelName, 1);
 
 
              long cost = System.currentTimeMillis() - begin;
-             log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(), parsed.message != null ? parsed.message.length() : 0, cost);
+             log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(), aiOutput != null ? aiOutput.length() : 0, cost);
 
              return ChatResponse.builder()
                      .success(true)
-                     .message(parsed.message)
-                     .emotion(parsed.emotion)
-                     .action(parsed.action)
+                     .message(aiOutput)
+                     .emotion(null)
+                     .action(null)
                      .model(modelName)
                      .processingTime(cost)
-                     .responseLength(parsed.message != null ? parsed.message.length() : 0)
+                     .responseLength(aiOutput != null ? aiOutput.length() : 0)
                      .conversationId(conversationId)
                      .build();
 
@@ -206,10 +110,8 @@ public class AiChatServiceImpl implements AiChatService {
             throw e;
         } catch (Exception e) {
             log.error("AI普通聊天失败", e);
-            // 失败时也尝试记录一条"AI错误消息"，status=9
-            // 重构说明：新表结构中移除了metadata字段，简化存储
             try {
-                memoryService.saveAssistantMessage(userIdStr, conversationId, null, modelName, 9, null);
+                saveAssistantMessageAsync(userIdStr, conversationId, null, modelName, 9);
             } catch (Exception ignore) {
                 log.warn("记录AI错误消息失败: {}", ignore.getMessage());
             }
@@ -226,272 +128,29 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
-
-
-    // ==================== 辅助方法 ====================
-
     /**
-     * 将数据库中的历史消息（升序）转换为 Spring AI 的 Message 列表
-     * 说明：
-     * - system/user/assistant 三种角色映射到对应Message类型；未知角色忽略
-     * - 这里默认不注入“系统提示词”，如需可在最前面添加 new SystemMessage("你的系统设定...")
+     * 异步保存用户消息
      */
-    private List<Message> toPromptMessages(List<AiChatMessage> historyAsc) {
-        if (historyAsc == null || historyAsc.isEmpty()) return new ArrayList<>();
-        return historyAsc.stream().map(m -> {
-            String role = Optional.ofNullable(m.getRole()).orElse("user");
-            String content = Optional.ofNullable(m.getContent()).orElse("");
-            switch (role) {
-                case "system": return new SystemMessage(content);
-                case "assistant": return new AssistantMessage(content);
-                case "user":
-                default: return new UserMessage(content);
-            }
-        }).collect(Collectors.toList());
-    }
-
-    /** 将对象转为JSON字符串（用于metadata存储） */
-    private String toJson(Object obj) {
-        try { return objectMapper.writeValueAsString(obj); }
-        catch (Exception e) { return null; }
-    }
-
-    /**
-     * 从主服务获取文章内容
-     *
-     * @param articleId 文章ID
-     * @return 文章内容，包含标题和正文
-     */
-    private String fetchArticleContent(Long articleId) {
+    @Async("optimizedAiTaskExecutor")
+    public void saveUserMessageAsync(String userId, Long conversationId, String content, String model) {
         try {
-            // 构建请求URL
-            String apiUrl = serverBaseUrl + "/posts/" + articleId;
-
-            // 创建RestTemplate实例
-            // 发送GET请求获取文章详情
-            ResponseEntity<String> response = restTemplate.getForEntity(apiUrl, String.class);
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                // 解析响应JSON
-                JsonNode root = objectMapper.readTree(response.getBody());
-
-                // 检查请求是否成功
-                if (root.has("code") && root.get("code").asInt() == 200) {
-                    JsonNode data = root.get("data");
-
-                    if (data != null) {
-                        String title = data.has("title") ? data.get("title").asText() : "未知标题";
-                        String content = data.has("content") ? data.get("content").asText() : "";
-                        String summary = data.has("summary") ? data.get("summary").asText() : "";
-
-                        // 构建文章内容摘要
-                        StringBuilder articleInfo = new StringBuilder();
-                        articleInfo.append("文章标题: ").append(title).append("\n\n");
-
-                        if (!summary.isEmpty()) {
-                            articleInfo.append("文章摘要: ").append(summary).append("\n\n");
-                        }
-
-                        articleInfo.append("文章内容: ").append(content);
-
-                        return articleInfo.toString();
-                    }
-                }
-            }
-
-            log.warn("获取文章内容失败，状态码: {}", response.getStatusCode().value());
-            return null;
+            memoryService.saveUserMessage(userId, conversationId, content, model, null);
+            log.debug("异步保存用户消息成功，会话ID:{}", conversationId);
         } catch (Exception e) {
-            log.error("获取文章内容异常", e);
-            return null;
+            log.error("异步保存用户消息失败，会话ID:{}", conversationId, e);
         }
-    }
-
-
-    // ============== JSON解析辅助 ==============
-    private static class ParsedResult {
-        String message;
-        String emotion;
-        String action;
-        Map<String, Object> metadata;
-        // 校验辅助标记
-        boolean isJsonObject;
-        boolean hasMessage;
-        boolean hasAction;
-        boolean isActionAllowed;
     }
 
     /**
-     * 解析模型输出字符串。如果是JSON对象，则提取 message/emotion/action/metadata 字段；
-     * 如果不是合法JSON，则将全文作为 message 返回。
+     * 异步保存AI助手消息
      */
-    private ParsedResult parseModelOutput(String output) {
-        ParsedResult r = new ParsedResult();
-        if (output == null) {
-            r.message = null;
-            return r;
-        }
-        String s = output.trim();
-        // 去除可能的代码块围栏 ```json ... ```
-        if (s.startsWith("```")) {
-            int firstNl = s.indexOf('\n');
-            if (firstNl > 0) {
-                s = s.substring(firstNl + 1);
-            }
-            int fence = s.lastIndexOf("```");
-            if (fence > 0) s = s.substring(0, fence);
-            s = s.trim();
-        }
+    @Async("optimizedAiTaskExecutor")
+    public void saveAssistantMessageAsync(String userId, Long conversationId, String content, String model, int status) {
         try {
-            JsonNode root = objectMapper.readTree(s);
-            r.isJsonObject = root != null && root.isObject();
-            if (r.isJsonObject) {
-                JsonNode msgNode = root.get("message");
-                if (msgNode == null) msgNode = root.get("text");
-                r.message = msgNode != null && !msgNode.isNull() ? msgNode.asText("") : null;
-                r.hasMessage = r.message != null && !r.message.isEmpty();
-                JsonNode emoNode = root.get("emotion");
-                r.emotion = emoNode != null && !emoNode.isNull() ? emoNode.asText() : null;
-                JsonNode actNode = root.get("action");
-                r.action = actNode != null && !actNode.isNull() ? actNode.asText() : null;
-                r.hasAction = r.action != null && !r.action.isEmpty();
-                r.isActionAllowed = r.action == null || ALLOWED_ACTIONS.contains(r.action);
-                JsonNode metaNode = root.get("metadata");
-                if (metaNode != null && metaNode.isObject()) {
-                    r.metadata = objectMapper.convertValue(metaNode, new TypeReference<Map<String, Object>>() {});
-                } else {
-                    r.metadata = Collections.emptyMap();
-                }
-            } else {
-                r.message = s; // 非JSON时，直接使用全文作为消息
-                r.hasMessage = r.message != null && !r.message.isEmpty();
-                r.metadata = Collections.emptyMap();
-            }
+            memoryService.saveAssistantMessage(userId, conversationId, content, model, status, null);
+            log.debug("异步保存AI消息成功，会话ID:{}, 状态:{}", conversationId, status);
         } catch (Exception e) {
-            // 不是合法JSON：直接将原文作为message返回
-            r.message = s;
-            r.hasMessage = r.message != null && !r.message.isEmpty();
-            r.metadata = Collections.emptyMap();
+            log.error("异步保存AI消息失败，会话ID:{}, 状态:{}", conversationId, status, e);
         }
-        return r;
-    }
-
-    /**
-     * 输出格式校验与修复：若不满足严格JSON结构或action不在允许集合中，则追加强制说明让模型重生成一次。
-     */
-    private ParsedResult ensureValidStructuredOutput(List<Message> baseMessages, String initialOutput) {
-        ParsedResult first = parseModelOutput(initialOutput);
-        if (first.isJsonObject && first.hasMessage && first.hasAction && first.isActionAllowed) {
-            return first;
-        }
-
-        String allowed = String.join("|", ALLOWED_ACTIONS);
-        String instruction = "严格格式要求：仅输出一个 JSON 对象，不包含任何解释或额外文本。" +
-                "必须包含字段：message(string)、emotion(string)、action(string)、metadata(object)。" +
-                "其中 action 的取值只能是以下之一：" + allowed + "。" +
-                "请将你上一次的回答改写为上述格式，并仅输出 JSON 对象本身。";
-
-        List<Message> fixMessages = new ArrayList<>(baseMessages);
-        fixMessages.add(new SystemMessage(instruction));
-        fixMessages.add(new UserMessage("原回答如下：\n" + initialOutput));
-
-        try {
-            String fixed = siliconFlowChatClient.chat(fixMessages);
-            ParsedResult second = parseModelOutput(fixed);
-            if (second.isJsonObject && second.hasMessage && second.hasAction && second.isActionAllowed) {
-                return second;
-            }
-            // 仍不合规则兜底：保留message，action置为none
-            if (second.message == null || second.message.isEmpty()) {
-                second.message = first.message;
-                second.hasMessage = second.message != null && !second.message.isEmpty();
-            }
-            if (!second.hasAction || !second.isActionAllowed) {
-                second.action = "none";
-                second.hasAction = true;
-                second.isActionAllowed = true;
-            }
-            if (second.metadata == null) {
-                second.metadata = Collections.emptyMap();
-            }
-            return second;
-        } catch (Exception e) {
-            log.warn("格式修复调用失败，使用初次解析结果兜底: {}", e.getMessage());
-            if (!first.hasAction || !first.isActionAllowed) {
-                first.action = "none";
-                first.hasAction = true;
-                first.isActionAllowed = true;
-            }
-            if (first.metadata == null) {
-                first.metadata = Collections.emptyMap();
-            }
-            return first;
-        }
-    }
-
-    /**
-     * 解析文章ID
-     *
-     * @param articleIdObj 文章ID对象
-     * @return 解析后的文章ID，解析失败返回null
-     */
-    private Long parseArticleId(Object articleIdObj) {
-        if (articleIdObj instanceof Number) {
-            return ((Number) articleIdObj).longValue();
-        } else if (articleIdObj instanceof String) {
-            try {
-                return Long.parseLong((String) articleIdObj);
-            } catch (NumberFormatException e) {
-                log.warn("文章ID格式错误: {}", articleIdObj);
-                return null;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 判定用户是否明确请求触发动作（导航/交互/搜索/展示）。
-     * 使用简单关键词匹配，避免在普通问答中误触发。
-     */
-    private boolean isExplicitActionRequest(String input) {
-        if (input == null) return false;
-        String s = input.trim();
-        if (s.isEmpty()) return false;
-        // 关键动词与常见表达（中文）
-        String[] keywords = {
-                "跳转", "打开", "进入", "去", "前往", "导航", "切换", "返回", "回到",
-                "点赞", "收藏", "分享", "评论",
-                "搜索", "查找",
-                "展示", "显示",
-                "首页", "主页", "home"
-        };
-        String lower = s.toLowerCase();
-        for (String kw : keywords) {
-            if (lower.contains(kw)) {
-                return true;
-            }
-        }
-        // 简单指令格式，例如：navigate:home / interact:like 等
-        for (String allowed : ALLOWED_ACTIONS) {
-            if (lower.contains(allowed)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String inferActionFromInput(String input) {
-        if (input == null) return "none";
-        String s = input.trim().toLowerCase();
-        if (s.isEmpty()) return "none";
-        boolean wantHome = s.contains("首页") || s.contains("主页") || s.contains("home");
-        boolean hasNavVerb = s.contains("跳转") || s.contains("打开") || s.contains("进入") || s.contains("前往") || s.contains("去") || s.contains("导航") || s.contains("切换") || s.contains("返回") || s.contains("回到");
-        if (wantHome && (hasNavVerb || s.contains("首页") || s.contains("home"))) {
-            return "navigate:home";
-        }
-        if (s.contains("搜索") || s.contains("查找")) {
-            return "search:posts";
-        }
-        return "none";
     }
 }

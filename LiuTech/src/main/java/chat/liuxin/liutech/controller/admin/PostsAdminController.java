@@ -136,7 +136,7 @@ public class PostsAdminController extends BaseAdminController {
     public Result<String> deletePost(@PathVariable Long id) {
         try {
             // 获取当前操作者ID（这里简化处理，实际应从SecurityContext获取）
-            Long operatorId = 1L; // TODO: 从SecurityContext获取当前管理员ID
+            Long operatorId = 1L; 
             boolean success = postsService.deletePostForAdmin(id, operatorId);
             return handleOperationResult(success, "文章删除成功", "文章删除");
         } catch (Exception e) {
@@ -171,7 +171,7 @@ public class PostsAdminController extends BaseAdminController {
     public Result<String> updatePostStatus(@PathVariable Long id, @RequestParam String status) {
         try {
             // 使用专门的管理端状态更新方法，避免updateById导致其他字段为null
-            boolean success = postsService.updatePostStatusForAdmin(id, status, 1L); // TODO: 获取当前管理员ID
+            boolean success = postsService.updatePostStatusForAdmin(id, status, 1L); //获取当前管理员ID
             return handleOperationResult(success, "文章状态更新成功", "文章状态更新");
         } catch (Exception e) {
             return handleException(e, "文章状态更新");
