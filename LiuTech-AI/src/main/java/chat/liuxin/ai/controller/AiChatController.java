@@ -12,6 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.validation.Valid;
 import java.util.List;
@@ -63,6 +64,28 @@ public class AiChatController {
             return ChatResponse.error("用户未认证");
         }
         return aiChatService.processChat(request, userId);
+    }
+
+    /**
+     * AI聊天接口 - 流式模式
+     * 请求体：ChatRequest（包含 message、model、conversationId、context 等）
+     * 返回体：SseEmitter（推送事件流：start -> data -> complete|error）
+     * 持久化副作用：保存 user 消息；在 complete 或 error 时保存 assistant 消息；必要时创建会话。
+     * 
+     * SSE事件格式：
+     * - start: {conversationId, model} - 流开始
+     * - data: {content, conversationId} - 数据块
+     * - complete: {conversationId, responseLength} - 流完成
+     * - error: {conversationId, error} - 流错误
+     */
+    @PostMapping("/chat/stream")
+    public SseEmitter streamChat(@Valid @RequestBody ChatRequest request) {
+        Long userId = getCurrentUserId();
+        log.info("接受到了流式模式的请求，用户ID: {}", userId);
+        if (userId == null) {
+            throw new RuntimeException("用户未认证");
+        }
+        return aiChatService.processStreamChat(request, userId);
     }
 
     

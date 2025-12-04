@@ -137,6 +137,7 @@
     <logger name="org.springframework.security" level="WARN"/>
     <logger name="org.springframework.web.servlet.DispatcherServlet" level="WARN"/>
     <logger name="org.hibernate.validator" level="WARN"/>
+    <logger name="org.springframework.retry.support.RetryTemplate" level="INFO"/>
     
     <!-- 应用日志 -->
     <logger name="chat.liuxin.ai" level="INFO"/>

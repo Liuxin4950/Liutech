@@ -10,7 +10,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -35,6 +38,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtUtil jwtUtil;
+    
+    // 使用RequestAttributeSecurityContextRepository在请求属性中保存安全上下文
+    // 解决SSE流完成后认证上下文丢失问题
+    private final SecurityContextRepository securityContextRepository = 
+            new RequestAttributeSecurityContextRepository();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -45,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             
             String token = extractTokenFromRequest(request);
             if (token != null) {
-                processValidToken(token, request);
+                processValidToken(token, request, response);
             }
         } catch (Exception e) {
             log.error("JWT认证过程中发生错误，请求路径: {}, 错误: {}", request.getRequestURI(), e.getMessage());
@@ -70,8 +78,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * 处理有效的JWT token
      * @param token JWT token
      * @param request HTTP请求
+     * @param response HTTP响应
      */
-    private void processValidToken(String token, HttpServletRequest request) {
+    private void processValidToken(String token, HttpServletRequest request, HttpServletResponse response) {
         if (!jwtUtil.validateToken(token)) {
             log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
             return;
@@ -81,7 +90,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Long userId = jwtUtil.getUserIdFromToken(token);
         
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            setAuthenticationContext(username, userId, request);
+            setAuthenticationContext(username, userId, request, response);
         }
     }
     
@@ -90,8 +99,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * @param username 用户名
      * @param userId 用户ID
      * @param request HTTP请求
+     * @param response HTTP响应
      */
-    private void setAuthenticationContext(String username, Long userId, HttpServletRequest request) {
+    private void setAuthenticationContext(String username, Long userId, HttpServletRequest request, HttpServletResponse response) {
         Collection<GrantedAuthority> authorities = buildUserAuthorities(username);
         
         // 构建认证对象（使用带权限的构造函数，自动设置为已认证状态）
@@ -104,7 +114,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         log.info("认证对象创建完成，认证状态: {}", authToken.isAuthenticated());
         
         // 设置到Spring Security上下文
-        SecurityContextHolder.getContext().setAuthentication(authToken);
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authToken);
+        SecurityContextHolder.setContext(context);
+        
+        // 将安全上下文保存到请求属性中，解决SSE流完成后认证上下文丢失问题
+        securityContextRepository.saveContext(context, request, response);
+        
         log.info("JWT认证成功，用户: {}, 角色: {}, 用户ID: {}", username, authorities, userId);
     }
     

@@ -13,12 +13,15 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.http.HttpMethod;
-
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,6 +43,10 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+    
+    // 使用RequestAttributeSecurityContextRepository解决SSE流完成后认证上下文丢失问题
+    private final SecurityContextRepository securityContextRepository = 
+            new RequestAttributeSecurityContextRepository();
 
     /**
      * 配置安全过滤器链
@@ -55,10 +62,16 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             // 启用CORS
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // 设置SecurityContextRepository，解决SSE流完成后认证上下文丢失问题
+            .securityContext(securityContext -> securityContext.securityContextRepository(securityContextRepository))
             // 统一处理：未登录/权限不足时返回JSON
             .exceptionHandling(ex -> ex
                 // 未认证（如未携带/携带无效Token）
                 .authenticationEntryPoint((request, response, authException) -> {
+                    // 对于SSE请求，如果响应已经提交，则不处理认证异常
+                    if (isSseRequest(request) && response.isCommitted()) {
+                        return;
+                    }
                     response.setStatus(HttpStatus.UNAUTHORIZED.value());
                     response.setContentType("application/json;charset=UTF-8");
                     Map<String, Object> body = new HashMap<>();
@@ -69,6 +82,10 @@ public class SecurityConfig {
                 })
                 // 已认证但权限不足
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    // 对于SSE请求，如果响应已经提交，则不处理权限拒绝异常
+                    if (isSseRequest(request) && response.isCommitted()) {
+                        return;
+                    }
                     response.setStatus(HttpStatus.FORBIDDEN.value());
                     response.setContentType("application/json;charset=UTF-8");
                     Map<String, Object> body = new HashMap<>();
@@ -101,6 +118,19 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+    
+    /**
+     * 判断是否为SSE请求
+     * 
+     * @param request HTTP请求
+     * @return 是否为SSE请求
+     */
+    private boolean isSseRequest(HttpServletRequest request) {
+        String acceptHeader = request.getHeader("Accept");
+        String uri = request.getRequestURI();
+        return acceptHeader != null && acceptHeader.contains("text/event-stream") && 
+               uri != null && uri.contains("/stream");
     }
 
     /**

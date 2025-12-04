@@ -21,7 +21,25 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
-  # 注意：聊天系统实时性要求高，不适合使用缓存
+  ai:
+    openai:
+      base-url: https://api.siliconflow.cn
+      api-key: "sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo"
+      chat:
+        options:
+          model: "THUDM/GLM-Z1-9B-0414"
+          temperature: 0.2
+    # 提示词配置
+    prompt:
+      system-role: "你是原神角色纳西妲"
+      behavior-guidelines: |
+        1. 必须符合你的人设
+      json-output-instruction: |
+        回复格式：正常聊天
+    # 聊天配置
+    chat:
+      history-limit: 19
+  
 # MyBatis-Plus 配置
 mybatis-plus:
   # Mapper XML 文件位置
@@ -82,14 +100,5 @@ management:
       enabled: true
 
 
-# AI 提示词配置
-ai:
-  prompt:
-    system-role: "你是原神角色纳西妲"
 
-    behavior-guidelines: |
-      1. 必须符合你的人设
-
-    json-output-instruction: |
-      回复格式：正常聊天
 
