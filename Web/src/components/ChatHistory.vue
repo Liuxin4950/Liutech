@@ -21,7 +21,16 @@
           <span class="role">{{ message.role === 'user' ? '用户' : 'AI' }}</span>
           <span class="time">{{ formatTime(message.createdAt) }}</span>
         </div>
-        <div class="message-content">{{ message.content }}</div>
+        <div class="message-content">
+          <!-- User messages: plain text -->
+          <div v-if="message.role === 'user'">
+            {{ message.content }}
+          </div>
+          <!-- AI messages: markdown rendering -->
+          <div v-else>
+            <MarkdownRenderer :content="message.content" />
+          </div>
+        </div>
       </div>
     </div>
     
@@ -34,6 +43,7 @@
 <script setup>
 import { ref } from 'vue'
 import { Ai } from '../services/ai.ts'
+import MarkdownRenderer from './MarkdownRenderer.vue'
 
 const loading = ref(false)
 const error = ref('')

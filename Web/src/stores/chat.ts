@@ -10,6 +10,7 @@ export interface ChatMessage {
   id: number
   type: 'user' | 'ai'
   content: string
+  renderedContent?: string // Cache for rendered HTML
   timestamp: Date
   isStreaming?: boolean
   isError?: boolean
@@ -156,6 +157,8 @@ export const useChatStore = defineStore('chat', () => {
     const streamingMsg = messages.value.find(msg => msg.isStreaming)
     if (streamingMsg) {
       streamingMsg.isStreaming = false
+      // Clear rendered cache since streaming is complete
+      streamingMsg.renderedContent = undefined
     }
   }
 

@@ -3,6 +3,7 @@ import { nextTick, onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useChatStore, type ChatMessage, type ChatMode } from '@/stores/chat'
 import { AiStream } from '@/services/ai'
+import MarkdownRenderer from './MarkdownRenderer.vue'
 
 /**
  * 简化版AI聊天组件
@@ -171,8 +172,19 @@ onUnmounted(() => {
         ]">
           <div class="message-content">
             <div class="message-text">
-              {{ message.content }}
-              <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
+              <!-- User messages: plain text -->
+              <div v-if="message.type === 'user'">
+                {{ message.content }}
+                <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
+              </div>
+              <!-- AI messages: markdown rendering -->
+              <div v-else>
+                <MarkdownRenderer
+                  :content="message.content"
+                  :is-streaming="message.isStreaming || false"
+                />
+                <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
+              </div>
             </div>
             <div class="message-time">{{ formatTime(message.timestamp) }}</div>
           </div>

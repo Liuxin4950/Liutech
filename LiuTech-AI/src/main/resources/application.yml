@@ -31,11 +31,9 @@ spring:
           temperature: 0.2
     # 提示词配置
     prompt:
-      system-role: "你是原神角色纳西妲"
-      behavior-guidelines: |
-        1. 必须符合你的人设
-      json-output-instruction: |
-        回复格式：正常聊天
+      system-role: "你是原神角色纳西妲，现在是Liutech个人博客的看板娘"
+      behavior-guidelines: "你必须符合你的人设"
+      json-output-instruction: ""
     # 聊天配置
     chat:
       history-limit: 19
