@@ -8,6 +8,14 @@ export interface AiChatRequest {
   /** 前端上下文，便于后端提示词决策，例如 { page: 'post-detail', articleId: 123 } */
   context?: Record<string, any>
   conversationId?: number
+  /** 聊天模式：normal 普通模式，stream 流式模式 */
+  mode?: 'normal' | 'stream'
+  /** 使用的模型，默认为空 */
+  model?: string
+  /** 温度参数，控制回复的随机性 */
+  temperature?: number
+  /** 最大token数 */
+  maxTokens?: number
 }
 
 export interface AiChatResponse {
@@ -114,7 +122,36 @@ export class Ai {
         return response as unknown as AiChatResponse
     }
 
+    /**
+     * 发送聊天消息（支持模式选择）
+     * @param request 聊天请求
+     * @param mode 聊天模式，默认为 normal
+     * @returns Promise<AiChatResponse>
+     */
+    static async sendMessage(
+        request: AiChatRequest,
+        mode: 'normal' | 'stream' = 'normal'
+    ): Promise<AiChatResponse> {
+        // 根据模式选择不同的端点
+        const endpoint = mode === 'stream' ? '/chat/stream' : '/chat'
 
+        // 添加模式参数到请求体
+        const requestWithMode = {
+            ...request,
+            mode: mode
+        }
 
+        if (mode === 'stream') {
+            // 流式模式应该使用 AiStream 服务
+            throw new Error('流式模式请使用 AiStream.streamChat 方法')
+        }
 
+        const response = await post<AiChatResponse>(endpoint, requestWithMode, {
+            serviceType: ServiceType.AI
+        })
+        return response as unknown as AiChatResponse
+    }
 }
+
+// 导出流式聊天服务
+export { AiStream, StreamError } from './aiStream'

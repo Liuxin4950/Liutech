@@ -79,14 +79,8 @@ const toggleChat = () => {
   showChat.value = !showChat.value
 }
 
-// 子组件通过 $emit('status-change', true/false) 来通知父组件
-const handleAIChat = (val: boolean) => {
-  aiChatActive.value = val
-}
-
 
 const handleModelStatusChange = () => {
-  // 清除之前的定时器
   if (modelToggleTimeout) {
     clearTimeout(modelToggleTimeout);
   }
@@ -121,11 +115,9 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       <div v-if="showModel" class="ai-content">
         <div class="ai-box">
           <Live2d @click="toggleChat" class="live2d"></Live2d>
-          <AiChat v-show="showChat" :class="{ 'ai-chat-active': aiChatActive }" class="ai-chat"
-            @status-change="handleAIChat"></AiChat>
+          <AiChat v-show="showChat"  class="ai-chat" ></AiChat>
         </div>
       </div>
-
       <router-view />
     </main>
     <TheFooter />
@@ -161,31 +153,23 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   z-index: 10;
 }
 
-.ai-box,
-.live2d {
+.ai-box,.live2d {
   position: relative;
   width: 100%;
   height: 100%;
 }
 
 .ai-chat {
+  width: 400px;
+  height: 400px;
   position: absolute;
   top: 0;
   left: 0;
-  transform: translateY(-50px);
+  transform: translateY(-100px) translateX(-400px);
   z-index: 11;
   transition: all 0.3s ease;
 }
 
-.ai-chat-active {
-  position: absolute;
-  top: auto;
-  bottom: 0;
-  left: 0;
-  transform: translate(-350px);
-
-  z-index: 11;
-}
 
 /* 响应式布局 */
 @media screen and (max-width: 768px) {

@@ -210,7 +210,7 @@ public class AiChatServiceImpl implements AiChatService {
                 messages.add(new UserMessage(input));
                 
                 // 4.4 异步保存用户消息
-                memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
+                memoryService.saveUserMessage(userIdStr, finalConversationId, input, modelName, null);
                 
                 // 4.5 发送开始事件
                 sendSseEvent(emitter, "start", Map.of(
