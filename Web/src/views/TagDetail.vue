@@ -57,7 +57,7 @@
             <span v-if="post.category" class="badge">{{ post.category.name }}</span>
             <div class="flex-1 flex flex-col gap-12">
               <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
-              <p v-if="post.summary" class="text-subtle text-base">{{ post.summary }}</p>
+              <p v-if="post.summary" class="text-subtle text-base post-summary">{{ post.summary }}</p>
               <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
                 <router-link v-for="tag in post.tags" :key="tag.id" :to="`/tags/${tag.id}`" class="tag" @click.stop>
                   {{ tag.name }}
@@ -287,6 +287,17 @@ onMounted(() => {
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
+}
+
+/* 文章摘要省略号样式 */
+.post-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 限制显示2行 */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+  max-height: 3em; /* 2行的高度 (1.5 * 2) */
+  word-break: break-word;
 }
 
 /* 统一图片尺寸与卡片结构 */

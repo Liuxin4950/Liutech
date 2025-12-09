@@ -3,7 +3,18 @@ import { nextTick, onMounted, onUnmounted, ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useChatStore, type ChatMessage, type ChatMode } from '@/stores/chat'
 import { AiStream } from '@/services/ai'
+import { ConversationService, type Conversation, type ChatMessageItem } from '@/services/conversation'
 import MarkdownRenderer from './MarkdownRenderer.vue'
+
+// 接收父组件传入的扩展状态
+const props = defineProps<{
+  expanded?: boolean
+}>()
+
+// 定义emit事件
+const emit = defineEmits<{
+  expand: []
+}>()
 
 /**
  * 简化版AI聊天组件
@@ -19,6 +30,11 @@ const chatStore = useChatStore()
 const chatInput = ref('')
 const chatContainer = ref<HTMLElement>()
 const isModeDropdownOpen = ref(false)
+
+// 历史记录相关状态
+const conversations = ref<Conversation[]>([])
+const isLoadingHistory = ref(false)
+const showHistorySidebar = ref(false)
 
 // 计算属性
 const messages = computed(() => chatStore.messages)
@@ -58,6 +74,109 @@ const setMode = (newMode: ChatMode) => {
 // 清空聊天记录
 const clearHistory = async () => {
   await chatStore.clearHistory()
+}
+
+// 加载会话历史列表
+const loadConversations = async () => {
+  if (isLoadingHistory.value) return
+  
+  try {
+    isLoadingHistory.value = true
+    conversations.value = await ConversationService.list('general', 1, 50)
+  } catch (error) {
+    console.error('加载会话历史失败:', error)
+  } finally {
+    isLoadingHistory.value = false
+  }
+}
+
+// 切换历史记录侧边栏
+const toggleHistorySidebar = () => {
+  showHistorySidebar.value = !showHistorySidebar.value
+  if (showHistorySidebar.value && conversations.value.length === 0) {
+    loadConversations()
+  }
+}
+
+// 加载指定会话的消息
+const loadConversation = async (conversationId: number) => {
+  try {
+    isLoadingHistory.value = true
+    
+    // 获取会话消息
+    const messages = await ConversationService.messages(conversationId, 1, 100)
+    
+    // 清空当前消息
+    chatStore.clearHistory()
+    
+    // 设置会话ID
+    chatStore.conversationId = conversationId
+    
+    // 转换并添加消息到store
+    messages.forEach(msg => {
+      if (msg.role === 'user') {
+        chatStore.addUserMessage(msg.content)
+      } else if (msg.role === 'assistant') {
+        chatStore.addAiMessage(msg.content)
+      }
+    })
+    
+    // 关闭侧边栏
+    showHistorySidebar.value = false
+    
+    // 滚动到底部
+    await scrollToBottom()
+  } catch (error) {
+    console.error('加载会话失败:', error)
+  } finally {
+    isLoadingHistory.value = false
+  }
+}
+
+// 删除会话
+const deleteConversation = async (conversationId: number, event: Event) => {
+  event.stopPropagation()
+  
+  if (!confirm('确定要删除这个会话吗？')) return
+  
+  try {
+    await ConversationService.remove(conversationId)
+    // 从列表中移除
+    conversations.value = conversations.value.filter(conv => conv.id !== conversationId)
+    
+    // 如果删除的是当前会话，清空聊天
+    if (chatStore.conversationId === conversationId) {
+      chatStore.clearHistory()
+    }
+  } catch (error) {
+    console.error('删除会话失败:', error)
+  }
+}
+
+// 格式化会话时间
+const formatConversationTime = (dateString?: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  
+  if (days === 0) {
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  } else if (days === 1) {
+    return '昨天'
+  } else if (days < 7) {
+    return `${days}天前`
+  } else {
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  }
+}
+
+// 处理展开聊天框
+const handleExpandChat = () => {
+  if (!props.expanded) {
+    emit('expand')
+  }
 }
 
 // 滚动到底部
@@ -116,18 +235,76 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="chat-box">
+  <div class="chat-box" :class="{ 'expanded': expanded }">
     <div class="chat-popup">
+      <!-- 历史记录侧边栏 -->
+      <div v-if="expanded" class="history-sidebar" :class="{ 'show': showHistorySidebar }">
+        <div class="history-header">
+          <h4>会话历史</h4>
+          <button class="close-sidebar" @click="toggleHistorySidebar">✕</button>
+        </div>
+        
+        <div class="history-content">
+          <div v-if="isLoadingHistory" class="history-loading">
+            <div class="loading-spinner"></div>
+            <span>加载中...</span>
+          </div>
+          
+          <div v-else-if="conversations.length === 0" class="history-empty">
+            <p>暂无历史会话</p>
+          </div>
+          
+          <div v-else class="conversation-list">
+            <div 
+              v-for="conversation in conversations" 
+              :key="conversation.id"
+              class="conversation-item"
+              :class="{ 'active': chatStore.conversationId === conversation.id }"
+              @click="loadConversation(conversation.id)"
+            >
+              <div class="conversation-info">
+                <div class="conversation-title">
+                  {{ conversation.title || `会话 ${conversation.id}` }}
+                </div>
+                <div class="conversation-meta">
+                  <span class="message-count">{{ conversation.messageCount }} 条消息</span>
+                  <span class="conversation-time">{{ formatConversationTime(conversation.lastMessageAt) }}</span>
+                </div>
+              </div>
+              <button 
+                class="delete-conversation"
+                @click="deleteConversation(conversation.id, $event)"
+                title="删除会话"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 主聊天区域 -->
+      <div class="chat-main" :class="{ 'with-sidebar': expanded && showHistorySidebar }">
       <!-- 聊天头部 -->
       <div class="chat-header">
         <div class="header-left">
-          <h3>纳西妲</h3>
+          <h3 @click="handleExpandChat" class="expandable-title">纳西妲</h3>
           <div class="mode-indicator">
             <span :class="['mode-dot', mode]"></span>
             <span class="mode-text">{{ mode === 'stream' ? '流式' : '普通' }}</span>
           </div>
         </div>
         <div class="header-right">
+          <!-- 历史记录按钮 (仅在扩展模式下显示) -->
+          <button 
+            v-if="expanded" 
+            class="history-btn" 
+            @click="toggleHistorySidebar"
+            title="查看会话历史"
+          >
+            📜
+          </button>
+          
           <!-- 模式选择器 -->
           <div class="mode-selector">
             <button class="mode-toggle-btn" @click="isModeDropdownOpen = !isModeDropdownOpen" title="切换聊天模式">
@@ -210,13 +387,15 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
+      <!-- 结束主聊天区域 -->
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .chat-box {
-  width: 100%;
+  width: 100% ;
   height: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border-soft);
@@ -226,17 +405,220 @@ onUnmounted(() => {
   z-index: 11;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  position: relative;
+}
+
+.chat-box.expanded {
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .chat-popup {
   width: 100%;
   height: 100%;
   display: flex;
+  position: relative;
+}
+
+.chat-main {
+   width: 100%;
+  flex: 1;
+  display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  transition: margin-right 0.3s ease;
+}
+
+.chat-main.with-sidebar {
+  margin-right: 300px;
+}
+
+/* 历史记录侧边栏 */
+.history-sidebar {
+  position: absolute;
+  top: 0;
+  right: -300px;
+  width: 300px;
+  height: 100%;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border-soft);
+  transition: right 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.history-sidebar.show {
+  right: 0;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-soft);
+}
+
+.history-header h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.close-sidebar {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-subtle);
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-sidebar:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.history-content {
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.history-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--text-subtle);
+  gap: 12px;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-soft);
+  border-top: 2px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.history-empty {
+   width: 100%;
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-subtle);
+}
+
+.conversation-list {
+   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.conversation-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-soft);
+}
+
+.conversation-item.active {
+  background: var(--bg-active);
+  border-color: var(--color-primary);
+}
+
+.conversation-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.message-count {
+  flex-shrink: 0;
+}
+
+.conversation-time {
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.delete-conversation {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-subtle);
+  padding: 4px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.conversation-item:hover .delete-conversation {
+  opacity: 1;
+}
+
+.delete-conversation:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+}
+
+/* 历史记录按钮 */
+.history-btn {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-main);
+}
+
+.history-btn:hover {
+  background: var(--bg-active);
+  border-color: var(--color-primary);
 }
 
 /* 聊天头部 */
 .chat-header {
+   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -251,6 +633,19 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-title);
+}
+
+.expandable-title {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+}
+
+.expandable-title:hover {
+  background: var(--bg-hover);
+  color: var(--color-primary);
 }
 
 .header-left {
@@ -394,6 +789,7 @@ onUnmounted(() => {
 
 /* 错误提示横幅 */
 .error-banner {
+   width: 100%;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -427,6 +823,7 @@ onUnmounted(() => {
 
 /* 消息列表 */
 .chat-messages {
+   width: 100%;
   flex: 1;
   padding: 16px;
   overflow-y: auto;
@@ -435,7 +832,7 @@ onUnmounted(() => {
   gap: 12px;
   background: var(--bg-main);
   min-height: 350px;
-  max-height: 500px;
+  max-height: 1000px;
 }
 
 .chat-messages::-webkit-scrollbar {
@@ -552,16 +949,33 @@ onUnmounted(() => {
 
 /* 输入区域 */
 .chat-input {
+  width: 100%;
   padding: 16px;
   border-top: 1px solid var(--border-soft);
   background: var(--bg-card);
   border-radius: 0 0 16px 16px;
+  position: relative; /* 必须设置position才能让z-index生效 */
+  z-index: 1003; /* 确保在最顶层，不被Live2d遮挡 */
 }
 
+/* 展开状态下确保输入框在最顶层 */
+.chat-box.expanded .chat-input {
+  position: relative;
+  z-index: 1003 !important;
+}
+
+/* 确保输入容器和文本区域也在最顶层 */
 .input-container {
+  position: relative;
+  z-index: 1003;
   display: flex;
   gap: 8px;
   align-items: flex-end;
+}
+
+.chat-input textarea {
+  position: relative;
+  z-index: 1003;
 }
 
 .input-container textarea {
@@ -675,6 +1089,16 @@ onUnmounted(() => {
 
   100% {
     content: '';
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
   }
 }
 

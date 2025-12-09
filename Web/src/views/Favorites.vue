@@ -46,7 +46,7 @@
                   <div class="flex-1 flex flex-col gap-12">
                     <h3 class="font-semibold text-primary text-xl" style="padding-right: 70px">{{ post.title }}</h3>
 
-                    <p v-if="post.summary" class="text-subtle text-base text-sm">{{ post.summary }}</p>
+                    <p v-if="post.summary" class="text-subtle text-base text-sm post-summary">{{ post.summary }}</p>
                     <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
                       <span @click.stop="goToTag(tag.id)" v-for="tag in post.tags" :key="tag.id" class="tag">
                         {{ tag.name }}
@@ -229,6 +229,17 @@ onMounted(async () => {
   text-align: center;
   padding: 60px 20px;
   color: var(--color-text-subtle);
+}
+
+/* 文章摘要省略号样式 */
+.post-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 限制显示2行 */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+  max-height: 3em; /* 2行的高度 (1.5 * 2) */
+  word-break: break-word;
 }
 
 .empty-icon {

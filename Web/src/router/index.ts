@@ -134,7 +134,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'chat-history',
         name: 'chat-history',
-        component: () => import('../components/ChatHistory.vue'),
+        component: () => import('../components/ConversationList.vue'),
         meta: {
           title: '聊天历史记录'
         }
@@ -143,7 +143,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'ai-chat',
         name: 'ai-chat-full',
-        component: () => import('../components/ChatApp.vue'),
+        component: () => import('../components/AiChat.vue'),
         meta: {
           title: 'AI聊天'
         }

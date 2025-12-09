@@ -11,7 +11,11 @@ const loading = ref(false)
 
 const load = async () => {
   loading.value = true
-  try { list.value = await ConversationService.list(type.value, 1, 50) } finally { loading.value = false }
+  try { 
+    const data = await ConversationService.list(type.value, 1, 50)
+    // 反转数组，让最早的会话显示在上面，最新的显示在下面
+    list.value = data.reverse()
+  } finally { loading.value = false }
 }
 
 const select = (id:number) => emit('update:modelValue', id)
