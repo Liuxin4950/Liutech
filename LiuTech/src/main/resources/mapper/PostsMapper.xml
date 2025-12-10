@@ -741,7 +741,7 @@
     </select>
 
     <!-- 统计全站已发布文章数量 -->
-    <select id="countAllPublishedPosts" resultType="java.lang.Integer">
+    <select id="countPublishedPosts" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM posts p
         WHERE p.status = 'published'

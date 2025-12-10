@@ -293,6 +293,7 @@ export const {
   getToken,
   getUserStats,
   getProfile,
+  getAuthorProfile,
   checkin,
   getCheckinStatus
 } = UserService

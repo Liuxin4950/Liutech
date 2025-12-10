@@ -99,7 +99,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/announcements/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/user/{id}").permitAll()
-                .requestMatchers(HttpMethod.GET, "/user/profile").permitAll()
+                .requestMatchers(HttpMethod.GET, "/author/profile").permitAll()
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/uploads/**").permitAll()

@@ -100,7 +100,7 @@ import { PostService } from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
 import { formatDate } from '@/utils/uitls'
 import type { ProfileInfo} from '@/services/user'
-import { getProfile } from '@/services/user'
+import { getProfile,getAuthorProfile } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -278,7 +278,7 @@ const loadProfile = async () => {
   await handleAsync(async () => {
 
     profileLoading.value = true
-    const response = await getProfile()
+    const response = await getAuthorProfile()
     console.log('作者数据', response);
     
     profileInfo.value = response || {}

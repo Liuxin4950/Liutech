@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * 硅基流动AI客户端
@@ -65,7 +64,7 @@ public class SiliconFlowChatClient {
      * @return AI生成的回复内容
      * @throws AIServiceException 当AI服务调用失败时抛出
      */
-    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
     public String chat(List<Message> messages, String modelName) {
         // 1. 参数验证和初始化
         // 允许空消息列表，第一次对话时可能只有用户输入
@@ -123,7 +122,7 @@ public class SiliconFlowChatClient {
      * @return Flux<String> 流式响应的字符串序列
      * @throws AIServiceException 当AI服务调用失败时抛出
      */
-    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
     public Flux<String> streamChat(List<Message> messages, String modelName) {
         // 1. 参数验证和初始化
         // 允许空消息列表，第一次对话时可能只有用户输入
