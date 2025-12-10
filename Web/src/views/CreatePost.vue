@@ -1164,6 +1164,7 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
 /* 编辑器工具栏样式 */
 .editor-toolbar {
   display: flex;

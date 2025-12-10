@@ -79,82 +79,357 @@ const content = ref(props.modelValue)
 // 编辑器加载状态
 const editorLoaded = ref(false)
 
-// 动态主题样式
+// 动态主题样式 - 完全匹配主题系统
 const getContentStyle = (isDark: boolean) => {
   const lightStyle = `
     body { 
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
-      font-size: 14px;
-      line-height: 1.6;
-      color: #333;
-      background-color: #ffffff;
+      font-size: 16px;
+      line-height: 1.8;
+      color: #3C4043;
+      background-color: #FFFFFF;
+      padding: 20px;
+      word-wrap: break-word;
     }
-    p { margin: 8px 0; }
-    h1, h2, h3, h4, h5, h6 { margin: 16px 0 8px 0; font-weight: 600; color: #333; }
-    blockquote { 
-      border-left: 4px solid #ddd; 
+    
+    /* 标题样式 */
+    h1, h2, h3, h4, h5, h6 { 
+      margin: 24px 0 16px 0; 
+      font-weight: 600; 
+      color: #202124;
+      line-height: 1.4;
+    }
+    h1 { font-size: 2em; }
+    h2 { font-size: 1.7em; }
+    h3 { font-size: 1.4em; }
+    h4 { font-size: 1.2em; }
+    h5 { font-size: 1.1em; }
+    h6 { font-size: 1em; }
+    
+    /* 段落样式 */
+    p { 
       margin: 16px 0; 
-      padding: 8px 16px; 
-      background: #f9f9f9;
-      color: #333;
+      color: #3C4043;
+      line-height: 1.8;
     }
+    
+    /* 链接样式 */
+    a {
+      color: #4A69D1;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    a:hover {
+      color: #3A4F9A;
+      text-decoration: underline;
+    }
+    
+    /* 列表样式 */
+    ul, ol {
+      margin: 16px 0;
+      padding-left: 24px;
+      color: #3C4043;
+    }
+    li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    
+    /* 引用块样式 */
+    blockquote { 
+      border-left: 4px solid #4A69D1; 
+      margin: 20px 0; 
+      padding: 16px 20px; 
+      background: #F8F9FA;
+      color: #5F6368;
+      font-style: italic;
+      border-radius: 0 8px 8px 0;
+    }
+    blockquote p {
+      margin: 0;
+    }
+    
+    /* 代码样式 */
     code { 
-      background: #f1f2f6; 
+      background: #F7F9FC; 
       padding: 2px 6px; 
       border-radius: 4px; 
-      font-family: 'Courier New', monospace;
-      color: #e74c3c;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      color: #EA4335;
+      font-size: 0.9em;
+      border: 1px solid #F1F3F4;
     }
+    
     pre { 
-      background: #f8f9fa; 
-      border: 1px solid #e9ecef; 
-      border-radius: 4px; 
-      padding: 12px; 
+      background: #F8F9FA; 
+      border: 1px solid #E8EAED; 
+      border-radius: 8px; 
+      padding: 16px; 
       overflow-x: auto;
-      color: #333;
+      color: #3C4043;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+      line-height: 1.5;
     }
-    img { max-width: 100%; height: auto; }
-    table { border-collapse: collapse; width: 100%; }
-    table td, table th { border: 1px solid #ddd; padding: 8px; color: #333; }
-    table th { background-color: #f2f2f2; font-weight: bold; }
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+    
+    /* 表格样式 */
+    table { 
+      border-collapse: collapse; 
+      width: 100%; 
+      margin: 20px 0;
+      background-color: #FFFFFF;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px rgba(32, 33, 36, 0.1);
+    }
+    table td, table th { 
+      border: 1px solid #E8EAED; 
+      padding: 12px 16px; 
+      color: #3C4043;
+      text-align: left;
+    }
+    table th { 
+      background-color: #F8F9FA; 
+      font-weight: 600; 
+      color: #202124;
+      border-bottom: 2px solid #4A69D1;
+    }
+    table tr:last-child td {
+      border-bottom: none;
+    }
+    table tr:hover {
+      background-color: #F1F3F4;
+    }
+    
+    /* 图片样式 */
+    img { 
+      max-width: 100%; 
+      height: auto; 
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(32, 33, 36, 0.12), 0 1px 3px rgba(32, 33, 36, 0.08);
+      margin: 16px 0;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    /* 分隔线样式 */
+    hr {
+      border: none;
+      height: 2px;
+      background: linear-gradient(to right, transparent, #E8EAED, transparent);
+      margin: 32px 0;
+    }
+    
+    /* 强调文本 */
+    strong, b {
+      color: #202124;
+      font-weight: 600;
+    }
+    
+    em, i {
+      color: #5F6368;
+      font-style: italic;
+    }
+    
+    del, s {
+      color: #9AA0A6;
+      text-decoration: line-through;
+    }
+    
+    u {
+      text-decoration: underline;
+      color: #F0B8C0;
+    }
+    
+    mark {
+      background-color: #FEF7E0;
+      color: #3C4043;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
   `
   
   const darkStyle = `
     body { 
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; 
-      font-size: 14px;
-      line-height: 1.6;
-      color: #ffffff;
-      background-color: #1a1a1a;
+      font-size: 16px;
+      line-height: 1.8;
+      color: #E8EAED;
+      background-color: #202124;
+      padding: 20px;
+      word-wrap: break-word;
     }
-    p { margin: 8px 0; }
-    h1, h2, h3, h4, h5, h6 { margin: 16px 0 8px 0; font-weight: 600; color: #ffffff; }
-    blockquote { 
-      border-left: 4px solid #4c4d4f; 
+    
+    /* 标题样式 */
+    h1, h2, h3, h4, h5, h6 { 
+      margin: 24px 0 16px 0; 
+      font-weight: 600; 
+      color: #FFFFFF;
+      line-height: 1.4;
+    }
+    h1 { font-size: 2em; }
+    h2 { font-size: 1.7em; }
+    h3 { font-size: 1.4em; }
+    h4 { font-size: 1.2em; }
+    h5 { font-size: 1.1em; }
+    h6 { font-size: 1em; }
+    
+    /* 段落样式 */
+    p { 
       margin: 16px 0; 
-      padding: 8px 16px; 
-      background: #2d2d2d;
-      color: #ffffff;
+      color: #E8EAED;
+      line-height: 1.8;
     }
+    
+    /* 链接样式 */
+    a {
+      color: #8AB4F8;
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    a:hover {
+      color: #66B1FF;
+      text-decoration: underline;
+    }
+    
+    /* 列表样式 */
+    ul, ol {
+      margin: 16px 0;
+      padding-left: 24px;
+      color: #E8EAED;
+    }
+    li {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    
+    /* 引用块样式 */
+    blockquote { 
+      border-left: 4px solid #8AB4F8; 
+      margin: 20px 0; 
+      padding: 16px 20px; 
+      background: #2D2F30;
+      color: #9AA0A6;
+      font-style: italic;
+      border-radius: 0 8px 8px 0;
+    }
+    blockquote p {
+      margin: 0;
+    }
+    
+    /* 代码样式 */
     code { 
-      background: #2d2d2d; 
+      background: #3C4043; 
       padding: 2px 6px; 
       border-radius: 4px; 
-      font-family: 'Courier New', monospace;
-      color: #66b1ff;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      color: #4285F4;
+      font-size: 0.9em;
+      border: 1px solid #5F6368;
     }
+    
     pre { 
-      background: #2d2d2d; 
-      border: 1px solid #4c4d4f; 
-      border-radius: 4px; 
-      padding: 12px; 
+      background: #2D2F30; 
+      border: 1px solid #5F6368; 
+      border-radius: 8px; 
+      padding: 16px; 
       overflow-x: auto;
-      color: #ffffff;
+      color: #E8EAED;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+      line-height: 1.5;
     }
-    img { max-width: 100%; height: auto; }
-    table { border-collapse: collapse; width: 100%; }
-    table td, table th { border: 1px solid #4c4d4f; padding: 8px; color: #ffffff; }
-    table th { background-color: #2d2d2d; font-weight: bold; }
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+    
+    /* 表格样式 */
+    table { 
+      border-collapse: collapse; 
+      width: 100%; 
+      margin: 20px 0;
+      background-color: #2D2F30;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    table td, table th { 
+      border: 1px solid #5F6368; 
+      padding: 12px 16px; 
+      color: #E8EAED;
+      text-align: left;
+    }
+    table th { 
+      background-color: #2D2F30; 
+      font-weight: 600; 
+      color: #FFFFFF;
+      border-bottom: 2px solid #8AB4F8;
+    }
+    table tr:last-child td {
+      border-bottom: none;
+    }
+    table tr:hover {
+      background-color: #3C4043;
+    }
+    
+    /* 图片样式 */
+    img { 
+      max-width: 100%; 
+      height: auto; 
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      margin: 16px 0;
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    /* 分隔线样式 */
+    hr {
+      border: none;
+      height: 2px;
+      background: linear-gradient(to right, transparent, #5F6368, transparent);
+      margin: 32px 0;
+    }
+    
+    /* 强调文本 */
+    strong, b {
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+    
+    em, i {
+      color: #9AA0A6;
+      font-style: italic;
+    }
+    
+    del, s {
+      color: #80868B;
+      text-decoration: line-through;
+    }
+    
+    u {
+      text-decoration: underline;
+      color: #F8B4B4;
+    }
+    
+    mark {
+      background-color: #856404;
+      color: #E8EAED;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
   `
   
   return isDark ? darkStyle : lightStyle
@@ -212,30 +487,54 @@ const editorConfig = computed(() => ({
     { text: 'Go', value: 'go' },
     { text: 'Rust', value: 'rust' }
   ],
-  // 自定义颜色调色板 - 匹配主题色
+  // 自定义颜色调色板 - 完全匹配主题色系
   color_map: [
-    '#0ea5e9', 'Primary Blue',
-    '#0284c7', 'Primary Dark',
-    '#38bdf8', 'Primary Light',
-    '#22c55e', 'Success Green',
-    '#f43f5e', 'Error Red',
-    '#facc15', 'Warning Yellow',
-    '#06b6d4', 'Info Cyan',
-    '#6366f1', 'Purple',
-    '#111827', 'Text Primary',
-    '#374151', 'Text Secondary',
-    '#6b7280', 'Text Tertiary',
-    '#ffffff', 'White',
-    '#f9fafb', 'Light Gray',
-    '#f3f4f6', 'Gray 100',
-    '#e5e7eb', 'Gray 200',
-    '#d1d5db', 'Gray 300'
+    // 主色系
+    '#4A69D1', '主色-现代靛蓝',
+    '#3A4F9A', '主色-深靛蓝',
+    '#8AB4F8', '主色-亮蓝（深色模式）',
+    '#F7F9FC', '主色-极淡灰蓝',
+    
+    // 点缀色系
+    '#F0B8C0', '淡雅粉',
+    '#E89AA8', '淡雅粉-hover',
+    '#F8B4B4', '深色模式-温暖琥珀',
+    
+    // 状态色系
+    '#34A853', '成功-绿',
+    '#FBBC04', '警告-黄',
+    '#EA4335', '错误-红',
+    '#4285F4', '信息-蓝',
+    
+    // 文本色系
+    '#202124', '标题-深灰',
+    '#3C4043', '正文-中灰',
+    '#5F6368', '次要-浅灰',
+    '#9AA0A6', '弱化-更淡',
+    '#FFFFFF', '白色',
+    
+    // 背景色系
+    '#F8F9FA', '柔和背景',
+    '#F7F9FC', '元素背景',
+    '#F1F3F4', '悬停背景',
+    '#E8F0FE', '标签背景',
+    
+    // 边框色系
+    '#E8EAED', '常规边框',
+    '#BDC1C6', '深边框',
+    '#F1F3F4', '极浅边框',
+    
+    // 深色模式专用色
+    '#202124', '深色-主背景',
+    '#2D2F30', '深色-卡片背景',
+    '#3C4043', '深色-元素背景',
+    '#5F6368', '深色-边框'
   ],
   // 自定义颜色选择器
   color_cols: 8,
   custom_colors: true,
-  color_default_foreground: '#111827',
-  color_default_background: '#ffffff',
+  color_default_foreground: '#3C4043',
+  color_default_background: '#FFFFFF',
   // 文字格式预设
   style_formats: [
     {
@@ -280,14 +579,18 @@ const editorConfig = computed(() => ({
       ]
     },
     {
-      title: '颜色',
+      title: '主题颜色',
       items: [
-        { title: '主要文字', inline: 'span', styles: { color: '#111827' } },
-        { title: '次要文字', inline: 'span', styles: { color: '#374151' } },
-        { title: '主要蓝色', inline: 'span', styles: { color: '#0ea5e9' } },
-        { title: '成功绿色', inline: 'span', styles: { color: '#22c55e' } },
-        { title: '错误红色', inline: 'span', styles: { color: '#f43f5e' } },
-        { title: '警告黄色', inline: 'span', styles: { color: '#facc15' } }
+        { title: '标题文字', inline: 'span', styles: { color: '#202124' } },
+        { title: '正文文字', inline: 'span', styles: { color: '#3C4043' } },
+        { title: '次要文字', inline: 'span', styles: { color: '#5F6368' } },
+        { title: '主色靛蓝', inline: 'span', styles: { color: '#4A69D1' } },
+        { title: '深主色', inline: 'span', styles: { color: '#3A4F9A' } },
+        { title: '淡雅粉', inline: 'span', styles: { color: '#F0B8C0' } },
+        { title: '成功绿色', inline: 'span', styles: { color: '#34A853' } },
+        { title: '警告黄色', inline: 'span', styles: { color: '#FBBC04' } },
+        { title: '错误红色', inline: 'span', styles: { color: '#EA4335' } },
+        { title: '信息蓝色', inline: 'span', styles: { color: '#4285F4' } }
       ]
     }
   ],

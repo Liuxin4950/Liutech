@@ -17,18 +17,42 @@
           <img :src="displayImage" :alt="post.title" class="cover-image" :class="{ 'loading': imageLoading }">
         </div> -->
 
-        <div class="flex flex-sb flex-ac mb-16 flex-fw gap-12">
-          <div class="flex flex-ac gap-8">
-            <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
-              class="author-avatar">
-            <span class=" font-medium">{{ post.author?.username || '匿名用户' }}</span>
+        <div class="post-meta-info">
+          <div class="meta-left-section">
+            <div class="author-info">
+              <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
+                class="author-avatar">
+              <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
+            </div>
           </div>
-          <div class="flex gap-16 flex-ac text-sm ">
-            <span v-if="post.category" class="badge">{{ post.category.name }}</span>
-            <span>{{ formatDate(post.createdAt) }}</span>
-            <span>👁️ {{ post.viewCount || 0 }}</span>
-            <span>❤️ {{ post.likeCount || 0 }}</span>
-            <span>💬 {{ post.commentCount }}</span>
+          <div class="meta-right-section">
+            <span v-if="post.category" class="category-badge">{{ post.category.name }}</span>
+            <div class="meta-stat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              {{ formatDate(post.createdAt) }}
+            </div>
+            <div class="meta-stat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              {{ post.viewCount || 0 }}
+            </div>
+            <div class="meta-stat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c2.08 0 3.5 2.42 3.5 4.5 0 2.78-2.42 4.5-3.5 4.5-.05 0-.1-.01-.15-.02l1.65 1.5c.05.04.1.06.16.06.11 0 .21-.08.39-.27.69-.27.28-.11.48-.21.69-.27.28-.11.21-.27.28-.69.27-.05.01-.1.02-.15.02zm1.39-1.81c.44-.25.79-.74.79-1.33 0-.88-.65-1.62-1.52-1.85l1.42-1.3c.37.36.59.92.59 1.52 0 1.11-.7 1.87-1.77 1.87H9c-.88 0-1.63-.39-2.12-.96l1.42 1.3c.19-.17.43-.27.7-.27.88 0 .59.35 1.08.79 1.33l1.42-1.3c-.49-.57-.79-1.3-.79-2.12z"/>
+              </svg>
+              {{ post.likeCount || 0 }}
+            </div>
+            <div class="meta-stat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              {{ post.commentCount }}
+            </div>
           </div>
         </div>
         <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
@@ -186,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
@@ -197,6 +221,60 @@ import { isLoggedIn } from '../utils/auth'
 import LoginModal from '../components/LoginModal.vue'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
+
+// 动态加载Prism.js和Prism.css用于代码高亮
+const loadPrism = () => {
+  // 直接加载完整版Prism
+  const link = document.createElement('link')
+  link.rel = 'stylesheet'
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css'
+  document.head.appendChild(link)
+
+  const script = document.createElement('script')
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js'
+  script.onload = () => {
+    // 自动检测页面中有什么语言，只加载需要的
+    setTimeout(() => {
+      const codeBlocks = document.querySelectorAll('pre code[class*="language-"]')
+      const languages = new Set<string>()
+      
+      codeBlocks.forEach(block => {
+        const match = block.className.match(/language-(\w+)/)
+        if (match) {
+          languages.add(match[1])
+        }
+      })
+      
+      // 加载需要的语言
+      let loadedCount = 0
+      const totalLanguages = languages.size
+      
+      if (totalLanguages === 0) {
+        // 没有特殊语言，直接高亮
+        if ((window as any).Prism) {
+          (window as any).Prism.highlightAll()
+        }
+        return
+      }
+      
+      languages.forEach(lang => {
+        const langScript = document.createElement('script')
+        langScript.src = `https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-${lang}.min.js`
+        langScript.onload = () => {
+          loadedCount++
+          if (loadedCount === totalLanguages) {
+            // 所有语言加载完成，执行高亮
+            if ((window as any).Prism) {
+              (window as any).Prism.highlightAll()
+            }
+          }
+        }
+        document.head.appendChild(langScript)
+      })
+    }, 100)
+  }
+  document.head.appendChild(script)
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -254,6 +332,17 @@ const renderedContent = computed(() => {
       .replace(/`(.*?)`/g, '<code>$1</code>')
   }
 })
+
+// 监听内容变化，触发代码高亮
+watch(() => renderedContent.value, () => {
+  nextTick(() => {
+    setTimeout(() => {
+      if ((window as any).Prism) {
+        (window as any).Prism.highlightAll()
+      }
+    }, 100)
+  })
+}, { flush: 'post' })
 
 // 点击外部区域关闭分享选项
 const handleClickOutside = (event: Event) => {
@@ -496,6 +585,8 @@ const copyLink = async () => {
 // 组件挂载时加载数据
 onMounted(() => {
   loadPostDetail()
+  // 加载Prism.js用于代码高亮
+  loadPrism()
   // 添加点击外部区域关闭分享选项的事件监听
   document.addEventListener('click', handleClickOutside)
 })
@@ -570,12 +661,27 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   position: relative;
 }
 
+// 文章标题样式 - 重新设计
 .post-title {
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  margin: 0 0 20px 0;
-  line-height: 1.3;
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: var(--text-title);
+  margin-bottom: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  position: relative;
+  padding-bottom: 20px;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 80px;
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+    border-radius: 2px;
+  }
 }
 
 .post-cover {
@@ -597,10 +703,72 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .author-avatar {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+// 文章元信息样式 - 重新设计
+.post-meta-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--bg-soft);
+}
+
+.meta-left-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.author-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.author-name {
+  font-weight: 600;
+  color: var(--text-title);
+  font-size: 16px;
+}
+
+.meta-right-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.meta-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-subtle);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.category-badge {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .post-summary {
@@ -613,17 +781,251 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   line-height: 1.6;
 }
 
-/* Markdown 内容样式 */
+/* 富文本内容样式 - 重新设计 */
 .markdown-content {
-  line-height: 1.8;
-  padding: 20px;
+  line-height: 1.7;
+  padding: 32px;
+  color: var(--text-main);
+  font-size: 16px;
+  word-wrap: break-word;
+  background: var(--bg-main);
+  border-radius: 12px;
+  margin: 24px 0;
+
+  /* 首段首字母放大 */
+  & > p:first-of-type::first-letter {
+    font-size: 3em;
+    font-weight: 700;
+    float: left;
+    line-height: 1;
+    margin-right: 8px;
+    margin-top: 4px;
+    color: var(--color-primary);
+  }
 }
 
-/* TinyMCE 富文本内容样式适配 */
-.markdown-content :deep(*) {
-  color: inherit;
+/* 基础元素样式 */
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  color: var(--text-title);
+  font-weight: 600;
+  margin: 24px 0 16px 0;
+  line-height: 1.4;
 }
 
+.markdown-content :deep(h1) { font-size: 2em; }
+.markdown-content :deep(h2) { font-size: 1.7em; }
+.markdown-content :deep(h3) { font-size: 1.4em; }
+.markdown-content :deep(h4) { font-size: 1.2em; }
+.markdown-content :deep(h5) { font-size: 1.1em; }
+.markdown-content :deep(h6) { font-size: 1em; }
+
+.markdown-content :deep(p) {
+  margin: 16px 0;
+  color: var(--text-main);
+}
+
+.markdown-content :deep(a) {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.markdown-content :deep(a:hover) {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+/* 列表样式 */
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 16px 0;
+  padding-left: 24px;
+  color: var(--text-main);
+}
+
+.markdown-content :deep(li) {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+/* 引用块样式 - 重新设计 */
+.markdown-content :deep(blockquote) {
+  margin: 24px 0;
+  padding: 20px 24px;
+  border-left: 4px solid var(--color-primary);
+  background: linear-gradient(135deg, var(--bg-soft), var(--bg-hover));
+  color: var(--text-subtle);
+  font-style: italic;
+  border-radius: 0 12px 12px 0;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  
+  &::before {
+    content: '"';
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    font-size: 48px;
+    color: var(--color-primary);
+    opacity: 0.2;
+    font-family: Georgia, serif;
+  }
+  
+  p {
+    margin: 0;
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.markdown-content :deep(blockquote p) {
+  margin: 0;
+}
+
+/* 代码样式 - 简化版，让Prism处理高亮 */
+.markdown-content :deep(code) {
+  background-color: var(--bg-element);
+  color: var(--text-main);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+/* 移除Prism token的所有样式，只保留纯文本 */
+.markdown-content :deep(.token) {
+  background: none !important;
+  text-shadow:none !important;
+
+}
+
+.markdown-content :deep(pre) {
+  border-radius: 12px;
+  padding: 24px;
+  margin: 24px 0;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  position: relative;
+  
+  &::before {
+    content: attr(data-language);
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--color-primary);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+}
+
+.markdown-content :deep(pre code) {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* 表格样式 */
+.markdown-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  background-color: var(--bg-card);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-base);
+  color: var(--text-main);
+}
+
+.markdown-content :deep(th) {
+  background-color: var(--bg-soft);
+  font-weight: 600;
+  color: var(--text-title);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.markdown-content :deep(tr:last-child td) {
+  border-bottom: none;
+}
+
+.markdown-content :deep(tr:hover) {
+  background-color: var(--bg-hover);
+}
+
+/* 分隔线样式 */
+.markdown-content :deep(hr) {
+  border: none;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--border-base), transparent);
+  margin: 32px 0;
+}
+
+/* 图片样式 */
+.markdown-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  margin: 16px 0;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 强调文本 */
+.markdown-content :deep(strong),
+.markdown-content :deep(b) {
+  color: var(--text-title);
+  font-weight: 600;
+}
+
+.markdown-content :deep(em),
+.markdown-content :deep(i) {
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+/* 删除线 */
+.markdown-content :deep(del),
+.markdown-content :deep(s) {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+/* 下划线 */
+.markdown-content :deep(u) {
+  text-decoration: underline;
+  color: var(--color-accent);
+}
+
+/* 高亮文本 */
+.markdown-content :deep(mark) {
+  background-color: var(--bg-warning);
+  color: var(--text-main);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+/* TinyMCE 特定样式适配 */
 .markdown-content :deep(span.td-span) {
   color: var(--text-main);
 }
@@ -633,39 +1035,53 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .markdown-content :deep(code.box-sizing) {
-  background-color: var(--text-main);
-}
-
-.markdown-content :deep(table),
-.markdown-content :deep(tr),
-.markdown-content :deep(th),
-.markdown-content :deep(td),
-.markdown-content :deep(th) {
-  background-color: var(--bg-main);
-  border-bottom: 1px solid var(--border-soft);
+  background-color: var(--bg-element);
+  color: var(--color-error);
 }
 
 
-.markdown-content :deep(hr) {
-  border: none;
-  height: 1px;
-  background: var(--border-soft);
-  margin: 24px 0;
+
+.dark .markdown-content :deep(pre) {
+  background-color: var(--bg-soft);
 }
 
-/* 文章互动功能条样式 */
+.dark .markdown-content :deep(blockquote) {
+  background-color: var(--bg-soft);
+  border-left-color: var(--color-primary);
+  color: var(--text-subtle);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .markdown-content {
+    padding: 16px;
+    font-size: 15px;
+  }
+  
+  .markdown-content :deep(th),
+  .markdown-content :deep(td) {
+    padding: 8px 12px;
+  }
+  
+  .markdown-content :deep(pre) {
+    padding: 12px;
+  }
+}
+
+/* 文章互动功能条样式 - 重新设计 */
 .post-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 0;
-  margin-top: 30px;
-  border-top: 1px solid var(--border-soft);
-  border-bottom: 1px solid var(--border-soft);
-  background: var(--bg-main);
+  padding: 24px 0;
+  margin-top: 40px;
+  border-top: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
   position: sticky;
   bottom: 0;
-  z-index: 1;
+  z-index: 10;
+  background: var(--bg-main);
+  backdrop-filter: blur(10px);
 }
 
 .actions-left {
@@ -682,16 +1098,30 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .action-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: transparent;
-  border: 1px solid var(--border-soft);
-  border-radius: 20px;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--bg-soft);
+  border: 2px solid var(--border-light);
+  border-radius: 24px;
   color: var(--text-main);
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  
+  &:hover {
+    background: var(--bg-hover);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  }
+  
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
 }
 
 .action-btn:hover {

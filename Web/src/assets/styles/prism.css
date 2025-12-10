@@ -1,0 +1,179 @@
+/**
+ * Prism.js 语法高亮样式 - 适配主题
+ * 作者：刘鑫
+ * 时间：2025-12-10
+ */
+
+/* Prism.js 基础样式 - 浅色模式 */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: var(--text-subtle);
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: var(--color-primary);
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: var(--color-success);
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: var(--color-accent);
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword,
+.token.function,
+.token.class-name {
+  color: var(--color-info);
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: var(--color-warning);
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+.token.namespace {
+  opacity: .7;
+}
+
+/* 代码块样式 */
+pre[class*="language-"] {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 20px 0;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+code[class*="language-"] {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* 深色模式适配 */
+.dark .token.comment,
+.dark .token.prolog,
+.dark .token.doctype,
+.dark .token.cdata {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.dark .token.punctuation {
+  color: var(--text-subtle);
+}
+
+.dark .token.property,
+.dark .token.tag,
+.dark .token.boolean,
+.dark .token.number,
+.dark .token.constant,
+.dark .token.symbol,
+.dark .token.deleted {
+  color: #8AB4F8;
+}
+
+.dark .token.selector,
+.dark .token.attr-name,
+.dark .token.string,
+.dark .token.char,
+.dark .token.builtin,
+.dark .token.inserted {
+  color: #34A853;
+}
+
+.dark .token.operator,
+.dark .token.entity,
+.dark .token.url,
+.dark .language-css .token.string,
+.dark .style .token.string {
+  color: #F8B4B4;
+}
+
+.dark .token.atrule,
+.dark .token.attr-value,
+.dark .token.keyword,
+.dark .token.function,
+.dark .token.class-name {
+  color: #4285F4;
+}
+
+.dark .token.regex,
+.dark .token.important,
+.dark .token.variable {
+  color: #FBBC04;
+}
+
+.dark pre[class*="language-"] {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-base);
+  color: var(--text-main);
+}
+
+/* 行号样式 */
+.line-numbers .line-numbers {
+  border-right: 1px solid var(--border-base);
+  padding-right: 12px;
+  margin-right: 12px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.line-numbers .line-numbers .line-numbers-rows > span:before {
+  color: var(--text-muted);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  pre[class*="language-"] {
+    padding: 12px;
+    font-size: 0.85em;
+  }
+}

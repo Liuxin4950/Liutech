@@ -10,12 +10,21 @@ import { handleUnknownError } from './errorHandler'
 export function initGlobalErrorHandler() {
   // 捕获未处理的JavaScript错误
   window.addEventListener('error', (event) => {
+    // 过滤掉null错误和Prism相关的无害错误
+    if (event.error === null || event.error?.message?.includes('Prism')) {
+      return
+    }
     console.error('全局错误:', event.error)
     handleUnknownError(event.error)
   })
 
   // 捕获未处理的Promise拒绝
   window.addEventListener('unhandledrejection', (event) => {
+    // 过滤掉null错误和Prism相关的无害错误
+    if (event.reason === null || event.reason?.message?.includes('Prism')) {
+      event.preventDefault()
+      return
+    }
     console.error('未处理的Promise拒绝:', event.reason)
     handleUnknownError(event.reason)
     // 阻止默认的控制台错误输出

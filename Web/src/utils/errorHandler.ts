@@ -168,6 +168,10 @@ export function handleValidationError(errors: any) {
  * @param error 错误对象
  */
 export function handleUnknownError(error: any) {
+  // 过滤掉null错误和Prism相关的无害错误
+  if (error === null || error?.message?.includes('Prism')) {
+    return
+  }
   console.error('未知错误:', error)
   const message = error?.message || '发生未知错误，请稍后重试'
   showError(message, '系统错误')
