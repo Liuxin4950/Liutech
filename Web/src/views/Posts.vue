@@ -321,7 +321,7 @@ onMounted(async () => {
 
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .posts-page {
     padding: 16px;
   }
@@ -390,7 +390,7 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 480px) {
+@include respond(sm) {
   .posts-page {
     padding: 12px;
   }

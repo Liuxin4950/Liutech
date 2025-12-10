@@ -797,7 +797,7 @@ onMounted(async () => {
 }
 
 /* 响应式优化 */
-@media (max-width: 768px) {
+@include respond(md) {
   .flex.gap-20 {
     flex-direction: column;
     gap: 16px;
@@ -818,7 +818,7 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 500px) {
+@include respond(sm) {
   .modal-content {
     border-radius: 0;
     margin: 0;

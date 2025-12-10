@@ -545,18 +545,10 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     overflow-y: auto;
     float: right;
     margin-left: 20px;
-    // z-index: 10;
 
   }
 
 }
-
-
-
-
-
-
-
 
 .post-detail {
   position: relative;

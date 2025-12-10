@@ -86,7 +86,7 @@ const toggleChat = () => {
 
 // 处理聊天框展开
 const handleExpandChat = () => {
-  isExpanded.value = true
+  isExpanded.value = !isExpanded.value
 }
 
 const handleModelStatusChange = () => {
@@ -138,7 +138,9 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+
 .main-layout {
   min-height: 100vh;
   display: flex;
@@ -168,7 +170,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   height: 90vh;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -45%);
+  transform: translate(-50%, -46%);
   bottom: auto;
   right: auto;
 }
@@ -189,7 +191,10 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   left: 0;
   transform: translateY(-100px) translateX(-400px);
   z-index: 11;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  @include respond(md) {
+    transform: translateY(-100px) translateX(-100px);
+
+  }
 }
 
 /* 当聊天框展开时的样式 */
@@ -197,7 +202,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   width: 100%;
   height: 100%;
   transform: none;
-  z-index: 1001; /* 确保不被Live2d遮挡 */
+  z-index: 10; /* 确保不被Live2d遮挡 */
 }
 
 /* Live2d居中样式 */
@@ -206,7 +211,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   bottom: 0;
   left: 50%;
   transform: translate(-50%, 0%);
-  z-index: 1002; /* 悬浮在聊天框上方 */
+  z-index: 11; /* 悬浮在聊天框上方 */
   width: 400px;
   height: 400px;
 }

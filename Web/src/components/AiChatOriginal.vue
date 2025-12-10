@@ -691,6 +691,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 /**
  * AI聊天组件样式
  * 作者：刘鑫
@@ -953,7 +954,7 @@ onUnmounted(() => {
 }
 
 /* 响应式消息气泡 */
-@media (max-width: 768px) {
+@include respond(md) {
   .message-content {
     max-width: 85%;
   }
@@ -964,7 +965,7 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 480px) {
+@include respond(sm) {
   .message-content {
     max-width: 90%;
   }

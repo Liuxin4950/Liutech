@@ -1585,7 +1585,7 @@ onMounted(async () => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .create-post {
     padding: 16px;
   }

@@ -140,6 +140,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 </script>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .breadcrumb {
   background: var(--bg-color);
   border-bottom: 1px solid var(--border-color);
@@ -197,22 +198,22 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .breadcrumb {
     padding: 0.5rem 0;
     font-size: 0.8rem;
   }
-  
-  .breadcrumb-list {
-    gap: 0.125rem;
-  }
-  
-  .breadcrumb-item {
-    gap: 0.125rem;
-  }
-  
-  .icon {
-    font-size: 0.75rem;
-  }
+}
+
+.breadcrumb-list {
+  gap: 0.125rem;
+}
+
+.breadcrumb-item {
+  gap: 0.125rem;
+}
+
+.icon {
+  font-size: 0.75rem;
 }
 </style>

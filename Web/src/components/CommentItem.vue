@@ -142,6 +142,7 @@ const handleAvatarError = (event: Event) => {
 </script>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .comment-item {
   /* border-bottom: 1px solid var(--border-soft) ; */
   margin-bottom: 16px;
@@ -313,56 +314,57 @@ const handleAvatarError = (event: Event) => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .comment-item.is-reply {
     margin-left: 12px;
     padding-left: 12px;
   }
-  
-  .comment-main {
-    gap: 8px;
-  }
-  
-  .avatar-img {
-    width: 36px;
-    height: 36px;
-  }
-  
-  .comment-item.is-reply .avatar-img {
-    width: 28px;
-    height: 28px;
-  }
-  
-  .comment-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-  
-  .comment-actions {
-    gap: 12px;
-  }
-  
-  .action-btn {
-    padding: 4px 8px;
-    font-size: 0.8rem;
-  }
-  
-  .toggle-children-btn {
-    margin-left: 44px;
-    padding: 6px 10px;
-  }
-  
-  .comment-item.is-reply .toggle-children-btn {
-    margin-left: 40px;
-  }
-  
-  .children-list {
-    margin-left: 44px;
-  }
-  
-  .comment-item.is-reply .children-list {
-    margin-left: 40px;
-  }
 }
+
+.comment-main {
+  gap: 8px;
+}
+
+.avatar-img {
+  width: 36px;
+  height: 36px;
+}
+
+.comment-item.is-reply .avatar-img {
+  width: 28px;
+  height: 28px;
+}
+
+.comment-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.comment-actions {
+  gap: 12px;
+}
+
+.action-btn {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.toggle-children-btn {
+  margin-left: 44px;
+  padding: 6px 10px;
+}
+
+.comment-item.is-reply .toggle-children-btn {
+  margin-left: 40px;
+}
+
+.children-list {
+  margin-left: 44px;
+}
+
+.comment-item.is-reply .children-list {
+  margin-left: 40px;
+}
+
 </style>

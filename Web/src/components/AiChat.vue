@@ -174,9 +174,7 @@ const formatConversationTime = (dateString?: string) => {
 
 // 处理展开聊天框
 const handleExpandChat = () => {
-  if (!props.expanded) {
-    emit('expand')
-  }
+  emit('expand')
 }
 
 // 滚动到底部
@@ -394,6 +392,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .chat-box {
   width: 100% ;
   height: 100%;
@@ -1103,7 +1102,7 @@ onUnmounted(() => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .message-content {
     max-width: 85%;
   }

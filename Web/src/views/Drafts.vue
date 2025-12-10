@@ -324,7 +324,7 @@ onMounted(async () => {
   margin-bottom: 20px;
 }
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .drafts-page { padding: 15px; }
   .actions-bar { flex-direction: column; align-items: stretch; }
   .search-box { max-width: none; }

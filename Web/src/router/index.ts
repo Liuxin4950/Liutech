@@ -132,15 +132,6 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'chat-history',
-        name: 'chat-history',
-        component: () => import('../components/ConversationList.vue'),
-        meta: {
-          title: '聊天历史记录'
-        }
-      }
-      ,
-      {
         path: 'ai-chat',
         name: 'ai-chat-full',
         component: () => import('../components/AiChat.vue'),

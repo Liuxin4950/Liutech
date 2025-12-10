@@ -468,7 +468,7 @@ const handleSubmit = () => {
 }
 
 /* 响应式设计 */
-@media (max-width: 480px) {
+@include respond(sm) {
   .main-content {
     padding: 20px 16px;
   }

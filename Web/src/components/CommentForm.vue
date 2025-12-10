@@ -124,6 +124,7 @@ const submitComment = async () => {
 </script>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .comment-form {
   background: var(--bg-soft);
   border: 1px solid var(--border-soft);
@@ -258,33 +259,34 @@ const submitComment = async () => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .comment-form {
     padding: 16px;
   }
-  
-  .form-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  
-  .cancel-btn {
-    align-self: flex-end;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-  
-  .login-tip {
-    text-align: center;
-  }
-  
-  .submit-btn {
-    width: 100%;
-  }
 }
+
+.form-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cancel-btn {
+  align-self: flex-end;
+}
+
+.form-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.login-tip {
+  text-align: center;
+}
+
+.submit-btn {
+  width: 100%;
+}
+
 </style>

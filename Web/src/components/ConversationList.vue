@@ -72,6 +72,7 @@ const formatTime = (val?: string) => {
 </template>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .conv-list{ width: 280px; background: var(--bg-card); border-right: 1px solid var(--border-soft); display:flex; flex-direction:column; border-radius:16px 0 0 16px }
 .toolbar{ display:flex; gap:8px; align-items:center; padding:12px; background: var(--bg-soft); border-bottom:1px solid var(--border-soft) }
 .toolbar select{ flex:1; height:34px; background: var(--bg-main); color: var(--text-main); border:1px solid var(--border-soft); border-radius:8px; padding:0 8px }
@@ -89,5 +90,5 @@ const formatTime = (val?: string) => {
 .act{ padding:6px 10px; background: var(--bg-hover); color: var(--text-main); border:1px solid var(--border-soft); border-radius:8px; cursor:pointer; transition:.2s }
 .act:hover{ background: var(--bg-main) }
 .act.danger{ background: var(--color-error); color:#fff; border:none }
-@media (max-width: 768px){ .conv-list{ width:100%; border-right:none; border-radius:16px 16px 0 0 } }
+@include respond(md){ .conv-list{ width:100%; border-right:none; border-radius:16px 16px 0 0 } }
 </style>

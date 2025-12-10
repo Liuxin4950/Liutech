@@ -137,6 +137,7 @@ defineExpose({
 </script>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .checkin-card {
   background: white;
   border-radius: 12px;
@@ -280,25 +281,26 @@ defineExpose({
   }
 }
 
-@media (max-width: 768px) {
+@include respond(md) {
   .checkin-card {
     padding: 16px;
     margin-bottom: 16px;
   }
-  
-  .checkin-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  .checkin-info {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .checkin-btn {
-    padding: 14px 20px;
-  }
 }
+
+.checkin-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.checkin-info {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.checkin-btn {
+  padding: 14px 20px;
+}
+
 </style>

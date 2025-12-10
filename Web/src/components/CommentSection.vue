@@ -131,6 +131,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .comment-section {
   margin-top: 40px;
   padding: 0;
@@ -200,17 +201,18 @@ onMounted(() => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .comment-section {
     margin-top: 24px;
   }
-  
-  .comment-title {
-    font-size: 1.3rem;
-  }
-  
-  .comment-form-container {
-    margin-bottom: 24px;
-  }
 }
+
+.comment-title {
+  font-size: 1.3rem;
+}
+
+.comment-form-container {
+  margin-bottom: 24px;
+}
+
 </style>

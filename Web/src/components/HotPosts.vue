@@ -86,6 +86,7 @@ defineEmits<{
 </script>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 /* 文章区域 */
 .posts-section {
   background: var(--bg-color);
@@ -277,44 +278,45 @@ defineEmits<{
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .posts-section {
     padding: 20px;
   }
-
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .header-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .post-item {
-    padding: 16px;
-  }
-
-  .post-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .post-category {
-    align-self: flex-start;
-  }
-
-  .post-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .thumbnail-image {
-    height: 150px;
-  }
 }
+
+.section-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.header-actions {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.post-item {
+  padding: 16px;
+}
+
+.post-header {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.post-category {
+  align-self: flex-start;
+}
+
+.post-meta {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.thumbnail-image {
+  height: 150px;
+}
+
 </style>

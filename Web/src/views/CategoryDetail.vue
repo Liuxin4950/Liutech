@@ -236,7 +236,7 @@ onMounted(() => {
   opacity: 1;
 }
 
-@media (max-width: 768px) {
+@include respond(md) {
   .category-posts { padding: 15px; }
   article { flex-direction: column !important; }
   .posts-img { width: 100%; height: auto; }

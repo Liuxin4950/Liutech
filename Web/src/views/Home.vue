@@ -362,18 +362,19 @@ onMounted(() => {
 }
 
 .home-layout {
+  
   display: grid;
   grid-template-columns: 1fr 300px;
   gap: $gap-lg;
   align-items: start;
 
   @include respond(lg) {
-    grid-template-columns: 1fr 260px;
+    display: flex;
+    flex-direction: column;
     gap: $gap-md;
   }
 
   @include respond(md) {
-    grid-template-columns: 1fr;
     gap: $gap-md;
   }
 }
@@ -381,8 +382,8 @@ onMounted(() => {
 /* 文章列表样式 */
 .posts-section {
   width: 100%;
-
   .list {
+    width: 100%;
     article {
       @include respond(md) {
         flex-direction: column;
@@ -444,14 +445,9 @@ onMounted(() => {
 
 /* 左侧主内容区 */
 .main-content {
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: $gap-lg;
-
-  @include respond(md) {
-    width: 100%;
-    order: 1;
-  }
 }
 
 /* 欢迎横幅 */
@@ -496,4 +492,5 @@ onMounted(() => {
     padding: 24px 12px;
   }
 }
+
 </style>

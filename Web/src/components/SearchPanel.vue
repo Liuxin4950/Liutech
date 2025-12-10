@@ -60,6 +60,7 @@ onMounted(() => { if (props.visible) { inputQuery.value = props.query || '' ; fe
   </template>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .search-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 1000 }
 .search-panel { width: 720px; max-width: 96vw; background: var(--bg-card); border: 1px solid var(--border-soft); box-shadow: var(--shadow-lg); border-radius: 12px; display: flex; flex-direction: column }
 .search-header { display: flex; gap: 8px; align-items: center; padding: 12px; background: var(--bg-soft); border-bottom: 1px solid var(--border-soft) }
@@ -74,5 +75,5 @@ onMounted(() => { if (props.visible) { inputQuery.value = props.query || '' ; fe
 .title { font-weight: 600; color: var(--text-title) }
 .summary { font-size: 14px; color: var(--text-subtle); margin-top: 6px }
 .search-footer { padding: 10px 12px; border-top: 1px solid var(--border-soft); background: var(--bg-soft); color: var(--text-subtle) }
-@media (max-width: 480px) { .search-panel { width: 96vw } }
+@include respond(sm) { .search-panel { width: 96vw } }
 </style>

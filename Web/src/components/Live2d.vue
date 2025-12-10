@@ -28,6 +28,23 @@ declare global {
 // Live2D模型路径
 const cubism4Model = '/live2d/model/Nahida/Nahida_1080.model3.json';
 
+// 可用的表情列表
+const expressions = [
+    "生气",
+    "无语", 
+    "半眼",
+    "手势变化",
+    "开心1",
+    "草草",
+    "嘴型变化",
+    "伤心1",
+    "伤心2",
+    "正常害羞",
+    "害羞",
+    "星星眼",
+    "眨眼"
+];
+
 // 模型实例和PIXI应用实例
 let model: any = null;
 let app: any = null;
@@ -93,11 +110,15 @@ function talk(audioPath:string) {
             isAuto.value = true;
             reject(err);
         });
-        let exp = Math.floor(Math.random() * 10) + 1;
+        
+        // 随机选择一个表情
+        const randomIndex = Math.floor(Math.random() * expressions.length);
+        const randomExpression = expressions[randomIndex];
+        
         // 实际播放音频
         model.speak(audioPath, {
             volume: 1,
-            expression: exp,//随机动作
+            expression: randomExpression, // 随机表情
             resetExpression: true,
             crossOrigin: "anonymous",
         });
@@ -127,13 +148,35 @@ watch(
     { deep: true }
 );
 
+// 触发随机表情
+function triggerRandomExpression() {
+    if (!model) {
+        console.warn("模型未加载，无法触发表情");
+        return;
+    }
+    
+    // 随机选择一个表情
+    const randomIndex = Math.floor(Math.random() * expressions.length);
+    const randomExpression = expressions[randomIndex];
+    
+    console.log(`触发随机表情: ${randomExpression}`);
+    
+    try {
+        // 触发表情
+        model.expression(randomExpression);
+    } catch (error) {
+        console.error("触发表情失败:", error);
+    }
+}
+
 // 播放测试音频
 function playTestAudio() {
+    // 触发随机表情
+    triggerRandomExpression();
     return
     // 判断是否已经有音频在播放了
     if (!isAuto.value) {
         console.log("停止音频播放");
-        
         stopSpeak()
         return;
     }
@@ -263,6 +306,8 @@ onMounted(() => {
             live2dModel.on('hit', (hitAreas: any) => {
                 if (hitAreas.includes('body')) {
                     live2dModel.motion('tap_body');
+                    // 同时触发随机表情
+                    triggerRandomExpression();
                 }
             });
 

@@ -243,13 +243,9 @@ onMounted(() => {
     color: white ;
 }
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
     .categories-page {
         padding: 15px;
-    }
-
-    .grid {
-        grid-template-columns: 1fr;
     }
     
     .category-card {
@@ -264,18 +260,6 @@ onMounted(() => {
     
     .gap-20 {
         gap: 16px;
-    }
-}
-
-@media (min-width: 769px) and (max-width: 1024px) {
-    .grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (min-width: 1025px) {
-    .grid {
-        grid-template-columns: repeat(3, 1fr);
     }
 }
 </style>

@@ -1,213 +1,151 @@
 /* ===============================
-   浅色主题（默认，青蓝风格）
+   现代技术博客配色方案 - 基于样品风格优化
    =============================== */
+
 :root {
-   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-   line-height: 1.6;
+    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
 
-   /* ===== 主色调（青蓝系） ===== */
-   --color-primary: #5f91ad;
-   /* 主色：青蓝，按钮、链接 */
-   --color-primary-light: #2a8e52;
-   /* 浅青绿，hover/次要按钮 */
-   --color-primary-dark: #1b4965;
-   /* 深青蓝，用于导航/强调 */
+    /* ----- 1. 品牌主色（现代科技蓝）----- */
+    --color-primary: #4A69D1;       /* 主色：现代靛蓝（基于样品分析） */
+    --color-primary-light: #F7F9FC; /* 辅助色：极淡灰蓝（样品风格） */
+    --color-primary-dark: #3A4F9A;  /* 强调色：深主色，用于导航或按钮按下 */
 
-   /* ===== 背景色 ===== */
-   --bg-main: #ffffff;
-   /* 页面整体背景（白底） */
-   --bg-soft: #fefefe;
-   /* 分区柔和青蓝底 */
-   --bg-card: #f8f9fa;
-   /* 卡片背景（浅灰白） */
-   --bg-hover: #d8eefe;
-   /* hover 高亮（淡青蓝） */
-   --bg-tag: #b5dbec;
-   /* 标签背景 */
-   --bg-tag-hover: #2a7789;
-   /* 标签hover背景 */
+    /* 温暖点缀色（基于样品的淡雅粉灵感） */
+    --color-accent: #F0B8C0;        /* 淡雅粉（温暖但不刺眼） */
+    --color-accent-hover: #E89AA8;  /* 更深的淡雅粉（hover状态） */
 
 
-   /* ===== 文本色 ===== */
-   --text-main: #253237;
-   /* 主正文颜色（深灰） */
-   --text-subtle: #52575a;
-   /* 次要文字（） */
-   --text-muted: #55585b;
-   /* 更淡文字（已修正为标准命名） */
-   --text-title: #1b263b;
-   /* 标题（深蓝灰） */
+    /* ----- 2. 背景色（简洁层次感） ----- */
+    --bg-main: #FFFFFF;      /* 页面整体背景（纯白，样品风格） */
+    --bg-soft: #F8F9FA;      /* 分区柔和背景（极淡灰调） */
+    --bg-card: #FFFFFF;      /* 卡片背景（保持白底） */
+    --bg-element: #F7F9FC;   /* 元素背景（输入框、次级背景） */
+    --bg-hover: #F1F3F4;     /* 列表悬停色（更自然的灰色） */
+    --bg-tag: #E8F0FE;       /* 标签背景（呼应主色调） */
+    --bg-tag-hover: #4A69D1; /* 标签hover背景（使用主色） */
 
 
-   /* ===== 边框色 ===== */
-   --border-soft: #d8e5e9;
-   /* 浅边框 */
-   --border-base: #9db4c0;
-   /* 常规边框 */
-   --border-strong: #5c6b73;
-   /* 深边框 */
+    /* ----- 3. 文本色（现代舒适灰阶） ----- */
+    --text-title: #202124;   /* 标题：现代深灰（Google风格） */
+    --text-main: #3C4043;    /* 主正文：现代中灰（现代感） */
+    --text-subtle: #5F6368;  /* 次要文字：现代浅灰 */
+    --text-muted: #9AA0A6;   /* 更淡文字：弱化效果 */
+    --text-link: var(--color-primary); /* 链接使用主色 */
+    --text-on-primary: #FFFFFF; /* 在主色背景上的文字（白色） */
 
-   /* ===== 状态色（柔和） ===== */
-   --color-success: #2a8e52;
-   --color-warning: #ffb703;
-   --color-error: #e63946;
-   --color-info: #3a86ff;
 
-   /* ===== 阴影 ===== */
-   --shadow-sm: 0 0px 2px rgb(0 0 0 / 0.2);
-   --shadow-md: 0 0px 6px rgb(0 0 0 / 0.1);
-   --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.15);
+    /* ----- 4. 边框色（现代简洁） ----- */
+    --border-light: #F1F3F4; /* 极浅边框 */
+    --border-base: #E8EAED;  /* 常规边框（现代感） */
+    --border-strong: #BDC1C6; /* 深边框（清晰分层） */
+
+
+    /* ----- 5. 状态色（现代舒适色调） ----- */
+    --color-success: #34A853; /* Google风格绿色 */
+    --color-warning: #FBBC04; /* Google风格黄色 */
+    --color-error: #EA4335;   /* Google风格红色 */
+    --color-info: #4285F4;    /* Google风格蓝色 */
+    
+    --bg-success: #E8F5E8; /* 状态背景色（现代浅色调） */
+    --bg-warning: #FEF7E0;
+    --bg-error: #FCE8E6;
+    --bg-info: #E8F0FE;
+
+
+    /* ----- 6. 阴影（现代层次感） ----- */
+    --shadow-sm: 0 1px 2px rgba(32, 33, 36, 0.1);
+    --shadow-md: 0 2px 6px rgba(32, 33, 36, 0.12), 0 1px 3px rgba(32, 33, 36, 0.08);
+    --shadow-lg: 0 8px 25px rgba(32, 33, 36, 0.15), 0 4px 12px rgba(32, 33, 36, 0.1);
 }
 
-/* ===============================
-   深色主题（柔和青蓝）
-   =============================== */
+
 .dark {
-   /* ===== 主色调（青蓝系） ===== */
-   --color-primary: #5dade2;
-   /* 主色：亮青蓝 */
-   --color-primary-light: #608768;
-   /* 浅青蓝，用于次按钮 */
-   --color-primary-dark: #0d1b2a;
-   /* 深青蓝，用于导航栏 */
+    /* ----- 1. 品牌主色（深色模式优化）----- */
+    --color-primary: #8AB4F8;      /* 主色：明亮科技蓝（深色模式） */
+    --color-primary-light: #2D3748; /* 辅助色：深色背景块 */
+    --color-primary-dark: #1A202C; /* 强调色：深底色 */
 
-   /* ===== 背景色 ===== */
-   --bg-main: #1b263b;
-   /* 页面整体背景（深蓝灰，而不是死黑） */
-   --bg-soft: #161f2e;
-   /* 分区背景 */
-   --bg-card: #161f2e;
-   /* 卡片背景（深灰蓝，仍有层次感） */
-   --bg-hover: #354f52;
-   /* hover 背景（暗青蓝） */
-   --bg-tag: #2a7789;
-   /* 标签背景 */
-   --bg-tag-hover: #5ba8ab;
-   /* 标签hover背景 */
+    /* 深色模式点缀色：温暖琥珀 */
+    --color-accent: #F8B4B4;
+    --color-accent-hover: #F8A4A4;
 
-   /* ===== 文本色 ===== */
-   --text-main: #e0e1dd;
-   /* 主正文（浅灰白） */
-   --text-subtle: #c1c5c9;
-   /* 次要文字 */
-   --text-muted: #9ea1a4;
-   /* 更淡文字 */
-   --text-title: #f8f9fa;
-   /* 标题（接近白） */
 
-   /* ===== 边框色 ===== */
-   --border-soft: #415a77;
-   --border-base: #5c6b73;
-   --border-strong: #9db4c0;
+    /* ----- 2. 背景体系 (深色现代风格) ----- */
+    --bg-main: #202124;      /* 页面整体背景（现代深灰） */
+    --bg-soft: #2D2F30;      /* 分区柔和背景 */
+    --bg-card: #2D2F30;      /* 卡片背景（现代感） */
+    --bg-element: #3C4043;   /* 元素背景 */
+    --bg-hover: #3C4043;     /* hover 背景 */
+    --bg-tag: #3C4043;       /* 标签背景 */
+    --bg-tag-hover: #8AB4F8; /* 标签hover背景（使用主色） */
 
-   /* ===== 状态色（稍亮以突出） ===== */
-   --color-success: #2a8e52;
-   --color-warning: #ffb703;
-   --color-error: #ef476f;
-   --color-info: #4cc9f0;
 
-   /* ===== 阴影（暗背景更明显） ===== */
-   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
-   --shadow-md: 0 4px 6px rgb(0 0 0 / 0.35);
-   --shadow-lg: 0 10px 15px rgb(0 0 0 / 0.4);
+    /* ----- 3. 文本色（深色模式优化） ----- */
+    --text-title: #FFFFFF;   /* 标题：纯白 */
+    --text-main: #E8EAED;    /* 主正文：现代灰白 */
+    --text-subtle: #9AA0A6;  /* 次要文字：现代浅灰 */
+    --text-muted: #80868B;   /* 更淡文字 */
+    --text-link: var(--color-primary);
+    --text-on-primary: var(--text-title);
+
+
+    /* ----- 4. 边框色 ----- */
+    --border-light: #3C4043;
+    --border-base: #5F6368;
+    --border-strong: #9AA0A6;
+
+
+    /* ----- 5. 状态色（深色模式优化） ----- */
+    --color-success: #34A853;
+    --color-warning: #FBBC04;
+    --color-error: #EA4335;
+    --color-info: #4285F4;
+    
+    --bg-success: #155724;
+    --bg-warning: #856404;
+    --bg-error: #721C24;
+    --bg-info: #1E3A8A;
+
+
+    /* ----- 6. 阴影（深色模式） ----- */
+    --shadow-sm: none; 
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
 }
 
 /* ===============================
-   工具类（命名直观）
+   工具类（保持不变）
    =============================== */
 
 /* 文本颜色 */
-.text-main {
-   color: var(--text-main);
-}
-
-.text-subtle {
-   color: var(--text-subtle);
-}
-
-.text-subtle {
-   color: var(--text-subtle);
-}
-
-.text-title {
-   color: var(--text-title);
-}
-
-.text-primary {
-   color: var(--color-primary);
-}
-
-.text-accent {
-   color: var(--color-primary-light);
-}
+.text-main { color: var(--text-main); }
+.text-subtle { color: var(--text-subtle); }
+.text-title { color: var(--text-title); }
+.text-primary { color: var(--color-primary); }
+.text-accent { color: var(--color-accent); }
+.text-on-primary { color: var(--text-on-primary); }
 
 /* 背景颜色 */
-.bg-main {
-   background-color: var(--bg-main);
-}
-
-.bg-soft {
-   background-color: var(--bg-soft);
-}
-
-.bg-card {
-   background-color: var(--bg-card);
-}
-
-.bg-hover {
-   background-color: var(--bg-hover);
-}
-
-.bg-primary {
-   background-color: var(--color-primary);
-}
-
-.bg-accent {
-   background-color: var(--color-primary-light);
-}
+.bg-main { background-color: var(--bg-main); }
+.bg-soft { background-color: var(--bg-soft); }
+.bg-card { background-color: var(--bg-card); }
+.bg-hover { background-color: var(--bg-hover); }
+.bg-primary { background-color: var(--color-primary); }
+.bg-accent { background-color: var(--color-accent); }
 
 /* 边框颜色 */
-.border-soft {
-   border-color: var(--border-soft);
-}
-
-.border-base {
-   border-color: var(--border-base);
-}
-
-.border-strong {
-   border-color: var(--border-strong);
-}
+.border-soft { border-color: var(--border-light); }
+.border-base { border-color: var(--border-base); }
+.border-strong { border-color: var(--border-strong); }
 
 /* 状态色 */
-.text-success {
-   color: var(--color-success);
-}
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-error { color: var(--color-error); }
+.text-info { color: var(--color-info); }
 
-.text-warning {
-   color: var(--color-warning);
-}
-
-.text-error {
-   color: var(--color-error);
-}
-
-.text-info {
-   color: var(--color-info);
-}
-
-.bg-success {
-   background-color: var(--color-success);
-}
-
-.bg-warning {
-   background-color: var(--color-warning);
-}
-
-.bg-error {
-   background-color: var(--color-error);
-}
-
-.bg-info {
-   background-color: var(--color-info);
-}
+.bg-success { background-color: var(--bg-success); }
+.bg-warning { background-color: var(--bg-warning); }
+.bg-error { background-color: var(--bg-error); }
+.bg-info { background-color: var(--bg-info); }

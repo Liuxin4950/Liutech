@@ -1,4 +1,11 @@
 @use "./tokens" as *;
+/* 载入字体 */
+@font-face {
+  font-family: 'DDFont';
+  src: url('@/assets/font/dd.ttf');
+  font-weight: normal;
+  font-style: normal;
+}
 * {
   margin: 0;
   padding: 0;
@@ -31,13 +38,7 @@ button {
 .link{
   cursor: pointer;
 }
-/* 载入字体 */
-@font-face {
-  font-family: 'DDFont';
-  src: url('@/assets/font/dd.ttf');
-  font-weight: normal;
-  font-style: normal;
-}
+
 
 
 /* =================================
@@ -55,6 +56,7 @@ button {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  box-sizing: border-box;
 }
 
 /* =================================
@@ -65,52 +67,33 @@ button {
 }
 
 .flex-col {
+  display: flex;
   flex-direction: column;
+}
+.flex-ac{
+  display: flex;
+  align-items: center;
+}
+
+.flex-sb {
+  display: flex;
+  justify-content: space-between;
+}
+.flex-jc{
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .flex-fw {
   flex-wrap: wrap;
 }
 
-/* flex-1 用于让元素自动填充剩余空间
-   常用于flex布局中让某个子元素占据剩余的所有空间 */
 .flex-1 {
   flex: 1;
 }
 
-/* Flex对齐方式 */
-.flex-ct {
-  justify-content: center;
-  align-items: center;
-}
 
-.flex-sb {
-  justify-content: space-between;
-}
-
-.flex-sa {
-  justify-content: space-around;
-}
-
-.flex-jc {
-  justify-content: center;
-}
-
-.flex-je {
-  justify-content: flex-end;
-}
-
-.flex-ac {
-  align-items: center;
-}
-
-.flex-as {
-  align-items: flex-start;
-}
-
-.flex-ae {
-  align-items: flex-end;
-}
 
 /* 布局工具类 - Grid布局 */
 .grid {

@@ -23,6 +23,7 @@
 </script>
 
 <style scoped>
+@use "@/assets/styles/tokens" as *;
 .banner-header {
     width: 100%;
     height: 100%;
@@ -100,7 +101,7 @@
     }
 }
 
-@media (max-width: 768px) {
+@include respond(md) {
     .banner-title {
         width: 80%;
     }

@@ -12,55 +12,55 @@
 		"DisplayInfo": "Nahida_1080.cdi3.json",
 		"Expressions": [
 			{
-				"Name": "f00",
+				"Name": "生气",
 				"File": "Angry.exp3.json"
 			},
 			{
-				"Name": "f01",
+				"Name": "无语",
 				"File": "black.exp3.json"
 			},
 			{
-				"Name": "f02",
+				"Name": "半眼",
 				"File": "Halfeyes.exp3.json"
 			},
 			{
-				"Name": "f03",
+				"Name": "手势变化",
 				"File": "HandChange.exp3.json"
 			},
 			{
-				"Name": "f04",
+				"Name": "开心1",
 				"File": "Happy1.exp3.json"
 			},
 			{
-				"Name": "f05",
+				"Name": "草草",
 				"File": "kusa.exp3.json"
 			},
 			{
-				"Name": "f06",
+				"Name": "嘴型变化",
 				"File": "mouthchange.exp3.json"
 			},
 			{
-				"Name": "f07",
+				"Name": "伤心1",
 				"File": "Sad1.exp3.json"
 			},
 			{
-				"Name": "f08",
+				"Name": "伤心2",
 				"File": "Sad2.exp3.json"
 			},
 			{
-				"Name": "f09",
+				"Name": "正常害羞",
 				"File": "shy_normal.exp3.json"
 			},
 			{
-				"Name": "f10",
+				"Name": "害羞",
 				"File": "Shy.exp3.json"
 			},
 			{
-				"Name": "f11",
+				"Name": "星星眼",
 				"File": "StarEye.exp3.json"
 			},
 			{
-				"Name": "f12",
+				"Name": "眨眼",
 				"File": "Wink.exp3.json"
 			}
 		]
