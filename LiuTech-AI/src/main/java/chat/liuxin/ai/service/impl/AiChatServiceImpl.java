@@ -21,6 +21,7 @@ package chat.liuxin.ai.service.impl;
  */
 
 import chat.liuxin.ai.exception.AIServiceException;
+import chat.liuxin.ai.monitor.AiMetrics;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
@@ -47,9 +48,13 @@ public class AiChatServiceImpl implements AiChatService {
 
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
-    
+    private final AiMetrics aiMetrics;
+
     @Value("${spring.ai.chat.history-limit:19}")
     private int historyLimit; // 历史条数（不含本轮输入）
+
+    @Value("${spring.ai.openai.chat.options.model:THUDM/glm-4-9b-chat}")
+    private String defaultModel; // 默认AI模型名称
 
     /**
      * 处理普通聊天请求，一次性返回完整AI回复
@@ -71,7 +76,7 @@ public class AiChatServiceImpl implements AiChatService {
         // 1. 初始化请求参数和性能监控
         long begin = System.currentTimeMillis();
         String userIdStr = userId != null ? userId.toString() : "0";
-        String modelName = request.getModel() != null ? request.getModel() : "THUDM/GLM-Z1-9B-0414";
+        String modelName = request.getModel() != null ? request.getModel() : defaultModel;
         Long conversationId = request.getConversationId();
         
         try {
@@ -111,7 +116,11 @@ public class AiChatServiceImpl implements AiChatService {
             log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(),
                     aiOutput != null ? aiOutput.length() : 0, cost);
 
-            // 10. 构建并返回响应对象
+            // 10. 记录成功指标
+            int tokenCount = aiOutput != null ? aiOutput.length() / 4 : 0; // 粗略估算Token数
+            aiMetrics.recordSuccess(modelName, cost, tokenCount);
+
+            // 11. 构建并返回响应对象
             return ChatResponse.builder()
                     .success(true)
                     .message(aiOutput)
@@ -125,10 +134,15 @@ public class AiChatServiceImpl implements AiChatService {
 
         } catch (AIServiceException e) {
             // AI服务特定异常，直接抛出让全局异常处理器处理
+            long cost = System.currentTimeMillis() - begin;
+            String errorType = e.getClass().getSimpleName();
+            aiMetrics.recordFailure(modelName, cost, errorType);
             log.error("AI服务异常: {}", e.getMessage(), e);
             throw e;
         } catch (Exception e) {
             // 通用异常处理：记录错误日志并尝试保存错误状态
+            long cost = System.currentTimeMillis() - begin;
+            aiMetrics.recordFailure(modelName, cost, e.getClass().getSimpleName());
             log.error("AI普通聊天失败", e);
             try {
                 // 尝试保存错误状态到数据库，便于问题追踪
@@ -138,13 +152,36 @@ public class AiChatServiceImpl implements AiChatService {
             }
 
             // 根据异常类型抛出相应的AI服务异常，便于上层处理
-            if (e.getCause() instanceof java.net.ConnectException ||
-                    e.getCause() instanceof java.net.SocketTimeoutException) {
-                throw new AIServiceException.ConnectionException("AI服务连接失败: " + e.getMessage());
-            } else if (e.getMessage() != null && e.getMessage().contains("timeout")) {
-                throw new AIServiceException.TimeoutException("AI服务响应超时: " + e.getMessage());
-            } else {
-                throw new AIServiceException("AI服务处理异常: " + e.getMessage());
+            Throwable cause = e.getCause();
+            Throwable rootCause = cause != null ? cause : e;
+
+            // 网络连接异常
+            if (rootCause instanceof java.net.ConnectException ||
+                    rootCause instanceof java.net.SocketTimeoutException ||
+                    rootCause instanceof java.net.UnknownHostException) {
+                throw new AIServiceException.ConnectionException("AI服务连接失败: " + rootCause.getMessage());
+            }
+            // HTTP状态码异常
+            else if (rootCause instanceof org.springframework.web.client.HttpStatusCodeException httpEx) {
+                throw new AIServiceException.RequestException("AI服务HTTP错误 " + httpEx.getStatusCode() + ": " + httpEx.getMessage());
+            }
+            // 网络访问异常
+            else if (rootCause instanceof org.springframework.web.client.ResourceAccessException) {
+                throw new AIServiceException.ConnectionException("AI服务网络访问失败: " + rootCause.getMessage());
+            }
+            // 响应解析异常
+            else if (rootCause instanceof com.fasterxml.jackson.core.JsonParseException ||
+                    rootCause instanceof java.text.ParseException) {
+                throw new AIServiceException.ModelException("AI服务响应解析失败: " + rootCause.getMessage());
+            }
+            // 超时异常
+            else if (rootCause instanceof java.util.concurrent.TimeoutException ||
+                    (e.getMessage() != null && e.getMessage().toLowerCase().contains("timeout"))) {
+                throw new AIServiceException.TimeoutException("AI服务响应超时: " + rootCause.getMessage());
+            }
+            // 其他未知异常
+            else {
+                throw new AIServiceException("AI服务处理异常: " + (rootCause.getMessage() != null ? rootCause.getMessage() : "未知错误"));
             }
         }
     }

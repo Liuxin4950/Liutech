@@ -1,6 +1,8 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.exception.AIServiceException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -51,20 +53,22 @@ public class SiliconFlowChatClient {
     
     /**
      * 使用指定模型进行聊天
-     * 
+     *
      * 业务流程：
      * 1. 参数验证和初始化
      * 2. 构建AI请求参数
      * 3. 调用AI模型并获取响应
      * 4. 验证响应有效性
      * 5. 记录日志并返回结果
-     * 
+     *
      * @param messages 消息列表，包含对话历史和当前用户输入
      * @param modelName 指定的AI模型名称，为null时使用默认模型
      * @return AI生成的回复内容
      * @throws AIServiceException 当AI服务调用失败时抛出
      */
     @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChat")
+    @RateLimiter(name = "aiService")
     public String chat(List<Message> messages, String modelName) {
         // 1. 参数验证和初始化
         // 允许空消息列表，第一次对话时可能只有用户输入
@@ -109,20 +113,22 @@ public class SiliconFlowChatClient {
     
     /**
      * 使用指定模型进行流式聊天
-     * 
+     *
      * 业务流程：
      * 1. 参数验证和初始化
      * 2. 构建AI请求参数
      * 3. 调用AI模型并获取流式响应
      * 4. 返回Flux<String>供调用方处理
      * 5. 异常处理和日志记录
-     * 
+     *
      * @param messages 消息列表，包含对话历史和当前用户输入
      * @param modelName 指定的AI模型名称，为null时使用默认模型
      * @return Flux<String> 流式响应的字符串序列
      * @throws AIServiceException 当AI服务调用失败时抛出
      */
     @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackStreamChat")
+    @RateLimiter(name = "aiService")
     public Flux<String> streamChat(List<Message> messages, String modelName) {
         // 1. 参数验证和初始化
         // 允许空消息列表，第一次对话时可能只有用户输入
@@ -160,5 +166,33 @@ public class SiliconFlowChatClient {
             log.error("AI流式调用失败, 模型: {}, 错误: {}", model, e.getMessage(), e);
             throw new AIServiceException("AI服务流式调用失败: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 熔断器fallback方法 - 普通聊天
+     * 当AI服务熔断时返回友好的错误提示
+     *
+     * @param messages 消息列表
+     * @param modelName 模型名称
+     * @param exception 原始异常
+     * @return 友好提示消息
+     */
+    public String fallbackChat(List<Message> messages, String modelName, Exception exception) {
+        log.warn("AI服务熔断，使用fallback响应, 模型: {}, 异常: {}", modelName, exception.getMessage());
+        return "抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage();
+    }
+
+    /**
+     * 熔断器fallback方法 - 流式聊天
+     * 当AI服务熔断时返回友好的错误提示
+     *
+     * @param messages 消息列表
+     * @param modelName 模型名称
+     * @param exception 原始异常
+     * @return 友好提示消息的Flux
+     */
+    public Flux<String> fallbackStreamChat(List<Message> messages, String modelName, Exception exception) {
+        log.warn("AI服务流式熔断，使用fallback响应, 模型: {}, 异常: {}", modelName, exception.getMessage());
+        return Flux.just("抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage());
     }
 }

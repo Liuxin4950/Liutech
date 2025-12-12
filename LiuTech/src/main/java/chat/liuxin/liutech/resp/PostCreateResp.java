@@ -1,31 +1,15 @@
 package chat.liuxin.liutech.resp;
 
-import java.util.Date;
-
+import chat.liuxin.liutech.model.Posts;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 文章创建响应
+ * 继承 Posts 实体类，直接使用所有基础字段
  */
 @Data
-public class PostCreateResp {
-    /**
-     * 文章ID
-     */
-    private Long id;
-
-    /**
-     * 文章标题
-     */
-    private String title;
-
-    /**
-     * 文章状态
-     */
-    private String status;
-
-    /**
-     * 创建时间
-     */
-    private Date createdAt;
+@EqualsAndHashCode(callSuper = true)
+public class PostCreateResp extends Posts {
+    // 继承 Posts 的所有字段，无需额外扩展字段
 }

@@ -151,12 +151,19 @@ public class MemoryServiceImpl implements MemoryService {
         
         LocalDateTime boundary = boundaryMessages.get(0).getCreatedAt();
         
-        // 优化：使用JOIN查询删除旧消息
-        int deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
-                .inSql(AiChatMessage::getConversationId, 
-                       "SELECT id FROM ai_conversation WHERE user_id = '" + userId + "'")
-                .lt(AiChatMessage::getCreatedAt, boundary)
-        );
+        // 优化：使用JOIN查询删除旧消息 - 修复SQL注入漏洞，使用参数化查询
+        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
+                .eq(AiConversation::getUserId, userId)
+                .select(AiConversation::getId))
+                .stream().map(AiConversation::getId).toList();
+
+        int deleted = 0;
+        if (!conversationIds.isEmpty()) {
+            deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+                    .in(AiChatMessage::getConversationId, conversationIds)
+                    .lt(AiChatMessage::getCreatedAt, boundary)
+            );
+        }
         
         if (deleted > 0) {
             log.info("记忆清理：userId={}, 删除{}条，保留最近{}条", userId, deleted, retainLastN);
@@ -167,19 +174,27 @@ public class MemoryServiceImpl implements MemoryService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void clearAllMemory(String userId) {
-        // 优化：使用子查询删除，减少数据库往返次数
-        
-        // 1) 删除所有消息（使用子查询）
-        int deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
-                .inSql(AiChatMessage::getConversationId, 
-                       "SELECT id FROM ai_conversation WHERE user_id = '" + userId + "'")
-        );
-        
-        // 2) 删除所有会话
+        // 优化：修复SQL注入漏洞，使用参数化查询而不是字符串拼接
+
+        // 1) 获取用户的所有会话ID（参数化查询）
+        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
+                .eq(AiConversation::getUserId, userId)
+                .select(AiConversation::getId))
+                .stream().map(AiConversation::getId).toList();
+
+        // 2) 删除所有消息（使用参数化IN查询）
+        int deleted = 0;
+        if (!conversationIds.isEmpty()) {
+            deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+                    .in(AiChatMessage::getConversationId, conversationIds)
+            );
+        }
+
+        // 3) 删除所有会话
         conversationMapper.delete(new LambdaQueryWrapper<AiConversation>()
                 .eq(AiConversation::getUserId, userId)
         );
-        
+
         log.info("清空用户记忆：userId={}, 删除{}条记录", userId, deleted);
     }
 

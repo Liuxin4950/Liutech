@@ -3,32 +3,17 @@ package chat.liuxin.liutech.resp;
 import java.util.Date;
 import java.util.List;
 
+import chat.liuxin.liutech.model.Posts;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 文章详情响应
+ * 继承 Posts 实体类，只添加扩展字段
  */
 @Data
-public class PostDetailResp {
-    /**
-     * 文章ID
-     */
-    private Long id;
-
-    /**
-     * 文章标题
-     */
-    private String title;
-
-    /**
-     * 文章内容（Markdown）
-     */
-    private String content;
-
-    /**
-     * 摘要
-     */
-    private String summary;
+@EqualsAndHashCode(callSuper = true)
+public class PostDetailResp extends Posts {
 
     /**
      * 分类信息
@@ -51,31 +36,6 @@ public class PostDetailResp {
     private Integer commentCount;
 
     /**
-     * 封面图片URL
-     */
-    private String coverImage;
-
-    /**
-     * 缩略图URL
-     */
-    private String thumbnail;
-
-    /**
-     * 浏览次数
-     */
-    private Integer viewCount;
-
-    /**
-     * 点赞数量
-     */
-    private Integer likeCount;
-
-    /**
-     * 收藏数量
-     */
-    private Integer favoriteCount;
-
-    /**
      * 当前用户点赞状态（0-未点赞，1-已点赞）
      */
     private Integer likeStatus;
@@ -84,26 +44,6 @@ public class PostDetailResp {
      * 当前用户收藏状态（0-未收藏，1-已收藏）
      */
     private Integer favoriteStatus;
-
-    /**
-     * 创建时间
-     */
-    private Date createdAt;
-
-    /**
-     * 更新时间
-     */
-    private Date updatedAt;
-
-    /**
-     * 分类ID（用于编辑表单）
-     */
-    private Long categoryId;
-
-    /**
-     * 文章状态
-     */
-    private String status;
 
     /**
      * 附件列表（文章详情展示用）

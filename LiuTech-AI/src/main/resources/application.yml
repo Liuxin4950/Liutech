@@ -27,8 +27,8 @@ spring:
       api-key: "sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo"
       chat:
         options:
-          model: "THUDM/GLM-Z1-9B-0414"
-          temperature: 0.2
+          model: "THUDM/glm-4-9b-chat"
+          temperature: 0.9
     # 提示词配置
     prompt:
       system-role: "你是原神角色纳西妲，现在是Liutech个人博客的看板娘"
@@ -89,13 +89,22 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
   health:
     defaults:
       enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Resilience4j配置
+resilience4j:
+  config:
+    import: classpath:resilience4j-config.yml
 
 
 

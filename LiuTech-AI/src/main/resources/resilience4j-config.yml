@@ -1,0 +1,64 @@
+# Resilience4j 熔断器和限流器配置
+# 作者：刘鑫
+# 时间：2025-12-12
+
+resilience4j:
+  # 熔断器配置
+  circuitbreaker:
+    instances:
+      aiService:
+        # 失败率阈值：50%
+        failureRateThreshold: 50
+        # 滑动窗口大小：100次请求
+        slidingWindowSize: 100
+        # 最小请求数：20次
+        minimumNumberOfCalls: 20
+        # 半开状态允许的尝试次数：10次
+        permittedNumberOfCallsInHalfOpenState: 10
+        # 熔断器打开状态持续时间：30秒
+        waitDurationInOpenState: 30s
+        # 慢调用阈值：60%
+        slowCallRateThreshold: 60
+        # 慢调用持续时间阈值：2秒
+        slowCallDurationThreshold: 2s
+        # 事件缓冲区大小：10
+        eventConsumerBufferSize: 10
+        # 记录所有事件
+        recordEvents:
+          - ERROR
+          - FAILURE
+          - IGNORED_ERROR
+          - NOT_PERMITTED
+          - SUCCESS
+          - TIMEOUT
+
+  # 限流器配置
+  ratelimiter:
+    instances:
+      aiService:
+        # 刷新周期：1秒
+        limitRefreshPeriod: 1s
+        # 权限数量：10个请求
+        limitForPeriod: 10
+        # 超出限制时的等待时间：500毫秒
+        timeoutDuration: 500ms
+        # 事件缓冲区大小：100
+        eventConsumerBufferSize: 100
+        # 记录所有事件
+        registerHealthIndicator: true
+
+  # 重试配置
+  retry:
+    instances:
+      aiService:
+        # 最大重试次数：3次
+        maxAttempts: 3
+        # 等待策略：固定延迟
+        waitDuration: 1s
+        # 指数退避策略（可选）
+        # waitDuration: 100ms
+        # maxRetryAttempts: 3
+        # retryExceptions:
+        #   - java.io.IOException
+        # ignoreExceptions:
+        #   - IllegalArgumentException

@@ -45,9 +45,9 @@ public interface AiChatMessageMapper extends BaseMapper<AiChatMessage> {
             "INNER JOIN ai_conversation c ON m.conversation_id = c.id " +
             "WHERE c.user_id = #{userId} " +
             "ORDER BY m.created_at DESC, m.id DESC " +
-            "LIMIT #{off set}, #{size}")
-    List<AiChatMessage> selectHistoryMessagesByUserId(@Param("userId") String userId, 
-                                                     @Param("offset") int offset, 
+            "LIMIT #{offset}, #{size}")
+    List<AiChatMessage> selectHistoryMessagesByUserId(@Param("userId") String userId,
+                                                     @Param("offset") int offset,
                                                      @Param("size") int size);
     
     /**
