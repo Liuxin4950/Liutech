@@ -1,3 +1,4 @@
+import type { Dayjs } from 'dayjs'
 import { get, post, put, del } from './api'
 import type { ApiResponse } from './api'
 
@@ -9,8 +10,8 @@ export interface Announcement {
   type: number
   priority: number
   status: number
-  startTime?: string
-  endTime?: string
+  startTime?: string|Dayjs 
+  endTime?: string|Dayjs
   isTop: number
   viewCount?: number
   createdAt?: string
@@ -43,6 +44,7 @@ export interface AnnouncementListParams {
   status?: number
   type?: number
   includeDeleted?: boolean
+  keyword?: string
 }
 
 export interface PageResult<T> {
@@ -132,6 +134,52 @@ export class AnnouncementsService {
    */
   static async toggleAnnouncementTop(id: number, isTop: number): Promise<ApiResponse<boolean>> {
     return put<boolean>(`${this.BASE_URL}/${id}/top`, { isTop })
+  }
+
+  /**
+   * 批量置顶/取消置顶公告
+   */
+  static async batchToggleAnnouncementTop(ids: number[], isTop: number): Promise<ApiResponse<boolean>> {
+    return put<boolean>(`${this.BASE_URL}/batch/top`, { ids, isTop })
+  }
+
+  /**
+   * 导出公告数据为Excel
+   */
+  static async exportAnnouncements(params: AnnouncementListParams = {}): Promise<Blob> {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_BASE_URL}/export`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(params)
+    })
+    if (!response.ok) {
+      throw new Error('导出失败')
+    }
+    return response.blob()
+  }
+
+  /**
+   * 导入公告数据从Excel
+   */
+  static async importAnnouncements(file: File): Promise<ApiResponse<{ success: number; failed: number; errors?: string[] }>> {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_BASE_URL}/import`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error('导入失败')
+    }
+    return response.json()
   }
 }
 

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons-vue'
+import dayjs, { Dayjs } from 'dayjs'
 import AnnouncementsService from '../../services/announcements'
 import type { AnnouncementListParams, Announcement, AnnouncementListItem } from '../../services/announcements'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime, formatRelativeTime } from '../../utils/uitls'
+import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 
 // 响应式数据
 const loading = ref(false)
@@ -15,15 +17,16 @@ const pageSize = ref(10)
 const selectedRowKeys = ref<number[]>([])
 
 // 搜索参数
-const searchParams = ref<AnnouncementListParams>({
+const searchParams = ref<AnnouncementListParams & { keyword?: string }>({
   status: undefined,
   type: undefined,
-  includeDeleted: false
+  includeDeleted: false,
+  keyword: ''
 })
 
 // 表格列定义
 const columns = [
-  { title: '标题', dataIndex: 'title', key: 'title', width: 200 },
+  { title: '标题', dataIndex: 'title', key: 'title', width: 250 },
   { title: '类型', dataIndex: 'typeName', key: 'typeName', width: 80 },
   { title: '优先级', dataIndex: 'priorityName', key: 'priorityName', width: 80 },
   { title: '状态', dataIndex: 'statusName', key: 'statusName', width: 80 },
@@ -31,8 +34,8 @@ const columns = [
   { title: '有效性', key: 'isValid', width: 80 },
   { title: '删除状态', key: 'deleteStatus', width: 80 },
   { title: '浏览量', dataIndex: 'viewCount', key: 'viewCount', width: 80 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 150 },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' }
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '操作', key: 'action', width: 280, fixed: 'right' }
 ]
 
 // 下拉选项
@@ -62,6 +65,15 @@ const modalTitle = ref('新建公告')
 const isEdit = ref(false)
 const editingId = ref<number | null>(null)
 const confirmLoading = ref(false)
+
+// ============== 预览功能 ==============
+const previewVisible = ref(false)
+const previewData = ref<AnnouncementListItem | null>(null)
+
+// ============== 导入导出功能 ==============
+const uploadVisible = ref(false)
+const uploadLoading = ref(false)
+const fileList = ref<any[]>([])
 
 const formRef = ref()
 const formModel = ref<Partial<Announcement>>({
@@ -116,8 +128,8 @@ const openEdit = async (record: AnnouncementListItem) => {
         priority: res.data.priority,
         status: res.data.status,
         isTop: res.data.isTop,
-        startTime: res.data.startTime,
-        endTime: res.data.endTime
+        startTime: res.data.startTime ? dayjs(res.data.startTime) : undefined,
+        endTime: res.data.endTime ? dayjs(res.data.endTime) : undefined
       }
       modalVisible.value = true
     } else {
@@ -134,8 +146,20 @@ const handleSubmit = async () => {
     confirmLoading.value = true
     await formRef.value?.validate?.()
     
+    // 处理时间字段格式
+    const formatTime = (time: string | Dayjs | undefined): string | undefined => {
+      if (!time) return undefined
+      return typeof time === 'string' ? time : time.format('YYYY-MM-DD HH:mm:ss')
+    }
+
+    const submitData: Partial<Announcement> = {
+      ...formModel.value,
+      startTime: formatTime(formModel.value.startTime),
+      endTime: formatTime(formModel.value.endTime)
+    }
+    
     if (isEdit.value) {
-      const res = await AnnouncementsService.updateAnnouncement(editingId.value as number, formModel.value)
+      const res = await AnnouncementsService.updateAnnouncement(editingId.value as number, submitData)
       if (res.code === 200) {
         message.success('更新成功')
         modalVisible.value = false
@@ -144,7 +168,7 @@ const handleSubmit = async () => {
         message.error(res.message || '更新失败')
       }
     } else {
-      const res = await AnnouncementsService.createAnnouncement(formModel.value as any)
+      const res = await AnnouncementsService.createAnnouncement(submitData as any)
       if (res.code === 200) {
         message.success('创建成功')
         modalVisible.value = false
@@ -164,6 +188,72 @@ const handleSubmit = async () => {
 
 const handleCancel = () => {
   modalVisible.value = false
+}
+
+// ============== 预览功能 ==============
+const openPreview = (record: AnnouncementListItem) => {
+  previewData.value = { ...record }
+  previewVisible.value = true
+}
+
+const closePreview = () => {
+  previewVisible.value = false
+  previewData.value = null
+}
+
+// ============== 辅助函数 ==============
+const getTypeName = (type: number) => {
+  const typeMap: Record<number, string> = {
+    1: '系统',
+    2: '活动', 
+    3: '维护',
+    4: '其他'
+  }
+  return typeMap[type] || '未知'
+}
+
+const getPriorityName = (priority: number) => {
+  const priorityMap: Record<number, string> = {
+    1: '低',
+    2: '中',
+    3: '高',
+    4: '紧急'
+  }
+  return priorityMap[priority] || '未知'
+}
+
+const getStatusName = (status: number) => {
+  const statusMap: Record<number, string> = {
+    0: '草稿',
+    1: '发布',
+    2: '下线'
+  }
+  return statusMap[status] || '未知'
+}
+
+const getTypeColor = (type: number) => {
+  const colorMap: Record<number, string> = {
+    1: 'blue',
+    2: 'green',
+    3: 'orange',
+    4: 'default'
+  }
+  return colorMap[type] || 'default'
+}
+
+const getPriorityColor = (priority: number) => {
+  const colorMap: Record<number, string> = {
+    1: 'default',
+    2: 'blue',
+    3: 'orange',
+    4: 'red'
+  }
+  return colorMap[priority] || 'default'
+}
+
+const stripHtml = (html: string) => {
+  if (!html) return ''
+  return html.replace(/<[^>]*>/g, '').substring(0, 100) + (html.length > 100 ? '...' : '')
 }
 
 // ============== 列表查询 ==============
@@ -210,7 +300,7 @@ const handleSearch = () => {
 }
 
 const handleReset = () => {
-  searchParams.value = { status: undefined, type: undefined, includeDeleted: false }
+  searchParams.value = { status: undefined, type: undefined, includeDeleted: false, keyword: '' }
   current.value = 1
   loadAnnouncements()
 }
@@ -326,6 +416,97 @@ const handleBatchStatusUpdate = async (status: number) => {
   }
 }
 
+const handleBatchTopUpdate = async (isTop: number) => {
+  if (!selectedRowKeys.value.length) {
+    message.warning('请选择要操作的公告')
+    return
+  }
+  try {
+    const res = await AnnouncementsService.batchToggleAnnouncementTop(selectedRowKeys.value, isTop)
+    if (res && res.code === 200) {
+      message.success(isTop ? '批量置顶成功' : '批量取消置顶成功')
+      selectedRowKeys.value = []
+      loadAnnouncements()
+    } else {
+      message.warning(res?.message || '批量操作失败')
+    }
+  } catch (e) {
+    console.error('批量置顶操作异常:', e)
+    message.warning('批量操作失败，请稍后重试')
+  }
+}
+
+// ============== 导入导出功能 ==============
+const handleExport = async () => {
+  try {
+    message.loading('正在导出数据...', 0)
+    const blob = await AnnouncementsService.exportAnnouncements(searchParams.value)
+    
+    // 创建下载链接
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `公告数据_${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    message.destroy()
+    message.success('导出成功')
+  } catch (e) {
+    message.destroy()
+    console.error('导出异常:', e)
+    message.error('导出失败，请稍后重试')
+  }
+}
+
+const handleUpload = async (file: any) => {
+  if (!file) return
+  
+  try {
+    uploadLoading.value = true
+    const res = await AnnouncementsService.importAnnouncements(file.file)
+    
+    if (res.code === 200) {
+      const { success, failed, errors } = res.data
+      if (errors && errors.length > 0) {
+        message.warning(`导入完成：成功 ${success} 条，失败 ${failed} 条。错误详情：${errors.join(', ')}`)
+      } else {
+        message.success(`导入成功：共 ${success} 条数据`)
+      }
+      
+      uploadVisible.value = false
+      fileList.value = []
+      loadAnnouncements()
+    } else {
+      message.error(res.message || '导入失败')
+    }
+  } catch (e) {
+    console.error('导入异常:', e)
+    message.error('导入失败，请稍后重试')
+  } finally {
+    uploadLoading.value = false
+  }
+}
+
+const beforeUpload = (file: File) => {
+  const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+                 file.type === 'application/vnd.ms-excel'
+  if (!isExcel) {
+    message.error('只能上传Excel文件!')
+    return false
+  }
+  
+  const isLt10M = file.size / 1024 / 1024 < 10
+  if (!isLt10M) {
+    message.error('文件大小不能超过10MB!')
+    return false
+  }
+  
+  return false // 阻止自动上传，手动处理
+}
+
 onMounted(async () => {
   await loadAnnouncements()
 })
@@ -341,6 +522,15 @@ onMounted(async () => {
     <!-- 搜索区域 -->
     <a-card class="search-card" :bordered="false">
       <a-form layout="inline" :model="searchParams">
+        <a-form-item label="关键词">
+          <a-input 
+            v-model:value="searchParams.keyword" 
+            placeholder="搜索标题或内容" 
+            style="width: 200px"
+            @press-enter="handleSearch"
+            allow-clear
+          />
+        </a-form-item>
         <a-form-item label="类型">
           <a-select v-model:value="searchParams.type" placeholder="请选择类型" allow-clear style="width: 120px">
             <a-select-option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
@@ -369,6 +559,12 @@ onMounted(async () => {
         <a-button type="primary" @click="openCreate">
           <PlusOutlined /> 新建公告
         </a-button>
+        <a-button @click="handleExport">
+          <DownloadOutlined /> 导出Excel
+        </a-button>
+        <a-button @click="uploadVisible = true">
+          <UploadOutlined /> 导入Excel
+        </a-button>
         <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
           <DeleteOutlined /> 批量删除
         </a-button>
@@ -378,6 +574,9 @@ onMounted(async () => {
               <a-menu-item key="publish" @click="handleBatchStatusUpdate(1)">批量发布</a-menu-item>
               <a-menu-item key="draft" @click="handleBatchStatusUpdate(0)">批量设为草稿</a-menu-item>
               <a-menu-item key="offline" @click="handleBatchStatusUpdate(2)">批量下线</a-menu-item>
+              <a-menu-divider />
+              <a-menu-item key="setTop" @click="handleBatchTopUpdate(1)">批量置顶</a-menu-item>
+              <a-menu-item key="cancelTop" @click="handleBatchTopUpdate(0)">批量取消置顶</a-menu-item>
             </a-menu>
           </template>
           <a-button :disabled="selectedRowKeys.length === 0">
@@ -412,9 +611,20 @@ onMounted(async () => {
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'title'">
             <div class="title-cell">
-              <a-tooltip :title="record.content">
-                <span class="title-text">{{ record.title }}</span>
-              </a-tooltip>
+              <div class="title-main">
+                <a-tooltip :title="record.title">
+                  <span class="title-text">{{ record.title }}</span>
+                </a-tooltip>
+                <div class="title-badges">
+                  <a-tag v-if="record.isTop" size="small" color="red">置顶</a-tag>
+                  <a-tag size="small" :color="getTypeColor(record.type)">{{ record.typeName }}</a-tag>
+                </div>
+              </div>
+              <div class="title-summary">
+                <a-tooltip :title="stripHtml(record.content)">
+                  <span class="summary-text">{{ stripHtml(record.content) }}</span>
+                </a-tooltip>
+              </div>
             </div>
           </template>
 
@@ -441,12 +651,19 @@ onMounted(async () => {
 
           <!-- 创建时间列 -->
           <template v-else-if="column.key === 'createdAt'">
-            {{ record.createdAt ? formatDateTime(record.createdAt) : '-' }}
+            <div v-if="record.createdAt" class="time-cell">
+              <div class="relative-time">{{ formatRelativeTime(record.createdAt) }}</div>
+              <div class="absolute-time">{{ formatDateTime(record.createdAt) }}</div>
+            </div>
+            <span v-else>-</span>
           </template>
 
           <!-- 操作列 -->
           <template v-else-if="column.key === 'action'">
             <a-space>
+              <a-button type="link" size="small" @click="openPreview(record)">
+                <EyeOutlined /> 预览
+              </a-button>
               <a-button type="link" size="small" @click="openEdit(record)">
                 编辑
               </a-button>
@@ -589,15 +806,80 @@ onMounted(async () => {
         <a-row :gutter="16">
           <a-col :span="24">
             <a-form-item label="公告内容" name="content">
-              <a-textarea 
-                v-model:value="formModel.content" 
-                placeholder="请输入公告内容" 
-                :rows="6"
+              <TinyMCEEditor
+                v-model="formModel.content"
+                :height="300"
+                placeholder="请输入公告内容..."
               />
             </a-form-item>
           </a-col>
         </a-row>
       </a-form>
+    </a-modal>
+
+    <!-- 预览弹窗 -->
+    <a-modal
+      v-model:open="previewVisible"
+      title="公告预览"
+      :width="800"
+      :footer="null"
+      @cancel="closePreview"
+    >
+      <div v-if="previewData" class="announcement-preview">
+        <!-- 公告头部信息 -->
+        <div class="preview-header">
+          <div class="preview-title">{{ previewData.title }}</div>
+          <div class="preview-meta">
+            <a-space>
+              <a-tag :color="getTypeColor(previewData.type)">{{ getTypeName(previewData.type) }}</a-tag>
+              <a-tag :color="getPriorityColor(previewData.priority)">{{ getPriorityName(previewData.priority) }}</a-tag>
+              <a-tag v-if="previewData.isTop" color="red">置顶</a-tag>
+              <span class="preview-time">{{ formatDateTime(previewData.createdAt) }}</span>
+            </a-space>
+          </div>
+        </div>
+        
+        <!-- 公告内容 -->
+        <div class="preview-content" v-html="previewData.content"></div>
+        
+        <!-- 公告底部信息 -->
+        <div class="preview-footer">
+          <a-space split="|">
+            <span>浏览量: {{ previewData.viewCount || 0 }}</span>
+            <span>状态: {{ getStatusName(previewData.status) }}</span>
+            <span v-if="previewData.startTime">开始时间: {{ formatDateTime(previewData.startTime) }}</span>
+            <span v-if="previewData.endTime">结束时间: {{ formatDateTime(previewData.endTime) }}</span>
+          </a-space>
+        </div>
+      </div>
+    </a-modal>
+
+    <!-- 导入弹窗 -->
+    <a-modal
+      v-model:open="uploadVisible"
+      title="导入公告数据"
+      :confirm-loading="uploadLoading"
+      @ok="() => fileList[0] && handleUpload(fileList[0])"
+      @cancel="() => { uploadVisible = false; fileList = [] }"
+    >
+      <a-upload
+        v-model:file-list="fileList"
+        :before-upload="beforeUpload"
+        :max-count="1"
+        accept=".xlsx,.xls"
+        :custom-request="() => {}"
+      >
+        <a-button>
+          <UploadOutlined />
+          选择Excel文件
+        </a-button>
+      </a-upload>
+      
+      <div class="upload-tips">
+        <p>• 支持格式：.xlsx、.xls</p>
+        <p>• 文件大小：不超过10MB</p>
+        <p>• 导入字段：标题、内容、类型、优先级、状态、置顶、开始时间、结束时间</p>
+      </div>
     </a-modal>
   </div>
 </template>
@@ -625,10 +907,45 @@ onMounted(async () => {
 }
 
 .title-cell {
-  max-width: 200px;
+  max-width: 250px;
+}
+
+.title-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
 .title-text {
+  flex: 1;
+  font-weight: 500;
+  color: #262626;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.title-text:hover {
+  color: #1890ff;
+}
+
+.title-badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.title-summary {
+  margin-top: 4px;
+}
+
+.summary-text {
+  font-size: 12px;
+  color: #8c8c8c;
+  line-height: 1.4;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -636,7 +953,135 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-.title-text:hover {
+.summary-text:hover {
   color: #1890ff;
+}
+
+.time-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.relative-time {
+  font-size: 13px;
+  color: #262626;
+  font-weight: 500;
+}
+
+.absolute-time {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 2px;
+}
+
+/* 预览弹窗样式 */
+.announcement-preview {
+  .preview-header {
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    
+    .preview-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #262626;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    
+    .preview-meta {
+      .preview-time {
+        color: #8c8c8c;
+        font-size: 14px;
+      }
+    }
+  }
+  
+  .preview-content {
+    min-height: 200px;
+    line-height: 1.6;
+    color: #262626;
+    font-size: 14px;
+    margin-bottom: 20px;
+    
+    :deep(h1) { font-size: 24px; font-weight: 600; margin: 20px 0 16px 0; }
+    :deep(h2) { font-size: 20px; font-weight: 600; margin: 16px 0 12px 0; }
+    :deep(h3) { font-size: 18px; font-weight: 600; margin: 14px 0 10px 0; }
+    :deep(p) { margin: 8px 0; line-height: 1.6; }
+    :deep(ul), :deep(ol) { margin: 8px 0; padding-left: 20px; }
+    :deep(li) { margin: 4px 0; }
+    :deep(blockquote) {
+      border-left: 4px solid #1890ff;
+      margin: 16px 0;
+      padding: 8px 16px;
+      background: #f6f8ff;
+      color: #262626;
+    }
+    :deep(code) {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      color: #e74c3c;
+    }
+    :deep(pre) {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      padding: 12px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+    :deep(img) {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin: 8px 0;
+    }
+    :deep(table) {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+    :deep(th), :deep(td) {
+      border: 1px solid #e8e8e8;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    :deep(th) {
+      background: #fafafa;
+      font-weight: 600;
+    }
+  }
+  
+  .preview-footer {
+    border-top: 1px solid #f0f0f0;
+    padding-top: 16px;
+    color: #8c8c8c;
+    font-size: 14px;
+  }
+}
+
+/* 导入弹窗样式 */
+.upload-tips {
+  margin-top: 16px;
+  padding: 12px;
+  background: #f6f8ff;
+  border: 1px solid #91d5ff;
+  border-radius: 6px;
+  
+  p {
+    margin: 4px 0;
+    font-size: 13px;
+    color: #595959;
+    
+    &:first-child {
+      margin-top: 0;
+    }
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
 }
 </style>

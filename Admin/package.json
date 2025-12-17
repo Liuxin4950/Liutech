@@ -12,6 +12,7 @@
     "@tinymce/tinymce-vue": "^6.2.0",
     "ant-design-vue": "^4.2.6",
     "axios": "^1.10.0",
+    "dayjs": "^1.11.19",
     "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.4.1",
     "pixi-live2d-display": "^0.4.0",
