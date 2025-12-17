@@ -10,11 +10,11 @@ mkdir -p /opt/liutech
 mkdir -p /opt/liutech/images
 
 # 在总目录下编写容器编排文件和.env文件和sql文件
-# 容器编排文件：docker-compose.prod.yml
+# 容器编排文件：docker-compose.yml
 # .env文件：包含环境变量配置(容器编排会读取这个文件来确定每个服务映射的端口)
-# sql文件：初始化数据库脚本
+# sql文件：初始化数据库脚本(位于sql/目录下)
 
-# 创建docker-compose.prod.yml文件
+# 创建docker-compose.yml文件
 echo "创建Docker Compose配置文件..."
 cat > /opt/liutech/docker-compose.yml << 'EOF'
 services:
@@ -29,7 +29,7 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./sql/sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
@@ -91,8 +91,8 @@ volumes:
   upload_files:
 EOF
 
-# 复制SQL初始化文件（需要手动上传sql.sql到/opt/liutech目录）
-echo "请确保sql.sql文件已上传到/opt/liutech目录"
+# 复制SQL初始化文件（需要手动上传sql/目录到/opt/liutech目录）
+echo "请确保sql/目录及其中的SQL文件已上传到/opt/liutech目录"
 
 # 进入镜像目录 #将项目打包的所以镜像都放在这个目录下***.tar文件
 cd /opt/liutech/images

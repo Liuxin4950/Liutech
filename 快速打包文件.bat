@@ -1,56 +1,56 @@
 @echo off
 chcp 65001
-REM LiuTech Project Build Script (Windows)
-REM Author: Liu Xin
-REM Description: Ensure JAR is repackaged and images are rebuilt after code changes
+REM LiuTech 项目构建脚本 (Windows)
+REM 作者: 刘鑫
+REM 描述: 确保代码更改后重新打包JAR并重建镜像
 
 echo ==========================================
-echo LiuTech Project Build Started
-echo Time: %date% %time%
+echo LiuTech 项目构建开始
+echo 时间: %date% %time%
 echo ==========================================
 
-REM 1. Build Backend
-echo [1/5] Building Backend Service...
-echo Cleaning and compiling backend project...
+REM 1. 构建后端服务
+echo [1/5] 构建后端服务...
+echo 清理并编译后端项目...
 call mvn -f LiuTech/pom.xml clean package -DskipTests
 if %errorlevel% neq 0 (
-    echo [ERROR] Backend compilation failed!
+    echo [错误] 后端编译失败!
     pause
     exit /b 1
 )
 
-echo Building backend Docker image...
+echo 构建后端Docker镜像...
 call docker build -t liutech-backend:latest -f LiuTech/Dockerfile LiuTech
 if %errorlevel% neq 0 (
-    echo [ERROR] Backend image build failed!
+    echo [错误] 后端镜像构建失败!
     pause
     exit /b 1
 )
 
-REM 2. Build AI Service
-echo [2/5] Building AI Service...
-echo Cleaning and compiling AI project...
+REM 2. 构建AI服务
+echo [2/5] 构建AI服务...
+echo 清理并编译AI项目...
 call mvn -f LiuTech-AI/pom.xml clean package -DskipTests
 if %errorlevel% neq 0 (
-    echo [ERROR] AI service compilation failed!
+    echo [错误] AI服务编译失败!
     pause
     exit /b 1
 )
 
-echo Building AI Docker image...
+echo 构建AI Docker镜像...
 call docker build -t liutech-ai:latest -f LiuTech-AI/Dockerfile LiuTech-AI
 if %errorlevel% neq 0 (
-    echo [ERROR] AI image build failed!
+    echo [错误] AI镜像构建失败!
     pause
     exit /b 1
 )
 
-REM 3. Build Web Frontend
-echo [3/5] Building Web Frontend...
+REM 3. 构建Web前端
+echo [3/5] 构建Web前端...
 cd Web
 call npm ci
 if %errorlevel% neq 0 (
-    echo [ERROR] Web frontend dependency installation failed!
+    echo [错误] Web前端依赖安装失败!
     cd ..
     pause
     exit /b 1
@@ -58,7 +58,7 @@ if %errorlevel% neq 0 (
 
 call npm run build
 if %errorlevel% neq 0 (
-    echo [ERROR] Web frontend build failed!
+    echo [错误] Web前端构建失败!
     cd ..
     pause
     exit /b 1
@@ -66,19 +66,19 @@ if %errorlevel% neq 0 (
 
 call docker build -t liutech-web:latest .
 if %errorlevel% neq 0 (
-    echo [ERROR] Web frontend image build failed!
+    echo [错误] Web前端镜像构建失败!
     cd ..
     pause
     exit /b 1
 )
 cd ..
 
-REM 4. Build Admin Frontend
-echo [4/5] Building Admin Frontend...
+REM 4. 构建管理后台前端
+echo [4/5] 构建管理后台前端...
 cd Admin
 call npm ci
 if %errorlevel% neq 0 (
-    echo [ERROR] Admin frontend dependency installation failed!
+    echo [错误] 管理后台前端依赖安装失败!
     cd ..
     pause
     exit /b 1
@@ -86,7 +86,7 @@ if %errorlevel% neq 0 (
 
 call npm run build
 if %errorlevel% neq 0 (
-    echo [ERROR] Admin frontend build failed!
+    echo [错误] 管理后台前端构建失败!
     cd ..
     pause
     exit /b 1
@@ -94,31 +94,31 @@ if %errorlevel% neq 0 (
 
 call docker build -t liutech-admin:latest .
 if %errorlevel% neq 0 (
-    echo [ERROR] Admin frontend image build failed!
+    echo [错误] 管理后台前端镜像构建失败!
     cd ..
     pause
     exit /b 1
 )
 cd ..
 
-REM 5. Build Nginx
-echo [5/5] Building Nginx Service...
+REM 5. 构建Nginx服务
+echo [5/5] 构建Nginx服务...
 call docker build -t liutech-nginx:latest nginx/
 if %errorlevel% neq 0 (
-    echo [ERROR] Nginx image build failed!
+    echo [错误] Nginx镜像构建失败!
     pause
     exit /b 1
 )
 
-REM 5. Display build results
+REM 5. 显示构建结果
 echo ==========================================
-echo [SUCCESS] Build completed! Image list:
+echo [成功] 构建完成！镜像列表：
 call docker images | findstr liutech
 echo ==========================================
 
-echo [INFO] Use the following commands to start services:
-echo   Local development: docker-compose up -d
+echo [信息] 使用以下命令启动服务：
+echo   本地开发：docker-compose up -d
 echo ==========================================
-echo Build script completed successfully!
+echo 构建脚本执行成功！
 echo 打包完成！使用以下命令 docker-compose up -d 在根目录启动容器编排启动服务：
 pause

@@ -41,6 +41,7 @@ import static org.mockito.Mockito.*;
 @Epic("记忆服务")
 @Feature("消息存储与查询")
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("unchecked")
 class MemoryServiceTest {
 
     @Mock
@@ -267,7 +268,7 @@ class MemoryServiceTest {
 
         // Assert
         verify(messageMapper, never()).selectList(any());
-        verify(messageMapper, never()).delete(any());
+        verify(messageMapper, never()).delete(any(LambdaQueryWrapper.class));
     }
 
     @Test
@@ -318,7 +319,7 @@ class MemoryServiceTest {
         memoryService.clearAllMemory(TEST_USER_ID);
 
         // Assert
-        verify(messageMapper, never()).delete(any());
+        verify(messageMapper, never()).delete(any(LambdaQueryWrapper.class));
         verify(conversationMapper, times(1)).delete(any(LambdaQueryWrapper.class));
     }
 

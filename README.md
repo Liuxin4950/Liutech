@@ -2,18 +2,107 @@
 
 <div align="center">
 
-![LiuTech Logo](https://img.shields.io/badge/LiuTech-博客系统-blue?style=for-the-badge&logo=vue.js)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=vue,ts,vite,spring,java,mysql,redis,docker,nginx&theme=dark">
+  <source media="(prefers-color-scheme: light)" srcset="https://skillicons.dev/icons?i=vue,ts,vite,spring,java,mysql,redis,docker,nginx&theme=light">
+  <img src="https://skillicons.dev/icons?i=vue,ts,vite,spring,java,mysql,redis,docker,nginx" alt="技术栈图标">
+</picture>
 
-**现代化全栈博客平台 | 前后端分离 | AI 智能助手**
+**🌟 现代化全栈博客平台 | 前后端分离 | AI 智能助手**
 
-[![Vue](https://img.shields.io/badge/Vue-3.5.17-4FC08D?style=flat-square&logo=vue.js)](https://vuejs.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.6-6DB33F?style=flat-square&logo=spring-boot)](https://spring.io/projects/spring-boot)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk)](https://openjdk.org/)
-[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=flat-square&logo=mysql)](https://www.mysql.com/)
-[![Docker](https://img.shields.io/badge/Docker-支持-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
+---
 
-[在线演示](http://web.localhost) · [管理后台](http://admin.localhost) · [API 文档](./LiuTech/API文档.md) · [部署指南](./部署文档.md)
+### 🛠️ 技术栈
+
+#### 🎨 前端技术
+<div align="center">
+
+<a href="https://vuejs.org/">
+  <img src="https://skillicons.dev/icons?i=vue" alt="Vue.js" width="48" height="48">
+</a>
+<a href="https://www.typescriptlang.org/">
+  <img src="https://skillicons.dev/icons?i=ts" alt="TypeScript" width="48" height="48">
+</a>
+<a href="https://vitejs.dev/">
+  <img src="https://skillicons.dev/icons?i=vite" alt="Vite" width="48" height="48">
+</a>
+<a href="https://ant.design/">
+  <img src="https://skillicons.dev/icons?i=antd" alt="Ant Design" width="48" height="48">
+</a>
+<a href="https://pinia.vuejs.org/">
+  <img src="https://skillicons.dev/icons?i=pinia" alt="Pinia" width="48" height="48">
+</a>
+
+</div>
+
+#### ⚙️ 后端技术
+<div align="center">
+
+<a href="https://spring.io/projects/spring-boot">
+  <img src="https://skillicons.dev/icons?i=spring" alt="Spring Boot" width="48" height="48">
+</a>
+<a href="https://openjdk.org/">
+  <img src="https://skillicons.dev/icons?i=java" alt="Java" width="48" height="48">
+</a>
+<a href="https://mybatis.org/">
+  <img src="https://skillicons.dev/icons?i=gradle" alt="MyBatis" width="48" height="48">
+</a>
+<a href="https://redis.io/">
+  <img src="https://skillicons.dev/icons?i=redis" alt="Redis" width="48" height="48">
+</a>
+
+</div>
+
+#### 🗄️ 数据库与存储
+<div align="center">
+
+<a href="https://www.mysql.com/">
+  <img src="https://skillicons.dev/icons?i=mysql" alt="MySQL" width="48" height="48">
+</a>
+<a href="https://www.docker.com/">
+  <img src="https://skillicons.dev/icons?i=docker" alt="Docker" width="48" height="48">
+</a>
+<a href="https://nginx.org/">
+  <img src="https://skillicons.dev/icons?i=nginx" alt="Nginx" width="48" height="48">
+</a>
+<a href="https://github.com/">
+  <img src="https://skillicons.dev/icons?i=github" alt="GitHub" width="48" height="48">
+</a>
+
+</div>
+
+---
+
+### 📱 快速访问
+
+<div align="center">
+
+| 🌐 用户前台 | 🔧 管理后台 | 📡 API文档 | 🚀 部署指南 |
+|------------|------------|------------|------------|
+| [http://localhost:3000](http://localhost:3000) | [http://localhost:3001](http://localhost:3001) | [API文档](./LiuTech/API文档.md) | [部署指南](./快速部署指南.md) |
+
+</div>
+
+---
+
+### 📊 项目状态
+
+<div align="center">
+
+<a href="https://github.com/Liuxin4950/Liutech">
+  <img src="https://img.shields.io/github/stars/Liuxin4950/Liutech?style=social" alt="GitHub stars">
+</a>
+<a href="https://github.com/Liuxin4950/Liutech">
+  <img src="https://img.shields.io/github/forks/Liuxin4950/Liutech?style=social" alt="GitHub forks">
+</a>
+<a href="https://github.com/Liuxin4950/Liutech/issues">
+  <img src="https://img.shields.io/github/issues/Liuxin4950/Liutech" alt="GitHub issues">
+</a>
+<a href="https://github.com/Liuxin4950/Liutech/blob/main/LICENSE">
+  <img src="https://img.shields.io/github/license/Liuxin4950/Liutech" alt="GitHub license">
+</a>
+
+</div>
 
 </div>
 
@@ -21,61 +110,96 @@
 
 ## 📖 项目简介
 
-LiuTech 是一个基于现代化技术栈构建的全栈博客系统，采用前后端分离架构设计。系统包含用户前台展示、管理后台和 AI 聊天助手三大核心模块，为用户提供完整的博客创作、管理和互动体验。
+<div align="center">
+
+**LiuTech** 是一个基于现代化技术栈构建的全栈博客系统，采用前后端分离架构设计。系统包含用户前台展示、管理后台和 AI 聊天助手三大核心模块，为用户提供完整的博客创作、管理和互动体验。
+
+</div>
+
+---
 
 ### ✨ 核心特性
 
-- 🎨 **现代化界面**：基于 Vue 3 + TypeScript，响应式设计，完美适配各种设备
-- 🔐 **安全可靠**：Spring Security + JWT 认证，数据加密存储
-- 🤖 **AI 智能助手**：集成 AI 聊天功能，提供智能内容创作辅助
-- 📝 **富文本编辑**：TinyMCE 7.9.1 编辑器，支持多媒体内容
-- 🐳 **容器化部署**：完整的 Docker 配置，一键部署
-- 📊 **数据统计**：完善的用户行为分析和内容统计
-- 🎭 **交互体验**：Live2D 动画效果，流畅的用户体验
+| 特性 | 描述 |
+|------|------|
+| 🎨 **现代化界面** | 基于 Vue 3 + TypeScript，响应式设计，完美适配各种设备 |
+| 🔐 **安全可靠** | Spring Security + JWT 认证，数据加密存储 |
+| 🤖 **AI 智能助手** | 集成 AI 聊天功能，提供智能内容创作辅助 |
+| 📝 **富文本编辑** | TinyMCE 7.9.1 编辑器，支持多媒体内容 |
+| 🐳 **容器化部署** | 完整的 Docker 配置，一键部署 |
+| 📊 **数据统计** | 完善的用户行为分析和内容统计 |
+| 🎭 **交互体验** | Live2D 动画效果，流畅的用户体验 |
+
+---
+
+### 🎯 功能亮点
+
+```mermaid
+graph TD
+    A[LiuTech 博客系统] --> B[用户前台]
+    A --> C[管理后台]
+    A --> D[AI 助手]
+    
+    B --> B1[文章浏览]
+    B --> B2[评论互动]
+    B --> B3[用户中心]
+    
+    C --> C1[内容管理]
+    C --> C2[用户管理]
+    C --> C3[系统设置]
+    
+    D --> D1[智能对话]
+    D --> D2[内容辅助]
+    D --> D3[上下文记忆]
+```
 
 ---
 
 ## 🏗️ 系统架构
 
-### 技术栈概览
+### 🛠️ 技术栈概览
 
-```
-┌─────────────────┬─────────────────┬─────────────────┐
-│   前端技术栈     │    后端技术栈    │    部署运维      │
-├─────────────────┼─────────────────┼─────────────────┤
-│ Vue 3.5.17      │ Spring Boot 3.5.6│ Docker          │
-│ TypeScript 5.8.3│ Java 21         │ Docker Compose  │
-│ Vite 7.1.3      │ Spring Security │ Nginx           │
-│ Pinia 3.0.3     │ MyBatis-Plus    │ MySQL 8.0       │
-│ Vue Router 4.5.1│ Redis Cache     │ Git             │
-│ Ant Design Vue  │ JWT Auth        │ 环境变量管理     │
-│ TinyMCE 7.9.1   │ File Upload     │ 健康检查        │
-│ Axios 1.10.0    │ Global Exception│ 数据持久化      │
-└─────────────────┴─────────────────┴─────────────────┘
-```
+<div align="center">
 
-### 系统架构图
+| 🎨 前端技术 | ⚙️ 后端技术 | 🚀 部署运维 |
+|------------|------------|-----------|
+| Vue 3.5.17 | Spring Boot 3.5.6 | Docker |
+| TypeScript 5.8.3 | Java 21 | Docker Compose |
+| Vite 7.1.3 | Spring Security | Nginx |
+| Pinia 3.0.3 | MyBatis-Plus | MySQL 8.0 |
+| Vue Router 4.5.1 | Redis Cache | Git |
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Nginx 反向代理                        │
-├─────────────────────┬─────────────────────┬─────────────────┤
-│   Web 用户前台       │   Admin 管理后台     │   静态资源服务   │
-│   (Vue 3 + TS)      │   (Vue 3 + Ant)     │   (文件上传)     │
-│   Port: 3000        │   Port: 4000        │   /uploads      │
-└─────────────────────┴─────────────────────┴─────────────────┘
-                                │
-                    ┌───────────┴───────────┐
-                    │     后端 API 服务      │
-                    │   Spring Boot 3.5.6   │
-                    │     Port: 8080        │
-                    └───────────┬───────────┘
-                                │
-                    ┌───────────┴───────────┐
-                    │      数据存储层       │
-                    │   MySQL 8.0 + Redis  │
-                    │     Port: 3306       │
-                    └───────────────────────┘
+</div>
+
+### 🏛️ 系统架构图
+
+```mermaid
+graph TB
+    subgraph "🌐 用户访问层"
+        U[用户] --> LB[Nginx 负载均衡器]
+    end
+    
+    subgraph "🎨 前端服务层"
+        LB --> WEB[Web 用户前台<br/>Vue 3 + TS<br/>Port: 3000]
+        LB --> ADMIN[Admin 管理后台<br/>Vue 3 + Ant<br/>Port: 3001]
+        LB --> STATIC[静态资源服务<br/>文件上传<br/>/uploads]
+    end
+    
+    subgraph "⚙️ 后端服务层"
+        WEB --> API1[后端 API 服务<br/>Spring Boot 3.5.6<br/>Port: 8080]
+        ADMIN --> API1
+        API1 --> AI[AI 服务<br/>Spring Boot<br/>Port: 8081]
+    end
+    
+    subgraph "💾 数据存储层"
+        API1 --> DB1[(MySQL 主库<br/>Port: 3306)]
+        AI --> DB2[(MySQL AI库<br/>Port: 3306)]
+        API1 --> REDIS[(Redis 缓存<br/>Port: 6379)]
+    end
+    
+    subgraph "📁 文件存储"
+        API1 --> FILES[文件存储<br/>/app/uploads]
+    end
 ```
 
 ---
@@ -125,36 +249,80 @@ LiuTech 是一个基于现代化技术栈构建的全栈博客系统，采用前
 
 ### 🐳 Docker 一键部署（推荐）
 
+<details>
+<summary>📋 点击展开详细步骤</summary>
+
 ```bash
-# 1. 克隆项目
+# 1️⃣ 克隆项目
 git clone https://github.com/Liuxin4950/Liutech.git
 cd Liutech
 
-# 2. 配置环境变量
-cp .env.example .env
-# 编辑 .env 文件，配置数据库密码等
+# 2️⃣ 快速构建（Windows）
+.\快速打包文件.bat
 
-# 3. 启动所有服务
-docker-compose up -d --build
+# 3️⃣ 启动所有服务
+docker-compose up -d
 
-# 4. 访问应用
-# 用户前台: http://web.localhost
-# 管理后台: http://admin.localhost
-# 后端API: http://localhost:8080
+# 4️⃣ 查看服务状态
+docker-compose ps
+
+# 5️⃣ 访问应用
+# 🌐 用户前台: http://localhost:3000
+# 🔧 管理后台: http://localhost:3001
+# 📡 后端API: http://localhost:8080
+# 🤖 AI服务: http://localhost:8081
 ```
+
+</details>
+
+<details>
+<summary>🖥️ Linux/macOS 部署</summary>
+
+```bash
+# 1️⃣ 克隆项目
+git clone https://github.com/Liuxin4950/Liutech.git
+cd Liutech
+
+# 2️⃣ 构建后端服务
+cd LiuTech && mvn clean package -DskipTests && cd ..
+cd LiuTech-AI && mvn clean package -DskipTests && cd ..
+
+# 3️⃣ 构建前端服务
+cd Web && npm ci && npm run build && cd ..
+cd Admin && npm ci && npm run build && cd ..
+
+# 4️⃣ 启动服务
+docker-compose up -d
+
+# 5️⃣ 查看日志
+docker-compose logs -f
+```
+
+</details>
 
 ### 💻 本地开发部署
 
-#### 1. 数据库配置
+<details>
+<summary>🗄️ 数据库配置</summary>
+
 ```sql
--- 创建数据库
+-- 创建主数据库
 CREATE DATABASE liutech CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- 创建AI数据库
+CREATE DATABASE liutech_ai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- 导入数据表结构
-mysql -u root -p liutech < sql.sql
+mysql -u root -p liutech < sql/sql.sql
+mysql -u root -p liutech_ai < sql/ai_chat_tables.sql
 ```
 
-#### 2. 后端服务启动
+</details>
+
+<details>
+<summary>⚙️ 后端服务启动</summary>
+
+**主后端服务 (LiuTech)**
 ```bash
 # 进入后端目录
 cd LiuTech
@@ -166,9 +334,28 @@ mvn spring-boot:run
 # 或者打包运行
 mvn clean package -DskipTests
 java -jar target/liutech-backend-*.jar
+# 访问: http://localhost:8080
 ```
 
-#### 3. 前端服务启动
+**AI服务 (LiuTech-AI)**
+```bash
+# 进入AI服务目录
+cd LiuTech-AI
+
+# 编译并启动
+mvn clean compile
+mvn spring-boot:run
+
+# 或者打包运行
+mvn clean package -DskipTests
+java -jar target/liutech-ai-*.jar
+# 访问: http://localhost:8081
+```
+
+</details>
+
+<details>
+<summary>🎨 前端服务启动</summary>
 
 **用户前台 (Web)**
 ```bash
@@ -183,8 +370,10 @@ npm run dev
 cd Admin
 npm install
 npm run dev
-# 访问: http://localhost:4000
+# 访问: http://localhost:3001
 ```
+
+</details>
 
 ---
 
@@ -225,9 +414,13 @@ Liutech/
 ├── 📁 nginx/                  # Nginx 配置
 │   ├── 📄 nginx.conf          # 主配置文件
 │   └── 📁 conf.d/             # 虚拟主机配置
+├── � sql/                    # 数据库脚本
+│   ├── 📄 sql.sql             # 主数据库初始化脚本
+│   └── �� ai_chat_tables.sql  # AI数据库表结构
 ├── 📄 docker-compose.yml      # Docker 编排配置
-├── 📄 sql.sql                 # 数据库初始化脚本
-├── 📄 部署文档.md              # 详细部署指南
+├── 📄 快速部署指南.md          # 快速部署指南
+├── 📄 服务器部署脚本.sh        # 服务器部署脚本
+├── 📄 快速打包文件.bat         # Windows构建脚本
 ├── 📄 目前开发清单.md          # 开发进度清单
 └── 📄 README.md               # 项目说明文档
 ```
@@ -336,48 +529,96 @@ POST   /api/tags              # 创建标签
 
 ## 🚀 部署指南
 
-### 生产环境部署
+### 🏭 生产环境部署
 
-1. **服务器要求**
-   - Linux 系统 (Ubuntu 20.04+ / CentOS 7+)
-   - 4GB+ 内存，20GB+ 存储空间
-   - Docker 和 Docker Compose
+<details>
+<summary>📋 服务器要求</summary>
 
-2. **部署步骤**
-   ```bash
-   # 克隆代码
-   git clone https://github.com/Liuxin4950/Liutech.git
-   cd Liutech
-   
-   # 配置环境变量
-   cp .env.example .env
-   vim .env
-   
-   # 启动服务
-   docker-compose -f docker-compose.prod.yml up -d --build
-   ```
+- **操作系统**: Linux (Ubuntu 20.04+ / CentOS 7+)
+- **内存**: 4GB+ 推荐
+- **存储**: 20GB+ 可用空间
+- **软件**: Docker ≥ 20.10.0, Docker Compose
+- **网络**: 开放相应端口 (80, 443, 3306, 8080, 8081)
 
-3. **Nginx 配置**
-   ```nginx
-   server {
-       listen 80;
-       server_name your-domain.com;
-       
-       location / {
-           proxy_pass http://localhost:3000;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-       }
-       
-       location /api {
-           proxy_pass http://localhost:8080;
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-       }
-   }
-   ```
+</details>
 
-> 📖 详细部署指南请查看：[部署文档](./部署文档.md)
+<details>
+<summary>🚀 快速部署步骤</summary>
+
+```bash
+# 1️⃣ 本地构建项目
+.\快速打包文件.bat
+
+# 2️⃣ 导出镜像（可选）
+# .\镜像导出脚本.bat
+
+# 3️⃣ 上传文件到服务器
+# - docker-compose.yml
+# - sql/ 目录
+# - 服务器部署脚本.sh
+# - 镜像文件（如果需要）
+
+# 4️⃣ 服务器执行
+cd /opt/liutech
+chmod +x 服务器部署脚本.sh
+./服务器部署脚本.sh
+
+# 5️⃣ 验证部署
+docker-compose ps
+curl http://localhost:80
+```
+
+</details>
+
+<details>
+<summary>⚙️ Nginx 反向代理配置</summary>
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    # 前端应用
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # 管理后台
+    location /admin {
+        proxy_pass http://localhost:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # 后端API
+    location /api {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # AI服务
+    location /ai {
+        proxy_pass http://localhost:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+</details>
+
+> 📖 详细部署指南请查看：[快速部署指南](./快速部署指南.md)
 
 ---
 
@@ -419,27 +660,48 @@ POST   /api/tags              # 创建标签
 
 感谢以下开源项目和技术社区：
 
-- [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
-- [Spring Boot](https://spring.io/projects/spring-boot) - Java 应用开发框架
-- [Ant Design Vue](https://antdv.com/) - 企业级 UI 组件库
-- [TinyMCE](https://www.tiny.cloud/) - 富文本编辑器
-- [Docker](https://www.docker.com/) - 容器化平台
+<div align="center">
+
+<a href="https://vuejs.org/">
+  <img src="https://skillicons.dev/icons?i=vue" alt="Vue.js" width="32" height="32">
+</a>
+<a href="https://spring.io/projects/spring-boot">
+  <img src="https://skillicons.dev/icons?i=spring" alt="Spring Boot" width="32" height="32">
+</a>
+<a href="https://antdv.com/">
+  <img src="https://skillicons.dev/icons?i=antd" alt="Ant Design Vue" width="32" height="32">
+</a>
+<a href="https://www.docker.com/">
+  <img src="https://skillicons.dev/icons?i=docker" alt="Docker" width="32" height="32">
+</a>
+<a href="https://www.mysql.com/">
+  <img src="https://skillicons.dev/icons?i=mysql" alt="MySQL" width="32" height="32">
+</a>
+
+</div>
 
 ---
 
-## 📈 项目统计
-
-![GitHub stars](https://img.shields.io/github/stars/Liuxin4950/Liutech?style=social)
-![GitHub forks](https://img.shields.io/github/forks/Liuxin4950/Liutech?style=social)
-![GitHub issues](https://img.shields.io/github/issues/Liuxin4950/Liutech)
-![GitHub license](https://img.shields.io/github/license/Liuxin4950/Liutech)
-
----
+### 📞 联系方式
 
 <div align="center">
 
-**⭐ 如果这个项目对你有帮助，请给它一个 Star！**
+| 📧 Email | 🐙 GitHub | 📝 博客 |
+|---------|-----------|---------|
+| [your-email@example.com](mailto:your-email@example.com) | [@Liuxin4950](https://github.com/Liuxin4950) | [LiuTech Blog](http://localhost:3000) |
 
-**🚀 让我们一起构建更好的博客系统！**
+</div>
+
+---
+
+### 🌟 支持项目
+
+<div align="center">
+
+如果这个项目对你有帮助，请给它一个 ⭐ Star！
+
+让我们一起构建更好的博客系统！🚀
+
+</div>
 
 </div>

@@ -11,8 +11,8 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      - ./ai_chat_tables.sql:/docker-entrypoint-initdb.d/ai_chat_tables.sql:ro
+      - ./sql/sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./sql/ai_chat_tables.sql:/docker-entrypoint-initdb.d/ai_chat_tables.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
