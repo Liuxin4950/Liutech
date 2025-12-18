@@ -1,9 +1,9 @@
 <template>
-  <div class="card bg-card">
+  <div class="card">
     <div class="flex flex-sb">
       <h4 class="card-title mb-0">公告</h4>
-      <button 
-        @click="refreshAnnouncements" 
+      <button
+        @click="refreshAnnouncements"
         :disabled="loading"
         class="refresh-btn"
         title="刷新公告"
@@ -12,74 +12,75 @@
         <span v-else>🔄</span>
       </button>
     </div>
-    <div v-if="loading" class="text-center py-4">
-      <span class="text-sm text-light">加载中...</span>
+    <div v-if="loading" class="text-center p-16">
+      <span class="text-sm">加载中...</span>
     </div>
-    <div v-else-if="announcements.length === 0" class="text-center py-4">
-      <span class="text-sm text-light">暂无公告</span>
+    <div v-else-if="announcements.length === 0" class="text-center p-16">
+      <span class="text-sm">暂无公告</span>
     </div>
     <div v-else class="list">
-      <div 
-        v-for="announcement in announcements" 
-        :key="announcement.id" 
-        class="list-item link transition-colors"
+      <div
+        v-for="announcement in announcements"
+        :key="announcement.id"
+        class="list-item link"
         @click="showAnnouncementDetail(announcement)"
       >
-        <div  class=" flex-sb">
-          <span class="text-sm text-primary font-medium">{{ formatDate(announcement.createdAt) }}</span>
-          <div class="flex-sb items-center">
-            <span v-if="announcement.isTop" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">置顶</span>
-            <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ announcement.typeName }}</span>
+        <div class="flex flex-sb">
+          <span class="text-sm font-medium">{{ formatDate(announcement.createdAt) }}</span>
+          <div class="flex flex-sb gap-8">
+            <span v-if="announcement.isTop" class="badge badge-red">置顶</span>
+            <span class="badge badge-blue">{{ announcement.typeName }}</span>
           </div>
         </div>
-        <h5 class="text-lg font-medium text-dark mb-1">{{ announcement.title }}</h5>
-        <!-- <p class="text-sm text-light mb-0 line-clamp-2">{{ announcement.content }}</p> -->
+        <h5 class="text-lg font-medium mb-8">{{ announcement.title }}</h5>
       </div>
     </div>
-    
+
     <!-- 公告详情弹窗 -->
-    <div v-if="showDetail && selectedAnnouncement" 
-         class="modal-overlay" 
-         :class="{ 'show': showDetail }" 
-         @click="closeDetail">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>公告详情</h3>
-          <button @click="closeDetail" class="close-btn">×</button>
-        </div>
-        
-        <div class="modal-body">
-          <h2 class="modal-title">{{ selectedAnnouncement.title }}</h2>
-          
-          <div class="modal-tags">
-            <span v-if="selectedAnnouncement.isTop" class="tag tag-red">置顶</span>
-            <span class="tag tag-blue">{{ selectedAnnouncement.typeName }}</span>
-            <span class="tag" :class="getPriorityClass(selectedAnnouncement.priority)">{{ selectedAnnouncement.priorityName }}</span>
+    <Teleport to="body">
+      <div v-if="showDetail && selectedAnnouncement"
+           class="modal-overlay"
+           :class="{ 'show': showDetail }"
+           @click="closeDetail">
+        <div class="modal-container" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-header-title">公告详情</h3>
+            <button @click="closeDetail" class="close-btn" aria-label="关闭弹窗">×</button>
           </div>
-          
-          <div class="modal-content-text" v-html="selectedAnnouncement.content"></div>
-          
-          <div class="modal-info">
-            <div class="info-item">
-              <span class="label">发布时间：</span>
-              <span>{{ formatDateTime(selectedAnnouncement.createdAt) }}</span>
+
+          <div class="modal-body">
+            <h2 class="modal-title">{{ selectedAnnouncement.title }}</h2>
+
+            <div class="modal-tags">
+              <span v-if="selectedAnnouncement.isTop" class="badge badge-red">置顶</span>
+              <span class="badge badge-blue">{{ selectedAnnouncement.typeName }}</span>
+              <span class="badge" :class="getPriorityClass(selectedAnnouncement.priority)">{{ selectedAnnouncement.priorityName }}</span>
             </div>
-            <div v-if="selectedAnnouncement.startTime" class="info-item">
-              <span class="label">开始时间：</span>
-              <span>{{ formatDateTime(selectedAnnouncement.startTime) }}</span>
-            </div>
-            <div v-if="selectedAnnouncement.endTime" class="info-item">
-              <span class="label">结束时间：</span>
-              <span>{{ formatDateTime(selectedAnnouncement.endTime) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">浏览量：</span>
-              <span>{{ selectedAnnouncement.viewCount || 0 }}</span>
+
+            <div class="modal-content-text" v-html="selectedAnnouncement.content"></div>
+
+            <div class="modal-info">
+              <div class="info-row">
+                <span class="info-label">发布时间：</span>
+                <span class="info-value">{{ formatDateTime(selectedAnnouncement.createdAt) }}</span>
+              </div>
+              <div v-if="selectedAnnouncement.startTime" class="info-row">
+                <span class="info-label">开始时间：</span>
+                <span class="info-value">{{ formatDateTime(selectedAnnouncement.startTime) }}</span>
+              </div>
+              <div v-if="selectedAnnouncement.endTime" class="info-row">
+                <span class="info-label">结束时间：</span>
+                <span class="info-value">{{ formatDateTime(selectedAnnouncement.endTime) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">浏览量：</span>
+                <span class="info-value">{{ selectedAnnouncement.viewCount || 0 }}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -130,12 +131,12 @@ const closeDetail = () => {
 // 获取优先级样式类
 const getPriorityClass = (priority: number) => {
   const classMap: Record<number, string> = {
-    1: 'bg-gray-100 text-gray-800',
-    2: 'bg-blue-100 text-blue-800', 
-    3: 'bg-orange-100 text-orange-800',
-    4: 'bg-red-100 text-red-800'
+    1: 'badge-gray',
+    2: 'badge-blue',
+    3: 'badge-orange',
+    4: 'badge-red'
   }
-  return classMap[priority] || 'bg-gray-100 text-gray-800'
+  return classMap[priority] || 'badge-gray'
 }
 
 // 格式化日期时间
@@ -202,31 +203,20 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.transition-colors {
-  transition: background-color 0.2s ease;
-}
-
 /* 弹窗遮罩层 */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 20px;
+  z-index: 9999;
+  padding: 24px;
   opacity: 0;
   visibility: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(2px);
 }
 
 .modal-overlay.show {
@@ -234,189 +224,256 @@ onUnmounted(() => {
   visibility: visible;
 }
 
-.modal-content {
-  background: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  width: 80vw;
-  min-height: 20rem;
-  max-height: 80vh;
-  overflow-y: auto;
+.modal-container {
+  background: var(--bg-card, #ffffff);
+  border-radius: 12px;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  max-width: 720px;
+  max-height: min(85vh, 900px);
+  overflow: hidden;
+  transform: scale(0.95) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-overlay.show .modal-container {
+  transform: scale(1) translateY(0);
 }
 
 .modal-header {
-  position: sticky;
-  top: 0;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 1.5rem;
-  border-radius: 0.5rem 0.5rem 0 0;
+  position: relative;
+  background: var(--bg-card, #ffffff);
+  border-bottom: 1px solid var(--border-soft, rgba(0, 0, 0, 0.08));
+  padding: 20px 24px;
   display: flex;
   align-items: center;
-  justify-content: between;
+  justify-content: space-between;
 }
 
-.modal-header h3 {
-  font-size: 1.25rem;
+.modal-header-title {
+  font-size: 1.125rem;
   font-weight: 600;
-  color: #111827;
-  flex: 1;
+  color: var(--text-main, #1f2937);
+  margin: 0;
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: 1.5rem;
-  color: #9ca3af;
+  font-size: 1.75rem;
+  color: var(--text-secondary, #9ca3af);
   cursor: pointer;
-  padding: 0.25rem;
-  transition: color 0.2s;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-btn:hover {
-  color: #4b5563;
+  background: var(--bg-soft, rgba(0, 0, 0, 0.05));
+  color: var(--text-main, #4b5563);
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(85vh - 80px);
 }
 
 .modal-title {
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: 1rem;
-  color: #111827;
+  color: var(--text-main, #111827);
+  margin: 0 0 16px 0;
+  line-height: 1.4;
 }
 
 .modal-tags {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
 }
 
-.tag {
+.badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.625rem;
-  border-radius: 9999px;
+  padding: 4px 12px;
+  border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
-.tag-red {
-  background: #fef2f2;
+.badge-red {
+  background: rgba(239, 68, 68, 0.1);
   color: #dc2626;
 }
 
-.tag-blue {
-  background: #eff6ff;
+.badge-blue {
+  background: rgba(59, 130, 246, 0.1);
   color: #2563eb;
 }
 
-.modal-content-text {
-  margin-bottom: 1.5rem;
-  color: #374151;
-  line-height: 1.7;
+.badge-orange {
+  background: rgba(249, 115, 22, 0.1);
+  color: #ea580c;
 }
 
-.modal-info {
-  border-top: 1px solid #e5e7eb;
-  padding-top: 1rem;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-
-.info-item {
-  font-size: 0.875rem;
+.badge-gray {
+  background: rgba(107, 114, 128, 0.1);
   color: #6b7280;
 }
 
-.label {
-  font-weight: 500;
+.modal-content-text {
+  margin-bottom: 20px;
+  color: var(--text-secondary, #4b5563);
+  line-height: 1.75;
+  font-size: 0.9375rem;
 }
 
-/* 富文本内容样式 */
-.modal-content-text h1,
-.modal-content-text h2,
-.modal-content-text h3,
-.modal-content-text h4,
-.modal-content-text h5,
-.modal-content-text h6 {
-  color: #111827;
+.modal-content-text :deep(p) {
+  margin: 0 0 1em 0;
+}
+
+.modal-content-text :deep(h1),
+.modal-content-text :deep(h2),
+.modal-content-text :deep(h3),
+.modal-content-text :deep(h4),
+.modal-content-text :deep(h5),
+.modal-content-text :deep(h6) {
+  color: var(--text-main, #111827);
   font-weight: 600;
   margin: 1.5em 0 0.5em;
+  line-height: 1.3;
 }
 
-.modal-content-text h1 { font-size: 2.25em; }
-.modal-content-text h2 { font-size: 1.875em; }
-.modal-content-text h3 { font-size: 1.5em; }
-.modal-content-text h4 { font-size: 1.25em; }
-.modal-content-text h5 { font-size: 1.125em; }
+.modal-content-text :deep(h1) { font-size: 1.875rem; }
+.modal-content-text :deep(h2) { font-size: 1.5rem; }
+.modal-content-text :deep(h3) { font-size: 1.25rem; }
+.modal-content-text :deep(h4) { font-size: 1.125rem; }
+.modal-content-text :deep(h5) { font-size: 1rem; }
 
-.modal-content-text p {
+.modal-content-text :deep(ul),
+.modal-content-text :deep(ol) {
   margin: 1em 0;
+  padding-left: 1.75em;
 }
 
-.modal-content-text ul,
-.modal-content-text ol {
-  margin: 1em 0;
-  padding-left: 2em;
+.modal-content-text :deep(li) {
+  margin: 0.5em 0;
 }
 
-.modal-content-text blockquote {
-  border-left: 4px solid #e5e7eb;
+.modal-content-text :deep(blockquote) {
+  border-left: 4px solid var(--border-soft, #e5e7eb);
   padding-left: 1em;
   margin: 1em 0;
-  color: #6b7280;
+  color: var(--text-secondary, #6b7280);
   font-style: italic;
+  background: var(--bg-soft, rgba(0, 0, 0, 0.02));
+  padding: 12px 16px;
+  border-radius: 6px;
 }
 
-.modal-content-text code {
-  background: #f3f4f6;
-  border-radius: 0.25rem;
-  padding: 0.125rem 0.25rem;
+.modal-content-text :deep(code) {
+  background: var(--bg-soft, #f3f4f6);
+  border-radius: 4px;
+  padding: 2px 6px;
   font-size: 0.875em;
+  font-family: 'Courier New', monospace;
   color: #ef4444;
 }
 
-.modal-content-text pre {
+.modal-content-text :deep(pre) {
   background: #1f2937;
   color: #f9fafb;
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border-radius: 8px;
+  padding: 16px;
   overflow-x: auto;
+  margin: 1em 0;
 }
 
-.modal-content-text pre code {
+.modal-content-text :deep(pre) code {
   background: transparent;
   color: inherit;
   padding: 0;
 }
 
-.modal-content-text img {
+.modal-content-text :deep(img) {
   max-width: 100%;
   height: auto;
-  border-radius: 0.5rem;
+  border-radius: 8px;
   margin: 1em 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.modal-content-text table {
+.modal-content-text :deep(table) {
   width: 100%;
   border-collapse: collapse;
   margin: 1em 0;
+  font-size: 0.875rem;
 }
 
-.modal-content-text th,
-.modal-content-text td {
-  border: 1px solid #e5e7eb;
-  padding: 0.75rem;
+.modal-content-text :deep(th),
+.modal-content-text :deep(td) {
+  border: 1px solid var(--border-soft, #e5e7eb);
+  padding: 12px;
   text-align: left;
 }
 
-.modal-content-text th {
-  background: #f9fafb;
+.modal-content-text :deep(th) {
+  background: var(--bg-soft, #f9fafb);
   font-weight: 600;
+  color: var(--text-main, #374151);
+}
+
+.modal-content-text :deep(a) {
+  color: #2563eb;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.modal-content-text :deep(a:hover) {
+  color: #1d4ed8;
+}
+
+.modal-info {
+  border-top: 1px solid var(--border-soft, rgba(0, 0, 0, 0.08));
+  padding-top: 16px;
+  margin-top: 20px;
+}
+
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  color: var(--text-secondary, #6b7280);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: var(--text-main, #374151);
+  flex: 1;
 }
 
 /* 刷新按钮 */
@@ -425,17 +482,19 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 32px;
   height: 32px;
+  color: var(--text-secondary, #6b7280);
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background-color: var(--bg-soft);
+  background: var(--bg-soft, rgba(0, 0, 0, 0.05));
+  color: var(--text-main, #374151);
 }
 
 .refresh-btn:disabled {
@@ -459,16 +518,66 @@ onUnmounted(() => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .modal-overlay {
-    padding: 10px;
+    padding: 16px;
+    align-items: flex-end;
   }
-  
-  .modal-content {
-    max-width: 95vw;
-    min-width: 90vw;
+
+  .modal-container {
+    max-width: 100%;
+    width: 100%;
+    max-height: 90vh;
+    border-radius: 12px 12px 0 0;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
-  .modal-info {
-    grid-template-columns: 1fr;
+
+  .modal-overlay.show .modal-container {
+    transform: translateY(0);
+  }
+
+  .modal-body {
+    padding: 20px;
+    max-height: calc(90vh - 70px);
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+  }
+
+  .modal-tags {
+    gap: 6px;
+  }
+
+  .badge {
+    font-size: 0.6875rem;
+    padding: 3px 10px;
+  }
+
+  .info-row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .info-label {
+    font-size: 0.8125rem;
+  }
+
+  .info-value {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal-body {
+    padding: 16px;
   }
 }
 </style>

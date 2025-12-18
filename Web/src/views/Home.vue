@@ -174,7 +174,7 @@ const friendLinks = ref([
 ])
 
 // 从store获取数据
-const categories = computed(() => categoryStore.categories)
+const categories = computed(() => categoryStore.categories.slice(0, 10))
 const categoriesLoading = computed(() => categoryStore.isLoading)
 const hotTags = computed(() => tagStore.hotTags)
 const tagsLoading = computed(() => tagStore.isHotTagsLoading)
