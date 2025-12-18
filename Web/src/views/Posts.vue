@@ -53,74 +53,16 @@
 
     <!-- 文章列表 -->
     <div class="card">
-      <div v-if="loading" class="loading-text">加载中...</div>
-      
-      <div v-else-if="error" class="loading-text text-primary">
-        <p>{{ error }}</p>
-        <button @click="loadPosts()" class="retry-btn">重试</button>
-      </div>
-      
-      <div v-else-if="posts.length === 0" class="empty-text">暂无文章</div>
-      
-      <div v-else class="list gap-16">
-        <article
-          v-for="post in posts"
-          :key="post.id"
-          class="flex gap-16 p-16 rounded-lg transition link card bg-card"
-          @click="goToPost(post.id)"
-        >
-          <!-- 缩略图容器，统一为首页 posts-img 结构 -->
-          <div class="posts-img">
-            <img 
-              :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'" 
-              :alt="post.title" 
-              class="fit"
-            >
-          </div>
-          
-          <div class="flex flex-col flex-sb flex-1 relative">
-            <span v-if="post.category" class="badge">{{ post.category.name }}</span>
-            <div class="flex-1 flex flex-col gap-12">
-              <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
-              <p v-if="post.summary" class="text-subtle text-base text-sm post-summary">{{ post.summary }}</p>
-            
-              <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
-                <span v-for="tag in post.tags" :key="tag.id" class="tag">
-                  {{ tag.name }}
-                </span>
-              </div>
-            </div>
-            
-            <div class="flex flex-sb flex-ac mt-8">
-              <div class="flex flex-ac gap-8 text-subtle">
-                <img
-                  v-if="post.author?.avatarUrl"
-                  :src="post.author.avatarUrl"
-                  :alt="post.author.username"
-                  class="rounded"
-                  style="width: 24px; height: 24px; object-fit: cover;"
-                >
-                <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
-              </div>
-              <div class="flex gap-12 text-sm text-subtle">
-                <span>👁️ {{ post.viewCount || 0 }}</span>
-                <span>❤️ {{ post.likeCount || 0 }}</span>
-                <span>💬 {{ post.commentCount }}</span>
-                <span>{{ formatDate(post.createdAt) }}</span>
-              </div>
-            </div>
-          </div>
-        </article>
-      </div>
+      <ArticleList
+        :posts="posts"
+        :loading="loading"
+        :error="error"
+        :pagination="pagination"
+        @post-click="goToPost"
+        @page-change="goToPage"
+        @retry="loadPosts"
+      />
     </div>
-
-    <!-- 分页器 -->
-    <Pagination 
-      v-if="!loading && posts.length > 0"
-      :current-page="pagination.current"
-      :total-pages="pagination.pages"
-      @page-change="goToPage"
-    />
   </div>
 </template>
 
@@ -134,6 +76,7 @@ import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import { formatDate } from '@/utils/uitls'
 import Pagination from '@/components/Pagination.vue'
+import ArticleList from '@/components/ArticleList.vue'
 
 const router = useRouter()
 const route = useRoute()

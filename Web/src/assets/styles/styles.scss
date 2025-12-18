@@ -132,6 +132,7 @@ button {
 /* =================================
    组件样式
    ================================= */
+/* 通用标签样式 - 用于各种标签场景 */
 .badge {
   background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
   -webkit-background-clip: text;
@@ -142,6 +143,14 @@ button {
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* 文章分类专属样式 - 用于文章列表中的分类标签（带绝对定位） */
+.article-category {
+  @extend .badge;
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 /* 卡片组件 */
 .card {

@@ -36,77 +36,24 @@
         </div>
       </div>
 
-      <!-- 文章加载状态 -->
-      <div v-if="postsLoading" class="text-center p-20">
-        <div class="loading-spinner"></div>
-        <p class="loading-text">正在加载文章列表...</p>
-      </div>
-
-      <!-- 文章列表：统一首页样式 -->
-      <div v-else-if="posts.length > 0" class="list gap-16">
-        <article v-for="post in posts" :key="post.id" class="flex gap-16 p-16 rounded-lg transition link card bg-card"
-          @click="goToPost(post.id)">
-          <!-- 缩略图统一 -->
-          <div class="posts-img">
-            <img :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'" :alt="post.title"
-              class="fit" />
-          </div>
-
-          <!-- 内容区统一 -->
-          <div class="flex flex-col flex-sb flex-1 relative">
-            <span v-if="post.category" class="badge">{{ post.category.name }}</span>
-            <div class="flex-1 flex flex-col gap-12">
-              <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
-              <p v-if="post.summary" class="text-subtle text-base post-summary">{{ post.summary }}</p>
-              <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
-                <router-link v-for="tag in post.tags" :key="tag.id" :to="`/tags/${tag.id}`" class="tag" @click.stop>
-                  {{ tag.name }}
-                </router-link>
-              </div>
-            </div>
-            <div class="flex flex-sb flex-ac mt-8">
-                <div class="flex flex-ac gap-8 text-subtle">
-                <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username" class="rounded" style="width: 24px; height: 24px; object-fit: cover;" />
-                <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
-              </div>
-              <div class="flex gap-12 text-sm text-subtle">
-                <span>👁️ {{ post.viewCount || 0 }}</span>
-                <span>❤️ {{ post.likeCount || 0 }}</span>
-                <span>💬 {{ post.commentCount || 0 }}</span>
-                <span>{{ formatDate(post.createdAt) }}</span>
-              </div>
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <!-- 空状态 -->
-      <div v-else class="text-center p-20">
-        <div class="empty-icon mb-20">📝</div>
-        <h3 class="text-xl font-semibold mb-12">暂无相关文章</h3>
-        <p class="text-base mb-20">该标签下还没有发布任何文章</p>
-        <router-link to="/"
-          class="create-btn inline-block p-12 px-24 rounded text-white font-medium no-underline transition">返回首页</router-link>
-      </div>
-
-      <!-- 分页组件 -->
-      <div v-if="pagination.total > pagination.size" class="flex flex-jc gap-12 mt-20">
-        <button class="page-btn p-8 px-16 border rounded cursor-pointer transition" :disabled="pagination.current <= 1"
-          @click="changePage(pagination.current - 1)">
-          上一页
-        </button>
-
-        <button v-for="page in getPageNumbers()" :key="page"
-          :class="['page-btn p-8 px-16 border rounded cursor-pointer transition', { active: page === pagination.current }]"
-          @click="changePage(page)">
-          {{ page }}
-        </button>
-
-        <button class="page-btn p-8 px-16 border rounded cursor-pointer transition"
-          :disabled="pagination.current >= pagination.pages" @click="changePage(pagination.current + 1)">
-          下一页
-        </button>
-      </div>
+      <!-- 文章列表 -->
+      <ArticleList
+        :posts="posts"
+        :loading="postsLoading"
+        :error="''"
+        :pagination="pagination"
+        @post-click="goToPost"
+        @page-change="changePage"
+        @retry="loadPosts"
+      >
+        <template #empty>
+          <div class="empty-icon mb-20">📝</div>
+          <h3 class="text-xl font-semibold mb-12">暂无相关文章</h3>
+          <p class="text-base mb-20">该标签下还没有发布任何文章</p>
+          <router-link to="/"
+            class="create-btn inline-block p-12 px-24 rounded text-white font-medium no-underline transition">返回首页</router-link>
+        </template>
+      </ArticleList>
     </div>
 
     <!-- 错误状态 -->
@@ -125,7 +72,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { TagService, type Tag } from '@/services/tag'
 import { PostService, type PostListItem, type PageResponse } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { formatDate } from '@/utils/uitls'
+import ArticleList from '@/components/ArticleList.vue'
 
 // 路由相关
 const route = useRoute()
@@ -227,25 +174,6 @@ const changePage = (page: number) => {
 }
 
 /**
- * 获取页码数组
- */
-const getPageNumbers = () => {
-  const current = pagination.value.current
-  const total = pagination.value.pages
-  const pages: number[] = []
-
-  // 显示当前页前后各2页
-  const start = Math.max(1, current - 2)
-  const end = Math.min(total, current + 2)
-
-  for (let i = start; i <= end; i++) {
-    pages.push(i)
-  }
-
-  return pages
-}
-
-/**
  * 跳转到文章详情
  */
 const goToPost = (postId: number) => {
@@ -263,7 +191,6 @@ onMounted(() => {
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
-/* 修改人：刘鑫；修改时间：2025-08-26；统一列表为首页样式，仅保留必要差异化样式 */
 .tag-header {
   background: linear-gradient(135deg, var(--color-primary), var(--secondary-color));
   color: var(--text-main);
@@ -289,81 +216,12 @@ onMounted(() => {
   margin: 0 auto 20px;
 }
 
-/* 文章摘要省略号样式 */
-.post-summary {
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* 限制显示2行 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-  max-height: 3em; /* 2行的高度 (1.5 * 2) */
-  word-break: break-word;
-}
-
-/* 统一图片尺寸与卡片结构 */
-.posts-img {
-  width: 200px;
-  height: 150px;
-  background-color: white;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-/* 分页与按钮保留既有样式变量 */
-.page-btn {
-  background: var(--bg-color);
-  color: var(--text-main);
-}
-
-.page-btn:hover {
-  background: var(--hover-color);
-  border-color: var(--color-primary);
-}
-
-.page-btn.active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.relative > .badge{
-  position: absolute;
-  top: 0;
-  right: 0;
-  opacity: 0;
-  transition: .5s;
-}
-
-.relative:hover .badge{
-  opacity: 1;
-}
-
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-/* 简洁的移动端适配 */
 @include respond(md) {
-  .list article {
-    flex-direction: column;
-    
-    .posts-img {
-      width: 100%;
-      height: 200px;
-    }
-    
-    .flex.flex-sb.flex-ac {
-      align-items: flex-start;
-      gap: 8px;
-    }
-  }
-  
   .flex.flex-sb.flex-ac.mb-20.flex-fw {
     flex-direction: column;
     align-items: flex-start;
