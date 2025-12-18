@@ -211,6 +211,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
@@ -340,7 +341,7 @@ watch(() => renderedContent.value, () => {
       if ((window as any).Prism) {
         (window as any).Prism.highlightAll()
       }
-    }, 100)
+  }, 100)
   })
 }, { flush: 'post' })
 
@@ -376,6 +377,61 @@ const loadPostDetail = async () => {
       route.meta.title = postData.title
       // 同步更新浏览器标题（路由守卫只会在切换时触发，这里手动更新）
       document.title = `${postData.title} - MyBlog`
+
+    // 设置 SEO Meta 信息
+    if (postData) {
+      const postUrl = `https://liutech.chat/posts/${postData.id}`
+      const imageUrl = postData.coverImage || `https://liutech.chat/og-image.jpg`
+      
+      useHead({
+        title: `${postData.title} - LiuTech`,
+        meta: [
+          { name: 'description', content: postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}` },
+          { name: 'keywords', content: postData.tags?.map((t: any) => t.name).join(', ') || '技术博客, 编程' },
+          { property: 'og:title', content: `${postData.title} - LiuTech` },
+          { property: 'og:description', content: postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}` },
+          { property: 'og:url', content: postUrl },
+          { property: 'og:image', content: imageUrl },
+          { property: 'twitter:title', content: `${postData.title} - LiuTech` },
+          { property: 'twitter:description', content: postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}` },
+          { property: 'twitter:image', content: imageUrl }
+        ],
+        link: [
+          { rel: 'canonical', href: postUrl }
+        ],
+        script: [
+          {
+            type: 'application/ld+json',
+            children: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Article",
+              "headline": postData.title,
+              "description": postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}`,
+              "image": postData.coverImage || "https://liutech.chat/og-image.jpg",
+              "author": {
+                "@type": "Person",
+                "name": postData.author?.username || "LiuTech",
+                "url": "https://liutech.chat/"
+              },
+              "publisher": {
+                "@type": "Organization",
+                "name": "LiuTech",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": "https://liutech.chat/logo.png"
+                }
+              },
+              "datePublished": postData.createdAt,
+              "dateModified": postData.updatedAt || postData.createdAt,
+              "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": `https://liutech.chat/posts/${postData.id}`
+              }
+            }, null, 2)
+          }
+        ]
+      })
+    }
     }
 
     // 初始化点赞和收藏状态
@@ -1079,6 +1135,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   border-bottom: 2px solid var(--border-light);
   position: sticky;
   bottom: 0;
+
   z-index: 0;
   background: var(--bg-main);
   backdrop-filter: blur(10px);

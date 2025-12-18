@@ -1076,6 +1076,18 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     }
 
     /**
+     * 获取所有已发布的文章（用于 sitemap 生成）
+     * 只返回状态为 "published" 的文章
+     *
+     * @return 已发布文章列表
+     * @author LiuTech
+     * @date 2025-01-18
+     */
+    public List<Posts> getPublishedPosts() {
+        return postsMapper.selectPublishedPosts();
+    }
+
+    /**
      * 获取用户收藏的文章列表
      * @param req 查询请求参数
      * @param userId 用户ID

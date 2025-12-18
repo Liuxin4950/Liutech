@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+
+# 禁止访问登录和用户相关页面
+Disallow: /login
+Disallow: /register
+Disallow: /profile
+Disallow: /my-posts
+Disallow: /create
+Disallow: /edit
+Disallow: /drafts
+Disallow: /admin
+
+# 允许访问公开内容
+Allow: /posts/
+Allow: /categories/
+Allow: /tags/
+Allow: /about
+
+# Sitemap 位置
+Sitemap: https://liutech.chat/sitemap.xml

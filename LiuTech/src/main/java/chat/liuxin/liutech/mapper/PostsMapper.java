@@ -21,6 +21,13 @@ import chat.liuxin.liutech.resp.PostDetailResp;
 public interface PostsMapper extends BaseMapper<Posts> {
 
     /**
+     * 获取所有已发布的文章（用于 sitemap 生成）
+     * 只返回状态为 "published" 的文章
+     *
+     * @return 已发布文章列表
+     */
+    List<Posts> selectPublishedPosts();
+    /**
      * 分页查询文章列表（包含作者和分类信息）
      * 
      * @param page       分页参数

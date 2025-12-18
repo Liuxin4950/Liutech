@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+import { createHead } from '@vueuse/head'
 import './assets/styles/theme.css'
 import './assets/styles/styles.scss'
 import './assets/styles/markdown.css'
@@ -26,6 +27,7 @@ const app = createApp(App)
 const pinia = createPinia()
 
 // 配置Pinia持久化插件
+const head = createHead()
 pinia.use(piniaPluginPersistedstate)
 
 // 配置Vue错误处理
@@ -35,6 +37,7 @@ configureVueErrorHandler(app)
 app.use(pinia)
 // 使用路由
 app.use(router)
+app.use(head)
 
 // 挂载应用
 app.mount('#app')

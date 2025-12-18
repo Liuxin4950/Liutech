@@ -881,4 +881,11 @@
         </foreach>
     </delete>
 
+    <!-- 获取所有已发布的文章（用于 sitemap 生成） -->
+    <select id="selectPublishedPosts" resultType="chat.liuxin.liutech.model.Posts">
+        SELECT * FROM posts
+        WHERE status = 'published'
+        ORDER BY created_at DESC
+    </select>
+
 </mapper>

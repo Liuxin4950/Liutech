@@ -46,6 +46,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useHead } from '@vueuse/head'
 import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
@@ -245,6 +246,24 @@ const loadProfile = async () => {
 }
 // 组件挂载时加载数据
 onMounted(() => {
+  // 设置首页 SEO Meta 信息
+  useHead({
+    title: 'LiuTech - 个人技术博客',
+    meta: [
+      { name: 'description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。包含 Spring Boot、Vue.js、Java、JavaScript 等技术栈的深度文章。' },
+      { name: 'keywords', content: 'LiuTech, 技术博客, 全栈开发, Spring Boot, Vue.js, Java, JavaScript, AI, 编程, 软件开发' },
+      { property: 'og:title', content: 'LiuTech - 个人技术博客' },
+      { property: 'og:description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。' },
+      { property: 'og:url', content: 'https://liutech.chat/' },
+      { property: 'og:image', content: 'https://liutech.chat/og-image.jpg' },
+      { property: 'twitter:title', content: 'LiuTech - 个人技术博客' },
+      { property: 'twitter:description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。' },
+      { property: 'twitter:image', content: 'https://liutech.chat/og-image.jpg' }
+    ],
+    link: [
+      { rel: 'canonical', href: 'https://liutech.chat/' }
+    ]
+  })
   Promise.all([
     loadAllPosts(), // 加载全部文章
     loadCategories(), // 加载分类
