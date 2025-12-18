@@ -65,12 +65,13 @@
       
       <!-- 子评论列表 -->
       <div v-if="showChildren" class="children-list">
-        <CommentItem 
-          v-for="child in comment.children" 
+        <CommentItem
+          v-for="child in comment.children"
           :key="child.id"
           :comment="child"
           :post-id="postId"
           :is-reply="true"
+          :depth="depth + 1"
           @reply-created="$emit('replyCreated', $event)"
         />
       </div>
@@ -89,10 +90,12 @@ interface Props {
   comment: Comment
   postId: number
   isReply?: boolean
+  depth?: number  // 层级深度：0=顶级评论，1=第一层回复，2=第二层...
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  isReply: false
+  isReply: false,
+  depth: 0
 })
 
 // Emits
@@ -104,7 +107,7 @@ const emit = defineEmits<Emits>()
 
 // 响应式数据
 const showReplyForm = ref(false)
-const showChildren = ref(true) // 默认展开子评论
+const showChildren = ref(props.depth < 1) // depth=0(顶级评论)时默认展开子评论，depth>=1时默认隐藏
 const isLiked = ref(false)
 const likeCount = ref(0)
 
@@ -144,14 +147,13 @@ const handleAvatarError = (event: Event) => {
 <style scoped>
 @use "@/assets/styles/tokens" as *;
 .comment-item {
-  /* border-bottom: 1px solid var(--border-soft) ; */
   margin-bottom: 16px;
 }
 
 .comment-item.is-reply {
   margin-left: 20px;
   padding-left: 20px;
-  border-left: 2px solid var(--border-color);
+  border-left: 2px solid var(--border-base);
 }
 
 .comment-main {
@@ -168,7 +170,7 @@ const handleAvatarError = (event: Event) => {
   height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--border-color);
+  border: 2px solid var(--border-base);
 }
 
 .comment-item.is-reply .avatar-img {
@@ -190,18 +192,17 @@ const handleAvatarError = (event: Event) => {
 
 .username {
   font-weight: 600;
-  color: var(--text-color);
+  color: var(--text-main);
   font-size: 0.95rem;
 }
 
 .comment-time {
   font-size: 0.8rem;
-  color: var(--text-color);
-  opacity: 0.6;
+  color: var(--text-subtle);
 }
 
 .comment-text {
-  color: var(--text-color);
+  color: var(--text-main);
   line-height: 1.6;
   margin-bottom: 12px;
   word-wrap: break-word;
@@ -220,35 +221,33 @@ const handleAvatarError = (event: Event) => {
   gap: 4px;
   padding: 6px 12px;
   background: none;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-base);
   border-radius: 16px;
   cursor: pointer;
   font-size: 0.85rem;
-  color: var(--text-color);
-  opacity: 0.7;
+  color: var(--text-subtle);
   transition: all 0.3s;
 }
 
 .action-btn:hover {
-  background: var(--hover-color);
-  border-color: var(--border-color);
-  opacity: 1;
+  background: var(--bg-hover);
+  border-color: var(--border-base);
+  color: var(--text-main);
 }
 
 .action-btn.active {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
-  border-color: var(--primary-color);
-  opacity: 1;
+  border-color: var(--color-primary);
 }
 
 .action-btn.liked {
-  color: #e74c3c;
-  border-color: #e74c3c;
+  color: var(--color-error);
+  border-color: var(--color-error);
 }
 
 .action-btn.liked:hover {
-  background: rgba(231, 76, 60, 0.1);
+  background: var(--bg-error);
 }
 
 .icon {
@@ -274,13 +273,12 @@ const handleAvatarError = (event: Event) => {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: var(--hover-color);
-  border: 1px solid var(--border-color);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-base);
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.85rem;
-  color: var(--text-color);
-  opacity: 0.7;
+  color: var(--text-subtle);
   transition: all 0.3s;
   margin-bottom: 12px;
   margin-left: 52px;
@@ -291,9 +289,9 @@ const handleAvatarError = (event: Event) => {
 }
 
 .toggle-children-btn:hover {
-  background: var(--hover-color);
-  border-color: var(--border-color);
-  opacity: 1;
+  background: var(--bg-hover);
+  border-color: var(--color-primary);
+  color: var(--text-main);
 }
 
 .toggle-icon {
@@ -319,52 +317,51 @@ const handleAvatarError = (event: Event) => {
     margin-left: 12px;
     padding-left: 12px;
   }
-}
 
-.comment-main {
-  gap: 8px;
-}
+  .comment-main {
+    gap: 8px;
+  }
 
-.avatar-img {
-  width: 36px;
-  height: 36px;
-}
+  .avatar-img {
+    width: 36px;
+    height: 36px;
+  }
 
-.comment-item.is-reply .avatar-img {
-  width: 28px;
-  height: 28px;
-}
+  .comment-item.is-reply .avatar-img {
+    width: 28px;
+    height: 28px;
+  }
 
-.comment-header {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
+  .comment-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
 
-.comment-actions {
-  gap: 12px;
-}
+  .comment-actions {
+    gap: 12px;
+  }
 
-.action-btn {
-  padding: 4px 8px;
-  font-size: 0.8rem;
-}
+  .action-btn {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
 
-.toggle-children-btn {
-  margin-left: 44px;
-  padding: 6px 10px;
-}
+  .toggle-children-btn {
+    margin-left: 44px;
+    padding: 6px 10px;
+  }
 
-.comment-item.is-reply .toggle-children-btn {
-  margin-left: 40px;
-}
+  .comment-item.is-reply .toggle-children-btn {
+    margin-left: 40px;
+  }
 
-.children-list {
-  margin-left: 44px;
-}
+  .children-list {
+    margin-left: 44px;
+  }
 
-.comment-item.is-reply .children-list {
-  margin-left: 40px;
+  .comment-item.is-reply .children-list {
+    margin-left: 40px;
+  }
 }
-
 </style>

@@ -140,7 +140,7 @@ onMounted(() => {
 .comment-header {
   margin-bottom: 24px;
   padding-bottom: 12px;
-  border-bottom: 2px solid var(--text-primary);
+  border-bottom: 2px solid var(--border-base);
 }
 
 .comment-title {
@@ -178,7 +178,7 @@ onMounted(() => {
 }
 
 .error p {
-  color: #e74c3c;
+  color: var(--color-error);
   margin-bottom: 16px;
 }
 

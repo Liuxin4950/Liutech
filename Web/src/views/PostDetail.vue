@@ -1079,7 +1079,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   border-bottom: 2px solid var(--border-light);
   position: sticky;
   bottom: 0;
-  z-index: 10;
+  z-index: 0;
   background: var(--bg-main);
   backdrop-filter: blur(10px);
 }

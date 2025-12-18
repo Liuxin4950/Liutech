@@ -180,7 +180,6 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   width: 100%;
   height: 100%;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 10;
 }
 
 .ai-chat {
@@ -190,7 +189,6 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   top: 0;
   left: 0;
   transform: translateY(-100px) translateX(-400px);
-  z-index: 11;
   @include respond(md) {
     transform: translateY(-100px) translateX(-100px);
 
@@ -202,7 +200,6 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   width: 100%;
   height: 100%;
   transform: none;
-  z-index: 10; /* 确保不被Live2d遮挡 */
 }
 
 /* Live2d居中样式 */
@@ -211,7 +208,6 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   bottom: 0;
   left: 50%;
   transform: translate(-50%, 0%);
-  z-index: 11; /* 悬浮在聊天框上方 */
   width: 400px;
   height: 400px;
 }

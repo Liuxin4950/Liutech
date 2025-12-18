@@ -61,20 +61,43 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
     /**
      * 查询文章的顶级评论（树形结构）
-     * 获取文章的所有顶级评论，并为每个顶级评论加载其子评论，构建树形结构
+     * 获取文章的所有顶级评论，并递归加载所有层级的子评论，构建完整树形结构
      *
      * @param postId 文章ID
-     * @return 顶级评论列表，每个评论包含其所有子评论
+     * @return 顶级评论列表，每个评论包含其所有子孙评论
      */
     public List<CommentResp> getTopLevelCommentsByPostId(Long postId) {
         List<Comments> topComments = commentsMapper.selectTopLevelCommentsByPostId(postId);
+        return topComments.stream()
+            .map(this::buildCommentTree)
+            .collect(Collectors.toList());
+    }
 
-        // 为每个顶级评论加载子评论并转换为响应对象
-        return topComments.stream().map(comment -> {
-            List<Comments> children = commentsMapper.selectChildCommentsByParentId(comment.getId());
-            comment.setChildren(children);
-            return convertToCommentResl(comment);
-        }).collect(Collectors.toList());
+    /**
+     * 递归构建评论树
+     * 递归加载评论的所有子孙评论，构建完整的树形结构
+     *
+     * @param comment 当前评论
+     * @return 包含所有子孙评论的响应对象
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    private CommentResp buildCommentTree(Comments comment) {
+        // 加载直接子评论
+        List<Comments> children = commentsMapper.selectChildCommentsByParentId(comment.getId());
+
+        // 转换为响应对象
+        CommentResp commentResp = convertToCommentResl(comment);
+
+        // 递归处理子评论
+        if (children != null && !children.isEmpty()) {
+            List<CommentResp> childResps = children.stream()
+                .map(this::buildCommentTree)
+                .collect(Collectors.toList());
+            commentResp.setChildren(childResps);
+        }
+
+        return commentResp;
     }
 
     /**
