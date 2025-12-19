@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 
 import java.util.Objects;
@@ -41,6 +42,9 @@ import java.util.List;
 public class SiliconFlowChatClient {
 
     private final ChatClient chatClient;
+
+    @Value("${spring.ai.model.default:zai-org/GLM-4.6}")
+    private String defaultModel;
 
     /**
      * 使用默认模型进行聊天
@@ -79,7 +83,7 @@ public class SiliconFlowChatClient {
         }
         
         // 确定使用的模型，优先使用指定模型，否则使用默认模型
-        String model = modelName != null ? modelName : "THUDM/GLM-Z1-9B-0414";
+        String model = modelName != null ? modelName : defaultModel;
         
         try {
             // 2. 记录调用日志
@@ -142,7 +146,7 @@ public class SiliconFlowChatClient {
         }
         
         // 确定使用的模型，优先使用指定模型，否则使用默认模型
-        String model = modelName != null ? modelName : "THUDM/GLM-Z1-9B-0414";
+        String model = modelName != null ? modelName : defaultModel;
         
         try {
             // 2. 记录调用日志

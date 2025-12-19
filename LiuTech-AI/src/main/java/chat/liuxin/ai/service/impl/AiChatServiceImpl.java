@@ -25,11 +25,13 @@ import chat.liuxin.ai.monitor.AiMetrics;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
 import chat.liuxin.ai.service.AiChatService;
+import chat.liuxin.ai.service.BlogContextService;
 import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -49,6 +51,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final AiMetrics aiMetrics;
+    private final BlogContextService blogContextService;
 
     @Value("${spring.ai.chat.history-limit:19}")
     private int historyLimit; // 历史条数（不含本轮输入）
@@ -90,6 +93,15 @@ public class AiChatServiceImpl implements AiChatService {
 
             // 4. 构建AI模型请求的消息序列
             List<Message> messages = new ArrayList<>();
+
+            // 4.1 注入博客上下文（如果有）
+            String contextPrompt = blogContextService.buildContextPrompt(request.getContext());
+            if (contextPrompt != null && !contextPrompt.isEmpty()) {
+                messages.add(new SystemMessage(contextPrompt));
+                log.debug("注入博客上下文: {} 字符", contextPrompt.length());
+            }
+
+            // 4.2 添加历史消息
             // 注意：系统提示词由 ChatClient 的 defaultSystem 提供，这里不再重复注入
             messages.addAll(historyMessages);
             // 将用户当前输入添加到消息列表末尾，作为最新一条用户消息
@@ -206,7 +218,7 @@ public class AiChatServiceImpl implements AiChatService {
     public SseEmitter processStreamChat(ChatRequest request, Long userId) {
         // 1. 初始化请求参数
         String userIdStr = userId != null ? userId.toString() : "0";
-        String modelName = request.getModel() != null ? request.getModel() : "THUDM/GLM-Z1-9B-0414";
+        String modelName = request.getModel() != null ? request.getModel() : defaultModel;
         Long conversationId = request.getConversationId();
         String input = request.getMessage();
         
@@ -237,9 +249,18 @@ public class AiChatServiceImpl implements AiChatService {
                 List<Message> historyMessages = conversationId != null
                         ? memoryService.listLastMessagesAsPromptMessages(conversationId, historyLimit)
                         : Collections.emptyList();
-                
+
                 // 4.2 构建AI模型请求的消息序列
                 List<Message> messages = new ArrayList<>();
+
+                // 4.2.1 注入博客上下文（如果有）
+                String contextPrompt = blogContextService.buildContextPrompt(request.getContext());
+                if (contextPrompt != null && !contextPrompt.isEmpty()) {
+                    messages.add(new SystemMessage(contextPrompt));
+                    log.debug("流式聊天注入博客上下文: {} 字符", contextPrompt.length());
+                }
+
+                // 4.2.2 添加历史消息和用户输入
                 messages.addAll(historyMessages);
                 messages.add(new UserMessage(input));
                 

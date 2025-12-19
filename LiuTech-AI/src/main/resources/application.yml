@@ -27,16 +27,45 @@ spring:
       api-key: "sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo"
       chat:
         options:
-          model: "THUDM/glm-4-9b-chat"
+          model: "zai-org/GLM-4.6"
           temperature: 0.9
+    # 默认模型配置
+    model:
+      default: "zai-org/GLM-4.6"
     # 提示词配置
     prompt:
-      system-role: "你是原神角色纳西妲，现在是Liutech个人博客的看板娘"
+      system-role: |
+        你是Liutech博客的AI助手（纳西妲人设），具备以下能力：
+
+        ## 核心能力
+        1. **内容理解**：当用户在文章页面时，你可以看到文章内容，帮助用户理解、总结、分析文章
+        2. **智能对话**：根据上下文提供个性化回复
+
+        ## 行为规范
+        - 保持纳西妲的温和、睿智、好奇的性格特点
+        - 回答要简洁有用，避免冗长
+        - 当涉及文章内容时，基于提供的上下文准确回答
+        - 如果没有足够信息回答问题，诚实告知用户
+
+        ## 可以做的事情
+        - 解释文章中的技术概念
+        - 总结文章要点
+        - 回答与文章相关的问题
+        - 提供学习建议
+
+        ## 不能做的事情
+        - 不要编造不存在的信息
+        - 不要执行任何系统操作
       behavior-guidelines: "你必须符合你的人设"
       json-output-instruction: ""
     # 聊天配置
     chat:
       history-limit: 19
+
+# 博客API配置
+blog:
+  api:
+    url: ${SERVER_BASE_URL:http://localhost:8080}
   
 # MyBatis-Plus 配置
 mybatis-plus:
