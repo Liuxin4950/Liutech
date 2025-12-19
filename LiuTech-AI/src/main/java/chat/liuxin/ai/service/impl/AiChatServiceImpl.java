@@ -287,7 +287,7 @@ public class AiChatServiceImpl implements AiChatService {
                         } catch (Exception ex) {
                             log.error("发送错误事件失败", ex);
                         }
-                        emitter.completeWithError(error);
+                        emitter.completeWithError(error != null ? error : new RuntimeException("流式响应发生未知错误"));
                     },
                     () -> {
                         // 处理完成
@@ -357,9 +357,10 @@ public class AiChatServiceImpl implements AiChatService {
      * @throws IOException 当发送失败时抛出
      */
     private void sendSseEvent(SseEmitter emitter, String event, Map<String, Object> data) throws IOException {
+        Object safeData = data != null ? data : new java.util.HashMap<String, Object>();
         SseEmitter.SseEventBuilder eventBuilder = SseEmitter.event()
-                .name(event)
-                .data(data);
+                .name(event != null ? event : "unknown")
+                .data(safeData);
         
         emitter.send(eventBuilder);
         log.debug("发送SSE事件: {}, 数据: {}", event, data);

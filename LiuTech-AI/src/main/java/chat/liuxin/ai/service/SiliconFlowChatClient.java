@@ -9,6 +9,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.retry.annotation.Backoff;
+
+import java.util.Objects;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -85,13 +87,16 @@ public class SiliconFlowChatClient {
             
             // 3. 构建AI请求并调用
             // 注意：使用Spring AI的ChatClient进行模型调用，自动处理OpenAI兼容接口
+            OpenAiChatOptions options = OpenAiChatOptions.builder()
+                            .model(model)
+                            .temperature(0.2)  // 设置较低的温度以获得更稳定的回复
+                            .build();
+            OpenAiChatOptions safeOptions = Objects.requireNonNullElse(options, OpenAiChatOptions.builder().build());
+            @SuppressWarnings("null")
             String response = chatClient
                     .prompt()
                     .messages(messages)
-                    .options(OpenAiChatOptions.builder()
-                            .model(model)
-                            .temperature(0.2)  // 设置较低的温度以获得更稳定的回复
-                            .build())
+                    .options(safeOptions)
                     .call()
                     .content();
             
@@ -147,13 +152,16 @@ public class SiliconFlowChatClient {
             // 注意：使用Spring AI的ChatClient进行流式模型调用，自动处理OpenAI兼容接口
             // 流式响应通过调用.stream()方法启用，不需要在OpenAiChatOptions中设置stream选项
             // 直接返回Flux<String>，让调用方处理响应流
+            OpenAiChatOptions streamOptions = OpenAiChatOptions.builder()
+                            .model(model)
+                            .temperature(0.2)  // 设置较低的温度以获得更稳定的回复
+                            .build();
+            OpenAiChatOptions safeStreamOptions = Objects.requireNonNullElse(streamOptions, OpenAiChatOptions.builder().build());
+            @SuppressWarnings("null")
             Flux<String> responseFlux = chatClient
                     .prompt()
                     .messages(messages)
-                    .options(OpenAiChatOptions.builder()
-                            .model(model)
-                            .temperature(0.2)  // 设置较低的温度以获得更稳定的回复
-                            .build())
+                    .options(safeStreamOptions)
                     .stream()
                     .content();
             

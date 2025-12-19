@@ -327,7 +327,9 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      */
     private Announcements buildAnnouncementFromReq(AnnouncementReq req) {
         Announcements announcement = new Announcements();
-        BeanUtils.copyProperties(req, announcement);
+        if (req != null) {
+            BeanUtils.copyProperties(req, announcement);
+        }
         announcement.setViewCount(0);
 
         if (announcement.getIsTop() == null) {
@@ -468,7 +470,9 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      */
     private AnnouncementResp convertToResl(Announcements announcement) {
         AnnouncementResp resl = new AnnouncementResp();
-        BeanUtils.copyProperties(announcement, resl);
+        if (announcement != null) {
+            BeanUtils.copyProperties(announcement, resl);
+        }
 
         setAnnouncementNames(resl, announcement);
         setAnnouncementValidity(resl, announcement);

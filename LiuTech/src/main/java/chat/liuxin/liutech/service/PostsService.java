@@ -390,9 +390,11 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     public PostCreateResp createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
-        BeanUtils.copyProperties(req, post);
+        if (req != null) {
+            BeanUtils.copyProperties(req, post);
+        }
         post.setAuthorId(authorId);
-        post.setStatus(StringUtils.hasText(req.getStatus()) ? req.getStatus() : "draft");
+        post.setStatus(req != null && StringUtils.hasText(req.getStatus()) ? req.getStatus() : "draft");
         post.setCreatedAt(new Date());
         post.setUpdatedAt(new Date());
         post.setCreatedBy(authorId);
@@ -412,12 +414,12 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         }
 
         // 处理标签关联
-        if (req.getTagIds() != null && !req.getTagIds().isEmpty()) {
+        if (req != null && req.getTagIds() != null && !req.getTagIds().isEmpty()) {
             savePostTags(post.getId(), req.getTagIds());
         }
 
         // 绑定草稿附件到文章
-        if (StringUtils.hasText(req.getDraftKey())) {
+        if (req != null && StringUtils.hasText(req.getDraftKey())) {
             int bindCount = postAttachmentsMapper.bindDraftToPost(req.getDraftKey(), post.getId());
             log.info("绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
                     post.getId(), req.getDraftKey(), bindCount);

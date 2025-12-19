@@ -174,7 +174,9 @@ public class UserAuthService {
      */
     private UserResp convertToUserResl(Users user) {
         UserResp userResp = new UserResp();
-        BeanUtils.copyProperties(user, userResp);
+        if (user != null) {
+            BeanUtils.copyProperties(user, userResp);
+        }
         return userResp;
     }
 

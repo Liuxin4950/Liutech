@@ -40,8 +40,9 @@ public class ChatClientConfig {
     public ChatClient chatClient(ChatClient.Builder builder, AiPromptConfig aiPromptConfig) {
         // 1. 设置默认系统提示词，确保每次AI调用都遵循相同的角色和行为规范
         // 2. 使用AiPromptConfig获取完整的系统提示词，包含角色、行为规范和输出约束
+        String fullSystemPrompt = aiPromptConfig.getFullSystemPrompt();
         return builder
-                .defaultSystem(aiPromptConfig.getFullSystemPrompt())
+                .defaultSystem(fullSystemPrompt != null ? fullSystemPrompt : "")
                 .build();
     }
 }

@@ -51,7 +51,10 @@ public class FileUtil {
         Files.createDirectories(fullPath.getParent());
         
         // 保存文件
-        file.transferTo(fullPath.toFile());
+        java.io.File targetFile = fullPath.toFile();
+        if (targetFile != null) {
+            file.transferTo(targetFile);
+        }
         
         return relativePath;
     }

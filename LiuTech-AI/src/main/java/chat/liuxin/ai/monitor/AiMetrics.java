@@ -4,10 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
 
 /**
  * AI服务监控指标
@@ -28,43 +25,8 @@ public class AiMetrics {
 
     private final MeterRegistry meterRegistry;
 
-    // AI请求次数计数器
-    private Counter aiRequestCounter;
-    // AI响应时间计时器
-    private Timer aiResponseTimer;
-    // 错误率计量器
-    private Counter aiErrorCounter;
-    // Token消耗统计
-    private DistributionSummary tokenUsageSummary;
-    // 并发请求量测量器
-    private Counter concurrentRequestsCounter;
-
     public AiMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
-    }
-
-    @PostConstruct
-    public void init() {
-        // 初始化指标
-        aiRequestCounter = Counter.builder("ai_requests_total")
-                .description("AI服务请求总数")
-                .register(meterRegistry);
-
-        aiResponseTimer = Timer.builder("ai_response_duration_seconds")
-                .description("AI服务响应时间")
-                .register(meterRegistry);
-
-        aiErrorCounter = Counter.builder("ai_errors_total")
-                .description("AI服务错误总数")
-                .register(meterRegistry);
-
-        tokenUsageSummary = DistributionSummary.builder("ai_token_usage")
-                .description("AI模型Token消耗量")
-                .register(meterRegistry);
-
-        concurrentRequestsCounter = Counter.builder("ai_concurrent_requests")
-                .description("AI服务并发请求量")
-                .register(meterRegistry);
     }
 
     /**

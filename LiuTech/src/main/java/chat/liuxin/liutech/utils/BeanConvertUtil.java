@@ -69,8 +69,10 @@ public class BeanConvertUtil {
 
         try {
             T target = targetClass.getDeclaredConstructor().newInstance();
-            BeanUtils.copyProperties(source, target);
-            return target;
+            if (source != null && target != null) {
+                BeanUtils.copyProperties(source, target);
+            }
+            return target != null ? target : targetClass.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
             throw new RuntimeException("对象转换失败: " + e.getMessage(), e);
         }
