@@ -65,7 +65,7 @@ spring:
 # 博客API配置
 blog:
   api:
-    url: ${SERVER_BASE_URL:http://localhost:8080}
+    url: ${BLOG_API_URL:${SERVER_BASE_URL:http://localhost:8080}}
   
 # MyBatis-Plus 配置
 mybatis-plus:

@@ -54,6 +54,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=123456
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - SERVER_BASE_URL=http://backend:8080
+      - BLOG_API_URL=http://backend:8080
     depends_on:
       mysql:
         condition: service_healthy
