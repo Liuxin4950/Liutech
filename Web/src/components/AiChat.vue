@@ -396,20 +396,18 @@ onUnmounted(() => {
 .chat-box {
   width: 100% ;
   height: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-soft);
-  box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
-  z-index: 11;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  border: 2px solid var(--bg-soft);
+  box-shadow: 0 2px 6px var(--bg-soft);
   position: relative;
 }
 
 .chat-box.expanded {
   border-radius: 16px;
-  overflow: hidden;
+  overflow: hidden; 
 }
 
 .chat-popup {
@@ -420,7 +418,7 @@ onUnmounted(() => {
 }
 
 .chat-main {
-   width: 100%;
+  width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -440,7 +438,7 @@ onUnmounted(() => {
   width: 300px;
   height: 100%;
   background: var(--bg-card);
-  border-left: 1px solid var(--border-soft);
+  border-left: 1px solid var(--border-light);
   transition: right 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -456,7 +454,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-light);
   background: var(--bg-soft);
 }
 
@@ -503,7 +501,7 @@ onUnmounted(() => {
 .loading-spinner {
   width: 24px;
   height: 24px;
-  border: 2px solid var(--border-soft);
+  border: 2px solid var(--border-light);
   border-top: 2px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -536,7 +534,7 @@ onUnmounted(() => {
 
 .conversation-item:hover {
   background: var(--bg-hover);
-  border-color: var(--border-soft);
+  border-color: var(--border-light);
 }
 
 .conversation-item.active {
@@ -601,7 +599,7 @@ onUnmounted(() => {
 /* 历史记录按钮 */
 .history-btn {
   background: var(--bg-hover);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 0.875rem;
@@ -617,14 +615,13 @@ onUnmounted(() => {
 
 /* 聊天头部 */
 .chat-header {
-   width: 100%;
+  width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-light);
   background: var(--bg-soft);
-  border-radius: 16px 16px 0 0;
 }
 
 .chat-header h3 {
@@ -690,7 +687,7 @@ onUnmounted(() => {
 
 .mode-toggle-btn {
   background: var(--bg-hover);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 0.875rem;
@@ -722,7 +719,7 @@ onUnmounted(() => {
   right: 0;
   margin-top: 4px;
   background: var(--bg-card);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
@@ -772,7 +769,7 @@ onUnmounted(() => {
 /* 控制按钮 */
 .control-btn {
   background: var(--bg-hover);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 0.875rem;
@@ -859,7 +856,7 @@ onUnmounted(() => {
   padding: 16px;
   background: var(--bg-card);
   border-radius: 12px;
-  border: 1px dashed var(--border-soft);
+  border: 1px dashed var(--border-light);
 }
 
 /* 消息样式 */
@@ -900,7 +897,7 @@ onUnmounted(() => {
 .message.ai .message-text {
   background: var(--bg-card);
   color: var(--text-main);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-light);
   border-bottom-left-radius: 6px;
 }
 
@@ -950,17 +947,15 @@ onUnmounted(() => {
 .chat-input {
   width: 100%;
   padding: 16px;
-  border-top: 1px solid var(--border-soft);
-  background: var(--bg-card);
+  background: var(--bg-soft);
+  border-top: 1px solid var(--border-light);
   border-radius: 0 0 16px 16px;
-  position: relative; /* 必须设置position才能让z-index生效 */
-  z-index: 1003; /* 确保在最顶层，不被Live2d遮挡 */
+  position: relative;
 }
 
 /* 展开状态下确保输入框在最顶层 */
 .chat-box.expanded .chat-input {
   position: relative;
-  z-index: 1003 !important;
 }
 
 /* 确保输入容器和文本区域也在最顶层 */
@@ -974,13 +969,12 @@ onUnmounted(() => {
 
 .chat-input textarea {
   position: relative;
-  z-index: 1003;
 }
 
 .input-container textarea {
   flex: 1;
   padding: 10px 16px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var( --border-light);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
