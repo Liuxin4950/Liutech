@@ -21,7 +21,7 @@
       <article
         v-for="post in posts"
         :key="post.id"
-        class="flex gap-16 p-16 rounded-lg transition link card bg-card"
+        class="article-box flex gap-16 p-16 rounded-lg transition link card bg-card"
         @click="$emit('post-click', post.id)"
       >
         <!-- 缩略图 -->
@@ -34,6 +34,7 @@
         </div>
 
         <div class="flex flex-col flex-sb flex-1 relative">
+          <img class="article-image" src="@/assets/image/趴.webp" alt="">
           <span v-if="post.category" class="article-category">{{ post.category.name }}</span>
           <div class="flex-1 flex flex-col gap-12">
             <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
@@ -66,6 +67,7 @@
             </div>
           </div>
         </div>
+
       </article>
     </div>
 
@@ -103,7 +105,28 @@ defineEmits<{
 }>()
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+  .article-image{
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translateY(-16px);
+      @include respond(md) {
+        display: none;
+  }
+  }
+
+  .article-box{
+    position: relative;
+    @include respond(lg) {
+      flex-wrap: wrap;
+  }
+
+
+  }
 .posts-img {
   width: 200px;
   height: 150px;

@@ -36,6 +36,10 @@ const conversations = ref<Conversation[]>([])
 const isLoadingHistory = ref(false)
 const showHistorySidebar = ref(false)
 
+// 会话编辑状态
+const editingConversationId = ref<number | null>(null)
+const editingTitle = ref('')
+
 // 计算属性
 const messages = computed(() => chatStore.messages)
 const isLoading = computed(() => chatStore.isLoading)
@@ -79,7 +83,7 @@ const clearHistory = async () => {
 // 加载会话历史列表
 const loadConversations = async () => {
   if (isLoadingHistory.value) return
-  
+
   try {
     isLoadingHistory.value = true
     conversations.value = await ConversationService.list('general', 1, 50)
@@ -102,16 +106,16 @@ const toggleHistorySidebar = () => {
 const loadConversation = async (conversationId: number) => {
   try {
     isLoadingHistory.value = true
-    
+
     // 获取会话消息
-    const messages = await ConversationService.messages(conversationId, 1, 100)
-    
+    const messages = (await ConversationService.messages(conversationId, 1, 100)).reverse()
+
     // 清空当前消息
     chatStore.clearHistory()
-    
+
     // 设置会话ID
     chatStore.conversationId = conversationId
-    
+
     // 转换并添加消息到store
     messages.forEach(msg => {
       if (msg.role === 'user') {
@@ -120,10 +124,10 @@ const loadConversation = async (conversationId: number) => {
         chatStore.addAiMessage(msg.content)
       }
     })
-    
+
     // 关闭侧边栏
     showHistorySidebar.value = false
-    
+
     // 滚动到底部
     await scrollToBottom()
   } catch (error) {
@@ -136,14 +140,14 @@ const loadConversation = async (conversationId: number) => {
 // 删除会话
 const deleteConversation = async (conversationId: number, event: Event) => {
   event.stopPropagation()
-  
+
   if (!confirm('确定要删除这个会话吗？')) return
-  
+
   try {
     await ConversationService.remove(conversationId)
     // 从列表中移除
     conversations.value = conversations.value.filter(conv => conv.id !== conversationId)
-    
+
     // 如果删除的是当前会话，清空聊天
     if (chatStore.conversationId === conversationId) {
       chatStore.clearHistory()
@@ -153,6 +157,48 @@ const deleteConversation = async (conversationId: number, event: Event) => {
   }
 }
 
+// 开始编辑会话标题
+const startEditTitle = (conversationId: number, currentTitle: string) => {
+  editingConversationId.value = conversationId
+  editingTitle.value = currentTitle || `会话 ${conversationId}`
+  nextTick(() => {
+    const input = document.querySelector('.title-edit-input') as HTMLInputElement
+    if (input) {
+      input.focus()
+      input.select()
+    }
+  })
+}
+
+// 保存会话标题
+const saveTitle = async (conversationId: number) => {
+  if (!editingTitle.value.trim()) {
+    cancelEditTitle()
+    return
+  }
+
+  try {
+    await ConversationService.rename(conversationId, editingTitle.value.trim())
+
+    // 更新本地会话列表
+    const conversation = conversations.value.find(c => c.id === conversationId)
+    if (conversation) {
+      conversation.title = editingTitle.value.trim()
+    }
+
+    cancelEditTitle()
+  } catch (error) {
+    console.error('重命名失败:', error)
+    cancelEditTitle()
+  }
+}
+
+// 取消编辑会话标题
+const cancelEditTitle = () => {
+  editingConversationId.value = null
+  editingTitle.value = ''
+}
+
 // 格式化会话时间
 const formatConversationTime = (dateString?: string) => {
   if (!dateString) return ''
@@ -160,7 +206,7 @@ const formatConversationTime = (dateString?: string) => {
   const now = new Date()
   const diff = now.getTime() - date.getTime()
   const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  
+
   if (days === 0) {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   } else if (days === 1) {
@@ -241,151 +287,140 @@ onUnmounted(() => {
           <h4>会话历史</h4>
           <button class="close-sidebar" @click="toggleHistorySidebar">✕</button>
         </div>
-        
+
         <div class="history-content">
           <div v-if="isLoadingHistory" class="history-loading">
             <div class="loading-spinner"></div>
             <span>加载中...</span>
           </div>
-          
+
           <div v-else-if="conversations.length === 0" class="history-empty">
             <p>暂无历史会话</p>
           </div>
-          
+
           <div v-else class="conversation-list">
-            <div 
-              v-for="conversation in conversations" 
-              :key="conversation.id"
-              class="conversation-item"
+            <div v-for="conversation in conversations" :key="conversation.id" class="conversation-item"
               :class="{ 'active': chatStore.conversationId === conversation.id }"
-              @click="loadConversation(conversation.id)"
-            >
+              @click="loadConversation(conversation.id)">
               <div class="conversation-info">
                 <div class="conversation-title">
-                  {{ conversation.title || `会话 ${conversation.id}` }}
+                  <span v-if="editingConversationId !== conversation.id"
+                    @click.stop="startEditTitle(conversation.id, conversation.title || '')" class="editable-title">
+                    {{ conversation.title || `会话 ${conversation.id}` }}
+                  </span>
+                  <input v-else v-model="editingTitle" @blur="saveTitle(conversation.id)"
+                    @keyup.enter="saveTitle(conversation.id)" @keyup.esc="cancelEditTitle()" class="title-edit-input" />
                 </div>
                 <div class="conversation-meta">
                   <span class="message-count">{{ conversation.messageCount }} 条消息</span>
                   <span class="conversation-time">{{ formatConversationTime(conversation.lastMessageAt) }}</span>
                 </div>
               </div>
-              <button 
-                class="delete-conversation"
-                @click="deleteConversation(conversation.id, $event)"
-                title="删除会话"
-              >
+              <button class="delete-conversation" @click="deleteConversation(conversation.id, $event)" title="删除会话">
                 🗑️
               </button>
             </div>
           </div>
         </div>
       </div>
-      
+
       <!-- 主聊天区域 -->
       <div class="chat-main" :class="{ 'with-sidebar': expanded && showHistorySidebar }">
-      <!-- 聊天头部 -->
-      <div class="chat-header">
-        <div class="header-left">
-          <h3 @click="handleExpandChat" class="expandable-title">纳西妲</h3>
-          <div class="mode-indicator">
-            <span :class="['mode-dot', mode]"></span>
-            <span class="mode-text">{{ mode === 'stream' ? '流式' : '普通' }}</span>
+        <!-- 聊天头部 -->
+        <div class="chat-header">
+          <div class="header-left">
+            <h3 @click="handleExpandChat" class="expandable-title">纳西妲</h3>
+            <div class="mode-indicator">
+              <span :class="['mode-dot', mode]"></span>
+              <span class="mode-text">{{ mode === 'stream' ? '流式' : '普通' }}</span>
+            </div>
           </div>
-        </div>
-        <div class="header-right">
-          <!-- 历史记录按钮 (仅在扩展模式下显示) -->
-          <button 
-            v-if="expanded" 
-            class="history-btn" 
-            @click="toggleHistorySidebar"
-            title="查看会话历史"
-          >
-            📜
-          </button>
-          
-          <!-- 模式选择器 -->
-          <div class="mode-selector">
-            <button class="mode-toggle-btn" @click="isModeDropdownOpen = !isModeDropdownOpen" title="切换聊天模式">
-              {{ mode === 'stream' ? '流式' : '普通' }}
-              <span class="dropdown-arrow">▼</span>
+          <div class="header-right">
+            <!-- 历史记录按钮 (仅在扩展模式下显示) -->
+            <button v-if="expanded" class="history-btn" @click="toggleHistorySidebar" title="查看会话历史">
+              📜
             </button>
-            <div v-show="isModeDropdownOpen" class="mode-dropdown">
-              <button :class="['mode-option', { active: mode === 'stream' }]" @click="setMode('stream')">
-                <span class="mode-option-dot stream"></span>
-                流式模式（实时显示）
+
+            <!-- 模式选择器 -->
+            <div class="mode-selector">
+              <button class="mode-toggle-btn" @click="isModeDropdownOpen = !isModeDropdownOpen" title="切换聊天模式">
+                {{ mode === 'stream' ? '流式' : '普通' }}
+                <span class="dropdown-arrow">▼</span>
               </button>
-              <button :class="['mode-option', { active: mode === 'normal' }]" @click="setMode('normal')">
-                <span class="mode-option-dot normal"></span>
-                普通模式（等待完整回复）
-              </button>
-            </div>
-          </div>
-          <button class="control-btn" @click="clearHistory" title="清空聊天">清空</button>
-        </div>
-      </div>
-
-      <!-- 错误提示 -->
-      <div v-if="errorMessage" class="error-banner">
-        <span class="error-icon">⚠️</span>
-        <span class="error-text">{{ errorMessage }}</span>
-        <button class="error-close" @click="chatStore.errorMessage = ''">✕</button>
-      </div>
-
-      <!-- 聊天消息列表 -->
-      <div ref="chatContainer" class="chat-messages">
-        <div v-if="!hasMessages" class="empty-state">
-          <p>你好！我是纳西妲，有什么我可以帮助你的吗？</p>
-        </div>
-
-        <div v-for="message in messages" :key="message.id" :class="[
-          'message',
-          message.type,
-          {
-            'streaming': message.isStreaming,
-            'error-message': message.isError
-          }
-        ]">
-          <div class="message-content">
-            <div class="message-text">
-              <!-- User messages: plain text -->
-              <div v-if="message.type === 'user'">
-                {{ message.content }}
-                <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
-              </div>
-              <!-- AI messages: markdown rendering -->
-              <div v-else>
-                <MarkdownRenderer
-                  :content="message.content"
-                  :is-streaming="message.isStreaming || false"
-                />
-                <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
+              <div v-show="isModeDropdownOpen" class="mode-dropdown">
+                <button :class="['mode-option', { active: mode === 'stream' }]" @click="setMode('stream')">
+                  <span class="mode-option-dot stream"></span>
+                  流式模式（实时显示）
+                </button>
+                <button :class="['mode-option', { active: mode === 'normal' }]" @click="setMode('normal')">
+                  <span class="mode-option-dot normal"></span>
+                  普通模式（等待完整回复）
+                </button>
               </div>
             </div>
-            <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+            <button class="control-btn" @click="clearHistory" title="清空聊天">清空</button>
           </div>
         </div>
 
-        <!-- 加载指示器 -->
-        <div v-if="isLoading && !isStreaming" class="message ai loading">
-          <div class="message-content">
-            <div class="message-text">
-              <span class="loading-dots">思考中</span>
+        <!-- 错误提示 -->
+        <div v-if="errorMessage" class="error-banner">
+          <span class="error-icon">⚠️</span>
+          <span class="error-text">{{ errorMessage }}</span>
+          <button class="error-close" @click="chatStore.errorMessage = ''">✕</button>
+        </div>
+
+        <!-- 聊天消息列表 -->
+        <div ref="chatContainer" class="chat-messages">
+          <div v-if="!hasMessages" class="empty-state">
+            <p>你好！我是纳西妲，有什么我可以帮助你的吗？</p>
+          </div>
+
+          <div v-for="message in messages" :key="message.id" :class="[
+            'message',
+            message.type,
+            {
+              'streaming': message.isStreaming,
+              'error-message': message.isError
+            }
+          ]">
+            <div class="message-content">
+              <div class="message-text">
+                <!-- User messages: plain text -->
+                <div v-if="message.type === 'user'">
+                  {{ message.content }}
+                  <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
+                </div>
+                <!-- AI messages: markdown rendering -->
+                <div v-else>
+                  <MarkdownRenderer :content="message.content" :is-streaming="message.isStreaming || false" />
+                  <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
+                </div>
+              </div>
+              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+            </div>
+          </div>
+
+          <!-- 加载指示器 -->
+          <div v-if="isLoading && !isStreaming" class="message ai loading">
+            <div class="message-content">
+              <div class="message-text">
+                <span class="loading-dots">思考中</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 聊天输入区域 -->
-      <div class="chat-input">
-        <div class="input-container">
-          <textarea v-model="chatInput" @keypress="handleKeyPress" placeholder="输入消息... (Enter发送，Shift+Enter换行)"
-            rows="1" :disabled="isLoading"></textarea>
-          <button @click="sendMessage" :disabled="!chatInput.trim() || isLoading" class="send-btn" title="发送消息">
-            {{ isLoading ? '发送中' : '发送' }}
-          </button>
+        <!-- 聊天输入区域 -->
+        <div class="chat-input">
+          <div class="input-container">
+            <textarea v-model="chatInput" @keypress="handleKeyPress" placeholder="输入消息... "
+              rows="1" :disabled="isLoading"></textarea>
+            <button @click="sendMessage" :disabled="!chatInput.trim() || isLoading" class="send-btn" title="发送消息">
+              {{ isLoading ? '发送中' : '发送' }}
+            </button>
+          </div>
         </div>
-      </div>
-      <!-- 结束主聊天区域 -->
+        <!-- 结束主聊天区域 -->
       </div>
     </div>
   </div>
@@ -393,21 +428,24 @@ onUnmounted(() => {
 
 <style scoped>
 @use "@/assets/styles/tokens" as *;
+
 .chat-box {
-  width: 100% ;
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 2px solid var(--bg-soft);
-  box-shadow: 0 2px 6px var(--bg-soft);
   position: relative;
+    border: 4px solid var(--bg-soft);
+  overflow: hidden;
+  border-radius:16px;
+  /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); */
 }
 
 .chat-box.expanded {
   border-radius: 16px;
-  overflow: hidden; 
+  overflow: hidden;
 }
 
 .chat-popup {
@@ -415,11 +453,11 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   position: relative;
+
 }
 
 .chat-main {
   width: 100%;
-  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -508,14 +546,14 @@ onUnmounted(() => {
 }
 
 .history-empty {
-   width: 100%;
+  width: 100%;
   text-align: center;
   padding: 40px 20px;
   color: var(--text-subtle);
 }
 
 .conversation-list {
-   width: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -555,6 +593,35 @@ onUnmounted(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.editable-title {
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+  display: inline-block;
+}
+
+.editable-title:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.title-edit-input {
+  width: 100%;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  background: var(--bg-card);
+  color: var(--text-main);
+}
+
+.title-edit-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
 }
 
 .conversation-meta {
@@ -785,7 +852,7 @@ onUnmounted(() => {
 
 /* 错误提示横幅 */
 .error-banner {
-   width: 100%;
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -819,15 +886,14 @@ onUnmounted(() => {
 
 /* 消息列表 */
 .chat-messages {
-   width: 100%;
-  flex: 1;
+  width: 100%;
   padding: 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
   background: var(--bg-main);
-  min-height: 350px;
+  height: 100%;
   max-height: 1000px;
 }
 
@@ -949,8 +1015,7 @@ onUnmounted(() => {
   padding: 16px;
   background: var(--bg-soft);
   border-top: 1px solid var(--border-light);
-  border-radius: 0 0 16px 16px;
-  position: relative;
+  /* position: relative; */
 }
 
 /* 展开状态下确保输入框在最顶层 */
@@ -974,7 +1039,7 @@ onUnmounted(() => {
 .input-container textarea {
   flex: 1;
   padding: 10px 16px;
-  border: 1px solid var( --border-light);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
   font-size: 14px;
   font-family: inherit;

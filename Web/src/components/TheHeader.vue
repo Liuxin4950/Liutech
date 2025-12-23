@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme.ts'
 import { useUserStore } from '../stores/user'
+
+// 接收滚动位置
+const props = defineProps<{
+  scrollY?: number
+}>()
 
 const router = useRouter()
 const route = useRoute()
@@ -10,6 +15,37 @@ const userStore = useUserStore()
 
 const isMenuOpen = ref(false)
 const isUserMenuOpen = ref(false)
+
+// 计算背景颜色和透明度
+const headerBackgroundStyle = computed(() => {
+  const scrollValue = props.scrollY || 0
+  // 滚动0-100px范围内，透明度从0渐变到0.95
+  const maxScroll = 100
+  const opacity = Math.min(scrollValue / maxScroll, 0.95)
+  
+  // 获取当前主题的背景色
+  const rootStyles = getComputedStyle(document.documentElement)
+  const bgColor = rootStyles.getPropertyValue('--bg-main').trim()
+  
+  // 将十六进制颜色转换为rgba
+  let r = 255, g = 255, b = 255 // 默认白色
+  if (bgColor.startsWith('#')) {
+    const hex = bgColor.slice(1)
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16)
+      g = parseInt(hex[1] + hex[1], 16)
+      b = parseInt(hex[2] + hex[2], 16)
+    } else if (hex.length === 6) {
+      r = parseInt(hex[0] + hex[1], 16)
+      g = parseInt(hex[2] + hex[3], 16)
+      b = parseInt(hex[4] + hex[5], 16)
+    }
+  }
+  
+  return {
+    backgroundColor: `rgba(${r}, ${g}, ${b}, ${opacity})`
+  }
+})
 
 /** 导航配置（避免重复写） */
 const navItems = [
@@ -74,11 +110,11 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 
 <template>
-  <header class="sticky top-0 z-100">
+  <header class="sticky top-0 z-100" :style="headerBackgroundStyle">
     <div class="content px-20 flex-sb flex-ac">
 
       <!-- LOGO -->
-      <h2 class="text-xl font-bold link text-primary">LiuTech</h2>
+      <h2 class="logo link text-primary">LiuTech</h2>
 
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
@@ -201,12 +237,18 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+.logo{
+  font-size: 32px;
+  font-weight: bold;
+}
 
 header {
   width: 100%;
   height: 70px;
-  background-color: var(--bg-main);
-  box-shadow: var(--shadow-sm);
+  background-color: rgba(255, 255, 255, 0);
+  backdrop-filter: blur(2px);
+  // box-shadow: var(--shadow-sm);
+  transition: background-color 0.3s ease;
 }
 
 header>div {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
@@ -15,6 +15,9 @@ import { requireAuth } from '@/utils/auth'
 
 const showLoader = ref(false)
 const router = useRouter()
+
+// 滚动位置状态
+const scrollY = ref(0)
 
 let timer: number | null = null
 // 检查是否为首次访问（页面刷新或首次打开）
@@ -34,9 +37,17 @@ let modelToggleTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const aiChatActive = ref(false)
 
+// 滚动监听函数
+const handleScroll = () => {
+  scrollY.value = window.scrollY
+}
+
 onMounted(() => {
   // 页面加载时立即显示加载动画
   showLoader.value = true
+  
+  // 添加滚动监听
+  window.addEventListener('scroll', handleScroll, { passive: true })
   if (timer) { window.clearTimeout(timer) }
 
   // 兜底 3s 自动结束
@@ -74,6 +85,11 @@ onMounted(() => {
     isFirstLoad.value = false
     next()
   })
+})
+
+onUnmounted(() => {
+  // 移除滚动监听
+  window.removeEventListener('scroll', handleScroll)
 })
 
 const toggleChat = () => {
@@ -116,7 +132,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
 <template>
   <div class="main-layout">
-    <TheHeader />
+    <TheHeader class="header" :scroll-y="scrollY" />
     <main class="main-content">
       <Banner class="banner" />
       <Breadcrumb />
@@ -140,11 +156,19 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+.header{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100;
+}
 
 .main-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  
 }
 
 .main-content {
@@ -152,7 +176,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 }
 
 .banner {
-  height: 400px;
+  height: 600px;
 }
 
 .ai-content {
@@ -184,7 +208,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
 .ai-chat {
   width: 400px;
-  height: 400px;
+  height: 500px;
   position: absolute;
   top: 0;
   left: 0;

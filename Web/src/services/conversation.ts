@@ -3,7 +3,6 @@ import {del, get, post, put, ServiceType} from './api'
 export interface Conversation {
   id: number
   userId: string
-  type: string
   title?: string
   status: number
   messageCount: number
