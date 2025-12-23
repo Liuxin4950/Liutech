@@ -74,6 +74,10 @@ export function useMarkdown() {
   const processMarkdown = (content: string, isStreaming: boolean = false): string => {
     if (!content) return ''
 
+    // 预处理：移除[[RECOMMEND]]标记，这些是给前端解析用的，不是真正的markdown
+    const recommendRegex = /\[\[RECOMMEND\]\][\s\S]*?\[\[\/RECOMMEND\]\]/g
+    content = content.replace(recommendRegex, '')
+
     // For streaming, we need special handling
     if (isStreaming) {
       return processStreamingMarkdown(content)

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { nextTick, onMounted, onUnmounted, ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useChatStore, type ChatMessage, type ChatMode } from '@/stores/chat'
-import { AiStream } from '@/services/ai'
+import { Ai, AiStream, type RecommendResponse, type PostSummaryDTO } from '@/services/ai'
 import { ConversationService, type Conversation, type ChatMessageItem } from '@/services/conversation'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 
@@ -24,6 +24,7 @@ const emit = defineEmits<{
  */
 
 const route = useRoute()
+const router = useRouter()
 const chatStore = useChatStore()
 
 // 组件本地状态
@@ -36,6 +37,10 @@ const conversations = ref<Conversation[]>([])
 const isLoadingHistory = ref(false)
 const showHistorySidebar = ref(false)
 
+// 推荐内容状态
+const recommendations = ref<RecommendResponse | null>(null)
+const isLoadingRecommend = ref(false)
+
 // 会话编辑状态
 const editingConversationId = ref<number | null>(null)
 const editingTitle = ref('')
@@ -47,6 +52,20 @@ const isStreaming = computed(() => chatStore.isStreaming)
 const mode = computed(() => chatStore.mode)
 const hasMessages = computed(() => chatStore.hasMessages)
 const errorMessage = computed(() => chatStore.errorMessage)
+
+// 清理消息中的[[RECOMMEND]]标记
+const cleanMessageContent = (content: string): string => {
+  // 移除 [[RECOMMEND]] ... [[/RECOMMEND]] 标记块
+  return content.replace(/\[\[RECOMMEND\]\][\s\S]*?\[\[\/RECOMMEND\]\]/g, '')
+}
+
+// 清理后的消息列表（用于显示）
+const cleanedMessages = computed(() => {
+  return messages.value.map(msg => ({
+    ...msg,
+    displayContent: msg.type === 'ai' ? cleanMessageContent(msg.content) : msg.content
+  }))
+})
 
 // 构建聊天上下文
 const buildChatContext = (): Record<string, any> => {
@@ -61,6 +80,9 @@ const buildChatContext = (): Record<string, any> => {
 // 发送消息
 const sendMessage = async () => {
   if (!chatInput.value.trim() || isLoading.value) return
+
+  // 发送前清空之前的推荐内容
+  recommendations.value = null
 
   const content = chatInput.value.trim()
   chatInput.value = ''
@@ -260,6 +282,89 @@ const handleScroll = () => {
   isModeDropdownOpen.value = false
 }
 
+// 解析[[RECOMMEND]]标记
+const parseRecommendMarker = (content: string): object | null => {
+  const regex = /\[\[RECOMMEND\]\]\s*([\s\S]*?)\s*\[\[\/RECOMMEND\]\]/g
+  const match = regex.exec(content)
+  if (match && match[1]) {
+    try {
+      return JSON.parse(match[1])
+    } catch (e) {
+      console.error('解析推荐标记失败:', e)
+      return null
+    }
+  }
+  return null
+}
+
+// 获取推荐内容
+const fetchRecommendation = async (params: { type: string; keyword?: string; categoryId?: number; limit?: number }) => {
+  if (isLoadingRecommend.value) return
+
+  try {
+    isLoadingRecommend.value = true
+    const response = await Ai.recommend(params)
+    recommendations.value = response
+    await scrollToBottom()
+  } catch (error) {
+    console.error('获取推荐失败:', error)
+  } finally {
+    isLoadingRecommend.value = false
+  }
+}
+
+// 检查消息是否包含推荐标记
+const checkForRecommend = async (messageId: number) => {
+  const message = messages.value.find(m => m.id === messageId)
+  if (message && message.type === 'ai') {
+    const params = parseRecommendMarker(message.content)
+    if (params && typeof params === 'object') {
+      // 确保流式结束再请求推荐
+      if (message.isStreaming) {
+        // 等待流结束
+        const unwatch = watch(() => message.isStreaming, (streaming) => {
+          if (!streaming) {
+            unwatch()
+            fetchRecommendation(params as any)
+          }
+        })
+      } else {
+        await fetchRecommendation(params as any)
+      }
+    }
+  }
+}
+
+// 点击文章跳转到详情页
+const handlePostClick = (postId: number) => {
+  router.push(`/post/${postId}`)
+}
+
+// 点击分类跳转到分类页
+const handleCategoryClick = (categoryId: number) => {
+  router.push(`/category/${categoryId}`)
+}
+
+// 监听新消息，检查是否包含推荐标记
+watch(() => chatStore.messages.length, async (newLen, oldLen) => {
+  if (newLen > oldLen) {
+    const lastMessage = messages.value[messages.value.length - 1]
+    if (lastMessage.type === 'ai' && !lastMessage.isStreaming) {
+      await checkForRecommend(lastMessage.id)
+    }
+  }
+})
+
+// 监听流式结束
+watch(() => chatStore.isStreaming, async (streaming) => {
+  if (!streaming && chatStore.messages.length > 0) {
+    const lastMessage = messages.value[messages.value.length - 1]
+    if (lastMessage && lastMessage.type === 'ai') {
+      await checkForRecommend(lastMessage.id)
+    }
+  }
+})
+
 // 生命周期
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
@@ -375,7 +480,7 @@ onUnmounted(() => {
             <p>你好！我是纳西妲，有什么我可以帮助你的吗？</p>
           </div>
 
-          <div v-for="message in messages" :key="message.id" :class="[
+          <div v-for="message in cleanedMessages" :key="message.id" :class="[
             'message',
             message.type,
             {
@@ -392,7 +497,7 @@ onUnmounted(() => {
                 </div>
                 <!-- AI messages: markdown rendering -->
                 <div v-else>
-                  <MarkdownRenderer :content="message.content" :is-streaming="message.isStreaming || false" />
+                  <MarkdownRenderer :content="message.displayContent" :is-streaming="message.isStreaming || false" />
                   <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
                 </div>
               </div>
@@ -406,6 +511,40 @@ onUnmounted(() => {
               <div class="message-text">
                 <span class="loading-dots">思考中</span>
               </div>
+            </div>
+          </div>
+
+          <!-- 推荐内容 -->
+          <div v-if="recommendations && recommendations.posts.length > 0" class="recommendation-section">
+            <div class="recommendation-header">
+              <span class="recommendation-icon">📚</span>
+              <span class="recommendation-title">{{ recommendations.reason }}</span>
+            </div>
+            <div v-if="isLoadingRecommend" class="recommendation-loading">
+              <span class="loading-spinner-small"></span>
+              <span>加载推荐内容...</span>
+            </div>
+            <div v-else class="recommendation-list">
+              <div
+                v-for="post in recommendations.posts"
+                :key="post.id"
+                class="recommendation-item"
+                @click="handlePostClick(post.id)"
+              >
+                <div class="recommendation-item-content">
+                  <span class="recommendation-item-title">{{ post.title }}</span>
+                  <div class="recommendation-item-meta">
+                    <span v-if="post.categoryName" class="meta-tag">{{ post.categoryName }}</span>
+                    <span class="meta-views">👁️ {{ post.viewCount }}</span>
+                  </div>
+                </div>
+                <span class="recommendation-arrow">›</span>
+              </div>
+            </div>
+            <div v-if="recommendations.category" class="recommendation-more">
+              <span @click="handleCategoryClick(recommendations.category!.id)">
+                查看 {{ recommendations.category.name }} 分类的全部文章 →
+              </span>
             </div>
           </div>
         </div>
@@ -1177,5 +1316,141 @@ onUnmounted(() => {
   .chat-input {
     padding: 12px;
   }
+}
+
+/* 推荐内容样式 */
+.recommendation-section {
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.recommendation-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.recommendation-icon {
+  font-size: 18px;
+}
+
+.recommendation-title {
+  color: var(--color-primary);
+}
+
+.recommendation-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-light);
+  border-top: 2px solid var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.recommendation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recommendation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.recommendation-item:hover {
+  background: var(--bg-active);
+  border-color: var(--color-primary);
+}
+
+.recommendation-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.recommendation-item-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recommendation-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.meta-tag {
+  padding: 2px 8px;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.recommendation-arrow {
+  font-size: 18px;
+  color: var(--text-subtle);
+  margin-left: 8px;
+}
+
+.recommendation-more {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+  font-size: 13px;
+}
+
+.recommendation-more span {
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.recommendation-more span:hover {
+  opacity: 0.8;
 }
 </style>

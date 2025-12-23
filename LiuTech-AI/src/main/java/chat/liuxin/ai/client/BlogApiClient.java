@@ -1,5 +1,6 @@
 package chat.liuxin.ai.client;
 
+import chat.liuxin.ai.dto.CategoryDTO;
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -87,6 +88,127 @@ public class BlogApiClient {
         }
     }
 
+    /**
+     * 根据分类ID获取文章列表
+     */
+    public List<PostSummaryDTO> getPostsByCategory(Long categoryId, Integer limit) {
+        try {
+            int size = limit != null ? limit : 5;
+            String url = blogApiUrl + "/posts?categoryId=" + categoryId + "&size=" + size + "&sort=latest";
+            log.debug("调用博客API获取分类文章: {}", url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode root = objectMapper.readTree(response);
+
+            List<PostSummaryDTO> results = new ArrayList<>();
+            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+                JsonNode data = root.get("data");
+                JsonNode records = data.has("records") ? data.get("records") : data;
+
+                if (records.isArray()) {
+                    for (JsonNode record : records) {
+                        results.add(parsePostSummary(record));
+                    }
+                }
+            }
+
+            log.debug("分类文章结果: categoryId={}, 找到{}篇", categoryId, results.size());
+            return results;
+        } catch (Exception e) {
+            log.error("获取分类文章API异常: categoryId={}", categoryId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 获取最新发布的文章
+     */
+    public List<PostSummaryDTO> getLatestPosts(Integer limit) {
+        try {
+            int size = limit != null ? limit : 5;
+            String url = blogApiUrl + "/posts/latest?size=" + size;
+            log.debug("调用博客API获取最新文章: {}", url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode root = objectMapper.readTree(response);
+
+            List<PostSummaryDTO> results = new ArrayList<>();
+            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+                JsonNode data = root.get("data");
+                if (data.isArray()) {
+                    for (JsonNode record : data) {
+                        results.add(parsePostSummary(record));
+                    }
+                }
+            }
+
+            log.debug("最新文章结果: 找到{}篇", results.size());
+            return results;
+        } catch (Exception e) {
+            log.error("获取最新文章API异常", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 获取热门文章（按评论数排序）
+     */
+    public List<PostSummaryDTO> getHotPosts(Integer limit) {
+        try {
+            int size = limit != null ? limit : 5;
+            String url = blogApiUrl + "/posts/hot?limit=" + size;
+            log.debug("调用博客API获取热门文章: {}", url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode root = objectMapper.readTree(response);
+
+            List<PostSummaryDTO> results = new ArrayList<>();
+            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+                JsonNode data = root.get("data");
+                if (data.isArray()) {
+                    for (JsonNode record : data) {
+                        results.add(parsePostSummary(record));
+                    }
+                }
+            }
+
+            log.debug("热门文章结果: 找到{}篇", results.size());
+            return results;
+        } catch (Exception e) {
+            log.error("获取热门文章API异常", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 获取所有分类
+     */
+    public List<CategoryDTO> getAllCategories() {
+        try {
+            String url = blogApiUrl + "/categories";
+            log.debug("调用博客API获取所有分类: {}", url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode root = objectMapper.readTree(response);
+
+            List<CategoryDTO> results = new ArrayList<>();
+            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+                JsonNode data = root.get("data");
+                if (data.isArray()) {
+                    for (JsonNode record : data) {
+                        results.add(parseCategory(record));
+                    }
+                }
+            }
+
+            log.debug("分类结果: 找到{}个", results.size());
+            return results;
+        } catch (Exception e) {
+            log.error("获取分类API异常", e);
+            return new ArrayList<>();
+        }
+    }
+
     private PostDetailDTO parsePostDetail(JsonNode data) {
         PostDetailDTO dto = new PostDetailDTO();
         dto.setId(data.has("id") ? data.get("id").asLong() : null);
@@ -162,5 +284,14 @@ public class BlogApiClient {
             return node.get(field).asText();
         }
         return null;
+    }
+
+    private CategoryDTO parseCategory(JsonNode data) {
+        CategoryDTO dto = new CategoryDTO();
+        dto.setId(data.has("id") ? data.get("id").asLong() : null);
+        dto.setName(getTextValue(data, "name"));
+        dto.setDescription(getTextValue(data, "description"));
+        dto.setPostCount(data.has("postCount") ? data.get("postCount").asInt() : 0);
+        return dto;
     }
 }

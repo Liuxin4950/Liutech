@@ -67,6 +67,61 @@ export interface ChatHistoryResponse {
     timestamp: number
 }
 
+/**
+ * 推荐请求接口
+ */
+export interface RecommendRequest {
+    /** 推荐类型: search, category, latest, hot */
+    type: string
+    /** 搜索关键词 (type=search时使用) */
+    keyword?: string
+    /** 分类ID (type=category时使用) */
+    categoryId?: number
+    /** 返回数量限制 */
+    limit?: number
+}
+
+/**
+ * 推荐响应接口
+ */
+export interface RecommendResponse {
+    /** 推荐类型 */
+    type: string
+    /** 搜索关键词 */
+    keyword?: string
+    /** 分类信息 */
+    category?: CategoryDTO
+    /** 推荐的文章列表 */
+    posts: PostSummaryDTO[]
+    /** 推荐理由 */
+    reason: string
+}
+
+/**
+ * 分类DTO
+ */
+export interface CategoryDTO {
+    id: number
+    name: string
+    description?: string
+    postCount: number
+}
+
+/**
+ * 文章摘要DTO
+ */
+export interface PostSummaryDTO {
+    id: number
+    title: string
+    summary?: string
+    categoryName?: string
+    authorName?: string
+    tags?: string[]
+    viewCount: number
+    likeCount: number
+    createdAt?: string
+}
+
 
 /**
  * AI服务类
@@ -150,6 +205,17 @@ export class Ai {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse
+    }
+
+    /**
+     * 获取推荐内容
+     * 使用AI服务8081端口
+     */
+    static async recommend(request: RecommendRequest): Promise<RecommendResponse> {
+        const response = await post<RecommendResponse>('/recommend', request, {
+            serviceType: ServiceType.AI
+        })
+        return response as unknown as RecommendResponse
     }
 }
 
