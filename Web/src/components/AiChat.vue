@@ -37,9 +37,9 @@ const conversations = ref<Conversation[]>([])
 const isLoadingHistory = ref(false)
 const showHistorySidebar = ref(false)
 
-// 推荐内容状态
-const recommendations = ref<RecommendResponse | null>(null)
-const isLoadingRecommend = ref(false)
+// 推荐内容状态 - 每条消息独立的推荐数据
+const messageRecommendations = ref<Map<number, RecommendResponse>>(new Map())
+const loadingMessageIds = ref<Set<number>>(new Set())
 
 // 会话编辑状态
 const editingConversationId = ref<number | null>(null)
@@ -56,7 +56,23 @@ const errorMessage = computed(() => chatStore.errorMessage)
 // 清理消息中的[[RECOMMEND]]标记
 const cleanMessageContent = (content: string): string => {
   // 移除 [[RECOMMEND]] ... [[/RECOMMEND]] 标记块
+  // 同时移除标记周围的空行，避免被 markdown 解析为代码块
   return content.replace(/\[\[RECOMMEND\]\][\s\S]*?\[\[\/RECOMMEND\]\]/g, '')
+}
+
+// 提取消息中的推荐参数（用于渲染）- 从原始内容中提取 [[RECOMMEND]] 格式
+const extractRecommendParams = (content: string): any => {
+  // 匹配 [[RECOMMEND]]...[[/RECOMMEND]] 格式
+  const match = content.match(/\[\[RECOMMEND\]\]\s*([\s\S]*?)\s*\[\[\/RECOMMEND\]\]/);
+  if (match && match[1]) {
+    try {
+      return JSON.parse(match[1]);
+    } catch (e) {
+      console.error('解析推荐参数失败:', e);
+      return null;
+    }
+  }
+  return null;
 }
 
 // 清理后的消息列表（用于显示）
@@ -66,6 +82,33 @@ const cleanedMessages = computed(() => {
     displayContent: msg.type === 'ai' ? cleanMessageContent(msg.content) : msg.content
   }))
 })
+
+// 获取某条消息的推荐数据
+const getMessageRecommendData = (messageId: number): RecommendResponse | null => {
+  return messageRecommendations.value.get(messageId) || null
+}
+
+// 加载消息的推荐数据
+const loadMessageRecommendation = async (messageId: number, content: string) => {
+  const params = extractRecommendParams(content)
+  if (!params) return
+
+  // 如果已经加载过，跳过
+  if (messageRecommendations.value.has(messageId)) return
+
+  // 检查是否正在加载
+  if (loadingMessageIds.value.has(messageId)) return
+
+  try {
+    loadingMessageIds.value.add(messageId)
+    const response = await Ai.recommend(params)
+    messageRecommendations.value.set(messageId, response)
+  } catch (error) {
+    console.error('加载推荐数据失败:', error)
+  } finally {
+    loadingMessageIds.value.delete(messageId)
+  }
+}
 
 // 构建聊天上下文
 const buildChatContext = (): Record<string, any> => {
@@ -82,7 +125,7 @@ const sendMessage = async () => {
   if (!chatInput.value.trim() || isLoading.value) return
 
   // 发送前清空之前的推荐内容
-  recommendations.value = null
+  messageRecommendations.value.clear()
 
   const content = chatInput.value.trim()
   chatInput.value = ''
@@ -132,20 +175,33 @@ const loadConversation = async (conversationId: number) => {
     // 获取会话消息
     const messages = (await ConversationService.messages(conversationId, 1, 100)).reverse()
 
-    // 清空当前消息
+    // 清空当前消息和推荐数据
     chatStore.clearHistory()
+    messageRecommendations.value.clear()
 
     // 设置会话ID
     chatStore.conversationId = conversationId
 
-    // 转换并添加消息到store
+    // 直接构造消息对象，保留后端返回的id
     messages.forEach(msg => {
       if (msg.role === 'user') {
         chatStore.addUserMessage(msg.content)
       } else if (msg.role === 'assistant') {
-        chatStore.addAiMessage(msg.content)
+        // 直接推送消息，保留后端返回的id用于推荐匹配
+        chatStore.messages.push({
+          id: msg.id,
+          type: 'ai' as const,
+          content: msg.content,
+          timestamp: new Date(msg.createdAt),
+          conversationId: conversationId
+        })
       }
     })
+
+    // 使用后端原始id加载所有AI消息的推荐数据（并行）
+    const aiMessages = chatStore.messages.filter((msg: any) => msg.type === 'ai')
+    const promises = aiMessages.map((msg: any) => loadMessageRecommendation(msg.id, msg.content))
+    await Promise.all(promises)
 
     // 关闭侧边栏
     showHistorySidebar.value = false
@@ -282,85 +338,24 @@ const handleScroll = () => {
   isModeDropdownOpen.value = false
 }
 
-// 解析[[RECOMMEND]]标记
-const parseRecommendMarker = (content: string): object | null => {
-  const regex = /\[\[RECOMMEND\]\]\s*([\s\S]*?)\s*\[\[\/RECOMMEND\]\]/g
-  const match = regex.exec(content)
-  if (match && match[1]) {
-    try {
-      return JSON.parse(match[1])
-    } catch (e) {
-      console.error('解析推荐标记失败:', e)
-      return null
-    }
-  }
-  return null
-}
-
-// 获取推荐内容
-const fetchRecommendation = async (params: { type: string; keyword?: string; categoryId?: number; limit?: number }) => {
-  if (isLoadingRecommend.value) return
-
-  try {
-    isLoadingRecommend.value = true
-    const response = await Ai.recommend(params)
-    recommendations.value = response
-    await scrollToBottom()
-  } catch (error) {
-    console.error('获取推荐失败:', error)
-  } finally {
-    isLoadingRecommend.value = false
-  }
-}
-
-// 检查消息是否包含推荐标记
-const checkForRecommend = async (messageId: number) => {
-  const message = messages.value.find(m => m.id === messageId)
-  if (message && message.type === 'ai') {
-    const params = parseRecommendMarker(message.content)
-    if (params && typeof params === 'object') {
-      // 确保流式结束再请求推荐
-      if (message.isStreaming) {
-        // 等待流结束
-        const unwatch = watch(() => message.isStreaming, (streaming) => {
-          if (!streaming) {
-            unwatch()
-            fetchRecommendation(params as any)
-          }
-        })
-      } else {
-        await fetchRecommendation(params as any)
-      }
-    }
-  }
-}
-
 // 点击文章跳转到详情页
 const handlePostClick = (postId: number) => {
   router.push(`/post/${postId}`)
 }
 
 // 点击分类跳转到分类页
-const handleCategoryClick = (categoryId: number) => {
-  router.push(`/category/${categoryId}`)
+const handleCategoryClick = (categoryId: number | undefined) => {
+  if (categoryId) {
+    router.push(`/category/${categoryId}`)
+  }
 }
 
-// 监听新消息，检查是否包含推荐标记
-watch(() => chatStore.messages.length, async (newLen, oldLen) => {
-  if (newLen > oldLen) {
-    const lastMessage = messages.value[messages.value.length - 1]
-    if (lastMessage.type === 'ai' && !lastMessage.isStreaming) {
-      await checkForRecommend(lastMessage.id)
-    }
-  }
-})
-
-// 监听流式结束
+// 监听流式结束，加载新消息的推荐数据
 watch(() => chatStore.isStreaming, async (streaming) => {
   if (!streaming && chatStore.messages.length > 0) {
     const lastMessage = messages.value[messages.value.length - 1]
     if (lastMessage && lastMessage.type === 'ai') {
-      await checkForRecommend(lastMessage.id)
+      await loadMessageRecommendation(lastMessage.id, lastMessage.content)
     }
   }
 })
@@ -498,6 +493,41 @@ onUnmounted(() => {
                 <!-- AI messages: markdown rendering -->
                 <div v-else>
                   <MarkdownRenderer :content="message.displayContent" :is-streaming="message.isStreaming || false" />
+
+                  <!-- 消息内的推荐内容 -->
+                  <div v-if="message.type === 'ai' && !message.isStreaming" class="inline-recommendation">
+                    <template v-if="getMessageRecommendData(message.id)">
+                      <div class="recommendation-section" v-if="getMessageRecommendData(message.id)?.posts?.length">
+                        <div class="recommendation-header">
+                          <span class="recommendation-icon">📚</span>
+                          <span class="recommendation-title">{{ getMessageRecommendData(message.id)?.reason }}</span>
+                        </div>
+                        <div class="recommendation-list">
+                          <div
+                            v-for="post in getMessageRecommendData(message.id)?.posts || []"
+                            :key="post.id"
+                            class="recommendation-item"
+                            @click="handlePostClick(post.id)"
+                          >
+                            <div class="recommendation-item-content">
+                              <span class="recommendation-item-title">{{ post.title }}</span>
+                              <div class="recommendation-item-meta">
+                                <span v-if="post.categoryName" class="meta-tag">{{ post.categoryName }}</span>
+                                <span class="meta-views">👁️ {{ post.viewCount }}</span>
+                              </div>
+                            </div>
+                            <span class="recommendation-arrow">›</span>
+                          </div>
+                        </div>
+                        <div v-if="getMessageRecommendData(message.id)?.category" class="recommendation-more">
+                          <span @click="handleCategoryClick(getMessageRecommendData(message.id)?.category?.id)">
+                            查看 {{ getMessageRecommendData(message.id)?.category?.name }} 分类的全部文章 →
+                          </span>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+
                   <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
                 </div>
               </div>
@@ -511,40 +541,6 @@ onUnmounted(() => {
               <div class="message-text">
                 <span class="loading-dots">思考中</span>
               </div>
-            </div>
-          </div>
-
-          <!-- 推荐内容 -->
-          <div v-if="recommendations && recommendations.posts.length > 0" class="recommendation-section">
-            <div class="recommendation-header">
-              <span class="recommendation-icon">📚</span>
-              <span class="recommendation-title">{{ recommendations.reason }}</span>
-            </div>
-            <div v-if="isLoadingRecommend" class="recommendation-loading">
-              <span class="loading-spinner-small"></span>
-              <span>加载推荐内容...</span>
-            </div>
-            <div v-else class="recommendation-list">
-              <div
-                v-for="post in recommendations.posts"
-                :key="post.id"
-                class="recommendation-item"
-                @click="handlePostClick(post.id)"
-              >
-                <div class="recommendation-item-content">
-                  <span class="recommendation-item-title">{{ post.title }}</span>
-                  <div class="recommendation-item-meta">
-                    <span v-if="post.categoryName" class="meta-tag">{{ post.categoryName }}</span>
-                    <span class="meta-views">👁️ {{ post.viewCount }}</span>
-                  </div>
-                </div>
-                <span class="recommendation-arrow">›</span>
-              </div>
-            </div>
-            <div v-if="recommendations.category" class="recommendation-more">
-              <span @click="handleCategoryClick(recommendations.category!.id)">
-                查看 {{ recommendations.category.name }} 分类的全部文章 →
-              </span>
             </div>
           </div>
         </div>

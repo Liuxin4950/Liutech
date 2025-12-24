@@ -94,7 +94,10 @@ export function useMarkdown() {
       const html = marked.parse(content) as string
 
       // Sanitize HTML
-      const sanitizedHtml = DOMPurify.sanitize(html, sanitizeConfig)
+      let sanitizedHtml = DOMPurify.sanitize(html, sanitizeConfig)
+
+      // 移除空的代码块（可能由清理推荐标记后产生）
+      sanitizedHtml = sanitizedHtml.replace(/<pre><code[^>]*>\s*<\/code><\/pre>/g, '')
 
       // Cache result (with size limit)
       if (Object.keys(cache.value).length >= maxCacheSize) {
@@ -150,7 +153,12 @@ export function useMarkdown() {
 
       // Parse and sanitize
       const html = marked.parse(processedContent) as string
-      return DOMPurify.sanitize(html, sanitizeConfig)
+      let sanitizedHtml = DOMPurify.sanitize(html, sanitizeConfig)
+
+      // 移除空的代码块
+      sanitizedHtml = sanitizedHtml.replace(/<pre><code[^>]*>\s*<\/code><\/pre>/g, '')
+
+      return sanitizedHtml
     } catch (error) {
       console.error('Streaming markdown processing error:', error)
       // Fallback to plain text with line breaks

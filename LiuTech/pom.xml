@@ -13,9 +13,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>liutech-backend</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>LiuTech Backend</name>
+    <artifactId>liutech</artifactId>
+    <version>0.0.1</version>
+    <name>LiuTech Service</name>
     <description>LiuTech博客系统后端服务</description>
 
     <dependencies>
@@ -85,7 +85,7 @@
             <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
-        
+
         <!-- AOP依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
