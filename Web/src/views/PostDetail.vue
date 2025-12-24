@@ -638,6 +638,11 @@ const copyLink = async () => {
 
 
 
+// 监听路由参数变化，重新加载文章详情
+watch(() => route.params.id, () => {
+  loadPostDetail()
+})
+
 // 组件挂载时加载数据
 onMounted(() => {
   loadPostDetail()

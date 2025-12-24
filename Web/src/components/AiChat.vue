@@ -125,7 +125,7 @@ const sendMessage = async () => {
   if (!chatInput.value.trim() || isLoading.value) return
 
   // 发送前清空之前的推荐内容
-  messageRecommendations.value.clear()
+  // messageRecommendations.value.clear()
 
   const content = chatInput.value.trim()
   chatInput.value = ''
