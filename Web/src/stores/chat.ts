@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { Ai, type AiChatRequest } from '@/services/ai'
 import { AiStream, StreamError } from '@/services/aiStream'
+import { debounce } from 'lodash-es'
 
 /**
  * 聊天消息接口
@@ -38,8 +39,11 @@ export const useChatStore = defineStore('chat', () => {
   const mode = ref<ChatMode>('stream')
   const errorMessage = ref('')
 
-  // 内部计数器
+  // 生成临时消息ID（使用负数，避免与后端返回的正数ID冲突）
   let messageIdCounter = 0
+  const generateTempId = (): number => {
+    return --messageIdCounter  // 从0开始递减，产生负数ID
+  }
 
   // ===== 计算属性 =====
   const hasMessages = computed(() => messages.value.length > 0)
@@ -114,7 +118,7 @@ export const useChatStore = defineStore('chat', () => {
    */
   const addUserMessage = (content: string): ChatMessage => {
     const message: ChatMessage = {
-      id: ++messageIdCounter,
+      id: generateTempId(),  // 使用负数临时ID
       type: 'user',
       content,
       timestamp: new Date(),
@@ -129,7 +133,7 @@ export const useChatStore = defineStore('chat', () => {
    */
   const addAiMessage = (content: string = ''): ChatMessage => {
     const message: ChatMessage = {
-      id: ++messageIdCounter,
+      id: generateTempId(),  // 使用负数临时ID
       type: 'ai',
       content,
       timestamp: new Date(),
@@ -167,7 +171,7 @@ export const useChatStore = defineStore('chat', () => {
    */
   const addErrorMessage = (error: string): ChatMessage => {
     const message: ChatMessage = {
-      id: ++messageIdCounter,
+      id: generateTempId(),  // 使用负数临时ID
       type: 'ai',
       content: `❌ ${error}`,
       timestamp: new Date(),
@@ -272,7 +276,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 添加AI响应
     messages.value.push({
-      id: ++messageIdCounter,
+      id: generateTempId(),  // 使用负数临时ID
       type: 'ai',
       content: response.message,
       timestamp: new Date(),
@@ -317,7 +321,7 @@ export const useChatStore = defineStore('chat', () => {
       messages.value = []
       conversationId.value = null
       errorMessage.value = ''
-      messageIdCounter = 0
+      messageIdCounter = 0  // 重置计数器
 
       // 取消正在进行的流式请求
       AiStream.cancel()
@@ -340,12 +344,16 @@ export const useChatStore = defineStore('chat', () => {
     localStorage.setItem(MODE_KEY, newMode)
   }
 
+  // ===== 防抖保存 =====
+  // 使用防抖避免频繁写入localStorage（500ms延迟）
+  const debouncedSave = debounce(saveToStorage, 500)
+
   // ===== 监听器 =====
-  // 监听消息变化，自动保存
+  // 监听消息变化，自动保存（使用防抖）
   watch(
     () => messages.value,
     () => {
-      saveToStorage()
+      debouncedSave()
     },
     { deep: true }
   )

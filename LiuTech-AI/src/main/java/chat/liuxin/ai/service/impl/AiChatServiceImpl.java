@@ -59,6 +59,9 @@ public class AiChatServiceImpl implements AiChatService {
     @Value("${spring.ai.openai.chat.options.model:THUDM/glm-4-9b-chat}")
     private String defaultModel; // 默认AI模型名称
 
+    @Value("${spring.ai.sse.timeout:120000}")
+    private long sseTimeout; // SSE超时时间（毫秒），默认2分钟
+
     /**
      * 处理普通聊天请求，一次性返回完整AI回复
      * 
@@ -221,9 +224,9 @@ public class AiChatServiceImpl implements AiChatService {
         String modelName = request.getModel() != null ? request.getModel() : defaultModel;
         Long conversationId = request.getConversationId();
         String input = request.getMessage();
-        
-        // 2. 创建SseEmitter，设置超时时间为2分钟
-        SseEmitter emitter = new SseEmitter(120000L);
+
+        // 2. 创建SseEmitter，使用可配置的超时时间
+        SseEmitter emitter = new SseEmitter(sseTimeout);
         
         // 3. 设置完成和错误处理
         emitter.onCompletion(() -> {

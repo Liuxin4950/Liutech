@@ -81,6 +81,9 @@ spring:
     # 聊天配置
     chat:
       history-limit: 19
+    # SSE配置
+    sse:
+      timeout: 180000  # SSE超时时间（毫秒），默认3分钟
 
 # 博客API配置
 blog:

@@ -132,17 +132,20 @@ public class MemoryServiceImpl implements MemoryService {
     @Transactional(rollbackFor = Exception.class)
     public void cleanupByRetainLastN(String userId, int retainLastN) {
         if (retainLastN <= 0) return;
-        
+
+        // 参数校验，确保retainLastN为安全整数
+        int safeRetainLastN = Math.max(0, Math.min(retainLastN, 1000));
+
         // 优化：使用JOIN查询一次数据库操作确定边界时间
         List<AiChatMessage> boundaryMessages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
-                .in(AiChatMessage::getConversationId, 
+                .in(AiChatMessage::getConversationId,
                     conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
                             .eq(AiConversation::getUserId, userId)
                             .select(AiConversation::getId))
                     .stream().map(AiConversation::getId).toList())
                 .orderByDesc(AiChatMessage::getCreatedAt)
                 .orderByDesc(AiChatMessage::getId)
-                .last("LIMIT " + retainLastN + ", 1")
+                .last(false, "LIMIT " + safeRetainLastN + ", 1")
         );
         
         if (boundaryMessages == null || boundaryMessages.isEmpty()) {
@@ -222,6 +225,9 @@ public class MemoryServiceImpl implements MemoryService {
     @Override
     public List<AiConversation> listConversations(String userId, String type, int page, int size) {
         int offset = Math.max(0, (page - 1) * size);
+        // 参数校验，确保offset和size为安全整数
+        int safeOffset = Math.max(0, offset);
+        int safeSize = Math.max(1, Math.min(size, 100));
         var qw = new LambdaQueryWrapper<AiConversation>()
                 .select(AiConversation::getId,
                         AiConversation::getUserId,
@@ -231,7 +237,7 @@ public class MemoryServiceImpl implements MemoryService {
                 .eq(AiConversation::getUserId, userId)
                 .orderByDesc(AiConversation::getUpdatedAt)
                 .orderByDesc(AiConversation::getId)
-                .last("LIMIT " + offset + ", " + size);
+                .last(false, "LIMIT " + safeOffset + ", " + safeSize);
         return conversationMapper.selectList(qw);
     }
 
@@ -247,6 +253,9 @@ public class MemoryServiceImpl implements MemoryService {
     @Override
     public List<AiChatMessage> listMessagesByConversation(Long conversationId, int page, int size) {
         int offset = Math.max(0, (page - 1) * size);
+        // 参数校验，确保offset和size为安全整数
+        int safeOffset = Math.max(0, offset);
+        int safeSize = Math.max(1, Math.min(size, 100));
         return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .select(AiChatMessage::getId,
                         AiChatMessage::getRole,
@@ -256,18 +265,20 @@ public class MemoryServiceImpl implements MemoryService {
                 .eq(AiChatMessage::getConversationId, conversationId)
                 .orderByDesc(AiChatMessage::getSeqNo)
                 .orderByDesc(AiChatMessage::getId)
-                .last("LIMIT " + offset + ", " + size)
+                .last(false, "LIMIT " + safeOffset + ", " + safeSize)
         );
     }
 
     @Override
     public List<AiChatMessage> listLastMessagesByConversation(Long conversationId, int limit) {
         if (limit <= 0) return java.util.Collections.emptyList();
+        // 参数校验，确保limit为安全整数
+        int safeLimit = Math.max(1, Math.min(limit, 100));
         java.util.List<AiChatMessage> desc = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getConversationId, conversationId)
                 .orderByDesc(AiChatMessage::getSeqNo)
                 .orderByDesc(AiChatMessage::getId)
-                .last("LIMIT " + limit)
+                .last(false, "LIMIT " + safeLimit)
         );
         java.util.Collections.reverse(desc);
         return desc;

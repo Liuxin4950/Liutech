@@ -144,12 +144,16 @@ public class SecurityConfig {
 
         // 允许的源（前端地址）
         configuration.setAllowedOrigins(Arrays.asList(
+            // 本地开发
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "http://localhost:3001",
             "http://127.0.0.1:3001",
             "http://localhost:5173",
-            "http://127.0.0.1:5173"
+            "http://127.0.0.1:5173",
+            // 生产环境域名
+            "http://liuxin.chat",
+            "https://liuxin.chat"
         ));
 
         // 允许的HTTP方法

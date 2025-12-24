@@ -16,6 +16,10 @@ import java.util.List;
 /**
  * 博客API客户端
  * 调用主服务API获取文章数据
+ *
+ * Docker部署说明：
+ * - 容器间通信使用容器名，如 http://backend:8080
+ * - 本地开发可使用 http://localhost:8080
  */
 @Slf4j
 @Component
@@ -24,7 +28,13 @@ public class BlogApiClient {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${blog.api.url:http://localhost:8080}")
+    /**
+     * 博客API地址
+     * Docker环境使用容器名: http://backend:8080
+     * 本地开发使用: http://localhost:8080
+     * 可通过环境变量 BLOG_API_URL 覆盖
+     */
+    @Value("${blog.api.url:http://backend:8080}")
     private String blogApiUrl;
 
     public BlogApiClient() {

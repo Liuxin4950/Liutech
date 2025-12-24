@@ -10,7 +10,7 @@ This is a **full-stack blog platform** with a microservices architecture:
   - `Web/` - User-facing blog frontend (port 3000)
   - `Admin/` - Admin management dashboard (port 3001)
 
-- **Backend**: Spring Boot 3.5.9 microservices
+- **Backend**: Spring Boot microservices
   - `LiuTech/` - Main backend API service (port 8080)
   - `LiuTech-AI/` - AI chat assistant service (port 8081)
 
@@ -304,8 +304,8 @@ docker exec -it liutech-mysql mysql -u root -p123456
 ## 📚 Key Technologies
 
 **Backend:**
-- Spring Boot 3.5.9
-- Spring Security (JWT)
+- Spring Boot (3.5.9)
+- Spring Security + JWT
 - MyBatis-Plus (ORM)
 - MySQL 8.0
 - Java 21
