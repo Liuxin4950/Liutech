@@ -17,15 +17,16 @@
 
     <!-- 评论列表 -->
     <div class="comment-list">
-      <div v-if="loading" class="loading">
+      <div v-if="loading" class="loading text-sm">
         <p>加载评论中...</p>
       </div>
-      <div v-else-if="error" class="error">
+      <div v-else-if="error" class="error text-sm">
         <p>{{ error }}</p>
         <button @click="loadComments" class="retry-btn">重试</button>
       </div>
-      <div v-else-if="comments.length === 0" class="empty">
+      <div v-else-if="comments.length === 0" class="empty flex flex-col flex-ac text-sm">
         <p>暂无评论，快来发表第一条评论吧！</p>
+        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
       </div>
       <div v-else>
         <CommentItem 

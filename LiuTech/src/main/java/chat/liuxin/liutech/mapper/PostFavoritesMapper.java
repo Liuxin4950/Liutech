@@ -69,4 +69,11 @@ public interface PostFavoritesMapper extends BaseMapper<PostFavorites> {
      * @return 影响行数
      */
     int deleteByPostId(@Param("postId") Long postId);
+
+    /**
+     * 统计用户的收藏数量
+     * @param userId 用户ID
+     * @return 收藏数量
+     */
+    Integer countFavoritesByUserId(@Param("userId") Long userId);
 }

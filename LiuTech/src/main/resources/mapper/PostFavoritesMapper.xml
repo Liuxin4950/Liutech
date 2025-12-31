@@ -62,4 +62,11 @@
         DELETE FROM post_favorites WHERE post_id = #{postId}
     </delete>
 
+    <!-- 统计用户的收藏数量 -->
+    <select id="countFavoritesByUserId" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM post_favorites
+        WHERE user_id = #{userId} AND is_favorite = 1 AND deleted_at IS NULL
+    </select>
+
 </mapper>

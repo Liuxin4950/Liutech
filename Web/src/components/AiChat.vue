@@ -172,8 +172,8 @@ const loadConversation = async (conversationId: number) => {
   try {
     isLoadingHistory.value = true
 
-    // 获取会话消息
-    const messages = (await ConversationService.messages(conversationId, 1, 100)).reverse()
+    // 后端返回升序，直接使用无需反转
+    const messages = await ConversationService.messages(conversationId, 1, 100)
 
     // 清空当前消息和推荐数据
     chatStore.clearHistory()
@@ -182,24 +182,17 @@ const loadConversation = async (conversationId: number) => {
     // 设置会话ID
     chatStore.conversationId = conversationId
 
-    // 直接构造消息对象，保留后端返回的id
+    // 统一使用store方法添加消息，保留后端返回的id
     messages.forEach(msg => {
       if (msg.role === 'user') {
-        chatStore.addUserMessage(msg.content)
+        chatStore.addUserMessage(msg.content, msg.id)
       } else if (msg.role === 'assistant') {
-        // 直接推送消息，保留后端返回的id用于推荐匹配
-        chatStore.messages.push({
-          id: msg.id,
-          type: 'ai' as const,
-          content: msg.content,
-          timestamp: new Date(msg.createdAt),
-          conversationId: conversationId
-        })
+        chatStore.addAiMessage(msg.content, msg.id)
       }
     })
 
     // 使用后端原始id加载所有AI消息的推荐数据（并行）
-    const aiMessages = chatStore.messages.filter((msg: any) => msg.type === 'ai')
+    const aiMessages = messages.filter((msg: any) => msg.role === 'assistant')
     const promises = aiMessages.map((msg: any) => loadMessageRecommendation(msg.id, msg.content))
     await Promise.all(promises)
 
@@ -389,13 +382,14 @@ onUnmounted(() => {
         </div>
 
         <div class="history-content">
-          <div v-if="isLoadingHistory" class="history-loading">
+          <div v-if="isLoadingHistory" class="history-loading text-sm">
             <div class="loading-spinner"></div>
             <span>加载中...</span>
           </div>
 
-          <div v-else-if="conversations.length === 0" class="history-empty">
+          <div v-else-if="conversations.length === 0" class="history-empty flex flex-col flex-ac text-sm">
             <p>暂无历史会话</p>
+            <img src="@/assets/image/扑到.png" alt="" class="fit-err">
           </div>
 
           <div v-else class="conversation-list">
@@ -471,7 +465,7 @@ onUnmounted(() => {
 
         <!-- 聊天消息列表 -->
         <div ref="chatContainer" class="chat-messages">
-          <div v-if="!hasMessages" class="empty-state">
+          <div v-if="!hasMessages" class="empty-state text-sm">
             <p>你好！我是纳西妲，有什么我可以帮助你的吗？</p>
           </div>
 

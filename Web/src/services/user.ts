@@ -77,6 +77,7 @@ export interface UserStats {
   postCount: number
   draftCount: number
   viewCount: number
+  favoriteCount?: number  // 收藏文章数量
   lastCommentAt?: string
   lastPostAt?: string
 }

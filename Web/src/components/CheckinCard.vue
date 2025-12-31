@@ -136,13 +136,14 @@ defineExpose({
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 @use "@/assets/styles/tokens" as *;
 .checkin-card {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--border-base);
+  box-shadow: var(--shadow-sm);
   margin-bottom: 24px;
   position: relative;
 }
@@ -156,7 +157,7 @@ defineExpose({
 
 .checkin-header h3 {
   margin: 0;
-  color: #333;
+  color: var(--text-title);
   font-size: 18px;
   font-weight: 600;
 }
@@ -165,7 +166,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 4px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
   padding: 6px 12px;
   border-radius: 20px;
@@ -196,13 +197,13 @@ defineExpose({
 
 .info-label {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .info-value {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-main);
 }
 
 .checkin-btn {
@@ -214,13 +215,13 @@ defineExpose({
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
 }
 
 .checkin-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-md);
 }
 
 .checkin-btn:disabled {
@@ -229,12 +230,12 @@ defineExpose({
 }
 
 .checkin-btn.checked-in {
-  background: #e0e0e0;
-  color: #666;
+  background: var(--bg-soft);
+  color: var(--text-subtle);
 }
 
 .checkin-btn.loading {
-  background: #ccc;
+  background: var(--border-base);
   cursor: not-allowed;
 }
 
@@ -243,11 +244,11 @@ defineExpose({
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(76, 175, 80, 0.95);
+  background: var(--color-success);
   color: white;
   padding: 16px 24px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   z-index: 10;
   animation: fadeInOut 3s ease-in-out;
 }
@@ -266,7 +267,7 @@ defineExpose({
 }
 
 .bonus-text {
-  color: #ffeb3b;
+  color: var(--color-warning);
   font-weight: bold;
 }
 

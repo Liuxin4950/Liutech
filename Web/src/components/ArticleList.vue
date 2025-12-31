@@ -1,19 +1,20 @@
 <template>
   <div>
     <!-- 加载状态 -->
-    <div v-if="loading" class="loading-text">加载中...</div>
+    <div v-if="loading" class="loading-text text-sm">加载中...</div>
 
     <!-- 错误状态 -->
-    <div v-else-if="error" class="loading-text text-primary">
+    <div v-else-if="error" class="loading-text text-primary text-sm">
       <p>{{ error }}</p>
       <button @click="$emit('retry')" class="retry-btn">重试</button>
     </div>
 
     <!-- 空状态 -->
-    <div v-else-if="posts.length === 0" class="empty-text">
+    <div v-else-if="posts.length === 0" class="empty-text flex flex-col flex-ac text-sm">
       <slot name="empty">
         <p>暂无文章</p>
       </slot>
+      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
     </div>
 
     <!-- 文章列表 -->

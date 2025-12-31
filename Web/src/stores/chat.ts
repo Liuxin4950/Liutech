@@ -89,6 +89,12 @@ export const useChatStore = defineStore('chat', () => {
           ...msg,
           timestamp: new Date(msg.timestamp)
         })) || []
+
+        // 确保按时间戳升序排列（保护措施，防止顺序错乱）
+        messages.value.sort((a, b) =>
+          a.timestamp.getTime() - b.timestamp.getTime()
+        )
+
         conversationId.value = data.conversationId || null
       }
 
@@ -115,10 +121,12 @@ export const useChatStore = defineStore('chat', () => {
   // ===== 消息管理方法 =====
   /**
    * 添加用户消息
+   * @param content 消息内容
+   * @param id 可选，传入后端返回的ID，否则生成临时ID
    */
-  const addUserMessage = (content: string): ChatMessage => {
+  const addUserMessage = (content: string, id?: number): ChatMessage => {
     const message: ChatMessage = {
-      id: generateTempId(),  // 使用负数临时ID
+      id: id ?? generateTempId(),  // 优先使用传入的ID
       type: 'user',
       content,
       timestamp: new Date(),
@@ -130,10 +138,12 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * 添加AI消息（用于流式响应的开始）
+   * @param content 消息内容
+   * @param id 可选，传入后端返回的ID，否则生成临时ID
    */
-  const addAiMessage = (content: string = ''): ChatMessage => {
+  const addAiMessage = (content: string = '', id?: number): ChatMessage => {
     const message: ChatMessage = {
-      id: generateTempId(),  // 使用负数临时ID
+      id: id ?? generateTempId(),  // 优先使用传入的ID
       type: 'ai',
       content,
       timestamp: new Date(),
@@ -274,14 +284,8 @@ export const useChatStore = defineStore('chat', () => {
   const sendNormalMessage = async (request: AiChatRequest) => {
     const response = await Ai.chat(request)
 
-    // 添加AI响应
-    messages.value.push({
-      id: generateTempId(),  // 使用负数临时ID
-      type: 'ai',
-      content: response.message,
-      timestamp: new Date(),
-      conversationId: response.conversationId
-    })
+    // 使用统一方法添加AI响应
+    addAiMessage(response.message)
 
     // 更新会话ID
     if (response.conversationId && !conversationId.value) {

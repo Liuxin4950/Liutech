@@ -28,23 +28,24 @@
     <!-- 文章列表 -->
     <div class="posts-container">
       <!-- 加载状态 -->
-      <div v-if="loading" class="loading-state">
+      <div v-if="loading" class="loading-state text-sm">
         <div class="loading-spinner"></div>
         <p>加载中...</p>
       </div>
 
       <!-- 错误状态 -->
-      <div v-else-if="error" class="error-state">
+      <div v-else-if="error" class="error-state text-sm">
         <span class="error-icon">❌</span>
         <p>{{ error }}</p>
         <button class="retry-btn" @click="loadPosts">重试</button>
       </div>
 
       <!-- 空状态 -->
-      <div v-else-if="filteredPosts.length === 0" class="empty-state">
-        <span class="empty-icon">📝</span>
+      <div v-else-if="filteredPosts.length === 0" class="empty-state flex flex-col flex-ac text-sm">
+        <!-- <span class="empty-icon">📝</span> -->
         <h3>暂无文章</h3>
         <p>开始创建您的第一篇文章吧！</p>
+        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
         <button class="create-btn" @click="createNewPost">
           <span class="btn-icon">✏️</span>
           新建文章

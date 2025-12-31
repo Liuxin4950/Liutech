@@ -28,9 +28,9 @@
       @retry="loadPosts"
     >
       <template #empty>
-        <div class="text-lg mb-8">📝</div>
-        <h3 class="text-base font-semibold mb-8">暂无文章</h3>
-        <p class="text-muted text-sm mb-0">该分类下还没有文章</p>
+        <div class="mb-8">📝</div>
+        <h3 class="font-semibold mb-8">暂无文章</h3>
+        <p class="text-muted mb-0">该分类下还没有文章</p>
       </template>
     </ArticleList>
   </div>

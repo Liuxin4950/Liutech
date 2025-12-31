@@ -41,9 +41,12 @@ onMounted(() => { if (props.visible) { inputQuery.value = props.query || '' ; fe
         <button class="close-btn" @click="close">关闭</button>
       </div>
       <div class="search-body">
-        <div v-if="loading" class="loading">正在搜索...</div>
+        <div v-if="loading" class="loading text-sm">正在搜索...</div>
         <div v-else>
-          <div v-if="results.length === 0" class="empty">暂无搜索结果</div>
+          <div v-if="results.length === 0" class="empty flex flex-col flex-ac text-sm">
+            <p>暂无搜索结果</p>
+            <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+          </div>
           <ul v-else class="result-list">
             <li v-for="item in results" :key="item.id" class="result-item">
               <div class="title">{{ item.title }}</div>

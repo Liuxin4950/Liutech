@@ -25,13 +25,13 @@
     </div>
 
     <!-- 加载状态 -->
-    <div v-if="loading" class="text-center p-20">
+    <div v-if="loading" class="text-center p-20 text-sm">
       <div class="loading-spinner"></div>
       <p class="mt-12">正在加载归档数据...</p>
     </div>
 
     <!-- 错误状态 -->
-    <div v-else-if="error" class="text-center p-20">
+    <div v-else-if="error" class="text-center p-20 text-sm">
       <p class="text-red-500 mb-12">{{ error }}</p>
       <button @click="loadArchiveData" class="btn btn-primary">重试</button>
     </div>
@@ -85,10 +85,10 @@
     </div>
 
     <!-- 空状态 -->
-    <div v-if="!loading && !error && archiveData.length === 0" class="text-center p-20">
-      <div class="text-6xl mb-20">📝</div>
+    <div v-if="!loading && !error && archiveData.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
       <h3 class="text-xl font-semibold mb-12">暂无文章</h3>
       <p class="text-base text-gray-600 mb-20">还没有发布任何文章</p>
+      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
       <router-link to="/create" class="btn btn-primary">发布第一篇文章</router-link>
     </div>
   </div>

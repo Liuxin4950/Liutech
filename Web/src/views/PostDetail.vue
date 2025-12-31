@@ -1,9 +1,9 @@
 <template>
   <div class="post-detail content">
-    <div v-if="loading" class="text-center p-20 ">
+    <div v-if="loading" class="text-center p-20 text-sm">
       <p>加载中...</p>
     </div>
-    <div v-else-if="error" class="text-center p-20 ">
+    <div v-else-if="error" class="text-center p-20 text-sm">
       <p>{{ error }}</p>
       <button @click="loadPostDetail" class="retry-btn bg-primary text-center rounded transition mt-8">重试</button>
     </div>

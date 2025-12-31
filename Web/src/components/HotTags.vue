@@ -1,8 +1,11 @@
 <template>
   <div class="card bg-card ">
     <h4 class="card-title">热门标签</h4>
-    <div v-if="loading" class="loading-text">加载中...</div>
-    <div v-else-if="tags.length === 0" class="empty-text">暂无标签</div>
+    <div v-if="loading" class="loading-text text-sm">加载中...</div>
+    <div v-else-if="tags.length === 0" class="empty-text flex flex-col flex-ac text-sm">
+      <p>暂无标签</p>
+      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+    </div>
     <div v-else class="tags-cloud">
       <span 
         v-for="tag in tags" 

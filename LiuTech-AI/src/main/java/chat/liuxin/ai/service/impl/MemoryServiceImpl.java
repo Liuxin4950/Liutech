@@ -263,8 +263,9 @@ public class MemoryServiceImpl implements MemoryService {
                         AiChatMessage::getCreatedAt,
                         AiChatMessage::getSeqNo)
                 .eq(AiChatMessage::getConversationId, conversationId)
-                .orderByDesc(AiChatMessage::getSeqNo)
-                .orderByDesc(AiChatMessage::getId)
+                // 返回升序，前端无需反转
+                .orderByAsc(AiChatMessage::getSeqNo)
+                .orderByAsc(AiChatMessage::getId)
                 .last(false, "LIMIT " + safeOffset + ", " + safeSize)
         );
     }
@@ -274,14 +275,13 @@ public class MemoryServiceImpl implements MemoryService {
         if (limit <= 0) return java.util.Collections.emptyList();
         // 参数校验，确保limit为安全整数
         int safeLimit = Math.max(1, Math.min(limit, 100));
-        java.util.List<AiChatMessage> desc = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+        // 返回升序结果，无需反转
+        return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getConversationId, conversationId)
-                .orderByDesc(AiChatMessage::getSeqNo)
-                .orderByDesc(AiChatMessage::getId)
+                .orderByAsc(AiChatMessage::getSeqNo)
+                .orderByAsc(AiChatMessage::getId)
                 .last(false, "LIMIT " + safeLimit)
         );
-        java.util.Collections.reverse(desc);
-        return desc;
     }
     
     @Override

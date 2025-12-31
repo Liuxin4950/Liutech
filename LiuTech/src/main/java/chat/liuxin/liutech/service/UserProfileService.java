@@ -3,6 +3,7 @@ package chat.liuxin.liutech.service;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resp.UserResp;
@@ -43,6 +44,9 @@ public class UserProfileService {
 
     @Autowired
     private PostsService postsService;
+
+    @Autowired
+    private PostFavoritesMapper postFavoritesMapper;
 
     /**
      * 更新当前用户个人资料
@@ -151,6 +155,10 @@ public class UserProfileService {
             // 访问量暂时设为0（后续可扩展）
             stats.setViewCount(0L);
 
+            // 获取收藏数量
+            Integer favoriteCount = postFavoritesMapper.countFavoritesByUserId(currentUser.getId());
+            stats.setFavoriteCount(favoriteCount != null ? favoriteCount.longValue() : 0L);
+
             // 获取最近活动时间
             Date lastCommentAt = commentsService.getLastCommentTimeByUserId(currentUser.getId());
             stats.setLastCommentAt(lastCommentAt);
@@ -168,6 +176,7 @@ public class UserProfileService {
             stats.setPostCount(0L);
             stats.setDraftCount(0L);
             stats.setViewCount(0L);
+            stats.setFavoriteCount(0L);
         }
 
         return stats;

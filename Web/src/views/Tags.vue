@@ -59,17 +59,17 @@
         </div>
 
         <!-- 加载状态 -->
-        <div v-if="isLoading" class="loading-text">加载中...</div>
+        <div v-if="isLoading" class="loading-text text-sm">加载中...</div>
 
         <!-- 空状态 -->
-        <div v-else-if="filteredTags.length === 0" class="text-center p-20">
-          <div class="text-2xl mb-8">🏷️</div>
+        <div v-else-if="filteredTags.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
           <h3 class="text-base font-semibold mb-8">
             {{ searchKeyword ? '未找到相关标签' : '暂无标签' }}
           </h3>
           <p class="text-muted text-sm mb-0">
             {{ searchKeyword ? '尝试使用其他关键词搜索' : '还没有任何标签，快去发布文章吧！' }}
           </p>
+          <img src="@/assets/image/扑到.png" alt="" class="fit-err">
         </div>
 
         <!-- 标签云 -->

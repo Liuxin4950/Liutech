@@ -29,7 +29,8 @@ public class UserStatsResp {
     private Long commentCount;      // 评论数量
     private Long postCount;         // 文章数量
     private Long draftCount;        // 草稿数量
-    private Long viewCount;         // 访问量（暂时设为0，后续可扩展）
+    private Long viewCount;         // 访问量
+    private Long favoriteCount;     // 收藏文章数量
 
     /**
      * 最近活动

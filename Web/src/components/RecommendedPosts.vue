@@ -1,8 +1,11 @@
 <template>
   <div class="card bg-card ">
     <h4 class="card-title">推荐阅读</h4>
-    <div v-if="loading" class="loading-text">加载中...</div>
-    <div v-else-if="posts.length === 0" class="empty-text">暂无推荐</div>
+    <div v-if="loading" class="loading-text text-sm">加载中...</div>
+    <div v-else-if="posts.length === 0" class="empty-text flex flex-col flex-ac text-sm">
+      <p>暂无推荐</p>
+      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+    </div>
     <div v-else class="list gap-12">
       <div 
         v-for="post in posts" 

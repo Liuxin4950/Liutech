@@ -19,7 +19,7 @@
     </div>
 
     <!-- 加载状态 -->
-    <div v-else-if="loading" class="text-center p-20">
+    <div v-else-if="loading" class="text-center p-20 text-sm">
       <div class="loading-spinner"></div>
       <p class="loading-text">正在加载标签信息...</p>
     </div>
@@ -48,8 +48,8 @@
       >
         <template #empty>
           <div class="empty-icon mb-20">📝</div>
-          <h3 class="text-xl font-semibold mb-12">暂无相关文章</h3>
-          <p class="text-base mb-20">该标签下还没有发布任何文章</p>
+          <h3 class="font-semibold mb-12">暂无相关文章</h3>
+          <p class="mb-20">该标签下还没有发布任何文章</p>
           <router-link to="/"
             class="create-btn inline-block p-12 px-24 rounded text-white font-medium no-underline transition">返回首页</router-link>
         </template>
@@ -57,7 +57,7 @@
     </div>
 
     <!-- 错误状态 -->
-    <div v-if="error" class="empty-state">
+    <div v-if="error" class="empty-state text-sm">
       <div class="empty-icon">❌</div>
       <h3>加载失败</h3>
       <p>{{ error }}</p>

@@ -136,14 +136,13 @@ const handleAuthRequired = (action: () => void, message?: string) => {
     <main class="main-content">
       <Banner class="banner" />
       <Breadcrumb />
-
+      <router-view />
       <div v-if="showModel" class="ai-content" :class="{ 'expanded': isExpanded }">
         <div class="ai-box">
           <Live2d @click="toggleChat" class="live2d" :class="{ 'centered': isExpanded }"></Live2d>
           <AiChat v-show="showChat"  class="ai-chat" :expanded="isExpanded" @expand="handleExpandChat"></AiChat>
         </div>
       </div>
-      <router-view />
     </main>
     <TheFooter />
     <BottomNavigation @ai-chat-active="handleModelStatusChange" @auth-required="handleAuthRequired"></BottomNavigation>

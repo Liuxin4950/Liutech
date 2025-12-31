@@ -65,9 +65,12 @@ const formatTime = (val?: string) => {
           <button class="act danger" @click.stop="remove(c.id)">删除</button>
         </div>
       </div>
-      <div v-if="list.length===0" class="empty">暂无会话</div>
+      <div v-if="list.length===0" class="empty flex flex-col flex-ac text-sm">
+        暂无会话
+        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+      </div>
     </div>
-    <div class="items" v-else><div class="empty">加载中...</div></div>
+    <div class="items" v-else><div class="empty text-sm">加载中...</div></div>
   </div>
 </template>
 

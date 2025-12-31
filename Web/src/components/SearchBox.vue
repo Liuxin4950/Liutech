@@ -22,15 +22,16 @@
 
     <!-- 搜索结果 -->
     <div v-if="showResults" class="search-results">
-      <div v-if="isSearching" class="loading-text">搜索中...</div>
+      <div v-if="isSearching" class="loading-text text-sm">搜索中...</div>
 
-      <div v-else-if="searchError" class="error-text">
+      <div v-else-if="searchError" class="error-text text-sm">
         <p>{{ searchError }}</p>
         <button @click="handleSearch" class="retry-btn">重试</button>
       </div>
 
-      <div v-else-if="searchResults.length === 0" class="empty-text">
-        没有找到相关文章
+      <div v-else-if="searchResults.length === 0" class="empty-text flex flex-col flex-ac text-sm">
+        <p>没有找到相关文章</p>
+        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
       </div>
 
       <div v-else class="results-list">

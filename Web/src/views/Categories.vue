@@ -21,17 +21,17 @@
         <!-- 分类网格 -->
         <div class="card shadow-sm mb-16">
             <!-- 加载异常处理 -->
-            <div v-if="loading" class="loading-text">加载中...</div>
-            <div v-else-if="error" class="loading-text text-primary">
+            <div v-if="loading" class="loading-text text-sm">加载中...</div>
+            <div v-else-if="error" class="loading-text text-primary text-sm">
                 <p>{{ error }}</p>
                 <button @click="loadCategories"
                     class="bg-primary text-sm font-medium p-8 rounded transition hover-lift mt-8">重试</button>
             </div>
 
-            <div v-else-if="categories.length === 0" class="text-center p-20">
-                <div class="text-lg mb-8">📂</div>
+            <div v-else-if="categories.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
                 <h3 class="text-base font-semibold mb-8">暂无分类</h3>
                 <p class="text-muted text-sm mb-0">还没有创建任何分类</p>
+                <img src="@/assets/image/扑到.png" alt="" class="fit-err">
             </div>
             
             <div v-else class="grid gap-20">

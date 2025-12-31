@@ -15,8 +15,9 @@
     <div v-if="loading" class="text-center p-16">
       <span class="text-sm">加载中...</span>
     </div>
-    <div v-else-if="announcements.length === 0" class="text-center p-16">
+    <div v-else-if="announcements.length === 0" class="text-center p-16 flex flex-col flex-ac">
       <span class="text-sm">暂无公告</span>
+      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
     </div>
     <div v-else class="list">
       <div
