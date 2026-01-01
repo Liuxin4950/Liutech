@@ -81,6 +81,7 @@ public class MemoryServiceImpl implements MemoryService {
         Integer maxSeqNo = getMaxSeqNo(conversationId);
         
         AiChatMessage m = new AiChatMessage();
+        m.setUserId(userId);
         m.setConversationId(conversationId);
         m.setRole("user");
         m.setContent(content);
@@ -103,6 +104,7 @@ public class MemoryServiceImpl implements MemoryService {
         Integer maxSeqNo = getMaxSeqNo(conversationId);
         
         AiChatMessage m = new AiChatMessage();
+        m.setUserId(userId);
         m.setConversationId(conversationId);
         m.setRole("assistant");
         m.setContent(content);
