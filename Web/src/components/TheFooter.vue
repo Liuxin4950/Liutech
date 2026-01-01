@@ -98,10 +98,8 @@ const currentYear = new Date().getFullYear();
 
 /* 主要内容区域 */
 .footer-main {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 60px;
-  margin-bottom: 50px;
+  display: flex;
+  justify-content: space-between;
 }
 
 /* 品牌信息区域 */
@@ -192,7 +190,7 @@ const currentYear = new Date().getFullYear();
 
 .footer-link:hover {
   color: var(--primary-color);
-  padding-left: 8px;
+  padding-left: 20px;
 }
 
 .footer-link::before {
