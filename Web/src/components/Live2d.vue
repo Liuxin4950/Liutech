@@ -76,6 +76,8 @@ function onMusicPlay(audioUrl: string) {
         console.warn('Live2D模型未加载完成，无法嘴型同步');
         return;
     }
+    // 先停止之前的嘴型同步
+    stopSpeak();
     // 确保URL是完整的
     const fullUrl = audioUrl.startsWith('http') ? audioUrl : getServiceBaseURL(ServiceType.MAIN) + audioUrl;
     console.log('嘴型同步音频URL:', fullUrl);

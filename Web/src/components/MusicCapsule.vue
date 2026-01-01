@@ -1,5 +1,5 @@
 <template>
-  <div class="music-capsule" v-if="musicList.length > 0">
+  <div class="music-capsule" v-if="musicList.length > 0" @click.stop>
     <!-- 封面旋转区域 -->
     <div class="cover-wrapper" :class="{ rotating: isPlaying }" @click="togglePlay">
       <img
@@ -119,6 +119,8 @@ const playMusic = () => {
 // 停止音乐
 const stopMusic = () => {
   if (fullAudio) {
+    fullAudio.onended = null
+    fullAudio.ontimeupdate = null
     fullAudio.pause()
     fullAudio.currentTime = 0
     fullAudio = null
@@ -197,45 +199,46 @@ onBeforeUnmount(() => {
 @use "@/assets/styles/tokens" as *;
 .music-capsule {
   position: absolute;
-  top: -120px;
+  top: -70px;
   right: 20px;
-  width: 180px;
+  width: 380px;
+  height: 60px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
-  border-radius: 20px;
-  padding: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border-radius: 30px;
+  padding: 8px 16px 8px 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(10px);
   z-index: 100;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 12px;
 
   @include respond(md) {
-    width: 160px;
-    top: -100px;
+    width: 280px;
+    height: 50px;
+    top: -60px;
     right: 10px;
-    padding: 12px;
+    padding: 6px 12px 6px 6px;
   }
 }
 
 .cover-wrapper {
-  width: 80px;
-  height: 80px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
   transition: transform 0.3s ease;
 
   @include respond(md) {
-    width: 60px;
-    height: 60px;
+    width: 38px;
+    height: 38px;
   }
 
   &:hover {
-    transform: scale(1.05);
+    transform: scale(1.08);
   }
 
   &.rotating {
@@ -259,28 +262,29 @@ onBeforeUnmount(() => {
 }
 
 .music-icon {
-  font-size: 32px;
+  font-size: 20px;
   color: white;
 
   @include respond(md) {
-    font-size: 24px;
+    font-size: 16px;
   }
 }
 
 .music-info {
-  text-align: center;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
   overflow: hidden;
 }
 
 .music-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 
   @include respond(md) {
     font-size: 12px;
@@ -288,8 +292,8 @@ onBeforeUnmount(() => {
 }
 
 .music-artist {
-  font-size: 12px;
-  color: #666;
+  font-size: 11px;
+  color: #888;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -303,18 +307,17 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
+  gap: 4px;
 }
 
 .control-btn {
   background: none;
   border: none;
-  color: #666;
+  color: #888;
   cursor: pointer;
-  padding: 8px;
+  padding: 6px;
   border-radius: 50%;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -325,20 +328,27 @@ onBeforeUnmount(() => {
   }
 
   &:active {
-    transform: scale(0.95);
+    transform: scale(0.92);
+  }
+
+  svg {
+    @include respond(md) {
+      width: 16px;
+      height: 16px;
+    }
   }
 }
 
 .play-btn {
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   background: linear-gradient(135deg, #667eea, #764ba2);
   color: white;
   border-radius: 50%;
 
   @include respond(md) {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
   }
 
   &:hover {
