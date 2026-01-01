@@ -229,7 +229,7 @@ const dispatchAction = async (action: string, meta: ActionMeta = {}) => {
     }
   } catch (err: any) {
     console.warn('动作执行异常:', err)
-    pushAiMessage(`❌ 动作执行失败：${err?.message || '未知错误'}`, { isError: true })
+    pushAiMessage(`${getIcon('close')} 动作执行失败：${err?.message || '未知错误'}`, { isError: true })
   } finally {
     await safeScrollToBottom()
   }
@@ -259,7 +259,7 @@ const handleNavigateAction = async (target: string) => {
     messages.value.push({
       id: ++messageIdCounter,
       type: 'ai',
-      content: `✅ 已为您跳转到${navInfo.message}`,
+      content: `${getIcon('check')} 已为您跳转到${navInfo.message}`,
       timestamp: new Date()
     })
   } else {
@@ -289,7 +289,7 @@ const handleInteractAction = async (actionType: string, postId: number | undefin
         messages.value.push({
           id: ++messageIdCounter,
           type: 'ai',
-          content: `✅ 已为您点赞文章`,
+          content: `${getIcon('check')} 已为您点赞文章`,
           timestamp: new Date()
         })
       } else {
@@ -316,7 +316,7 @@ const handleInteractAction = async (actionType: string, postId: number | undefin
         messages.value.push({
           id: ++messageIdCounter,
           type: 'ai',
-          content: `✅ 已为您收藏文章`,
+          content: `${getIcon('check')} 已为您收藏文章`,
           timestamp: new Date()
         })
       } else {
@@ -328,16 +328,16 @@ const handleInteractAction = async (actionType: string, postId: number | undefin
       messages.value.push({
         id: ++messageIdCounter,
         type: 'ai',
-        content: `📤 分享功能正在开发中，敬请期待！`,
+        content: `${getIcon('send')} 分享功能正在开发中，敬请期待！`,
         timestamp: new Date()
       })
       break
-      
+
     case 'comment':
       messages.value.push({
         id: ++messageIdCounter,
         type: 'ai',
-        content: `💬 评论功能正在开发中，敬请期待！`,
+        content: `${getIcon('comment')} 评论功能正在开发中，敬请期待！`,
         timestamp: new Date()
       })
       break
@@ -362,7 +362,7 @@ const handleSearchAction = async (searchType: string, meta: Record<string, any>)
     const q = lastUserMessage ?? ''
     searchQuery.value = q
     isSearchOpen.value = true
-    messages.value.push({ id: ++messageIdCounter, type: 'ai', content: `🔍 已为您打开${searchName}搜索`, timestamp: new Date() })
+    messages.value.push({ id: ++messageIdCounter, type: 'ai', content: `${getIcon('search')} 已为您打开${searchName}搜索`, timestamp: new Date() })
   } else {
     throw new Error(`未知的搜索类型：${searchType}`)
   }
@@ -390,7 +390,7 @@ const handleChatError = (error: any, originalMessage: string) => {
   const errorChatMessage = {
     id: ++messageIdCounter,
     type: 'ai' as const,
-    content: `❌ ${errorMsg}`,
+    content: `${getIcon('close')} ${errorMsg}`,
     timestamp: new Date(),
     isError: true
   }
@@ -407,7 +407,7 @@ const showRetryOption = (originalMessage: string) => {
   const retryMessage = {
     id: ++messageIdCounter,
     type: 'ai' as const,
-    content: `🔄 点击重试发送消息 (${retryCount.value + 1}/${maxRetries})`,
+    content: `${getIcon('refresh')} 点击重试发送消息 (${retryCount.value + 1}/${maxRetries})`,
     timestamp: new Date(),
     isRetry: true,
     retryData: { message: originalMessage }
@@ -493,6 +493,25 @@ const checkNetworkStatus = () => {
 // 安全获取网络状态
 const isOnline = () => {
   return typeof navigator !== 'undefined' && navigator.onLine !== undefined ? navigator.onLine : true
+}
+
+// 获取图标组件的渲染函数
+const getIcon = (name: string): string => {
+  return `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;width:1em;height:1em;"><path d="${getIconPath(name)}"></path></svg>`
+}
+
+const getIconPath = (name: string): string => {
+  const paths: Record<string, string> = {
+    close: 'M18 6L6 18M6 6l12 12',
+    check: 'M20 6L9 17l-5-5',
+    send: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
+    share: 'M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13',
+    warning: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01',
+    comment: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
+    wave: 'M2 12c5.333-8 10.667 8 16 0s10.667-8 16 0',
+    refresh: 'M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.3'
+  }
+  return paths[name] || ''
 }
 
 // 监听网络状态变化
@@ -595,17 +614,17 @@ onUnmounted(() => {
 
         <!-- 错误消息提示 -->
         <div v-if="errorMessage" class="error-banner">
-          <span class="error-icon">⚠️</span>
+          <span class="error-icon"><Icon name="warning" /></span>
           <span class="error-text">{{ errorMessage }}</span>
-          <button class="error-close" @click="errorMessage = ''">✕</button>
+          <button class="error-close" @click="errorMessage = ''"><Icon name="close" /></button>
         </div>
 
         <!-- 聊天消息列表 -->
         <div ref="chatContainer" class="chat-messages">
           <div v-if="messages.length === 0" class="empty-state">
-            <p>👋 你好！欢迎来到我的博客，有什么可以我帮助你的吗？我可以为你总结文章，跳转页面哦！</p>
+            <p v-html="getIcon('wave') + ' 你好！欢迎来到我的博客，有什么可以我帮助你的吗？我可以为你总结文章，跳转页面哦！'"></p>
             <div v-if="!isOnline()" class="offline-notice">
-              <span>📶</span>
+              <span><Icon name="warning" /></span>
               <span>当前网络不可用</span>
             </div>
           </div>
@@ -634,17 +653,17 @@ onUnmounted(() => {
                     class="retry-btn"
                     @click="retryMessage(message.retryData)"
                 >
-                  🔄 重试
+                  <Icon name="refresh" /> 重试
                 </button>
               </div>
               <div class="message-meta">
                 <div class="message-time">{{ formatTime(message.timestamp) }}</div>
                 <div v-if="message.type === 'user'" class="message-status">
-                  <span v-if="message.status === 'sending'" class="status-icon sending" title="发送中">⏳</span>
-                  <span v-else-if="message.status === 'sent'" class="status-icon sent" title="已发送">✓</span>
+                  <span v-if="message.status === 'sending'" class="status-icon sending" title="发送中"><Icon name="clock" /></span>
+                  <span v-else-if="message.status === 'sent'" class="status-icon sent" title="已发送"><Icon name="check" /></span>
                   <span v-else-if="message.status === 'delivered'" class="status-icon delivered"
-                        title="已送达">✓✓</span>
-                  <span v-else-if="message.status === 'failed'" class="status-icon failed" title="发送失败">✗</span>
+                        title="已送达"><Icon name="check" /><Icon name="check" /></span>
+                  <span v-else-if="message.status === 'failed'" class="status-icon failed" title="发送失败"><Icon name="close" /></span>
                 </div>
               </div>
             </div>

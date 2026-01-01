@@ -60,7 +60,7 @@ const currentYear = new Date().getFullYear();
             &copy; {{ currentYear }} LiuTech. 保留所有权利。
           </p>
           <p class="made-with">
-            Made with ❤️ by LiuTech
+            Made with <Icon name="heart" /> by LiuTech
           </p>
         </div>
       </div>

@@ -8,8 +8,7 @@
         class="refresh-btn"
         title="刷新公告"
       >
-        <span v-if="loading" class="loading-spinner"></span>
-        <span v-else>🔄</span>
+        <Icon name="refresh" :spin="loading" />
       </button>
     </div>
     <div v-if="loading" class="text-center p-16">

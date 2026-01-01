@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme.ts'
 import { useUserStore } from '../stores/user'
+import Icon from './Icon.vue'
 
 // 接收滚动位置
 const props = defineProps<{
@@ -21,8 +22,12 @@ const headerBackgroundStyle = computed(() => {
   const scrollValue = props.scrollY || 0
   // 滚动0-100px范围内，透明度从0渐变到0.95
   const maxScroll = 100
-  const opacity = Math.min(scrollValue / maxScroll, 0.95)
-  
+  const minOpacity = 0  // 默认状态下的基础透明度
+  const opacity = minOpacity + Math.min(scrollValue / maxScroll, 0.9)
+
+  // 引用 theme.current 确保主题切换时重新计算
+  void theme.current.value
+
   // 获取当前主题的背景色
   const rootStyles = getComputedStyle(document.documentElement)
   const bgColor = rootStyles.getPropertyValue('--bg-main').trim()
@@ -166,7 +171,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
             class="text-main flex flex-ac gap-8 transition rounded p-8 hover-lift"
             @click="navigateTo('/login')"
           >
-            <span class="text-base">👤</span>
+            <Icon name="user" size="16" />
             <span>登录/注册</span>
           </button>
 
@@ -187,8 +192,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
         </div>
 
         <!-- 主题按钮 -->
-        <button @click="theme.toggle" class="link transition p-8 text-xl">
-          {{ theme.current.value === 'light' ? '🌙' : '☀️' }}
+        <button @click="theme.toggle" class="link transition p-8" :title="theme.current.value === 'light' ? '切换到深色模式' : '切换到浅色模式'">
+          <Icon style="color: var(--text-title);" :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="20" />
         </button>
 
         <!-- 移动端按钮 -->
@@ -202,7 +207,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       </div>
 
       <!-- 移动端抽屉 -->
-      <div class="mobile-drawer" :class="{ open: isMenuOpen }" @click.stop>
+      <div class="mobile-drawer" :style="headerBackgroundStyle" :class="{ open: isMenuOpen }" @click.stop>
         <ul class="list">
           <li
             v-for="item in navItems"
@@ -357,12 +362,20 @@ ol {
   width: 80%;
   max-width: 280px;
   height: calc(100vh - 70px);
-  background-color: var(--bg-main);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transform: translateX(100%);
   transition: transform 0.3s ease;
   z-index: 1000;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 2px 2px var(--shadow-lg);
+  li{
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px;
+    background-color: var(--bg-card);
+  }
 }
 
 .mobile-drawer.open {

@@ -5,7 +5,7 @@
             <div class="flex flex-col gap-16">
                 <div class="flex flex-col gap-12">
                     <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
-                        <span class="text-3xl">📂</span> 文章分类
+                        <Icon name="folder" size="24" /> 文章分类
                     </h1>
                     <p class="text-muted text-base mb-0">
                         浏览不同主题的文章内容，找到你感兴趣的话题
@@ -44,8 +44,8 @@
                     <div class="flex flex-col gap-16 relative z-10">
                         <!-- 分类图标和标题 -->
                         <div class="flex flex-ac gap-16">
-                            <div class="category-icon w-50 h-50 rounded-12 flex flex-ct text-white text-xl font-bold shadow-sm">
-                                {{ getCategoryIcon(category.name) }}
+                            <div class="category-icon w-50 h-50 rounded-12 flex flex-ct text-white shadow-sm">
+                                <Icon :name="getCategoryIcon(category.name)" size="24" />
                             </div>
                             <div class="flex-1">
                                 <h3 class="text-lg font-bold text-primary mb-4 category-title">{{ category.name }}</h3>
@@ -70,12 +70,12 @@
                         <!-- 底部信息栏 -->
                         <div class="flex flex-sb  flex-ac pt-12 ">
                             <div class="flex flex-ac gap-6 text-xs text-muted">
-                                <span class="text-sm">📅</span>
+                                <Icon name="calendar" size="14" />
                                 <span>最近更新</span>
                             </div>
                             <div class="category-arrow flex flex-ac gap-6 text-primary text-sm link">
                                 <span>查看文章</span>
-                                <span class="arrow-icon transition-all">→</span>
+                                <Icon name="arrow-right" size="14" class="arrow-icon transition-all" />
                             </div>
                         </div>
                     </div>
@@ -87,13 +87,13 @@
         <div v-if="popularCategories.length > 0" class="card bg-card shadow-sm mb-16">
             <div class="flex flex-col gap-16">
                 <h2 class="text-lg font-semibold text-primary mb-0 flex flex-ac gap-8">
-                    <span class="text-xl">🔥</span> 热门分类
+                    <Icon name="fire" size="20" /> 热门分类
                 </h2>
                 <div class="flex flex-wrap gap-12">
                     <div v-for="category in popularCategories" :key="category.id"
                         class="tag  flex flex-ac gap-8 px-12 py-8 rounded-8  transition link"
                         @click="goToCategory(category.id)">
-                        <span class="text-sm">{{ getCategoryIcon(category.name) }}</span>
+                        <Icon :name="getCategoryIcon(category.name)" size="14" />
                         <span class="text-sm font-medium">{{ category.name }}</span>
                         <span class="text-xs text-muted">({{ category.postCount }})</span>
                     </div>
@@ -109,6 +109,7 @@ import { useRouter } from 'vue-router'
 import { useCategoryStore } from '@/stores/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import type { Category } from '@/services/category'
+import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
 const categoryStore = useCategoryStore()
@@ -134,29 +135,29 @@ const popularCategories = computed(() => {
 // 获取分类图标
 const getCategoryIcon = (categoryName: string): string => {
     const iconMap: Record<string, string> = {
-        '技术': '💻',
-        '前端': '🎨',
-        '后端': '⚙️',
-        '数据库': '🗄️',
-        '算法': '🧮',
-        '生活': '🌱',
-        '随笔': '✍️',
-        '教程': '📚',
-        '工具': '🔧',
-        '框架': '🏗️',
-        'Vue': '💚',
-        'React': '⚛️',
-        'JavaScript': '🟨',
-        'TypeScript': '🔷',
-        'Java': '☕',
-        'Python': '🐍',
-        'Node.js': '🟢',
-        '移动开发': '📱',
-        '人工智能': '🤖',
-        '机器学习': '🧠'
+        '技术': 'code',
+        '前端': 'layout',
+        '后端': 'cog',
+        '数据库': 'database',
+        '算法': 'square',
+        '生活': 'layers',
+        '随笔': 'pen',
+        '教程': 'book',
+        '工具': 'wrench',
+        '框架': 'building',
+        'Vue': 'layers',
+        'React': 'atom',
+        'JavaScript': 'square',
+        'TypeScript': 'square',
+        'Java': 'coffee',
+        'Python': 'python',
+        'Node.js': 'square',
+        '移动开发': 'smartphone',
+        '人工智能': 'bot',
+        '机器学习': 'brain'
     }
 
-    return iconMap[categoryName] || '📂'
+    return iconMap[categoryName] || 'folder'
 }
 
 // 加载分类列表

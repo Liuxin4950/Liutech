@@ -5,7 +5,7 @@
       <div class="flex flex-col gap-16">
         <div class="flex flex-col gap-12">
           <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
-            <span class="text-3xl">🏷️</span> 标签云
+            <Icon name="tag" size="24" /> 标签云
           </h1>
           <p class="text-muted text-base mb-0">
             探索不同主题的文章标签
@@ -22,7 +22,7 @@
     <div v-if="popularTags.length > 0" class="card bg-soft mb-16">
       <div class="flex flex-col gap-16">
         <h2 class="text-lg text-primary flex flex-ac">
-          <span class="text-xl">🔥</span> 热门标签
+          <Icon name="fire" size="20" /> 热门标签
         </h2>
         <div class="flex flex-wrap flex-fw gap-12" >
           <router-link
@@ -31,7 +31,7 @@
             :to="`/tags/${tag.id}`"
             class="tag flex flex-ac gap-8  px-12 py-8 rounded-8 transition link"
           >
-            <span class="text-sm">{{ getTagIcon(tag.name) }}</span>
+            <Icon :name="getTagIcon(tag.name)" size="14" />
             <span class="text-sm font-medium">{{ tag.name }}</span>
             <span class="text-xs text-muted">({{ tag.postCount }})</span>
           </router-link>
@@ -43,7 +43,7 @@
     <div class="card bg-soft  mb-16">
       <div class="flex flex-col gap-16">
         <h2 class="text-lg font-semibold text-primary mb-0 flex flex-ac gap-8">
-          <span class="text-xl">📚</span> 所有标签
+          <Icon name="book" size="20" /> 所有标签
         </h2>
          <!-- 搜索框 -->
         <div class="search-section">
@@ -93,6 +93,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useTagStore } from '@/stores/tag'
 import type { Tag } from '@/services/tag'
+import Icon from '@/components/Icon.vue'
 
 const tagStore = useTagStore()
 const searchKeyword = ref('')
@@ -146,31 +147,31 @@ watch(searchKeyword, (newVal) => {
   }, 300)
 })
 
-// 获取标签图标（Emoji 映射）
+// 获取标签图标（SVG 映射）
 const getTagIcon = (tagName: string): string => {
   const iconMap: Record<string, string> = {
-    'Vue': '💚',
-    'React': '⚛️',
-    'JavaScript': '🟨',
-    'TypeScript': '🔷',
-    'Python': '🐍',
-    'Node.js': '🟢',
-    'Java': '☕',
-    'CSS': '🎨',
-    'HTML': '📜',
-    '算法': '🧮',
-    'AI': '🤖',
-    '数据库': '🗄️',
-    '性能优化': '⚡',
-    '安全': '🔒',
-    '设计模式': '📐',
-    '测试': '🧪',
-    '部署': '🚀',
-    '工具': '🔧',
-    '教程': '📚',
-    '随笔': '✍️'
+    'Vue': 'layers',
+    'React': 'atom',
+    'JavaScript': 'square',
+    'TypeScript': 'square',
+    'Python': 'python',
+    'Node.js': 'square',
+    'Java': 'coffee',
+    'CSS': 'layout',
+    'HTML': 'book',
+    '算法': 'square',
+    'AI': 'bot',
+    '数据库': 'database',
+    '性能优化': 'zap',
+    '安全': 'shield',
+    '设计模式': 'layout',
+    '测试': 'check',
+    '部署': 'rocket',
+    '工具': 'wrench',
+    '教程': 'book',
+    '随笔': 'pen'
   }
-  return iconMap[tagName] || '🔖'
+  return iconMap[tagName] || 'tag'
 }
 
 // 初始化数据

@@ -61,9 +61,9 @@
               <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
             </div>
             <div class="flex gap-12 text-sm text-subtle">
-              <span>👁️ {{ post.viewCount || 0 }}</span>
-              <span>❤️ {{ post.likeCount || 0 }}</span>
-              <span>💬 {{ post.commentCount }}</span>
+              <span class="flex flex-ac gap-4"><Icon name="eye" size="14" /> {{ post.viewCount || 0 }}</span>
+              <span class="flex flex-ac gap-4"><Icon name="heart" size="14" /> {{ post.likeCount || 0 }}</span>
+              <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount }}</span>
               <span>{{ formatDate(post.createdAt) }}</span>
             </div>
           </div>
@@ -86,6 +86,7 @@
 import { useRouter } from 'vue-router'
 import { formatDate } from '@/utils/uitls'
 import Pagination from '@/components/Pagination.vue'
+import Icon from './Icon.vue'
 
 const props = defineProps<{
   posts: any[]

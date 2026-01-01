@@ -14,7 +14,7 @@
             </button>
           </div>
           <div class="level-badge">
-            <span class="level-icon">🏆</span>
+            <Icon name="trophy" size="14" class="level-icon" />
             <span>Lv.{{ calculateLevel(userStats?.points || 0) }}</span>
           </div>
         </div>
@@ -23,7 +23,7 @@
         <div class="user-info">
           <div class="user-header">
             <h1 class="username">{{ userInfo?.nickname || userInfo?.username || 'Liuxin' }}</h1>
-            <span class="verified-badge">✓</span>
+            <Icon name="check" size="14" class="verified-badge" />
           </div>
           <p class="user-bio">{{ userInfo?.bio || '这个人很懒，什么都没有留下...' }}</p>
         </div>
@@ -70,19 +70,19 @@
             <div class="section-header">成就徽章</div>
             <div class="badges-grid">
               <div class="badge-item" :class="{ locked: !userStats?.favoriteCount }">
-                <span class="badge-icon">📚</span>
+                <Icon name="book" size="18" class="badge-icon" />
                 <span class="badge-name">藏书达人</span>
               </div>
               <div class="badge-item" :class="{ locked: (userStats?.commentCount || 0) < 10 }">
-                <span class="badge-icon">💬</span>
+                <Icon name="message" size="18" class="badge-icon" />
                 <span class="badge-name">热心观众</span>
               </div>
               <div class="badge-item" :class="{ locked: (userStats?.points || 0) < 100 }">
-                <span class="badge-icon">⭐</span>
+                <Icon name="star" size="18" class="badge-icon" />
                 <span class="badge-name">积分达人</span>
               </div>
               <div class="badge-item" :class="{ locked: userStore.isAdmin && (userStats?.postCount || 0) < 1 }">
-                <span class="badge-icon">✍️</span>
+                <Icon name="pen" size="18" class="badge-icon" />
                 <span class="badge-name">首发文章</span>
               </div>
             </div>
@@ -163,6 +163,7 @@ import { UserService, type UpdateProfileRequest, type UserStats, type CheckinRes
 import { showSuccess, showError } from '../utils/errorHandler'
 import { formatRelativeTime } from '../utils/uitls'
 import CheckinCard from '../components/CheckinCard.vue'
+import Icon from '../components/Icon.vue'
 
 const userStore = useUserStore()
 const isLoading = ref(false)

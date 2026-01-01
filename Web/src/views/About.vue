@@ -10,7 +10,7 @@
     <div class="flex flex-col gap-20">
       <!-- 关于我 -->
       <section class="card">
-        <h2 class="card-title">👋 关于我</h2>
+        <h2 class="card-title"><Icon name="user" size="18" /> 关于我</h2>
         <p class="text-base text-muted mb-12 leading-relaxed">
           你好！我是刘鑫，一名热爱技术的全栈工程师。专注于前端开发、后端架构设计，
           喜欢探索新技术并分享技术心得。
@@ -22,7 +22,7 @@
 
       <!-- 技术栈 -->
       <section class="card">
-        <h2 class="card-title">💻 技术栈</h2>
+        <h2 class="card-title"><Icon name="code" size="18" /> 技术栈</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-16">
           <div class="skill-category">
             <h3 class="text-lg font-semibold text-primary mb-12">前端技术</h3>
@@ -61,18 +61,18 @@
 
       <!-- 联系方式 -->
       <section class="card">
-        <h2 class="card-title">📞 联系方式</h2>
+        <h2 class="card-title"><Icon name="globe" size="18" /> 联系方式</h2>
         <div class="list gap-12">
           <div class="flex flex-ac gap-12 p-12 bg-hover rounded">
-            <span class="text-lg">📧</span>
+            <Icon name="mail" size="18" />
             <span class="text-base text-muted">liuxin@example.com</span>
           </div>
           <div class="flex flex-ac gap-12 p-12 bg-hover rounded">
-            <span class="text-lg">🐙</span>
+            <Icon name="github" size="18" />
             <span class="text-base text-muted">GitHub: @liuxin</span>
           </div>
           <div class="flex flex-ac gap-12 p-12 bg-hover rounded">
-            <span class="text-lg">🌐</span>
+            <Icon name="globe" size="18" />
             <span class="text-base text-muted">个人网站: liutech.blog</span>
           </div>
         </div>
@@ -80,7 +80,7 @@
 
       <!-- 关于本站 -->
       <section class="card">
-        <h2 class="card-title">🚀 关于本站</h2>
+        <h2 class="card-title"><Icon name="rocket" size="18" /> 关于本站</h2>
         <p class="text-base text-muted mb-16 leading-relaxed">
           本站采用现代化的技术栈构建，前后端分离架构，
           支持文章发布、分类管理、标签系统、用户评论等功能。

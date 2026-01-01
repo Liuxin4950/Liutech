@@ -13,7 +13,7 @@
             <div class="search-box">
               <input v-model="searchKeyword" type="text" placeholder="搜索文章..." class="search-input"
                 @keyup.enter="searchFavorites" />
-              <span class="search-icon">🔍</span>
+              <span class="search-icon"><Icon name="search" /></span>
             </div>
           </div>
 

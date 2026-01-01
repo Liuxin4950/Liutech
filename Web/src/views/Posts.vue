@@ -1,9 +1,9 @@
 <template>
   <div class="posts-page">
     <div class="flex flex-sb flex-ac mb-16">
-      <h1 class="text-lg font-semibold text-primary mb-0">📚 全部文章</h1>
+      <h1 class="text-lg font-semibold text-primary mb-0"><Icon name="book" size="20" /> 全部文章</h1>
       <button class="bg-primary text-base font-medium p-12 rounded transition hover-lift" @click="router.push('/create')">
-        ✍️ 发布文章
+        <Icon name="pen" size="16" /> 发布文章
       </button>
     </div>
 
@@ -46,7 +46,7 @@
           @keyup.enter="handleSearch"
         >
         <button @click="handleSearch" class="bg-primary text-sm font-medium p-8 rounded transition hover-lift">
-          🔍 搜索
+          <Icon name="search" size="14" /> 搜索
         </button>
       </div>
     </div>
@@ -77,6 +77,7 @@ import { useTagStore } from '@/stores/tag'
 import { formatDate } from '@/utils/uitls'
 import Pagination from '@/components/Pagination.vue'
 import ArticleList from '@/components/ArticleList.vue'
+import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
 const route = useRoute()

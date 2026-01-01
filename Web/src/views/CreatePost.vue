@@ -39,7 +39,7 @@
               <div v-if="attachments.length > 0" class="attachment-list">
                 <div v-for="attachment in attachments" :key="attachment.id" class="attachment-item">
                   <div class="attachment-info">
-                    <div class="attachment-icon">📎</div>
+                    <div class="attachment-icon"><Icon name="paperclip" /></div>
                     <div class="attachment-details">
                       <div class="attachment-name">{{ attachment.name }}</div>
                       <div class="attachment-meta text-sm text-muted">
@@ -143,7 +143,7 @@
                   <img v-if="form.coverImage" :src="form.coverImage" alt="封面图片预览" class="preview-image">
                   <div class="upload-overlay">
                     <div class="upload-text">
-                      <i class="upload-icon">📷</i>
+                      <i class="upload-icon"><Icon name="camera" /></i>
                       <span>{{ form.coverImage ? '点击更换图片' : '点击上传封面图片' }}</span>
                     </div>
                   </div>
@@ -159,7 +159,7 @@
                   <img v-if="form.thumbnail" :src="form.thumbnail" alt="缩略图预览" class="preview-image">
                   <div class="upload-overlay">
                     <div class="upload-text">
-                      <i class="upload-icon">🖼️</i>
+                      <i class="upload-icon"><Icon name="image" /></i>
                       <span>{{ form.thumbnail ? '点击更换图片' : '点击上传缩略图' }}</span>
                     </div>
                   </div>
@@ -214,8 +214,8 @@
             <div class="sidebar-title">发布状态</div>
             <div class="sidebar-content">
               <select v-model="form.status" class="field-select">
-                <option value="draft">📝 草稿</option>
-                <option value="published">🚀 发布</option>
+                <option value="draft"><Icon name="edit" /> 草稿</option>
+                <option value="published"><Icon name="rocket" /> 发布</option>
               </select>
             </div>
           </div>
@@ -296,9 +296,9 @@
               <div class="flex gap-16 flex-ac text-sm text-muted">
                 <span v-if="form.categoryId" class="badge">{{ getCategoryName(form.categoryId) }}</span>
                 <span>{{ formatDate(new Date().toISOString()) }}</span>
-                <span>👁️ {{ form.viewCount || 0 }}</span>
-                <span>❤️ {{ form.likeCount || 0 }}</span>
-                <span>💬 0</span>
+                <span><Icon name="eye" size="14" /> {{ form.viewCount || 0 }}</span>
+                <span><Icon name="heart" size="14" /> {{ form.likeCount || 0 }}</span>
+                <span><Icon name="message" size="14" /> 0</span>
               </div>
             </div>
 

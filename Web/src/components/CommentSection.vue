@@ -3,7 +3,7 @@
     <!-- 评论标题 -->
     <div class="comment-header">
       <h3 class="comment-title">
-        💬 评论 <span class="comment-count">({{ totalComments }})</span>
+        <Icon name="message" size="18" /> 评论 <span class="comment-count">({{ totalComments }})</span>
       </h3>
     </div>
 
@@ -47,6 +47,7 @@ import { CommentService, type Comment } from '@/services/comment'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
+import Icon from './Icon.vue'
 
 // Props
 interface Props {

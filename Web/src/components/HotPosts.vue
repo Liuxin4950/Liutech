@@ -1,7 +1,7 @@
 <template>
   <div class="posts-section">
     <div class="section-header">
-      <h2>🔥 热门文章</h2>
+      <h2><Icon name="fire" size="20" /> 热门文章</h2>
       <div class="header-actions">
         <button class="view-all-btn" @click="$emit('create-post')">发布文章</button>
         <button class="view-all-btn" @click="$emit('view-all')">查看全部</button>
@@ -52,9 +52,9 @@
               <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
             </div>
             <div class="post-stats">
-              <span class="view-count">👁️ {{ post.viewCount || 0 }}</span>
-              <span class="like-count">❤️ {{ post.likeCount || 0 }}</span>
-              <span class="comment-count">💬 {{ post.commentCount }}</span>
+              <span class="flex flex-ac gap-4"><Icon name="eye" size="14" /> {{ post.viewCount || 0 }}</span>
+              <span class="flex flex-ac gap-4"><Icon name="heart" size="14" /> {{ post.likeCount || 0 }}</span>
+              <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount }}</span>
               <span class="post-date">{{ formatDate(post.createdAt) }}</span>
             </div>
           </div>
@@ -67,6 +67,7 @@
 <script setup lang="ts">
 import type { PostListItem } from '@/services/post'
 import { formatDate } from '@/utils/uitls'
+import Icon from './Icon.vue'
 
 interface Props {
   posts: PostListItem[]

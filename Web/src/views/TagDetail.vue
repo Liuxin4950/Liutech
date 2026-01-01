@@ -5,7 +5,7 @@
       <div class="flex flex-col gap-16">
         <div class="flex flex-col gap-12">
           <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
-            <span class="text-3xl">🏷️</span> 标签云
+            <Icon name="tag" size="24" /> 标签云
           </h1>
           <p style="text-align: left;" class="text-muted text-base ">
             探索不同主题的文章标签
@@ -47,7 +47,7 @@
         @retry="loadPosts"
       >
         <template #empty>
-          <div class="empty-icon mb-20">📝</div>
+          <Icon name="file" size="40" class="empty-icon mb-20" />
           <h3 class="font-semibold mb-12">暂无相关文章</h3>
           <p class="mb-20">该标签下还没有发布任何文章</p>
           <router-link to="/"
@@ -58,7 +58,7 @@
 
     <!-- 错误状态 -->
     <div v-if="error" class="empty-state text-sm">
-      <div class="empty-icon">❌</div>
+      <Icon name="close" size="40" class="empty-icon" />
       <h3>加载失败</h3>
       <p>{{ error }}</p>
       <button @click="loadTagInfo" class="create-btn">重新加载</button>
@@ -73,6 +73,7 @@ import { TagService, type Tag } from '@/services/tag'
 import { PostService, type PostListItem, type PageResponse } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import ArticleList from '@/components/ArticleList.vue'
+import Icon from '@/components/Icon.vue'
 
 // 路由相关
 const route = useRoute()

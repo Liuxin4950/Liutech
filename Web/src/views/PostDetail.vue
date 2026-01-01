@@ -80,11 +80,11 @@
             class="flex flex-sb flex-ac bg-hover p-12 rounded">
             <div class="flex flex-col">
               <template v-if="att.purchased && att.fileUrl">
-                <a class="link" :href="att.fileUrl" target="_blank" rel="noopener" :title="att.fileName">📎 {{
+                <a class="link" :href="att.fileUrl" target="_blank" rel="noopener" :title="att.fileName"><Icon name="paperclip" size="14" /> {{
                   att.fileName }}</a>
               </template>
               <template v-else>
-                <span class="text-muted">📎 {{ att.fileName }}</span>
+                <span class="text-muted"><Icon name="paperclip" size="14" /> {{ att.fileName }}</span>
               </template>
               <div class="text-sm text-muted flex gap-12 mt-4">
                 <span v-if="att.pointsNeeded && !att.purchased">需要积分：{{ att.pointsNeeded }}</span>
@@ -222,6 +222,7 @@ import { isLoggedIn } from '../utils/auth'
 import LoginModal from '../components/LoginModal.vue'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
+import Icon from '@/components/Icon.vue'
 
 // 动态加载Prism.js和Prism.css用于代码高亮
 const loadPrism = () => {

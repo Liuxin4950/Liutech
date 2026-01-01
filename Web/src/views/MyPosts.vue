@@ -1,7 +1,7 @@
 <template>
   <div class="content">
     <div class="page-header">
-      <h1 class="page-title">📚 我的文章</h1>
+      <h1 class="page-title"><Icon name="book" size="24" /> 我的文章</h1>
       <p class="page-description">管理您已发布的文章，编辑或删除</p>
     </div>
 
@@ -10,11 +10,11 @@
       <div class="search-box">
         <input v-model="searchKeyword" type="text" placeholder="搜索文章..." class="search-input"
           @keyup.enter="handleSearch" />
-        <span class="search-icon">🔍</span>
+        <Icon name="search" size="16" class="search-icon" />
       </div>
       <div class="flex gap-20">
         <button class="create-btn" @click="createNewPost">
-          <!-- <span class="btn-icon"></span> -->
+          <Icon name="edit" size="16" />
           新建文章
         </button>
         <button class="create-btn" @click="goDrafts">
@@ -35,7 +35,7 @@
 
       <!-- 错误状态 -->
       <div v-else-if="error" class="error-state text-sm">
-        <span class="error-icon">❌</span>
+        <Icon name="close" size="40" class="error-icon" />
         <p>{{ error }}</p>
         <button class="retry-btn" @click="loadPosts">重试</button>
       </div>
@@ -47,7 +47,7 @@
         <p>开始创建您的第一篇文章吧！</p>
         <img src="@/assets/image/扑到.png" alt="" class="fit-err">
         <button class="create-btn" @click="createNewPost">
-          <span class="btn-icon">✏️</span>
+          <Icon name="edit" size="16" />
           新建文章
         </button>
       </div>
@@ -74,23 +74,23 @@
 
             <div class="post-meta">
               <span class="post-date">
-                <span class="meta-icon">📅</span>
+                <Icon name="calendar" size="14" class="meta-icon" />
                 发布于 {{ formatDate(post.createdAt) }}
               </span>
               <span class="post-category" v-if="post.category">
-                <span class="meta-icon">🏷️</span>
+                <Icon name="tag" size="14" class="meta-icon" />
                 {{ post.category.name }}
               </span>
               <span class="post-views">
-                <span class="meta-icon">👁️</span>
+                <Icon name="eye" size="14" class="meta-icon" />
                 {{ post.viewCount || 0 }} 浏览
               </span>
               <span class="post-likes">
-                <span class="meta-icon">❤️</span>
+                <Icon name="heart" size="14" class="meta-icon" />
                 {{ post.likeCount || 0 }} 点赞
               </span>
               <span class="post-comments">
-                <span class="meta-icon">💬</span>
+                <Icon name="message" size="14" class="meta-icon" />
                 {{ post.commentCount }} 评论
               </span>
             </div>
@@ -98,21 +98,21 @@
 
           <div class="post-actions">
             <button class="action-btn view-btn" @click="viewPost(post.id)" title="查看">
-              <span class="btn-icon">👁️</span>
+              <Icon name="eye" size="16" />
             </button>
             <button class="action-btn edit-btn" @click="editPost(post.id)" title="编辑">
-              <span class="btn-icon">✏️</span>
+              <Icon name="edit" size="16" />
             </button>
-            <button 
-              v-if="post.status === 'published'" 
-              class="action-btn unpublish-btn" 
-              @click="unpublishPost(post.id)" 
+            <button
+              v-if="post.status === 'published'"
+              class="action-btn unpublish-btn"
+              @click="unpublishPost(post.id)"
               title="取消发布"
             >
-              <span class="btn-icon">📤</span>
+              <Icon name="upload" size="16" />
             </button>
             <button class="action-btn delete-btn" @click="deletePost(post.id)" title="删除">
-              <span class="btn-icon">🗑️</span>
+              <Icon name="trash" size="16" />
             </button>
           </div>
         </div>
@@ -139,6 +139,7 @@ import { PostService, type PostListItem, type PageResponse } from '../services/p
 import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate } from '@/utils/uitls'
+import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
 const { handleAsync,showToastSuccess,showToastError,confirm } = useErrorHandler()

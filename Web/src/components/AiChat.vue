@@ -378,7 +378,7 @@ onUnmounted(() => {
       <div v-if="expanded" class="history-sidebar" :class="{ 'show': showHistorySidebar }">
         <div class="history-header">
           <h4>会话历史</h4>
-          <button class="close-sidebar" @click="toggleHistorySidebar">✕</button>
+          <button class="close-sidebar" @click="toggleHistorySidebar"><Icon name="close" /></button>
         </div>
 
         <div class="history-content">
@@ -411,7 +411,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <button class="delete-conversation" @click="deleteConversation(conversation.id, $event)" title="删除会话">
-                🗑️
+                <Icon name="trash" />
               </button>
             </div>
           </div>
@@ -432,7 +432,7 @@ onUnmounted(() => {
           <div class="header-right">
             <!-- 历史记录按钮 (仅在扩展模式下显示) -->
             <button v-if="expanded" class="history-btn" @click="toggleHistorySidebar" title="查看会话历史">
-              📜
+              <Icon name="file" />
             </button>
 
             <!-- 模式选择器 -->
@@ -458,9 +458,9 @@ onUnmounted(() => {
 
         <!-- 错误提示 -->
         <div v-if="errorMessage" class="error-banner">
-          <span class="error-icon">⚠️</span>
+          <span class="error-icon"><Icon name="warning" /></span>
           <span class="error-text">{{ errorMessage }}</span>
-          <button class="error-close" @click="chatStore.errorMessage = ''">✕</button>
+          <button class="error-close" @click="chatStore.errorMessage = ''"><Icon name="close" /></button>
         </div>
 
         <!-- 聊天消息列表 -->
@@ -493,7 +493,7 @@ onUnmounted(() => {
                     <template v-if="getMessageRecommendData(message.id)">
                       <div class="recommendation-section" v-if="getMessageRecommendData(message.id)?.posts?.length">
                         <div class="recommendation-header">
-                          <span class="recommendation-icon">📚</span>
+                          <span class="recommendation-icon"><Icon name="book" /></span>
                           <span class="recommendation-title">{{ getMessageRecommendData(message.id)?.reason }}</span>
                         </div>
                         <div class="recommendation-list">
@@ -507,7 +507,7 @@ onUnmounted(() => {
                               <span class="recommendation-item-title">{{ post.title }}</span>
                               <div class="recommendation-item-meta">
                                 <span v-if="post.categoryName" class="meta-tag">{{ post.categoryName }}</span>
-                                <span class="meta-views">👁️ {{ post.viewCount }}</span>
+                                <span class="meta-views"><Icon name="eye" size="12" /> {{ post.viewCount }}</span>
                               </div>
                             </div>
                             <span class="recommendation-arrow">›</span>

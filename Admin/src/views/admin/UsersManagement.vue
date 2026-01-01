@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, h } from 'vue'
 import { message } from 'ant-design-vue'
 import UserService from '../../services/user'
 import type { UserListParams, User } from '../../services/user'
@@ -32,7 +32,14 @@ const columns = [
   {
     title: '邮箱',
     dataIndex: 'email',
-    key: 'email'
+    key: 'email',
+    customRender: ({ text }: { text: string }) => h('div', { class: 'email-cell' }, [
+      h('svg', { class: 'email-icon', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+        h('path', { d: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z' }),
+        h('polyline', { points: '22,6 12,13 2,6' })
+      ]),
+      h('span', text)
+    ])
   },
   {
     title: '昵称',
@@ -505,5 +512,18 @@ onMounted(() => {
 .search-card,
 .action-card {
   margin-bottom: 16px;
+}
+
+.email-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.email-icon {
+  width: 16px;
+  height: 16px;
+  color: #888;
+  flex-shrink: 0;
 }
 </style>

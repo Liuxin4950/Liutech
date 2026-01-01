@@ -5,7 +5,7 @@
       <div class="flex flex-col gap-16">
         <div class="flex flex-col gap-12">
           <h1 class="text-xl font-semibold text-primary mb-0 flex flex-ac gap-8">
-            <span class="text-2xl">📂</span> {{ category?.name || '分类文章' }}
+            <Icon name="folder" size="20" /> {{ category?.name || '分类文章' }}
           </h1>
           <p v-if="category?.description" class="text-subtle text-base mb-0">
             {{ category.description }}
@@ -28,7 +28,7 @@
       @retry="loadPosts"
     >
       <template #empty>
-        <div class="mb-8">📝</div>
+        <div class="mb-8"><Icon name="edit" size="32" /></div>
         <h3 class="font-semibold mb-8">暂无文章</h3>
         <p class="text-muted mb-0">该分类下还没有文章</p>
       </template>

@@ -1,6 +1,6 @@
 <template>
   <div class="card bg-card">
-    <h4 class="card-title">🔗 友情链接</h4>
+    <h4 class="card-title"><Icon name="link" size="18" /> 友情链接</h4>
     <div class="list gap-8">
       <a
           v-for="link in links"
@@ -9,7 +9,7 @@
           class="flex flex-ac gap-8 p-8 rounded transition hover-bg link"
           target="_blank"
       >
-        <span class="text-lg">{{ link.icon }}</span>
+        <Icon :name="link.iconName" size="18" />
         <span class="text-lg font-medium">{{ link.text }}</span>
       </a>
     </div>
@@ -20,41 +20,24 @@
 interface Link {
   id: number
   url: string
-  icon: string
+  iconName: string
   text: string
 }
 
 interface Props {
-  links?: Link[] // 注意加上 ?，因为 withDefaults 会处理默认值
+  links?: Link[]
 }
 
-// ✅ 正确写法：先存 props，再解构
 const props = withDefaults(defineProps<Props>(), {
   links: () => [
-    {
-      id: 1,
-      url: 'https://github.com',
-      icon: '🐙',
-      text: 'GitHub',
-    },
-    {
-      id: 2,
-      url: 'https://vue.js.org',
-      icon: '💚',
-      text: 'Vue.js',
-    },
-    {
-      id: 3,
-      url: 'https://spring.io',
-      icon: '🍃',
-      text: 'Spring',
-    },
+    { id: 1, url: 'https://github.com', iconName: 'github', text: 'GitHub' },
+    { id: 2, url: 'https://vue.js.org', iconName: 'vue', text: 'Vue.js' },
+    { id: 3, url: 'https://spring.io', iconName: 'spring', text: 'Spring' },
   ],
 })
 
-const {links} = props
+const { links } = props
 </script>
 
 <style scoped>
-/* 使用全局样式，这里只定义组件特有的样式 */
 </style>

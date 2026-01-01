@@ -1,7 +1,7 @@
 <template>
   <div class="drafts-page">
     <div class="page-header">
-      <h1 class="page-title">📄 草稿子箱</h1>
+      <h1 class="page-title"><Icon name="file" size="24" /> 草稿箱</h1>
       <p class="page-description">管理您的草稿文章，继续编辑或发布</p>
     </div>
 
@@ -10,10 +10,10 @@
       <div class="search-box">
         <input v-model="searchKeyword" type="text" placeholder="搜索草稿..." class="search-input"
           @keyup.enter="handleSearch" />
-        <span class="search-icon">🔍</span>
+        <Icon name="search" size="16" class="search-icon" />
       </div>
       <button class="create-btn" @click="createNewDraft">
-        <span class="btn-icon">✏️</span>
+        <Icon name="edit" size="16" />
         新建草稿
       </button>
     </div>
@@ -29,19 +29,18 @@
 
     <!-- 错误状态 -->
     <div v-else-if="error" class="error-state text-sm">
-      <span class="error-icon">❌</span>
+      <Icon name="close" size="40" class="error-icon" />
       <p>{{ error }}</p>
       <button class="retry-btn" @click="loadDrafts">重试</button>
     </div>
 
     <!-- 空状态 -->
     <div v-else-if="filteredDrafts.length === 0" class="empty-state flex flex-col flex-ac text-sm">
-        <!-- <span class="empty-icon">📝</span> -->
         <h3>暂无草稿</h3>
         <p>开始创建您的第一篇草稿吧！</p>
         <img src="@/assets/image/扑到.png" alt="" class="fit-err">
         <button class="create-btn" @click="createNewDraft">
-          <span class="btn-icon">✏️</span>
+          <Icon name="edit" size="16" />
           新建草稿
         </button>
       </div>
@@ -66,11 +65,11 @@
             </div>
             <div class="draft-meta">
               <span class="draft-date">
-                <span class="meta-icon">📅</span>
+                <Icon name="calendar" size="14" class="meta-icon" />
                 更新于 {{ formatRelativeTime(draft.updatedAt || draft.createdAt) }}
               </span>
               <span class="draft-category" v-if="draft.category">
-                <span class="meta-icon">🏷️</span>
+                <Icon name="tag" size="14" class="meta-icon" />
                 {{ draft.category.name }}
               </span>
             </div>
@@ -78,13 +77,13 @@
 
           <div class="draft-actions">
             <button class="action-btn edit-btn" @click="editDraft(draft.id)" title="编辑">
-              <span class="btn-icon">✏️</span>
+              <Icon name="edit" size="16" />
             </button>
             <button class="action-btn publish-btn" @click="publishDraft(draft.id)" title="发布">
-              <span class="btn-icon">🚀</span>
+              <Icon name="rocket" size="16" />
             </button>
             <button class="action-btn delete-btn" @click="deleteDraft(draft.id)" title="删除">
-              <span class="btn-icon">🗑️</span>
+              <Icon name="trash" size="16" />
             </button>
           </div>
         </div>
@@ -110,6 +109,7 @@ import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatRelativeTime } from '@/utils/uitls'
 import Pagination from '@/components/Pagination.vue'
+import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
 const { handleAsync,showToastSuccess,showToastError,confirm } = useErrorHandler()

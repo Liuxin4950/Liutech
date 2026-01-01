@@ -27,12 +27,12 @@
         
         <!-- 操作按钮 -->
         <div class="comment-actions">
-          <button 
+          <button
             @click="toggleReplyForm"
             class="action-btn reply-btn"
             :class="{ 'active': showReplyForm }"
           >
-            <span class="icon">💬</span>
+            <Icon name="message" size="14" />
             {{ showReplyForm ? '取消回复' : '回复' }}
           </button>
         </div>
@@ -84,6 +84,7 @@ import { ref, computed } from 'vue'
 import type { Comment } from '@/services/comment'
 import { formatRelativeTime } from '@/utils/uitls'
 import CommentForm from './CommentForm.vue'
+import Icon from './Icon.vue'
 
 // Props
 interface Props {

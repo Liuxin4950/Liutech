@@ -109,19 +109,19 @@ const friendLinks = ref([
   {
     id: 1,
     url: 'https://github.com',
-    icon: '🐙',
+    icon: 'github',
     text: 'GitHub'
   },
   {
     id: 2,
     url: 'https://vue.js.org',
-    icon: '💚',
+    icon: 'vue',
     text: 'Vue.js'
   },
   {
     id: 3,
     url: 'https://spring.io',
-    icon: '🍃',
+    icon: 'spring',
     text: 'Spring'
   }
 ])

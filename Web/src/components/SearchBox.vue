@@ -1,6 +1,6 @@
 <template>
   <div class="card">
-    <div class="card-title">🔍 文章搜索</div>
+    <div class="card-title"><Icon name="search" size="18" /> 文章搜索</div>
     <div class="search-container">
       <input
         v-model="searchKeyword"
@@ -16,7 +16,7 @@
         :disabled="!searchKeyword.trim() || isSearching"
       >
         <span v-if="isSearching" class="loading-spinner"></span>
-        <span v-else>🔍</span>
+        <span v-else><Icon name="search" /></span>
       </button>
     </div>
 
