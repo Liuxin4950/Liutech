@@ -1,7 +1,7 @@
 <template>
   <div class="content">
     <!-- 编辑器主体 -->
-    <div class="editor-container bg-card p-20">
+    <div class="editor-container card p-20">
       <!-- 上侧编辑区 -->
       <div class="editor-main">
         <!-- 文章标题 -->
@@ -17,7 +17,7 @@
       </div>
 
       <!-- 下侧设置面板 -->
-      <div class="editor-sidebar">
+      <div class="editor-sidebar ">
         <!-- 发布设置 -->
         <div class="sidebar-section">
           <!-- 附件上传区域 -->
@@ -1411,9 +1411,9 @@ onMounted(async () => {
 
 .sidebar-section {
   padding: 40px;
-  background: var(--bg-main);
   border-radius: 8px;
-  border: 1px solid var(--border-soft);
+  box-shadow: 0 0px 2px rgba(0, 0, 0, 0.3);
+  background-color: var(--bg-card);
 }
 
 .sidebar-item {
@@ -1470,7 +1470,7 @@ onMounted(async () => {
   position: fixed;
   left: 0;
   bottom: 0;
-  z-index: 99;
+  z-index: 10;
   box-shadow: var(--shadow-sm);
 }
 

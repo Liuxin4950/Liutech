@@ -370,12 +370,33 @@ ol {
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 2px var(--shadow-lg);
-  li{
-    width: 100%;
-    margin: 10px 0;
-    padding: 10px;
+  li {
+    margin: 8px 16px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    background-color: transparent;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 500;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    border: 1px solid transparent;
     background-color: var(--bg-card);
+
   }
+  li:hover {
+      background-color: var(--color-primary);
+      color: var(--color-primary);
+      padding-left: 24px;
+      border-color: var(--border-light);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+  li:active {
+      transform: scale(0.98);
+      background-color: var(--bg-main);
+    }
+  
 }
 
 .mobile-drawer.open {

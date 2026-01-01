@@ -176,6 +176,14 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
 .banner {
   height: 600px;
+  @include respond(md) {
+    height: 400px;
+
+  }
+  @include respond(sm) {
+    height: 300px;
+
+  }
 }
 
 .ai-content {
@@ -212,6 +220,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   top: 0;
   left: 0;
   transform: translateY(-100px) translateX(-400px);
+  z-index: 100;
   @include respond(md) {
     transform: translateY(-100px) translateX(-100px);
 
@@ -236,10 +245,5 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 }
 
 
-/* 响应式布局 */
-@media screen and (max-width: 768px) {
-  .banner {
-    height: 200px;
-  }
-}
+
 </style>

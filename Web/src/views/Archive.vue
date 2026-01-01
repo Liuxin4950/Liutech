@@ -1,13 +1,13 @@
 <template>
   <div class="content max-w-1200 mx-auto p-20">
     <!-- 页面标题 -->
-    <div class="text-center mb-30">
+    <div class="text-center mb-20">
       <h1 class="text-3xl font-bold mb-16">文章归档</h1>
       <p class="text-base text-gray-600">按时间浏览所有文章</p>
     </div>
 
     <!-- 统计信息 -->
-    <div class="bg-card border rounded-lg p-20 mb-30 text-center">
+    <div class=" card border rounded-lg text-center">
       <div class="flex flex-jc gap-30">
         <div class="stat-item">
           <div class="text-2xl font-bold text-primary">{{ totalPosts }}</div>
