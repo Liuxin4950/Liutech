@@ -247,7 +247,7 @@ onMounted(() => {
   max-width: 1200px;
   padding: 0 20px;
   position: relative;
-  z-index: 50;
+  // z-index: 50;
 }
 
 .profile-inner {

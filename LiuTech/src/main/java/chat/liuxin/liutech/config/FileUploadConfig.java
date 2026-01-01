@@ -56,6 +56,11 @@ public class FileUploadConfig {
      * 资源文件上传目录
      */
     private String resourcePath = "resources";
+
+    /**
+     * 音乐文件上传目录
+     */
+    private String musicPath = "music";
     
     /**
      * 允许的图片文件类型

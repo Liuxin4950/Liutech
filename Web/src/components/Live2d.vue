@@ -1,6 +1,10 @@
 <template>
     <div class="container">
+        <!-- 音乐播放胶囊 -->
+        <MusicCapsule ref="musicCapsuleRef" @play="onMusicPlay" @pause="onMusicPause" />
+        <!-- 音乐播放胶囊 -->
         <canvas @click="playTestAudio" id="canvas"></canvas>
+
     </div>
 </template>
 
@@ -12,17 +16,17 @@
  * 修改时间: 2025-09-24 19:33:22 +08:00
  * 功能: 纯净的Live2D模型展示，支持基本交互和拖拽，优化资源管理
  */
-import { onMounted, onBeforeUnmount, watch } from 'vue';
-import { ref } from 'vue';
+import { onMounted, onBeforeUnmount, watch, ref } from 'vue';
 import { getServiceBaseURL, ServiceType } from '../config/services';
+import MusicCapsule from './MusicCapsule.vue';
 
 // 声明全局变量类型
 declare global {
-  interface Window {
-    PIXI: any;
-    LIVE2DCUBISMCORE: any;
-    Live2DModel: any;
-  }
+    interface Window {
+        PIXI: any;
+        LIVE2DCUBISMCORE: any;
+        Live2DModel: any;
+    }
 }
 
 // Live2D模型路径
@@ -31,7 +35,7 @@ const cubism4Model = '/live2d/model/Nahida/Nahida_1080.model3.json';
 // 可用的表情列表
 const expressions = [
     "生气",
-    "无语", 
+    "无语",
     "半眼",
     "手势变化",
     "开心1",
@@ -57,10 +61,44 @@ let dragOffset = { x: 0, y: 0 };
 // 音频播放状态
 const isAuto = ref<boolean>(true);//音频是否空闲
 let audioQueue = ref<string[]>([]); // 音频队列
-const audioChecker = ref<HTMLAudioElement|null>(null); // 音频检测对象
+const audioChecker = ref<HTMLAudioElement | null>(null); // 音频检测对象
 
 // 窗口大小调整处理器
 let resizeHandler: (() => void) | null = null;
+
+// 音乐胶囊引用
+const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null);
+
+// 音乐播放事件处理
+function onMusicPlay(audioUrl: string) {
+    console.log('音乐播放，开始嘴型同步:', audioUrl);
+    if (!model) {
+        console.warn('Live2D模型未加载完成，无法嘴型同步');
+        return;
+    }
+    // 确保URL是完整的
+    const fullUrl = audioUrl.startsWith('http') ? audioUrl : getServiceBaseURL(ServiceType.MAIN) + audioUrl;
+    console.log('嘴型同步音频URL:', fullUrl);
+    try {
+        // volume=0 因为人声已由 vocalAudio 静音播放，这里只用来驱动嘴型()
+        model.speak(fullUrl, {
+            volume: 1,
+            expression: "开心1",
+            resetExpression: true,
+            crossOrigin: "anonymous",
+        });
+    } catch (error) {
+        console.error('嘴型同步失败:', error);
+    }
+}
+
+// 音乐暂停事件处理
+function onMusicPause() {
+    console.log('音乐暂停，停止嘴型同步');
+    if (model) {
+        stopSpeak();
+    }
+}
 
 // 拖拽事件处理
 function onPointerDown(event: any) {
@@ -83,7 +121,7 @@ function onPointerUp() {
 }
 //
 //播放音频，同步模型嘴部。
-function talk(audioPath:string) {
+function talk(audioPath: string) {
     return new Promise((resolve, reject) => {
         isAuto.value = false; // 播放开始
         audioChecker.value = new Audio(audioPath); // 用于判断播放完成
@@ -110,11 +148,11 @@ function talk(audioPath:string) {
             isAuto.value = true;
             reject(err);
         });
-        
+
         // 随机选择一个表情
         const randomIndex = Math.floor(Math.random() * expressions.length);
         const randomExpression = expressions[randomIndex];
-        
+
         // 实际播放音频
         model.speak(audioPath, {
             volume: 1,
@@ -131,7 +169,8 @@ watch(
     async () => {
         // 队列非空且当前没有在播放时触发播放
         if (audioQueue.value.length > 0 && isAuto.value) {
-            const audioPath = getServiceBaseURL(ServiceType.AI) + `${audioQueue.value[0]}`;
+            // const audioPath = getServiceBaseURL(ServiceType.AI) + `${audioQueue.value[0]}`;
+            const audioPath = audioQueue.value[0];
             try {
                 console.log("正在播放", audioPath);
                 isAuto.value = false;
@@ -154,13 +193,13 @@ function triggerRandomExpression() {
         console.warn("模型未加载，无法触发表情");
         return;
     }
-    
+
     // 随机选择一个表情
     const randomIndex = Math.floor(Math.random() * expressions.length);
     const randomExpression = expressions[randomIndex];
-    
+
     console.log(`触发随机表情: ${randomExpression}`);
-    
+
     try {
         // 触发表情
         model.expression(randomExpression);
@@ -181,8 +220,8 @@ function playTestAudio() {
         return;
     }
     console.log("播放");
-    
-    audioQueue.value.push("/static/毕业旅行.flac");
+
+    audioQueue.value.push("http://localhost:8080/uploads/music/2026/01/01/20260101134251_ce98531e432d493b854b07eb1bfb15fb.mp3");
 }
 function stopSpeak() {
     try {
@@ -223,7 +262,7 @@ onMounted(() => {
         console.log('Live2D已经初始化，跳过重复初始化');
         return;
     }
-    
+
     // 等待全局脚本加载完成
     const initLive2D = () => {
         console.log('检查Live2D依赖:', {
@@ -231,7 +270,7 @@ onMounted(() => {
             Live2DModel: !!(window as any).Live2DModel,
             PIXIlive2d: !!(window as any).PIXI?.live2d
         });
-        
+
         if (!window.PIXI) {
             setTimeout(initLive2D, 100);
             return;
@@ -245,16 +284,16 @@ onMounted(() => {
         }
 
         console.log('开始初始化Live2D模型');
-        
+
         // 标记为已初始化
         isInitialized = true;
-        
+
         // 创建 PIXI 应用
         const canvas = document.getElementById('canvas') as HTMLCanvasElement;
         const container = canvas.parentElement;
         const containerWidth = container?.clientWidth || 400;
         const containerHeight = container?.clientHeight || 400;
-        
+
         app = new window.PIXI.Application({
             view: canvas,
             width: containerWidth,
@@ -266,7 +305,7 @@ onMounted(() => {
         });
 
         console.log('PIXI应用创建成功，开始加载模型:', cubism4Model);
-        
+
         // 加载Live2D模型
         Live2DModelClass.from(cubism4Model).then((live2dModel: any) => {
             console.log('Live2D模型加载成功:', live2dModel);
@@ -324,7 +363,7 @@ onMounted(() => {
             const container = canvas.parentElement;
             const currentWidth = container?.clientWidth || 400;
             const currentHeight = container?.clientHeight || 400;
-            
+
             if (app && app.renderer) {
                 app.renderer.resize(currentWidth, currentHeight);
             }
@@ -336,9 +375,9 @@ onMounted(() => {
                 // model.anchor.set(0.5, 0.5); // 注释掉，避免覆盖用户设置的锚点
             }
         };
-        
+
         window.addEventListener('resize', resizeHandler);
-        
+
         // 初始调整大小
         if (resizeHandler) {
             resizeHandler();
@@ -352,38 +391,43 @@ onMounted(() => {
 // 资源清理函数
 const cleanup = () => {
     console.log('开始清理Live2D资源...');
-    
+
     // 重置初始化状态
     isInitialized = false;
-    
-    // 1. 停止音频播放
+
+    // 1. 停止音乐胶囊播放
+    if (musicCapsuleRef.value) {
+        musicCapsuleRef.value.stopMusic();
+    }
+
+    // 2. 停止音频播放
     stopSpeak();
-    
-    // 2. 清理音频队列
+
+    // 3. 清理音频队列
     audioQueue.value = [];
-    
-    // 3. 移除窗口事件监听器
+
+    // 4. 移除窗口事件监听器
     if (resizeHandler) {
         window.removeEventListener('resize', resizeHandler);
         resizeHandler = null;
     }
-    
-    // 4. 清理模型资源
+
+    // 5. 清理模型资源
     if (model) {
         try {
             // 移除所有事件监听器
             model.removeAllListeners();
-            
+
             // 停止所有动作
             if (model.internalModel?.motionManager) {
                 model.internalModel.motionManager.stopAllMotions();
             }
-            
+
             // 从舞台移除模型
             if (app && app.stage && model.parent) {
                 app.stage.removeChild(model);
             }
-            
+
             // 销毁模型
             if (model.destroy) {
                 model.destroy();
@@ -393,8 +437,8 @@ const cleanup = () => {
         }
         model = null;
     }
-    
-    // 5. 清理PIXI应用
+
+    // 6. 清理PIXI应用
     if (app) {
         try {
             // 移除舞台事件监听器
@@ -402,7 +446,7 @@ const cleanup = () => {
                 app.stage.removeAllListeners();
                 app.stage.interactive = false;
             }
-            
+
             // 销毁应用
             app.destroy(true, {
                 children: true,
@@ -414,7 +458,7 @@ const cleanup = () => {
         }
         app = null;
     }
-    
+
     console.log('Live2D资源清理完成');
 };
 
@@ -432,11 +476,12 @@ onBeforeUnmount(() => {
  * 作者: 刘鑫
  * 功能: 纯净的Live2D模型展示样式
  */
-.container{
-    width:100%;
+.container {
+    width: 100%;
     height: 100%;
     display: block;
 }
+
 #canvas {
     width: 100%;
     height: 100%;
