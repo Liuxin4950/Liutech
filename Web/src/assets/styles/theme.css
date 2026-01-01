@@ -57,6 +57,9 @@
     --shadow-sm: 0 1px 2px rgba(32, 33, 36, 0.1);
     --shadow-md: 0 2px 6px rgba(32, 33, 36, 0.12), 0 1px 3px rgba(32, 33, 36, 0.08);
     --shadow-lg: 0 8px 25px rgba(32, 33, 36, 0.15), 0 4px 12px rgba(32, 33, 36, 0.1);
+
+    /* 背景渐变淡出变量 */
+    --bg-main-fade: rgba(252, 252, 252, 0.8);
 }
 
 
@@ -109,9 +112,12 @@
 
 
     /* ----- 6. 阴影（深色模式） ----- */
-    --shadow-sm: none; 
+    --shadow-sm: none;
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+
+    /* 背景渐变淡出变量 */
+    --bg-main-fade: rgba(32, 33, 36, 0.8);
 }
 
 /* ===============================

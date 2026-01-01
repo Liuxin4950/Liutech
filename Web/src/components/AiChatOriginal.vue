@@ -5,6 +5,7 @@ import {useRoute, useRouter} from 'vue-router'
 import { post } from '@/services/api'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import SearchPanel from '@/components/SearchPanel.vue'
+import Icon from './Icon.vue'
 
 /**
  * AI聊天组件

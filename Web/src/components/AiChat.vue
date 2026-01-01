@@ -5,7 +5,7 @@ import { useChatStore, type ChatMessage, type ChatMode } from '@/stores/chat'
 import { Ai, AiStream, type RecommendResponse, type PostSummaryDTO } from '@/services/ai'
 import { ConversationService, type Conversation, type ChatMessageItem } from '@/services/conversation'
 import MarkdownRenderer from './MarkdownRenderer.vue'
-
+import Icon from './Icon.vue'
 // 接收父组件传入的扩展状态
 const props = defineProps<{
   expanded?: boolean

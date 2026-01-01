@@ -1,4 +1,10 @@
-<template>
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import Icon from './Icon.vue'
+
+const router = useRouter()
+
   <div class="card">
     <div class="card-title"><Icon name="search" size="18" /> 文章搜索</div>
     <div class="search-container">

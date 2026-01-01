@@ -4,7 +4,8 @@
       "Bash(mysql:*)",
       "Bash(npm run build)",
       "WebSearch",
-      "Bash(mvn compile:*)"
+      "Bash(mvn compile:*)",
+      "Bash(powershell:*)"
     ]
   }
 }

@@ -108,7 +108,16 @@ const icons: Record<string, string> = {
   copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
   paper: '<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline>',
   loader: '<path d="M12 2v4"></path><path d="m16.24 7.76 2.83-2.83"></path><path d="M22 12h-4"></path><path d="m16.24 16.24 2.83 2.83"></path><path d="M12 22v-4"></path><path d="m7.76 16.24-2.83 2.83"></path><path d="M2 12h4"></path><path d="m7.76 7.76-2.83-2.83"></path>',
-  activity: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>'
+  activity: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>',
+  person: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>',
+  lightbulb: '<path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path>',
+  school: '<path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path>',
+  history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path>',
+  favorite: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>',
+  game: '<circle cx="6" cy="4" r="2"></circle><circle cx="10" cy="4" r="2"></circle><circle cx="14" cy="4" r="2"></circle><path d="M6 6v10"></path><path d="M14 6v10"></path><rect x="4" y="8" width="16" height="12" rx="2"></rect>',
+  run: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>',
+  location: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>'
 }
 
 const props = withDefaults(defineProps<{

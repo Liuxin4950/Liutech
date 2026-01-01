@@ -1,4 +1,12 @@
-<template>
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { getDrafts, deleteDraft } from '@/services/api'
+import type { Draft } from '@/services/api'
+import Icon from '../components/Icon.vue'
+
+const router = useRouter()
+
   <div class="drafts-page">
     <div class="page-header">
       <h1 class="page-title"><Icon name="file" size="24" /> 草稿箱</h1>

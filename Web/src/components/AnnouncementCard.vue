@@ -1,4 +1,11 @@
-<template>
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { getAnnouncements, type Announcement } from '@/services/api'
+import Icon from './Icon.vue'
+import { formatTime } from '@/utils/time'
+
+// 公告卡片组件
+
   <div class="card">
     <div class="flex flex-sb">
       <h4 class="card-title mb-0">公告</h4>

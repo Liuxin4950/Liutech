@@ -203,10 +203,11 @@ onBeforeUnmount(() => {
   right: 20px;
   width: 380px;
   height: 60px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
   border-radius: 30px;
   padding: 8px 16px 8px 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
   backdrop-filter: blur(10px);
   z-index: 100;
   display: flex;
@@ -228,7 +229,7 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
   transition: transform 0.3s ease;
 
@@ -255,7 +256,7 @@ onBeforeUnmount(() => {
 .cover-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -280,7 +281,7 @@ onBeforeUnmount(() => {
 .music-title {
   font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-title);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -293,7 +294,7 @@ onBeforeUnmount(() => {
 
 .music-artist {
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -313,7 +314,7 @@ onBeforeUnmount(() => {
 .control-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 6px;
   border-radius: 50%;
@@ -323,8 +324,8 @@ onBeforeUnmount(() => {
   justify-content: center;
 
   &:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
+    color: var(--color-primary);
+    background: var(--bg-soft);
   }
 
   &:active {
@@ -342,7 +343,7 @@ onBeforeUnmount(() => {
 .play-btn {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
   border-radius: 50%;
 
@@ -352,8 +353,9 @@ onBeforeUnmount(() => {
   }
 
   &:hover {
-    background: linear-gradient(135deg, #5a6fd6, #6a4190);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: white;
+    opacity: 0.9;
   }
 }
 

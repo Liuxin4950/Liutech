@@ -1,4 +1,14 @@
-<template>
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { getPostDetail, getRelatedPosts, likePost, favoritePost, type PostDetail as PostDetailType } from '@/services/api'
+import { formatTime } from '@/utils/time'
+import ArticleList from '@/components/ArticleList.vue'
+import CommentSection from '@/components/CommentSection.vue'
+import Icon from '../components/Icon.vue'
+
+const route = useRoute()
+
   <div class="post-detail content">
     <div v-if="loading" class="text-center p-20 text-sm">
       <p>加载中...</p>
