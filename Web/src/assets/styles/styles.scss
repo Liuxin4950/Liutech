@@ -29,7 +29,9 @@ button {
   background: none;
   cursor: pointer;
 }
-
+input{
+  box-shadow: var(--shadow-sm);
+}
 .fit {
   width: 100%;
   height: 100%;
