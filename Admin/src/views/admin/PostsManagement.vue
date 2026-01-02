@@ -28,9 +28,12 @@ const searchParams = ref<PostListParams>({
 
 // 表格列定义
 const columns = [
-  { title: '标题', dataIndex: 'title', key: 'title' },
+  { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
   { title: '分类', dataIndex: 'category', key: 'category' },
   { title: '作者', dataIndex: 'author', key: 'author' },
+  { title: '浏览量', dataIndex: 'viewCount', key: 'viewCount' },
+  { title: '点赞量', dataIndex: 'likeCount', key: 'likeCount' },
+  { title: '评论数', dataIndex: 'commentCount', key: 'commentCount' },
   { title: '状态', dataIndex: 'status', key: 'status' },
   { title: '删除状态', key: 'deleteStatus' },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
@@ -312,6 +315,22 @@ const handleBatchPermanentDelete = async () => {
   }
 }
 
+// 批量恢复文章
+const handleBatchRestore = async () => {
+  if (!selectedRowKeys.value.length) {
+    message.warning('请选择要恢复的文章')
+    return
+  }
+  const res = await PostsService.batchRestorePosts(selectedRowKeys.value)
+  if (res.code === 200) {
+    message.success('批量恢复成功')
+    selectedRowKeys.value = []
+    loadPosts()
+  } else {
+    message.error(res.message || '批量恢复失败')
+  }
+}
+
 const handleTableChange = (pagination: any) => {
   current.value = pagination.current
   pageSize.value = pagination.pageSize
@@ -418,15 +437,17 @@ onMounted(async () => {
       <a-space>
         <a-button type="primary" @click="openCreate">新建文章</a-button>
         <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">批量删除</a-button>
-        <a-popconfirm 
-          v-else
-          title="确定要彻底删除选中的文章吗？此操作不可恢复！" 
-          ok-text="确定" 
-          cancel-text="取消"
-          @confirm="handleBatchPermanentDelete"
-        >
-          <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
-        </a-popconfirm>
+        <template v-else>
+          <a-button :disabled="selectedRowKeys.length === 0" @click="handleBatchRestore">批量恢复</a-button>
+          <a-popconfirm
+            title="确定要彻底删除选中的文章吗？此操作不可恢复！"
+            ok-text="确定"
+            cancel-text="取消"
+            @confirm="handleBatchPermanentDelete"
+          >
+            <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+          </a-popconfirm>
+        </template>
       </a-space>
     </a-card>
 
@@ -447,6 +468,15 @@ onMounted(async () => {
           </template>
           <template v-else-if="column.key === 'author'">
             <span>{{ record.author?.username || '-' }}</span>
+          </template>
+          <template v-else-if="column.key === 'viewCount'">
+            <span>{{ record.viewCount || 0 }}</span>
+          </template>
+          <template v-else-if="column.key === 'likeCount'">
+            <span>{{ record.likeCount || 0 }}</span>
+          </template>
+          <template v-else-if="column.key === 'commentCount'">
+            <span>{{ record.commentCount || 0 }}</span>
           </template>
           <template v-else-if="column.key === 'status'">
             <a-tag :color="record.status === 'published' ? 'green' : 'orange'">{{ record.status === 'published' ? '已发布' : '草稿' }}</a-tag>
@@ -582,8 +612,8 @@ onMounted(async () => {
 <style scoped>
 .posts-management { padding: 24px; }
 .page-header { margin-bottom: 24px; }
-.page-header h2 { margin: 0; font-size: 24px; font-weight: 600; color: #262626; }
-.search-card, .action-card { margin-bottom: 16px; }
+.page-header h2 { margin: 0; font-size: 24px; font-weight: 600; color: var(--text-main); }
+.search-card, .action-card { margin-bottom: 16px; border-radius: 8px; }
 
 /* 图片上传样式 */
 .image-upload-container {
@@ -593,7 +623,7 @@ onMounted(async () => {
 .image-preview {
   position: relative;
   display: inline-block;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--border-base);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -629,7 +659,7 @@ onMounted(async () => {
 .upload-placeholder {
   width: 200px;
   height: 120px;
-  border: 2px dashed #d9d9d9;
+  border: 2px dashed var(--border-base);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -637,12 +667,12 @@ onMounted(async () => {
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s;
-  color: #999;
+  color: var(--text-tertiary);
 }
 
 .upload-placeholder:hover {
-  border-color: #1890ff;
-  color: #1890ff;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .upload-text {

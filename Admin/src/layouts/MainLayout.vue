@@ -60,7 +60,7 @@ provide('sidebarCollapsed', collapsed)
 }
 
 .main-content {
-  background: #f0f2f5;
+  background: var(--bg-main);
   min-height: calc(100vh - 128px);
 }
 

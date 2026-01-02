@@ -23,10 +23,10 @@ const currentYear = new Date().getFullYear()
 <style scoped>
 .admin-footer {
   background: var(--bg-main);
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-light);
   padding: 16px 24px;
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   transition: all 0.3s ease;
 }
 

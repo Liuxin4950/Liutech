@@ -34,7 +34,14 @@ const columns = [
     dataIndex: 'email',
     key: 'email',
     customRender: ({ text }: { text: string }) => h('div', { class: 'email-cell' }, [
-      h('svg', { class: 'email-icon', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+      h('svg', { 
+        class: 'email-icon', 
+        viewBox: '0 0 24 24', 
+        fill: 'none', 
+        stroke: 'currentColor', 
+        'stroke-width': '2',
+        style: { width: '16px', height: '16px', flexShrink: 0 } 
+      }, [
         h('path', { d: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z' }),
         h('polyline', { points: '22,6 12,13 2,6' })
       ]),
@@ -247,7 +254,7 @@ const handleBatchDelete = async () => {
     message.warning('请选择要删除的用户')
     return
   }
-  
+
   try {
     const response = await UserService.batchDeleteUsers(selectedRowKeys.value)
     if (response.code === 200) {
@@ -260,6 +267,88 @@ const handleBatchDelete = async () => {
   } catch (error) {
     message.error('批量删除失败')
     console.error('批量删除失败:', error)
+  }
+}
+
+// 恢复用户
+const handleRestore = async (id: number) => {
+  try {
+    const response = await UserService.restoreUser(id)
+    if (response.code === 200) {
+      message.success('用户恢复成功')
+      loadUsers()
+    } else {
+      message.error(response.message || '恢复失败')
+    }
+  } catch (error) {
+    message.error('恢复失败')
+    console.error('恢复失败:', error)
+  }
+}
+
+// 批量恢复用户
+const handleBatchRestore = async () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请选择要恢复的用户')
+    return
+  }
+
+  try {
+    const response = await UserService.batchRestoreUsers(selectedRowKeys.value)
+    if (response.code === 200) {
+      message.success('批量恢复成功')
+      selectedRowKeys.value = []
+      loadUsers()
+    } else {
+      message.error(response.message || '批量恢复失败')
+    }
+  } catch (error) {
+    message.error('批量恢复失败')
+    console.error('批量恢复失败:', error)
+  }
+}
+
+// 批量启用用户
+const handleBatchEnable = async () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请选择要启用的用户')
+    return
+  }
+
+  try {
+    const response = await UserService.batchUpdateUserStatus(selectedRowKeys.value, true)
+    if (response.code === 200) {
+      message.success('批量启用成功')
+      selectedRowKeys.value = []
+      loadUsers()
+    } else {
+      message.error(response.message || '批量启用失败')
+    }
+  } catch (error) {
+    message.error('批量启用失败')
+    console.error('批量启用失败:', error)
+  }
+}
+
+// 批量禁用用户
+const handleBatchDisable = async () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请选择要禁用的用户')
+    return
+  }
+
+  try {
+    const response = await UserService.batchUpdateUserStatus(selectedRowKeys.value, false)
+    if (response.code === 200) {
+      message.success('批量禁用成功')
+      selectedRowKeys.value = []
+      loadUsers()
+    } else {
+      message.error(response.message || '批量禁用失败')
+    }
+  } catch (error) {
+    message.error('批量禁用失败')
+    console.error('批量禁用失败:', error)
   }
 }
 
@@ -371,12 +460,30 @@ onMounted(() => {
         <a-button type="primary" @click="openCreate">
           新建用户
         </a-button>
-        <a-button 
-          danger 
+        <a-button
+          danger
           :disabled="selectedRowKeys.length === 0"
           @click="handleBatchDelete"
         >
           批量删除
+        </a-button>
+        <a-button
+          :disabled="selectedRowKeys.length === 0"
+          @click="handleBatchRestore"
+        >
+          批量恢复
+        </a-button>
+        <a-button
+          :disabled="selectedRowKeys.length === 0"
+          @click="handleBatchEnable"
+        >
+          批量启用
+        </a-button>
+        <a-button
+          :disabled="selectedRowKeys.length === 0"
+          @click="handleBatchDisable"
+        >
+          批量禁用
         </a-button>
       </a-space>
     </a-card>
@@ -418,35 +525,41 @@ onMounted(() => {
           </template>
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button 
-                v-if="!record.deletedAt"
-                type="link" 
-                size="small" 
-                @click="openEdit(record)"
-              >
-                编辑
-              </a-button>
-              <a-button 
-                v-if="!record.deletedAt"
-                type="link" 
-                size="small"
-                :class="record.status === 1 ? 'text-orange-500' : 'text-green-500'"
-                @click="handleStatusChange(record.id, record.status === 1 ? 0 : 1)"
-              >
-                {{ record.status === 1 ? '禁用' : '启用' }}
-              </a-button>
-              <a-popconfirm
-                v-if="!record.deletedAt"
-                title="确定要删除这个用户吗？"
-                @confirm="handleDelete(record.id)"
-              >
-                <a-button type="link" size="small" danger>
-                  删除
+              <template v-if="!record.deletedAt">
+                <a-button
+                  type="link"
+                  size="small"
+                  @click="openEdit(record)"
+                >
+                  编辑
                 </a-button>
-              </a-popconfirm>
-              <span v-if="record.deletedAt" class="text-gray-400">
-                已删除
-              </span>
+                <a-button
+                  type="link"
+                  size="small"
+                  :class="record.status === 1 ? 'text-orange-500' : 'text-green-500'"
+                  @click="handleStatusChange(record.id, record.status === 1 ? 0 : 1)"
+                >
+                  {{ record.status === 1 ? '禁用' : '启用' }}
+                </a-button>
+                <a-popconfirm
+                  title="确定要删除这个用户吗？"
+                  @confirm="handleDelete(record.id)"
+                >
+                  <a-button type="link" size="small" danger>
+                    删除
+                  </a-button>
+                </a-popconfirm>
+              </template>
+              <template v-else>
+                <a-popconfirm
+                  title="确定要恢复这个用户吗？"
+                  @confirm="handleRestore(record.id)"
+                >
+                  <a-button type="link" size="small" success>
+                    恢复
+                  </a-button>
+                </a-popconfirm>
+              </template>
             </a-space>
           </template>
         </template>
@@ -506,12 +619,13 @@ onMounted(() => {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
-  color: #262626;
+  color: var(--text-main);
 }
 
 .search-card,
 .action-card {
   margin-bottom: 16px;
+  border-radius: 8px;
 }
 
 .email-cell {
@@ -523,7 +637,7 @@ onMounted(() => {
 .email-icon {
   width: 16px;
   height: 16px;
-  color: #888;
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 </style>

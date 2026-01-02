@@ -133,6 +133,27 @@ export class UserService {
     return put<string>(`${this.ADMIN_BASE_URL}/${id}/status`, null, { params: { enabled } })
   }
 
+  /**
+   * 批量更新用户状态（管理端）
+   */
+  static async batchUpdateUserStatus(ids: number[], enabled: boolean): Promise<ApiResponse<string>> {
+    return put<string>(`${this.ADMIN_BASE_URL}/batch/status`, ids, { params: { enabled } })
+  }
+
+  /**
+   * 恢复用户（管理端）
+   */
+  static async restoreUser(id: number): Promise<ApiResponse<string>> {
+    return put<string>(`${this.ADMIN_BASE_URL}/${id}/restore`)
+  }
+
+  /**
+   * 批量恢复用户（管理端）
+   */
+  static async batchRestoreUsers(ids: number[]): Promise<ApiResponse<string>> {
+    return put<string>(`${this.ADMIN_BASE_URL}/batch/restore`, ids)
+  }
+
 }
 
 // 导出便捷方法
@@ -147,7 +168,10 @@ export const {
   updateUser,
   deleteUser,
   batchDeleteUsers,
-  updateUserStatus
+  updateUserStatus,
+  batchUpdateUserStatus,
+  restoreUser,
+  batchRestoreUsers
 } = UserService
 
 export default UserService

@@ -47,4 +47,26 @@ public interface UserMapper extends BaseMapper<Users> {
                               @Param("status") Integer status,
                               @Param("includeDeleted") Boolean includeDeleted);
 
+    /**
+     * 恢复已删除的用户（软删除恢复）
+     * @param id 用户ID
+     * @param updatedBy 更新人ID
+     * @return 影响的行数
+     */
+    int restoreUserById(@Param("id") Long id, @Param("updatedBy") Long updatedBy);
+
+    /**
+     * 批量恢复已删除的用户
+     * @param ids 用户ID列表
+     * @param updatedBy 更新人ID
+     * @return 影响的行数
+     */
+    int restoreUsersByIds(@Param("ids") List<Long> ids, @Param("updatedBy") Long updatedBy);
+
+    /**
+     * 统计用户总数（用于仪表盘）
+     * @return 用户总数
+     */
+    Long countTotalUsers();
+
 }

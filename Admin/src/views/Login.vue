@@ -173,7 +173,7 @@ const handleSubmit = () => {
 <style scoped>
 .login-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f0f2f5 0%, #e6f4ff 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,8 +186,9 @@ const handleSubmit = () => {
 }
 
 .login-card {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
   border-radius: 12px;
+  background: var(--bg-card);
 }
 
 .card-header {
@@ -196,14 +197,14 @@ const handleSubmit = () => {
 }
 
 .card-header h2 {
-  color: #333;
+  color: var(--text-main);
   margin: 0 0 8px 0;
   font-size: 28px;
   font-weight: 600;
 }
 
 .card-header p {
-  color: #666;
+  color: var(--text-secondary);
   margin: 0;
   font-size: 16px;
 }
@@ -211,7 +212,7 @@ const handleSubmit = () => {
 .input-icon {
   width: 18px;
   height: 18px;
-  color: #999;
+  color: var(--text-tertiary);
   margin-right: 8px;
 }
 

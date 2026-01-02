@@ -83,4 +83,30 @@
         </where>
     </select>
 
+    <!-- 恢复单个用户 -->
+    <update id="restoreUserById">
+        UPDATE users
+        SET deleted_at = NULL,
+            updated_by = #{updatedBy},
+            updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 批量恢复用户 -->
+    <update id="restoreUsersByIds">
+        UPDATE users
+        SET deleted_at = NULL,
+            updated_by = #{updatedBy},
+            updated_at = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <!-- 统计用户总数 -->
+    <select id="countTotalUsers" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM users
+    </select>
+
 </mapper>

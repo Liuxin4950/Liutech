@@ -56,4 +56,10 @@ public interface CategoriesMapper extends BaseMapper<Categories> {
      * @return 影响的行数
      */
     int deleteBatchIds(@Param("ids") List<Long> ids);
+
+    /**
+     * 统计分类总数（用于仪表盘）
+     * @return 分类总数
+     */
+    Long countTotalCategories();
 }

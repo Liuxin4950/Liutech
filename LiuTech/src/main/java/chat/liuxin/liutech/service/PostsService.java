@@ -979,6 +979,34 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     }
 
     /**
+     * 批量恢复已删除的文章
+     *
+     * @param ids 文章ID列表
+     * @return 是否恢复成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    public boolean batchRestorePosts(List<Long> ids) {
+        try {
+            if (ids == null || ids.isEmpty()) {
+                log.warn("文章ID列表不能为空");
+                return false;
+            }
+
+            // 使用原生SQL批量恢复文章
+            int result = postsMapper.restorePostsByIds(ids);
+
+            log.info("批量恢复文章ID列表: {}, 成功数量: {}", ids, result);
+            return result > 0;
+        } catch (Exception e) {
+            log.error("批量恢复文章失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
      * 彻底删除文章（物理删除）
      * @param id 文章ID
      * @param updatedBy 操作者ID

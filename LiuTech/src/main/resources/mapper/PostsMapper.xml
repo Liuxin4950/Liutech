@@ -501,8 +501,6 @@
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
-            t.id as tag_id,
-            t.name as tag_name,
             (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
             <if test="userId != null">
                 CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
@@ -631,6 +629,17 @@
         UPDATE posts
         SET deleted_at = NULL, updated_at = NOW()
         WHERE id = #{id} AND deleted_at IS NOT NULL
+    </update>
+
+    <!-- 批量恢复已删除的文章 -->
+    <update id="restorePostsByIds">
+        UPDATE posts
+        SET deleted_at = NULL, updated_at = NOW()
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND deleted_at IS NOT NULL
     </update>
 
     <!-- 插入文章 -->

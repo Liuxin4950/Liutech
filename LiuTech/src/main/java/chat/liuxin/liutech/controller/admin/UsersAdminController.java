@@ -180,6 +180,63 @@ public class UsersAdminController extends BaseAdminController {
         }
     }
 
+    /**
+     * 批量启用/禁用用户
+     *
+     * @param ids 用户ID列表
+     * @param enabled 是否启用
+     * @return 操作结果
+     */
+    @PutMapping("/batch/status")
+    public Result<String> batchUpdateUserStatus(@RequestBody List<Long> ids, @RequestParam Boolean enabled) {
+        ValidationUtil.validateNotEmpty(ids, "用户ID列表");
+        ValidationUtil.validateNotNull(enabled, "用户状态");
+
+        try {
+            boolean success = userManagementService.batchUpdateUserStatus(ids, enabled);
+            String message = enabled ? "批量启用用户成功" : "批量禁用用户成功";
+            return handleOperationResult(success, message, "批量用户状态更新");
+        } catch (Exception e) {
+            return handleException(e, "批量用户状态更新");
+        }
+    }
+
+    /**
+     * 恢复已删除的用户
+     *
+     * @param id 用户ID
+     * @return 恢复结果
+     */
+    @PutMapping("/{id}/restore")
+    public Result<String> restoreUser(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "用户ID");
+
+        try {
+            boolean success = userManagementService.restoreUser(id);
+            return handleOperationResult(success, "用户恢复成功", "用户恢复");
+        } catch (Exception e) {
+            return handleException(e, "用户恢复");
+        }
+    }
+
+    /**
+     * 批量恢复已删除的用户
+     *
+     * @param ids 用户ID列表
+     * @return 恢复结果
+     */
+    @PutMapping("/batch/restore")
+    public Result<String> batchRestoreUsers(@RequestBody List<Long> ids) {
+        ValidationUtil.validateNotEmpty(ids, "用户ID列表");
+
+        try {
+            boolean success = userManagementService.restoreUsers(ids);
+            return handleOperationResult(success, "批量恢复用户成功", "批量恢复用户");
+        } catch (Exception e) {
+            return handleException(e, "批量恢复用户");
+        }
+    }
+
 
 
 

@@ -73,4 +73,9 @@
         </foreach>
     </delete>
 
+    <!-- 统计分类总数（用于仪表盘） -->
+    <select id="countTotalCategories" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM categories
+    </select>
+
 </mapper>

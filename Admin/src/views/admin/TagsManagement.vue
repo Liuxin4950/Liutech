@@ -272,6 +272,6 @@ onMounted(() => { loadTags() })
 <style scoped>
 .tags-management { padding: 24px; }
 .page-header { margin-bottom: 24px; }
-.page-header h2 { margin: 0; font-size: 24px; font-weight: 600; color: #262626; }
-.search-card, .action-card { margin-bottom: 16px; }
+.page-header h2 { margin: 0; font-size: 24px; font-weight: 600; color: var(--text-main); }
+.search-card, .action-card { margin-bottom: 16px; border-radius: 8px; }
 </style>

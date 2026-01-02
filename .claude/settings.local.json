@@ -5,7 +5,8 @@
       "Bash(npm run build)",
       "WebSearch",
       "Bash(mvn compile:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(del:*)"
     ]
   }
 }

@@ -898,12 +898,13 @@ onMounted(async () => {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
-  color: #262626;
+  color: var(--text-main);
 }
 
 .search-card,
 .action-card {
   margin-bottom: 16px;
+  border-radius: 8px;
 }
 
 .title-cell {
@@ -920,7 +921,7 @@ onMounted(async () => {
 .title-text {
   flex: 1;
   font-weight: 500;
-  color: #262626;
+  color: var(--text-main);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -929,7 +930,7 @@ onMounted(async () => {
 }
 
 .title-text:hover {
-  color: #1890ff;
+  color: var(--color-primary);
 }
 
 .title-badges {
@@ -944,7 +945,7 @@ onMounted(async () => {
 
 .summary-text {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--text-tertiary);
   line-height: 1.4;
   display: block;
   overflow: hidden;
@@ -954,7 +955,7 @@ onMounted(async () => {
 }
 
 .summary-text:hover {
-  color: #1890ff;
+  color: var(--color-primary);
 }
 
 .time-cell {
@@ -964,124 +965,120 @@ onMounted(async () => {
 
 .relative-time {
   font-size: 13px;
-  color: #262626;
+  color: var(--text-main);
   font-weight: 500;
 }
 
 .absolute-time {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--text-tertiary);
   margin-top: 2px;
 }
 
 /* 预览弹窗样式 */
-.announcement-preview {
-  .preview-header {
-    border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 16px;
-    margin-bottom: 20px;
-    
-    .preview-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: #262626;
-      margin-bottom: 12px;
-      line-height: 1.4;
-    }
-    
-    .preview-meta {
-      .preview-time {
-        color: #8c8c8c;
-        font-size: 14px;
-      }
-    }
-  }
-  
-  .preview-content {
-    min-height: 200px;
-    line-height: 1.6;
-    color: #262626;
-    font-size: 14px;
-    margin-bottom: 20px;
-    
-    :deep(h1) { font-size: 24px; font-weight: 600; margin: 20px 0 16px 0; }
-    :deep(h2) { font-size: 20px; font-weight: 600; margin: 16px 0 12px 0; }
-    :deep(h3) { font-size: 18px; font-weight: 600; margin: 14px 0 10px 0; }
-    :deep(p) { margin: 8px 0; line-height: 1.6; }
-    :deep(ul), :deep(ol) { margin: 8px 0; padding-left: 20px; }
-    :deep(li) { margin: 4px 0; }
-    :deep(blockquote) {
-      border-left: 4px solid #1890ff;
-      margin: 16px 0;
-      padding: 8px 16px;
-      background: #f6f8ff;
-      color: #262626;
-    }
-    :deep(code) {
-      background: #f5f5f5;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: 'Courier New', monospace;
-      color: #e74c3c;
-    }
-    :deep(pre) {
-      background: #f8f9fa;
-      border: 1px solid #e9ecef;
-      border-radius: 4px;
-      padding: 12px;
-      overflow-x: auto;
-      margin: 16px 0;
-    }
-    :deep(img) {
-      max-width: 100%;
-      height: auto;
-      border-radius: 8px;
-      margin: 8px 0;
-    }
-    :deep(table) {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 16px 0;
-    }
-    :deep(th), :deep(td) {
-      border: 1px solid #e8e8e8;
-      padding: 8px 12px;
-      text-align: left;
-    }
-    :deep(th) {
-      background: #fafafa;
-      font-weight: 600;
-    }
-  }
-  
-  .preview-footer {
-    border-top: 1px solid #f0f0f0;
-    padding-top: 16px;
-    color: #8c8c8c;
-    font-size: 14px;
-  }
+.announcement-preview .preview-header {
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.announcement-preview .preview-header .preview-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.announcement-preview .preview-header .preview-meta .preview-time {
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.announcement-preview .preview-content {
+  min-height: 200px;
+  line-height: 1.6;
+  color: var(--text-main);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.announcement-preview .preview-content :deep(h1) { font-size: 24px; font-weight: 600; margin: 20px 0 16px 0; }
+.announcement-preview .preview-content :deep(h2) { font-size: 20px; font-weight: 600; margin: 16px 0 12px 0; }
+.announcement-preview .preview-content :deep(h3) { font-size: 18px; font-weight: 600; margin: 14px 0 10px 0; }
+.announcement-preview .preview-content :deep(p) { margin: 8px 0; line-height: 1.6; }
+.announcement-preview .preview-content :deep(ul), .announcement-preview .preview-content :deep(ol) { margin: 8px 0; padding-left: 20px; }
+.announcement-preview .preview-content :deep(li) { margin: 4px 0; }
+.announcement-preview .preview-content :deep(blockquote) {
+  border-left: 4px solid var(--color-primary);
+  margin: 16px 0;
+  padding: 8px 16px;
+  background: var(--color-primary-bg);
+  color: var(--text-main);
+}
+.announcement-preview .preview-content :deep(code) {
+  background: var(--bg-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: var(--color-error);
+}
+.announcement-preview .preview-content :deep(pre) {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+.announcement-preview .preview-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+.announcement-preview .preview-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+}
+.announcement-preview .preview-content :deep(th), .announcement-preview .preview-content :deep(td) {
+  border: 1px solid var(--border-light);
+  padding: 8px 12px;
+  text-align: left;
+}
+.announcement-preview .preview-content :deep(th) {
+  background: var(--bg-hover);
+  font-weight: 600;
+}
+
+.announcement-preview .preview-footer {
+  border-top: 1px solid var(--border-light);
+  padding-top: 16px;
+  color: var(--text-tertiary);
+  font-size: 14px;
 }
 
 /* 导入弹窗样式 */
 .upload-tips {
   margin-top: 16px;
   padding: 12px;
-  background: #f6f8ff;
-  border: 1px solid #91d5ff;
+  background: var(--color-primary-bg);
+  border: 1px solid var(--color-primary-hover);
   border-radius: 6px;
-  
-  p {
-    margin: 4px 0;
-    font-size: 13px;
-    color: #595959;
-    
-    &:first-child {
-      margin-top: 0;
-    }
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
+}
+
+.upload-tips p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.upload-tips p:first-child {
+  margin-top: 0;
+}
+
+.upload-tips p:last-child {
+  margin-bottom: 0;
 }
 </style>

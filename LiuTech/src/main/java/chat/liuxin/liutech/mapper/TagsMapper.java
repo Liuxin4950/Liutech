@@ -84,4 +84,10 @@ public interface TagsMapper extends BaseMapper<Tags> {
      * @return 影响的行数
      */
     int deleteBatchIds(@Param("ids") List<Long> ids);
+
+    /**
+     * 统计标签总数（用于仪表盘）
+     * @return 标签总数
+     */
+    Long countTotalTags();
 }

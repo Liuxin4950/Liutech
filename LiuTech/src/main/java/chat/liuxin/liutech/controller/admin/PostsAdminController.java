@@ -212,6 +212,22 @@ public class PostsAdminController extends BaseAdminController {
     }
 
     /**
+     * 批量恢复已删除的文章
+     *
+     * @param ids 文章ID列表
+     * @return 恢复结果
+     */
+    @PutMapping("/batch/restore")
+    public Result<String> batchRestorePosts(@RequestBody List<Long> ids) {
+        try {
+            boolean success = postsService.batchRestorePosts(ids);
+            return handleOperationResult(success, "批量恢复文章成功", "批量恢复文章");
+        } catch (Exception e) {
+            return handleException(e, "批量恢复文章");
+        }
+    }
+
+    /**
      * 彻底删除文章（物理删除）
      *
      * @param id 文章ID

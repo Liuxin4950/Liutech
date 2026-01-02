@@ -186,11 +186,19 @@ public interface PostsMapper extends BaseMapper<Posts> {
 
     /**
      * 恢复已删除的文章（绕过逻辑删除限制）
-     * 
+     *
      * @param id 文章ID
      * @return 影响的行数
      */
     int restorePostById(@Param("id") Long id);
+
+    /**
+     * 批量恢复已删除的文章
+     *
+     * @param ids 文章ID列表
+     * @return 影响的行数
+     */
+    int restorePostsByIds(@Param("ids") List<Long> ids);
 
     /**
      * 插入文章

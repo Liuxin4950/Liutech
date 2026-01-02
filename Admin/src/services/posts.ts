@@ -172,6 +172,13 @@ export class PostsService {
   }
 
   /**
+   * 批量恢复已删除的文章
+   */
+  static async batchRestorePosts(ids: number[]): Promise<ApiResponse<string>> {
+    return put<string>(`${this.BASE_URL}/batch/restore`, ids)
+  }
+
+  /**
    * 彻底删除文章（物理删除）
    */
   static async permanentDeletePost(id: number): Promise<ApiResponse<string>> {

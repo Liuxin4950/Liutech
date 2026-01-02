@@ -485,4 +485,120 @@ public class UserManagementService {
         log.debug("删除用户: {}", id);
         userMapper.deleteById(id);
     }
+
+    /**
+     * 恢复已删除的用户（软删除恢复）
+     *
+     * @param id 用户ID
+     * @return 是否恢复成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean restoreUser(Long id) {
+        log.info("恢复用户，用户ID: {}", id);
+
+        try {
+            if (id == null) {
+                log.warn("用户ID不能为空");
+                return false;
+            }
+
+            Long currentUserId = userUtils.getCurrentUserId();
+            int result = userMapper.restoreUserById(id, currentUserId);
+            boolean success = result > 0;
+
+            log.info("用户恢复{} - 用户ID: {}", success ? "成功" : "失败", id);
+            return success;
+
+        } catch (Exception e) {
+            log.error("恢复用户失败 - 用户ID: {}, 错误: {}", id, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 批量恢复已删除的用户
+     *
+     * @param ids 用户ID列表
+     * @return 是否恢复成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean restoreUsers(List<Long> ids) {
+        log.info("批量恢复用户，用户ID列表: {}", ids);
+
+        try {
+            if (ids == null || ids.isEmpty()) {
+                log.warn("用户ID列表不能为空");
+                return false;
+            }
+
+            Long currentUserId = userUtils.getCurrentUserId();
+            int result = userMapper.restoreUsersByIds(ids, currentUserId);
+            boolean success = result > 0;
+
+            log.info("批量恢复用户{} - 恢复数量: {}", success ? "成功" : "失败", result);
+            return success;
+
+        } catch (Exception e) {
+            log.error("批量恢复用户失败 - 用户ID列表: {}, 错误: {}", ids, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 批量更新用户状态
+     *
+     * @param ids 用户ID列表
+     * @param enabled 是否启用
+     * @return 是否更新成功
+     * @author 刘鑫
+     * @date 2025-01-30
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean batchUpdateUserStatus(List<Long> ids, Boolean enabled) {
+        log.info("批量更新用户状态，用户ID列表: {}, 启用: {}", ids, enabled);
+
+        try {
+            if (ids == null || ids.isEmpty()) {
+                log.warn("用户ID列表不能为空");
+                return false;
+            }
+
+            Long currentUserId = userUtils.getCurrentUserId();
+            int status = enabled ? 1 : 0;
+
+            LambdaUpdateWrapper<Users> updateWrapper = new LambdaUpdateWrapper<>();
+            updateWrapper.in(Users::getId, ids)
+                    .set(Users::getStatus, status)
+                    .set(Users::getUpdatedAt, new Date())
+                    .set(Users::getUpdatedBy, currentUserId);
+
+            int result = userMapper.update(null, updateWrapper);
+            boolean success = result > 0;
+
+            log.info("批量更新用户状态{} - 更新数量: {}", success ? "成功" : "失败", result);
+            return success;
+
+        } catch (Exception e) {
+            log.error("批量更新用户状态失败 - 用户ID列表: {}, 错误: {}", ids, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 统计用户总数（用于仪表盘）
+     *
+     * @return 用户总数
+     */
+    public Long countTotalUsers() {
+        try {
+            return userMapper.countTotalUsers();
+        } catch (Exception e) {
+            log.error("统计用户总数失败: {}", e.getMessage(), e);
+            return 0L;
+        }
+    }
 }
