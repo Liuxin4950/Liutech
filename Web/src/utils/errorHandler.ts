@@ -4,6 +4,26 @@
  */
 import Swal from 'sweetalert2'
 
+// 获取当前主题背景色
+const getBgColor = () => {
+  return getComputedStyle(document.documentElement).getPropertyValue('--bg-soft').trim() || '#F8F9FA'
+}
+const getTextColor = () => {
+  return getComputedStyle(document.documentElement).getPropertyValue('--text-main').trim() || '#3C4043'
+}
+const getPrimaryColor = () => {
+  return getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#2d90cd'
+}
+const getSuccessColor = () => {
+  return getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() || '#34A853'
+}
+const getErrorColor = () => {
+  return getComputedStyle(document.documentElement).getPropertyValue('--color-error').trim() || '#EA4335'
+}
+const getWarningColor = () => {
+  return getComputedStyle(document.documentElement).getPropertyValue('--color-warning').trim() || '#FBBC04'
+}
+
 /**
  * 显示错误消息
  * @param message 错误消息
@@ -15,7 +35,9 @@ export function showError(message: string, title: string = '错误') {
     title: title,
     text: message,
     confirmButtonText: '确定',
-    confirmButtonColor: '#d33'
+    confirmButtonColor: getErrorColor(),
+    background: getBgColor(),
+    color: getTextColor()
   })
 }
 
@@ -30,7 +52,9 @@ export function showSuccess(message: string, title: string = '成功') {
     title: title,
     text: message,
     confirmButtonText: '确定',
-    confirmButtonColor: '#28a745'
+    confirmButtonColor: getSuccessColor(),
+    background: getBgColor(),
+    color: getTextColor()
   })
 }
 
@@ -47,9 +71,9 @@ export function showSuccessToast(message: string) {
     showConfirmButton: false,
     timer: 2000,
     timerProgressBar: true,
-    background: 'var(--bg-soft)',
-    color: 'var(--text-main)',
-    iconColor: 'var(--color-primary)'
+    background: getBgColor(),
+    color: getTextColor(),
+    iconColor: getSuccessColor()
   })
 }
 
@@ -66,9 +90,9 @@ export function showErrorToast(message: string) {
     showConfirmButton: false,
     timer: 3000,
     timerProgressBar: true,
-    background: 'var(--bg-soft)',
-    color: 'var(--text-main)',
-    iconColor: '#d33'
+    background: getBgColor(),
+    color: getTextColor(),
+    iconColor: getErrorColor()
   })
 }
 
@@ -83,7 +107,9 @@ export function showWarning(message: string, title: string = '警告') {
     title: title,
     text: message,
     confirmButtonText: '确定',
-    confirmButtonColor: '#ffc107'
+    confirmButtonColor: getWarningColor(),
+    background: getBgColor(),
+    color: getTextColor()
   })
 }
 
@@ -101,9 +127,49 @@ export function showConfirm(message: string, title: string = '确认'): Promise<
     showCancelButton: true,
     confirmButtonText: '确定',
     cancelButtonText: '取消',
-    confirmButtonColor: '#007bff',
-    cancelButtonColor: '#6c757d'
+    confirmButtonColor: getPrimaryColor(),
+    cancelButtonColor: '#6c757d',
+    background: getBgColor(),
+    color: getTextColor()
   }).then((result) => result.isConfirmed)
+}
+
+/**
+ * 显示输入对话框
+ * @param message 提示消息
+ * @param title 对话框标题
+ * @param defaultValue 默认值
+ * @returns Promise<string | null> 用户输入的内容，取消返回 null
+ */
+export function showPrompt(
+  message: string,
+  title: string = '输入',
+  defaultValue: string = ''
+): Promise<string | null> {
+  return Swal.fire({
+    icon: 'question',
+    title: title,
+    text: message,
+    input: 'text',
+    inputValue: defaultValue,
+    showCancelButton: true,
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    confirmButtonColor: getPrimaryColor(),
+    cancelButtonColor: '#6c757d',
+    background: getBgColor(),
+    color: getTextColor(),
+    inputValidator: (value) => {
+      if (!value || !value.trim()) {
+        return '请输入内容'
+      }
+    }
+  }).then((result) => {
+    if (result.isConfirmed) {
+      return result.value || null
+    }
+    return null
+  })
 }
 
 /**

@@ -6,6 +6,7 @@ import { Ai, AiStream, type RecommendResponse, type PostSummaryDTO } from '@/ser
 import { ConversationService, type Conversation, type ChatMessageItem } from '@/services/conversation'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import Icon from './Icon.vue'
+import { showConfirm } from '@/utils/errorHandler'
 // 接收父组件传入的扩展状态
 const props = defineProps<{
   expanded?: boolean
@@ -212,7 +213,8 @@ const loadConversation = async (conversationId: number) => {
 const deleteConversation = async (conversationId: number, event: Event) => {
   event.stopPropagation()
 
-  if (!confirm('确定要删除这个会话吗？')) return
+  const ok = await showConfirm('确定要删除这个会话吗？', '确认删除')
+  if (!ok) return
 
   try {
     await ConversationService.remove(conversationId)

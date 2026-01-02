@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import ConversationService, { type Conversation } from '@/services/conversation'
+import { showConfirm, showPrompt } from '@/utils/errorHandler'
 
 const props = defineProps<{ modelValue: number | null }>()
 const emit = defineEmits<{ (e:'update:modelValue', id:number):void }>()
@@ -22,12 +23,12 @@ const select = (id:number) => emit('update:modelValue', id)
 const create = async () => { const id = await ConversationService.create(type.value, '新会话'); await load(); emit('update:modelValue', id) }
 
 const rename = async (id:number) => {
-  const title = window.prompt('输入新的会话标题', '新会话')
-  if (title && title.trim()) { await ConversationService.rename(id, title.trim()); await load() }
+  const title = await showPrompt('输入新的会话标题', '重命名', '新会话')
+  if (title) { await ConversationService.rename(id, title); await load() }
 }
 
 const remove = async (id:number) => {
-  const ok = window.confirm('确定删除该会话及其所有消息吗？')
+  const ok = await showConfirm('确定删除该会话及其所有消息吗？', '确认删除')
   if (!ok) return
   await ConversationService.remove(id)
   if (props.modelValue === id) emit('update:modelValue', null as any)
