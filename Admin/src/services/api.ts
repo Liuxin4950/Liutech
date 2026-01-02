@@ -89,6 +89,13 @@ instance.interceptors.response.use(
         router.push('/login')
       }
     }
+
+    // 特殊处理403错误，跳转权限不足页面
+    if (error.response?.status === 403) {
+      if (router.currentRoute.value.path !== '/403') {
+        router.push('/403')
+      }
+    }
     
     // 重新抛出错误，保持原有的错误传播机制
     // 确保抛出的是一个有效的错误对象，避免抛出null

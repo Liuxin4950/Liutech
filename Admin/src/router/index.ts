@@ -82,6 +82,14 @@ const routes: RouteRecordRaw[] = [
       title: '登录',
       section: 'login'
     }
+  },{
+    path: '/403',
+    name: 'forbidden',
+    component: () => import('../views/403.vue'),
+    meta: {
+      title: '权限不足',
+      section: 'forbidden'
+    }
   }
 ]
 
