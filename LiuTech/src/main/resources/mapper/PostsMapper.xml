@@ -6,7 +6,7 @@
     <resultMap id="PostWithDetailsMap" type="chat.liuxin.liutech.model.Posts">
         <id property="id" column="id"/>
         <result property="title" column="title"/>
-        <result property="content" column="content"/>
+        <result property="content" column="content"/>   
         <result property="summary" column="summary"/>
         <result property="categoryId" column="category_id"/>
         <result property="authorId" column="author_id"/>
@@ -671,6 +671,14 @@
 
     <!-- 统计全站已发布文章数量 -->
     <select id="countPublishedPosts" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE p.status = 'published'
+        AND p.deleted_at IS NULL
+    </select>
+
+    <!-- 统计全站已发布文章数量（管理端） -->
+    <select id="countAllPublishedPosts" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM posts p
         WHERE p.status = 'published'

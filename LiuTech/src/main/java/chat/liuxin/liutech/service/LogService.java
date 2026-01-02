@@ -29,7 +29,7 @@ public class LogService extends ServiceImpl<AdminLogsMapper, AdminLogs> {
     /**
      * 保存日志
      *
-     * @param log 日志对象
+     * @param adminLog 日志对象
      * @return 是否保存成功
      */
     public boolean saveLog(AdminLogs adminLog) {

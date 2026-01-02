@@ -2,8 +2,10 @@ package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
-import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.mapper.CommentsMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
+import chat.liuxin.liutech.mapper.PostsMapper;
+import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resp.UserResp;
@@ -40,10 +42,10 @@ public class UserProfileService {
     private UserUtils userUtils;
 
     @Autowired
-    private CommentsService commentsService;
+    private CommentsMapper commentsMapper;
 
     @Autowired
-    private PostsService postsService;
+    private PostsMapper postsMapper;
 
     @Autowired
     private PostFavoritesMapper postFavoritesMapper;
@@ -141,15 +143,15 @@ public class UserProfileService {
         // 3. 获取详细统计数据
         try {
             // 获取评论数量
-            Integer commentCount = commentsService.countCommentsByUserId(currentUser.getId());
+            Integer commentCount = commentsMapper.countCommentsByUserId(currentUser.getId());
             stats.setCommentCount(commentCount != null ? commentCount.longValue() : 0L);
 
             // 获取文章数量（已发布）
-            Integer postCount = postsService.countPostsByUserId(currentUser.getId(), "published");
+            Integer postCount = postsMapper.countPostsByUserIdAndStatus(currentUser.getId(), "published");
             stats.setPostCount(postCount != null ? postCount.longValue() : 0L);
 
             // 获取草稿数量
-            Integer draftCount = postsService.countPostsByUserId(currentUser.getId(), "draft");
+            Integer draftCount = postsMapper.countPostsByUserIdAndStatus(currentUser.getId(), "draft");
             stats.setDraftCount(draftCount != null ? draftCount.longValue() : 0L);
 
             // 访问量暂时设为0（后续可扩展）
@@ -160,10 +162,10 @@ public class UserProfileService {
             stats.setFavoriteCount(favoriteCount != null ? favoriteCount.longValue() : 0L);
 
             // 获取最近活动时间
-            Date lastCommentAt = commentsService.getLastCommentTimeByUserId(currentUser.getId());
+            Date lastCommentAt = commentsMapper.getLastCommentTimeByUserId(currentUser.getId());
             stats.setLastCommentAt(lastCommentAt);
 
-            Date lastPostAt = postsService.getLastPostTimeByUserId(currentUser.getId());
+            Date lastPostAt = postsMapper.getLastPostTimeByUserId(currentUser.getId());
             stats.setLastPostAt(lastPostAt);
 
             log.info("用户 {} 统计信息获取成功 - 评论: {}, 文章: {}, 草稿: {}",
@@ -213,15 +215,15 @@ public class UserProfileService {
                 ProfileResp.Stats stats = new ProfileResp.Stats();
                 try {
                     // 获取评论数量
-                    Integer commentCount = commentsService.countCommentsByUserId(currentUser.getId());
+                    Integer commentCount = commentsMapper.countCommentsByUserId(currentUser.getId());
                     stats.setComments(commentCount != null ? commentCount.longValue() : 0L);
 
                     // 获取文章数量（已发布）
-                    Integer postCount = postsService.countPostsByUserId(currentUser.getId(), "published");
+                    Integer postCount = postsMapper.countPostsByUserIdAndStatus(currentUser.getId(), "published");
                     stats.setPosts(postCount != null ? postCount.longValue() : 0L);
 
                     // 获取用户文章总浏览量
-                    Long totalViews = postsService.countViewsByUserId(currentUser.getId());
+                    Long totalViews = postsMapper.countViewsByUserId(currentUser.getId());
                     stats.setViews(totalViews != null ? totalViews : 0L);
 
                     log.info("用户 {} 个人资料获取成功 - 评论: {}, 文章: {}",
@@ -269,9 +271,9 @@ public class UserProfileService {
 
         try {
             // 获取网站总体统计信息
-            Integer totalComments = commentsService.countAllComments();
-            Integer totalPosts = postsService.countAllPublishedPosts();
-            Long totalViews = postsService.countAllViews();
+            Integer totalComments = commentsMapper.countAllComments();
+            Integer totalPosts = postsMapper.countAllPublishedPosts();
+            Long totalViews = postsMapper.countAllViews();
 
             stats.setComments(totalComments != null ? totalComments.longValue() : 0L);
             stats.setPosts(totalPosts != null ? totalPosts.longValue() : 0L);

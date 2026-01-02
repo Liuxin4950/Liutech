@@ -237,6 +237,13 @@ public interface PostsMapper extends BaseMapper<Posts> {
     Integer countPublishedPosts();
 
     /**
+     * 统计全站已发布文章数量（管理端）
+     *
+     * @return 已发布文章数量
+     */
+    Integer countAllPublishedPosts();
+
+    /**
      * 管理端统计文章总数
      * 
      * @param categoryId     分类ID（可选）
