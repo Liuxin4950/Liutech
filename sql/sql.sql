@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希',
   avatar_url VARCHAR(512) DEFAULT NULL COMMENT '头像URL',
   points DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '用户积分',
+  role VARCHAR(20) NOT NULL DEFAULT 'user' COMMENT '用户角色(user/admin)',
   status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '用户状态(0禁用,1正常)',
   last_login_at TIMESTAMP NULL DEFAULT NULL COMMENT '最近登录时间',
   nickname VARCHAR(100) DEFAULT NULL COMMENT '用户昵称',
@@ -24,8 +25,12 @@ CREATE TABLE IF NOT EXISTS users (
   updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_username (username),
-  INDEX idx_email (email)
+  INDEX idx_email (email),
+  INDEX idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- 为现有用户设置角色（admin 用户为管理员）
+UPDATE users SET role = 'admin' WHERE username = 'admin';
 
 CREATE TABLE IF NOT EXISTS categories (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '分类ID',

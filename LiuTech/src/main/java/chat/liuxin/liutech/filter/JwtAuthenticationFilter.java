@@ -23,10 +23,7 @@ import java.util.Collection;
 /**
  * JWT认证过滤器
  * 自动验证请求中的JWT token，并将用户信息与权限注入到Spring Security上下文
- * 注意：本项目 Users 实体没有角色字段，这里采用“最小可行策略”——
- * - 默认给所有登录用户 ROLE_USER
- * - 通过用户名匹配 admin 列表赋予 ROLE_ADMIN（可后续替换为数据库角色表）
- * 这样可让 @PreAuthorize("hasRole('ADMIN')") 立即生效，后续再演进为真正的RBAC。
+ * 角色信息从 JWT token 的 claims 中获取，登录时由 UserAuthService 写入
  *
  * 作者：刘鑫，时间：2025-08-26（Asia/Shanghai）
  */
@@ -118,9 +115,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String username = jwtUtil.getUsernameFromToken(token);
         Long userId = jwtUtil.getUserIdFromToken(token);
+        String role = jwtUtil.getRoleFromToken(token);
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            setAuthenticationContext(username, userId, request);
+            setAuthenticationContext(username, userId, role, request);
         }
     }
 
@@ -128,11 +126,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * 设置Spring Security认证上下文
      * @param username 用户名
      * @param userId 用户ID
+     * @param role 用户角色 (user/admin)
      * @param request HTTP请求
      */
-    private void setAuthenticationContext(String username, Long userId, HttpServletRequest request) {
-        // 构建权限集合：默认 ROLE_USER；admin/administrator 给予 ROLE_ADMIN（最小可行方案）
-        Collection<GrantedAuthority> authorities = buildUserAuthorities(username);
+    private void setAuthenticationContext(String username, Long userId, String role, HttpServletRequest request) {
+        // 构建权限集合：从 JWT claims 中读取角色
+        Collection<GrantedAuthority> authorities = buildUserAuthorities(role);
         // 使用 UsernamePasswordAuthenticationToken 注入认证主体
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                 username, null, authorities);
@@ -146,27 +145,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * 构建用户权限集合
-     * @param username 用户名
+     * @param role 用户角色 (user/admin)
      * @return 权限集合
      */
-    private Collection<GrantedAuthority> buildUserAuthorities(String username) {
-        // 说明：当前项目暂无角色表，采用用户名匹配实现管理员权限
-        // 后续可替换为：登录时从数据库加载角色并写入JWT的 roles 声明
+    private Collection<GrantedAuthority> buildUserAuthorities(String role) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
+        // 默认 ROLE_USER
         authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
-        if (isAdminUser(username)) {
+        // 如果角色是 admin，添加 ROLE_ADMIN
+        if ("admin".equals(role)) {
             authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         }
         return authorities;
-    }
-
-    private boolean isAdminUser(String username) {
-        // 最小实现：基于用户名判断管理员身份；注意仅为权宜之计
-        // 推荐后续改为 RBAC（基于数据库角色或JWT roles）
-        if (!StringUtils.hasText(username)) {
-            return false;
-        }
-        String u = username.trim().toLowerCase();
-        return "admin".equals(u) || "administrator".equals(u);
     }
 }

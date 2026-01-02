@@ -78,4 +78,12 @@ public interface UserMapper extends BaseMapper<Users> {
      */
     Integer countUsersByDate(@Param("date") Date date);
 
+    /**
+     * 根据用户ID查询角色
+     *
+     * @param id 用户ID
+     * @return 角色字符串 (user/admin)
+     */
+    String selectRoleById(@Param("id") Long id);
+
 }

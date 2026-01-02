@@ -47,20 +47,27 @@ public class JwtUtil {
 
     /**
      * 生成JWT token
-     * 
+     *
      * @param userId 用户ID
      * @param username 用户名
+     * @param role 用户角色 (user/admin)
      * @param passwordHash 密码哈希值（用于token验证，不会明文传输）
      * @return JWT token字符串
      */
-    public String generateToken(Long userId, String username, String passwordHash) {
-        // 说明：当前 claims 包含 userId/username/passwordHash
-        // 提示：passwordHash 仅用于校验旧密码变更导致的失效；不建议长期保留于token，后续可替换为 tokenVersion 或 lastPasswordChangeAt
+    public String generateToken(Long userId, String username, String role, String passwordHash) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
+        claims.put("role", role);
         claims.put("passwordHash", passwordHash);
         return createToken(claims, username);
+    }
+
+    /**
+     * 生成JWT token (兼容旧版，无role)
+     */
+    public String generateToken(Long userId, String username, String passwordHash) {
+        return generateToken(userId, username, "user", passwordHash);
     }
 
     /**
@@ -107,13 +114,29 @@ public class JwtUtil {
 
     /**
      * 从token中提取密码哈希值
-     * 
+     *
      * @param token JWT token
      * @return 密码哈希值
      */
     public String getPasswordHashFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
         return claims != null ? (String) claims.get("passwordHash") : null;
+    }
+
+    /**
+     * 从token中提取角色
+     *
+     * @param token JWT token
+     * @return 角色字符串 (user/admin)
+     */
+    public String getRoleFromToken(String token) {
+        Claims claims = getClaimsFromToken(token);
+        if (claims == null) {
+            return null;
+        }
+        // 兼容旧版 token：没有 role 字段时返回 null
+        Object role = claims.get("role");
+        return role != null ? (String) role : null;
     }
 
     /**
@@ -198,7 +221,7 @@ public class JwtUtil {
 
     /**
      * 刷新token（生成新的token）
-     * 
+     *
      * @param token 旧的JWT token
      * @return 新的JWT token
      */
@@ -210,7 +233,8 @@ public class JwtUtil {
         }
         Long userId = ((Number) claims.get("userId")).longValue();
         String username = claims.getSubject();
+        String role = (String) claims.get("role");
         String passwordHash = (String) claims.get("passwordHash");
-        return generateToken(userId, username, passwordHash);
+        return generateToken(userId, username, role != null ? role : "user", passwordHash);
     }
 }

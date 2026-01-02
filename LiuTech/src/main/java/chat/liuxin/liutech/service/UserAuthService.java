@@ -280,10 +280,10 @@ public class UserAuthService {
      * @date 2025-01-30
      */
     private LoginResp generateLoginResponse(Users user) {
-        // 生成访问令牌：当前策略将 passwordHash 放入claims用于失效校验
-        // 建议后续替换为 tokenVersion 或 lastPasswordChangeAt，避免敏感信息进token
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getPasswordHash());
-        log.info("为用户 {} 生成JWT token成功", user.getUsername());
+        // 生成访问令牌：包含 userId, username, role, passwordHash
+        String role = user.getRole() != null ? user.getRole() : "user";
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), role, user.getPasswordHash());
+        log.info("为用户 {} 生成JWT token成功，角色: {}", user.getUsername(), role);
 
         LoginResp loginResp = new LoginResp();
         loginResp.setToken(token);

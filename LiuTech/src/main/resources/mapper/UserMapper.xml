@@ -117,4 +117,9 @@
         AND u.deleted_at IS NULL
     </select>
 
+    <!-- 根据用户ID查询角色 -->
+    <select id="selectRoleById" resultType="java.lang.String">
+        SELECT role FROM users WHERE id = #{id} AND deleted_at IS NULL
+    </select>
+
 </mapper>

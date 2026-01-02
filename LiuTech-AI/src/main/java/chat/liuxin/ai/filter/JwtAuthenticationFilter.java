@@ -26,11 +26,8 @@ import java.util.Collection;
 /**
  * JWT认证过滤器
  * 自动验证请求中的JWT token，并将用户信息与权限注入到Spring Security上下文
- * 注意：本项目 Users 实体没有角色字段，这里采用"最小可行策略"——
- * - 默认给所有登录用户 ROLE_USER
- * - 通过用户名匹配 admin 列表赋予 ROLE_ADMIN（可后续替换为数据库角色表）
- * 这样可让 @PreAuthorize("hasRole('ADMIN')") 立即生效，后续再演进为真正的RBAC。
- * 
+ * 角色信息从 JWT token 的 claims 中获取，登录时由主后端写入
+ *
  * 作者：刘鑫，时间：2025-08-26（Asia/Shanghai）
  */
 @Slf4j
@@ -86,12 +83,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
             return;
         }
-        
+
         String username = jwtUtil.getUsernameFromToken(token);
         Long userId = jwtUtil.getUserIdFromToken(token);
-        
+        String role = jwtUtil.getRoleFromToken(token);
+
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            setAuthenticationContext(username, userId, request, response);
+            setAuthenticationContext(username, userId, role, request, response);
         }
     }
     
@@ -99,53 +97,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * 设置Spring Security认证上下文
      * @param username 用户名
      * @param userId 用户ID
+     * @param role 用户角色 (user/admin)
      * @param request HTTP请求
      * @param response HTTP响应
      */
-    private void setAuthenticationContext(String username, Long userId, HttpServletRequest request, HttpServletResponse response) {
-        Collection<GrantedAuthority> authorities = buildUserAuthorities(username);
-        
+    private void setAuthenticationContext(String username, Long userId, String role, HttpServletRequest request, HttpServletResponse response) {
+        Collection<GrantedAuthority> authorities = buildUserAuthorities(role);
+
         // 构建认证对象（使用带权限的构造函数，自动设置为已认证状态）
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                 username, null, authorities);
-        
+
         // 设置用户详情（将用户ID存储在details中，供控制器使用）
         authToken.setDetails(userId);
-        
+
         log.info("认证对象创建完成，认证状态: {}", authToken.isAuthenticated());
-        
+
         // 设置到Spring Security上下文
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(authToken);
         SecurityContextHolder.setContext(context);
-        
+
         // 将安全上下文保存到请求属性中，解决SSE流完成后认证上下文丢失问题
         securityContextRepository.saveContext(context, request, response);
-        
+
         log.info("JWT认证成功，用户: {}, 角色: {}, 用户ID: {}", username, authorities, userId);
     }
     
     /**
      * 构建用户权限集合
-     * @param username 用户名
+     * @param role 用户角色 (user/admin)
      * @return 权限集合
      */
-    private Collection<GrantedAuthority> buildUserAuthorities(String username) {
+    private Collection<GrantedAuthority> buildUserAuthorities(String role) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
+        // 默认 ROLE_USER
         authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
-        
-        if (isAdminUser(username)) {
+        // 如果角色是 admin，添加 ROLE_ADMIN
+        if ("admin".equals(role)) {
             authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         }
-        
         return authorities;
-    }
-
-    private boolean isAdminUser(String username) {
-        if (!StringUtils.hasText(username)) {
-            return false;
-        }
-        String u = username.trim().toLowerCase();
-        return "admin".equals(u) || "administrator".equals(u);
     }
 }

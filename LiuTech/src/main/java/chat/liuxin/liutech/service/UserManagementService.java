@@ -270,6 +270,9 @@ public class UserManagementService {
         if (user.getPoints() == null) {
             user.setPoints(BigDecimal.ZERO);
         }
+        if (user.getRole() == null) {
+            user.setRole("user"); // 默认普通用户
+        }
     }
 
     /**
