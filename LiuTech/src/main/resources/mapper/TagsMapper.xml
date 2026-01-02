@@ -128,9 +128,4 @@
         </foreach>
     </delete>
 
-    <!-- 统计标签总数（用于仪表盘） -->
-    <select id="countTotalTags" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM tags
-    </select>
-
 </mapper>

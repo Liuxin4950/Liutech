@@ -25,13 +25,6 @@ public interface PostFavoritesMapper extends BaseMapper<PostFavorites> {
     PostFavorites selectByUserIdAndPostId(@Param("userId") Long userId, @Param("postId") Long postId);
 
     /**
-     * 插入或更新收藏记录
-     * @param postFavorites 收藏记录
-     * @return 影响行数
-     */
-    boolean insertOrUpdate(PostFavorites postFavorites);
-
-    /**
      * 统计文章的收藏数
      * @param postId 文章ID
      * @return 收藏数

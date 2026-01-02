@@ -642,57 +642,6 @@
         AND deleted_at IS NOT NULL
     </update>
 
-    <!-- 插入文章 -->
-    <insert id="insert" parameterType="chat.liuxin.liutech.model.Posts" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO posts (
-            title,
-            content,
-            summary,
-            category_id,
-            author_id,
-            status,
-            cover_image,
-            thumbnail,
-            view_count,
-            like_count,
-            created_at,
-            updated_at,
-            created_by,
-            updated_by
-        ) VALUES (
-            #{title},
-            #{content},
-            #{summary},
-            #{categoryId},
-            #{authorId},
-            #{status},
-            #{coverImage},
-            #{thumbnail},
-            #{viewCount},
-            #{likeCount},
-            #{createdAt},
-            #{updatedAt},
-            #{createdBy},
-            #{updatedBy}
-        )
-    </insert>
-
-    <!-- 更新文章 -->
-    <update id="updateById" parameterType="chat.liuxin.liutech.model.Posts">
-        UPDATE posts SET
-            title = #{title},
-            content = #{content},
-            summary = #{summary},
-            category_id = #{categoryId},
-            status = #{status},
-            cover_image = #{coverImage},
-            thumbnail = #{thumbnail},
-            updated_at = #{updatedAt},
-            updated_by = #{updatedBy}
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </update>
-
     <!-- 软删除文章 -->
     <update id="deleteById">
         UPDATE posts SET
@@ -701,44 +650,6 @@
         WHERE id = #{id}
         AND deleted_at IS NULL
     </update>
-
-    <!-- 更新文章状态 -->
-    <update id="updateStatus">
-        UPDATE posts SET
-            status = #{status},
-            updated_at = #{updatedAt},
-            updated_by = #{updatedBy}
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </update>
-
-    <!-- 根据ID查询文章（不包含关联信息） -->
-    <select id="selectById" resultType="chat.liuxin.liutech.model.Posts">
-        SELECT
-            id,
-            title,
-            content,
-            summary,
-            category_id,
-            author_id,
-            status,
-            created_at,
-            updated_at,
-            created_by,
-            updated_by,
-            deleted_at
-        FROM posts
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </select>
-
-    <!-- 检查文章是否存在 -->
-    <select id="existsById" resultType="java.lang.Boolean">
-        SELECT COUNT(*) > 0
-        FROM posts
-        WHERE id = #{id}
-        AND deleted_at IS NULL
-    </select>
 
     <!-- 根据用户ID和状态统计文章数量 -->
     <select id="countPostsByUserIdAndStatus" resultType="java.lang.Integer">
@@ -904,6 +815,14 @@
         SELECT * FROM posts
         WHERE status = 'published'
         ORDER BY created_at DESC
+    </select>
+
+    <!-- 统计指定日期发布的文章数量 -->
+    <select id="countPostsByDate" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM posts p
+        WHERE DATE(p.created_at) = DATE(#{date})
+        AND p.deleted_at IS NULL
     </select>
 
 </mapper>

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Date;
 import java.util.List;
 
 @Mapper
@@ -68,5 +69,13 @@ public interface UserMapper extends BaseMapper<Users> {
      * @return 用户总数
      */
     Long countTotalUsers();
+
+    /**
+     * 统计指定日期注册的用户数量
+     *
+     * @param date 日期（只比较年月日）
+     * @return 用户数量
+     */
+    Integer countUsersByDate(@Param("date") Date date);
 
 }

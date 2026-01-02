@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -91,8 +92,8 @@ public class DashboardController extends BaseAdminController {
         Integer totalPostsCount = postsMapper.countPostsForAdmin(null, null, null, null, false);
         Integer publishedPostsCount = postsMapper.countPublishedPosts();
         Long totalUsersCount = userMapper.countTotalUsers();
-        Long totalCategoriesCount = categoriesMapper.countTotalCategories();
-        Long totalTagsCount = tagsMapper.countTotalTags();
+        Long totalCategoriesCount = categoriesMapper.selectCount(null);
+        Long totalTagsCount = tagsMapper.selectCount(null);
         Integer totalCommentsCount = commentsMapper.countAllComments();
         Long totalViewsCount = postsMapper.countAllViews();
 
@@ -151,7 +152,6 @@ public class DashboardController extends BaseAdminController {
 
     /**
      * 获取最近N天的文章发布趋势
-     * 注意：这里使用简化的实现，实际项目中可能需要更复杂的查询
      */
     private List<TrendData> getPostTrend(int days) {
         List<TrendData> trend = new ArrayList<>();
@@ -160,18 +160,25 @@ public class DashboardController extends BaseAdminController {
         for (int i = days - 1; i >= 0; i--) {
             calendar.setTimeInMillis(System.currentTimeMillis());
             calendar.add(Calendar.DAY_OF_YEAR, -i);
+            // 设置为当天的开始时间
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MILLISECOND, 0);
+            Date date = calendar.getTime();
 
-            String date = String.format("%04d-%02d-%02d",
+            String dateStr = String.format("%04d-%02d-%02d",
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH) + 1,
                     calendar.get(Calendar.DAY_OF_MONTH));
 
-            // 简化处理：每天假设有1篇文章，实际应该查询数据库
-            long count = (long) (Math.random() * 5); // 模拟数据
+            // 查询当天的文章数量
+            Integer count = postsMapper.countPostsByDate(date);
+            long postCount = count != null ? count.longValue() : 0L;
 
             trend.add(TrendData.builder()
-                    .date(date)
-                    .count(count)
+                    .date(dateStr)
+                    .count(postCount)
                     .build());
         }
 
@@ -188,18 +195,25 @@ public class DashboardController extends BaseAdminController {
         for (int i = days - 1; i >= 0; i--) {
             calendar.setTimeInMillis(System.currentTimeMillis());
             calendar.add(Calendar.DAY_OF_YEAR, -i);
+            // 设置为当天的开始时间
+            calendar.set(Calendar.HOUR_OF_DAY, 0);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+            calendar.set(Calendar.MILLISECOND, 0);
+            Date date = calendar.getTime();
 
-            String date = String.format("%04d-%02d-%02d",
+            String dateStr = String.format("%04d-%02d-%02d",
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH) + 1,
                     calendar.get(Calendar.DAY_OF_MONTH));
 
-            // 简化处理：每天假设有1个新用户，实际应该查询数据库
-            long count = (long) (Math.random() * 3); // 模拟数据
+            // 查询当天的注册用户数量
+            Integer count = userMapper.countUsersByDate(date);
+            long userCount = count != null ? count.longValue() : 0L;
 
             trend.add(TrendData.builder()
-                    .date(date)
-                    .count(count)
+                    .date(dateStr)
+                    .count(userCount)
                     .build());
         }
 

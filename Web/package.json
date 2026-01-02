@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@types/dompurify": "^3.0.5",
+    "@types/lodash-es": "^4.17.12",
     "@types/marked": "^5.0.2",
     "@types/node": "^24.1.0",
     "@vitejs/plugin-vue": "^6.0.0",

@@ -1,13 +1,4 @@
-<script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { getComments, createComment, deleteComment, type Comment } from '@/services/api'
-import { formatTime } from '@/utils/time'
-import CommentItem from './CommentItem.vue'
-import Icon from './Icon.vue'
-import { useUserStore } from '@/stores/user'
-import { ElMessage } from 'element-plus'
-
+<template>
   <div class="comment-section">
     <!-- 评论标题 -->
     <div class="comment-header">

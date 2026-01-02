@@ -25,13 +25,6 @@ public interface PostLikesMapper extends BaseMapper<PostLikes> {
     PostLikes selectByUserIdAndPostId(@Param("userId") Long userId, @Param("postId") Long postId);
 
     /**
-     * 插入或更新点赞记录
-     * @param postLikes 点赞记录
-     * @return 影响行数
-     */
-    boolean insertOrUpdate(PostLikes postLikes);
-
-    /**
      * 统计文章的点赞数
      * @param postId 文章ID
      * @return 点赞数

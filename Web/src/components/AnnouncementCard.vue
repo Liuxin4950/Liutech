@@ -1,100 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getAnnouncements, type Announcement } from '@/services/api'
-import Icon from './Icon.vue'
-import { formatTime } from '@/utils/time'
-
-// 公告卡片组件
-
-  <div class="card">
-    <div class="flex flex-sb">
-      <h4 class="card-title mb-0">公告</h4>
-      <button
-        @click="refreshAnnouncements"
-        :disabled="loading"
-        class="refresh-btn"
-        title="刷新公告"
-      >
-        <Icon name="refresh" :spin="loading" />
-      </button>
-    </div>
-    <div v-if="loading" class="text-center p-16">
-      <span class="text-sm">加载中...</span>
-    </div>
-    <div v-else-if="announcements.length === 0" class="text-center p-16 flex flex-col flex-ac">
-      <span class="text-sm">暂无公告</span>
-      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
-    </div>
-    <div v-else class="list">
-      <div
-        v-for="announcement in announcements"
-        :key="announcement.id"
-        class="list-item link"
-        @click="showAnnouncementDetail(announcement)"
-      >
-        <div class="flex flex-sb">
-          <span class="text-sm font-medium">{{ formatDate(announcement.createdAt) }}</span>
-          <div class="flex flex-sb gap-8">
-            <span v-if="announcement.isTop" class="badge badge-red">置顶</span>
-            <span class="badge badge-blue">{{ announcement.typeName }}</span>
-          </div>
-        </div>
-        <h5 class="text-lg font-medium mb-8">{{ announcement.title }}</h5>
-      </div>
-    </div>
-
-    <!-- 公告详情弹窗 -->
-    <Teleport to="body">
-      <div v-if="showDetail && selectedAnnouncement"
-           class="modal-overlay"
-           :class="{ 'show': showDetail }"
-           @click="closeDetail">
-        <div class="modal-container" @click.stop>
-          <div class="modal-header">
-            <h3 class="modal-header-title">公告详情</h3>
-            <button @click="closeDetail" class="close-btn" aria-label="关闭弹窗">×</button>
-          </div>
-
-          <div class="modal-body">
-            <h2 class="modal-title">{{ selectedAnnouncement.title }}</h2>
-
-            <div class="modal-tags">
-              <span v-if="selectedAnnouncement.isTop" class="badge badge-red">置顶</span>
-              <span class="badge badge-blue">{{ selectedAnnouncement.typeName }}</span>
-              <span class="badge" :class="getPriorityClass(selectedAnnouncement.priority)">{{ selectedAnnouncement.priorityName }}</span>
-            </div>
-
-            <div class="modal-content-text" v-html="selectedAnnouncement.content"></div>
-
-            <div class="modal-info">
-              <div class="info-row">
-                <span class="info-label">发布时间：</span>
-                <span class="info-value">{{ formatDateTime(selectedAnnouncement.createdAt) }}</span>
-              </div>
-              <div v-if="selectedAnnouncement.startTime" class="info-row">
-                <span class="info-label">开始时间：</span>
-                <span class="info-value">{{ formatDateTime(selectedAnnouncement.startTime) }}</span>
-              </div>
-              <div v-if="selectedAnnouncement.endTime" class="info-row">
-                <span class="info-label">结束时间：</span>
-                <span class="info-value">{{ formatDateTime(selectedAnnouncement.endTime) }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">浏览量：</span>
-                <span class="info-value">{{ selectedAnnouncement.viewCount || 0 }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-  </div>
-</template>
-
-<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useAnnouncementStore } from '../stores/announcement'
 import type { Announcement } from '../services/announcement'
+import Icon from './Icon.vue'
 
 // 使用公告 store
 const announcementStore = useAnnouncementStore()
@@ -208,6 +116,92 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleEscKey)
 })
 </script>
+
+<template>
+  <div class="card">
+    <div class="flex flex-sb">
+      <h4 class="card-title mb-0">公告</h4>
+      <button
+        @click="refreshAnnouncements"
+        :disabled="loading"
+        class="refresh-btn"
+        title="刷新公告"
+      >
+        <Icon name="refresh" :spin="loading" />
+      </button>
+    </div>
+    <div v-if="loading" class="text-center p-16">
+      <span class="text-sm">加载中...</span>
+    </div>
+    <div v-else-if="announcements.length === 0" class="text-center p-16 flex flex-col flex-ac">
+      <span class="text-sm">暂无公告</span>
+      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+    </div>
+    <div v-else class="list">
+      <div
+        v-for="announcement in announcements"
+        :key="announcement.id"
+        class="list-item link"
+        @click="showAnnouncementDetail(announcement)"
+      >
+        <div class="flex flex-sb">
+          <span class="text-sm font-medium">{{ formatDate(announcement.createdAt) }}</span>
+          <div class="flex flex-sb gap-8">
+            <span v-if="announcement.isTop" class="badge badge-red">置顶</span>
+            <span class="badge badge-blue">{{ announcement.typeName }}</span>
+          </div>
+        </div>
+        <h5 class="text-lg font-medium mb-8">{{ announcement.title }}</h5>
+      </div>
+    </div>
+
+    <!-- 公告详情弹窗 -->
+    <Teleport to="body">
+      <div v-if="showDetail && selectedAnnouncement"
+           class="modal-overlay"
+           :class="{ 'show': showDetail }"
+           @click="closeDetail">
+        <div class="modal-container" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-header-title">公告详情</h3>
+            <button @click="closeDetail" class="close-btn" aria-label="关闭弹窗">×</button>
+          </div>
+
+          <div class="modal-body">
+            <h2 class="modal-title">{{ selectedAnnouncement.title }}</h2>
+
+            <div class="modal-tags">
+              <span v-if="selectedAnnouncement.isTop" class="badge badge-red">置顶</span>
+              <span class="badge badge-blue">{{ selectedAnnouncement.typeName }}</span>
+              <span class="badge" :class="getPriorityClass(selectedAnnouncement.priority)">{{ selectedAnnouncement.priorityName }}</span>
+            </div>
+
+            <div class="modal-content-text" v-html="selectedAnnouncement.content"></div>
+
+            <div class="modal-info">
+              <div class="info-row">
+                <span class="info-label">发布时间：</span>
+                <span class="info-value">{{ formatDateTime(selectedAnnouncement.createdAt) }}</span>
+              </div>
+              <div v-if="selectedAnnouncement.startTime" class="info-row">
+                <span class="info-label">开始时间：</span>
+                <span class="info-value">{{ formatDateTime(selectedAnnouncement.startTime) }}</span>
+              </div>
+              <div v-if="selectedAnnouncement.endTime" class="info-row">
+                <span class="info-label">结束时间：</span>
+                <span class="info-value">{{ formatDateTime(selectedAnnouncement.endTime) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">浏览量：</span>
+                <span class="info-value">{{ selectedAnnouncement.viewCount || 0 }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+  </div>
+</template>
 
 <style scoped>
 /* 弹窗遮罩层 */

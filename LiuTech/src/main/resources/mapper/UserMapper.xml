@@ -109,4 +109,12 @@
         SELECT COUNT(*) FROM users
     </select>
 
+    <!-- 统计指定日期注册的用户数量 -->
+    <select id="countUsersByDate" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM users u
+        WHERE DATE(u.created_at) = DATE(#{date})
+        AND u.deleted_at IS NULL
+    </select>
+
 </mapper>

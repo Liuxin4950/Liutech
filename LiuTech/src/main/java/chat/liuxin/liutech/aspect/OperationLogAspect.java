@@ -9,9 +9,6 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -21,6 +18,7 @@ import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import chat.liuxin.liutech.model.AdminLogs;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.service.LogService;
+import chat.liuxin.liutech.utils.UserUtils;
 import jakarta.servlet.http.HttpServletRequest;
 
 import lombok.extern.slf4j.Slf4j;
@@ -40,10 +38,12 @@ public class OperationLogAspect {
 
     @Lazy
     private final LogService logService;
+    private final UserUtils userUtils;
     private final ExpressionParser expressionParser = new SpelExpressionParser();
 
-    public OperationLogAspect(LogService logService) {
+    public OperationLogAspect(LogService logService, UserUtils userUtils) {
         this.logService = logService;
+        this.userUtils = userUtils;
     }
 
     /**
@@ -98,8 +98,8 @@ public class OperationLogAspect {
         logEntry.setAction(operationLog.action());
         logEntry.setTargetType(operationLog.targetType());
 
-        // 设置操作人信息（从Spring Security上下文获取）
-        Users currentUser = getCurrentUserFromSecurity();
+        // 设置操作人信息（从UserUtils获取）
+        Users currentUser = userUtils.getCurrentUser();
         if (currentUser != null) {
             logEntry.setOperator(currentUser.getUsername());
             logEntry.setOperatorId(currentUser.getId());
@@ -132,52 +132,6 @@ public class OperationLogAspect {
 
         // 保存日志
         logService.saveLog(logEntry);
-    }
-
-    /**
-     * 从Spring Security上下文获取当前登录用户
-     */
-    private Users getCurrentUserFromSecurity() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
-                return null;
-            }
-            if ("anonymousUser".equals(authentication.getPrincipal())) {
-                return null;
-            }
-
-            // 尝试从details中获取用户ID
-            Long userId = null;
-            if (authentication instanceof UsernamePasswordAuthenticationToken token) {
-                Object details = token.getDetails();
-                if (details instanceof Long id) {
-                    userId = id;
-                }
-            }
-
-            // 获取用户名
-            String username = null;
-            Object principal = authentication.getPrincipal();
-            if (principal instanceof String name) {
-                username = name;
-            } else if (principal instanceof Users user) {
-                return user;
-            }
-
-            // 构建临时用户对象（因为无法在此处注入UserMapper）
-            if (username != null) {
-                Users user = new Users();
-                user.setUsername(username);
-                user.setId(userId);
-                return user;
-            }
-
-            return null;
-        } catch (Exception e) {
-            log.debug("获取当前用户失败", e);
-            return null;
-        }
     }
 
     /**

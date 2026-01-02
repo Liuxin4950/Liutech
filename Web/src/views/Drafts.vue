@@ -1,115 +1,4 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { getDrafts, deleteDraft } from '@/services/api'
-import type { Draft } from '@/services/api'
-import Icon from '../components/Icon.vue'
-
-const router = useRouter()
-
-  <div class="drafts-page">
-    <div class="page-header">
-      <h1 class="page-title"><Icon name="file" size="24" /> 草稿箱</h1>
-      <p class="page-description">管理您的草稿文章，继续编辑或发布</p>
-    </div>
-
-    <!-- 操作栏 -->
-    <div class="actions-bar">
-      <div class="search-box">
-        <input v-model="searchKeyword" type="text" placeholder="搜索草稿..." class="search-input"
-          @keyup.enter="handleSearch" />
-        <Icon name="search" size="16" class="search-icon" />
-      </div>
-      <button class="create-btn" @click="createNewDraft">
-        <Icon name="edit" size="16" />
-        新建草稿
-      </button>
-    </div>
-
-
-    <!-- 草稿列表 -->
-    <div class="drafts-container">
-      <!-- 加载状态 -->
-    <div v-if="loading" class="loading-state text-sm">
-      <div class="loading-spinner"></div>
-      <p>加载中...</p>
-    </div>
-
-    <!-- 错误状态 -->
-    <div v-else-if="error" class="error-state text-sm">
-      <Icon name="close" size="40" class="error-icon" />
-      <p>{{ error }}</p>
-      <button class="retry-btn" @click="loadDrafts">重试</button>
-    </div>
-
-    <!-- 空状态 -->
-    <div v-else-if="filteredDrafts.length === 0" class="empty-state flex flex-col flex-ac text-sm">
-        <h3>暂无草稿</h3>
-        <p>开始创建您的第一篇草稿吧！</p>
-        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
-        <button class="create-btn" @click="createNewDraft">
-          <Icon name="edit" size="16" />
-          新建草稿
-        </button>
-      </div>
-
-      <!-- 草稿列表 -->
-      <div v-else class="drafts-list">
-        <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card bg-card gap-12">
-          <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="">
-          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="">
-          <img v-else="draft.coverImage" class="fit" src="@/assets/image/images.jpg" alt="">
-          <div class="draft-content flex flex-col gap-12">
-            <h3 class="draft-title text-primary" @click="editDraft(draft.id)">
-              {{ draft.title || '无标题草稿' }}
-            </h3>
-            <p class="draft-summary" v-if="draft.summary">
-              {{ draft.summary }}
-            </p>
-            <div class="tags-cloud" v-if="draft.tags && draft.tags.length > 0">
-              <span @click.stop="goToTag(tag.id)" v-for="tag in draft.tags" :key="tag.id" class="tag">
-                {{ tag.name }}
-              </span>
-            </div>
-            <div class="draft-meta">
-              <span class="draft-date">
-                <Icon name="calendar" size="14" class="meta-icon" />
-                更新于 {{ formatRelativeTime(draft.updatedAt || draft.createdAt) }}
-              </span>
-              <span class="draft-category" v-if="draft.category">
-                <Icon name="tag" size="14" class="meta-icon" />
-                {{ draft.category.name }}
-              </span>
-            </div>
-          </div>
-
-          <div class="draft-actions">
-            <button class="action-btn edit-btn" @click="editDraft(draft.id)" title="编辑">
-              <Icon name="edit" size="16" />
-            </button>
-            <button class="action-btn publish-btn" @click="publishDraft(draft.id)" title="发布">
-              <Icon name="rocket" size="16" />
-            </button>
-            <button class="action-btn delete-btn" @click="deleteDraft(draft.id)" title="删除">
-              <Icon name="trash" size="16" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 分页器 -->
-    <Pagination 
-      v-if="!loading && drafts.length > 0"
-      :current-page="currentPage"
-      :total-pages="totalPages"
-      :show-page-numbers="false"
-      @page-change="changePage"
-    />
-  </div>
-</template>
-
-<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
@@ -252,6 +141,109 @@ onMounted(async () => {
   ])
 })
 </script>
+
+<template>
+  <div class="drafts-page">
+    <div class="page-header">
+      <h1 class="page-title"><Icon name="file" size="24" /> 草稿箱</h1>
+      <p class="page-description">管理您的草稿文章，继续编辑或发布</p>
+    </div>
+
+    <!-- 操作栏 -->
+    <div class="actions-bar">
+      <div class="search-box">
+        <input v-model="searchKeyword" type="text" placeholder="搜索草稿..." class="search-input"
+          @keyup.enter="handleSearch" />
+        <Icon name="search" size="16" class="search-icon" />
+      </div>
+      <button class="create-btn" @click="createNewDraft">
+        <Icon name="edit" size="16" />
+        新建草稿
+      </button>
+    </div>
+
+
+    <!-- 草稿列表 -->
+    <div class="drafts-container">
+      <!-- 加载状态 -->
+    <div v-if="loading" class="loading-state text-sm">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+
+    <!-- 错误状态 -->
+    <div v-else-if="error" class="error-state text-sm">
+      <Icon name="close" size="40" class="error-icon" />
+      <p>{{ error }}</p>
+      <button class="retry-btn" @click="loadDrafts">重试</button>
+    </div>
+
+    <!-- 空状态 -->
+    <div v-else-if="filteredDrafts.length === 0" class="empty-state flex flex-col flex-ac text-sm">
+        <h3>暂无草稿</h3>
+        <p>开始创建您的第一篇草稿吧！</p>
+        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+        <button class="create-btn" @click="createNewDraft">
+          <Icon name="edit" size="16" />
+          新建草稿
+        </button>
+      </div>
+
+      <!-- 草稿列表 -->
+      <div v-else class="drafts-list">
+        <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card bg-card gap-12">
+          <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="">
+          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="">
+          <img v-else="draft.coverImage" class="fit" src="@/assets/image/images.jpg" alt="">
+          <div class="draft-content flex flex-col gap-12">
+            <h3 class="draft-title text-primary" @click="editDraft(draft.id)">
+              {{ draft.title || '无标题草稿' }}
+            </h3>
+            <p class="draft-summary" v-if="draft.summary">
+              {{ draft.summary }}
+            </p>
+            <div class="tags-cloud" v-if="draft.tags && draft.tags.length > 0">
+              <span @click.stop="goToTag(tag.id)" v-for="tag in draft.tags" :key="tag.id" class="tag">
+                {{ tag.name }}
+              </span>
+            </div>
+            <div class="draft-meta">
+              <span class="draft-date">
+                <Icon name="calendar" size="14" class="meta-icon" />
+                更新于 {{ formatRelativeTime(draft.updatedAt || draft.createdAt) }}
+              </span>
+              <span class="draft-category" v-if="draft.category">
+                <Icon name="tag" size="14" class="meta-icon" />
+                {{ draft.category.name }}
+              </span>
+            </div>
+          </div>
+
+          <div class="draft-actions">
+            <button class="action-btn edit-btn" @click="editDraft(draft.id)" title="编辑">
+              <Icon name="edit" size="16" />
+            </button>
+            <button class="action-btn publish-btn" @click="publishDraft(draft.id)" title="发布">
+              <Icon name="rocket" size="16" />
+            </button>
+            <button class="action-btn delete-btn" @click="deleteDraft(draft.id)" title="删除">
+              <Icon name="trash" size="16" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分页器 -->
+    <Pagination 
+      v-if="!loading && drafts.length > 0"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      :show-page-numbers="false"
+      @page-change="changePage"
+    />
+  </div>
+</template>
 
 <style scoped>
 /***** 修改人：刘鑫；修改时间：2025-08-26；统一草稿页按钮颜色到“我的文章”风格 *****/

@@ -1,10 +1,4 @@
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import Icon from './Icon.vue'
-
-const router = useRouter()
-
+<template>
   <div class="card">
     <div class="card-title"><Icon name="search" size="18" /> 文章搜索</div>
     <div class="search-container">
@@ -79,10 +73,10 @@ const router = useRouter()
 </template>
 
 <script setup lang="ts">
-import { ref,  } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { PostService } from '@/services/post'
-import type { PostListItem,  } from '@/services/post'
+import Icon from './Icon.vue'
+import { PostService, type PostListItem } from '@/services/post'
 import { formatDate } from '@/utils/uitls'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 

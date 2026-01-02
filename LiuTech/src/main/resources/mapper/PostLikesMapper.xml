@@ -19,15 +19,6 @@
         WHERE user_id = #{userId} AND post_id = #{postId}
     </select>
 
-    <!-- 插入或更新点赞记录 -->
-    <insert id="insertOrUpdate" parameterType="chat.liuxin.liutech.model.PostLikes">
-        INSERT INTO post_likes (user_id, post_id, is_like, created_at, updated_at)
-        VALUES (#{userId}, #{postId}, #{isLike}, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-        is_like = #{isLike},
-        updated_at = NOW()
-    </insert>
-
     <!-- 统计文章的点赞数 -->
     <select id="countLikesByPostId" resultType="java.lang.Integer">
         SELECT COUNT(*)

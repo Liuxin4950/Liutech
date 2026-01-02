@@ -19,15 +19,6 @@
         WHERE user_id = #{userId} AND post_id = #{postId}
     </select>
 
-    <!-- 插入或更新收藏记录 -->
-    <insert id="insertOrUpdate" parameterType="chat.liuxin.liutech.model.PostFavorites">
-        INSERT INTO post_favorites (user_id, post_id, is_favorite, created_at, updated_at)
-        VALUES (#{userId}, #{postId}, #{isFavorite}, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-        is_favorite = #{isFavorite},
-        updated_at = NOW()
-    </insert>
-
     <!-- 统计文章的收藏数 -->
     <select id="countFavoritesByPostId" resultType="java.lang.Integer">
         SELECT COUNT(*)

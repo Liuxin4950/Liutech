@@ -201,24 +201,8 @@ public interface PostsMapper extends BaseMapper<Posts> {
     int restorePostsByIds(@Param("ids") List<Long> ids);
 
     /**
-     * 插入文章
-     * 
-     * @param posts 文章对象
-     * @return 影响行数
-     */
-    int insert(Posts posts);
-
-    /**
-     * 根据ID更新文章
-     * 
-     * @param posts 文章对象
-     * @return 影响行数
-     */
-    int updateById(Posts posts);
-
-    /**
      * 根据ID软删除文章
-     * 
+     *
      * @param id        文章ID
      * @param deletedAt 删除时间
      * @param updatedBy 更新人ID
@@ -229,38 +213,8 @@ public interface PostsMapper extends BaseMapper<Posts> {
             @Param("updatedBy") Long updatedBy);
 
     /**
-     * 更新文章状态
-     * 
-     * @param id        文章ID
-     * @param status    文章状态
-     * @param updatedAt 更新时间
-     * @param updatedBy 更新人ID
-     * @return 影响行数
-     */
-    int updateStatus(@Param("id") Long id,
-            @Param("status") String status,
-            @Param("updatedAt") java.util.Date updatedAt,
-            @Param("updatedBy") Long updatedBy);
-
-    /**
-     * 根据ID查询文章（不包含关联信息）
-     * 
-     * @param id 文章ID
-     * @return 文章对象
-     */
-    Posts selectById(@Param("id") Long id);
-
-    /**
-     * 检查文章是否存在
-     * 
-     * @param id 文章ID
-     * @return 是否存在
-     */
-    Boolean existsById(@Param("id") Long id);
-
-    /**
      * 根据用户ID和状态统计文章数量
-     * 
+     *
      * @param userId 用户ID
      * @param status 文章状态
      * @return 文章数量
@@ -269,7 +223,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
 
     /**
      * 获取用户最后发文时间
-     * 
+     *
      * @param userId 用户ID
      * @return 最后发文时间
      */
@@ -277,7 +231,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
 
     /**
      * 统计全站已发布文章数量
-     * 
+     *
      * @return 已发布文章数量
      */
     Integer countPublishedPosts();
@@ -300,10 +254,18 @@ public interface PostsMapper extends BaseMapper<Posts> {
 
     /**
      * 统计全站文章总浏览量
-     * 
+     *
      * @return 总浏览量
      */
     Long countAllViews();
+
+    /**
+     * 统计指定日期发布的文章数量
+     *
+     * @param date 日期（只比较年月日）
+     * @return 文章数量
+     */
+    Integer countPostsByDate(@Param("date") java.util.Date date);
 
     /**
      * 统计用户所有文章的浏览量总和

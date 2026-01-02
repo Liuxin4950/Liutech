@@ -1,225 +1,4 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { getPostDetail, getRelatedPosts, likePost, favoritePost, type PostDetail as PostDetailType } from '@/services/api'
-import { formatTime } from '@/utils/time'
-import ArticleList from '@/components/ArticleList.vue'
-import CommentSection from '@/components/CommentSection.vue'
-import Icon from '../components/Icon.vue'
-
-const route = useRoute()
-
-  <div class="post-detail content">
-    <div v-if="loading" class="text-center p-20 text-sm">
-      <p>加载中...</p>
-    </div>
-    <div v-else-if="error" class="text-center p-20 text-sm">
-      <p>{{ error }}</p>
-      <button @click="loadPostDetail" class="retry-btn bg-primary text-center rounded transition mt-8">重试</button>
-    </div>
-    <div v-else-if="post" class="card bg-soft">
-      <!-- 文章头部信息 -->
-      <header class="post-header">
-        <h2 class="post-title">{{ post.title }}</h2>
-
-        <!-- 封面图片 -->
-        <!-- <div class="post-cover mb-16">
-          <img :src="displayImage" :alt="post.title" class="cover-image" :class="{ 'loading': imageLoading }">
-        </div> -->
-
-        <div class="post-meta-info">
-          <div class="meta-left-section">
-            <div class="author-info">
-              <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
-                class="author-avatar">
-              <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
-            </div>
-          </div>
-          <div class="meta-right-section">
-            <span v-if="post.category" class="category-badge">{{ post.category.name }}</span>
-            <div class="meta-stat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              {{ formatDate(post.createdAt) }}
-            </div>
-            <div class="meta-stat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              {{ post.viewCount || 0 }}
-            </div>
-            <div class="meta-stat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c2.08 0 3.5 2.42 3.5 4.5 0 2.78-2.42 4.5-3.5 4.5-.05 0-.1-.01-.15-.02l1.65 1.5c.05.04.1.06.16.06.11 0 .21-.08.39-.27.69-.27.28-.11.48-.21.69-.27.28-.11.21-.27.28-.69.27-.05.01-.1.02-.15.02zm1.39-1.81c.44-.25.79-.74.79-1.33 0-.88-.65-1.62-1.52-1.85l1.42-1.3c.37.36.59.92.59 1.52 0 1.11-.7 1.87-1.77 1.87H9c-.88 0-1.63-.39-2.12-.96l1.42 1.3c.19-.17.43-.27.7-.27.88 0 .59.35 1.08.79 1.33l1.42-1.3c-.49-.57-.79-1.3-.79-2.12z"/>
-              </svg>
-              {{ post.likeCount || 0 }}
-            </div>
-            <div class="meta-stat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              {{ post.commentCount }}
-            </div>
-          </div>
-        </div>
-        <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
-          <span v-for="tag in post.tags" :key="tag.id" class="tag">
-            {{ tag.name }}
-          </span>
-        </div>
-      </header>
-
-      <!-- 文章摘要 -->
-      <div v-if="post.summary" class="post-summary bg-hover p-20">
-        <p class="">{{ post.summary }}</p>
-      </div>
-
-      <!-- 文章内容 -->
-      <article class="">
-        <div class="markdown-content" v-html="renderedContent"></div>
-      </article>
-
-      <!-- 附件列表 -->
-      <section v-if="post.attachments && post.attachments.length" class="mt-16">
-        <h3 class="mb-12">附件</h3>
-        <ul class="list-unstyled flex flex-col gap-8">
-          <li v-for="att in post.attachments" :key="att.attachmentId"
-            class="flex flex-sb flex-ac bg-hover p-12 rounded">
-            <div class="flex flex-col">
-              <template v-if="att.purchased && att.fileUrl">
-                <a class="link" :href="att.fileUrl" target="_blank" rel="noopener" :title="att.fileName"><Icon name="paperclip" size="14" /> {{
-                  att.fileName }}</a>
-              </template>
-              <template v-else>
-                <span class="text-muted"><Icon name="paperclip" size="14" /> {{ att.fileName }}</span>
-              </template>
-              <div class="text-sm text-muted flex gap-12 mt-4">
-                <span v-if="att.pointsNeeded && !att.purchased">需要积分：{{ att.pointsNeeded }}</span>
-                <span>上传时间：{{ formatDate(att.createdTime) }}</span>
-              </div>
-            </div>
-            <div class="flex gap-8">
-              <a v-if="att.purchased && att.fileUrl" class="action-btn" :href="att.fileUrl" target="_blank"
-                rel="noopener">下载/查看</a>
-              <button v-else-if="!att.purchased && att.pointsNeeded" class="action-btn"
-                :disabled="purchasingId === att.resourceId" @click="onPurchase(att.resourceId)">
-                {{ purchasingId === att.resourceId ? '购买中...' : (att.pointsNeeded ? `购买（${att.pointsNeeded} 积分）` : '购买')
-                }}
-              </button>
-            </div>
-          </li>
-        </ul>
-      </section>
-
-      <!-- 文章交互 -->
-      <div class="post-actions">
-        <div class="actions-left">
-          <!-- 点赞按钮 -->
-          <button @click="handleLike" :class="['action-btn', { 'liked': isLiked }]" :disabled="liking">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path
-                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            <span>{{ isLiked ? '已点赞' : '点赞' }}</span>
-            <span class="count">({{ currentLikeCount }})</span>
-          </button>
-
-          <!-- 收藏按钮 -->
-          <button @click="handleFavorite" :class="['action-btn', { 'favorited': isFavorited }]" :disabled="favoriting">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-            </svg>
-            <span>{{ isFavorited ? '已收藏' : '收藏' }}</span>
-            <span class="count">({{ currentFavoriteCount }})</span>
-          </button>
-
-          <!-- 评论数 -->
-          <div class="action-info">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            <span>评论 ({{ post?.commentCount || 0 }})</span>
-          </div>
-
-          <!-- 阅读数 -->
-          <div class="action-info">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <span>阅读 ({{ post?.viewCount || 0 }})</span>
-          </div>
-        </div>
-
-        <div class="actions-right">
-          <!-- 分享按钮 -->
-          <div class="share-group">
-            <button @click="toggleShare" class="action-btn share-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
-              <span>分享</span>
-            </button>
-
-            <!-- 分享选项 -->
-            <div v-if="showShare" class="share-options">
-              <button @click="shareToWeChat" class="share-option wechat">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path
-                    d="M8.5 12c-.83 0-1.5-.67-1.5-1.5S7.67 9 8.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm7 0c-.83 0-1.5-.67-1.5-1.5S14.67 9 15.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20z" />
-                </svg>
-                <span>微信</span>
-              </button>
-
-              <button @click="shareToQQ" class="share-option qq">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
-                </svg>
-                <span>QQ</span>
-              </button>
-
-              <button @click="copyLink" class="share-option link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                </svg>
-                <span>复制链接</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- 评论模块 -->
-      <div class="">
-        <CommentSection :post-id="Number(route.params.id)" />
-      </div>
-    </div>
-    <div v-else class="text-center p-20 ">
-      <p>文章不存在</p>
-      <button @click="goBack" class="bg-primary text-center rounded transition mt-8">返回首页</button>
-    </div>
-
-    <!-- 登录弹窗 -->
-    <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
-
-    <!-- 目录导航 -->
-    <div class="table-of-contents-container">
-      <TableOfContents class="table-of-contents" v-if="post && !loading && !error" />
-    </div>
-  </div>
-</template>
-
-<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
@@ -690,6 +469,217 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   }
 }, { deep: true })
 </script>
+
+<template>
+  <div class="post-detail content">
+    <div v-if="loading" class="text-center p-20 text-sm">
+      <p>加载中...</p>
+    </div>
+    <div v-else-if="error" class="text-center p-20 text-sm">
+      <p>{{ error }}</p>
+      <button @click="loadPostDetail" class="retry-btn bg-primary text-center rounded transition mt-8">重试</button>
+    </div>
+    <div v-else-if="post" class="card bg-soft">
+      <!-- 文章头部信息 -->
+      <header class="post-header">
+        <h2 class="post-title">{{ post.title }}</h2>
+
+        <!-- 封面图片 -->
+        <!-- <div class="post-cover mb-16">
+          <img :src="displayImage" :alt="post.title" class="cover-image" :class="{ 'loading': imageLoading }">
+        </div> -->
+
+        <div class="post-meta-info">
+          <div class="meta-left-section">
+            <div class="author-info">
+              <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
+                class="author-avatar">
+              <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
+            </div>
+          </div>
+          <div class="meta-right-section">
+            <span v-if="post.category" class="category-badge">{{ post.category.name }}</span>
+            <div class="meta-stat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              {{ formatDate(post.createdAt) }}
+            </div>
+            <div class="meta-stat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              {{ post.viewCount || 0 }}
+            </div>
+            <div class="meta-stat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c2.08 0 3.5 2.42 3.5 4.5 0 2.78-2.42 4.5-3.5 4.5-.05 0-.1-.01-.15-.02l1.65 1.5c.05.04.1.06.16.06.11 0 .21-.08.39-.27.69-.27.28-.11.48-.21.69-.27.28-.11.21-.27.28-.69.27-.05.01-.1.02-.15.02zm1.39-1.81c.44-.25.79-.74.79-1.33 0-.88-.65-1.62-1.52-1.85l1.42-1.3c.37.36.59.92.59 1.52 0 1.11-.7 1.87-1.77 1.87H9c-.88 0-1.63-.39-2.12-.96l1.42 1.3c.19-.17.43-.27.7-.27.88 0 .59.35 1.08.79 1.33l1.42-1.3c-.49-.57-.79-1.3-.79-2.12z"/>
+              </svg>
+              {{ post.likeCount || 0 }}
+            </div>
+            <div class="meta-stat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              {{ post.commentCount }}
+            </div>
+          </div>
+        </div>
+        <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
+          <span v-for="tag in post.tags" :key="tag.id" class="tag">
+            {{ tag.name }}
+          </span>
+        </div>
+      </header>
+
+      <!-- 文章摘要 -->
+      <div v-if="post.summary" class="post-summary bg-hover p-20">
+        <p class="">{{ post.summary }}</p>
+      </div>
+
+      <!-- 文章内容 -->
+      <article class="">
+        <div class="markdown-content" v-html="renderedContent"></div>
+      </article>
+
+      <!-- 附件列表 -->
+      <section v-if="post.attachments && post.attachments.length" class="mt-16">
+        <h3 class="mb-12">附件</h3>
+        <ul class="list-unstyled flex flex-col gap-8">
+          <li v-for="att in post.attachments" :key="att.attachmentId"
+            class="flex flex-sb flex-ac bg-hover p-12 rounded">
+            <div class="flex flex-col">
+              <template v-if="att.purchased && att.fileUrl">
+                <a class="link" :href="att.fileUrl" target="_blank" rel="noopener" :title="att.fileName"><Icon name="paperclip" size="14" /> {{
+                  att.fileName }}</a>
+              </template>
+              <template v-else>
+                <span class="text-muted"><Icon name="paperclip" size="14" /> {{ att.fileName }}</span>
+              </template>
+              <div class="text-sm text-muted flex gap-12 mt-4">
+                <span v-if="att.pointsNeeded && !att.purchased">需要积分：{{ att.pointsNeeded }}</span>
+                <span>上传时间：{{ formatDate(att.createdTime) }}</span>
+              </div>
+            </div>
+            <div class="flex gap-8">
+              <a v-if="att.purchased && att.fileUrl" class="action-btn" :href="att.fileUrl" target="_blank"
+                rel="noopener">下载/查看</a>
+              <button v-else-if="!att.purchased && att.pointsNeeded" class="action-btn"
+                :disabled="purchasingId === att.resourceId" @click="onPurchase(att.resourceId)">
+                {{ purchasingId === att.resourceId ? '购买中...' : (att.pointsNeeded ? `购买（${att.pointsNeeded} 积分）` : '购买')
+                }}
+              </button>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <!-- 文章交互 -->
+      <div class="post-actions">
+        <div class="actions-left">
+          <!-- 点赞按钮 -->
+          <button @click="handleLike" :class="['action-btn', { 'liked': isLiked }]" :disabled="liking">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            <span>{{ isLiked ? '已点赞' : '点赞' }}</span>
+            <span class="count">({{ currentLikeCount }})</span>
+          </button>
+
+          <!-- 收藏按钮 -->
+          <button @click="handleFavorite" :class="['action-btn', { 'favorited': isFavorited }]" :disabled="favoriting">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
+            </svg>
+            <span>{{ isFavorited ? '已收藏' : '收藏' }}</span>
+            <span class="count">({{ currentFavoriteCount }})</span>
+          </button>
+
+          <!-- 评论数 -->
+          <div class="action-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            <span>评论 ({{ post?.commentCount || 0 }})</span>
+          </div>
+
+          <!-- 阅读数 -->
+          <div class="action-info">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>阅读 ({{ post?.viewCount || 0 }})</span>
+          </div>
+        </div>
+
+        <div class="actions-right">
+          <!-- 分享按钮 -->
+          <div class="share-group">
+            <button @click="toggleShare" class="action-btn share-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+              <span>分享</span>
+            </button>
+
+            <!-- 分享选项 -->
+            <div v-if="showShare" class="share-options">
+              <button @click="shareToWeChat" class="share-option wechat">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M8.5 12c-.83 0-1.5-.67-1.5-1.5S7.67 9 8.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm7 0c-.83 0-1.5-.67-1.5-1.5S14.67 9 15.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
+                  <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20z" />
+                </svg>
+                <span>微信</span>
+              </button>
+
+              <button @click="shareToQQ" class="share-option qq">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+                </svg>
+                <span>QQ</span>
+              </button>
+
+              <button @click="copyLink" class="share-option link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                <span>复制链接</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 评论模块 -->
+      <div class="">
+        <CommentSection :post-id="Number(route.params.id)" />
+      </div>
+    </div>
+    <div v-else class="text-center p-20 ">
+      <p>文章不存在</p>
+      <button @click="goBack" class="bg-primary text-center rounded transition mt-8">返回首页</button>
+    </div>
+
+    <!-- 登录弹窗 -->
+    <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
+
+    <!-- 目录导航 -->
+    <div class="table-of-contents-container">
+      <TableOfContents class="table-of-contents" v-if="post && !loading && !error" />
+    </div>
+  </div>
+</template>
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;

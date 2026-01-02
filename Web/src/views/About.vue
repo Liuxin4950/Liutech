@@ -2,7 +2,7 @@
 import Icon from '../components/Icon.vue'
 
 // 关于页面组件
-
+</script>
 
 <template>
   <div class="about-page">
