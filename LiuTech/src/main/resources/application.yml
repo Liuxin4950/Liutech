@@ -60,6 +60,7 @@ logging:
     org.apache.ibatis: WARN
     com.baomidou.mybatisplus: WARN
     chat.liuxin.liutech.mapper: WARN
+    chat.liuxin.liutech.aspect: DEBUG
     org.springframework.data.repository.config.RepositoryConfigurationDelegate: WARN
     org.springframework.data.redis: WARN
 

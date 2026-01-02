@@ -63,6 +63,15 @@ const routes: RouteRecordRaw[] = [
           title: '公告管理',
           section: 'announcements'
         }
+      },
+      {
+        path: 'logs',
+        name: 'logs-management',
+        component: () => import('../views/admin/LogsManagement.vue'),
+        meta: {
+          title: '操作日志',
+          section: 'logs'
+        }
       }
     ]
   },{

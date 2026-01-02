@@ -1,12 +1,14 @@
 package chat.liuxin.liutech.controller.admin;
 
-import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.service.UserManagementService;
 import chat.liuxin.liutech.utils.ValidationUtil;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -16,8 +18,6 @@ import java.util.List;
 /**
  * 管理端用户控制器
  * 需要管理员权限才能访问
- *
- * @author 刘鑫
  */
 @RestController
 @RequestMapping("/admin/users")
@@ -30,14 +30,6 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 分页查询用户列表
-     *
-     * @param page 页码，默认1
-     * @param size 每页大小，默认10
-     * @param username 用户名（可选，模糊搜索）
-     * @param email 邮箱（可选，模糊搜索）
-     * @param status 用户状态（可选，0禁用，1启用）
-     * @param includeDeleted 是否包含已删除用户（可选，true包含，false不包含，默认false）
-     * @return 分页用户列表
      */
     @GetMapping
     public Result<PageResp<UserResp>> getUserList(
@@ -61,9 +53,6 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 根据ID查询用户详情
-     *
-     * @param id 用户ID
-     * @return 用户详情
      */
     @GetMapping("/{id}")
     public Result<Users> getUserById(@PathVariable Long id) {
@@ -83,11 +72,9 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 创建用户
-     *
-     * @param user 用户信息
-     * @return 创建结果
      */
     @PostMapping
+    @OperationLog(action = "create", targetType = "user", description = "创建用户: #user.username", targetName = "#user.username")
     public Result<String> createUser(@RequestBody Users user) {
         ValidationUtil.validateNotNull(user, "用户信息");
         ValidationUtil.validateUsername(user.getUsername());
@@ -103,12 +90,9 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 更新用户信息
-     *
-     * @param id 用户ID
-     * @param user 用户信息
-     * @return 更新结果
      */
     @PutMapping("/{id}")
+    @OperationLog(action = "update", targetType = "user", description = "更新用户信息: #user.username", targetName = "#user.username")
     public Result<String> updateUser(@PathVariable Long id, @RequestBody Users user) {
         ValidationUtil.validateId(id, "用户ID");
         ValidationUtil.validateNotNull(user, "用户信息");
@@ -126,11 +110,9 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 删除用户
-     *
-     * @param id 用户ID
-     * @return 删除结果
      */
     @DeleteMapping("/{id}")
+    @OperationLog(action = "delete", targetType = "user", description = "删除用户", targetName = "#id")
     public Result<String> deleteUser(@PathVariable Long id) {
         ValidationUtil.validateId(id, "用户ID");
         try {
@@ -143,11 +125,9 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 批量删除用户
-     *
-     * @param ids 用户ID列表
-     * @return 删除结果
      */
     @DeleteMapping("/batch")
+    @OperationLog(action = "delete", targetType = "user", description = "批量删除用户")
     public Result<String> batchDeleteUsers(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "用户ID列表");
         try {
@@ -160,12 +140,9 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 启用/禁用用户
-     *
-     * @param id 用户ID
-     * @param enabled 是否启用
-     * @return 操作结果
      */
     @PutMapping("/{id}/status")
+    @OperationLog(action = "disable", targetType = "user", description = "#enabled ? '启用用户' : '禁用用户'", targetName = "#id")
     public Result<String> updateUserStatus(@PathVariable Long id, @RequestParam Boolean enabled) {
         ValidationUtil.validateId(id, "用户ID");
         ValidationUtil.validateNotNull(enabled, "用户状态");
@@ -182,12 +159,9 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 批量启用/禁用用户
-     *
-     * @param ids 用户ID列表
-     * @param enabled 是否启用
-     * @return 操作结果
      */
     @PutMapping("/batch/status")
+    @OperationLog(action = "disable", targetType = "user", description = "#enabled ? '批量启用用户' : '批量禁用用户'")
     public Result<String> batchUpdateUserStatus(@RequestBody List<Long> ids, @RequestParam Boolean enabled) {
         ValidationUtil.validateNotEmpty(ids, "用户ID列表");
         ValidationUtil.validateNotNull(enabled, "用户状态");
@@ -203,11 +177,9 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 恢复已删除的用户
-     *
-     * @param id 用户ID
-     * @return 恢复结果
      */
     @PutMapping("/{id}/restore")
+    @OperationLog(action = "restore", targetType = "user", description = "恢复用户", targetName = "#id")
     public Result<String> restoreUser(@PathVariable Long id) {
         ValidationUtil.validateId(id, "用户ID");
 
@@ -221,11 +193,9 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 批量恢复已删除的用户
-     *
-     * @param ids 用户ID列表
-     * @return 恢复结果
      */
     @PutMapping("/batch/restore")
+    @OperationLog(action = "restore", targetType = "user", description = "批量恢复用户")
     public Result<String> batchRestoreUsers(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "用户ID列表");
 
@@ -237,14 +207,8 @@ public class UsersAdminController extends BaseAdminController {
         }
     }
 
-
-
-
-
     /**
      * 如果密码为空则保留原密码
-     * @param user 用户对象
-     * @param id 用户ID
      */
     private void preservePasswordIfEmpty(Users user, Long id) {
         if (user.getPasswordHash() == null || user.getPasswordHash().trim().isEmpty()) {
@@ -257,9 +221,6 @@ public class UsersAdminController extends BaseAdminController {
 
     /**
      * 构建用户状态更新对象
-     * @param id 用户ID
-     * @param enabled 是否启用
-     * @return 用户对象
      */
     private Users buildUserStatusUpdate(Long id, Boolean enabled) {
         Users user = new Users();

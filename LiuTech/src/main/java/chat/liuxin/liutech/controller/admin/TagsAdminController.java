@@ -1,10 +1,12 @@
 package chat.liuxin.liutech.controller.admin;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,9 +16,6 @@ import java.util.List;
 /**
  * 标签管理控制器
  * 提供标签的增删改查功能
- *
- * @author 刘鑫
- * @date 2024-01-30
  */
 @RestController
 @RequestMapping("/admin/tags")
@@ -29,12 +28,6 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 分页查询标签列表
-     *
-     * @param page 页码，默认1
-     * @param size 每页大小，默认10
-     * @param name 标签名称（可选，模糊搜索）
-     * @param includeDeleted 是否包含已删除标签（可选，true包含，false不包含，默认false）
-     * @return 分页标签列表
      */
     @GetMapping
     public Result<PageResp<TagResp>> getTagList(
@@ -52,12 +45,6 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 分页查询标签列表（兼容/list路径）
-     *
-     * @param page 页码，默认1
-     * @param size 每页大小，默认10
-     * @param name 标签名称（可选，模糊搜索）
-     * @param includeDeleted 是否包含已删除标签（可选，true包含，false不包含，默认false）
-     * @return 分页标签列表
      */
     @GetMapping("/list")
     public Result<PageResp<TagResp>> getTagListCompat(
@@ -70,9 +57,6 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 根据ID查询标签详情
-     *
-     * @param id 标签ID
-     * @return 标签详情
      */
     @GetMapping("/{id}")
     public Result<TagResp> getTagById(@PathVariable Long id) {
@@ -86,11 +70,9 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 创建标签
-     *
-     * @param tag 标签信息
-     * @return 创建结果
      */
     @PostMapping
+    @OperationLog(action = "create", targetType = "tag", description = "创建标签: #tag.name", targetName = "#tag.name")
     public Result<String> createTag(@RequestBody TagResp tag) {
         try {
             boolean success = tagsService.save(tag);
@@ -102,12 +84,9 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 更新标签
-     *
-     * @param id 标签ID
-     * @param tag 标签信息
-     * @return 更新结果
      */
     @PutMapping("/{id}")
+    @OperationLog(action = "update", targetType = "tag", description = "更新标签: #tag.name", targetName = "#tag.name")
     public Result<String> updateTag(@PathVariable Long id, @RequestBody TagResp tag) {
         try {
             tag.setId(id);
@@ -120,14 +99,11 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 删除标签
-     *
-     * @param id 标签ID
-     * @return 删除结果
      */
     @DeleteMapping("/{id}")
+    @OperationLog(action = "delete", targetType = "tag", description = "删除标签", targetName = "#id")
     public Result<String> deleteTag(@PathVariable Long id) {
         try {
-            // 使用批量删除方法来正确处理外键约束
             List<Long> ids = List.of(id);
             boolean success = tagsService.removeByIds(ids);
             return handleOperationResult(success, "标签删除成功", "标签删除");
@@ -138,11 +114,9 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 批量删除标签
-     *
-     * @param ids 标签ID列表
-     * @return 删除结果
      */
     @DeleteMapping("/batch")
+    @OperationLog(action = "delete", targetType = "tag", description = "批量删除标签")
     public Result<String> batchDeleteTags(@RequestBody List<Long> ids) {
         try {
             boolean success = tagsService.removeByIds(ids);
@@ -154,11 +128,9 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 恢复已删除的标签
-     *
-     * @param id 标签ID
-     * @return 恢复结果
      */
     @PutMapping("/{id}/restore")
+    @OperationLog(action = "restore", targetType = "tag", description = "恢复标签", targetName = "#id")
     public Result<String> restoreTag(@PathVariable Long id) {
         try {
             boolean success = tagsService.restoreTag(id);
@@ -170,11 +142,9 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 彻底删除标签（物理删除）
-     *
-     * @param id 标签ID
-     * @return 删除结果
      */
     @DeleteMapping("/{id}/permanent")
+    @OperationLog(action = "delete", targetType = "tag", description = "彻底删除标签", targetName = "#id")
     public Result<String> permanentDeleteTag(@PathVariable Long id) {
         try {
             boolean success = tagsService.permanentDeleteTag(id);
@@ -186,11 +156,9 @@ public class TagsAdminController extends BaseAdminController {
 
     /**
      * 批量彻底删除标签（物理删除）
-     *
-     * @param ids 标签ID列表
-     * @return 删除结果
      */
     @DeleteMapping("/batch/permanent")
+    @OperationLog(action = "delete", targetType = "tag", description = "批量彻底删除标签")
     public Result<String> batchPermanentDeleteTags(@RequestBody List<Long> ids) {
         try {
             boolean success = tagsService.batchPermanentDeleteTags(ids);

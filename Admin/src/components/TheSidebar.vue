@@ -9,7 +9,8 @@ import {
   TeamOutlined,
   NotificationOutlined,
   MenuFoldOutlined,
-  MenuUnfoldOutlined
+  MenuUnfoldOutlined,
+  HistoryOutlined
 } from '@ant-design/icons-vue'
 
 const router = useRouter()
@@ -27,6 +28,7 @@ const selectedKeys = computed(() => {
   if (path.startsWith('/tags')) return ['tags']
   if (path.startsWith('/users')) return ['users']
   if (path.startsWith('/announcements')) return ['announcements']
+  if (path.startsWith('/logs')) return ['logs']
   return ['dashboard']
 })
 
@@ -41,6 +43,7 @@ watch(() => route.path, (newPath) => {
   else if (newPath.startsWith('/tags')) menuSelectedKeys.value = ['tags']
   else if (newPath.startsWith('/users')) menuSelectedKeys.value = ['users']
   else if (newPath.startsWith('/announcements')) menuSelectedKeys.value = ['announcements']
+  else if (newPath.startsWith('/logs')) menuSelectedKeys.value = ['logs']
   else menuSelectedKeys.value = ['dashboard']
 }, { immediate: true })
 
@@ -64,6 +67,9 @@ const handleMenuClick = ({ key }: { key: string }) => {
       break
     case 'announcements':
       router.push('/announcements')
+      break
+    case 'logs':
+      router.push('/logs')
       break
   }
 }
@@ -114,6 +120,10 @@ const toggleCollapsed = () => {
       <a-menu-item key="announcements">
         <NotificationOutlined />
         <span>公告管理</span>
+      </a-menu-item>
+      <a-menu-item key="logs">
+        <HistoryOutlined />
+        <span>操作日志</span>
       </a-menu-item>
     </a-menu>
   </div>

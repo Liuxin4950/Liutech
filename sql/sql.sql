@@ -251,6 +251,29 @@ CREATE TABLE IF NOT EXISTS music (
     KEY idx_order (sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='音乐表';
 
+-- 管理端操作日志表
+CREATE TABLE IF NOT EXISTS system_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '日志ID',
+  operator VARCHAR(100) NOT NULL COMMENT '操作人用户名',
+  operator_id BIGINT DEFAULT NULL COMMENT '操作人ID',
+  action VARCHAR(50) NOT NULL COMMENT '操作类型(登录/创建/更新/删除/恢复/发布/下线等)',
+  target_type VARCHAR(50) DEFAULT NULL COMMENT '目标类型(post/user/category/tag/announcement等)',
+  target_id BIGINT DEFAULT NULL COMMENT '目标ID',
+  target_name VARCHAR(255) DEFAULT NULL COMMENT '目标名称',
+  description TEXT DEFAULT NULL COMMENT '操作描述',
+  ip VARCHAR(50) DEFAULT NULL COMMENT 'IP地址',
+  user_agent VARCHAR(500) DEFAULT NULL COMMENT '浏览器User-Agent',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '状态(0失败/1成功)',
+  error_message TEXT DEFAULT NULL COMMENT '错误信息',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  INDEX idx_operator (operator),
+  INDEX idx_operator_id (operator_id),
+  INDEX idx_action (action),
+  INDEX idx_target_type (target_type),
+  INDEX idx_target_id (target_id),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理端操作日志表';
+
 
 -- 重新开启外键检查
 SET FOREIGN_KEY_CHECKS = 1;

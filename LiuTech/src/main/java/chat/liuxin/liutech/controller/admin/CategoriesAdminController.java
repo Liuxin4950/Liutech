@@ -1,12 +1,13 @@
 package chat.liuxin.liutech.controller.admin;
 
-import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
-
+import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.CategoryResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.CategoriesService;
 import chat.liuxin.liutech.utils.ValidationUtil;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,8 +18,6 @@ import java.util.List;
 /**
  * 管理端分类控制器
  * 需要管理员权限才能访问
- *
- * @author 刘鑫
  */
 @Slf4j
 @RestController
@@ -32,12 +31,6 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 分页查询分类列表
-     *
-     * @param page 页码，默认1
-     * @param size 每页大小，默认10
-     * @param name 分类名称（可选，模糊搜索）
-     * @param includeDeleted 是否包含已删除分类（可选，true包含，false不包含，默认false）
-     * @return 分页分类列表
      */
     @GetMapping
     public Result<PageResp<CategoryResp>> getCategoryList(
@@ -55,9 +48,6 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 根据ID查询分类详情
-     *
-     * @param id 分类ID
-     * @return 分类详情
      */
     @GetMapping("/{id}")
     public Result<CategoryResp> getCategoryById(@PathVariable Long id) {
@@ -72,11 +62,9 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 创建分类
-     *
-     * @param category 分类信息
-     * @return 创建结果
      */
     @PostMapping
+    @OperationLog(action = "create", targetType = "category", description = "创建分类: #category.name", targetName = "#category.name")
     public Result<String> createCategory(@RequestBody CategoryResp category) {
         ValidationUtil.validateNotNull(category, "分类信息");
         try {
@@ -89,12 +77,9 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 更新分类
-     *
-     * @param id 分类ID
-     * @param category 分类信息
-     * @return 更新结果
      */
     @PutMapping("/{id}")
+    @OperationLog(action = "update", targetType = "category", description = "更新分类: #category.name", targetName = "#category.name")
     public Result<String> updateCategory(@PathVariable Long id, @RequestBody CategoryResp category) {
         ValidationUtil.validateId(id, "分类ID");
         ValidationUtil.validateNotNull(category, "分类信息");
@@ -109,11 +94,9 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 删除分类
-     *
-     * @param id 分类ID
-     * @return 删除结果
      */
     @DeleteMapping("/{id}")
+    @OperationLog(action = "delete", targetType = "category", description = "删除分类", targetName = "#id")
     public Result<String> deleteCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -126,11 +109,9 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 批量删除分类
-     *
-     * @param ids 分类ID列表
-     * @return 删除结果
      */
     @DeleteMapping("/batch")
+    @OperationLog(action = "delete", targetType = "category", description = "批量删除分类")
     public Result<String> batchDeleteCategories(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "分类ID列表");
         try {
@@ -143,11 +124,9 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 恢复已删除的分类
-     *
-     * @param id 分类ID
-     * @return 恢复结果
      */
     @PutMapping("/{id}/restore")
+    @OperationLog(action = "restore", targetType = "category", description = "恢复分类", targetName = "#id")
     public Result<String> restoreCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -160,11 +139,9 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 彻底删除分类（物理删除）
-     *
-     * @param id 分类ID
-     * @return 删除结果
      */
     @DeleteMapping("/{id}/permanent")
+    @OperationLog(action = "delete", targetType = "category", description = "彻底删除分类", targetName = "#id")
     public Result<String> permanentDeleteCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -177,11 +154,9 @@ public class CategoriesAdminController extends BaseAdminController {
 
     /**
      * 批量彻底删除分类（物理删除）
-     *
-     * @param ids 分类ID列表
-     * @return 删除结果
      */
     @DeleteMapping("/batch/permanent")
+    @OperationLog(action = "delete", targetType = "category", description = "批量彻底删除分类")
     public Result<String> batchPermanentDeleteCategories(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "分类ID列表");
         try {

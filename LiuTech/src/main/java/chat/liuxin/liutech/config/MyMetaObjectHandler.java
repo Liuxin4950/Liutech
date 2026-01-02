@@ -4,6 +4,7 @@ import java.util.Date;
 
 import org.apache.ibatis.reflection.MetaObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
@@ -23,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MyMetaObjectHandler implements MetaObjectHandler {
 
     @Autowired
+    @Lazy
     private UserUtils userUtils; // 使用统一的用户工具类，避免重复代码
 
     /**

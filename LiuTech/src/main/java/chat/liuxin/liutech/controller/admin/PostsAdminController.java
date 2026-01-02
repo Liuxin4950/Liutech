@@ -1,7 +1,8 @@
 package chat.liuxin.liutech.controller.admin;
 
-import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
 import chat.liuxin.liutech.resp.PageResp;
@@ -10,18 +11,16 @@ import chat.liuxin.liutech.resp.PostCreateResp;
 import chat.liuxin.liutech.resp.PostDetailResp;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.List;
 
 /**
  * 管理端文章控制器
  * 需要管理员权限才能访问
- *
- * @author 刘鑫
  */
 @RestController
 @RequestMapping("/admin/posts")
@@ -37,15 +36,6 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 分页查询文章列表
-     *
-     * @param page 页码，默认1
-     * @param size 每页大小，默认10
-     * @param title 文章标题（可选，模糊搜索）
-     * @param categoryId 分类ID（可选）
-     * @param status 文章状态（可选）
-     * @param authorId 作者ID（可选）
-     * @param includeDeleted 是否包含已删除文章（可选，true包含，false不包含，默认false）
-     * @return 分页文章列表
      */
     @GetMapping
     public Result<PageResp<PostListResp>> getPostList(
@@ -66,9 +56,6 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 根据ID查询文章详情
-     *
-     * @param id 文章ID
-     * @return 文章详情
      */
     @GetMapping("/{id}")
     public Result<PostDetailResp> getPostById(@PathVariable Long id) {
@@ -82,11 +69,9 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 创建文章
-     *
-     * @param req 文章创建请求
-     * @return 创建结果
      */
     @PostMapping
+    @OperationLog(action = "create", targetType = "post", description = "创建文章: #req.title", targetName = "#req.title")
     public Result<PostCreateResp> createPost(@RequestBody PostCreateReq req) {
         try {
             // 获取当前管理员用户ID
@@ -104,12 +89,9 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 更新文章
-     *
-     * @param id 文章ID
-     * @param req 文章更新请求
-     * @return 更新结果
      */
     @PutMapping("/{id}")
+    @OperationLog(action = "update", targetType = "post", description = "更新文章", targetName = "#req.title")
     public Result<String> updatePost(@PathVariable Long id, @RequestBody PostUpdateReq req) {
         try {
             // 获取当前管理员用户ID
@@ -128,15 +110,12 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 删除文章
-     *
-     * @param id 文章ID
-     * @return 删除结果
      */
     @DeleteMapping("/{id}")
+    @OperationLog(action = "delete", targetType = "post", description = "删除文章", targetName = "#id")
     public Result<String> deletePost(@PathVariable Long id) {
         try {
-            // 获取当前操作者ID（这里简化处理，实际应从SecurityContext获取）
-            Long operatorId = 1L; 
+            Long operatorId = 1L;
             boolean success = postsService.deletePostForAdmin(id, operatorId);
             return handleOperationResult(success, "文章删除成功", "文章删除");
         } catch (Exception e) {
@@ -146,11 +125,9 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 批量删除文章
-     *
-     * @param ids 文章ID列表
-     * @return 删除结果
      */
     @DeleteMapping("/batch")
+    @OperationLog(action = "delete", targetType = "post", description = "批量删除文章")
     public Result<String> batchDeletePosts(@RequestBody List<Long> ids) {
         try {
             boolean success = postsService.removeByIds(ids);
@@ -162,16 +139,12 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 更新文章状态
-     *
-     * @param id 文章ID
-     * @param status 文章状态
-     * @return 操作结果
      */
     @PutMapping("/{id}/status")
+    @OperationLog(action = "update", targetType = "post", description = "更新文章状态: #status", targetName = "#id")
     public Result<String> updatePostStatus(@PathVariable Long id, @RequestParam String status) {
         try {
-            // 使用专门的管理端状态更新方法，避免updateById导致其他字段为null
-            boolean success = postsService.updatePostStatusForAdmin(id, status, 1L); //获取当前管理员ID
+            boolean success = postsService.updatePostStatusForAdmin(id, status, 1L);
             return handleOperationResult(success, "文章状态更新成功", "文章状态更新");
         } catch (Exception e) {
             return handleException(e, "文章状态更新");
@@ -180,12 +153,9 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 批量更新文章状态
-     *
-     * @param ids 文章ID列表
-     * @param status 文章状态
-     * @return 操作结果
      */
     @PutMapping("/batch/status")
+    @OperationLog(action = "update", targetType = "post", description = "批量更新文章状态: #status")
     public Result<String> batchUpdatePostStatus(@RequestBody List<Long> ids, @RequestParam String status) {
         try {
             boolean success = postsService.batchUpdateStatus(ids, status);
@@ -196,12 +166,38 @@ public class PostsAdminController extends BaseAdminController {
     }
 
     /**
+     * 发布文章
+     */
+    @PutMapping("/{id}/publish")
+    @OperationLog(action = "publish", targetType = "post", description = "发布文章", targetName = "#id")
+    public Result<String> publishPost(@PathVariable Long id) {
+        try {
+            boolean success = postsService.updatePostStatusForAdmin(id, "published", 1L);
+            return handleOperationResult(success, "文章发布成功", "文章发布");
+        } catch (Exception e) {
+            return handleException(e, "文章发布");
+        }
+    }
+
+    /**
+     * 下线文章
+     */
+    @PutMapping("/{id}/offline")
+    @OperationLog(action = "offline", targetType = "post", description = "下线文章", targetName = "#id")
+    public Result<String> offlinePost(@PathVariable Long id) {
+        try {
+            boolean success = postsService.updatePostStatusForAdmin(id, "draft", 1L);
+            return handleOperationResult(success, "文章下线成功", "文章下线");
+        } catch (Exception e) {
+            return handleException(e, "文章下线");
+        }
+    }
+
+    /**
      * 恢复已删除的文章
-     *
-     * @param id 文章ID
-     * @return 恢复结果
      */
     @PutMapping("/{id}/restore")
+    @OperationLog(action = "restore", targetType = "post", description = "恢复文章", targetName = "#id")
     public Result<String> restorePost(@PathVariable Long id) {
         try {
             boolean success = postsService.restorePost(id);
@@ -213,11 +209,9 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 批量恢复已删除的文章
-     *
-     * @param ids 文章ID列表
-     * @return 恢复结果
      */
     @PutMapping("/batch/restore")
+    @OperationLog(action = "restore", targetType = "post", description = "批量恢复文章")
     public Result<String> batchRestorePosts(@RequestBody List<Long> ids) {
         try {
             boolean success = postsService.batchRestorePosts(ids);
@@ -229,11 +223,9 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 彻底删除文章（物理删除）
-     *
-     * @param id 文章ID
-     * @return 删除结果
      */
     @DeleteMapping("/{id}/permanent")
+    @OperationLog(action = "delete", targetType = "post", description = "彻底删除文章", targetName = "#id")
     public Result<String> permanentDeletePost(@PathVariable Long id) {
         try {
             boolean success = postsService.permanentDeletePost(id);
@@ -245,11 +237,9 @@ public class PostsAdminController extends BaseAdminController {
 
     /**
      * 批量彻底删除文章（物理删除）
-     *
-     * @param ids 文章ID列表
-     * @return 删除结果
      */
     @DeleteMapping("/batch/permanent")
+    @OperationLog(action = "delete", targetType = "post", description = "批量彻底删除文章")
     public Result<String> batchPermanentDeletePosts(@RequestBody List<Long> ids) {
         try {
             boolean success = postsService.batchPermanentDeletePosts(ids);
