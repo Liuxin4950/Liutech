@@ -38,10 +38,8 @@ public class UserManagementService {
     @Autowired
     private UserUtils userUtils;
 
-    /**
-     * 密码加密器，用于管理员创建/更新用户时的密码加密
-     */
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     /**
      * 获取当前用户信息

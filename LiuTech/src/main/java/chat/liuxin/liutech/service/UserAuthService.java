@@ -44,10 +44,8 @@ public class UserAuthService {
     @Autowired
     private UserUtils userUtils;
 
-    /**
-     * 密码加密器，使用BCrypt算法进行密码加密
-     */
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     /**
      * 用户注册
