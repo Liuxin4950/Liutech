@@ -52,9 +52,9 @@ const handleCategoryClick = (categoryId: number) => {
 .categories-count{
   width: 20px;
   height: 20px;
-  background: var(--bg-color);
+  background: var(--bg-element);
   border-radius: 50%;
-  color: var(--text-color);
+  color: var(--text-main);
   font-size: 12px;
   font-weight: 500;
   display: flex;

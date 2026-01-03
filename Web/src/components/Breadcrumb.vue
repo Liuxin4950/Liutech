@@ -142,8 +142,8 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 <style scoped>
 @use "@/assets/styles/tokens" as *;
 .breadcrumb {
-  background: var(--bg-color);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-base);
   padding: 0.75rem 0;
   font-size: 0.875rem;
 }
@@ -174,13 +174,13 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  color: var(--primary-color);
+  color: var(--color-primary);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .breadcrumb-link:hover {
-  color: var(--primary-hover);
+  color: var(--color-primary-dark);
   text-decoration: underline;
 }
 
@@ -188,7 +188,7 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  color: var(--text-color);
+  color: var(--text-main);
   font-weight: 500;
 }
 

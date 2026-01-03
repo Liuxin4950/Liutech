@@ -177,25 +177,25 @@ const submitComment = async () => {
   width: 100%;
   min-height: 100px;
   padding: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-base);
   border-radius: 6px;
   font-size: 0.95rem;
   line-height: 1.5;
   resize: vertical;
   transition: border-color 0.3s;
   box-sizing: border-box;
-  background: var(--bg-color);
+  background: var(--bg-element);
   color: var(--text-main);
 }
 
 .comment-textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
 }
 
 .comment-textarea:disabled {
-  background-color: var(--hover-color);
+  background-color: var(--bg-hover);
   cursor: not-allowed;
 }
 
@@ -206,7 +206,7 @@ const submitComment = async () => {
   font-size: 0.75rem;
   color: var(--text-main);
   opacity: 0.6;
-  background: var(--bg-color);
+  background: var(--bg-element);
   padding: 2px 4px;
   border-radius: 3px;
 }

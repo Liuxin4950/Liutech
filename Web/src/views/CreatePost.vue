@@ -1452,7 +1452,7 @@ onMounted(async () => {
 .field-textarea:focus,
 .field-select:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
 }
 

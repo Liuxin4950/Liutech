@@ -72,8 +72,8 @@ const currentYear = new Date().getFullYear();
 @use "@/assets/styles/tokens" as *;
 
 .footer {
-  background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-secondary) 100%);
-  border-top: 1px solid var(--border-color);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-soft) 100%);
+  border-top: 1px solid var(--border-base);
   padding: 60px 0 30px;
   margin-top: 80px;
   transition: all 0.3s ease;
@@ -87,7 +87,7 @@ const currentYear = new Date().getFullYear();
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
 }
 
 .container {
@@ -110,7 +110,7 @@ const currentYear = new Date().getFullYear();
 }
 
 .brand-logo h2 {
-  color: var(--primary-color);
+  color: var(--color-primary);
   margin: 0;
   font-size: 2rem;
   font-weight: 700;
@@ -118,7 +118,7 @@ const currentYear = new Date().getFullYear();
 }
 
 .brand-description {
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   margin: 0;
   font-size: 1rem;
   line-height: 1.6;
@@ -138,18 +138,18 @@ const currentYear = new Date().getFullYear();
   height: 44px;
   border-radius: 50%;
   background: var(--bg-element);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  border: 1px solid var(--border-base);
+  color: var(--text-subtle);
   text-decoration: none;
   transition: all 0.3s ease;
 }
 
 .social-link:hover {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(var(--primary-rgb), 0.3);
+  box-shadow: 0 8px 25px rgba(74, 105, 209, 0.3);
 }
 
 /* 导航区域 */
@@ -166,7 +166,7 @@ const currentYear = new Date().getFullYear();
 }
 
 .section-title {
-  color: var(--text-primary);
+  color: var(--text-title);
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
@@ -180,7 +180,7 @@ const currentYear = new Date().getFullYear();
 }
 
 .footer-link {
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   text-decoration: none;
   font-size: 0.95rem;
   transition: all 0.2s ease;
@@ -189,7 +189,7 @@ const currentYear = new Date().getFullYear();
 }
 
 .footer-link:hover {
-  color: var(--primary-color);
+  color: var(--color-primary);
   padding-left: 20px;
 }
 
@@ -208,7 +208,7 @@ const currentYear = new Date().getFullYear();
 
 /* 底部版权区域 */
 .footer-bottom {
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-base);
   padding-top: 30px;
 }
 
@@ -317,15 +317,15 @@ const currentYear = new Date().getFullYear();
 /* 深色模式适配 */
 @media (prefers-color-scheme: dark) {
   .footer {
-    background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-secondary) 100%);
+    background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-soft) 100%);
   }
-  
+
   .social-link {
     background: var(--bg-element);
   }
-  
+
   .social-link:hover {
-    box-shadow: 0 8px 25px rgba(var(--primary-rgb), 0.4);
+    box-shadow: 0 8px 25px rgba(138, 180, 248, 0.4);
   }
 }
 </style>

@@ -208,7 +208,7 @@ onMounted(() => {
 
 /* 分类标题样式 */
 .category-title {
-    color: var(--text-color);
+    color: var(--color-primary);
     transition: color 0.2s ease;
 }
 

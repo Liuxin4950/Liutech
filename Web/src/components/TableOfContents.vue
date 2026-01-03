@@ -234,7 +234,7 @@ defineExpose({
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
-    color: var(--text-secondary);
+    color: var(--text-subtle);
     transition: all 0.2s ease;
 
     &:hover {
@@ -310,7 +310,7 @@ defineExpose({
 .toc-link {
   display: block;
   padding: 6px 16px 6px 0;
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   text-decoration: none;
   font-size: 13px;
   line-height: 1.4;

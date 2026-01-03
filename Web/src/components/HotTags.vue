@@ -95,6 +95,6 @@ const handleTagClick = (tagId: number) => {
 .loading-text,
 .empty-text {
   padding: 10px 0;
-  color: var(--text-secondary, #666); /* 兜底颜色 */
+  color: var(--text-subtle, #666); /* 兜底颜色 */
 }
 </style>

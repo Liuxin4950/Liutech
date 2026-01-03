@@ -91,11 +91,11 @@ defineEmits<{
 @use "@/assets/styles/tokens" as *;
 /* 文章区域 */
 .posts-section {
-  background: var(--bg-color);
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-base);
 }
 
 .section-header {
@@ -104,12 +104,12 @@ defineEmits<{
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-base);
 }
 
 .section-header h2 {
   font-size: 1.5rem;
-  color: var(--text-color);
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -121,7 +121,7 @@ defineEmits<{
 
 .view-all-btn {
   padding: 6px 12px;
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 6px;
@@ -131,20 +131,20 @@ defineEmits<{
 }
 
 .view-all-btn:hover {
-  background: var(--secondary-color);
+  background: var(--color-primary-dark);
 }
 
 .loading, .error, .empty {
   text-align: center;
   padding: 40px;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
 }
 
 .retry-btn {
   margin-top: 12px;
   padding: 8px 16px;
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 4px;
@@ -153,7 +153,7 @@ defineEmits<{
 }
 
 .retry-btn:hover {
-  background: var(--secondary-color);
+  background: var(--color-primary-dark);
 }
 
 /* 文章列表 */
@@ -164,8 +164,8 @@ defineEmits<{
 }
 
 .post-item {
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
   border-radius: 8px;
   padding: 20px;
   cursor: pointer;
@@ -175,7 +175,7 @@ defineEmits<{
 .post-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .post-content {
@@ -216,7 +216,7 @@ defineEmits<{
 .post-title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: var(--text-main);
   margin: 0;
   line-height: 1.4;
   flex: 1;
@@ -224,7 +224,7 @@ defineEmits<{
 }
 
 .post-category {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
   padding: 4px 8px;
   border-radius: 12px;
@@ -234,7 +234,7 @@ defineEmits<{
 }
 
 .post-summary {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.7;
   line-height: 1.6;
   margin: 12px 0;
@@ -267,7 +267,7 @@ defineEmits<{
 }
 
 .author-name {
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.8;
   font-weight: 500;
 }
@@ -275,7 +275,7 @@ defineEmits<{
 .post-stats {
   display: flex;
   gap: 12px;
-  color: var(--text-color);
+  color: var(--text-main);
   opacity: 0.6;
 }
 

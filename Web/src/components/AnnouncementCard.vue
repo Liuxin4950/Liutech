@@ -265,7 +265,7 @@ onUnmounted(() => {
   background: none;
   border: none;
   font-size: 1.75rem;
-  color: var(--text-secondary, #9ca3af);
+  color: var(--text-subtle, #9ca3af);
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
@@ -337,7 +337,7 @@ onUnmounted(() => {
 
 .modal-content-text {
   margin-bottom: 20px;
-  color: var(--text-secondary, #4b5563);
+  color: var(--text-subtle, #4b5563);
   line-height: 1.75;
   font-size: 0.9375rem;
 }
@@ -375,10 +375,10 @@ onUnmounted(() => {
 }
 
 .modal-content-text :deep(blockquote) {
-  border-left: 4px solid var(--border-soft, #e5e7eb);
+  border-left: 4px solid var(--border-light, #e5e7eb);
   padding-left: 1em;
   margin: 1em 0;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-subtle, #6b7280);
   font-style: italic;
   background: var(--bg-soft, rgba(0, 0, 0, 0.02));
   padding: 12px 16px;
@@ -466,7 +466,7 @@ onUnmounted(() => {
 }
 
 .info-label {
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-subtle, #6b7280);
   font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
@@ -490,12 +490,12 @@ onUnmounted(() => {
   justify-content: center;
   min-width: 32px;
   height: 32px;
-  color: var(--text-secondary, #6b7280);
+  color: var(--text-subtle, #6b7280);
 }
 
 .refresh-btn:hover:not(:disabled) {
   background: var(--bg-soft, rgba(0, 0, 0, 0.05));
-  color: var(--text-main, #374151);
+  color: var(--color-primary);
 }
 
 .refresh-btn:disabled {

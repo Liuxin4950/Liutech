@@ -383,7 +383,7 @@ onMounted(() => {
 }
 
 .retry-btn {
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
   border: none;
   padding: 8px 16px;
@@ -393,7 +393,7 @@ onMounted(() => {
   transition: all 0.2s ease;
 
   &:hover {
-    background: var(--primary-hover);
+    background: var(--color-primary-dark);
     transform: translateY(-1px);
   }
 }

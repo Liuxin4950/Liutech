@@ -193,7 +193,7 @@ onMounted(() => {
 @use "@/assets/styles/tokens" as *;
 
 .tag-header {
-  background: linear-gradient(135deg, var(--color-primary), var(--secondary-color));
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   color: var(--text-main);
 }
 
@@ -202,15 +202,18 @@ onMounted(() => {
 }
 
 .sort-select {
-  background: var(--bg-color);
+  background: var(--bg-element);
   color: var(--text-main);
   outline: none;
+  border: 1px solid var(--border-base);
+  border-radius: 4px;
+  padding: 6px 12px;
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid var(--border-color);
+  border: 4px solid var(--border-base);
   border-top: 4px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;

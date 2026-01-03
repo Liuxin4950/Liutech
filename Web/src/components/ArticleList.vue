@@ -161,7 +161,7 @@ defineEmits<{
 .retry-btn {
   margin-top: 12px;
   padding: 8px 16px;
-  background: var(--primary-color);
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 4px;
@@ -169,6 +169,6 @@ defineEmits<{
 }
 
 .retry-btn:hover {
-  background: var(--secondary-color);
+  background: var(--color-primary-dark);
 }
 </style>

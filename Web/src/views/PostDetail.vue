@@ -710,13 +710,14 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 .retry-btn {
   padding: 8px 16px;
+  background: var(--color-primary);
   color: white;
   border: none;
   cursor: pointer;
 }
 
 .retry-btn:hover {
-  background: var(--secondary-color) !important;
+  background: var(--color-primary-dark) !important;
 }
 
 .post-header {
