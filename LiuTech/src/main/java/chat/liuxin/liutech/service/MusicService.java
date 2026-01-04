@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import chat.liuxin.liutech.common.BusinessException;
@@ -62,13 +63,13 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * 上传音乐（Admin）
      * @param title 歌曲名
      * @param artist 艺术家
-     * @param cover 封面图
+     * @param coverUrl 封面图URL
      * @param fullAudio 完整音频
      * @param vocalAudio 人声音频
      * @return 音乐ID
      */
     @Transactional
-    public Long uploadMusic(String title, String artist, MultipartFile cover,
+    public Long uploadMusic(String title, String artist, String coverUrl,
                            MultipartFile fullAudio, MultipartFile vocalAudio) {
         // 验证参数
         if (title == null || title.trim().isEmpty()) {
@@ -84,6 +85,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         Music music = new Music();
         music.setTitle(title);
         music.setArtist(artist);
+        music.setCoverUrl(coverUrl);  // 直接使用前端上传后的URL
         music.setStatus(1);
         music.setSortOrder(0);
         music.setCreatedAt(new Date());
@@ -97,12 +99,6 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
             // 保存人声音频
             String vocalAudioPath = fileUtil.saveFile(vocalAudio, fileUploadConfig.getMusicPath());
             music.setVocalUrl(fileUtil.generateFileUrl(vocalAudioPath));
-
-            // 保存封面图（可选）
-            if (cover != null && !cover.isEmpty()) {
-                String coverPath = fileUtil.saveFile(cover, fileUploadConfig.getImagePath());
-                music.setCoverUrl(fileUtil.generateFileUrl(coverPath));
-            }
 
             // 保存记录
             musicMapper.insert(music);
@@ -150,7 +146,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
     }
 
     /**
-     * 删除音乐（Admin）
+     * 删除音乐（Admin）- 软删除
      * @param id 音乐ID
      * @return 是否成功
      */
@@ -160,10 +156,48 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         if (music == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
         }
+        if (music.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "音乐已被删除");
+        }
 
-        // TODO: 删除物理文件（需要FileUtil支持）
+        // 软删除
+        music.setDeletedAt(new Date());
+        return musicMapper.updateById(music) > 0;
+    }
 
-        return musicMapper.deleteById(id) > 0;
+    /**
+     * 恢复音乐（Admin）
+     * @param id 音乐ID
+     * @return 是否成功
+     */
+    @Transactional
+    public boolean restoreMusic(Long id) {
+        Music music = musicMapper.selectById(id);
+        if (music == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
+        }
+        if (music.getDeletedAt() == null) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "音乐未被删除，无需恢复");
+        }
+
+        music.setDeletedAt(null);
+        return musicMapper.updateById(music) > 0;
+    }
+
+    /**
+     * 批量恢复音乐（Admin）
+     * @param ids 音乐ID列表
+     * @return 是否成功
+     */
+    @Transactional
+    public boolean batchRestoreMusic(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "音乐ID列表不能为空");
+        }
+
+        LambdaUpdateWrapper<Music> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(Music::getId, ids).set(Music::getDeletedAt, null);
+        return musicMapper.update(null, updateWrapper) > 0;
     }
 
     /**

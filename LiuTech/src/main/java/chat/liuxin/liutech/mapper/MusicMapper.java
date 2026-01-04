@@ -18,17 +18,17 @@ import chat.liuxin.liutech.model.Music;
 public interface MusicMapper extends BaseMapper<Music> {
 
     /**
-     * 获取启用的音乐列表(按排序)
+     * 获取启用的音乐列表(按排序) - 排除已删除
      * @return 音乐列表
      */
-    @Select("SELECT * FROM music WHERE status = 1 ORDER BY sort_order ASC, id ASC")
+    @Select("SELECT * FROM music WHERE status = 1 AND deleted_at IS NULL ORDER BY sort_order ASC, id ASC")
     List<Music> selectEnabledMusicList();
 
     /**
-     * 根据ID获取启用的音乐
+     * 根据ID获取启用的音乐 - 排除已删除
      * @param id 音乐ID
      * @return 音乐
      */
-    @Select("SELECT * FROM music WHERE id = #{id} AND status = 1")
+    @Select("SELECT * FROM music WHERE id = #{id} AND status = 1 AND deleted_at IS NULL")
     Music selectEnabledById(@Param("id") Long id);
 }

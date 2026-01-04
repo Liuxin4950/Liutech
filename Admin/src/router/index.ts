@@ -72,6 +72,15 @@ const routes: RouteRecordRaw[] = [
           title: '操作日志',
           section: 'logs'
         }
+      },
+      {
+        path: 'music',
+        name: 'music-management',
+        component: () => import('../views/admin/MusicManagement.vue'),
+        meta: {
+          title: 'AI音乐管理',
+          section: 'music'
+        }
       }
     ]
   },{

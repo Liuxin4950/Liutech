@@ -142,8 +142,8 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 <style scoped>
 @use "@/assets/styles/tokens" as *;
 .breadcrumb {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-base);
+  /* background: var(--bg-card); */
+  /* border-bottom: 1px solid var(--border-base); */
   padding: 0.75rem 0;
   font-size: 0.875rem;
 }

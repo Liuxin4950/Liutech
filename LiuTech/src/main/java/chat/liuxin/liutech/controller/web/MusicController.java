@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -54,7 +55,7 @@ public class MusicController {
      * 上传音乐（仅Admin）
      * @param title 歌曲名
      * @param artist 艺术家
-     * @param cover 封面图
+     * @param coverUrl 封面图URL
      * @param fullAudio 完整音频
      * @param vocalAudio 人声音频
      * @return 音乐ID
@@ -64,11 +65,11 @@ public class MusicController {
     public Result<Long> uploadMusic(
             @RequestParam String title,
             @RequestParam(required = false) String artist,
-            @RequestParam(required = false) MultipartFile cover,
+            @RequestParam(required = false) String coverUrl,
             @RequestParam MultipartFile fullAudio,
             @RequestParam MultipartFile vocalAudio) {
         try {
-            Long id = musicService.uploadMusic(title, artist, cover, fullAudio, vocalAudio);
+            Long id = musicService.uploadMusic(title, artist, coverUrl, fullAudio, vocalAudio);
             return Result.success(id);
         } catch (Exception e) {
             log.error("上传音乐失败", e);
@@ -103,7 +104,7 @@ public class MusicController {
     }
 
     /**
-     * 删除音乐（仅Admin）
+     * 删除音乐（仅Admin）- 软删除
      * @param id 音乐ID
      * @return 是否成功
      */
@@ -116,6 +117,40 @@ public class MusicController {
         } catch (Exception e) {
             log.error("删除音乐失败", e);
             return Result.fail(500, "删除失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 恢复音乐（仅Admin）
+     * @param id 音乐ID
+     * @return 是否成功
+     */
+    @PutMapping("/admin/music/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Boolean> restoreMusic(@PathVariable Long id) {
+        try {
+            boolean success = musicService.restoreMusic(id);
+            return Result.success(success);
+        } catch (Exception e) {
+            log.error("恢复音乐失败", e);
+            return Result.fail(500, "恢复失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量恢复音乐（仅Admin）
+     * @param ids 音乐ID列表
+     * @return 是否成功
+     */
+    @PutMapping("/admin/music/batch/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Boolean> batchRestoreMusic(@RequestBody List<Long> ids) {
+        try {
+            boolean success = musicService.batchRestoreMusic(ids);
+            return Result.success(success);
+        } catch (Exception e) {
+            log.error("批量恢复音乐失败", e);
+            return Result.fail(500, "批量恢复失败: " + e.getMessage());
         }
     }
 

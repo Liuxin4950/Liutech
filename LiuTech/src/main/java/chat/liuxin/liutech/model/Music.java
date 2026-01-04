@@ -4,6 +4,7 @@ import java.util.Date;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
@@ -58,6 +59,12 @@ public class Music {
      * 状态: 1=启用, 0=禁用
      */
     private Integer status;
+
+    /**
+     * 删除时间(软删除)
+     */
+    @TableLogic
+    private Date deletedAt;
 
     /**
      * 创建时间

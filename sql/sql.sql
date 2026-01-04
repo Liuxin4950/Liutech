@@ -249,11 +249,13 @@ CREATE TABLE IF NOT EXISTS music (
     duration        INT             NULL COMMENT '时长(秒)',
     sort_order      INT             NOT NULL DEFAULT 0 COMMENT '排序权重',
     status          TINYINT         NOT NULL DEFAULT 1 COMMENT '状态: 1=启用, 0=禁用',
+    deleted_at      DATETIME        NULL COMMENT '删除时间(软删除)',
     created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     KEY idx_status (status),
-    KEY idx_order (sort_order)
+    KEY idx_order (sort_order),
+    KEY idx_deleted (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='音乐表';
 
 -- 管理端操作日志表
