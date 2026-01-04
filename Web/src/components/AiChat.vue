@@ -111,6 +111,13 @@ const loadMessageRecommendation = async (messageId: number, content: string) => 
   }
 }
 
+// 加载所有AI消息的推荐数据
+const loadAllMessagesRecommendation = async () => {
+  const aiMessages = messages.value.filter(msg => msg.type === 'ai')
+  const promises = aiMessages.map(msg => loadMessageRecommendation(msg.id, msg.content))
+  await Promise.all(promises)
+}
+
 // 构建聊天上下文
 const buildChatContext = (): Record<string, any> => {
   const ctx: Record<string, any> = { page: route.name || '' }
@@ -188,7 +195,8 @@ const loadConversation = async (conversationId: number) => {
       if (msg.role === 'user') {
         chatStore.addUserMessage(msg.content, msg.id)
       } else if (msg.role === 'assistant') {
-        chatStore.addAiMessage(msg.content, msg.id)
+        const aiMsg = chatStore.addAiMessage(msg.content, msg.id)
+        aiMsg.isStreaming = false // 历史消息不是流式，设为 false
       }
     })
 
@@ -356,10 +364,15 @@ watch(() => chatStore.isStreaming, async (streaming) => {
 })
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
   if (chatContainer.value) {
     chatContainer.value.addEventListener('scroll', handleScroll)
+  }
+  // 加载历史消息的推荐数据
+  await nextTick()
+  if (hasMessages.value) {
+    await loadAllMessagesRecommendation()
   }
 })
 
