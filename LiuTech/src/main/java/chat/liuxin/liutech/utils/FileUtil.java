@@ -1,6 +1,8 @@
 package chat.liuxin.liutech.utils;
 
 import chat.liuxin.liutech.config.FileUploadConfig;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,6 +23,7 @@ import java.util.UUID;
  * @author 刘鑫
  * @date 2025-08-07
  */
+@Slf4j
 @Component
 public class FileUtil {
     
@@ -166,12 +169,55 @@ public class FileUtil {
     
     /**
      * 检查文件是否存在
-     * 
+     *
      * @param relativePath 文件相对路径
      * @return 是否存在
      */
     public boolean fileExists(String relativePath) {
         Path filePath = Paths.get(fileUploadConfig.getBasePath(), relativePath);
         return Files.exists(filePath);
+    }
+
+    /**
+     * 从完整URL提取相对路径
+     * @param fileUrl 完整文件URL（如 http://localhost:8080/uploads/music/2025/01/05/xxx.mp3）
+     * @return 相对路径（如 music/2025/01/05/xxx.mp3），提取失败返回null
+     */
+    public String extractRelativePath(String fileUrl) {
+        if (fileUrl == null || fileUrl.isEmpty()) {
+            return null;
+        }
+
+        String prefix = fileUploadConfig.getServerBaseUrl() + fileUploadConfig.getUrlPrefix() + "/";
+        if (fileUrl.startsWith(prefix)) {
+            return fileUrl.substring(prefix.length());
+        }
+
+        // 兼容旧数据或其他来源的URL
+        if (fileUrl.startsWith("/uploads/")) {
+            return fileUrl.substring("/uploads/".length());
+        }
+
+        return null;
+    }
+
+    /**
+     * 从完整URL删除文件（便捷方法）
+     * @param fileUrl 完整文件URL
+     * @return 是否删除成功（文件不存在也返回true）
+     */
+    public boolean deleteFileByUrl(String fileUrl) {
+        String relativePath = extractRelativePath(fileUrl);
+        if (relativePath == null) {
+            log.warn("无法解析文件路径: {}", fileUrl);
+            return true; // URL无法解析视为成功（避免旧数据问题）
+        }
+        boolean deleted = deleteFile(relativePath);
+        if (deleted) {
+            log.info("文件删除成功: {}", relativePath);
+        } else {
+            log.warn("文件不存在或删除失败: {}", relativePath);
+        }
+        return true; // 始终返回true，避免删除失败影响业务逻辑
     }
 }

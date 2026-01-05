@@ -63,7 +63,6 @@ public class Music {
     /**
      * 删除时间(软删除)
      */
-    @TableLogic
     private Date deletedAt;
 
     /**

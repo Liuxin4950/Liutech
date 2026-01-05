@@ -69,6 +69,7 @@ export interface UploadMusicParams {
 export interface UpdateMusicParams {
   title?: string
   artist?: string
+  cover?: string
   sortOrder?: number
   status?: number
 }
@@ -77,8 +78,8 @@ const musicService = {
   /**
    * 获取音乐列表
    */
-  getMusicList: () => {
-    return instance.get<Music[]>('/music/list')
+  getMusicList: (params?: any) => {
+    return instance.get<Music[]>('/admin/music/list', { params })
   },
 
   /**
@@ -104,11 +105,8 @@ const musicService = {
     formData.append('fullAudio', params.fullAudio)
     formData.append('vocalAudio', params.vocalAudio)
 
-    return instance.post<number>('/admin/music', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+    // 不设置 Content-Type，让 axios 自动处理 boundary
+    return instance.post<number>('/admin/music', formData)
   },
 
   /**
@@ -118,6 +116,7 @@ const musicService = {
     const formData = new URLSearchParams()
     if (params.title) formData.append('title', params.title)
     if (params.artist !== undefined) formData.append('artist', params.artist)
+    if (params.cover) formData.append('coverUrl', params.cover)
     if (params.sortOrder !== undefined) formData.append('sortOrder', String(params.sortOrder))
     if (params.status !== undefined) formData.append('status', String(params.status))
 
@@ -129,24 +128,10 @@ const musicService = {
   },
 
   /**
-   * 删除音乐（软删除）
+   * 删除音乐（硬删除）
    */
   deleteMusic: (id: number) => {
     return instance.delete<boolean>(`/admin/music/${id}`)
-  },
-
-  /**
-   * 恢复音乐
-   */
-  restoreMusic: (id: number) => {
-    return instance.put<boolean>(`/admin/music/${id}/restore`)
-  },
-
-  /**
-   * 批量恢复音乐
-   */
-  batchRestoreMusic: (ids: number[]) => {
-    return instance.put<boolean>('/admin/music/batch/restore', { data: ids })
   },
 
   /**
@@ -161,6 +146,13 @@ const musicService = {
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     })
+  },
+
+  /**
+   * 批量删除音乐（硬删除 + 清理文件）
+   */
+  batchDelete: (ids: number[]) => {
+    return instance.delete<boolean>('/admin/music/batch', { data: ids })
   }
 }
 

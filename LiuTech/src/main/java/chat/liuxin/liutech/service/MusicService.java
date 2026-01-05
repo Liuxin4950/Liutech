@@ -43,7 +43,30 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @return 音乐列表
      */
     public List<Music> getMusicList() {
-        return musicMapper.selectEnabledMusicList();
+        return musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .eq(Music::getStatus, 1)
+                .orderByAsc(Music::getSortOrder)
+                .orderByAsc(Music::getId));
+    }
+
+    /**
+     * 获取管理端音乐列表（支持筛选）
+     * @param status 状态
+     * @param keyword 关键词
+     * @return 音乐列表
+     */
+    public List<Music> getAdminMusicList(Integer status, String keyword) {
+        LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<>();
+        if (status != null) {
+            wrapper.eq(Music::getStatus, status);
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            wrapper.and(w -> w.like(Music::getTitle, keyword)
+                    .or().like(Music::getArtist, keyword));
+        }
+        // 默认按排序值升序
+        wrapper.orderByAsc(Music::getSortOrder).orderByAsc(Music::getId);
+        return musicMapper.selectList(wrapper);
     }
 
     /**
@@ -52,9 +75,9 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @return 音乐
      */
     public Music getMusicById(Long id) {
-        Music music = musicMapper.selectEnabledById(id);
-        if (music == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
+        Music music = musicMapper.selectById(id);
+        if (music == null || music.getStatus() != 1) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在或已下架");
         }
         return music;
     }
@@ -117,12 +140,13 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @param id 音乐ID
      * @param title 歌曲名
      * @param artist 艺术家
+     * @param coverUrl 封面图URL
      * @param sortOrder 排序
      * @param status 状态
      * @return 是否成功
      */
     @Transactional
-    public boolean updateMusic(Long id, String title, String artist, Integer sortOrder, Integer status) {
+    public boolean updateMusic(Long id, String title, String artist, String coverUrl, Integer sortOrder, Integer status) {
         Music music = musicMapper.selectById(id);
         if (music == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
@@ -133,6 +157,9 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         }
         if (artist != null) {
             music.setArtist(artist);
+        }
+        if (coverUrl != null) {
+            music.setCoverUrl(coverUrl);
         }
         if (sortOrder != null) {
             music.setSortOrder(sortOrder);
@@ -146,7 +173,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
     }
 
     /**
-     * 删除音乐（Admin）- 软删除
+     * 删除音乐（Admin）- 硬删除并清理文件
      * @param id 音乐ID
      * @return 是否成功
      */
@@ -156,48 +183,61 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         if (music == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
         }
-        if (music.getDeletedAt() != null) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "音乐已被删除");
-        }
 
-        // 软删除
-        music.setDeletedAt(new Date());
-        return musicMapper.updateById(music) > 0;
+        // 清理关联文件
+        deleteMusicFiles(music);
+
+        // 物理删除
+        int rows = musicMapper.deleteById(id);
+        if (rows > 0) {
+            log.info("音乐已物理删除 - ID: {}, 标题: {}", id, music.getTitle());
+            return true;
+        } else {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除失败");
+        }
     }
 
     /**
-     * 恢复音乐（Admin）
-     * @param id 音乐ID
-     * @return 是否成功
-     */
-    @Transactional
-    public boolean restoreMusic(Long id) {
-        Music music = musicMapper.selectById(id);
-        if (music == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
-        }
-        if (music.getDeletedAt() == null) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "音乐未被删除，无需恢复");
-        }
-
-        music.setDeletedAt(null);
-        return musicMapper.updateById(music) > 0;
-    }
-
-    /**
-     * 批量恢复音乐（Admin）
+     * 批量删除音乐（Admin）- 硬删除并清理文件
      * @param ids 音乐ID列表
      * @return 是否成功
      */
     @Transactional
-    public boolean batchRestoreMusic(List<Long> ids) {
+    public boolean batchDelete(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "音乐ID列表不能为空");
+            return true;
         }
 
-        LambdaUpdateWrapper<Music> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.in(Music::getId, ids).set(Music::getDeletedAt, null);
-        return musicMapper.update(null, updateWrapper) > 0;
+        for (Long id : ids) {
+            Music music = musicMapper.selectById(id);
+            if (music != null) {
+                // 清理关联文件
+                deleteMusicFiles(music);
+                // 删除记录
+                musicMapper.deleteById(id);
+                log.info("音乐已物理删除 - ID: {}, 标题: {}", id, music.getTitle());
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 删除音乐关联文件
+     * @param music 音乐对象
+     */
+    private void deleteMusicFiles(Music music) {
+        // 删除封面图
+        if (music.getCoverUrl() != null && !music.getCoverUrl().isEmpty()) {
+            fileUtil.deleteFileByUrl(music.getCoverUrl());
+        }
+        // 删除完整音频
+        if (music.getFullAudioUrl() != null) {
+            fileUtil.deleteFileByUrl(music.getFullAudioUrl());
+        }
+        // 删除人声音频
+        if (music.getVocalUrl() != null) {
+            fileUtil.deleteFileByUrl(music.getVocalUrl());
+        }
     }
 
     /**

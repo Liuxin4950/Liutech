@@ -5,20 +5,25 @@ import {
   PlusOutlined,
   DeleteOutlined,
   CloudOutlined,
-  DownOutlined,
   PlayCircleOutlined,
   PauseCircleOutlined,
   SortAscendingOutlined,
-  RedoOutlined
+  SearchOutlined,
+  ReloadOutlined
 } from '@ant-design/icons-vue'
-import type { Music, UploadMusicParams, UpdateMusicParams } from '../../services/music'
+import type { Music } from '../../services/music'
 import musicService from '../../services/music'
 import { formatDateTime } from '../../utils/uitls'
 import { ImageUploadService } from '../../services/upload'
 
+// 扩展 Music 类型以支持前端状态
+interface MusicItem extends Music {
+  statusLoading?: boolean
+}
+
 // 响应式数据
 const loading = ref(false)
-const dataSource = ref<Music[]>([])
+const dataSource = ref<MusicItem[]>([])
 const selectedRowKeys = ref<number[]>([])
 
 // 搜索参数
@@ -26,9 +31,6 @@ const searchParams = ref({
   status: undefined as number | undefined,
   keyword: ''
 })
-
-// 显示已删除
-const showDeleted = ref(false)
 
 // 状态选项
 const statusOptions = [
@@ -38,9 +40,42 @@ const statusOptions = [
 ]
 
 // 播放状态控制
-const currentAudio = ref<HTMLAudioElement | null>(null)
+const audioPlayer = new Audio()
 const currentPlayingId = ref<number | null>(null)
 const isPlaying = ref(false)
+
+// 监听播放结束
+audioPlayer.onended = () => {
+  currentPlayingId.value = null
+  isPlaying.value = false
+}
+
+// 播放预览
+const playPreview = (record: Music) => {
+  // 如果点击的是当前正在播放的音乐
+  if (currentPlayingId.value === record.id) {
+    if (isPlaying.value) {
+      audioPlayer.pause()
+      isPlaying.value = false
+    } else {
+      audioPlayer.play()
+      isPlaying.value = true
+    }
+    return
+  }
+
+  // 播放新的音乐
+  audioPlayer.src = record.fullAudioUrl
+  audioPlayer.play()
+  currentPlayingId.value = record.id
+  isPlaying.value = true
+}
+
+// 组件卸载时清理
+onUnmounted(() => {
+  audioPlayer.pause()
+  audioPlayer.src = ''
+})
 
 // ============== 上传弹窗 ==============
 const uploadModalVisible = ref(false)
@@ -58,8 +93,14 @@ const coverUploading = ref(false)
 
 // 封面上传
 const handleCoverChange = async (info: any) => {
-  const file = info.file?.originFileObj
-  if (!file) return
+  // 当 before-upload 返回 false 时，使用 fileList 获取文件
+  const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
+  if (!file) {
+    console.log('封面文件为空', info)
+    return
+  }
+
+  console.log('准备上传封面', file.name, file.size, file.type)
 
   // 先显示本地预览
   coverPreview.value = URL.createObjectURL(file)
@@ -79,7 +120,8 @@ const handleCoverChange = async (info: any) => {
 
 // 完整音频
 const handleFullAudioChange = (info: any) => {
-  const file = info.file?.originFileObj
+  // 当 before-upload 返回 false 时，使用 fileList 获取文件
+  const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
   if (file) {
     uploadForm.value.fullAudio = file
   }
@@ -87,7 +129,8 @@ const handleFullAudioChange = (info: any) => {
 
 // 人声音频
 const handleVocalAudioChange = (info: any) => {
-  const file = info.file?.originFileObj
+  // 当 before-upload 返回 false 时，使用 fileList 获取文件
+  const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
   if (file) {
     uploadForm.value.vocalAudio = file
   }
@@ -190,13 +233,20 @@ const handleEditSubmit = async () => {
 const loadMusicList = async () => {
   try {
     loading.value = true
-    const res = await musicService.getMusicList()
-    let list = (res.data || []).sort((a, b) => a.sortOrder - b.sortOrder)
-    // 根据显示已删除筛选
-    if (!showDeleted.value) {
-      list = list.filter((item) => !item.deletedAt)
+    // 构建查询参数
+    const params: any = {}
+
+    // 只添加有值的参数
+    if (searchParams.value.status !== undefined) {
+      params.status = searchParams.value.status
     }
-    dataSource.value = list
+    if (searchParams.value.keyword && searchParams.value.keyword.trim()) {
+      params.keyword = searchParams.value.keyword.trim()
+    }
+
+    const res = await musicService.getMusicList(params)
+    // 后端已按 sortOrder 排序，直接使用
+    dataSource.value = res.data || []
   } catch (e: any) {
     message.error(e.message || '加载失败')
     dataSource.value = []
@@ -219,40 +269,13 @@ const handleDelete = async (id: number) => {
   }
 }
 
-const handleRestore = async (id: number) => {
-  try {
-    await musicService.restoreMusic(id)
-    message.success('恢复成功')
-    loadMusicList()
-  } catch (e: any) {
-    message.error(e.message || '恢复失败')
-  }
-}
-
-const handleBatchRestore = async () => {
-  if (!selectedRowKeys.value.length) {
-    message.warning('请选择要恢复的音乐')
-    return
-  }
-  try {
-    await musicService.batchRestoreMusic(selectedRowKeys.value)
-    message.success('批量恢复成功')
-    selectedRowKeys.value = []
-    loadMusicList()
-  } catch (e: any) {
-    message.error(e.message || '批量恢复失败')
-  }
-}
-
 const handleBatchDelete = async () => {
   if (!selectedRowKeys.value.length) {
     message.warning('请选择要删除的音乐')
     return
   }
   try {
-    for (const id of selectedRowKeys.value) {
-      await musicService.deleteMusic(id)
-    }
+    await musicService.batchDelete(selectedRowKeys.value)
     message.success('批量删除成功')
     selectedRowKeys.value = []
     loadMusicList()
@@ -262,12 +285,31 @@ const handleBatchDelete = async () => {
 }
 
 const handleStatusChange = async (id: number, status: number) => {
+  // 找到对应的记录以显示加载状态
+  const record = dataSource.value.find(item => item.id === id)
+  if (record) {
+    // 临时添加statusLoading属性
+    record.statusLoading = true
+  }
+
   try {
     await musicService.updateMusic(id, { status })
     message.success('状态更新成功')
-    loadMusicList()
+    
+    // 更新本地数据状态，避免整个列表刷新导致闪烁
+    if (record) {
+      record.status = status
+    }
   } catch (e: any) {
     message.error(e.message || '状态更新失败')
+    // 恢复状态（如果失败）
+    if (record) {
+      loadMusicList()
+    }
+  } finally {
+    if (record) {
+      record.statusLoading = false
+    }
   }
 }
 
@@ -293,43 +335,6 @@ const handleSortChange = async (id: number, direction: 'up' | 'down') => {
   }
 }
 
-// 播放预览 - 防止重复创建播放器
-const playPreview = (record: Music) => {
-  // 如果正在播放同一首，停止
-  if (currentPlayingId.value === record.id) {
-    currentAudio.value?.pause()
-    currentAudio.value = null
-    currentPlayingId.value = null
-    isPlaying.value = false
-    return
-  }
-
-  // 停止上一首
-  if (currentAudio.value) {
-    currentAudio.value.pause()
-    currentAudio.value = null
-  }
-
-  // 创建新的播放器
-  const audio = new Audio(record.fullAudioUrl)
-  audio.onended = () => {
-    currentAudio.value = null
-    currentPlayingId.value = null
-    isPlaying.value = false
-  }
-
-  audio.play()
-  currentAudio.value = audio
-  currentPlayingId.value = record.id
-  isPlaying.value = true
-}
-
-// 组件卸载时清理
-onUnmounted(() => {
-  currentAudio.value?.pause()
-  currentAudio.value = null
-})
-
 // 搜索
 const handleSearch = () => {
   loadMusicList()
@@ -338,7 +343,6 @@ const handleSearch = () => {
 // 重置
 const handleReset = () => {
   searchParams.value = { status: undefined, keyword: '' }
-  showDeleted.value = false
   loadMusicList()
 }
 
@@ -348,13 +352,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="music-management">
+  <div class="page-container">
     <div class="page-header">
       <h2><CloudOutlined /> AI音乐管理</h2>
     </div>
 
     <!-- 搜索区域 -->
-    <a-card class="search-card" :bordered="false">
+    <div class="modern-search-card">
       <a-form layout="inline" :model="searchParams">
         <a-form-item label="状态">
           <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear style="width: 120px" @change="handleSearch">
@@ -363,36 +367,37 @@ onMounted(() => {
         </a-form-item>
         <a-form-item>
           <a-space>
-            <a-button type="primary" @click="handleSearch">搜索</a-button>
-            <a-button @click="handleReset">重置</a-button>
+            <a-button type="primary" @click="handleSearch">
+              <template #icon><SearchOutlined /></template>
+              搜索
+            </a-button>
+            <a-button @click="handleReset">
+              <template #icon><ReloadOutlined /></template>
+              重置
+            </a-button>
           </a-space>
         </a-form-item>
       </a-form>
-    </a-card>
-
-    <!-- 操作区域 -->
-    <a-card class="action-card" :bordered="false">
-      <a-space>
-        <a-button type="primary" @click="uploadModalVisible = true">
-          <PlusOutlined /> 上传音乐
-        </a-button>
-        <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
-          <DeleteOutlined /> 批量删除
-        </a-button>
-        <a-button :disabled="selectedRowKeys.length === 0" @click="handleBatchRestore" v-if="showDeleted">
-          <RedoOutlined /> 批量恢复
-        </a-button>
-        <a-switch
-          v-model:checked="showDeleted"
-          checked-children="显示已删除"
-          un-checked-children="正常状态"
-          @change="loadMusicList"
-        />
-      </a-space>
-    </a-card>
+    </div>
 
     <!-- 表格区域 -->
-    <a-card :bordered="false">
+    <div class="modern-card">
+      <div class="table-toolbar">
+        <div class="left">
+          <a-button type="primary" @click="uploadModalVisible = true">
+            <PlusOutlined /> 上传音乐
+          </a-button>
+          <a-popconfirm
+            title="确定要批量彻底删除选中的音乐吗？此操作不可恢复！"
+            @confirm="handleBatchDelete"
+          >
+            <a-button danger :disabled="selectedRowKeys.length === 0">
+              <DeleteOutlined /> 批量删除
+            </a-button>
+          </a-popconfirm>
+        </div>
+      </div>
+
       <a-table
         :columns="[
           { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
@@ -401,13 +406,12 @@ onMounted(() => {
           { title: '艺术家', dataIndex: 'artist', key: 'artist', width: 150 },
           { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 80 },
           { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-          { title: '删除时间', dataIndex: 'deletedAt', key: 'deletedAt', width: 180 },
           { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-          { title: '操作', key: 'action', width: 280, fixed: 'right' }
+          { title: '操作', key: 'action', width: 200, fixed: 'right' }
         ]"
         :data-source="dataSource"
         :loading="loading"
-        :scroll="{ x: 1200 }"
+        :scroll="{ x: 1000 }"
         :row-selection="{
           selectedRowKeys,
           onChange: onSelectChange
@@ -464,15 +468,13 @@ onMounted(() => {
 
           <!-- 状态列 -->
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 1 ? 'green' : 'red'">
-              {{ record.status === 1 ? '启用' : '禁用' }}
-            </a-tag>
-          </template>
-
-          <!-- 删除时间列 -->
-          <template v-else-if="column.key === 'deletedAt'">
-            <span v-if="record.deletedAt" style="color: #ff4d4f">{{ formatDateTime(record.deletedAt) }}</span>
-            <span v-else>-</span>
+            <a-switch
+              :checked="record.status === 1"
+              checked-children="启用"
+              un-checked-children="禁用"
+              :loading="record.statusLoading"
+              @change="(checked: boolean) => handleStatusChange(record.id, checked ? 1 : 0)"
+            />
           </template>
 
           <!-- 创建时间列 -->
@@ -483,61 +485,30 @@ onMounted(() => {
           <!-- 操作列 -->
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <!-- 未删除的音乐显示正常操作 -->
-              <template v-if="!record.deletedAt">
-                <a-button type="link" size="small" @click="playPreview(record)">
-                  <PlayCircleOutlined /> 播放
-                </a-button>
-                <a-button type="link" size="small" @click="openEdit(record)">
-                  编辑
-                </a-button>
+              <a-button type="link" size="small" @click="playPreview(record)">
+                <template #icon>
+                  <PauseCircleOutlined v-if="currentPlayingId === record.id && isPlaying" />
+                  <PlayCircleOutlined v-else />
+                </template>
+                {{ currentPlayingId === record.id && isPlaying ? '暂停' : '播放' }}
+              </a-button>
+              <a-button type="link" size="small" @click="openEdit(record)">
+                编辑
+              </a-button>
 
-                <!-- 状态切换 -->
-                <a-dropdown>
-                  <template #overlay>
-                    <a-menu>
-                      <a-menu-item
-                        key="enable"
-                        @click="handleStatusChange(record.id, 1)"
-                        :disabled="record.status === 1"
-                      >
-                        启用
-                      </a-menu-item>
-                      <a-menu-item
-                        key="disable"
-                        @click="handleStatusChange(record.id, 0)"
-                        :disabled="record.status === 0"
-                      >
-                        禁用
-                      </a-menu-item>
-                    </a-menu>
-                  </template>
-                  <a-button type="link" size="small">
-                    {{ record.status === 1 ? '禁用' : '启用' }} <DownOutlined />
-                  </a-button>
-                </a-dropdown>
-
-                <a-popconfirm
-                  title="确定要删除这首音乐吗？"
-                  @confirm="handleDelete(record.id)"
-                >
-                  <a-button type="link" size="small" danger>
-                    删除
-                  </a-button>
-                </a-popconfirm>
-              </template>
-
-              <!-- 已删除的音乐显示恢复按钮 -->
-              <template v-else>
-                <a-button type="link" size="small" @click="handleRestore(record.id)">
-                  <RedoOutlined /> 恢复
+              <a-popconfirm
+                title="确定要彻底删除这首音乐吗？此操作不可恢复！"
+                @confirm="handleDelete(record.id)"
+              >
+                <a-button type="link" size="small" danger>
+                  删除
                 </a-button>
-              </template>
+              </a-popconfirm>
             </a-space>
           </template>
         </template>
       </a-table>
-    </a-card>
+    </div>
 
     <!-- 上传弹窗 -->
     <a-modal
@@ -635,29 +606,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.music-management {
-  padding: 24px;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.action-card {
-  margin-bottom: 16px;
-  border-radius: 8px;
-}
-
 .cover-preview {
   width: 100px;
   height: 100px;

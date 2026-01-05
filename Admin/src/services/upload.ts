@@ -1,4 +1,4 @@
-import { post } from './api'
+import { axiosInstance } from './api'
 
 // 动态获取后端URL（优先使用环境变量）
 const getBackendURL = (): string => {
@@ -62,16 +62,19 @@ export class ImageUploadService {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await post('/upload/image', formData, {
+      // 使用 axiosInstance，并显式删除 Content-Type 让浏览器自动处理
+      const response = await axiosInstance.post<ImageUploadResponse>('/upload/image', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': undefined // 设为 undefined 让浏览器自动设置正确的 multipart/form-data
         }
       })
 
-      return response.data
-    } catch (error) {
+      return response.data.data
+    } catch (error: any) {
       console.error('图片上传失败:', error)
-      throw new Error('图片上传失败，请重试')
+      // 提取后端返回的错误信息
+      const errorMsg = error.response?.data?.message || error.message || '图片上传失败，请重试'
+      throw new Error(errorMsg)
     }
   }
 
