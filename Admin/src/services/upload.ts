@@ -69,7 +69,8 @@ export class ImageUploadService {
         }
       })
 
-      return response.data.data
+      // response.data 已经是 ImageUploadResponse
+      return response.data
     } catch (error: any) {
       console.error('图片上传失败:', error)
       // 提取后端返回的错误信息
@@ -143,9 +144,9 @@ export class ImageUploadService {
         formData.append('description', description)
       }
 
-      const response = await post('/upload/document', formData, {
+      const response = await axiosInstance.post('/upload/document', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': undefined
         }
       })
 

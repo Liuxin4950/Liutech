@@ -76,6 +76,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=123456
       - FILE_UPLOAD_BASE_PATH=/app/uploads
       - SERVER_BASE_URL=${SERVER_BASE_URL:-http://liuxin.chat}
+      - JWT_SECRET=${JWT_SECRET}
     volumes:
       - upload_files:/app/uploads
     depends_on:
@@ -96,6 +97,8 @@ services:
       - SPRING_DATASOURCE_PASSWORD=123456
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - BLOG_API_URL=http://backend:8080
+      # JWT密钥 - 必须与后端一致，否则无法验证token
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       mysql:
         condition: service_healthy
@@ -190,6 +193,9 @@ NGINX_HTTPS=443
 
 # 服务器配置
 SERVER_BASE_URL=http://liuxin.chat
+
+# JWT密钥 - 后端和AI服务共用此密钥（必需配置，请修改为随机字符串）
+JWT_SECRET=your_strong_jwt_secret_key_min_32_chars
 
 # AI服务API Key（必需配置）
 # 请替换为你的SiliconFlow API Key

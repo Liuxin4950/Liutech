@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS ai_chat_message
     KEY idx_user_role (user_id, role) COMMENT '按用户和角色查询',
     KEY idx_conv_created (conversation_id, created_at) COMMENT '按会话查询消息',
     KEY idx_conv_seq (conversation_id, seq_no) COMMENT '按会话和序号查询',
-    CONSTRAINT fk_message_conversation FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE COMMENT '外键约束：删除会话时自动删除消息'
+    CONSTRAINT fk_message_conversation FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='AI聊天消息表';
 

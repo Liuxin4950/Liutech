@@ -15,7 +15,7 @@ RUN apk add --no-cache tzdata && \
 RUN mkdir -p /app/logs /app/uploads
 
 # 复制jar文件到容器中
-COPY target/liutech-backend-*.jar app.jar
+COPY target/liutech-*.jar app.jar
 
 # 时区已在上方设置，无需重复
 
