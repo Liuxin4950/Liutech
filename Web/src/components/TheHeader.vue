@@ -54,11 +54,11 @@ const headerBackgroundStyle = computed(() => {
 
 /** 导航配置（避免重复写） */
 const navItems = [
-  { label: '首页', path: '/', section: 'home' },
-  { label: '分类', path: '/categories', section: 'categories' },
-  { label: '标签', path: '/tags', section: 'tags' },
-  { label: '归档', path: '/archive', section: 'archive' },
-  { label: '关于我', path: '/about', section: 'about' }
+  { label: '首页', path: '/', section: 'home', icon: 'home' },
+  { label: '分类', path: '/categories', section: 'categories', icon: 'folder' },
+  { label: '标签', path: '/tags', section: 'tags', icon: 'tag' },
+  { label: '归档', path: '/archive', section: 'archive', icon: 'archive' },
+  { label: '关于我', path: '/about', section: 'about', icon: 'user' }
 ]
 
 /** 关闭所有菜单 */
@@ -130,6 +130,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
               class="nav-link transition"
               :class="{ 'is-active': isActive(item.section) }"
             >
+              <Icon :name="item.icon" size="16" class="nav-icon" />
               {{ item.label }}
             </router-link>
           </li>
@@ -193,7 +194,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
         <!-- 主题按钮 -->
         <button @click="theme.toggle" class="link transition p-8" :title="theme.current.value === 'light' ? '切换到深色模式' : '切换到浅色模式'">
-          <Icon style="color: var(--text-title);" :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="20" />
+          <Icon :style="{ color: theme.current.value === 'light' ? '#E0F7FA' : '#FFD700', filter: theme.current.value === 'light' ? 'drop-shadow(0 0 4px rgba(224, 247, 250, 0.8))' : 'none' }" :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="24" />
         </button>
 
         <!-- 移动端按钮 -->
@@ -215,20 +216,24 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
             @click="navigateTo(item.path)"
             class="p-16 hover-bg transition border-b link"
           >
+            <Icon :name="item.icon" size="18" class="mr-8" />
             {{ item.label }}
           </li>
 
           <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')" class="p-16 border-b link">
-            个人资料
+            <Icon name="user" size="18" class="mr-8" />个人资料
           </li>
           <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="p-16 border-b link">
-            我的文章
+            <Icon name="edit" size="18" class="mr-8" />我的文章
+          </li>
+          <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="p-16 border-b link">
+            <Icon name="file" size="18" class="mr-8" />草稿箱
           </li>
           <li v-if="userStore.isLoggedIn" @click="navigateTo('/favorites')" class="p-16 border-b link">
-            我的收藏
+            <Icon name="favorite" size="18" class="mr-8" />我的收藏
           </li>
           <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 text-error border-b link">
-            退出登录
+            <Icon name="close" size="18" class="mr-8" />退出登录
           </li>
         </ul>
       </div>
@@ -323,6 +328,13 @@ ol {
   padding: 10px 0;
   margin: 0 16px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-icon {
+  vertical-align: -2px;
 }
 
 .nav-link.router-link-exact-active,
@@ -360,7 +372,7 @@ ol {
   top: 70px;
   right: 0;
   width: 80%;
-  max-width: 280px;
+  max-width: 200px;
   height: calc(100vh - 70px);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -382,6 +394,8 @@ ol {
     border: 1px solid transparent;
     background-color: var(--bg-card);
     box-shadow: var(--shadow-sm);
+    gap: 5px;
+    vertical-align: middle;
 
   }
   li:hover {
