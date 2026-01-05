@@ -117,7 +117,8 @@ const icons: Record<string, string> = {
   game: '<circle cx="6" cy="4" r="2"></circle><circle cx="10" cy="4" r="2"></circle><circle cx="14" cy="4" r="2"></circle><path d="M6 6v10"></path><path d="M14 6v10"></path><rect x="4" y="8" width="16" height="12" rx="2"></rect>',
   run: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>',
-  location: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>'
+  location: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
+  badge: '<path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12a10 10 0 0 1 10-10z"></path><path d="M8.5 8.5l7 7-7 7M15.5 8.5l-7 7 7 7"></path><circle cx="12" cy="12" r="3"></circle>'
 }
 
 const props = withDefaults(defineProps<{

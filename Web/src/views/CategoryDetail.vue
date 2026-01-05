@@ -1,13 +1,13 @@
 <template>
   <div class="category-posts content">
     <!-- 页面头部 -->
-    <div class="card bg-soft mb-16">
+    <div v-if="category" class="card bg-soft mb-16">
       <div class="flex flex-col gap-16">
         <div class="flex flex-col gap-12">
           <h1 class="text-xl font-semibold text-primary mb-0 flex flex-ac gap-8">
-            <Icon name="folder" size="20" /> {{ category?.name || '分类文章' }}
+            <Icon name="folder" size="20" /> {{ category.name }}
           </h1>
-          <p v-if="category?.description" class="text-subtle text-base mb-0">
+          <p v-if="category.description" class="text-subtle text-base mb-0">
             {{ category.description }}
           </p>
           <div class="flex flex-ac gap-8">
@@ -17,8 +17,20 @@
       </div>
     </div>
 
+    <!-- 空/错误状态 -->
+    <div v-if="categoryError || (!loading && posts.length === 0)" class="empty-text flex flex-col flex-ac text-sm">
+      <Icon name="file" size="48" class="empty-icon mb-20" />
+      <h3 class="font-semibold mb-12">{{ categoryError ? '页面未找到' : '暂无相关文章' }}</h3>
+      <p class="mb-20">{{ categoryError || '该分类下还没有发布任何文章' }}</p>
+      <div class="flex gap-12">
+        <button v-if="categoryError" @click="router.back()" class="create-btn">返回上页</button>
+        <router-link to="/" class="create-btn" :class="{ outline: categoryError }">返回首页</router-link>
+      </div>
+    </div>
+
     <!-- 文章列表 -->
     <ArticleList
+      v-if="category && (!loading || posts.length > 0)"
       :posts="posts"
       :loading="loading"
       :error="error"
@@ -26,13 +38,7 @@
       @post-click="goToPost"
       @page-change="changePage"
       @retry="loadPosts"
-    >
-      <template #empty>
-        <div class="mb-8"><Icon name="edit" size="32" /></div>
-        <h3 class="font-semibold mb-8">暂无文章</h3>
-        <p class="text-muted mb-0">该分类下还没有文章</p>
-      </template>
-    </ArticleList>
+    />
   </div>
 </template>
 
@@ -55,6 +61,7 @@ const posts = ref<PostListItem[]>([])
 const category = ref<Category | null>(null)
 const loading = ref(false)
 const error = ref('')
+const categoryError = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const totalPosts = ref(0)
@@ -80,6 +87,10 @@ const categoryId = computed(() => {
 const loadCategory = async () => {
   await handleAsync(async () => {
     const categoryData = await categoryStore.fetchCategoryById(categoryId.value)
+    if (!categoryData) {
+      categoryError.value = '分类不存在'
+      return
+    }
     category.value = categoryData
 
     // 动态更新路由meta信息：仅保留标题
@@ -88,6 +99,7 @@ const loadCategory = async () => {
     }
   }, {
     onError: (err) => {
+      categoryError.value = '分类不存在'
       console.error('加载分类信息失败:', err)
     }
   })
@@ -149,6 +161,17 @@ onMounted(() => {
 <style scoped>
 .category-posts { padding: 20px; }
 .loading-text { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+
+.create-btn.outline {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.create-btn.outline:hover {
+  background: var(--color-primary);
+  color: white;
+}
 
 @include respond(md) {
   .category-posts { padding: 15px; }

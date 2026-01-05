@@ -36,14 +36,14 @@
 
         <div class="flex flex-col flex-sb flex-1 relative">
           <img class="article-image" src="@/assets/image/趴.webp" alt="">
-          <span v-if="post.category" class="article-category">{{ post.category.name }}</span>
+          <span v-if="post.category" class="article-category" @click.stop="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
           <div class="flex-1 flex flex-col gap-12">
-            <h3 class="font-semibold text-primary text-xl">{{ post.title }}</h3>
+            <h3 class="font-semibold text-primary text-xl post-title">{{ post.title }}</h3>
             <p v-if="post.summary" class="text-subtle text-base text-sm post-summary">
               {{ post.summary }}
             </p>
             <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
-              <span v-for="tag in post.tags" :key="tag.id" class="tag">
+              <span v-for="tag in post.tags" :key="tag.id" class="tag" @click.stop="handleTagClick(tag.id)">
                 {{ tag.name }}
               </span>
             </div>
@@ -88,6 +88,8 @@ import { formatDate } from '@/utils/uitls'
 import Pagination from '@/components/Pagination.vue'
 import Icon from './Icon.vue'
 
+const router = useRouter()
+
 const props = defineProps<{
   posts: any[]
   loading: boolean
@@ -100,11 +102,19 @@ const props = defineProps<{
   }
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'post-click': [postId: number]
   'page-change': [page: number]
   'retry': []
 }>()
+
+function handleTagClick(tagId: number) {
+  router.push(`/tags/${tagId}`)
+}
+
+function handleCategoryClick(categoryId: number) {
+  router.push(`/category-detail/${categoryId}`)
+}
 </script>
 
 <style scoped lang="scss">
@@ -115,17 +125,17 @@ defineEmits<{
     position: absolute;
     top: 0;
     right: 0;
-    transform: translateY(-16px);
+    transform: translateY(-11px);
       @include respond(md) {
         display: none;
-  }
+      }
   }
 
   .article-box{
     position: relative;
     @include respond(lg) {
       flex-wrap: wrap;
-  }
+    }
 
 
   }
@@ -134,6 +144,10 @@ defineEmits<{
   height: 150px;
   border-radius: 8px;
   overflow: hidden;
+   @include respond(md) {
+        width: 100%;
+        height: 200px;
+  }
 }
 
 .posts-img img {
@@ -147,15 +161,18 @@ defineEmits<{
   transform: scale(1.05);
 }
 
-
+.post-title{
+    padding-right: 70px;
+}
 .post-summary {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.5;
-  max-height: 3em;
+  height: 3em;
   word-break: break-word;
+  padding-right: 150px;
 }
 
 .retry-btn {

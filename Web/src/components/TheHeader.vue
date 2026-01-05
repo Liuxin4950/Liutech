@@ -374,7 +374,6 @@ ol {
     margin: 8px 16px;
     padding: 12px 20px;
     border-radius: 12px;
-    background-color: transparent;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 500;
     color: var(--text-main);
@@ -382,14 +381,14 @@ ol {
     align-items: center;
     border: 1px solid transparent;
     background-color: var(--bg-card);
+    box-shadow: var(--shadow-sm);
 
   }
   li:hover {
-      background-color: var(--color-primary);
+      // background-color: var(--color-primary);
       color: var(--color-primary);
       padding-left: 24px;
       border-color: var(--border-light);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
   li:active {

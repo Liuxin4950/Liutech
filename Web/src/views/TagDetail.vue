@@ -45,23 +45,18 @@
         @post-click="goToPost"
         @page-change="changePage"
         @retry="loadPosts"
-      >
-        <template #empty>
-          <Icon name="file" size="40" class="empty-icon mb-20" />
-          <h3 class="font-semibold mb-12">暂无相关文章</h3>
-          <p class="mb-20">该标签下还没有发布任何文章</p>
-          <router-link to="/"
-            class="create-btn inline-block p-12 px-24 rounded text-white font-medium no-underline transition">返回首页</router-link>
-        </template>
-      </ArticleList>
+      />
     </div>
 
-    <!-- 错误状态 -->
-    <div v-if="error" class="empty-state text-sm">
-      <Icon name="close" size="40" class="empty-icon" />
-      <h3>加载失败</h3>
-      <p>{{ error }}</p>
-      <button @click="loadTagInfo" class="create-btn">重新加载</button>
+    <!-- 空状态 -->
+    <div v-if="error || (!loading && posts.length === 0)" class="empty-text flex flex-col flex-ac text-sm">
+      <Icon name="file" size="48" class="empty-icon mb-20" />
+      <h3 class="font-semibold mb-12">{{ error ? '页面未找到' : '暂无相关文章' }}</h3>
+      <p class="mb-20">{{ error || '该标签下还没有发布任何文章' }}</p>
+      <div class="flex gap-12">
+        <button v-if="error" @click="router.back()" class="create-btn">返回上页</button>
+        <router-link to="/" class="create-btn" :class="{ outline: error }">返回首页</router-link>
+      </div>
     </div>
   </div>
 </template>
@@ -193,7 +188,7 @@ onMounted(() => {
 @use "@/assets/styles/tokens" as *;
 
 .tag-header {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  // background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   color: var(--text-main);
 }
 
@@ -231,5 +226,16 @@ onMounted(() => {
     align-items: flex-start;
     gap: 12px;
   }
+}
+
+.create-btn.outline {
+  background: transparent;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.create-btn.outline:hover {
+  background: var(--color-primary);
+  color: white;
 }
 </style>

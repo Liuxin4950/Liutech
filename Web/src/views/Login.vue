@@ -121,7 +121,7 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
               <div v-if="!isLogin" class="form-group">
                 <label>昵称 (可选)</label>
                 <div class="input-wrapper">
-                  <Icon name="badge" size="18" class="input-icon" />
+                  <Icon name="user" size="18" class="input-icon" />
                   <input v-model="registerForm.nickname" type="text" placeholder="请输入昵称" />
                 </div>
               </div>
