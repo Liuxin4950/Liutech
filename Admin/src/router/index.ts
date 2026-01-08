@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useTagsStore } from '@/stores/tabs'
 
 /**
  * 路由配置
@@ -16,7 +17,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/Home.vue'),
         meta: {
           title: '首页',
-          section: 'home'
+          section: 'home',
+          affix: true  // 固定标签，不可关闭
         }
       },
       {
@@ -128,10 +130,10 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   // 设置页面标题
   document.title = `${to.meta.title || '博客'} - MyBlog`
-  
+
   // 需要登录的页面
   const requiresAuth = ['create-post', 'drafts', 'my-posts', 'profile']
-  
+
   // 检查是否需要登录
   if (requiresAuth.includes(to.name as string)) {
     const token = localStorage.getItem('token')
@@ -141,8 +143,35 @@ router.beforeEach((to, from, next) => {
       return
     }
   }
-  
+
   next()
+})
+
+/**
+ * 路由后置守卫
+ * 添加标签页
+ */
+router.afterEach((to) => {
+  // 跳过登录页和 403 页
+  if (to.name === 'login' || to.name === 'forbidden') {
+    return
+  }
+
+  const tagsStore = useTagsStore()
+
+  // 添加到标签栏
+  if (to.name && to.meta?.title) {
+    tagsStore.addVisitedView({
+      name: to.name as string,
+      path: to.path,
+      title: to.meta.title as string,
+      affix: to.meta?.affix || false,
+      fullPath: to.fullPath
+    })
+
+    // 添加到缓存
+    tagsStore.addCachedView(to.name as string)
+  }
 })
 
 export default router

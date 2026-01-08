@@ -1,39 +1,69 @@
 <script setup lang="ts">
-import { ref, provide } from 'vue'
+import { ref, provide, onMounted } from 'vue'
 import TheHeader from '@/components/TheHeader.vue'
 import TheFooter from '@/components/TheFooter.vue'
 import TheSidebar from '@/components/TheSidebar.vue'
+import TagsView from '@/components/TagsView.vue'
+import Breadcrumb from '@/components/Breadcrumb.vue'
+import { useTagsStore } from '@/stores/tabs'
+import { useRouter } from 'vue-router'
 
 // 侧边栏折叠状态
 const collapsed = ref(false)
 
 // 提供给子组件使用
 provide('sidebarCollapsed', collapsed)
+
+// 标签页状态管理
+const tagsStore = useTagsStore()
+
+// 页面加载时初始化固定标签
+onMounted(() => {
+  // 获取路由配置中的固定标签
+  const router = useRouter()
+  const routes = router.options.routes
+  tagsStore.addAffixTags([...routes])
+})
 </script>
 
 <template>
   <a-layout class="main-layout">
+    <!-- 顶部导航栏 -->
     <a-layout-header class="header">
       <TheHeader />
     </a-layout-header>
+
+    <!-- 主内容区域 -->
     <a-layout class="content-layout">
-      <a-layout-sider 
-        class="sidebar" 
-        :width="collapsed ? 80 : 200" 
-        :collapsed="collapsed"
-        theme="light"
-      >
-        <TheSidebar />
-      </a-layout-sider>
+      <!-- 侧边栏容器 - 固定不滚动 -->
+      <div class="sidebar-container">
+        <a-layout-sider
+          class="sidebar"
+          :width="collapsed ? 80 : 200"
+          :collapsed="collapsed"
+          theme="light"
+        >
+          <TheSidebar />
+        </a-layout-sider>
+      </div>
       <a-layout-content class="main-content">
+        <!-- 标签栏和面包屑区域 - 固定不滚动 -->
+        <div class="nav-bar-wrapper">
+          <TagsView />
+          <Breadcrumb />
+        </div>
         <div class="content-wrapper">
-          <router-view />
+          <!-- 使用 KeepAlive 缓存页面组件 -->
+          <KeepAlive :include="tagsStore.cachedViews">
+            <router-view v-slot="{ Component }">
+              <transition name="fade" mode="out-in">
+                <component :is="Component" />
+              </transition>
+            </router-view>
+          </KeepAlive>
         </div>
       </a-layout-content>
     </a-layout>
-    <a-layout-footer class="footer">
-      <TheFooter />
-    </a-layout-footer>
   </a-layout>
 </template>
 
@@ -47,101 +77,57 @@ provide('sidebarCollapsed', collapsed)
   height: 64px;
   line-height: 64px;
   background: var(--bg-card);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* 标签栏和面包屑容器 - 固定在顶部 */
+.nav-bar-wrapper {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 64px;
+  z-index: 99;
 }
 
 .content-layout {
-  min-height: calc(100vh - 128px);
+  min-height: calc(100vh - 64px);
+}
+
+/* 侧边栏容器 - 固定不滚动 */
+.sidebar-container {
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--bg-card);
 }
 
 .sidebar {
   background: var(--bg-card);
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  min-height: 100%;
 }
 
 .main-content {
   background: var(--bg-main);
-  min-height: calc(100vh - 128px);
-}
-
-.content-wrapper {
-  padding: 24px;
   min-height: 100%;
 }
 
-.footer {
-  padding: 0;
-  background: transparent;
-  border-top: none;
+.content-wrapper {
+  padding: 16px 24px 24px;
+  min-height: 100%;
 }
 
-/* 深色模式覆盖 Ant Design 组件 */
-:deep(.ant-layout-sider) {
-  background: var(--bg-card);
+/* 页面切换动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-:deep(.ant-layout-header) {
-  background: var(--bg-card);
-}
-
-:deep(.ant-table) {
-  background: var(--bg-card);
-}
-
-:deep(.ant-table-thead > tr > th) {
-  background: var(--bg-hover);
-  color: var(--text-main);
-}
-
-:deep(.ant-table-tbody > tr > td) {
-  color: var(--text-main);
-}
-
-:deep(.ant-table-tbody > tr:hover > td) {
-  background: var(--bg-hover);
-}
-
-:deep(.ant-card) {
-  background: var(--bg-card);
-  color: var(--text-main);
-}
-
-:deep(.ant-card-head) {
-  color: var(--text-main);
-  border-bottom-color: var(--border-light);
-}
-
-:deep(.ant-form-item-label > label) {
-  color: var(--text-secondary);
-}
-
-:deep(.ant-input),
-:deep(.ant-select-selector),
-:deep(.ant-picker) {
-  background: var(--bg-card) !important;
-  border-color: var(--border-base) !important;
-  color: var(--text-main) !important;
-}
-
-:deep(.ant-input-affix-wrapper) {
-  background: var(--bg-card) !important;
-  border-color: var(--border-base) !important;
-}
-
-:deep(.ant-select-dropdown) {
-  background: var(--bg-card);
-}
-
-:deep(.ant-select-item) {
-  color: var(--text-main);
-}
-
-:deep(.ant-select-item-option-active) {
-  background: var(--bg-hover);
-}
-
-:deep(.ant-select-item-option-selected) {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

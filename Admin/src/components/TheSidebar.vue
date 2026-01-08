@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch, type Ref } from 'vue'
+import { inject, ref, watch, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   DashboardOutlined,
@@ -11,7 +11,8 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   HistoryOutlined,
-  CloudOutlined
+  CloudOutlined,
+  SettingOutlined
 } from '@ant-design/icons-vue'
 
 const router = useRouter()
@@ -20,8 +21,47 @@ const route = useRoute()
 // 从父组件注入折叠状态
 const collapsed = inject<Ref<boolean>>('sidebarCollapsed')!
 
-// 当前选中的菜单项
-const selectedKeys = computed(() => {
+// 菜单配置 - 支持二级折叠
+const menuItems = [
+  {
+    key: 'dashboard',
+    icon: DashboardOutlined,
+    label: '仪表盘',
+    path: '/'
+  },
+  // 内容管理分组
+  {
+    key: 'content',
+    icon: FileTextOutlined,
+    label: '内容管理',
+    children: [
+      { key: 'posts', icon: FileTextOutlined, label: '文章管理', path: '/posts' },
+      { key: 'categories', icon: FolderOutlined, label: '分类管理', path: '/categories' },
+      { key: 'tags', icon: TagsOutlined, label: '标签管理', path: '/tags' }
+    ]
+  },
+  // 用户管理
+  {
+    key: 'users',
+    icon: TeamOutlined,
+    label: '用户管理',
+    path: '/users'
+  },
+  // 系统管理分组
+  {
+    key: 'system',
+    icon: SettingOutlined,
+    label: '系统管理',
+    children: [
+      { key: 'announcements', icon: NotificationOutlined, label: '公告管理', path: '/announcements' },
+      { key: 'logs', icon: HistoryOutlined, label: '操作日志', path: '/logs' },
+      { key: 'music', icon: CloudOutlined, label: 'AI音乐', path: '/music' }
+    ]
+  }
+]
+
+// 获取当前选中的 key
+const getSelectedKey = (): string[] => {
   const path = route.path
   if (path === '/' || path === '/dashboard') return ['dashboard']
   if (path.startsWith('/posts')) return ['posts']
@@ -32,52 +72,53 @@ const selectedKeys = computed(() => {
   if (path.startsWith('/logs')) return ['logs']
   if (path.startsWith('/music')) return ['music']
   return ['dashboard']
-})
+}
 
-// 菜单选中状态（用于双向绑定）
-const menuSelectedKeys = ref<string[]>(['dashboard'])
+// 获取当前展开的 submenu keys
+const getOpenKeys = (): string[] => {
+  const path = route.path
+  if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/tags')) {
+    return ['content']
+  }
+  if (path.startsWith('/announcements') || path.startsWith('/logs') || path.startsWith('/music')) {
+    return ['system']
+  }
+  return []
+}
 
-// 监听路由变化，更新菜单选中状态
-watch(() => route.path, (newPath) => {
-  if (newPath === '/' || newPath === '/dashboard') menuSelectedKeys.value = ['dashboard']
-  else if (newPath.startsWith('/posts')) menuSelectedKeys.value = ['posts']
-  else if (newPath.startsWith('/categories')) menuSelectedKeys.value = ['categories']
-  else if (newPath.startsWith('/tags')) menuSelectedKeys.value = ['tags']
-  else if (newPath.startsWith('/users')) menuSelectedKeys.value = ['users']
-  else if (newPath.startsWith('/announcements')) menuSelectedKeys.value = ['announcements']
-  else if (newPath.startsWith('/logs')) menuSelectedKeys.value = ['logs']
-  else if (newPath.startsWith('/music')) menuSelectedKeys.value = ['music']
-  else menuSelectedKeys.value = ['dashboard']
+// 菜单状态
+const menuSelectedKeys = ref<string[]>(getSelectedKey())
+const menuOpenKeys = ref<string[]>(getOpenKeys())
+
+// 监听路由变化，更新菜单状态
+watch(() => route.path, () => {
+  menuSelectedKeys.value = getSelectedKey()
+  menuOpenKeys.value = getOpenKeys()
 }, { immediate: true })
 
 // 菜单点击处理
 const handleMenuClick = ({ key }: { key: string }) => {
-  switch (key) {
-    case 'dashboard':
-      router.push('/')
-      break
-    case 'posts':
-      router.push('/posts')
-      break
-    case 'categories':
-      router.push('/categories')
-      break
-    case 'tags':
-      router.push('/tags')
-      break
-    case 'users':
-      router.push('/users')
-      break
-    case 'announcements':
-      router.push('/announcements')
-      break
-    case 'logs':
-      router.push('/logs')
-      break
-    case 'music':
-      router.push('/music')
-      break
+  const item = findMenuItem(key)
+  if (item && item.path) {
+    router.push(item.path)
   }
+}
+
+// SubMenu 展开/收起处理
+const handleOpenChange = (keys: string[]) => {
+  menuOpenKeys.value = keys
+}
+
+// 递归查找菜单项
+const findMenuItem = (key: string, items = menuItems): any => {
+  for (const item of items) {
+    if (item.key === key) return item
+    if (item.children) {
+      const found = findMenuItem(key, item.children)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 // 切换折叠状态
@@ -93,48 +134,35 @@ const toggleCollapsed = () => {
       <MenuUnfoldOutlined v-if="collapsed" />
       <MenuFoldOutlined v-else />
     </div>
-    
+
     <!-- 菜单 -->
     <a-menu
       v-model:selectedKeys="menuSelectedKeys"
+      v-model:openKeys="menuOpenKeys"
       mode="inline"
       theme="light"
       class="sidebar-menu"
       :inline-collapsed="collapsed"
+      :inline-indent="24"
       @click="handleMenuClick"
+      @openChange="handleOpenChange"
     >
-      <a-menu-item key="dashboard">
-        <DashboardOutlined />
-        <span>仪表盘</span>
-      </a-menu-item>
-      <a-menu-item key="posts">
-        <FileTextOutlined />
-        <span>文章管理</span>
-      </a-menu-item>
-      <a-menu-item key="categories">
-        <FolderOutlined />
-        <span>分类管理</span>
-      </a-menu-item>
-      <a-menu-item key="tags">
-        <TagsOutlined />
-        <span>标签管理</span>
-      </a-menu-item>
-      <a-menu-item key="users">
-        <TeamOutlined />
-        <span>用户管理</span>
-      </a-menu-item>
-      <a-menu-item key="announcements">
-        <NotificationOutlined />
-        <span>公告管理</span>
-      </a-menu-item>
-      <a-menu-item key="logs">
-        <HistoryOutlined />
-        <span>操作日志</span>
-      </a-menu-item>
-      <a-menu-item key="music">
-        <CloudOutlined />
-        <span>AI音乐</span>
-      </a-menu-item>
+      <template v-for="item in menuItems" :key="item.key">
+        <!-- 有子菜单的用 SubMenu -->
+        <a-sub-menu v-if="item.children" :key="item.key">
+          <template #icon><component :is="item.icon" /></template>
+          <template #title>{{ item.label }}</template>
+          <a-menu-item v-for="child in item.children" :key="child.key">
+            <template #icon><component :is="child.icon" /></template>
+            <span>{{ child.label }}</span>
+          </a-menu-item>
+        </a-sub-menu>
+        <!-- 没有子菜单的用 MenuItem -->
+        <a-menu-item v-if="!item.children" :key="item.key">
+          <template #icon><component :is="item.icon" /></template>
+          <span>{{ item.label }}</span>
+        </a-menu-item>
+      </template>
     </a-menu>
   </div>
 </template>
@@ -169,25 +197,47 @@ const toggleCollapsed = () => {
 }
 
 /* 深色模式覆盖 */
-:deep(.ant-menu) {
+.sidebar-menu :deep(.ant-menu) {
   background: transparent;
 }
 
-:deep(.ant-menu-item) {
+.sidebar-menu :deep(.ant-menu-item) {
   color: var(--text-secondary);
+  margin: 4px 8px;
+  border-radius: 6px;
 }
 
-:deep(.ant-menu-item:hover) {
+.sidebar-menu :deep(.ant-menu-item:hover) {
   color: var(--color-primary);
   background: var(--color-primary-bg);
 }
 
-:deep(.ant-menu-item-selected) {
+.sidebar-menu :deep(.ant-menu-item-selected) {
   color: var(--color-primary) !important;
   background: var(--color-primary-bg) !important;
 }
 
-:deep(.ant-menu-item-selected::after) {
-  border-right-color: var(--color-primary) !important;
+.sidebar-menu :deep(.ant-menu-submenu-title) {
+  color: var(--text-secondary);
+  margin: 4px 8px;
+  border-radius: 6px;
+}
+
+.sidebar-menu :deep(.ant-menu-submenu-title:hover) {
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.sidebar-menu :deep(.ant-menu-submenu-open > .ant-menu-submenu-title) {
+  color: var(--color-primary);
+}
+
+/* 子菜单样式 */
+.sidebar-menu :deep(.ant-menu-sub) {
+  background: transparent !important;
+}
+
+.sidebar-menu :deep(.ant-menu-item::after) {
+  display: none;
 }
 </style>
