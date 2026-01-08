@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
+import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import CategoriesService from '../../services/categories'
 import type { Category, CategoryListParams } from '../../services/categories'
 import { formatDateTime } from '../../utils/uitls'
@@ -8,10 +9,17 @@ import { formatDateTime } from '../../utils/uitls'
 // 响应式数据
 const loading = ref(false)
 const dataSource = ref<Category[]>([])
-const total = ref(0)
-const current = ref(1)
-const pageSize = ref(10)
 const selectedRowKeys = ref<number[]>([])
+
+// 分页配置 - 使用 reactive 对象确保响应式
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (total: number) => `共 ${total} 条记录`
+})
 
 // 搜索参数
 const searchParams = ref<CategoryListParams>({
@@ -75,7 +83,7 @@ const handleOk = async () => {
       if (res.code === 200) {
         message.success('创建成功')
         modalVisible.value = false
-        current.value = 1
+        pagination.current = 1
         loadCategories()
       } else {
         message.error(res.message || '创建失败')
@@ -94,11 +102,11 @@ const handleCancel = () => { modalVisible.value = false }
 const loadCategories = async () => {
   try {
     loading.value = true
-    const params = { page: current.value, size: pageSize.value, ...searchParams.value }
+    const params = { page: pagination.current, size: pagination.pageSize, ...searchParams.value }
     const res = await CategoriesService.getCategoryList(params)
     if (res.code === 200) {
       dataSource.value = res.data.records
-      total.value = res.data.total
+      pagination.total = res.data.total
     } else {
       message.error(res.message || '加载分类失败')
     }
@@ -109,8 +117,8 @@ const loadCategories = async () => {
   }
 }
 
-const handleSearch = () => { current.value = 1; loadCategories() }
-const handleReset = () => { searchParams.value = { name: '', includeDeleted: false }; current.value = 1; loadCategories() }
+const handleSearch = () => { pagination.current = 1; loadCategories() }
+const handleReset = () => { searchParams.value = { name: '', includeDeleted: false }; pagination.current = 1; loadCategories() }
 
 // 恢复删除
 const handleRestore = async (id: number) => {
@@ -130,7 +138,11 @@ const handleBatchPermanentDelete = async () => {
   const res = await CategoriesService.batchPermanentDeleteCategories(selectedRowKeys.value)
   if (res.code === 200) { message.success('批量彻底删除成功'); selectedRowKeys.value = []; loadCategories() } else { message.error(res.message || '批量彻底删除失败') }
 }
-const handleTableChange = (p: any) => { current.value = p.current; pageSize.value = p.pageSize; loadCategories() }
+const handleTableChange = (p: any) => {
+  pagination.current = p.current
+  pagination.pageSize = p.pageSize
+  loadCategories()
+}
 const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
 
 const handleDelete = async (id: number) => {
@@ -149,29 +161,43 @@ onMounted(() => { loadCategories() })
 
 <template>
   <div class="categories-management">
-    <div class="page-header"><h2>分类管理</h2></div>
-
-    <a-card class="search-card" :bordered="false">
-      <a-form layout="inline" :model="searchParams">
-        <a-form-item label="名称">
-          <a-input v-model:value="searchParams.name" placeholder="请输入分类名称" allow-clear style="width: 220px" />
-        </a-form-item>
-        <a-form-item label="显示已删除">
-          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" />
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">搜索</a-button>
-            <a-button @click="handleReset">重置</a-button>
-          </a-space>
-        </a-form-item>
+    <a-card :bordered="false" class="mb-16">
+      <a-form layout="horizontal" :model="searchParams">
+        <a-row :gutter="24">
+          <a-col :span="6">
+            <a-form-item label="名称" class="mb-0">
+              <a-input v-model:value="searchParams.name" placeholder="请输入分类名称" allow-clear @press-enter="handleSearch" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="18" class="text-right">
+            <a-space>
+              <a-tooltip title="显示已删除">
+                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+              </a-tooltip>
+              <a-button type="primary" @click="handleSearch">
+                <template #icon><SearchOutlined /></template>
+                搜索
+              </a-button>
+              <a-button @click="handleReset">
+                <template #icon><ReloadOutlined /></template>
+                重置
+              </a-button>
+            </a-space>
+          </a-col>
+        </a-row>
       </a-form>
     </a-card>
 
-    <a-card class="action-card" :bordered="false">
-      <a-space>
-        <a-button type="primary" @click="openCreate">新建分类</a-button>
-        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">批量删除</a-button>
+
+    <a-card :bordered="false">
+       <template #title>
+        <span>分类列表</span>
+      </template>
+      <template #extra>
+        <a-space>
+        <a-button type="primary" @click="openCreate"> <template #icon><PlusOutlined /></template>新建分类</a-button>
+        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
+          <template #icon><DeleteOutlined /></template>批量删除</a-button>
         <a-popconfirm 
           v-if="searchParams.includeDeleted"
           title="确定要批量彻底删除选中的分类吗？此操作不可恢复！" 
@@ -182,14 +208,12 @@ onMounted(() => { loadCategories() })
           <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
         </a-popconfirm>
       </a-space>
-    </a-card>
-
-    <a-card :bordered="false">
+      </template>
       <a-table
         :columns="columns"
         :data-source="dataSource"
         :loading="loading"
-        :pagination="{ current, pageSize, total, showSizeChanger: true, showQuickJumper: true, showTotal: (t:number)=>`共 ${t} 条记录` }"
+        :pagination="pagination"
         :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
         row-key="id"
         @change="handleTableChange"
@@ -241,8 +265,13 @@ onMounted(() => { loadCategories() })
 </template>
 
 <style scoped>
-.categories-management { padding: 24px; }
-.page-header { margin-bottom: 24px; }
-.page-header h2 { margin: 0; font-size: 24px; font-weight: 600; color: var(--text-main); }
-.search-card, .action-card { margin-bottom: 16px; border-radius: 8px; }
+.categories-management {
+  padding: 24px;
+}
+
+.search-card,
+.action-card {
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
 </style>

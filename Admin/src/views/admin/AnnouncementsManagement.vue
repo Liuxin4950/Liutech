@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons-vue'
 import dayjs, { Dayjs } from 'dayjs'
@@ -11,10 +11,17 @@ import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 // 响应式数据
 const loading = ref(false)
 const dataSource = ref<AnnouncementListItem[]>([])
-const total = ref(0)
-const current = ref(1)
-const pageSize = ref(10)
 const selectedRowKeys = ref<number[]>([])
+
+// 分页配置
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (total: number) => `共 ${total} 条记录`
+})
 
 // 搜索参数
 const searchParams = ref<AnnouncementListParams & { keyword?: string }>({
@@ -172,7 +179,7 @@ const handleSubmit = async () => {
       if (res.code === 200) {
         message.success('创建成功')
         modalVisible.value = false
-        current.value = 1
+        pagination.current = 1
         loadAnnouncements()
       } else {
         message.error(res.message || '创建失败')
@@ -261,21 +268,20 @@ const loadAnnouncements = async () => {
   try {
     loading.value = true
     const params = {
-      page: current.value,
-      size: pageSize.value,
+      page: pagination.current,
+      size: pagination.pageSize,
       ...searchParams.value
     }
     const res = await AnnouncementsService.getAnnouncementList(params)
-    console.log(res);
 
     if (res && res.code === 200) {
       // 确保数据结构正确，避免null错误
       dataSource.value = res.data?.records || []
-      total.value = res.data?.total || 0
+      pagination.total = res.data?.total || 0
     } else {
       // 请求失败时，清空数据并显示空状态
       dataSource.value = []
-      total.value = 0
+      pagination.total = 0
       if (res?.message) {
         message.warning(res.message)
       }
@@ -284,7 +290,7 @@ const loadAnnouncements = async () => {
     console.error('加载公告列表异常:', e)
     // 异常时清空数据，显示空状态，不抛出全局错误
     dataSource.value = []
-    total.value = 0
+    pagination.total = 0
     // 只在开发环境显示详细错误信息
     if (import.meta.env.DEV) {
       message.warning('加载公告列表失败，请检查网络连接')
@@ -295,20 +301,20 @@ const loadAnnouncements = async () => {
 }
 
 const handleSearch = () => {
-  current.value = 1
+  pagination.current = 1
   loadAnnouncements()
 }
 
 const handleReset = () => {
   searchParams.value = { status: undefined, type: undefined, includeDeleted: false, keyword: '' }
-  current.value = 1
+  pagination.current = 1
   loadAnnouncements()
 }
 
 // ============== 表格操作 ==============
-const handleTableChange = (pagination: any) => {
-  current.value = pagination.current
-  pageSize.value = pagination.pageSize
+const handleTableChange = (p: any) => {
+  pagination.current = p.current
+  pagination.pageSize = p.pageSize
   loadAnnouncements()
 }
 
@@ -514,92 +520,89 @@ onMounted(async () => {
 
 
 <template>
-  <div class="announcements-management">
-    <div class="page-header">
-      <h2><NotificationOutlined /> 公告管理</h2>
-    </div>
-
+  <div class="p-24">
     <!-- 搜索区域 -->
-    <a-card class="search-card" :bordered="false">
-      <a-form layout="inline" :model="searchParams">
-        <a-form-item label="关键词">
-          <a-input 
-            v-model:value="searchParams.keyword" 
-            placeholder="搜索标题或内容" 
-            style="width: 200px"
-            @press-enter="handleSearch"
-            allow-clear
-          />
-        </a-form-item>
-        <a-form-item label="类型">
-          <a-select v-model:value="searchParams.type" placeholder="请选择类型" allow-clear style="width: 120px">
-            <a-select-option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="状态">
-          <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear style="width: 120px">
-            <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="显示已删除">
-          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" />
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">搜索</a-button>
-            <a-button @click="handleReset">重置</a-button>
-          </a-space>
-        </a-form-item>
+    <a-card :bordered="false" class="mb-16">
+      <a-form layout="horizontal" :model="searchParams">
+        <a-row :gutter="24">
+          <a-col :span="6">
+            <a-form-item label="关键词" class="mb-0">
+              <a-input
+                v-model:value="searchParams.keyword"
+                placeholder="搜索标题或内容"
+                @press-enter="handleSearch"
+                allow-clear
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item label="类型" class="mb-0">
+              <a-select v-model:value="searchParams.type" placeholder="请选择类型" allow-clear>
+                <a-select-option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item label="状态" class="mb-0">
+              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+                <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="6" class="text-right">
+            <a-space>
+               <a-tooltip title="显示已删除的公告">
+                  <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+               </a-tooltip>
+              <a-button type="primary" @click="handleSearch">搜索</a-button>
+              <a-button @click="handleReset">重置</a-button>
+            </a-space>
+          </a-col>
+        </a-row>
       </a-form>
-    </a-card>
-
-    <!-- 操作区域 -->
-    <a-card class="action-card" :bordered="false">
-      <a-space>
-        <a-button type="primary" @click="openCreate">
-          <PlusOutlined /> 新建公告
-        </a-button>
-        <a-button @click="handleExport">
-          <DownloadOutlined /> 导出Excel
-        </a-button>
-        <a-button @click="uploadVisible = true">
-          <UploadOutlined /> 导入Excel
-        </a-button>
-        <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
-          <DeleteOutlined /> 批量删除
-        </a-button>
-        <a-dropdown>
-          <template #overlay>
-            <a-menu>
-              <a-menu-item key="publish" @click="handleBatchStatusUpdate(1)">批量发布</a-menu-item>
-              <a-menu-item key="draft" @click="handleBatchStatusUpdate(0)">批量设为草稿</a-menu-item>
-              <a-menu-item key="offline" @click="handleBatchStatusUpdate(2)">批量下线</a-menu-item>
-              <a-menu-divider />
-              <a-menu-item key="setTop" @click="handleBatchTopUpdate(1)">批量置顶</a-menu-item>
-              <a-menu-item key="cancelTop" @click="handleBatchTopUpdate(0)">批量取消置顶</a-menu-item>
-            </a-menu>
-          </template>
-          <a-button :disabled="selectedRowKeys.length === 0">
-            批量操作 <DownOutlined />
-          </a-button>
-        </a-dropdown>
-      </a-space>
     </a-card>
 
     <!-- 表格区域 -->
     <a-card :bordered="false">
+      <template #title>
+        <span><NotificationOutlined /> 公告列表</span>
+      </template>
+      <template #extra>
+         <a-space>
+            <a-button type="primary" @click="openCreate">
+              <PlusOutlined /> 新建公告
+            </a-button>
+            <a-button @click="handleExport">
+              <DownloadOutlined /> 导出Excel
+            </a-button>
+            <a-button @click="uploadVisible = true">
+              <UploadOutlined /> 导入Excel
+            </a-button>
+            <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
+              <DeleteOutlined /> 批量删除
+            </a-button>
+            <a-dropdown>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item key="publish" @click="handleBatchStatusUpdate(1)">批量发布</a-menu-item>
+                  <a-menu-item key="draft" @click="handleBatchStatusUpdate(0)">批量设为草稿</a-menu-item>
+                  <a-menu-item key="offline" @click="handleBatchStatusUpdate(2)">批量下线</a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="setTop" @click="handleBatchTopUpdate(1)">批量置顶</a-menu-item>
+                  <a-menu-item key="cancelTop" @click="handleBatchTopUpdate(0)">批量取消置顶</a-menu-item>
+                </a-menu>
+              </template>
+              <a-button :disabled="selectedRowKeys.length === 0">
+                批量操作 <DownOutlined />
+              </a-button>
+            </a-dropdown>
+         </a-space>
+      </template>
       <a-table
         :columns="columns"
         :data-source="dataSource"
         :loading="loading"
-        :pagination="{
-          current,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total: number) => `共 ${total} 条记录`
-        }"
+        :pagination="pagination"
         :row-selection="{
           selectedRowKeys,
           onChange: onSelectChange
@@ -886,27 +889,6 @@ onMounted(async () => {
 
 
 <style scoped>
-.announcements-management {
-  padding: 24px;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.search-card,
-.action-card {
-  margin-bottom: 16px;
-  border-radius: 8px;
-}
-
 .title-cell {
   max-width: 250px;
 }

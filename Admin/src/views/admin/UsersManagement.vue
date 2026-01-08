@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, h } from 'vue'
+import { ref, reactive, onMounted, h } from 'vue'
 import { message } from 'ant-design-vue'
+import { DownOutlined } from '@ant-design/icons-vue'
 import UserService from '../../services/user'
 import type { UserListParams, User } from '../../services/user'
 import { formatDateTime } from '../../utils/uitls'
@@ -8,10 +9,17 @@ import { formatDateTime } from '../../utils/uitls'
 // 响应式数据
 const loading = ref(false)
 const dataSource = ref<User[]>([])
-const total = ref(0)
-const current = ref(1)
-const pageSize = ref(10)
 const selectedRowKeys = ref<number[]>([])
+
+// 分页配置
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (total: number) => `共 ${total} 条记录`
+})
 
 // 搜索参数
 const searchParams = ref<UserListParams>({
@@ -159,7 +167,7 @@ const handleOk = async () => {
         message.success('创建成功')
         modalVisible.value = false
         // 创建后返回第一页便于看到新数据
-        current.value = 1
+        pagination.current = 1
         loadUsers()
       } else {
         message.error(res.message || '创建失败')
@@ -182,14 +190,14 @@ const loadUsers = async () => {
   try {
     loading.value = true
     const params = {
-      page: current.value,
-      size: pageSize.value,
+      page: pagination.current,
+      size: pagination.pageSize,
       ...searchParams.value
     }
     const response = await UserService.getUserList(params)
     if (response.code === 200) {
       dataSource.value = response.data.records
-      total.value = response.data.total
+      pagination.total = response.data.total
     } else {
       message.error(response.message || '加载用户列表失败')
     }
@@ -203,7 +211,7 @@ const loadUsers = async () => {
 
 // 搜索
 const handleSearch = () => {
-  current.value = 1
+  pagination.current = 1
   loadUsers()
 }
 
@@ -216,14 +224,14 @@ const handleReset = () => {
     includeDeleted: false,
     role: undefined
   }
-  current.value = 1
+  pagination.current = 1
   loadUsers()
 }
 
 // 分页变化
-const handleTableChange = (pagination: any) => {
-  current.value = pagination.current
-  pageSize.value = pagination.pageSize
+const handleTableChange = (p: any) => {
+  pagination.current = p.current
+  pagination.pageSize = p.pageSize
   loadUsers()
 }
 
@@ -377,131 +385,88 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="users-management">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <h2>用户管理</h2>
-    </div>
-
+  <div class="p-24">
     <!-- 搜索区域 -->
-    <a-card class="search-card" :bordered="false">
-      <a-form layout="inline" :model="searchParams">
-        <a-form-item label="用户名">
-          <a-input 
-            v-model:value="searchParams.username" 
-            placeholder="请输入用户名" 
-            allow-clear
-            style="width: 200px"
-          />
-        </a-form-item>
-        <a-form-item label="邮箱">
-          <a-input 
-            v-model:value="searchParams.email" 
-            placeholder="请输入邮箱" 
-            allow-clear
-            style="width: 200px"
-          />
-        </a-form-item>
-        <a-form-item label="状态">
-          <a-select 
-            v-model:value="searchParams.status" 
-            placeholder="请选择状态" 
-            allow-clear
-            style="width: 120px"
-          >
-            <a-select-option 
-              v-for="option in statusOptions" 
-              :key="option.value" 
-              :value="option.value"
-            >
-              {{ option.label }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="角色">
-          <a-select 
-            v-model:value="searchParams.role" 
-            placeholder="请选择角色" 
-            allow-clear
-            style="width: 120px"
-          >
-            <a-select-option 
-              v-for="option in roleOptions" 
-              :key="option.value" 
-              :value="option.value"
-            >
-              {{ option.label }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="显示已删除">
-          <a-switch 
-            v-model:checked="searchParams.includeDeleted" 
-            checked-children="是" 
-            un-checked-children="否"
-          />
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">
-              搜索
-            </a-button>
-            <a-button @click="handleReset">
-              重置
-            </a-button>
-          </a-space>
-        </a-form-item>
+    <a-card :bordered="false" class="mb-16">
+      <a-form layout="horizontal" :model="searchParams">
+        <a-row :gutter="24">
+          <a-col :span="4">
+            <a-form-item label="用户名" class="mb-0">
+              <a-input v-model:value="searchParams.username" placeholder="请输入用户名" allow-clear />
+            </a-form-item>
+          </a-col>
+          <a-col :span="4">
+            <a-form-item label="邮箱" class="mb-0">
+              <a-input v-model:value="searchParams.email" placeholder="请输入邮箱" allow-clear />
+            </a-form-item>
+          </a-col>
+          <a-col :span="4">
+            <a-form-item label="角色" class="mb-0">
+              <a-select v-model:value="searchParams.role" placeholder="请选择角色" allow-clear>
+                <a-select-option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="4">
+            <a-form-item label="状态" class="mb-0">
+              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+                <a-select-option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8" class="text-right mt-16">
+            <a-space>
+               <a-tooltip title="显示已删除的用户">
+                 <a-switch v-model:checked="searchParams.includeDeleted" checked-children="删" un-checked-children="正常" />
+               </a-tooltip>
+              <a-button type="primary" @click="handleSearch">搜索</a-button>
+              <a-button @click="handleReset">重置</a-button>
+            </a-space>
+          </a-col>
+        </a-row>
       </a-form>
-    </a-card>
-
-    <!-- 操作区域 -->
-    <a-card class="action-card" :bordered="false">
-      <a-space>
-        <a-button type="primary" @click="openCreate">
-          新建用户
-        </a-button>
-        <a-button
-          danger
-          :disabled="selectedRowKeys.length === 0"
-          @click="handleBatchDelete"
-        >
-          批量删除
-        </a-button>
-        <a-button
-          :disabled="selectedRowKeys.length === 0"
-          @click="handleBatchRestore"
-        >
-          批量恢复
-        </a-button>
-        <a-button
-          :disabled="selectedRowKeys.length === 0"
-          @click="handleBatchEnable"
-        >
-          批量启用
-        </a-button>
-        <a-button
-          :disabled="selectedRowKeys.length === 0"
-          @click="handleBatchDisable"
-        >
-          批量禁用
-        </a-button>
-      </a-space>
     </a-card>
 
     <!-- 表格区域 -->
     <a-card :bordered="false">
+      <template #title>
+        <span>用户列表</span>
+      </template>
+      <template #extra>
+        <a-space>
+          <a-button type="primary" @click="openCreate">新建用户</a-button>
+          <a-button
+            danger
+            :disabled="selectedRowKeys.length === 0"
+            @click="handleBatchDelete"
+          >
+            批量删除
+          </a-button>
+          <a-button
+            :disabled="selectedRowKeys.length === 0"
+            @click="handleBatchRestore"
+          >
+            批量恢复
+          </a-button>
+          <a-dropdown>
+            <template #overlay>
+              <a-menu>
+                <a-menu-item @click="handleBatchEnable">批量启用</a-menu-item>
+                <a-menu-item @click="handleBatchDisable">批量禁用</a-menu-item>
+              </a-menu>
+            </template>
+            <a-button :disabled="selectedRowKeys.length === 0">
+              批量操作 <DownOutlined />
+            </a-button>
+          </a-dropdown>
+        </a-space>
+      </template>
+
       <a-table
         :columns="columns"
         :data-source="dataSource"
         :loading="loading"
-        :pagination="{
-          current,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total: number) => `共 ${total} 条记录`
-        }"
+        :pagination="pagination"
         :row-selection="{
           selectedRowKeys,
           onChange: onSelectChange

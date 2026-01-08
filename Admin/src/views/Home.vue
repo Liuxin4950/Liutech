@@ -235,7 +235,7 @@ onMounted(() => {
 
 <style scoped>
 .dashboard-container {
-  padding: 0;
+  padding: 20px;
   color: var(--text-main);
 }
 

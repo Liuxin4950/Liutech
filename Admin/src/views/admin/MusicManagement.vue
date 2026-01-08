@@ -352,38 +352,46 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <h2><CloudOutlined /> AI音乐管理</h2>
-    </div>
-
+  <div class="p-24">
     <!-- 搜索区域 -->
-    <div class="modern-search-card">
-      <a-form layout="inline" :model="searchParams">
-        <a-form-item label="状态">
-          <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear style="width: 120px" @change="handleSearch">
-            <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">
-              <template #icon><SearchOutlined /></template>
-              搜索
-            </a-button>
-            <a-button @click="handleReset">
-              <template #icon><ReloadOutlined /></template>
-              重置
-            </a-button>
-          </a-space>
-        </a-form-item>
+    <a-card :bordered="false" class="mb-16">
+      <a-form layout="horizontal" :model="searchParams">
+        <a-row :gutter="24">
+          <a-col :span="6">
+            <a-form-item label="状态" class="mb-0">
+              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear @change="handleSearch">
+                <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+           <a-col :span="6">
+            <a-form-item label="关键词" class="mb-0">
+               <a-input v-model:value="searchParams.keyword" placeholder="搜索歌曲名/艺术家" allow-clear @press-enter="handleSearch" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12" class="text-right">
+            <a-space>
+              <a-button type="primary" @click="handleSearch">
+                <template #icon><SearchOutlined /></template>
+                搜索
+              </a-button>
+              <a-button @click="handleReset">
+                <template #icon><ReloadOutlined /></template>
+                重置
+              </a-button>
+            </a-space>
+          </a-col>
+        </a-row>
       </a-form>
-    </div>
+    </a-card>
 
     <!-- 表格区域 -->
-    <div class="modern-card">
-      <div class="table-toolbar">
-        <div class="left">
+    <a-card :bordered="false">
+      <template #title>
+        <span><CloudOutlined /> AI音乐管理</span>
+      </template>
+      <template #extra>
+        <a-space>
           <a-button type="primary" @click="uploadModalVisible = true">
             <PlusOutlined /> 上传音乐
           </a-button>
@@ -395,8 +403,8 @@ onMounted(() => {
               <DeleteOutlined /> 批量删除
             </a-button>
           </a-popconfirm>
-        </div>
-      </div>
+        </a-space>
+      </template>
 
       <a-table
         :columns="[
@@ -404,7 +412,7 @@ onMounted(() => {
           { title: '封面', dataIndex: 'coverUrl', key: 'cover', width: 80 },
           { title: '歌曲名', dataIndex: 'title', key: 'title', width: 200 },
           { title: '艺术家', dataIndex: 'artist', key: 'artist', width: 150 },
-          { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 80 },
+          { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 120 },
           { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
           { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
           { title: '操作', key: 'action', width: 200, fixed: 'right' }
@@ -508,7 +516,7 @@ onMounted(() => {
           </template>
         </template>
       </a-table>
-    </div>
+    </a-card >
 
     <!-- 上传弹窗 -->
     <a-modal

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import LogService, { type LogItem, type LogListParams } from '../../services/log'
 import { formatDateTime } from '../../utils/uitls'
@@ -17,9 +17,16 @@ import {
 // 响应式数据
 const loading = ref(false)
 const dataSource = ref<LogItem[]>([])
-const total = ref(0)
-const current = ref(1)
-const pageSize = ref(10)
+
+// 分页配置
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (total: number) => `共 ${total} 条记录`
+})
 
 // 搜索参数
 const searchParams = ref<LogListParams>({
@@ -116,8 +123,8 @@ const loadLogs = async () => {
   try {
     loading.value = true
     const params: LogListParams = {
-      page: current.value,
-      size: pageSize.value,
+      page: pagination.current,
+      size: pagination.pageSize,
       ...searchParams.value
     }
     // 移除空值参数
@@ -131,7 +138,7 @@ const loadLogs = async () => {
     const response = await LogService.getLogList(params)
     if (response.code === 200 && response.data) {
       dataSource.value = response.data.records
-      total.value = response.data.total
+      pagination.total = response.data.total
     } else {
       message.error(response.message || '加载日志列表失败')
     }
@@ -145,7 +152,7 @@ const loadLogs = async () => {
 
 // 搜索
 const handleSearch = () => {
-  current.value = 1
+  pagination.current = 1
   loadLogs()
 }
 
@@ -157,7 +164,7 @@ const handleReset = () => {
     startTime: undefined,
     endTime: undefined
   }
-  current.value = 1
+  pagination.current = 1
   loadLogs()
 }
 
@@ -167,9 +174,9 @@ const handleRefresh = () => {
 }
 
 // 分页变化
-const handleTableChange = (pagination: any) => {
-  current.value = pageSize.value = pagination.current
-  pagination.pageSize
+const handleTableChange = (p: any) => {
+  pagination.current = p.current
+  pagination.pageSize = p.pageSize
   loadLogs()
 }
 
@@ -180,97 +187,91 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="logs-management">
-    <!-- 页面标题 -->
-    <div class="page-header">
-      <h2>
-        <FileTextOutlined class="header-icon" />
-        操作日志
-      </h2>
-    </div>
-
+  <div class="p-24">
     <!-- 搜索区域 -->
-    <a-card class="search-card" :bordered="false">
-      <a-form layout="inline" :model="searchParams">
-        <a-form-item label="操作人">
-          <a-input
-            v-model:value="searchParams.operator"
-            placeholder="请输入操作人"
-            allow-clear
-            style="width: 160px"
-          >
-            <template #prefix><UserOutlined /></template>
-          </a-input>
-        </a-form-item>
-        <a-form-item label="操作类型">
-          <a-select
-            v-model:value="searchParams.action"
-            placeholder="请选择"
-            allow-clear
-            style="width: 120px"
-          >
-            <a-select-option
-              v-for="option in actionOptions.slice(1)"
-              :key="option.value"
-              :value="option.value"
-            >
-              {{ option.label }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="开始时间">
-          <a-date-picker
-            v-model:value="searchParams.startTime"
-            value-format="YYYY-MM-DD"
-            placeholder="开始时间"
-            style="width: 140px"
-          />
-        </a-form-item>
-        <a-form-item label="结束时间">
-          <a-date-picker
-            v-model:value="searchParams.endTime"
-            value-format="YYYY-MM-DD"
-            placeholder="结束时间"
-            style="width: 140px"
-          />
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">
-              <template #icon><SearchOutlined /></template>
-              搜索
-            </a-button>
-            <a-button @click="handleReset">重置</a-button>
-          </a-space>
-        </a-form-item>
+    <a-card :bordered="false" class="mb-16">
+      <a-form layout="horizontal" :model="searchParams">
+        <a-row :gutter="24">
+          <a-col :span="5">
+            <a-form-item label="操作人" class="mb-0">
+              <a-input
+                v-model:value="searchParams.operator"
+                placeholder="请输入操作人"
+                allow-clear
+              >
+                <template #prefix><UserOutlined /></template>
+              </a-input>
+            </a-form-item>
+          </a-col>
+          <a-col :span="5">
+            <a-form-item label="类型" class="mb-0">
+              <a-select
+                v-model:value="searchParams.action"
+                placeholder="请选择"
+                allow-clear
+              >
+                <a-select-option
+                  v-for="option in actionOptions.slice(1)"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="5">
+            <a-form-item label="开始" class="mb-0">
+              <a-date-picker
+                v-model:value="searchParams.startTime"
+                value-format="YYYY-MM-DD"
+                placeholder="开始时间"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="5">
+            <a-form-item label="结束" class="mb-0">
+              <a-date-picker
+                v-model:value="searchParams.endTime"
+                value-format="YYYY-MM-DD"
+                placeholder="结束时间"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="4" class="text-right">
+            <a-space>
+              <a-button type="primary" @click="handleSearch">
+                <template #icon><SearchOutlined /></template>
+                搜索
+              </a-button>
+              <a-button @click="handleReset">重置</a-button>
+            </a-space>
+          </a-col>
+        </a-row>
       </a-form>
-    </a-card>
-
-    <!-- 操作区域 -->
-    <a-card class="action-card" :bordered="false">
-      <a-space>
-        <a-button type="primary" @click="handleRefresh" :loading="loading">
-          <template #icon><ReloadOutlined /></template>
-          刷新
-        </a-button>
-        <span class="total-text">共 {{ total }} 条记录</span>
-      </a-space>
     </a-card>
 
     <!-- 表格区域 -->
     <a-card :bordered="false">
+      <template #title>
+        <span><FileTextOutlined /> 操作日志</span>
+      </template>
+      <template #extra>
+        <a-space>
+           <span class="text-secondary text-sm mr-4">共 {{ pagination.total }} 条记录</span>
+           <a-button type="primary" @click="handleRefresh" :loading="loading">
+             <template #icon><ReloadOutlined /></template>
+             刷新
+           </a-button>
+        </a-space>
+      </template>
       <a-table
         :columns="columns"
         :data-source="dataSource"
         :loading="loading"
-        :pagination="{
-          current,
-          pageSize,
-          total,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total: number) => `共 ${total} 条记录`
-        }"
+        :pagination="pagination"
         @change="handleTableChange"
         row-key="id"
         class="log-table"
@@ -320,43 +321,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.logs-management {
-  padding: 24px;
-}
-
-.page-header {
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-icon {
-  color: var(--color-primary);
-}
-
-.search-card,
-.action-card {
-  margin-bottom: 16px;
-  border-radius: 8px;
-}
-
-.total-text {
-  color: var(--text-tertiary);
-  font-size: 14px;
-  margin-left: 8px;
-}
-
 .time-cell {
   display: flex;
   align-items: center;

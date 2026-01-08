@@ -98,8 +98,8 @@ onMounted(() => {
 /* 侧边栏容器 - 固定不滚动 */
 .sidebar-container {
   position: sticky;
-  top: 64px;
-  height: calc(100vh - 64px);
+  top: 0;
+  height: 100vh;
   overflow-y: auto;
   background: var(--bg-card);
 }
@@ -116,7 +116,7 @@ onMounted(() => {
 }
 
 .content-wrapper {
-  padding: 16px 24px 24px;
+  /* padding: 16px 24px 24px; */
   min-height: 100%;
 }
 

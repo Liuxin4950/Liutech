@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import PostsService from '../../services/posts'
 import CategoriesService from '../../services/categories'
 import TagsService from '../../services/tags'
@@ -13,10 +13,17 @@ import { ImageUploadService } from '../../services/upload'
 // 响应式数据
 const loading = ref(false)
 const dataSource = ref<PostListItem[]>([])
-const total = ref(0)
-const current = ref(1)
-const pageSize = ref(10)
 const selectedRowKeys = ref<number[]>([])
+
+// 分页配置
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (total: number) => `共 ${total} 条记录`
+})
 
 // 搜索参数
 const searchParams = ref<PostListParams>({
@@ -216,7 +223,7 @@ const handleOk = async () => {
       if (res.code === 200) {
         message.success('创建成功')
         modalVisible.value = false
-        current.value = 1
+        pagination.current = 1
         loadPosts()
       } else {
         message.error(res.message || '创建失败')
@@ -251,16 +258,14 @@ const loadPosts = async () => {
   try {
     loading.value = true
     const params = {
-      page: current.value,
-      size: pageSize.value,
+      page: pagination.current,
+      size: pagination.pageSize,
       ...searchParams.value
     }
     const res = await PostsService.getPostList(params)
     if (res.code === 200) {
       dataSource.value = res.data.records
-      console.log(res.data.records);
-      
-      total.value = res.data.total
+      pagination.total = res.data.total
     } else {
       message.error(res.message || '加载文章列表失败')
     }
@@ -272,13 +277,13 @@ const loadPosts = async () => {
 }
 
 const handleSearch = () => {
-  current.value = 1
+  pagination.current = 1
   loadPosts()
 }
 
 const handleReset = () => {
   searchParams.value = { title: '', categoryId: undefined, status: undefined, includeDeleted: false }
-  current.value = 1
+  pagination.current = 1
   loadPosts()
 }
 
@@ -331,9 +336,9 @@ const handleBatchRestore = async () => {
   }
 }
 
-const handleTableChange = (pagination: any) => {
-  current.value = pagination.current
-  pageSize.value = pagination.pageSize
+const handleTableChange = (p: any) => {
+  pagination.current = p.current
+  pagination.pageSize = p.pageSize
   loadPosts()
 }
 
@@ -398,69 +403,95 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="posts-management">
-    <div class="page-header">
-      <h2>文章管理</h2>
-    </div>
-
+  <div class="p-24">
     <!-- 搜索区域 -->
-    <a-card class="search-card" :bordered="false">
-      <a-form layout="inline" :model="searchParams">
-        <a-form-item label="标题">
-          <a-input v-model:value="searchParams.title" placeholder="请输入标题" allow-clear style="width: 200px" />
-        </a-form-item>
-        <a-form-item label="分类">
-          <a-select v-model:value="searchParams.categoryId" placeholder="请选择分类" allow-clear style="width: 160px">
-            <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-          </a-select>
-        </a-form-item>
-
-        <a-form-item label="状态">
-          <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear style="width: 120px">
-            <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="显示已删除">
-          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" />
-        </a-form-item>
-        <a-form-item>
-          <a-space>
-            <a-button type="primary" @click="handleSearch">搜索</a-button>
-            <a-button @click="handleReset">重置</a-button>
-          </a-space>
-        </a-form-item>
+    <a-card :bordered="false" class="mb-16">
+      <a-form layout="horizontal" :model="searchParams">
+        <a-row :gutter="24">
+          <a-col :span="6">
+            <a-form-item label="标题" name="title" class="mb-0">
+              <a-input v-model:value="searchParams.title" placeholder="请输入标题" allow-clear />
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item label="分类" name="categoryId" class="mb-0">
+              <a-select v-model:value="searchParams.categoryId" placeholder="请选择分类" allow-clear>
+                <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item label="状态" name="status" class="mb-0">
+              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+                <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="6" class="text-right">
+            <a-space>
+              <a-button type="primary" @click="handleSearch">
+                <template #icon><SearchOutlined /></template>
+                搜索
+              </a-button>
+              <a-button @click="handleReset">
+                <template #icon><ReloadOutlined /></template>
+                重置
+              </a-button>
+              <a-tooltip title="显示已删除的文章">
+                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+              </a-tooltip>
+            </a-space>
+          </a-col>
+        </a-row>
       </a-form>
-    </a-card>
-
-    <!-- 操作区域 -->
-    <a-card class="action-card" :bordered="false">
-      <a-space>
-        <a-button type="primary" @click="openCreate">新建文章</a-button>
-        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">批量删除</a-button>
-        <template v-else>
-          <a-button :disabled="selectedRowKeys.length === 0" @click="handleBatchRestore">批量恢复</a-button>
-          <a-popconfirm
-            title="确定要彻底删除选中的文章吗？此操作不可恢复！"
-            ok-text="确定"
-            cancel-text="取消"
-            @confirm="handleBatchPermanentDelete"
-          >
-            <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
-          </a-popconfirm>
-        </template>
-      </a-space>
     </a-card>
 
     <!-- 表格区域 -->
     <a-card :bordered="false">
+      <template #title>
+        <span>文章列表</span>
+      </template>
+      <template #extra>
+         <a-space>
+            <a-button type="primary" @click="openCreate">
+              <template #icon><PlusOutlined /></template>
+              新建文章
+            </a-button>
+            <template v-if="!searchParams.includeDeleted">
+               <a-popconfirm
+                  title="确定要批量删除选中的文章吗？"
+                  @confirm="handleBatchDelete"
+                  :disabled="selectedRowKeys.length === 0"
+                >
+                  <a-button danger :disabled="selectedRowKeys.length === 0">
+                     <template #icon><DeleteOutlined /></template>
+                     批量删除
+                  </a-button>
+               </a-popconfirm>
+            </template>
+            <template v-else>
+              <a-button :disabled="selectedRowKeys.length === 0" @click="handleBatchRestore">批量恢复</a-button>
+              <a-popconfirm
+                title="确定要彻底删除选中的文章吗？此操作不可恢复！"
+                ok-text="确定"
+                cancel-text="取消"
+                @confirm="handleBatchPermanentDelete"
+              >
+                <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+              </a-popconfirm>
+            </template>
+         </a-space>
+      </template>
+
       <a-table
         :columns="columns"
         :data-source="dataSource"
         :loading="loading"
-        :pagination="{ current, pageSize, total, showSizeChanger: true, showQuickJumper: true, showTotal: (t:number)=>`共 ${t} 条记录` }"
+        :pagination="pagination"
         :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
         row-key="id"
         @change="handleTableChange"
+        :scroll="{ x: 1300 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'category'">
@@ -610,12 +641,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.posts-management { padding: 24px; }
-.page-header { margin-bottom: 24px; }
-.page-header h2 { margin: 0; font-size: 24px; font-weight: 600; color: var(--text-main); }
-.search-card, .action-card { margin-bottom: 16px; border-radius: 8px; }
-
-/* 图片上传样式 */
+/* 移除旧的样式，使用 utility classes */
 .image-upload-container {
   width: 100%;
 }
