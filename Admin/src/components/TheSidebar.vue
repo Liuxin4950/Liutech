@@ -151,20 +151,43 @@ const toggleCollapsed = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-main);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.3s;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .collapse-trigger:hover {
-  background: #e6f7ff;
-  color: #1890ff;
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
 }
 
 .sidebar-menu {
   flex: 1;
   border-right: 0;
+}
+
+/* 深色模式覆盖 */
+:deep(.ant-menu) {
+  background: transparent;
+}
+
+:deep(.ant-menu-item) {
+  color: var(--text-secondary);
+}
+
+:deep(.ant-menu-item:hover) {
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+:deep(.ant-menu-item-selected) {
+  color: var(--color-primary) !important;
+  background: var(--color-primary-bg) !important;
+}
+
+:deep(.ant-menu-item-selected::after) {
+  border-right-color: var(--color-primary) !important;
 }
 </style>

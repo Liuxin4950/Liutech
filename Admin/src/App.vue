@@ -1,12 +1,32 @@
 <script setup lang="ts">
-// App根组件（作者：刘鑫，修改时间：2025-08-26 16:01:05 +08:00）
+import { computed } from 'vue'
+import { ConfigProvider, theme } from 'ant-design-vue'
+import themeManager from './utils/theme'
+
+// 根据当前主题获取 Ant Design Vue 主题配置
+const antTheme = computed(() => {
+  return themeManager.current.value === 'dark'
+    ? { token: { colorPrimary: '#177ddc' }, algorithm: theme.darkAlgorithm }
+    : { token: { colorPrimary: '#1677ff' }, algorithm: theme.defaultAlgorithm }
+})
 </script>
 
 <template>
-  <div class="app-container">
-    <router-view />
-  </div>
+  <ConfigProvider :theme="antTheme">
+    <div class="app-container">
+      <router-view />
+    </div>
+  </ConfigProvider>
 </template>
 
-<style scoped>
+<style>
+/* 全局深色模式样式 */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #000000;
+  color: #ffffff;
+}
 </style>

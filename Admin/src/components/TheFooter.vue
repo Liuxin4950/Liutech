@@ -56,12 +56,12 @@ const currentYear = new Date().getFullYear()
 }
 
 .version {
-  color: var(--primary-color);
+  color: var(--color-primary);
   font-weight: 500;
 }
 
 .divider {
-  color: var(--border-color);
+  color: var(--border-base);
   margin: 0 4px;
 }
 
@@ -85,6 +85,6 @@ const currentYear = new Date().getFullYear()
 /* 深色主题适配 */
 :global(.dark) .admin-footer {
   background: var(--bg-main);
-  border-top-color: var(--border-color);
+  border-top-color: var(--border-light);
 }
 </style>

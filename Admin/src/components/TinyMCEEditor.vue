@@ -739,92 +739,107 @@ watch(() => theme.current.value, () => {
   margin-bottom: 10px;
 }
 
-/* TinyMCE样式覆盖 - 浅色主题 */
+/* TinyMCE样式覆盖 */
 :deep(.tox) {
   border-radius: 8px;
-  border: 1px solid var(--border-color, #e1e5e9);
+  border: 1px solid var(--border-base, #d9d9d9);
+  background: var(--bg-card, #ffffff);
   transition: all 0.3s ease;
 }
 
 :deep(.tox-toolbar) {
-  background: var(--bg-color, #ffffff);
-  border-bottom: 1px solid var(--border-color, #e1e5e9);
+  background: var(--bg-card, #ffffff);
+  border-bottom: 1px solid var(--border-base, #d9d9d9);
   transition: all 0.3s ease;
 }
 
 :deep(.tox-edit-area) {
-  background: var(--bg-color, #ffffff);
+  background: var(--bg-card, #ffffff);
   transition: all 0.3s ease;
 }
 
 :deep(.tox-statusbar) {
-  background: var(--bg-color, #ffffff);
-  border-top: 1px solid var(--border-color, #e1e5e9);
-  color: var(--text-color, #333333);
+  background: var(--bg-card, #ffffff);
+  border-top: 1px solid var(--border-base, #d9d9d9);
+  color: var(--text-main, #1f1f1f);
   transition: all 0.3s ease;
 }
 
 :deep(.tox-toolbar__group) {
-  border-color: var(--border-color, #e1e5e9);
+  border-color: var(--border-base, #d9d9d9);
 }
 
 :deep(.tox-tbtn) {
-  color: var(--text-color, #333333);
+  color: var(--text-main, #1f1f1f);
 }
 
 :deep(.tox-tbtn:hover) {
-  background: var(--hover-color, #ecf5ff);
+  background: var(--color-primary-bg, #e6f4ff);
+}
+
+:deep(.tox-menubar) {
+  background: var(--bg-card, #ffffff);
+  border-bottom-color: var(--border-base, #d9d9d9);
+}
+
+:deep(.tox-collection__item) {
+  background: var(--bg-card, #ffffff);
+  color: var(--text-main, #1f1f1f);
+}
+
+:deep(.tox-collection__item:hover) {
+  background: var(--color-primary-bg, #e6f4ff);
 }
 
 /* 暗色主题适配 */
 .dark :deep(.tox) {
-  border-color: var(--border-color, #4c4d4f);
-  background: var(--bg-color, #1a1a1a);
+  border-color: var(--border-base, #424242);
+  background: var(--bg-card, #141414);
 }
 
 .dark :deep(.tox-toolbar) {
-  background: var(--bg-color, #1a1a1a);
-  border-bottom-color: var(--border-color, #4c4d4f);
+  background: var(--bg-card, #141414);
+  border-bottom-color: var(--border-base, #424242);
 }
 
 .dark :deep(.tox-edit-area) {
-  background: var(--bg-color, #1a1a1a);
+  background: var(--bg-card, #141414);
 }
 
 .dark :deep(.tox-statusbar) {
-  background: var(--bg-color, #1a1a1a);
-  border-top-color: var(--border-color, #4c4d4f);
-  color: var(--text-color, #ffffff);
+  background: var(--bg-card, #141414);
+  border-top-color: var(--border-base, #424242);
+  color: var(--text-main, #ffffff);
 }
 
 .dark :deep(.tox-toolbar__group) {
-  border-color: var(--border-color, #4c4d4f);
+  border-color: var(--border-base, #424242);
 }
 
 .dark :deep(.tox-tbtn) {
-  color: var(--text-color, #ffffff);
+  color: var(--text-main, #ffffff);
 }
 
 .dark :deep(.tox-tbtn:hover) {
-  background: var(--hover-color, #18222c);
+  background: var(--color-primary-bg, #111b26);
 }
 
 .dark :deep(.tox-tbtn--enabled) {
-  background: var(--primary-color, #66b1ff);
+  background: var(--color-primary-bg, #111b26);
   color: #ffffff;
 }
 
 .dark :deep(.tox-menubar) {
-  background: var(--bg-color, #1a1a1a);
-  border-bottom-color: var(--border-color, #4c4d4f);
+  background: var(--bg-card, #141414);
+  border-bottom-color: var(--border-base, #424242);
 }
 
 .dark :deep(.tox-collection__item) {
-  background: var(--bg-color, #1a1a1a);
-  color: var(--text-color, #ffffff);
+  background: var(--bg-card, #141414);
+  color: var(--text-main, #ffffff);
 }
 
 .dark :deep(.tox-collection__item:hover) {
-  background: var(--hover-color, #18222c);
+  background: var(--color-primary-bg, #111b26);
 }
 </style>

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useErrorHandler } from '../composables/useErrorHandler'
 import { message } from 'ant-design-vue'
+import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
 const router = useRouter()
 const userStore = useUserStore()
 const { handleFormSubmit, showSuccess, clearError,showSuccessToast } = useErrorHandler()
@@ -123,10 +124,7 @@ const handleSubmit = () => {
                size="large"
              >
                <template #prefix>
-                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                   <circle cx="12" cy="7" r="4"/>
-                 </svg>
+                 <UserOutlined class="input-icon" />
                </template>
              </a-input>
           </a-form-item>
@@ -144,10 +142,7 @@ const handleSubmit = () => {
                size="large"
              >
                <template #prefix>
-                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                   <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                 </svg>
+                 <LockOutlined class="input-icon" />
                </template>
              </a-input-password>
           </a-form-item>

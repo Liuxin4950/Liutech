@@ -144,7 +144,7 @@ onUnmounted(() => {
 
 <style scoped>
 .admin-header {
-  background: #fff;
+  background: var(--bg-card);
   padding: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -159,13 +159,13 @@ onUnmounted(() => {
 
 .logo h2 {
   margin: 0;
-  color: #1890ff;
+  color: var(--color-primary);
   font-size: 20px;
   font-weight: 600;
 }
 
 .user-btn {
-  color: rgba(0, 0, 0, 0.65);
+  color: var(--text-secondary);
 }
 
 .theme-btn {

@@ -36,6 +36,12 @@
    --color-error: #ff4d4f;
    --color-info: #1677ff;
 
+   /* ===== 功能色背景 ===== */
+   --color-success-bg: #f6ffed;
+   --color-warning-bg: #fffbe6;
+   --color-error-bg: #fff1f0;
+   --color-info-bg: #e6f4ff;
+
    /* ===== 阴影 ===== */
    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -64,6 +70,12 @@
 
    --border-light: #303030;
    --border-base: #424242;
+
+   /* 深色模式功能色背景 */
+   --color-success-bg: #1f281f;
+   --color-warning-bg: #2f2a1f;
+   --color-error-bg: #2f1f1f;
+   --color-info-bg: #1f262f;
 }
 
 /* ===============================

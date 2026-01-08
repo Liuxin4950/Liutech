@@ -13,7 +13,6 @@ import Antd from 'ant-design-vue'
 import 'ant-design-vue/dist/reset.css'
 // 引入用户store
 import { useUserStore } from './stores/user'
-
 // 引入全局错误处理
 import { initGlobalErrorHandler, configureVueErrorHandler } from './utils/globalErrorHandler'
 
@@ -41,10 +40,8 @@ app.use(Antd)
 
 // 初始化用户状态
 const userStore = useUserStore()
-// 使用 Promise.catch 处理可能的初始化错误，避免未处理的Promise拒绝
 userStore.initUserState().catch(error => {
   console.warn('用户状态初始化失败:', error)
-  // 初始化失败不影响应用启动，只是用户需要重新登录
 })
 
 // 挂载应用

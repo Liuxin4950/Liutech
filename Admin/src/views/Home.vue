@@ -398,7 +398,7 @@ onMounted(() => {
 
 .bar-track {
   width: 8px;
-  background: #f5f5f5;
+  background: var(--bg-tag);
   border-radius: 4px;
   height: 100%;
   position: relative;
@@ -414,7 +414,7 @@ onMounted(() => {
 }
 
 .post-bar { background: var(--color-primary); }
-.user-bar { background: #722ed1; }
+.user-bar { background: var(--color-info); }
 
 .bar-value {
   position: absolute;
@@ -446,8 +446,8 @@ onMounted(() => {
 .rank-index {
   width: 24px;
   height: 24px;
-  background: #f0f0f0;
-  color: #8c8c8c;
+  background: var(--bg-tag);
+  color: var(--text-tertiary);
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -458,8 +458,8 @@ onMounted(() => {
 }
 
 .rank-index.top-3 {
-  background: #fff1f0;
-  color: #ff4d4f;
+  background: var(--color-error-bg);
+  color: var(--color-error);
 }
 
 .rank-content {
@@ -524,7 +524,7 @@ onMounted(() => {
   font-size: 12px;
   color: var(--color-warning);
   font-weight: 600;
-  background: #fffbe6;
+  background: var(--color-warning-bg);
   padding: 2px 8px;
   border-radius: 10px;
 }
