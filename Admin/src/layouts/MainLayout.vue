@@ -62,6 +62,7 @@ onMounted(() => {
             </router-view>
           </KeepAlive>
         </div>
+        <TheFooter />
       </a-layout-content>
     </a-layout>
   </a-layout>
@@ -69,7 +70,10 @@ onMounted(() => {
 
 <style scoped>
 .main-layout {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -77,47 +81,56 @@ onMounted(() => {
   height: 64px;
   line-height: 64px;
   background: var(--bg-card);
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 100;
-}
-
-/* 标签栏和面包屑容器 - 固定在顶部 */
-.nav-bar-wrapper {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-light);
-  position: sticky;
-  top: 64px;
-  z-index: 99;
+  position: relative;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
 }
 
 .content-layout {
-  min-height: calc(100vh - 64px);
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
 }
 
-/* 侧边栏容器 - 固定不滚动 */
+/* 侧边栏容器 */
 .sidebar-container {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
   background: var(--bg-card);
+  flex-shrink: 0;
+  /* box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1); */
+  z-index: 99;
 }
 
 .sidebar {
   background: var(--bg-card);
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   min-height: 100%;
 }
 
 .main-content {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
   background: var(--bg-main);
-  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 标签栏和面包屑容器 - 固定在内容区域顶部 */
+.nav-bar-wrapper {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 98;
 }
 
 .content-wrapper {
   /* padding: 16px 24px 24px; */
-  min-height: 100%;
+  /* 让内容区域撑满剩余空间，但由内容决定高度 */
+  flex: 1; 
 }
 
 /* 页面切换动画 */
