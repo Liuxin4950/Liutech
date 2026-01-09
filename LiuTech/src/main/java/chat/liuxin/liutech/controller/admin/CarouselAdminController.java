@@ -140,7 +140,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @return 是否成功
      */
     @OperationLog(action = "delete", targetType = "carousel", description = "批量删除轮播图", targetName = "#ids")
-    @DeleteMapping("/batch")
+    @PostMapping("/batch")
     public Result<Boolean> batchDeleteCarousels(@RequestBody List<Long> ids) {
         try {
             boolean success = carouselService.batchDeleteCarousels(ids);
@@ -226,7 +226,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @return 是否成功
      */
     @OperationLog(action = "delete", targetType = "carousel", description = "批量彻底删除轮播图", targetName = "#ids")
-    @DeleteMapping("/batch/permanent")
+    @PostMapping("/batch/permanent")
     public Result<Boolean> batchPermanentDeleteCarousels(@RequestBody List<Long> ids) {
         try {
             boolean success = carouselService.batchPermanentDeleteCarousels(ids);

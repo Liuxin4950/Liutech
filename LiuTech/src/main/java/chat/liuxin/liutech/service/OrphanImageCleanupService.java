@@ -89,21 +89,24 @@ public class OrphanImageCleanupService {
      * 删除图片物理文件并物理删除记录
      */
     private boolean deleteImageAndRecord(Images img) {
-        // 1. 删除物理文件
-        boolean deleted = deletePhysicalFile(img.getFilePath());
+        // 1. 删除物理文件（文件可能已被手动删除，返回 true 表示可以继续）
+        boolean fileDeleted = deletePhysicalFile(img.getFilePath());
 
         // 2. 物理删除记录（绕过 @TableLogic 软删除）
         Integer rows = imagesMapper.permanentDeleteById(img.getId());
 
-        if (deleted && rows != null && rows > 0) {
-            log.info("已彻底清理孤立图片: {} (ID: {})", img.getFilePath(), img.getId());
-        } else if (!deleted && rows != null && rows > 0) {
-            log.warn("文件不存在但已删除记录: {} (ID: {})", img.getFilePath(), img.getId());
+        if (rows != null && rows > 0) {
+            if (fileDeleted) {
+                log.info("已彻底清理孤立图片: {} (ID: {})", img.getFilePath(), img.getId());
+            } else {
+                // 文件不存在也视为成功（可能是之前被手动删除或清理过了）
+                log.info("图片记录已删除（文件已不存在）: {} (ID: {})", img.getFilePath(), img.getId());
+            }
+            return true;
         } else {
-            log.warn("清理失败: {} (ID: {})", img.getFilePath(), img.getId());
+            log.warn("清理失败（无法删除记录）: {} (ID: {})", img.getFilePath(), img.getId());
+            return false;
         }
-
-        return deleted && rows != null && rows > 0;
     }
 
     /**

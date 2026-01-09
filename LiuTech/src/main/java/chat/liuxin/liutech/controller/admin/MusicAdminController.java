@@ -116,7 +116,7 @@ public class MusicAdminController extends BaseAdminController {
     /**
      * 批量删除音乐（硬删除 + 清理文件）
      */
-    @DeleteMapping("/batch")
+    @PostMapping("/batch")
     @OperationLog(action = "delete", targetType = "music", description = "批量删除音乐")
     public Result<String> batchDelete(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "音乐ID列表");

@@ -236,14 +236,12 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
     }
 
     /**
-     * 删除音乐关联文件
+     * 删除音乐关联文件（仅音频文件，封面图由 usage_count 机制管理）
      * @param music 音乐对象
      */
     private void deleteMusicFiles(Music music) {
-        // 删除封面图
-        if (music.getCoverUrl() != null && !music.getCoverUrl().isEmpty()) {
-            fileUtil.deleteFileByUrl(music.getCoverUrl());
-        }
+        // 注意：封面图不直接删除，由 usage_count 机制管理，定时任务在 usage_count=0 时清理
+        // 只删除音频文件（音频文件没有复用机制）
         // 删除完整音频
         if (music.getFullAudioUrl() != null) {
             fileUtil.deleteFileByUrl(music.getFullAudioUrl());

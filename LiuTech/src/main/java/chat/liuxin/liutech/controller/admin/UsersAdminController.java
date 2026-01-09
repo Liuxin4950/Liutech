@@ -126,7 +126,7 @@ public class UsersAdminController extends BaseAdminController {
     /**
      * 批量删除用户
      */
-    @DeleteMapping("/batch")
+    @PostMapping("/batch")
     @OperationLog(action = "delete", targetType = "user", description = "批量删除用户")
     public Result<String> batchDeleteUsers(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "用户ID列表");

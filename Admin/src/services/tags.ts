@@ -73,7 +73,7 @@ export class TagsService {
    * 批量删除标签
    */
   static async batchDeleteTags(ids: number[]): Promise<ApiResponse<string>> {
-    return del<string>(`${this.BASE_URL}/batch`, { data: ids })
+    return post<string>(`${this.BASE_URL}/batch`, ids)
   }
 
   /**
@@ -94,7 +94,7 @@ export class TagsService {
    * 批量彻底删除标签（物理删除）
    */
   static async batchPermanentDeleteTags(ids: number[]): Promise<ApiResponse<string>> {
-    return del<string>(`${this.BASE_URL}/batch/permanent`, { data: ids })
+    return post<string>(`${this.BASE_URL}/batch/permanent`, ids)
   }
 }
 

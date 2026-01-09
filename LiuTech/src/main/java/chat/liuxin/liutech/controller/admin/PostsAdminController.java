@@ -126,7 +126,7 @@ public class PostsAdminController extends BaseAdminController {
     /**
      * 批量删除文章
      */
-    @DeleteMapping("/batch")
+    @PostMapping("/batch")
     @OperationLog(action = "delete", targetType = "post", description = "批量删除文章")
     public Result<String> batchDeletePosts(@RequestBody List<Long> ids) {
         try {
@@ -238,7 +238,7 @@ public class PostsAdminController extends BaseAdminController {
     /**
      * 批量彻底删除文章（物理删除）
      */
-    @DeleteMapping("/batch/permanent")
+    @PostMapping("/batch/permanent")
     @OperationLog(action = "delete", targetType = "post", description = "批量彻底删除文章")
     public Result<String> batchPermanentDeletePosts(@RequestBody List<Long> ids) {
         try {

@@ -147,7 +147,7 @@ export class PostsService {
    * 批量删除文章
    */
   static async batchDeletePosts(ids: number[]): Promise<ApiResponse<string>> {
-    return del<string>(`${this.BASE_URL}/batch`, { data: ids })
+    return post<string>(`${this.BASE_URL}/batch`, ids)
   }
 
   /**
@@ -189,7 +189,7 @@ export class PostsService {
    * 批量彻底删除文章（物理删除）
    */
   static async batchPermanentDeletePosts(ids: number[]): Promise<ApiResponse<string>> {
-    return del<string>(`${this.BASE_URL}/batch/permanent`, { data: ids })
+    return post<string>(`${this.BASE_URL}/batch/permanent`, ids)
   }
 }
 

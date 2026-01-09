@@ -152,7 +152,7 @@ public class AnnouncementsController {
      * @param ids 公告ID列表
      * @return 是否成功
      */
-    @DeleteMapping("/batch")
+    @PostMapping("/batch")
     @PreAuthorize("hasRole('ADMIN')")
     public Result<Boolean> batchDeleteAnnouncements(
             @RequestBody List<Long> ids) {

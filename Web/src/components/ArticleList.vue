@@ -73,7 +73,7 @@
     </div>
 
     <!-- 分页器 -->
-    <Pagination
+    <Pagination class="mt-24"
       v-if="!loading && posts.length > 0"
       :current-page="pagination.current"
       :total-pages="pagination.pages"

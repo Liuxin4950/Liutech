@@ -350,14 +350,13 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.NOT_FOUND, "轮播图不存在");
         }
 
-        // 物理删除时强制减少 usage_count（无论是否已软删除）
-        decrementImageReference(carousel.getImageUrl());
-
-        // 删除图片文件（如果usageCount为0则删除）
-        if (carousel.getImageUrl() != null) {
-            fileUtil.deleteFileByUrl(carousel.getImageUrl());
+        // 物理删除时减少 usage_count（文件由定时任务在 usage_count=0 时清理）
+        // 只有未软删除的轮播图才减少 usage_count（软删除时没减，物理删除时就不能再减）
+        if (carousel.getDeletedAt() == null) {
+            decrementImageReference(carousel.getImageUrl());
         }
 
+        // 物理删除记录
         int rows = carouselMapper.permanentDeleteById(id);
         return rows > 0;
     }
@@ -373,14 +372,12 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
         }
 
-        // 物理删除时强制减少所有轮播图的图片引用计数
+        // 物理删除时减少 usage_count（文件由定时任务在 usage_count=0 时清理）
+        // 只有未软删除的轮播图才减少 usage_count
         for (Long id : ids) {
             Carousel carousel = carouselMapper.selectByIdWithDeleted(id);
-            if (carousel != null) {
+            if (carousel != null && carousel.getDeletedAt() == null) {
                 decrementImageReference(carousel.getImageUrl());
-                if (carousel.getImageUrl() != null) {
-                    fileUtil.deleteFileByUrl(carousel.getImageUrl());
-                }
             }
         }
 

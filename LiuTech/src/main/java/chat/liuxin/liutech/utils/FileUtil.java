@@ -46,9 +46,13 @@ public class FileUtil {
     @Autowired
     private ImagesMapper imagesMapper;
 
-    /** 图片URL提取正则：匹配 <img src="URL"> */
+    /** 图片URL提取正则：匹配 <img src="URL">，支持属性换行和多种格式 */
     private static final Pattern IMG_SRC_PATTERN = Pattern.compile(
-            "<img\\s+[^>]*?src=[\"']([^\"']+)[\"'][^>]*>", Pattern.CASE_INSENSITIVE);
+            "<img\\s+[^>]*?src\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>", Pattern.CASE_INSENSITIVE);
+
+    /** 图片URL提取正则（无引号版本） */
+    private static final Pattern IMG_SRC_PATTERN_NO_QUOTE = Pattern.compile(
+            "<img\\s+[^>]*?src\\s*=\\s*([\\S]+)[^>]*>", Pattern.CASE_INSENSITIVE);
     
     /**
      * 保存上传的文件
@@ -299,18 +303,20 @@ public class FileUtil {
             return urls;
         }
 
-        Matcher matcher = IMG_SRC_PATTERN.matcher(content);
-        Set<String> urlSet = new HashSet<>();
 
+        // 匹配带引号的 src
+        Matcher matcher = IMG_SRC_PATTERN.matcher(content);
         while (matcher.find()) {
             String src = matcher.group(1);
-            // 只保留系统内的图片URL
+            // 清理 URL：去除首尾引号和空格
+            if (src != null) {
+                src = src.replaceAll("^[\"']|[\"']$", "").trim();
+            }
             if (src != null && (src.startsWith("/uploads/") || src.contains("/uploads/"))) {
-                urlSet.add(src);
+                urls.add(src);
             }
         }
 
-        urls.addAll(urlSet);
         return urls;
     }
 

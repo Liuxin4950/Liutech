@@ -1,8 +1,10 @@
 package chat.liuxin.liutech.mapper;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
@@ -31,7 +33,7 @@ public interface ImagesMapper extends BaseMapper<Images> {
      * @param delta 增量（可为负数）
      * @return 影响行数
      */
-    @Select("UPDATE images SET usage_count = usage_count + #{delta}, updated_at = NOW() WHERE id = #{id} AND deleted_at IS NULL")
+    @Update("UPDATE images SET usage_count = GREATEST(0, usage_count + #{delta}), updated_at = NOW() WHERE id = #{id} AND deleted_at IS NULL")
     Integer incrementUsageCount(@Param("id") Long id, @Param("delta") int delta);
 
     /**
@@ -40,6 +42,6 @@ public interface ImagesMapper extends BaseMapper<Images> {
      * @param id 图片ID
      * @return 影响行数
      */
-    @Select("DELETE FROM images WHERE id = #{id}")
+    @Delete("DELETE FROM images WHERE id = #{id}")
     Integer permanentDeleteById(@Param("id") Long id);
 }

@@ -105,7 +105,7 @@ export class AnnouncementsService {
    * 批量删除公告
    */
   static async batchDeleteAnnouncements(ids: number[]): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.BASE_URL}/batch`, { data: ids })
+    return post<boolean>(`${this.BASE_URL}/batch`, ids)
   }
 
   /**

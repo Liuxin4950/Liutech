@@ -293,11 +293,13 @@ const handlePermanentDelete = async (id: number) => {
 
 // 批量彻底删除轮播图
 const handleBatchPermanentDelete = async () => {
+  console.log('selectedRowKeys.value:', selectedRowKeys.value, Array.isArray(selectedRowKeys.value))
   if (!selectedRowKeys.value.length) {
     message.warning('请选择要彻底删除的轮播图')
     return
   }
   try {
+    console.log('准备发送删除请求，ids:', JSON.stringify(selectedRowKeys.value))
     const res = await CarouselService.batchPermanentDeleteCarousels(selectedRowKeys.value)
     if (res && res.code === 200) {
       message.success('批量彻底删除成功')
@@ -423,6 +425,7 @@ onMounted(async () => {
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
+        :row-key="(record: Carousel) => record.id"
         :row-selection="{
           selectedRowKeys,
           onChange: onSelectChange

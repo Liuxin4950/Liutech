@@ -87,7 +87,7 @@ export class CarouselService {
    * 批量删除轮播图
    */
   static async batchDeleteCarousels(ids: number[]): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.ADMIN_BASE_URL}/batch`, { data: ids })
+    return post<boolean>(`${this.ADMIN_BASE_URL}/batch`, ids)
   }
 
   /**
@@ -129,7 +129,8 @@ export class CarouselService {
    * 批量彻底删除轮播图（物理删除）
    */
   static async batchPermanentDeleteCarousels(ids: number[]): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.ADMIN_BASE_URL}/batch/permanent`, { data: ids })
+    console.log('批量彻底删除轮播图，发送数据:', JSON.stringify(ids))
+    return post<boolean>(`${this.ADMIN_BASE_URL}/batch/permanent`, ids)
   }
 }
 

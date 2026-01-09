@@ -73,7 +73,7 @@ export class CategoriesService {
    * 批量删除分类
    */
   static async batchDeleteCategories(ids: number[]): Promise<ApiResponse<string>> {
-    return del<string>(`${this.BASE_URL}/batch`, { data: ids })
+    return post<string>(`${this.BASE_URL}/batch`, ids)
   }
 
   /**
@@ -94,7 +94,7 @@ export class CategoriesService {
    * 批量彻底删除分类（物理删除）
    */
   static async batchPermanentDeleteCategories(ids: number[]): Promise<ApiResponse<string>> {
-    return del<string>(`${this.BASE_URL}/batch/permanent`, { data: ids })
+    return post<string>(`${this.BASE_URL}/batch/permanent`, ids)
   }
 }
 

@@ -54,7 +54,7 @@ instance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    console.log('API 请求:', config.method?.toUpperCase(), config.url, config.params || '')
+    console.log('API 请求:', config.method?.toUpperCase(), config.url, config.params || '', config.data || '')
     return config
   },
   (error) => {
@@ -165,9 +165,8 @@ export const del = async <T = any>(
   try {
     const response = await instance.delete<ApiResponse<T>>(url, config)
     return response.data
-  } catch (error) {
-    console.error(`DELETE 请求失败: ${url}`, error)
-    // 确保抛出的是一个有效的错误对象
+  } catch (error: any) {
+    console.error(`DELETE 请求失败: ${url}`, error?.response?.data || error)
     throw error || new Error('请求失败')
   }
 }

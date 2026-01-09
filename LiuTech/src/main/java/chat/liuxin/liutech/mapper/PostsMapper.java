@@ -315,6 +315,15 @@ public interface PostsMapper extends BaseMapper<Posts> {
      */
     int permanentDeleteByIds(@Param("ids") List<Long> ids);
 
+    /**
+     * 根据ID查询文章（包括已软删除的，绕过 @TableLogic）
+     *
+     * @param id 文章ID
+     * @return 文章记录，不存在返回null
+     */
+    @Select("SELECT * FROM posts WHERE id = #{id}")
+    Posts selectByIdWithDeleted(@Param("id") Long id);
+
     // ==================== 孤立图片清理相关方法 ====================
 
     /**

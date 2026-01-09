@@ -123,7 +123,7 @@ export class UserService {
    * 批量删除用户（管理端）
    */
   static async batchDeleteUsers(ids: number[]): Promise<ApiResponse<string>> {
-    return del<string>(`${this.ADMIN_BASE_URL}/batch`, { data: ids })
+    return post<string>(`${this.ADMIN_BASE_URL}/batch`, ids)
   }
 
   /**

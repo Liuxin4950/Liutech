@@ -115,7 +115,7 @@ public class TagsAdminController extends BaseAdminController {
     /**
      * 批量删除标签
      */
-    @DeleteMapping("/batch")
+    @PostMapping("/batch")
     @OperationLog(action = "delete", targetType = "tag", description = "批量删除标签")
     public Result<String> batchDeleteTags(@RequestBody List<Long> ids) {
         try {
@@ -157,7 +157,7 @@ public class TagsAdminController extends BaseAdminController {
     /**
      * 批量彻底删除标签（物理删除）
      */
-    @DeleteMapping("/batch/permanent")
+    @PostMapping("/batch/permanent")
     @OperationLog(action = "delete", targetType = "tag", description = "批量彻底删除标签")
     public Result<String> batchPermanentDeleteTags(@RequestBody List<Long> ids) {
         try {

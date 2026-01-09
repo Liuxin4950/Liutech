@@ -24,13 +24,10 @@ import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.mapper.PostLikesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
-import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.PostTags;
 import chat.liuxin.liutech.model.PostLikes;
 import chat.liuxin.liutech.model.PostFavorites;
-import chat.liuxin.liutech.model.Images;
-import chat.liuxin.liutech.utils.FileUtil;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
@@ -73,12 +70,6 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     @Autowired
     private CommentsMapper commentsMapper;
-
-    @Autowired
-    private FileUtil fileUtil;
-
-    @Autowired
-    private ImagesMapper imagesMapper;
 
     /**
      * 分页查询文章列表（公开接口）
@@ -1038,10 +1029,17 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         }
 
         try {
-            // 先获取文章内容，用于后续减少图片引用
-            Posts post = this.getById(id);
+            // 先获取文章内容，用于后续减少图片引用（使用 selectByIdWithDeleted 绕过 @TableLogic）
+            Posts post = postsMapper.selectByIdWithDeleted(id);
             String postContent = post != null ? post.getContent() : null;
             String coverImage = post != null ? post.getCoverImage() : null;
+            String thumbnail = post != null ? post.getThumbnail() : null;
+
+            // 如果文章不存在或已被物理删除，直接返回
+            if (post == null) {
+                log.warn("文章不存在或已被删除，文章ID: {}", id);
+                return;
+            }
 
             // 删除文章的所有关联数据
             // 删除文章收藏记录
@@ -1064,12 +1062,6 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 throw new RuntimeException("文章删除失败，可能文章不存在");
             }
 
-            // 减少图片引用计数
-            decrementImageReferences(postContent);
-
-            // 减少封面图片引用计数
-            decrementCoverReference(coverImage);
-
             log.info("彻底删除文章成功，文章ID: {}, 操作者: {}", id, updatedBy);
         } catch (Exception e) {
             log.error("彻底删除文章失败，文章ID: {}, 操作者: {}, 错误: {}", id, updatedBy, e.getMessage(), e);
@@ -1087,20 +1079,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (ids == null || ids.isEmpty()) {
             throw new IllegalArgumentException("文章ID列表不能为空");
         }
+        // 这里需要解析出文章使用了哪些图片，各自多少次，然后减少图片的引用次数(出现一次-1，相同的图片也-1)
+        // TODO: 解析文章内容，提取图片URL 思路，先解析出文章的封面(正副)，让后解析出content里的所用图片img标签。让后用文件工具类减去图片的引用次数。 2026-1-10晚上2：35
+
+
+
 
         try {
-            // 先收集所有文章的封面和内容，用于后续减少图片引用
-            java.util.Map<Long, java.util.Map<String, String>> postImages = new java.util.HashMap<>();
-            for (Long postId : ids) {
-                Posts post = this.getById(postId);
-                if (post != null) {
-                    java.util.Map<String, String> imageMap = new java.util.HashMap<>();
-                    imageMap.put("cover", post.getCoverImage());
-                    imageMap.put("content", post.getContent());
-                    postImages.put(postId, imageMap);
-                }
-            }
-
             // 删除文章的所有关联数据（按正确顺序）
             for (Long postId : ids) {
                 // 删除文章收藏记录
@@ -1120,14 +1105,6 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
             // 批量物理删除文章
             postsMapper.permanentDeleteByIds(ids);
-
-            // 减少所有文章的封面和内容图片引用计数
-            for (java.util.Map<String, String> imageMap : postImages.values()) {
-                String coverImage = imageMap.get("cover");
-                String content = imageMap.get("content");
-                decrementCoverReference(coverImage);
-                decrementImageReferences(content);
-            }
 
             log.info("批量彻底删除文章成功，文章ID: {}, 操作者: {}", ids, updatedBy);
         } catch (Exception e) {
@@ -1188,194 +1165,5 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
         // 使用MyBatis-Plus自动统计的总数
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
-    }
-
-    // ==================== 图片引用计数管理 ====================
-
-    /**
-     * 更新文章图片引用计数（创建新文章时调用）
-     * 提取文章内容中的图片URL，增加对应图片的引用计数
-     *
-     * @param postId 文章ID
-     * @param content 文章内容
-     */
-    private void updateImageReferences(Long postId, String content) {
-        if (content == null || content.isEmpty()) {
-            return;
-        }
-
-        try {
-            List<String> imageUrls = fileUtil.extractImageUrls(content);
-            if (imageUrls.isEmpty()) {
-                return;
-            }
-
-            // 使用Set避免同一张图片被重复计数
-            java.util.Set<String> processedPaths = new java.util.HashSet<>();
-            int updatedCount = 0;
-
-            for (String url : imageUrls) {
-                Images img = fileUtil.getImageByUrl(url);
-                if (img != null && img.getDeletedAt() == null) {
-                    if (!processedPaths.contains(img.getFilePath())) {
-                        imagesMapper.incrementUsageCount(img.getId(), 1);
-                        processedPaths.add(img.getFilePath());
-                        updatedCount++;
-                    }
-                }
-            }
-
-            log.debug("文章ID: {}, 更新图片引用计数: {} 张图片", postId, updatedCount);
-        } catch (Exception e) {
-            log.error("更新文章图片引用计数失败，文章ID: {}", postId, e);
-        }
-    }
-
-    /**
-     * 处理文章更新时的图片引用变化
-     * - 新增的图片增加引用
-     * - 移除的图片减少引用
-     *
-     * @param postId 文章ID
-     * @param oldContent 旧文章内容
-     * @param newContent 新文章内容
-     */
-    private void updateImageReferencesOnUpdate(Long postId, String oldContent, String newContent) {
-        if (newContent == null) {
-            newContent = "";
-        }
-        if (oldContent == null) {
-            oldContent = "";
-        }
-
-        // 如果内容没有变化，不处理
-        if (oldContent.equals(newContent)) {
-            return;
-        }
-
-        try {
-            List<String> oldUrls = fileUtil.extractImageUrls(oldContent);
-            List<String> newUrls = fileUtil.extractImageUrls(newContent);
-
-            // 转换为Set便于计算
-            java.util.Set<String> oldSet = new java.util.HashSet<>(oldUrls);
-            java.util.Set<String> newSet = new java.util.HashSet<>(newUrls);
-
-            // 计算需要增加引用的图片（新内容中有，旧内容中没有）
-            newSet.removeAll(oldSet);
-
-            // 计算需要减少引用的图片（旧内容中有，新内容中没有）
-            java.util.Set<String> toRemove = new java.util.HashSet<>(oldUrls);
-            toRemove.removeAll(new java.util.HashSet<>(newUrls));
-
-            // 增加新图片的引用
-            java.util.Set<String> processedAdd = new java.util.HashSet<>();
-            for (String url : newSet) {
-                Images img = fileUtil.getImageByUrl(url);
-                if (img != null && img.getDeletedAt() == null) {
-                    if (!processedAdd.contains(img.getFilePath())) {
-                        imagesMapper.incrementUsageCount(img.getId(), 1);
-                        processedAdd.add(img.getFilePath());
-                    }
-                }
-            }
-
-            // 减少移除图片的引用
-            java.util.Set<String> processedRemove = new java.util.HashSet<>();
-            for (String url : toRemove) {
-                Images img = fileUtil.getImageByUrl(url);
-                if (img != null && img.getDeletedAt() == null) {
-                    if (!processedRemove.contains(img.getFilePath())) {
-                        imagesMapper.incrementUsageCount(img.getId(), -1);
-                        processedRemove.add(img.getFilePath());
-                    }
-                }
-            }
-
-            log.debug("文章ID: {}, 增加引用: {} 张, 减少引用: {} 张",
-                    postId, processedAdd.size(), processedRemove.size());
-        } catch (Exception e) {
-            log.error("处理文章图片引用变化失败，文章ID: {}", postId, e);
-        }
-    }
-
-    /**
-     * 减少文章图片引用计数（删除文章时调用）
-     * 提取文章内容中的图片URL，减少对应图片的引用计数
-     *
-     * @param content 文章内容
-     */
-    private void decrementImageReferences(String content) {
-        if (content == null || content.isEmpty()) {
-            return;
-        }
-
-        try {
-            List<String> imageUrls = fileUtil.extractImageUrls(content);
-            if (imageUrls.isEmpty()) {
-                return;
-            }
-
-            // 使用Set避免同一张图片被多次减计数
-            java.util.Set<String> processedPaths = new java.util.HashSet<>();
-            int updatedCount = 0;
-
-            for (String url : imageUrls) {
-                Images img = fileUtil.getImageByUrl(url);
-                if (img != null) {
-                    // 无论图片是否已软删除，都减少 usage_count
-                    if (!processedPaths.contains(img.getFilePath())) {
-                        imagesMapper.incrementUsageCount(img.getId(), -1);
-                        processedPaths.add(img.getFilePath());
-                        updatedCount++;
-                    }
-                }
-            }
-
-            log.debug("减少图片引用计数: {} 张图片", updatedCount);
-        } catch (Exception e) {
-            log.error("减少文章图片引用计数失败", e);
-        }
-    }
-
-    // ==================== 封面图片引用计数管理 ====================
-
-    /**
-     * 增加封面图片引用计数
-     * @param coverUrl 封面URL
-     */
-    private void incrementCoverReference(String coverUrl) {
-        if (coverUrl == null || coverUrl.isEmpty() || coverUrl.startsWith("/")) {
-            return;
-        }
-        try {
-            Images img = fileUtil.getImageByUrl(coverUrl);
-            if (img != null && img.getDeletedAt() == null) {
-                imagesMapper.incrementUsageCount(img.getId(), 1);
-                log.debug("文章封面增加引用: {} -> {}", coverUrl, img.getUsageCount() + 1);
-            }
-        } catch (Exception e) {
-            log.warn("增加封面引用计数失败: {}", coverUrl, e);
-        }
-    }
-
-    /**
-     * 减少封面图片引用计数
-     * @param coverUrl 封面URL
-     */
-    private void decrementCoverReference(String coverUrl) {
-        if (coverUrl == null || coverUrl.isEmpty() || coverUrl.startsWith("/")) {
-            return;
-        }
-        try {
-            Images img = fileUtil.getImageByUrl(coverUrl);
-            if (img != null) {
-                // 无论图片是否已软删除，都减少 usage_count
-                imagesMapper.incrementUsageCount(img.getId(), -1);
-                log.debug("文章封面减少引用: {} -> {}", coverUrl, Math.max(0, img.getUsageCount() - 1));
-            }
-        } catch (Exception e) {
-            log.warn("减少封面引用计数失败: {}", coverUrl, e);
-        }
     }
 }

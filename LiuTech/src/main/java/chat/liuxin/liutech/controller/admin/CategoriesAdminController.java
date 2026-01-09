@@ -109,7 +109,7 @@ public class CategoriesAdminController extends BaseAdminController {
     /**
      * 批量删除分类
      */
-    @DeleteMapping("/batch")
+    @PostMapping("/batch")
     @OperationLog(action = "delete", targetType = "category", description = "批量删除分类")
     public Result<String> batchDeleteCategories(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "分类ID列表");
@@ -154,7 +154,7 @@ public class CategoriesAdminController extends BaseAdminController {
     /**
      * 批量彻底删除分类（物理删除）
      */
-    @DeleteMapping("/batch/permanent")
+    @PostMapping("/batch/permanent")
     @OperationLog(action = "delete", targetType = "category", description = "批量彻底删除分类", targetName = "#ids")
     public Result<String> batchPermanentDeleteCategories(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "分类ID列表");
