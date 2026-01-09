@@ -109,7 +109,9 @@ const handleCoverChange = async (info: any) => {
   try {
     coverUploading.value = true
     const result = await ImageUploadService.uploadImage(file)
+    console.log('封面上传成功，返回:', result)
     uploadForm.value.coverUrl = result.fileUrl
+    console.log('coverUrl 已设置为:', uploadForm.value.coverUrl)
   } catch (e: any) {
     message.error(e.message || '封面上传失败')
     coverPreview.value = ''
@@ -155,6 +157,10 @@ const handleUpload = async () => {
 
   if (!title.trim()) {
     message.error('请输入歌曲名')
+    return
+  }
+  if (!coverUrl) {
+    message.error('请上传封面图')
     return
   }
   if (!fullAudio) {

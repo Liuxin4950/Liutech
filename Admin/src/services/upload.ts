@@ -69,8 +69,14 @@ export class ImageUploadService {
         }
       })
 
-      // response.data 已经是 ImageUploadResponse
-      return response.data
+      // api.ts 拦截器返回的是 response，response.data 是 ApiResponse 包装对象
+      // 后端返回格式: { code: 200, message: "操作成功", data: { fileName, fileUrl, ... } }
+      // 需要取 response.data.data 获取内部的 FileUploadResp
+      const apiResponse = response.data
+      if (apiResponse.code !== 200) {
+        throw new Error(apiResponse.message || '图片上传失败')
+      }
+      return apiResponse.data
     } catch (error: any) {
       console.error('图片上传失败:', error)
       // 提取后端返回的错误信息

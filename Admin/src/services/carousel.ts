@@ -46,7 +46,6 @@ export interface CarouselFormData {
  * 对应后端 CarouselAdminController 的管理端接口
  */
 export class CarouselService {
-  private static readonly BASE_URL = '/carousels'
   private static readonly ADMIN_BASE_URL = '/admin/carousels'
 
   /**
@@ -60,77 +59,77 @@ export class CarouselService {
    * 根据ID查询轮播图详情
    */
   static async getCarouselById(id: number): Promise<ApiResponse<Carousel>> {
-    return get<Carousel>(`${this.BASE_URL}/${id}`)
+    return get<Carousel>(`${this.ADMIN_BASE_URL}/${id}`)
   }
 
   /**
    * 创建轮播图
    */
   static async createCarousel(data: CarouselFormData): Promise<ApiResponse<number>> {
-    return post<number>(this.BASE_URL, data)
+    return post<number>(this.ADMIN_BASE_URL, data)
   }
 
   /**
    * 更新轮播图
    */
   static async updateCarousel(id: number, data: Partial<CarouselFormData>): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${id}`, data)
+    return put<boolean>(`${this.ADMIN_BASE_URL}/${id}`, data)
   }
 
   /**
    * 删除轮播图
    */
   static async deleteCarousel(id: number): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.BASE_URL}/${id}`)
+    return del<boolean>(`${this.ADMIN_BASE_URL}/${id}`)
   }
 
   /**
    * 批量删除轮播图
    */
   static async batchDeleteCarousels(ids: number[]): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.BASE_URL}/batch`, { data: ids })
+    return del<boolean>(`${this.ADMIN_BASE_URL}/batch`, { data: ids })
   }
 
   /**
    * 更新轮播图状态
    */
   static async updateCarouselStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${id}/status`, { status })
+    return put<boolean>(`${this.ADMIN_BASE_URL}/${id}/status`, { status })
   }
 
   /**
    * 批量更新轮播图状态
    */
   static async batchUpdateCarouselStatus(ids: number[], status: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/batch/status`, { ids, status })
+    return put<boolean>(`${this.ADMIN_BASE_URL}/batch/status`, { ids, status })
   }
 
   /**
    * 更新轮播图排序
    */
   static async updateCarouselSort(id: number, sortOrder: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${id}/sort`, { sortOrder })
+    return put<boolean>(`${this.ADMIN_BASE_URL}/${id}/sort`, { sortOrder })
   }
 
   /**
    * 恢复已删除的轮播图
    */
   static async restoreCarousel(id: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${id}/restore`)
+    return put<boolean>(`${this.ADMIN_BASE_URL}/${id}/restore`)
   }
 
   /**
    * 彻底删除轮播图（物理删除）
    */
   static async permanentDeleteCarousel(id: number): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.BASE_URL}/${id}/permanent`)
+    return del<boolean>(`${this.ADMIN_BASE_URL}/${id}/permanent`)
   }
 
   /**
    * 批量彻底删除轮播图（物理删除）
    */
   static async batchPermanentDeleteCarousels(ids: number[]): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.BASE_URL}/batch/permanent`, { data: ids })
+    return del<boolean>(`${this.ADMIN_BASE_URL}/batch/permanent`, { data: ids })
   }
 }
 

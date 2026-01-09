@@ -404,6 +404,12 @@
             LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
         </if>
         WHERE p.deleted_at IS NULL
+        <if test="status != null and status != ''">
+            AND p.status = #{status}
+        </if>
+        <if test="status == null or status == ''">
+            AND p.status = 'published'
+        </if>
         <if test="categoryId != null">
             AND p.category_id = #{categoryId}
         </if>
@@ -823,6 +829,12 @@
         SELECT * FROM posts
         WHERE status = 'published'
         ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询所有已发布文章的内容（用于孤立图片清理，提取HTML中的内嵌图片） -->
+    <select id="selectAllPublishedPostsWithContent" resultType="chat.liuxin.liutech.model.Posts">
+        SELECT id, content, cover_image, thumbnail FROM posts
+        WHERE status = 'published' AND deleted_at IS NULL
     </select>
 
     <!-- 统计指定日期发布的文章数量 -->

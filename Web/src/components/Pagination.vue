@@ -93,7 +93,8 @@ const emit = defineEmits<{
 
 // 计算是否显示分页器
 const showPagination = computed(() => {
-  return props.totalPages > 1
+  // 始终显示分页器，即使只有1页也显示页码信息
+  return props.totalPages >= 1
 })
 
 // 响应式窗口宽度检测

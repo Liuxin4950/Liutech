@@ -30,7 +30,7 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const isAdmin = computed(() => {
-    return (userInfo.value?.username || '') === 'admin'
+    return userInfo.value?.role === 'admin'
   })
 
   // 动作

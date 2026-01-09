@@ -19,6 +19,7 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CarouselMapper;
 import chat.liuxin.liutech.model.Carousel;
 import chat.liuxin.liutech.resp.CarouselResp;
+import chat.liuxin.liutech.utils.FileUtil;
 
 /**
  * 轮播图服务类
@@ -35,6 +36,9 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
 
     @Autowired
     private CarouselMapper carouselMapper;
+
+    @Autowired
+    private FileUtil fileUtil;
 
     /**
      * 获取启用的轮播图列表（前台展示）
@@ -322,6 +326,11 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.NOT_FOUND, "轮播图不存在");
         }
 
+        // 删除图片文件
+        if (carousel.getImageUrl() != null) {
+            fileUtil.deleteFileByUrl(carousel.getImageUrl());
+        }
+
         int rows = carouselMapper.permanentDeleteById(id);
         return rows > 0;
     }
@@ -335,6 +344,14 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
     public boolean batchPermanentDeleteCarousels(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
+        }
+
+        // 先删除所有图片文件
+        for (Long id : ids) {
+            Carousel carousel = carouselMapper.selectByIdWithDeleted(id);
+            if (carousel != null && carousel.getImageUrl() != null) {
+                fileUtil.deleteFileByUrl(carousel.getImageUrl());
+            }
         }
 
         int rows = carouselMapper.batchPermanentDelete(ids);

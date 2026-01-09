@@ -5,6 +5,7 @@ import chat.liuxin.liutech.resp.UserResp;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.Date;
 import java.util.List;
@@ -85,5 +86,13 @@ public interface UserMapper extends BaseMapper<Users> {
      * @return 角色字符串 (user/admin)
      */
     String selectRoleById(@Param("id") Long id);
+
+    /**
+     * 查询所有用户头像URL（用于孤立图片清理）
+     *
+     * @return 头像URL列表
+     */
+    @Select("SELECT avatar_url FROM users WHERE avatar_url IS NOT NULL AND deleted_at IS NULL")
+    List<String> selectAllAvatarUrls();
 
 }

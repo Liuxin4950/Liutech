@@ -39,6 +39,7 @@ export interface UserInfo {
   nickname?: string
   bio?: string
   points: number
+  role?: string  // 用户角色：user/admin
   status?: number
   lastLoginAt?: string
   createdAt?: string

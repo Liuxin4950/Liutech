@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -308,10 +309,36 @@ public interface PostsMapper extends BaseMapper<Posts> {
 
     /**
      * 根据文章ID列表物理删除文章
-     * 
+     *
      * @param ids 文章ID列表
      * @return 影响的行数
      */
     int permanentDeleteByIds(@Param("ids") List<Long> ids);
+
+    // ==================== 孤立图片清理相关方法 ====================
+
+    /**
+     * 查询所有文章封面图片URL（用于孤立图片清理）
+     *
+     * @return 封面URL列表
+     */
+    @Select("SELECT cover_image FROM posts WHERE cover_image IS NOT NULL AND deleted_at IS NULL")
+    List<String> selectAllCoverImages();
+
+    /**
+     * 查询所有文章缩略图URL（用于孤立图片清理）
+     *
+     * @return 缩略图URL列表
+     */
+    @Select("SELECT thumbnail FROM posts WHERE thumbnail IS NOT NULL AND deleted_at IS NULL")
+    List<String> selectAllThumbnails();
+
+    /**
+     * 查询所有已发布文章的内容（用于孤立图片清理，提取HTML中的内嵌图片）
+     *
+     * @return 文章列表（包含content字段）
+     */
+    @Select("SELECT id, cover_image, thumbnail, content FROM posts WHERE status = 'published' AND deleted_at IS NULL")
+    List<Posts> selectAllPublishedPostsWithContent();
 
 }
