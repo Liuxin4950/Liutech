@@ -298,6 +298,33 @@ CREATE TABLE IF NOT EXISTS carousels (
   INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='轮播图表';
 
+-- 图片表（用于图片上传去重）
+CREATE TABLE IF NOT EXISTS images (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '图片ID',
+  file_name VARCHAR(255) NOT NULL COMMENT '原始文件名',
+  file_url VARCHAR(512) NOT NULL COMMENT '图片访问URL',
+  file_path VARCHAR(512) NOT NULL COMMENT '文件存储相对路径',
+  file_hash VARCHAR(64) NOT NULL COMMENT '文件哈希值（SHA-256，用于去重）',
+  file_size BIGINT NOT NULL COMMENT '文件大小（字节）',
+  mime_type VARCHAR(100) DEFAULT NULL COMMENT 'MIME类型',
+  extension VARCHAR(20) NOT NULL COMMENT '文件扩展名',
+  width INT DEFAULT NULL COMMENT '图片宽度（像素）',
+  height INT DEFAULT NULL COMMENT '图片高度（像素）',
+  uploader_id BIGINT NOT NULL COMMENT '上传用户ID',
+  usage_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '引用次数（被多少篇文章使用）',
+  status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '状态（0禁用，1正常）',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+  updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
+  INDEX idx_file_hash (file_hash) COMMENT '哈希索引，用于去重查询',
+  INDEX idx_uploader_id (uploader_id) COMMENT '上传者索引',
+  INDEX idx_status (status) COMMENT '状态索引',
+  INDEX idx_deleted_at (deleted_at) COMMENT '软删除索引',
+  FOREIGN KEY (uploader_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='图片表（支持去重）';
+
 
 -- 重新开启外键检查
 SET FOREIGN_KEY_CHECKS = 1;

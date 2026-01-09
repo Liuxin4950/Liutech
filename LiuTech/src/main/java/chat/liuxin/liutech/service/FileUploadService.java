@@ -9,6 +9,7 @@ import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.model.Resources;
 import chat.liuxin.liutech.model.PostAttachments;
+import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.resp.FileUploadResp;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -45,8 +46,12 @@ public class FileUploadService {
     @Autowired
     private PostAttachmentsMapper postAttachmentsMapper;
 
+    @Autowired
+    private ImagesService imagesService;
+
     /**
      * 上传图片文件（用于TinyMCE编辑器）
+     * 支持图片去重，相同内容的图片只保存一份
      *
      * @param file 图片文件
      * @param userId 用户ID
@@ -63,24 +68,24 @@ public class FileUploadService {
         validateImageFile(file);
 
         try {
-            // 保存文件
-            String relativePath = fileUtil.saveFile(file, fileUploadConfig.getImagePath());
-
-            // 生成访问URL
-            String fileUrl = fileUtil.generateFileUrl(relativePath);
+            // 使用ImagesService进行去重上传
+            Images image = imagesService.uploadImage(file, userId, fileUploadConfig.getImagePath());
 
             // 构建响应
             FileUploadResp result = new FileUploadResp();
-            result.setFileName(file.getOriginalFilename());
-            result.setFilePath(relativePath);
-            result.setFileUrl(fileUrl);
-            result.setFileSize(file.getSize());
+            result.setFileName(image.getFileName());
+            result.setFilePath(image.getFilePath());
+            result.setFileUrl(image.getFileUrl());
+            result.setFileSize(image.getFileSize());
             result.setFileType("image");
-            result.setExtension(fileUtil.getFileExtension(file.getOriginalFilename()));
+            result.setExtension(image.getExtension());
             result.setUploadTime(System.currentTimeMillis());
+            result.setImageId(image.getId());
+            // 判断是否为重复图片（usageCount > 1 表示被多次引用）
+            result.setIsDuplicate(image.getUsageCount() > 1);
 
-            log.info("图片上传成功 - 用户ID: {}, 文件路径: {}, 访问URL: {}",
-                    userId, relativePath, fileUrl);
+            log.info("图片上传成功 - 用户ID: {}, 图片ID: {}, 是否重复: {}, 访问URL: {}",
+                    userId, image.getId(), result.getIsDuplicate(), image.getFileUrl());
 
             return result;
 

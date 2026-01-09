@@ -1,20 +1,33 @@
 package chat.liuxin.liutech.utils;
 
 import chat.liuxin.liutech.config.FileUploadConfig;
+import chat.liuxin.liutech.mapper.ImagesMapper;
+import chat.liuxin.liutech.model.Images;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 文件工具类
@@ -26,9 +39,16 @@ import java.util.UUID;
 @Slf4j
 @Component
 public class FileUtil {
-    
+
     @Autowired
     private FileUploadConfig fileUploadConfig;
+
+    @Autowired
+    private ImagesMapper imagesMapper;
+
+    /** 图片URL提取正则：匹配 <img src="URL"> */
+    private static final Pattern IMG_SRC_PATTERN = Pattern.compile(
+            "<img\\s+[^>]*?src=[\"']([^\"']+)[\"'][^>]*>", Pattern.CASE_INSENSITIVE);
     
     /**
      * 保存上传的文件
@@ -204,20 +224,116 @@ public class FileUtil {
     /**
      * 从完整URL删除文件（便捷方法）
      * @param fileUrl 完整文件URL
-     * @return 是否删除成功（文件不存在也返回true）
+     * @return 是否删除成功（URL无法解析返回false）
      */
     public boolean deleteFileByUrl(String fileUrl) {
         String relativePath = extractRelativePath(fileUrl);
         if (relativePath == null) {
             log.warn("无法解析文件路径: {}", fileUrl);
-            return true; // URL无法解析视为成功（避免旧数据问题）
+            return false; // URL无法解析返回false
         }
-        boolean deleted = deleteFile(relativePath);
-        if (deleted) {
-            log.info("文件删除成功: {}", relativePath);
-        } else {
-            log.warn("文件不存在或删除失败: {}", relativePath);
+        return deleteFile(relativePath); // 返回实际删除结果
+    }
+
+    /**
+     * 计算文件的SHA-256哈希值
+     *
+     * @param file 上传的文件
+     * @return 哈希值的十六进制字符串（64位）
+     * @throws IOException IO异常
+     */
+    public String calculateFileHash(MultipartFile file) throws IOException {
+        try (InputStream is = file.getInputStream()) {
+            return calculateFileHash(is);
+        } catch (NoSuchAlgorithmException e) {
+            log.error("SHA-256算法不可用", e);
+            throw new RuntimeException("哈希计算失败", e);
         }
-        return true; // 始终返回true，避免删除失败影响业务逻辑
+    }
+
+    /**
+     * 计算输入流的SHA-256哈希值
+     *
+     * @param inputStream 输入流
+     * @return 哈希值的十六进制字符串
+     * @throws IOException IO异常
+     * @throws NoSuchAlgorithmException SHA-256算法不可用
+     */
+    public String calculateFileHash(InputStream inputStream) throws IOException, NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            digest.update(buffer, 0, bytesRead);
+        }
+
+        byte[] hashBytes = digest.digest();
+        return bytesToHex(hashBytes);
+    }
+
+    /**
+     * 字节数组转十六进制字符串
+     *
+     * @param bytes 字节数组
+     * @return 十六进制字符串
+     */
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 从HTML内容中提取所有图片URL（仅提取系统内的图片）
+     *
+     * @param content HTML内容
+     * @return 图片URL列表（去重）
+     */
+    public List<String> extractImageUrls(String content) {
+        List<String> urls = new ArrayList<>();
+        if (content == null || content.isEmpty()) {
+            return urls;
+        }
+
+        Matcher matcher = IMG_SRC_PATTERN.matcher(content);
+        Set<String> urlSet = new HashSet<>();
+
+        while (matcher.find()) {
+            String src = matcher.group(1);
+            // 只保留系统内的图片URL
+            if (src != null && (src.startsWith("/uploads/") || src.contains("/uploads/"))) {
+                urlSet.add(src);
+            }
+        }
+
+        urls.addAll(urlSet);
+        return urls;
+    }
+
+    /**
+     * 根据URL获取图片记录
+     *
+     * @param url 图片URL
+     * @return 图片记录，不存在或已删除返回null
+     */
+    public Images getImageByUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return null;
+        }
+
+        String relativePath = extractRelativePath(url);
+        if (relativePath == null) {
+            return null;
+        }
+
+        LambdaQueryWrapper<Images> query = new LambdaQueryWrapper<>();
+        query.eq(Images::getFilePath, relativePath)
+             .isNull(Images::getDeletedAt)
+             .eq(Images::getStatus, 1);
+        return imagesMapper.selectOne(query);
     }
 }

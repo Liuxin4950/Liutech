@@ -59,4 +59,14 @@ public class FileUploadResp {
      * 附件关联ID（post_attachments表主键）
      */
     private Long attachmentId;
+
+    /**
+     * 图片ID（images表主键，仅图片类型返回）
+     */
+    private Long imageId;
+
+    /**
+     * 是否为重复图片（true表示该图片已存在，返回已有记录）
+     */
+    private Boolean isDuplicate;
 }

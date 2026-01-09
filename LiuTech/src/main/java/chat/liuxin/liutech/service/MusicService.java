@@ -16,7 +16,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.config.FileUploadConfig;
+import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.mapper.MusicMapper;
+import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Music;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +39,9 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
 
     @Autowired
     private FileUploadConfig fileUploadConfig;
+
+    @Autowired
+    private ImagesMapper imagesMapper;
 
     /**
      * 获取启用的音乐列表
@@ -114,6 +119,9 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         music.setCreatedAt(new Date());
         music.setUpdatedAt(new Date());
 
+        // 增加封面图片引用计数
+        incrementCoverReference(coverUrl);
+
         try {
             // 保存完整音频
             String fullAudioPath = fileUtil.saveFile(fullAudio, fileUploadConfig.getMusicPath());
@@ -158,8 +166,11 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         if (artist != null) {
             music.setArtist(artist);
         }
-        if (coverUrl != null) {
+        // 处理封面变化
+        if (coverUrl != null && !coverUrl.equals(music.getCoverUrl())) {
+            decrementCoverReference(music.getCoverUrl());
             music.setCoverUrl(coverUrl);
+            incrementCoverReference(coverUrl);
         }
         if (sortOrder != null) {
             music.setSortOrder(sortOrder);
@@ -183,6 +194,9 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         if (music == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
         }
+
+        // 减少封面图片引用计数
+        decrementCoverReference(music.getCoverUrl());
 
         // 清理关联文件
         deleteMusicFiles(music);
@@ -211,6 +225,8 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         for (Long id : ids) {
             Music music = musicMapper.selectById(id);
             if (music != null) {
+                // 减少封面图片引用计数
+                decrementCoverReference(music.getCoverUrl());
                 // 清理关联文件
                 deleteMusicFiles(music);
                 // 删除记录
@@ -260,5 +276,45 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
             }
         }
         return true;
+    }
+
+    // ==================== 封面图片引用计数管理 ====================
+
+    /**
+     * 增加封面图片引用计数
+     * @param coverUrl 封面URL
+     */
+    private void incrementCoverReference(String coverUrl) {
+        if (coverUrl == null || coverUrl.isEmpty()) {
+            return;
+        }
+        try {
+            Images img = fileUtil.getImageByUrl(coverUrl);
+            if (img != null && img.getDeletedAt() == null) {
+                imagesMapper.incrementUsageCount(img.getId(), 1);
+                log.debug("音乐封面增加引用: {} -> {}", coverUrl, img.getUsageCount() + 1);
+            }
+        } catch (Exception e) {
+            log.warn("增加封面引用计数失败: {}", coverUrl, e);
+        }
+    }
+
+    /**
+     * 减少封面图片引用计数
+     * @param coverUrl 封面URL
+     */
+    private void decrementCoverReference(String coverUrl) {
+        if (coverUrl == null || coverUrl.isEmpty()) {
+            return;
+        }
+        try {
+            Images img = fileUtil.getImageByUrl(coverUrl);
+            if (img != null && img.getDeletedAt() == null) {
+                imagesMapper.incrementUsageCount(img.getId(), -1);
+                log.debug("音乐封面减少引用: {} -> {}", coverUrl, Math.max(0, img.getUsageCount() - 1));
+            }
+        } catch (Exception e) {
+            log.warn("减少封面引用计数失败: {}", coverUrl, e);
+        }
     }
 }

@@ -24,10 +24,13 @@ import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.mapper.PostLikesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
+import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.PostTags;
 import chat.liuxin.liutech.model.PostLikes;
 import chat.liuxin.liutech.model.PostFavorites;
+import chat.liuxin.liutech.model.Images;
+import chat.liuxin.liutech.utils.FileUtil;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
@@ -70,6 +73,12 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     @Autowired
     private CommentsMapper commentsMapper;
+
+    @Autowired
+    private FileUtil fileUtil;
+
+    @Autowired
+    private ImagesMapper imagesMapper;
 
     /**
      * 分页查询文章列表（公开接口）
@@ -413,6 +422,11 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章创建失败");
         }
 
+        // 增加封面图片引用计数
+        if (req != null && StringUtils.hasText(req.getCoverImage())) {
+            incrementCoverReference(req.getCoverImage());
+        }
+
         // 处理标签关联
         if (req != null && req.getTagIds() != null && !req.getTagIds().isEmpty()) {
             savePostTags(post.getId(), req.getTagIds());
@@ -431,6 +445,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         response.setTitle(post.getTitle());
         response.setStatus(post.getStatus());
         response.setCreatedAt(post.getCreatedAt());
+
+        // 更新图片引用计数
+        updateImageReferences(post.getId(), post.getContent());
 
         return response;
     }
@@ -460,6 +477,16 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
 
+        // 处理封面变更，同步 usage_count
+        String oldCover = existPost.getCoverImage();
+        String newCover = req.getCoverImage();
+        if (newCover != null && !newCover.equals(oldCover)) {
+            // 减少旧封面引用
+            decrementCoverReference(oldCover);
+            // 增加新封面引用
+            incrementCoverReference(newCover);
+        }
+
         // 更新文章信息
         Posts post = new Posts();
         BeanUtils.copyProperties(req, post);
@@ -480,6 +507,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             log.info("编辑时绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
                     req.getId(), req.getDraftKey(), bindCount);
         }
+
+        // 更新图片引用计数（处理新旧内容变化）
+        updateImageReferencesOnUpdate(req.getId(), existPost.getContent(), req.getContent());
 
         return true;
     }
@@ -523,6 +553,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
                 .set(PostFavorites::getDeletedAt, new Date());
         postFavoritesMapper.update(null, favoriteUpdateWrapper);
+
+        // 减少封面图片引用计数
+        decrementCoverReference(existPost.getCoverImage());
 
         // 软删除文章
         int result = postsMapper.deleteById(id, new Date(), authorId);
@@ -1018,6 +1051,11 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         }
 
         try {
+            // 先获取文章内容，用于后续减少图片引用
+            Posts post = this.getById(id);
+            String postContent = post != null ? post.getContent() : null;
+            String coverImage = post != null ? post.getCoverImage() : null;
+
             // 删除文章的所有关联数据
             // 删除文章收藏记录
             postFavoritesMapper.deleteByPostId(id);
@@ -1038,6 +1076,12 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             if (result <= 0) {
                 throw new RuntimeException("文章删除失败，可能文章不存在");
             }
+
+            // 减少图片引用计数
+            decrementImageReferences(postContent);
+
+            // 减少封面图片引用计数
+            decrementCoverReference(coverImage);
 
             log.info("彻底删除文章成功，文章ID: {}, 操作者: {}", id, updatedBy);
         } catch (Exception e) {
@@ -1137,5 +1181,192 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
         // 使用MyBatis-Plus自动统计的总数
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+    }
+
+    // ==================== 图片引用计数管理 ====================
+
+    /**
+     * 更新文章图片引用计数（创建新文章时调用）
+     * 提取文章内容中的图片URL，增加对应图片的引用计数
+     *
+     * @param postId 文章ID
+     * @param content 文章内容
+     */
+    private void updateImageReferences(Long postId, String content) {
+        if (content == null || content.isEmpty()) {
+            return;
+        }
+
+        try {
+            List<String> imageUrls = fileUtil.extractImageUrls(content);
+            if (imageUrls.isEmpty()) {
+                return;
+            }
+
+            // 使用Set避免同一张图片被重复计数
+            java.util.Set<String> processedPaths = new java.util.HashSet<>();
+            int updatedCount = 0;
+
+            for (String url : imageUrls) {
+                Images img = fileUtil.getImageByUrl(url);
+                if (img != null && img.getDeletedAt() == null) {
+                    if (!processedPaths.contains(img.getFilePath())) {
+                        imagesMapper.incrementUsageCount(img.getId(), 1);
+                        processedPaths.add(img.getFilePath());
+                        updatedCount++;
+                    }
+                }
+            }
+
+            log.debug("文章ID: {}, 更新图片引用计数: {} 张图片", postId, updatedCount);
+        } catch (Exception e) {
+            log.error("更新文章图片引用计数失败，文章ID: {}", postId, e);
+        }
+    }
+
+    /**
+     * 处理文章更新时的图片引用变化
+     * - 新增的图片增加引用
+     * - 移除的图片减少引用
+     *
+     * @param postId 文章ID
+     * @param oldContent 旧文章内容
+     * @param newContent 新文章内容
+     */
+    private void updateImageReferencesOnUpdate(Long postId, String oldContent, String newContent) {
+        if (newContent == null) {
+            newContent = "";
+        }
+        if (oldContent == null) {
+            oldContent = "";
+        }
+
+        // 如果内容没有变化，不处理
+        if (oldContent.equals(newContent)) {
+            return;
+        }
+
+        try {
+            List<String> oldUrls = fileUtil.extractImageUrls(oldContent);
+            List<String> newUrls = fileUtil.extractImageUrls(newContent);
+
+            // 转换为Set便于计算
+            java.util.Set<String> oldSet = new java.util.HashSet<>(oldUrls);
+            java.util.Set<String> newSet = new java.util.HashSet<>(newUrls);
+
+            // 计算需要增加引用的图片（新内容中有，旧内容中没有）
+            newSet.removeAll(oldSet);
+
+            // 计算需要减少引用的图片（旧内容中有，新内容中没有）
+            java.util.Set<String> toRemove = new java.util.HashSet<>(oldUrls);
+            toRemove.removeAll(new java.util.HashSet<>(newUrls));
+
+            // 增加新图片的引用
+            java.util.Set<String> processedAdd = new java.util.HashSet<>();
+            for (String url : newSet) {
+                Images img = fileUtil.getImageByUrl(url);
+                if (img != null && img.getDeletedAt() == null) {
+                    if (!processedAdd.contains(img.getFilePath())) {
+                        imagesMapper.incrementUsageCount(img.getId(), 1);
+                        processedAdd.add(img.getFilePath());
+                    }
+                }
+            }
+
+            // 减少移除图片的引用
+            java.util.Set<String> processedRemove = new java.util.HashSet<>();
+            for (String url : toRemove) {
+                Images img = fileUtil.getImageByUrl(url);
+                if (img != null && img.getDeletedAt() == null) {
+                    if (!processedRemove.contains(img.getFilePath())) {
+                        imagesMapper.incrementUsageCount(img.getId(), -1);
+                        processedRemove.add(img.getFilePath());
+                    }
+                }
+            }
+
+            log.debug("文章ID: {}, 增加引用: {} 张, 减少引用: {} 张",
+                    postId, processedAdd.size(), processedRemove.size());
+        } catch (Exception e) {
+            log.error("处理文章图片引用变化失败，文章ID: {}", postId, e);
+        }
+    }
+
+    /**
+     * 减少文章图片引用计数（删除文章时调用）
+     * 提取文章内容中的图片URL，减少对应图片的引用计数
+     *
+     * @param content 文章内容
+     */
+    private void decrementImageReferences(String content) {
+        if (content == null || content.isEmpty()) {
+            return;
+        }
+
+        try {
+            List<String> imageUrls = fileUtil.extractImageUrls(content);
+            if (imageUrls.isEmpty()) {
+                return;
+            }
+
+            // 使用Set避免同一张图片被多次减计数
+            java.util.Set<String> processedPaths = new java.util.HashSet<>();
+            int updatedCount = 0;
+
+            for (String url : imageUrls) {
+                Images img = fileUtil.getImageByUrl(url);
+                if (img != null && img.getDeletedAt() == null) {
+                    if (!processedPaths.contains(img.getFilePath())) {
+                        imagesMapper.incrementUsageCount(img.getId(), -1);
+                        processedPaths.add(img.getFilePath());
+                        updatedCount++;
+                    }
+                }
+            }
+
+            log.debug("减少图片引用计数: {} 张图片", updatedCount);
+        } catch (Exception e) {
+            log.error("减少文章图片引用计数失败", e);
+        }
+    }
+
+    // ==================== 封面图片引用计数管理 ====================
+
+    /**
+     * 增加封面图片引用计数
+     * @param coverUrl 封面URL
+     */
+    private void incrementCoverReference(String coverUrl) {
+        if (coverUrl == null || coverUrl.isEmpty() || coverUrl.startsWith("/")) {
+            return;
+        }
+        try {
+            Images img = fileUtil.getImageByUrl(coverUrl);
+            if (img != null && img.getDeletedAt() == null) {
+                imagesMapper.incrementUsageCount(img.getId(), 1);
+                log.debug("文章封面增加引用: {} -> {}", coverUrl, img.getUsageCount() + 1);
+            }
+        } catch (Exception e) {
+            log.warn("增加封面引用计数失败: {}", coverUrl, e);
+        }
+    }
+
+    /**
+     * 减少封面图片引用计数
+     * @param coverUrl 封面URL
+     */
+    private void decrementCoverReference(String coverUrl) {
+        if (coverUrl == null || coverUrl.isEmpty() || coverUrl.startsWith("/")) {
+            return;
+        }
+        try {
+            Images img = fileUtil.getImageByUrl(coverUrl);
+            if (img != null && img.getDeletedAt() == null) {
+                imagesMapper.incrementUsageCount(img.getId(), -1);
+                log.debug("文章封面减少引用: {} -> {}", coverUrl, Math.max(0, img.getUsageCount() - 1));
+            }
+        } catch (Exception e) {
+            log.warn("减少封面引用计数失败: {}", coverUrl, e);
+        }
     }
 }

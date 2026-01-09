@@ -3,14 +3,17 @@ package chat.liuxin.liutech.service;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CommentsMapper;
+import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.resp.UserStatsResp;
 import chat.liuxin.liutech.resp.ProfileResp;
+import chat.liuxin.liutech.utils.FileUtil;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -50,6 +53,12 @@ public class UserProfileService {
     @Autowired
     private PostFavoritesMapper postFavoritesMapper;
 
+    @Autowired
+    private ImagesMapper imagesMapper;
+
+    @Autowired
+    private FileUtil fileUtil;
+
     /**
      * 更新当前用户个人资料
      * 从Spring Security上下文中获取认证用户信息并更新资料
@@ -86,7 +95,17 @@ public class UserProfileService {
             }
         }
 
-        // 3. 更新用户信息
+        // 3. 处理头像变更，同步 usage_count
+        String oldAvatarUrl = currentUser.getAvatarUrl();
+        String newAvatarUrl = updateProfileReq.getAvatarUrl();
+        if (StringUtils.hasText(newAvatarUrl) && !newAvatarUrl.equals(oldAvatarUrl)) {
+            // 减少旧头像引用
+            decrementImageReference(oldAvatarUrl);
+            // 增加新头像引用
+            incrementImageReference(newAvatarUrl);
+        }
+
+        // 4. 更新用户信息
         if (StringUtils.hasText(updateProfileReq.getEmail())) {
             currentUser.setEmail(updateProfileReq.getEmail());
         }
@@ -101,7 +120,7 @@ public class UserProfileService {
         }
         currentUser.setUpdatedAt(new Date());
 
-        // 4. 保存到数据库
+        // 5. 保存到数据库
         try {
             userMapper.updateById(currentUser);
             log.info("用户 {} 个人资料更新成功", currentUser.getUsername());
@@ -110,7 +129,7 @@ public class UserProfileService {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "个人资料更新失败");
         }
 
-        // 5. 转换为响应对象
+        // 6. 转换为响应对象
         UserResp userResp = new UserResp();
         BeanUtils.copyProperties(currentUser, userResp);
         return userResp;
@@ -304,5 +323,45 @@ public class UserProfileService {
      */
     public Long getCurrentUserId() {
         return userUtils.getCurrentUserId();
+    }
+
+    // ==================== 图片引用计数管理 ====================
+
+    /**
+     * 增加图片引用计数
+     * @param imageUrl 图片URL
+     */
+    private void incrementImageReference(String imageUrl) {
+        if (imageUrl == null || imageUrl.isEmpty() || imageUrl.startsWith("/")) {
+            return;
+        }
+        try {
+            Images img = fileUtil.getImageByUrl(imageUrl);
+            if (img != null && img.getDeletedAt() == null) {
+                imagesMapper.incrementUsageCount(img.getId(), 1);
+                log.debug("用户头像增加引用: {} -> {}", imageUrl, img.getUsageCount() + 1);
+            }
+        } catch (Exception e) {
+            log.warn("增加头像引用计数失败: {}", imageUrl, e);
+        }
+    }
+
+    /**
+     * 减少图片引用计数
+     * @param imageUrl 图片URL
+     */
+    private void decrementImageReference(String imageUrl) {
+        if (imageUrl == null || imageUrl.isEmpty() || imageUrl.startsWith("/")) {
+            return;
+        }
+        try {
+            Images img = fileUtil.getImageByUrl(imageUrl);
+            if (img != null && img.getDeletedAt() == null) {
+                imagesMapper.incrementUsageCount(img.getId(), -1);
+                log.debug("用户头像减少引用: {} -> {}", imageUrl, Math.max(0, img.getUsageCount() - 1));
+            }
+        } catch (Exception e) {
+            log.warn("减少头像引用计数失败: {}", imageUrl, e);
+        }
     }
 }

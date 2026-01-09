@@ -17,9 +17,12 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CarouselMapper;
+import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.model.Carousel;
+import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.resp.CarouselResp;
 import chat.liuxin.liutech.utils.FileUtil;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 轮播图服务类
@@ -31,6 +34,7 @@ import chat.liuxin.liutech.utils.FileUtil;
  *
  * @author liuxin
  */
+@Slf4j
 @Service
 public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
 
@@ -39,6 +43,9 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
 
     @Autowired
     private FileUtil fileUtil;
+
+    @Autowired
+    private ImagesMapper imagesMapper;
 
     /**
      * 获取启用的轮播图列表（前台展示）
@@ -112,6 +119,10 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
         if (!success) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建轮播图失败");
         }
+
+        // 增加图片引用计数
+        incrementImageReference(carousel.getImageUrl());
+
         return carousel.getId();
     }
 
@@ -124,7 +135,20 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
     public boolean updateCarousel(Carousel carousel) {
         validateCarouselId(carousel.getId());
         validateCarouselData(carousel);
-        validateCarouselExistsAndNotDeleted(carousel.getId());
+        Carousel existCarousel = carouselMapper.selectByIdWithDeleted(carousel.getId());
+        if (existCarousel == null || existCarousel.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "轮播图不存在");
+        }
+
+        // 处理图片变化
+        String oldImageUrl = existCarousel.getImageUrl();
+        String newImageUrl = carousel.getImageUrl();
+
+        // 如果图片发生变化，先减少旧图片的引用，再增加新图片的引用
+        if (newImageUrl != null && !newImageUrl.equals(oldImageUrl)) {
+            decrementImageReference(oldImageUrl);
+            incrementImageReference(newImageUrl);
+        }
 
         return this.updateById(carousel);
     }
@@ -137,7 +161,14 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
     @Transactional
     public boolean deleteCarousel(Long id) {
         validateCarouselId(id);
-        validateCarouselExistsAndNotDeleted(id);
+        Carousel carousel = carouselMapper.selectByIdWithDeleted(id);
+        if (carousel == null || carousel.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "轮播图不存在");
+        }
+
+        // 减少图片引用计数
+        decrementImageReference(carousel.getImageUrl());
+
         return performSoftDelete(id);
     }
 
@@ -152,9 +183,12 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
         }
 
-        // 验证所有轮播图都存在且未删除
+        // 减少所有轮播图的图片引用计数
         for (Long id : ids) {
-            validateCarouselExistsAndNotDeleted(id);
+            Carousel carousel = carouselMapper.selectByIdWithDeleted(id);
+            if (carousel != null && carousel.getDeletedAt() == null) {
+                decrementImageReference(carousel.getImageUrl());
+            }
         }
 
         // 批量软删除
@@ -326,7 +360,10 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.NOT_FOUND, "轮播图不存在");
         }
 
-        // 删除图片文件
+        // 减少图片引用计数
+        decrementImageReference(carousel.getImageUrl());
+
+        // 删除图片文件（如果usageCount为0则删除）
         if (carousel.getImageUrl() != null) {
             fileUtil.deleteFileByUrl(carousel.getImageUrl());
         }
@@ -346,15 +383,58 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
         }
 
-        // 先删除所有图片文件
+        // 先减少所有图片引用计数并删除文件
         for (Long id : ids) {
             Carousel carousel = carouselMapper.selectByIdWithDeleted(id);
-            if (carousel != null && carousel.getImageUrl() != null) {
-                fileUtil.deleteFileByUrl(carousel.getImageUrl());
+            if (carousel != null) {
+                decrementImageReference(carousel.getImageUrl());
+                if (carousel.getImageUrl() != null) {
+                    fileUtil.deleteFileByUrl(carousel.getImageUrl());
+                }
             }
         }
 
         int rows = carouselMapper.batchPermanentDelete(ids);
         return rows > 0;
+    }
+
+    // ==================== 图片引用计数管理 ====================
+
+    /**
+     * 增加图片引用计数
+     * @param imageUrl 图片URL
+     */
+    private void incrementImageReference(String imageUrl) {
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            return;
+        }
+        try {
+            Images img = fileUtil.getImageByUrl(imageUrl);
+            if (img != null && img.getDeletedAt() == null) {
+                imagesMapper.incrementUsageCount(img.getId(), 1);
+                log.debug("轮播图增加图片引用: {} -> {}", imageUrl, img.getUsageCount() + 1);
+            }
+        } catch (Exception e) {
+            log.warn("增加图片引用计数失败: {}", imageUrl, e);
+        }
+    }
+
+    /**
+     * 减少图片引用计数
+     * @param imageUrl 图片URL
+     */
+    private void decrementImageReference(String imageUrl) {
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            return;
+        }
+        try {
+            Images img = fileUtil.getImageByUrl(imageUrl);
+            if (img != null && img.getDeletedAt() == null) {
+                imagesMapper.incrementUsageCount(img.getId(), -1);
+                log.debug("轮播图减少图片引用: {} -> {}", imageUrl, Math.max(0, img.getUsageCount() - 1));
+            }
+        } catch (Exception e) {
+            log.warn("减少图片引用计数失败: {}", imageUrl, e);
+        }
     }
 }
