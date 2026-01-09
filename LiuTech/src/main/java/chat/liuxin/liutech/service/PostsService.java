@@ -422,10 +422,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章创建失败");
         }
 
-        // 增加封面图片引用计数
-        if (req != null && StringUtils.hasText(req.getCoverImage())) {
-            incrementCoverReference(req.getCoverImage());
-        }
+        // 注意：图片上传时已建立引用，此处不再额外增加 usage_count
 
         // 处理标签关联
         if (req != null && req.getTagIds() != null && !req.getTagIds().isEmpty()) {
@@ -446,8 +443,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         response.setStatus(post.getStatus());
         response.setCreatedAt(post.getCreatedAt());
 
-        // 更新图片引用计数
-        updateImageReferences(post.getId(), post.getContent());
+        // 注意：内容图片的引用已在上传时建立
 
         return response;
     }
@@ -477,15 +473,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
 
-        // 处理封面变更，同步 usage_count
-        String oldCover = existPost.getCoverImage();
-        String newCover = req.getCoverImage();
-        if (newCover != null && !newCover.equals(oldCover)) {
-            // 减少旧封面引用
-            decrementCoverReference(oldCover);
-            // 增加新封面引用
-            incrementCoverReference(newCover);
-        }
+        // 注意：图片引用已在上传时建立，更换封面时不需要调整 usage_count
 
         // 更新文章信息
         Posts post = new Posts();
@@ -508,8 +496,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     req.getId(), req.getDraftKey(), bindCount);
         }
 
-        // 更新图片引用计数（处理新旧内容变化）
-        updateImageReferencesOnUpdate(req.getId(), existPost.getContent(), req.getContent());
+        // 注意：内容图片的引用已在上传时建立
 
         return true;
     }
@@ -554,8 +541,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 .set(PostFavorites::getDeletedAt, new Date());
         postFavoritesMapper.update(null, favoriteUpdateWrapper);
 
-        // 减少封面图片引用计数
-        decrementCoverReference(existPost.getCoverImage());
+        // 软删除不改变 usage_count（引用仍存在，只是标记删除）
+        // usage_count 只在物理删除时减少
 
         // 软删除文章
         int result = postsMapper.deleteById(id, new Date(), authorId);
@@ -1102,6 +1089,18 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         }
 
         try {
+            // 先收集所有文章的封面和内容，用于后续减少图片引用
+            java.util.Map<Long, java.util.Map<String, String>> postImages = new java.util.HashMap<>();
+            for (Long postId : ids) {
+                Posts post = this.getById(postId);
+                if (post != null) {
+                    java.util.Map<String, String> imageMap = new java.util.HashMap<>();
+                    imageMap.put("cover", post.getCoverImage());
+                    imageMap.put("content", post.getContent());
+                    postImages.put(postId, imageMap);
+                }
+            }
+
             // 删除文章的所有关联数据（按正确顺序）
             for (Long postId : ids) {
                 // 删除文章收藏记录
@@ -1121,6 +1120,14 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
             // 批量物理删除文章
             postsMapper.permanentDeleteByIds(ids);
+
+            // 减少所有文章的封面和内容图片引用计数
+            for (java.util.Map<String, String> imageMap : postImages.values()) {
+                String coverImage = imageMap.get("cover");
+                String content = imageMap.get("content");
+                decrementCoverReference(coverImage);
+                decrementImageReferences(content);
+            }
 
             log.info("批量彻底删除文章成功，文章ID: {}, 操作者: {}", ids, updatedBy);
         } catch (Exception e) {
@@ -1315,7 +1322,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
             for (String url : imageUrls) {
                 Images img = fileUtil.getImageByUrl(url);
-                if (img != null && img.getDeletedAt() == null) {
+                if (img != null) {
+                    // 无论图片是否已软删除，都减少 usage_count
                     if (!processedPaths.contains(img.getFilePath())) {
                         imagesMapper.incrementUsageCount(img.getId(), -1);
                         processedPaths.add(img.getFilePath());
@@ -1361,7 +1369,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         }
         try {
             Images img = fileUtil.getImageByUrl(coverUrl);
-            if (img != null && img.getDeletedAt() == null) {
+            if (img != null) {
+                // 无论图片是否已软删除，都减少 usage_count
                 imagesMapper.incrementUsageCount(img.getId(), -1);
                 log.debug("文章封面减少引用: {} -> {}", coverUrl, Math.max(0, img.getUsageCount() - 1));
             }

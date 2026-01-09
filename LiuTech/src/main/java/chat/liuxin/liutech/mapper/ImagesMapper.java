@@ -33,4 +33,13 @@ public interface ImagesMapper extends BaseMapper<Images> {
      */
     @Select("UPDATE images SET usage_count = usage_count + #{delta}, updated_at = NOW() WHERE id = #{id} AND deleted_at IS NULL")
     Integer incrementUsageCount(@Param("id") Long id, @Param("delta") int delta);
+
+    /**
+     * 物理删除图片记录（绕过 @TableLogic 软删除）
+     *
+     * @param id 图片ID
+     * @return 影响行数
+     */
+    @Select("DELETE FROM images WHERE id = #{id}")
+    Integer permanentDeleteById(@Param("id") Long id);
 }

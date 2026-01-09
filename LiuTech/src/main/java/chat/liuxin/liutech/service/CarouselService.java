@@ -120,8 +120,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建轮播图失败");
         }
 
-        // 增加图片引用计数
-        incrementImageReference(carousel.getImageUrl());
+        // 注意：图片上传时已建立引用，此处不再额外增加 usage_count
 
         return carousel.getId();
     }
@@ -144,11 +143,8 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
         String oldImageUrl = existCarousel.getImageUrl();
         String newImageUrl = carousel.getImageUrl();
 
-        // 如果图片发生变化，先减少旧图片的引用，再增加新图片的引用
-        if (newImageUrl != null && !newImageUrl.equals(oldImageUrl)) {
-            decrementImageReference(oldImageUrl);
-            incrementImageReference(newImageUrl);
-        }
+        // 注意：图片引用已在上传时建立，更换图片时不需要调整 usage_count
+        // 如果需要严格追踪，可以考虑在此处调整，但当前简化处理
 
         return this.updateById(carousel);
     }
@@ -166,8 +162,8 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.NOT_FOUND, "轮播图不存在");
         }
 
-        // 减少图片引用计数
-        decrementImageReference(carousel.getImageUrl());
+        // 软删除不改变 usage_count（引用仍存在，只是标记删除）
+        // usage_count 只在物理删除时减少
 
         return performSoftDelete(id);
     }
@@ -183,13 +179,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
         }
 
-        // 减少所有轮播图的图片引用计数
-        for (Long id : ids) {
-            Carousel carousel = carouselMapper.selectByIdWithDeleted(id);
-            if (carousel != null && carousel.getDeletedAt() == null) {
-                decrementImageReference(carousel.getImageUrl());
-            }
-        }
+        // 软删除不改变 usage_count（引用仍存在，只是标记删除）
 
         // 批量软删除
         LambdaUpdateWrapper<Carousel> updateWrapper = new LambdaUpdateWrapper<>();
@@ -360,7 +350,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.NOT_FOUND, "轮播图不存在");
         }
 
-        // 减少图片引用计数
+        // 物理删除时强制减少 usage_count（无论是否已软删除）
         decrementImageReference(carousel.getImageUrl());
 
         // 删除图片文件（如果usageCount为0则删除）
@@ -383,7 +373,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
         }
 
-        // 先减少所有图片引用计数并删除文件
+        // 物理删除时强制减少所有轮播图的图片引用计数
         for (Long id : ids) {
             Carousel carousel = carouselMapper.selectByIdWithDeleted(id);
             if (carousel != null) {
@@ -429,7 +419,8 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
         }
         try {
             Images img = fileUtil.getImageByUrl(imageUrl);
-            if (img != null && img.getDeletedAt() == null) {
+            if (img != null) {
+                // 无论图片是否已软删除，都减少 usage_count
                 imagesMapper.incrementUsageCount(img.getId(), -1);
                 log.debug("轮播图减少图片引用: {} -> {}", imageUrl, Math.max(0, img.getUsageCount() - 1));
             }

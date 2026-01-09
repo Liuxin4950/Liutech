@@ -12,8 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.baomidou.mybatisplus.core.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.model.Images;
@@ -41,7 +40,8 @@ public class OrphanImageCleanupService {
      * 每天凌晨3点执行（北京时间）
      * 生产环境使用此配置
      */
-    @Scheduled(cron = "0 0 3 * * ?", zone = "Asia/Shanghai")
+    // @Scheduled(cron = "0 0 3 * * ?", zone = "Asia/Shanghai")
+    @Scheduled(cron = "0 * * * * *")
     public void cleanup() {
         log.info("开始清理孤立图片...");
 
@@ -55,7 +55,7 @@ public class OrphanImageCleanupService {
                 return;
             }
 
-            // 2. 删除物理文件并软删除记录
+            // 2. 删除物理文件并物理删除记录
             int deletedCount = 0;
             int failedCount = 0;
 
@@ -86,25 +86,24 @@ public class OrphanImageCleanupService {
     }
 
     /**
-     * 删除图片物理文件并软删除记录
+     * 删除图片物理文件并物理删除记录
      */
     private boolean deleteImageAndRecord(Images img) {
         // 1. 删除物理文件
         boolean deleted = deletePhysicalFile(img.getFilePath());
 
-        // 2. 软删除记录
-        UpdateWrapper<Images> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", img.getId())
-                     .set("deleted_at", new Date());
-        imagesMapper.update(null, updateWrapper);
+        // 2. 物理删除记录（绕过 @TableLogic 软删除）
+        Integer rows = imagesMapper.permanentDeleteById(img.getId());
 
-        if (deleted) {
-            log.info("已清理孤立图片: {} (ID: {})", img.getFilePath(), img.getId());
+        if (deleted && rows != null && rows > 0) {
+            log.info("已彻底清理孤立图片: {} (ID: {})", img.getFilePath(), img.getId());
+        } else if (!deleted && rows != null && rows > 0) {
+            log.warn("文件不存在但已删除记录: {} (ID: {})", img.getFilePath(), img.getId());
         } else {
-            log.warn("文件不存在或删除失败: {} (ID: {})，已软删除记录", img.getFilePath(), img.getId());
+            log.warn("清理失败: {} (ID: {})", img.getFilePath(), img.getId());
         }
 
-        return deleted;
+        return deleted && rows != null && rows > 0;
     }
 
     /**

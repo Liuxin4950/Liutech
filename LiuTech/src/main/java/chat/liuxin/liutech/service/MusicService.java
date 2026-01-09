@@ -119,8 +119,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         music.setCreatedAt(new Date());
         music.setUpdatedAt(new Date());
 
-        // 增加封面图片引用计数
-        incrementCoverReference(coverUrl);
+        // 注意：封面上传时已建立引用，此处不再额外增加 usage_count
 
         try {
             // 保存完整音频
@@ -168,9 +167,8 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         }
         // 处理封面变化
         if (coverUrl != null && !coverUrl.equals(music.getCoverUrl())) {
-            decrementCoverReference(music.getCoverUrl());
+            // 注意：图片引用已在上传时建立，更换封面时不需要调整 usage_count
             music.setCoverUrl(coverUrl);
-            incrementCoverReference(coverUrl);
         }
         if (sortOrder != null) {
             music.setSortOrder(sortOrder);
@@ -309,7 +307,8 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         }
         try {
             Images img = fileUtil.getImageByUrl(coverUrl);
-            if (img != null && img.getDeletedAt() == null) {
+            if (img != null) {
+                // 无论图片是否已软删除，都减少 usage_count
                 imagesMapper.incrementUsageCount(img.getId(), -1);
                 log.debug("音乐封面减少引用: {} -> {}", coverUrl, Math.max(0, img.getUsageCount() - 1));
             }
