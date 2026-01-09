@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.CarouselMapper">
+
+    <!-- 根据ID物理删除轮播图 -->
+    <delete id="permanentDeleteById">
+        DELETE FROM carousels
+        WHERE id = #{id}
+    </delete>
+
+    <!-- 批量物理删除轮播图 -->
+    <delete id="batchPermanentDelete">
+        DELETE FROM carousels
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 恢复已删除的轮播图 -->
+    <update id="restoreCarouselById">
+        UPDATE carousels
+        SET deleted_at = NULL, updated_at = NOW()
+        WHERE id = #{id} AND deleted_at IS NOT NULL
+    </update>
+
+</mapper>

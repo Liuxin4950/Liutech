@@ -53,8 +53,8 @@ instance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    
-    console.log('API 请求:', config.method?.toUpperCase(), config.url)
+
+    console.log('API 请求:', config.method?.toUpperCase(), config.url, config.params || '')
     return config
   },
   (error) => {

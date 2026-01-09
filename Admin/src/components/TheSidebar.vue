@@ -12,7 +12,8 @@ import {
   MenuUnfoldOutlined,
   HistoryOutlined,
   CloudOutlined,
-  SettingOutlined
+  SettingOutlined,
+  PictureOutlined
 } from '@ant-design/icons-vue'
 
 const router = useRouter()
@@ -54,6 +55,7 @@ const menuItems = [
     label: '系统管理',
     children: [
       { key: 'announcements', icon: NotificationOutlined, label: '公告管理', path: '/announcements' },
+      { key: 'carousels', icon: PictureOutlined, label: '轮播图管理', path: '/carousels' },
       { key: 'logs', icon: HistoryOutlined, label: '操作日志', path: '/logs' },
       { key: 'music', icon: CloudOutlined, label: 'AI音乐', path: '/music' }
     ]
@@ -69,6 +71,7 @@ const getSelectedKey = (): string[] => {
   if (path.startsWith('/tags')) return ['tags']
   if (path.startsWith('/users')) return ['users']
   if (path.startsWith('/announcements')) return ['announcements']
+  if (path.startsWith('/carousels')) return ['carousels']
   if (path.startsWith('/logs')) return ['logs']
   if (path.startsWith('/music')) return ['music']
   return ['dashboard']
@@ -80,7 +83,7 @@ const getOpenKeys = (): string[] => {
   if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/tags')) {
     return ['content']
   }
-  if (path.startsWith('/announcements') || path.startsWith('/logs') || path.startsWith('/music')) {
+  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/logs') || path.startsWith('/music')) {
     return ['system']
   }
   return []

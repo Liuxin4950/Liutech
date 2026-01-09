@@ -22,7 +22,6 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/admin/categories")
-@CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
 public class CategoriesAdminController extends BaseAdminController {
 
@@ -156,7 +155,7 @@ public class CategoriesAdminController extends BaseAdminController {
      * 批量彻底删除分类（物理删除）
      */
     @DeleteMapping("/batch/permanent")
-    @OperationLog(action = "delete", targetType = "category", description = "批量彻底删除分类")
+    @OperationLog(action = "delete", targetType = "category", description = "批量彻底删除分类", targetName = "#ids")
     public Result<String> batchPermanentDeleteCategories(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "分类ID列表");
         try {

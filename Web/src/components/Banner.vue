@@ -1,6 +1,56 @@
 <template>
     <div class="banner-header">
-        <img class="banner-image" src="@/assets/image/banner/liuyin.jpeg" alt="">
+        <!-- 轮播图图片 -->
+        <template v-if="carousels.length > 0">
+            <a
+                v-if="currentCarousel.linkUrl"
+                :href="currentCarousel.linkUrl"
+                target="_blank"
+                class="banner-link"
+            >
+                <img
+                    class="banner-image"
+                    :src="currentCarousel.imageUrl"
+                    :alt="currentCarousel.title"
+                >
+            </a>
+            <img
+                v-else
+                class="banner-image"
+                :src="currentCarousel.imageUrl"
+                :alt="currentCarousel.title"
+            >
+        </template>
+        <!-- 无轮播图时显示默认图片 -->
+        <template v-else>
+            <img class="banner-image" src="@/assets/image/banner/liuyin.jpeg" alt="Banner">
+        </template>
+
+        <!-- 切换按钮（多张图片时显示） -->
+        <template v-if="carousels.length > 1">
+            <button class="banner-nav prev" @click="prevImage" aria-label="上一张">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                </svg>
+            </button>
+            <button class="banner-nav next" @click="nextImage" aria-label="下一张">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/>
+                </svg>
+            </button>
+            <!-- 指示器 -->
+            <div class="banner-dots">
+                <span
+                    v-for="(_, index) in carousels"
+                    :key="index"
+                    class="dot"
+                    :class="{ active: index === currentIndex }"
+                    @click="currentIndex = index"
+                ></span>
+            </div>
+        </template>
+
+        <!-- 波浪动画 -->
         <div class="wave-container">
             <svg class="waves" xmlns="http://www.w3.org/2000/svg" viewBox="0 24 150 28" preserveAspectRatio="none">
                 <defs>
@@ -18,8 +68,70 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import CarouselService, { type Carousel } from '@/services/carousel'
 
+const carousels = ref<Carousel[]>([])
+const currentIndex = ref(0)
+let autoPlayTimer: number | null = null
+
+const currentCarousel = computed(() => {
+    if (carousels.value.length > 0) {
+        return carousels.value[currentIndex.value]
+    }
+    return { title: '', imageUrl: '', linkUrl: '', sortOrder: 0, status: 1 }
+})
+
+const prevImage = () => {
+    if (carousels.value.length <= 1) return
+    currentIndex.value = currentIndex.value === 0
+        ? carousels.value.length - 1
+        : currentIndex.value - 1
+}
+
+const nextImage = () => {
+    if (carousels.value.length <= 1) return
+    currentIndex.value = currentIndex.value >= carousels.value.length - 1
+        ? 0
+        : currentIndex.value + 1
+}
+
+const startAutoPlay = () => {
+    if (carousels.value.length <= 1) return
+    stopAutoPlay()
+    autoPlayTimer = window.setInterval(() => {
+        nextImage()
+    }, 5000)
+}
+
+const stopAutoPlay = () => {
+    if (autoPlayTimer !== null) {
+        clearInterval(autoPlayTimer)
+        autoPlayTimer = null
+    }
+}
+
+const loadCarousels = async () => {
+    try {
+        const res = await CarouselService.getActiveCarousels()
+        if (res.code === 200 && res.data) {
+            carousels.value = res.data
+            currentIndex.value = 0
+            startAutoPlay()
+        }
+    } catch (error) {
+        console.error('加载轮播图失败:', error)
+    }
+}
+
+onMounted(() => {
+    loadCarousels()
+})
+
+onUnmounted(() => {
+    stopAutoPlay()
+})
 </script>
 
 <style scoped>
@@ -31,10 +143,72 @@
     background: linear-gradient(60deg, var(--color-primary) 0%, var(--color-primary) 100%);
     overflow: hidden;
 }
+.banner-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
 .banner-image{
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: opacity 0.5s ease;
+}
+
+/* 导航按钮 */
+.banner-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 20;
+    backdrop-filter: blur(4px);
+}
+.banner-nav:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: translateY(-50%) scale(1.1);
+}
+.banner-nav.prev {
+    left: 20px;
+}
+.banner-nav.next {
+    right: 20px;
+}
+
+/* 指示器 */
+.banner-dots {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 20;
+}
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.dot:hover {
+    background: rgba(255, 255, 255, 0.8);
+}
+.dot.active {
+    background: white;
+    transform: scale(1.2);
 }
 
 .waves {
@@ -103,12 +277,21 @@
 }
 
 @include respond(md) {
-    .banner-title {
-        width: 80%;
+    .banner-nav {
+        width: 40px;
+        height: 40px;
     }
 
-    .banner-title .glowing-text {
-        font-size: 1.5rem;
+    .banner-nav.prev {
+        left: 10px;
+    }
+
+    .banner-nav.next {
+        right: 10px;
+    }
+
+    .banner-dots {
+        bottom: 60px;
     }
 
     .waves {

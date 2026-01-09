@@ -67,6 +67,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'carousels',
+        name: 'carousels-management',
+        component: () => import('../views/admin/CarouselsManagement.vue'),
+        meta: {
+          title: '轮播图管理',
+          section: 'carousels'
+        }
+      },
+      {
         path: 'logs',
         name: 'logs-management',
         component: () => import('../views/admin/LogsManagement.vue'),
