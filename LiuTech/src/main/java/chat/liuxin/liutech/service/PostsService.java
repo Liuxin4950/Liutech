@@ -2,7 +2,11 @@ package chat.liuxin.liutech.service;
 
 import java.util.Date;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
@@ -418,7 +422,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章创建失败");
         }
 
-        // 注意：图片上传时已建立引用，此处不再额外增加 usage_count
+        applyImageReferenceDelta(countUrls(collectPostImageUrls(post.getCoverImage(), post.getThumbnail(), post.getContent())));
 
         // 处理标签关联
         if (req != null && req.getTagIds() != null && !req.getTagIds().isEmpty()) {
@@ -438,8 +442,6 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         response.setTitle(post.getTitle());
         response.setStatus(post.getStatus());
         response.setCreatedAt(post.getCreatedAt());
-
-        // 注意：内容图片的引用已在上传时建立
 
         return response;
     }
@@ -469,7 +471,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
 
-        // 注意：图片引用已在上传时建立，更换封面时不需要调整 usage_count
+        List<String> oldImageUrls = collectPostImageUrls(existPost.getCoverImage(), existPost.getThumbnail(), existPost.getContent());
+        List<String> newImageUrls = collectPostImageUrls(req.getCoverImage(), req.getThumbnail(), req.getContent());
 
         // 更新文章信息
         Posts post = new Posts();
@@ -482,6 +485,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章更新失败");
         }
 
+        syncImageReferences(oldImageUrls, newImageUrls);
+
         // 更新标签关联
         updatePostTags(req.getId(), req.getTagIds());
 
@@ -492,9 +497,63 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     req.getId(), req.getDraftKey(), bindCount);
         }
 
-        // 注意：内容图片的引用已在上传时建立
-
         return true;
+    }
+
+    private List<String> collectPostImageUrls(String coverImage, String thumbnail, String content) {
+        List<String> urls = new ArrayList<>();
+        if (StringUtils.hasText(coverImage)) {
+            urls.add(coverImage);
+        }
+        if (StringUtils.hasText(thumbnail)) {
+            urls.add(thumbnail);
+        }
+        urls.addAll(fileUtil.extractImageUrls(content));
+        return urls;
+    }
+
+    private Map<String, Integer> countUrls(List<String> urls) {
+        Map<String, Integer> counts = new HashMap<>();
+        if (urls == null || urls.isEmpty()) {
+            return counts;
+        }
+        for (String url : urls) {
+            if (!StringUtils.hasText(url)) {
+                continue;
+            }
+            counts.merge(url, 1, Integer::sum);
+        }
+        return counts;
+    }
+
+    private void syncImageReferences(List<String> oldUrls, List<String> newUrls) {
+        Map<String, Integer> oldCounts = countUrls(oldUrls);
+        Map<String, Integer> newCounts = countUrls(newUrls);
+        Set<String> allUrls = new HashSet<>();
+        allUrls.addAll(oldCounts.keySet());
+        allUrls.addAll(newCounts.keySet());
+
+        Map<String, Integer> delta = new HashMap<>();
+        for (String url : allUrls) {
+            int d = newCounts.getOrDefault(url, 0) - oldCounts.getOrDefault(url, 0);
+            if (d != 0) {
+                delta.put(url, d);
+            }
+        }
+        applyImageReferenceDelta(delta);
+    }
+
+    private void applyImageReferenceDelta(Map<String, Integer> deltaByUrl) {
+        if (deltaByUrl == null || deltaByUrl.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Integer> entry : deltaByUrl.entrySet()) {
+            Integer delta = entry.getValue();
+            if (delta == null || delta == 0) {
+                continue;
+            }
+            fileUtil.incrementImageUsageCountByUrl(entry.getKey(), delta);
+        }
     }
 
     /**

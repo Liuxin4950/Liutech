@@ -119,8 +119,6 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         music.setCreatedAt(new Date());
         music.setUpdatedAt(new Date());
 
-        // 注意：封面上传时已建立引用，此处不再额外增加 usage_count
-
         try {
             // 保存完整音频
             String fullAudioPath = fileUtil.saveFile(fullAudio, fileUploadConfig.getMusicPath());
@@ -132,6 +130,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
 
             // 保存记录
             musicMapper.insert(music);
+            incrementCoverReference(music.getCoverUrl());
 
             log.info("音乐上传成功 - ID: {}, 标题: {}", music.getId(), title);
             return music.getId();
@@ -158,6 +157,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         if (music == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
         }
+        String oldCoverUrl = music.getCoverUrl();
 
         if (title != null && !title.trim().isEmpty()) {
             music.setTitle(title);
@@ -166,9 +166,10 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
             music.setArtist(artist);
         }
         // 处理封面变化
-        if (coverUrl != null && !coverUrl.equals(music.getCoverUrl())) {
-            // 注意：图片引用已在上传时建立，更换封面时不需要调整 usage_count
+        if (coverUrl != null && !coverUrl.equals(oldCoverUrl)) {
             music.setCoverUrl(coverUrl);
+            decrementCoverReference(oldCoverUrl);
+            incrementCoverReference(coverUrl);
         }
         if (sortOrder != null) {
             music.setSortOrder(sortOrder);

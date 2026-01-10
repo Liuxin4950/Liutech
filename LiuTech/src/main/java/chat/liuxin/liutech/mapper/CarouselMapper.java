@@ -81,6 +81,9 @@ public interface CarouselMapper extends BaseMapper<Carousel> {
     @Select("SELECT * FROM carousels WHERE id = #{id}")
     Carousel selectByIdWithDeleted(@Param("id") Long id);
 
+    @Select("SELECT image_url FROM carousels WHERE image_url IS NOT NULL AND deleted_at IS NULL")
+    List<String> selectAllImageUrls();
+
     /**
      * 恢复已删除的轮播图（原生SQL，绕过 @TableLogic）
      * @param id 轮播图ID

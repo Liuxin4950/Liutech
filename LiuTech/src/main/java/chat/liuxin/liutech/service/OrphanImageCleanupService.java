@@ -33,15 +33,13 @@ public class OrphanImageCleanupService {
     @Value("${file.upload.base-path:${user.dir}/uploads}")
     private String uploadBasePath;
 
+    @Value("${orphan.image.cleanup.ttl-hours:24}")
+    private long cleanupTtlHours;
+
     @Autowired
     private ImagesMapper imagesMapper;
 
-    /**
-     * 每天凌晨3点执行（北京时间）
-     * 生产环境使用此配置
-     */
-    // @Scheduled(cron = "0 0 3 * * ?", zone = "Asia/Shanghai")
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "${orphan.image.cleanup.cron:0 0 3 * * ?}", zone = "${orphan.image.cleanup.zone:Asia/Shanghai}")
     public void cleanup() {
         log.info("开始清理孤立图片...");
 
@@ -78,10 +76,12 @@ public class OrphanImageCleanupService {
      * 查询 usage_count = 0 的图片记录
      */
     private List<Images> queryZeroUsageImages() {
+        Date cutoff = new Date(System.currentTimeMillis() - cleanupTtlHours * 3600_000L);
         LambdaQueryWrapper<Images> query = new LambdaQueryWrapper<>();
         query.eq(Images::getUsageCount, 0)
              .eq(Images::getStatus, 1)
-             .isNull(Images::getDeletedAt);
+             .isNull(Images::getDeletedAt)
+             .lt(Images::getCreatedAt, cutoff);
         return imagesMapper.selectList(query);
     }
 

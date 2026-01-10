@@ -120,7 +120,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "创建轮播图失败");
         }
 
-        // 注意：图片上传时已建立引用，此处不再额外增加 usage_count
+        incrementImageReference(carousel.getImageUrl());
 
         return carousel.getId();
     }
@@ -143,8 +143,10 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
         String oldImageUrl = existCarousel.getImageUrl();
         String newImageUrl = carousel.getImageUrl();
 
-        // 注意：图片引用已在上传时建立，更换图片时不需要调整 usage_count
-        // 如果需要严格追踪，可以考虑在此处调整，但当前简化处理
+        if (newImageUrl != null && !newImageUrl.equals(oldImageUrl)) {
+            decrementImageReference(oldImageUrl);
+            incrementImageReference(newImageUrl);
+        }
 
         return this.updateById(carousel);
     }

@@ -11,6 +11,7 @@ import chat.liuxin.liutech.model.Resources;
 import chat.liuxin.liutech.model.PostAttachments;
 import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.resp.FileUploadResp;
+import chat.liuxin.liutech.resp.ImageUploadResult;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,7 +70,8 @@ public class FileUploadService {
 
         try {
             // 使用ImagesService进行去重上传
-            Images image = imagesService.uploadImage(file, userId, fileUploadConfig.getImagePath());
+            ImageUploadResult uploadResult = imagesService.uploadImage(file, userId, fileUploadConfig.getImagePath());
+            Images image = uploadResult.getImage();
 
             // 构建响应
             FileUploadResp result = new FileUploadResp();
@@ -81,8 +83,7 @@ public class FileUploadService {
             result.setExtension(image.getExtension());
             result.setUploadTime(System.currentTimeMillis());
             result.setImageId(image.getId());
-            // 判断是否为重复图片（usageCount > 1 表示被多次引用）
-            result.setIsDuplicate(image.getUsageCount() > 1);
+            result.setIsDuplicate(uploadResult.isDuplicate());
 
             log.info("图片上传成功 - 用户ID: {}, 图片ID: {}, 是否重复: {}, 访问URL: {}",
                     userId, image.getId(), result.getIsDuplicate(), image.getFileUrl());

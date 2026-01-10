@@ -350,4 +350,12 @@ public interface PostsMapper extends BaseMapper<Posts> {
     @Select("SELECT id, cover_image, thumbnail, content FROM posts WHERE status = 'published' AND deleted_at IS NULL")
     List<Posts> selectAllPublishedPostsWithContent();
 
+    /**
+     * 查询所有未物理删除的文章（包含草稿与已发布）
+     *
+     * @return 文章列表（包含 content 字段）
+     */
+    @Select("SELECT id, cover_image, thumbnail, content FROM posts WHERE deleted_at IS NULL")
+    List<Posts> selectAllPostsWithContent();
+
 }

@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import chat.liuxin.liutech.resp.ImageUploadResult;
 
 /**
  * 图片服务
@@ -39,26 +40,15 @@ public class ImagesService {
      * @throws IOException IO异常
      */
     @Transactional
-    public Images uploadImage(MultipartFile file, Long uploaderId, String subPath) throws IOException {
-        // 1. 计算文件哈希
+    public ImageUploadResult uploadImage(MultipartFile file, Long uploaderId, String subPath) throws IOException {
         String fileHash = fileUtil.calculateFileHash(file);
         log.debug("计算文件哈希: {}", fileHash);
 
         // 2. 查询是否已存在相同哈希的图片
         Images existingImage = imagesMapper.selectByHash(fileHash);
         if (existingImage != null) {
-            // 3a. 已存在，增加引用计数
-            log.info("发现重复图片，哈希: {}，已有记录ID: {}，增加引用计数", fileHash, existingImage.getId());
-            Integer rows = imagesMapper.incrementUsageCount(existingImage.getId(), 1);
-            if (rows != null && rows > 0) {
-                // 重新查询获取最新的 usageCount
-                Images updatedImage = imagesMapper.selectByHash(fileHash);
-                if (updatedImage != null) {
-                    return updatedImage;
-                }
-            }
-            // 如果更新失败或查询失败，返回原对象（usageCount 可能不准确但功能可用）
-            return existingImage;
+            log.info("发现重复图片，哈希: {}，已有记录ID: {}", fileHash, existingImage.getId());
+            return new ImageUploadResult(existingImage, true);
         }
 
         // 3. 不存在，保存文件
@@ -75,7 +65,7 @@ public class ImagesService {
         newImage.setMimeType(file.getContentType());
         newImage.setExtension(fileUtil.getFileExtension(file.getOriginalFilename()));
         newImage.setUploaderId(uploaderId);
-        newImage.setUsageCount(1);
+        newImage.setUsageCount(0);
         newImage.setStatus(1);
 
         // 尝试获取图片尺寸
@@ -92,7 +82,7 @@ public class ImagesService {
         imagesMapper.insert(newImage);
         log.info("新图片保存成功，ID: {}，路径: {}", newImage.getId(), relativePath);
 
-        return newImage;
+        return new ImageUploadResult(newImage, false);
     }
 
     /**

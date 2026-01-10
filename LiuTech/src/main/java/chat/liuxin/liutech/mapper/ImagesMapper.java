@@ -44,4 +44,7 @@ public interface ImagesMapper extends BaseMapper<Images> {
      */
     @Delete("DELETE FROM images WHERE id = #{id}")
     Integer permanentDeleteById(@Param("id") Long id);
+
+    @Update("UPDATE images SET usage_count = 0, updated_at = NOW() WHERE deleted_at IS NULL")
+    Integer resetUsageCount();
 }
