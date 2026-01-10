@@ -37,10 +37,15 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-123456}
       # JWT签名密钥 - 生产环境必须配置强密钥
       - JWT_SECRET=${JWT_SECRET}
+      # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 /liuxin/uploads 到此路径
       - FILE_UPLOAD_BASE_PATH=/app/uploads
       - SERVER_BASE_URL=${SERVER_BASE_URL:-http://liuxin.chat}
+      # 静态资源路径（可选，用于直接返回文件）
+      - SPRING_WEB_RESOURCES_STATIC_LOCATIONS=file:/app/uploads
     volumes:
-      - upload_files:/app/uploads
+      # 将宿主机 /liuxin/uploads 目录挂载到容器 /app/uploads
+      # 这样文件会持久化到宿主机 /liuxin/uploads 目录
+      - /liuxin/uploads:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
@@ -106,8 +111,6 @@ services:
 
 
 
-# 数据卷配置
+# 数据卷配置（仅 mysql_data，uploads 已改为 Bind Mount）
 volumes:
-  mysql_data:
-  upload_files:
-    driver: local
+  mysql_data: local
