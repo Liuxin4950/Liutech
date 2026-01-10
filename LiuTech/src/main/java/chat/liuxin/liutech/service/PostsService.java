@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -38,6 +39,7 @@ import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.mapper.CommentsMapper;
+import chat.liuxin.liutech.utils.FileUtil;
 
 /**
  * 文章服务类
@@ -70,6 +72,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     @Autowired
     private CommentsMapper commentsMapper;
+
+    @Autowired
+    private FileUtil fileUtil;
 
     /**
      * 分页查询文章列表（公开接口）
@@ -1034,6 +1039,14 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             String postContent = post != null ? post.getContent() : null;
             String coverImage = post != null ? post.getCoverImage() : null;
             String thumbnail = post != null ? post.getThumbnail() : null;
+            List<String> imageUrls = new ArrayList<>();
+            if (StringUtils.hasText(coverImage)) {
+                imageUrls.add(coverImage);
+            }
+            if (StringUtils.hasText(thumbnail)) {
+                imageUrls.add(thumbnail);
+            }
+            imageUrls.addAll(fileUtil.extractImageUrls(postContent));
 
             // 如果文章不存在或已被物理删除，直接返回
             if (post == null) {
@@ -1062,6 +1075,10 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 throw new RuntimeException("文章删除失败，可能文章不存在");
             }
 
+            for (String url : imageUrls) {
+                fileUtil.decrementImageUsageCountByUrl(url);
+            }
+
             log.info("彻底删除文章成功，文章ID: {}, 操作者: {}", id, updatedBy);
         } catch (Exception e) {
             log.error("彻底删除文章失败，文章ID: {}, 操作者: {}, 错误: {}", id, updatedBy, e.getMessage(), e);
@@ -1079,13 +1096,22 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (ids == null || ids.isEmpty()) {
             throw new IllegalArgumentException("文章ID列表不能为空");
         }
-        // 这里需要解析出文章使用了哪些图片，各自多少次，然后减少图片的引用次数(出现一次-1，相同的图片也-1)
-        // TODO: 解析文章内容，提取图片URL 思路，先解析出文章的封面(正副)，让后解析出content里的所用图片img标签。让后用文件工具类减去图片的引用次数。 2026-1-10晚上2：35
-
-
-
-
         try {
+            List<String> imageUrls = new ArrayList<>();
+            for (Long postId : ids) {
+                Posts post = postsMapper.selectByIdWithDeleted(postId);
+                if (post == null) {
+                    continue;
+                }
+                if (StringUtils.hasText(post.getCoverImage())) {
+                    imageUrls.add(post.getCoverImage());
+                }
+                if (StringUtils.hasText(post.getThumbnail())) {
+                    imageUrls.add(post.getThumbnail());
+                }
+                imageUrls.addAll(fileUtil.extractImageUrls(post.getContent()));
+            }
+
             // 删除文章的所有关联数据（按正确顺序）
             for (Long postId : ids) {
                 // 删除文章收藏记录
@@ -1105,6 +1131,10 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
             // 批量物理删除文章
             postsMapper.permanentDeleteByIds(ids);
+
+            for (String url : imageUrls) {
+                fileUtil.decrementImageUsageCountByUrl(url);
+            }
 
             log.info("批量彻底删除文章成功，文章ID: {}, 操作者: {}", ids, updatedBy);
         } catch (Exception e) {

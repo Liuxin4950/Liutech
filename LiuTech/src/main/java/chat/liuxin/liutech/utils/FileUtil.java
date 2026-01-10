@@ -52,7 +52,9 @@ public class FileUtil {
 
     /** 图片URL提取正则（无引号版本） */
     private static final Pattern IMG_SRC_PATTERN_NO_QUOTE = Pattern.compile(
-            "<img\\s+[^>]*?src\\s*=\\s*([\\S]+)[^>]*>", Pattern.CASE_INSENSITIVE);
+            "<img\\s+[^>]*?src\\s*=\\s*([^\\s\"'>]+)[^>]*>", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern MARKDOWN_IMAGE_PATTERN = Pattern.compile("!\\[[^\\]]*\\]\\(([^)\\s]+)\\)");
     
     /**
      * 保存上传的文件
@@ -303,7 +305,6 @@ public class FileUtil {
             return urls;
         }
 
-
         // 匹配带引号的 src
         Matcher matcher = IMG_SRC_PATTERN.matcher(content);
         while (matcher.find()) {
@@ -317,7 +318,77 @@ public class FileUtil {
             }
         }
 
+        Matcher noQuoteMatcher = IMG_SRC_PATTERN_NO_QUOTE.matcher(content);
+        while (noQuoteMatcher.find()) {
+            String src = noQuoteMatcher.group(1);
+            if (src != null) {
+                src = src.trim();
+            }
+            if (src != null && (src.startsWith("/uploads/") || src.contains("/uploads/"))) {
+                urls.add(src);
+            }
+        }
+
+        Matcher markdownMatcher = MARKDOWN_IMAGE_PATTERN.matcher(content);
+        while (markdownMatcher.find()) {
+            String src = markdownMatcher.group(1);
+            if (src != null) {
+                src = src.trim();
+            }
+            if (src != null && (src.startsWith("/uploads/") || src.contains("/uploads/"))) {
+                urls.add(src);
+            }
+        }
+
         return urls;
+    }
+
+    public int incrementImageUsageCountByUrl(String url, int delta) {
+        String relativePath = normalizeToRelativePath(url);
+        if (relativePath == null) {
+            return 0;
+        }
+
+        LambdaQueryWrapper<Images> query = new LambdaQueryWrapper<>();
+        query.eq(Images::getFilePath, relativePath)
+                .isNull(Images::getDeletedAt)
+                .eq(Images::getStatus, 1);
+        Images image = imagesMapper.selectOne(query);
+        if (image == null) {
+            return 0;
+        }
+        return imagesMapper.incrementUsageCount(image.getId(), delta);
+    }
+
+    public int decrementImageUsageCountByUrl(String url) {
+        return incrementImageUsageCountByUrl(url, -1);
+    }
+
+    private String normalizeToRelativePath(String fileUrlOrRelativePath) {
+        if (fileUrlOrRelativePath == null || fileUrlOrRelativePath.isEmpty()) {
+            return null;
+        }
+
+        String relativePath = extractRelativePath(fileUrlOrRelativePath);
+        if (relativePath != null && !relativePath.isEmpty()) {
+            return relativePath;
+        }
+
+        if (fileUrlOrRelativePath.contains("://")) {
+            return null;
+        }
+
+        String value = fileUrlOrRelativePath.trim();
+        if (value.startsWith("/")) {
+            value = value.substring(1);
+        }
+        if (value.startsWith("uploads/")) {
+            value = value.substring("uploads/".length());
+        }
+        if (value.isEmpty()) {
+            return null;
+        }
+        return value;
     }
 
     /**
