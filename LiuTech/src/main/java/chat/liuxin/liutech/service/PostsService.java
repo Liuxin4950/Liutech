@@ -521,7 +521,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             if (!StringUtils.hasText(url)) {
                 continue;
             }
-            counts.merge(url, 1, Integer::sum);
+            counts.merge(url, 1, (oldValue, delta) ->
+                    (oldValue == null ? 0 : oldValue) + (delta == null ? 0 : delta));
         }
         return counts;
     }

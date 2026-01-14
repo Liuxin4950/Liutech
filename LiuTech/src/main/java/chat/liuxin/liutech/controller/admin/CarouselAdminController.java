@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.controller.admin;
 
 import java.util.List;
+import java.util.Objects;
 
 import jakarta.validation.Valid;
 
@@ -21,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 
 import chat.liuxin.liutech.aspect.OperationLog;
-import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Carousel;
 import chat.liuxin.liutech.req.CarouselReq;
@@ -87,6 +87,7 @@ public class CarouselAdminController extends BaseAdminController {
     @PostMapping
     public Result<Long> createCarousel(@Valid @RequestBody CarouselReq req) {
         try {
+            Objects.requireNonNull(req, "req");
             Carousel carousel = new Carousel();
             org.springframework.beans.BeanUtils.copyProperties(req, carousel);
             Long id = carouselService.createCarousel(carousel);
@@ -108,6 +109,7 @@ public class CarouselAdminController extends BaseAdminController {
             @PathVariable Long id,
             @Valid @RequestBody CarouselReq req) {
         try {
+            Objects.requireNonNull(req, "req");
             req.setId(id);
             Carousel carousel = new Carousel();
             org.springframework.beans.BeanUtils.copyProperties(req, carousel);

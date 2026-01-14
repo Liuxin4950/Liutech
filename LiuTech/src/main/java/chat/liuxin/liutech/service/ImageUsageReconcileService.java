@@ -120,7 +120,8 @@ public class ImageUsageReconcileService {
         if (!StringUtils.hasText(path)) {
             return;
         }
-        countsByPath.merge(path, 1, Integer::sum);
+        countsByPath.merge(path, 1, (oldValue, delta) ->
+                (oldValue == null ? 0 : oldValue) + (delta == null ? 0 : delta));
     }
 
     private String normalizeToRelativePath(String fileUrlOrRelativePath) {

@@ -61,12 +61,12 @@ mybatis-plus:
 logging:
   level:
     root: INFO
-    org.apache.ibatis: WARN
-    com.baomidou.mybatisplus: WARN
-    chat.liuxin.liutech.mapper: WARN
-    chat.liuxin.liutech.aspect: DEBUG
-    org.springframework.data.repository.config.RepositoryConfigurationDelegate: WARN
-    org.springframework.data.redis: WARN
+    "[org.apache.ibatis]": WARN
+    "[com.baomidou.mybatisplus]": WARN
+    "[chat.liuxin.liutech.mapper]": WARN
+    "[chat.liuxin.liutech.aspect]": DEBUG
+    "[org.springframework.data.repository.config.RepositoryConfigurationDelegate]": WARN
+    "[org.springframework.data.redis]": WARN
 
 server:
   port: 8080

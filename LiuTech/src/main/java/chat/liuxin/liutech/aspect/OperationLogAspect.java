@@ -25,6 +25,8 @@ import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 
 /**
  * 操作日志切面
@@ -35,9 +37,10 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
 @Component
 public class OperationLogAspect {
 
-    @Lazy
+    @Lazy// 延迟加载，避免循环依赖
     private final LogService logService;
     private final UserUtils userUtils;
+    // SpEL表达式解析器
     private final ExpressionParser expressionParser = new SpelExpressionParser();
 
     public OperationLogAspect(LogService logService, UserUtils userUtils) {
@@ -163,6 +166,7 @@ public class OperationLogAspect {
     /**
      * 解析目标名称
      */
+    @Nullable
     private String resolveTargetName(ProceedingJoinPoint point, OperationLog operationLog, Object result) {
         String targetNameSpel = operationLog.targetName();
         if (StringUtils.isBlank(targetNameSpel)) {
@@ -199,9 +203,9 @@ public class OperationLogAspect {
                 } else {
                     // 纯SpEL表达式，尝试解析
                     EvaluationContext context = createEvaluationContext(point, result);
-                    Object parsedValue = expressionParser.parseExpression(description).getValue(context, String.class);
+                    String parsedValue = expressionParser.parseExpression(description).getValue(context, String.class);
                     if (parsedValue != null) {
-                        description = parsedValue.toString();
+                        description = parsedValue;
                     }
                 }
             } catch (Exception e) {
@@ -220,6 +224,7 @@ public class OperationLogAspect {
     /**
      * 创建SpEL表达式上下文
      */
+    @NonNull
     private EvaluationContext createEvaluationContext(ProceedingJoinPoint point, Object result) {
         StandardEvaluationContext context = new StandardEvaluationContext();
 

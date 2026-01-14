@@ -128,12 +128,12 @@ jwt:
 # 日志配置
 logging:
   level:
-    chat.liuxin.ai: DEBUG
-    org.springframework.ai: DEBUG
-    org.springframework.retry: DEBUG
+    "[chat.liuxin.ai]": DEBUG
+    "[org.springframework.ai]": DEBUG
+    "[org.springframework.retry]": DEBUG
     # 屏蔽MyBatis的SQL日志
-    chat.liuxin.ai.mapper: ERROR
-    com.baomidou.mybatisplus: ERROR
+    "[chat.liuxin.ai.mapper]": ERROR
+    "[com.baomidou.mybatisplus]": ERROR
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

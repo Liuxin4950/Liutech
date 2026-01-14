@@ -2,6 +2,7 @@ package chat.liuxin.liutech.service;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
@@ -305,16 +306,15 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @return 轮播图响应数据
      */
     private CarouselResp convertToResp(Carousel carousel) {
+        Carousel source = Objects.requireNonNull(carousel, "carousel");
         CarouselResp resp = new CarouselResp();
-        if (carousel != null) {
-            BeanUtils.copyProperties(carousel, resp);
-        }
+        BeanUtils.copyProperties(source, resp);
 
         // 设置状态名称
-        resp.setStatusName(getStatusName(carousel.getStatus()));
+        resp.setStatusName(getStatusName(source.getStatus()));
 
         // 设置删除状态
-        if (carousel.getDeletedAt() != null) {
+        if (source.getDeletedAt() != null) {
             resp.setDeleteStatus("已删除");
         } else {
             resp.setDeleteStatus("正常");

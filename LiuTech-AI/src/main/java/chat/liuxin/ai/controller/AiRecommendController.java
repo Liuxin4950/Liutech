@@ -1,6 +1,7 @@
 package chat.liuxin.ai.controller;
 
 import chat.liuxin.ai.mcp.BlogMcpTools;
+import chat.liuxin.ai.dto.PostSummaryDTO;
 import chat.liuxin.ai.req.RecommendRequest;
 import chat.liuxin.ai.resp.RecommendResponse;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +55,7 @@ public class AiRecommendController {
             switch (request.getType().toLowerCase()) {
                 case "search":
                     // 搜索推荐
-                    List searchResults = blogMcpTools.searchPosts(request.getKeyword(), limit);
+                    List<PostSummaryDTO> searchResults = blogMcpTools.searchPosts(request.getKeyword(), limit);
                     response = RecommendResponse.search(request.getKeyword(), searchResults);
                     break;
 
@@ -72,13 +73,13 @@ public class AiRecommendController {
 
                 case "latest":
                     // 最新推荐
-                    List latestPosts = blogMcpTools.getLatestPosts(limit);
+                    List<PostSummaryDTO> latestPosts = blogMcpTools.getLatestPosts(limit);
                     response = RecommendResponse.latest(latestPosts);
                     break;
 
                 case "hot":
                     // 热门推荐
-                    List hotPosts = blogMcpTools.getHotPosts(limit);
+                    List<PostSummaryDTO> hotPosts = blogMcpTools.getHotPosts(limit);
                     response = RecommendResponse.hot(hotPosts);
                     break;
 
