@@ -429,6 +429,9 @@ onMounted(async () => {
           </a-col>
           <a-col :span="6" class="text-right">
             <a-space>
+               <a-tooltip title="显示已删除的文章">
+                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+              </a-tooltip>
               <a-button type="primary" @click="handleSearch">
                 <template #icon><SearchOutlined /></template>
                 搜索
@@ -437,9 +440,7 @@ onMounted(async () => {
                 <template #icon><ReloadOutlined /></template>
                 重置
               </a-button>
-              <a-tooltip title="显示已删除的文章">
-                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
+             
             </a-space>
           </a-col>
         </a-row>
