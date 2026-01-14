@@ -5,269 +5,215 @@ import Icon from '../components/Icon.vue'
 </script>
 
 <template>
-  <div class="about-page">
-    <!-- 顶部个人卡片 -->
-    <div class="profile-card">
-      <div class="profile-inner">
-        <div class="avatar-section">
+  <div class="about-page content">
+    <!-- 顶部 Hero 区域 -->
+    <div class="hero-section">
+      <div class="hero-content">
+        <div class="avatar-wrapper">
           <img src="/default-avatar.svg" alt="刘鑫" class="user-avatar" />
         </div>
-        <div class="user-info">
+        <div class="hero-text">
           <h1 class="username">刘鑫</h1>
           <p class="user-bio">全栈工程师 & 技术博主</p>
           <p class="user-motto">「代码改变世界，热爱成就未来」</p>
-        </div>
-        <div class="social-links">
-          <a href="#" class="social-item" title="GitHub">
-            <Icon name="github" size="18" />
-          </a>
-          <a href="#" class="social-item" title="邮箱">
-            <Icon name="mail" size="18" />
-          </a>
-          <a href="#" class="social-item" title="网站">
-            <Icon name="globe" size="18" />
-          </a>
-          <a href="#" class="social-item" title="哔哩哔哩">
-            <Icon name="video" size="18" />
-          </a>
+          <div class="social-links">
+            <a href="#" class="social-item" title="GitHub">
+              <Icon name="github" size="20" />
+            </a>
+            <a href="#" class="social-item" title="邮箱">
+              <Icon name="mail" size="20" />
+            </a>
+            <a href="#" class="social-item" title="网站">
+              <Icon name="globe" size="20" />
+            </a>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 下方内容区 -->
-    <div class="main-content">
-      <div class="content">
-        <!-- 左侧主要内容 -->
-        <div class="content-left">
+    <!-- 主要内容区 -->
+    <div class="main-container">
+      <div class="content-grid">
+        <!-- 左侧主要信息 -->
+        <div class="main-column">
           <!-- 关于我 -->
-          <section class="section-card">
-            <div class="section-header">
-              <Icon name="person" size="18" />
-              <span>关于我</span>
-            </div>
-            <div class="section-body">
+          <section class="info-card">
+            <h2 class="card-title">
+              <Icon name="person" size="24" class="title-icon" />
+              关于我
+            </h2>
+            <div class="card-body">
               <p class="about-text">
                 你好！我是刘鑫，一名热爱技术的全栈工程师。专注于前端开发、后端架构设计，
-                喜欢探索新技术并分享技术心得。
+                喜欢探索新技术并分享技术心得。拥有多年的开发经验，致力于构建高性能、
+                高可用的 Web 应用。
               </p>
               <p class="about-text">
                 这个博客是我记录技术学习和生活感悟的地方，希望能够帮助到更多的开发者朋友。
+                在工作之余，我也活跃于开源社区，贡献代码并参与技术讨论。
               </p>
-              <div class="highlights">
-                <div class="highlight-item">
-                  <Icon name="code" size="16" />
-                  <span>全栈开发</span>
+              
+              <div class="stats-row">
+                <div class="stat-item">
+                  <span class="stat-num">3+</span>
+                  <span class="stat-label">开发经验</span>
                 </div>
-                <div class="highlight-item">
-                  <Icon name="lightbulb" size="16" />
-                  <span>技术分享</span>
+                <div class="stat-item">
+                  <span class="stat-num">20+</span>
+                  <span class="stat-label">项目经历</span>
                 </div>
-                <div class="highlight-item">
-                  <Icon name="rocket" size="16" />
-                  <span>开源贡献</span>
-                </div>
-                <div class="highlight-item">
-                  <Icon name="school" size="16" />
-                  <span>终身学习</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- 技术栈 -->
-          <section class="section-card">
-            <div class="section-header">
-              <Icon name="code" size="18" />
-              <span>技术栈</span>
-            </div>
-            <div class="section-body">
-              <div class="skill-category">
-                <h3 class="skill-title">前端技术</h3>
-                <div class="tags-cloud">
-                  <span class="tag">Vue.js</span>
-                  <span class="tag">React</span>
-                  <span class="tag">TypeScript</span>
-                  <span class="tag">JavaScript</span>
-                  <span class="tag">HTML/CSS</span>
-                  <span class="tag">Sass</span>
-                  <span class="tag">Vite</span>
-                  <span class="tag">Pinia</span>
-                </div>
-              </div>
-              <div class="skill-category">
-                <h3 class="skill-title">后端技术</h3>
-                <div class="tags-cloud">
-                  <span class="tag">Java</span>
-                  <span class="tag">Spring Boot</span>
-                  <span class="tag">MyBatis</span>
-                  <span class="tag">MySQL</span>
-                  <span class="tag">Redis</span>
-                  <span class="tag">Docker</span>
-                  <span class="tag">Nginx</span>
-                </div>
-              </div>
-              <div class="skill-category">
-                <h3 class="skill-title">开发工具</h3>
-                <div class="tags-cloud">
-                  <span class="tag">Git</span>
-                  <span class="tag">VS Code</span>
-                  <span class="tag">IntelliJ IDEA</span>
-                  <span class="tag">Postman</span>
-                  <span class="tag">Maven</span>
-                  <span class="tag">Docker Desktop</span>
+                <div class="stat-item">
+                  <span class="stat-num">50+</span>
+                  <span class="stat-label">技术文章</span>
                 </div>
               </div>
             </div>
           </section>
 
           <!-- 学习历程 -->
-          <section class="section-card">
-            <div class="section-header">
-              <Icon name="history" size="18" />
-              <span>学习历程</span>
-            </div>
-            <div class="section-body">
+          <section class="info-card">
+            <h2 class="card-title">
+              <Icon name="history" size="24" class="title-icon" />
+              经历与历程
+            </h2>
+            <div class="card-body">
               <div class="timeline">
                 <div class="timeline-item">
-                  <div class="timeline-dot"></div>
+                  <div class="timeline-year">2025</div>
                   <div class="timeline-content">
-                    <span class="timeline-year">2022</span>
-                    <p class="timeline-text">开始系统学习编程，掌握 Java 基础</p>
+                    <h3>持续深耕 & AI 探索</h3>
+                    <p>专注于全栈技术深耕，同时探索 AI Agent 与现有业务的结合，开发了多个实用的 AI 辅助工具。</p>
                   </div>
                 </div>
                 <div class="timeline-item">
-                  <div class="timeline-dot"></div>
+                  <div class="timeline-year">2024</div>
                   <div class="timeline-content">
-                    <span class="timeline-year">2023</span>
-                    <p class="timeline-text">深入 Spring Boot 开发，完成首个项目</p>
+                    <h3>Vue 3 + TypeScript</h3>
+                    <p>全面转向 Vue 3 生态，重构个人博客系统，深入学习 TypeScript 类型系统与工程化实践。</p>
                   </div>
                 </div>
                 <div class="timeline-item">
-                  <div class="timeline-dot"></div>
+                  <div class="timeline-year">2023</div>
                   <div class="timeline-content">
-                    <span class="timeline-year">2024</span>
-                    <p class="timeline-text">学习 Vue 3 + TypeScript，开始写博客</p>
+                    <h3>Spring Boot 实战</h3>
+                    <p>深入后端开发，掌握 Spring Boot 微服务架构，独立完成了首个企业级后台管理系统的开发。</p>
                   </div>
                 </div>
                 <div class="timeline-item">
-                  <div class="timeline-dot"></div>
+                  <div class="timeline-year">2022</div>
                   <div class="timeline-content">
-                    <span class="timeline-year">2025</span>
-                    <p class="timeline-text">持续深耕全栈技术，探索 AI 应用开发</p>
+                    <h3>编程启蒙</h3>
+                    <p>开始系统学习计算机基础与 Java 编程，打下扎实的基础，开启了编程探索之旅。</p>
                   </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- 兴趣爱好 -->
-          <section class="section-card">
-            <div class="section-header">
-              <Icon name="favorite" size="18" />
-              <span>兴趣爱好</span>
-            </div>
-            <div class="section-body">
-              <div class="hobbies-grid">
-                <div class="hobby-item">
-                  <Icon name="code" size="24" class="hobby-icon" />
-                  <span class="hobby-name">编程</span>
-                </div>
-                <div class="hobby-item">
-                  <Icon name="book" size="24" class="hobby-icon" />
-                  <span class="hobby-name">阅读</span>
-                </div>
-                <div class="hobby-item">
-                  <Icon name="music" size="24" class="hobby-icon" />
-                  <span class="hobby-name">音乐</span>
-                </div>
-                <div class="hobby-item">
-                  <Icon name="game" size="24" class="hobby-icon" />
-                  <span class="hobby-name">游戏</span>
-                </div>
-                <div class="hobby-item">
-                  <Icon name="video" size="24" class="hobby-icon" />
-                  <span class="hobby-name">影视</span>
-                </div>
-                <div class="hobby-item">
-                  <Icon name="run" size="24" class="hobby-icon" />
-                  <span class="hobby-name">运动</span>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- 联系方式 -->
-          <section class="section-card">
-            <div class="section-header">
-              <Icon name="chat" size="18" />
-              <span>联系方式</span>
-            </div>
-            <div class="section-body">
-              <div class="contact-list">
-                <div class="contact-item">
-                  <Icon name="mail" size="16" class="contact-icon" />
-                  <span class="contact-text">liuxin@example.com</span>
-                </div>
-                <div class="contact-item">
-                  <Icon name="github" size="16" class="contact-icon" />
-                  <span class="contact-text">GitHub: @liuxin</span>
-                </div>
-                <div class="contact-item">
-                  <Icon name="globe" size="16" class="contact-icon" />
-                  <span class="contact-text">个人网站: liutech.blog</span>
-                </div>
-                <div class="contact-item">
-                  <Icon name="location" size="16" class="contact-icon" />
-                  <span class="contact-text">所在地: 中国 · 深圳</span>
                 </div>
               </div>
             </div>
           </section>
         </div>
 
-        <!-- 右侧边栏 -->
-        <div class="content-right">
-          <!-- 关于本站 -->
-          <section class="section-card sticky">
-            <div class="section-header">
-              <Icon name="rocket" size="18" />
-              <span>关于本站</span>
-            </div>
-            <div class="section-body">
-              <p class="site-desc">
-                本站采用现代化的技术栈构建，前后端分离架构，
-                支持文章发布、分类管理、标签系统、用户评论等功能。
-              </p>
-              <div class="tech-stack-list">
-                <div class="tech-item">
-                  <span class="tech-label">前端</span>
-                  <span class="tech-value">Vue 3 + TypeScript + Vite</span>
+        <!-- 右侧侧边栏 -->
+        <div class="sidebar-column">
+          <!-- 技术栈 -->
+          <section class="info-card">
+            <h2 class="card-title">
+              <Icon name="code" size="20" class="title-icon" />
+              技术栈
+            </h2>
+            <div class="card-body">
+              <div class="skill-group">
+                <h3 class="skill-label">前端开发</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">Vue 3</span>
+                  <span class="skill-tag">TypeScript</span>
+                  <span class="skill-tag">Vite</span>
+                  <span class="skill-tag">Tailwind</span>
                 </div>
-                <div class="tech-item">
-                  <span class="tech-label">后端</span>
-                  <span class="tech-value">Spring Boot + MyBatis + MySQL</span>
+              </div>
+              <div class="skill-group">
+                <h3 class="skill-label">后端开发</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">Java</span>
+                  <span class="skill-tag">Spring Boot</span>
+                  <span class="skill-tag">MySQL</span>
+                  <span class="skill-tag">Redis</span>
                 </div>
-                <div class="tech-item">
-                  <span class="tech-label">部署</span>
-                  <span class="tech-value">Docker + 云服务器</span>
+              </div>
+              <div class="skill-group">
+                <h3 class="skill-label">工具 & 运维</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">Git</span>
+                  <span class="skill-tag">Docker</span>
+                  <span class="skill-tag">Nginx</span>
+                  <span class="skill-tag">Linux</span>
                 </div>
               </div>
             </div>
           </section>
 
-          <!-- 给我留言 -->
-          <section class="section-card sticky">
-            <div class="section-header">
-              <Icon name="message" size="18" />
-              <span>给我留言</span>
+          <!-- 兴趣爱好 -->
+          <section class="info-card">
+            <h2 class="card-title">
+              <Icon name="favorite" size="20" class="title-icon" />
+              兴趣爱好
+            </h2>
+            <div class="card-body">
+              <div class="hobbies-grid">
+                <div class="hobby-item">
+                  <Icon name="code" size="24" class="hobby-icon" />
+                  <span>编程</span>
+                </div>
+                <div class="hobby-item">
+                  <Icon name="book" size="24" class="hobby-icon" />
+                  <span>阅读</span>
+                </div>
+                <div class="hobby-item">
+                  <Icon name="music" size="24" class="hobby-icon" />
+                  <span>音乐</span>
+                </div>
+                <div class="hobby-item">
+                  <Icon name="game" size="24" class="hobby-icon" />
+                  <span>游戏</span>
+                </div>
+                <div class="hobby-item">
+                  <Icon name="film" size="24" class="hobby-icon" />
+                  <span>电影</span>
+                </div>
+                <div class="hobby-item">
+                  <Icon name="running" size="24" class="hobby-icon" />
+                  <span>跑步</span>
+                </div>
+                <div class="hobby-item">
+                  <Icon name="camera" size="24" class="hobby-icon" />
+                  <span>摄影</span>
+                </div>
+              </div>
             </div>
-            <div class="section-body">
-              <p class="message-desc">
-                如果你有什么想法、建议或者想要交流的内容，欢迎给我留言！
-              </p>
+          </section>
+
+          <!-- 联系我 -->
+          <section class="info-card">
+            <h2 class="card-title">
+              <Icon name="chat" size="20" class="title-icon" />
+              联系我
+            </h2>
+            <div class="card-body">
+              <ul class="contact-list">
+                <li>
+                  <Icon name="mail" size="16" />
+                  <span>liuxin@example.com</span>
+                </li>
+                <li>
+                  <Icon name="github" size="16" />
+                  <span>github.com/liuxin</span>
+                </li>
+                <li>
+                  <Icon name="location" size="16" />
+                  <span>中国 · 深圳</span>
+                </li>
+              </ul>
               <button class="message-btn">
                 <Icon name="edit" size="16" />
-                写留言
+                给我留言
               </button>
             </div>
           </section>
@@ -280,457 +226,388 @@ import Icon from '../components/Icon.vue'
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
-// 页面容器
-.about-page {
-  min-height: 100vh;
+// Hero 区域
+.hero-section {
+  width: 100%;
+  position: absolute;
+  left: 0;
+  top: 50px;
+  padding: 80px 20px 100px;
+  border-bottom: 1px solid var(--border-light);
+  @include respond(md) {
+    position: relative;
+  }
 }
 
-// 顶部悬浮卡片
-.profile-card {
-  margin: 0 auto 0;
-  max-width: 1200px;
-  padding: 0 20px;
+.hero-content {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
   position: relative;
+  z-index: 1;
 }
 
-.profile-inner {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 32px 40px;
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  min-height: 140px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  box-shadow: var(--shadow-sm);
-
-  @include respond(lg) {
-    flex-wrap: wrap;
-    justify-content: center;
-    min-height: auto;
-    padding: 28px;
-    gap: 24px;
-  }
-
-  @include respond(md) {
-    flex-direction: column;
-    text-align: center;
-    padding: 24px;
+.avatar-wrapper {
+  margin-bottom: 24px;
+  
+  .user-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 4px solid var(--bg-card);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    object-fit: cover;
+    transition: transform 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.05) rotate(5deg);
+    }
   }
 }
 
-.avatar-section {
-  flex-shrink: 0;
-}
-
-.user-avatar {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 3px solid var(--bg-card);
-  object-fit: cover;
-  box-shadow: var(--shadow-sm);
-
-  @include respond(sm) {
-    width: 80px;
-    height: 80px;
+.hero-text {
+  .username {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-title);
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
   }
-}
-
-.user-info {
-  flex: 1;
-  min-width: 180px;
-
-  @include respond(md) {
-    width: 100%;
+  
+  .user-bio {
+    font-size: 1.1rem;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    font-weight: 500;
   }
-}
-
-.username {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-title);
-  margin: 0 0 6px 0;
-
-  @include respond(md) {
-    justify-content: center;
-  }
-}
-
-.user-bio {
-  color: var(--text-subtle);
-  font-size: 0.95rem;
-  margin: 0 0 8px 0;
-
-  @include respond(md) {
-    text-align: center;
-  }
-}
-
-.user-motto {
-  color: var(--color-primary);
-  font-size: 0.9rem;
-  font-style: italic;
-  margin: 0;
-
-  @include respond(md) {
-    text-align: center;
+  
+  .user-motto {
+    font-size: 0.95rem;
+    color: var(--text-subtle);
+    font-style: italic;
+    margin-bottom: 24px;
   }
 }
 
 .social-links {
   display: flex;
-  gap: 10px;
-  flex-shrink: 0;
-
-  @include respond(md) {
-    justify-content: center;
-  }
-}
-
-.social-item {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: var(--bg-soft);
-  display: flex;
-  align-items: center;
   justify-content: center;
-  color: var(--text-subtle);
-  transition: all 0.2s;
-
-  &:hover {
-    background: var(--color-primary);
-    color: white;
-    transform: translateY(-2px);
-  }
-}
-
-// 主要内容区
-.main-content {
-  padding: 24px 0 60px;
-}
-
-.content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 20px;
-  align-items: start;
-
-  @include respond(lg) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.content-left {
-  display: flex;
-  flex-direction: column;
   gap: 16px;
-}
-
-.content-right {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-
-  @include respond(lg) {
-    order: -1;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-}
-
-// 卡片样式
-.section-card {
-  background: var(--bg-card);
-  border-radius: 12px;
-  padding: 20px;
-  border: 1px solid var(--border-base);
-  box-shadow: var(--shadow-sm);
-
-  &.sticky {
-    position: sticky;
-    top: 90px;
-
-    @include respond(lg) {
-      position: static;
-      flex: 1;
-      min-width: 280px;
+  
+  .social-item {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-subtle);
+    transition: all 0.2s ease;
+    border: 1px solid var(--border-light);
+    
+    &:hover {
+      background: var(--color-primary);
+      color: white;
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
+      border-color: var(--color-primary);
     }
   }
 }
 
-.section-header {
+// 主要内容布局
+.main-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
+  position: relative;
+  z-index: 2;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  
+  @include respond(md) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.info-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+  }
+  
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-title);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-light);
+    
+    .title-icon {
+      color: var(--color-primary);
+    }
+  }
+}
+
+// 统计数据
+.stats-row {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-title);
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-light);
+  gap: 40px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px dashed var(--border-light);
+  
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    
+    .stat-num {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--color-primary);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-subtle);
+    }
+  }
 }
 
-.section-body {
-  color: var(--text-subtle);
-  line-height: 1.8;
-}
-
-// 关于我
+// 关于文本
 .about-text {
-  margin: 0 0 12px 0;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.highlights {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-light);
-}
-
-.highlight-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: var(--bg-soft);
-  border-radius: 20px;
-  font-size: 0.85rem;
+  line-height: 1.8;
   color: var(--text-main);
-
-  :deep(svg) {
-    color: var(--color-primary);
-  }
-}
-
-// 技术栈
-.skill-category {
   margin-bottom: 16px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
+  font-size: 1rem;
 }
 
-.skill-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--color-primary);
-  margin: 0 0 10px 0;
-}
-
-// 学习历程 - 时间线
+// 时间轴
 .timeline {
   position: relative;
-  padding-left: 20px;
-
+  padding-left: 12px;
+  
   &::before {
     content: '';
     position: absolute;
-    left: 5px;
+    left: 0;
     top: 8px;
-    bottom: 8px;
+    bottom: 0;
     width: 2px;
     background: var(--border-light);
+    border-radius: 2px;
   }
 }
 
 .timeline-item {
   position: relative;
-  padding-bottom: 16px;
-
+  padding-left: 24px;
+  padding-bottom: 32px;
+  
   &:last-child {
     padding-bottom: 0;
   }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 8px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 2px solid var(--color-primary);
+    box-shadow: 0 0 0 4px var(--bg-soft);
+  }
+  
+  .timeline-year {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 4px;
+  }
+  
+  .timeline-content {
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-title);
+      margin-bottom: 8px;
+    }
+    
+    p {
+      font-size: 0.95rem;
+      color: var(--text-subtle);
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
 }
 
-.timeline-dot {
-  position: absolute;
-  left: -20px;
-  top: 6px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--bg-card);
-  border: 2px solid var(--color-primary);
+// 技能标签
+.skill-group {
+  margin-bottom: 20px;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  .skill-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-subtle);
+    margin-bottom: 10px;
+    display: block;
+  }
+  
+  .skill-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    
+    .skill-tag {
+      padding: 4px 10px;
+      background: var(--bg-soft);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: var(--text-main);
+      transition: all 0.2s;
+      
+      &:hover {
+        background: var(--color-primary);
+        color: white;
+      }
+    }
+  }
 }
 
-.timeline-content {
-  padding-left: 12px;
-}
-
-.timeline-year {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-primary);
-}
-
-.timeline-text {
-  font-size: 0.9rem;
-  color: var(--text-main);
-  margin: 4px 0 0 0;
-}
-
-// 兴趣爱好
+// 兴趣爱好网格
 .hobbies-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 
-  @include respond(md) {
-    grid-template-columns: repeat(3, 1fr);
+  .hobby-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-soft);
+    border-radius: 12px;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    border: 1px solid transparent;
+    transition: all 0.2s;
+
+    .hobby-icon {
+      color: var(--color-primary);
+      flex-shrink: 0;
+    }
+
+    &:hover {
+      border-color: var(--color-primary);
+      background: var(--bg-card);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+      .hobby-icon {
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  @include respond(sm) {
+    grid-template-columns: 1fr;
   }
 }
 
-.hobby-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 8px;
-  background: var(--bg-soft);
-  border-radius: 12px;
-  transition: all 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-    background: var(--bg-tag);
-  }
-}
-
-.hobby-icon {
-  color: var(--color-primary);
-}
-
-.hobby-name {
-  font-size: 0.8rem;
-  color: var(--text-main);
-}
-
-// 联系方式
+// 联系列表
 .contact-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.contact-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: var(--bg-soft);
-  border-radius: 8px;
-  color: var(--text-main);
-  font-size: 0.9rem;
-}
-
-.contact-icon {
-  color: var(--color-primary);
-}
-
-// 关于本站
-.site-desc {
-  margin: 0 0 16px 0;
-  line-height: 1.7;
-}
-
-.tech-stack-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.tech-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  background: var(--bg-soft);
-  border-radius: 8px;
-  border-left: 3px solid var(--color-primary);
-}
-
-.tech-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-primary);
-  min-width: 45px;
-}
-
-.tech-value {
-  font-size: 0.85rem;
-  color: var(--text-main);
-}
-
-// 给我留言
-.message-desc {
-  margin: 0 0 16px 0;
-  font-size: 0.9rem;
-  line-height: 1.6;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+  
+  li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    
+    :deep(svg) {
+      color: var(--color-primary);
+    }
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
 }
 
 .message-btn {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   transition: all 0.2s;
-
+  
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(45, 144, 205, 0.3);
+    background: var(--color-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
   }
 }
 
-// 响应式
+// 响应式微调
 @include respond(sm) {
-  .profile-inner {
-    padding: 20px;
-    gap: 16px;
+  .hero-section {
+    padding: 40px 20px 80px;
   }
-
-  .username {
-    font-size: 1.3rem;
+  
+  .hero-text .username {
+    font-size: 2rem;
   }
-
-  .section-card {
-    padding: 16px;
+  
+  .info-card {
+    padding: 24px;
   }
-
-  .section-header {
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    font-size: 0.95rem;
-  }
-
-  .hobbies-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .hobby-item {
-    padding: 12px 6px;
+  
+  .stats-row {
+    gap: 20px;
+    justify-content: space-between;
+    
+    .stat-item .stat-num {
+      font-size: 1.5rem;
+    }
   }
 }
 </style>

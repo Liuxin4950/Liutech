@@ -38,7 +38,7 @@
       </span>
 
       <!-- 页码信息 -->
-      <span class="text-sm px-12 py-6 rounded text-subtle">
+      <span class="text-sm pagination-number">
         第 {{ currentPage }} 页，共 {{ totalPages }} 页
       </span>
     </div>
@@ -205,7 +205,9 @@ const goToPage = (page: number) => {
     gap: 12px;
   }
 }
-
+.pagination-number{
+  margin-left: 5px;
+}
 .pagination-btn {
   min-width: 60px;
   padding: 6px;
@@ -268,11 +270,4 @@ const goToPage = (page: number) => {
   cursor: default;
 }
 
-.flex.gap-8 {
-  gap: 4px;
-}
-
-.text-sm {
-  font-size: 0.7rem;
-}
 </style>

@@ -186,35 +186,38 @@ input{
   padding: 8px 0;
 }
 
-/* 标签云组件 */
 .tags-cloud {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
+  margin-top: 16px;
 }
 
 .tag {
-  background: var(--bg-tag);
-  color: var(--text-main);
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: var(--bg-soft);
+  color: var(--text-subtle);
+  border-radius: 20px;
+  font-size: 13px;
+  transition: all 0.2s ease;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid var(--border-soft);
-}
+  border: 1px solid transparent;
 
-.tag:hover {
-  background: var(--bg-tag-hover);
-  color:white;
-}
+  &:hover {
+    color: var(--color-primary);
+    background: var(--bg-hover);
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+  }
 
-.tag small {
-  opacity: 0.8;
-  margin-left: 4px;
+  &::before {
+    content: '#';
+    margin-right: 4px;
+    opacity: 0.5;
+  }
 }
-
 /* =================================
    间距工具类
    ================================= */

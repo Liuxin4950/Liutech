@@ -1,16 +1,16 @@
 <template>
-  <div class="card bg-card ">
+  <div class="card bg-card">
     <h4 class="card-title">文章分类</h4>
     <div v-if="loading" class="loading-text text-sm">加载中...</div>
     <div v-else-if="categories.length === 0" class="empty-text flex flex-col flex-ac text-sm">
       <p>暂无分类</p>
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
     </div>
-    <div v-else class="list gap-8">
+    <div v-else class="categories-list list gap-8">
       <div 
         v-for="category in categories" 
         :key="category.id" 
-        class="flex flex-sb flex-ac p-12 rounded link transition bg-soft"
+        class="categories-item flex flex-sb flex-ac p-8 rounded link transition bg-soft"
         @click="handleCategoryClick(category.id)"
       >
         <span class="font-medium">{{ category.name }}</span>
@@ -48,11 +48,12 @@ const handleCategoryClick = (categoryId: number) => {
 </script>
 
 <style scoped>
-/* 使用全局样式，这里只定义组件特有的样式 */
+.categories-item:hover{
+  background: var(--bg-hover);
+}
 .categories-count{
   width: 20px;
   height: 20px;
-  background: var(--bg-element);
   border-radius: 50%;
   color: var(--text-main);
   font-size: 12px;

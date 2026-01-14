@@ -7,9 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref, onMounted } from 'vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
+import { computed, watch } from 'vue'
 import hljs from 'highlight.js'
 import { useMarkdown } from '@/composables/useMarkdown'
 // Import highlight.js CSS

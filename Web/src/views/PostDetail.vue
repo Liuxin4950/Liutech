@@ -364,6 +364,16 @@ const goBack = () => {
   router.back()
 }
 
+// 跳转到分类详情
+const handleCategoryClick = (categoryId: number) => {
+  router.push(`/category-detail/${categoryId}`)
+}
+
+// 跳转到标签详情
+const handleTagClick = (tagId: number) => {
+  router.push(`/tags/${tagId}`)
+}
+
 // 切换分享选项显示
 const toggleShare = () => {
   showShare.value = !showShare.value
@@ -498,7 +508,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
             </div>
           </div>
           <div class="meta-right-section">
-            <span v-if="post.category" class="category-badge">{{ post.category.name }}</span>
+            <span v-if="post.category" class="category-badge" @click="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
             <div class="meta-stat">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
@@ -528,15 +538,15 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
           </div>
         </div>
         <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
-          <span v-for="tag in post.tags" :key="tag.id" class="tag">
+          <span v-for="tag in post.tags" :key="tag.id" class="tag" @click="handleTagClick(tag.id)">
             {{ tag.name }}
           </span>
         </div>
       </header>
 
       <!-- 文章摘要 -->
-      <div v-if="post.summary" class="post-summary bg-hover p-20">
-        <p class="">{{ post.summary }}</p>
+      <div v-if="post.summary" class="post-summary">
+        <p>{{ post.summary }}</p>
       </div>
 
       <!-- 文章内容 -->
@@ -632,29 +642,18 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
             <!-- 分享选项 -->
             <div v-if="showShare" class="share-options">
-              <button @click="shareToWeChat" class="share-option wechat">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path
-                    d="M8.5 12c-.83 0-1.5-.67-1.5-1.5S7.67 9 8.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm7 0c-.83 0-1.5-.67-1.5-1.5S14.67 9 15.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z" />
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20z" />
-                </svg>
+              <button @click="shareToWeChat" class="share-option wechat" title="分享到微信">
+                <Icon name="wechat" size="20" />
                 <span>微信</span>
               </button>
 
-              <button @click="shareToQQ" class="share-option qq">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path
-                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
-                </svg>
+              <button @click="shareToQQ" class="share-option qq" title="分享到QQ">
+                <Icon name="qq" size="20" />
                 <span>QQ</span>
               </button>
 
-              <button @click="copyLink" class="share-option link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                </svg>
+              <button @click="copyLink" class="share-option link" title="复制链接">
+                <Icon name="link" size="20" />
                 <span>复制链接</span>
               </button>
             </div>
@@ -832,17 +831,52 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
+    opacity: 0.9;
+  }
 }
 
 .post-summary {
-  margin-top: 10px;
+  margin: 24px 20px;
+  padding: 24px;
+  background: linear-gradient(to right, var(--bg-soft), var(--bg-card));
+  border-left: 4px solid var(--color-primary);
+  border-radius: 8px;
+  color: var(--text-subtle);
+  font-size: 1.05rem;
+  line-height: 1.8;
+  position: relative;
+  
+  &::before {
+    content: '"';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 40px;
+    color: var(--color-primary);
+    opacity: 0.1;
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
 }
 
 .post-summary p {
   margin: 0;
-  font-style: italic;
-  line-height: 1.6;
+  position: relative;
+  z-index: 1;
 }
+
+/* 标签云样式优化 */
+.tags-cloud {
+  padding: 0 20px;
+}
+
+
 
 /* 富文本内容样式 - 重新设计 */
 .markdown-content {
@@ -1131,21 +1165,21 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   }
 }
 
-/* 文章互动功能条样式 - 重新设计 */
+/* 文章互动功能条样式*/
 .post-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 0;
-  margin-top: 40px;
+  padding: 24px;
+  /* 使用负 margin 抵消父元素的 padding */
+  margin-left: -20px;
+  margin-right: -20px;
   border-top: 2px solid var(--border-light);
   border-bottom: 2px solid var(--border-light);
+  background-color: var(--bg-card);
   position: sticky;
   bottom: 0;
-
   z-index: 0;
-  background: var(--bg-main);
-  backdrop-filter: blur(10px);
 }
 
 .actions-left {
@@ -1215,67 +1249,209 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .share-options {
   position: absolute;
   right: 0;
-  top: 40px;
-  background: var(--bg-main);
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  top: 52px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px;
+  min-width: 160px;
+  z-index: 100;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .share-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
   padding: 12px 16px;
   background: transparent;
   border: none;
+  border-radius: 8px;
   color: var(--text-main);
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
   text-align: left;
+
+  &:deep(svg) {
+    flex-shrink: 0;
+  }
 }
 
 .share-option:hover {
-  background: var(--bg-hover);
+  background: var(--bg-soft);
+  transform: translateX(4px);
 }
 
 .share-option.wechat:hover {
-  background: #07c160;
+  background: linear-gradient(135deg, #07c160, #05a850);
   color: white;
+
+  &:deep(svg) {
+    color: white;
+  }
 }
 
 .share-option.qq:hover {
-  background: #12b7f5;
+  background: linear-gradient(135deg, #12b7f5, #0e9dd8);
   color: white;
+
+  &:deep(svg) {
+    color: white;
+  }
 }
 
 .share-option.link:hover {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   color: white;
+
+  &:deep(svg) {
+    color: white;
+  }
 }
 
 // 响应式样式
 @include respond(md) {
   .post-title {
     font-size: 1.8rem;
+    padding-bottom: 16px;
+
+    &::after {
+      width: 60px;
+      height: 3px;
+    }
   }
 
-  .post-actions {
+  // 文章元信息 - 移动端适配
+  .post-meta-info {
     flex-direction: column;
     gap: 16px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  .meta-left-section {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .meta-right-section {
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .meta-stat {
+    font-size: 12px;
+    gap: 4px;
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .category-badge {
+    font-size: 11px;
+    padding: 5px 12px;
+  }
+
+  // 标签云 - 移动端适配
+  .tags-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+  }
+
+  .tag {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  // 文章摘要 - 移动端适配
+  .post-summary {
+    margin: 16px 0;
+    padding: 16px;
+    font-size: 0.95rem;
+  }
+
+  // 隐藏目录导航
+  .table-of-contents-container {
+    display: none;
+  }
+
+  // 附件列表 - 移动端适配
+  .action-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  // 互动功能条 - 移动端适配
+  .post-actions {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .actions-left {
-    justify-content: space-around;
-    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .actions-left .action-btn {
+    flex: 1;
+    min-width: calc(50% - 8px);
+    justify-content: center;
+    padding: 10px 12px;
+    font-size: 12px;
+
+    span:not(.count) {
+      display: none;
+    }
+
+    .count {
+      display: inline;
+    }
+  }
+
+  .actions-left .action-info {
+    flex: 1;
+    min-width: calc(50% - 8px);
+    justify-content: center;
+    padding: 10px 12px;
+    font-size: 12px;
   }
 
   .actions-right {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .share-btn {
+    width: 100%;
     justify-content: center;
   }
 
@@ -1283,6 +1459,80 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     right: auto;
     left: 50%;
     transform: translateX(-50%);
+    width: 90%;
+    max-width: 280px;
+    flex-direction: column;
+    animation: slideDownMobile 0.2s ease-out;
+  }
+
+  @keyframes slideDownMobile {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .share-option {
+    justify-content: flex-start;
+    padding: 14px 16px;
+  }
+}
+
+// 超小屏幕（小于 480px）
+@include respond(sm) {
+  .post-title {
+    font-size: 1.5rem;
+  }
+
+  .author-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .author-name {
+    font-size: 14px;
+  }
+
+  .markdown-content {
+    padding: 12px;
+    font-size: 14px;
+
+    & > p:first-of-type::first-letter {
+      font-size: 2em;
+    }
+  }
+
+  .markdown-content :deep(h1) { font-size: 1.6em; }
+  .markdown-content :deep(h2) { font-size: 1.4em; }
+  .markdown-content :deep(h3) { font-size: 1.2em; }
+  .markdown-content :deep(h4) { font-size: 1.1em; }
+
+  .markdown-content :deep(pre) {
+    padding: 12px;
+    font-size: 12px;
+    overflow-x: auto;
+  }
+
+  .markdown-content :deep(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+  }
+
+  .markdown-content :deep(table) {
+    font-size: 12px;
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .markdown-content :deep(th),
+  .markdown-content :deep(td) {
+    padding: 8px 10px;
   }
 }
 </style>
