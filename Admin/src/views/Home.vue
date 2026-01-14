@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { getDashboardStats, type DashboardStats, type BasicStats } from '@/services/dashboard'
 import { message } from 'ant-design-vue'
 import {
@@ -18,11 +18,25 @@ import {
   BarChartOutlined
 } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
+import * as echarts from 'echarts'
+import type { ECharts } from 'echarts'
 
 // 统计数据
 const dashboardStats = ref<DashboardStats | null>(null)
 const loading = ref(true)
 const currentDate = dayjs().format('YYYY年MM月DD日 dddd')
+
+// ECharts 图表实例
+const postTrendChart = ref<ECharts | null>(null)
+const userTrendChart = ref<ECharts | null>(null)
+const pieChart = ref<ECharts | null>(null)
+const categoryChart = ref<ECharts | null>(null)
+
+// 图表 DOM 引用
+const postTrendChartRef = ref<HTMLElement | null>(null)
+const userTrendChartRef = ref<HTMLElement | null>(null)
+const pieChartRef = ref<HTMLElement | null>(null)
+const categoryChartRef = ref<HTMLElement | null>(null)
 
 // 统计卡片配置 - 简化颜色，使用统一风格
 const getStatConfig = (key: string) => {
@@ -45,6 +59,361 @@ const statKeys = ['postCount', 'publishedPostCount', 'userCount', 'totalViews']
 const secondaryStatKeys = ['draftPostCount', 'categoryCount', 'tagCount', 'commentCount']
 
 /**
+ * 初始化文章趋势折线图
+ */
+const initPostTrendChart = () => {
+  if (!postTrendChartRef.value || !dashboardStats.value) return
+
+  if (postTrendChart.value) {
+    postTrendChart.value.dispose()
+  }
+
+  postTrendChart.value = echarts.init(postTrendChartRef.value)
+
+  const dates = dashboardStats.value.postTrend.map(item => dayjs(item.date).format('MM-DD'))
+  const counts = dashboardStats.value.postTrend.map(item => item.count)
+
+  const option: echarts.EChartsOption = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      textStyle: { color: '#374151' }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisLabel: { color: '#6b7280', fontSize: 12 }
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      axisLabel: { color: '#6b7280', fontSize: 12 },
+      splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
+    },
+    series: [{
+      name: '文章数',
+      type: 'line',
+      smooth: true,
+      data: counts,
+      lineStyle: {
+        color: '#3b82f6',
+        width: 3
+      },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
+          { offset: 1, color: 'rgba(59, 130, 246, 0.05)' }
+        ])
+      },
+      itemStyle: { color: '#3b82f6' },
+      emphasis: {
+        itemStyle: {
+          color: '#3b82f6',
+          borderColor: '#fff',
+          borderWidth: 2,
+          shadowBlur: 10,
+          shadowColor: 'rgba(59, 130, 246, 0.5)'
+        }
+      }
+    }]
+  }
+
+  postTrendChart.value.setOption(option)
+}
+
+/**
+ * 初始化用户增长柱状图
+ */
+const initUserTrendChart = () => {
+  if (!userTrendChartRef.value || !dashboardStats.value) return
+
+  if (userTrendChart.value) {
+    userTrendChart.value.dispose()
+  }
+
+  userTrendChart.value = echarts.init(userTrendChartRef.value)
+
+  const dates = dashboardStats.value.userTrend.map(item => dayjs(item.date).format('MM-DD'))
+  const counts = dashboardStats.value.userTrend.map(item => item.count)
+
+  const option: echarts.EChartsOption = {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      textStyle: { color: '#374151' },
+      axisPointer: { type: 'shadow' }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '10%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisLabel: { color: '#6b7280', fontSize: 12 }
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { show: false },
+      axisLabel: { color: '#6b7280', fontSize: 12 },
+      splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } }
+    },
+    series: [{
+      name: '新增用户',
+      type: 'bar',
+      data: counts,
+      barWidth: '50%',
+      itemStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#8b5cf6' },
+          { offset: 1, color: '#7c3aed' }
+        ]),
+        borderRadius: [6, 6, 0, 0]
+      },
+      emphasis: {
+        itemStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#a78bfa' },
+            { offset: 1, color: '#8b5cf6' }
+          ])
+        }
+      }
+    }]
+  }
+
+  userTrendChart.value.setOption(option)
+}
+
+/**
+ * 初始化文章状态分布饼图
+ */
+const initPieChart = () => {
+  if (!pieChartRef.value || !dashboardStats.value) return
+
+  if (pieChart.value) {
+    pieChart.value.dispose()
+  }
+
+  pieChart.value = echarts.init(pieChartRef.value)
+
+  const data = dashboardStats.value.postStatusDistribution.map(item => ({
+    name: item.displayName,
+    value: item.count
+  }))
+
+  const option: echarts.EChartsOption = {
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      textStyle: { color: '#374151' },
+      formatter: '{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'horizontal',
+      bottom: '0%',
+      left: 'center',
+      itemWidth: 12,
+      itemHeight: 12,
+      textStyle: { color: '#6b7280', fontSize: 12 }
+    },
+    series: [{
+      name: '文章状态',
+      type: 'pie',
+      radius: ['40%', '65%'],
+      center: ['50%', '45%'],
+      data: data,
+      emphasis: {
+        itemStyle: {
+          shadowBlur: 10,
+          shadowOffsetX: 0,
+          shadowColor: 'rgba(0, 0, 0, 0.1)'
+        }
+      },
+      label: {
+        show: true,
+        formatter: '{d}%',
+        color: '#6b7280',
+        fontSize: 12
+      },
+      labelLine: {
+        show: true,
+        lineStyle: { color: '#e5e7eb' }
+      }
+    }],
+    color: ['#52c41a', '#faad14', '#ff4d4f', '#1677ff']
+  }
+
+  pieChart.value.setOption(option)
+}
+
+/**
+ * 初始化数据统计对比仪表盘
+ */
+const initCategoryChart = () => {
+  if (!categoryChartRef.value || !dashboardStats.value) return
+
+  if (categoryChart.value) {
+    categoryChart.value.dispose()
+  }
+
+  categoryChart.value = echarts.init(categoryChartRef.value)
+
+  const basicStats = dashboardStats.value.basicStats
+
+  const option: echarts.EChartsOption = {
+    tooltip: {
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e5e7eb',
+      borderWidth: 1,
+      textStyle: { color: '#374151' }
+    },
+    series: [
+      {
+        type: 'gauge',
+        center: ['30%', '55%'],
+        radius: '60%',
+        min: 0,
+        max: Math.max(basicStats.postCount, 10),
+        splitNumber: 5,
+        axisLine: {
+          lineStyle: {
+            width: 10,
+            color: [
+              [0.3, '#67e0e3'],
+              [0.7, '#37a2da'],
+              [1, '#fd666d']
+            ]
+          }
+        },
+        pointer: {
+          itemStyle: {
+            color: 'auto'
+          }
+        },
+        axisTick: {
+          distance: -10,
+          length: 8,
+          lineStyle: {
+            color: '#fff',
+            width: 2
+          }
+        },
+        splitLine: {
+          distance: -10,
+          length: 15,
+          lineStyle: {
+            color: '#fff',
+            width: 3
+          }
+        },
+        axisLabel: {
+          color: 'auto',
+          distance: 15,
+          fontSize: 10
+        },
+        detail: {
+          valueAnimation: true,
+          formatter: '{value}',
+          color: 'auto',
+          fontSize: 16,
+          offsetCenter: [0, '70%']
+        },
+        title: {
+          offsetCenter: [0, '90%'],
+          fontSize: 12,
+          color: '#6b7280'
+        },
+        data: [{
+          value: basicStats.postCount,
+          name: '文章总数'
+        }]
+      },
+      {
+        type: 'gauge',
+        center: ['70%', '55%'],
+        radius: '60%',
+        min: 0,
+        max: Math.max(basicStats.userCount, 10),
+        splitNumber: 5,
+        axisLine: {
+          lineStyle: {
+            width: 10,
+            color: [
+              [0.3, '#67e0e3'],
+              [0.7, '#37a2da'],
+              [1, '#fd666d']
+            ]
+          }
+        },
+        pointer: {
+          itemStyle: {
+            color: 'auto'
+          }
+        },
+        axisTick: {
+          distance: -10,
+          length: 8,
+          lineStyle: {
+            color: '#fff',
+            width: 2
+          }
+        },
+        splitLine: {
+          distance: -10,
+          length: 15,
+          lineStyle: {
+            color: '#fff',
+            width: 3
+          }
+        },
+        axisLabel: {
+          color: 'auto',
+          distance: 15,
+          fontSize: 10
+        },
+        detail: {
+          valueAnimation: true,
+          formatter: '{value}',
+          color: 'auto',
+          fontSize: 16,
+          offsetCenter: [0, '70%']
+        },
+        title: {
+          offsetCenter: [0, '90%'],
+          fontSize: 12,
+          color: '#6b7280'
+        },
+        data: [{
+          value: basicStats.userCount,
+          name: '用户总数'
+        }]
+      }
+    ]
+  }
+
+  categoryChart.value.setOption(option)
+}
+
+/**
  * 加载仪表盘统计数据
  */
 const loadDashboardStats = async () => {
@@ -53,11 +422,20 @@ const loadDashboardStats = async () => {
     const res = await getDashboardStats()
     if (res.code === 200 && res.data) {
       dashboardStats.value = res.data
-      
+
       // 活跃用户按文章数降序排序
       if (dashboardStats.value.topAuthors) {
         dashboardStats.value.topAuthors.sort((a, b) => b.postCount - a.postCount)
       }
+
+      // 初始化图表（等待 DOM 完全渲染）
+      await nextTick()
+      setTimeout(() => {
+        initPostTrendChart()
+        initUserTrendChart()
+        initPieChart()
+        initCategoryChart()
+      }, 100)
     } else {
       message.error(res.message || '加载统计数据失败')
     }
@@ -73,15 +451,33 @@ const handleRefresh = () => {
   loadDashboardStats()
 }
 
+// 窗口大小变化时重新调整图表大小
+const handleResize = () => {
+  postTrendChart.value?.resize()
+  userTrendChart.value?.resize()
+  pieChart.value?.resize()
+  categoryChart.value?.resize()
+}
+
 onMounted(() => {
   loadDashboardStats()
+  window.addEventListener('resize', handleResize)
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  postTrendChart.value?.dispose()
+  userTrendChart.value?.dispose()
+  pieChart.value?.dispose()
+  categoryChart.value?.dispose()
 })
 </script>
 
 <template>
   <div class="p-24 dashboard-container">
     <!-- 顶部欢迎栏 -->
-    <div class="flex justify-between items-center mb-24">
+    <div class="flex flex-sb mb-24">
       <div>
         <h1 class="text-2xl font-bold text-gray-800 m-0">早安，管理员</h1>
         <p class="text-gray-500 mt-4 mb-0">{{ currentDate }} | 祝你今天心情愉快</p>
@@ -135,35 +531,21 @@ onMounted(() => {
               </div>
             </template>
             <div class="trend-grid">
-              <!-- 文章趋势 -->
-              <div class="chart-box">
+              <!-- 文章趋势折线图 -->
+              <div class="chart-container">
                 <div class="chart-header">
                   <span class="chart-title">近7日文章发布</span>
                   <span class="chart-total">{{ dashboardStats.postTrend.reduce((acc, cur) => acc + cur.count, 0) }} 篇</span>
                 </div>
-                <div class="simple-bar-chart">
-                  <div v-for="item in dashboardStats.postTrend" :key="item.date" class="bar-col">
-                    <div class="bar-bg">
-                      <div class="bar-fill" :style="{ height: `${Math.min(item.count * 20, 100)}%` }"></div>
-                    </div>
-                    <span class="bar-label">{{ dayjs(item.date).format('MM-DD') }}</span>
-                  </div>
-                </div>
+                <div ref="postTrendChartRef" class="echarts-box"></div>
               </div>
-              <!-- 用户趋势 -->
-              <div class="chart-box">
+              <!-- 用户趋势柱状图 -->
+              <div class="chart-container">
                 <div class="chart-header">
                   <span class="chart-title">近7日新增用户</span>
                   <span class="chart-total">{{ dashboardStats.userTrend.reduce((acc, cur) => acc + cur.count, 0) }} 人</span>
                 </div>
-                <div class="simple-bar-chart">
-                  <div v-for="item in dashboardStats.userTrend" :key="item.date" class="bar-col">
-                    <div class="bar-bg">
-                      <div class="bar-fill user-fill" :style="{ height: `${Math.min(item.count * 30, 100)}%` }"></div>
-                    </div>
-                    <span class="bar-label">{{ dayjs(item.date).format('MM-DD') }}</span>
-                  </div>
-                </div>
+                <div ref="userTrendChartRef" class="echarts-box"></div>
               </div>
             </div>
           </a-card>
@@ -200,7 +582,7 @@ onMounted(() => {
 
         <!-- 右侧栏：分布与活跃用户 -->
         <a-col :xs="24" :lg="8">
-          <!-- 状态分布 -->
+          <!-- 文章状态分布饼图 -->
           <a-card :bordered="false" class="mb-24 content-card">
             <template #title>
               <div class="card-title">
@@ -208,21 +590,18 @@ onMounted(() => {
                 <span>文章分布</span>
               </div>
             </template>
-            <div class="flex flex-col gap-16">
-              <div v-for="item in dashboardStats.postStatusDistribution" :key="item.status" class="distribution-item">
-                <div class="flex justify-between mb-4">
-                  <span class="text-sm text-gray-500">{{ item.displayName }}</span>
-                  <span class="text-sm font-bold text-gray-700">{{ item.count }}</span>
-                </div>
-                <a-progress 
-                  :percent="item.percentage" 
-                  :stroke-color="item.status === 'published' ? '#52c41a' : '#faad14'"
-                  :show-info="false" 
-                  size="small"
-                  :stroke-width="6"
-                />
+            <div ref="pieChartRef" class="echarts-box-small"></div>
+          </a-card>
+
+          <!-- 核心指标仪表盘 -->
+          <a-card :bordered="false" class="mb-24 content-card">
+            <template #title>
+              <div class="card-title">
+                <RiseOutlined class="mr-8" />
+                <span>核心指标</span>
               </div>
-            </div>
+            </template>
+            <div ref="categoryChartRef" class="echarts-box-small"></div>
           </a-card>
 
           <!-- 活跃创作者 -->
@@ -347,10 +726,11 @@ onMounted(() => {
   gap: 32px;
 }
 
-.chart-box {
-  background: #f9fafb;
+.chart-container {
+  background: #ffffff;
   border-radius: 12px;
   padding: 16px;
+  border: 1px solid #f0f0f0;
 }
 
 .chart-header {
@@ -371,47 +751,17 @@ onMounted(() => {
   color: #111827;
 }
 
-.simple-bar-chart {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  height: 120px;
-}
-
-.bar-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  gap: 8px;
-}
-
-.bar-bg {
-  width: 6px;
-  height: 100px;
-  background: #e5e7eb;
-  border-radius: 3px;
-  position: relative;
-  overflow: hidden;
-}
-
-.bar-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
+/* ECharts 容器 */
+.echarts-box {
   width: 100%;
-  background: #3b82f6;
-  border-radius: 3px;
-  transition: height 0.5s ease;
+  height: 240px;
+  min-height: 240px;
 }
 
-.user-fill {
-  background: #8b5cf6;
-}
-
-.bar-label {
-  font-size: 10px;
-  color: #9ca3af;
+.echarts-box-small {
+  width: 100%;
+  height: 280px;
+  min-height: 280px;
 }
 
 /* 排名样式 */
@@ -434,6 +784,11 @@ onMounted(() => {
 @media (max-width: 768px) {
   .trend-grid {
     grid-template-columns: 1fr;
+  }
+
+  .echarts-box,
+  .echarts-box-small {
+    height: 220px;
   }
 }
 </style>

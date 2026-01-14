@@ -38,8 +38,8 @@ public class BlogApiClient {
     private String blogApiUrl;
 
     public BlogApiClient() {
-        this.restTemplate = new RestTemplate();
-        this.objectMapper = new ObjectMapper();
+        this.restTemplate = new RestTemplate();//用于调用博客API
+        this.objectMapper = new ObjectMapper();//用于解析JSON响应
     }
 
     /**

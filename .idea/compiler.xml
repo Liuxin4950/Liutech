@@ -8,6 +8,7 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="liutech-ai" />
+        <module name="liutech" />
         <module name="liutech-backend" />
       </profile>
     </annotationProcessing>
@@ -15,6 +16,7 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="liutech" options="-parameters" />
       <module name="liutech-ai" options="-parameters" />
       <module name="liutech-backend" options="-parameters" />
     </option>

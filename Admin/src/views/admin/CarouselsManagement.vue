@@ -376,7 +376,7 @@ onMounted(async () => {
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
-          <a-col :span="6">
+          <a-col :span="12">
             <a-form-item label="状态" class="mb-0">
               <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
                 <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
@@ -385,7 +385,7 @@ onMounted(async () => {
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6" class="text-right">
+          <a-col :span="12" class="text-right">
             <a-space>
               <a-tooltip :title="searchParams.includeDeleted ? '显示未删除的轮播图' : '显示已删除的轮播图'">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="已删" un-checked-children="正常" />
