@@ -78,12 +78,56 @@ const router = useRouter()
 const userStore = useUserStore()
 const emit = defineEmits(['ai-chat-active', 'auth-required'])
 
+// 平滑滚动到顶部
 const scrollToTop = () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  const duration = 500 // 动画持续时间（毫秒）
+  const startPosition = window.pageYOffset || document.documentElement.scrollTop
+  const startTime = performance.now()
+
+  const animation = (currentTime: number) => {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+
+    // 使用 ease-out 缓动函数
+    const easeOut = 1 - Math.pow(1 - progress, 3)
+    const newPosition = startPosition * (1 - easeOut)
+
+    window.scrollTo(0, newPosition)
+
+    if (progress < 1) {
+      requestAnimationFrame(animation)
+    }
+  }
+
+  requestAnimationFrame(animation)
 }
 
+// 平滑滚动到底部
 const scrollToBottom = () => {
-  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+  const duration = 500 // 动画持续时间（毫秒）
+  const startPosition = window.pageYOffset || document.documentElement.scrollTop
+  const endPosition = document.documentElement.scrollHeight - window.innerHeight
+  const distance = endPosition - startPosition
+  const startTime = performance.now()
+
+  const animation = (currentTime: number) => {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+
+    // 使用 ease-in-out 缓动函数
+    const easeInOut = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2
+
+    const newPosition = startPosition + distance * easeInOut
+    window.scrollTo(0, newPosition)
+
+    if (progress < 1) {
+      requestAnimationFrame(animation)
+    }
+  }
+
+  requestAnimationFrame(animation)
 }
 
 const goCreate = () => {

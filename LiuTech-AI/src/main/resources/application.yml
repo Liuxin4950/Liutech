@@ -27,7 +27,7 @@ spring:
       # 开发环境可使用默认测试密钥
       # Docker部署通过 docker-compose 的 SPRING_AI_OPENAI_API_KEY 注入
       base-url: https://api.siliconflow.cn
-      api-key: ${SPRING_AI_OPENAI_API_KEY:sk-mgeqjwqoregdyyngyospzepxvidnkapkxupvatavqzhtcujo}
+      api-key: ${SPRING_AI_OPENAI_API_KEY:sk-gkfhwsydhwfkfcaxiijxatigydwghbyajjkpsrypktojdcmg}
       chat:
         options:
           model: "zai-org/GLM-4.6"
