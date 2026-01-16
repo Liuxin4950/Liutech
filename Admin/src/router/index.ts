@@ -174,7 +174,7 @@ router.afterEach((to) => {
       name: to.name as string,
       path: to.path,
       title: to.meta.title as string,
-      affix: to.meta?.affix || false,
+      affix: ((to.meta as { affix?: boolean }).affix ?? false),
       fullPath: to.fullPath
     })
 

@@ -1,4 +1,4 @@
-import { axiosInstance } from './api'
+import { post } from './api'
 
 // 动态获取后端URL（优先使用环境变量）
 const getBackendURL = (): string => {
@@ -62,20 +62,12 @@ export class ImageUploadService {
       const formData = new FormData()
       formData.append('file', file)
 
-      // 使用 axiosInstance，并显式删除 Content-Type 让浏览器自动处理
-      const response = await axiosInstance.post<ImageUploadResponse>('/upload/image', formData, {
+      const apiResponse = await post<ImageUploadResponse>('/upload/image', formData, {
         headers: {
           'Content-Type': undefined // 设为 undefined 让浏览器自动设置正确的 multipart/form-data
         }
       })
 
-      // api.ts 拦截器返回的是 response，response.data 是 ApiResponse 包装对象
-      // 后端返回格式: { code: 200, message: "操作成功", data: { fileName, fileUrl, ... } }
-      // 需要取 response.data.data 获取内部的 FileUploadResp
-      const apiResponse = response.data
-      if (apiResponse.code !== 200) {
-        throw new Error(apiResponse.message || '图片上传失败')
-      }
       return apiResponse.data
     } catch (error: any) {
       console.error('图片上传失败:', error)
@@ -150,13 +142,13 @@ export class ImageUploadService {
         formData.append('description', description)
       }
 
-      const response = await axiosInstance.post('/upload/document', formData, {
+      const response = await post('/upload/document', formData, {
         headers: {
           'Content-Type': undefined
         }
       })
 
-      return response.data
+      return response
     } catch (error) {
       console.error('文档上传失败:', error)
       throw new Error('文档上传失败，请重试')

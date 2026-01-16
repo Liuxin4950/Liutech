@@ -36,8 +36,8 @@ const handleClick = (tag: TagView): void => {
 /**
  * 关闭标签
  */
-const handleClose = (event: Event, tag: TagView): void => {
-  event.stopPropagation() // 阻止冒泡，避免触发标签点击
+const handleClose = (event: Event | undefined, tag: TagView): void => {
+  event?.stopPropagation() // 阻止冒泡，避免触发标签点击
   tagsStore.delVisitedView(tag)
 }
 
@@ -149,7 +149,7 @@ onMounted(() => {
       :y="contextMenuPosition.y"
       :is-affix="contextMenuTarget?.affix || false"
       @refresh="handleRefresh"
-      @close-current="contextMenuTarget && handleClose($event, contextMenuTarget)"
+      @close-current="contextMenuTarget && handleClose(undefined, contextMenuTarget)"
       @close-other="handleCloseOther"
       @close-all="handleCloseAll"
     />

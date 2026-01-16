@@ -109,8 +109,7 @@ services:
       - admin
       - ai
 
-
-
-# 数据卷配置（仅 mysql_data，uploads 已改为 Bind Mount）
+# 数据卷配置
 volumes:
-  mysql_data: local
+  mysql_data:
+    driver: local

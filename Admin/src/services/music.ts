@@ -152,7 +152,7 @@ const musicService = {
    * 批量删除音乐（硬删除 + 清理文件）
    */
   batchDelete: (ids: number[]) => {
-    return post<boolean>('/admin/music/batch', ids)
+    return instance.post<boolean>('/admin/music/batch', ids)
   }
 }
 
