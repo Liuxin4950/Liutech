@@ -76,7 +76,6 @@ onMounted(() => {
 
   // 设置路由守卫，后续路由跳转不显示加载动画
   router.beforeEach((to, from, next) => {
-    console.log(to, from)
     // 如果不是首次加载，则不显示加载动画
     if (!isFirstLoad.value) {
       next()

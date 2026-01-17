@@ -91,11 +91,16 @@ export const useUserStore = defineStore('user', () => {
     try {
       const userData = await UserService.getCurrentUser()
       userInfo.value = userData
-    } catch (error) {
+    } catch (error: any) {
       console.error('获取用户信息失败:', error)
-      showError('获取用户信息失败，请重新登录')
-      // 如果获取用户信息失败，可能是token过期，清除登录状态
-      logout()
+      // 401错误静默处理（token无效或过期）
+      if (error.response?.status === 401) {
+        logout()
+      } else {
+        // 其他错误才显示提示
+        showError('获取用户信息失败，请重新登录')
+        logout()
+      }
     }
   }
 

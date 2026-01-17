@@ -168,8 +168,6 @@ const router = createRouter({
   linkExactActiveClass: 'router-link-exact-active',
   // 滚动行为配置 - 每次路由跳转都回到页面顶部
   scrollBehavior(to, from, savedPosition) {
-    console.log(to,from);
-    
     // 如果有保存的滚动位置（浏览器前进后退），则恢复到该位置
     if (savedPosition) {
       return savedPosition
@@ -184,14 +182,12 @@ const router = createRouter({
  * 设置页面标题和权限检查
  */
 router.beforeEach((to, from, next) => {
-  console.log(to,from);
-  
   // 设置页面标题
   document.title = `Liutech-${to.meta.title || '博客'}`
-  
+
   // 需要登录的页面
   const requiresAuth = ['create-post', 'drafts', 'my-posts', 'profile', 'chat-history', 'ai-chat-full']
-  
+
   // 检查是否需要登录
   if (requiresAuth.includes(to.name as string)) {
     const token = localStorage.getItem('token')
@@ -201,7 +197,7 @@ router.beforeEach((to, from, next) => {
       return
     }
   }
-  
+
   next()
 })
 

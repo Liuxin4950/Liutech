@@ -71,9 +71,7 @@ const formatDateTime = (dateStr?: string) => {
 // 获取最新公告
 const fetchAnnouncements = async () => {
   try {
-    console.log('获取公告数据...')
     const data = await announcementStore.fetchLatestAnnouncements(5)
-    console.log('获取到的公告数据:', data)
   } catch (error) {
     console.error('获取公告失败:', error)
   }
@@ -82,9 +80,7 @@ const fetchAnnouncements = async () => {
 // 刷新公告数据
 const refreshAnnouncements = async () => {
   try {
-    console.log('刷新公告数据...')
     const data = await announcementStore.refreshLatestAnnouncements(5)
-    console.log('刷新后的公告数据:', data)
   } catch (error) {
     console.error('刷新公告失败:', error)
   }

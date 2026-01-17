@@ -191,8 +191,8 @@ export function handleApiError(error: any) {
   
   switch (status) {
     case 401:
-      showError('登录已过期，请重新登录', '认证失败')
-      // 可以在这里添加跳转到登录页的逻辑
+      // 401错误由API拦截器统一处理
+      // 不显示弹窗，避免重复提示和打扰用户
       break
     case 403:
       showError('权限不足，禁止访问', '权限错误')

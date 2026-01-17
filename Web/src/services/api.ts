@@ -14,6 +14,7 @@ export interface ApiResponse<T = any> {
 // 请求配置接口
 export interface RequestConfig extends AxiosRequestConfig {
   skipErrorHandler?: boolean // 是否跳过统一错误处理
+  skipAuthJump?: boolean     // 是否跳过401自动跳转登录页
   serviceType?: ServiceType  // 服务类型选择
 }
 
@@ -47,8 +48,7 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
       }
-      
-      console.log(`${serviceType.toUpperCase()} API 请求:`, config.method?.toUpperCase(), config.url)
+
       return config
     },
     (error) => {
@@ -95,18 +95,22 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
     },
     (error) => {
       console.error(`${serviceType.toUpperCase()} API 请求失败`, error)
-      
+
+      // 检查是否跳过401跳转
+      const shouldSkipAuthJump = error.config?.skipAuthJump === true
+
       // 使用统一错误处理器
       handleApiError(error)
-      
-      // 特殊处理401错误，需要跳转登录页
+
+      // 特殊处理401错误
       if (error.response?.status === 401) {
         localStorage.removeItem('token')
-        if (router.currentRoute.value.path !== '/login') {
+        // 只有在未配置跳过时才跳转登录页
+        if (!shouldSkipAuthJump && router.currentRoute.value.path !== '/login') {
           router.push('/login')
         }
       }
-      
+
       // 重新抛出错误，保持原有的错误传播机制
       throw error
     }

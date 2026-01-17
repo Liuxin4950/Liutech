@@ -162,8 +162,6 @@ const loadAllPosts = async (page: number = 1) => {
     }
 
     const response = await PostService.getPosts(params)
-    console.log('response', response);
-
     allPosts.value = response.records
 
     postsPagination.value = {
@@ -232,8 +230,6 @@ const loadProfile = async () => {
 
     profileLoading.value = true
     const response = await getAuthorProfile()
-    console.log('作者数据', response);
-    
     profileInfo.value = response || {}
   }, {
     onError: (err) => {

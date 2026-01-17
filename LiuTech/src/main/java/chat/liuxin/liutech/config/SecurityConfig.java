@@ -85,6 +85,7 @@ public class SecurityConfig {
                 })
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // 白名单配置：公开接口
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/user/register", "/user/login").permitAll()
@@ -98,12 +99,15 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/tags/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/announcements/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/carousels").permitAll()
+                .requestMatchers(HttpMethod.GET, "/user/author/profile").permitAll()
                 .requestMatchers(HttpMethod.GET, "/user/{id}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/author/profile").permitAll()
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/upload/**").authenticated()
+
                 .anyRequest().authenticated()
             )
             // 依赖：JwtAuthenticationFilter 提供身份认证上下文

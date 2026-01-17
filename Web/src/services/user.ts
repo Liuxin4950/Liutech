@@ -150,7 +150,7 @@ export class UserService {
    */
   static async getCurrentUser(): Promise<UserInfo> {
     try {
-      const response = await get<UserInfo>('/user/current')
+      const response = await get<UserInfo>('/user/current', {}, { skipAuthJump: true })
       return response.data
     } catch (error) {
       console.error('获取用户信息失败', error)

@@ -10,7 +10,8 @@
       "Bash(docker compose ps)",
       "Bash(docker exec:*)",
       "Bash(docker logs:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(wc:*)"
     ]
   }
 }
