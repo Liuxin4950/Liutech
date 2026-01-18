@@ -52,11 +52,7 @@ onUnmounted(() => {
 <template>
   <a-layout-header class="admin-header">
     <div class="header-content">
-      <!-- Logo -->
-      <div class="logo">
-        <h2>LiuTech 管理后台</h2>
-      </div>
-
+      <div></div>
       <!-- 右侧操作区 -->
       <div class="header-right">
         <a-space>
@@ -117,13 +113,7 @@ onUnmounted(() => {
   padding: 0 24px;
 }
 
-.logo h2 {
-  margin: 0;
-  color: var(--color-primary);
-  font-size: 20px;
-  font-weight: 600;
-  white-space: nowrap;
-}
+
 
 .header-right {
   display: flex;

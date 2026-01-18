@@ -28,10 +28,7 @@ onMounted(() => {
 
 <template>
   <a-layout class="main-layout">
-    <!-- 顶部导航栏 -->
-    <a-layout-header class="header">
-      <TheHeader />
-    </a-layout-header>
+
 
     <!-- 主内容区域 -->
     <a-layout class="content-layout">
@@ -47,6 +44,10 @@ onMounted(() => {
         </a-layout-sider>
       </div>
       <a-layout-content class="main-content">
+        <!-- 顶部导航栏 -->
+        <a-layout-header class="header">
+          <TheHeader />
+        </a-layout-header>
         <!-- 标签栏和面包屑区域 - 固定不滚动 -->
         <div class="nav-bar-wrapper">
           <TagsView />

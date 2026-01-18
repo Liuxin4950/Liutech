@@ -135,6 +135,9 @@ const toggleCollapsed = () => {
 
 <template>
   <div class="sidebar-content">
+    <div class="logo">
+        <h2>LiuTech 管理后台</h2>
+      </div>
     <!-- 折叠按钮 -->
     <div class="collapse-trigger" @click="toggleCollapsed">
       <MenuUnfoldOutlined v-if="collapsed" />
@@ -179,7 +182,19 @@ const toggleCollapsed = () => {
   display: flex;
   flex-direction: column;
 }
-
+.logo{
+  width: 100%;
+  height: 63px; 
+  line-height: 63px;
+  text-align: center;
+}
+.logo h2 {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 .collapse-trigger {
   height: 48px;
   display: flex;
