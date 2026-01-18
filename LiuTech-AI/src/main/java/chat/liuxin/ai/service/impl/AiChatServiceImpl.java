@@ -122,28 +122,12 @@ public class AiChatServiceImpl implements AiChatService {
             // 6. 异步保存用户消息（在调用AI前保存，确保数据不丢失）
             memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
 
-            // 7. 获取模型配置参数
-            Double finalTemperature = request.getTemperature();
-            Integer finalMaxTokens = request.getMaxTokens();
-
-            // 如果前端没传参数，尝试从数据库读取模型配置
-            if (finalTemperature == null || finalMaxTokens == null) {
-                Optional<ModelConfigDTO> modelConfig = aiModelConfigService.getModelByName(modelName);
-                if (modelConfig.isPresent()) {
-                    ModelConfigDTO config = modelConfig.get();
-                    if (finalTemperature == null && config.getTemperature() != null) {
-                        finalTemperature = config.getTemperature().doubleValue();
-                    }
-                    if (finalMaxTokens == null && config.getMaxTokens() != null) {
-                        finalMaxTokens = config.getMaxTokens();
-                    }
-                    log.debug("从数据库读取模型配置: {}, temperature: {}, maxTokens: {}",
-                            modelName, finalTemperature, finalMaxTokens);
-                }
-            }
+            // 7. 获取并验证模型参数
+            ModelParameters params = getModelParameters(request, modelName);
+            logParameterApplication(modelName, params);
 
             // 8. 调用AI模型生成回复（传递模型参数）
-            String aiOutput = siliconFlowChatClient.chat(messages, modelName, finalTemperature, finalMaxTokens);
+            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature, params.maxTokens);
             System.out.println("AI回复：\n" + (aiOutput == null ? "" : aiOutput) + '\n');
 
             // 8. 保存AI回复记录
@@ -293,25 +277,9 @@ public class AiChatServiceImpl implements AiChatService {
                 // 4.4 异步保存用户消息
                 memoryService.saveUserMessage(userIdStr, finalConversationId, input, modelName, null);
 
-                // 4.5 获取模型配置参数
-                Double finalTemperature = request.getTemperature();
-                Integer finalMaxTokens = request.getMaxTokens();
-
-                // 如果前端没传参数，尝试从数据库读取模型配置
-                if (finalTemperature == null || finalMaxTokens == null) {
-                    Optional<ModelConfigDTO> modelConfig = aiModelConfigService.getModelByName(modelName);
-                    if (modelConfig.isPresent()) {
-                        ModelConfigDTO config = modelConfig.get();
-                        if (finalTemperature == null && config.getTemperature() != null) {
-                            finalTemperature = config.getTemperature().doubleValue();
-                        }
-                        if (finalMaxTokens == null && config.getMaxTokens() != null) {
-                            finalMaxTokens = config.getMaxTokens();
-                        }
-                        log.debug("流式聊天从数据库读取模型配置: {}, temperature: {}, maxTokens: {}",
-                                modelName, finalTemperature, finalMaxTokens);
-                    }
-                }
+                // 4.5 获取并验证模型参数
+                ModelParameters params = getModelParameters(request, modelName);
+                logParameterApplication(modelName, params);
 
                 // 4.6 发送开始事件
                 sendSseEvent(emitter, "start", Map.of(
@@ -323,7 +291,7 @@ public class AiChatServiceImpl implements AiChatService {
                 AtomicReference<StringBuilder> fullResponseRef = new AtomicReference<>(new StringBuilder());
 
                 // 4.8 调用流式AI接口（传递模型参数）
-                Flux<String> responseFlux = siliconFlowChatClient.streamChat(messages, modelName, finalTemperature, finalMaxTokens);
+                Flux<String> responseFlux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature, params.maxTokens);
                 
                 // 4.8 订阅流式响应并处理每个数据块
                 responseFlux.subscribe(
@@ -417,7 +385,7 @@ public class AiChatServiceImpl implements AiChatService {
     
     /**
      * 发送SSE事件
-     * 
+     *
      * @param emitter SseEmitter对象
      * @param event 事件类型（start, data, complete, error）
      * @param data 事件数据
@@ -428,8 +396,105 @@ public class AiChatServiceImpl implements AiChatService {
         SseEmitter.SseEventBuilder eventBuilder = SseEmitter.event()
                 .name(event != null ? event : "unknown")
                 .data(safeData);
-        
+
         emitter.send(eventBuilder);
         log.debug("发送SSE事件: {}, 数据: {}", event, data);
+    }
+
+    /**
+     * 模型参数封装类
+     */
+    private static class ModelParameters {
+        Double temperature;
+        Integer maxTokens;
+        String source; // 参数来源：request/db/default
+
+        ModelParameters(Double temperature, Integer maxTokens, String source) {
+            this.temperature = temperature;
+            this.maxTokens = maxTokens;
+            this.source = source;
+        }
+    }
+
+    /**
+     * 获取并验证模型参数
+     *
+     * 优先级：前端传递 > 数据库配置 > 默认值
+     *
+     * @param request 聊天请求
+     * @param modelName 模型名称
+     * @return 模型参数对象
+     */
+    private ModelParameters getModelParameters(ChatRequest request, String modelName) {
+        Double temperature = request.getTemperature();
+        Integer maxTokens = request.getMaxTokens();
+        String source = "request"; // 默认来源为前端请求
+
+        // 1. 验证前端传递的参数
+        if (temperature != null) {
+            if (temperature < 0.0 || temperature > 1.0) {
+                log.warn("前端传递的 temperature 超出范围 [0.0, 1.0]: {}, 将忽略", temperature);
+                temperature = null;
+            }
+        }
+        if (maxTokens != null && maxTokens <= 0) {
+            log.warn("前端传递的 maxTokens 无效: {}, 将忽略", maxTokens);
+            maxTokens = null;
+        }
+
+        // 2. 如果前端没有传递完整参数，尝试从数据库读取
+        if (temperature == null || maxTokens == null) {
+            try {
+                Optional<ModelConfigDTO> modelConfig = aiModelConfigService.getModelByName(modelName);
+                if (modelConfig.isPresent()) {
+                    ModelConfigDTO config = modelConfig.get();
+
+                    // 合并配置（前端优先）
+                    if (temperature == null && config.getTemperature() != null) {
+                        temperature = config.getTemperature().doubleValue();
+                    }
+                    if (maxTokens == null && config.getMaxTokens() != null) {
+                        maxTokens = config.getMaxTokens();
+                    }
+
+                    source = "database";
+                    log.debug("从数据库读取模型配置: {}, temperature: {}, maxTokens: {}",
+                            modelName, temperature, maxTokens);
+                } else {
+                    log.info("模型 {} 未在数据库中配置，使用AI提供商默认参数", modelName);
+                    source = "default";
+                }
+            } catch (Exception e) {
+                log.error("读取模型配置失败，模型: {}, 错误: {}, 将使用默认参数",
+                        modelName, e.getMessage());
+                source = "default";
+            }
+        }
+
+        // 3. 最终参数来源确认
+        if (request.getTemperature() != null && temperature != null &&
+                !temperature.equals(request.getTemperature())) {
+            source = "mixed"; // 前端和数据库混合
+        }
+
+        return new ModelParameters(temperature, maxTokens, source);
+    }
+
+    /**
+     * 记录参数应用日志
+     *
+     * @param modelName 模型名称
+     * @param params 模型参数
+     */
+    private void logParameterApplication(String modelName, ModelParameters params) {
+        if (params.temperature != null || params.maxTokens != null) {
+            log.info("AI模型参数应用 - 模型: {}, 来源: {}, temperature: {}, maxTokens: {}",
+                    modelName,
+                    params.source,
+                    params.temperature != null ? String.format("%.2f", params.temperature) : "未设置",
+                    params.maxTokens != null ? params.maxTokens : "未设置");
+        } else {
+            log.info("AI模型参数应用 - 模型: {}, 来源: {}, 使用AI提供商默认参数", modelName, params.source);
+        }
     }
 }

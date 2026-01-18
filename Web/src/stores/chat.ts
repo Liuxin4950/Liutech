@@ -16,12 +16,21 @@ export interface ChatMessage {
   isStreaming?: boolean
   isError?: boolean
   conversationId?: number
+  modelName?: string // 使用的模型名称
 }
 
 /**
  * 聊天模式
  */
 export type ChatMode = 'stream' | 'normal'
+
+/**
+ * 当前模型信息
+ */
+interface ModelInfo {
+  modelName: string
+  displayName?: string
+}
 
 /**
  * AI聊天状态管理Store
@@ -40,6 +49,7 @@ export const useChatStore = defineStore('chat', () => {
   const errorMessage = ref('')
   const defaultModel = ref<string>('zai-org/GLM-4.6')  // 默认模型
   const isModelLoading = ref(false)  // 模型加载状态
+  const currentModelInfo = ref<ModelInfo | null>(null)  // 当前模型信息
 
   // 生成临时消息ID（使用负数，避免与后端返回的正数ID冲突）
   let messageIdCounter = 0
@@ -150,7 +160,8 @@ export const useChatStore = defineStore('chat', () => {
       content,
       timestamp: new Date(),
       isStreaming: true,
-      conversationId: conversationId.value || undefined
+      conversationId: conversationId.value || undefined,
+      modelName: currentModelInfo.value?.displayName || currentModelInfo.value?.modelName
     }
     messages.value.push(message)
     return message
@@ -306,19 +317,42 @@ export const useChatStore = defineStore('chat', () => {
     console.error('发送消息失败:', error)
 
     let errorMsg = '发送消息失败'
+    let detail = ''
 
     if (error instanceof StreamError) {
-      errorMsg = error.message
+      errorMsg = error.message || '流式连接失败'
+      detail = error.code ? `错误码: ${error.code}` : ''
     } else if (error.status === 429) {
       errorMsg = '请求过于频繁，请稍后再试'
+      detail = 'AI服务有访问频率限制，请等待几秒后重试'
     } else if (error.status === 500) {
       errorMsg = '服务器内部错误，请稍后重试'
+      detail = 'AI服务暂时出现问题，我们正在处理中'
     } else if (error.status === 503) {
       errorMsg = '服务暂时不可用，请稍后重试'
+      detail = 'AI服务正在维护中，请稍后再试'
+    } else if (error.message) {
+      // 尝试解析后端返回的错误信息
+      try {
+        const parsed = JSON.parse(error.message)
+        errorMsg = parsed.message || errorMsg
+        detail = parsed.detail || ''
+      } catch {
+        errorMsg = error.message
+      }
     }
 
-    errorMessage.value = errorMsg
-    addErrorMessage(errorMsg)
+    // 组合完整错误信息
+    const fullErrorMsg = detail ? `${errorMsg}：${detail}` : errorMsg
+    errorMessage.value = fullErrorMsg
+    addErrorMessage(fullErrorMsg)
+
+    // 3秒后自动清除错误提示
+    setTimeout(() => {
+      if (errorMessage.value === fullErrorMsg) {
+        errorMessage.value = ''
+      }
+    }, 5000)
   }
 
   // ===== 清理方法 =====
@@ -355,19 +389,40 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * 加载默认模型
+   * 加载默认模型并更新当前模型信息
    */
   const loadDefaultModel = async () => {
     if (isModelLoading.value) return
     try {
       isModelLoading.value = true
-      defaultModel.value = await Ai.getDefaultModel()
-      console.log('已加载默认模型:', defaultModel.value)
+      const modelName = await Ai.getDefaultModel()
+      defaultModel.value = modelName
+
+      // 更新当前模型信息
+      currentModelInfo.value = {
+        modelName: modelName,
+        displayName: formatModelName(modelName)
+      }
+
+      console.log('已加载默认模型:', modelName)
     } catch (error) {
       console.error('加载默认模型失败:', error)
+      errorMessage.value = '加载模型配置失败，请刷新页面重试'
     } finally {
       isModelLoading.value = false
     }
+  }
+
+  /**
+   * 格式化模型名称用于显示
+   * 将 "zai-org/GLM-4.6" 转换为 "GLM-4.6"
+   */
+  const formatModelName = (modelName: string): string => {
+    // 如果包含斜杠，取斜杠后的部分
+    if (modelName.includes('/')) {
+      return modelName.split('/').pop() || modelName
+    }
+    return modelName
   }
 
   // ===== 防抖保存 =====
@@ -412,6 +467,7 @@ export const useChatStore = defineStore('chat', () => {
     errorMessage,
     defaultModel,
     isModelLoading,
+    currentModelInfo,
 
     // 计算属性
     hasMessages,

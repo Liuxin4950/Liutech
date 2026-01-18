@@ -584,7 +584,7 @@ onUnmounted(() => {
     border: 4px solid var(--bg-soft);
   overflow: hidden;
   border-radius:16px;
-  /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .chat-box.expanded {
