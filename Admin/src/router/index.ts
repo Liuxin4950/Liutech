@@ -92,6 +92,15 @@ const routes: RouteRecordRaw[] = [
           title: 'AI音乐管理',
           section: 'music'
         }
+      },
+      {
+        path: 'ai-models',
+        name: 'ai-models-management',
+        component: () => import('../views/admin/AiModelsManagement.vue'),
+        meta: {
+          title: 'AI模型管理',
+          section: 'ai-models'
+        }
       }
     ]
   },{

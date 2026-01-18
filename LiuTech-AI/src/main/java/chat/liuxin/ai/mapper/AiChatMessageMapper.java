@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * MyBatis-Plus Mapper：基础CRUD + 自定义查询在XML或注解扩展。
@@ -81,4 +82,18 @@ public interface AiChatMessageMapper extends BaseMapper<AiChatMessage> {
             "  LIMIT 1 OFFSET #{retainLastN}" +
             ")")
     long countOldMessagesForCleanup(@Param("userId") String userId, @Param("retainLastN") int retainLastN);
+
+    /**
+     * 查询今天各模型的使用统计
+     * 用于管理后台展示今日模型使用情况
+     *
+     * @return 模型使用统计列表，包含 model 和 usageCount 字段
+     */
+    @Select("SELECT model, COUNT(*) as usageCount FROM ai_chat_message " +
+            "WHERE DATE(created_at) = CURDATE() " +
+            "AND role = 'assistant' " +
+            "AND model IS NOT NULL " +
+            "GROUP BY model " +
+            "ORDER BY usageCount DESC")
+    List<Map<String, Object>> selectTodayModelUsage();
 }

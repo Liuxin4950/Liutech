@@ -217,6 +217,17 @@ export class Ai {
         })
         return response as unknown as RecommendResponse
     }
+
+    /**
+     * 获取默认模型
+     * 使用AI服务8081端口，无需认证
+     */
+    static async getDefaultModel(): Promise<string> {
+        const response = await get<string>('/models/default', {}, {
+            serviceType: ServiceType.AI
+        })
+        return response as unknown as string
+    }
 }
 
 // 导出流式聊天服务

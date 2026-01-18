@@ -38,6 +38,8 @@ export const useChatStore = defineStore('chat', () => {
   const isStreaming = ref(false)
   const mode = ref<ChatMode>('stream')
   const errorMessage = ref('')
+  const defaultModel = ref<string>('zai-org/GLM-4.6')  // 默认模型
+  const isModelLoading = ref(false)  // 模型加载状态
 
   // 生成临时消息ID（使用负数，避免与后端返回的正数ID冲突）
   let messageIdCounter = 0
@@ -194,8 +196,11 @@ export const useChatStore = defineStore('chat', () => {
   // ===== 聊天操作方法 =====
   /**
    * 发送消息
+   * @param content 消息内容
+   * @param context 上下文信息
+   * @param model 模型名称（可选，不传则使用默认模型）
    */
-  const sendMessage = async (content: string, context?: Record<string, any>) => {
+  const sendMessage = async (content: string, context?: Record<string, any>, model?: string) => {
     if (!content.trim() || isLoading.value) return
 
     // 清空之前的错误
@@ -212,6 +217,7 @@ export const useChatStore = defineStore('chat', () => {
       const request: AiChatRequest = {
         message: content.trim(),
         context,
+        model: model || defaultModel.value,  // 使用传入的模型或默认模型
         ...(conversationId.value && { conversationId: conversationId.value })
       }
 
@@ -348,6 +354,22 @@ export const useChatStore = defineStore('chat', () => {
     localStorage.setItem(MODE_KEY, newMode)
   }
 
+  /**
+   * 加载默认模型
+   */
+  const loadDefaultModel = async () => {
+    if (isModelLoading.value) return
+    try {
+      isModelLoading.value = true
+      defaultModel.value = await Ai.getDefaultModel()
+      console.log('已加载默认模型:', defaultModel.value)
+    } catch (error) {
+      console.error('加载默认模型失败:', error)
+    } finally {
+      isModelLoading.value = false
+    }
+  }
+
   // ===== 防抖保存 =====
   // 使用防抖避免频繁写入localStorage（500ms延迟）
   const debouncedSave = debounce(saveToStorage, 500)
@@ -377,6 +399,8 @@ export const useChatStore = defineStore('chat', () => {
   // ===== 初始化 =====
   // 组件加载时从localStorage恢复状态
   loadFromStorage()
+  // 加载默认模型
+  loadDefaultModel()
 
   return {
     // 状态
@@ -386,6 +410,8 @@ export const useChatStore = defineStore('chat', () => {
     isStreaming,
     mode,
     errorMessage,
+    defaultModel,
+    isModelLoading,
 
     // 计算属性
     hasMessages,
@@ -396,6 +422,7 @@ export const useChatStore = defineStore('chat', () => {
     sendMessage,
     clearHistory,
     setMode,
+    loadDefaultModel,
     addUserMessage,
     addAiMessage,
     addErrorMessage
