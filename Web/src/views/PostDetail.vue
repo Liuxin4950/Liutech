@@ -101,6 +101,9 @@ const displayImage = ref('/src/assets/image/images.jpg') // 默认图片
 // 购买状态
 const purchasingId = ref<number | null>(null)
 
+// 下载状态
+const downloadingId = ref<number | null>(null)
+
 // 计算属性：渲染富文本内容
 const renderedContent = computed(() => {
   if (!post.value?.content) return ''
@@ -265,6 +268,32 @@ const onPurchase = async (resourceId: number) => {
     },
     onFinally: () => {
       purchasingId.value = null
+    }
+  })
+}
+
+// 处理附件下载（通过后端验证）
+const handleDownload = async (resourceId: number, fileName: string) => {
+  if (!resourceId) return
+
+  // 检查登录状态
+  if (!isLoggedIn()) {
+    loginMessage.value = '下载资源需要登录后才能进行'
+    showLoginModal.value = true
+    return
+  }
+
+  await handleAsync(async () => {
+    downloadingId.value = resourceId
+    await PostService.downloadResource(resourceId, fileName)
+    showSuccessToast('下载成功！')
+  }, {
+    onError: (err) => {
+      console.error('下载失败:', err)
+      // 业务错误已通过拦截器Toast提示，这里不再额外弹模态框
+    },
+    onFinally: () => {
+      downloadingId.value = null
     }
   })
 }
@@ -561,9 +590,9 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
           <li v-for="att in post.attachments" :key="att.attachmentId"
             class="flex flex-sb flex-ac bg-hover p-12 rounded">
             <div class="flex flex-col">
-              <template v-if="att.purchased && att.fileUrl">
-                <a class="link" :href="att.fileUrl" target="_blank" rel="noopener" :title="att.fileName"><Icon name="paperclip" size="14" /> {{
-                  att.fileName }}</a>
+              <template v-if="att.purchased">
+                <span class="link cursor-pointer" @click="handleDownload(att.resourceId, att.fileName)" :title="att.fileName"><Icon name="paperclip" size="14" /> {{
+                  att.fileName }}</span>
               </template>
               <template v-else>
                 <span class="text-muted"><Icon name="paperclip" size="14" /> {{ att.fileName }}</span>
@@ -574,8 +603,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
               </div>
             </div>
             <div class="flex gap-8">
-              <a v-if="att.purchased && att.fileUrl" class="action-btn" :href="att.fileUrl" target="_blank"
-                rel="noopener">下载/查看</a>
+              <button v-if="att.purchased" class="action-btn"
+                :disabled="downloadingId === att.resourceId"
+                @click="handleDownload(att.resourceId, att.fileName)">
+                {{ downloadingId === att.resourceId ? '下载中...' : '下载/查看' }}
+              </button>
               <button v-else-if="!att.purchased && att.pointsNeeded" class="action-btn"
                 :disabled="purchasingId === att.resourceId" @click="onPurchase(att.resourceId)">
                 {{ purchasingId === att.resourceId ? '购买中...' : (att.pointsNeeded ? `购买（${att.pointsNeeded} 积分）` : '购买')

@@ -414,6 +414,35 @@ export class PostService {
       throw error
     }
   }
+
+  /** 下载资源文件（通过后端验证） */
+  static async downloadResource(resourceId: number, fileName: string): Promise<void> {
+    try {
+      // 导入axios实例用于文件下载
+      const { getAxiosInstance } = await import('./api')
+      const axiosInstance = getAxiosInstance()
+
+      const response = await axiosInstance.get(`/api/resource/download/${resourceId}`, {
+        responseType: 'blob'
+      })
+
+      // 创建下载链接
+      const blob = new Blob([response.data])
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName || 'download'
+      document.body.appendChild(a)
+      a.click()
+
+      // 清理
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('下载资源失败:', error)
+      throw error
+    }
+  }
   /** 更新附件收费设置（下载类型与积分） */
   static async updateAttachmentMeta(resourceId: number, downloadType: number = 0, pointsNeeded: number = 0): Promise<void> {
     try {

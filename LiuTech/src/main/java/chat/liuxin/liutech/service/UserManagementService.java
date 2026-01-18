@@ -240,6 +240,14 @@ public class UserManagementService {
             int result = userMapper.insert(user);
             boolean success = result > 0;
 
+            if (success) {
+                // 3. 清理缓存，确保用户信息立即生效
+                if (StringUtils.hasText(user.getUsername())) {
+                    userUtils.clearUserCache(user.getUsername());
+                    log.info("已清理新用户 {} 的缓存", user.getUsername());
+                }
+            }
+
             log.info("用户创建{} - 用户名: {}, ID: {}", success ? "成功" : "失败", user.getUsername(), user.getId());
             return success;
 
@@ -296,6 +304,14 @@ public class UserManagementService {
             // 2. 更新到数据库
             int result = userMapper.updateById(user);
             boolean success = result > 0;
+
+            if (success) {
+                // 3. 清理缓存，确保权限等信息立即生效
+                if (StringUtils.hasText(user.getUsername())) {
+                    userUtils.clearUserCache(user.getUsername());
+                    log.info("已清理用户 {} 的缓存", user.getUsername());
+                }
+            }
 
             log.info("用户更新{} - 用户ID: {}", success ? "成功" : "失败", user.getId());
             return success;
@@ -509,6 +525,15 @@ public class UserManagementService {
             int result = userMapper.restoreUserById(id, currentUserId);
             boolean success = result > 0;
 
+            if (success) {
+                // 清理用户缓存
+                Users user = userMapper.selectById(id);
+                if (user != null && StringUtils.hasText(user.getUsername())) {
+                    userUtils.clearUserCache(user.getUsername());
+                    log.info("已清理恢复用户 {} 的缓存", user.getUsername());
+                }
+            }
+
             log.info("用户恢复{} - 用户ID: {}", success ? "成功" : "失败", id);
             return success;
 
@@ -579,6 +604,19 @@ public class UserManagementService {
 
             int result = userMapper.update(null, updateWrapper);
             boolean success = result > 0;
+
+            if (success) {
+                // 清理相关用户的缓存
+                List<Users> users = userMapper.selectBatchIds(ids);
+                if (users != null && !users.isEmpty()) {
+                    users.forEach(u -> {
+                        if (StringUtils.hasText(u.getUsername())) {
+                            userUtils.clearUserCache(u.getUsername());
+                        }
+                    });
+                    log.info("已清理 {} 个用户的缓存", users.size());
+                }
+            }
 
             log.info("批量更新用户状态{} - 更新数量: {}", success ? "成功" : "失败", result);
             return success;

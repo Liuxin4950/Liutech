@@ -31,6 +31,7 @@ public class CheckinService {
 
     private final UserCheckinMapper userCheckinMapper;
     private final UserMapper userMapper;
+    private final PointsService pointsService;
 
     /**
      * 用户签到
@@ -73,10 +74,24 @@ public class CheckinService {
 
             userCheckinMapper.insert(checkin);
 
-            // 更新用户积分
-            BigDecimal newPoints = user.getPoints().add(pointsEarned);
-            user.setPoints(newPoints);
-            userMapper.updateById(user);
+            // 使用PointsService增加积分（原子操作 + 流水记录）
+            try {
+                pointsService.addPoints(
+                    userId,
+                    pointsEarned,
+                    PointsService.TYPE_CHECKIN,
+                    PointsService.SOURCE_SYSTEM_REWARD,
+                    null,
+                    "连续签到" + consecutiveDays + "天奖励"
+                );
+            } catch (Exception e) {
+                log.error("用户{}签到积分增加失败", userId, e);
+                throw new RuntimeException("积分奖励发放失败，请稍后重试");
+            }
+
+            // 获取用户最新积分
+            Users updatedUser = userMapper.selectById(userId);
+            BigDecimal newPoints = updatedUser.getPoints();
 
             // 构建响应
             CheckinResp response = new CheckinResp()

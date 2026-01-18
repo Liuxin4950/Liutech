@@ -95,4 +95,20 @@ public interface UserMapper extends BaseMapper<Users> {
     @Select("SELECT avatar_url FROM users WHERE avatar_url IS NOT NULL AND deleted_at IS NULL")
     List<String> selectAllAvatarUrls();
 
+    /**
+     * 使用乐观锁扣减用户积分（原子操作）
+     *
+     * @param userId 用户ID
+     * @param amount 扣减金额
+     * @param currentVersion 当前版本号
+     * @param newVersion 新版本号
+     * @return 影响的行数（0表示失败，1表示成功）
+     */
+    int deductPointsWithVersion(
+        @Param("userId") Long userId,
+        @Param("amount") java.math.BigDecimal amount,
+        @Param("currentVersion") Integer currentVersion,
+        @Param("newVersion") Integer newVersion
+    );
+
 }

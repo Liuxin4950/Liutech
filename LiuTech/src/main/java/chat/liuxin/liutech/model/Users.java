@@ -42,6 +42,11 @@ public class Users extends BaseEntity {
     private BigDecimal points;
 
     /**
+     * 乐观锁版本号
+     */
+    private Integer version;
+
+    /**
      * 用户角色(user/admin)
      */
     private String role;

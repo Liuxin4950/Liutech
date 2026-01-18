@@ -122,4 +122,15 @@
         SELECT role FROM users WHERE id = #{id} AND deleted_at IS NULL
     </select>
 
+    <!-- 使用乐观锁原子性扣减用户积分 -->
+    <update id="deductPointsWithVersion">
+        UPDATE users
+        SET points = points - #{amount},
+            version = #{newVersion},
+            updated_at = NOW()
+        WHERE id = #{userId}
+        AND version = #{currentVersion}
+        AND points >= #{amount}
+    </update>
+
 </mapper>

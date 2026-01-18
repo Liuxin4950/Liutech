@@ -144,4 +144,6 @@ export const useUserStore = defineStore('user', () => {
     initUserState,
     updateUserInfo
   }
+}, {
+  persist: true
 })

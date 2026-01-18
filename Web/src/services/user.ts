@@ -150,7 +150,8 @@ export class UserService {
    */
   static async getCurrentUser(): Promise<UserInfo> {
     try {
-      const response = await get<UserInfo>('/user/current', {}, { skipAuthJump: true })
+      // 添加时间戳防止缓存
+      const response = await get<UserInfo>('/user/current', { _t: Date.now() }, { skipAuthJump: true })
       return response.data
     } catch (error) {
       console.error('获取用户信息失败', error)
@@ -192,7 +193,8 @@ export class UserService {
    */
   static logout(): void {
     localStorage.removeItem('token')
-    // 可以在这里添加其他清理逻辑
+    // 清除可能存在的用户缓存
+    localStorage.removeItem('user')
   }
 
   /**
