@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash VARCHAR(255) NOT NULL COMMENT '密码哈希',
   avatar_url VARCHAR(512) DEFAULT NULL COMMENT '头像URL',
   points DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '用户积分',
+  version INT NOT NULL DEFAULT 0 COMMENT '乐观锁版本号',
   role VARCHAR(20) NOT NULL DEFAULT 'user' COMMENT '用户角色(user/admin)',
   status TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '用户状态(0禁用,1正常)',
   last_login_at TIMESTAMP NULL DEFAULT NULL COMMENT '最近登录时间',
@@ -26,7 +27,8 @@ CREATE TABLE IF NOT EXISTS users (
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_username (username),
   INDEX idx_email (email),
-  INDEX idx_role (role)
+  INDEX idx_role (role),
+  INDEX idx_points (points) COMMENT '积分索引，用于排行榜'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- 为现有用户设置角色（admin 用户为管理员）
@@ -172,11 +174,30 @@ CREATE TABLE IF NOT EXISTS download_logs (
   created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
   updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
+  UNIQUE KEY uk_user_resource (user_id, resource_id) COMMENT '用户资源唯一索引，防止重复购买',
   INDEX idx_user_id (user_id),
   INDEX idx_resource_id (resource_id),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (resource_id) REFERENCES resources(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='下载记录表';
+
+-- 积分流水表（记录所有积分变动）
+CREATE TABLE IF NOT EXISTS points_transactions (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '流水ID',
+  user_id BIGINT NOT NULL COMMENT '用户ID',
+  transaction_type VARCHAR(20) NOT NULL COMMENT '交易类型(checkin签到/consumption消费/refund退款/admin_adjust管理员调整)',
+  amount DECIMAL(12,2) NOT NULL COMMENT '变动金额（正数为增加，负数为减少）',
+  balance_after DECIMAL(12,2) NOT NULL COMMENT '变动后余额',
+  source_type VARCHAR(50) DEFAULT NULL COMMENT '来源类型(resource_download/admin_manual/system_reward等)',
+  source_id BIGINT DEFAULT NULL COMMENT '来源ID（资源ID等）',
+  description VARCHAR(500) DEFAULT NULL COMMENT '描述',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  INDEX idx_user_id (user_id),
+  INDEX idx_transaction_type (transaction_type),
+  INDEX idx_created_at (created_at),
+  INDEX idx_source (source_type, source_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分流水表';
 
 CREATE TABLE IF NOT EXISTS announcements (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '公告ID',
