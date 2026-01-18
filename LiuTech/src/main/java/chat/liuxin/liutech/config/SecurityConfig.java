@@ -106,6 +106,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/uploads/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/music/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/upload/**").authenticated()
 
                 .anyRequest().authenticated()

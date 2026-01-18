@@ -47,12 +47,11 @@ onMounted(() => {
         <!-- 顶部导航栏 -->
         <a-layout-header class="header">
           <TheHeader />
-        </a-layout-header>
-        <!-- 标签栏和面包屑区域 - 固定不滚动 -->
-        <div class="nav-bar-wrapper">
-          <TagsView />
+           <TagsView />
           <Breadcrumb />
-        </div>
+        </a-layout-header>
+
+
         <div class="content-wrapper">
           <!-- 使用 KeepAlive 缓存页面组件 -->
           <KeepAlive :include="tagsStore.cachedViews">
@@ -83,9 +82,11 @@ onMounted(() => {
   line-height: 64px;
   background: var(--bg-card);
   flex-shrink: 0;
-  z-index: 100;
-  position: relative;
   box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
 }
 
 .content-layout {
@@ -119,17 +120,9 @@ onMounted(() => {
   flex-direction: column;
 }
 
-/* 标签栏和面包屑容器 - 固定在内容区域顶部 */
-.nav-bar-wrapper {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-light);
-  position: sticky;
-  top: 0;
-  z-index: 98;
-}
-
 .content-wrapper {
   /* padding: 16px 24px 24px; */
+  padding-top: 80px;
   /* 让内容区域撑满剩余空间，但由内容决定高度 */
   flex: 1; 
 }

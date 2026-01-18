@@ -215,6 +215,7 @@ const toggleCollapsed = () => {
 .sidebar-menu {
   flex: 1;
   border-right: 0;
+  padding:0 5px 0 0; 
 }
 
 /* 深色模式覆盖 */
