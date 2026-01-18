@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
+import java.util.List;
 
 /**
  * AI模型公开控制器
@@ -17,9 +18,11 @@ import java.util.Optional;
  *
  * 功能说明：
  * 获取默认模型：用户前端自动使用管理员设置的默认模型进行AI对话
+ * 获取启用的模型列表：用户前端可以查看所有可用的AI模型
  *
  * 路由说明：
  * - GET /ai/models/default 获取默认模型名称
+ * - GET /ai/models/enabled 获取所有启用的模型列表
  */
 @Slf4j
 @RestController
@@ -48,5 +51,21 @@ public class AiModelController {
         }
         log.info("返回默认模型: {}", defaultModel.get().getModelName());
         return defaultModel.get().getModelName();
+    }
+
+    /**
+     * 获取所有启用的模型列表
+     *
+     * 业务说明：返回所有启用状态的AI模型配置，供用户前端查看和选择
+     * 仅返回启用状态的模型，确保用户只能使用管理员允许的模型
+     *
+     * @return 启用的模型配置列表
+     */
+    @GetMapping("/enabled")
+    public List<ModelConfigDTO> getEnabledModels() {
+        log.info("用户前端获取启用的模型列表");
+        List<ModelConfigDTO> enabledModels = modelConfigService.getEnabledModels();
+        log.info("返回{}个启用的模型", enabledModels.size());
+        return enabledModels;
     }
 }

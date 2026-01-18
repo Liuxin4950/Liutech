@@ -48,34 +48,43 @@ public class SiliconFlowChatClient {
 
     /**
      * 使用默认模型进行聊天
-     * 
+     *
      * @param messages 消息列表，包含对话历史和当前用户输入
      * @return AI生成的回复内容
      */
     public String chat(List<Message> messages) {
         // 委托给带模型参数的方法，使用默认模型
-        return chat(messages, null);
+        return chat(messages, null, null, null);
     }
-    
+
     /**
-     * 使用指定模型进行聊天
+     * 使用指定模型进行聊天（兼容旧方法）
+     */
+    public String chat(List<Message> messages, String modelName) {
+        return chat(messages, modelName, null, null);
+    }
+
+    /**
+     * 使用指定模型和参数进行聊天
      *
      * 业务流程：
      * 1. 参数验证和初始化
-     * 2. 构建AI请求参数
+     * 2. 构建AI请求参数（支持temperature和maxTokens）
      * 3. 调用AI模型并获取响应
      * 4. 验证响应有效性
      * 5. 记录日志并返回结果
      *
      * @param messages 消息列表，包含对话历史和当前用户输入
      * @param modelName 指定的AI模型名称，为null时使用默认模型
+     * @param temperature 温度参数，控制回复随机性（0.0-1.0），为null时使用默认值
+     * @param maxTokens 最大生成token数，为null时不限制
      * @return AI生成的回复内容
      * @throws AIServiceException 当AI服务调用失败时抛出
      */
     @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChat")
+    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChatWithParams")
     @RateLimiter(name = "aiService")
-    public String chat(List<Message> messages, String modelName) {
+    public String chat(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
         // 1. 参数验证和初始化
         // 允许空消息列表，第一次对话时可能只有用户输入
         if (messages == null) {
@@ -84,17 +93,28 @@ public class SiliconFlowChatClient {
         
         // 确定使用的模型，优先使用指定模型，否则使用默认模型
         String model = modelName != null ? modelName : defaultModel;
-        
+
         try {
             // 2. 记录调用日志
-            log.debug("调用AI模型: {}, 消息数量: {}", model, messages.size());
-            
+            log.debug("调用AI模型: {}, 消息数量: {}, temperature: {}, maxTokens: {}",
+                    model, messages.size(), temperature, maxTokens);
+
             // 3. 构建AI请求并调用
-            // 注意：使用Spring AI的ChatClient进行模型调用，自动处理OpenAI兼容接口
-            OpenAiChatOptions options = OpenAiChatOptions.builder()
-                            .model(model)
-                            .temperature(0.2)  // 设置较低的温度以获得更稳定的回复
-                            .build();
+            // 使用Spring AI的ChatClient进行模型调用，支持动态参数
+            OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder()
+                    .model(model);
+
+            // 应用温度参数（如果有）
+            if (temperature != null && temperature >= 0.0 && temperature <= 1.0) {
+                optionsBuilder.temperature(temperature);
+            }
+
+            // 应用最大token参数（如果有）
+            if (maxTokens != null && maxTokens > 0) {
+                optionsBuilder.maxTokens(maxTokens);
+            }
+
+            OpenAiChatOptions options = optionsBuilder.build();
             OpenAiChatOptions safeOptions = Objects.requireNonNullElse(options, OpenAiChatOptions.builder().build());
             @SuppressWarnings("null")
             String response = chatClient
@@ -121,24 +141,33 @@ public class SiliconFlowChatClient {
     }
     
     /**
-     * 使用指定模型进行流式聊天
+     * 使用指定模型进行流式聊天（兼容旧方法）
+     */
+    public Flux<String> streamChat(List<Message> messages, String modelName) {
+        return streamChat(messages, modelName, null, null);
+    }
+
+    /**
+     * 使用指定模型和参数进行流式聊天
      *
      * 业务流程：
      * 1. 参数验证和初始化
-     * 2. 构建AI请求参数
+     * 2. 构建AI请求参数（支持temperature和maxTokens）
      * 3. 调用AI模型并获取流式响应
      * 4. 返回Flux<String>供调用方处理
      * 5. 异常处理和日志记录
      *
      * @param messages 消息列表，包含对话历史和当前用户输入
      * @param modelName 指定的AI模型名称，为null时使用默认模型
+     * @param temperature 温度参数，控制回复随机性（0.0-1.0），为null时使用默认值
+     * @param maxTokens 最大生成token数，为null时不限制
      * @return Flux<String> 流式响应的字符串序列
      * @throws AIServiceException 当AI服务调用失败时抛出
      */
     @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackStreamChat")
+    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackStreamChatWithParams")
     @RateLimiter(name = "aiService")
-    public Flux<String> streamChat(List<Message> messages, String modelName) {
+    public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
         // 1. 参数验证和初始化
         // 允许空消息列表，第一次对话时可能只有用户输入
         if (messages == null) {
@@ -147,19 +176,28 @@ public class SiliconFlowChatClient {
         
         // 确定使用的模型，优先使用指定模型，否则使用默认模型
         String model = modelName != null ? modelName : defaultModel;
-        
+
         try {
             // 2. 记录调用日志
-            log.debug("调用AI模型(流式): {}, 消息数量: {}", model, messages.size());
-            
+            log.debug("调用AI模型(流式): {}, 消息数量: {}, temperature: {}, maxTokens: {}",
+                    model, messages.size(), temperature, maxTokens);
+
             // 3. 构建AI请求并返回流式响应
-            // 注意：使用Spring AI的ChatClient进行流式模型调用，自动处理OpenAI兼容接口
-            // 流式响应通过调用.stream()方法启用，不需要在OpenAiChatOptions中设置stream选项
-            // 直接返回Flux<String>，让调用方处理响应流
-            OpenAiChatOptions streamOptions = OpenAiChatOptions.builder()
-                            .model(model)
-                            .temperature(0.2)  // 设置较低的温度以获得更稳定的回复
-                            .build();
+            // 使用Spring AI的ChatClient进行流式模型调用，支持动态参数
+            OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder()
+                    .model(model);
+
+            // 应用温度参数（如果有）
+            if (temperature != null && temperature >= 0.0 && temperature <= 1.0) {
+                optionsBuilder.temperature(temperature);
+            }
+
+            // 应用最大token参数（如果有）
+            if (maxTokens != null && maxTokens > 0) {
+                optionsBuilder.maxTokens(maxTokens);
+            }
+
+            OpenAiChatOptions streamOptions = optionsBuilder.build();
             OpenAiChatOptions safeStreamOptions = Objects.requireNonNullElse(streamOptions, OpenAiChatOptions.builder().build());
             @SuppressWarnings("null")
             Flux<String> responseFlux = chatClient
@@ -205,6 +243,26 @@ public class SiliconFlowChatClient {
      */
     public Flux<String> fallbackStreamChat(List<Message> messages, String modelName, Exception exception) {
         log.warn("AI服务流式熔断，使用fallback响应, 模型: {}, 异常: {}", modelName, exception.getMessage());
+        return Flux.just("抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage());
+    }
+
+    /**
+     * 熔断器fallback方法 - 普通聊天（带参数）
+     * 当AI服务熔断时返回友好的错误提示
+     */
+    public String fallbackChatWithParams(List<Message> messages, String modelName, Double temperature, Integer maxTokens, Exception exception) {
+        log.warn("AI服务熔断，使用fallback响应, 模型: {}, temperature: {}, maxTokens: {}, 异常: {}",
+                modelName, temperature, maxTokens, exception.getMessage());
+        return "抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage();
+    }
+
+    /**
+     * 熔断器fallback方法 - 流式聊天（带参数）
+     * 当AI服务熔断时返回友好的错误提示
+     */
+    public Flux<String> fallbackStreamChatWithParams(List<Message> messages, String modelName, Double temperature, Integer maxTokens, Exception exception) {
+        log.warn("AI服务流式熔断，使用fallback响应, 模型: {}, temperature: {}, maxTokens: {}, 异常: {}",
+                modelName, temperature, maxTokens, exception.getMessage());
         return Flux.just("抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage());
     }
 }

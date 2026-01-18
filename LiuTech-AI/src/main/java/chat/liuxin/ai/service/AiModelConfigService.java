@@ -83,6 +83,21 @@ public class AiModelConfigService {
     }
 
     /**
+     * 根据模型名称获取配置
+     *
+     * @param modelName 模型名称
+     * @return 模型配置，不存在时返回 Optional.empty()
+     */
+    public Optional<ModelConfigDTO> getModelByName(String modelName) {
+        log.debug("根据模型名称获取配置，模型名称: {}", modelName);
+        AiModelConfig config = modelConfigMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiModelConfig>()
+                        .eq(AiModelConfig::getModelName, modelName)
+        );
+        return Optional.ofNullable(config).map(this::toDTO);
+    }
+
+    /**
      * 根据ID获取模型配置
      *
      * @param id 模型ID

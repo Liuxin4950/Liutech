@@ -1,6 +1,22 @@
 import {del, get, post, ServiceType} from './api'
 
 /**
+ * AI模型配置接口
+ */
+export interface AiModelConfig {
+  id: number
+  modelName: string
+  displayName: string
+  provider: string
+  isEnabled: boolean
+  isDefault: boolean
+  maxTokens?: number
+  temperature?: number
+  description?: string
+  sortOrder?: number
+}
+
+/**
  * AI聊天请求接口
  */
 export interface AiChatRequest {
@@ -227,6 +243,17 @@ export class Ai {
             serviceType: ServiceType.AI
         })
         return response as unknown as string
+    }
+
+    /**
+     * 获取所有启用的模型列表
+     * 使用AI服务8081端口，无需认证
+     */
+    static async getEnabledModels(): Promise<AiModelConfig[]> {
+        const response = await get<AiModelConfig[]>('/models/enabled', {}, {
+            serviceType: ServiceType.AI
+        })
+        return response as unknown as AiModelConfig[]
     }
 }
 

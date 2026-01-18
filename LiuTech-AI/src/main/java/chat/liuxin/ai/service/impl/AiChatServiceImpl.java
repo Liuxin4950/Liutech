@@ -24,7 +24,9 @@ import chat.liuxin.ai.exception.AIServiceException;
 import chat.liuxin.ai.monitor.AiMetrics;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
+import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.service.AiChatService;
+import chat.liuxin.ai.service.AiModelConfigService;
 import chat.liuxin.ai.service.BlogContextService;
 import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
@@ -52,6 +54,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final MemoryService memoryService;
     private final AiMetrics aiMetrics;
     private final BlogContextService blogContextService;
+    private final AiModelConfigService aiModelConfigService;
 
     @Value("${spring.ai.chat.history-limit:19}")
     private int historyLimit; // 历史条数（不含本轮输入）
@@ -118,9 +121,29 @@ public class AiChatServiceImpl implements AiChatService {
 
             // 6. 异步保存用户消息（在调用AI前保存，确保数据不丢失）
             memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
-            
-            // 7. 调用AI模型生成回复
-            String aiOutput = siliconFlowChatClient.chat(messages, modelName);
+
+            // 7. 获取模型配置参数
+            Double finalTemperature = request.getTemperature();
+            Integer finalMaxTokens = request.getMaxTokens();
+
+            // 如果前端没传参数，尝试从数据库读取模型配置
+            if (finalTemperature == null || finalMaxTokens == null) {
+                Optional<ModelConfigDTO> modelConfig = aiModelConfigService.getModelByName(modelName);
+                if (modelConfig.isPresent()) {
+                    ModelConfigDTO config = modelConfig.get();
+                    if (finalTemperature == null && config.getTemperature() != null) {
+                        finalTemperature = config.getTemperature().doubleValue();
+                    }
+                    if (finalMaxTokens == null && config.getMaxTokens() != null) {
+                        finalMaxTokens = config.getMaxTokens();
+                    }
+                    log.debug("从数据库读取模型配置: {}, temperature: {}, maxTokens: {}",
+                            modelName, finalTemperature, finalMaxTokens);
+                }
+            }
+
+            // 8. 调用AI模型生成回复（传递模型参数）
+            String aiOutput = siliconFlowChatClient.chat(messages, modelName, finalTemperature, finalMaxTokens);
             System.out.println("AI回复：\n" + (aiOutput == null ? "" : aiOutput) + '\n');
 
             // 8. 保存AI回复记录
@@ -269,18 +292,38 @@ public class AiChatServiceImpl implements AiChatService {
                 
                 // 4.4 异步保存用户消息
                 memoryService.saveUserMessage(userIdStr, finalConversationId, input, modelName, null);
-                
-                // 4.5 发送开始事件
+
+                // 4.5 获取模型配置参数
+                Double finalTemperature = request.getTemperature();
+                Integer finalMaxTokens = request.getMaxTokens();
+
+                // 如果前端没传参数，尝试从数据库读取模型配置
+                if (finalTemperature == null || finalMaxTokens == null) {
+                    Optional<ModelConfigDTO> modelConfig = aiModelConfigService.getModelByName(modelName);
+                    if (modelConfig.isPresent()) {
+                        ModelConfigDTO config = modelConfig.get();
+                        if (finalTemperature == null && config.getTemperature() != null) {
+                            finalTemperature = config.getTemperature().doubleValue();
+                        }
+                        if (finalMaxTokens == null && config.getMaxTokens() != null) {
+                            finalMaxTokens = config.getMaxTokens();
+                        }
+                        log.debug("流式聊天从数据库读取模型配置: {}, temperature: {}, maxTokens: {}",
+                                modelName, finalTemperature, finalMaxTokens);
+                    }
+                }
+
+                // 4.6 发送开始事件
                 sendSseEvent(emitter, "start", Map.of(
                     "conversationId", finalConversationId,
                     "model", modelName
                 ));
-                
-                // 4.6 用于收集完整响应的容器
+
+                // 4.7 用于收集完整响应的容器
                 AtomicReference<StringBuilder> fullResponseRef = new AtomicReference<>(new StringBuilder());
-                
-                // 4.7 调用流式AI接口
-                Flux<String> responseFlux = siliconFlowChatClient.streamChat(messages, modelName);
+
+                // 4.8 调用流式AI接口（传递模型参数）
+                Flux<String> responseFlux = siliconFlowChatClient.streamChat(messages, modelName, finalTemperature, finalMaxTokens);
                 
                 // 4.8 订阅流式响应并处理每个数据块
                 responseFlux.subscribe(
