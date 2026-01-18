@@ -21,191 +21,155 @@
         <!-- 发布设置 -->
         <div class="sidebar-section">
           <!-- 附件上传区域 -->
-          <div class="sidebar-item flex flex-ac gap-20">
-            <div class="sidebar-title">文章附件</div>
+          <div class="sidebar-item">
+            <div class="sidebar-title flex flex-ac flex-sb mb-8">
+              <span class="text-sm font-bold">附件资源</span>
+              <span class="text-xs text-muted" v-if="attachments.length > 0">{{ attachments.length }}</span>
+            </div>
             <div class="sidebar-content">
-              <!-- 附件类型选择 -->
-              <div class="flex gap-8 mb-12">
-                <button @click="() => switchAttachmentType('file')"
-                        :class="['btn-secondary flex-1', attachmentType === 'file' ? 'btn-primary' : 'btn-outline']">
-                  📁 上传文件
+              <!-- 附件类型切换 Tab -->
+              <div class="attachment-tabs flex bg-soft rounded p-4 mb-12 border-soft">
+                <button 
+                  @click="switchAttachmentType('file')"
+                  :class="['tab-btn flex-1 py-4 text-xs rounded transition text-center flex flex-jc gap-4', attachmentType === 'file' ? 'bg-white shadow-sm text-primary font-bold' : 'text-subtle hover-text-main']"
+                >
+                  <Icon name="upload" size="12" /> 上传
                 </button>
-                <button @click="() => switchAttachmentType('link')"
-                        :class="['btn-secondary flex-1', attachmentType === 'link' ? 'btn-primary' : 'btn-outline']">
-                  🔗 外部链接
+                <button 
+                  @click="switchAttachmentType('link')"
+                  :class="['tab-btn flex-1 py-4 text-xs rounded transition text-center flex flex-jc gap-4', attachmentType === 'link' ? 'bg-white shadow-sm text-primary font-bold' : 'text-subtle hover-text-main']"
+                >
+                  <Icon name="link" size="12" /> 外链
                 </button>
               </div>
 
               <!-- 文件上传区域 -->
-              <div v-if="attachmentType === 'file'" class="attachment-upload-area">
-                <button @click="triggerAttachmentUpload" class="btn-secondary w-full mb-12" :disabled="uploadingAttachment">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                  </svg>
-                  {{ uploadingAttachment ? '上传中...' : '上传附件' }}
-                </button>
+              <div v-if="attachmentType === 'file'" class="attachment-upload-area mb-12">
+                <div 
+                  @click="triggerAttachmentUpload" 
+                  class="upload-dropzone border-dashed border-soft rounded p-12 text-center hover-bg-soft cursor-pointer transition flex flex-col flex-jc gap-4"
+                  :class="{'opacity-50 cursor-not-allowed': uploadingAttachment}"
+                >
+                  <div class="icon-circle rounded-full bg-soft flex flex-jc text-primary mx-auto w-32 h-32">
+                    <Icon name="upload-cloud" size="16" />
+                  </div>
+                  <span class="text-xs text-subtle">{{ uploadingAttachment ? '正在上传...' : '点击或拖拽上传' }}</span>
+                </div>
                 <input ref="attachmentInput" type="file" @change="handleAttachmentUpload" style="display: none;" multiple>
               </div>
 
               <!-- 外部链接表单 -->
-              <div v-if="attachmentType === 'link'" class="external-link-form bg-hover p-12 rounded">
-                <div class="form-group">
-                  <label class="form-label">资源名称 *</label>
+              <div v-if="attachmentType === 'link'" class="external-link-form bg-soft p-8 rounded mb-12 border-soft">
+                <div class="flex flex-col gap-8 mb-8">
                   <input
                     v-model="externalLinkForm.name"
                     type="text"
-                    class="field-input"
-                    placeholder="例如：百度网盘-设计素材包"
+                    class="field-input w-full text-xs py-8 px-8 rounded border-soft bg-main"
+                    placeholder="资源名称 *"
                   />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">资源描述</label>
-                  <textarea
-                    v-model="externalLinkForm.description"
-                    class="field-input"
-                    rows="2"
-                    placeholder="简要描述这个资源..."
-                  ></textarea>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">外部链接 *</label>
                   <input
                     v-model="externalLinkForm.externalLink"
                     type="url"
-                    class="field-input"
-                    placeholder="https://pan.baidu.com/s/xxxxx"
+                    class="field-input w-full text-xs py-8 px-8 rounded border-soft bg-main"
+                    placeholder="https://链接地址 *"
                   />
                 </div>
-                <div class="form-group">
-                  <label class="form-label">购买后说明（可选）</label>
-                  <textarea
-                    v-model="externalLinkForm.purchasedNote"
-                    class="field-input"
-                    rows="3"
-                    placeholder="购买后显示的说明（提取码、使用说明等）"
-                  ></textarea>
-                </div>
+                
+                <!-- 折叠的高级选项 -->
+                <details class="advanced-options mb-8">
+                  <summary class="text-xs text-primary cursor-pointer mb-4 select-none">更多设置</summary>
+                  <div class="pl-8 border-l-2 border-soft flex flex-col gap-8">
+                    <textarea
+                      v-model="externalLinkForm.description"
+                      class="field-input w-full text-xs py-8 px-8 rounded border-soft bg-main"
+                      rows="2"
+                      placeholder="资源描述"
+                    ></textarea>
+                    <textarea
+                      v-model="externalLinkForm.purchasedNote"
+                      class="field-input w-full text-xs py-8 px-8 rounded border-soft bg-main"
+                      rows="2"
+                      placeholder="购买后说明（提取码等）"
+                    ></textarea>
+                  </div>
+                </details>
 
                 <!-- 收费设置 -->
-                <div class="form-group">
-                  <label class="form-label">收费设置</label>
-                  <div class="flex gap-12">
-                    <label class="flex flex-ac gap-4">
-                      <input
-                        type="radio"
-                        v-model="externalLinkForm.downloadType"
-                        :value="0"
-                      >
-                      <span class="text-sm">免费</span>
+                <div class="pricing-settings flex flex-ac flex-sb bg-main p-8 rounded border-soft mb-8">
+                  <div class="flex gap-8">
+                    <label class="flex flex-ac gap-4 cursor-pointer">
+                      <input type="radio" v-model="externalLinkForm.downloadType" :value="0" class="accent-primary scale-75">
+                      <span class="text-xs">免费</span>
                     </label>
-                    <label class="flex flex-ac gap-4">
-                      <input
-                        type="radio"
-                        v-model="externalLinkForm.downloadType"
-                        :value="1"
-                      >
-                      <span class="text-sm">积分</span>
+                    <label class="flex flex-ac gap-4 cursor-pointer">
+                      <input type="radio" v-model="externalLinkForm.downloadType" :value="1" class="accent-primary scale-75">
+                      <span class="text-xs">积分</span>
                     </label>
                   </div>
-                </div>
-                <div v-if="externalLinkForm.downloadType === 1" class="form-group">
-                  <label class="form-label">所需积分</label>
-                  <input
-                    type="number"
-                    v-model.number="externalLinkForm.pointsNeeded"
-                    placeholder="1"
-                    min="1"
-                    class="field-input"
-                    style="width: 100px;"
-                  >
-                  <span class="text-sm text-muted ml-4">积分</span>
+                  <div v-if="externalLinkForm.downloadType === 1" class="flex flex-ac gap-4">
+                    <input
+                      type="number"
+                      v-model.number="externalLinkForm.pointsNeeded"
+                      min="1"
+                      class="field-input text-xs py-4 px-4 rounded border-soft w-40 text-center"
+                    >
+                    <span class="text-xs text-muted">分</span>
+                  </div>
                 </div>
 
-                <div class="flex gap-8 mt-12">
-                  <button
-                    class="btn-secondary flex-1"
-                    @click="switchAttachmentType('file')"
-                  >
-                    取消
-                  </button>
-                  <button
-                    class="btn-primary flex-1"
-                    @click="createExternalLinkResource"
-                  >
-                    确认添加
-                  </button>
-                </div>
-              </div>
-
-              <!-- 文件上传区域 -->
-              <div v-if="attachmentType === 'file'" class="attachment-upload-area">
-                <button @click="triggerAttachmentUpload" class="btn-secondary w-full mb-12" :disabled="uploadingAttachment">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                  </svg>
-                  {{ uploadingAttachment ? '上传中...' : '上传附件' }}
+                <button
+                  class="btn-primary w-full py-8 text-xs flex flex-jc rounded transition hover-shadow-sm"
+                  @click="createExternalLinkResource"
+                >
+                  <Icon name="plus" size="12" class="mr-4"/> 添加链接
                 </button>
-                <input ref="attachmentInput" type="file" @change="handleAttachmentUpload" style="display: none;" multiple>
               </div>
 
               <!-- 附件列表 -->
-              <div v-if="attachments.length > 0" class="attachment-list">
-                <div v-for="attachment in attachments" :key="attachment.id" class="attachment-item">
-                  <div class="attachment-info">
-                    <div class="attachment-icon"><Icon name="paperclip" /></div>
-                    <div class="attachment-details">
-                      <div class="attachment-name">{{ attachment.name }}</div>
-                      <div class="attachment-meta text-sm text-muted">
-                        {{ formatFileSize(attachment.size) }} • {{ attachment.type }}
+              <div v-if="attachments.length > 0" class="attachment-list flex flex-col gap-8 max-h-200 overflow-y-auto pr-4">
+                <div v-for="attachment in attachments" :key="attachment.id" class="attachment-item bg-soft p-8 rounded border-soft flex flex-col gap-4">
+                  <div class="flex flex-sb flex-ac w-full">
+                    <div class="flex flex-ac gap-8 overflow-hidden">
+                      <div class="icon-box rounded bg-white flex flex-jc text-primary flex-shrink-0 w-24 h-24">
+                        <Icon :name="attachment.type === '外部链接' ? 'link' : 'file-text'" size="12" />
                       </div>
-                      <!-- 收费设置 -->
-                      <div class="attachment-pricing mt-8">
-                        <div class="flex flex-ac gap-12">
-                          <label class="flex flex-ac gap-4">
-                            <input 
-                              type="radio" 
-                              :name="`downloadType_${attachment.id}`" 
-                              :value="0" 
-                              v-model="attachment.downloadType"
-                              @change="onDownloadTypeChange(attachment)"
-                            >
-                            <span class="text-sm">免费</span>
-                          </label>
-                          <label class="flex flex-ac gap-4">
-                            <input 
-                              type="radio" 
-                              :name="`downloadType_${attachment.id}`" 
-                              :value="1" 
-                              v-model="attachment.downloadType"
-                              @change="onDownloadTypeChange(attachment)"
-                            >
-                            <span class="text-sm">积分</span>
-                          </label>
-                        </div>
-                        <div v-if="attachment.downloadType === 1" class="mt-8">
-                          <input 
-                            type="number" 
-                            v-model.number="attachment.pointsNeeded" 
-                            placeholder="所需积分" 
-                            min="1" 
-                            class="field-input text-sm" 
-                            style="width: 100px;"
-                            @focus="attachment._prevPointsNeeded = attachment.pointsNeeded"
-                            @input="onPointsNeededInput(attachment)"
-                            @change="onPointsNeededChange(attachment)"
-                          >
-                          <span class="text-sm text-muted ml-4">积分</span>
-                        </div>
+                      <div class="flex flex-col overflow-hidden">
+                        <span class="text-xs text-main truncate font-bold" :title="attachment.name" style="max-width: 120px;">{{ attachment.name }}</span>
+                        <span class="text-xs text-muted scale-90 origin-left">{{ attachment.type === '外部链接' ? '外部链接' : formatFileSize(attachment.size) }}</span>
                       </div>
                     </div>
+                    <button @click="removeAttachment(attachment.id)" class="text-muted hover-text-error transition p-4 flex flex-jc" title="删除">
+                      <Icon name="x" size="12" />
+                    </button>
                   </div>
-                  <button @click="removeAttachment(attachment.id)" class="attachment-remove" title="删除附件">
-                    ×
-                  </button>
+                  
+                  <!-- 列表项内的收费设置 -->
+                  <div class="pricing-mini-bar flex flex-ac flex-sb bg-main px-8 py-4 rounded text-xs border-soft border">
+                    <div class="flex gap-8">
+                      <label class="cursor-pointer flex flex-ac gap-2">
+                        <input type="radio" :name="`dt_${attachment.id}`" :value="0" v-model="attachment.downloadType" @change="onDownloadTypeChange(attachment)" class="scale-75 accent-primary"> 免费
+                      </label>
+                      <label class="cursor-pointer flex flex-ac gap-2">
+                        <input type="radio" :name="`dt_${attachment.id}`" :value="1" v-model="attachment.downloadType" @change="onDownloadTypeChange(attachment)" class="scale-75 accent-primary"> 积分
+                      </label>
+                    </div>
+                    <div v-if="attachment.downloadType === 1" class="flex flex-ac">
+                      <input 
+                        type="number" 
+                        v-model.number="attachment.pointsNeeded"
+                        min="1"
+                        class="w-32 text-center border-none bg-transparent text-primary font-bold focus-ring-0 p-0 text-xs"
+                        @focus="attachment._prevPointsNeeded = attachment.pointsNeeded"
+                        @input="onPointsNeededInput(attachment)"
+                        @change="onPointsNeededChange(attachment)"
+                      >
+                      <span class="text-muted transform scale-75">分</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              <div v-if="attachments.length === 0" class="text-sm text-muted">
+              
+              <div v-else-if="attachmentType === 'file'" class="text-xs text-center text-muted py-8">
                 暂无附件
               </div>
             </div>
@@ -1973,4 +1937,51 @@ onMounted(async () => {
   min-height: 80px;
   font-family: inherit;
 }
+
+/* 附件上传区域辅助样式 */
+.border-soft { border-color: var(--border-light); }
+.border-dashed { border-style: dashed; border-width: 2px; }
+.hover-border-primary:hover { border-color: var(--color-primary); }
+.hover-bg-soft:hover { background-color: var(--bg-soft); }
+.hover-text-error:hover { color: var(--color-error); }
+.bg-primary { background-color: var(--color-primary); }
+.bg-soft { background-color: var(--bg-soft); }
+.bg-white { background-color: var(--bg-card); }
+.bg-main { background-color: var(--bg-main); }
+.text-white { color: white; }
+.text-subtle { color: var(--text-subtle); }
+.text-muted { color: var(--text-muted); }
+.text-primary { color: var(--color-primary); }
+.text-main { color: var(--text-main); }
+.w-full { width: 100%; }
+.w-24 { width: 24px; }
+.h-24 { height: 24px; }
+.w-32 { width: 32px; }
+.h-32 { height: 32px; }
+.w-40 { width: 40px; }
+.w-60 { width: 60px; }
+.py-4 { padding-top: 4px; padding-bottom: 4px; }
+.py-8 { padding-top: 8px; padding-bottom: 8px; }
+.px-8 { padding-left: 8px; padding-right: 8px; }
+.px-12 { padding-left: 12px; padding-right: 12px; }
+.overflow-hidden { overflow: hidden; }
+.cursor-pointer { cursor: pointer; }
+.cursor-not-allowed { cursor: not-allowed; }
+.opacity-50 { opacity: 0.5; }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.select-none { user-select: none; }
+.scale-75 { transform: scale(0.75); }
+.scale-90 { transform: scale(0.9); }
+.mr-4 { margin-right: 4px; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.border-none { border: none; }
+.focus-ring-0:focus { box-shadow: none; outline: none; }
+.accent-primary { accent-color: var(--color-primary); }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.hover-shadow-sm:hover { box-shadow: var(--shadow-sm); }
+.max-h-200 { max-height: 200px; }
+.pr-4 { padding-right: 4px; }
+.origin-left { transform-origin: left; }
+.hover-text-main:hover { color: var(--text-main); }
+
 </style>

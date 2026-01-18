@@ -592,66 +592,90 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       </article>
 
       <!-- 附件列表 -->
-      <section v-if="post.attachments && post.attachments.length" class="mt-16">
-        <h3 class="mb-12">附件</h3>
-        <ul class="list-unstyled flex flex-col gap-8">
-          <li v-for="att in post.attachments" :key="att.attachmentId"
-            class="flex flex-sb flex-ac bg-hover p-12 rounded">
-            <div class="flex flex-col">
-              <template v-if="att.purchased">
-                <!-- 已购买时的显示 -->
-                <div class="flex flex-ac gap-8">
-                  <span class="link cursor-pointer" @click="handleDownload(att.resourceId, att.fileName)" :title="att.fileName">
-                    <Icon name="paperclip" size="14" /> {{ att.fileName }}
-                  </span>
+      <section v-if="post.attachments && post.attachments.length" style="margin-bottom: 20px;">
+        <h3 class="text-xl font-bold mb-16 flex flex-ac gap-8">
+          <Icon name="paperclip" size="20" class="text-primary"/> 
+          附件资源
+          <span class="text-sm font-medium text-muted bg-soft px-8 py-12 rounded-full">{{ post.attachments.length }}</span>
+        </h3>
+        
+        <div class="attachment-grid">
+          <div v-for="att in post.attachments" :key="att.attachmentId"
+            class="attachment-card bg-card border-soft border rounded-lg p-16 hover-shadow-md transition flex flex-col gap-12 relative overflow-hidden group">
+            
+            <!-- 顶部信息 -->
+            <div class="flex flex-sb flex-ac">
+              <div class="flex flex-ac gap-12 overflow-hidden">
+                <div class="w-40 h-40 rounded-lg bg-soft flex flex-jc text-primary flex-shrink-0">
+                  <Icon :name="att.resourceType === 'link' ? 'link' : 'file-text'" size="20" />
                 </div>
-                <!-- 购买后说明（如果有） -->
-                <div v-if="att.purchasedNote" class="text-sm text-success mt-4 p-8 bg-success-light rounded">
-                  <Icon name="info-circle" size="12" class="mr-2"/>
-                  <span class="text-success">购买说明：{{ att.purchasedNote }}</span>
+                <div class="flex flex-col overflow-hidden">
+                  <span class="font-bold text-main truncate" :title="att.fileName">{{ att.fileName }}</span>
+                  <div class="flex flex-ac gap-8 text-xs text-muted">
+                    <span>{{ formatDate(att.createdTime) }}</span>
+                    <span v-if="att.resourceType === 'file'" class="bg-soft px-4 rounded">文件</span>
+                    <span v-else class="bg-soft px-4 rounded">外链</span>
+                  </div>
                 </div>
-              </template>
-              <template v-else>
-                <span class="text-muted"><Icon name="paperclip" size="14" /> {{ att.fileName }}</span>
-              </template>
-              <div class="text-sm text-muted flex gap-12 mt-4">
-                <span v-if="att.pointsNeeded && !att.purchased">需要积分：{{ att.pointsNeeded }}</span>
-                <span>上传时间：{{ formatDate(att.createdTime) }}</span>
+              </div>
+              
+              <!-- 状态徽章 -->
+              <div class="flex-shrink-0">
+                <span v-if="att.purchased" class="text-xs bg-success-light text-success px-8 py-12 rounded-full flex flex-ac gap-4">
+                  <Icon name="check" size="10" /> 已获取
+                </span>
+                <span v-else-if="att.pointsNeeded" class="text-xs bg-warning-light text-warning px-8 py-12 rounded-full flex flex-ac gap-4">
+                  <Icon name="lock" size="10" /> {{ att.pointsNeeded }} 积分
+                </span>
+                <span v-else class="text-xs bg-info-light text-info px-8 py-12 rounded-full">免费</span>
               </div>
             </div>
-            <div class="flex gap-8">
-              <!-- 已购买时的按钮 -->
+
+            <!-- 购买后说明 -->
+            <div v-if="att.purchased && att.purchasedNote" class="bg-soft p-12 rounded text-sm text-subtle border-l-2 border-success relative">
+              <div class="font-bold text-xs text-success mb-4 flex flex-ac gap-4">
+                <Icon name="info" size="12"/> 使用说明
+              </div>
+              {{ att.purchasedNote }}
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="mt-auto pt-16">
               <template v-if="att.purchased">
-                <!-- 如果是外部链接类型，显示外部链接按钮 -->
                 <button
                   v-if="att.resourceType === 'link' && att.externalLink"
-                  class="action-btn"
+                  class="btn-primary w-full py-8 text-sm flex flex-jc gap-8 rounded hover-shadow-lg transition transform hover-translate-y-1"
                   @click="openExternalLink(att.externalLink)"
-                  title="在新窗口打开外部链接">
-                  🔗 打开链接
+                >
+                  <Icon name="external-link" size="14" /> 访问链接资源
                 </button>
-                <!-- 如果是文件类型，显示下载按钮 -->
                 <button
                   v-else-if="att.resourceType === 'file' && att.fileUrl"
-                  class="action-btn"
+                  class="btn-primary w-full py-8 text-sm flex flex-jc gap-8 rounded hover-shadow-lg transition transform hover-translate-y-1"
                   :disabled="downloadingId === att.resourceId"
-                  @click="handleDownload(att.resourceId, att.fileName)">
-                  {{ downloadingId === att.resourceId ? '下载中...' : '下载/查看' }}
+                  @click="handleDownload(att.resourceId, att.fileName)"
+                >
+                  <Icon v-if="downloadingId === att.resourceId" name="loader" class="animate-spin" size="14" />
+                  <Icon v-else name="download" size="14" />
+                  {{ downloadingId === att.resourceId ? '下载中...' : '下载文件' }}
                 </button>
               </template>
+              
               <template v-else>
                 <button
-                  v-if="att.pointsNeeded"
-                  class="action-btn"
+                  class="btn-outline w-full py-8 text-sm flex flex-jc gap-8 rounded hover-bg-primary hover-text-white transition group-hover-border-primary"
                   :disabled="purchasingId === att.resourceId"
                   @click="onPurchase(att.resourceId)"
                 >
-                  {{ purchasingId === att.resourceId ? '购买中...' : `购买（${att.pointsNeeded} 积分）` }}
+                  <Icon v-if="purchasingId === att.resourceId" name="loader" class="animate-spin" size="14" />
+                  <Icon v-else name="shopping-cart" size="14" />
+                  {{ purchasingId === att.resourceId ? '处理中...' : (att.pointsNeeded ? `支付 ${att.pointsNeeded} 积分获取` : '免费获取') }}
                 </button>
               </template>
             </div>
-          </li>
-        </ul>
+            
+          </div>
+        </div>
       </section>
 
       <!-- 文章交互 -->
@@ -1395,7 +1419,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   }
 }
 
-// 响应式样式
+/* 响应式样式 */
 @include respond(md) {
   .post-title {
     font-size: 1.8rem;
@@ -1471,6 +1495,10 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   .action-btn {
     padding: 10px 16px;
     font-size: 13px;
+  }
+  
+  .attachment-grid {
+    
   }
 
   // 互动功能条 - 移动端适配
@@ -1549,6 +1577,67 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     padding: 14px 16px;
   }
 }
+
+/* 附件列表辅助样式 */
+.border-soft { border-color: var(--border-light); }
+.border-success { border-color: var(--color-success); }
+.border-l-2 { border-left-width: 2px; border-left-style: solid; }
+.border { border-width: 1px; border-style: solid; }
+.bg-soft { background-color: var(--bg-soft); }
+.bg-card { background-color: var(--bg-card); }
+.bg-success-light { background-color: var(--bg-success); }
+.bg-warning-light { background-color: var(--bg-warning); }
+.bg-info-light { background-color: var(--bg-info); }
+.bg-primary { background-color: var(--color-primary); }
+.text-primary { color: var(--color-primary); }
+.text-muted { color: var(--text-muted); }
+.text-subtle { color: var(--text-subtle); }
+.text-main { color: var(--text-main); }
+.text-success { color: var(--color-success); }
+.text-warning { color: var(--color-warning); }
+.text-info { color: var(--color-info); }
+.text-white { color: white; }
+.font-normal { font-weight: 400; }
+.w-40 { width: 40px; }
+.h-40 { height: 40px; }
+.w-full { width: 100%; }
+.py-2 { padding-top: 2px; padding-bottom: 2px; }
+.py-8 { padding-top: 8px; padding-bottom: 8px; }
+.py-12 { padding-top: 12px; padding-bottom: 12px; }
+.px-4 { padding-left: 4px; padding-right: 4px; }
+.px-8 { padding-left: 8px; padding-right: 8px; }
+.gap-4 { gap: 4px; }
+.rounded-lg { border-radius: 12px; }
+.rounded-full { border-radius: 9999px; }
+.overflow-hidden { overflow: hidden; }
+.flex-shrink-0 { flex-shrink: 0; }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hover-shadow-md:hover { box-shadow: var(--shadow-md); }
+.hover-shadow-lg:hover { box-shadow: var(--shadow-lg); }
+.hover-translate-y-1:hover { transform: translateY(-4px); }
+.hover-bg-primary:hover { background-color: var(--color-primary); }
+.hover-text-white:hover { color: white; }
+.group-hover-border-primary:hover { border-color: var(--color-primary); }
+.animate-spin { animation: spin 1s linear infinite; }
+.cursor-pointer { cursor: pointer; }
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+  border: 1px solid var(--color-primary);
+}
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--border-base);
+  color: var(--text-main);
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.attachment-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 
 // 超小屏幕（小于 480px）
 @include respond(sm) {
