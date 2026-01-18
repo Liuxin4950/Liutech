@@ -150,7 +150,10 @@ CREATE TABLE IF NOT EXISTS resources (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '资源ID',
   name VARCHAR(255) NOT NULL COMMENT '资源名称',
   description VARCHAR(1000) DEFAULT NULL COMMENT '资源描述',
-  file_url VARCHAR(512) NOT NULL COMMENT '文件存储路径或URL',
+  file_url VARCHAR(512) DEFAULT NULL COMMENT '文件存储路径或URL（链接类型可为空）',
+  external_link VARCHAR(2048) DEFAULT NULL COMMENT '外部链接（网盘、其他网站等）',
+  resource_type ENUM('file', 'link', 'both') DEFAULT 'file' COMMENT '资源类型：file=上传文件，link=外部链接，both=两者都有',
+  purchased_note TEXT DEFAULT NULL COMMENT '购买后显示的说明（提取码、使用说明等）',
   uploader_id BIGINT NOT NULL COMMENT '上传用户ID',
   download_type TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '下载类型（0免费，1积分）',
   points_needed DECIMAL(12,2) NOT NULL DEFAULT 0 COMMENT '下载所需积分',
@@ -160,6 +163,7 @@ CREATE TABLE IF NOT EXISTS resources (
   updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_uploader_id (uploader_id),
+  INDEX idx_resource_type (resource_type),
   FOREIGN KEY (uploader_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资源表';
 

@@ -66,13 +66,16 @@
 
     <!-- 查询文章附件详细信息（公开，不限制上传者，供前台详情展示） -->
     <select id="selectPostAttachmentsPublic" resultType="java.util.Map">
-        SELECT 
+        SELECT
             pa.id as attachmentId,
             pa.resource_id as resourceId,
             pa.post_id as postId,
             r.name as fileName,
             r.file_url as filePath,
             r.file_url as fileUrl,
+            r.external_link as externalLink,
+            r.resource_type as resourceType,
+            r.purchased_note as purchasedNote,
             r.download_type as downloadType,
             r.points_needed as pointsNeeded,
             pa.created_at as createdTime

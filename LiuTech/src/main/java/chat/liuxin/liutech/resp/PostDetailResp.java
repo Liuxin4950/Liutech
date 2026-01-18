@@ -84,11 +84,17 @@ public class PostDetailResp extends Posts {
         private String fileName;
         /** 文件访问URL（resources.file_url） */
         private String fileUrl;
+        /** 外部链接（resources.external_link） */
+        private String externalLink;
+        /** 资源类型（resources.resource_type） */
+        private String resourceType;
         /** 下载所需积分（resources.points_needed，可选） */
         private Integer pointsNeeded;
         /** 关联时间（post_attachments.created_at） */
         private Date createdTime;
         /** 是否已购买（免费资源默认为true） */
         private Boolean purchased;
+        /** 购买后说明（resources.purchased_note） */
+        private String purchasedNote;
     }
 }

@@ -24,8 +24,121 @@
           <div class="sidebar-item flex flex-ac gap-20">
             <div class="sidebar-title">文章附件</div>
             <div class="sidebar-content">
-              <!-- 附件上传按钮 -->
-              <div class="attachment-upload-area">
+              <!-- 附件类型选择 -->
+              <div class="flex gap-8 mb-12">
+                <button @click="() => switchAttachmentType('file')"
+                        :class="['btn-secondary flex-1', attachmentType === 'file' ? 'btn-primary' : 'btn-outline']">
+                  📁 上传文件
+                </button>
+                <button @click="() => switchAttachmentType('link')"
+                        :class="['btn-secondary flex-1', attachmentType === 'link' ? 'btn-primary' : 'btn-outline']">
+                  🔗 外部链接
+                </button>
+              </div>
+
+              <!-- 文件上传区域 -->
+              <div v-if="attachmentType === 'file'" class="attachment-upload-area">
+                <button @click="triggerAttachmentUpload" class="btn-secondary w-full mb-12" :disabled="uploadingAttachment">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                  {{ uploadingAttachment ? '上传中...' : '上传附件' }}
+                </button>
+                <input ref="attachmentInput" type="file" @change="handleAttachmentUpload" style="display: none;" multiple>
+              </div>
+
+              <!-- 外部链接表单 -->
+              <div v-if="attachmentType === 'link'" class="external-link-form bg-hover p-12 rounded">
+                <div class="form-group">
+                  <label class="form-label">资源名称 *</label>
+                  <input
+                    v-model="externalLinkForm.name"
+                    type="text"
+                    class="field-input"
+                    placeholder="例如：百度网盘-设计素材包"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">资源描述</label>
+                  <textarea
+                    v-model="externalLinkForm.description"
+                    class="field-input"
+                    rows="2"
+                    placeholder="简要描述这个资源..."
+                  ></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">外部链接 *</label>
+                  <input
+                    v-model="externalLinkForm.externalLink"
+                    type="url"
+                    class="field-input"
+                    placeholder="https://pan.baidu.com/s/xxxxx"
+                  />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">购买后说明（可选）</label>
+                  <textarea
+                    v-model="externalLinkForm.purchasedNote"
+                    class="field-input"
+                    rows="3"
+                    placeholder="购买后显示的说明（提取码、使用说明等）"
+                  ></textarea>
+                </div>
+
+                <!-- 收费设置 -->
+                <div class="form-group">
+                  <label class="form-label">收费设置</label>
+                  <div class="flex gap-12">
+                    <label class="flex flex-ac gap-4">
+                      <input
+                        type="radio"
+                        v-model="externalLinkForm.downloadType"
+                        :value="0"
+                      >
+                      <span class="text-sm">免费</span>
+                    </label>
+                    <label class="flex flex-ac gap-4">
+                      <input
+                        type="radio"
+                        v-model="externalLinkForm.downloadType"
+                        :value="1"
+                      >
+                      <span class="text-sm">积分</span>
+                    </label>
+                  </div>
+                </div>
+                <div v-if="externalLinkForm.downloadType === 1" class="form-group">
+                  <label class="form-label">所需积分</label>
+                  <input
+                    type="number"
+                    v-model.number="externalLinkForm.pointsNeeded"
+                    placeholder="1"
+                    min="1"
+                    class="field-input"
+                    style="width: 100px;"
+                  >
+                  <span class="text-sm text-muted ml-4">积分</span>
+                </div>
+
+                <div class="flex gap-8 mt-12">
+                  <button
+                    class="btn-secondary flex-1"
+                    @click="switchAttachmentType('file')"
+                  >
+                    取消
+                  </button>
+                  <button
+                    class="btn-primary flex-1"
+                    @click="createExternalLinkResource"
+                  >
+                    确认添加
+                  </button>
+                </div>
+              </div>
+
+              <!-- 文件上传区域 -->
+              <div v-if="attachmentType === 'file'" class="attachment-upload-area">
                 <button @click="triggerAttachmentUpload" class="btn-secondary w-full mb-12" :disabled="uploadingAttachment">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.64 16.2a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
@@ -460,12 +573,31 @@ const attachments = ref<Array<{
   url: string
   resourceId?: number
   attachmentId?: number
+  resourceType?: 'file' | 'link'  // 资源类型：file=上传文件，link=外部链接
+  externalLink?: string        // 外部链接地址
+  purchasedNote?: string       // 购买后显示的说明
   downloadType: number // 0-免费，1-积分
   pointsNeeded: number // 所需积分
   _prevPointsNeeded?: number // 上次积分值（用于失败回滚）
   _updateTimer?: any // 用于防抖更新的定时器句柄
 }>>([])
 const uploadingAttachment = ref(false)
+
+// 附件类型选择：file=文件上传，link=外部链接
+const attachmentType = ref<'file' | 'link'>('file')
+
+// 外部链接表单
+const externalLinkForm = ref({
+  name: '',
+  description: '',
+  externalLink: '',
+  purchasedNote: '',
+  downloadType: 0,
+  pointsNeeded: 0
+})
+
+// 是否显示外部链接表单
+const showExternalLinkForm = ref(false)
 
 // 创建分类和标签相关状态
 const showCreateCategoryDialogVisible = ref(false)
@@ -925,6 +1057,76 @@ const uploadAttachment = async (file: File) => {
     onError: (err) => {
       console.error('附件上传失败:', err)
       Swal.fire('错误', `附件 "${file.name}" 上传失败，请重试`, 'error')
+    }
+  })
+}
+
+// 切换附件类型
+const switchAttachmentType = (type: 'file' | 'link') => {
+  attachmentType.value = type
+  showExternalLinkForm.value = (type === 'link')
+}
+
+// 创建外部链接资源
+const createExternalLinkResource = async () => {
+  await handleAsync(async () => {
+    // 验证外部链接表单
+    if (!externalLinkForm.value.name.trim()) {
+      Swal.fire('错误', '请输入资源名称', 'error')
+      return
+    }
+
+    if (!externalLinkForm.value.externalLink.trim()) {
+      Swal.fire('错误', '请输入外部链接地址', 'error')
+      return
+    }
+
+    const result = await PostService.createExternalLinkResource(
+      externalLinkForm.value.name,
+      externalLinkForm.value.description,
+      externalLinkForm.value.externalLink,
+      externalLinkForm.value.purchasedNote,
+      draftKey.value,
+      'resource',
+      externalLinkForm.value.downloadType,
+      externalLinkForm.value.pointsNeeded
+    )
+
+    // 添加到附件列表
+    const attachment = {
+      id: result.resourceId?.toString() || Date.now().toString(),
+      name: externalLinkForm.value.name,
+      size: 0,
+      type: '外部链接',
+      url: externalLinkForm.value.externalLink,
+      resourceId: result.resourceId,
+      attachmentId: result.attachmentId,
+      resourceType: 'link' as const,
+      externalLink: externalLinkForm.value.externalLink,
+      purchasedNote: externalLinkForm.value.purchasedNote,
+      downloadType: externalLinkForm.value.downloadType,
+      pointsNeeded: externalLinkForm.value.pointsNeeded
+    }
+
+    attachments.value.push(attachment)
+
+    // 重置表单
+    showExternalLinkForm.value = false
+    externalLinkForm.value = {
+      name: '',
+      description: '',
+      externalLink: '',
+      purchasedNote: '',
+      downloadType: 0,
+      pointsNeeded: 0
+    }
+
+    Swal.fire('成功', '外部链接资源添加成功！', 'success')
+
+  }, {
+    onError: (err) => {
+      console.error('创建外部链接资源失败:', err)
+      Swal.fire('错误', '创建外部链接资源失败，请重试', 'error')
     }
   })
 }

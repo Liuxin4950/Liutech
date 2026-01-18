@@ -234,4 +234,57 @@ public class FileUploadController {
         fileUploadService.updateResourceMeta(resourceId, userId, downloadType, pointsNeeded);
         return Result.success("附件设置已更新");
     }
+
+    /**
+     * 创建外部链接资源（不包含文件上传）
+     *
+     * @param name 资源名称
+     * @param description 资源描述
+     * @param externalLink 外部链接
+     * @param purchasedNote 购买后显示的说明
+     * @param draftKey 草稿键（可选）
+     * @param type 附件类型（可选）
+     * @param downloadType 下载类型（0免费，1积分，默认0）
+     * @param pointsNeeded 所需积分（默认0）
+     * @return 上传结果
+     */
+    @PostMapping("/resource/external")
+    public Result<FileUploadResp> createExternalLinkResource(
+            @RequestParam("name") String name,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam("externalLink") String externalLink,
+            @RequestParam(value = "purchasedNote", required = false) String purchasedNote,
+            @RequestParam(value = "draftKey", required = false) String draftKey,
+            @RequestParam(value = "type", required = false, defaultValue = "resource") String type,
+            @RequestParam(value = "downloadType", required = false, defaultValue = "0") Integer downloadType,
+            @RequestParam(value = "pointsNeeded", required = false, defaultValue = "0") Integer pointsNeeded,
+            HttpServletRequest request) {
+
+        Long userId = userUtils.getCurrentUserId();
+        log.info("接收到外部链接资源创建请求 - 用户ID: {}, 名称: {}, 链接: {}, 草稿键: {}, 类型: {}, 下载类型: {}, 所需积分: {}",
+                userId, name, externalLink, draftKey, type, downloadType, pointsNeeded);
+
+        FileUploadResp result = fileUploadService.createExternalLinkResource(
+            name, description, externalLink, purchasedNote, userId, draftKey, type, downloadType, pointsNeeded
+        );
+        return Result.success(result);
+    }
+
+    /**
+     * 更新购买后说明
+     *
+     * @param resourceId 资源ID
+     * @param purchasedNote 购买后说明
+     * @return 更新结果
+     */
+    @PutMapping("/attachments/{resourceId}/purchased-note")
+    public Result<?> updatePurchasedNote(
+            @PathVariable("resourceId") Long resourceId,
+            @RequestParam("purchasedNote") String purchasedNote,
+            HttpServletRequest request) {
+        Long userId = userUtils.getCurrentUserId();
+        log.info("更新购买后说明 - 用户ID: {}, 资源ID: {}, 说明: {}", userId, resourceId, purchasedNote);
+        fileUploadService.updatePurchasedNote(resourceId, userId, purchasedNote);
+        return Result.success("购买说明已更新");
+    }
 }

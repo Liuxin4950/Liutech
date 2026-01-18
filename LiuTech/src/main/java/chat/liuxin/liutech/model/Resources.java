@@ -33,6 +33,21 @@ public class Resources extends BaseEntity {
     private String fileUrl;
 
     /**
+     * 外部链接（网盘、其他网站等）
+     */
+    private String externalLink;
+
+    /**
+     * 资源类型：file=上传文件，link=外部链接，both=两者都有
+     */
+    private String resourceType;
+
+    /**
+     * 购买后显示的说明（提取码、使用说明等）
+     */
+    private String purchasedNote;
+
+    /**
      * 上传用户ID
      */
     private Long uploaderId;

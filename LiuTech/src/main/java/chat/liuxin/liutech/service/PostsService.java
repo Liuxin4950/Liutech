@@ -164,6 +164,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 v = map.get("fileName"); if (v != null) a.setFileName(String.valueOf(v));
                 v = map.get("pointsNeeded"); if (v != null) a.setPointsNeeded(((Number) v).intValue());
                 v = map.get("createdTime"); if (v instanceof java.util.Date) a.setCreatedTime((java.util.Date) v);
+                v = map.get("externalLink"); if (v != null) a.setExternalLink(String.valueOf(v));
+                v = map.get("resourceType"); if (v != null) a.setResourceType(String.valueOf(v));
+                v = map.get("purchasedNote"); if (v != null) a.setPurchasedNote(String.valueOf(v));
 
                 // 根据积分需求和用户购买状态控制文件URL可见性
                 Long resourceId = a.getResourceId();
@@ -235,6 +238,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
                 v = map.get("pointsNeeded"); if (v != null) a.setPointsNeeded(((Number) v).intValue());
                 v = map.get("createdTime"); if (v instanceof java.util.Date) a.setCreatedTime((java.util.Date) v);
+                v = map.get("externalLink"); if (v != null) a.setExternalLink(String.valueOf(v));
+                v = map.get("resourceType"); if (v != null) a.setResourceType(String.valueOf(v));
+                v = map.get("purchasedNote"); if (v != null) a.setPurchasedNote(String.valueOf(v));
                 return a;
             }).collect(Collectors.toList());
             postDetail.setAttachments(attachments);

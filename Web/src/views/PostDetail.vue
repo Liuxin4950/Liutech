@@ -298,6 +298,14 @@ const handleDownload = async (resourceId: number, fileName: string) => {
   })
 }
 
+// 打开外部链接（在新窗口打开，防止绕过后端验证）
+const openExternalLink = (url: string) => {
+  if (!url) return
+
+  // 在新窗口打开外部链接
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
 // 处理点赞
 const handleLike = async () => {
   if (!post.value || liking.value) return
@@ -591,8 +599,17 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
             class="flex flex-sb flex-ac bg-hover p-12 rounded">
             <div class="flex flex-col">
               <template v-if="att.purchased">
-                <span class="link cursor-pointer" @click="handleDownload(att.resourceId, att.fileName)" :title="att.fileName"><Icon name="paperclip" size="14" /> {{
-                  att.fileName }}</span>
+                <!-- 已购买时的显示 -->
+                <div class="flex flex-ac gap-8">
+                  <span class="link cursor-pointer" @click="handleDownload(att.resourceId, att.fileName)" :title="att.fileName">
+                    <Icon name="paperclip" size="14" /> {{ att.fileName }}
+                  </span>
+                </div>
+                <!-- 购买后说明（如果有） -->
+                <div v-if="att.purchasedNote" class="text-sm text-success mt-4 p-8 bg-success-light rounded">
+                  <Icon name="info-circle" size="12" class="mr-2"/>
+                  <span class="text-success">购买说明：{{ att.purchasedNote }}</span>
+                </div>
               </template>
               <template v-else>
                 <span class="text-muted"><Icon name="paperclip" size="14" /> {{ att.fileName }}</span>
@@ -603,16 +620,35 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
               </div>
             </div>
             <div class="flex gap-8">
-              <button v-if="att.purchased" class="action-btn"
-                :disabled="downloadingId === att.resourceId"
-                @click="handleDownload(att.resourceId, att.fileName)">
-                {{ downloadingId === att.resourceId ? '下载中...' : '下载/查看' }}
-              </button>
-              <button v-else-if="!att.purchased && att.pointsNeeded" class="action-btn"
-                :disabled="purchasingId === att.resourceId" @click="onPurchase(att.resourceId)">
-                {{ purchasingId === att.resourceId ? '购买中...' : (att.pointsNeeded ? `购买（${att.pointsNeeded} 积分）` : '购买')
-                }}
-              </button>
+              <!-- 已购买时的按钮 -->
+              <template v-if="att.purchased">
+                <!-- 如果是外部链接类型，显示外部链接按钮 -->
+                <button
+                  v-if="att.resourceType === 'link' && att.externalLink"
+                  class="action-btn"
+                  @click="openExternalLink(att.externalLink)"
+                  title="在新窗口打开外部链接">
+                  🔗 打开链接
+                </button>
+                <!-- 如果是文件类型，显示下载按钮 -->
+                <button
+                  v-else-if="att.resourceType === 'file' && att.fileUrl"
+                  class="action-btn"
+                  :disabled="downloadingId === att.resourceId"
+                  @click="handleDownload(att.resourceId, att.fileName)">
+                  {{ downloadingId === att.resourceId ? '下载中...' : '下载/查看' }}
+                </button>
+              </template>
+              <template v-else>
+                <button
+                  v-if="att.pointsNeeded"
+                  class="action-btn"
+                  :disabled="purchasingId === att.resourceId"
+                  @click="onPurchase(att.resourceId)"
+                >
+                  {{ purchasingId === att.resourceId ? '购买中...' : `购买（${att.pointsNeeded} 积分）` }}
+                </button>
+              </template>
             </div>
           </li>
         </ul>

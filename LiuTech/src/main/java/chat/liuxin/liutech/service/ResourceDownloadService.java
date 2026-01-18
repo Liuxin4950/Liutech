@@ -46,7 +46,7 @@ public class ResourceDownloadService {
     @Autowired
     private PointsService pointsService;
 
-    @Value("${file.upload-dir}")
+    @Value("${file.upload.base-path:${file.upload-dir}}")
     private String uploadDir;
 
     /**
@@ -139,18 +139,25 @@ public class ResourceDownloadService {
 
         // 构建文件路径
         String fileUrl = resource.getFileUrl();
+        log.debug("原始文件URL: {}", fileUrl);
+        log.debug("上传目录配置: {}", uploadDir);
 
-        // 处理不同格式的文件URL
-        // 情况1: 完整URL (http://localhost:8080/uploads/resources/...)
-        // 情况2: 相对路径 (/uploads/resources/...)
+        // 处理不同格式的文件URL，兼容多种环境
+        // - 生产环境: https://liuxin.chat/uploads/resources/...
+        // - 开发环境: http://localhost:8080/uploads/resources/...
+        // - 相对路径: /uploads/resources/...
         if (fileUrl.contains("/uploads/")) {
             // 提取 /uploads/ 之后的部分
             int uploadsIndex = fileUrl.indexOf("/uploads/");
             fileUrl = fileUrl.substring(uploadsIndex + "/uploads/".length());
         }
 
+        log.debug("解析后的相对路径: {}", fileUrl);
+
         Path filePath = Paths.get(uploadDir, fileUrl);
         File file = filePath.toFile();
+
+        log.debug("最终文件路径: {}", file.getAbsolutePath());
 
         if (!file.exists()) {
             log.error("文件不存在: {}", filePath);

@@ -354,7 +354,87 @@ public class FileUploadService {
         return postAttachmentsMapper.selectPostAttachments(postId, userId);
     }
 
-    // 新增：更新资源元信息（下载类型、所需积分）
+    /**
+     * 创建外部链接资源（不包含文件上传）
+     *
+     * @param name 资源名称
+     * @param description 资源描述
+     * @param externalLink 外部链接
+     * @param purchasedNote 购买后说明
+     * @param userId 用户ID
+     * @param draftKey 草稿键（可选）
+     * @param type 附件类型（可选）
+     * @param downloadType 下载类型
+     * @param pointsNeeded 所需积分
+     * @return 上传结果
+     */
+    @Transactional
+    public FileUploadResp createExternalLinkResource(String name, String description, String externalLink, String purchasedNote,
+                                                       Long userId, String draftKey, String type, Integer downloadType, Integer pointsNeeded) {
+        log.info("创建外部链接资源 - 用户ID: {}, 名称: {}, 链接: {}, 草稿键: {}, 类型: {}",
+                userId, name, externalLink, draftKey, type);
+
+        // 验证用户是否存在
+        validateUser(userId);
+
+        // 验证参数
+        if (name == null || name.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "资源名称不能为空");
+        }
+
+        if (externalLink == null || externalLink.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "外部链接不能为空");
+        }
+
+        // 创建资源记录
+        Resources resource = new Resources();
+        resource.setName(name);
+        resource.setDescription(description);
+        resource.setFileUrl(null); // 外部链接类型没有文件
+        resource.setExternalLink(externalLink);
+        resource.setResourceType("link"); // 外部链接类型
+        resource.setPurchasedNote(purchasedNote);
+        resource.setUploaderId(userId);
+        resource.setDownloadType(downloadType != null ? downloadType : 0);
+        resource.setPointsNeeded(pointsNeeded != null ? new BigDecimal(pointsNeeded) : BigDecimal.ZERO);
+
+        // 保存到数据库
+        resourcesMapper.insert(resource);
+        Long resourceId = resource.getId();
+
+        Long attachmentId = null;
+        // 如果提供了草稿键，创建附件关联记录
+        if (draftKey != null && !draftKey.trim().isEmpty()) {
+            PostAttachments attachment = new PostAttachments();
+            attachment.setDraftKey(draftKey);
+            attachment.setResourceId(resourceId);
+            attachment.setType(type != null ? type : "resource");
+
+            postAttachmentsMapper.insert(attachment);
+            attachmentId = attachment.getId();
+
+            log.info("创建草稿附件关联 - 草稿键: {}, 资源ID: {}, 附件ID: {}, 类型: {}",
+                    draftKey, resourceId, attachmentId, type);
+        }
+
+        // 构建响应
+        FileUploadResp result = new FileUploadResp();
+        result.setFileName(name);
+        result.setFilePath(null);
+        result.setFileUrl(externalLink);
+        result.setFileSize(0L);
+        result.setFileType("resource");
+        result.setExtension(null);
+        result.setUploadTime(System.currentTimeMillis());
+        result.setResourceId(resourceId);
+        result.setAttachmentId(attachmentId);
+
+        log.info("外部链接资源创建成功 - 用户ID: {}, 资源ID: {}, 附件ID: {}", userId, resourceId, attachmentId);
+
+        return result;
+    }
+
+    // 更新资源元信息（下载类型、所需积分）
     @Transactional
     public void updateResourceMeta(Long resourceId, Long userId, Integer downloadType, Integer pointsNeeded) {
         log.info("更新资源元信息 - 用户ID: {}, 资源ID: {}, downloadType: {}, pointsNeeded: {}", userId, resourceId, downloadType, pointsNeeded);
@@ -389,6 +469,35 @@ public class FileUploadService {
         }
 
         // 更新
+        resourcesMapper.updateById(resource);
+    }
+
+    /**
+     * 更新外部链接资源的说明信息
+     *
+     * @param resourceId 资源ID
+     * @param userId 用户ID
+     * @param purchasedNote 购买后说明
+     */
+    @Transactional
+    public void updatePurchasedNote(Long resourceId, Long userId, String purchasedNote) {
+        log.info("更新购买后说明 - 用户ID: {}, 资源ID: {}", userId, resourceId);
+
+        // 校验用户
+        validateUser(userId);
+
+        // 查询资源
+        Resources resource = resourcesMapper.selectById(resourceId);
+        if (resource == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "资源不存在");
+        }
+
+        // 权限校验：必须是上传者本人
+        if (resource.getUploaderId() == null || !resource.getUploaderId().equals(userId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权修改该资源");
+        }
+
+        resource.setPurchasedNote(purchasedNote);
         resourcesMapper.updateById(resource);
     }
 

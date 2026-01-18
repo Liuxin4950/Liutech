@@ -128,12 +128,17 @@ export interface AttachmentUploadResponse {
   fileSize: number
 }
 
+export type FileUploadResp = AttachmentUploadResponse
+
 // 文章详情返回中的附件信息（与后端 PostDetailResl.AttachmentInfo 对应）
 export interface PostAttachment {
   attachmentId: number
   resourceId: number
   fileName: string
   fileUrl: string
+  externalLink?: string        // 外部链接地址
+  resourceType?: string        // 资源类型：file/link/both
+  purchasedNote?: string       // 购买后显示的说明
   pointsNeeded?: number
   createdTime: string
   // 是否已购买（后端计算字段：免费、本人上传或已购买都为 true）
@@ -401,6 +406,38 @@ export class PostService {
       await del(`/upload/attachments/${resourceId}`)
     } catch (error) {
       console.error('删除附件失败:', error)
+      throw error
+    }
+  }
+
+  /** 创建外部链接资源 */
+  static async createExternalLinkResource(
+    name: string,
+    description: string,
+    externalLink: string,
+    purchasedNote: string,
+    draftKey: string,
+    type: string,
+    downloadType: number,
+    pointsNeeded: number
+  ): Promise<AttachmentUploadResponse> {
+    try {
+      const formData = new FormData()
+      formData.append('name', name)
+      if (description) formData.append('description', description)
+      formData.append('externalLink', externalLink)
+      if (purchasedNote) formData.append('purchasedNote', purchasedNote)
+      formData.append('draftKey', draftKey)
+      formData.append('type', type)
+      formData.append('downloadType', downloadType.toString())
+      formData.append('pointsNeeded', pointsNeeded.toString())
+
+      const response = await post('/upload/resource/external', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      } as any)
+      return response.data
+    } catch (error) {
+      console.error('创建外部链接资源失败:', error)
       throw error
     }
   }
