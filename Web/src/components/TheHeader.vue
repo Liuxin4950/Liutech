@@ -271,6 +271,9 @@ header>div {
   border: 1px solid var(--border-base);
 }
 
+.font-medium{
+  text-shadow: 0 0 2px var(--bg-card);
+}
 .user-points {
   width: 18px;
   height: 18px;
@@ -321,6 +324,7 @@ ol {
 
 /* 导航链接样式 */
 .nav-link {
+  text-shadow: 0 0 2px rgba(var(--bg-card), $alpha: .5);
   color: var(--text-main);
   text-decoration: none;
   font-weight: 500;

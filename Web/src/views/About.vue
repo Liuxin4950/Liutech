@@ -10,10 +10,29 @@ import Icon from '../components/Icon.vue'
     <div class="hero-section">
       <div class="hero-content">
         <div class="avatar-wrapper">
-          <img src="/default-avatar.svg" alt="刘鑫" class="user-avatar" />
+          <div class="user-avatar">
+            <img src="@/assets/image/gif/坐下.gif" alt="刘鑫" class="liuyin" />
+          </div>
         </div>
         <div class="hero-text">
-          <h1 class="username">刘鑫</h1>
+          <h1 class="username">
+            <svg class="name-svg" viewBox="0 0 200 60">
+              <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:var(--color-primary);stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:var(--color-accent);stop-opacity:1" />
+                </linearGradient>
+              </defs>
+              <!-- 底层：静态显示的文字 -->
+              <text x="50%" y="50%" dy=".35em" text-anchor="middle" class="name-base">
+                刘鑫
+              </text>
+              <!-- 顶层：流光描边动画 -->
+              <text x="50%" y="50%" dy=".35em" text-anchor="middle" class="name-stroke">
+                刘鑫
+              </text>
+            </svg>
+          </h1>
           <p class="user-bio">全栈工程师 & 技术博主</p>
           <p class="user-motto">「代码改变世界，热爱成就未来」</p>
           <div class="social-links">
@@ -248,6 +267,8 @@ import Icon from '../components/Icon.vue'
 }
 
 .avatar-wrapper {
+  display: flex;
+  justify-content: center;
   margin-bottom: 24px;
   
   .user-avatar {
@@ -255,9 +276,18 @@ import Icon from '../components/Icon.vue'
     height: 120px;
     border-radius: 50%;
     border: 4px solid var(--bg-card);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    background-color: var(--bg-hover);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     object-fit: cover;
     transition: transform 0.3s ease;
+    position: relative;
+    .liuyin{
+      width: 160px ;
+      height: 140px;
+      position: absolute;
+      top: 10px;
+      left: -20px;
+    }
     
     &:hover {
       transform: scale(1.05) rotate(5deg);
@@ -267,23 +297,62 @@ import Icon from '../components/Icon.vue'
 
 .hero-text {
   .username {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: var(--text-title);
     margin-bottom: 12px;
-    letter-spacing: -0.02em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80px;
+    
+    .name-svg {
+      width: 100%;
+      height: 100%;
+      max-width: 240px;
+      overflow: visible;
+      
+      text {
+        font-size: 48px;
+        font-weight: 300;
+        letter-spacing: 0.2em;
+      }
+      
+      .name-base {
+        fill: #000;
+        fill-opacity: 0.4;
+        stroke: none;
+        filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.5));
+      }
+
+      .name-stroke {
+        fill: transparent;
+        stroke: url(#gradient);
+        stroke-width: 1.5px;
+        stroke-linecap: round;
+        /* 100px 亮光带，300px 间隔，4s 循环，确保无缝衔接 */
+        stroke-dasharray: 100 300;
+        stroke-dashoffset: 400;
+        animation: stroke-flow 4s linear infinite;
+      }
+    }
+  }
+
+  @keyframes stroke-flow {
+    to {
+      stroke-dashoffset: 0;
+    }
   }
   
   .user-bio {
     font-size: 1.1rem;
-    color: var(--text-main);
+    color: rgba($color: #000000, $alpha: 0.6);
     margin-bottom: 8px;
     font-weight: 500;
+    filter: drop-shadow(2px 2px 2px rgba(255, 255, 255, .5));
   }
   
   .user-motto {
+    filter: drop-shadow(2px 2px 2px rgba(255, 255, 255, .5));
+    color: rgba($color: #000000, $alpha: 0.6);
     font-size: 0.95rem;
-    color: var(--text-subtle);
     font-style: italic;
     margin-bottom: 24px;
   }
