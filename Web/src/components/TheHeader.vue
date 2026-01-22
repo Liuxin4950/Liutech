@@ -160,8 +160,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
             <div class="flex flex-col link">
               <span class="font-medium">{{ userStore.username }}</span>
-              <span class="flex text-sm text-muted">
-                <div class="user-points">{{ userStore.points }}</div>积分
+              <span class="flex flex-ac text-sm text-muted">
+                <span class="user-points">{{ userStore.points }}</span>积分
               </span>
             </div>
           </div>
@@ -275,15 +275,18 @@ header>div {
   text-shadow: 0 0 2px var(--bg-card);
 }
 .user-points {
-  width: 18px;
+  min-width: 18px;
   height: 18px;
+  padding: 0 5px;
   margin-right: 5px;
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
   background-color: var(--color-warning);
-  border-radius: 50%;
+  border-radius: 9px;
   color: var(--text-main);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 ul,
