@@ -102,7 +102,8 @@ services:
       - "${NGINX_HTTPS:-443}:443"
       - "81:81"
     volumes:
-      - ./nginx/certs:/etc/nginx/certs:ro
+      # 挂载服务器上的 SSL 证书目录
+      - /opt/liutech/nginx:/etc/nginx/ssl:ro
     depends_on:
       - backend
       - web

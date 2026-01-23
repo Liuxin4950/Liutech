@@ -241,6 +241,10 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   right: 0;
   z-index: 10;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  @include respond(md) {
+    width: 100%;
+    padding: 0 20px;
+  }
 }
 
 .ai-content.expanded {
@@ -269,7 +273,8 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   transform: translateY(-100px) translateX(-400px);
   z-index: 100;
   @include respond(md) {
-    transform: translateY(-100px) translateX(-100px);
+    width: 100%;
+    transform: translateY(-100px) translateX(0);
 
   }
 }

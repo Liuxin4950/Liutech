@@ -151,7 +151,7 @@ export class UserService {
   static async getCurrentUser(): Promise<UserInfo> {
     try {
       // 添加时间戳防止缓存
-      const response = await get<UserInfo>('/user/current', { _t: Date.now() }, { skipAuthJump: true })
+      const response = await get<UserInfo>('/user/current', { _t: Date.now() })
       return response.data
     } catch (error) {
       console.error('获取用户信息失败', error)
