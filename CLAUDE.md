@@ -191,6 +191,9 @@ SERVER_BASE_URL=http://liuxin.chat           # Base URL for the application
 - `JWT_SECRET` must be identical for both `backend` and `ai` services for token validation
 - For AI service, use SiliconFlow API key: https://www.siliconflow.com/
 - File uploads persist at `/liuxin/uploads` on the host (bind-mounted to containers)
+- **HTTPS (Production)**: SSL certificates should be placed at `/opt/liutech/nginx/` on the server:
+  - `/opt/liutech/nginx/liuxin.chat_bundle.crt` - SSL certificate
+  - `/opt/liutech/nginx/liuxin.chat.key` - SSL private key
 
 ### Backend Config (application.yml)
 Key configurations in `LiuTech/src/main/resources/`:
@@ -333,10 +336,12 @@ npm run dev  # Vite dev server with HMR
 ```
 
 ### Common Issues
+- **AI service returns 406 Not Acceptable**: Nginx configuration issue - ensure `proxy_set_header Accept "text/event-stream";` is NOT present (it breaks non-SSE AI requests)
 - **AI service cannot connect to backend**: Check that `BLOG_API_URL=http://backend:8080` in AI service config
 - **JWT token validation fails**: Ensure `JWT_SECRET` is identical for both backend and AI services
 - **File uploads not persisting**: Check bind mount `/liuxin/uploads:/app/uploads` exists on host
-- **SSE streaming not working**: Check Nginx configuration includes SSE headers
+- **HTTPS not working**: Ensure SSL certificates are at `/opt/liutech/nginx/liuxin.chat_bundle.crt` and `liuxin.chat.key`
+- **SSE streaming not working**: Nginx must have `proxy_buffering off` and `proxy_read_timeout` set high enough
 
 ### Database Access
 ```bash
