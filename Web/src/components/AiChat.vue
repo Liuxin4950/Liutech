@@ -7,6 +7,7 @@ import { ConversationService, type Conversation, type ChatMessageItem } from '@/
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import Icon from './Icon.vue'
 import { showConfirm } from '@/utils/errorHandler'
+import { getTtsStatus } from '@/services/tts'
 // 接收父组件传入的扩展状态
 const props = defineProps<{
   expanded?: boolean
@@ -53,6 +54,21 @@ const isStreaming = computed(() => chatStore.isStreaming)
 const mode = computed(() => chatStore.mode)
 const hasMessages = computed(() => chatStore.hasMessages)
 const errorMessage = computed(() => chatStore.errorMessage)
+
+// 语音（TTS）可用性与开关（状态在 store 内统一管理）
+const ttsStatusText = ref<string>('语音检测中...')
+const isTtsToggleDisabled = computed(() => !chatStore.ttsAvailable)
+const ttsToggleTitle = computed(() => {
+  if (chatStore.ttsAvailable) {
+    return chatStore.ttsEnabled ? '语音已开启（点击关闭）' : '语音已关闭（点击开启）'
+  }
+  return ttsStatusText.value || '语音不可用'
+})
+
+const toggleTts = () => {
+  if (isTtsToggleDisabled.value) return
+  chatStore.setTtsEnabled(!chatStore.ttsEnabled)
+}
 
 // 清理消息中的[[RECOMMEND]]标记
 const cleanMessageContent = (content: string): string => {
@@ -369,6 +385,17 @@ onMounted(async () => {
   if (chatContainer.value) {
     chatContainer.value.addEventListener('scroll', handleScroll)
   }
+
+  try {
+    const status = await getTtsStatus()
+    const available = status.enabled === true && status.online === true
+    chatStore.setTtsAvailable(available)
+    ttsStatusText.value = status.message || (available ? '语音可用' : '语音不可用')
+  } catch (e: any) {
+    chatStore.setTtsAvailable(false)
+    ttsStatusText.value = '语音检测失败'
+  }
+
   // 加载历史消息的推荐数据
   await nextTick()
   if (hasMessages.value) {
@@ -445,6 +472,16 @@ onUnmounted(() => {
             </div>
           </div>
           <div class="header-right">
+            <button
+              class="tts-toggle-btn"
+              :class="{ 'is-on': chatStore.ttsEnabled && chatStore.ttsAvailable }"
+              :disabled="isTtsToggleDisabled"
+              :title="ttsToggleTitle"
+              @click="toggleTts"
+            >
+              语音{{ chatStore.ttsEnabled ? '开' : '关' }}
+            </button>
+
             <!-- 历史记录按钮 (仅在扩展模式下显示) -->
             <button v-if="expanded" class="history-btn" @click="toggleHistorySidebar" title="查看会话历史">
               <Icon name="file" />
@@ -865,6 +902,28 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.tts-toggle-btn {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-main);
+}
+
+.tts-toggle-btn.is-on {
+  border-color: var(--color-primary);
+  background: var(--bg-active);
+  color: var(--color-primary);
+}
+
+.tts-toggle-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* 模式指示器 */

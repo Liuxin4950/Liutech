@@ -306,6 +306,17 @@ CREATE TABLE IF NOT EXISTS system_logs (
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理端操作日志表';
 
+-- 系统设置表（用于存储可动态配置的开关/地址等）
+CREATE TABLE IF NOT EXISTS system_settings (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '设置ID',
+  setting_key VARCHAR(128) NOT NULL COMMENT '配置键（全局唯一）',
+  setting_value TEXT NULL COMMENT '配置值（字符串存储，必要时可存JSON）',
+  description VARCHAR(255) NULL COMMENT '配置说明',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  UNIQUE KEY uk_setting_key (setting_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统设置表';
+
 -- 轮播图表
 CREATE TABLE IF NOT EXISTS carousels (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '轮播图ID',

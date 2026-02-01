@@ -61,7 +61,8 @@ const menuItems = [
       { key: 'messages', icon: MessageOutlined, label: '留言管理', path: '/messages' },
       { key: 'logs', icon: HistoryOutlined, label: '操作日志', path: '/logs' },
       { key: 'music', icon: CloudOutlined, label: 'AI音乐', path: '/music' },
-      { key: 'ai-models', icon: RobotOutlined, label: 'AI模型', path: '/ai-models' }
+      { key: 'ai-models', icon: RobotOutlined, label: 'AI模型', path: '/ai-models' },
+      { key: 'tts', icon: SettingOutlined, label: '语音推理', path: '/tts' }
     ]
   }
 ]
@@ -80,6 +81,7 @@ const getSelectedKey = (): string[] => {
   if (path.startsWith('/logs')) return ['logs']
   if (path.startsWith('/music')) return ['music']
   if (path.startsWith('/ai-models')) return ['ai-models']
+  if (path.startsWith('/tts')) return ['tts']
   return ['dashboard']
 }
 
@@ -89,7 +91,7 @@ const getOpenKeys = (): string[] => {
   if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/tags')) {
     return ['content']
   }
-  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages') || path.startsWith('/logs') || path.startsWith('/music') || path.startsWith('/ai-models')) {
+  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages') || path.startsWith('/logs') || path.startsWith('/music') || path.startsWith('/ai-models') || path.startsWith('/tts')) {
     return ['system']
   }
   return []

@@ -51,6 +51,18 @@ export const useChatStore = defineStore('chat', () => {
   const isModelLoading = ref(false)  // 模型加载状态
   const currentModelInfo = ref<ModelInfo | null>(null)  // 当前模型信息
 
+  /**
+   * 语音开关（用户偏好）
+   * - 这里只存“用户想不想开”，不代表服务一定可用
+   */
+  const ttsEnabled = ref<boolean>(true)
+
+  /**
+   * 语音是否可用（由后端在线探测决定）
+   * - 用于控制 UI 是否允许开启语音
+   */
+  const ttsAvailable = ref<boolean>(false)
+
   // 生成临时消息ID（使用负数，避免与后端返回的正数ID冲突）
   let messageIdCounter = 0
   const generateTempId = (): number => {
@@ -68,6 +80,7 @@ export const useChatStore = defineStore('chat', () => {
   const STORAGE_KEY = 'liutech-chat-history'
   const CONVERSATION_ID_KEY = 'liutech-chat-conversation-id'
   const MODE_KEY = 'liutech-chat-mode'
+  const TTS_ENABLED_KEY = 'liutech-chat-tts-enabled'
 
   // ===== 持久化方法 =====
   /**
@@ -115,9 +128,30 @@ export const useChatStore = defineStore('chat', () => {
       if (savedMode && ['stream', 'normal'].includes(savedMode)) {
         mode.value = savedMode as ChatMode
       }
+
+      // 加载语音开关（用户偏好）
+      const savedTts = localStorage.getItem(TTS_ENABLED_KEY)
+      if (savedTts !== null) {
+        ttsEnabled.value = savedTts === 'true'
+      }
     } catch (error) {
       console.error('加载聊天历史失败:', error)
       clearStorage()
+    }
+  }
+
+  const setTtsEnabled = (enabled: boolean) => {
+    ttsEnabled.value = enabled
+    try {
+      localStorage.setItem(TTS_ENABLED_KEY, String(enabled))
+    } catch {
+    }
+  }
+
+  const setTtsAvailable = (available: boolean) => {
+    ttsAvailable.value = available
+    if (!available) {
+      setTtsEnabled(false)
     }
   }
 
@@ -468,6 +502,8 @@ export const useChatStore = defineStore('chat', () => {
     defaultModel,
     isModelLoading,
     currentModelInfo,
+    ttsEnabled,
+    ttsAvailable,
 
     // 计算属性
     hasMessages,
@@ -478,6 +514,8 @@ export const useChatStore = defineStore('chat', () => {
     sendMessage,
     clearHistory,
     setMode,
+    setTtsEnabled,
+    setTtsAvailable,
     loadDefaultModel,
     addUserMessage,
     addAiMessage,

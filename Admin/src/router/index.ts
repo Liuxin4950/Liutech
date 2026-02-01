@@ -103,6 +103,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'tts',
+        name: 'tts-settings',
+        component: () => import('../views/admin/TtsSettings.vue'),
+        meta: {
+          title: '语音推理配置',
+          section: 'tts'
+        }
+      },
+      {
         path: 'messages',
         name: 'messages-management',
         component: () => import('../views/admin/MessagesManagement.vue'),
