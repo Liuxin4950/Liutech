@@ -119,7 +119,7 @@ const aiModelsService = {
    * 添加新模型配置
    */
   addModel: (data: ModelConfigRequest): Promise<ModelConfig> => {
-    return aiApi.post<ModelConfig>('/admin/ai/models', data)
+    return aiApi.post<ModelConfig>('/admin/models', data)
   },
 
   /**
