@@ -1315,7 +1315,6 @@ onMounted(async () => {
 
   // 无论是否编辑模式，都生成一个草稿键用于附件关联（编辑模式下用于绑定新上传的附件）
   draftKey.value = generateDraftKey()
-  console.log('当前草稿键:', draftKey.value)
 
   await Promise.all([
     loadCategories(),

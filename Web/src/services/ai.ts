@@ -32,6 +32,12 @@ export interface AiChatRequest {
   temperature?: number
   /** 最大token数 */
   maxTokens?: number
+  /**
+   * 是否启用语音推理（由前端开关决定）
+   * - true：后端会尝试把流式文本分段并触发 TTS，额外推送 audio 事件
+   * - false：只返回文本，不做 TTS 推理
+   */
+  ttsEnabled?: boolean
 }
 
 export interface AiChatResponse {

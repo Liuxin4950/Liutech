@@ -38,4 +38,3 @@ public class TtsController {
         return Result.success(ttsConfigService.getConfig());
     }
 }
-

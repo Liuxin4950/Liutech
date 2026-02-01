@@ -118,7 +118,6 @@ export const useCategoryStore = defineStore('category', () => {
         }
       }
     } catch (error) {
-      console.warn('恢复分类数据失败:', error)
     }
 
     // 如果没有有效的本地数据，则从服务器获取

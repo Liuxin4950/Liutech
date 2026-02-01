@@ -144,6 +144,41 @@ const buildChatContext = (): Record<string, any> => {
   return ctx
 }
 
+let mediaPrimed = false
+const primeMediaOnce = () => {
+  // 在“用户点击发送”的同步事件里解锁媒体播放策略
+  // 否则后续由 SSE 驱动的音频播放可能被浏览器当作非用户交互而拦截/延迟
+  if (mediaPrimed) return
+  mediaPrimed = true
+  try {
+    const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined
+    if (Ctx) {
+      const ctx = new Ctx()
+      ctx.resume().catch(() => {
+      })
+      const gain = ctx.createGain()
+      gain.gain.value = 0
+      const osc = ctx.createOscillator()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.01)
+      window.setTimeout(() => {
+        ctx.close().catch(() => {
+        })
+      }, 50)
+    }
+  } catch {
+  }
+  try {
+    const a = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=')
+    a.volume = 0
+    a.play().catch(() => {
+    })
+  } catch {
+  }
+}
+
 // 发送消息
 const sendMessage = async () => {
   if (!chatInput.value.trim() || isLoading.value) return
@@ -154,6 +189,7 @@ const sendMessage = async () => {
   const content = chatInput.value.trim()
   chatInput.value = ''
 
+  primeMediaOnce()
   await chatStore.sendMessage(content, buildChatContext())
   await scrollToBottom()
 }

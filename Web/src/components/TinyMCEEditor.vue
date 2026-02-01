@@ -50,7 +50,6 @@ import 'tinymce/plugins/directionality' // 文字方向
 import 'tinymce/plugins/quickbars' // 快速工具栏
 // 导入表情符号数据库
 import 'tinymce/plugins/emoticons/js/emojis'
-console.log('TinyMCEEditor组件正在加载...')
 // 定义组件属性
 interface Props {
   modelValue?: string
@@ -676,12 +675,8 @@ const editorConfig = computed(() => ({
   ],
   // 初始化回调，用于调试
   init_instance_callback: (editor: any) => {
-    console.log('TinyMCE编辑器初始化完成:', editor.id)
-    console.log('编辑器模式:', editor.readonly ? '只读' : '可编辑')
-    console.log('当前主题:', theme.current.value)
     // Ctrl+S 保存快捷键
     editor.shortcuts.add('ctrl+s', '保存内容', function () {
-      console.log('保存内容...')
     })
   }
 }))
@@ -710,7 +705,6 @@ const editorInstance = ref<any>(null)
 
 // 编辑器初始化完成
 const onEditorInit = (editor: any) => {
-  console.log('TinyMCE编辑器初始化完成')
   editorInstance.value = editor
   editorLoaded.value = true
 }
@@ -718,14 +712,12 @@ const onEditorInit = (editor: any) => {
 // 监听主题变化，重新初始化编辑器
 watch(() => theme.current.value, () => {
   if (editorInstance.value && typeof editorInstance.value.remove === 'function') {
-    console.log('主题已切换，重新初始化编辑器')
     // 保存当前内容
     const currentContent = content.value
     // 使用正确的方法销毁编辑器实例
     try {
       editorInstance.value.remove()
     } catch (error) {
-      console.warn('编辑器销毁时出现警告:', error)
     }
     // 重置状态
     editorInstance.value = null

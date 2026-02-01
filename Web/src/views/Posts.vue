@@ -137,14 +137,6 @@ const loadPosts = async (page: number = 1) => {
 
     const response = await PostService.getPosts(params)
     
-    console.log('API返回的完整数据:', response)
-    console.log('文章列表数据:', response.records)
-    if (response.records && response.records.length > 0) {
-      console.log('第一篇文章的数据:', response.records[0])
-      console.log('第一篇文章的thumbnail:', response.records[0].thumbnail)
-      console.log('第一篇文章的coverImage:', response.records[0].coverImage)
-    }
-    
     posts.value = response.records
     pagination.value = {
       current: response.current,

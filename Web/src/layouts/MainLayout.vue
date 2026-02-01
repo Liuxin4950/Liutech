@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
@@ -12,6 +12,7 @@ import GlobalPageLoader from '../components/GlobalPageLoader.vue'
 import AiChat from "@/components/AiChat.vue"
 import LoginModal from '@/components/LoginModal.vue'
 import { requireAuth } from '@/utils/auth'
+import { useChatStore } from '@/stores/chat'
 
 const showLoader = ref(false)
 const router = useRouter()
@@ -37,6 +38,152 @@ let modelToggleTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const aiChatActive = ref(false)
 
+const chatStore = useChatStore()
+const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
+let currentTtsAudio: HTMLAudioElement | null = null
+let isTtsPlaying = false
+let playbackToken = 0
+let audioUnlocked = false
+
+const resolveTtsPlayUrl = (audioUrl: string) => {
+  if (!audioUrl) return ''
+  return audioUrl
+}
+
+const stopTtsPlayback = () => {
+  playbackToken++
+  try {
+    currentTtsAudio?.pause()
+  } catch {
+  }
+  currentTtsAudio = null
+  isTtsPlaying = false
+}
+
+const waitOnce = (audio: HTMLAudioElement, event: string, timeoutMs: number) => {
+  return new Promise<boolean>((resolve) => {
+    let done = false
+    const timer = window.setTimeout(() => {
+      if (done) return
+      done = true
+      resolve(false)
+    }, timeoutMs)
+
+    const handler = () => {
+      if (done) return
+      done = true
+      window.clearTimeout(timer)
+      resolve(true)
+    }
+
+    audio.addEventListener(event, handler, { once: true })
+  })
+}
+
+const delay = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms))
+
+const playNextTts = async () => {
+  if (isTtsPlaying) return
+  if (chatStore.ttsEnabled !== true || chatStore.ttsAvailable !== true) return
+  if (!live2dRef.value) return
+
+  const token = playbackToken
+  isTtsPlaying = true
+
+  try {
+    while (token === playbackToken) {
+      if (chatStore.ttsEnabled !== true || chatStore.ttsAvailable !== true) break
+      if (!live2dRef.value) break
+
+      const next = chatStore.shiftTtsAudioQueue()
+      if (!next) break
+
+      const playUrl = resolveTtsPlayUrl(next.audioUrl)
+      if (!playUrl) continue
+
+      console.log(
+        `[TTS][play] seq=${next.seq} conv=${next.conversationId ?? '-'} ` +
+        `pickedAt=${new Date().toISOString()} enqueuedAt=${next.enqueuedAt ? new Date(next.enqueuedAt).toISOString() : '-'} ` +
+        `playUrl=${playUrl}`
+      )
+
+      const speakAt = performance.now()
+      let audio = await live2dRef.value.speakAudioUrl(playUrl)
+      if (!audio) continue
+
+      console.log(`[TTS][play] seq=${next.seq} speakAudioUrlMs=${Math.round(performance.now() - speakAt)}`)
+      currentTtsAudio = audio
+
+      const attachPlayingLog = (el: HTMLAudioElement) => {
+        el.addEventListener('playing', () => {
+          console.log(`[TTS][playing] seq=${next.seq} at=${new Date().toISOString()}`)
+        }, { once: true })
+      }
+      attachPlayingLog(audio)
+
+      let started = false
+      for (let attempt = 0; attempt < 6 && token === playbackToken; attempt++) {
+        try {
+          await audio.play()
+          started = true
+          break
+        } catch (e: any) {
+          const name = e?.name || ''
+          if (name === 'NotAllowedError') {
+            console.warn(`[TTS][play] seq=${next.seq} blockedByAutoplayAt=${new Date().toISOString()}`)
+            break
+          }
+          console.warn(`[TTS][play] seq=${next.seq} playRejected attempt=${attempt + 1} name=${name}`)
+          try {
+            audio.pause()
+          } catch {
+          }
+          currentTtsAudio = null
+          await delay(250 + attempt * 200)
+          if (!live2dRef.value) break
+          const retryAudio = await live2dRef.value.speakAudioUrl(playUrl)
+          if (!retryAudio) break
+          audio = retryAudio
+          currentTtsAudio = audio
+          attachPlayingLog(audio)
+        }
+      }
+
+      if (!started) {
+        console.warn(`[TTS][play] seq=${next.seq} startFailedAt=${new Date().toISOString()}`)
+        try {
+          currentTtsAudio?.pause()
+        } catch {
+        }
+        currentTtsAudio = null
+        continue
+      }
+
+      const finished = await Promise.race([
+        waitOnce(audio, 'ended', 60000),
+        waitOnce(audio, 'error', 60000),
+        waitOnce(audio, 'pause', 60000)
+      ])
+
+      if (!finished) {
+        console.warn(`[TTS][play] seq=${next.seq} waitTimeoutAt=${new Date().toISOString()}`)
+        try {
+          audio.pause()
+        } catch {
+        }
+      } else {
+        console.log(`[TTS][play] seq=${next.seq} finishedAt=${new Date().toISOString()}`)
+      }
+
+      currentTtsAudio = null
+    }
+  } finally {
+    if (token === playbackToken) {
+      isTtsPlaying = false
+    }
+  }
+}
+
 // 滚动监听函数
 const handleScroll = () => {
   scrollY.value = window.scrollY
@@ -45,6 +192,42 @@ const handleScroll = () => {
 onMounted(() => {
   // 页面加载时立即显示加载动画
   showLoader.value = true
+
+  const unlockAudio = async () => {
+    if (audioUnlocked) return
+    audioUnlocked = true
+    try {
+      const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined
+      if (!Ctx) return
+      const ctx = new Ctx()
+      const gain = ctx.createGain()
+      gain.gain.value = 0
+      const osc = ctx.createOscillator()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      try {
+        await ctx.resume()
+      } catch {
+      }
+      osc.start()
+      osc.stop(ctx.currentTime + 0.01)
+      window.setTimeout(() => {
+        ctx.close().catch(() => {
+        })
+      }, 50)
+    } catch {
+    }
+  }
+
+  const onceUnlock = () => {
+    unlockAudio()
+    window.removeEventListener('pointerdown', onceUnlock)
+    window.removeEventListener('keydown', onceUnlock)
+    window.removeEventListener('touchstart', onceUnlock)
+  }
+  window.addEventListener('pointerdown', onceUnlock, { passive: true })
+  window.addEventListener('keydown', onceUnlock, { passive: true })
+  window.addEventListener('touchstart', onceUnlock, { passive: true })
   
   // 添加滚动监听
   window.addEventListener('scroll', handleScroll, { passive: true })
@@ -90,6 +273,31 @@ onUnmounted(() => {
   // 移除滚动监听
   window.removeEventListener('scroll', handleScroll)
 })
+
+watch(
+  () => [chatStore.ttsEnabled, chatStore.ttsAvailable, chatStore.ttsPendingCount],
+  () => {
+    if (chatStore.ttsEnabled !== true || chatStore.ttsAvailable !== true) {
+      stopTtsPlayback()
+      chatStore.clearTtsAudioQueue()
+      return
+    }
+    playNextTts()
+  }
+)
+
+watch(
+  () => showModel.value,
+  (visible) => {
+    if (!visible) {
+      stopTtsPlayback()
+      return
+    }
+    setTimeout(() => {
+      playNextTts()
+    }, 0)
+  }
+)
 
 const toggleChat = () => {
   showChat.value = !showChat.value
@@ -138,7 +346,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       <router-view />
       <div v-if="showModel" class="ai-content" :class="{ 'expanded': isExpanded }">
         <div class="ai-box">
-          <Live2d @click="toggleChat" class="live2d" :class="{ 'centered': isExpanded }"></Live2d>
+          <Live2d ref="live2dRef" @click="toggleChat" class="live2d" :class="{ 'centered': isExpanded }"></Live2d>
           <AiChat v-show="showChat"  class="ai-chat" :expanded="isExpanded" @expand="handleExpandChat"></AiChat>
         </div>
       </div>

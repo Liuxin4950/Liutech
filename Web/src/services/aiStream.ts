@@ -46,6 +46,7 @@ export class AiStream {
   static async streamChat(
     request: AiChatRequest,
     onChunk: (content: string) => void,
+    onAudio?: (payload: any) => void,
     onComplete?: (response: any) => void,
     onError?: (error: StreamError) => void
   ): Promise<void> {
@@ -119,19 +120,18 @@ export class AiStream {
 
         for (const event of events) {
           if (event.trim()) {
-            this.handleSSEEvent(event, onChunk, onComplete, onError)
+            this.handleSSEEvent(event, onChunk, onAudio, onComplete, onError)
           }
         }
       }
 
       // 处理剩余的buffer
       if (buffer.trim()) {
-        this.handleSSEEvent(buffer, onChunk, onComplete, onError)
+        this.handleSSEEvent(buffer, onChunk, onAudio, onComplete, onError)
       }
 
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.log('流式请求已取消')
         return
       }
 
@@ -151,6 +151,7 @@ export class AiStream {
   static handleSSEEvent(
     eventText: string,
     onChunk: (content: string) => void,
+    onAudio?: (payload: any) => void,
     onComplete?: (response: any) => void,
     onError?: (error: StreamError) => void
   ): void {
@@ -174,7 +175,6 @@ export class AiStream {
 
       switch (eventType) {
         case 'start':
-          console.log('流式响应开始:', parsedData)
           break
 
         case 'data':
@@ -183,8 +183,11 @@ export class AiStream {
           }
           break
 
+        case 'audio':
+          onAudio?.(parsedData)
+          break
+
         case 'complete':
-          console.log('流式响应完成:', parsedData)
           onComplete?.(parsedData)
           break
 

@@ -44,8 +44,8 @@ const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
 
 export const createDefaultLipSyncConfig = (): LipSyncConfig => ({
   noiseFloor: 0.006,
-  gain: 14,
-  smoothIn: 0.78,
+  gain: 10,
+  smoothIn: 0.6,
   smoothOut: 0.8,
   curve: 0.75
 })
@@ -187,14 +187,9 @@ export const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partia
     el.crossOrigin = options.crossOrigin ?? 'anonymous'
     el.volume = options.volume ?? 1
 
-    const ok = await start(el)
-    if (!ok) return null
-
-    if (options.play !== false) {
-      try {
-        await el.play()
-      } catch {
-      }
+    try {
+      await start(el)
+    } catch {
     }
 
     return el
@@ -234,4 +229,3 @@ export const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partia
     destroy
   }
 }
-

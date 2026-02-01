@@ -19,6 +19,15 @@ export interface ChatMessage {
   modelName?: string // 使用的模型名称
 }
 
+export interface TtsAudioItem {
+  seq: number
+  audioUrl: string
+  text?: string
+  conversationId?: number
+  enqueuedAt?: number
+  audioEl?: HTMLAudioElement
+}
+
 /**
  * 聊天模式
  */
@@ -62,6 +71,23 @@ export const useChatStore = defineStore('chat', () => {
    * - 用于控制 UI 是否允许开启语音
    */
   const ttsAvailable = ref<boolean>(false)
+
+  /**
+   * 语音片段缓冲区（按 seq 存储）
+   *
+   * 设计动机：
+   * - AI 端的 TTS 推理是异步/可能并发的，audio 事件到达顺序不一定等于“应该播放顺序”
+   * - 因此前端必须按 seq 进行排序播放：只有拿到 nextSeq 才能播放下一段
+   */
+  const ttsAudioBuffer = ref<Record<number, TtsAudioItem>>({})
+  /**
+   * 下一段应该播放的序号（从 1 开始）
+   */
+  const ttsNextSeq = ref<number>(1)
+  /**
+   * 当前缓冲区待播放的片段数（用于 UI/监听触发播放）
+   */
+  const ttsPendingCount = computed(() => Object.keys(ttsAudioBuffer.value).length)
 
   // 生成临时消息ID（使用负数，避免与后端返回的正数ID冲突）
   let messageIdCounter = 0
@@ -153,6 +179,36 @@ export const useChatStore = defineStore('chat', () => {
     if (!available) {
       setTtsEnabled(false)
     }
+  }
+
+  const clearTtsAudioQueue = () => {
+    ttsAudioBuffer.value = {}
+    ttsNextSeq.value = 1
+  }
+
+  const enqueueTtsAudio = (item: TtsAudioItem) => {
+    if (!item || !item.audioUrl) return
+    if (typeof item.seq !== 'number' || item.seq <= 0) return
+    const now = Date.now()
+    const enriched: TtsAudioItem = { ...item, enqueuedAt: item.enqueuedAt ?? now }
+    try {
+      // 收到音频地址后立即预加载，尽量把“网络/磁盘等待”提前到播放之前完成
+      const pre = new Audio(enriched.audioUrl)
+      pre.preload = 'auto'
+      pre.crossOrigin = 'anonymous'
+      pre.load()
+      enriched.audioEl = pre
+    } catch {
+    }
+    ttsAudioBuffer.value[item.seq] = enriched
+  }
+
+  const shiftTtsAudioQueue = (): TtsAudioItem | null => {
+    const next = ttsAudioBuffer.value[ttsNextSeq.value]
+    if (!next) return null
+    delete ttsAudioBuffer.value[ttsNextSeq.value]
+    ttsNextSeq.value += 1
+    return next
   }
 
   /**
@@ -283,20 +339,39 @@ export const useChatStore = defineStore('chat', () => {
    */
   const sendStreamMessage = async (request: AiChatRequest) => {
     isStreaming.value = true
+    clearTtsAudioQueue()
 
     // 创建空的AI消息用于流式更新
     const aiMessage = addAiMessage()
 
     try {
       await AiStream.streamChat(
-        request,
+        {
+          ...request,
+          ttsEnabled: ttsEnabled.value === true && ttsAvailable.value === true
+        },
         // onChunk - 接收到内容块
         (chunk: string) => {
           updateStreamingMessage(chunk)
         },
+        // onAudio - 接收到语音事件
+        (payload: any) => {
+          if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
+          if (payload && payload.audioUrl && typeof payload.seq === 'number') {
+            enqueueTtsAudio({
+              seq: payload.seq,
+              audioUrl: payload.audioUrl,
+              text: payload.text,
+              conversationId: payload.conversationId,
+              enqueuedAt: Date.now()
+            })
+          }
+        },
         // onComplete - 流完成
         (response) => {
           completeStreamingMessage()
+          isStreaming.value = false
+          isLoading.value = false
 
           // 更新会话ID
           if (response.conversationId && !conversationId.value) {
@@ -314,6 +389,8 @@ export const useChatStore = defineStore('chat', () => {
           // 添加错误消息
           addErrorMessage(error.message)
           errorMessage.value = error.message
+          isStreaming.value = false
+          isLoading.value = false
         }
       )
     } catch (error) {
@@ -325,7 +402,9 @@ export const useChatStore = defineStore('chat', () => {
 
       throw error
     } finally {
-      isStreaming.value = false
+      if (isStreaming.value) {
+        isStreaming.value = false
+      }
     }
   }
 
@@ -407,7 +486,6 @@ export const useChatStore = defineStore('chat', () => {
       // 清理本地存储
       clearStorage()
 
-      console.log('聊天记录已清空')
     } catch (error) {
       console.error('清空聊天记录失败:', error)
       errorMessage.value = '清空聊天记录失败，请稍后重试'
@@ -438,7 +516,6 @@ export const useChatStore = defineStore('chat', () => {
         displayName: formatModelName(modelName)
       }
 
-      console.log('已加载默认模型:', modelName)
     } catch (error) {
       console.error('加载默认模型失败:', error)
       errorMessage.value = '加载模型配置失败，请刷新页面重试'
@@ -504,6 +581,7 @@ export const useChatStore = defineStore('chat', () => {
     currentModelInfo,
     ttsEnabled,
     ttsAvailable,
+    ttsPendingCount,
 
     // 计算属性
     hasMessages,
@@ -516,6 +594,9 @@ export const useChatStore = defineStore('chat', () => {
     setMode,
     setTtsEnabled,
     setTtsAvailable,
+    enqueueTtsAudio,
+    clearTtsAudioQueue,
+    shiftTtsAudioQueue,
     loadDefaultModel,
     addUserMessage,
     addAiMessage,

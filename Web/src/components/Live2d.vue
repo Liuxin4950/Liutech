@@ -109,8 +109,31 @@ const speakAudioUrl = async (url: string) => {
     return lipSync.speak({ url, play: true, volume: 1, crossOrigin: 'anonymous' })
 }
 
+/**
+ * 使用“外部已创建/已预加载”的 AudioElement 播放并驱动口型
+ *
+ * 用途：
+ * - Web 侧收到 audioUrl 后可以先行预加载（audio.load），播放时复用同一个 element
+ * - 避免重复创建 Audio 导致再次等待网络/磁盘
+ */
+const speakAudioElement = async (audio: HTMLAudioElement) => {
+    if (!model) return null
+    if (!audio) return null
+    try {
+        audio.preload = 'auto'
+        audio.crossOrigin = 'anonymous'
+    } catch {
+    }
+    try {
+        await lipSync.start(audio)
+    } catch {
+    }
+    return audio
+}
+
 defineExpose({
     speakAudioUrl,
+    speakAudioElement,
     lipSyncConfig: lipSync.config,
     setLipSyncConfig: lipSync.updateConfig
 })
@@ -187,7 +210,6 @@ watch(
             // const audioPath = getServiceBaseURL(ServiceType.AI) + `${audioQueue.value[0]}`;
             const audioPath = audioQueue.value[0];
             try {
-                console.log("正在播放", audioPath);
                 isAuto.value = false;
                 await talk(audioPath); // 等待播放完成
                 audioQueue.value.shift(); // 播放完成后移除队列
@@ -205,15 +227,12 @@ watch(
 // 触发随机表情
 function triggerRandomExpression() {
     if (!model) {
-        console.warn("模型未加载，无法触发表情");
         return;
     }
 
     // 随机选择一个表情
     const randomIndex = Math.floor(Math.random() * expressions.length);
     const randomExpression = expressions[randomIndex];
-
-    console.log(`触发随机表情: ${randomExpression}`);
 
     try {
         // 触发表情
@@ -230,12 +249,9 @@ function playTestAudio() {
     return
     // 判断是否已经有音频在播放了
     if (!isAuto.value) {
-        console.log("停止音频播放");
         stopSpeak()
         return;
     }
-    console.log("播放");
-
     audioQueue.value.push("http://localhost:8080/uploads/music/2026/01/01/20260101134251_ce98531e432d493b854b07eb1bfb15fb.mp3");
 }
 function stopSpeak() {
@@ -264,7 +280,6 @@ function stopSpeak() {
 
         // 5. 状态恢复
         isAuto.value = true;
-        console.log("已强制终止 speak 播放");
     } catch (err) {
         console.error("stopSpeak 出错:", err);
     }
@@ -274,18 +289,11 @@ function stopSpeak() {
 onMounted(() => {
     // 防止重复初始化
     if (isInitialized) {
-        console.log('Live2D已经初始化，跳过重复初始化');
         return;
     }
 
     // 等待全局脚本加载完成
     const initLive2D = () => {
-        console.log('检查Live2D依赖:', {
-            PIXI: !!window.PIXI,
-            Live2DModel: !!(window as any).Live2DModel,
-            PIXIlive2d: !!(window as any).PIXI?.live2d
-        });
-
         if (!window.PIXI) {
             setTimeout(initLive2D, 100);
             return;
@@ -297,8 +305,6 @@ onMounted(() => {
             console.error('Live2D模型类未找到，请检查脚本加载');
             return;
         }
-
-        console.log('开始初始化Live2D模型');
 
         // 标记为已初始化
         isInitialized = true;
@@ -319,11 +325,8 @@ onMounted(() => {
             resolution: window.devicePixelRatio || 1
         });
 
-        console.log('PIXI应用创建成功，开始加载模型:', cubism4Model);
-
         // 加载Live2D模型
         Live2DModelClass.from(cubism4Model).then((live2dModel: any) => {
-            console.log('Live2D模型加载成功:', live2dModel);
             model = live2dModel;
             app.stage.addChild(live2dModel);
             // 设置模型锚点为中心
@@ -331,7 +334,6 @@ onMounted(() => {
             // 模型居中显示 - 动态获取容器尺寸
             live2dModel.x = containerWidth / 2;
             live2dModel.y = containerHeight / 2;
-            console.log('模型位置:', live2dModel.x, live2dModel.y);
             // 固定模型大小，不受页面缩放影响
             const fixedScale = 0.15;
             live2dModel.scale.set(fixedScale);
@@ -405,8 +407,6 @@ onMounted(() => {
 
 // 资源清理函数
 const cleanup = () => {
-    console.log('开始清理Live2D资源...');
-
     // 重置初始化状态
     isInitialized = false;
 
@@ -474,7 +474,6 @@ const cleanup = () => {
         app = null;
     }
 
-    console.log('Live2D资源清理完成');
 };
 
 // 组件卸载时清理资源

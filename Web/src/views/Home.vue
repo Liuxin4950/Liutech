@@ -221,7 +221,6 @@ const loadRecommendedPosts = async () => {
 // 跳转到公告页面
 const goToAnnouncements = () => {
   // TODO: 实现公告列表页面路由跳转
-  console.log('跳转到公告列表页面')
 }
 
 // 加载作者(开发者)个人资料

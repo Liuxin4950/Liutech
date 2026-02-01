@@ -63,4 +63,11 @@ public class ChatRequest {
     // 会话ID（可选）
     // 用于维护上下文，若不指定则创建新会话
     private Long conversationId;
+
+    /**
+     * 是否启用语音推理（可选）
+     * - true：服务端会按分段规则触发 TTS 推理，并通过 SSE 推送 audio 事件
+     * - false：只返回文本，不做语音推理
+     */
+    private Boolean ttsEnabled;
 }

@@ -163,7 +163,6 @@ const loadPostDetail = async () => {
 
     const postData = await PostService.getPostDetail(postId)
     post.value = postData
-    console.log('postData', postData);
 
     // 动态更新页面标题与面包屑末项
     if (postData && route.meta) {
@@ -428,7 +427,6 @@ const shareToWeChat = () => {
       text: post.value?.summary || '来看看这篇有趣的文章',
       url: url
     }).catch(err => {
-      console.log('分享失败:', err)
       showError('分享失败，请稍后重试')
     })
   } else {
