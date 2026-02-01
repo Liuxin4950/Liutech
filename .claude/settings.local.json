@@ -12,7 +12,8 @@
       "Bash(docker logs:*)",
       "Bash(npm install:*)",
       "Bash(wc:*)",
-      "Bash(sql:*)"
+      "Bash(sql:*)",
+      "Bash(tree:*)"
     ]
   }
 }

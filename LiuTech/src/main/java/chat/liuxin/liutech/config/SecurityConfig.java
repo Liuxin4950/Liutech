@@ -98,6 +98,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/tags/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/messages/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/messages").permitAll()
                 .requestMatchers(HttpMethod.GET, "/announcements/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/carousels").permitAll()
                 .requestMatchers(HttpMethod.GET, "/user/author/profile").permitAll()

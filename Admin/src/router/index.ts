@@ -101,6 +101,15 @@ const routes: RouteRecordRaw[] = [
           title: 'AI模型管理',
           section: 'ai-models'
         }
+      },
+      {
+        path: 'messages',
+        name: 'messages-management',
+        component: () => import('../views/admin/MessagesManagement.vue'),
+        meta: {
+          title: '留言管理',
+          section: 'messages'
+        }
       }
     ]
   },{

@@ -1,7 +1,22 @@
 <script setup lang="ts">
 import Icon from '../components/Icon.vue'
+import { ref } from 'vue'
+import MessageModal from '@/components/MessageModal.vue'
+import MessageList from '@/components/MessageList.vue'
 
-// 关于页面组件
+// 留言弹窗显示状态
+const messageModalVisible = ref(false)
+const messageListRef = ref()
+
+// 打开留言弹窗
+const openMessageModal = () => {
+  messageModalVisible.value = true
+}
+
+// 留言成功后刷新列表
+const handleMessageSuccess = () => {
+  messageListRef.value?.refresh()
+}
 </script>
 
 <template>
@@ -128,6 +143,17 @@ import Icon from '../components/Icon.vue'
               </div>
             </div>
           </section>
+          
+          <!-- 留言列表 -->
+          <section class="info-card">
+            <h2 class="card-title">
+              <Icon name="chat" size="20" class="title-icon" />
+              公开留言
+            </h2>
+            <div class="card-body">
+              <MessageList ref="messageListRef" />
+            </div>
+          </section>
         </div>
 
         <!-- 右侧侧边栏 -->
@@ -230,15 +256,23 @@ import Icon from '../components/Icon.vue'
                   <span>中国 · 深圳</span>
                 </li>
               </ul>
-              <button class="message-btn">
+              <button class="message-btn" @click="openMessageModal">
                 <Icon name="edit" size="16" />
                 给我留言
               </button>
             </div>
           </section>
+
+          
         </div>
       </div>
     </div>
+
+    <!-- 留言弹窗组件 -->
+    <MessageModal
+      v-model:visible="messageModalVisible"
+      @success="handleMessageSuccess"
+    />
   </div>
 </template>
 
