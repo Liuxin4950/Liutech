@@ -54,10 +54,15 @@ const musicList = ref<MusicItem[]>([])
 const currentIndex = ref(0)
 const currentMusic = ref<MusicItem | null>(null)
 const isPlaying = ref(false)
+const isPaused = ref(false)
 
 // 音频对象
 let fullAudio: HTMLAudioElement | null = null   // 伴奏
 let vocalAudio: HTMLAudioElement | null = null  // 人声（播放+嘴型同步）
+let lastFullUrl: string | null = null
+let lastVocalUrl: string | null = null
+let isSyncing = false
+let unbindSync: (() => void) | null = null
 
 // 获取音乐列表
 const fetchMusicList = async () => {
@@ -73,51 +78,171 @@ const fetchMusicList = async () => {
   }
 }
 
-// 播放音乐
-const playMusic = () => {
+const createAudio = (url: string) => {
+  const audio = new Audio(url)
+  audio.preload = 'auto'
+  audio.crossOrigin = 'anonymous'
+  audio.volume = 1
+  return audio
+}
+
+const waitForCanPlay = (audio: HTMLAudioElement, timeoutMs = 6000) => {
+  return new Promise<void>((resolve) => {
+    if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      resolve()
+      return
+    }
+
+    let settled = false
+    const cleanup = () => {
+      audio.removeEventListener('canplay', onCanPlay)
+      audio.removeEventListener('error', onError)
+    }
+    const done = () => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve()
+    }
+    const onCanPlay = () => done()
+    const onError = () => done()
+
+    audio.addEventListener('canplay', onCanPlay)
+    audio.addEventListener('error', onError)
+
+    window.setTimeout(done, timeoutMs)
+  })
+}
+
+const syncCurrentTime = (master: HTMLAudioElement, slave: HTMLAudioElement) => {
+  const drift = Math.abs(slave.currentTime - master.currentTime)
+  if (drift > 0.15 && Number.isFinite(master.currentTime)) {
+    slave.currentTime = master.currentTime
+  }
+  if (slave.playbackRate !== master.playbackRate) {
+    slave.playbackRate = master.playbackRate
+  }
+}
+
+const bindSync = (master: HTMLAudioElement, slave: HTMLAudioElement) => {
+  if (isSyncing) return
+  isSyncing = true
+
+  const onTimeUpdate = () => {
+    if (!fullAudio || !vocalAudio) return
+    syncCurrentTime(master, slave)
+  }
+  const onSeeking = () => {
+    if (!fullAudio || !vocalAudio) return
+    if (Number.isFinite(master.currentTime)) slave.currentTime = master.currentTime
+  }
+  const onPlay = async () => {
+    if (!fullAudio || !vocalAudio) return
+    if (!slave.paused) return
+    try {
+      await slave.play()
+    } catch {
+    }
+  }
+  const onPause = () => {
+    if (!fullAudio || !vocalAudio) return
+    if (!slave.paused) slave.pause()
+  }
+
+  master.addEventListener('timeupdate', onTimeUpdate)
+  master.addEventListener('seeking', onSeeking)
+  master.addEventListener('seeked', onSeeking)
+  master.addEventListener('play', onPlay)
+  master.addEventListener('pause', onPause)
+
+  const unbind = () => {
+    master.removeEventListener('timeupdate', onTimeUpdate)
+    master.removeEventListener('seeking', onSeeking)
+    master.removeEventListener('seeked', onSeeking)
+    master.removeEventListener('play', onPlay)
+    master.removeEventListener('pause', onPause)
+    isSyncing = false
+  }
+
+  unbindSync = unbind
+  fullAudio?.addEventListener('ended', unbind, { once: true })
+}
+
+const ensureTrackLoaded = () => {
   if (!currentMusic.value) return
 
   const { fullAudioUrl, vocalUrl } = currentMusic.value
 
-  // 停止之前的播放
-  stopMusic()
+  const fullChanged = lastFullUrl !== fullAudioUrl
+  const vocalChanged = lastVocalUrl !== (vocalUrl || null)
+  if (fullChanged || vocalChanged) {
+    stopMusic()
+  }
 
-  // 播放伴奏（用户听到）
-  fullAudio = new Audio(fullAudioUrl)
-  fullAudio.volume = 1
-  fullAudio.crossOrigin = 'anonymous'
-
-  // 播放人声（用户听到 + 模型驱动嘴型）
-  if (vocalUrl) {
-    vocalAudio = new Audio(vocalUrl)
-    vocalAudio.volume = 1
-    vocalAudio.crossOrigin = 'anonymous'
-
-    // 同步播放进度
-    fullAudio.ontimeupdate = () => {
-      if (fullAudio && vocalAudio && Math.abs(vocalAudio.currentTime - fullAudio.currentTime) > 0.5) {
-        vocalAudio.currentTime = fullAudio.currentTime
-      }
+  if (!fullAudio) {
+    fullAudio = createAudio(fullAudioUrl)
+    lastFullUrl = fullAudioUrl
+    fullAudio.onended = () => {
+      playNext()
     }
   }
 
-  // 监听播放完成
-  fullAudio.onended = () => {
-    playNext()
+  if (vocalUrl) {
+    if (!vocalAudio) {
+      vocalAudio = createAudio(vocalUrl)
+      lastVocalUrl = vocalUrl
+    }
+  } else {
+    vocalAudio = null
+    lastVocalUrl = null
   }
 
-  // 开始播放
-  fullAudio.play().catch(console.error)
-  vocalAudio?.play().catch(console.error)
+  const master = vocalAudio || fullAudio
+  const slave = vocalAudio ? fullAudio : null
+  if (slave) bindSync(master, slave)
+}
 
-  isPlaying.value = true
+const startPlayback = async (mode: 'fromStart' | 'resume') => {
+  if (!currentMusic.value) return
+  ensureTrackLoaded()
+  if (!fullAudio) return
 
-  // 触发Live2D模型对口型（使用人声）
-  emit('play', vocalUrl || fullAudioUrl)
+  const master = vocalAudio || fullAudio
+  const slave = vocalAudio ? fullAudio : null
+
+  if (mode === 'fromStart') {
+    fullAudio.currentTime = 0
+    if (vocalAudio) vocalAudio.currentTime = 0
+  } else if (mode === 'resume') {
+    if (slave) syncCurrentTime(master, slave)
+  }
+
+  const readiness = [waitForCanPlay(fullAudio)]
+  if (vocalAudio) readiness.push(waitForCanPlay(vocalAudio))
+  await Promise.all(readiness)
+
+  const playPromises: Promise<any>[] = []
+  playPromises.push(fullAudio.play())
+  if (vocalAudio) playPromises.push(vocalAudio.play())
+  const results = await Promise.allSettled(playPromises)
+  const ok = results.some(r => r.status === 'fulfilled')
+  isPlaying.value = ok
+  isPaused.value = !ok ? isPaused.value : false
+  if (ok) emit('play', master)
+}
+
+// 播放音乐（从头开始）
+const playMusic = async () => {
+  isPaused.value = false
+  await startPlayback('fromStart')
 }
 
 // 停止音乐
 const stopMusic = () => {
+  if (unbindSync) {
+    unbindSync()
+    unbindSync = null
+  }
   if (fullAudio) {
     fullAudio.onended = null
     fullAudio.ontimeupdate = null
@@ -131,6 +256,7 @@ const stopMusic = () => {
     vocalAudio = null
   }
   isPlaying.value = false
+  isPaused.value = false
 }
 
 // 暂停音乐
@@ -138,7 +264,14 @@ const pauseMusic = () => {
   fullAudio?.pause()
   vocalAudio?.pause()
   isPlaying.value = false
+  isPaused.value = true
   emit('pause')
+}
+
+// 继续播放
+const resumeMusic = async () => {
+  if (!currentMusic.value) return
+  await startPlayback('resume')
 }
 
 // 切换播放/暂停
@@ -146,6 +279,10 @@ const togglePlay = () => {
   if (isPlaying.value) {
     pauseMusic()
   } else {
+    if (isPaused.value) {
+      resumeMusic()
+      return
+    }
     playMusic()
   }
 }
@@ -153,9 +290,10 @@ const togglePlay = () => {
 // 上一首
 const playPrev = () => {
   if (musicList.value.length <= 1) return
+  const shouldAutoPlay = isPlaying.value
   currentIndex.value = (currentIndex.value - 1 + musicList.value.length) % musicList.value.length
   currentMusic.value = musicList.value[currentIndex.value]
-  if (isPlaying.value) {
+  if (shouldAutoPlay) {
     playMusic()
   }
 }
@@ -163,9 +301,10 @@ const playPrev = () => {
 // 下一首
 const playNext = () => {
   if (musicList.value.length <= 1) return
+  const shouldAutoPlay = isPlaying.value
   currentIndex.value = (currentIndex.value + 1) % musicList.value.length
   currentMusic.value = musicList.value[currentIndex.value]
-  if (isPlaying.value) {
+  if (shouldAutoPlay) {
     playMusic()
   }
 }
@@ -174,6 +313,7 @@ const playNext = () => {
 defineExpose({
   playMusic,
   pauseMusic,
+  resumeMusic,
   stopMusic,
   togglePlay,
   playNext,
@@ -182,7 +322,7 @@ defineExpose({
 
 // 事件定义
 const emit = defineEmits<{
-  (e: 'play', audioUrl: string): void
+  (e: 'play', audio: HTMLAudioElement): void
   (e: 'pause'): void
 }>()
 

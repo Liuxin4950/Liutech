@@ -445,7 +445,7 @@ export class PostService {
   /** 购买资源（扣积分） */
   static async purchaseResource(resourceId: number): Promise<void> {
     try {
-      await post(`/api/resource/purchase/${resourceId}`)
+      await post(`/resource/purchase/${resourceId}`)
     } catch (error) {
       console.error('购买资源失败:', error)
       throw error
@@ -459,7 +459,7 @@ export class PostService {
       const { getAxiosInstance } = await import('./api')
       const axiosInstance = getAxiosInstance()
 
-      const response = await axiosInstance.get(`/api/resource/download/${resourceId}`, {
+      const response = await axiosInstance.get(`/resource/download/${resourceId}`, {
         responseType: 'blob'
       })
 

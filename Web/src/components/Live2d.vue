@@ -17,8 +17,8 @@
  * 功能: 纯净的Live2D模型展示，支持基本交互和拖拽，优化资源管理
  */
 import { onMounted, onBeforeUnmount, watch, ref } from 'vue';
-import { getServiceBaseURL, ServiceType } from '../config/services';
 import MusicCapsule from './MusicCapsule.vue';
+import { useLipSync } from '@/composables/useLipSync'
 
 // 声明全局变量类型
 declare global {
@@ -69,38 +69,51 @@ let resizeHandler: (() => void) | null = null;
 // 音乐胶囊引用
 const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null);
 
-// 音乐播放事件处理
-function onMusicPlay(audioUrl: string) {
-    console.log('音乐播放，开始嘴型同步:', audioUrl);
-    if (!model) {
-        console.warn('Live2D模型未加载完成，无法嘴型同步');
-        return;
-    }
-    // 先停止之前的嘴型同步
-    stopSpeak();
-    // 确保URL是完整的
-    const fullUrl = audioUrl.startsWith('http') ? audioUrl : getServiceBaseURL(ServiceType.MAIN) + audioUrl;
-    console.log('嘴型同步音频URL:', fullUrl);
+const setMouthOpen = (value: number) => {
     try {
-        // volume=0 因为人声已由 vocalAudio 静音播放，这里只用来驱动嘴型()
-        model.speak(fullUrl, {
-            volume: 1,
-            expression: "开心1",
-            resetExpression: true,
-            crossOrigin: "anonymous",
-        });
-    } catch (error) {
-        console.error('嘴型同步失败:', error);
+        const v = Math.max(0, Math.min(1, value))
+        model?.internalModel?.coreModel?.setParameterValueById?.("ParamMouthOpenY", v)
+    } catch {
     }
+}
+
+const lipSync = useLipSync(setMouthOpen, {
+    noiseFloor: 0.015,
+    gain: 14,
+    smoothIn: 0.78,
+    smoothOut: 0.88,
+    curve: 0.75
+})
+
+// 音乐播放事件处理
+function onMusicPlay(audio: HTMLAudioElement) {
+    if (!audio) return
+    if (!model) return
+    lipSync.start(audio)
 }
 
 // 音乐暂停事件处理
 function onMusicPause() {
-    console.log('音乐暂停，停止嘴型同步');
-    if (model) {
-        stopSpeak();
-    }
+    lipSync.stop()
 }
+
+/**
+ * 统一“让 Live2D 读音频”的入口（替代原本的 speak 思路）
+ * - 传入：音频URL（例如未来 TTS 返回的 url）
+ * - 行为：播放该音频，并用同一条音频驱动口型
+ *
+ * 注意：浏览器可能要求用户先有一次交互才能播放音频
+ */
+const speakAudioUrl = async (url: string) => {
+    if (!model) return null
+    return lipSync.speak({ url, play: true, volume: 1, crossOrigin: 'anonymous' })
+}
+
+defineExpose({
+    speakAudioUrl,
+    lipSyncConfig: lipSync.config,
+    setLipSyncConfig: lipSync.updateConfig
+})
 
 // 拖拽事件处理
 function onPointerDown(event: any) {
@@ -467,6 +480,7 @@ const cleanup = () => {
 // 组件卸载时清理资源
 onBeforeUnmount(() => {
     cleanup();
+    lipSync.destroy()
 });
 
 
