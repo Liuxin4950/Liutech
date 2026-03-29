@@ -342,8 +342,8 @@
           </div>
 
           <!-- 文章内容 -->
-          <article class="p-20">
-            <div class="markdown-content" v-html="form.content"></div>
+          <article class="">
+            <div class="markdown-content" v-html="renderedPreviewContent"></div>
           </article>
         </div>
       </div>
@@ -474,6 +474,27 @@ const selectedTagId = ref('')
 const saving = ref(false)
 const showPreview = ref(false)
 const isEditMode = ref(false)
+
+// 渲染预览内容（处理 Markdown 语法）
+const renderedPreviewContent = computed(() => {
+  if (!form.value.content) return ''
+  const content = form.value.content
+  const hasHtmlTags = /<[^>]*>/g.test(content)
+
+  if (hasHtmlTags) {
+    // HTML 内容中的 Markdown 语法转换
+    return content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`(.*?)`/g, '<code>$1</code>')
+  } else {
+    return content
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`(.*?)`/g, '<code>$1</code>')
+  }
+})
 const editingPostId = ref<number | null>(null)
 const loading = ref(false)
 
@@ -1708,9 +1729,120 @@ onMounted(async () => {
   font-style: italic;
 }
 
-/* 预览内容样式 */
+/* 预览内容样式 - 与详情页同步 */
 .markdown-content {
+  line-height: 1.7;
+  padding: 32px;
   color: var(--text-main);
+  font-size: 16px;
+  word-wrap: break-word;
+  background: var(--bg-main);
+  border-radius: 12px;
+  margin: 24px 0;
+
+  /* 首段首字母放大 */
+  & > p:first-of-type::first-letter {
+    font-size: 3em;
+    font-weight: 700;
+    float: left;
+    line-height: 1;
+    margin-right: 8px;
+    margin-top: 4px;
+    color: var(--color-primary);
+  }
+}
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  color: var(--text-title);
+  font-weight: 600;
+  margin: 24px 0 16px 0;
+  line-height: 1.4;
+}
+
+.markdown-content :deep(h1) { font-size: 2em; }
+.markdown-content :deep(h2) { font-size: 1.7em; }
+.markdown-content :deep(h3) { font-size: 1.4em; }
+.markdown-content :deep(h4) { font-size: 1.2em; }
+.markdown-content :deep(h5) { font-size: 1.1em; }
+.markdown-content :deep(h6) { font-size: 1em; }
+
+.markdown-content :deep(p) {
+  margin: 16px 0;
+  color: var(--text-main);
+}
+
+.markdown-content :deep(a) {
+  color: var(--text-link);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.markdown-content :deep(a:hover) {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  margin: 16px 0;
+  padding-left: 24px;
+  color: var(--text-main);
+}
+
+.markdown-content :deep(li) {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.markdown-content :deep(blockquote) {
+  margin: 24px 0;
+  padding: 20px 24px;
+  border-left: 4px solid var(--color-primary);
+  background: linear-gradient(135deg, var(--bg-soft), var(--bg-hover));
+  color: var(--text-subtle);
+  font-style: italic;
+  border-radius: 0 12px 12px 0;
+}
+
+.markdown-content :deep(blockquote p) {
+  margin: 0;
+}
+
+.markdown-content :deep(code) {
+  background: var(--bg-soft);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-content :deep(pre) {
+  background: var(--bg-soft);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.markdown-content :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.markdown-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  margin: 16px 0;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* 响应式设计 */

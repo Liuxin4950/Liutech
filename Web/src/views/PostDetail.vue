@@ -544,7 +544,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
         <h2 class="post-title">{{ post.title }}</h2>
 
         <!-- 封面图片 -->
-        <!-- <div class="post-cover mb-16">
+        <!-- <div v-if="displayImage" class="post-cover mb-24">
           <img :src="displayImage" :alt="post.title" class="cover-image" :class="{ 'loading': imageLoading }">
         </div> -->
 
@@ -559,29 +559,19 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
           <div class="meta-right-section">
             <span v-if="post.category" class="category-badge" @click="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
             <div class="meta-stat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <Icon name="calendar" size="14" />
               {{ formatDate(post.createdAt) }}
             </div>
             <div class="meta-stat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8-4 8-11-8-11 8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <Icon name="eye" size="14" />
               {{ post.viewCount || 0 }}
             </div>
             <div class="meta-stat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3c2.08 0 3.5 2.42 3.5 4.5 0 2.78-2.42 4.5-3.5 4.5-.05 0-.1-.01-.15-.02l1.65 1.5c.05.04.1.06.16.06.11 0 .21-.08.39-.27.69-.27.28-.11.48-.21.69-.27.28-.11.21-.27.28-.69.27-.05.01-.1.02-.15.02zm1.39-1.81c.44-.25.79-.74.79-1.33 0-.88-.65-1.62-1.52-1.85l1.42-1.3c.37.36.59.92.59 1.52 0 1.11-.7 1.87-1.77 1.87H9c-.88 0-1.63-.39-2.12-.96l1.42 1.3c.19-.17.43-.27.7-.27.88 0 .59.35 1.08.79 1.33l1.42-1.3c-.49-.57-.79-1.3-.79-2.12z"/>
-              </svg>
+              <Icon name="heart" size="14" />
               {{ post.likeCount || 0 }}
             </div>
             <div class="meta-stat">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
+              <Icon name="message" size="14" />
               {{ post.commentCount }}
             </div>
           </div>
@@ -930,7 +920,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   font-size: 14px;
   font-weight: 500;
   transition: color 0.2s ease;
-  
+
   &:hover {
     color: var(--color-primary);
   }

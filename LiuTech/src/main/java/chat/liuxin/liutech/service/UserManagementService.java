@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 
 import java.math.BigDecimal;
@@ -607,7 +608,9 @@ public class UserManagementService {
 
             if (success) {
                 // 清理相关用户的缓存
-                List<Users> users = userMapper.selectBatchIds(ids);
+                LambdaQueryWrapper<Users> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.in(Users::getId, ids);
+                List<Users> users = userMapper.selectList(queryWrapper);
                 if (users != null && !users.isEmpty()) {
                     users.forEach(u -> {
                         if (StringUtils.hasText(u.getUsername())) {
