@@ -641,7 +641,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
                     @click="onPurchase(att.resourceId)"
                   >
                     <Icon v-if="purchasingId === att.resourceId" name="loader" class="animate-spin" size="14" />
-                    <Icon v-else name="shopping-cart" size="14" />
+                    <Icon v-else name="lock" size="14" />
                     {{ purchasingId === att.resourceId ? '处理中...' : (att.pointsNeeded ? `${att.pointsNeeded}积分` : '免费') }}
                   </button>
                 </template>
@@ -674,7 +674,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
               <div class="item-action">
                 <template v-if="att.purchased && att.externalLink">
                   <button class="btn-primary" @click="openExternalLink(att.externalLink)">
-                    <Icon name="external-link" size="14" />
+                    <Icon name="external" size="14" />
                     访问
                   </button>
                 </template>
@@ -685,7 +685,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
                     @click="onPurchase(att.resourceId)"
                   >
                     <Icon v-if="purchasingId === att.resourceId" name="loader" class="animate-spin" size="14" />
-                    <Icon v-else name="shopping-cart" size="14" />
+                    <Icon v-else name="lock" size="14" />
                     {{ purchasingId === att.resourceId ? '处理中...' : (att.pointsNeeded ? `${att.pointsNeeded}积分` : '免费') }}
                   </button>
                 </template>
