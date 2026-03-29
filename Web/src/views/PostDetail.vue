@@ -104,6 +104,15 @@ const purchasingId = ref<number | null>(null)
 // 下载状态
 const downloadingId = ref<number | null>(null)
 
+// 计算属性：附件分组
+const fileAttachments = computed(() => {
+  return post.value?.attachments?.filter(a => a.resourceType === 'file') || []
+})
+
+const linkAttachments = computed(() => {
+  return post.value?.attachments?.filter(a => a.resourceType === 'link') || []
+})
+
 // 计算属性：渲染富文本内容
 const renderedContent = computed(() => {
   if (!post.value?.content) return ''
@@ -591,86 +600,100 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
       <!-- 附件列表 -->
       <section v-if="post.attachments && post.attachments.length" class="attachment-section">
-        <h3 class="attachment-title">
-          <Icon name="paperclip" size="24" class="text-primary"/> 
-          附件资源
-          <span class="attachment-count">{{ post.attachments.length }}</span>
-        </h3>
-        
-        <div class="attachment-grid">
-          <div v-for="att in post.attachments" :key="att.attachmentId" class="attachment-card">
-            
-            <!-- 顶部信息 -->
-            <div class="attachment-header">
-              <div class="attachment-icon-wrapper">
-                <Icon :name="att.resourceType === 'file' ? 'file' : 'link'" size="20" />
+
+        <!-- 本地文件 -->
+        <div v-if="fileAttachments.length" class="attachment-group">
+          <div class="attachment-group-title">
+            <Icon name="file" size="16" />
+            本地文件
+            <span class="group-count">{{ fileAttachments.length }}</span>
+          </div>
+          <div class="attachment-list">
+            <div v-for="att in fileAttachments" :key="att.attachmentId" class="attachment-item">
+              <div class="item-icon">
+                <Icon name="file" size="18" />
               </div>
-              <div class="attachment-info">
-                <span class="attachment-name" :title="att.fileName">{{ att.fileName }}</span>
-                <div class="attachment-meta">
-                  <span>{{ formatDate(att.createdTime) }}</span>
-                  <span class="meta-dot">·</span>
-                  <span>{{ att.resourceType === 'file' ? '文件' : '外链' }}</span>
-                </div>
+              <div class="item-info">
+                <span class="item-name" :title="att.fileName">{{ att.fileName }}</span>
+                <span class="item-sub">{{ formatDate(att.createdTime) }}</span>
               </div>
-              
-              <!-- 状态徽章 -->
-              <div class="attachment-status">
-                <span v-if="att.purchased" class="status-badge success">
-                  <Icon name="check" size="12" /> 已获取
-                </span>
-                <span v-else-if="att.pointsNeeded" class="status-badge warning">
-                  <Icon name="lock" size="12" /> {{ att.pointsNeeded }} 积分
-                </span>
+              <div class="item-status">
+                <span v-if="att.purchased" class="status-badge success">已获取</span>
+                <span v-else-if="att.pointsNeeded" class="status-badge warning">{{ att.pointsNeeded }}积分</span>
                 <span v-else class="status-badge info">免费</span>
               </div>
-            </div>
-
-            <!-- 购买后说明 -->
-            <div v-if="att.purchased && att.purchasedNote" class="attachment-note">
-              <div class="note-title">
-                <Icon name="info" size="14"/> 使用说明
+              <div class="item-action">
+                <template v-if="att.purchased">
+                  <button
+                    class="btn-primary"
+                    :disabled="downloadingId === att.resourceId"
+                    @click="handleDownload(att.resourceId, att.fileName)"
+                  >
+                    <Icon v-if="downloadingId === att.resourceId" name="loader" class="animate-spin" size="14" />
+                    <Icon v-else name="download" size="14" />
+                    {{ downloadingId === att.resourceId ? '下载中...' : '下载' }}
+                  </button>
+                </template>
+                <template v-else>
+                  <button
+                    class="btn-outline"
+                    :disabled="purchasingId === att.resourceId"
+                    @click="onPurchase(att.resourceId)"
+                  >
+                    <Icon v-if="purchasingId === att.resourceId" name="loader" class="animate-spin" size="14" />
+                    <Icon v-else name="shopping-cart" size="14" />
+                    {{ purchasingId === att.resourceId ? '处理中...' : (att.pointsNeeded ? `${att.pointsNeeded}积分` : '免费') }}
+                  </button>
+                </template>
               </div>
-              <p>{{ att.purchasedNote }}</p>
             </div>
-
-            <!-- 操作按钮 -->
-            <div class="attachment-actions">
-              <template v-if="att.purchased">
-                <button
-                  v-if="att.resourceType === 'link' && att.externalLink"
-                  class="btn-action primary"
-                  @click="openExternalLink(att.externalLink)"
-                >
-                  <Icon name="external-link" size="16" /> 访问链接资源
-                </button>
-                <button
-                  v-else-if="att.resourceType === 'file' && att.fileUrl"
-                  class="btn-action primary"
-                  :disabled="downloadingId === att.resourceId"
-                  @click="handleDownload(att.resourceId, att.fileName)"
-                >
-                  <Icon v-if="downloadingId === att.resourceId" name="loader" class="animate-spin" size="16" />
-                  <Icon v-else name="download" size="16" />
-                  {{ downloadingId === att.resourceId ? '下载中...' : '下载文件' }}
-                </button>
-              </template>
-              
-              <template v-else>
-                <button
-                  class="btn-action outline"
-                  :disabled="purchasingId === att.resourceId"
-                  @click="onPurchase(att.resourceId)"
-                >
-                  <Icon v-if="purchasingId === att.resourceId" name="loader" class="animate-spin" size="16" />
-                  <Icon v-else name="shopping-cart" size="16" />
-                  {{ purchasingId === att.resourceId ? '处理中...' : (att.pointsNeeded ? `支付 ${att.pointsNeeded} 积分获取` : '免费获取') }}
-                </button>
-              </template>
-            </div>
-            
           </div>
         </div>
+
+        <!-- 外部链接 -->
+        <div v-if="linkAttachments.length" class="attachment-group">
+          <div class="attachment-group-title">
+            <Icon name="link" size="16" />
+            外部链接
+            <span class="group-count">{{ linkAttachments.length }}</span>
+          </div>
+          <div class="attachment-list">
+            <div v-for="att in linkAttachments" :key="att.attachmentId" class="attachment-item">
+              <div class="item-icon">
+                <Icon name="link" size="18" />
+              </div>
+              <div class="item-info">
+                <span class="item-name" :title="att.fileName">{{ att.fileName }}</span>
+                <span v-if="att.purchasedNote" class="item-note">密码：{{ att.purchasedNote }}</span>
+              </div>
+              <div class="item-status">
+                <span v-if="att.purchased" class="status-badge success">已获取</span>
+                <span v-else-if="att.pointsNeeded" class="status-badge warning">{{ att.pointsNeeded }}积分</span>
+                <span v-else class="status-badge info">免费</span>
+              </div>
+              <div class="item-action">
+                <template v-if="att.purchased && att.externalLink">
+                  <button class="btn-primary" @click="openExternalLink(att.externalLink)">
+                    <Icon name="external-link" size="14" />
+                    访问
+                  </button>
+                </template>
+                <template v-else>
+                  <button
+                    class="btn-outline"
+                    :disabled="purchasingId === att.resourceId"
+                    @click="onPurchase(att.resourceId)"
+                  >
+                    <Icon v-if="purchasingId === att.resourceId" name="loader" class="animate-spin" size="14" />
+                    <Icon v-else name="shopping-cart" size="14" />
+                    {{ purchasingId === att.resourceId ? '处理中...' : (att.pointsNeeded ? `${att.pointsNeeded}积分` : '免费') }}
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <!-- 文章交互 -->
@@ -1491,11 +1514,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     padding: 10px 16px;
     font-size: 13px;
   }
-  
-  .attachment-grid {
-
-  }
-
 
   // 互动功能条 - 移动端适配
   .post-actions {
@@ -1574,118 +1592,106 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   }
 }
 
-.btn-primary {
-  background-color: var(--color-primary);
-  color: white;
-  border: 1px solid var(--color-primary);
-}
-.btn-outline {
-  background-color: transparent;
-  border: 1px solid var(--border-base);
-  color: var(--text-main);
-}
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.attachment-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 20px;
-}
-
-/* 附件列表样式 - 重新设计 */
+/* 附件分组样式 */
 .attachment-section {
-  margin: 40px 20px;
+  margin: 40px 32px;
 }
 
-.attachment-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-title);
-  margin-bottom: 24px;
-}
+.attachment-group {
+  margin-bottom: 28px;
 
-.attachment-count {
-  font-size: 0.8em;
-  font-weight: 600;
-  color: var(--text-primary);
-  background: var(--bg-soft);
-  padding: 2px 10px;
-  border-radius: 12px;
-}
-
-.attachment-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: 12px;
-  padding: 20px;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  position: relative;
-  overflow: hidden;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--color-primary);
+  &:last-child {
+    margin-bottom: 0;
   }
 }
 
-.attachment-header {
+.attachment-group-title {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
 }
 
-.attachment-icon-wrapper {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+.group-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-primary);
   background: var(--bg-soft);
+  padding: 1px 7px;
   border-radius: 10px;
+  margin-left: 2px;
+}
+
+.attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+    background: var(--bg-hover);
+  }
+}
+
+.item-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  background: var(--bg-soft);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-primary);
 }
 
-.attachment-info {
+.item-info {
   flex: 1;
-  min-width: 0; /* for truncation */
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.attachment-name {
-  font-weight: 600;
+.item-name {
+  font-size: 14px;
+  font-weight: 500;
   color: var(--text-title);
-  font-size: 16px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.4;
 }
 
-.attachment-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-subtle);
-}
-
-.meta-dot {
+.item-sub {
+  font-size: 12px;
   color: var(--text-muted);
 }
 
-.attachment-status {
+.item-note {
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+.item-status {
   flex-shrink: 0;
 }
 
@@ -1693,104 +1699,101 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
-  
+
   &.success {
     background: var(--bg-success);
     color: var(--color-success);
   }
-  
+
   &.warning {
     background: var(--bg-warning);
     color: var(--color-warning);
   }
-  
+
   &.info {
     background: var(--bg-info);
     color: var(--color-info);
   }
 }
 
-.attachment-note {
-  background: var(--bg-soft);
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--text-subtle);
-  border-left: 3px solid var(--color-success);
-  
-  .note-title {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 600;
-    color: var(--color-success);
-    margin-bottom: 4px;
-    font-size: 12px;
-  }
-  
-  p {
-    margin: 0;
-    line-height: 1.5;
-  }
+.item-action {
+  flex-shrink: 0;
 }
 
-.attachment-actions {
-  margin-top: auto;
-  padding-top: 4px;
-}
-
-.btn-action {
-  width: 100%;
-  display: flex;
+.btn-primary {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 14px;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--color-primary);
+  color: white;
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  
-  &.primary {
-    background: var(--color-primary);
-    color: white;
-    border: 1px solid var(--color-primary);
-    
-    &:hover {
-      background: var(--color-primary-dark);
-      border-color: var(--color-primary-dark);
-      box-shadow: var(--shadow-md);
-    }
+
+  &:hover {
+    background: var(--color-primary-dark);
   }
-  
-  &.outline {
-    background: transparent;
-    border: 1px solid var(--border-base);
-    color: var(--text-main);
-    
-    &:hover {
-      border-color: var(--color-primary);
-      color: var(--color-primary);
-      background: var(--bg-soft);
-    }
-  }
-  
+
   &:disabled {
-    opacity: 0.7;
+    opacity: 0.6;
     cursor: not-allowed;
   }
 }
 
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border-base);
+  color: var(--text-main);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
 
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--bg-soft);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
 
 @include respond(md) {
-  .attachment-grid {
-    grid-template-columns: 1fr;
+  .attachment-section {
+    margin: 24px 16px;
+  }
+
+  .attachment-item {
+    padding: 10px 12px;
+  }
+
+  .item-sub {
+    display: none;
+  }
+
+  .item-status {
+    display: none;
   }
 }
 

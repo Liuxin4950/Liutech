@@ -1,7 +1,15 @@
 <template>
   <div class="content">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <div class="page-title">
+        <Icon :name="isEditMode ? 'edit-2' : 'plus'" size="20" />
+        <span>{{ isEditMode ? '编辑文章' : '新建文章' }}</span>
+      </div>
+    </div>
+
     <!-- 编辑器主体 -->
-    <div class="editor-container card p-20">
+    <div class="editor-container">
       <!-- 上侧编辑区 -->
       <div class="editor-main">
         <!-- 文章标题 -->
@@ -22,155 +30,99 @@
         <div class="sidebar-section">
           <!-- 附件上传区域 -->
           <div class="sidebar-item">
-            <div class="sidebar-title flex flex-ac flex-sb mb-8">
+            <div class="sidebar-title flex flex-ac flex-sb mb-12">
               <span class="text-sm font-bold">附件资源</span>
-              <span class="text-xs text-muted" v-if="attachments.length > 0">{{ attachments.length }}</span>
+              <span class="text-xs text-muted" v-if="attachments.length > 0">{{ attachments.length }} 个</span>
             </div>
-            <div class="sidebar-content">
-              <!-- 附件类型切换 Tab -->
-              <div class="attachment-tabs flex bg-soft rounded p-4 mb-12 border-soft">
-                <button 
-                  @click="switchAttachmentType('file')"
-                  :class="['tab-btn flex-1 py-4 text-xs rounded transition text-center flex flex-jc gap-4', attachmentType === 'file' ? 'bg-white shadow-sm text-primary font-bold' : 'text-subtle hover-text-main']"
-                >
-                  <Icon name="upload" size="12" /> 上传
-                </button>
-                <button 
-                  @click="switchAttachmentType('link')"
-                  :class="['tab-btn flex-1 py-4 text-xs rounded transition text-center flex flex-jc gap-4', attachmentType === 'link' ? 'bg-white shadow-sm text-primary font-bold' : 'text-subtle hover-text-main']"
-                >
-                  <Icon name="link" size="12" /> 外链
-                </button>
-              </div>
 
-              <!-- 文件上传区域 -->
-              <div v-if="attachmentType === 'file'" class="attachment-upload-area mb-12">
-                <div 
-                  @click="triggerAttachmentUpload" 
-                  class="upload-dropzone border-dashed border-soft rounded p-12 text-center hover-bg-soft cursor-pointer transition flex flex-col flex-jc gap-4"
-                  :class="{'opacity-50 cursor-not-allowed': uploadingAttachment}"
-                >
-                  <div class="icon-circle rounded-full bg-soft flex flex-jc text-primary mx-auto w-32 h-32">
-                    <Icon name="upload-cloud" size="16" />
-                  </div>
-                  <span class="text-xs text-subtle">{{ uploadingAttachment ? '正在上传...' : '点击或拖拽上传' }}</span>
+            <!-- 操作按钮：上传文件和添加外链 -->
+            <div class="attach-actions">
+              <button class="attach-action-btn" @click="triggerAttachmentUpload">
+                <Icon name="upload" size="14" />
+                <span>上传文件</span>
+              </button>
+              <button class="attach-action-btn" @click="showExternalLinkForm = true">
+                <Icon name="link" size="14" />
+                <span>添加外链</span>
+              </button>
+            </div>
+            <input ref="attachmentInput" type="file" multiple @change="handleAttachmentUpload" style="display: none;">
+
+            <!-- 附件列表 -->
+            <div v-if="attachments.length > 0" class="attachment-list">
+              <div v-for="attachment in attachments" :key="attachment.id" class="attachment-item">
+                <div class="att-icon">
+                  <Icon :name="attachment.resourceType === 'link' ? 'link' : 'file-text'" size="14" />
                 </div>
-                <input ref="attachmentInput" type="file" @change="handleAttachmentUpload" style="display: none;" multiple>
-              </div>
-
-              <!-- 外部链接表单 -->
-              <div v-if="attachmentType === 'link'" class="external-link-form bg-soft p-8 rounded mb-12 border-soft">
-                <div class="flex flex-col gap-8 mb-8">
-                  <input
-                    v-model="externalLinkForm.name"
-                    type="text"
-                    class="field-input w-full text-xs py-8 px-8 rounded border-soft bg-main"
-                    placeholder="资源名称 *"
-                  />
-                  <input
-                    v-model="externalLinkForm.externalLink"
-                    type="url"
-                    class="field-input w-full text-xs py-8 px-8 rounded border-soft bg-main"
-                    placeholder="https://链接地址 *"
-                  />
-                </div>
-                
-                <!-- 折叠的高级选项 -->
-                <details class="advanced-options mb-8">
-                  <summary class="text-xs text-primary cursor-pointer mb-4 select-none">更多设置</summary>
-                  <div class="pl-8 border-l-2 border-soft flex flex-col gap-8">
-                    <textarea
-                      v-model="externalLinkForm.description"
-                      class="field-input w-full text-xs py-8 px-8 rounded border-soft bg-main"
-                      rows="2"
-                      placeholder="资源描述"
-                    ></textarea>
-                    <textarea
-                      v-model="externalLinkForm.purchasedNote"
-                      class="field-input w-full text-xs py-8 px-8 rounded border-soft bg-main"
-                      rows="2"
-                      placeholder="购买后说明（提取码等）"
-                    ></textarea>
-                  </div>
-                </details>
-
-                <!-- 收费设置 -->
-                <div class="pricing-settings flex flex-ac flex-sb bg-main p-8 rounded border-soft mb-8">
-                  <div class="flex gap-8">
-                    <label class="flex flex-ac gap-4 cursor-pointer">
-                      <input type="radio" v-model="externalLinkForm.downloadType" :value="0" class="accent-primary scale-75">
-                      <span class="text-xs">免费</span>
-                    </label>
-                    <label class="flex flex-ac gap-4 cursor-pointer">
-                      <input type="radio" v-model="externalLinkForm.downloadType" :value="1" class="accent-primary scale-75">
-                      <span class="text-xs">积分</span>
-                    </label>
-                  </div>
-                  <div v-if="externalLinkForm.downloadType === 1" class="flex flex-ac gap-4">
-                    <input
-                      type="number"
-                      v-model.number="externalLinkForm.pointsNeeded"
-                      min="1"
-                      class="field-input text-xs py-4 px-4 rounded border-soft w-40 text-center"
-                    >
-                    <span class="text-xs text-muted">分</span>
-                  </div>
-                </div>
-
-                <button
-                  class="btn-primary w-full py-8 text-xs flex flex-jc rounded transition hover-shadow-sm"
-                  @click="createExternalLinkResource"
-                >
-                  <Icon name="plus" size="12" class="mr-4"/> 添加链接
-                </button>
-              </div>
-
-              <!-- 附件列表 -->
-              <div v-if="attachments.length > 0" class="attachment-list flex flex-col gap-8 max-h-200 overflow-y-auto pr-4">
-                <div v-for="attachment in attachments" :key="attachment.id" class="attachment-item bg-soft p-8 rounded border-soft flex flex-col gap-4">
-                  <div class="flex flex-sb flex-ac w-full">
-                    <div class="flex flex-ac gap-8 overflow-hidden">
-                      <div class="icon-box rounded bg-white flex flex-jc text-primary flex-shrink-0 w-24 h-24">
-                        <Icon :name="attachment.type === '外部链接' ? 'link' : 'file-text'" size="12" />
-                      </div>
-                      <div class="flex flex-col overflow-hidden">
-                        <span class="text-xs text-main truncate font-bold" :title="attachment.name" style="max-width: 120px;">{{ attachment.name }}</span>
-                        <span class="text-xs text-muted scale-90 origin-left">{{ attachment.type === '外部链接' ? '外部链接' : formatFileSize(attachment.size) }}</span>
-                      </div>
-                    </div>
-                    <button @click="removeAttachment(attachment.id)" class="text-muted hover-text-error transition p-4 flex flex-jc" title="删除">
-                      <Icon name="x" size="12" />
-                    </button>
-                  </div>
-                  
-                  <!-- 列表项内的收费设置 -->
-                  <div class="pricing-mini-bar flex flex-ac flex-sb bg-main px-8 py-4 rounded text-xs border-soft border">
-                    <div class="flex gap-8">
-                      <label class="cursor-pointer flex flex-ac gap-2">
-                        <input type="radio" :name="`dt_${attachment.id}`" :value="0" v-model="attachment.downloadType" @change="onDownloadTypeChange(attachment)" class="scale-75 accent-primary"> 免费
+                <div class="att-info">
+                  <span class="att-name" :title="attachment.name">{{ attachment.name }}</span>
+                  <div class="att-meta">
+                    <span class="att-type">{{ attachment.resourceType === 'link' ? '外链' : (attachment.size > 0 ? formatFileSize(attachment.size) : '文件') }}</span>
+                    <!-- 积分切换 -->
+                    <div class="att-pricing" @click.stop>
+                      <label class="pricing-toggle" :class="{ active: attachment.downloadType === 0 }">
+                        <input type="radio" :name="'dl-type-' + attachment.id" :value="0"
+                          v-model="attachment.downloadType"
+                          @change="onDownloadTypeChange(attachment)">
+                        <span>免费</span>
                       </label>
-                      <label class="cursor-pointer flex flex-ac gap-2">
-                        <input type="radio" :name="`dt_${attachment.id}`" :value="1" v-model="attachment.downloadType" @change="onDownloadTypeChange(attachment)" class="scale-75 accent-primary"> 积分
+                      <label class="pricing-toggle" :class="{ active: attachment.downloadType === 1 }">
+                        <input type="radio" :name="'dl-type-' + attachment.id" :value="1"
+                          v-model="attachment.downloadType"
+                          @change="onDownloadTypeChange(attachment)">
+                        <span>积分</span>
                       </label>
-                    </div>
-                    <div v-if="attachment.downloadType === 1" class="flex flex-ac">
-                      <input 
-                        type="number" 
-                        v-model.number="attachment.pointsNeeded"
-                        min="1"
-                        class="w-32 text-center border-none bg-transparent text-primary font-bold focus-ring-0 p-0 text-xs"
-                        @focus="attachment._prevPointsNeeded = attachment.pointsNeeded"
-                        @input="onPointsNeededInput(attachment)"
-                        @change="onPointsNeededChange(attachment)"
-                      >
-                      <span class="text-muted transform scale-75">分</span>
+                      <input v-if="attachment.downloadType === 1" type="number"
+                        :value="attachment.pointsNeeded"
+                        @change="handlePointsInput(attachment, $event)"
+                        min="1" max="999" class="points-mini-input"
+                        @click.stop>
                     </div>
                   </div>
                 </div>
+                <button @click.stop="removeAttachment(attachment.id)" class="att-remove" title="删除">
+                  ×
+                </button>
               </div>
-              
-              <div v-else-if="attachmentType === 'file'" class="text-xs text-center text-muted py-8">
-                暂无附件
+            </div>
+          </div>
+
+          <!-- 外部链接弹窗 -->
+          <div v-if="showExternalLinkForm" class="modal-overlay" @click.self="showExternalLinkForm = false">
+            <div class="modal-box">
+              <div class="modal-header">
+                <span>添加外部链接</span>
+                <button @click="showExternalLinkForm = false" class="modal-close">
+                  <Icon name="x" size="18" />
+                </button>
+              </div>
+              <div class="modal-body">
+                <div class="field-row">
+                  <input v-model="externalLinkForm.name" type="text" placeholder="资源名称 *" class="modal-input">
+                </div>
+                <div class="field-row">
+                  <input v-model="externalLinkForm.externalLink" type="url" placeholder="https://链接地址 *" class="modal-input">
+                </div>
+                <div class="field-row">
+                  <textarea v-model="externalLinkForm.purchasedNote" placeholder="购买后说明（提取码等）" class="modal-input" rows="2"></textarea>
+                </div>
+                <div class="pricing-row">
+                  <label class="pricing-option" :class="{ active: externalLinkForm.downloadType === 0 }">
+                    <input type="radio" v-model="externalLinkForm.downloadType" :value="0">
+                    <span>免费</span>
+                  </label>
+                  <label class="pricing-option" :class="{ active: externalLinkForm.downloadType === 1 }">
+                    <input type="radio" v-model="externalLinkForm.downloadType" :value="1">
+                    <span>积分</span>
+                  </label>
+                  <input v-if="externalLinkForm.downloadType === 1" type="number" v-model.number="externalLinkForm.pointsNeeded" min="1" placeholder="积分" class="points-input">
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button @click="showExternalLinkForm = false" class="btn-cancel">取消</button>
+                <button @click="createExternalLinkResource" class="btn-confirm">
+                  <Icon name="plus" size="14" /> 添加
+                </button>
               </div>
             </div>
           </div>
@@ -220,7 +172,7 @@
                   <img v-if="form.coverImage" :src="form.coverImage" alt="封面图片预览" class="preview-image">
                   <div class="upload-overlay">
                     <div class="upload-text">
-                      <i class="upload-icon"><Icon name="camera" /></i>
+                      <span class="overlay-icon"><Icon name="camera" /></span>
                       <span>{{ form.coverImage ? '点击更换图片' : '点击上传封面图片' }}</span>
                     </div>
                   </div>
@@ -236,7 +188,7 @@
                   <img v-if="form.thumbnail" :src="form.thumbnail" alt="缩略图预览" class="preview-image">
                   <div class="upload-overlay">
                     <div class="upload-text">
-                      <i class="upload-icon"><Icon name="image" /></i>
+                      <span class="overlay-icon"><Icon name="image" /></span>
                       <span>{{ form.thumbnail ? '点击更换图片' : '点击上传缩略图' }}</span>
                     </div>
                   </div>
@@ -851,15 +803,18 @@ const loadPostData = async (postId: number) => {
     // 加载该文章已有关联的附件（当前用户上传的，可编辑）
     try {
       const existing = await PostService.getPostAttachments(postId)
-      // 后端返回字段：attachmentId, resourceId, fileName, fileUrl, downloadType, pointsNeeded, createdTime
+      // 后端返回字段：attachmentId, resourceId, fileName, fileUrl, resourceType, downloadType, pointsNeeded, createdTime
       attachments.value = (existing as any[]).map(item => ({
         id: (item.resourceId ?? item.attachmentId ?? Date.now()).toString(),
         name: item.fileName || '未命名文件',
-        size: 0,
-        type: '未知类型',
+        size: item.fileSize ?? 0,
+        type: item.resourceType === 'link' ? '外部链接' : (item.type === 'link' ? '外部链接' : '文件'),
+        resourceType: item.resourceType ?? (item.type === 'link' ? 'link' : 'file'),
         url: item.fileUrl,
         resourceId: item.resourceId,
         attachmentId: item.attachmentId,
+        externalLink: item.externalLink,
+        purchasedNote: item.purchasedNote,
         downloadType: Number(item.downloadType ?? 0),
         pointsNeeded: Number(item.pointsNeeded ?? 0)
       }))
@@ -1062,10 +1017,10 @@ const createExternalLinkResource = async () => {
       name: externalLinkForm.value.name,
       size: 0,
       type: '外部链接',
+      resourceType: 'link' as const,
       url: externalLinkForm.value.externalLink,
       resourceId: result.resourceId,
       attachmentId: result.attachmentId,
-      resourceType: 'link' as const,
       externalLink: externalLinkForm.value.externalLink,
       purchasedNote: externalLinkForm.value.purchasedNote,
       downloadType: externalLinkForm.value.downloadType,
@@ -1201,6 +1156,13 @@ const onPointsNeededChange = async (attachment: {
     // 回滚
     attachment.pointsNeeded = prevPoints
   }
+}
+
+// 处理积分输入变化（包装函数，提取事件中的值）
+const handlePointsInput = async (attachment: any, event: Event) => {
+  const input = event.target as HTMLInputElement
+  attachment.pointsNeeded = Number(input.value) || 1
+  await onPointsNeededChange(attachment)
 }
 
 // 格式化文件大小
@@ -1512,9 +1474,9 @@ onMounted(async () => {
   color: var(--text-muted);
 }
 
-.upload-icon {
-  display: block;
-  font-size: 2rem;
+.overlay-icon {
+  display: flex;
+  font-size: 24px;
   margin-bottom: 8px;
 }
 
@@ -1982,5 +1944,423 @@ onMounted(async () => {
 .pr-4 { padding-right: 4px; }
 .origin-left { transform-origin: left; }
 .hover-text-main:hover { color: var(--text-main); }
+
+/* 页面标题头 */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  margin-bottom: 20px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+/* 快速添加行 */
+.upload-row,
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-soft);
+  border: 1px dashed var(--border-base);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-row:hover,
+.link-row:hover {
+  border-color: var(--color-primary);
+  background: var(--bg-hover);
+}
+
+.upload-icon,
+.link-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.upload-row .upload-text,
+.link-row .link-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.upload-row .upload-main,
+.link-row .link-main {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+  text-align: left;
+}
+
+.upload-row .upload-sub,
+.link-row .link-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.upload-add,
+.link-add {
+  color: var(--text-muted);
+}
+
+/* 附件列表 */
+.attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+/* 操作按钮区域 */
+.attach-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.attach-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-main);
+  border: 1px dashed var(--border-base);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.attach-action-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--bg-hover);
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-main);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.attachment-item:hover {
+  border-color: var(--color-primary);
+}
+
+.att-icon {
+  width: 30px;
+  height: 30px;
+  background: var(--bg-soft);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.att-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.att-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.att-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+/* 附件定价切换 */
+.att-pricing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pricing-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.pricing-toggle input {
+  display: none;
+}
+
+.pricing-toggle.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.pricing-toggle:hover:not(.active) {
+  background: var(--bg-hover);
+}
+
+.points-mini-input {
+  width: 44px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-base);
+  border-radius: 4px;
+  font-size: 10px;
+  text-align: center;
+  background: var(--bg-main);
+}
+
+.points-mini-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.att-type {
+  color: var(--text-muted);
+}
+
+.att-points {
+  color: var(--color-warning);
+  font-weight: 500;
+}
+
+.att-free {
+  color: var(--text-muted);
+}
+
+.att-remove {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.att-remove:hover {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: #fff;
+}
+
+/* 外链弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.modal-close {
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.modal-input::placeholder {
+  color: var(--text-muted);
+}
+
+.pricing-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pricing-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+
+.pricing-option input {
+  display: none;
+}
+
+.pricing-option.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.points-input {
+  width: 70px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  font-size: 13px;
+  text-align: center;
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+.points-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-light);
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: var(--bg-hover);
+}
+
+.btn-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-confirm:hover {
+  background: var(--color-primary-dark);
+}
 
 </style>

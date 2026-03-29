@@ -13,7 +13,12 @@
       "Bash(npm install:*)",
       "Bash(wc:*)",
       "Bash(sql:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8080)",
+      "Bash($B goto:*)",
+      "Bash($B screenshot:*)",
+      "Bash(~/.claude/skills/gstack/browse/dist/browse goto:*)",
+      "Bash(~/.claude/skills/gstack/browse/dist/browse screenshot:*)"
     ]
   }
 }
