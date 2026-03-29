@@ -116,15 +116,20 @@ const linkAttachments = computed(() => {
 // 计算属性：渲染富文本内容
 const renderedContent = computed(() => {
   if (!post.value?.content) return ''
-  // TinyMCE生成的内容已经是HTML格式，直接返回
-  // 如果内容是纯文本，则进行简单的换行处理
-  const content = post.value.content
+
+  let content = post.value.content
 
   // 检查是否包含HTML标签
   const hasHtmlTags = /<[^>]*>/g.test(content)
 
   if (hasHtmlTags) {
-    // 已经是HTML格式，直接返回
+    // TinyMCE生成的HTML内容中，可能包含Markdown语法（如 **bold**）
+    // 需要将这些Markdown语法转换为HTML
+    // 注意：只转换不在HTML标签内的文本
+    content = content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`(.*?)`/g, '<code>$1</code>')
     return content
   } else {
     // 纯文本内容，进行简单的格式化

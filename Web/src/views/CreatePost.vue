@@ -31,7 +31,7 @@
           <!-- 附件上传区域 -->
           <div class="sidebar-item">
             <div class="sidebar-title flex flex-ac flex-sb mb-12">
-              <span class="text-sm font-bold">附件资源</span>
+              <span>附件资源</span>
               <span class="text-xs text-muted" v-if="attachments.length > 0">{{ attachments.length }} 个</span>
             </div>
 
@@ -51,9 +51,6 @@
             <!-- 附件列表 -->
             <div v-if="attachments.length > 0" class="attachment-list">
               <div v-for="attachment in attachments" :key="attachment.id" class="attachment-item">
-                <div class="att-icon">
-                  <Icon :name="attachment.resourceType === 'link' ? 'link' : 'file-text'" size="14" />
-                </div>
                 <div class="att-info">
                   <span class="att-name" :title="attachment.name">{{ attachment.name }}</span>
                   <div class="att-meta">
@@ -1346,9 +1343,9 @@ onMounted(async () => {
 }
 
 .attachment-list {
-  max-height: 200px;
+  max-height: 300px;
   overflow-y: auto;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-base);
   border-radius: 6px;
   background: var(--bg-main);
 }
@@ -1362,9 +1359,6 @@ onMounted(async () => {
   transition: background-color 0.2s;
 }
 
-.attachment-item:last-child {
-  border-bottom: none;
-}
 
 .attachment-item:hover {
   background: var(--bg-hover);
@@ -1548,7 +1542,7 @@ onMounted(async () => {
 }
 
 .sidebar-item>.sidebar-title {
-  width: 80px;
+  width: 110px;
 }
 
 .sidebar-title {
@@ -1567,12 +1561,15 @@ onMounted(async () => {
 .field-select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border-base);
   font-size: 14px;
   background: var(--bg-soft);
   color: var(--text-main);
-  transition: border-color 0.2s;
+  transition: all 0.2s;
   outline: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .field-input:focus,
@@ -1580,7 +1577,11 @@ onMounted(async () => {
 .field-select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+  box-shadow: 0 0 0 2px rgba(45, 144, 205, 0.15);
+}
+
+.field-select:hover {
+  border-color: var(--color-primary);
 }
 
 .char-count {
@@ -1673,7 +1674,7 @@ onMounted(async () => {
 }
 
 .preview-title {
-  font-size: 1.8rem;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text-main);
   margin: 0 0 16px 0;
@@ -1777,7 +1778,7 @@ onMounted(async () => {
 .modal-header h3 {
   margin: 0;
   color: var(--text-title);
-  font-size: 1.2rem;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -2010,7 +2011,7 @@ onMounted(async () => {
 
 .upload-row .upload-main,
 .link-row .link-main {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-main);
   text-align: left;
@@ -2018,7 +2019,7 @@ onMounted(async () => {
 
 .upload-row .upload-sub,
 .link-row .link-sub {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   text-align: left;
 }
@@ -2053,7 +2054,7 @@ onMounted(async () => {
   background: var(--bg-main);
   border: 1px dashed var(--border-base);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -2080,18 +2081,6 @@ onMounted(async () => {
   border-color: var(--color-primary);
 }
 
-.att-icon {
-  width: 30px;
-  height: 30px;
-  background: var(--bg-soft);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary);
-  flex-shrink: 0;
-}
-
 .att-info {
   flex: 1;
   min-width: 0;
@@ -2101,7 +2090,7 @@ onMounted(async () => {
 }
 
 .att-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-main);
   white-space: nowrap;
@@ -2113,7 +2102,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* 附件定价切换 */
@@ -2130,7 +2119,7 @@ onMounted(async () => {
   padding: 2px 6px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   transition: all 0.2s;
 }
@@ -2153,7 +2142,7 @@ onMounted(async () => {
   padding: 2px 4px;
   border: 1px solid var(--border-base);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   text-align: center;
   background: var(--bg-main);
 }
@@ -2228,7 +2217,7 @@ onMounted(async () => {
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-light);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-title);
 }
@@ -2260,7 +2249,7 @@ onMounted(async () => {
   padding: 10px 12px;
   border: 1px solid var(--border-base);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   background: var(--bg-main);
   color: var(--text-main);
   transition: border-color 0.2s ease;
