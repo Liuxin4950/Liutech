@@ -75,7 +75,7 @@
                             </div>
                             <div class="category-arrow flex flex-ac gap-6 text-primary text-sm link">
                                 <span>查看文章</span>
-                                <Icon name="arrow-right" size="14" class="arrow-icon transition-all" />
+                                <Icon name="chevronRight" size="14" class="arrow-icon transition-all" />
                             </div>
                         </div>
                     </div>

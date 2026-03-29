@@ -93,7 +93,7 @@
               <div class="modal-header">
                 <span>添加外部链接</span>
                 <button @click="showExternalLinkForm = false" class="modal-close">
-                  <Icon name="x" size="18" />
+                  <Icon name="times" size="18" />
                 </button>
               </div>
               <div class="modal-body">
