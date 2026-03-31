@@ -47,7 +47,7 @@ interface Props {
 
 
 withDefaults(defineProps<Props>(), {
-  avatar: '/default-avatar.svg',
+  avatar: '/assets/image/me.png',
   bio: '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。'
 })
 </script>
