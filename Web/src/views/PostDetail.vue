@@ -1275,7 +1275,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px;
+  padding:12px 24px;
   /* 使用负 margin 抵消父元素的 padding */
   margin-left: -20px;
   margin-right: -20px;

@@ -54,8 +54,9 @@
         </svg>
       </button>
 
-      <!-- AI助手/模型控制 -->
+      <!-- AI助手/模型控制（需要登录） -->
       <button
+        v-if="userStore.isLoggedIn"
         class="fab"
         @click="goAiChat"
         aria-label="AI助手"
