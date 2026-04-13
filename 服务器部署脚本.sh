@@ -79,7 +79,7 @@ services:
     container_name: liutech-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-123456}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-@liuxin2020}
       MYSQL_DATABASE: liutech
     ports:
       - "${MYSQL_PORT:-3306}:3306"
@@ -89,7 +89,7 @@ services:
       - ./sql/ai_chat_tables.sql:/docker-entrypoint-initdb.d/ai_chat_tables.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-123456}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-@liuxin2020}"]
       timeout: 20s
       retries: 10
       interval: 10s
@@ -106,7 +106,7 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-123456}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-@liuxin2020}
       # JWT签名密钥 - 生产环境必须配置强密钥
       - JWT_SECRET=${JWT_SECRET}
       # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 $INSTALL_DIR/uploads 到此路径
@@ -133,7 +133,7 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-123456}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-@liuxin2020}
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - BLOG_API_URL=http://backend:8080
       # JWT密钥 - 必须与后端一致，否则无法验证token

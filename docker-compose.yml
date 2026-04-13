@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     environment:
       # 生产环境使用 .env 文件中的密码
-      # 开发环境可保留默认值 123456
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-123456}
+      # 开发环境默认值与当前数据库密码保持一致
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-@liuxin2020}
       MYSQL_DATABASE: liutech
     ports:
       - "${MYSQL_PORT:-3306}:3306"
@@ -17,7 +17,7 @@ services:
       - ./sql/ai_chat_tables.sql:/docker-entrypoint-initdb.d/ai_chat_tables.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-123456}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-@liuxin2020}"]
       timeout: 20s
       retries: 10
       interval: 10s
@@ -34,7 +34,7 @@ services:
       # 数据库配置 - 生产环境从环境变量读取
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-123456}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-@liuxin2020}
       # JWT签名密钥 - 生产环境必须配置强密钥
       - JWT_SECRET=${JWT_SECRET}
       # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 /liuxin/uploads 到此路径
@@ -62,7 +62,7 @@ services:
       # 数据库配置 - 生产环境从环境变量读取
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-123456}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-@liuxin2020}
       # AI服务API密钥 - 生产环境必须配置
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - BLOG_API_URL=http://backend:8080

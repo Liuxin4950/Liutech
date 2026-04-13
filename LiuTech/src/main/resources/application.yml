@@ -20,7 +20,7 @@ spring:
     # - application-dev.yml：本地开发（示例使用 127.0.0.1:3307）
     # - application-prod.yml：Docker/生产（示例使用 docker 网络主机名 mysql:3306）
     username: root
-    password: 123456
+    password: ${DB_PASSWORD:@liuxin2020}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -91,5 +91,4 @@ jwt:
   expiration: 604800000  # 7天，单位：毫秒
   header: Authorization
   prefix: Bearer
-
 

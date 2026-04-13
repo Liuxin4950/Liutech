@@ -54,6 +54,7 @@ docker-images/
 .env
 .env.local
 .env.*.local
+.local-connection-notes.md
 
 ### 通用：不提交编译产物与日志文件 ###
 # Java/Maven 编译目录与包
