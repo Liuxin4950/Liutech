@@ -56,6 +56,8 @@ import chat.liuxin.liutech.utils.FileUtil;
 @Service
 public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
+    private static final String PUBLIC_SITE_BASE_URL = "https://liuxin.chat";
+
     @Autowired
     private PostsMapper postsMapper;
 
@@ -117,6 +119,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 req.getStatus(), req.getAuthorId(), userId);
 
         // 使用MyBatis-Plus自动统计的总数
+        result.getRecords().forEach(this::normalizePostListUrls);
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 
@@ -209,6 +212,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             postDetail.setViewCount(postDetail.getViewCount() + 1);
         }
 
+        normalizePostDetailUrls(postDetail);
         return postDetail;
     }
 
@@ -245,6 +249,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             }).collect(Collectors.toList());
             postDetail.setAttachments(attachments);
         }
+        normalizePostDetailUrls(postDetail);
         return postDetail;
     }
 
@@ -362,7 +367,54 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 热门文章列表，按热度降序排列，包含用户状态信息
      */
     public List<PostListResp> getHotPosts(Integer limit, Long userId) {
-        return postsMapper.selectHotPostListResl(limit, userId);
+        List<PostListResp> posts = postsMapper.selectHotPostListResl(limit, userId);
+        posts.forEach(this::normalizePostListUrls);
+        return posts;
+    }
+
+    private void normalizePostListUrls(PostListResp post) {
+        if (post == null) {
+            return;
+        }
+
+        post.setCoverImage(normalizePublicUrl(post.getCoverImage()));
+        post.setThumbnail(normalizePublicUrl(post.getThumbnail()));
+
+        if (post.getAuthor() != null) {
+            post.getAuthor().setAvatarUrl(normalizePublicUrl(post.getAuthor().getAvatarUrl()));
+        }
+    }
+
+    private void normalizePostDetailUrls(PostDetailResp post) {
+        if (post == null) {
+            return;
+        }
+
+        post.setCoverImage(normalizePublicUrl(post.getCoverImage()));
+        post.setThumbnail(normalizePublicUrl(post.getThumbnail()));
+        post.setContent(normalizePublicUrl(post.getContent()));
+
+        if (post.getAuthor() != null) {
+            post.getAuthor().setAvatarUrl(normalizePublicUrl(post.getAuthor().getAvatarUrl()));
+        }
+
+        if (post.getAttachments() != null) {
+            post.getAttachments().forEach(attachment -> {
+                attachment.setFileUrl(normalizePublicUrl(attachment.getFileUrl()));
+                attachment.setExternalLink(normalizePublicUrl(attachment.getExternalLink()));
+            });
+        }
+    }
+
+    private String normalizePublicUrl(String value) {
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+
+        return value
+                .replace("http://liuxin.chat", PUBLIC_SITE_BASE_URL)
+                .replace("http://liutech.chat", PUBLIC_SITE_BASE_URL)
+                .replace("https://liutech.chat", PUBLIC_SITE_BASE_URL);
     }
 
     /**
@@ -386,7 +438,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @return 最新文章列表，按发布时间降序排列，包含用户状态信息
      */
     public List<PostListResp> getLatestPosts(Integer limit, Long userId) {
-        return postsMapper.selectLatestPostListResl(limit, userId);
+        List<PostListResp> posts = postsMapper.selectLatestPostListResl(limit, userId);
+        posts.forEach(this::normalizePostListUrls);
+        return posts;
     }
 
     /**

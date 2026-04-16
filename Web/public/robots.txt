@@ -12,10 +12,12 @@ Disallow: /drafts
 Disallow: /admin
 
 # 允许访问公开内容
-Allow: /posts/
-Allow: /categories/
+Allow: /post/
+Allow: /categories
+Allow: /category-detail/
 Allow: /tags/
 Allow: /about
+Allow: /archive
 
 # Sitemap 位置
-Sitemap: https://liutech.chat/sitemap.xml
+Sitemap: https://liuxin.chat/sitemap.xml

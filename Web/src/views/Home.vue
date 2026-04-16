@@ -249,14 +249,14 @@ onMounted(() => {
       { name: 'keywords', content: 'LiuTech, 技术博客, 全栈开发, Spring Boot, Vue.js, Java, JavaScript, AI, 编程, 软件开发' },
       { property: 'og:title', content: 'LiuTech - 个人技术博客' },
       { property: 'og:description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。' },
-      { property: 'og:url', content: 'https://liutech.chat/' },
-      { property: 'og:image', content: 'https://liutech.chat/og-image.jpg' },
+      { property: 'og:url', content: 'https://liuxin.chat/' },
+      { property: 'og:image', content: 'https://liuxin.chat/og-image.svg' },
       { property: 'twitter:title', content: 'LiuTech - 个人技术博客' },
       { property: 'twitter:description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。' },
-      { property: 'twitter:image', content: 'https://liutech.chat/og-image.jpg' }
+      { property: 'twitter:image', content: 'https://liuxin.chat/og-image.svg' }
     ],
     link: [
-      { rel: 'canonical', href: 'https://liutech.chat/' }
+      { rel: 'canonical', href: 'https://liuxin.chat/' }
     ]
   })
   Promise.all([

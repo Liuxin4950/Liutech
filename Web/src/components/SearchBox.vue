@@ -151,7 +151,7 @@ const handleSearch = async () => {
 
 // 跳转到文章详情
 const goToPost = (postId: number) => {
-  router.push(`/posts/${postId}`)
+  router.push(`/post/${postId}`)
   clearSearch()
 }
 

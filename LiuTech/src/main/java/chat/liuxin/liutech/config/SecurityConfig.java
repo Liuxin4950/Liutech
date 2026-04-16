@@ -94,6 +94,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/posts/my").authenticated()
                 .requestMatchers(HttpMethod.GET, "/posts/drafts").authenticated()
                 .requestMatchers(HttpMethod.GET, "/posts/favorites").authenticated()
+                .requestMatchers(HttpMethod.GET, "/sitemap.xml", "/sitemap/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/tags/**").permitAll()

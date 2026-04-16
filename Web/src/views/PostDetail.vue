@@ -70,6 +70,16 @@ const loadPrism = () => {
 const route = useRoute()
 const router = useRouter()
 const { handleAsync, showSuccessToast, showError } = useErrorHandler()
+const PUBLIC_SITE_URL = 'https://liuxin.chat'
+
+const normalizePublicUrl = (url?: string | null) => {
+  if (!url) return ''
+
+  return url
+    .replace(/^http:\/\/liuxin\.chat/i, PUBLIC_SITE_URL)
+    .replace(/^http:\/\/liutech\.chat/i, PUBLIC_SITE_URL)
+    .replace(/^https:\/\/liutech\.chat/i, PUBLIC_SITE_URL)
+}
 
 // 已移除：旧的基于 referrer 的导航激活逻辑，改由 Header 基于当前路径自动判定
 // 响应式数据
@@ -182,12 +192,12 @@ const loadPostDetail = async () => {
     if (postData && route.meta) {
       route.meta.title = postData.title
       // 同步更新浏览器标题（路由守卫只会在切换时触发，这里手动更新）
-      document.title = `${postData.title} - MyBlog`
+      document.title = `${postData.title} - LiuTech`
 
     // 设置 SEO Meta 信息
     if (postData) {
-      const postUrl = `https://liutech.chat/posts/${postData.id}`
-      const imageUrl = postData.coverImage || `https://liutech.chat/og-image.jpg`
+      const postUrl = `${PUBLIC_SITE_URL}/post/${postData.id}`
+      const imageUrl = normalizePublicUrl(postData.coverImage) || `${PUBLIC_SITE_URL}/og-image.svg`
       
       useHead({
         title: `${postData.title} - LiuTech`,
@@ -213,25 +223,25 @@ const loadPostDetail = async () => {
               "@type": "Article",
               "headline": postData.title,
               "description": postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}`,
-              "image": postData.coverImage || "https://liutech.chat/og-image.jpg",
+              "image": imageUrl,
               "author": {
                 "@type": "Person",
                 "name": postData.author?.username || "LiuTech",
-                "url": "https://liutech.chat/"
+                "url": `${PUBLIC_SITE_URL}/`
               },
               "publisher": {
                 "@type": "Organization",
                 "name": "LiuTech",
                 "logo": {
                   "@type": "ImageObject",
-                  "url": "https://liutech.chat/logo.png"
+                  "url": `${PUBLIC_SITE_URL}/logo.svg`
                 }
               },
               "datePublished": postData.createdAt,
               "dateModified": postData.updatedAt || postData.createdAt,
               "mainEntityOfPage": {
                 "@type": "WebPage",
-                "@id": `https://liutech.chat/posts/${postData.id}`
+                "@id": `${PUBLIC_SITE_URL}/post/${postData.id}`
               }
             }, null, 2)
           }
