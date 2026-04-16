@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { Ai, type AiChatRequest } from '@/services/ai'
 import { AiStream, StreamError } from '@/services/aiStream'
+import { isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
 
 /**
@@ -49,6 +50,7 @@ interface ModelInfo {
  * 功能：集中管理聊天状态、历史记录和持久化
  */
 export const useChatStore = defineStore('chat', () => {
+  const GUEST_CONTEXT_LIMIT = 10
   // ===== 状态 =====
   const messages = ref<ChatMessage[]>([])
   const conversationId = ref<number | null>(null)
@@ -107,6 +109,12 @@ export const useChatStore = defineStore('chat', () => {
   const CONVERSATION_ID_KEY = 'liutech-chat-conversation-id'
   const MODE_KEY = 'liutech-chat-mode'
   const TTS_ENABLED_KEY = 'liutech-chat-tts-enabled'
+  const GUEST_STORAGE_KEY = 'liutech-chat-history-guest'
+  const GUEST_MODE_KEY = 'liutech-chat-mode-guest'
+  const GUEST_TTS_ENABLED_KEY = 'liutech-chat-tts-enabled-guest'
+
+  const isGuestSession = () => !isLoggedIn()
+  const getStorage = () => (isGuestSession() ? sessionStorage : localStorage)
 
   // ===== 持久化方法 =====
   /**
@@ -114,15 +122,17 @@ export const useChatStore = defineStore('chat', () => {
    */
   const saveToStorage = () => {
     try {
+      const storage = getStorage()
+      const storageKey = isGuestSession() ? GUEST_STORAGE_KEY : STORAGE_KEY
       const data = {
         messages: messages.value.map(msg => ({
           ...msg,
           timestamp: msg.timestamp.toISOString()
         })),
-        conversationId: conversationId.value,
+        conversationId: isGuestSession() ? null : conversationId.value,
         mode: mode.value
       }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+      storage.setItem(storageKey, JSON.stringify(data))
     } catch (error) {
       console.error('保存聊天历史失败:', error)
     }
@@ -133,7 +143,11 @@ export const useChatStore = defineStore('chat', () => {
    */
   const loadFromStorage = () => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const storage = getStorage()
+      const storageKey = isGuestSession() ? GUEST_STORAGE_KEY : STORAGE_KEY
+      const modeKey = isGuestSession() ? GUEST_MODE_KEY : MODE_KEY
+      const ttsKey = isGuestSession() ? GUEST_TTS_ENABLED_KEY : TTS_ENABLED_KEY
+      const stored = storage.getItem(storageKey)
       if (stored) {
         const data = JSON.parse(stored)
         messages.value = data.messages?.map((msg: any) => ({
@@ -146,17 +160,17 @@ export const useChatStore = defineStore('chat', () => {
           a.timestamp.getTime() - b.timestamp.getTime()
         )
 
-        conversationId.value = data.conversationId || null
+        conversationId.value = isGuestSession() ? null : (data.conversationId || null)
       }
 
       // 加载模式设置
-      const savedMode = localStorage.getItem(MODE_KEY)
+      const savedMode = storage.getItem(modeKey)
       if (savedMode && ['stream', 'normal'].includes(savedMode)) {
         mode.value = savedMode as ChatMode
       }
 
       // 加载语音开关（用户偏好）
-      const savedTts = localStorage.getItem(TTS_ENABLED_KEY)
+      const savedTts = storage.getItem(ttsKey)
       if (savedTts !== null) {
         ttsEnabled.value = savedTts === 'true'
       }
@@ -169,7 +183,8 @@ export const useChatStore = defineStore('chat', () => {
   const setTtsEnabled = (enabled: boolean) => {
     ttsEnabled.value = enabled
     try {
-      localStorage.setItem(TTS_ENABLED_KEY, String(enabled))
+      const storage = getStorage()
+      storage.setItem(isGuestSession() ? GUEST_TTS_ENABLED_KEY : TTS_ENABLED_KEY, String(enabled))
     } catch {
     }
   }
@@ -218,6 +233,19 @@ export const useChatStore = defineStore('chat', () => {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(CONVERSATION_ID_KEY)
     localStorage.removeItem(MODE_KEY)
+    sessionStorage.removeItem(GUEST_STORAGE_KEY)
+    sessionStorage.removeItem(GUEST_MODE_KEY)
+    sessionStorage.removeItem(GUEST_TTS_ENABLED_KEY)
+  }
+
+  const buildGuestTempMessages = () => {
+    return messages.value
+      .filter(msg => !msg.isError)
+      .slice(-GUEST_CONTEXT_LIMIT)
+      .map(msg => ({
+        role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.content
+      }))
   }
 
   // ===== 消息管理方法 =====
@@ -304,6 +332,8 @@ export const useChatStore = defineStore('chat', () => {
   const sendMessage = async (content: string, context?: Record<string, any>, model?: string) => {
     if (!content.trim() || isLoading.value) return
 
+    const guestTempMessages = isGuestSession() ? buildGuestTempMessages() : undefined
+
     // 清空之前的错误
     errorMessage.value = ''
 
@@ -319,7 +349,9 @@ export const useChatStore = defineStore('chat', () => {
         message: content.trim(),
         context,
         model: model || defaultModel.value,  // 使用传入的模型或默认模型
-        ...(conversationId.value && { conversationId: conversationId.value })
+        ...(isGuestSession()
+          ? { tempMessages: guestTempMessages }
+          : { ...(conversationId.value && { conversationId: conversationId.value }) })
       }
 
       if (mode.value === 'stream') {
@@ -418,7 +450,7 @@ export const useChatStore = defineStore('chat', () => {
     addAiMessage(response.message)
 
     // 更新会话ID
-    if (response.conversationId && !conversationId.value) {
+    if (!isGuestSession() && response.conversationId && !conversationId.value) {
       conversationId.value = response.conversationId
     }
   }
@@ -497,7 +529,7 @@ export const useChatStore = defineStore('chat', () => {
    */
   const setMode = (newMode: ChatMode) => {
     mode.value = newMode
-    localStorage.setItem(MODE_KEY, newMode)
+    getStorage().setItem(isGuestSession() ? GUEST_MODE_KEY : MODE_KEY, newMode)
   }
 
   /**
@@ -555,7 +587,9 @@ export const useChatStore = defineStore('chat', () => {
     () => conversationId.value,
     () => {
       if (conversationId.value) {
-        localStorage.setItem(CONVERSATION_ID_KEY, conversationId.value.toString())
+        if (!isGuestSession()) {
+          localStorage.setItem(CONVERSATION_ID_KEY, conversationId.value.toString())
+        }
       } else {
         localStorage.removeItem(CONVERSATION_ID_KEY)
       }

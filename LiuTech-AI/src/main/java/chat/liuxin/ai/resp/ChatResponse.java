@@ -64,6 +64,13 @@ public class ChatResponse {
     private String action;
 
     private Long conversationId;
+
+    /**
+     * 会话模式
+     * guest: 游客模式
+     * user: 登录用户模式
+     */
+    private String mode;
     
     
     /**

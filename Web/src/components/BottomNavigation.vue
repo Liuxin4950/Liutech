@@ -54,9 +54,9 @@
         </svg>
       </button>
 
-      <!-- AI助手/模型控制（需要登录） -->
+      <!-- AI助手/模型控制（需要登录）第一期 -->
+      <!-- 改为普通用户也可以使用，但是没有记忆功能  v-if="userStore.isLoggedIn" -->
       <button
-        v-if="userStore.isLoggedIn"
         class="fab"
         @click="goAiChat"
         aria-label="AI助手"

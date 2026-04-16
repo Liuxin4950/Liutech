@@ -34,6 +34,7 @@ import chat.liuxin.ai.service.SiliconFlowChatClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.beans.factory.annotation.Value;
@@ -92,67 +93,41 @@ public class AiChatServiceImpl implements AiChatService {
      */
     @Override
     public ChatResponse processChat(ChatRequest request, Long userId) {
-        // 1. 初始化请求参数和性能监控
         long begin = System.currentTimeMillis();
-        String userIdStr = userId != null ? userId.toString() : "0";
+        boolean guestMode = userId == null;
+        String userIdStr = userId != null ? userId.toString() : null;
         String modelName = request.getModel() != null ? request.getModel() : defaultModel;
-        Long conversationId = request.getConversationId();
+        Long conversationId = guestMode ? null : request.getConversationId();
         
         try {
-            // 2. 提取用户输入
             String input = request.getMessage();
-
-            // 3. 加载会话历史上下文（限制条数以控制token消耗）
-            List<Message> historyMessages = conversationId != null
-                    ? memoryService.listLastMessagesAsPromptMessages(conversationId, historyLimit)
-                    : Collections.emptyList();
-
-            // 4. 构建AI模型请求的消息序列
-            List<Message> messages = new ArrayList<>();
-
-            // 4.1 注入博客上下文（如果有）
-            String contextPrompt = blogContextService.buildContextPrompt(request.getContext());
-            if (contextPrompt != null && !contextPrompt.isEmpty()) {
-                messages.add(new SystemMessage(contextPrompt));
-                log.debug("注入博客上下文: {} 字符", contextPrompt.length());
-            }
-
-            // 4.2 添加历史消息
-            // 注意：系统提示词由 ChatClient 的 defaultSystem 提供，这里不再重复注入
-            messages.addAll(historyMessages);
-            // 将用户当前输入添加到消息列表末尾，作为最新一条用户消息
+            List<Message> messages = buildPromptMessages(request, userIdStr, conversationId, guestMode);
             messages.add(new UserMessage(input));
 
-            // 5. 处理会话管理（新建或复用）
-            if (conversationId == null) {
+            if (!guestMode && conversationId == null) {
                 String title = "新会话";
                 conversationId = memoryService.createConversation(userIdStr, title);
             }
 
-            // 6. 异步保存用户消息（在调用AI前保存，确保数据不丢失）
-            memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
+            if (!guestMode) {
+                memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
+            }
 
-            // 7. 获取并验证模型参数
             ModelParameters params = getModelParameters(request, modelName);
             logParameterApplication(modelName, params);
 
-            // 8. 调用AI模型生成回复（传递模型参数）
             String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature, params.maxTokens);
-            System.out.println("AI回复：\n" + (aiOutput == null ? "" : aiOutput) + '\n');
+            if (!guestMode) {
+                memoryService.saveAssistantMessage(userIdStr, conversationId, aiOutput, modelName, 1, null);
+            }
 
-            // 8. 保存AI回复记录
-            memoryService.saveAssistantMessage(userIdStr, conversationId, aiOutput, modelName, 1, null);
-
-            // 9. 计算处理耗时并记录日志
             long cost = System.currentTimeMillis() - begin;
             log.debug("AI普通聊天成功，模型:{}，输入长度:{}，输出长度:{}，耗时:{}ms", modelName, input.length(),
                     aiOutput != null ? aiOutput.length() : 0, cost);
 
-            // 10. 记录成功指标
             int tokenCount = aiOutput != null ? aiOutput.length() / 4 : 0; // 粗略估算Token数
             aiMetrics.recordSuccess(modelName, cost, tokenCount);
 
-            // 11. 构建并返回响应对象
             return ChatResponse.builder()
                     .success(true)
                     .message(aiOutput)
@@ -161,29 +136,28 @@ public class AiChatServiceImpl implements AiChatService {
                     .model(modelName)
                     .processingTime(cost)
                     .responseLength(aiOutput != null ? aiOutput.length() : 0)
-                    .conversationId(conversationId)
+                    .conversationId(guestMode ? null : conversationId)
+                    .mode(guestMode ? "guest" : "user")
                     .build();
 
         } catch (AIServiceException e) {
-            // AI服务特定异常，直接抛出让全局异常处理器处理
             long cost = System.currentTimeMillis() - begin;
             String errorType = e.getClass().getSimpleName();
             aiMetrics.recordFailure(modelName, cost, errorType);
             log.error("AI服务异常: {}", e.getMessage(), e);
             throw e;
         } catch (Exception e) {
-            // 通用异常处理：记录错误日志并尝试保存错误状态
             long cost = System.currentTimeMillis() - begin;
             aiMetrics.recordFailure(modelName, cost, e.getClass().getSimpleName());
             log.error("AI普通聊天失败", e);
             try {
-                // 尝试保存错误状态到数据库，便于问题追踪
-                memoryService.saveAssistantMessage(userIdStr, conversationId, null, modelName, 9, null);
+                if (!guestMode && conversationId != null) {
+                    memoryService.saveAssistantMessage(userIdStr, conversationId, null, modelName, 9, null);
+                }
             } catch (Exception ignore) {
                 log.warn("记录AI错误消息失败: {}", ignore.getMessage());
             }
 
-            // 根据异常类型抛出相应的AI服务异常，便于上层处理
             Throwable cause = e.getCause();
             Throwable rootCause = cause != null ? cause : e;
 
@@ -236,10 +210,10 @@ public class AiChatServiceImpl implements AiChatService {
      */
     @Override
     public SseEmitter processStreamChat(ChatRequest request, Long userId) {
-        // 1. 初始化请求参数
-        String userIdStr = userId != null ? userId.toString() : "0";
+        boolean guestMode = userId == null;
+        String userIdStr = userId != null ? userId.toString() : null;
         String modelName = request.getModel() != null ? request.getModel() : defaultModel;
-        Long conversationId = request.getConversationId();
+        Long conversationId = guestMode ? null : request.getConversationId();
         String input = request.getMessage();
 
         // 2. 创建SseEmitter，使用可配置的超时时间
@@ -256,45 +230,30 @@ public class AiChatServiceImpl implements AiChatService {
         
         // 4. 异步处理聊天请求
         CompletableFuture.runAsync(() -> {
-            // 处理会话管理（新建或复用）
             Long currentConversationId = conversationId;
-            if (currentConversationId == null) {
+            if (!guestMode && currentConversationId == null) {
                 String title = "新会话";
                 currentConversationId = memoryService.createConversation(userIdStr, title);
             }
             final Long finalConversationId = currentConversationId;
             
             try {
-                // 4.1 加载会话历史上下文
-                List<Message> historyMessages = conversationId != null
-                        ? memoryService.listLastMessagesAsPromptMessages(conversationId, historyLimit)
-                        : Collections.emptyList();
-
-                // 4.2 构建AI模型请求的消息序列
-                List<Message> messages = new ArrayList<>();
-
-                // 4.2.1 注入博客上下文（如果有）
-                String contextPrompt = blogContextService.buildContextPrompt(request.getContext());
-                if (contextPrompt != null && !contextPrompt.isEmpty()) {
-                    messages.add(new SystemMessage(contextPrompt));
-                    log.debug("流式聊天注入博客上下文: {} 字符", contextPrompt.length());
-                }
-
-                // 4.2.2 添加历史消息和用户输入
-                messages.addAll(historyMessages);
+                List<Message> messages = buildPromptMessages(request, userIdStr, conversationId, guestMode);
                 messages.add(new UserMessage(input));
                 
-                // 4.4 异步保存用户消息
-                memoryService.saveUserMessage(userIdStr, finalConversationId, input, modelName, null);
+                if (!guestMode && finalConversationId != null) {
+                    memoryService.saveUserMessage(userIdStr, finalConversationId, input, modelName, null);
+                }
 
                 // 4.5 获取并验证模型参数
                 ModelParameters params = getModelParameters(request, modelName);
                 logParameterApplication(modelName, params);
 
                 // 4.6 发送开始事件
-                sendSseEvent(emitter, "start", Map.of(
+                sendSseEvent(emitter, "start", eventPayload(
                     "conversationId", finalConversationId,
-                    "model", modelName
+                    "model", modelName,
+                    "mode", guestMode ? "guest" : "user"
                 ));
 
                 // 4.7 用于收集完整响应的容器
@@ -332,7 +291,7 @@ public class AiChatServiceImpl implements AiChatService {
                             }
                             
                             // 发送数据块
-                            sendSseEvent(emitter, "data", Map.of(
+                            sendSseEvent(emitter, "data", eventPayload(
                                 "content", chunk,
                                 "conversationId", finalConversationId
                             ));
@@ -349,8 +308,10 @@ public class AiChatServiceImpl implements AiChatService {
                                 ttsExecutor.shutdownNow();
                             } catch (Exception ignore) {
                             }
-                            memoryService.saveAssistantMessage(userIdStr, finalConversationId, null, modelName, 9, null);
-                            sendSseEvent(emitter, "error", Map.of(
+                            if (!guestMode && finalConversationId != null) {
+                                memoryService.saveAssistantMessage(userIdStr, finalConversationId, null, modelName, 9, null);
+                            }
+                            sendSseEvent(emitter, "error", eventPayload(
                                 "conversationId", finalConversationId,
                                 "error", error.getMessage()
                             ));
@@ -399,12 +360,15 @@ public class AiChatServiceImpl implements AiChatService {
                                         } catch (Exception ignore) {
                                         }
 
-                                        memoryService.saveAssistantMessage(userIdStr, finalConversationId, fullResponseFinal, modelName, 1, null);
+                                        if (!guestMode && finalConversationId != null) {
+                                            memoryService.saveAssistantMessage(userIdStr, finalConversationId, fullResponseFinal, modelName, 1, null);
+                                        }
 
                                         try {
-                                            sendSseEvent(emitter, "complete", Map.of(
+                                            sendSseEvent(emitter, "complete", eventPayload(
                                                     "conversationId", finalConversationId,
-                                                    "responseLength", fullResponseFinal.length()
+                                                    "responseLength", fullResponseFinal.length(),
+                                                    "mode", guestMode ? "guest" : "user"
                                             ));
                                         } catch (Exception ignore) {
                                         }
@@ -421,11 +385,14 @@ public class AiChatServiceImpl implements AiChatService {
                             } catch (Exception ignore) {
                             }
 
-                            memoryService.saveAssistantMessage(userIdStr, finalConversationId, fullResponse, modelName, 1, null);
+                            if (!guestMode && finalConversationId != null) {
+                                memoryService.saveAssistantMessage(userIdStr, finalConversationId, fullResponse, modelName, 1, null);
+                            }
 
-                            sendSseEvent(emitter, "complete", Map.of(
+                            sendSseEvent(emitter, "complete", eventPayload(
                                     "conversationId", finalConversationId,
-                                    "responseLength", fullResponse.length()
+                                    "responseLength", fullResponse.length(),
+                                    "mode", guestMode ? "guest" : "user"
                             ));
 
                             emitter.complete();
@@ -440,7 +407,7 @@ public class AiChatServiceImpl implements AiChatService {
                 log.error("流式聊天处理失败，用户ID: {}, 会话ID: {}", userIdStr, finalConversationId, e);
                 // 在异常情况下，使用已创建的会话ID或创建新的异常会话
                 Long errorConversationId = finalConversationId;
-                if (errorConversationId == null) {
+                if (!guestMode && errorConversationId == null) {
                     try {
                         errorConversationId = memoryService.createConversation(userIdStr, "异常会话");
                     } catch (Exception ex) {
@@ -451,11 +418,11 @@ public class AiChatServiceImpl implements AiChatService {
                 final Long finalErrorConversationId = errorConversationId;
                 
                 try {
-                    // 尝试保存错误状态
-                    memoryService.saveAssistantMessage(userIdStr, finalErrorConversationId, null, modelName, 9, null);
+                    if (!guestMode && finalErrorConversationId != null && finalErrorConversationId > 0) {
+                        memoryService.saveAssistantMessage(userIdStr, finalErrorConversationId, null, modelName, 9, null);
+                    }
                     
-                    // 发送错误事件
-                    sendSseEvent(emitter, "error", Map.of(
+                    sendSseEvent(emitter, "error", eventPayload(
                         "conversationId", finalErrorConversationId,
                         "error", e.getMessage()
                     ));
@@ -496,7 +463,7 @@ public class AiChatServiceImpl implements AiChatService {
             try {
                 String audioUrl = ttsClient.inferSingleAudioUrl(segment);
                 if (audioUrl == null || audioUrl.isBlank()) return;
-                sendSseEvent(emitter, "audio", Map.of(
+                sendSseEvent(emitter, "audio", eventPayload(
                         "seq", currentSeq,
                         "text", segment,
                         "audioUrl", audioUrl,
@@ -577,6 +544,56 @@ public class AiChatServiceImpl implements AiChatService {
         }
 
         return out;
+    }
+
+    private List<Message> buildPromptMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode) {
+        List<Message> messages = new ArrayList<>();
+
+        String contextPrompt = blogContextService.buildContextPrompt(request.getContext());
+        if (contextPrompt != null && !contextPrompt.isEmpty()) {
+            messages.add(new SystemMessage(contextPrompt));
+            log.debug("注入博客上下文: {} 字符", contextPrompt.length());
+        }
+
+        if (guestMode) {
+            messages.addAll(buildGuestPromptMessages(request));
+            return messages;
+        }
+
+        if (conversationId != null) {
+            messages.addAll(memoryService.listLastMessagesAsPromptMessages(userId, conversationId, historyLimit));
+        }
+
+        return messages;
+    }
+
+    private List<Message> buildGuestPromptMessages(ChatRequest request) {
+        if (request.getTempMessages() == null || request.getTempMessages().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        int start = Math.max(0, request.getTempMessages().size() - 20);
+        List<Message> messages = new ArrayList<>();
+        for (ChatRequest.TempMessage tempMessage : request.getTempMessages().subList(start, request.getTempMessages().size())) {
+            if (tempMessage == null || tempMessage.getContent() == null || tempMessage.getContent().isBlank()) {
+                continue;
+            }
+            String role = tempMessage.getRole() == null ? "user" : tempMessage.getRole().trim().toLowerCase(Locale.ROOT);
+            switch (role) {
+                case "assistant" -> messages.add(new AssistantMessage(tempMessage.getContent()));
+                case "system" -> messages.add(new SystemMessage(tempMessage.getContent()));
+                default -> messages.add(new UserMessage(tempMessage.getContent()));
+            }
+        }
+        return messages;
+    }
+
+    private Map<String, Object> eventPayload(Object... keyValues) {
+        Map<String, Object> payload = new HashMap<>();
+        for (int i = 0; i + 1 < keyValues.length; i += 2) {
+            payload.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
+        }
+        return payload;
     }
     
     /**

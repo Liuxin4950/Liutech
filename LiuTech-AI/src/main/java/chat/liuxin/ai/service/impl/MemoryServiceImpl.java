@@ -13,6 +13,8 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -248,12 +250,25 @@ public class MemoryServiceImpl implements MemoryService {
         return conversationMapper.selectById(conversationId);
     }
 
+    @Override
+    public AiConversation getConversationOwnedByUser(String userId, Long conversationId) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在或已删除");
+        }
+        if (userId == null || !userId.equals(conversation.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限访问该会话");
+        }
+        return conversation;
+    }
+
     /**
      * 查询会话消息列表
      * 重构说明：移除了user_id字段，简化查询
      */
     @Override
-    public List<AiChatMessage> listMessagesByConversation(Long conversationId, int page, int size) {
+    public List<AiChatMessage> listMessagesByConversation(String userId, Long conversationId, int page, int size) {
+        getConversationOwnedByUser(userId, conversationId);
         int offset = Math.max(0, (page - 1) * size);
         // 参数校验，确保offset和size为安全整数
         int safeOffset = Math.max(0, offset);
@@ -273,24 +288,26 @@ public class MemoryServiceImpl implements MemoryService {
     }
 
     @Override
-    public List<AiChatMessage> listLastMessagesByConversation(Long conversationId, int limit) {
+    public List<AiChatMessage> listLastMessagesByConversation(String userId, Long conversationId, int limit) {
         if (limit <= 0) return java.util.Collections.emptyList();
+        getConversationOwnedByUser(userId, conversationId);
         // 参数校验，确保limit为安全整数
         int safeLimit = Math.max(1, Math.min(limit, 100));
-        // 返回升序结果，无需反转
-        return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+        List<AiChatMessage> messages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getConversationId, conversationId)
-                .orderByAsc(AiChatMessage::getSeqNo)
-                .orderByAsc(AiChatMessage::getId)
+                .orderByDesc(AiChatMessage::getSeqNo)
+                .orderByDesc(AiChatMessage::getId)
                 .last(false, "LIMIT " + safeLimit)
         );
+        Collections.reverse(messages);
+        return messages;
     }
     
     @Override
-    public List<Message> listLastMessagesAsPromptMessages(Long conversationId, int limit) {
+    public List<Message> listLastMessagesAsPromptMessages(String userId, Long conversationId, int limit) {
         if (limit <= 0) return new ArrayList<>();
         
-        List<AiChatMessage> messages = listLastMessagesByConversation(conversationId, limit);
+        List<AiChatMessage> messages = listLastMessagesByConversation(userId, conversationId, limit);
         
         return messages.stream().map(m -> {
             String role = Optional.ofNullable(m.getRole()).orElse("user");

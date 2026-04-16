@@ -5,7 +5,9 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 import java.util.Map;
+import java.util.List;
 
 /**
  * AI聊天请求类
@@ -60,6 +62,13 @@ public class ChatRequest {
      */
     private Map<String, Object> context;
 
+    /**
+     * 游客临时上下文（可选）
+     * 仅用于匿名聊天，不允许服务端持久化。
+     */
+    @Valid
+    private List<TempMessage> tempMessages;
+
     // 会话ID（可选）
     // 用于维护上下文，若不指定则创建新会话
     private Long conversationId;
@@ -70,4 +79,16 @@ public class ChatRequest {
      * - false：只返回文本，不做语音推理
      */
     private Boolean ttsEnabled;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TempMessage {
+        @NotBlank(message = "临时消息角色不能为空")
+        private String role;
+
+        @NotBlank(message = "临时消息内容不能为空")
+        @Size(max = 2000, message = "临时消息内容长度不能超过2000个字符")
+        private String content;
+    }
 }

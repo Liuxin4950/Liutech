@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="contentRef"
     v-html="renderedContent"
     class="markdown-content"
     :class="{ 'streaming': isStreaming }"
@@ -7,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import hljs from 'highlight.js'
 import { useMarkdown } from '@/composables/useMarkdown'
 // Import highlight.js CSS
@@ -23,22 +24,45 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const { processMarkdown } = useMarkdown()
+const contentRef = ref<HTMLElement | null>(null)
+
+const appendStreamingCaret = (html: string) => {
+  if (!html) {
+    return '<span class="streaming-caret" aria-hidden="true"></span>'
+  }
+
+  const container = document.createElement('div')
+  container.innerHTML = html
+
+  const candidates = container.querySelectorAll('p, li, blockquote, h1, h2, h3, h4, h5, h6, td, th, code')
+  const target = candidates[candidates.length - 1]
+  const caret = document.createElement('span')
+  caret.className = 'streaming-caret'
+  caret.setAttribute('aria-hidden', 'true')
+
+  if (target) {
+    target.appendChild(caret)
+  } else {
+    container.appendChild(caret)
+  }
+
+  return container.innerHTML
+}
 
 const renderedContent = computed(() => {
   if (!props.content) return ''
-  return processMarkdown(props.content, props.isStreaming)
+  const html = processMarkdown(props.content, props.isStreaming)
+  return props.isStreaming ? appendStreamingCaret(html) : html
 })
 
-// Watch for content changes to re-highlight code blocks
-watch(() => props.content, () => {
-  // Use nextTick to ensure DOM is updated before highlighting
-  setTimeout(() => {
-    highlightCodeBlocks()
-  }, 0)
+// Watch for rendered content changes to re-highlight code blocks
+watch(renderedContent, async () => {
+  await nextTick()
+  highlightCodeBlocks()
 }, { immediate: true })
 
 const highlightCodeBlocks = () => {
-  const codeBlocks = document.querySelectorAll('.markdown-content pre code')
+  const codeBlocks = contentRef.value?.querySelectorAll('pre code') || []
   codeBlocks.forEach((block) => {
     // Only highlight if not already highlighted
     if (!block.classList.contains('hljs')) {
@@ -58,12 +82,86 @@ const highlightCodeBlocks = () => {
   animation: fadeIn 0.3s ease-in-out;
 }
 
+.markdown-content :deep(p),
+.markdown-content :deep(ul),
+.markdown-content :deep(ol),
+.markdown-content :deep(blockquote),
+.markdown-content :deep(pre),
+.markdown-content :deep(table),
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3),
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  margin: 0;
+}
+
+.markdown-content :deep(p + p),
+.markdown-content :deep(p + ul),
+.markdown-content :deep(p + ol),
+.markdown-content :deep(p + blockquote),
+.markdown-content :deep(ul + p),
+.markdown-content :deep(ol + p),
+.markdown-content :deep(blockquote + p),
+.markdown-content :deep(pre + p),
+.markdown-content :deep(p + pre),
+.markdown-content :deep(ul + ul),
+.markdown-content :deep(ol + ol),
+.markdown-content :deep(ul + ol),
+.markdown-content :deep(ol + ul) {
+  margin-top: 0.75rem;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  padding-left: 1.2rem;
+}
+
+.markdown-content :deep(li + li) {
+  margin-top: 0.35rem;
+}
+
+.markdown-content :deep(pre) {
+  margin-top: 0.75rem;
+  overflow-x: auto;
+  border-radius: 12px;
+}
+
+.markdown-content :deep(blockquote) {
+  margin-top: 0.75rem;
+  padding-left: 0.9rem;
+  border-left: 3px solid rgba(59, 130, 246, 0.24);
+}
+
+.markdown-content :deep(.streaming-caret) {
+  display: inline-block;
+  width: 0.55rem;
+  height: 1.1em;
+  margin-left: 0.16rem;
+  vertical-align: -0.12em;
+  border-radius: 999px;
+  background: currentColor;
+  animation: caretBlink 1s step-end infinite;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0.95;
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes caretBlink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
   }
 }
 

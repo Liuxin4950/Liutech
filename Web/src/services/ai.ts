@@ -24,6 +24,10 @@ export interface AiChatRequest {
   /** 前端上下文，便于后端提示词决策，例如 { page: 'post-detail', articleId: 123 } */
   context?: Record<string, any>
   conversationId?: number
+  tempMessages?: Array<{
+    role: 'user' | 'assistant' | 'system'
+    content: string
+  }>
   /** 聊天模式：normal 普通模式，stream 流式模式 */
   mode?: 'normal' | 'stream'
   /** 使用的模型，默认为空 */
@@ -56,6 +60,8 @@ export interface AiChatResponse {
   responseLength?: number
   /** 对话ID */
   conversationId?: number
+  /** 会话模式 */
+  mode?: 'guest' | 'user'
 }
 
 /**

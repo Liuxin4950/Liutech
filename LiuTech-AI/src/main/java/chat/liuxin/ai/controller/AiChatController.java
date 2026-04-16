@@ -60,9 +60,6 @@ public class AiChatController {
     public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
         Long userId = getCurrentUserId();
         log.info("接受到了普通模式的请求，用户ID: {}", userId);
-        if (userId == null) {
-            return ChatResponse.error("用户未认证");
-        }
         return aiChatService.processChat(request, userId);
     }
 
@@ -82,9 +79,6 @@ public class AiChatController {
     public SseEmitter streamChat(@Valid @RequestBody ChatRequest request) {
         Long userId = getCurrentUserId();
         log.info("接受到了流式模式的请求，用户ID: {}", userId);
-        if (userId == null) {
-            throw new RuntimeException("用户未认证");
-        }
         return aiChatService.processStreamChat(request, userId);
     }
 

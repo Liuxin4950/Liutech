@@ -58,12 +58,15 @@ public class AiConversationController {
     public List<AiChatMessage> messages(@PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int size) {
-        return memoryService.listMessagesByConversation(id, page, size);
+        String userId = getCurrentUserIdStr();
+        return memoryService.listMessagesByConversation(userId, id, page, size);
     }
 
     /** 重命名会话标题 */
     @PutMapping("/{id}/rename")
     public ChatResponse rename(@PathVariable Long id, @RequestParam String title) {
+        String userId = getCurrentUserIdStr();
+        memoryService.getConversationOwnedByUser(userId, id);
         memoryService.renameConversation(id, title);
         return ChatResponse.success("会话重命名成功");
     }
@@ -71,6 +74,8 @@ public class AiConversationController {
     /** 归档会话（status=9） */
     @PutMapping("/{id}/archive")
     public ChatResponse archive(@PathVariable Long id) {
+        String userId = getCurrentUserIdStr();
+        memoryService.getConversationOwnedByUser(userId, id);
         memoryService.archiveConversation(id);
         return ChatResponse.success("会话已归档");
     }
@@ -78,6 +83,8 @@ public class AiConversationController {
     /** 删除会话（先删消息、再删会话） */
     @DeleteMapping("/{id}")
     public ChatResponse delete(@PathVariable Long id) {
+        String userId = getCurrentUserIdStr();
+        memoryService.getConversationOwnedByUser(userId, id);
         memoryService.deleteConversation(id);
         return ChatResponse.success("会话已删除");
     }

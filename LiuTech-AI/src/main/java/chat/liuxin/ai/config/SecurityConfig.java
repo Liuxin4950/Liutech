@@ -101,14 +101,14 @@ public class SecurityConfig {
                 // 预检请求必须放行
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // 公开API：获取默认模型（无需认证）
+                // 公开API：模型与游客聊天能力
                 .requestMatchers("/ai/models/**").permitAll()
+                .requestMatchers("/ai/status").permitAll()
+                .requestMatchers("/ai/chat", "/ai/chat/stream").permitAll()
+                .requestMatchers("/ai/recommend/**").permitAll()
 
                 // 管理员API：模型管理（需要认证）
                 .requestMatchers("/admin/**").authenticated()
-
-                // AI聊天接口需要认证 - 需要有效的JWT Token
-                .requestMatchers("/ai/chat/**").authenticated()
 
                 // 健康检查接口可以公开访问 - 无需Token认证
                 .requestMatchers("/health", "/actuator/**").permitAll()

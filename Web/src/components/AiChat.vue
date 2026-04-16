@@ -6,8 +6,9 @@ import { Ai, AiStream, type RecommendResponse, type PostSummaryDTO } from '@/ser
 import { ConversationService, type Conversation, type ChatMessageItem } from '@/services/conversation'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import Icon from './Icon.vue'
-import { showConfirm } from '@/utils/errorHandler'
+import { showConfirm, showWarning } from '@/utils/errorHandler'
 import { getTtsStatus } from '@/services/tts'
+import { isLoggedIn } from '@/utils/auth'
 // 接收父组件传入的扩展状态
 const props = defineProps<{
   expanded?: boolean
@@ -16,6 +17,7 @@ const props = defineProps<{
 // 定义emit事件
 const emit = defineEmits<{
   expand: []
+  close: []
 }>()
 
 /**
@@ -38,6 +40,7 @@ const isModeDropdownOpen = ref(false)
 const conversations = ref<Conversation[]>([])
 const isLoadingHistory = ref(false)
 const showHistorySidebar = ref(false)
+const isAuthenticated = ref(isLoggedIn())
 
 // 推荐内容状态 - 每条消息独立的推荐数据
 const messageRecommendations = ref<Map<number, RecommendResponse>>(new Map())
@@ -54,6 +57,17 @@ const isStreaming = computed(() => chatStore.isStreaming)
 const mode = computed(() => chatStore.mode)
 const hasMessages = computed(() => chatStore.hasMessages)
 const errorMessage = computed(() => chatStore.errorMessage)
+const isGuestMode = computed(() => !isAuthenticated.value)
+const isCompact = computed(() => !props.expanded)
+const modeLabel = computed(() => mode.value === 'stream' ? '流式模式' : '普通模式')
+const sessionLabel = computed(() => isGuestMode.value ? '游客体验' : '已登录')
+const guestBannerText = computed(() => isCompact.value
+  ? '游客体验中，聊天记录不会保存'
+  : '当前为游客体验模式，聊天记录不会保存。登录后可保存历史会话。'
+)
+const modeToggleTitle = computed(() => `当前：${modeLabel.value}，点击切换模式`)
+const expandToggleTitle = computed(() => props.expanded ? '退出大窗模式' : '展开聊天窗')
+const compactBrandTitle = computed(() => `纳西妲 · ${sessionLabel.value} · ${modeLabel.value}`)
 
 // 语音（TTS）可用性与开关（状态在 store 内统一管理）
 const ttsStatusText = ref<string>('语音检测中...')
@@ -68,6 +82,10 @@ const ttsToggleTitle = computed(() => {
 const toggleTts = () => {
   if (isTtsToggleDisabled.value) return
   chatStore.setTtsEnabled(!chatStore.ttsEnabled)
+}
+
+const syncAuthState = () => {
+  isAuthenticated.value = isLoggedIn()
 }
 
 // 清理消息中的[[RECOMMEND]]标记
@@ -182,6 +200,7 @@ const primeMediaOnce = () => {
 // 发送消息
 const sendMessage = async () => {
   if (!chatInput.value.trim() || isLoading.value) return
+  syncAuthState()
 
   // 发送前清空之前的推荐内容
   // messageRecommendations.value.clear()
@@ -207,6 +226,7 @@ const clearHistory = async () => {
 
 // 加载会话历史列表
 const loadConversations = async () => {
+  if (!isAuthenticated.value) return
   if (isLoadingHistory.value) return
 
   try {
@@ -221,6 +241,11 @@ const loadConversations = async () => {
 
 // 切换历史记录侧边栏
 const toggleHistorySidebar = () => {
+  syncAuthState()
+  if (!isAuthenticated.value) {
+    showWarning('登录后可查看与保存历史记录', '游客体验模式')
+    return
+  }
   showHistorySidebar.value = !showHistorySidebar.value
   if (showHistorySidebar.value && conversations.value.length === 0) {
     loadConversations()
@@ -356,6 +381,19 @@ const handleExpandChat = () => {
   emit('expand')
 }
 
+const handleCloseChat = () => {
+  emit('close')
+}
+
+const handleOpenChatEvent = async (event: Event) => {
+  const detail = (event as CustomEvent<{ prompt?: string; autoSend?: boolean }>).detail
+  if (!detail?.prompt) return
+  chatInput.value = detail.prompt
+  if (detail.autoSend) {
+    await sendMessage()
+  }
+}
+
 // 滚动到底部
 const scrollToBottom = async () => {
   await nextTick()
@@ -417,7 +455,11 @@ watch(() => chatStore.isStreaming, async (streaming) => {
 
 // 生命周期
 onMounted(async () => {
+  syncAuthState()
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('focus', syncAuthState)
+  window.addEventListener('storage', syncAuthState)
+  window.addEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
   if (chatContainer.value) {
     chatContainer.value.addEventListener('scroll', handleScroll)
   }
@@ -441,6 +483,9 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('focus', syncAuthState)
+  window.removeEventListener('storage', syncAuthState)
+  window.removeEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
   if (chatContainer.value) {
     chatContainer.value.removeEventListener('scroll', handleScroll)
   }
@@ -450,10 +495,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="chat-box" :class="{ 'expanded': expanded }">
+  <div class="chat-box" :class="{ 'expanded': expanded, 'compact': !expanded }">
     <div class="chat-popup">
       <!-- 历史记录侧边栏 -->
-      <div v-if="expanded" class="history-sidebar" :class="{ 'show': showHistorySidebar }">
+      <div v-if="expanded && isAuthenticated" class="history-sidebar" :class="{ 'show': showHistorySidebar }">
         <div class="history-header">
           <h4>会话历史</h4>
           <button class="close-sidebar" @click="toggleHistorySidebar"><Icon name="close" /></button>
@@ -499,35 +544,39 @@ onUnmounted(() => {
       <!-- 主聊天区域 -->
       <div class="chat-main" :class="{ 'with-sidebar': expanded && showHistorySidebar }">
         <!-- 聊天头部 -->
-        <div class="chat-header">
+        <div class="chat-header" :class="{ compact: !expanded }">
           <div class="header-left">
-            <h3 @click="handleExpandChat" class="expandable-title">纳西妲</h3>
-            <div class="mode-indicator">
-              <span :class="['mode-dot', mode]"></span>
-              <span class="mode-text">{{ mode === 'stream' ? '流式' : '普通' }}</span>
+            <div v-if="expanded" class="assistant-identity">
+              <div class="assistant-avatar">
+                <Icon name="bot" :size="18" />
+              </div>
+              <div class="assistant-meta">
+                <h3>纳西妲</h3>
+                <div class="assistant-status-row">
+                  <div class="mode-indicator">
+                    <span :class="['mode-dot', mode]"></span>
+                    <span class="mode-text">{{ modeLabel }}</span>
+                  </div>
+                  <div class="session-indicator" :class="{ guest: isGuestMode }">
+                    {{ sessionLabel }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="compact-brand" :title="compactBrandTitle">
+              <Icon name="bot" :size="18" />
+              <span :class="['compact-status-dot', mode, { guest: isGuestMode }]"></span>
             </div>
           </div>
           <div class="header-right">
-            <button
-              class="tts-toggle-btn"
-              :class="{ 'is-on': chatStore.ttsEnabled && chatStore.ttsAvailable }"
-              :disabled="isTtsToggleDisabled"
-              :title="ttsToggleTitle"
-              @click="toggleTts"
-            >
-              语音{{ chatStore.ttsEnabled ? '开' : '关' }}
-            </button>
-
-            <!-- 历史记录按钮 (仅在扩展模式下显示) -->
-            <button v-if="expanded" class="history-btn" @click="toggleHistorySidebar" title="查看会话历史">
-              <Icon name="file" />
-            </button>
-
-            <!-- 模式选择器 -->
             <div class="mode-selector">
-              <button class="mode-toggle-btn" @click="isModeDropdownOpen = !isModeDropdownOpen" title="切换聊天模式">
-                {{ mode === 'stream' ? '流式' : '普通' }}
-                <span class="dropdown-arrow">▼</span>
+              <button
+                class="icon-action-btn mode-toggle-btn"
+                :class="{ active: mode === 'stream' }"
+                @click="isModeDropdownOpen = !isModeDropdownOpen"
+                :title="modeToggleTitle"
+              >
+                <Icon :name="mode === 'stream' ? 'zap' : 'message'" :size="16" />
               </button>
               <div v-show="isModeDropdownOpen" class="mode-dropdown">
                 <button :class="['mode-option', { active: mode === 'stream' }]" @click="setMode('stream')">
@@ -540,8 +589,43 @@ onUnmounted(() => {
                 </button>
               </div>
             </div>
-            <button class="control-btn" @click="clearHistory" title="清空聊天">清空</button>
+
+            <button
+              class="icon-action-btn tts-toggle-btn"
+              :class="{ 'is-on': chatStore.ttsEnabled && chatStore.ttsAvailable }"
+              :disabled="isTtsToggleDisabled"
+              :title="ttsToggleTitle"
+              @click="toggleTts"
+            >
+              <Icon name="music" :size="16" />
+            </button>
+
+            <!-- 历史记录按钮 (仅在扩展模式下显示) -->
+            <button
+              v-if="expanded"
+              class="icon-action-btn history-btn"
+              @click="toggleHistorySidebar"
+              title="查看会话历史"
+            >
+              <Icon name="history" :size="16" />
+            </button>
+
+            <button class="icon-action-btn control-btn" @click="clearHistory" title="清空聊天">
+              <Icon name="trash2" :size="16" />
+            </button>
+
+            <button class="icon-action-btn expand-btn" @click="handleExpandChat" :title="expandToggleTitle">
+              <Icon :name="expanded ? 'minus' : 'layout'" :size="16" />
+            </button>
+
+            <button class="icon-action-btn close-btn" @click="handleCloseChat" title="关闭聊天窗口">
+              <Icon name="close" :size="16" />
+            </button>
           </div>
+        </div>
+
+        <div v-if="isGuestMode" class="guest-banner">
+          {{ guestBannerText }}
         </div>
 
         <!-- 错误提示 -->
@@ -561,7 +645,7 @@ onUnmounted(() => {
             'message',
             message.type,
             {
-              'streaming': message.isStreaming,
+              'streaming': message.isStreaming && message.type === 'ai',
               'error-message': message.isError
             }
           ]">
@@ -570,7 +654,6 @@ onUnmounted(() => {
                 <!-- User messages: plain text -->
                 <div v-if="message.type === 'user'">
                   {{ message.content }}
-                  <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
                 </div>
                 <!-- AI messages: markdown rendering -->
                 <div v-else>
@@ -609,8 +692,6 @@ onUnmounted(() => {
                       </div>
                     </template>
                   </div>
-
-                  <span v-if="message.isStreaming" class="streaming-indicator">▋</span>
                 </div>
               </div>
               <div class="message-time">{{ formatTime(message.timestamp) }}</div>
@@ -882,19 +963,7 @@ onUnmounted(() => {
 
 /* 历史记录按钮 */
 .history-btn {
-  background: var(--bg-hover);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--text-main);
-}
-
-.history-btn:hover {
-  background: var(--bg-active);
-  border-color: var(--color-primary);
+  position: relative;
 }
 
 /* 聊天头部 */
@@ -906,49 +975,125 @@ onUnmounted(() => {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-light);
   background: var(--bg-soft);
+  gap: 12px;
 }
 
-.chat-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-title);
-}
-
-.expandable-title {
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin: -4px -8px;
-}
-
-.expandable-title:hover {
-  background: var(--bg-hover);
-  color: var(--color-primary);
+.chat-header.compact {
+  padding: 12px 14px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  min-width: 0;
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
+}
+
+.assistant-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.assistant-avatar,
+.compact-brand {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(16, 185, 129, 0.12));
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  color: var(--color-primary);
+  position: relative;
+  flex-shrink: 0;
+}
+
+.assistant-meta {
+  min-width: 0;
+}
+
+.assistant-meta h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.assistant-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.compact-status-dot {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  border: 2px solid var(--bg-soft);
+  background: var(--color-primary);
+}
+
+.compact-status-dot.stream {
+  background: var(--color-success);
+}
+
+.compact-status-dot.normal {
+  background: var(--color-primary);
+}
+
+.compact-status-dot.guest {
+  box-shadow: 0 0 0 3px rgba(251, 188, 4, 0.18);
+}
+
+.icon-action-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-hover);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.icon-action-btn:hover:not(:disabled) {
+  background: var(--bg-active);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.icon-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.chat-box.compact .header-right {
+  gap: 6px;
 }
 
 .tts-toggle-btn {
-  background: var(--bg-hover);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--text-main);
+  position: relative;
 }
 
 .tts-toggle-btn.is-on {
@@ -957,18 +1102,30 @@ onUnmounted(() => {
   color: var(--color-primary);
 }
 
-.tts-toggle-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
 /* 模式指示器 */
 .mode-indicator {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
   color: var(--text-subtle);
+}
+
+.session-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg-hover);
+  color: var(--text-subtle);
+  font-size: 12px;
+  border: 1px solid var(--border-light);
+}
+
+.session-indicator.guest {
+  color: var(--color-warning);
+  border-color: rgba(251, 188, 4, 0.4);
+  background: rgba(251, 188, 4, 0.08);
 }
 
 .mode-dot {
@@ -992,31 +1149,13 @@ onUnmounted(() => {
 }
 
 .mode-toggle-btn {
-  background: var(--bg-hover);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-main);
+  position: relative;
 }
 
-.mode-toggle-btn:hover {
-  background: var(--bg-active);
-  border-color: var(--color-primary);
-}
-
-.dropdown-arrow {
-  font-size: 10px;
-  transition: transform 0.2s ease;
-}
-
-.mode-toggle-btn:hover .dropdown-arrow {
-  transform: translateY(1px);
+.mode-toggle-btn.active {
+  color: var(--color-success);
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
 }
 
 .mode-dropdown {
@@ -1074,19 +1213,15 @@ onUnmounted(() => {
 
 /* 控制按钮 */
 .control-btn {
-  background: var(--bg-hover);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: var(--text-main);
+  position: relative;
 }
 
-.control-btn:hover {
-  background: var(--bg-active);
-  border-color: var(--color-primary);
+.expand-btn {
+  position: relative;
+}
+
+.close-btn {
+  position: relative;
 }
 
 /* 错误提示横幅 */
@@ -1100,6 +1235,14 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--color-error);
   color: var(--color-error);
   font-size: 0.875rem;
+}
+
+.guest-banner {
+  padding: 10px 16px;
+  background: rgba(251, 188, 4, 0.08);
+  border-bottom: 1px solid rgba(251, 188, 4, 0.24);
+  color: var(--text-subtle);
+  font-size: 13px;
 }
 
 .error-icon {
@@ -1179,7 +1322,7 @@ onUnmounted(() => {
 }
 
 .message-content {
-  max-width: 75%;
+  max-width: 78%;
   display: flex;
   flex-direction: column;
 }
@@ -1188,8 +1331,8 @@ onUnmounted(() => {
   padding: 12px 16px;
   border-radius: 18px;
   font-size: 14px;
-  line-height: 1.5;
-  word-wrap: break-word;
+  line-height: 1.6;
+  word-break: break-word;
   position: relative;
 }
 
@@ -1208,13 +1351,6 @@ onUnmounted(() => {
 
 .message.streaming .message-text {
   position: relative;
-}
-
-.streaming-indicator {
-  display: inline-block;
-  animation: blink 1s infinite;
-  color: var(--color-primary);
-  font-weight: bold;
 }
 
 .message.error-message .message-text {
@@ -1241,6 +1377,27 @@ onUnmounted(() => {
 
 .message.ai .message-time {
   text-align: left;
+}
+
+.chat-box.compact .chat-messages {
+  padding: 14px;
+  gap: 10px;
+}
+
+.chat-box.compact .message-content {
+  max-width: 86%;
+}
+
+.chat-box.compact .message-text {
+  padding: 11px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.chat-box.compact .guest-banner {
+  padding: 8px 14px;
+  font-size: 12px;
 }
 
 .loading-dots::after {
@@ -1337,19 +1494,6 @@ onUnmounted(() => {
   }
 }
 
-@keyframes blink {
-
-  0%,
-  50% {
-    opacity: 1;
-  }
-
-  51%,
-  100% {
-    opacity: 0;
-  }
-}
-
 @keyframes pulse {
   0% {
     transform: scale(1);
@@ -1409,12 +1553,25 @@ onUnmounted(() => {
     padding: 12px 16px;
   }
 
+  .assistant-status-row {
+    gap: 8px;
+  }
+
   .chat-messages {
     padding: 12px;
   }
 
   .chat-input {
     padding: 12px;
+  }
+
+  .chat-box.compact .header-right {
+    gap: 5px;
+  }
+
+  .chat-box.compact .icon-action-btn {
+    width: 34px;
+    height: 34px;
   }
 }
 
@@ -1426,6 +1583,25 @@ onUnmounted(() => {
   border: 1px solid var(--border-light);
   border-radius: 12px;
   animation: slideUp 0.3s ease-out;
+}
+
+.chat-box.compact .recommendation-section {
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.chat-box.compact .recommendation-item {
+  padding: 10px;
+}
+
+.chat-box.compact .recommendation-item-title {
+  font-size: 13px;
+}
+
+.chat-box.compact .recommendation-item-meta {
+  gap: 8px;
+  font-size: 11px;
 }
 
 @keyframes slideUp {

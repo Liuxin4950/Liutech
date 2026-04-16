@@ -57,11 +57,7 @@ export class AiStream {
       // 创建新的AbortController
       this.abortController = new AbortController()
 
-      // 获取认证token
       const token = localStorage.getItem('token')
-      if (!token) {
-        throw new StreamError('未找到认证token', 'AUTH_MISSING')
-      }
 
       // 构建请求URL
       const aiBaseUrl = getServiceBaseURL(ServiceType.AI)
@@ -73,10 +69,10 @@ export class AiStream {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
           'Accept': 'text/event-stream',
           'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive'
+          'Connection': 'keep-alive',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           ...request,

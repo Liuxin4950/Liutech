@@ -45,6 +45,19 @@ let isTtsPlaying = false
 let playbackToken = 0
 let audioUnlocked = false
 
+const handleExternalChatOpen = (event: Event) => {
+  showModel.value = true
+  showChat.value = true
+  isExpanded.value = true
+
+  const detail = (event as CustomEvent<Record<string, any>>).detail
+  if (detail?.prompt) {
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('ai-chat-apply-prompt', { detail }))
+    }, 0)
+  }
+}
+
 const resolveTtsPlayUrl = (audioUrl: string) => {
   if (!audioUrl) return ''
   return audioUrl
@@ -231,6 +244,7 @@ onMounted(() => {
   
   // 添加滚动监听
   window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('ai-chat-open', handleExternalChatOpen)
   if (timer) { window.clearTimeout(timer) }
 
   // 兜底 3s 自动结束
@@ -272,6 +286,7 @@ onMounted(() => {
 onUnmounted(() => {
   // 移除滚动监听
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('ai-chat-open', handleExternalChatOpen)
 })
 
 watch(
@@ -312,6 +327,11 @@ const handleExpandChat = () => {
   isExpanded.value = !isExpanded.value
 }
 
+const handleCloseChat = () => {
+  showChat.value = false
+  isExpanded.value = false
+}
+
 const handleModelStatusChange = () => {
   if (modelToggleTimeout) {
     clearTimeout(modelToggleTimeout);
@@ -347,7 +367,13 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       <div v-if="showModel" class="ai-content" :class="{ 'expanded': isExpanded }">
         <div class="ai-box">
           <Live2d ref="live2dRef" @click="toggleChat" class="live2d" :class="{ 'centered': isExpanded }"></Live2d>
-          <AiChat v-show="showChat"  class="ai-chat" :expanded="isExpanded" @expand="handleExpandChat"></AiChat>
+          <AiChat
+            v-show="showChat"
+            class="ai-chat"
+            :expanded="isExpanded"
+            @expand="handleExpandChat"
+            @close="handleCloseChat"
+          ></AiChat>
         </div>
       </div>
     </main>

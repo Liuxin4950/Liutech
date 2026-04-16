@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -52,6 +53,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleAIServiceException(Exception ex) {
         log.error("AI服务异常: {}", ex.getMessage());
         return createErrorResponse("AI服务异常，请稍后重试", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        return createErrorResponse(ex.getReason() != null ? ex.getReason() : "请求失败", status);
     }
     
     // 处理其他系统异常

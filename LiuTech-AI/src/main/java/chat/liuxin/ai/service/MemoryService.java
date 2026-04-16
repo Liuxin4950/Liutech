@@ -103,15 +103,18 @@ public interface MemoryService {
     /** 获取会话详情 */
     AiConversation getConversation(Long conversationId);
 
+    /** 获取当前用户拥有的会话，不存在或越权时抛出异常 */
+    AiConversation getConversationOwnedByUser(String userId, Long conversationId);
+
     /**
      * 分页列出会话内的消息（倒序）
      */
-    List<AiChatMessage> listMessagesByConversation(Long conversationId, int page, int size);
+    List<AiChatMessage> listMessagesByConversation(String userId, Long conversationId, int page, int size);
 
     /**
      * 列出会话内最近 N 条消息（返回升序，便于拼接上下文）
      */
-    List<AiChatMessage> listLastMessagesByConversation(Long conversationId, int limit);
+    List<AiChatMessage> listLastMessagesByConversation(String userId, Long conversationId, int limit);
     
     /**
      * 获取会话内最近 N 条消息并转换为 Spring AI Message 列表（返回升序，便于直接用于AI调用）
@@ -119,7 +122,7 @@ public interface MemoryService {
      * @param limit 限制条数
      * @return Spring AI Message 列表
      */
-    List<Message> listLastMessagesAsPromptMessages(Long conversationId, int limit);
+    List<Message> listLastMessagesAsPromptMessages(String userId, Long conversationId, int limit);
 
     /** 重命名会话标题 */
     void renameConversation(Long conversationId, String title);

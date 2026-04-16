@@ -434,6 +434,17 @@ const handleTagClick = (tagId: number) => {
   router.push(`/tags/${tagId}`)
 }
 
+const summarizeWithAi = () => {
+  if (!post.value) return
+
+  window.dispatchEvent(new CustomEvent('ai-chat-open', {
+    detail: {
+      prompt: `请结合当前文章内容，帮我做一个结构化总结：先用 3 到 5 条概括核心观点，再补充关键技术点、适用场景和阅读建议。`,
+      autoSend: true
+    }
+  }))
+}
+
 // 切换分享选项显示
 const toggleShare = () => {
   showShare.value = !showShare.value
@@ -596,6 +607,13 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       <!-- 文章摘要 -->
       <div v-if="post.summary" class="post-summary">
         <p>{{ post.summary }}</p>
+      </div>
+
+      <div class="post-ai-actions">
+        <button class="ai-summary-btn" @click="summarizeWithAi">
+          <Icon name="message" size="16" />
+          AI 总结这篇文章
+        </button>
       </div>
 
       <!-- 文章内容 -->
@@ -984,6 +1002,33 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   margin: 0;
   position: relative;
   z-index: 1;
+}
+
+.post-ai-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin: 16px 20px 0;
+}
+
+.ai-summary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(var(--color-primary-rgb), 0.24);
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.12), rgba(255, 255, 255, 0.92));
+  color: var(--text-title);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-summary-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--color-primary-rgb), 0.4);
+  box-shadow: 0 10px 24px rgba(var(--color-primary-rgb), 0.12);
 }
 
 /* 标签云样式优化 */
