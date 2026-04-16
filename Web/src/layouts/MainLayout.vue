@@ -319,17 +319,27 @@ const toggleChat = () => {
   if (!showChat.value) {
     // 关闭聊天框时，重置展开状态
     isExpanded.value = false
+    showModel.value = true
   }
 }
 
 // 处理聊天框展开
 const handleExpandChat = () => {
+  if (isExpanded.value) {
+    showModel.value = true
+  }
   isExpanded.value = !isExpanded.value
 }
 
 const handleCloseChat = () => {
   showChat.value = false
   isExpanded.value = false
+  showModel.value = true
+}
+
+const handleToggleModelVisibility = () => {
+  if (!isExpanded.value) return
+  showModel.value = !showModel.value
 }
 
 const handleModelStatusChange = () => {
@@ -364,15 +374,24 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       <Banner class="banner" />
       <Breadcrumb />
       <router-view />
-      <div v-if="showModel" class="ai-content" :class="{ 'expanded': isExpanded }">
+      <div v-if="showModel || showChat" class="ai-content" :class="{ 'expanded': isExpanded }">
         <div class="ai-box">
-          <Live2d ref="live2dRef" @click="toggleChat" class="live2d" :class="{ 'centered': isExpanded }"></Live2d>
+          <Live2d
+            v-show="showModel"
+            ref="live2dRef"
+            @click="toggleChat"
+            class="live2d"
+            :class="{ 'centered': isExpanded, passive: isExpanded }"
+            :interactive="!isExpanded"
+          ></Live2d>
           <AiChat
             v-show="showChat"
             class="ai-chat"
             :expanded="isExpanded"
+            :model-visible="showModel"
             @expand="handleExpandChat"
             @close="handleCloseChat"
+            @toggle-model-visibility="handleToggleModelVisibility"
           ></AiChat>
         </div>
       </div>
@@ -491,10 +510,17 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   right: auto;
 }
 
-.ai-box,.live2d {
+.ai-box {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+.live2d {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 30;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -505,7 +531,6 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   top: 0;
   left: 0;
   transform: translateY(-100px) translateX(-400px);
-  z-index: 100;
   @include respond(md) {
     width: 100%;
     transform: translateY(-100px) translateX(0);
@@ -522,12 +547,17 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
 /* Live2d居中样式 */
 .live2d.centered {
-  position: fixed;
-  bottom: 0;
+  position: absolute;
+  bottom: 0%;
   left: 50%;
-  transform: translate(-50%, 0%);
-  width: 400px;
-  height: 400px;
+  transform: translate(-50%, -20%);
+  width: min(400px, 40vw);
+  height: min(400px, 40vw);
+  z-index: 30;
+}
+
+.live2d.passive {
+  pointer-events: none;
 }
 
 

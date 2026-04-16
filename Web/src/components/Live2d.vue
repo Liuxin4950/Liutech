@@ -1,5 +1,5 @@
 <template>
-    <div class="container">
+    <div class="container" :class="{ passive: !props.interactive }">
         <!-- 音乐播放胶囊 -->
         <MusicCapsule ref="musicCapsuleRef" @play="onMusicPlay" @pause="onMusicPause" />
         <!-- 音乐播放胶囊 -->
@@ -19,6 +19,12 @@
 import { onMounted, onBeforeUnmount, watch, ref } from 'vue';
 import MusicCapsule from './MusicCapsule.vue';
 import { useLipSync } from '@/composables/useLipSync'
+
+const props = withDefaults(defineProps<{
+    interactive?: boolean
+}>(), {
+    interactive: true
+})
 
 // 声明全局变量类型
 declare global {
@@ -68,6 +74,15 @@ let resizeHandler: (() => void) | null = null;
 
 // 音乐胶囊引用
 const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null);
+
+const applyInteractionMode = () => {
+    if (model) {
+        model.interactive = props.interactive === true
+    }
+    if (app?.stage) {
+        app.stage.interactive = props.interactive === true
+    }
+}
 
 const setMouthOpen = (value: number) => {
     try {
@@ -341,7 +356,7 @@ onMounted(() => {
 
             // 启用交互
             // 启用模型的交互功能
-            live2dModel.interactive = true;
+            live2dModel.interactive = props.interactive === true;
             // 监听鼠标按下事件，开始拖拽
             live2dModel.on('pointerdown', onPointerDown);
             // 监听鼠标移动事件，实现拖拽移动
@@ -352,7 +367,7 @@ onMounted(() => {
             live2dModel.on('pointerupoutside', onPointerUp);
 
             // 鼠标跟随
-            app.stage.interactive = true;
+            app.stage.interactive = props.interactive === true;
             app.stage.on('pointermove', (event: any) => {
                 const point = event.data.global;
                 live2dModel.focus(point.x, point.y);
@@ -399,6 +414,8 @@ onMounted(() => {
         if (resizeHandler) {
             resizeHandler();
         }
+
+        applyInteractionMode()
     };
 
     // 开始初始化
@@ -482,6 +499,10 @@ onBeforeUnmount(() => {
     lipSync.destroy()
 });
 
+watch(() => props.interactive, () => {
+    applyInteractionMode()
+})
+
 
 </script>
 
@@ -495,6 +516,11 @@ onBeforeUnmount(() => {
     width: 100%;
     height: 100%;
     display: block;
+}
+
+.container.passive,
+.container.passive #canvas {
+    pointer-events: none;
 }
 
 #canvas {

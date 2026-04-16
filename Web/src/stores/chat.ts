@@ -15,6 +15,7 @@ export interface ChatMessage {
   renderedContent?: string // Cache for rendered HTML
   timestamp: Date
   isStreaming?: boolean
+  isThinking?: boolean
   isError?: boolean
   conversationId?: number
   modelName?: string // 使用的模型名称
@@ -271,13 +272,18 @@ export const useChatStore = defineStore('chat', () => {
    * @param content 消息内容
    * @param id 可选，传入后端返回的ID，否则生成临时ID
    */
-  const addAiMessage = (content: string = '', id?: number): ChatMessage => {
+  const addAiMessage = (
+    content: string = '',
+    id?: number,
+    options?: { isStreaming?: boolean; isThinking?: boolean }
+  ): ChatMessage => {
     const message: ChatMessage = {
       id: id ?? generateTempId(),  // 优先使用传入的ID
       type: 'ai',
       content,
       timestamp: new Date(),
-      isStreaming: true,
+      isStreaming: options?.isStreaming ?? false,
+      isThinking: options?.isThinking ?? false,
       conversationId: conversationId.value || undefined,
       modelName: currentModelInfo.value?.displayName || currentModelInfo.value?.modelName
     }
@@ -291,6 +297,7 @@ export const useChatStore = defineStore('chat', () => {
   const updateStreamingMessage = (content: string) => {
     const streamingMsg = messages.value.find(msg => msg.isStreaming)
     if (streamingMsg) {
+      streamingMsg.isThinking = false
       streamingMsg.content += content
     }
   }
@@ -302,9 +309,23 @@ export const useChatStore = defineStore('chat', () => {
     const streamingMsg = messages.value.find(msg => msg.isStreaming)
     if (streamingMsg) {
       streamingMsg.isStreaming = false
+      streamingMsg.isThinking = false
       // Clear rendered cache since streaming is complete
       streamingMsg.renderedContent = undefined
     }
+  }
+
+  const updateAiMessage = (messageId: number, content: string, options?: { isThinking?: boolean; isStreaming?: boolean }) => {
+    const message = messages.value.find(msg => msg.id === messageId)
+    if (!message) return
+    message.content = content
+    if (typeof options?.isThinking === 'boolean') {
+      message.isThinking = options.isThinking
+    }
+    if (typeof options?.isStreaming === 'boolean') {
+      message.isStreaming = options.isStreaming
+    }
+    message.renderedContent = undefined
   }
 
   /**
@@ -374,7 +395,7 @@ export const useChatStore = defineStore('chat', () => {
     clearTtsAudioQueue()
 
     // 创建空的AI消息用于流式更新
-    const aiMessage = addAiMessage()
+    const aiMessage = addAiMessage('', undefined, { isStreaming: true, isThinking: true })
 
     try {
       await AiStream.streamChat(
@@ -444,14 +465,26 @@ export const useChatStore = defineStore('chat', () => {
    * 发送普通消息
    */
   const sendNormalMessage = async (request: AiChatRequest) => {
-    const response = await Ai.chat(request)
+    const pendingAiMessage = addAiMessage('', undefined, { isThinking: true })
 
-    // 使用统一方法添加AI响应
-    addAiMessage(response.message)
+    try {
+      const response = await Ai.chat(request)
 
-    // 更新会话ID
-    if (!isGuestSession() && response.conversationId && !conversationId.value) {
-      conversationId.value = response.conversationId
+      updateAiMessage(pendingAiMessage.id, response.message, {
+        isThinking: false,
+        isStreaming: false
+      })
+
+      // 更新会话ID
+      if (!isGuestSession() && response.conversationId && !conversationId.value) {
+        conversationId.value = response.conversationId
+      }
+    } catch (error) {
+      const index = messages.value.findIndex(msg => msg.id === pendingAiMessage.id)
+      if (index > -1) {
+        messages.value.splice(index, 1)
+      }
+      throw error
     }
   }
 

@@ -61,6 +61,12 @@ watch(renderedContent, async () => {
   highlightCodeBlocks()
 }, { immediate: true })
 
+watch(() => props.isStreaming, async (streaming) => {
+  if (streaming) return
+  await nextTick()
+  contentRef.value?.querySelectorAll('.streaming-caret').forEach((node) => node.remove())
+})
+
 const highlightCodeBlocks = () => {
   const codeBlocks = contentRef.value?.querySelectorAll('pre code') || []
   codeBlocks.forEach((block) => {

@@ -1,0 +1,546 @@
+<script setup lang="ts">
+import { nextTick, ref } from 'vue'
+import type { ChatMessage } from '@/stores/chat'
+import type { RecommendResponse } from '@/services/ai'
+import MarkdownRenderer from './MarkdownRenderer.vue'
+import Icon from './Icon.vue'
+
+type DisplayMessage = ChatMessage & {
+  displayContent: string
+}
+
+const props = defineProps<{
+  messages: DisplayMessage[]
+  hasMessages: boolean
+  isLoading: boolean
+  isStreaming: boolean
+  errorMessage: string
+  isGuestMode: boolean
+  guestBannerText: string
+  expanded?: boolean
+  recommendations: Record<number, RecommendResponse | undefined>
+}>()
+
+const emit = defineEmits<{
+  clearError: []
+  openPost: [postId: number]
+  openCategory: [categoryId: number]
+}>()
+
+const chatContainer = ref<HTMLElement | null>(null)
+
+const getMessageRecommendData = (messageId: number) => props.recommendations[messageId]
+const emitCategory = (categoryId?: number) => {
+  if (typeof categoryId === 'number') {
+    emit('openCategory', categoryId)
+  }
+}
+
+const scrollToBottom = async () => {
+  await nextTick()
+  if (chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+  }
+}
+
+const getScrollElement = () => chatContainer.value
+
+defineExpose({
+  scrollToBottom,
+  getScrollElement
+})
+</script>
+
+<template>
+  <div class="chat-body" :class="{ expanded, compact: !expanded }">
+    <div v-if="isGuestMode" class="guest-banner">
+      {{ guestBannerText }}
+    </div>
+
+    <div v-if="errorMessage" class="error-banner">
+      <span class="error-icon"><Icon name="warning" /></span>
+      <span class="error-text">{{ errorMessage }}</span>
+      <button class="error-close" @click="emit('clearError')"><Icon name="close" /></button>
+    </div>
+
+    <div ref="chatContainer" class="chat-messages">
+      <div v-if="!hasMessages" class="empty-state text-sm">
+        <p>你好！我是纳西妲，有什么我可以帮助你的吗？</p>
+      </div>
+
+      <div
+        v-for="message in messages"
+        :key="message.id"
+        :class="[
+          'message',
+          message.type,
+          {
+            streaming: message.isStreaming && message.type === 'ai',
+            'error-message': message.isError
+          }
+        ]"
+      >
+        <div class="message-content">
+          <div class="message-text">
+            <div v-if="message.type === 'user'">
+              {{ message.content }}
+            </div>
+
+            <div v-else-if="message.isThinking" class="thinking-message">
+              <span class="thinking-dot"></span>
+              <span class="thinking-dot"></span>
+              <span class="thinking-dot"></span>
+              <span class="thinking-label">思考中</span>
+            </div>
+
+            <div v-else>
+              <MarkdownRenderer :content="message.displayContent" :is-streaming="message.isStreaming || false" />
+
+              <div v-if="message.type === 'ai' && !message.isStreaming" class="inline-recommendation">
+                <template v-if="getMessageRecommendData(message.id)">
+                  <div class="recommendation-section" v-if="getMessageRecommendData(message.id)?.posts?.length">
+                    <div class="recommendation-header">
+                      <span class="recommendation-icon"><Icon name="book" /></span>
+                      <span class="recommendation-title">{{ getMessageRecommendData(message.id)?.reason }}</span>
+                    </div>
+                    <div class="recommendation-list">
+                      <div
+                        v-for="post in getMessageRecommendData(message.id)?.posts || []"
+                        :key="post.id"
+                        class="recommendation-item"
+                        @click="emit('openPost', post.id)"
+                      >
+                        <div class="recommendation-item-content">
+                          <span class="recommendation-item-title">{{ post.title }}</span>
+                          <div class="recommendation-item-meta">
+                            <span v-if="post.categoryName" class="meta-tag">{{ post.categoryName }}</span>
+                            <span class="meta-views"><Icon name="eye" size="12" /> {{ post.viewCount }}</span>
+                          </div>
+                        </div>
+                        <span class="recommendation-arrow">›</span>
+                      </div>
+                    </div>
+                    <div v-if="getMessageRecommendData(message.id)?.category" class="recommendation-more">
+                      <span @click="emitCategory(getMessageRecommendData(message.id)?.category?.id)">
+                        查看 {{ getMessageRecommendData(message.id)?.category?.name }} 分类的全部文章 →
+                      </span>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+          <div class="message-time">
+            {{ message.timestamp.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.chat-body {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chat-body.expanded {
+  background: #ffffff;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.chat-body.compact {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--border-light);
+  border-top: none;
+  border-bottom: none;
+}
+
+.guest-banner {
+  padding: 10px 16px;
+  background: rgba(251, 188, 4, 0.08);
+  border-bottom: 1px solid rgba(251, 188, 4, 0.24);
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+.chat-body.expanded .guest-banner {
+  background: #fff8e8;
+  border-bottom-color: #f2d38a;
+}
+
+.error-banner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border-bottom: 1px solid var(--color-error);
+  color: var(--color-error);
+  font-size: 0.875rem;
+}
+
+.chat-body.expanded .error-banner {
+  background: #fef2f2;
+}
+
+.error-icon {
+  flex-shrink: 0;
+}
+
+.error-text {
+  flex: 1;
+}
+
+.error-close {
+  background: none;
+  border: none;
+  color: var(--color-error);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.error-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.chat-messages {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: var(--border-base);
+  border-radius: 3px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-subtle);
+  font-size: 14px;
+  margin-top: 40px;
+}
+
+.empty-state p {
+  margin: 0;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.66);
+  border-radius: 12px;
+  border: 1px dashed var(--border-light);
+}
+
+.chat-body.expanded .empty-state p {
+  background: #ffffff;
+}
+
+.message {
+  display: flex;
+  animation: messageSlideIn 0.4s ease-out;
+}
+
+.message.user {
+  justify-content: flex-end;
+}
+
+.message.ai {
+  justify-content: flex-start;
+}
+
+.message-content {
+  max-width: 78%;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-text {
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.6;
+  word-break: break-word;
+  position: relative;
+}
+
+.message.user .message-text {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-bottom-right-radius: 6px;
+}
+
+.message.ai .message-text {
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-bottom-left-radius: 6px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.chat-body.expanded .message.ai .message-text {
+  background: #ffffff;
+  border-color: var(--border-light);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.thinking-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 1.5rem;
+}
+
+.thinking-dot {
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  animation: thinkingPulse 1.2s ease-in-out infinite;
+}
+
+.thinking-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.thinking-label {
+  margin-left: 0.25rem;
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+.message.error-message .message-text {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+.message-time {
+  font-size: 11px;
+  color: var(--text-subtle);
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+.message.user .message-time {
+  text-align: right;
+}
+
+.message.ai .message-time {
+  text-align: left;
+}
+
+.chat-body.compact .chat-messages {
+  padding: 14px;
+  gap: 10px;
+}
+
+.chat-body.compact .message-content {
+  max-width: 86%;
+}
+
+.chat-body.compact .message-text {
+  padding: 11px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.chat-body.compact .guest-banner {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+
+.recommendation-section {
+  margin: 16px 0 0;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  animation: slideUp 0.3s ease-out;
+}
+
+.chat-body.expanded .recommendation-section {
+  background: #ffffff;
+}
+
+.chat-body.compact .recommendation-section {
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.recommendation-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.recommendation-icon {
+  font-size: 18px;
+}
+
+.recommendation-title {
+  color: var(--color-primary);
+}
+
+.recommendation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recommendation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.recommendation-item:hover {
+  background: var(--bg-active);
+  border-color: var(--color-primary);
+}
+
+.recommendation-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.recommendation-item-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recommendation-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.meta-tag {
+  padding: 2px 8px;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.recommendation-arrow {
+  font-size: 18px;
+  color: var(--text-subtle);
+  margin-left: 8px;
+}
+
+.recommendation-more {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+  font-size: 13px;
+}
+
+.recommendation-more span {
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.recommendation-more span:hover {
+  opacity: 0.8;
+}
+
+.chat-body.compact .recommendation-item {
+  padding: 10px;
+}
+
+.chat-body.compact .recommendation-item-title {
+  font-size: 13px;
+}
+
+.chat-body.compact .recommendation-item-meta {
+  gap: 8px;
+  font-size: 11px;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes thinkingPulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>

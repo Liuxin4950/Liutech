@@ -1,56 +1,73 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, computed, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useChatStore, type ChatMessage, type ChatMode } from '@/stores/chat'
-import { Ai, AiStream, type RecommendResponse, type PostSummaryDTO } from '@/services/ai'
-import { ConversationService, type Conversation, type ChatMessageItem } from '@/services/conversation'
-import MarkdownRenderer from './MarkdownRenderer.vue'
+import { useChatStore, type ChatMode } from '@/stores/chat'
+import { Ai, AiStream, type RecommendResponse } from '@/services/ai'
+import { ConversationService, type Conversation } from '@/services/conversation'
+import AiChatBody from './AiChatBody.vue'
+import AiChatHeader from './AiChatHeader.vue'
+import AiChatInput from './AiChatInput.vue'
 import Icon from './Icon.vue'
 import { showConfirm, showWarning } from '@/utils/errorHandler'
 import { getTtsStatus } from '@/services/tts'
 import { isLoggedIn } from '@/utils/auth'
-// 接收父组件传入的扩展状态
+
+interface SpeechRecognitionLike {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onstart: ((event: Event) => void) | null
+  onend: ((event: Event) => void) | null
+  onerror: ((event: any) => void) | null
+  onresult: ((event: any) => void) | null
+  start(): void
+  stop(): void
+  abort(): void
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognitionLike
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
+  }
+}
+
 const props = defineProps<{
   expanded?: boolean
+  modelVisible?: boolean
 }>()
 
-// 定义emit事件
 const emit = defineEmits<{
   expand: []
   close: []
+  toggleModelVisibility: []
 }>()
-
-/**
- * 简化版AI聊天组件
- * 作者：刘鑫
- * 时间：2025-01-27
- * 功能：专注于聊天功能，支持流式和普通模式切换，使用Pinia管理状态
- */
 
 const route = useRoute()
 const router = useRouter()
 const chatStore = useChatStore()
 
-// 组件本地状态
 const chatInput = ref('')
-const chatContainer = ref<HTMLElement>()
-const isModeDropdownOpen = ref(false)
-
-// 历史记录相关状态
+const bodyRef = ref<InstanceType<typeof AiChatBody> | null>(null)
 const conversations = ref<Conversation[]>([])
 const isLoadingHistory = ref(false)
 const showHistorySidebar = ref(false)
 const isAuthenticated = ref(isLoggedIn())
-
-// 推荐内容状态 - 每条消息独立的推荐数据
 const messageRecommendations = ref<Map<number, RecommendResponse>>(new Map())
 const loadingMessageIds = ref<Set<number>>(new Set())
-
-// 会话编辑状态
 const editingConversationId = ref<number | null>(null)
 const editingTitle = ref('')
 
-// 计算属性
+const voiceSupported = ref(false)
+const voiceListening = ref(false)
+const voiceInterimText = ref('')
+const voiceError = ref('')
+const recognition = ref<SpeechRecognitionLike | null>(null)
+
 const messages = computed(() => chatStore.messages)
 const isLoading = computed(() => chatStore.isLoading)
 const isStreaming = computed(() => chatStore.isStreaming)
@@ -65,11 +82,17 @@ const guestBannerText = computed(() => isCompact.value
   ? '游客体验中，聊天记录不会保存'
   : '当前为游客体验模式，聊天记录不会保存。登录后可保存历史会话。'
 )
-const modeToggleTitle = computed(() => `当前：${modeLabel.value}，点击切换模式`)
-const expandToggleTitle = computed(() => props.expanded ? '退出大窗模式' : '展开聊天窗')
 const compactBrandTitle = computed(() => `纳西妲 · ${sessionLabel.value} · ${modeLabel.value}`)
+const recommendationsByMessageId = computed<Record<number, RecommendResponse | undefined>>(() =>
+  Object.fromEntries(messageRecommendations.value.entries())
+)
+const quickPrompts = computed(() => {
+  if (route.name === 'post-detail') {
+    return ['帮我总结这篇文章', '推荐几篇相关文章']
+  }
+  return ['推荐几篇文章', '介绍一下这个博客']
+})
 
-// 语音（TTS）可用性与开关（状态在 store 内统一管理）
 const ttsStatusText = ref<string>('语音检测中...')
 const isTtsToggleDisabled = computed(() => !chatStore.ttsAvailable)
 const ttsToggleTitle = computed(() => {
@@ -79,59 +102,42 @@ const ttsToggleTitle = computed(() => {
   return ttsStatusText.value || '语音不可用'
 })
 
+const syncAuthState = () => {
+  isAuthenticated.value = isLoggedIn()
+}
+
 const toggleTts = () => {
   if (isTtsToggleDisabled.value) return
   chatStore.setTtsEnabled(!chatStore.ttsEnabled)
 }
 
-const syncAuthState = () => {
-  isAuthenticated.value = isLoggedIn()
-}
-
-// 清理消息中的[[RECOMMEND]]标记
 const cleanMessageContent = (content: string): string => {
-  // 移除 [[RECOMMEND]] ... [[/RECOMMEND]] 标记块
-  // 同时移除标记周围的空行，避免被 markdown 解析为代码块
   return content.replace(/\[\[RECOMMEND\]\][\s\S]*?\[\[\/RECOMMEND\]\]/g, '')
 }
 
-// 提取消息中的推荐参数（用于渲染）- 从原始内容中提取 [[RECOMMEND]] 格式
 const extractRecommendParams = (content: string): any => {
-  // 匹配 [[RECOMMEND]]...[[/RECOMMEND]] 格式
-  const match = content.match(/\[\[RECOMMEND\]\]\s*([\s\S]*?)\s*\[\[\/RECOMMEND\]\]/);
+  const match = content.match(/\[\[RECOMMEND\]\]\s*([\s\S]*?)\s*\[\[\/RECOMMEND\]\]/)
   if (match && match[1]) {
     try {
-      return JSON.parse(match[1]);
-    } catch (e) {
-      console.error('解析推荐参数失败:', e);
-      return null;
+      return JSON.parse(match[1])
+    } catch (error) {
+      console.error('解析推荐参数失败:', error)
     }
   }
-  return null;
+  return null
 }
 
-// 清理后的消息列表（用于显示）
 const cleanedMessages = computed(() => {
-  return messages.value.map(msg => ({
+  return messages.value.map((msg) => ({
     ...msg,
     displayContent: msg.type === 'ai' ? cleanMessageContent(msg.content) : msg.content
   }))
 })
 
-// 获取某条消息的推荐数据
-const getMessageRecommendData = (messageId: number): RecommendResponse | null => {
-  return messageRecommendations.value.get(messageId) || null
-}
-
-// 加载消息的推荐数据
 const loadMessageRecommendation = async (messageId: number, content: string) => {
   const params = extractRecommendParams(content)
   if (!params) return
-
-  // 如果已经加载过，跳过
   if (messageRecommendations.value.has(messageId)) return
-
-  // 检查是否正在加载
   if (loadingMessageIds.value.has(messageId)) return
 
   try {
@@ -145,14 +151,11 @@ const loadMessageRecommendation = async (messageId: number, content: string) => 
   }
 }
 
-// 加载所有AI消息的推荐数据
 const loadAllMessagesRecommendation = async () => {
   const aiMessages = messages.value.filter(msg => msg.type === 'ai')
-  const promises = aiMessages.map(msg => loadMessageRecommendation(msg.id, msg.content))
-  await Promise.all(promises)
+  await Promise.all(aiMessages.map(msg => loadMessageRecommendation(msg.id, msg.content)))
 }
 
-// 构建聊天上下文
 const buildChatContext = (): Record<string, any> => {
   const ctx: Record<string, any> = { page: route.name || '' }
   if (route.name === 'post-detail' && route.params.id) {
@@ -164,8 +167,6 @@ const buildChatContext = (): Record<string, any> => {
 
 let mediaPrimed = false
 const primeMediaOnce = () => {
-  // 在“用户点击发送”的同步事件里解锁媒体播放策略
-  // 否则后续由 SSE 驱动的音频播放可能被浏览器当作非用户交互而拦截/延迟
   if (mediaPrimed) return
   mediaPrimed = true
   try {
@@ -188,46 +189,30 @@ const primeMediaOnce = () => {
     }
   } catch {
   }
+
   try {
-    const a = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=')
-    a.volume = 0
-    a.play().catch(() => {
+    const audio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=')
+    audio.volume = 0
+    audio.play().catch(() => {
     })
   } catch {
   }
 }
 
-// 发送消息
-const sendMessage = async () => {
-  if (!chatInput.value.trim() || isLoading.value) return
-  syncAuthState()
-
-  // 发送前清空之前的推荐内容
-  // messageRecommendations.value.clear()
-
-  const content = chatInput.value.trim()
-  chatInput.value = ''
-
-  primeMediaOnce()
-  await chatStore.sendMessage(content, buildChatContext())
-  await scrollToBottom()
+const scrollToBottom = async () => {
+  await bodyRef.value?.scrollToBottom?.()
 }
 
-// 切换聊天模式
 const setMode = (newMode: ChatMode) => {
   chatStore.setMode(newMode)
-  isModeDropdownOpen.value = false
 }
 
-// 清空聊天记录
 const clearHistory = async () => {
   await chatStore.clearHistory()
 }
 
-// 加载会话历史列表
 const loadConversations = async () => {
-  if (!isAuthenticated.value) return
-  if (isLoadingHistory.value) return
+  if (!isAuthenticated.value || isLoadingHistory.value) return
 
   try {
     isLoadingHistory.value = true
@@ -239,7 +224,6 @@ const loadConversations = async () => {
   }
 }
 
-// 切换历史记录侧边栏
 const toggleHistorySidebar = () => {
   syncAuthState()
   if (!isAuthenticated.value) {
@@ -252,40 +236,28 @@ const toggleHistorySidebar = () => {
   }
 }
 
-// 加载指定会话的消息
 const loadConversation = async (conversationId: number) => {
   try {
     isLoadingHistory.value = true
+    const historyMessages = await ConversationService.messages(conversationId, 1, 100)
 
-    // 后端返回升序，直接使用无需反转
-    const messages = await ConversationService.messages(conversationId, 1, 100)
-
-    // 清空当前消息和推荐数据
     chatStore.clearHistory()
     messageRecommendations.value.clear()
-
-    // 设置会话ID
     chatStore.conversationId = conversationId
 
-    // 统一使用store方法添加消息，保留后端返回的id
-    messages.forEach(msg => {
+    historyMessages.forEach(msg => {
       if (msg.role === 'user') {
         chatStore.addUserMessage(msg.content, msg.id)
       } else if (msg.role === 'assistant') {
-        const aiMsg = chatStore.addAiMessage(msg.content, msg.id)
-        aiMsg.isStreaming = false // 历史消息不是流式，设为 false
+        const aiMessage = chatStore.addAiMessage(msg.content, msg.id)
+        aiMessage.isStreaming = false
       }
     })
 
-    // 使用后端原始id加载所有AI消息的推荐数据（并行）
-    const aiMessages = messages.filter((msg: any) => msg.role === 'assistant')
-    const promises = aiMessages.map((msg: any) => loadMessageRecommendation(msg.id, msg.content))
-    await Promise.all(promises)
+    const aiMessages = historyMessages.filter((msg: any) => msg.role === 'assistant')
+    await Promise.all(aiMessages.map((msg: any) => loadMessageRecommendation(msg.id, msg.content)))
 
-    // 关闭侧边栏
     showHistorySidebar.value = false
-
-    // 滚动到底部
     await scrollToBottom()
   } catch (error) {
     console.error('加载会话失败:', error)
@@ -294,19 +266,14 @@ const loadConversation = async (conversationId: number) => {
   }
 }
 
-// 删除会话
 const deleteConversation = async (conversationId: number, event: Event) => {
   event.stopPropagation()
-
   const ok = await showConfirm('确定要删除这个会话吗？', '确认删除')
   if (!ok) return
 
   try {
     await ConversationService.remove(conversationId)
-    // 从列表中移除
     conversations.value = conversations.value.filter(conv => conv.id !== conversationId)
-
-    // 如果删除的是当前会话，清空聊天
     if (chatStore.conversationId === conversationId) {
       chatStore.clearHistory()
     }
@@ -315,20 +282,16 @@ const deleteConversation = async (conversationId: number, event: Event) => {
   }
 }
 
-// 开始编辑会话标题
 const startEditTitle = (conversationId: number, currentTitle: string) => {
   editingConversationId.value = conversationId
   editingTitle.value = currentTitle || `会话 ${conversationId}`
   nextTick(() => {
-    const input = document.querySelector('.title-edit-input') as HTMLInputElement
-    if (input) {
-      input.focus()
-      input.select()
-    }
+    const input = document.querySelector('.title-edit-input') as HTMLInputElement | null
+    input?.focus()
+    input?.select()
   })
 }
 
-// 保存会话标题
 const saveTitle = async (conversationId: number) => {
   if (!editingTitle.value.trim()) {
     cancelEditTitle()
@@ -337,27 +300,22 @@ const saveTitle = async (conversationId: number) => {
 
   try {
     await ConversationService.rename(conversationId, editingTitle.value.trim())
-
-    // 更新本地会话列表
     const conversation = conversations.value.find(c => c.id === conversationId)
     if (conversation) {
       conversation.title = editingTitle.value.trim()
     }
-
-    cancelEditTitle()
   } catch (error) {
     console.error('重命名失败:', error)
+  } finally {
     cancelEditTitle()
   }
 }
 
-// 取消编辑会话标题
 const cancelEditTitle = () => {
   editingConversationId.value = null
   editingTitle.value = ''
 }
 
-// 格式化会话时间
 const formatConversationTime = (dateString?: string) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -367,22 +325,131 @@ const formatConversationTime = (dateString?: string) => {
 
   if (days === 0) {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-  } else if (days === 1) {
+  }
+  if (days === 1) {
     return '昨天'
-  } else if (days < 7) {
+  }
+  if (days < 7) {
     return `${days}天前`
-  } else {
-    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  }
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+}
+
+const mapSpeechError = (code?: string) => {
+  switch (code) {
+    case 'not-allowed':
+    case 'service-not-allowed':
+      return '语音识别权限被拒绝，请允许浏览器使用麦克风。'
+    case 'audio-capture':
+      return '未检测到可用麦克风，请检查设备后重试。'
+    case 'network':
+      return '语音识别网络异常，请稍后重试。'
+    case 'no-speech':
+      return '没有识别到语音，请再说一次。'
+    default:
+      return '语音识别暂时不可用，请改用文字输入。'
   }
 }
 
-// 处理展开聊天框
+const initVoiceRecognition = () => {
+  if (typeof window === 'undefined') return
+  const RecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (!RecognitionCtor) {
+    voiceSupported.value = false
+    return
+  }
+
+  voiceSupported.value = true
+  const speechRecognition = new RecognitionCtor()
+  speechRecognition.continuous = true
+  speechRecognition.interimResults = true
+  speechRecognition.lang = 'zh-CN'
+
+  speechRecognition.onstart = () => {
+    voiceListening.value = true
+    voiceError.value = ''
+  }
+
+  speechRecognition.onresult = (event: any) => {
+    let finalText = ''
+    let interimText = ''
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const transcript = event.results[i][0]?.transcript || ''
+      if (event.results[i].isFinal) {
+        finalText += transcript
+      } else {
+        interimText += transcript
+      }
+    }
+
+    if (finalText.trim()) {
+      chatInput.value = [chatInput.value.trim(), finalText.trim()].filter(Boolean).join(chatInput.value.trim() ? '\n' : '')
+    }
+    voiceInterimText.value = interimText.trim()
+  }
+
+  speechRecognition.onerror = (event: any) => {
+    voiceError.value = mapSpeechError(event?.error)
+    voiceListening.value = false
+    voiceInterimText.value = ''
+  }
+
+  speechRecognition.onend = () => {
+    voiceListening.value = false
+    voiceInterimText.value = ''
+  }
+
+  recognition.value = speechRecognition
+}
+
+const startVoiceRecognition = () => {
+  if (!voiceSupported.value || voiceListening.value || !recognition.value) return
+  voiceError.value = ''
+  voiceInterimText.value = ''
+  try {
+    recognition.value.start()
+  } catch (error) {
+    voiceError.value = '语音识别启动失败，请稍后重试。'
+  }
+}
+
+const stopVoiceRecognition = () => {
+  if (!voiceListening.value || !recognition.value) return
+  try {
+    recognition.value.stop()
+  } catch {
+  }
+}
+
+const sendMessage = async () => {
+  if (!chatInput.value.trim() || isLoading.value) return
+  syncAuthState()
+  stopVoiceRecognition()
+
+  const content = chatInput.value.trim()
+  chatInput.value = ''
+  voiceInterimText.value = ''
+
+  primeMediaOnce()
+  await chatStore.sendMessage(content, buildChatContext())
+  await scrollToBottom()
+}
+
+const applyPrompt = (prompt: string) => {
+  chatInput.value = prompt
+}
+
 const handleExpandChat = () => {
   emit('expand')
 }
 
 const handleCloseChat = () => {
+  stopVoiceRecognition()
   emit('close')
+}
+
+const handleToggleModelVisibility = () => {
+  emit('toggleModelVisibility')
 }
 
 const handleOpenChatEvent = async (event: Event) => {
@@ -394,56 +461,14 @@ const handleOpenChatEvent = async (event: Event) => {
   }
 }
 
-// 滚动到底部
-const scrollToBottom = async () => {
-  await nextTick()
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
-  }
-}
-
-// 处理回车发送
-const handleKeyPress = (event: KeyboardEvent) => {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    sendMessage()
-  }
-}
-
-// 格式化时间
-const formatTime = (date: Date) => {
-  return date.toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// 点击外部关闭下拉菜单
-const handleClickOutside = (event: MouseEvent) => {
-  const target = event.target as HTMLElement
-  if (!target.closest('.mode-selector')) {
-    isModeDropdownOpen.value = false
-  }
-}
-
-// 监听滚动以自动隐藏下拉菜单
-const handleScroll = () => {
-  isModeDropdownOpen.value = false
-}
-
-// 点击文章跳转到详情页
 const handlePostClick = (postId: number) => {
   router.push(`/post/${postId}`)
 }
 
-// 点击分类跳转到分类页
-const handleCategoryClick = (categoryId: number | undefined) => {
-  if (categoryId) {
-    router.push(`/category/${categoryId}`)
-  }
+const handleCategoryClick = (categoryId: number) => {
+  router.push(`/category/${categoryId}`)
 }
 
-// 监听流式结束，加载新消息的推荐数据
 watch(() => chatStore.isStreaming, async (streaming) => {
   if (!streaming && chatStore.messages.length > 0) {
     const lastMessage = messages.value[messages.value.length - 1]
@@ -453,28 +478,30 @@ watch(() => chatStore.isStreaming, async (streaming) => {
   }
 })
 
-// 生命周期
+watch(
+  () => messages.value.map(msg => `${msg.id}:${msg.content.length}:${msg.isStreaming ? 1 : 0}:${msg.isThinking ? 1 : 0}`).join('|'),
+  async () => {
+    await scrollToBottom()
+  }
+)
+
 onMounted(async () => {
   syncAuthState()
-  document.addEventListener('click', handleClickOutside)
   window.addEventListener('focus', syncAuthState)
   window.addEventListener('storage', syncAuthState)
   window.addEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
-  if (chatContainer.value) {
-    chatContainer.value.addEventListener('scroll', handleScroll)
-  }
+  initVoiceRecognition()
 
   try {
     const status = await getTtsStatus()
     const available = status.enabled === true && status.online === true
     chatStore.setTtsAvailable(available)
     ttsStatusText.value = status.message || (available ? '语音可用' : '语音不可用')
-  } catch (e: any) {
+  } catch {
     chatStore.setTtsAvailable(false)
     ttsStatusText.value = '语音检测失败'
   }
 
-  // 加载历史消息的推荐数据
   await nextTick()
   if (hasMessages.value) {
     await loadAllMessagesRecommendation()
@@ -482,23 +509,19 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('focus', syncAuthState)
   window.removeEventListener('storage', syncAuthState)
   window.removeEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
-  if (chatContainer.value) {
-    chatContainer.value.removeEventListener('scroll', handleScroll)
-  }
-  // 取消正在进行的流式请求
+  stopVoiceRecognition()
+  recognition.value?.abort()
   AiStream.cancel()
 })
 </script>
 
 <template>
-  <div class="chat-box" :class="{ 'expanded': expanded, 'compact': !expanded }">
+  <div class="chat-box" :class="{ expanded, compact: !expanded }">
     <div class="chat-popup">
-      <!-- 历史记录侧边栏 -->
-      <div v-if="expanded && isAuthenticated" class="history-sidebar" :class="{ 'show': showHistorySidebar }">
+      <div v-if="expanded && isAuthenticated" class="history-sidebar" :class="{ show: showHistorySidebar }">
         <div class="history-header">
           <h4>会话历史</h4>
           <button class="close-sidebar" @click="toggleHistorySidebar"><Icon name="close" /></button>
@@ -516,17 +539,30 @@ onUnmounted(() => {
           </div>
 
           <div v-else class="conversation-list">
-            <div v-for="conversation in conversations" :key="conversation.id" class="conversation-item"
-              :class="{ 'active': chatStore.conversationId === conversation.id }"
-              @click="loadConversation(conversation.id)">
+            <div
+              v-for="conversation in conversations"
+              :key="conversation.id"
+              class="conversation-item"
+              :class="{ active: chatStore.conversationId === conversation.id }"
+              @click="loadConversation(conversation.id)"
+            >
               <div class="conversation-info">
                 <div class="conversation-title">
-                  <span v-if="editingConversationId !== conversation.id"
-                    @click.stop="startEditTitle(conversation.id, conversation.title || '')" class="editable-title">
+                  <span
+                    v-if="editingConversationId !== conversation.id"
+                    @click.stop="startEditTitle(conversation.id, conversation.title || '')"
+                    class="editable-title"
+                  >
                     {{ conversation.title || `会话 ${conversation.id}` }}
                   </span>
-                  <input v-else v-model="editingTitle" @blur="saveTitle(conversation.id)"
-                    @keyup.enter="saveTitle(conversation.id)" @keyup.esc="cancelEditTitle()" class="title-edit-input" />
+                  <input
+                    v-else
+                    v-model="editingTitle"
+                    @blur="saveTitle(conversation.id)"
+                    @keyup.enter="saveTitle(conversation.id)"
+                    @keyup.esc="cancelEditTitle()"
+                    class="title-edit-input"
+                  />
                 </div>
                 <div class="conversation-meta">
                   <span class="message-count">{{ conversation.messageCount }} 条消息</span>
@@ -541,184 +577,65 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- 主聊天区域 -->
       <div class="chat-main" :class="{ 'with-sidebar': expanded && showHistorySidebar }">
-        <!-- 聊天头部 -->
-        <div class="chat-header" :class="{ compact: !expanded }">
-          <div class="header-left">
-            <div v-if="expanded" class="assistant-identity">
-              <div class="assistant-avatar">
-                <Icon name="bot" :size="18" />
-              </div>
-              <div class="assistant-meta">
-                <h3>纳西妲</h3>
-                <div class="assistant-status-row">
-                  <div class="mode-indicator">
-                    <span :class="['mode-dot', mode]"></span>
-                    <span class="mode-text">{{ modeLabel }}</span>
-                  </div>
-                  <div class="session-indicator" :class="{ guest: isGuestMode }">
-                    {{ sessionLabel }}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="compact-brand" :title="compactBrandTitle">
-              <Icon name="bot" :size="18" />
-              <span :class="['compact-status-dot', mode, { guest: isGuestMode }]"></span>
-            </div>
-          </div>
-          <div class="header-right">
-            <div class="mode-selector">
-              <button
-                class="icon-action-btn mode-toggle-btn"
-                :class="{ active: mode === 'stream' }"
-                @click="isModeDropdownOpen = !isModeDropdownOpen"
-                :title="modeToggleTitle"
-              >
-                <Icon :name="mode === 'stream' ? 'zap' : 'message'" :size="16" />
-              </button>
-              <div v-show="isModeDropdownOpen" class="mode-dropdown">
-                <button :class="['mode-option', { active: mode === 'stream' }]" @click="setMode('stream')">
-                  <span class="mode-option-dot stream"></span>
-                  流式模式（实时显示）
-                </button>
-                <button :class="['mode-option', { active: mode === 'normal' }]" @click="setMode('normal')">
-                  <span class="mode-option-dot normal"></span>
-                  普通模式（等待完整回复）
-                </button>
-              </div>
-            </div>
-
-            <button
-              class="icon-action-btn tts-toggle-btn"
-              :class="{ 'is-on': chatStore.ttsEnabled && chatStore.ttsAvailable }"
-              :disabled="isTtsToggleDisabled"
-              :title="ttsToggleTitle"
-              @click="toggleTts"
-            >
-              <Icon name="music" :size="16" />
-            </button>
-
-            <!-- 历史记录按钮 (仅在扩展模式下显示) -->
-            <button
-              v-if="expanded"
-              class="icon-action-btn history-btn"
-              @click="toggleHistorySidebar"
-              title="查看会话历史"
-            >
-              <Icon name="history" :size="16" />
-            </button>
-
-            <button class="icon-action-btn control-btn" @click="clearHistory" title="清空聊天">
-              <Icon name="trash2" :size="16" />
-            </button>
-
-            <button class="icon-action-btn expand-btn" @click="handleExpandChat" :title="expandToggleTitle">
-              <Icon :name="expanded ? 'minus' : 'layout'" :size="16" />
-            </button>
-
-            <button class="icon-action-btn close-btn" @click="handleCloseChat" title="关闭聊天窗口">
-              <Icon name="close" :size="16" />
-            </button>
-          </div>
+        <div class="chat-header-layer">
+          <AiChatHeader
+            :expanded="expanded"
+            :mode="mode"
+            :mode-label="modeLabel"
+            :is-guest-mode="isGuestMode"
+            :session-label="sessionLabel"
+            :compact-brand-title="compactBrandTitle"
+            :tts-enabled="chatStore.ttsEnabled"
+            :tts-available="chatStore.ttsAvailable"
+            :tts-toggle-title="ttsToggleTitle"
+            :show-history-button="!!expanded"
+            :show-model-toggle-button="!!expanded"
+            :model-visible="!!modelVisible"
+            @expand="handleExpandChat"
+            @close="handleCloseChat"
+            @clear="clearHistory"
+            @toggle-history="toggleHistorySidebar"
+            @toggle-model="handleToggleModelVisibility"
+            @toggle-tts="toggleTts"
+            @set-mode="setMode"
+          />
         </div>
 
-        <div v-if="isGuestMode" class="guest-banner">
-          {{ guestBannerText }}
+        <div class="chat-body-layer">
+          <AiChatBody
+            ref="bodyRef"
+            :messages="cleanedMessages"
+            :has-messages="hasMessages"
+            :is-loading="isLoading"
+            :is-streaming="isStreaming"
+            :error-message="errorMessage"
+            :is-guest-mode="isGuestMode"
+            :guest-banner-text="guestBannerText"
+            :expanded="expanded"
+            :recommendations="recommendationsByMessageId"
+            @clear-error="chatStore.errorMessage = ''"
+            @open-post="handlePostClick"
+            @open-category="handleCategoryClick"
+          />
         </div>
 
-        <!-- 错误提示 -->
-        <div v-if="errorMessage" class="error-banner">
-          <span class="error-icon"><Icon name="warning" /></span>
-          <span class="error-text">{{ errorMessage }}</span>
-          <button class="error-close" @click="chatStore.errorMessage = ''"><Icon name="close" /></button>
+        <div class="chat-input-layer">
+          <AiChatInput
+            v-model="chatInput"
+            :is-loading="isLoading"
+            :expanded="expanded"
+            :quick-prompts="quickPrompts"
+            :voice-supported="voiceSupported"
+            :voice-listening="voiceListening"
+            :voice-interim-text="voiceInterimText"
+            :voice-error="voiceError"
+            @apply-prompt="applyPrompt"
+            @send="sendMessage"
+            @start-voice="startVoiceRecognition"
+            @stop-voice="stopVoiceRecognition"
+          />
         </div>
-
-        <!-- 聊天消息列表 -->
-        <div ref="chatContainer" class="chat-messages">
-          <div v-if="!hasMessages" class="empty-state text-sm">
-            <p>你好！我是纳西妲，有什么我可以帮助你的吗？</p>
-          </div>
-
-          <div v-for="message in cleanedMessages" :key="message.id" :class="[
-            'message',
-            message.type,
-            {
-              'streaming': message.isStreaming && message.type === 'ai',
-              'error-message': message.isError
-            }
-          ]">
-            <div class="message-content">
-              <div class="message-text">
-                <!-- User messages: plain text -->
-                <div v-if="message.type === 'user'">
-                  {{ message.content }}
-                </div>
-                <!-- AI messages: markdown rendering -->
-                <div v-else>
-                  <MarkdownRenderer :content="message.displayContent" :is-streaming="message.isStreaming || false" />
-
-                  <!-- 消息内的推荐内容 -->
-                  <div v-if="message.type === 'ai' && !message.isStreaming" class="inline-recommendation">
-                    <template v-if="getMessageRecommendData(message.id)">
-                      <div class="recommendation-section" v-if="getMessageRecommendData(message.id)?.posts?.length">
-                        <div class="recommendation-header">
-                          <span class="recommendation-icon"><Icon name="book" /></span>
-                          <span class="recommendation-title">{{ getMessageRecommendData(message.id)?.reason }}</span>
-                        </div>
-                        <div class="recommendation-list">
-                          <div
-                            v-for="post in getMessageRecommendData(message.id)?.posts || []"
-                            :key="post.id"
-                            class="recommendation-item"
-                            @click="handlePostClick(post.id)"
-                          >
-                            <div class="recommendation-item-content">
-                              <span class="recommendation-item-title">{{ post.title }}</span>
-                              <div class="recommendation-item-meta">
-                                <span v-if="post.categoryName" class="meta-tag">{{ post.categoryName }}</span>
-                                <span class="meta-views"><Icon name="eye" size="12" /> {{ post.viewCount }}</span>
-                              </div>
-                            </div>
-                            <span class="recommendation-arrow">›</span>
-                          </div>
-                        </div>
-                        <div v-if="getMessageRecommendData(message.id)?.category" class="recommendation-more">
-                          <span @click="handleCategoryClick(getMessageRecommendData(message.id)?.category?.id)">
-                            查看 {{ getMessageRecommendData(message.id)?.category?.name }} 分类的全部文章 →
-                          </span>
-                        </div>
-                      </div>
-                    </template>
-                  </div>
-                </div>
-              </div>
-              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
-            </div>
-          </div>
-
-          <!-- 加载指示器 -->
-          <div v-if="isLoading && !isStreaming" class="message ai loading">
-            <div class="message-content">
-              <div class="message-text">
-                <span class="loading-dots">思考中</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 聊天输入区域 -->
-        <div class="chat-input">
-          <div class="input-container">
-            <textarea v-model="chatInput" @keypress="handleKeyPress" placeholder="输入消息... "
-              rows="1" :disabled="isLoading"></textarea>
-            <button @click="sendMessage" :disabled="!chatInput.trim() || isLoading" class="send-btn" title="发送消息">
-              {{ isLoading ? '发送中' : '发送' }}
-            </button>
-          </div>
-        </div>
-        <!-- 结束主聊天区域 -->
       </div>
     </div>
   </div>
@@ -730,20 +647,20 @@ onUnmounted(() => {
 .chat-box {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   position: relative;
-    border: 4px solid var(--bg-soft);
+  overflow: visible;
+}
+
+.chat-box.compact {
   overflow: hidden;
-  border-radius:16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
 }
 
 .chat-box.expanded {
-  border-radius: 16px;
   overflow: hidden;
+  border-radius: 24px;
+  background: #ffffff;
 }
 
 .chat-popup {
@@ -751,34 +668,103 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   position: relative;
+}
 
+.chat-box.expanded .chat-popup {
+  background: #ffffff;
 }
 
 .chat-main {
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  height: 100%;
+  position: relative;
   transition: margin-right 0.3s ease;
+}
+
+.chat-box.expanded .chat-main {
+  background: #ffffff;
 }
 
 .chat-main.with-sidebar {
   margin-right: 300px;
 }
 
-/* 历史记录侧边栏 */
+.chat-header-layer,
+.chat-body-layer,
+.chat-input-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.chat-header-layer {
+  top: 0;
+  z-index: 40;
+}
+
+.chat-body-layer {
+  top: 0;
+  bottom: 0;
+  z-index: 20;
+  min-height: 0;
+}
+
+.chat-input-layer {
+  bottom: 0;
+  z-index: 40;
+}
+
+.chat-box.compact .chat-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-box.compact .chat-header-layer,
+.chat-box.compact .chat-body-layer,
+.chat-box.compact .chat-input-layer {
+  position: relative;
+  inset: auto;
+}
+
+.chat-box.compact .chat-body-layer {
+  flex: 1;
+  min-height: 0;
+}
+
+.chat-box.expanded .chat-header-layer {
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.chat-box.expanded .chat-body-layer {
+  top: 0;
+  bottom: 0;
+}
+
+.chat-box.expanded .chat-input-layer {
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.chat-box.expanded .chat-body-layer :deep(.chat-body) {
+  padding-top: 80px;
+  padding-bottom: 120px;
+}
+
 .history-sidebar {
   position: absolute;
   top: 0;
   right: -300px;
   width: 300px;
   height: 100%;
-  background: var(--bg-card);
+  background: #ffffff;
   border-left: 1px solid var(--border-light);
   transition: right 0.3s ease;
   display: flex;
   flex-direction: column;
-  z-index: 10;
+  z-index: 60;
 }
 
 .history-sidebar.show {
@@ -961,772 +947,12 @@ onUnmounted(() => {
   color: var(--color-error);
 }
 
-/* 历史记录按钮 */
-.history-btn {
-  position: relative;
-}
-
-/* 聊天头部 */
-.chat-header {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-light);
-  background: var(--bg-soft);
-  gap: 12px;
-}
-
-.chat-header.compact {
-  padding: 12px 14px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.assistant-identity {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.assistant-avatar,
-.compact-brand {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(16, 185, 129, 0.12));
-  border: 1px solid rgba(59, 130, 246, 0.16);
-  color: var(--color-primary);
-  position: relative;
-  flex-shrink: 0;
-}
-
-.assistant-meta {
-  min-width: 0;
-}
-
-.assistant-meta h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-title);
-}
-
-.assistant-status-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
-
-.compact-status-dot {
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  border: 2px solid var(--bg-soft);
-  background: var(--color-primary);
-}
-
-.compact-status-dot.stream {
-  background: var(--color-success);
-}
-
-.compact-status-dot.normal {
-  background: var(--color-primary);
-}
-
-.compact-status-dot.guest {
-  box-shadow: 0 0 0 3px rgba(251, 188, 4, 0.18);
-}
-
-.icon-action-btn {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border-radius: 10px;
-  border: 1px solid var(--border-light);
-  background: var(--bg-hover);
-  color: var(--text-main);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.icon-action-btn:hover:not(:disabled) {
-  background: var(--bg-active);
-  border-color: rgba(59, 130, 246, 0.28);
-  color: var(--color-primary);
-  transform: translateY(-1px);
-}
-
-.icon-action-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.chat-box.compact .header-right {
-  gap: 6px;
-}
-
-.tts-toggle-btn {
-  position: relative;
-}
-
-.tts-toggle-btn.is-on {
-  border-color: var(--color-primary);
-  background: var(--bg-active);
-  color: var(--color-primary);
-}
-
-/* 模式指示器 */
-.mode-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8125rem;
-  color: var(--text-subtle);
-}
-
-.session-indicator {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--bg-hover);
-  color: var(--text-subtle);
-  font-size: 12px;
-  border: 1px solid var(--border-light);
-}
-
-.session-indicator.guest {
-  color: var(--color-warning);
-  border-color: rgba(251, 188, 4, 0.4);
-  background: rgba(251, 188, 4, 0.08);
-}
-
-.mode-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.mode-dot.stream {
-  background-color: var(--color-success);
-}
-
-.mode-dot.normal {
-  background-color: var(--color-primary);
-}
-
-/* 模式选择器 */
-.mode-selector {
-  position: relative;
-}
-
-.mode-toggle-btn {
-  position: relative;
-}
-
-.mode-toggle-btn.active {
-  color: var(--color-success);
-  border-color: rgba(16, 185, 129, 0.3);
-  background: rgba(16, 185, 129, 0.08);
-}
-
-.mode-dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  z-index: 1000;
-  min-width: 200px;
-}
-
-.mode-option {
-  width: 100%;
-  padding: 10px 12px;
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.875rem;
-  color: var(--text-main);
-}
-
-.mode-option:hover {
-  background: var(--bg-hover);
-}
-
-.mode-option.active {
-  background: var(--bg-active);
-  color: var(--color-primary);
-}
-
-.mode-option-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.mode-option-dot.stream {
-  background-color: var(--color-success);
-}
-
-.mode-option-dot.normal {
-  background-color: var(--color-primary);
-}
-
-/* 控制按钮 */
-.control-btn {
-  position: relative;
-}
-
-.expand-btn {
-  position: relative;
-}
-
-.close-btn {
-  position: relative;
-}
-
-/* 错误提示横幅 */
-.error-banner {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1.5rem;
-  background: rgba(239, 68, 68, 0.1);
-  border-bottom: 1px solid var(--color-error);
-  color: var(--color-error);
-  font-size: 0.875rem;
-}
-
-.guest-banner {
-  padding: 10px 16px;
-  background: rgba(251, 188, 4, 0.08);
-  border-bottom: 1px solid rgba(251, 188, 4, 0.24);
-  color: var(--text-subtle);
-  font-size: 13px;
-}
-
-.error-icon {
-  flex-shrink: 0;
-}
-
-.error-text {
-  flex: 1;
-}
-
-.error-close {
-  background: none;
-  border: none;
-  color: var(--color-error);
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 4px;
-}
-
-.error-close:hover {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-/* 消息列表 */
-.chat-messages {
-  width: 100%;
-  padding: 16px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background: var(--bg-main);
-  height: 100%;
-  max-height: 1000px;
-}
-
-.chat-messages::-webkit-scrollbar {
-  width: 6px;
-}
-
-.chat-messages::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-  background: var(--border-base);
-  border-radius: 3px;
-}
-
-.empty-state {
-  text-align: center;
-  color: var(--text-subtle);
-  font-size: 14px;
-  margin-top: 40px;
-}
-
-.empty-state p {
-  margin: 0;
-  padding: 16px;
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px dashed var(--border-light);
-}
-
-/* 消息样式 */
-.message {
-  display: flex;
-  animation: messageSlideIn 0.4s ease-out;
-}
-
-.message.user {
-  justify-content: flex-end;
-}
-
-.message.ai {
-  justify-content: flex-start;
-}
-
-.message-content {
-  max-width: 78%;
-  display: flex;
-  flex-direction: column;
-}
-
-.message-text {
-  padding: 12px 16px;
-  border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.6;
-  word-break: break-word;
-  position: relative;
-}
-
-.message.user .message-text {
-  background: var(--color-primary);
-  color: #ffffff;
-  border-bottom-right-radius: 6px;
-}
-
-.message.ai .message-text {
-  background: var(--bg-card);
-  color: var(--text-main);
-  border: 1px solid var(--border-light);
-  border-bottom-left-radius: 6px;
-}
-
-.message.streaming .message-text {
-  position: relative;
-}
-
-.message.error-message .message-text {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: var(--color-error);
-  color: var(--color-error);
-}
-
-.message.loading .message-text {
-  background: var(--bg-hover);
-  color: var(--text-subtle);
-}
-
-.message-time {
-  font-size: 11px;
-  color: var(--text-subtle);
-  margin-top: 4px;
-  padding: 0 4px;
-}
-
-.message.user .message-time {
-  text-align: right;
-}
-
-.message.ai .message-time {
-  text-align: left;
-}
-
-.chat-box.compact .chat-messages {
-  padding: 14px;
-  gap: 10px;
-}
-
-.chat-box.compact .message-content {
-  max-width: 86%;
-}
-
-.chat-box.compact .message-text {
-  padding: 11px 14px;
-  border-radius: 16px;
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.chat-box.compact .guest-banner {
-  padding: 8px 14px;
-  font-size: 12px;
-}
-
-.loading-dots::after {
-  content: '';
-  animation: loadingDots 1.5s infinite;
-}
-
-/* 输入区域 */
-.chat-input {
-  width: 100%;
-  padding: 16px;
-  background: var(--bg-soft);
-  border-top: 1px solid var(--border-light);
-  /* position: relative; */
-}
-
-/* 展开状态下确保输入框在最顶层 */
-.chat-box.expanded .chat-input {
-  position: relative;
-}
-
-/* 确保输入容器和文本区域也在最顶层 */
-.input-container {
-  position: relative;
-  z-index: 1003;
-  display: flex;
-  gap: 8px;
-  align-items: flex-end;
-}
-
-.chat-input textarea {
-  position: relative;
-}
-
-.input-container textarea {
-  flex: 1;
-  padding: 10px 16px;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: inherit;
-  resize: none;
-  outline: none;
-  background: var(--bg-main);
-  color: var(--text-main);
-  min-height: 40px;
-  max-height: 120px;
-}
-
-.input-container textarea:focus {
-  border-color: var(--color-primary);
-}
-
-.input-container textarea:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.send-btn {
-  min-width: 60px;
-  min-height: 40px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: var(--color-primary);
-  color: white;
-}
-
-.send-btn:hover:not(:disabled) {
-  background: var(--color-primary-dark);
-  transform: translateY(-1px);
-}
-
-.send-btn:disabled {
-  background: var(--bg-hover);
-  color: var(--text-subtle);
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* 动画 */
-@keyframes messageSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.2);
-    opacity: 0.7;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes loadingDots {
-  0% {
-    content: '';
-  }
-
-  25% {
-    content: '.';
-  }
-
-  50% {
-    content: '..';
-  }
-
-  75% {
-    content: '...';
-  }
-
-  100% {
-    content: '';
-  }
-}
-
 @keyframes spin {
   0% {
     transform: rotate(0deg);
   }
-
   100% {
     transform: rotate(360deg);
   }
-}
-
-/* 响应式设计 */
-@include respond(md) {
-  .message-content {
-    max-width: 85%;
-  }
-
-  .chat-header {
-    padding: 12px 16px;
-  }
-
-  .assistant-status-row {
-    gap: 8px;
-  }
-
-  .chat-messages {
-    padding: 12px;
-  }
-
-  .chat-input {
-    padding: 12px;
-  }
-
-  .chat-box.compact .header-right {
-    gap: 5px;
-  }
-
-  .chat-box.compact .icon-action-btn {
-    width: 34px;
-    height: 34px;
-  }
-}
-
-/* 推荐内容样式 */
-.recommendation-section {
-  margin: 16px 0;
-  padding: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  animation: slideUp 0.3s ease-out;
-}
-
-.chat-box.compact .recommendation-section {
-  margin: 12px 0 0;
-  padding: 12px;
-  border-radius: 10px;
-}
-
-.chat-box.compact .recommendation-item {
-  padding: 10px;
-}
-
-.chat-box.compact .recommendation-item-title {
-  font-size: 13px;
-}
-
-.chat-box.compact .recommendation-item-meta {
-  gap: 8px;
-  font-size: 11px;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.recommendation-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-main);
-}
-
-.recommendation-icon {
-  font-size: 18px;
-}
-
-.recommendation-title {
-  color: var(--color-primary);
-}
-
-.recommendation-loading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  color: var(--text-subtle);
-  font-size: 13px;
-}
-
-.loading-spinner-small {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border-light);
-  border-top: 2px solid var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.recommendation-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.recommendation-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-  background: var(--bg-hover);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-}
-
-.recommendation-item:hover {
-  background: var(--bg-active);
-  border-color: var(--color-primary);
-}
-
-.recommendation-item-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.recommendation-item-title {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-main);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.recommendation-item-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-subtle);
-}
-
-.meta-tag {
-  padding: 2px 8px;
-  background: var(--color-primary);
-  color: white;
-  border-radius: 4px;
-  font-size: 11px;
-}
-
-.recommendation-arrow {
-  font-size: 18px;
-  color: var(--text-subtle);
-  margin-left: 8px;
-}
-
-.recommendation-more {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-light);
-  text-align: center;
-  font-size: 13px;
-}
-
-.recommendation-more span {
-  color: var(--color-primary);
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-}
-
-.recommendation-more span:hover {
-  opacity: 0.8;
 }
 </style>
