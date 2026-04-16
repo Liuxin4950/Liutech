@@ -22,8 +22,10 @@ import { useLipSync } from '@/composables/useLipSync'
 
 const props = withDefaults(defineProps<{
     interactive?: boolean
+    followPointer?: boolean
 }>(), {
-    interactive: true
+    interactive: true,
+    followPointer: true
 })
 
 // 声明全局变量类型
@@ -71,6 +73,7 @@ const audioChecker = ref<HTMLAudioElement | null>(null); // 音频检测对象
 
 // 窗口大小调整处理器
 let resizeHandler: (() => void) | null = null;
+let windowMouseMoveHandler: ((event: MouseEvent) => void) | null = null
 
 // 音乐胶囊引用
 const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null);
@@ -82,6 +85,37 @@ const applyInteractionMode = () => {
     if (app?.stage) {
         app.stage.interactive = props.interactive === true
     }
+}
+
+const focusModelAtClientPoint = (clientX: number, clientY: number) => {
+    if (!model || !app?.renderer?.view) return
+    const canvas = app.renderer.view as HTMLCanvasElement
+    const rect = canvas.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+
+    const scaleX = app.renderer.width / rect.width
+    const scaleY = app.renderer.height / rect.height
+    const x = (clientX - rect.left) * scaleX
+    const y = (clientY - rect.top) * scaleY
+
+    model.focus(x, y)
+}
+
+const updatePointerTracking = () => {
+    if (windowMouseMoveHandler) {
+        window.removeEventListener('mousemove', windowMouseMoveHandler)
+        windowMouseMoveHandler = null
+    }
+
+    if (props.followPointer !== true || props.interactive === true) {
+        return
+    }
+
+    windowMouseMoveHandler = (event: MouseEvent) => {
+        focusModelAtClientPoint(event.clientX, event.clientY)
+    }
+
+    window.addEventListener('mousemove', windowMouseMoveHandler, { passive: true })
 }
 
 const setMouthOpen = (value: number) => {
@@ -416,6 +450,7 @@ onMounted(() => {
         }
 
         applyInteractionMode()
+        updatePointerTracking()
     };
 
     // 开始初始化
@@ -442,6 +477,10 @@ const cleanup = () => {
     if (resizeHandler) {
         window.removeEventListener('resize', resizeHandler);
         resizeHandler = null;
+    }
+    if (windowMouseMoveHandler) {
+        window.removeEventListener('mousemove', windowMouseMoveHandler)
+        windowMouseMoveHandler = null
     }
 
     // 5. 清理模型资源
@@ -499,8 +538,9 @@ onBeforeUnmount(() => {
     lipSync.destroy()
 });
 
-watch(() => props.interactive, () => {
+watch(() => [props.interactive, props.followPointer], () => {
     applyInteractionMode()
+    updatePointerTracking()
 })
 
 
@@ -516,11 +556,6 @@ watch(() => props.interactive, () => {
     width: 100%;
     height: 100%;
     display: block;
-}
-
-.container.passive,
-.container.passive #canvas {
-    pointer-events: none;
 }
 
 #canvas {

@@ -203,6 +203,12 @@ const scrollToBottom = async () => {
   await bodyRef.value?.scrollToBottom?.()
 }
 
+const scrollBodyBy = (deltaY: number) => {
+  const scrollElement = bodyRef.value?.getScrollElement?.()
+  if (!scrollElement) return
+  scrollElement.scrollTop += deltaY
+}
+
 const setMode = (newMode: ChatMode) => {
   chatStore.setMode(newMode)
 }
@@ -515,6 +521,11 @@ onUnmounted(() => {
   stopVoiceRecognition()
   recognition.value?.abort()
   AiStream.cancel()
+})
+
+defineExpose({
+  scrollToBottom,
+  scrollBodyBy
 })
 </script>
 

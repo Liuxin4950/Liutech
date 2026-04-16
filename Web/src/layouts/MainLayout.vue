@@ -40,6 +40,7 @@ const aiChatActive = ref(false)
 
 const chatStore = useChatStore()
 const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
+const aiChatRef = ref<InstanceType<typeof AiChat> | null>(null)
 let currentTtsAudio: HTMLAudioElement | null = null
 let isTtsPlaying = false
 let playbackToken = 0
@@ -323,6 +324,11 @@ const toggleChat = () => {
   }
 }
 
+const handleModelClick = () => {
+  if (isExpanded.value) return
+  toggleChat()
+}
+
 // 处理聊天框展开
 const handleExpandChat = () => {
   if (isExpanded.value) {
@@ -340,6 +346,12 @@ const handleCloseChat = () => {
 const handleToggleModelVisibility = () => {
   if (!isExpanded.value) return
   showModel.value = !showModel.value
+}
+
+const handleModelWheel = (event: WheelEvent) => {
+  if (!isExpanded.value) return
+  event.preventDefault()
+  aiChatRef.value?.scrollBodyBy?.(event.deltaY)
 }
 
 const handleModelStatusChange = () => {
@@ -379,13 +391,15 @@ const handleAuthRequired = (action: () => void, message?: string) => {
           <Live2d
             v-show="showModel"
             ref="live2dRef"
-            @click="toggleChat"
+            @click="handleModelClick"
+            @wheel="handleModelWheel"
             class="live2d"
-            :class="{ 'centered': isExpanded, passive: isExpanded }"
-            :interactive="!isExpanded"
+            :class="{ 'centered': isExpanded }"
+            :interactive="true"
           ></Live2d>
           <AiChat
             v-show="showChat"
+            ref="aiChatRef"
             class="ai-chat"
             :expanded="isExpanded"
             :model-visible="showModel"
@@ -490,12 +504,16 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   width: 400px;
   height: 400px;
   position: fixed;
-  bottom: 0;
-  right: 0;
+  top: calc(100vh - 400px);
+  left: calc(100vw - 400px);
   z-index: 10;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-property: top, left, width, height, transform, padding;
+  transition-duration: 0.4s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   @include respond(md) {
     width: 100%;
+    left: 0;
+    top: calc(100vh - 400px);
     padding: 0 20px;
   }
 }
@@ -506,8 +524,6 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -46%);
-  bottom: auto;
-  right: auto;
 }
 
 .ai-box {
@@ -521,19 +537,23 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   width: 100%;
   height: 100%;
   z-index: 30;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-property: width, height, left, bottom, transform, opacity;
+  transition-duration: 0.4s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ai-chat {
   width: 400px;
   height: 500px;
   position: absolute;
-  top: 0;
-  left: 0;
-  transform: translateY(-100px) translateX(-400px);
+  right: 100%;
+  bottom: 0;
+  transition-property: width, height, right, bottom, opacity;
+  transition-duration: 0.4s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   @include respond(md) {
     width: 100%;
-    transform: translateY(-100px) translateX(0);
+    right: 0;
 
   }
 }
@@ -542,7 +562,8 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 .ai-content.expanded .ai-chat {
   width: 100%;
   height: 100%;
-  transform: none;
+  right: 0;
+  bottom: 0;
 }
 
 /* Live2d居中样式 */
@@ -551,15 +572,9 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   bottom: 0%;
   left: 50%;
   transform: translate(-50%, -20%);
-  width: min(400px, 40vw);
-  height: min(400px, 40vw);
+  width: min(450px, 40vw);
+  height: min(450px, 40vw);
   z-index: 30;
 }
-
-.live2d.passive {
-  pointer-events: none;
-}
-
-
 
 </style>
