@@ -150,13 +150,13 @@ defineExpose({
 }
 
 .chat-body.expanded {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 24px;
   overflow: hidden;
 }
 
 .chat-body.compact {
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-top: none;
   border-bottom: none;
@@ -164,15 +164,15 @@ defineExpose({
 
 .guest-banner {
   padding: 10px 16px;
-  background: rgba(251, 188, 4, 0.08);
-  border-bottom: 1px solid rgba(251, 188, 4, 0.24);
+  background: var(--bg-warning);
+  border-bottom: 1px solid var(--border-light);
   color: var(--text-subtle);
   font-size: 13px;
 }
 
 .chat-body.expanded .guest-banner {
-  background: #fff8e8;
-  border-bottom-color: #f2d38a;
+  background: var(--bg-warning);
+  border-bottom-color: var(--border-light);
 }
 
 .error-banner {
@@ -181,14 +181,14 @@ defineExpose({
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1.5rem;
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--bg-error);
   border-bottom: 1px solid var(--color-error);
   color: var(--color-error);
   font-size: 0.875rem;
 }
 
 .chat-body.expanded .error-banner {
-  background: #fef2f2;
+  background: var(--bg-error);
 }
 
 .error-icon {
@@ -209,7 +209,7 @@ defineExpose({
 }
 
 .error-close:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: var(--bg-error);
 }
 
 .chat-messages {
@@ -246,13 +246,13 @@ defineExpose({
 .empty-state p {
   margin: 0;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.66);
+  background: var(--bg-card);
   border-radius: 12px;
   border: 1px dashed var(--border-light);
 }
 
 .chat-body.expanded .empty-state p {
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 .message {
@@ -285,26 +285,22 @@ defineExpose({
 
 .message.user .message-text {
   background: var(--color-primary);
-  color: #ffffff;
+  color: var(--text-on-primary);
   border-bottom-right-radius: 6px;
 }
 
 .message.ai .message-text {
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--bg-card);
   color: var(--text-main);
-  border: 1px solid rgba(255, 255, 255, 0.58);
+  border: 1px solid var(--border-light);
   border-bottom-left-radius: 6px;
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 
 .chat-body.expanded .message.ai .message-text {
-  background: #ffffff;
+  background: var(--bg-card);
   border-color: var(--border-light);
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 .thinking-message {
@@ -337,7 +333,7 @@ defineExpose({
 }
 
 .message.error-message .message-text {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--bg-error);
   border-color: var(--color-error);
   color: var(--color-error);
 }
@@ -381,14 +377,14 @@ defineExpose({
 .recommendation-section {
   margin: 16px 0 0;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 12px;
   animation: slideUp 0.3s ease-out;
 }
 
 .chat-body.expanded .recommendation-section {
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 .chat-body.compact .recommendation-section {
@@ -465,7 +461,7 @@ defineExpose({
 .meta-tag {
   padding: 2px 8px;
   background: var(--color-primary);
-  color: white;
+  color: var(--text-on-primary);
   border-radius: 4px;
   font-size: 11px;
 }

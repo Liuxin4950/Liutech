@@ -36,8 +36,6 @@ const loginMessage = ref('')
 // 防抖处理，避免频繁点击
 let modelToggleTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const aiChatActive = ref(false)
-
 const chatStore = useChatStore()
 const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
 const aiChatRef = ref<InstanceType<typeof AiChat> | null>(null)

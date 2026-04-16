@@ -1,15 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { ChatMode } from '@/stores/chat'
 import Icon from './Icon.vue'
 
 const props = defineProps<{
   expanded?: boolean
   mode: ChatMode
-  modeLabel: string
   isGuestMode: boolean
-  sessionLabel: string
-  compactBrandTitle: string
   ttsEnabled: boolean
   ttsAvailable: boolean
   ttsToggleTitle: string
@@ -30,9 +27,13 @@ const emit = defineEmits<{
 
 const isModeDropdownOpen = ref(false)
 
-const modeToggleTitle = () => `当前：${props.modeLabel}，点击切换模式`
+const modeLabel = computed(() => props.mode === 'stream' ? '流式模式' : '普通模式')
+const sessionLabel = computed(() => props.isGuestMode ? '游客体验' : '已登录')
+const modeToggleTitle = () => `当前：${modeLabel.value}，点击切换模式`
 const expandToggleTitle = () => props.expanded ? '退出大窗模式' : '进入大窗模式'
 const modelToggleTitle = () => props.modelVisible ? '隐藏模型' : '显示模型'
+const identityTitle = computed(() => `纳西妲 · ${modeLabel.value} · ${sessionLabel.value}`)
+const guestBadgeTitle = computed(() => props.isGuestMode ? '当前为游客体验模式' : '当前为已登录模式')
 
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
@@ -58,26 +59,17 @@ onUnmounted(() => {
 <template>
   <div class="chat-header" :class="{ compact: !expanded }">
     <div class="header-left">
-      <div v-if="expanded" class="assistant-identity">
-        <div class="assistant-avatar">
+      <div class="assistant-identity" :title="identityTitle">
+        <div class="assistant-avatar" :class="mode">
           <Icon name="bot" :size="18" />
+          <span class="assistant-mode-dot" :class="mode"></span>
+          <span v-if="isGuestMode" class="assistant-guest-badge" :title="guestBadgeTitle">
+            <Icon name="user" :size="10" />
+          </span>
         </div>
-        <div class="assistant-meta">
+        <div v-if="expanded" class="assistant-meta">
           <h3>纳西妲</h3>
-          <div class="assistant-status-row">
-            <div class="mode-indicator">
-              <span :class="['mode-dot', mode]"></span>
-              <span class="mode-text">{{ modeLabel }}</span>
-            </div>
-            <div class="session-indicator" :class="{ guest: isGuestMode }">
-              {{ sessionLabel }}
-            </div>
-          </div>
         </div>
-      </div>
-      <div v-else class="compact-brand" :title="compactBrandTitle">
-        <Icon name="bot" :size="18" />
-        <span :class="['compact-status-dot', mode, { guest: isGuestMode }]"></span>
       </div>
     </div>
 
@@ -158,23 +150,14 @@ onUnmounted(() => {
   padding: 16px 20px;
   border: 1px solid var(--border-light);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--bg-card);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
 .chat-header:not(.compact) {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: 0;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   box-shadow: none;
-}
-
-.chat-header:not(.compact) .assistant-avatar {
-  background: linear-gradient(135deg, #eff6ff, #ecfdf5);
-  border-color: #dbeafe;
 }
 
 .chat-header.compact {
@@ -188,6 +171,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   min-width: 0;
+  flex: 1;
 }
 
 .header-right {
@@ -195,6 +179,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   margin-left: auto;
+  flex-shrink: 0;
 }
 
 .assistant-identity {
@@ -204,19 +189,22 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.assistant-avatar,
-.compact-brand {
+.assistant-avatar {
   width: 36px;
   height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(16, 185, 129, 0.12));
-  border: 1px solid rgba(59, 130, 246, 0.16);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
   color: var(--color-primary);
   position: relative;
   flex-shrink: 0;
+}
+
+.assistant-avatar.stream {
+  color: var(--color-success);
 }
 
 .assistant-meta {
@@ -230,35 +218,38 @@ onUnmounted(() => {
   color: var(--text-title);
 }
 
-.assistant-status-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
-
-.compact-status-dot {
+.assistant-mode-dot {
   position: absolute;
-  right: 5px;
-  bottom: 5px;
+  right: 4px;
+  bottom: 4px;
   width: 9px;
   height: 9px;
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.82);
+  border: 2px solid var(--bg-card);
   background: var(--color-primary);
 }
 
-.compact-status-dot.stream {
+.assistant-mode-dot.stream {
   background: var(--color-success);
 }
 
-.compact-status-dot.normal {
+.assistant-mode-dot.normal {
   background: var(--color-primary);
 }
 
-.compact-status-dot.guest {
-  box-shadow: 0 0 0 3px rgba(251, 188, 4, 0.18);
+.assistant-guest-badge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--bg-warning);
+  color: var(--color-warning);
+  border: 1px solid var(--border-light);
 }
 
 .icon-action-btn {
@@ -279,7 +270,7 @@ onUnmounted(() => {
 
 .icon-action-btn:hover:not(:disabled) {
   background: var(--bg-active);
-  border-color: rgba(59, 130, 246, 0.28);
+  border-color: var(--color-primary);
   color: var(--color-primary);
   transform: translateY(-1px);
 }
@@ -290,64 +281,14 @@ onUnmounted(() => {
   transform: none;
 }
 
-.mode-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.8125rem;
-  color: var(--text-subtle);
-}
-
-.session-indicator {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--bg-hover);
-  color: var(--text-subtle);
-  font-size: 12px;
-  border: 1px solid var(--border-light);
-}
-
-.session-indicator.guest {
-  color: var(--color-warning);
-  border-color: rgba(251, 188, 4, 0.4);
-  background: rgba(251, 188, 4, 0.08);
-}
-
-.chat-header:not(.compact) .session-indicator.guest {
-  border-color: #f2d38a;
-  background: #fff8e8;
-}
-
-.mode-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.mode-dot.stream {
-  background-color: var(--color-success);
-}
-
-.mode-dot.normal {
-  background-color: var(--color-primary);
-}
-
 .mode-selector {
   position: relative;
 }
 
 .mode-toggle-btn.active {
   color: var(--color-success);
-  border-color: rgba(16, 185, 129, 0.3);
-  background: rgba(16, 185, 129, 0.08);
-}
-
-.chat-header:not(.compact) .mode-toggle-btn.active {
-  border-color: #a7f3d0;
-  background: #ecfdf5;
+  border-color: var(--color-success);
+  background: var(--bg-success);
 }
 
 .tts-toggle-btn.is-on {
@@ -358,8 +299,8 @@ onUnmounted(() => {
 
 .expand-btn.active,
 .model-btn.active {
-  border-color: #bfdbfe;
-  background: #eff6ff;
+  border-color: var(--color-primary);
+  background: var(--bg-active);
   color: var(--color-primary);
 }
 
@@ -414,22 +355,5 @@ onUnmounted(() => {
 
 .mode-option-dot.normal {
   background-color: var(--color-primary);
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.2);
-    opacity: 0.7;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
 }
 </style>

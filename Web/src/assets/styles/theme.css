@@ -22,6 +22,7 @@
     --bg-card: #ffffff;      /* 卡片背景（保持白底） */
     --bg-element: #F7F9FC;   /* 元素背景（输入框、次级背景） */
     --bg-hover: #F1F3F4;     /* 列表悬停色（更自然的灰色） */
+    --bg-active: #E8F0FE;    /* 激活态背景（与主色体系一致） */
     --bg-tag: #E8F0FE;       /* 标签背景（呼应主色调） */
     --bg-tag-hover: #5a77d5; /* 标签hover背景（使用主色） */
 
@@ -80,6 +81,7 @@
     --bg-card: #2D2F30;      /* 卡片背景（现代感） */
     --bg-element: #3C4043;   /* 元素背景 */
     --bg-hover: #3C4043;     /* hover 背景 */
+    --bg-active: #334155;    /* 激活态背景 */
     --bg-tag: #3C4043;       /* 标签背景 */
     --bg-tag-hover: #8AB4F8; /* 标签hover背景（使用主色） */
 

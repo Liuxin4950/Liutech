@@ -103,17 +103,13 @@ const toggleVoice = () => {
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--border-light);
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: var(--bg-card);
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
 }
 
 .chat-input.expanded {
   border-radius: 0;
-  background: #ffffff;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  background: var(--bg-card);
   box-shadow: none;
 }
 
@@ -143,7 +139,7 @@ const toggleVoice = () => {
 
 .prompt-pill:hover {
   background: var(--bg-active);
-  border-color: #bfdbfe;
+  border-color: var(--color-primary);
   color: var(--color-primary);
 }
 
@@ -202,8 +198,8 @@ const toggleVoice = () => {
 }
 
 .voice-toggle-btn.listening {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: var(--bg-error);
+  border-color: var(--color-error);
   color: var(--color-error);
 }
 
@@ -216,7 +212,7 @@ const toggleVoice = () => {
 .voice-control-btn {
   padding: 0 16px;
   background: var(--color-primary);
-  color: white;
+  color: var(--text-on-primary);
 }
 
 .voice-control-btn.listening {

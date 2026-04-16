@@ -76,13 +76,10 @@ const hasMessages = computed(() => chatStore.hasMessages)
 const errorMessage = computed(() => chatStore.errorMessage)
 const isGuestMode = computed(() => !isAuthenticated.value)
 const isCompact = computed(() => !props.expanded)
-const modeLabel = computed(() => mode.value === 'stream' ? '流式模式' : '普通模式')
-const sessionLabel = computed(() => isGuestMode.value ? '游客体验' : '已登录')
 const guestBannerText = computed(() => isCompact.value
   ? '游客体验中，聊天记录不会保存'
   : '当前为游客体验模式，聊天记录不会保存。登录后可保存历史会话。'
 )
-const compactBrandTitle = computed(() => `纳西妲 · ${sessionLabel.value} · ${modeLabel.value}`)
 const recommendationsByMessageId = computed<Record<number, RecommendResponse | undefined>>(() =>
   Object.fromEntries(messageRecommendations.value.entries())
 )
@@ -593,10 +590,7 @@ defineExpose({
           <AiChatHeader
             :expanded="expanded"
             :mode="mode"
-            :mode-label="modeLabel"
             :is-guest-mode="isGuestMode"
-            :session-label="sessionLabel"
-            :compact-brand-title="compactBrandTitle"
             :tts-enabled="chatStore.ttsEnabled"
             :tts-available="chatStore.ttsAvailable"
             :tts-toggle-title="ttsToggleTitle"
@@ -671,7 +665,7 @@ defineExpose({
 .chat-box.expanded {
   overflow: hidden;
   border-radius: 24px;
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 .chat-popup {
@@ -682,7 +676,7 @@ defineExpose({
 }
 
 .chat-box.expanded .chat-popup {
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 .chat-main {
@@ -693,7 +687,7 @@ defineExpose({
 }
 
 .chat-box.expanded .chat-main {
-  background: #ffffff;
+  background: var(--bg-card);
 }
 
 .chat-main.with-sidebar {
@@ -770,7 +764,7 @@ defineExpose({
   right: -300px;
   width: 300px;
   height: 100%;
-  background: #ffffff;
+  background: var(--bg-card);
   border-left: 1px solid var(--border-light);
   transition: right 0.3s ease;
   display: flex;
@@ -899,12 +893,12 @@ defineExpose({
 }
 
 .editable-title:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--bg-hover);
 }
 
 .title-edit-input {
   width: 100%;
-  border: 1px solid #d9d9d9;
+  border: 1px solid var(--border-base);
   border-radius: 4px;
   padding: 2px 4px;
   font-size: 14px;
@@ -916,7 +910,7 @@ defineExpose({
 
 .title-edit-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+  box-shadow: 0 0 0 2px var(--bg-active);
 }
 
 .conversation-meta {
@@ -954,7 +948,7 @@ defineExpose({
 }
 
 .delete-conversation:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--bg-error);
   color: var(--color-error);
 }
 
