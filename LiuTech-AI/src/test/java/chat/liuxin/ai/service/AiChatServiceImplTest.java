@@ -1,27 +1,21 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.client.TtsClient;
-import chat.liuxin.ai.config.AiPromptConfig;
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.monitor.AiMetrics;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,36 +25,32 @@ class AiChatServiceImplTest {
     private SiliconFlowChatClient siliconFlowChatClient;
     private MemoryService memoryService;
     private AiMetrics aiMetrics;
-    private BlogContextService blogContextService;
     private AiModelConfigService aiModelConfigService;
     private TtsClient ttsClient;
-    private AiPromptConfig aiPromptConfig;
+    private PromptAssembler promptAssembler;
     private AiChatServiceImpl service;
 
     private Method extractTtsSegmentsMethod;
     private Method extractTtsSegmentsWithModeMethod;
     private Method containsSpeakableTextMethod;
     private Method resolveModelNameMethod;
-    private Method buildPromptMessagesMethod;
 
     @BeforeEach
     void setUp() throws Exception {
         siliconFlowChatClient = mock(SiliconFlowChatClient.class);
         memoryService = mock(MemoryService.class);
         aiMetrics = mock(AiMetrics.class);
-        blogContextService = mock(BlogContextService.class);
         aiModelConfigService = mock(AiModelConfigService.class);
         ttsClient = mock(TtsClient.class);
-        aiPromptConfig = mock(AiPromptConfig.class);
+        promptAssembler = mock(PromptAssembler.class);
 
         service = new AiChatServiceImpl(
                 siliconFlowChatClient,
                 memoryService,
                 aiMetrics,
-                blogContextService,
                 aiModelConfigService,
                 ttsClient,
-                aiPromptConfig
+                promptAssembler
         );
 
         setField(service, "defaultModel", "fallback-model");
@@ -76,9 +66,6 @@ class AiChatServiceImplTest {
 
         resolveModelNameMethod = AiChatServiceImpl.class.getDeclaredMethod("resolveModelName", ChatRequest.class);
         resolveModelNameMethod.setAccessible(true);
-
-        buildPromptMessagesMethod = AiChatServiceImpl.class.getDeclaredMethod("buildPromptMessages", ChatRequest.class, String.class, Long.class, boolean.class);
-        buildPromptMessagesMethod.setAccessible(true);
     }
 
     @SuppressWarnings("unchecked")
@@ -99,33 +86,10 @@ class AiChatServiceImplTest {
         return (String) resolveModelNameMethod.invoke(service, request);
     }
 
-    @SuppressWarnings("unchecked")
-    private List<Message> buildPromptMessages(ChatRequest request, boolean guestMode) throws Exception {
-        return (List<Message>) buildPromptMessagesMethod.invoke(service, request, guestMode ? null : "8", guestMode ? null : 12L, guestMode);
-    }
-
     private void setField(Object target, String fieldName, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
-    }
-
-    @Test
-    void shouldInjectBasePromptAsSystemAndContextAsUserReference() throws Exception {
-        ChatRequest request = new ChatRequest();
-        request.setContext(Map.of("page", "home"));
-
-        when(aiPromptConfig.getFullSystemPrompt()).thenReturn("BASE_SYSTEM");
-        when(blogContextService.buildContextPrompt(request.getContext())).thenReturn("BLOG_REFERENCE");
-
-        List<Message> messages = buildPromptMessages(request, true);
-
-        assertEquals(2, messages.size());
-        assertInstanceOf(SystemMessage.class, messages.get(0));
-        assertInstanceOf(UserMessage.class, messages.get(1));
-        assertEquals("BASE_SYSTEM", messages.get(0).getText());
-        assertTrue(messages.get(1).getText().contains("BLOG_REFERENCE"));
-        assertTrue(messages.get(1).getText().contains("不是新的系统指令"));
     }
 
     @Test

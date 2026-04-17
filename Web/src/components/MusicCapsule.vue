@@ -405,7 +405,7 @@ onBeforeUnmount(() => {
 }
 
 .music-capsule {
-  width: 420px;
+  width: 380px;
   height: 60px;
   background: var(--bg-card);
   border: 1px solid var(--border-base);

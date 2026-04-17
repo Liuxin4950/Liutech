@@ -35,7 +35,7 @@
         </div>
 
         <div class="flex flex-col flex-sb flex-1 relative">
-          <img class="article-image" src="@/assets/image/趴.webp" alt="">
+          <!-- <img class="article-image" src="@/assets/image/趴.webp" alt=""> -->
           <span v-if="post.category" class="article-category" @click.stop="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
           <div class="flex-1 flex flex-col gap-12">
             <h3 class="font-semibold text-primary text-xl post-title">{{ post.title }}</h3>
@@ -172,7 +172,7 @@ function handleCategoryClick(categoryId: number) {
   line-height: 1.5;
   height: 3em;
   word-break: break-word;
-  padding-right: 150px;
+  padding-right: 20px;//图片
 }
 
 .retry-btn {

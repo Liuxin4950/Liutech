@@ -1,6 +1,7 @@
 package chat.liuxin.ai.config;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -26,12 +27,20 @@ public class ChatClientConfig {
     /**
      * 创建并配置ChatClient Bean
      *
-     * @param builder ChatClient构建器，由Spring AI自动提供
-     * @param aiPromptConfig AI提示词配置，包含系统角色和行为规范
+     * 避免在@Bean方法签名中直接引用 ChatModel，防止 IDE/运行时类路径异常时
+     * 在 Spring 反射解析阶段提前触发 NoClassDefFoundError。
+     *
+     * @param applicationContext Spring 容器
      * @return 配置完成的ChatClient实例
      */
     @Bean
-    public ChatClient chatClient(ChatClient.Builder builder) {
-        return builder.build();
+    public ChatClient chatClient(ApplicationContext applicationContext) {
+        try {
+            Class<?> chatModelClass = Class.forName("org.springframework.ai.chat.model.ChatModel");
+            Object chatModel = applicationContext.getBean(chatModelClass);
+            return (ChatClient) ChatClient.class.getMethod("create", chatModelClass).invoke(null, chatModel);
+        } catch (Exception e) {
+            throw new IllegalStateException("创建 ChatClient 失败，请检查 Spring AI 依赖与 IDE 运行时类路径是否一致", e);
+        }
     }
 }

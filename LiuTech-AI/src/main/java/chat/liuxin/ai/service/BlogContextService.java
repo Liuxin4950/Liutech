@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList;
 
 /**
  * 博客上下文服务
@@ -33,19 +32,21 @@ public class BlogContextService {
      * @param context 前端传递的上下文信息，包含page、postId等
      * @return 增强后的上下文提示
      */
-    public String buildContextPrompt(Map<String, Object> context) {
+    public String buildContextPrompt(Map<String, Object> context, String userMessage) {
         StringBuilder contextPrompt = new StringBuilder();
-        String siteProfilePrompt = getSiteProfilePrompt();
-        if (!siteProfilePrompt.isBlank()) {
-            contextPrompt.append("【博客基础信息】\n");
-            contextPrompt.append(siteProfilePrompt);
+        String page = context == null ? null : asString(context.get("page"));
+
+        if (shouldIncludeSiteProfile(page, userMessage)) {
+            String siteProfilePrompt = getSiteProfilePrompt();
+            if (!siteProfilePrompt.isBlank()) {
+                contextPrompt.append("【博客基础信息】\n");
+                contextPrompt.append(siteProfilePrompt);
+            }
         }
 
         if (context == null || context.isEmpty()) {
             return contextPrompt.toString();
         }
-
-        String page = (String) context.get("page");
 
         // 如果在文章详情页，自动加载文章内容
         if ("post-detail".equals(page) && context.containsKey("postId")) {
@@ -66,6 +67,34 @@ public class BlogContextService {
         appendRecommendationContext(contextPrompt, context);
 
         return contextPrompt.toString();
+    }
+
+    private boolean shouldIncludeSiteProfile(String page, String userMessage) {
+        if ("about".equals(page) || "home".equals(page)) {
+            return true;
+        }
+        if (userMessage == null || userMessage.isBlank()) {
+            return false;
+        }
+        String normalized = userMessage.toLowerCase();
+        return normalized.contains("作者")
+                || normalized.contains("博主")
+                || normalized.contains("个人")
+                || normalized.contains("关于你")
+                || normalized.contains("关于这个博客")
+                || normalized.contains("博客")
+                || normalized.contains("站点")
+                || normalized.contains("liutech");
+    }
+
+    /**
+     * 根据上下文构建增强的系统提示
+     *
+     * @param context 前端传递的上下文信息，包含page、postId等
+     * @return 增强后的上下文提示
+     */
+    public String buildContextPrompt(Map<String, Object> context) {
+        return buildContextPrompt(context, null);
     }
 
     /**
@@ -158,8 +187,8 @@ public class BlogContextService {
             return;
         }
 
-        List<String> sections = new ArrayList<>();
-        for (Object item : recommendations) {
+        for (int recommendationIndex = recommendations.size() - 1; recommendationIndex >= 0; recommendationIndex--) {
+            Object item = recommendations.get(recommendationIndex);
             if (!(item instanceof Map<?, ?> rawMap)) {
                 continue;
             }
@@ -187,26 +216,16 @@ public class BlogContextService {
                 section.append("  ").append(index++).append(". ")
                         .append("ID=").append(asString(post.get("id")))
                         .append(" | 标题=").append(defaultString(asString(post.get("title")), "未命名文章"));
-                String categoryName = asString(post.get("categoryName"));
-                if (categoryName != null) {
-                    section.append(" | 分类=").append(categoryName);
-                }
-                String summary = asString(post.get("summary"));
-                if (summary != null && !summary.isBlank()) {
-                    section.append(" | 摘要=").append(summary);
-                }
                 section.append("\n");
+                if (index > 3) {
+                    break;
+                }
             }
-            sections.add(section.toString().trim());
-        }
-
-        if (sections.isEmpty()) {
+            contextPrompt.append("\n\n【最近展示给用户的推荐内容】\n");
+            contextPrompt.append("以下内容已经真实展示给用户。如果用户追问刚才推荐的文章，请基于这些推荐项继续回答。\n");
+            contextPrompt.append(section.toString().trim());
             return;
         }
-
-        contextPrompt.append("\n\n【最近展示给用户的推荐内容】\n");
-        contextPrompt.append("以下内容已经真实展示给用户。如果用户追问“刚才推荐的第几篇是什么”“展开说说那篇推荐文章”，请基于这些推荐项继续回答。\n");
-        contextPrompt.append(String.join("\n", sections));
     }
 
     private String asString(Object value) {

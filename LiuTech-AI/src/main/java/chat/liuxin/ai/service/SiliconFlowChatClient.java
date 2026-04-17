@@ -1,6 +1,7 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.exception.AIServiceException;
+import chat.liuxin.ai.mcp.BlogChatTools;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ import java.util.List;
 public class SiliconFlowChatClient {
 
     private final ChatClient chatClient;
+    private final BlogChatTools blogChatTools;
 
     @Value("${spring.ai.model.default:zai-org/GLM-4.6}")
     private String defaultModel;
@@ -121,6 +123,7 @@ public class SiliconFlowChatClient {
                     .prompt()
                     .messages(messages)
                     .options(safeOptions)
+                    .tools(blogChatTools)
                     .call()
                     .content();
             
@@ -204,6 +207,7 @@ public class SiliconFlowChatClient {
                     .prompt()
                     .messages(messages)
                     .options(safeStreamOptions)
+                    .tools(blogChatTools)
                     .stream()
                     .content();
             
