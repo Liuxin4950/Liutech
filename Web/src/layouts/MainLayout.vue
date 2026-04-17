@@ -70,6 +70,7 @@ const stopTtsPlayback = () => {
   }
   currentTtsAudio = null
   isTtsPlaying = false
+  live2dRef.value?.resumeMusicAfterSpeechIfNeeded?.()
 }
 
 const waitOnce = (audio: HTMLAudioElement, event: string, timeoutMs: number) => {
@@ -202,6 +203,7 @@ const playNextTts = async () => {
   } finally {
     if (token === playbackToken) {
       isTtsPlaying = false
+      live2dRef.value?.resumeMusicAfterSpeechIfNeeded?.()
     }
   }
 }

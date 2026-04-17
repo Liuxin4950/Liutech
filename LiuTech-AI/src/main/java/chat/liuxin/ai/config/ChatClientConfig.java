@@ -31,10 +31,7 @@ public class ChatClientConfig {
      * @return 配置完成的ChatClient实例
      */
     @Bean
-    public ChatClient chatClient(ChatClient.Builder builder, AiPromptConfig aiPromptConfig) {
-        String fullSystemPrompt = aiPromptConfig.getFullSystemPrompt();
-        return builder
-                .defaultSystem(fullSystemPrompt != null ? fullSystemPrompt : "")
-                .build();
+    public ChatClient chatClient(ChatClient.Builder builder) {
+        return builder.build();
     }
 }

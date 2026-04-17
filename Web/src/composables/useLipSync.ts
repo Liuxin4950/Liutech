@@ -64,6 +64,7 @@ export const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partia
   let context: AudioContext | null = null
   let analyser: AnalyserNode | null = null
   let source: MediaElementAudioSourceNode | null = null
+  let sourceMap: WeakMap<HTMLAudioElement, MediaElementAudioSourceNode> | null = null
   let data: Uint8Array<ArrayBuffer> | null = null
   let rafId: number | null = null
   let mouthSmoothed = 0
@@ -79,6 +80,7 @@ export const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partia
       analyser.fftSize = 2048
       analyser.smoothingTimeConstant = 0.85
       data = new Uint8Array(new ArrayBuffer(analyser.fftSize))
+      sourceMap = new WeakMap()
 
       analyser.connect(context.destination)
     }
@@ -122,8 +124,15 @@ export const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partia
       }
 
       audio = mediaElement
-      source = context.createMediaElementSource(mediaElement)
-      source.connect(analyser)
+      const cachedSource = sourceMap?.get(mediaElement)
+      source = cachedSource ?? context.createMediaElementSource(mediaElement)
+      if (!cachedSource) {
+        sourceMap?.set(mediaElement, source)
+      }
+      try {
+        source.connect(analyser)
+      } catch {
+      }
     }
 
     detachAudioListeners()
@@ -216,6 +225,7 @@ export const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partia
     }
     source = null
     analyser = null
+    sourceMap = null
     data = null
     audio = null
   }

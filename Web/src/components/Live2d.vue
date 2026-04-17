@@ -77,6 +77,7 @@ let windowMouseMoveHandler: ((event: MouseEvent) => void) | null = null
 
 // 音乐胶囊引用
 const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null);
+let shouldResumeMusicAfterSpeech = false
 
 const applyInteractionMode = () => {
     if (model) {
@@ -138,12 +139,29 @@ const lipSync = useLipSync(setMouthOpen, {
 function onMusicPlay(audio: HTMLAudioElement) {
     if (!audio) return
     if (!model) return
+    shouldResumeMusicAfterSpeech = false
     lipSync.start(audio)
 }
 
 // 音乐暂停事件处理
 function onMusicPause() {
     lipSync.stop()
+}
+
+const suspendMusicForSpeech = () => {
+    const capsule = musicCapsuleRef.value
+    if (!capsule?.isPlaying?.()) return
+    shouldResumeMusicAfterSpeech = true
+    capsule.pauseMusic()
+}
+
+const resumeMusicAfterSpeechIfNeeded = async () => {
+    if (!shouldResumeMusicAfterSpeech) return
+    shouldResumeMusicAfterSpeech = false
+    try {
+        await musicCapsuleRef.value?.resumeMusic?.()
+    } catch {
+    }
 }
 
 /**
@@ -155,6 +173,7 @@ function onMusicPause() {
  */
 const speakAudioUrl = async (url: string) => {
     if (!model) return null
+    suspendMusicForSpeech()
     return lipSync.speak({ url, play: true, volume: 1, crossOrigin: 'anonymous' })
 }
 
@@ -168,6 +187,7 @@ const speakAudioUrl = async (url: string) => {
 const speakAudioElement = async (audio: HTMLAudioElement) => {
     if (!model) return null
     if (!audio) return null
+    suspendMusicForSpeech()
     try {
         audio.preload = 'auto'
         audio.crossOrigin = 'anonymous'
@@ -183,6 +203,7 @@ const speakAudioElement = async (audio: HTMLAudioElement) => {
 defineExpose({
     speakAudioUrl,
     speakAudioElement,
+    resumeMusicAfterSpeechIfNeeded,
     lipSyncConfig: lipSync.config,
     setLipSyncConfig: lipSync.updateConfig
 })

@@ -1,45 +1,72 @@
 <template>
-  <div class="music-capsule" v-if="musicList.length > 0" @click.stop>
-    <!-- 封面旋转区域 -->
-    <div class="cover-wrapper" :class="{ rotating: isPlaying }" @click="togglePlay">
-      <img
-        v-if="currentMusic?.coverUrl"
-        :src="currentMusic.coverUrl"
-        alt="封面"
-        class="cover-image"
-      />
-      <div v-else class="cover-placeholder">
-        <span class="music-icon">♪</span>
+  <div v-if="musicList.length > 0" class="music-shell" @click.stop>
+    <div class="music-capsule" :class="{ collapsed: isCollapsed }">
+      <div class="cover-wrapper" :class="{ rotating: isPlaying }" @click="toggleCollapse" :title="isCollapsed ? '展开音乐胶囊' : '折叠音乐胶囊'">
+        <img
+          v-if="currentMusic?.coverUrl"
+          :src="currentMusic.coverUrl"
+          alt="封面"
+          class="cover-image"
+        />
+        <div v-else class="cover-placeholder">
+          <span class="music-icon">♪</span>
+        </div>
+      </div>
+
+      <div v-if="!isCollapsed && currentMusic" class="music-info">
+        <div class="music-title">{{ currentMusic.title }}</div>
+        <div class="music-artist">{{ currentMusic.artist || '未知艺术家' }}</div>
+      </div>
+
+      <div v-if="!isCollapsed" class="controls">
+        <button class="control-btn" @click.stop="playPrev" title="上一首">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+          </svg>
+        </button>
+
+        <button class="control-btn play-btn" @click.stop="togglePlay" :title="isPlaying ? '暂停' : '播放'">
+          <svg v-if="!isPlaying" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+          </svg>
+        </button>
+
+        <button class="control-btn" @click.stop="playNext" title="下一首">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+          </svg>
+        </button>
+
+        <button class="control-btn list-btn" @click.stop="togglePlaylist" :title="showPlaylist ? '收起歌单' : '查看歌单'">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M8 6h12"></path>
+            <path d="M8 12h12"></path>
+            <path d="M8 18h12"></path>
+            <circle cx="4" cy="6" r="1"></circle>
+            <circle cx="4" cy="12" r="1"></circle>
+            <circle cx="4" cy="18" r="1"></circle>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <!-- 歌曲信息 -->
-    <div class="music-info" v-if="currentMusic">
-      <div class="music-title">{{ currentMusic.title }}</div>
-      <div class="music-artist">{{ currentMusic.artist || '未知艺术家' }}</div>
-    </div>
-
-    <!-- 控制按钮 -->
-    <div class="controls">
-      <button class="control-btn" @click.stop="playPrev" title="上一首">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
-        </svg>
-      </button>
-
-      <button class="control-btn play-btn" @click.stop="togglePlay" :title="isPlaying ? '暂停' : '播放'">
-        <svg v-if="!isPlaying" viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-          <path d="M8 5v14l11-7z"/>
-        </svg>
-        <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-          <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-        </svg>
-      </button>
-
-      <button class="control-btn" @click.stop="playNext" title="下一首">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-          <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
-        </svg>
+    <div v-if="showPlaylist && !isCollapsed" class="playlist-panel">
+      <button
+        v-for="(item, index) in musicList"
+        :key="item.id"
+        class="playlist-item"
+        :class="{ active: index === currentIndex }"
+        @click.stop="selectTrack(index)"
+        :title="item.title"
+      >
+        <span class="playlist-index">{{ index + 1 }}</span>
+        <span class="playlist-text">
+          <span class="playlist-title">{{ item.title }}</span>
+          <span class="playlist-artist">{{ item.artist || '未知艺术家' }}</span>
+        </span>
       </button>
     </div>
   </div>
@@ -55,6 +82,8 @@ const currentIndex = ref(0)
 const currentMusic = ref<MusicItem | null>(null)
 const isPlaying = ref(false)
 const isPaused = ref(false)
+const showPlaylist = ref(false)
+const isCollapsed = ref(false)
 
 // 音频对象
 let fullAudio: HTMLAudioElement | null = null   // 伴奏
@@ -309,6 +338,28 @@ const playNext = () => {
   }
 }
 
+const selectTrack = (index: number) => {
+  if (index < 0 || index >= musicList.value.length) return
+  const shouldAutoPlay = isPlaying.value || isPaused.value
+  currentIndex.value = index
+  currentMusic.value = musicList.value[index]
+  showPlaylist.value = false
+  if (shouldAutoPlay) {
+    playMusic()
+  }
+}
+
+const togglePlaylist = () => {
+  showPlaylist.value = !showPlaylist.value
+}
+
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
+  if (isCollapsed.value) {
+    showPlaylist.value = false
+  }
+}
+
 // 组件暴露的方法
 defineExpose({
   playMusic,
@@ -317,7 +368,11 @@ defineExpose({
   stopMusic,
   togglePlay,
   playNext,
-  playPrev
+  playPrev,
+  selectTrack,
+  togglePlaylist,
+  isPlaying: () => isPlaying.value,
+  isPaused: () => isPaused.value
 })
 
 // 事件定义
@@ -337,11 +392,20 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 @use "@/assets/styles/tokens" as *;
-.music-capsule {
+.music-shell {
   position: absolute;
   top: -70px;
   right: 20px;
-  width: 380px;
+  z-index: 100;
+
+  @include respond(md) {
+    top: -60px;
+    right: 10px;
+  }
+}
+
+.music-capsule {
+  width: 420px;
   height: 60px;
   background: var(--bg-card);
   border: 1px solid var(--border-base);
@@ -353,14 +417,29 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: width 0.28s ease, padding 0.28s ease, border-radius 0.28s ease, box-shadow 0.2s ease;
 
   @include respond(md) {
-    width: 280px;
+    width: 320px;
     height: 50px;
-    top: -60px;
-    right: 10px;
     padding: 6px 12px 6px 6px;
   }
+
+  &.collapsed {
+    width: 60px;
+    padding: 8px;
+    border-radius: 999px;
+    gap: 0;
+
+    @include respond(md) {
+      width: 50px;
+      padding: 6px;
+    }
+  }
+}
+
+.list-btn {
+  flex-shrink: 0;
 }
 
 .cover-wrapper {
@@ -449,6 +528,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .control-btn {
@@ -478,6 +558,81 @@ onBeforeUnmount(() => {
       height: 16px;
     }
   }
+}
+
+.playlist-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 8px;
+  border-radius: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-base);
+  box-shadow: var(--shadow-lg);
+  z-index: 101;
+
+  @include respond(md) {
+    width: 260px;
+    right: 10px;
+    max-height: 220px;
+  }
+}
+
+.playlist-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  &.active {
+    background: var(--bg-active);
+    color: var(--text-title);
+  }
+}
+
+.playlist-index {
+  width: 20px;
+  font-size: 12px;
+  color: var(--text-subtle);
+  flex-shrink: 0;
+}
+
+.playlist-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.playlist-title,
+.playlist-artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playlist-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.playlist-artist {
+  font-size: 11px;
+  color: var(--text-subtle);
 }
 
 .play-btn {

@@ -31,7 +31,7 @@ spring:
       chat:
         options:
           model: "zai-org/GLM-4.6"
-          temperature: 0.9
+          temperature: 0.6
     # 默认模型配置
     model:
       default: "zai-org/GLM-4.6"
