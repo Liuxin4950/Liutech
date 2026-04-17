@@ -9,7 +9,6 @@ import AiChatHeader from './AiChatHeader.vue'
 import AiChatInput from './AiChatInput.vue'
 import Icon from './Icon.vue'
 import { showConfirm, showWarning } from '@/utils/errorHandler'
-import { getTtsStatus } from '@/services/tts'
 import { isLoggedIn } from '@/utils/auth'
 
 interface SpeechRecognitionLike {
@@ -153,11 +152,40 @@ const loadAllMessagesRecommendation = async () => {
   await Promise.all(aiMessages.map(msg => loadMessageRecommendation(msg.id, msg.content)))
 }
 
+const buildRecommendationContext = () => {
+  const latestAiMessages = [...messages.value]
+    .filter(msg => msg.type === 'ai')
+    .slice(-3)
+
+  const recommendationSnapshots = latestAiMessages
+    .map(msg => {
+      const recommendation = messageRecommendations.value.get(msg.id)
+      if (!recommendation || !recommendation.posts?.length) return null
+      return {
+        type: recommendation.type,
+        reason: recommendation.reason,
+        posts: recommendation.posts.slice(0, 5).map(post => ({
+          id: post.id,
+          title: post.title,
+          summary: post.summary,
+          categoryName: post.categoryName
+        }))
+      }
+    })
+    .filter(Boolean)
+
+  return recommendationSnapshots.length > 0 ? recommendationSnapshots : undefined
+}
+
 const buildChatContext = (): Record<string, any> => {
   const ctx: Record<string, any> = { page: route.name || '' }
   if (route.name === 'post-detail' && route.params.id) {
     const n = Number(route.params.id)
     if (Number.isFinite(n)) ctx.postId = n
+  }
+  const recommendations = buildRecommendationContext()
+  if (recommendations) {
+    ctx.recommendations = recommendations
   }
   return ctx
 }
@@ -496,10 +524,15 @@ onMounted(async () => {
   initVoiceRecognition()
 
   try {
-    const status = await getTtsStatus()
-    const available = status.enabled === true && status.online === true
-    chatStore.setTtsAvailable(available)
-    ttsStatusText.value = status.message || (available ? '语音可用' : '语音不可用')
+    const runtime = await chatStore.loadRuntime()
+    const status = runtime?.tts
+    const available = status?.enabled === true && status?.online === true
+    if (status) {
+      const voiceSuffix = status.voiceModel ? ` / ${status.voiceModel}` : ''
+      ttsStatusText.value = (status.message || (available ? '语音可用' : '语音不可用')) + voiceSuffix
+    } else {
+      ttsStatusText.value = available ? '语音可用' : '语音不可用'
+    }
   } catch {
     chatStore.setTtsAvailable(false)
     ttsStatusText.value = '语音检测失败'

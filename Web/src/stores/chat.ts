@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { Ai, type AiChatRequest } from '@/services/ai'
+import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
 import { AiStream, StreamError } from '@/services/aiStream'
 import { isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
@@ -23,11 +24,13 @@ export interface ChatMessage {
 
 export interface TtsAudioItem {
   seq: number
-  audioUrl: string
+  audioUrl?: string
   text?: string
   conversationId?: number
   enqueuedAt?: number
   audioEl?: HTMLAudioElement
+  status?: 'ready' | 'skipped'
+  reason?: string
 }
 
 /**
@@ -203,18 +206,24 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const enqueueTtsAudio = (item: TtsAudioItem) => {
-    if (!item || !item.audioUrl) return
+    if (!item) return
     if (typeof item.seq !== 'number' || item.seq <= 0) return
     const now = Date.now()
-    const enriched: TtsAudioItem = { ...item, enqueuedAt: item.enqueuedAt ?? now }
-    try {
-      // 收到音频地址后立即预加载，尽量把“网络/磁盘等待”提前到播放之前完成
-      const pre = new Audio(enriched.audioUrl)
-      pre.preload = 'auto'
-      pre.crossOrigin = 'anonymous'
-      pre.load()
-      enriched.audioEl = pre
-    } catch {
+    const enriched: TtsAudioItem = {
+      ...item,
+      status: item.status ?? (item.audioUrl ? 'ready' : 'skipped'),
+      enqueuedAt: item.enqueuedAt ?? now
+    }
+    if (enriched.status === 'ready' && enriched.audioUrl) {
+      try {
+        // 收到音频地址后立即预加载，尽量把“网络/磁盘等待”提前到播放之前完成
+        const pre = new Audio(enriched.audioUrl)
+        pre.preload = 'auto'
+        pre.crossOrigin = 'anonymous'
+        pre.load()
+        enriched.audioEl = pre
+      } catch {
+      }
     }
     ttsAudioBuffer.value[item.seq] = enriched
   }
@@ -407,16 +416,27 @@ export const useChatStore = defineStore('chat', () => {
         (chunk: string) => {
           updateStreamingMessage(chunk)
         },
-        // onAudio - 接收到语音事件
-        (payload: any) => {
+        // onEvent - 接收到语音/心跳事件
+        (eventType: string, payload: any) => {
           if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
-          if (payload && payload.audioUrl && typeof payload.seq === 'number') {
+          if (eventType === 'audio' && payload && payload.audioUrl && typeof payload.seq === 'number') {
             enqueueTtsAudio({
               seq: payload.seq,
               audioUrl: payload.audioUrl,
               text: payload.text,
               conversationId: payload.conversationId,
               enqueuedAt: Date.now()
+            })
+            return
+          }
+          if (eventType === 'audio-skip' && payload && typeof payload.seq === 'number') {
+            enqueueTtsAudio({
+              seq: payload.seq,
+              text: payload.text,
+              conversationId: payload.conversationId,
+              enqueuedAt: Date.now(),
+              status: 'skipped',
+              reason: payload.reason
             })
           }
         },
@@ -566,14 +586,18 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * 加载默认模型并更新当前模型信息
+   * 加载 AI 运行时状态
+   * - 默认模型
+   * - TTS 可用性
    */
-  const loadDefaultModel = async () => {
-    if (isModelLoading.value) return
+  const loadRuntime = async (): Promise<AiRuntimeDTO | null> => {
+    if (isModelLoading.value) return null
     try {
       isModelLoading.value = true
-      const modelName = await Ai.getDefaultModel()
+      const runtime = await getAiRuntime()
+      const modelName = runtime.defaultModel || defaultModel.value
       defaultModel.value = modelName
+      setTtsAvailable(runtime.tts.enabled === true && runtime.tts.online === true)
 
       // 更新当前模型信息
       currentModelInfo.value = {
@@ -581,12 +605,20 @@ export const useChatStore = defineStore('chat', () => {
         displayName: formatModelName(modelName)
       }
 
+      return runtime
+
     } catch (error) {
-      console.error('加载默认模型失败:', error)
-      errorMessage.value = '加载模型配置失败，请刷新页面重试'
+      console.error('加载 AI 运行时状态失败:', error)
+      errorMessage.value = '加载 AI 运行时状态失败，请刷新页面重试'
+      setTtsAvailable(false)
+      return null
     } finally {
       isModelLoading.value = false
     }
+  }
+
+  const loadDefaultModel = async () => {
+    await loadRuntime()
   }
 
   /**
@@ -632,8 +664,8 @@ export const useChatStore = defineStore('chat', () => {
   // ===== 初始化 =====
   // 组件加载时从localStorage恢复状态
   loadFromStorage()
-  // 加载默认模型
-  loadDefaultModel()
+  // 加载默认模型和运行时状态
+  loadRuntime()
 
   return {
     // 状态
@@ -664,6 +696,7 @@ export const useChatStore = defineStore('chat', () => {
     enqueueTtsAudio,
     clearTtsAudioQueue,
     shiftTtsAudioQueue,
+    loadRuntime,
     loadDefaultModel,
     addUserMessage,
     addAiMessage,

@@ -26,6 +26,7 @@ const emit = defineEmits<{
 }>()
 
 const isModeDropdownOpen = ref(false)
+const toolbarIconSize = 15
 
 const modeLabel = computed(() => props.mode === 'stream' ? '流式模式' : '普通模式')
 const sessionLabel = computed(() => props.isGuestMode ? '游客体验' : '已登录')
@@ -81,7 +82,7 @@ onUnmounted(() => {
           @click.stop="isModeDropdownOpen = !isModeDropdownOpen"
           :title="modeToggleTitle()"
         >
-          <Icon :name="mode === 'stream' ? 'zap' : 'message'" :size="16" />
+          <Icon :name="mode === 'stream' ? 'zap' : 'message'" :size="toolbarIconSize" />
         </button>
 
         <div v-show="isModeDropdownOpen" class="mode-dropdown">
@@ -103,7 +104,7 @@ onUnmounted(() => {
         :title="ttsToggleTitle"
         @click="emit('toggleTts')"
       >
-        <Icon name="music" :size="16" />
+        <Icon name="music" :size="toolbarIconSize" />
       </button>
 
       <button
@@ -112,7 +113,7 @@ onUnmounted(() => {
         @click="emit('toggleHistory')"
         title="查看会话历史"
       >
-        <Icon name="history" :size="16" />
+        <Icon name="conversations" :size="toolbarIconSize" />
       </button>
 
       <button
@@ -122,19 +123,19 @@ onUnmounted(() => {
         @click="emit('toggleModel')"
         :title="modelToggleTitle()"
       >
-        <Icon :name="modelVisible ? 'eyeOff' : 'eye'" :size="16" />
+        <Icon :name="modelVisible ? 'eyeOff' : 'eye'" :size="toolbarIconSize" />
       </button>
 
       <button class="icon-action-btn control-btn" @click="emit('clear')" title="清空聊天">
-        <Icon name="trash2" :size="16" />
+        <Icon name="trash2" :size="toolbarIconSize" />
       </button>
 
       <button class="icon-action-btn expand-btn" :class="{ active: !!expanded }" @click="emit('expand')" :title="expandToggleTitle()">
-        <Icon name="layout" :size="16" />
+        <Icon name="layout" :size="toolbarIconSize" />
       </button>
 
       <button class="icon-action-btn close-btn" @click="emit('close')" title="关闭聊天窗口">
-        <Icon name="close" :size="16" />
+        <Icon name="close" :size="toolbarIconSize" />
       </button>
     </div>
   </div>

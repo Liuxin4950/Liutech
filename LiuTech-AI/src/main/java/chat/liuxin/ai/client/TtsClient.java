@@ -24,8 +24,8 @@ public class TtsClient {
     @Value("${blog.api.url:http://backend:8080}")
     private String backendApiUrl;
 
-    @Value("${tts.infer.model-name:原神-中文-纳西妲_ZH}")
-    private String modelName;
+    @Value("${tts.infer.default-model-name:原神-中文-纳西妲_ZH}")
+    private String defaultModelName;
 
     private volatile TtsStatus cachedStatus;
     private volatile long cachedAt = 0L;
@@ -73,6 +73,7 @@ public class TtsClient {
                 status.setEnabled(data.has("enabled") && data.get("enabled").asBoolean(false));
                 status.setOnline(data.has("online") && data.get("online").asBoolean(false));
                 status.setBaseUrl(data.has("baseUrl") && !data.get("baseUrl").isNull() ? data.get("baseUrl").asText() : null);
+                status.setVoiceModel(data.has("voiceModel") && !data.get("voiceModel").isNull() ? data.get("voiceModel").asText() : null);
                 status.setMessage(data.has("message") && !data.get("message").isNull() ? data.get("message").asText() : null);
             }
         } catch (Exception e) {
@@ -105,7 +106,7 @@ public class TtsClient {
             Map<String, Object> body = new HashMap<>();
             body.put("dl_url", baseUrl);
             body.put("version", "v4");
-            body.put("model_name", modelName);
+            body.put("model_name", resolveVoiceModel(status));
             body.put("prompt_text_lang", "中文");
             body.put("emotion", "默认");
             body.put("text", text);
@@ -184,11 +185,19 @@ public class TtsClient {
         return s;
     }
 
+    private String resolveVoiceModel(TtsStatus status) {
+        if (status != null && status.getVoiceModel() != null && !status.getVoiceModel().isBlank()) {
+            return status.getVoiceModel().trim();
+        }
+        return defaultModelName;
+    }
+
     @Data
     public static class TtsStatus {
         private boolean enabled;
         private boolean online;
         private String baseUrl;
+        private String voiceModel;
         private String message;
     }
 }

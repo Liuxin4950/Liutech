@@ -4,6 +4,7 @@ export interface TtsStatusDTO {
   enabled: boolean
   online: boolean
   baseUrl: string | null
+  voiceModel: string | null
   checkedAt: number
   message?: string | null
 }
@@ -16,4 +17,3 @@ export const getTtsStatus = async (): Promise<TtsStatusDTO> => {
   const resp = await get<TtsStatusDTO>('/tts/status')
   return resp.data
 }
-

@@ -49,6 +49,7 @@ public class TtsStatusService {
         TtsStatusDTO status = new TtsStatusDTO();
         status.setEnabled(cfg.getEnabled() != null && cfg.getEnabled());
         status.setBaseUrl(cfg.getBaseUrl());
+        status.setVoiceModel(cfg.getVoiceModel());
         status.setCheckedAt(System.currentTimeMillis());
 
         if (!status.isEnabled()) {
@@ -84,4 +85,3 @@ public class TtsStatusService {
         return status;
     }
 }
-

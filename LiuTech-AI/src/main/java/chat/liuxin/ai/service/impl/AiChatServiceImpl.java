@@ -47,15 +47,23 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiChatServiceImpl implements AiChatService {
+
+    private static final int FIRST_SEGMENT_MIN_LEN = 8;
+    private static final int FIRST_SEGMENT_HARD_CUT_LEN = 18;
+    private static final int FOLLOW_SEGMENT_MIN_LEN = 32;
+    private static final int FOLLOW_SEGMENT_SOFT_PUNCT_LEN = 40;
+    private static final int FOLLOW_SEGMENT_HARD_CUT_LEN = 80;
 
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
@@ -215,15 +223,24 @@ public class AiChatServiceImpl implements AiChatService {
         String modelName = request.getModel() != null ? request.getModel() : defaultModel;
         Long conversationId = guestMode ? null : request.getConversationId();
         String input = request.getMessage();
+        AtomicReference<ExecutorService> ttsExecutorRef = new AtomicReference<>();
+        AtomicReference<ScheduledExecutorService> heartbeatExecutorRef = new AtomicReference<>();
+        AtomicBoolean emitterClosed = new AtomicBoolean(false);
 
         // 2. 创建SseEmitter，使用可配置的超时时间
         SseEmitter emitter = new SseEmitter(sseTimeout);
         
         // 3. 设置完成和错误处理
         emitter.onCompletion(() -> {
+            emitterClosed.set(true);
+            shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
+            shutdownExecutor(ttsExecutorRef.getAndSet(null), true);
             log.debug("流式聊天完成，用户ID: {}, 会话ID: {}", userIdStr, conversationId);
         });
         emitter.onTimeout(() -> {
+            emitterClosed.set(true);
+            shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
+            shutdownExecutor(ttsExecutorRef.getAndSet(null), true);
             log.warn("流式聊天超时，用户ID: {}, 会话ID: {}", userIdStr, conversationId);
             emitter.complete();
         });
@@ -267,8 +284,22 @@ public class AiChatServiceImpl implements AiChatService {
                 // TTS 触发并发度：默认 1（优先保证首段稳定），可通过配置调整
                 int poolSize = Math.max(1, ttsStreamConcurrency);
                 ExecutorService ttsExecutor = Executors.newFixedThreadPool(poolSize);
+                ttsExecutorRef.set(ttsExecutor);
                 // 用于在流结束时等待已提交的 TTS 推理任务，避免提前 close SSE 导致音频丢失
                 List<CompletableFuture<Void>> ttsFutures = Collections.synchronizedList(new ArrayList<>());
+                ScheduledExecutorService heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
+                heartbeatExecutorRef.set(heartbeatExecutor);
+                heartbeatExecutor.scheduleAtFixedRate(() -> {
+                    if (emitterClosed.get()) return;
+                    try {
+                        sendSseEvent(emitter, "heartbeat", eventPayload(
+                                "conversationId", finalConversationId,
+                                "timestamp", System.currentTimeMillis()
+                        ));
+                    } catch (Exception e) {
+                        log.debug("发送SSE心跳失败: {}", e.getMessage());
+                    }
+                }, 15, 15, TimeUnit.SECONDS);
 
                 // 4.8 调用流式AI接口（传递模型参数）
                 Flux<String> responseFlux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature, params.maxTokens);
@@ -282,7 +313,7 @@ public class AiChatServiceImpl implements AiChatService {
                             if (ttsEnabled) {
                                 ttsBuffer.append(chunk);
                                 // 根据切分规则从缓冲区提取“可发送给 TTS 的语音片段”
-                                List<String> segments = extractTtsSegments(ttsBuffer);
+                                List<String> segments = extractTtsSegments(ttsBuffer, ttsSeq.get() > 0);
                                 if (!segments.isEmpty()) {
                                     for (String seg : segments) {
                                         enqueueTtsTask(emitter, ttsExecutor, ttsFutures, ttsSeq, finalConversationId, seg);
@@ -304,10 +335,9 @@ public class AiChatServiceImpl implements AiChatService {
                         // 处理错误
                         log.error("流式响应错误，用户ID: {}, 会话ID: {}", userIdStr, finalConversationId, error);
                         try {
-                            try {
-                                ttsExecutor.shutdownNow();
-                            } catch (Exception ignore) {
-                            }
+                            emitterClosed.set(true);
+                            shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
+                            shutdownExecutor(ttsExecutorRef.getAndSet(null), true);
                             if (!guestMode && finalConversationId != null) {
                                 memoryService.saveAssistantMessage(userIdStr, finalConversationId, null, modelName, 9, null);
                             }
@@ -326,9 +356,20 @@ public class AiChatServiceImpl implements AiChatService {
                             // 获取完整响应
                             String fullResponse = fullResponseRef.get().toString();
 
+                            if (!guestMode && finalConversationId != null) {
+                                memoryService.saveAssistantMessage(userIdStr, finalConversationId, fullResponse, modelName, 1, null);
+                            }
+
+                            sendSseEvent(emitter, "complete", eventPayload(
+                                    "conversationId", finalConversationId,
+                                    "responseLength", fullResponse.length(),
+                                    "mode", guestMode ? "guest" : "user",
+                                    "ttsEnabled", ttsEnabled
+                            ));
+
                             if (ttsEnabled) {
                                 // 流结束时再做一次切分/收尾：避免最后一段因为时机问题没切出来
-                                List<String> tailSegments = extractTtsSegments(ttsBuffer);
+                                List<String> tailSegments = extractTtsSegments(ttsBuffer, ttsSeq.get() > 0);
                                 if (!tailSegments.isEmpty()) {
                                     for (String seg : tailSegments) {
                                         enqueueTtsTask(emitter, ttsExecutor, ttsFutures, ttsSeq, finalConversationId, seg);
@@ -343,61 +384,53 @@ public class AiChatServiceImpl implements AiChatService {
 
                                 CompletableFuture<?>[] arr = ttsFutures.toArray(new CompletableFuture[0]);
                                 CompletableFuture<Void> all = CompletableFuture.allOf(arr);
-                                final String fullResponseFinal = fullResponse;
-                                // 关键点：不能在这里立刻 emitter.complete()
-                                // 否则后续 TTS 推理完成后发送 audio 会失败，导致“文本完整但语音只播一半”
                                 CompletableFuture.runAsync(() -> {
+                                    boolean timedOut = false;
                                     try {
                                         long waitMs = Math.max(30_000L, sseTimeout);
                                         try {
                                             all.get(waitMs, TimeUnit.MILLISECONDS);
                                         } catch (TimeoutException ignore) {
-                                        } catch (Exception ignore) {
-                                        }
-                                        try {
-                                            ttsExecutor.shutdown();
-                                            ttsExecutor.awaitTermination(2, TimeUnit.SECONDS);
+                                            timedOut = true;
                                         } catch (Exception ignore) {
                                         }
 
-                                        if (!guestMode && finalConversationId != null) {
-                                            memoryService.saveAssistantMessage(userIdStr, finalConversationId, fullResponseFinal, modelName, 1, null);
-                                        }
-
                                         try {
-                                            sendSseEvent(emitter, "complete", eventPayload(
+                                            sendSseEvent(emitter, "audio-complete", eventPayload(
                                                     "conversationId", finalConversationId,
-                                                    "responseLength", fullResponseFinal.length(),
-                                                    "mode", guestMode ? "guest" : "user"
+                                                    "timedOut", timedOut,
+                                                    "segments", ttsSeq.get()
                                             ));
                                         } catch (Exception ignore) {
                                         }
-                                        emitter.complete();
                                     } catch (Exception e) {
-                                        emitter.completeWithError(e);
+                                        try {
+                                            sendSseEvent(emitter, "audio-complete", eventPayload(
+                                                    "conversationId", finalConversationId,
+                                                    "timedOut", true,
+                                                    "segments", ttsSeq.get()
+                                            ));
+                                        } catch (Exception ignore) {
+                                        }
+                                    } finally {
+                                        emitterClosed.set(true);
+                                        shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
+                                        shutdownExecutor(ttsExecutorRef.getAndSet(null), false);
+                                        emitter.complete();
                                     }
                                 });
                                 return;
                             }
 
-                            try {
-                                ttsExecutor.shutdownNow();
-                            } catch (Exception ignore) {
-                            }
-
-                            if (!guestMode && finalConversationId != null) {
-                                memoryService.saveAssistantMessage(userIdStr, finalConversationId, fullResponse, modelName, 1, null);
-                            }
-
-                            sendSseEvent(emitter, "complete", eventPayload(
-                                    "conversationId", finalConversationId,
-                                    "responseLength", fullResponse.length(),
-                                    "mode", guestMode ? "guest" : "user"
-                            ));
-
+                            emitterClosed.set(true);
+                            shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
+                            shutdownExecutor(ttsExecutorRef.getAndSet(null), true);
                             emitter.complete();
                         } catch (Exception e) {
                             log.error("完成流式响应时发生错误", e);
+                            emitterClosed.set(true);
+                            shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
+                            shutdownExecutor(ttsExecutorRef.getAndSet(null), true);
                             emitter.completeWithError(e);
                         }
                     }
@@ -418,6 +451,9 @@ public class AiChatServiceImpl implements AiChatService {
                 final Long finalErrorConversationId = errorConversationId;
                 
                 try {
+                    emitterClosed.set(true);
+                    shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
+                    shutdownExecutor(ttsExecutorRef.getAndSet(null), true);
                     if (!guestMode && finalErrorConversationId != null && finalErrorConversationId > 0) {
                         memoryService.saveAssistantMessage(userIdStr, finalErrorConversationId, null, modelName, 9, null);
                     }
@@ -462,14 +498,31 @@ public class AiChatServiceImpl implements AiChatService {
         CompletableFuture<Void> next = CompletableFuture.runAsync(() -> {
             try {
                 String audioUrl = ttsClient.inferSingleAudioUrl(segment);
-                if (audioUrl == null || audioUrl.isBlank()) return;
+                if (audioUrl == null || audioUrl.isBlank()) {
+                    sendSseEvent(emitter, "audio-skip", eventPayload(
+                            "seq", currentSeq,
+                            "text", segment,
+                            "reason", "empty-audio-url",
+                            "conversationId", conversationId
+                    ));
+                    return;
+                }
                 sendSseEvent(emitter, "audio", eventPayload(
                         "seq", currentSeq,
                         "text", segment,
                         "audioUrl", audioUrl,
                         "conversationId", conversationId
                 ));
-            } catch (Exception ignore) {
+            } catch (Exception e) {
+                try {
+                    sendSseEvent(emitter, "audio-skip", eventPayload(
+                            "seq", currentSeq,
+                            "text", segment,
+                            "reason", e.getClass().getSimpleName(),
+                            "conversationId", conversationId
+                    ));
+                } catch (Exception ignore) {
+                }
             }
         }, ttsExecutor);
         if (futures != null) {
@@ -504,34 +557,42 @@ public class AiChatServiceImpl implements AiChatService {
     /**
      * 从缓冲区提取若干段可用于 TTS 推理的文本片段，并从 buffer 中删除已提取内容
      *
-     * 切分规则（自用优化版）：
-     * - 必须累计 >= 20 字才允许触发“按标点切分”
-     * - 20~45 字范围内命中标点：在标点处分段
-     * - 若一直没有标点：累计到 45 字强制切一段
+     * 规则说明：
+     * - 首段优先低延迟：8 字起步，18 字硬切，并允许逗号级标点触发
+     * - 后续段优先连续播放：32 字起步，40 字后才允许逗号级标点，80 字硬切
+     * - 这样可以尽快“开口”，同时让后续单段音频更长，覆盖下一次 TTS 推理耗时
      */
-    private List<String> extractTtsSegments(StringBuilder buffer) {
+    private List<String> extractTtsSegments(StringBuilder buffer, boolean firstSegmentSent) {
         List<String> out = new ArrayList<>();
         if (buffer == null || buffer.length() == 0) return out;
 
-        final int minSendLen = 20;
-        final int hardCutLen = 45;
-
         while (true) {
             int len = buffer.length();
+            final int minSendLen = firstSegmentSent ? FOLLOW_SEGMENT_MIN_LEN : FIRST_SEGMENT_MIN_LEN;
+            final int hardCutLen = firstSegmentSent ? FOLLOW_SEGMENT_HARD_CUT_LEN : FIRST_SEGMENT_HARD_CUT_LEN;
+            final boolean allowSoftPunctuation = !firstSegmentSent;
+
             if (len < minSendLen) break;
 
             int cut = -1;
             int scanLen = Math.min(len, hardCutLen);
-            int lastPuncBeforeLimit = -1;
+            int lastStrongPuncBeforeLimit = -1;
+            int lastSoftPuncBeforeLimit = -1;
             for (int i = 0; i < scanLen; i++) {
                 char c = buffer.charAt(i);
-                if (c == '。' || c == '！' || c == '？' || c == '；' || c == '\n' || c == '!' || c == '?' || c == ';') {
-                    lastPuncBeforeLimit = i + 1;
+                if (isStrongTtsCutPunctuation(c)) {
+                    lastStrongPuncBeforeLimit = i + 1;
+                } else if (allowSoftPunctuation && isSoftTtsCutPunctuation(c)) {
+                    lastSoftPuncBeforeLimit = i + 1;
                 }
             }
 
-            if (lastPuncBeforeLimit >= minSendLen) {
-                cut = lastPuncBeforeLimit;
+            if (lastStrongPuncBeforeLimit >= minSendLen) {
+                cut = lastStrongPuncBeforeLimit;
+            } else if (!firstSegmentSent && lastSoftPuncBeforeLimit >= minSendLen) {
+                cut = lastSoftPuncBeforeLimit;
+            } else if (firstSegmentSent && lastSoftPuncBeforeLimit >= FOLLOW_SEGMENT_SOFT_PUNCT_LEN) {
+                cut = lastSoftPuncBeforeLimit;
             } else if (len >= hardCutLen) {
                 cut = hardCutLen;
             }
@@ -544,6 +605,22 @@ public class AiChatServiceImpl implements AiChatService {
         }
 
         return out;
+    }
+
+    /**
+     * 兼容旧调用与测试。
+     */
+    private List<String> extractTtsSegments(StringBuilder buffer) {
+        return extractTtsSegments(buffer, false);
+    }
+
+    private boolean isStrongTtsCutPunctuation(char c) {
+        return c == '。' || c == '！' || c == '？' || c == '；' || c == '\n'
+                || c == '!' || c == '?' || c == ';';
+    }
+
+    private boolean isSoftTtsCutPunctuation(char c) {
+        return c == '，' || c == '、' || c == ',' || c == '：' || c == ':';
     }
 
     private List<Message> buildPromptMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode) {
@@ -613,6 +690,19 @@ public class AiChatServiceImpl implements AiChatService {
             emitter.send(eventBuilder);
         }
         log.debug("发送SSE事件: {}, 数据: {}", event, data);
+    }
+
+    private void shutdownExecutor(ExecutorService executor, boolean immediate) {
+        if (executor == null) return;
+        try {
+            if (immediate) {
+                executor.shutdownNow();
+            } else {
+                executor.shutdown();
+                executor.awaitTermination(2, TimeUnit.SECONDS);
+            }
+        } catch (Exception ignore) {
+        }
     }
 
     /**

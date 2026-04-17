@@ -9,7 +9,8 @@ const saving = ref(false)
 
 const config = ref<TtsConfigDTO>({
   enabled: true,
-  baseUrl: ''
+  baseUrl: '',
+  voiceModel: ''
 })
 
 const status = ref<TtsStatusDTO | null>(null)
@@ -34,6 +35,7 @@ const refresh = async () => {
     const [cfg, st] = await Promise.all([getTtsConfig(), getTtsStatus()])
     config.value.enabled = cfg.enabled
     config.value.baseUrl = cfg.baseUrl || ''
+    config.value.voiceModel = cfg.voiceModel || ''
     status.value = st
   } catch (e: any) {
     message.error('加载语音配置失败')
@@ -48,7 +50,8 @@ const save = async () => {
   try {
     await updateTtsConfig({
       enabled: config.value.enabled,
-      baseUrl: config.value.baseUrl?.trim() || ''
+      baseUrl: config.value.baseUrl?.trim() || '',
+      voiceModel: config.value.voiceModel?.trim() || ''
     })
     message.success('保存成功')
     await refresh()
@@ -98,4 +101,3 @@ onMounted(() => {
     </a-card>
   </div>
 </template>
-

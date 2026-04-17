@@ -1,6 +1,7 @@
 package chat.liuxin.ai.client;
 
 import chat.liuxin.ai.dto.CategoryDTO;
+import chat.liuxin.ai.dto.AuthorProfileDTO;
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -219,6 +220,29 @@ public class BlogApiClient {
         }
     }
 
+    /**
+     * 获取博客作者资料
+     */
+    public AuthorProfileDTO getAuthorProfile() {
+        try {
+            String url = blogApiUrl + "/user/author/profile";
+            log.debug("调用博客API获取作者资料: {}", url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode root = objectMapper.readTree(response);
+
+            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+                return parseAuthorProfile(root.get("data"));
+            }
+
+            log.warn("获取作者资料失败");
+            return null;
+        } catch (Exception e) {
+            log.error("获取作者资料API异常", e);
+            return null;
+        }
+    }
+
     private PostDetailDTO parsePostDetail(JsonNode data) {
         PostDetailDTO dto = new PostDetailDTO();
         dto.setId(data.has("id") ? data.get("id").asLong() : null);
@@ -303,5 +327,49 @@ public class BlogApiClient {
         dto.setDescription(getTextValue(data, "description"));
         dto.setPostCount(data.has("postCount") ? data.get("postCount").asInt() : 0);
         return dto;
+    }
+
+    private AuthorProfileDTO parseAuthorProfile(JsonNode data) {
+        AuthorProfileDTO dto = new AuthorProfileDTO();
+        dto.setName(firstNonBlank(getTextValue(data, "name"), getTextValue(data, "nickname"), getTextValue(data, "username")));
+        dto.setTitle(getTextValue(data, "title"));
+        dto.setAvatar(firstNonBlank(getTextValue(data, "avatar"), getTextValue(data, "avatarUrl")));
+        dto.setBio(getTextValue(data, "bio"));
+
+        JsonNode stats = data.get("stats");
+        if (stats != null && stats.isObject()) {
+            dto.setPosts(getLongValue(stats, "posts"));
+            dto.setComments(getLongValue(stats, "comments"));
+            dto.setViews(getLongValue(stats, "views"));
+        } else {
+            dto.setPosts(getLongValue(data, "postCount"));
+            dto.setComments(getLongValue(data, "commentCount"));
+            dto.setViews(firstNonNull(getLongValue(data, "totalViews"), getLongValue(data, "viewCount")));
+        }
+
+        return dto;
+    }
+
+    private Long getLongValue(JsonNode node, String field) {
+        if (node != null && node.has(field) && !node.get(field).isNull()) {
+            return node.get(field).asLong();
+        }
+        return null;
+    }
+
+    private Long firstNonNull(Long... values) {
+        for (Long value : values) {
+            if (value != null) return value;
+        }
+        return null;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 }

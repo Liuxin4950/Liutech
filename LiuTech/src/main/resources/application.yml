@@ -71,6 +71,11 @@ logging:
 server:
   port: 8080
 
+# AI 服务地址（主后端用于聚合运行时状态）
+ai:
+  service:
+    url: ${AI_SERVICE_URL:http://127.0.0.1:8081}
+
 # 文件上传配置
 file:
   upload:

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import aiModelsService from '@/services/aiModels'
-import type { ModelConfig, ModelConfigRequest, ModelUsageStats } from '@/services/aiModels'
+import type { ModelConfig, ModelConfigRequest } from '@/services/aiModels'
 import { message, Modal } from 'ant-design-vue'
 import {
-  RobotOutlined,
-  BarChartOutlined,
   ReloadOutlined,
   PlusOutlined,
   EditOutlined,
@@ -14,76 +12,16 @@ import {
   StopOutlined,
   StarOutlined,
   StarFilled,
-  AppstoreOutlined,
-  FireOutlined,
-  ThunderboltOutlined,
-  CloudServerOutlined,
-  SearchOutlined,
-  SettingOutlined,
-  ExperimentOutlined
+  RobotOutlined
 } from '@ant-design/icons-vue'
-import * as echarts from 'echarts'
-import type { ECharts } from 'echarts'
 
-// ============ 数据状态 ============
-const modelList = ref<ModelConfig[]>([])
-const usageStats = ref<ModelUsageStats[]>([])
-const loading = ref(true)
-const tableLoading = ref(false)
+const loading = ref(false)
 const searchText = ref('')
+const modelList = ref<ModelConfig[]>([])
 
-// ============ 统计指标 ============
-const statistics = computed(() => {
-  const total = modelList.value.length
-  const active = modelList.value.filter(m => m.isEnabled).length
-  const totalUsage = usageStats.value.reduce((sum, item) => sum + item.usageCount, 0)
-  
-  let topModelName = '暂无数据'
-  let topModelCount = 0
-  
-  if (usageStats.value.length > 0) {
-    const sorted = [...usageStats.value].sort((a, b) => b.usageCount - a.usageCount)
-    const top = sorted[0]
-    const config = modelList.value.find(m => m.modelName === top.model)
-    topModelName = config?.displayName || top.model
-    topModelCount = top.usageCount
-  }
-
-  const providers = new Set(modelList.value.map(m => m.provider)).size
-
-  return {
-    total,
-    active,
-    totalUsage,
-    topModelName,
-    topModelCount,
-    providers
-  }
-})
-
-// ============ 过滤后的列表 ============
-const filteredModelList = computed(() => {
-  if (!searchText.value) return modelList.value
-  const text = searchText.value.toLowerCase()
-  return modelList.value.filter(item => 
-    item.displayName.toLowerCase().includes(text) || 
-    item.modelName.toLowerCase().includes(text) ||
-    item.provider.toLowerCase().includes(text)
-  )
-})
-
-// ============ 图表相关 ============
-const usageChart = ref<ECharts | null>(null)
-const usageChartRef = ref<HTMLElement | null>(null)
-const providerChart = ref<ECharts | null>(null)
-const providerChartRef = ref<HTMLElement | null>(null)
-
-// ============ 弹窗相关 ============
 const modalVisible = ref(false)
-const modalTitle = computed(() => isEditMode.value ? '编辑模型配置' : '添加新模型')
 const isEditMode = ref(false)
 const editingId = ref<number | null>(null)
-
 const formRef = ref()
 const formData = ref<ModelConfigRequest>({
   modelName: '',
@@ -97,147 +35,33 @@ const formData = ref<ModelConfigRequest>({
 })
 
 const formRules = {
-  modelName: [{ required: true, message: '请输入模型ID/名称', trigger: 'blur' }],
-  displayName: [{ required: true, message: '请输入显示名称', trigger: 'blur' }],
-  provider: [{ required: true, message: '请选择服务提供商', trigger: 'change' }]
+  modelName: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
+  displayName: [{ required: true, message: '请输入显示名称', trigger: 'blur' }]
 }
 
-// ============ 表格列定义 ============
-const columns = [
-  { title: '模型信息', dataIndex: 'info', key: 'info', width: 250 },
-  { title: '提供商', dataIndex: 'provider', key: 'provider', width: 120 },
-  { title: '参数配置', dataIndex: 'params', key: 'params', width: 150 },
-  { title: '状态', key: 'status', width: 100 },
-  { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 80, align: 'center' },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' }
-]
+const filteredModels = computed(() => {
+  const keyword = searchText.value.trim().toLowerCase()
+  if (!keyword) return modelList.value
+  return modelList.value.filter(item =>
+    item.displayName.toLowerCase().includes(keyword) ||
+    item.modelName.toLowerCase().includes(keyword) ||
+    (item.description || '').toLowerCase().includes(keyword)
+  )
+})
 
-// ============ 数据加载 ============
-const loadAllData = async () => {
+const loadModels = async () => {
+  if (loading.value) return
+  loading.value = true
   try {
-    loading.value = true
-    const [models, stats] = await Promise.all([
-      aiModelsService.getModelList(),
-      aiModelsService.getTodayModelUsage()
-    ])
-    modelList.value = models
-    usageStats.value = stats
-    await nextTick()
-    setTimeout(() => {
-      initUsageChart()
-      initProviderChart()
-    }, 100)
+    modelList.value = await aiModelsService.getModelList()
   } catch (error: any) {
-    message.error(error.message || '加载数据失败')
+    message.error(error?.message || '加载模型失败')
   } finally {
     loading.value = false
   }
 }
 
-// ============ 图表初始化 ============
-const initUsageChart = () => {
-  if (!usageChartRef.value) return
-  if (usageChart.value) usageChart.value.dispose()
-  
-  usageChart.value = echarts.init(usageChartRef.value)
-  
-  const models = usageStats.value.map(item => {
-    const config = modelList.value.find(m => m.modelName === item.model)
-    return config?.displayName || item.model
-  })
-  const counts = usageStats.value.map(item => item.usageCount)
-
-  const option: echarts.EChartsOption = {
-    title: {
-      text: '今日调用趋势',
-      left: 'left',
-      textStyle: { fontSize: 14, fontWeight: 600, color: '#1f2937' }
-    },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: '#e5e7eb',
-      borderWidth: 1,
-      padding: [8, 12],
-      textStyle: { color: '#374151' }
-    },
-    grid: { left: '3%', right: '4%', bottom: '3%', top: '60px', containLabel: true },
-    xAxis: {
-      type: 'category',
-      data: models,
-      axisLine: { lineStyle: { color: '#f3f4f6' } },
-      axisLabel: { color: '#6b7280', fontSize: 12, interval: 0, rotate: 20 }
-    },
-    yAxis: {
-      type: 'value',
-      splitLine: { lineStyle: { color: '#f3f4f6', type: 'dashed' } },
-      axisLabel: { color: '#9ca3af' }
-    },
-    series: [{
-      name: '调用次数',
-      type: 'bar',
-      data: counts,
-      barWidth: '40%',
-      itemStyle: {
-        borderRadius: [4, 4, 0, 0],
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: '#3b82f6' },
-          { offset: 1, color: '#60a5fa' }
-        ])
-      },
-      emphasis: { itemStyle: { color: '#2563eb' } }
-    }]
-  }
-  usageChart.value.setOption(option)
-}
-
-const initProviderChart = () => {
-  if (!providerChartRef.value) return
-  if (providerChart.value) providerChart.value.dispose()
-
-  providerChart.value = echarts.init(providerChartRef.value)
-  
-  const providerCounts: Record<string, number> = {}
-  modelList.value.forEach(m => {
-    providerCounts[m.provider] = (providerCounts[m.provider] || 0) + 1
-  })
-  
-  const data = Object.entries(providerCounts).map(([name, value]) => ({ name, value }))
-
-  const option: echarts.EChartsOption = {
-    title: {
-      text: '供应商分布',
-      left: 'left',
-      textStyle: { fontSize: 14, fontWeight: 600, color: '#1f2937' }
-    },
-    tooltip: { trigger: 'item' },
-    legend: { bottom: '0%', left: 'center', icon: 'circle' },
-    series: [{
-      name: '模型数量',
-      type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['50%', '50%'],
-      avoidLabelOverlap: false,
-      itemStyle: {
-        borderRadius: 10,
-        borderColor: '#fff',
-        borderWidth: 2
-      },
-      label: { show: false, position: 'center' },
-      emphasis: {
-        label: { show: true, fontSize: 16, fontWeight: 'bold' }
-      },
-      data: data
-    }]
-  }
-  providerChart.value.setOption(option)
-}
-
-// ============ 操作方法 ============
-const showAddModal = () => {
-  isEditMode.value = false
-  editingId.value = null
+const resetForm = () => {
   formData.value = {
     modelName: '',
     displayName: '',
@@ -248,190 +72,116 @@ const showAddModal = () => {
     temperature: undefined,
     description: ''
   }
+}
+
+const showAddModal = () => {
+  isEditMode.value = false
+  editingId.value = null
+  resetForm()
   modalVisible.value = true
 }
 
 const showEditModal = (record: ModelConfig) => {
   isEditMode.value = true
   editingId.value = record.id
-  formData.value = { ...record }
+  formData.value = {
+    modelName: record.modelName,
+    displayName: record.displayName,
+    provider: record.provider || 'siliconflow',
+    isEnabled: record.isEnabled,
+    sortOrder: record.sortOrder,
+    maxTokens: record.maxTokens,
+    temperature: record.temperature,
+    description: record.description
+  }
   modalVisible.value = true
 }
 
-const handleModalOk = async () => {
+const saveModel = async () => {
+  await formRef.value.validate()
+  loading.value = true
   try {
-    await formRef.value.validate()
-    tableLoading.value = true
     if (isEditMode.value && editingId.value) {
       await aiModelsService.updateModel(editingId.value, formData.value)
-      message.success('模型更新成功')
+      message.success('模型已更新')
     } else {
       await aiModelsService.addModel(formData.value)
-      message.success('模型添加成功')
+      message.success('模型已添加')
     }
     modalVisible.value = false
-    await loadAllData()
+    await loadModels()
   } catch (error: any) {
-    if (!error.errorFields) message.error(error.message || '操作失败')
+    message.error(error?.message || '保存失败')
   } finally {
-    tableLoading.value = false
+    loading.value = false
   }
 }
 
-const handleSetDefault = async (id: number) => {
+const setDefaultModel = async (record: ModelConfig) => {
   try {
-    await aiModelsService.setDefaultModel(id)
-    message.success('已设置为默认模型')
-    await loadAllData()
+    await aiModelsService.setDefaultModel(record.id)
+    message.success('默认模型已更新')
+    await loadModels()
   } catch (error: any) {
-    message.error(error.message || '设置失败')
+    message.error(error?.message || '设置默认模型失败')
   }
 }
 
-const handleToggleEnabled = async (record: ModelConfig) => {
+const toggleEnabled = async (record: ModelConfig) => {
   try {
     await aiModelsService.toggleEnabled(record.id, !record.isEnabled)
     message.success(record.isEnabled ? '模型已禁用' : '模型已启用')
-    await loadAllData()
+    await loadModels()
   } catch (error: any) {
-    message.error(error.message || '操作失败')
+    message.error(error?.message || '切换模型状态失败')
   }
 }
 
-const handleDelete = (record: ModelConfig) => {
+const removeModel = (record: ModelConfig) => {
   Modal.confirm({
-    title: '确认删除',
-    content: `确定要删除模型 "${record.displayName}" 吗？此操作不可恢复。`,
-    okText: '确定删除',
+    title: '确认删除模型',
+    content: `确定删除 "${record.displayName}" 吗？`,
+    okText: '删除',
     okType: 'danger',
     cancelText: '取消',
     onOk: async () => {
       try {
         await aiModelsService.deleteModel(record.id)
-        message.success('模型删除成功')
-        await loadAllData()
+        message.success('模型已删除')
+        await loadModels()
       } catch (error: any) {
-        message.error(error.message || '删除失败')
+        message.error(error?.message || '删除失败')
       }
     }
   })
 }
 
-// ============ 生命周期 ============
-const handleResize = () => {
-  usageChart.value?.resize()
-  providerChart.value?.resize()
-}
-
 onMounted(() => {
-  loadAllData()
-  window.addEventListener('resize', handleResize)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-  usageChart.value?.dispose()
-  providerChart.value?.dispose()
+  loadModels()
 })
 </script>
 
 <template>
   <div class="page-container">
-    <!-- 顶部概览卡片 -->
-    <a-row :gutter="[16, 16]" class="mb-24">
-      <a-col :xs="24" :sm="12" :lg="6">
-        <a-card :bordered="false" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon bg-blue-50 text-blue-500">
-              <AppstoreOutlined />
-            </div>
-            <div class="stat-info">
-              <div class="stat-label">可用模型 / 总数</div>
-              <div class="stat-value">
-                <span class="text-primary">{{ statistics.active }}</span>
-                <span class="text-gray-400 text-sm"> / {{ statistics.total }}</span>
-              </div>
-            </div>
+    <a-card :bordered="false" class="models-card">
+      <template #title>
+        <div class="title-row">
+          <div class="title-left">
+            <RobotOutlined />
+            <span>AI 模型</span>
           </div>
-        </a-card>
-      </a-col>
-      
-      <a-col :xs="24" :sm="12" :lg="6">
-        <a-card :bordered="false" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon bg-green-50 text-green-500">
-              <ThunderboltOutlined />
-            </div>
-            <div class="stat-info">
-              <div class="stat-label">今日总调用</div>
-              <div class="stat-value">{{ statistics.totalUsage }}</div>
-            </div>
-          </div>
-        </a-card>
-      </a-col>
-      
-      <a-col :xs="24" :sm="12" :lg="6">
-        <a-card :bordered="false" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon bg-purple-50 text-purple-500">
-              <FireOutlined />
-            </div>
-            <div class="stat-info">
-              <div class="stat-label">最热门模型</div>
-              <div class="stat-value text-sm truncate" :title="statistics.topModelName">
-                {{ statistics.topModelName }}
-              </div>
-            </div>
-          </div>
-        </a-card>
-      </a-col>
-      
-      <a-col :xs="24" :sm="12" :lg="6">
-        <a-card :bordered="false" class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon bg-orange-50 text-orange-500">
-              <CloudServerOutlined />
-            </div>
-            <div class="stat-info">
-              <div class="stat-label">接入供应商</div>
-              <div class="stat-value">{{ statistics.providers }}</div>
-            </div>
-          </div>
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <!-- 图表区域 -->
-    <a-row :gutter="[16, 16]" class="mb-24">
-      <a-col :xs="24" :lg="16">
-        <a-card :bordered="false" class="chart-card">
-          <div ref="usageChartRef" class="h-80 w-full"></div>
-        </a-card>
-      </a-col>
-      <a-col :xs="24" :lg="8">
-        <a-card :bordered="false" class="chart-card">
-          <div ref="providerChartRef" class="h-80 w-full"></div>
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <!-- 列表区域 -->
-    <a-card :bordered="false" class="table-card">
-      <!-- 工具栏 -->
-      <div class="flex justify-between items-center mb-16">
-        <div class="flex items-center gap-4">
-          <h2 class="text-lg font-semibold m-0 flex items-center gap-2">
-            <RobotOutlined /> 模型列表
-          </h2>
+          <div class="title-sub">这里只维护博客前台真正会用到的模型和默认值。</div>
+        </div>
+      </template>
+      <template #extra>
+        <a-space>
           <a-input-search
             v-model:value="searchText"
-            placeholder="搜索模型名称/提供商"
-            style="width: 250px"
+            placeholder="搜索模型"
+            style="width: 220px"
             allow-clear
           />
-        </div>
-        <div class="flex gap-2">
-          <a-button @click="loadAllData" :loading="loading">
+          <a-button @click="loadModels" :loading="loading">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
@@ -439,171 +189,101 @@ onUnmounted(() => {
             <template #icon><PlusOutlined /></template>
             新增模型
           </a-button>
-        </div>
-      </div>
+        </a-space>
+      </template>
 
       <a-table
-        :columns="columns"
-        :data-source="filteredModelList"
-        :loading="tableLoading"
-        :pagination="{ pageSize: 10, showSizeChanger: true, showTotal: (t:any) => `共 ${t} 条` }"
+        :data-source="filteredModels"
+        :loading="loading"
         row-key="id"
+        :pagination="{ pageSize: 10, showTotal: (t:any) => `共 ${t} 个模型` }"
       >
-        <!-- 模型信息列 -->
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'info'">
-            <div class="flex flex-col">
-              <div class="flex items-center gap-2">
-                <span class="font-medium text-gray-900">{{ record.displayName }}</span>
-                <a-tag v-if="record.isDefault" color="gold" class="text-xs scale-90 origin-left m-0">
+        <a-table-column title="模型" key="model">
+          <template #default="{ record }">
+            <div class="model-main">
+              <div class="model-title">
+                <span>{{ record.displayName }}</span>
+                <a-tag v-if="record.isDefault" color="gold">
                   <StarFilled /> 默认
                 </a-tag>
               </div>
-              <span class="text-xs text-gray-500 font-mono mt-1">{{ record.modelName }}</span>
-              <span v-if="record.description" class="text-xs text-gray-400 mt-1 truncate">
-                {{ record.description }}
-              </span>
+              <div class="model-name">{{ record.modelName }}</div>
+              <div v-if="record.description" class="model-desc">{{ record.description }}</div>
             </div>
           </template>
+        </a-table-column>
 
-          <!-- 提供商列 -->
-          <template v-else-if="column.key === 'provider'">
-            <a-tag :color="record.provider === 'openai' ? 'green' : record.provider === 'siliconflow' ? 'blue' : 'default'">
-              {{ record.provider }}
-            </a-tag>
+        <a-table-column title="参数" key="params" width="220">
+          <template #default="{ record }">
+            <div class="param-text">Max Tokens：{{ record.maxTokens || '默认' }}</div>
+            <div class="param-text">Temperature：{{ record.temperature ?? '默认' }}</div>
+            <div class="param-text">排序：{{ record.sortOrder ?? 0 }}</div>
           </template>
+        </a-table-column>
 
-          <!-- 参数配置列 -->
-          <template v-else-if="column.key === 'params'">
-            <div class="text-xs text-gray-500">
-              <div>Tokens: {{ record.maxTokens || '默认' }}</div>
-              <div>Temp: {{ record.temperature ?? '默认' }}</div>
-            </div>
+        <a-table-column title="状态" key="status" width="120">
+          <template #default="{ record }">
+            <a-badge :status="record.isEnabled ? 'success' : 'default'" :text="record.isEnabled ? '已启用' : '已禁用'" />
           </template>
+        </a-table-column>
 
-          <!-- 状态列 -->
-          <template v-else-if="column.key === 'status'">
-            <a-badge :status="record.isEnabled ? 'success' : 'error'" :text="record.isEnabled ? '已启用' : '已禁用'" />
-          </template>
-
-          <!-- 操作列 -->
-          <template v-else-if="column.key === 'action'">
+        <a-table-column title="操作" key="action" width="220">
+          <template #default="{ record }">
             <a-space>
-              <a-tooltip title="设为默认" v-if="!record.isDefault">
-                <a-button type="text" size="small" @click="handleSetDefault(record.id)">
-                  <StarOutlined class="text-yellow-500" />
+              <a-tooltip v-if="!record.isDefault" title="设为默认">
+                <a-button type="text" size="small" @click="setDefaultModel(record)">
+                  <StarOutlined class="text-gold" />
                 </a-button>
               </a-tooltip>
-              
-              <a-tooltip :title="record.isEnabled ? '禁用模型' : '启用模型'">
-                <a-button type="text" size="small" @click="handleToggleEnabled(record)">
-                  <component :is="record.isEnabled ? StopOutlined : CheckCircleOutlined" 
-                    :class="record.isEnabled ? 'text-red-500' : 'text-green-500'" />
+              <a-tooltip :title="record.isEnabled ? '禁用' : '启用'">
+                <a-button type="text" size="small" @click="toggleEnabled(record)">
+                  <component :is="record.isEnabled ? StopOutlined : CheckCircleOutlined" :class="record.isEnabled ? 'text-red' : 'text-green'" />
                 </a-button>
               </a-tooltip>
-
-              <a-tooltip title="编辑配置">
+              <a-tooltip title="编辑">
                 <a-button type="text" size="small" @click="showEditModal(record)">
-                  <EditOutlined class="text-blue-500" />
+                  <EditOutlined class="text-blue" />
                 </a-button>
               </a-tooltip>
-
-              <a-popconfirm
-                v-if="!record.isDefault"
-                title="确定要删除这个模型吗？"
-                ok-text="删除"
-                ok-type="danger"
-                @confirm="handleDelete(record)"
-              >
-                <a-tooltip title="删除模型">
-                  <a-button type="text" size="small" danger>
-                    <DeleteOutlined />
-                  </a-button>
-                </a-tooltip>
-              </a-popconfirm>
+              <a-tooltip v-if="!record.isDefault" title="删除">
+                <a-button type="text" size="small" danger @click="removeModel(record)">
+                  <DeleteOutlined />
+                </a-button>
+              </a-tooltip>
             </a-space>
           </template>
-        </template>
+        </a-table-column>
       </a-table>
     </a-card>
 
-    <!-- 编辑弹窗 -->
     <a-modal
       v-model:open="modalVisible"
-      :title="modalTitle"
-      @ok="handleModalOk"
-      :confirm-loading="tableLoading"
-      :width="600"
-      class="rounded-lg"
+      :title="isEditMode ? '编辑模型' : '新增模型'"
+      @ok="saveModel"
+      :confirm-loading="loading"
     >
-      <a-form ref="formRef" :model="formData" :rules="formRules" layout="vertical" class="mt-4">
-        
-        <div class="bg-gray-50 p-4 rounded-md mb-4 border border-gray-100">
-          <div class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-            <SettingOutlined /> 基础信息
-          </div>
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item label="显示名称" name="displayName">
-                <a-input v-model:value="formData.displayName" placeholder="如: GPT-4 Turbo" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="提供商" name="provider">
-                <a-select v-model:value="formData.provider">
-                  <a-select-option value="siliconflow">硅基流动</a-select-option>
-                  <a-select-option value="openai">OpenAI</a-select-option>
-                  <a-select-option value="ollama">Ollama</a-select-option>
-                  <a-select-option value="other">其他</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="24">
-              <a-form-item label="模型ID (API Model Name)" name="modelName">
-                <a-input 
-                  v-model:value="formData.modelName" 
-                  placeholder="如: zai-org/GLM-4.6" 
-                  :disabled="isEditMode"
-                  class="font-mono text-sm"
-                />
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </div>
-
-        <div class="bg-gray-50 p-4 rounded-md border border-gray-100">
-          <div class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-            <ExperimentOutlined /> 高级参数
-          </div>
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <a-form-item label="排序权重" name="sortOrder">
-                <a-input-number v-model:value="formData.sortOrder" :min="0" class="w-full" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="最大Token" name="maxTokens">
-                <a-input-number v-model:value="formData.maxTokens" :min="0" :step="1024" class="w-full" placeholder="默认" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="温度 (Temperature)" name="temperature">
-                <a-input-number v-model:value="formData.temperature" :min="0" :max="2" :step="0.1" class="w-full" placeholder="默认" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="24">
-              <a-form-item label="功能描述" name="description">
-                <a-textarea v-model:value="formData.description" :rows="2" placeholder="简要描述该模型的特点或用途" />
-              </a-form-item>
-            </a-col>
-            <a-col :span="24">
-              <a-form-item name="isEnabled" class="mb-0">
-                <a-checkbox v-model:checked="formData.isEnabled">立即启用此模型</a-checkbox>
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </div>
-
+      <a-form ref="formRef" :model="formData" :rules="formRules" layout="vertical">
+        <a-form-item label="显示名称" name="displayName">
+          <a-input v-model:value="formData.displayName" placeholder="例如：GLM-4.6" />
+        </a-form-item>
+        <a-form-item label="模型名称" name="modelName">
+          <a-input v-model:value="formData.modelName" :disabled="isEditMode" placeholder="例如：zai-org/GLM-4.6" />
+        </a-form-item>
+        <a-form-item label="最大 Token">
+          <a-input-number v-model:value="formData.maxTokens" :min="0" :step="1024" class="full-width" />
+        </a-form-item>
+        <a-form-item label="Temperature">
+          <a-input-number v-model:value="formData.temperature" :min="0" :max="2" :step="0.1" class="full-width" />
+        </a-form-item>
+        <a-form-item label="排序">
+          <a-input-number v-model:value="formData.sortOrder" :min="0" class="full-width" />
+        </a-form-item>
+        <a-form-item label="描述">
+          <a-textarea v-model:value="formData.description" :rows="3" placeholder="写给你自己看的维护备注即可" />
+        </a-form-item>
+        <a-form-item>
+          <a-checkbox v-model:checked="formData.isEnabled">立即启用</a-checkbox>
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>
@@ -612,109 +292,65 @@ onUnmounted(() => {
 <style scoped>
 .page-container {
   padding: 24px;
-  background-color: var(--bg-main);
+  background: var(--bg-main);
   min-height: 100vh;
 }
 
-.stat-card {
-  height: 100%;
+.models-card {
   border-radius: 12px;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  transition: all 0.3s;
 }
 
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+.title-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.stat-content {
+.title-left {
   display: flex;
   align-items: center;
-  gap: 16px;
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-}
-
-.stat-info {
-  flex: 1;
-  overflow: hidden;
-}
-
-.stat-label {
-  color: #6b7280;
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.stat-value {
-  font-size: 20px;
+  gap: 8px;
   font-weight: 700;
-  color: #1f2937;
-  line-height: 1.2;
 }
 
-.chart-card {
-  border-radius: 12px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+.title-sub {
+  font-size: 12px;
+  color: #6b7280;
 }
 
-.table-card {
-  border-radius: 12px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+.model-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* Utility classes not present in AntD or Tailwind */
-.bg-blue-50 { background-color: #eff6ff; }
-.text-blue-500 { color: #3b82f6; }
-.bg-green-50 { background-color: #f0fdf4; }
-.text-green-500 { color: #22c55e; }
-.bg-purple-50 { background-color: #faf5ff; }
-.text-purple-500 { color: #a855f7; }
-.bg-orange-50 { background-color: #fff7ed; }
-.text-orange-500 { color: #f97316; }
-
-.text-gray-400 { color: #9ca3af; }
-.text-gray-500 { color: #6b7280; }
-.text-gray-900 { color: #111827; }
-.text-primary { color: var(--color-primary); }
-.text-sm { font-size: 0.875rem; }
-.text-xs { font-size: 0.75rem; }
-.font-medium { font-weight: 500; }
-.font-bold { font-weight: 700; }
-.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap-2 { gap: 0.5rem; }
-.gap-4 { gap: 1rem; }
-.mb-24 { margin-bottom: 24px; }
-.mb-16 { margin-bottom: 16px; }
-.mt-1 { margin-top: 0.25rem; }
-.mt-4 { margin-top: 1rem; }
-.m-0 { margin: 0; }
-.p-4 { padding: 1rem; }
-.p-24 { padding: 24px; }
-.w-full { width: 100%; }
-.h-80 { height: 20rem; }
-.rounded-lg { border-radius: 0.5rem; }
-.rounded-md { border-radius: 0.375rem; }
-.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.border { border-width: 1px; }
-.border-gray-100 { border-color: #f3f4f6; }
-
-/* Table hover optimization */
-:deep(.ant-table-row) {
-  cursor: pointer;
+.model-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #111827;
 }
+
+.model-name {
+  font-size: 12px;
+  color: #6b7280;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.model-desc,
+.param-text {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.text-gold { color: #d4a017; }
+.text-red { color: #dc2626; }
+.text-green { color: #16a34a; }
+.text-blue { color: #2563eb; }
 </style>

@@ -4,3 +4,7 @@ spring:
     username: root
     password: ${DB_PASSWORD:@liuxin2020}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+ai:
+  service:
+    url: ${AI_SERVICE_URL:http://ai:8081}

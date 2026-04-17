@@ -107,6 +107,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/user/{id}").permitAll()
                 .requestMatchers(HttpMethod.GET, "/author/profile").permitAll()
                 .requestMatchers(HttpMethod.GET, "/tts/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/runtime/ai").permitAll()
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.HEAD, "/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/uploads/**").permitAll()

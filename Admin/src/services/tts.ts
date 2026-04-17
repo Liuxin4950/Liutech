@@ -3,12 +3,14 @@ import { get, put } from './api'
 export interface TtsConfigDTO {
   enabled: boolean
   baseUrl: string | null
+  voiceModel: string | null
 }
 
 export interface TtsStatusDTO {
   enabled: boolean
   online: boolean
   baseUrl: string | null
+  voiceModel: string | null
   checkedAt: number
   message?: string | null
 }
@@ -27,3 +29,7 @@ export const getTtsStatus = async (): Promise<TtsStatusDTO> => {
   return resp.data
 }
 
+export const getTtsVoices = async (baseUrl?: string): Promise<string[]> => {
+  const resp = await get<string[]>('/admin/tts/voices', baseUrl ? { baseUrl } : {})
+  return resp.data || []
+}

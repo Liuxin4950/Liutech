@@ -29,8 +29,6 @@ export class StreamError extends Error {
  * 功能：处理服务器发送事件(SSE)流式聊天
  */
 export class AiStream {
-  // EventSource实例用于SSE连接
-  static eventSource: EventSource | null = null
   // AbortController用于取消请求
   static abortController: AbortController | null = null
 
@@ -46,7 +44,7 @@ export class AiStream {
   static async streamChat(
     request: AiChatRequest,
     onChunk: (content: string) => void,
-    onAudio?: (payload: any) => void,
+    onEvent?: (eventType: string, payload: any) => void,
     onComplete?: (response: any) => void,
     onError?: (error: StreamError) => void
   ): Promise<void> {
@@ -116,14 +114,14 @@ export class AiStream {
 
         for (const event of events) {
           if (event.trim()) {
-            this.handleSSEEvent(event, onChunk, onAudio, onComplete, onError)
+            this.handleSSEEvent(event, onChunk, onEvent, onComplete, onError)
           }
         }
       }
 
       // 处理剩余的buffer
       if (buffer.trim()) {
-        this.handleSSEEvent(buffer, onChunk, onAudio, onComplete, onError)
+        this.handleSSEEvent(buffer, onChunk, onEvent, onComplete, onError)
       }
 
     } catch (error: any) {
@@ -147,22 +145,24 @@ export class AiStream {
   static handleSSEEvent(
     eventText: string,
     onChunk: (content: string) => void,
-    onAudio?: (payload: any) => void,
+    onEvent?: (eventType: string, payload: any) => void,
     onComplete?: (response: any) => void,
     onError?: (error: StreamError) => void
   ): void {
     try {
       const lines = eventText.split('\n')
       let eventType = ''
-      let data = ''
+      const dataLines: string[] = []
 
       for (const line of lines) {
         if (line.startsWith('event:')) {
           eventType = line.substring(6).trim()
         } else if (line.startsWith('data:')) {
-          data = line.substring(5).trim()
+          dataLines.push(line.substring(5).trim())
         }
       }
+
+      const data = dataLines.join('\n')
 
       if (!data) return
 
@@ -180,7 +180,10 @@ export class AiStream {
           break
 
         case 'audio':
-          onAudio?.(parsedData)
+        case 'audio-skip':
+        case 'audio-complete':
+        case 'heartbeat':
+          onEvent?.(eventType, parsedData)
           break
 
         case 'complete':
@@ -223,11 +226,6 @@ export class AiStream {
    * 清理资源
    */
   static cleanup(): void {
-    if (this.eventSource) {
-      this.eventSource.close()
-      this.eventSource = null
-    }
-
     if (this.abortController) {
       this.abortController.abort()
       this.abortController = null
@@ -238,6 +236,6 @@ export class AiStream {
    * 检查是否正在连接
    */
   static get isStreaming(): boolean {
-    return this.eventSource !== null || this.abortController !== null
+    return this.abortController !== null
   }
 }

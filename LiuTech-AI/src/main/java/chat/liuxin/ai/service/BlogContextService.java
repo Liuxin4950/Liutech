@@ -1,14 +1,17 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.client.BlogApiClient;
+import chat.liuxin.ai.dto.AuthorProfileDTO;
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 /**
  * 博客上下文服务
@@ -20,6 +23,9 @@ import java.util.Map;
 public class BlogContextService {
 
     private final BlogApiClient blogApiClient;
+    private volatile String cachedSiteProfilePrompt;
+    private volatile long siteProfileCachedAt = 0L;
+    private static final long SITE_PROFILE_TTL_MS = Duration.ofMinutes(10).toMillis();
 
     /**
      * 根据上下文构建增强的系统提示
@@ -28,11 +34,17 @@ public class BlogContextService {
      * @return 增强后的上下文提示
      */
     public String buildContextPrompt(Map<String, Object> context) {
-        if (context == null || context.isEmpty()) {
-            return "";
+        StringBuilder contextPrompt = new StringBuilder();
+        String siteProfilePrompt = getSiteProfilePrompt();
+        if (!siteProfilePrompt.isBlank()) {
+            contextPrompt.append("【博客基础信息】\n");
+            contextPrompt.append(siteProfilePrompt);
         }
 
-        StringBuilder contextPrompt = new StringBuilder();
+        if (context == null || context.isEmpty()) {
+            return contextPrompt.toString();
+        }
+
         String page = (String) context.get("page");
 
         // 如果在文章详情页，自动加载文章内容
@@ -50,6 +62,8 @@ public class BlogContextService {
                 }
             }
         }
+
+        appendRecommendationContext(contextPrompt, context);
 
         return contextPrompt.toString();
     }
@@ -118,5 +132,88 @@ public class BlogContextService {
         }
 
         return null;
+    }
+
+    private String getSiteProfilePrompt() {
+        long now = System.currentTimeMillis();
+        if (cachedSiteProfilePrompt != null && now - siteProfileCachedAt < SITE_PROFILE_TTL_MS) {
+            return cachedSiteProfilePrompt;
+        }
+
+        synchronized (this) {
+            if (cachedSiteProfilePrompt != null && now - siteProfileCachedAt < SITE_PROFILE_TTL_MS) {
+                return cachedSiteProfilePrompt;
+            }
+            AuthorProfileDTO profile = blogApiClient.getAuthorProfile();
+            cachedSiteProfilePrompt = profile != null ? profile.toAiReadableFormat() : "";
+            siteProfileCachedAt = now;
+            return cachedSiteProfilePrompt;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void appendRecommendationContext(StringBuilder contextPrompt, Map<String, Object> context) {
+        Object recommendationsObj = context.get("recommendations");
+        if (!(recommendationsObj instanceof List<?> recommendations) || recommendations.isEmpty()) {
+            return;
+        }
+
+        List<String> sections = new ArrayList<>();
+        for (Object item : recommendations) {
+            if (!(item instanceof Map<?, ?> rawMap)) {
+                continue;
+            }
+            Map<String, Object> recommendation = (Map<String, Object>) rawMap;
+            String reason = asString(recommendation.get("reason"));
+            String type = asString(recommendation.get("type"));
+            Object postsObj = recommendation.get("posts");
+            if (!(postsObj instanceof List<?> posts) || posts.isEmpty()) {
+                continue;
+            }
+
+            StringBuilder section = new StringBuilder();
+            section.append("- 推荐类型: ").append(type != null ? type : "unknown");
+            if (reason != null) {
+                section.append(" | 推荐理由: ").append(reason);
+            }
+            section.append("\n");
+
+            int index = 1;
+            for (Object postObj : posts) {
+                if (!(postObj instanceof Map<?, ?> postMapRaw)) {
+                    continue;
+                }
+                Map<String, Object> post = (Map<String, Object>) postMapRaw;
+                section.append("  ").append(index++).append(". ")
+                        .append("ID=").append(asString(post.get("id")))
+                        .append(" | 标题=").append(defaultString(asString(post.get("title")), "未命名文章"));
+                String categoryName = asString(post.get("categoryName"));
+                if (categoryName != null) {
+                    section.append(" | 分类=").append(categoryName);
+                }
+                String summary = asString(post.get("summary"));
+                if (summary != null && !summary.isBlank()) {
+                    section.append(" | 摘要=").append(summary);
+                }
+                section.append("\n");
+            }
+            sections.add(section.toString().trim());
+        }
+
+        if (sections.isEmpty()) {
+            return;
+        }
+
+        contextPrompt.append("\n\n【最近展示给用户的推荐内容】\n");
+        contextPrompt.append("以下内容已经真实展示给用户。如果用户追问“刚才推荐的第几篇是什么”“展开说说那篇推荐文章”，请基于这些推荐项继续回答。\n");
+        contextPrompt.append(String.join("\n", sections));
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String defaultString(String value, String fallback) {
+        return value != null && !value.isBlank() ? value : fallback;
     }
 }

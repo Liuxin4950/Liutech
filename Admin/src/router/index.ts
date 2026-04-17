@@ -103,13 +103,17 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'tts',
-        name: 'tts-settings',
-        component: () => import('../views/admin/TtsSettings.vue'),
+        path: 'ai-settings',
+        name: 'ai-settings',
+        component: () => import('../views/admin/AiSettings.vue'),
         meta: {
-          title: '语音推理配置',
-          section: 'tts'
+          title: 'AI设置',
+          section: 'ai-settings'
         }
+      },
+      {
+        path: 'tts',
+        redirect: '/ai-settings'
       },
       {
         path: 'messages',

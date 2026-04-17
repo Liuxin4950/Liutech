@@ -115,6 +115,7 @@ const icons: Record<string, string> = {
   lightbulb: '<path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path>',
   school: '<path d="M22 10v6M2 10l10-5 10 5-10 5z"></path><path d="M6 12v5c3 3 9 3 12 0v-5"></path>',
   history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path>',
+  conversations: '<path d="M6.5 5.5h10a2.5 2.5 0 0 1 2.5 2.5v5a2.5 2.5 0 0 1-2.5 2.5H11l-3 2.5V15.5h-1.5A2.5 2.5 0 0 1 4 13V8a2.5 2.5 0 0 1 2.5-2.5z"></path><path d="M9 9h5.5"></path><path d="M9 12h3.5"></path>',
   favorite: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path>',
   game: '<circle cx="6" cy="4" r="2"></circle><circle cx="10" cy="4" r="2"></circle><circle cx="14" cy="4" r="2"></circle><path d="M6 6v10"></path><path d="M14 6v10"></path><rect x="4" y="8" width="16" height="12" rx="2"></rect>',
   run: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>',

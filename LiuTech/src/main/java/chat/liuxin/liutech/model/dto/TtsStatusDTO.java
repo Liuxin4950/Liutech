@@ -24,6 +24,11 @@ public class TtsStatusDTO {
     private String baseUrl;
 
     /**
+     * 当前生效的语音模型
+     */
+    private String voiceModel;
+
+    /**
      * 最近一次探测时间（毫秒时间戳）
      */
     private long checkedAt;
@@ -33,4 +38,3 @@ public class TtsStatusDTO {
      */
     private String message;
 }
-

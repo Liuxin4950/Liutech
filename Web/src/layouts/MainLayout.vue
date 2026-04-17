@@ -57,7 +57,7 @@ const handleExternalChatOpen = (event: Event) => {
   }
 }
 
-const resolveTtsPlayUrl = (audioUrl: string) => {
+const resolveTtsPlayUrl = (audioUrl?: string) => {
   if (!audioUrl) return ''
   return audioUrl
 }
@@ -110,6 +110,14 @@ const playNextTts = async () => {
       const next = chatStore.shiftTtsAudioQueue()
       if (!next) break
 
+      if (next.status === 'skipped') {
+        console.warn(
+          `[TTS][skip] seq=${next.seq} conv=${next.conversationId ?? '-'} ` +
+          `reason=${next.reason ?? 'unknown'} text=${next.text ?? ''}`
+        )
+        continue
+      }
+
       const playUrl = resolveTtsPlayUrl(next.audioUrl)
       if (!playUrl) continue
 
@@ -120,7 +128,9 @@ const playNextTts = async () => {
       )
 
       const speakAt = performance.now()
-      let audio = await live2dRef.value.speakAudioUrl(playUrl)
+      let audio = next.audioEl
+        ? await live2dRef.value.speakAudioElement(next.audioEl)
+        : await live2dRef.value.speakAudioUrl(playUrl)
       if (!audio) continue
 
       console.log(`[TTS][play] seq=${next.seq} speakAudioUrlMs=${Math.round(performance.now() - speakAt)}`)
