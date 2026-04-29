@@ -807,9 +807,9 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
 
     <!-- 目录导航 -->
-    <div class="table-of-contents-container">
+    <!-- <div class="table-of-contents-container">
       <TableOfContents class="table-of-contents" v-if="post && !loading && !error" />
-    </div>
+    </div> -->
   </div>
 </template>
 
