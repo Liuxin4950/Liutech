@@ -40,7 +40,7 @@ echo "=========================================="
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$INSTALL_DIR/images"
 mkdir -p "$INSTALL_DIR/sql"
-mkdir -p "$INSTALL_DIR/nginx/certs"
+mkdir -p "$INSTALL_DIR/nginx"
 # 文件上传目录使用绝对路径 /liuxin/uploads
 mkdir -p /liuxin/uploads
 
@@ -79,7 +79,7 @@ services:
     container_name: liutech-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-@liuxin2020}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       MYSQL_DATABASE: liutech
     ports:
       - "${MYSQL_PORT:-3306}:3306"
@@ -89,7 +89,7 @@ services:
       - ./sql/ai_chat_tables.sql:/docker-entrypoint-initdb.d/ai_chat_tables.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-@liuxin2020}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:?DB_PASSWORD is required}"]
       timeout: 20s
       retries: 10
       interval: 10s
@@ -106,7 +106,7 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-@liuxin2020}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       # JWT签名密钥 - 生产环境必须配置强密钥
       - JWT_SECRET=${JWT_SECRET}
       # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 $INSTALL_DIR/uploads 到此路径
@@ -133,7 +133,7 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
       - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-@liuxin2020}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - BLOG_API_URL=http://backend:8080
       # JWT密钥 - 必须与后端一致，否则无法验证token
@@ -172,7 +172,7 @@ services:
       - "${NGINX_HTTPS:-443}:443"
       - "81:81"
     volumes:
-      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx:/etc/nginx/ssl:ro
     depends_on:
       - backend
       - web
@@ -234,14 +234,14 @@ NGINX_HTTPS=443
 SERVER_BASE_URL=http://liuxin.chat
 
 # MySQL root 密码（必需配置）
-DB_PASSWORD=@liuxin2020
+DB_PASSWORD=your_mysql_root_password
 
 # JWT密钥 - 后端和AI服务共用此密钥（必需配置，请修改为随机字符串）
-JWT_SECRET=liutech_blog_jwt_secret_min_256_bits
+JWT_SECRET=your_strong_jwt_secret_min_32_chars
 
 # AI服务API Key（必需配置）
 # 请替换为你的SiliconFlow API Key
-SPRING_AI_OPENAI_API_KEY="sk-gkfhwsydhwfkfcaxiijxatigydwghbyajjkpsrypktojdcmg"
+SPRING_AI_OPENAI_API_KEY=your_siliconflow_api_key
 EOF
     echo "环境配置文件 .env 已创建"
 else

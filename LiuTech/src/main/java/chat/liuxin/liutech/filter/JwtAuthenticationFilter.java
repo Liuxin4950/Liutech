@@ -82,8 +82,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("/".equals(requestURI)) {
             return true;
         }
-        // 跳过静态资源目录
-        if (requestURI.startsWith("/uploads/") || requestURI.startsWith("/files/")) {
+        // 跳过公开静态资源目录；付费资源目录 /uploads/resources/** 由受控下载接口处理
+        if (requestURI.startsWith("/uploads/images/")
+                || requestURI.startsWith("/uploads/documents/")
+                || requestURI.startsWith("/uploads/music/")
+                || requestURI.startsWith("/files/")) {
             return true;
         }
         return false;

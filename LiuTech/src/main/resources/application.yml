@@ -20,7 +20,7 @@ spring:
     # - application-dev.yml：本地开发（示例使用 127.0.0.1:3307）
     # - application-prod.yml：Docker/生产（示例使用 docker 网络主机名 mysql:3306）
     username: root
-    password: ${DB_PASSWORD:@liuxin2020}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -90,9 +90,9 @@ file:
 # JWT 配置
 jwt:
   # 签名密钥 - 生产环境必须使用强密钥（通过环境变量注入）
-  # 开发环境使用默认密钥（仅限本地开发使用）
+  # 本地开发也应通过环境变量或启动参数注入，避免默认密钥入库
   # 生成强密钥命令：openssl rand -base64 64
-  secret: ${JWT_SECRET:liutech2024secretkey-very-long-and-secure-key-for-hmac-sha256-algorithm-minimum-256-bits}
+  secret: ${JWT_SECRET}
   expiration: 604800000  # 7天，单位：毫秒
   header: Authorization
   prefix: Bearer

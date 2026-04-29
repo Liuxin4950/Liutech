@@ -322,6 +322,8 @@ mysql -u root -p liutech_ai < sql/ai_chat_tables.sql
 <details>
 <summary>⚙️ 后端服务启动</summary>
 
+后端和 AI 服务需要从项目根目录 `.env` 注入 `DB_PASSWORD`、`JWT_SECRET`、`SPRING_AI_OPENAI_API_KEY` 等配置；首次运行可复制 `.env.example` 为 `.env` 后填写本地值。Windows 开发建议使用下面的启动脚本，它会自动加载 `.env`。
+
 **主后端服务 (LiuTech)**
 ```bash
 # 进入后端目录
@@ -329,7 +331,7 @@ cd LiuTech
 
 # 编译并启动
 mvn clean compile
-mvn spring-boot:run
+../scripts/run-backend-dev.ps1
 
 # 或者打包运行
 mvn clean package -DskipTests
@@ -344,7 +346,7 @@ cd LiuTech-AI
 
 # 编译并启动
 mvn clean compile
-mvn spring-boot:run
+../scripts/run-ai-dev.ps1
 
 # 或者打包运行
 mvn clean package -DskipTests

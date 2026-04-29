@@ -100,6 +100,10 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
       // 特殊处理401错误：清除token
       if (error.response?.status === 401) {
         localStorage.removeItem('token')
+        const currentRoute = router.currentRoute.value
+        if (currentRoute.name !== 'login') {
+          router.push({ name: 'login', query: { redirect: currentRoute.fullPath } }).catch(() => undefined)
+        }
       }
 
       // 重新抛出错误，保持原有的错误传播机制

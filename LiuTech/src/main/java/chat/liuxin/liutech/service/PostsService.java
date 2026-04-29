@@ -167,31 +167,25 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 v = map.get("fileName"); if (v != null) a.setFileName(String.valueOf(v));
                 v = map.get("pointsNeeded"); if (v != null) a.setPointsNeeded(((Number) v).intValue());
                 v = map.get("createdTime"); if (v instanceof java.util.Date) a.setCreatedTime((java.util.Date) v);
-                v = map.get("externalLink"); if (v != null) a.setExternalLink(String.valueOf(v));
                 v = map.get("resourceType"); if (v != null) a.setResourceType(String.valueOf(v));
-                v = map.get("purchasedNote"); if (v != null) a.setPurchasedNote(String.valueOf(v));
+                v = map.get("downloadType");
+                Integer downloadType = v != null ? ((Number) v).intValue() : null;
 
-                // 根据积分需求和用户购买状态控制文件URL可见性
+                // 根据下载类型、积分需求和购买状态控制付费资源敏感字段可见性
                 Long resourceId = a.getResourceId();
                 Integer pointsNeeded = a.getPointsNeeded();
-                boolean purchased = false;
-                if (pointsNeeded == null || pointsNeeded == 0) {
-                    purchased = true; // 免费资源视为已购买
-                } else if (userId != null) {
+                boolean paidResource = (downloadType != null && downloadType == 1)
+                        || (pointsNeeded != null && pointsNeeded > 0);
+                boolean purchased = !paidResource;
+                if (paidResource && userId != null && resourceId != null) {
                     purchased = resourceDownloadService.hasUserPurchased(userId, resourceId);
                 }
                 a.setPurchased(purchased);
 
-                if (pointsNeeded != null && pointsNeeded > 0) {
-                    // 积分资源：仅在已购买时返回URL，未登录或未购买一律隐藏URL
-                    if (purchased) {
-                        v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
-                    } else {
-                        a.setFileUrl(null);
-                    }
-                } else {
-                    // 免费资源：始终返回URL
+                if (purchased) {
                     v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
+                    v = map.get("externalLink"); if (v != null) a.setExternalLink(String.valueOf(v));
+                    v = map.get("purchasedNote"); if (v != null) a.setPurchasedNote(String.valueOf(v));
                 }
 
                 return a;

@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import chat.liuxin.liutech.mapper.ResourceDownloadsMapper;
 import chat.liuxin.liutech.mapper.ResourcesMapper;
@@ -142,19 +143,15 @@ public class ResourceDownloadService {
         log.debug("原始文件URL: {}", fileUrl);
         log.debug("上传目录配置: {}", uploadDir);
 
-        // 处理不同格式的文件URL，兼容多种环境
-        // - 生产环境: https://liuxin.chat/uploads/resources/...
-        // - 开发环境: http://localhost:8080/uploads/resources/...
-        // - 相对路径: /uploads/resources/...
-        if (fileUrl.contains("/uploads/")) {
-            // 提取 /uploads/ 之后的部分
-            int uploadsIndex = fileUrl.indexOf("/uploads/");
-            fileUrl = fileUrl.substring(uploadsIndex + "/uploads/".length());
+        String relativePath = extractResourceRelativePath(fileUrl);
+        log.debug("解析后的相对路径: {}", relativePath);
+
+        Path basePath = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path filePath = basePath.resolve(relativePath).normalize();
+        if (!filePath.startsWith(basePath)) {
+            log.warn("拒绝访问上传目录外的资源文件，资源ID: {}, 路径: {}", resourceId, filePath);
+            throw new RuntimeException("非法资源路径");
         }
-
-        log.debug("解析后的相对路径: {}", fileUrl);
-
-        Path filePath = Paths.get(uploadDir, fileUrl);
         File file = filePath.toFile();
 
         log.debug("最终文件路径: {}", file.getAbsolutePath());
@@ -177,6 +174,38 @@ public class ResourceDownloadService {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(fileResource);
+    }
+
+    private String extractResourceRelativePath(String fileUrl) {
+        if (!StringUtils.hasText(fileUrl)) {
+            throw new RuntimeException("资源文件地址为空");
+        }
+
+        String relativePath = fileUrl.replace('\\', '/');
+        int uploadsIndex = relativePath.indexOf("/uploads/");
+        if (uploadsIndex >= 0) {
+            relativePath = relativePath.substring(uploadsIndex + "/uploads/".length());
+        } else if (relativePath.startsWith("uploads/")) {
+            relativePath = relativePath.substring("uploads/".length());
+        }
+
+        int queryIndex = relativePath.indexOf('?');
+        if (queryIndex >= 0) {
+            relativePath = relativePath.substring(0, queryIndex);
+        }
+        int fragmentIndex = relativePath.indexOf('#');
+        if (fragmentIndex >= 0) {
+            relativePath = relativePath.substring(0, fragmentIndex);
+        }
+        while (relativePath.startsWith("/")) {
+            relativePath = relativePath.substring(1);
+        }
+
+        if (!relativePath.startsWith("resources/")) {
+            throw new RuntimeException("非法资源路径");
+        }
+
+        return relativePath;
     }
 
     /**

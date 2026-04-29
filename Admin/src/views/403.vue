@@ -16,8 +16,8 @@ const goLogin = () => {
 </script>
 
 <template>
-  <div class="403-container">
-    <div class="403-content">
+  <div class="forbidden-container">
+    <div class="forbidden-content">
       <div class="icon-wrapper">
         <LockOutlined class="icon" />
       </div>
@@ -38,7 +38,7 @@ const goLogin = () => {
 </template>
 
 <style scoped>
-.403-container {
+.forbidden-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -46,7 +46,7 @@ const goLogin = () => {
   background: var(--bg-page);
 }
 
-.403-content {
+.forbidden-content {
   text-align: center;
   padding: 48px;
 }

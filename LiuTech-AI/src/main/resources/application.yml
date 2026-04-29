@@ -24,10 +24,10 @@ spring:
   ai:
     openai:
       # API密钥 - 生产环境必须配置（通过环境变量注入）
-      # 开发环境可使用默认测试密钥
+      # 本地开发也应通过环境变量或启动参数注入，避免默认密钥入库
       # Docker部署通过 docker-compose 的 SPRING_AI_OPENAI_API_KEY 注入
       base-url: https://api.siliconflow.cn
-      api-key: ${SPRING_AI_OPENAI_API_KEY:sk-gkfhwsydhwfkfcaxiijxatigydwghbyajjkpsrypktojdcmg}
+      api-key: ${SPRING_AI_OPENAI_API_KEY}
       chat:
         options:
           model: "zai-org/GLM-4.6"
@@ -129,9 +129,9 @@ mybatis-plus:
 # JWT 配置
 jwt:
   # 签名密钥 - 生产环境必须使用强密钥（通过环境变量注入）
-  # 开发环境使用默认密钥（仅限本地开发使用）
+  # 本地开发也应通过环境变量或启动参数注入，避免默认密钥入库
   # 生成强密钥命令：openssl rand -base64 64
-  secret: ${JWT_SECRET:liutech2024secretkey-very-long-and-secure-key-for-hmac-sha256-algorithm-minimum-256-bits}
+  secret: ${JWT_SECRET}
   expiration: 604800000  # 7天，单位：毫秒
   header: Authorization
   prefix: Bearer

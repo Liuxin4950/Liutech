@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 /**
  * 路由配置
@@ -181,7 +182,7 @@ const router = createRouter({
  * 路由前置守卫
  * 设置页面标题和权限检查
  */
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
   // 设置页面标题
   document.title = `Liutech-${to.meta.title || '博客'}`
 
@@ -193,6 +194,13 @@ router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token')
     if (!token) {
       // 未登录，跳转到登录页面
+      next({ name: 'login', query: { redirect: to.fullPath } })
+      return
+    }
+
+    const userStore = useUserStore()
+    await userStore.fetchUserInfo()
+    if (!userStore.isLoggedIn) {
       next({ name: 'login', query: { redirect: to.fullPath } })
       return
     }
