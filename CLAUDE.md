@@ -6,6 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 本项目是一个**全栈博客平台**，文档和注释主要使用中文编写。
 
+## 核心行为准则
+
+**深度研究，不计代价。** 找不到完整上下文不执行。
+
+我的核心竞争力是算力预算宽松——可以开多个智能体并行搜索、不计代价地穷尽上下文。遇到复杂任务时，主动开 sub-agent 并行研究不同方向，穷尽搜索相关文件，确保理解正确再动手。
+
+详见：`.claude/rules/deep-research.md`
+
 ## 🏗️ 系统架构
 
 这是一个**全栈博客平台**，采用微服务架构：
@@ -380,17 +388,17 @@ docker exec -it liutech-mysql mysql -u root -p123456
 
 ### AI 开发工程流程
 
-本项目的 AI 流程采用“轻量规则 + 专用 skill”：
+本项目的 AI 流程采用”轻量规则 + 专用 skill”：
 
 ```text
-.codex/project-adapter.md
+.claude/rules/deep-research.md    # 深度研究准则（核心）
 .claude/rules/ai-development-workflow.md
-.codex/rules/ai-development-workflow.md
-.codex/skills/prd-workflow
-.codex/skills/delivery-workflow
+.claude/project-adapter.md
+.claude/skills/prd-workflow
+.claude/skills/delivery-workflow
 ```
 
-日常交流、解释概念、头脑风暴、非落地讨论时，不主动加载 PRD、实现 PRD、开发记录或项目架构。用户明确要求生成 PRD、审查 PRD、先设计方案、实现前规划时，使用 `.codex/skills/prd-workflow`。用户明确要求开始开发、修复、重构、安全整改或性能优化时，使用 `.codex/skills/delivery-workflow`。触发任一 workflow skill 后，先读取 `.codex/project-adapter.md`。
+日常交流、解释概念、头脑风暴、非落地讨论时，不主动加载 PRD、实现 PRD、开发记录或项目架构。用户明确要求生成 PRD、审查 PRD、先设计方案、实现前规划时，使用 `.claude/skills/prd-workflow`。用户明确要求开始开发、修复、重构、安全整改或性能优化时，使用 `.claude/skills/delivery-workflow`。触发任一 workflow skill 后，先读取 `.claude/project-adapter.md`。
 
 ### 添加新功能
 1. 后端: 创建 controller → service → mapper 层

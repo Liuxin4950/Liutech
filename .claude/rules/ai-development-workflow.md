@@ -1,19 +1,47 @@
 # Claude Code AI开发工程流程入口
 
-本文件用于兼容 Claude Code，只做轻量入口，不重复 PRD 细节。
+本文件只做轻量入口，不重复 PRD 细节，避免日常交流时消耗无关上下文。
 
 ## 加载原则
 
 1. 日常交流、解释概念、头脑风暴、非落地讨论：不要主动加载 PRD、实现 PRD、开发记录或项目架构文档。
-2. 用户明确要求生成 PRD、审查 PRD、先设计方案、实现前规划时，参考 `.codex/skills/prd-workflow`。
-3. 用户明确要求开始开发、修复 bug、重构、安全整改或性能优化时，参考 `.codex/skills/delivery-workflow`。
-4. 触发任一 workflow skill 后，先读取项目适配文件：`.codex/project-adapter.md`。
-5. 只读取与当前功能直接相关的过程文档，不批量加载整个 `doc/`。
+2. 只有用户明确使用"生成、审查、设计、规划、实现前方案"等落地动词时，才使用项目 skill：`.claude/skills/prd-workflow`。单纯"我想、我考虑、可不可以、聊聊"不触发 PRD 流程。
+3. 用户明确要求"帮我实现""开始开发""修复 bug""重构""安全整改""性能优化"时，使用项目 skill：`.claude/skills/delivery-workflow`。
+4. 触发任一 workflow skill 后，先读取项目适配文件：`.claude/project-adapter.md`。
+5. 只读取与当前功能直接相关的过程文档，禁止为了"保险"批量加载整个 `doc/`。
 
-Codex 默认规则入口：
+## 核心行为准则
 
-```text
-.codex/rules/ai-development-workflow.md
-```
+**深度研究，不计代价。** 详见：`.claude/rules/deep-research.md`
+
+## 强约束
 
 同一功能的过程文件必须使用完全一致的文件名：`功能名_YYYY-MM-DD.md`。
+
+标准目录：
+
+```text
+doc/需求PRD/
+doc/实现PRD/
+doc/开发记录/
+doc/项目架构/
+doc/项目架构/当前架构.md
+```
+
+功能架构文档记录单次变化；`当前架构.md` 用于沉淀长期有效的总体架构，避免架构记忆碎片化。
+
+若迁移到其他项目，优先替换 `.claude/project-adapter.md`，再复用两个 workflow skill。
+
+## 开发入口
+
+1. 极小修：仅文案、注释、格式、无行为变化的改动，可以不写开发记录，但最终回复必须说明无行为影响。
+2. 小修 / Bug 修复：可跳过 PRD，只写开发记录并说明架构影响判断。
+3. 普通功能：先走 `.claude/skills/prd-workflow`，确认实现 PRD 后再用 `.claude/skills/delivery-workflow` 开发交付。
+4. 重大功能 / 高风险变更：必须完整执行 PRD、实现、开发记录、项目架构更新流程。
+
+## 硬门禁
+
+1. 实现 PRD 不合格，不准进入开发。
+2. 开发完成但未执行验证且未说明原因，不准结束任务。
+3. 架构影响未判断，不准结束任务。
+4. 发现优秀代码索引过时，不准继续引用，必须更新或标注弃用。
