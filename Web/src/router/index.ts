@@ -187,7 +187,7 @@ router.beforeEach(async (to, from, next) => {
   document.title = `Liutech-${to.meta.title || '博客'}`
 
   // 需要登录的页面
-  const requiresAuth = ['create-post', 'drafts', 'my-posts', 'profile', 'chat-history', 'ai-chat-full']
+  const requiresAuth = ['create-post', 'drafts', 'my-posts', 'favorites', 'profile', 'chat-history', 'ai-chat-full']
 
   // 检查是否需要登录
   if (requiresAuth.includes(to.name as string)) {

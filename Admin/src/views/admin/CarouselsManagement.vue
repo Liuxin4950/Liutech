@@ -195,7 +195,7 @@ const loadCarousels = async () => {
   try {
     loading.value = true
     const params = {
-      page: pagination.current,
+      current: pagination.current,
       size: pagination.pageSize,
       ...searchParams.value
     }

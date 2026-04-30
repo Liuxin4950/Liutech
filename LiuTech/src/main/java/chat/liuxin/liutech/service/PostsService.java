@@ -155,6 +155,10 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (postDetail == null) {
             return null;
         }
+        if (!canViewPostDetail(postDetail, userId)) {
+            log.warn("拒绝访问未发布文章详情 - 文章ID: {}, 用户ID: {}, 状态: {}", id, userId, postDetail.getStatus());
+            return null;
+        }
 
         // 附件列表（公开，不限制上传者）
         List<java.util.Map<String, Object>> list = postAttachmentsMapper.selectPostAttachmentsPublic(id);
@@ -208,6 +212,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
         normalizePostDetailUrls(postDetail);
         return postDetail;
+    }
+
+    private boolean canViewPostDetail(PostDetailResp postDetail, Long userId) {
+        if ("published".equals(postDetail.getStatus())) {
+            return true;
+        }
+        return userId != null && postDetail.getAuthorId() != null && postDetail.getAuthorId().equals(userId);
     }
 
     /**

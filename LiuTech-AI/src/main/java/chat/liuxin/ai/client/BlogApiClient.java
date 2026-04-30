@@ -137,7 +137,7 @@ public class BlogApiClient {
     public List<PostSummaryDTO> getLatestPosts(Integer limit) {
         try {
             int size = limit != null ? limit : 5;
-            String url = blogApiUrl + "/posts/latest?size=" + size;
+            String url = blogApiUrl + "/posts/latest?limit=" + size;
             log.debug("调用博客API获取最新文章: {}", url);
 
             String response = restTemplate.getForObject(url, String.class);

@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
+import DOMPurify from 'dompurify'
 import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
@@ -12,6 +13,7 @@ import LoginModal from '../components/LoginModal.vue'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
 import Icon from '@/components/Icon.vue'
+import defaultCoverImage from '@/assets/image/images.jpg'
 
 // 动态加载Prism.js和Prism.css用于代码高亮
 const loadPrism = () => {
@@ -106,7 +108,7 @@ const loginMessage = ref('点赞和收藏功能需要登录后才能使用')
 
 // 图片预加载相关状态
 const imageLoading = ref(true)
-const displayImage = ref('/src/assets/image/images.jpg') // 默认图片
+const displayImage = ref(defaultCoverImage) // 默认图片
 
 // 购买状态
 const purchasingId = ref<number | null>(null)
@@ -140,14 +142,15 @@ const renderedContent = computed(() => {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code>$1</code>')
-    return content
+    return DOMPurify.sanitize(content)
   } else {
     // 纯文本内容，进行简单的格式化
-    return content
+    const html = content
       .replace(/\n/g, '<br>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code>$1</code>')
+    return DOMPurify.sanitize(html)
   }
 })
 

@@ -1,12 +1,19 @@
 package chat.liuxin.ai.filter;
 
 import chat.liuxin.ai.utils.JwtUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,6 +24,7 @@ import org.springframework.security.web.context.RequestAttributeSecurityContextR
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -26,7 +34,7 @@ import java.util.Collection;
 /**
  * JWT认证过滤器
  * 自动验证请求中的JWT token，并将用户信息与权限注入到Spring Security上下文
- * 角色信息从 JWT token 的 claims 中获取，登录时由主后端写入
+ * token 签名由本服务校验，账号当前状态和角色由主后端 /user/current 进行权威校验
  *
  * 作者：刘鑫，时间：2025-08-26（Asia/Shanghai）
  */
@@ -36,6 +44,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Value("${blog.api.url:http://backend:8080}")
+    private String blogApiUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     
     // 使用RequestAttributeSecurityContextRepository在请求属性中保存安全上下文
     // 解决SSE流完成后认证上下文丢失问题
@@ -86,10 +100,44 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String username = jwtUtil.getUsernameFromToken(token);
         Long userId = jwtUtil.getUserIdFromToken(token);
-        String role = jwtUtil.getRoleFromToken(token);
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            setAuthenticationContext(username, userId, role, request, response);
+        if (username != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            CurrentUser currentUser = loadCurrentUserFromBlogApi(token);
+            if (currentUser == null || !userId.equals(currentUser.userId()) || !username.equals(currentUser.username())) {
+                log.warn("AI服务JWT用户状态校验失败，用户ID: {}, 请求路径: {}", userId, request.getRequestURI());
+                return;
+            }
+            setAuthenticationContext(currentUser.username(), currentUser.userId(), currentUser.role(), request, response);
+        }
+    }
+
+    private CurrentUser loadCurrentUserFromBlogApi(String token) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(token);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    blogApiUrl + "/user/current",
+                    HttpMethod.GET,
+                    new HttpEntity<>(headers),
+                    String.class);
+
+            if (!response.getStatusCode().is2xxSuccessful() || !StringUtils.hasText(response.getBody())) {
+                return null;
+            }
+
+            JsonNode root = objectMapper.readTree(response.getBody());
+            if (!root.has("code") || root.get("code").asInt() != 200 || !root.has("data") || root.get("data").isNull()) {
+                return null;
+            }
+
+            JsonNode data = root.get("data");
+            Long currentUserId = data.has("id") && !data.get("id").isNull() ? data.get("id").asLong() : null;
+            String currentUsername = data.has("username") && !data.get("username").isNull() ? data.get("username").asText() : null;
+            String currentRole = data.has("role") && !data.get("role").isNull() ? data.get("role").asText() : "user";
+            return new CurrentUser(currentUserId, currentUsername, currentRole);
+        } catch (Exception e) {
+            log.warn("调用主后端校验JWT用户状态失败: {}", e.getMessage());
+            return null;
         }
     }
     
@@ -134,9 +182,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 默认 ROLE_USER
         authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
         // 如果角色是 admin，添加 ROLE_ADMIN
-        if ("admin".equals(role)) {
+        if ("admin".equalsIgnoreCase(role)) {
             authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         }
         return authorities;
+    }
+
+    private record CurrentUser(Long userId, String username, String role) {
     }
 }

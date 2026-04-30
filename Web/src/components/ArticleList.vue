@@ -28,7 +28,7 @@
         <!-- 缩略图 -->
         <div class="posts-img">
           <img
-            :src="post.coverImage || post.thumbnail || '/src/assets/image/images.jpg'"
+            :src="post.coverImage || post.thumbnail || defaultPostImage"
             :alt="post.title"
             class="fit"
           />
@@ -87,6 +87,7 @@ import { useRouter } from 'vue-router'
 import { formatDate } from '@/utils/uitls'
 import Pagination from '@/components/Pagination.vue'
 import Icon from './Icon.vue'
+import defaultPostImage from '@/assets/image/images.jpg'
 
 const router = useRouter()
 

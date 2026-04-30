@@ -20,6 +20,7 @@ export interface Carousel {
 
 export interface CarouselListParams {
   page?: number
+  current?: number
   size?: number
   status?: number
   includeDeleted?: boolean

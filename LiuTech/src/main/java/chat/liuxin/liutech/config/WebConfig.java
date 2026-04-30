@@ -24,10 +24,6 @@ public class WebConfig implements WebMvcConfigurer {
      */
     @Override
     public void addResourceHandlers(@NonNull ResourceHandlerRegistry registry) {
-        // 配置文件访问路径映射
-        registry.addResourceHandler(fileUploadConfig.getUrlPrefix() + "/**")
-                .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/");
-        
         // 配置图片访问路径
         registry.addResourceHandler("/uploads/images/**")
                 .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/" + fileUploadConfig.getImagePath() + "/");
@@ -36,8 +32,6 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/uploads/documents/**")
                 .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/" + fileUploadConfig.getDocumentPath() + "/");
         
-        // 配置资源访问路径
-        registry.addResourceHandler("/uploads/resources/**")
-                .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/" + fileUploadConfig.getResourcePath() + "/");
+        // 付费/附件资源不做静态暴露，必须通过 /resource/download/{id} 做购买校验后下载。
     }
 }

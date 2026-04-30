@@ -3,6 +3,7 @@ package chat.liuxin.liutech.controller.web;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -79,6 +80,7 @@ public class CategoriesController {
      * @return 创建结果
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<Boolean> createCategory(@RequestBody CategoryResp categoryResp) {
         try {
             boolean result = categoriesService.save(categoryResp);

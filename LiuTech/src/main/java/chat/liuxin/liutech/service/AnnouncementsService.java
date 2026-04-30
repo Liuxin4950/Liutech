@@ -150,8 +150,12 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @return 公告分页数据
      */
     public IPage<AnnouncementResp> getAllAnnouncements(long current, long size, Integer status, Integer type, Boolean includeDeleted) {
+        return getAllAnnouncements(current, size, status, type, null, includeDeleted);
+    }
+
+    public IPage<AnnouncementResp> getAllAnnouncements(long current, long size, Integer status, Integer type, String keyword, Boolean includeDeleted) {
         Page<Announcements> page = new Page<>(current, size);
-        QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, includeDeleted);
+        QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, keyword, includeDeleted);
         IPage<Announcements> announcementPage = this.page(page, queryWrapper);
         return announcementPage.convert(this::convertToResl);
     }
@@ -265,6 +269,32 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
 
         LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Announcements::getId, id)
+                .set(Announcements::getIsTop, isTop);
+        return this.update(updateWrapper);
+    }
+
+    /**
+     * 批量置顶/取消置顶公告
+     * @param ids 公告ID列表
+     * @param isTop 是否置顶(0否,1是)
+     * @return 是否成功
+     */
+    @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
+    public boolean batchToggleAnnouncementTop(List<Long> ids, Integer isTop) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID列表不能为空");
+        }
+        if (isTop == null || (isTop != 0 && isTop != 1)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "置顶状态参数错误");
+        }
+
+        for (Long id : ids) {
+            validateAnnouncementExistsAndNotDeleted(id);
+        }
+
+        LambdaUpdateWrapper<Announcements> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(Announcements::getId, ids)
                 .set(Announcements::getIsTop, isTop);
         return this.update(updateWrapper);
     }
@@ -391,7 +421,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param includeDeleted 是否包含已删除的公告
      * @return 查询条件
      */
-    private QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type, Boolean includeDeleted) {
+    private QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type, String keyword, Boolean includeDeleted) {
         QueryWrapper<Announcements> queryWrapper = new QueryWrapper<>();
 
         // 如果不包含已删除的公告，则只查询未删除的
@@ -404,6 +434,13 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         }
         if (type != null) {
             queryWrapper.eq("type", type);
+        }
+        if (org.springframework.util.StringUtils.hasText(keyword)) {
+            String trimmedKeyword = keyword.trim();
+            queryWrapper.and(wrapper -> wrapper
+                    .like("title", trimmedKeyword)
+                    .or()
+                    .like("content", trimmedKeyword));
         }
 
         queryWrapper.orderByDesc("is_top", "priority", "created_at");

@@ -109,32 +109,32 @@ public class UserManagementService {
     /**
      * 根据ID查询用户
      */
-    private Users getUserById(Long id) {
+    private UserResp getUserById(Long id) {
         Users user = userMapper.selectById(id);
         if (user == null) {
             log.warn("用户不存在，ID: {}", id);
             throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
-        return user;
+        return BeanConvertUtil.convertToUserResl(user);
     }
 
     /**
      * 根据用户名查询用户列表
      */
-    private List<Users> getUsersByUsername(String username) {
+    private List<UserResp> getUsersByUsername(String username) {
         List<Users> users = userMapper.findByUserName(username);
         if (users == null || users.isEmpty()) {
             log.warn("用户不存在，用户名: {}", username);
             throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
-        return users;
+        return BeanConvertUtil.convertToUserReslList(users);
     }
 
     /**
      * 查询所有用户
      */
-    private List<Users> getAllUsers() {
-        return userMapper.selectList(null);
+    private List<UserResp> getAllUsers() {
+        return BeanConvertUtil.convertToUserReslList(userMapper.selectList(null));
     }
 
     /**

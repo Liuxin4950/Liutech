@@ -101,8 +101,9 @@ public class AnnouncementsController {
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Integer type,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        IPage<AnnouncementResp> result = announcementsService.getAllAnnouncements(current, size, status, type, includeDeleted);
+        IPage<AnnouncementResp> result = announcementsService.getAllAnnouncements(current, size, status, type, keyword, includeDeleted);
         return Result.success(result);
     }
 
@@ -217,6 +218,19 @@ public class AnnouncementsController {
     }
 
     /**
+     * 批量置顶/取消置顶公告
+     * @param request 批量置顶状态更新请求
+     * @return 是否成功
+     */
+    @PutMapping("/batch/top")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<Boolean> batchToggleAnnouncementTop(
+            @RequestBody BatchTopUpdateRequest request) {
+        boolean success = announcementsService.batchToggleAnnouncementTop(request.getIds(), request.getIsTop());
+        return Result.success(success);
+    }
+
+    /**
      * 状态更新请求
      */
     public static class StatusUpdateRequest {
@@ -260,6 +274,30 @@ public class AnnouncementsController {
      */
     public static class TopUpdateRequest {
         private Integer isTop;
+
+        public Integer getIsTop() {
+            return isTop;
+        }
+
+        public void setIsTop(Integer isTop) {
+            this.isTop = isTop;
+        }
+    }
+
+    /**
+     * 批量置顶状态更新请求
+     */
+    public static class BatchTopUpdateRequest {
+        private List<Long> ids;
+        private Integer isTop;
+
+        public List<Long> getIds() {
+            return ids;
+        }
+
+        public void setIds(List<Long> ids) {
+            this.ids = ids;
+        }
 
         public Integer getIsTop() {
             return isTop;

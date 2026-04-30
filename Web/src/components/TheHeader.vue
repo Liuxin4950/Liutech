@@ -4,6 +4,8 @@ import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme.ts'
 import { useUserStore } from '../stores/user'
 import Icon from './Icon.vue'
+import menuIconLight from '@/assets/image/icon/menu.png'
+import menuIconDark from '@/assets/image/icon/menu_dark.png'
 
 // 接收滚动位置
 const props = defineProps<{
@@ -201,8 +203,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
         <img
           class="mobile-menu-btn"
           :src="theme.current.value === 'light'
-            ? '/src/assets/image/icon/menu.png'
-            : '/src/assets/image/icon/menu_dark.png'"
+            ? menuIconLight
+            : menuIconDark"
           @click="toggleMenu"
         />
       </div>

@@ -30,7 +30,7 @@
           <!-- 缩略图 -->
           <div class="post-thumbnail">
             <img 
-              :src="post.thumbnail || post.coverImage || '/src/assets/image/images.jpg'" 
+              :src="post.thumbnail || post.coverImage || defaultPostImage"
               :alt="post.title" 
               class="thumbnail-image" 
             />
@@ -68,6 +68,7 @@
 import type { PostListItem } from '@/services/post'
 import { formatDate } from '@/utils/uitls'
 import Icon from './Icon.vue'
+import defaultPostImage from '@/assets/image/images.jpg'
 
 interface Props {
   posts: PostListItem[]

@@ -156,7 +156,11 @@ export class PostService {
    */
   static async getPostList(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
     try {
-      const response = await get('/posts', params)
+      const { sortBy, ...rest } = params
+      const response = await get('/posts', {
+        ...rest,
+        ...(sortBy ? { sort: sortBy === 'popular' ? 'hot' : sortBy } : {})
+      })
       return response.data
     } catch (error) {
       console.error('获取文章列表失败:', error)
@@ -245,7 +249,7 @@ export class PostService {
    * @param postData 更新数据
    * @returns 更新结果
    */
-  static async updatePost(id: number, postData: UpdatePostRequest): Promise<PostDetail> {
+  static async updatePost(id: number, postData: UpdatePostRequest): Promise<boolean> {
     try {
       const response = await put(`/posts/${id}`, postData)
       return response.data
@@ -274,7 +278,7 @@ export class PostService {
    * @param id 文章ID
    * @returns 发布结果
    */
-  static async publishPost(id: number): Promise<PostDetail> {
+  static async publishPost(id: number): Promise<boolean> {
     try {
       const response = await put(`/posts/${id}/publish`)
       return response.data

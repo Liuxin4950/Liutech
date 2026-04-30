@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -147,6 +148,7 @@ public class UserController {
      * @return 用户信息或用户列表
      */
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<?> getUsers(
             @RequestParam(required = false) Long id,
             @RequestParam(required = false) String username) {
@@ -164,11 +166,18 @@ public class UserController {
      * @return 用户信息
      */
     @GetMapping("/{id}")
-    public Result<Users> getUserById(
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<UserResp> getUserById(
             @PathVariable Long id) {
         log.info("根据ID获取用户信息，ID: {}", id);
         Users user = userManagementService.findUserById(id);
-        return Result.success(user);
+        if (user == null) {
+            return Result.fail(ErrorCode.USER_NOT_FOUND, "用户不存在");
+        }
+        UserResp userResp = new UserResp();
+        BeanUtils.copyProperties(user, userResp);
+        userResp.setPasswordHash(null);
+        return Result.success(userResp);
     }
 
     /**
@@ -179,6 +188,7 @@ public class UserController {
      * @return 操作结果
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> createUser(@Valid @RequestBody Users user) {
         // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验
         log.info("管理员创建用户: {}", user.getUsername());
@@ -195,6 +205,7 @@ public class UserController {
      * @return 操作结果
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody Users user) {
@@ -213,6 +224,7 @@ public class UserController {
      * @return 操作结果
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public Result<String> deleteUser(
             @PathVariable Long id) {
         // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验

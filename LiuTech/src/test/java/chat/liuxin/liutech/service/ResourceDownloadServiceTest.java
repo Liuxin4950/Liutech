@@ -23,6 +23,7 @@ class ResourceDownloadServiceTest {
 
     private ResourceDownloadService service;
     private ResourcesMapper resourcesMapper;
+    private ResourceDownloadsMapper resourceDownloadsMapper;
 
     @TempDir
     Path uploadDir;
@@ -30,9 +31,10 @@ class ResourceDownloadServiceTest {
     @BeforeEach
     void setUp() {
         resourcesMapper = mock(ResourcesMapper.class);
+        resourceDownloadsMapper = mock(ResourceDownloadsMapper.class);
         service = new ResourceDownloadService();
         ReflectionTestUtils.setField(service, "resourcesMapper", resourcesMapper);
-        ReflectionTestUtils.setField(service, "resourceDownloadsMapper", mock(ResourceDownloadsMapper.class));
+        ReflectionTestUtils.setField(service, "resourceDownloadsMapper", resourceDownloadsMapper);
         ReflectionTestUtils.setField(service, "pointsService", mock(PointsService.class));
         ReflectionTestUtils.setField(service, "uploadDir", uploadDir.toString());
     }
@@ -67,5 +69,21 @@ class ResourceDownloadServiceTest {
                 () -> service.downloadResource(10L, 2L));
 
         assertEquals("非法资源路径", error.getMessage());
+    }
+
+    @Test
+    void shouldRequirePurchaseWhenDownloadTypeIsUnexpectedButPointsArePositive() {
+        Resources resource = new Resources();
+        resource.setName("paid.zip");
+        resource.setFileUrl("https://liuxin.chat/uploads/resources/2026/04/paid.zip");
+        resource.setDownloadType(2);
+        resource.setPointsNeeded(java.math.BigDecimal.TEN);
+        when(resourcesMapper.selectById(3L)).thenReturn(resource);
+        when(resourceDownloadsMapper.countUserPurchase(10L, 3L)).thenReturn(0);
+
+        RuntimeException error = assertThrows(RuntimeException.class,
+                () -> service.downloadResource(10L, 3L));
+
+        assertEquals("请先购买该资源", error.getMessage());
     }
 }

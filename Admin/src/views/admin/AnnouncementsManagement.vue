@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons-vue'
+import DOMPurify from 'dompurify'
 import dayjs, { Dayjs } from 'dayjs'
 import AnnouncementsService from '../../services/announcements'
 import type { AnnouncementListParams, Announcement, AnnouncementListItem } from '../../services/announcements'
@@ -77,10 +78,15 @@ const confirmLoading = ref(false)
 const previewVisible = ref(false)
 const previewData = ref<AnnouncementListItem | null>(null)
 
+const sanitizeAnnouncementContent = (content?: string) => {
+  return DOMPurify.sanitize(content || '')
+}
+
 // ============== 导入导出功能 ==============
 const uploadVisible = ref(false)
 const uploadLoading = ref(false)
 const fileList = ref<any[]>([])
+const exportImportEnabled = false
 
 const formRef = ref()
 const formModel = ref<Partial<Announcement>>({
@@ -268,7 +274,7 @@ const loadAnnouncements = async () => {
   try {
     loading.value = true
     const params = {
-      page: pagination.current,
+      current: pagination.current,
       size: pagination.pageSize,
       ...searchParams.value
     }
@@ -572,10 +578,10 @@ onMounted(async () => {
             <a-button type="primary" @click="openCreate">
               <PlusOutlined /> 新建公告
             </a-button>
-            <a-button @click="handleExport">
+            <a-button :disabled="!exportImportEnabled" @click="handleExport">
               <DownloadOutlined /> 导出Excel
             </a-button>
-            <a-button @click="uploadVisible = true">
+            <a-button :disabled="!exportImportEnabled" @click="uploadVisible = true">
               <UploadOutlined /> 导入Excel
             </a-button>
             <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
@@ -843,7 +849,7 @@ onMounted(async () => {
         </div>
         
         <!-- 公告内容 -->
-        <div class="preview-content" v-html="previewData.content"></div>
+        <div class="preview-content" v-html="sanitizeAnnouncementContent(previewData.content)"></div>
         
         <!-- 公告底部信息 -->
         <div class="preview-footer">

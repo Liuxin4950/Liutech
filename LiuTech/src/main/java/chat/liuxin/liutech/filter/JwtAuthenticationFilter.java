@@ -1,5 +1,7 @@
 package chat.liuxin.liutech.filter;
 
+import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.utils.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -23,7 +25,7 @@ import java.util.Collection;
 /**
  * JWT认证过滤器
  * 自动验证请求中的JWT token，并将用户信息与权限注入到Spring Security上下文
- * 角色信息从 JWT token 的 claims 中获取，登录时由 UserAuthService 写入
+ * 角色和账号状态以数据库当前值为准，避免旧 token 在降权或禁用后继续拥有权限
  *
  * 作者：刘鑫，时间：2025-08-26（Asia/Shanghai）
  */
@@ -38,6 +40,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     // - 将 userId 写入 Authentication.details，供 UserUtils、MyMetaObjectHandler 等读取
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Autowired
+    private UserMapper userMapper;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
@@ -118,11 +123,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String username = jwtUtil.getUsernameFromToken(token);
         Long userId = jwtUtil.getUserIdFromToken(token);
-        String role = jwtUtil.getRoleFromToken(token);
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            setAuthenticationContext(username, userId, role, request);
+        if (username != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            Users currentUser = userMapper.selectById(userId);
+            if (!isCurrentUserTokenValid(currentUser, username, token)) {
+                log.warn("JWT用户状态校验失败，用户ID: {}, 请求路径: {}", userId, request.getRequestURI());
+                return;
+            }
+            setAuthenticationContext(currentUser.getUsername(), userId, currentUser.getRole(), request);
         }
+    }
+
+    /**
+     * 使用数据库当前用户状态校验 token，避免禁用、删除、降权或改密后的旧 token 继续生效。
+     */
+    private boolean isCurrentUserTokenValid(Users currentUser, String tokenUsername, String token) {
+        if (currentUser == null || currentUser.getDeletedAt() != null) {
+            return false;
+        }
+        if (!StringUtils.hasText(currentUser.getUsername()) || !currentUser.getUsername().equals(tokenUsername)) {
+            return false;
+        }
+        if (!Integer.valueOf(1).equals(currentUser.getStatus())) {
+            return false;
+        }
+        String tokenPasswordHash = jwtUtil.getPasswordHashFromToken(token);
+        return !StringUtils.hasText(tokenPasswordHash) || tokenPasswordHash.equals(currentUser.getPasswordHash());
     }
 
     /**
@@ -133,7 +159,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * @param request HTTP请求
      */
     private void setAuthenticationContext(String username, Long userId, String role, HttpServletRequest request) {
-        // 构建权限集合：从 JWT claims 中读取角色
+        // 构建权限集合：从数据库当前角色读取，旧 token 中的 role 仅用于兼容解析，不用于授权。
         Collection<GrantedAuthority> authorities = buildUserAuthorities(role);
         // 使用 UsernamePasswordAuthenticationToken 注入认证主体
         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -156,7 +182,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 默认 ROLE_USER
         authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
         // 如果角色是 admin，添加 ROLE_ADMIN
-        if ("admin".equals(role)) {
+        if ("admin".equalsIgnoreCase(role)) {
             authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         }
         return authorities;

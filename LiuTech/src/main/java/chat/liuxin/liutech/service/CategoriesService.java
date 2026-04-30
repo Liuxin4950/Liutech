@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 分类服务类
@@ -270,12 +269,8 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
                 return false;
             }
 
-            // 获取该分类下的所有文章ID
-            List<Long> postIds = postsMapper.selectList(
-                new LambdaQueryWrapper<Posts>()
-                    .eq(Posts::getCategoryId, id)
-                    .select(Posts::getId)
-            ).stream().map(Posts::getId).collect(Collectors.toList());
+            // 获取该分类下的所有文章ID，包括已软删除文章，避免外键残留导致分类物理删除失败。
+            List<Long> postIds = postsMapper.selectIdsByCategoryIdIncludingDeleted(id);
 
             if (!postIds.isEmpty()) {
                 // 按正确顺序删除文章的关联数据
@@ -331,12 +326,8 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
                 return false;
             }
 
-            // 获取这些分类下的所有文章ID
-            List<Long> postIds = postsMapper.selectList(
-                new LambdaQueryWrapper<Posts>()
-                    .in(Posts::getCategoryId, ids)
-                    .select(Posts::getId)
-            ).stream().map(Posts::getId).collect(Collectors.toList());
+            // 获取这些分类下的所有文章ID，包括已软删除文章，避免外键残留导致分类物理删除失败。
+            List<Long> postIds = postsMapper.selectIdsByCategoryIdsIncludingDeleted(ids);
 
             if (!postIds.isEmpty()) {
                 // 按正确顺序删除文章的关联数据

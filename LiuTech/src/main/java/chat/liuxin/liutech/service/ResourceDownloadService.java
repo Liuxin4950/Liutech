@@ -133,8 +133,8 @@ public class ResourceDownloadService {
             throw new RuntimeException("资源不存在");
         }
 
-        // 检查下载权限
-        if (resource.getDownloadType() == 1 && !hasUserPurchased(userId, resourceId)) {
+        // 检查下载权限：只有明确免费且积分为0的资源可直接下载，其余都必须购买。
+        if (isPaidResource(resource) && !hasUserPurchased(userId, resourceId)) {
             throw new RuntimeException("请先购买该资源");
         }
 
@@ -174,6 +174,12 @@ public class ResourceDownloadService {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(fileResource);
+    }
+
+    private boolean isPaidResource(Resources resource) {
+        Integer downloadType = resource.getDownloadType();
+        return (downloadType != null && downloadType != 0)
+                || (resource.getPointsNeeded() != null && resource.getPointsNeeded().compareTo(BigDecimal.ZERO) > 0);
     }
 
     private String extractResourceRelativePath(String fileUrl) {
@@ -218,12 +224,12 @@ public class ResourceDownloadService {
     public boolean hasUserPurchased(Long userId, Long resourceId) {
         // 检查资源是否为免费
         Resources resource = resourcesMapper.selectById(resourceId);
-        if (resource != null && resource.getDownloadType() == 0) {
+        if (resource != null && !isPaidResource(resource)) {
             return true; // 免费资源视为已购买
         }
 
         // 检查是否为资源上传者
-        if (resource != null && resource.getUploaderId().equals(userId)) {
+        if (resource != null && resource.getUploaderId() != null && resource.getUploaderId().equals(userId)) {
             return true; // 上传者可以免费下载
         }
 

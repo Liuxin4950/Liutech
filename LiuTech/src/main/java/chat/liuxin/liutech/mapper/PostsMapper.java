@@ -316,6 +316,23 @@ public interface PostsMapper extends BaseMapper<Posts> {
     int permanentDeleteByIds(@Param("ids") List<Long> ids);
 
     /**
+     * 查询分类下全部文章ID（包括已软删除文章，绕过 @TableLogic）。
+     *
+     * @param categoryId 分类ID
+     * @return 文章ID列表
+     */
+    @Select("SELECT id FROM posts WHERE category_id = #{categoryId}")
+    List<Long> selectIdsByCategoryIdIncludingDeleted(@Param("categoryId") Long categoryId);
+
+    /**
+     * 查询多个分类下全部文章ID（包括已软删除文章，绕过 @TableLogic）。
+     *
+     * @param categoryIds 分类ID列表
+     * @return 文章ID列表
+     */
+    List<Long> selectIdsByCategoryIdsIncludingDeleted(@Param("categoryIds") List<Long> categoryIds);
+
+    /**
      * 根据ID查询文章（包括已软删除的，绕过 @TableLogic）
      *
      * @param id 文章ID

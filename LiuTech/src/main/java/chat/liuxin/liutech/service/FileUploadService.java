@@ -32,6 +32,9 @@ import java.math.BigDecimal;
 @Service
 public class FileUploadService {
 
+    private static final int DOWNLOAD_TYPE_FREE = 0;
+    private static final int DOWNLOAD_TYPE_POINTS = 1;
+
     @Autowired
     private FileUtil fileUtil;
 
@@ -190,8 +193,9 @@ public class FileUploadService {
             resource.setDescription(description);
             resource.setFileUrl(fileUrl);
             resource.setUploaderId(userId);
-            resource.setDownloadType(downloadType != null ? downloadType : 0); // 使用传入参数或默认免费下载
-            resource.setPointsNeeded(pointsNeeded != null ? new BigDecimal(pointsNeeded) : BigDecimal.ZERO);
+            int normalizedDownloadType = normalizeDownloadType(downloadType);
+            resource.setDownloadType(normalizedDownloadType);
+            resource.setPointsNeeded(normalizePointsNeeded(normalizedDownloadType, pointsNeeded));
 
             // 保存到数据库
             resourcesMapper.insert(resource);
@@ -395,8 +399,9 @@ public class FileUploadService {
         resource.setResourceType("link"); // 外部链接类型
         resource.setPurchasedNote(purchasedNote);
         resource.setUploaderId(userId);
-        resource.setDownloadType(downloadType != null ? downloadType : 0);
-        resource.setPointsNeeded(pointsNeeded != null ? new BigDecimal(pointsNeeded) : BigDecimal.ZERO);
+        int normalizedDownloadType = normalizeDownloadType(downloadType);
+        resource.setDownloadType(normalizedDownloadType);
+        resource.setPointsNeeded(normalizePointsNeeded(normalizedDownloadType, pointsNeeded));
 
         // 保存到数据库
         resourcesMapper.insert(resource);
@@ -454,22 +459,30 @@ public class FileUploadService {
         }
 
         // 合法性校验与赋值
-        if (downloadType == null) {
-            downloadType = 0; // 默认免费
-        }
-        resource.setDownloadType(downloadType);
-
-        if (downloadType == 0) {
-            // 免费时强制置为 0
-            resource.setPointsNeeded(java.math.BigDecimal.ZERO);
-        } else {
-            // 积分下载时，至少为 1
-            int pts = (pointsNeeded == null ? 1 : Math.max(1, pointsNeeded));
-            resource.setPointsNeeded(new java.math.BigDecimal(pts));
-        }
+        int normalizedDownloadType = normalizeDownloadType(downloadType);
+        resource.setDownloadType(normalizedDownloadType);
+        resource.setPointsNeeded(normalizePointsNeeded(normalizedDownloadType, pointsNeeded));
 
         // 更新
         resourcesMapper.updateById(resource);
+    }
+
+    private int normalizeDownloadType(Integer downloadType) {
+        if (downloadType == null) {
+            return DOWNLOAD_TYPE_FREE;
+        }
+        if (downloadType != DOWNLOAD_TYPE_FREE && downloadType != DOWNLOAD_TYPE_POINTS) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "下载类型参数错误");
+        }
+        return downloadType;
+    }
+
+    private BigDecimal normalizePointsNeeded(int downloadType, Integer pointsNeeded) {
+        if (downloadType == DOWNLOAD_TYPE_FREE) {
+            return BigDecimal.ZERO;
+        }
+        int normalizedPoints = pointsNeeded == null ? 1 : Math.max(1, pointsNeeded);
+        return new BigDecimal(normalizedPoints);
     }
 
     /**

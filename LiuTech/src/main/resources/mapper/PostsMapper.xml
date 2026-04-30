@@ -824,6 +824,15 @@
         </foreach>
     </delete>
 
+    <!-- 查询多个分类下全部文章ID（包括已软删除文章） -->
+    <select id="selectIdsByCategoryIdsIncludingDeleted" resultType="java.lang.Long">
+        SELECT id FROM posts
+        WHERE category_id IN
+        <foreach collection="categoryIds" item="categoryId" open="(" separator="," close=")">
+            #{categoryId}
+        </foreach>
+    </select>
+
     <!-- 获取所有已发布的文章（用于 sitemap 生成） -->
     <select id="selectPublishedPosts" resultType="chat.liuxin.liutech.model.Posts">
         SELECT * FROM posts

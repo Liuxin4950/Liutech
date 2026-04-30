@@ -419,6 +419,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import DOMPurify from 'dompurify'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 import { PostService, type PostDetail } from '@/services/post'
 import { type Tag } from '@/services/tag'
@@ -483,16 +484,18 @@ const renderedPreviewContent = computed(() => {
 
   if (hasHtmlTags) {
     // HTML 内容中的 Markdown 语法转换
-    return content
+    const html = content
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code>$1</code>')
+    return DOMPurify.sanitize(html)
   } else {
-    return content
+    const html = content
       .replace(/\n/g, '<br>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code>$1</code>')
+    return DOMPurify.sanitize(html)
   }
 })
 const editingPostId = ref<number | null>(null)
@@ -650,7 +653,7 @@ const submitPost = async () => {
     // 提交前统一刷新附件收费设置，确保后端已持久化
     await flushAttachmentMetaUpdates()
 
-    let result
+    let postId = editingPostId.value
     if (isEditMode.value && editingPostId.value) {
       // 编辑模式：更新文章
       const updateData = {
@@ -665,7 +668,7 @@ const submitPost = async () => {
         thumbnail: form.value.thumbnail || '',
         draftKey: draftKey.value
       }
-      result = await PostService.updatePost(editingPostId.value, updateData)
+      await PostService.updatePost(editingPostId.value, updateData)
     } else {
       // 创建模式：新建文章
       const postData = {
@@ -679,7 +682,8 @@ const submitPost = async () => {
         thumbnail: form.value.thumbnail || '',
         draftKey: draftKey.value
       }
-      result = await PostService.createPost(postData)
+      const result = await PostService.createPost(postData)
+      postId = result.id
     }
 
     const actionText = isEditMode.value
@@ -688,7 +692,6 @@ const submitPost = async () => {
     await Swal.fire('成功', `${actionText}成功！`, 'success')
 
     // 跳转到文章详情页
-    const postId = isEditMode.value ? editingPostId.value : result.id
     router.push(`/post/${postId}?from=home`)
   }, {
     onError: (err) => {

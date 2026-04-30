@@ -12,7 +12,7 @@ export interface Post {
   categoryId?: number
   authorId?: number
   tagIds?: number[]
-  status: number
+  status: 'draft' | 'published' | 'archived'
   createdAt?: string
   updatedAt?: string
 }

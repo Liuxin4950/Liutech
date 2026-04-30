@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import DOMPurify from 'dompurify'
 import { useAnnouncementStore } from '../stores/announcement'
 import type { Announcement } from '../services/announcement'
 import Icon from './Icon.vue'
@@ -19,6 +20,10 @@ defineEmits<{
 // 计算属性
 const loading = computed(() => announcementStore.isLatestLoading)
 const announcements = computed(() => announcementStore.latestAnnouncements)
+
+const sanitizeAnnouncementContent = (content?: string) => {
+  return DOMPurify.sanitize(content || '')
+}
 
 // 格式化日期
 const formatDate = (dateStr?: string) => {
@@ -172,7 +177,7 @@ onUnmounted(() => {
               <span class="badge" :class="getPriorityClass(selectedAnnouncement.priority)">{{ selectedAnnouncement.priorityName }}</span>
             </div>
 
-            <div class="modal-content-text" v-html="selectedAnnouncement.content"></div>
+            <div class="modal-content-text" v-html="sanitizeAnnouncementContent(selectedAnnouncement.content)"></div>
 
             <div class="modal-info">
               <div class="info-row">

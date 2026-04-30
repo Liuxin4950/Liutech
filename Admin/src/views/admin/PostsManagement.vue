@@ -71,7 +71,7 @@ const formModel = ref<Partial<Post>>({
   thumbnail: '',
   categoryId: undefined,
   tagIds: [],
-  status: 0
+  status: 'draft'
 })
 
 const rules = {
@@ -164,7 +164,7 @@ const openCreate = async () => {
     thumbnail: '',
     categoryId: undefined,
     tagIds: [],
-    status: 0
+    status: 'draft'
   }
   modalVisible.value = true
 }
@@ -193,7 +193,7 @@ const openEdit = async (record: PostListItem) => {
         thumbnail: postDetail.thumbnail || '',
         categoryId: postDetail.categoryId,
         tagIds: postDetail.tags?.map(tag => tag.id) || [],
-        status: postDetail.status === 'published' ? 1 : 0
+        status: postDetail.status === 'published' ? 'published' : 'draft'
       }
       
       modalVisible.value = true
@@ -632,8 +632,8 @@ onMounted(async () => {
         </a-form-item>
         <a-form-item name="status" label="状态">
           <a-radio-group v-model:value="formModel.status">
-            <a-radio :value="0">草稿</a-radio>
-            <a-radio :value="1">已发布</a-radio>
+            <a-radio value="draft">草稿</a-radio>
+            <a-radio value="published">已发布</a-radio>
           </a-radio-group>
         </a-form-item>
       </a-form>
