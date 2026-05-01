@@ -40,7 +40,14 @@ public class AiRuntimeService {
         dto.setTts(ttsStatus);
 
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(normalizeBaseUrl(aiServiceUrl) + "/ai/models/default"))
+            String normalizedBaseUrl = normalizeBaseUrl(aiServiceUrl);
+            if (normalizedBaseUrl == null) {
+                dto.setAiOnline(false);
+                dto.setAiMessage("离线：AI 服务地址未配置");
+                return dto;
+            }
+
+            HttpRequest request = HttpRequest.newBuilder(URI.create(normalizedBaseUrl + "/ai/models/default"))
                     .timeout(Duration.ofMillis(1500))
                     .GET()
                     .build();
@@ -64,10 +71,11 @@ public class AiRuntimeService {
     private String normalizeBaseUrl(String raw) {
         if (raw == null) return null;
         String s = raw.trim();
+        if (s.isEmpty()) return null;
         while (s.endsWith("/")) {
             s = s.substring(0, s.length() - 1);
         }
-        return s;
+        return s.isEmpty() ? null : s;
     }
 
     private String stripJsonString(String raw) {
