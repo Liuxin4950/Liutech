@@ -144,7 +144,11 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "update", targetType = "post", description = "更新文章状态: #status", targetName = "#id")
     public Result<String> updatePostStatus(@PathVariable Long id, @RequestParam String status) {
         try {
-            boolean success = postsService.updatePostStatusForAdmin(id, status, 1L);
+            Long currentUserId = userUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
+            }
+            boolean success = postsService.updatePostStatusForAdmin(id, status, currentUserId);
             return handleOperationResult(success, "文章状态更新成功", "文章状态更新");
         } catch (Exception e) {
             return handleException(e, "文章状态更新");
@@ -172,7 +176,11 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "publish", targetType = "post", description = "发布文章", targetName = "#id")
     public Result<String> publishPost(@PathVariable Long id) {
         try {
-            boolean success = postsService.updatePostStatusForAdmin(id, "published", 1L);
+            Long currentUserId = userUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
+            }
+            boolean success = postsService.updatePostStatusForAdmin(id, "published", currentUserId);
             return handleOperationResult(success, "文章发布成功", "文章发布");
         } catch (Exception e) {
             return handleException(e, "文章发布");
@@ -186,7 +194,11 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "offline", targetType = "post", description = "下线文章", targetName = "#id")
     public Result<String> offlinePost(@PathVariable Long id) {
         try {
-            boolean success = postsService.updatePostStatusForAdmin(id, "draft", 1L);
+            Long currentUserId = userUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
+            }
+            boolean success = postsService.updatePostStatusForAdmin(id, "draft", currentUserId);
             return handleOperationResult(success, "文章下线成功", "文章下线");
         } catch (Exception e) {
             return handleException(e, "文章下线");

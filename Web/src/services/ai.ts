@@ -36,6 +36,8 @@ export interface AiChatRequest {
   temperature?: number
   /** 最大token数 */
   maxTokens?: number
+  /** 是否使用智能看板娘 Agent 流式入口 */
+  agentEnabled?: boolean
   /**
    * 是否启用语音推理（由前端开关决定）
    * - true：后端会尝试把流式文本分段并触发 TTS，额外推送 audio 事件
@@ -62,6 +64,11 @@ export interface AiChatResponse {
   conversationId?: number
   /** 会话模式 */
   mode?: 'guest' | 'user'
+  role?: 'guest' | 'user' | 'admin' | string
+  authenticated?: boolean
+  admin?: boolean
+  capabilities?: string[]
+  articleResults?: ArticleResultsPayload
 }
 
 /**
@@ -148,6 +155,23 @@ export interface PostSummaryDTO {
     viewCount: number
     likeCount: number
     createdAt?: string
+    /** 前端文章详情跳转地址，后端保证搜索/推荐结果携带 */
+    url?: string
+    /** 管理端跳转地址，管理员场景可用 */
+    adminUrl?: string
+    /** 文章状态，公开推荐通常为 published */
+    status?: string
+    /** Agent 推荐或搜索原因 */
+    reason?: string
+    /** Agent 结果来源：search/latest/hot/recommend 等 */
+    source?: string
+}
+
+export interface ArticleResultsPayload {
+    source?: string
+    query?: string
+    reason?: string
+    items: PostSummaryDTO[]
 }
 
 
@@ -175,8 +199,15 @@ export class Ai {
      * 使用AI服务8081端口
      */
     static async chat(request: AiChatRequest): Promise<AiChatResponse> {
+        const { agentEnabled, ...requestBody } = request
+        if (agentEnabled) {
+            const response = await post<AiChatResponse>('/agent/chat', requestBody, {
+                serviceType: ServiceType.AI
+            })
+            return response as unknown as AiChatResponse
+        }
         // post 返回的已是服务端响应体，AI服务为 {success, message, ...}
-        const response = await post<AiChatResponse>('/chat', request, {
+        const response = await post<AiChatResponse>('/chat', requestBody, {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse

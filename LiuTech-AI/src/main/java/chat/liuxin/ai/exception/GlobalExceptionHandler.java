@@ -1,5 +1,6 @@
 package chat.liuxin.ai.exception;
 
+import chat.liuxin.ai.security.AiToolAccessDeniedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +60,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         return createErrorResponse(ex.getReason() != null ? ex.getReason() : "请求失败", status);
+    }
+
+    @ExceptionHandler(AiToolAccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAiToolAccessDenied(AiToolAccessDeniedException ex) {
+        log.warn("AI工具权限不足: {}", ex.getMessage());
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("message", ex.getMessage());
+        response.put("code", "FORBIDDEN_CAPABILITY");
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
     
     // 处理其他系统异常

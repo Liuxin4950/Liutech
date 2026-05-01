@@ -19,6 +19,18 @@ public class PostSummaryDTO {
     private Integer viewCount;
     private Integer likeCount;
     private String createdAt;
+    /**
+     * 前端可直接跳转的文章地址。公开推荐默认指向 Web 前台文章详情。
+     */
+    private String url;
+    /**
+     * 管理端可选跳转地址，管理员侧可用。
+     */
+    private String adminUrl;
+    /**
+     * 文章状态。公开查询默认 published。
+     */
+    private String status;
 
     /**
      * 转换为AI友好的文本格式

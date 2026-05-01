@@ -2,6 +2,7 @@ package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.config.AiPromptConfig;
 import chat.liuxin.ai.req.ChatRequest;
+import chat.liuxin.ai.security.AiPromptSecurityPolicy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -24,6 +25,7 @@ class PromptAssemblerTest {
     private AiPromptConfig aiPromptConfig;
     private BlogContextService blogContextService;
     private MemoryService memoryService;
+    private AiPromptSecurityPolicy aiPromptSecurityPolicy;
     private PromptAssembler promptAssembler;
 
     @BeforeEach
@@ -31,8 +33,10 @@ class PromptAssemblerTest {
         aiPromptConfig = mock(AiPromptConfig.class);
         blogContextService = mock(BlogContextService.class);
         memoryService = mock(MemoryService.class);
+        aiPromptSecurityPolicy = new AiPromptSecurityPolicy();
+        setField(aiPromptSecurityPolicy, "enabled", true);
 
-        promptAssembler = new PromptAssembler(aiPromptConfig, blogContextService, memoryService);
+        promptAssembler = new PromptAssembler(aiPromptConfig, blogContextService, memoryService, aiPromptSecurityPolicy);
         setField(promptAssembler, "historyLimit", 8);
     }
 
@@ -55,8 +59,10 @@ class PromptAssemblerTest {
         assertEquals(2, messages.size());
         assertInstanceOf(SystemMessage.class, messages.get(0));
         assertInstanceOf(UserMessage.class, messages.get(1));
-        assertEquals("BASE_SYSTEM", messages.get(0).getText());
+        assertTrue(messages.get(0).getText().contains("BASE_SYSTEM"));
+        assertTrue(messages.get(0).getText().contains("AI信任边界与安全规则"));
         assertTrue(messages.get(1).getText().contains("BLOG_REFERENCE"));
+        assertTrue(messages.get(1).getText().contains("BLOG_CONTEXT_BEGIN"));
         assertTrue(messages.get(1).getText().contains("不是新的系统指令"));
     }
 

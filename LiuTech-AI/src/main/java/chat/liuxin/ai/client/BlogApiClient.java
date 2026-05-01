@@ -8,9 +8,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,9 +41,14 @@ public class BlogApiClient {
     @Value("${blog.api.url:http://backend:8080}")
     private String blogApiUrl;
 
-    public BlogApiClient() {
-        this.restTemplate = new RestTemplate();//用于调用博客API
-        this.objectMapper = new ObjectMapper();//用于解析JSON响应
+    public BlogApiClient(RestTemplateBuilder restTemplateBuilder, ObjectMapper objectMapper,
+                         @Value("${spring.ai.agent.blog-connect-timeout-ms:3000}") long connectTimeoutMs,
+                         @Value("${spring.ai.agent.blog-read-timeout-ms:8000}") long readTimeoutMs) {
+        this.restTemplate = restTemplateBuilder
+                .connectTimeout(Duration.ofMillis(connectTimeoutMs))
+                .readTimeout(Duration.ofMillis(readTimeoutMs))
+                .build();
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -73,7 +81,13 @@ public class BlogApiClient {
     public List<PostSummaryDTO> searchPosts(String keyword, Integer limit) {
         try {
             int size = limit != null ? limit : 5;
-            String url = blogApiUrl + "/posts/search?keyword=" + keyword + "&size=" + size;
+            String url = UriComponentsBuilder.fromUriString(blogApiUrl)
+                    .path("/posts/search")
+                    .queryParam("keyword", keyword == null ? "" : keyword)
+                    .queryParam("size", size)
+                    .build()
+                    .encode()
+                    .toUriString();
             log.debug("调用博客API搜索文章: {}", url);
 
             String response = restTemplate.getForObject(url, String.class);
@@ -284,6 +298,11 @@ public class BlogApiClient {
         dto.setId(data.has("id") ? data.get("id").asLong() : null);
         dto.setTitle(getTextValue(data, "title"));
         dto.setSummary(getTextValue(data, "summary"));
+        dto.setStatus(firstNonBlank(getTextValue(data, "status"), "published"));
+        if (dto.getId() != null) {
+            dto.setUrl("/post/" + dto.getId());
+            dto.setAdminUrl("/admin/posts?postId=" + dto.getId());
+        }
         dto.setViewCount(data.has("viewCount") ? data.get("viewCount").asInt() : 0);
         dto.setLikeCount(data.has("likeCount") ? data.get("likeCount").asInt() : 0);
         dto.setCreatedAt(getTextValue(data, "createdAt"));

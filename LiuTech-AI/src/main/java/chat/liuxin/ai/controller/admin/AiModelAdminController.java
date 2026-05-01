@@ -40,7 +40,7 @@ import java.util.Optional;
  */
 @Slf4j
 @RestController
-@RequestMapping("/admin/models")
+@RequestMapping({"/admin/models", "/ai/admin/models"})
 @CrossOrigin(origins = "*")
 @Validated
 @RequiredArgsConstructor

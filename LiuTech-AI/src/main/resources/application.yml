@@ -98,6 +98,26 @@ spring:
     # SSE配置
     sse:
       timeout: 180000  # SSE超时时间（毫秒），默认3分钟
+    agent:
+      tool-cache-ttl-ms: 60000
+      max-article-results: 8
+      blog-connect-timeout-ms: 3000
+      blog-read-timeout-ms: 8000
+    security:
+      prompt-guard:
+        enabled: true
+      model-policy:
+        strict-whitelist: true
+        max-tokens-ceiling: 4096
+      rate-limit:
+        enabled: true
+        window-seconds: 60
+        guest-max-requests: 20
+        user-max-requests: 60
+        admin-max-requests: 120
+        max-tracked-keys: 10000
+      auth-connect-timeout-ms: 3000
+      auth-read-timeout-ms: 5000
 
 # 博客API配置
 blog:

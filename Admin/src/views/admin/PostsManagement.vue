@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import PostsService from '../../services/posts'
@@ -9,6 +9,8 @@ import type { PostListParams, Post, PostListItem } from '../../services/posts'
 import { formatDateTime } from '../../utils/uitls'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
 import { ImageUploadService } from '../../services/upload'
+import AdminAgentSidebar from '../../components/agent/AdminAgentSidebar.vue'
+import type { AdminArticleDraftSnapshot } from '../../types/agent'
 
 // 响应式数据
 const loading = ref(false)
@@ -73,6 +75,18 @@ const formModel = ref<Partial<Post>>({
   tagIds: [],
   status: 'draft'
 })
+
+const agentDraftSnapshot = computed(() => ({
+  postId: editingId.value,
+  title: formModel.value.title,
+  content: formModel.value.content,
+  summary: formModel.value.summary,
+  categoryId: formModel.value.categoryId,
+  tagIds: formModel.value.tagIds,
+  status: formModel.value.status,
+  coverImage: formModel.value.coverImage,
+  thumbnail: formModel.value.thumbnail
+}))
 
 const rules = {
   title: [{ required: true, message: '请输入标题' }],
@@ -238,6 +252,17 @@ const handleOk = async () => {
 
 const handleCancel = () => {
   modalVisible.value = false
+}
+
+const handleAgentApplyDraft = (draft: Partial<AdminArticleDraftSnapshot>) => {
+  const nextStatus = draft.status === 'published' || draft.status === 'archived' || draft.status === 'draft'
+    ? draft.status
+    : (formModel.value.status || 'draft')
+  formModel.value = {
+    ...formModel.value,
+    ...draft,
+    status: nextStatus
+  }
 }
 
 // ============== 列表查询 ==============
@@ -551,7 +576,9 @@ onMounted(async () => {
     </a-card>
 
     <!-- 新建/编辑 弹窗 -->
-    <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
+    <a-modal v-model:open="modalVisible" :title="modalTitle" :width="1280" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
+      <div class="editor-agent-layout">
+      <div class="editor-form-pane">
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
         <a-form-item name="title" label="标题" required>
           <a-input v-model:value="formModel.title" placeholder="请输入标题" />
@@ -637,12 +664,30 @@ onMounted(async () => {
           </a-radio-group>
         </a-form-item>
       </a-form>
+      </div>
+      <AdminAgentSidebar
+        :draft="agentDraftSnapshot"
+        @apply-draft="handleAgentApplyDraft"
+        @action-done="loadPosts"
+      />
+      </div>
     </a-modal>
   </div>
 </template>
 
 <style scoped>
 /* 移除旧的样式，使用 utility classes */
+.editor-agent-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.editor-form-pane {
+  flex: 1;
+  min-width: 0;
+}
+
 .image-upload-container {
   width: 100%;
 }

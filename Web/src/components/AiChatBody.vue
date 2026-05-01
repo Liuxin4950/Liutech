@@ -97,6 +97,30 @@ defineExpose({
               <MarkdownRenderer :content="message.displayContent" :is-streaming="message.isStreaming || false" />
 
               <div v-if="message.type === 'ai' && !message.isStreaming" class="inline-recommendation">
+                <div class="recommendation-section" v-if="message.articleResults?.length">
+                  <div class="recommendation-header">
+                    <span class="recommendation-icon"><Icon name="book" /></span>
+                    <span class="recommendation-title">{{ message.articleResultReason || '这些文章可以继续阅读' }}</span>
+                  </div>
+                  <div class="recommendation-list">
+                    <div
+                      v-for="post in message.articleResults"
+                      :key="post.id"
+                      class="recommendation-item"
+                      @click="emit('openPost', post.id)"
+                    >
+                      <div class="recommendation-item-content">
+                        <span class="recommendation-item-title">{{ post.title }}</span>
+                        <div class="recommendation-item-meta">
+                          <span v-if="post.categoryName" class="meta-tag">{{ post.categoryName }}</span>
+                          <span v-if="post.reason" class="meta-reason">{{ post.reason }}</span>
+                        </div>
+                      </div>
+                      <span class="recommendation-arrow">›</span>
+                    </div>
+                  </div>
+                </div>
+
                 <template v-if="getMessageRecommendData(message.id)">
                   <div class="recommendation-section" v-if="getMessageRecommendData(message.id)?.posts?.length">
                     <div class="recommendation-header">
@@ -464,6 +488,14 @@ defineExpose({
   color: var(--text-on-primary);
   border-radius: 4px;
   font-size: 11px;
+}
+
+.meta-reason {
+  min-width: 0;
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .recommendation-arrow {

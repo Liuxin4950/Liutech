@@ -2,6 +2,7 @@ package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.config.AiPromptConfig;
 import chat.liuxin.ai.req.ChatRequest;
+import chat.liuxin.ai.security.AiPromptSecurityPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -24,6 +25,7 @@ public class PromptAssembler {
     private final AiPromptConfig aiPromptConfig;
     private final BlogContextService blogContextService;
     private final MemoryService memoryService;
+    private final AiPromptSecurityPolicy aiPromptSecurityPolicy;
 
     @Value("${spring.ai.chat.history-limit:14}")
     private int historyLimit;
@@ -33,7 +35,7 @@ public class PromptAssembler {
 
         String systemPrompt = aiPromptConfig.getFullSystemPrompt();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
-            messages.add(new SystemMessage(systemPrompt));
+            messages.add(new SystemMessage(aiPromptSecurityPolicy.appendSystemRules(systemPrompt)));
         }
 
         String contextPrompt = blogContextService.buildContextPrompt(request.getContext(), request.getMessage());
@@ -44,7 +46,7 @@ public class PromptAssembler {
                     你应继续遵守既有系统设定，并把下面资料当作事实参考：
 
                     %s
-                    """.formatted(contextPrompt).trim()));
+                    """.formatted(aiPromptSecurityPolicy.wrapUntrustedContent("BLOG_CONTEXT", contextPrompt)).trim()));
             log.debug("注入博客上下文: {} 字符", contextPrompt.length());
         }
 

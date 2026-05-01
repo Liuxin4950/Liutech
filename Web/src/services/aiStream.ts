@@ -59,7 +59,8 @@ export class AiStream {
 
       // 构建请求URL
       const aiBaseUrl = getServiceBaseURL(ServiceType.AI)
-      const streamUrl = `${aiBaseUrl}/chat/stream`
+      const streamUrl = request.agentEnabled ? `${aiBaseUrl}/agent/stream` : `${aiBaseUrl}/chat/stream`
+      const { agentEnabled, ...requestBody } = request
 
       // 由于EventSource不支持自定义请求头和POST方法，
       // 我们使用fetch流式读取作为替代方案
@@ -73,7 +74,7 @@ export class AiStream {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
-          ...request,
+          ...requestBody,
           mode: 'stream'
         }),
         signal: this.abortController.signal
@@ -183,6 +184,11 @@ export class AiStream {
         case 'audio-skip':
         case 'audio-complete':
         case 'heartbeat':
+        case 'agent-start':
+        case 'agent-plan':
+        case 'article-results':
+        case 'confirmation-required':
+        case 'action-result':
           onEvent?.(eventType, parsedData)
           break
 

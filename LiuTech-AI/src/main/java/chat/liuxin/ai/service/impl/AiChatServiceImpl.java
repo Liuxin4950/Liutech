@@ -25,9 +25,9 @@ import chat.liuxin.ai.client.TtsClient;
 import chat.liuxin.ai.monitor.AiMetrics;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.resp.ChatResponse;
-import chat.liuxin.ai.dto.ModelConfigDTO;
+import chat.liuxin.ai.security.AiModelPolicy;
+import chat.liuxin.ai.security.SensitiveLogSanitizer;
 import chat.liuxin.ai.service.AiChatService;
-import chat.liuxin.ai.service.AiModelConfigService;
 import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.service.PromptAssembler;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
@@ -67,9 +67,10 @@ public class AiChatServiceImpl implements AiChatService {
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final AiMetrics aiMetrics;
-    private final AiModelConfigService aiModelConfigService;
     private final TtsClient ttsClient;
     private final PromptAssembler promptAssembler;
+    private final AiModelPolicy aiModelPolicy;
+    private final SensitiveLogSanitizer sensitiveLogSanitizer;
 
     @Value("${spring.ai.openai.chat.options.model:THUDM/glm-4-9b-chat}")
     private String defaultModel; // 默认AI模型名称
@@ -117,10 +118,10 @@ public class AiChatServiceImpl implements AiChatService {
                 memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
             }
 
-            ModelParameters params = getModelParameters(request, modelName);
+            AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
             logParameterApplication(modelName, params);
 
-            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature, params.maxTokens);
+            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens());
             if (!guestMode) {
                 memoryService.saveAssistantMessage(userIdStr, conversationId, aiOutput, modelName, 1, null);
             }
@@ -259,8 +260,8 @@ public class AiChatServiceImpl implements AiChatService {
                 }
 
                 // 4.5 获取并验证模型参数
-                ModelParameters params = getModelParameters(request, modelName);
-                logParameterApplication(modelName, params);
+            AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
+            logParameterApplication(modelName, params);
 
                 // 4.6 发送开始事件
                 sendSseEvent(emitter, "start", eventPayload(
@@ -298,7 +299,7 @@ public class AiChatServiceImpl implements AiChatService {
                 }, 15, 15, TimeUnit.SECONDS);
 
                 // 4.8 调用流式AI接口（传递模型参数）
-                Flux<String> responseFlux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature, params.maxTokens);
+                Flux<String> responseFlux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens());
                 
                 // 4.8 订阅流式响应并处理每个数据块
                 responseFlux.subscribe(
@@ -624,40 +625,7 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String resolveModelName(ChatRequest request) {
-        String requestedModel = trimToNull(request != null ? request.getModel() : null);
-        String configuredDefaultModel = aiModelConfigService.getDefaultModel()
-                .filter(config -> Boolean.TRUE.equals(config.getIsEnabled()))
-                .map(ModelConfigDTO::getModelName)
-                .filter(Objects::nonNull)
-                .orElse(defaultModel);
-
-        List<ModelConfigDTO> enabledModels = aiModelConfigService.getEnabledModels();
-        boolean hasWhitelist = !enabledModels.isEmpty();
-
-        if (requestedModel == null) {
-            return configuredDefaultModel;
-        }
-
-        if (!hasWhitelist) {
-            log.info("未配置启用模型白名单，沿用请求模型: {}", requestedModel);
-            return requestedModel;
-        }
-
-        return aiModelConfigService.getModelByName(requestedModel)
-                .filter(config -> Boolean.TRUE.equals(config.getIsEnabled()))
-                .map(ModelConfigDTO::getModelName)
-                .orElseGet(() -> {
-                    log.warn("请求模型 {} 不在启用白名单中，回退到默认模型 {}", requestedModel, configuredDefaultModel);
-                    return configuredDefaultModel;
-                });
-    }
-
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return aiModelPolicy.resolveModelName(request);
     }
 
     private Map<String, Object> eventPayload(Object... keyValues) {
@@ -703,18 +671,6 @@ public class AiChatServiceImpl implements AiChatService {
     /**
      * 模型参数封装类
      */
-    private static class ModelParameters {
-        Double temperature;
-        Integer maxTokens;
-        String source; // 参数来源：request/db/default
-
-        ModelParameters(Double temperature, Integer maxTokens, String source) {
-            this.temperature = temperature;
-            this.maxTokens = maxTokens;
-            this.source = source;
-        }
-    }
-
     /**
      * 获取并验证模型参数
      *
@@ -724,59 +680,8 @@ public class AiChatServiceImpl implements AiChatService {
      * @param modelName 模型名称
      * @return 模型参数对象
      */
-    private ModelParameters getModelParameters(ChatRequest request, String modelName) {
-        Double temperature = request.getTemperature();
-        Integer maxTokens = request.getMaxTokens();
-        String source = "request"; // 默认来源为前端请求
-
-        // 1. 验证前端传递的参数
-        if (temperature != null) {
-            if (temperature < 0.0 || temperature > 1.0) {
-                log.warn("前端传递的 temperature 超出范围 [0.0, 1.0]: {}, 将忽略", temperature);
-                temperature = null;
-            }
-        }
-        if (maxTokens != null && maxTokens <= 0) {
-            log.warn("前端传递的 maxTokens 无效: {}, 将忽略", maxTokens);
-            maxTokens = null;
-        }
-
-        // 2. 如果前端没有传递完整参数，尝试从数据库读取
-        if (temperature == null || maxTokens == null) {
-            try {
-                Optional<ModelConfigDTO> modelConfig = aiModelConfigService.getModelByName(modelName);
-                if (modelConfig.isPresent()) {
-                    ModelConfigDTO config = modelConfig.get();
-
-                    // 合并配置（前端优先）
-                    if (temperature == null && config.getTemperature() != null) {
-                        temperature = config.getTemperature().doubleValue();
-                    }
-                    if (maxTokens == null && config.getMaxTokens() != null) {
-                        maxTokens = config.getMaxTokens();
-                    }
-
-                    source = "database";
-                    log.debug("从数据库读取模型配置: {}, temperature: {}, maxTokens: {}",
-                            modelName, temperature, maxTokens);
-                } else {
-                    log.info("模型 {} 未在数据库中配置，使用AI提供商默认参数", modelName);
-                    source = "default";
-                }
-            } catch (Exception e) {
-                log.error("读取模型配置失败，模型: {}, 错误: {}, 将使用默认参数",
-                        modelName, e.getMessage());
-                source = "default";
-            }
-        }
-
-        // 3. 最终参数来源确认
-        if (request.getTemperature() != null && temperature != null &&
-                !temperature.equals(request.getTemperature())) {
-            source = "mixed"; // 前端和数据库混合
-        }
-
-        return new ModelParameters(temperature, maxTokens, source);
+    private AiModelPolicy.ModelParameters getModelParameters(ChatRequest request, String modelName) {
+        return aiModelPolicy.resolveParameters(request, modelName);
     }
 
     /**
@@ -785,15 +690,15 @@ public class AiChatServiceImpl implements AiChatService {
      * @param modelName 模型名称
      * @param params 模型参数
      */
-    private void logParameterApplication(String modelName, ModelParameters params) {
-        if (params.temperature != null || params.maxTokens != null) {
+    private void logParameterApplication(String modelName, AiModelPolicy.ModelParameters params) {
+        if (params.temperature() != null || params.maxTokens() != null) {
             log.info("AI模型参数应用 - 模型: {}, 来源: {}, temperature: {}, maxTokens: {}",
                     modelName,
-                    params.source,
-                    params.temperature != null ? String.format("%.2f", params.temperature) : "未设置",
-                    params.maxTokens != null ? params.maxTokens : "未设置");
+                    params.source(),
+                    params.temperature() != null ? String.format("%.2f", params.temperature()) : "未设置",
+                    params.maxTokens() != null ? params.maxTokens() : "未设置");
         } else {
-            log.info("AI模型参数应用 - 模型: {}, 来源: {}, 使用AI提供商默认参数", modelName, params.source);
+            log.info("AI模型参数应用 - 模型: {}, 来源: {}, 使用AI提供商默认参数", modelName, params.source());
         }
     }
 }

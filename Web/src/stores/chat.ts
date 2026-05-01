@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import { Ai, type AiChatRequest } from '@/services/ai'
+import { Ai, type AiChatRequest, type PostSummaryDTO } from '@/services/ai'
 import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
 import { AiStream, StreamError } from '@/services/aiStream'
 import { isLoggedIn } from '@/utils/auth'
@@ -20,6 +20,8 @@ export interface ChatMessage {
   isError?: boolean
   conversationId?: number
   modelName?: string // 使用的模型名称
+  articleResults?: PostSummaryDTO[]
+  articleResultReason?: string
 }
 
 export interface TtsAudioItem {
@@ -258,6 +260,17 @@ export const useChatStore = defineStore('chat', () => {
       }))
   }
 
+  const shouldUseAgent = (content: string, context?: Record<string, any>) => {
+    const text = content.toLowerCase()
+    if (/(我是谁|我是啥身份|我是什么身份|我的身份|我是什么角色|我的角色|是否登录|有没有登录|登录了吗|我是管理员|我是不是管理员|权限)/.test(text)) {
+      return true
+    }
+    if (/(推荐|搜索|查找|找一下|找找|总结|这篇文章|相关文章)/.test(text)) {
+      return true
+    }
+    return context?.page === 'post-detail' && /(文章|内容|讲了什么|解释)/.test(text)
+  }
+
   // ===== 消息管理方法 =====
   /**
    * 添加用户消息
@@ -379,6 +392,7 @@ export const useChatStore = defineStore('chat', () => {
         message: content.trim(),
         context,
         model: model || defaultModel.value,  // 使用传入的模型或默认模型
+        agentEnabled: shouldUseAgent(content.trim(), context),
         ...(isGuestSession()
           ? { tempMessages: guestTempMessages }
           : { ...(conversationId.value && { conversationId: conversationId.value }) })
@@ -418,6 +432,17 @@ export const useChatStore = defineStore('chat', () => {
         },
         // onEvent - 接收到语音/心跳事件
         (eventType: string, payload: any) => {
+          if (eventType === 'article-results' && payload?.items?.length) {
+            aiMessage.articleResults = payload.items
+            aiMessage.articleResultReason = payload.reason || '我找到这些文章，可以直接点开阅读。'
+            aiMessage.isThinking = false
+            aiMessage.renderedContent = undefined
+            return
+          }
+          if (eventType === 'agent-plan') {
+            aiMessage.isThinking = false
+            return
+          }
           if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
           if (eventType === 'audio' && payload && payload.audioUrl && typeof payload.seq === 'number') {
             enqueueTtsAudio({
@@ -494,6 +519,11 @@ export const useChatStore = defineStore('chat', () => {
         isThinking: false,
         isStreaming: false
       })
+      if (response.articleResults?.items?.length) {
+        pendingAiMessage.articleResults = response.articleResults.items
+        pendingAiMessage.articleResultReason = response.articleResults.reason || '我找到这些文章，可以直接点开阅读。'
+        pendingAiMessage.renderedContent = undefined
+      }
 
       // 更新会话ID
       if (!isGuestSession() && response.conversationId && !conversationId.value) {

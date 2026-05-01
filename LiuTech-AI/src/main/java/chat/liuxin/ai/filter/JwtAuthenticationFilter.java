@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -28,6 +29,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -48,13 +50,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${blog.api.url:http://backend:8080}")
     private String blogApiUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
     
     // 使用RequestAttributeSecurityContextRepository在请求属性中保存安全上下文
     // 解决SSE流完成后认证上下文丢失问题
     private final SecurityContextRepository securityContextRepository = 
             new RequestAttributeSecurityContextRepository();
+
+    public JwtAuthenticationFilter(
+            RestTemplateBuilder restTemplateBuilder,
+            @Value("${spring.ai.security.auth-connect-timeout-ms:3000}") long connectTimeoutMs,
+            @Value("${spring.ai.security.auth-read-timeout-ms:5000}") long readTimeoutMs) {
+        this.restTemplate = restTemplateBuilder
+                .connectTimeout(Duration.ofMillis(connectTimeoutMs))
+                .readTimeout(Duration.ofMillis(readTimeoutMs))
+                .build();
+    }
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,

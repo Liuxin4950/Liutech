@@ -4,6 +4,8 @@ import chat.liuxin.ai.client.TtsClient;
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.monitor.AiMetrics;
 import chat.liuxin.ai.req.ChatRequest;
+import chat.liuxin.ai.security.AiModelPolicy;
+import chat.liuxin.ai.security.SensitiveLogSanitizer;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,8 @@ class AiChatServiceImplTest {
     private AiModelConfigService aiModelConfigService;
     private TtsClient ttsClient;
     private PromptAssembler promptAssembler;
+    private AiModelPolicy aiModelPolicy;
+    private SensitiveLogSanitizer sensitiveLogSanitizer;
     private AiChatServiceImpl service;
 
     private Method extractTtsSegmentsMethod;
@@ -43,14 +47,20 @@ class AiChatServiceImplTest {
         aiModelConfigService = mock(AiModelConfigService.class);
         ttsClient = mock(TtsClient.class);
         promptAssembler = mock(PromptAssembler.class);
+        aiModelPolicy = new AiModelPolicy(aiModelConfigService);
+        sensitiveLogSanitizer = new SensitiveLogSanitizer();
+        setField(aiModelPolicy, "configuredDefaultModel", "fallback-model");
+        setField(aiModelPolicy, "strictWhitelist", true);
+        setField(aiModelPolicy, "maxTokensCeiling", 4096);
 
         service = new AiChatServiceImpl(
                 siliconFlowChatClient,
                 memoryService,
                 aiMetrics,
-                aiModelConfigService,
                 ttsClient,
-                promptAssembler
+                promptAssembler,
+                aiModelPolicy,
+                sensitiveLogSanitizer
         );
 
         setField(service, "defaultModel", "fallback-model");
@@ -113,14 +123,14 @@ class AiChatServiceImplTest {
     }
 
     @Test
-    void shouldAllowRequestedModelWhenNoWhitelistConfigured() throws Exception {
+    void shouldFallbackToConfiguredDefaultWhenNoWhitelistConfigured() throws Exception {
         ChatRequest request = new ChatRequest();
         request.setModel("legacy-direct-model");
 
         when(aiModelConfigService.getDefaultModel()).thenReturn(Optional.empty());
         when(aiModelConfigService.getEnabledModels()).thenReturn(Collections.emptyList());
 
-        assertEquals("legacy-direct-model", resolveModelName(request));
+        assertEquals("fallback-model", resolveModelName(request));
     }
 
     @Test
