@@ -28,9 +28,9 @@ const emit = defineEmits<{
 const isModeDropdownOpen = ref(false)
 const toolbarIconSize = 15
 
-const modeLabel = computed(() => props.mode === 'stream' ? '流式模式' : '普通模式')
+const modeLabel = computed(() => props.mode === 'stream' ? '实时响应' : '完整响应')
 const sessionLabel = computed(() => props.isGuestMode ? '游客体验' : '已登录')
-const modeToggleTitle = () => `当前：${modeLabel.value}，点击切换模式`
+const modeToggleTitle = () => `当前：${modeLabel.value}，点击切换回复方式`
 const expandToggleTitle = () => props.expanded ? '退出大窗模式' : '进入大窗模式'
 const modelToggleTitle = () => props.modelVisible ? '隐藏模型' : '显示模型'
 const identityTitle = computed(() => `纳西妲 · ${modeLabel.value} · ${sessionLabel.value}`)
@@ -88,11 +88,11 @@ onUnmounted(() => {
         <div v-show="isModeDropdownOpen" class="mode-dropdown">
           <button :class="['mode-option', { active: mode === 'stream' }]" @click="selectMode('stream')">
             <span class="mode-option-dot stream"></span>
-            流式模式（实时显示）
+            实时响应
           </button>
           <button :class="['mode-option', { active: mode === 'normal' }]" @click="selectMode('normal')">
             <span class="mode-option-dot normal"></span>
-            普通模式（等待完整回复）
+            完整响应
           </button>
         </div>
       </div>

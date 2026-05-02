@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore, type ChatMode } from '@/stores/chat'
-import { Ai, AiStream, type RecommendResponse } from '@/services/ai'
+import { AiStream } from '@/services/ai'
 import { ConversationService, type Conversation } from '@/services/conversation'
 import AiChatBody from './AiChatBody.vue'
 import AiChatHeader from './AiChatHeader.vue'
@@ -56,8 +56,6 @@ const conversations = ref<Conversation[]>([])
 const isLoadingHistory = ref(false)
 const showHistorySidebar = ref(false)
 const isAuthenticated = ref(isLoggedIn())
-const messageRecommendations = ref<Map<number, RecommendResponse>>(new Map())
-const loadingMessageIds = ref<Set<number>>(new Set())
 const editingConversationId = ref<number | null>(null)
 const editingTitle = ref('')
 
@@ -78,9 +76,6 @@ const isCompact = computed(() => !props.expanded)
 const guestBannerText = computed(() => isCompact.value
   ? '游客体验中，聊天记录不会保存'
   : '当前为游客体验模式，聊天记录不会保存。登录后可保存历史会话。'
-)
-const recommendationsByMessageId = computed<Record<number, RecommendResponse | undefined>>(() =>
-  Object.fromEntries(messageRecommendations.value.entries())
 )
 const quickPrompts = computed(() => {
   if (route.name === 'post-detail') {
@@ -107,85 +102,18 @@ const toggleTts = () => {
   chatStore.setTtsEnabled(!chatStore.ttsEnabled)
 }
 
-const cleanMessageContent = (content: string): string => {
-  return content.replace(/\[\[RECOMMEND\]\][\s\S]*?\[\[\/RECOMMEND\]\]/g, '')
-}
-
-const extractRecommendParams = (content: string): any => {
-  const match = content.match(/\[\[RECOMMEND\]\]\s*([\s\S]*?)\s*\[\[\/RECOMMEND\]\]/)
-  if (match && match[1]) {
-    try {
-      return JSON.parse(match[1])
-    } catch (error) {
-      console.error('解析推荐参数失败:', error)
-    }
-  }
-  return null
-}
-
 const cleanedMessages = computed(() => {
   return messages.value.map((msg) => ({
     ...msg,
-    displayContent: msg.type === 'ai' ? cleanMessageContent(msg.content) : msg.content
+    displayContent: msg.content
   }))
 })
-
-const loadMessageRecommendation = async (messageId: number, content: string) => {
-  const params = extractRecommendParams(content)
-  if (!params) return
-  if (messageRecommendations.value.has(messageId)) return
-  if (loadingMessageIds.value.has(messageId)) return
-
-  try {
-    loadingMessageIds.value.add(messageId)
-    const response = await Ai.recommend(params)
-    messageRecommendations.value.set(messageId, response)
-  } catch (error) {
-    console.error('加载推荐数据失败:', error)
-  } finally {
-    loadingMessageIds.value.delete(messageId)
-  }
-}
-
-const loadAllMessagesRecommendation = async () => {
-  const aiMessages = messages.value.filter(msg => msg.type === 'ai')
-  await Promise.all(aiMessages.map(msg => loadMessageRecommendation(msg.id, msg.content)))
-}
-
-const buildRecommendationContext = () => {
-  const latestAiMessages = [...messages.value]
-    .filter(msg => msg.type === 'ai')
-    .slice(-3)
-
-  const recommendationSnapshots = latestAiMessages
-    .map(msg => {
-      const recommendation = messageRecommendations.value.get(msg.id)
-      if (!recommendation || !recommendation.posts?.length) return null
-      return {
-        type: recommendation.type,
-        reason: recommendation.reason,
-        posts: recommendation.posts.slice(0, 5).map(post => ({
-          id: post.id,
-          title: post.title,
-          summary: post.summary,
-          categoryName: post.categoryName
-        }))
-      }
-    })
-    .filter(Boolean)
-
-  return recommendationSnapshots.length > 0 ? recommendationSnapshots : undefined
-}
 
 const buildChatContext = (): Record<string, any> => {
   const ctx: Record<string, any> = { page: route.name || '' }
   if (route.name === 'post-detail' && route.params.id) {
     const n = Number(route.params.id)
     if (Number.isFinite(n)) ctx.postId = n
-  }
-  const recommendations = buildRecommendationContext()
-  if (recommendations) {
-    ctx.recommendations = recommendations
   }
   return ctx
 }
@@ -273,7 +201,6 @@ const loadConversation = async (conversationId: number) => {
     const historyMessages = await ConversationService.messages(conversationId, 1, 100)
 
     chatStore.clearHistory()
-    messageRecommendations.value.clear()
     chatStore.conversationId = conversationId
 
     historyMessages.forEach(msg => {
@@ -284,9 +211,6 @@ const loadConversation = async (conversationId: number) => {
         aiMessage.isStreaming = false
       }
     })
-
-    const aiMessages = historyMessages.filter((msg: any) => msg.role === 'assistant')
-    await Promise.all(aiMessages.map((msg: any) => loadMessageRecommendation(msg.id, msg.content)))
 
     showHistorySidebar.value = false
     await scrollToBottom()
@@ -496,18 +420,6 @@ const handlePostClick = (postId: number) => {
   router.push(`/post/${postId}`)
 }
 
-const handleCategoryClick = (categoryId: number) => {
-  router.push(`/category/${categoryId}`)
-}
-
-watch(() => chatStore.isStreaming, async (streaming) => {
-  if (!streaming && chatStore.messages.length > 0) {
-    const lastMessage = messages.value[messages.value.length - 1]
-    if (lastMessage && lastMessage.type === 'ai') {
-      await loadMessageRecommendation(lastMessage.id, lastMessage.content)
-    }
-  }
-})
 
 watch(
   () => messages.value.map(msg => `${msg.id}:${msg.content.length}:${msg.isStreaming ? 1 : 0}:${msg.isThinking ? 1 : 0}`).join('|'),
@@ -539,9 +451,6 @@ onMounted(async () => {
   }
 
   await nextTick()
-  if (hasMessages.value) {
-    await loadAllMessagesRecommendation()
-  }
 })
 
 onUnmounted(() => {
@@ -651,10 +560,8 @@ defineExpose({
             :is-guest-mode="isGuestMode"
             :guest-banner-text="guestBannerText"
             :expanded="expanded"
-            :recommendations="recommendationsByMessageId"
             @clear-error="chatStore.errorMessage = ''"
             @open-post="handlePostClick"
-            @open-category="handleCategoryClick"
           />
         </div>
 

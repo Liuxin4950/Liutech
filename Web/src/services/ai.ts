@@ -28,7 +28,7 @@ export interface AiChatRequest {
     role: 'user' | 'assistant' | 'system'
     content: string
   }>
-  /** 聊天模式：normal 普通模式，stream 流式模式 */
+  /** 回复模式：normal 一次性完整返回，stream SSE 实时返回 */
   mode?: 'normal' | 'stream'
   /** 使用的模型，默认为空 */
   model?: string
@@ -36,7 +36,7 @@ export interface AiChatRequest {
   temperature?: number
   /** 最大token数 */
   maxTokens?: number
-  /** 是否使用智能看板娘 Agent 流式入口 */
+  /** 是否使用智能看板娘 Agent 入口；Web 主聊天默认启用，仅遗留兼容可显式传 false */
   agentEnabled?: boolean
   /**
    * 是否启用语音推理（由前端开关决定）
@@ -200,7 +200,7 @@ export class Ai {
      */
     static async chat(request: AiChatRequest): Promise<AiChatResponse> {
         const { agentEnabled, ...requestBody } = request
-        if (agentEnabled) {
+        if (agentEnabled !== false) {
             const response = await post<AiChatResponse>('/agent/chat', requestBody, {
                 serviceType: ServiceType.AI
             })
@@ -246,9 +246,6 @@ export class Ai {
         request: AiChatRequest,
         mode: 'normal' | 'stream' = 'normal'
     ): Promise<AiChatResponse> {
-        // 根据模式选择不同的端点
-        const endpoint = mode === 'stream' ? '/chat/stream' : '/chat'
-
         // 添加模式参数到请求体
         const requestWithMode = {
             ...request,
@@ -256,11 +253,13 @@ export class Ai {
         }
 
         if (mode === 'stream') {
-            // 流式模式应该使用 AiStream 服务
-            throw new Error('流式模式请使用 AiStream.streamChat 方法')
+            // 实时响应应该使用 AiStream 服务
+            throw new Error('实时响应请使用 AiStream.streamChat 方法')
         }
 
-        const response = await post<AiChatResponse>(endpoint, requestWithMode, {
+        const { agentEnabled, ...requestBody } = requestWithMode
+        const endpoint = agentEnabled === false ? '/chat' : '/agent/chat'
+        const response = await post<AiChatResponse>(endpoint, requestBody, {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse

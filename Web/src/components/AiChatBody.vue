@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue'
 import type { ChatMessage } from '@/stores/chat'
-import type { RecommendResponse } from '@/services/ai'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import Icon from './Icon.vue'
 
@@ -18,23 +17,14 @@ const props = defineProps<{
   isGuestMode: boolean
   guestBannerText: string
   expanded?: boolean
-  recommendations: Record<number, RecommendResponse | undefined>
 }>()
 
 const emit = defineEmits<{
   clearError: []
   openPost: [postId: number]
-  openCategory: [categoryId: number]
 }>()
 
 const chatContainer = ref<HTMLElement | null>(null)
-
-const getMessageRecommendData = (messageId: number) => props.recommendations[messageId]
-const emitCategory = (categoryId?: number) => {
-  if (typeof categoryId === 'number') {
-    emit('openCategory', categoryId)
-  }
-}
 
 const scrollToBottom = async () => {
   await nextTick()
@@ -120,37 +110,6 @@ defineExpose({
                     </div>
                   </div>
                 </div>
-
-                <template v-if="getMessageRecommendData(message.id)">
-                  <div class="recommendation-section" v-if="getMessageRecommendData(message.id)?.posts?.length">
-                    <div class="recommendation-header">
-                      <span class="recommendation-icon"><Icon name="book" /></span>
-                      <span class="recommendation-title">{{ getMessageRecommendData(message.id)?.reason }}</span>
-                    </div>
-                    <div class="recommendation-list">
-                      <div
-                        v-for="post in getMessageRecommendData(message.id)?.posts || []"
-                        :key="post.id"
-                        class="recommendation-item"
-                        @click="emit('openPost', post.id)"
-                      >
-                        <div class="recommendation-item-content">
-                          <span class="recommendation-item-title">{{ post.title }}</span>
-                          <div class="recommendation-item-meta">
-                            <span v-if="post.categoryName" class="meta-tag">{{ post.categoryName }}</span>
-                            <span class="meta-views"><Icon name="eye" size="12" /> {{ post.viewCount }}</span>
-                          </div>
-                        </div>
-                        <span class="recommendation-arrow">›</span>
-                      </div>
-                    </div>
-                    <div v-if="getMessageRecommendData(message.id)?.category" class="recommendation-more">
-                      <span @click="emitCategory(getMessageRecommendData(message.id)?.category?.id)">
-                        查看 {{ getMessageRecommendData(message.id)?.category?.name }} 分类的全部文章 →
-                      </span>
-                    </div>
-                  </div>
-                </template>
               </div>
             </div>
           </div>

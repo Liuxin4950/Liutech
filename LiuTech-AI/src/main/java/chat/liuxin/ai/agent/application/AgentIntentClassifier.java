@@ -6,6 +6,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class AgentIntentClassifier {
 
+    private static final String[] ARTICLE_TOPICS = {
+            "spring boot", "spring ai", "typescript", "javascript", "docker", "kubernetes",
+            "nginx", "mysql", "redis", "java", "vue", "react", "jwt", "agent", "ai", "vite", "maven"
+    };
+
     public AgentIntent classify(AgentChatRequest request) {
         String message = request == null || request.getMessage() == null
                 ? ""
@@ -32,13 +37,34 @@ public class AgentIntentClassifier {
         if (containsAny(message, "搜索", "查找", "找一下", "找找")) {
             return AgentIntent.SEARCH_ARTICLES;
         }
-        if (containsAny(message, "推荐", "类似文章", "相关文章", "有什么文章")) {
+        if (containsAny(message, "推荐", "类似文章", "相关文章", "有什么文章", "想看", "想学", "学习", "了解")) {
             return AgentIntent.RECOMMEND_ARTICLES;
+        }
+        if (isArticleDiscoveryQuestion(message)) {
+            return AgentIntent.SEARCH_ARTICLES;
         }
         if (containsAny(message, "总结", "概括", "讲了什么")) {
             return AgentIntent.SUMMARIZE;
         }
         return AgentIntent.CHAT;
+    }
+
+    private boolean isArticleDiscoveryQuestion(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        if (containsAny(text, "文章", "博客", "教程", "内容")
+                && containsAny(text, "有", "有没有", "哪些", "什么", "相关")) {
+            return true;
+        }
+        for (String topic : ARTICLE_TOPICS) {
+            if (text.contains(topic)
+                    && (containsAny(text, "有", "有没有", "文章", "相关", "推荐")
+                    || text.length() <= topic.length() + 6)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean containsAny(String text, String... keywords) {

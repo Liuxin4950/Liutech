@@ -80,3 +80,23 @@ export interface AgentStartPayload {
   role?: 'guest' | 'user' | 'admin' | string
   capabilities?: string[]
 }
+
+/**
+ * 工具事件负载（tool-start / tool-result）。
+ */
+export interface ToolEventPayload {
+  toolName: string
+  displayName: string
+  inputSummary?: string
+  success?: boolean
+  durationMs?: number
+  resultSummary?: string
+  errorMessage?: string
+}
+
+/**
+ * data 事件负载。
+ */
+export interface DataPayload {
+  content: string
+}

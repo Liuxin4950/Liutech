@@ -3,6 +3,108 @@ import type { AiChatRequest } from './ai'
 import { getServiceBaseURL } from '@/config/services'
 
 /**
+ * SSE Envelope 格式版本。
+ * 用于前端判断如何解析 payload。
+ */
+const CONTRACT_VERSION = 1
+
+/**
+ * SSE Envelope 根结构。
+ */
+interface SseEnvelope<T = any> {
+  contractVersion: number
+  event: string
+  taskId: number
+  conversationId: number
+  timestamp: string
+  payload: T
+}
+
+/**
+ * data 事件 payload。
+ */
+interface DataPayload {
+  content: string
+}
+
+/**
+ * article-results 事件 payload。
+ */
+interface ArticleResultsPayload {
+  source: string
+  query: string
+  reason: string
+  items: ArticleResultItem[]
+}
+
+/**
+ * 文章结果项。
+ */
+interface ArticleResultItem {
+  id: number
+  title: string
+  summary: string
+  status: string
+  url: string
+  adminUrl: string
+  reason?: string
+  source?: string
+}
+
+/**
+ * confirmation-required 事件 payload。
+ */
+interface ConfirmationPayload {
+  actionId: number
+  actionType: string
+  title: string
+  description: string
+  preview: any
+  riskLevel: string
+}
+
+/**
+ * error 事件 payload。
+ */
+interface ErrorPayload {
+  code: string
+  message: string
+  stage: string
+}
+
+/**
+ * complete 事件 payload。
+ */
+interface CompletePayload {
+  taskId: number
+  conversationId: number
+}
+
+/**
+ * agent-start 事件 payload。
+ */
+interface AgentStartPayload {
+  taskId: number
+  conversationId: number
+  intent: string
+  role: string
+  capabilities: string[]
+}
+
+/**
+ * tool-start/tool-result 事件 payload。
+ */
+interface ToolEventPayload {
+  toolName: string
+  displayName: string
+  inputSummary?: string
+  success?: boolean
+  durationMs?: number
+  resultSummary?: string
+  errorMessage?: string
+}
+
+/**
  * SSE Streaming Error
  */
 export class StreamError extends Error {
@@ -27,6 +129,9 @@ export class StreamError extends Error {
  * 作者：刘鑫
  * 时间：2025-01-27
  * 功能：处理服务器发送事件(SSE)流式聊天
+ *
+ * 2026-05-01: 升级为统一 envelope 格式，支持 contractVersion。
+ * 旧格式 payload 仍然兼容（用于显式关闭 Agent 的遗留 /chat/stream）。
  */
 export class AiStream {
   // AbortController用于取消请求
@@ -59,7 +164,8 @@ export class AiStream {
 
       // 构建请求URL
       const aiBaseUrl = getServiceBaseURL(ServiceType.AI)
-      const streamUrl = request.agentEnabled ? `${aiBaseUrl}/agent/stream` : `${aiBaseUrl}/chat/stream`
+      const useAgent = request.agentEnabled !== false
+      const streamUrl = useAgent ? `${aiBaseUrl}/agent/stream` : `${aiBaseUrl}/chat/stream`
       const { agentEnabled, ...requestBody } = request
 
       // 由于EventSource不支持自定义请求头和POST方法，
@@ -142,6 +248,11 @@ export class AiStream {
 
   /**
    * 处理SSE事件
+   *
+   * 支持两种格式：
+   * 1. 新版 envelope 格式（contractVersion=1）：
+   *    { contractVersion, event, taskId, conversationId, timestamp, payload }
+   * 2. 旧版裸 payload 格式（用于显式关闭 Agent 的遗留 /chat/stream）
    */
   static handleSSEEvent(
     eventText: string,
@@ -168,48 +279,99 @@ export class AiStream {
       if (!data) return
 
       // 解析数据
-      const parsedData = JSON.parse(data)
+      let parsedData = JSON.parse(data)
+
+      // 检查是否为新版 envelope 格式
+      if (parsedData && parsedData.contractVersion === CONTRACT_VERSION) {
+        // 新版 envelope 格式
+        const envelope = parsedData as SseEnvelope
+        eventType = envelope.event
+        parsedData = envelope.payload
+      }
+      // else: 旧版裸 payload 格式，保持原样处理
 
       switch (eventType) {
         case 'start':
           break
 
-        case 'data':
-          if (parsedData.content) {
-            onChunk(parsedData.content)
+        case 'data': {
+          // data 事件：提取 content 字段
+          const payload = parsedData as DataPayload
+          if (payload && payload.content) {
+            onChunk(payload.content)
+          } else if (typeof parsedData === 'string') {
+            // 兼容旧格式
+            onChunk(parsedData)
           }
           break
+        }
 
         case 'audio':
         case 'audio-skip':
         case 'audio-complete':
         case 'heartbeat':
-        case 'agent-start':
+          // 音频事件，直接透传
+          onEvent?.(eventType, parsedData)
+          break
+
+        case 'agent-start': {
+          const payload = parsedData as AgentStartPayload
+          onEvent?.(eventType, payload)
+          break
+        }
+
         case 'agent-plan':
-        case 'article-results':
-        case 'confirmation-required':
+        case 'article-results': {
+          const payload = parsedData as ArticleResultsPayload
+          onEvent?.(eventType, payload)
+          break
+        }
+
+        case 'confirmation-required': {
+          const payload = parsedData as ConfirmationPayload
+          onEvent?.(eventType, payload)
+          break
+        }
+
         case 'action-result':
           onEvent?.(eventType, parsedData)
           break
 
-        case 'complete':
-          onComplete?.(parsedData)
+        case 'tool-start':
+        case 'tool-result': {
+          const payload = parsedData as ToolEventPayload
+          onEvent?.(eventType, payload)
           break
+        }
 
-        case 'error':
-          console.error('流式响应错误:', parsedData)
+        case 'complete': {
+          const payload = parsedData as CompletePayload
+          onComplete?.(payload)
+          break
+        }
+
+        case 'error': {
+          const payload = parsedData as ErrorPayload
+          console.error('流式响应错误:', payload)
           onError?.(new StreamError(
-            parsedData.error || '流式响应发生错误',
-            'STREAM_EVENT_ERROR'
+            payload?.message || '流式响应发生错误',
+            payload?.code || 'STREAM_EVENT_ERROR'
           ))
           break
+        }
 
         default:
-          // 如果没有事件类型，可能是直接的内容
+          // 如果没有事件类型，可能是直接的内容（旧格式兼容）
           if (typeof parsedData === 'string') {
             onChunk(parsedData)
-          } else if (parsedData.content) {
+          } else if (parsedData && parsedData.content) {
             onChunk(parsedData.content)
+          } else if (parsedData && parsedData.error) {
+            // 旧格式错误
+            onError?.(new StreamError(
+              parsedData.error,
+              'STREAM_EVENT_ERROR'
+            ))
           }
       }
     } catch (error: any) {

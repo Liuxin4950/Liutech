@@ -6,6 +6,11 @@ import chat.liuxin.ai.agent.persistence.AgentTaskMapper;
 import chat.liuxin.ai.agent.request.AdminArticleDraftRequest;
 import chat.liuxin.ai.agent.request.AgentChatRequest;
 import chat.liuxin.ai.agent.response.AgentChatResponse;
+import chat.liuxin.ai.agent.response.AgentErrorCode;
+import chat.liuxin.ai.agent.response.AgentErrorPayload;
+import chat.liuxin.ai.agent.response.AgentErrorStage;
+import chat.liuxin.ai.agent.response.AgentPlanStep;
+import chat.liuxin.ai.agent.response.AgentResultPayload;
 import chat.liuxin.ai.agent.response.ArticleResultItem;
 import chat.liuxin.ai.agent.response.ArticleResultsPayload;
 import chat.liuxin.ai.agent.response.ConfirmationRequiredPayload;
@@ -27,16 +32,41 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Agent 编排器。
+ *
+ * 负责协调 Agent 任务的完整执行流程：
+ * - 意图分类
+ * - 任务创建
+ * - 计划构建
+ * - 任务执行
+ * - SSE 事件发布
+ *
+ * SSE 事件发布：
+ * - 所有事件通过 AgentStreamPublisher 发送
+ * - 所有事件包装为统一 AgentSseEnvelope 格式
+ * - 工具执行通过 AgentToolExecutionService 发送 tool-start/tool-result 事件
+ *
+ * @author liuxin
+ * @see AgentStreamPublisher
+ * @see AgentToolExecutionService
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AgentOrchestrator {
+
+    private static final String[] ARTICLE_TOPICS = {
+            "spring boot", "spring ai", "typescript", "javascript", "docker", "kubernetes",
+            "nginx", "mysql", "redis", "java", "vue", "react", "jwt", "agent", "ai", "vite", "maven"
+    };
 
     private final AgentIntentClassifier intentClassifier;
     private final AgentPlanService planService;
     private final PublicArticleTool publicArticleTool;
     private final AgentActionService agentActionService;
     private final AgentStreamPublisher streamPublisher;
+    private final AgentToolExecutionService toolExecutionService;
     private final AgentTaskMapper agentTaskMapper;
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final AgentToolCallRecorder toolCallRecorder;
@@ -45,42 +75,83 @@ public class AgentOrchestrator {
     private final AiPromptSecurityPolicy promptSecurityPolicy;
     private final AiModelPolicy aiModelPolicy;
 
+    /**
+     * 非流式执行。
+     *
+     * @param request 请求
+     * @param user   用户上下文
+     * @return 聊天响应
+     */
     public AgentChatResponse execute(AgentChatRequest request, AgentUserContext user) {
         AgentIntent intent = intentClassifier.classify(request);
         AgentTask task = createTask(request, user, intent, AgentTaskStatus.RUNNING);
         var plan = planService.buildPlan(intent, user != null && user.isAdmin());
-        return executeTask(request, user, intent, task, plan);
+        return executeTask(request, user, intent, task, plan, null);
     }
 
+    /**
+     * 流式执行，通过 SSE 发送事件。
+     *
+     * 事件发送顺序：
+     * 1. agent-start：任务启动信息
+     * 2. agent-plan：执行计划
+     * 3. executeTask 执行具体任务，发送中间事件（data、article-results、confirmation-required、error）
+     * 4. complete：任务完成
+     *
+     * @param request 请求
+     * @param user    用户上下文
+     * @param emitter SSE 发射器
+     */
     public void executeStream(AgentChatRequest request, AgentUserContext user, SseEmitter emitter) {
         AgentIntent intent = intentClassifier.classify(request);
         AgentTask task = createTask(request, user, intent, AgentTaskStatus.RUNNING);
         var plan = planService.buildPlan(intent, user != null && user.isAdmin());
 
-        streamPublisher.send(emitter, "agent-start", eventPayload(
-                "taskId", taskId(task),
-                "conversationId", request.getConversationId(),
-                "intent", intent.name(),
-                "role", capabilityResolver.resolve(user).getRole(),
-                "capabilities", capabilityResolver.resolve(user).getCapabilities()));
-        streamPublisher.send(emitter, "agent-plan", Map.of("steps", plan));
+        // 创建 SSE 上下文
+        AgentSseContext context = AgentSseContext.of(emitter, task, request.getConversationId());
 
-        AgentChatResponse response = executeTask(request, user, intent, task, plan);
-        publishResponse(request, response, emitter);
+        // 发送 agent-start 事件
+        streamPublisher.sendAgentStart(
+                emitter,
+                taskId(task),
+                request.getConversationId(),
+                intent.name(),
+                capabilityResolver.resolve(user).getRole(),
+                capabilityResolver.resolve(user).getCapabilities());
+
+        // 发送 agent-plan 事件
+        streamPublisher.sendAgentPlan(emitter, taskId(task), request.getConversationId(), plan);
+
+        // 执行任务
+        AgentChatResponse response = executeTask(request, user, intent, task, plan, context);
+
+        // 发布响应事件
+        publishResponse(context, response);
+
+        // 发送 complete 事件
+        streamPublisher.sendComplete(emitter, taskId(task), request.getConversationId());
+
+        // 关闭 emitter
         emitter.complete();
     }
 
+    /**
+     * 执行任务。
+     *
+     * @return 聊天响应
+     */
     private AgentChatResponse executeTask(
             AgentChatRequest request,
             AgentUserContext user,
             AgentIntent intent,
             AgentTask task,
-            List<chat.liuxin.ai.agent.response.AgentPlanStep> plan) {
+            List<AgentPlanStep> plan,
+            AgentSseContext context) {
         try {
             AgentChatResponse response = switch (intent) {
                 case IDENTITY -> handleIdentity(request, user, task, plan);
-                case SEARCH_ARTICLES -> handleArticleSearch(request, task, plan);
-                case RECOMMEND_ARTICLES -> handleArticleRecommendation(request, task, plan);
+                case SEARCH_ARTICLES -> handleArticleSearch(request, task, plan, context);
+                case RECOMMEND_ARTICLES -> handleArticleRecommendation(request, task, plan, context);
                 case WRITE_ARTICLE, CREATE_DRAFT -> handleDraft(request, user, task, plan);
                 case PUBLISH_POST -> handlePublish(request, user, task, plan);
                 case OFFLINE_POST -> handleOffline(request, user, task, plan);
@@ -106,11 +177,51 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * 发布响应事件。
+     * 根据响应内容发送对应的 SSE 事件（data、article-results、confirmation-required、error）。
+     *
+     * @param context  SSE 上下文
+     * @param response 聊天响应
+     */
+    private void publishResponse(AgentSseContext context, AgentChatResponse response) {
+        SseEmitter emitter = context.getEmitter();
+
+        // 错误事件
+        if (Boolean.FALSE.equals(response.getSuccess())) {
+            streamPublisher.error(
+                    emitter,
+                    AgentErrorCode.AGENT_ERROR.getCode(),
+                    response.getMessage(),
+                    AgentErrorStage.EXECUTE.getStage(),
+                    context.getTaskId(),
+                    context.getConversationId());
+        }
+
+        // 文本事件
+        if (response.getMessage() != null && !response.getMessage().isBlank()) {
+            streamPublisher.sendData(emitter, context.getTaskId(), context.getConversationId(), response.getMessage());
+        }
+
+        // 文章结果事件
+        if (response.getArticleResults() != null) {
+            streamPublisher.send(emitter, "article-results", context.getTaskId(), context.getConversationId(), response.getArticleResults());
+        }
+
+        // 确认卡片事件
+        if (response.getConfirmation() != null) {
+            streamPublisher.send(emitter, "confirmation-required", context.getTaskId(), context.getConversationId(), response.getConfirmation());
+        }
+    }
+
+    /**
+     * 处理身份查询。
+     */
     private AgentChatResponse handleIdentity(
             AgentChatRequest request,
             AgentUserContext user,
             AgentTask task,
-            List<chat.liuxin.ai.agent.response.AgentPlanStep> plan) {
+            List<AgentPlanStep> plan) {
         String role = resolveRole(user);
         String message;
         if (user == null || !user.isAuthenticated()) {
@@ -137,40 +248,35 @@ public class AgentOrchestrator {
                 .build();
     }
 
-    private void publishResponse(AgentChatRequest request, AgentChatResponse response, SseEmitter emitter) {
-        if (Boolean.FALSE.equals(response.getSuccess())) {
-            streamPublisher.send(emitter, "error", eventPayload(
-                    "code", "AGENT_ERROR",
-                    "message", response.getMessage(),
-                    "stage", "execute"));
-        }
-        if (response.getMessage() != null && !response.getMessage().isBlank()) {
-            streamPublisher.send(emitter, "data", eventPayload("content", response.getMessage()));
-        }
-        if (response.getArticleResults() != null) {
-            streamPublisher.send(emitter, "article-results", response.getArticleResults());
-        }
-        if (response.getConfirmation() != null) {
-            streamPublisher.send(emitter, "confirmation-required", response.getConfirmation());
-        }
-        streamPublisher.send(emitter, "complete", eventPayload(
-                "taskId", response.getTaskId(),
-                "conversationId", response.getConversationId() == null ? request.getConversationId() : response.getConversationId()));
-    }
-
-    private AgentChatResponse handleArticleSearch(AgentChatRequest request, AgentTask task, List<chat.liuxin.ai.agent.response.AgentPlanStep> plan) {
+    /**
+     * 处理文章搜索。
+     */
+    private AgentChatResponse handleArticleSearch(
+            AgentChatRequest request,
+            AgentTask task,
+            List<AgentPlanStep> plan,
+            AgentSseContext context) {
         String keyword = normalizeKeyword(request.getMessage());
-        List<ArticleResultItem> items = toolCallRecorder.record(
-                taskId(task),
-                "public.searchArticles",
-                Map.of("keyword", keyword, "limit", 6),
-                () -> publicArticleTool.searchArticles(keyword, 6));
+
+        List<ArticleResultItem> items = context != null
+                ? toolExecutionService.execute(context, "public.searchArticles",
+                    Map.of("keyword", keyword, "limit", 6),
+                    () -> publicArticleTool.searchArticles(keyword, 6))
+                : toolCallRecorder.record(taskId(task), "public.searchArticles",
+                    Map.of("keyword", keyword, "limit", 6),
+                    () -> publicArticleTool.searchArticles(keyword, 6));
+
+        if (items == null) {
+            items = List.of();
+        }
+
         ArticleResultsPayload payload = ArticleResultsPayload.builder()
                 .source("search")
                 .query(keyword)
                 .reason(items.isEmpty() ? "没有找到匹配文章" : "我找到了一些可以继续阅读的文章")
                 .items(items)
                 .build();
+
         return AgentChatResponse.builder()
                 .success(true)
                 .taskId(taskId(task))
@@ -182,33 +288,53 @@ public class AgentOrchestrator {
                 .build();
     }
 
-    private AgentChatResponse handleArticleRecommendation(AgentChatRequest request, AgentTask task, List<chat.liuxin.ai.agent.response.AgentPlanStep> plan) {
+    /**
+     * 处理文章推荐。
+     */
+    private AgentChatResponse handleArticleRecommendation(
+            AgentChatRequest request,
+            AgentTask task,
+            List<AgentPlanStep> plan,
+            AgentSseContext context) {
         String keyword = extractRecommendationKeyword(request.getMessage());
         boolean topicRecommendation = !keyword.isBlank();
+
         List<ArticleResultItem> items = topicRecommendation
-                ? toolCallRecorder.record(
-                taskId(task),
-                "public.recommendBySearch",
-                Map.of("keyword", keyword, "limit", 5),
-                () -> publicArticleTool.searchArticles(keyword, 5))
-                : toolCallRecorder.record(
-                taskId(task),
-                "public.latestArticles",
-                Map.of("limit", 5),
-                () -> publicArticleTool.latestArticles(5));
+                ? (context != null
+                    ? toolExecutionService.execute(context, "public.recommendBySearch",
+                        Map.of("keyword", keyword, "limit", 5),
+                        () -> publicArticleTool.searchArticles(keyword, 5))
+                    : toolCallRecorder.record(taskId(task), "public.recommendBySearch",
+                        Map.of("keyword", keyword, "limit", 5),
+                        () -> publicArticleTool.searchArticles(keyword, 5)))
+                : (context != null
+                    ? toolExecutionService.execute(context, "public.latestArticles",
+                        Map.of("limit", 5),
+                        () -> publicArticleTool.latestArticles(5))
+                    : toolCallRecorder.record(taskId(task), "public.latestArticles",
+                        Map.of("limit", 5),
+                        () -> publicArticleTool.latestArticles(5)));
+
+        if (items == null) {
+            items = List.of();
+        }
+
         if (topicRecommendation) {
             items = rankTopicRecommendationItems(keyword, items);
         }
+
         String source = topicRecommendation ? "search" : "latest";
         String reason = topicRecommendation
                 ? (items.isEmpty() ? "没有找到与「" + keyword + "」直接相关的文章" : "与「" + keyword + "」相关的文章")
                 : "先给你几篇最近更新的内容";
+
         ArticleResultsPayload payload = ArticleResultsPayload.builder()
                 .source(source)
                 .query(topicRecommendation ? keyword : request.getMessage())
                 .reason(reason)
                 .items(items)
                 .build();
+
         return AgentChatResponse.builder()
                 .success(true)
                 .taskId(taskId(task))
@@ -220,7 +346,14 @@ public class AgentOrchestrator {
                 .build();
     }
 
-    private AgentChatResponse handleDraft(AgentChatRequest request, AgentUserContext user, AgentTask task, List<chat.liuxin.ai.agent.response.AgentPlanStep> plan) {
+    /**
+     * 处理文章草稿创建。
+     */
+    private AgentChatResponse handleDraft(
+            AgentChatRequest request,
+            AgentUserContext user,
+            AgentTask task,
+            List<AgentPlanStep> plan) {
         if (user == null || !user.isAdmin()) {
             return AgentChatResponse.builder()
                     .success(true)
@@ -234,6 +367,7 @@ public class AgentOrchestrator {
                     .capabilities(capabilityResolver.resolve(user).getCapabilities())
                     .build();
         }
+
         toolAccessPolicy.assertAllowed(user, chat.liuxin.ai.agent.domain.AgentActionType.CREATE_DRAFT);
 
         AdminArticleDraftRequest draft = mergeGeneratedDraft(request);
@@ -261,7 +395,14 @@ public class AgentOrchestrator {
                 .build();
     }
 
-    private AgentChatResponse handlePublish(AgentChatRequest request, AgentUserContext user, AgentTask task, List<chat.liuxin.ai.agent.response.AgentPlanStep> plan) {
+    /**
+     * 处理文章发布。
+     */
+    private AgentChatResponse handlePublish(
+            AgentChatRequest request,
+            AgentUserContext user,
+            AgentTask task,
+            List<AgentPlanStep> plan) {
         if (user == null || !user.isAdmin()) {
             return forbiddenWriteResponse(task, request, user, plan, "发布文章需要管理员权限。我可以继续帮你做只读总结、搜索和推荐。");
         }
@@ -282,7 +423,14 @@ public class AgentOrchestrator {
                 .build();
     }
 
-    private AgentChatResponse handleOffline(AgentChatRequest request, AgentUserContext user, AgentTask task, List<chat.liuxin.ai.agent.response.AgentPlanStep> plan) {
+    /**
+     * 处理文章下架。
+     */
+    private AgentChatResponse handleOffline(
+            AgentChatRequest request,
+            AgentUserContext user,
+            AgentTask task,
+            List<AgentPlanStep> plan) {
         if (user == null || !user.isAdmin()) {
             return forbiddenWriteResponse(task, request, user, plan, "下架文章需要管理员权限。我可以继续帮你做只读总结、搜索和推荐。");
         }
@@ -303,7 +451,14 @@ public class AgentOrchestrator {
                 .build();
     }
 
-    private AgentChatResponse handleTextGeneration(AgentChatRequest request, AgentTask task, List<chat.liuxin.ai.agent.response.AgentPlanStep> plan, String instruction) {
+    /**
+     * 处理文本生成。
+     */
+    private AgentChatResponse handleTextGeneration(
+            AgentChatRequest request,
+            AgentTask task,
+            List<AgentPlanStep> plan,
+            String instruction) {
         String answer = generateText(promptSecurityPolicy.wrapUntrustedContent(
                 "USER_MESSAGE",
                 instruction + "\n\n用户消息：\n" + request.getMessage()), 384);
@@ -317,6 +472,9 @@ public class AgentOrchestrator {
                 .build();
     }
 
+    /**
+     * 合并生成的草稿。
+     */
     private AdminArticleDraftRequest mergeGeneratedDraft(AgentChatRequest request) {
         AdminArticleDraftRequest draft = request.getDraft() == null ? new AdminArticleDraftRequest() : request.getDraft();
         if (!isBlank(draft.getContent())) {
@@ -367,10 +525,16 @@ public class AgentOrchestrator {
         return draft;
     }
 
+    /**
+     * 生成文本。
+     */
     private String generateText(String prompt) {
         return generateText(prompt, 800);
     }
 
+    /**
+     * 生成文本。
+     */
     private String generateText(String prompt, int maxTokens) {
         try {
             List<Message> messages = List.of(
@@ -383,6 +547,9 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * 解析文章 ID。
+     */
     private Long resolvePostId(AgentChatRequest request) {
         if (request.getDraft() != null && request.getDraft().getPostId() != null) {
             return request.getDraft().getPostId();
@@ -402,28 +569,29 @@ public class AgentOrchestrator {
         return null;
     }
 
+    /**
+     * 标准化关键词。
+     */
     private String normalizeKeyword(String message) {
-        if (message == null) {
-            return "";
-        }
-        return message.replace("搜索", "")
-                .replace("查找", "")
-                .replace("找一下", "")
-                .replace("找找", "")
-                .replace("文章", "")
-                .trim();
+        return extractArticleKeyword(message);
     }
 
+    /**
+     * 提取推荐关键词。
+     */
     private String extractRecommendationKeyword(String message) {
+        return extractArticleKeyword(message);
+    }
+
+    /**
+     * 从自然语言中提取文章搜索/推荐关键词。
+     */
+    private String extractArticleKeyword(String message) {
         if (message == null || message.isBlank()) {
             return "";
         }
         String normalized = message.toLowerCase();
-        String[] knownTopics = {
-                "spring boot", "spring ai", "typescript", "javascript", "docker", "kubernetes",
-                "nginx", "mysql", "redis", "java", "vue", "react", "jwt", "agent", "ai", "vite", "maven"
-        };
-        for (String topic : knownTopics) {
+        for (String topic : ARTICLE_TOPICS) {
             if (normalized.contains(topic)) {
                 return topic;
             }
@@ -433,13 +601,21 @@ public class AgentOrchestrator {
                 .replace("相关文章", "")
                 .replace("类似文章", "")
                 .replace("推荐", "")
+                .replace("搜索", "")
+                .replace("查找", "")
+                .replace("找一下", "")
+                .replace("找找", "")
                 .replace("文章", "")
+                .replace("博客", "")
+                .replace("教程", "")
+                .replace("内容", "")
                 .replace("我在", "")
                 .replace("我想", "")
                 .replace("正在", "")
                 .replace("学习", "")
                 .replace("了解", "")
                 .replace("关于", "")
+                .replace("相关", "")
                 .replace("有没有", "")
                 .replace("有", "")
                 .replace("你", "")
@@ -447,13 +623,23 @@ public class AgentOrchestrator {
                 .replace("帮我", "")
                 .replace("几篇", "")
                 .replace("一些", "")
+                .replace("一下", "")
+                .replace("几个", "")
+                .replace("哪些", "")
+                .replace("什么", "")
+                .replace("有什么", "")
                 .replace("的", "")
                 .replace("吗", "")
+                .replace("呢", "")
+                .replace("啊", "")
                 .trim()
                 .replaceAll("\\s+", " ");
         return keyword.length() > 40 ? keyword.substring(0, 40).trim() : keyword;
     }
 
+    /**
+     * 排序推荐文章。
+     */
     private List<ArticleResultItem> rankTopicRecommendationItems(String keyword, List<ArticleResultItem> items) {
         if (keyword == null || keyword.isBlank() || items == null || items.isEmpty()) {
             return items == null ? List.of() : items;
@@ -474,6 +660,9 @@ public class AgentOrchestrator {
                 .toList();
     }
 
+    /**
+     * 计算相关性分数。
+     */
     private int relevanceScore(String keyword, ArticleResultItem item) {
         String normalizedKeyword = keyword.toLowerCase();
         int score = 0;
@@ -496,10 +685,16 @@ public class AgentOrchestrator {
         return score;
     }
 
+    /**
+     * 判断是否包含（忽略大小写）。
+     */
     private boolean containsIgnoreCase(String value, String keyword) {
         return value != null && keyword != null && !keyword.isBlank() && value.toLowerCase().contains(keyword);
     }
 
+    /**
+     * 生成推荐原因。
+     */
     private String recommendationReason(String keyword, ArticleResultItem item) {
         String normalizedKeyword = keyword.toLowerCase();
         if (containsIgnoreCase(item.getTitle(), normalizedKeyword)) {
@@ -521,6 +716,9 @@ public class AgentOrchestrator {
         return "与「" + keyword + "」相关";
     }
 
+    /**
+     * 生成推荐消息。
+     */
     private String recommendationMessage(boolean topicRecommendation, String keyword, List<ArticleResultItem> items) {
         if (topicRecommendation) {
             return items.isEmpty()
@@ -530,9 +728,15 @@ public class AgentOrchestrator {
         return items.isEmpty() ? "我暂时没有拿到可推荐的文章。" : "我先给你挑了几篇最近更新的文章。";
     }
 
+    /**
+     * 计分文章记录。
+     */
     private record ScoredArticle(ArticleResultItem item, int score) {
     }
 
+    /**
+     * 创建任务。
+     */
     private AgentTask createTask(AgentChatRequest request, AgentUserContext user, AgentIntent intent, AgentTaskStatus status) {
         AgentTask task = new AgentTask();
         task.setUserId(user == null ? null : user.userIdString());
@@ -546,6 +750,9 @@ public class AgentOrchestrator {
         return task;
     }
 
+    /**
+     * 解析角色。
+     */
     private String resolveRole(AgentUserContext user) {
         if (user == null || !user.isAuthenticated()) {
             return "guest";
@@ -553,6 +760,9 @@ public class AgentOrchestrator {
         return user.isAdmin() ? "admin" : "user";
     }
 
+    /**
+     * 丰富安全上下文。
+     */
     private void enrichSecurityContext(AgentChatResponse response, AgentUserContext user) {
         if (response == null) {
             return;
@@ -564,11 +774,14 @@ public class AgentOrchestrator {
         response.setCapabilities(context.getCapabilities());
     }
 
+    /**
+     * 生成禁止写入响应。
+     */
     private AgentChatResponse forbiddenWriteResponse(
             AgentTask task,
             AgentChatRequest request,
             AgentUserContext user,
-            List<chat.liuxin.ai.agent.response.AgentPlanStep> plan,
+            List<AgentPlanStep> plan,
             String message) {
         return AgentChatResponse.builder()
                 .success(true)
@@ -584,6 +797,9 @@ public class AgentOrchestrator {
                 .build();
     }
 
+    /**
+     * 完成任务。
+     */
     private void finishTask(AgentTask task, AgentTaskStatus status, String summary, String error) {
         if (task == null || task.getId() == null) {
             return;
@@ -595,18 +811,30 @@ public class AgentOrchestrator {
         agentTaskMapper.updateById(task);
     }
 
+    /**
+     * 获取任务 ID。
+     */
     private Long taskId(AgentTask task) {
         return task == null ? null : task.getId();
     }
 
+    /**
+     * null 转空字符串。
+     */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
 
+    /**
+     * 判断是否为空。
+     */
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
 
+    /**
+     * 提取标题。
+     */
     private String extractTitle(String markdown) {
         if (markdown != null) {
             for (String line : markdown.split("\\R")) {
@@ -616,25 +844,17 @@ public class AgentOrchestrator {
                 }
             }
         }
-        return "AI 生成草稿";
+        return "纳西妲生成草稿";
     }
 
+    /**
+     * 构建摘要。
+     */
     private String buildSummary(String markdown) {
         String plain = markdown == null ? "" : markdown.replaceAll("[#>*`\\-]", "").replaceAll("\\s+", " ").trim();
         if (plain.isBlank()) {
-            return "AI 生成的文章草稿";
+            return "纳西妲生成的文章草稿";
         }
         return plain.length() > 180 ? plain.substring(0, 180) : plain;
-    }
-
-    private Map<String, Object> eventPayload(Object... keyValues) {
-        Map<String, Object> payload = new java.util.HashMap<>();
-        for (int i = 0; i + 1 < keyValues.length; i += 2) {
-            Object value = keyValues[i + 1];
-            if (value != null) {
-                payload.put(String.valueOf(keyValues[i]), value);
-            }
-        }
-        return payload;
     }
 }

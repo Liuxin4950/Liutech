@@ -74,10 +74,6 @@ export function useMarkdown() {
   const processMarkdown = (content: string, isStreaming: boolean = false): string => {
     if (!content) return ''
 
-    // 预处理：移除[[RECOMMEND]]标记，这些是给前端解析用的，不是真正的markdown
-    const recommendRegex = /\[\[RECOMMEND\]\][\s\S]*?\[\[\/RECOMMEND\]\]/g
-    content = content.replace(recommendRegex, '')
-
     // For streaming, we need special handling
     if (isStreaming) {
       return processStreamingMarkdown(content)
@@ -96,7 +92,7 @@ export function useMarkdown() {
       // Sanitize HTML
       let sanitizedHtml = DOMPurify.sanitize(html, sanitizeConfig)
 
-      // 移除空的代码块（可能由清理推荐标记后产生）
+      // 移除空的代码块
       sanitizedHtml = sanitizedHtml.replace(/<pre><code[^>]*>\s*<\/code><\/pre>/g, '')
 
       // Cache result (with size limit)

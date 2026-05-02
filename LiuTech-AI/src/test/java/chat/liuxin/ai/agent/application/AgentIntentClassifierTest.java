@@ -27,6 +27,14 @@ class AgentIntentClassifierTest {
         search.setMessage("找一下 JWT 相关的文章");
         assertEquals(AgentIntent.SEARCH_ARTICLES, classifier.classify(search));
 
+        AgentChatRequest topicQuestion = new AgentChatRequest();
+        topicQuestion.setMessage("有java的吗");
+        assertEquals(AgentIntent.SEARCH_ARTICLES, classifier.classify(topicQuestion));
+
+        AgentChatRequest topicRecommendation = new AgentChatRequest();
+        topicRecommendation.setMessage("我在学习docker你有推荐的吗");
+        assertEquals(AgentIntent.RECOMMEND_ARTICLES, classifier.classify(topicRecommendation));
+
         AgentChatRequest publish = new AgentChatRequest();
         publish.setMessage("发布这篇文章");
         assertEquals(AgentIntent.PUBLISH_POST, classifier.classify(publish));

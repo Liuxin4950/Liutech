@@ -36,7 +36,10 @@ export interface TtsAudioItem {
 }
 
 /**
- * 聊天模式
+ * 回复模式。
+ *
+ * 注意：这里只表示响应返回方式，不再表示是否启用 Agent。
+ * Web 看板娘聊天始终走 Agent；stream 为 SSE 实时返回，normal 为一次性完整返回。
  */
 export type ChatMode = 'stream' | 'normal'
 
@@ -260,17 +263,6 @@ export const useChatStore = defineStore('chat', () => {
       }))
   }
 
-  const shouldUseAgent = (content: string, context?: Record<string, any>) => {
-    const text = content.toLowerCase()
-    if (/(我是谁|我是啥身份|我是什么身份|我的身份|我是什么角色|我的角色|是否登录|有没有登录|登录了吗|我是管理员|我是不是管理员|权限)/.test(text)) {
-      return true
-    }
-    if (/(推荐|搜索|查找|找一下|找找|总结|这篇文章|相关文章)/.test(text)) {
-      return true
-    }
-    return context?.page === 'post-detail' && /(文章|内容|讲了什么|解释)/.test(text)
-  }
-
   // ===== 消息管理方法 =====
   /**
    * 添加用户消息
@@ -392,7 +384,7 @@ export const useChatStore = defineStore('chat', () => {
         message: content.trim(),
         context,
         model: model || defaultModel.value,  // 使用传入的模型或默认模型
-        agentEnabled: shouldUseAgent(content.trim(), context),
+        agentEnabled: true,
         ...(isGuestSession()
           ? { tempMessages: guestTempMessages }
           : { ...(conversationId.value && { conversationId: conversationId.value }) })
