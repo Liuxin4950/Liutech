@@ -15,13 +15,18 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 /**
- * AI聊天控制器
+ * Legacy AI 聊天控制器。
+ *
+ * Web/Admin 看板娘主聊天入口已经统一迁移到 /ai/agent/chat 和 /ai/agent/stream。
+ * 本控制器只保留历史聊天、调试和兼容用途；新看板娘能力不得继续接入这里。
+ *
  * 路由说明：
- * - POST /ai/chat        普通模式：一次性返回完整 AI 回复，并按会话落库 user/assistant 消息。
- * - POST /ai/chat/stream 流式模式：SSE 推送事件流（user/start/data/complete/error），在 complete 或 error 时入库 assistant。
+ * - POST /ai/chat        legacy 完整回复。
+ * - POST /ai/chat/stream legacy SSE 回复。
  * - GET  /ai/chat/history 分页查询用户全局历史（倒序），便于回放与列表展示。
  * - DELETE /ai/chat/memory 清空用户所有聊天消息（物理删除，仅消息表）。
  *
@@ -36,6 +41,9 @@ import java.util.List;
 @Validated
 @RequiredArgsConstructor
 public class AiChatController {
+
+    private static final String LEGACY_ROUTE_HEADER = "X-LiuTech-AI-Route";
+    private static final String LEGACY_CHAT_ROUTE = "legacy-chat";
 
     private final AiChatService aiChatService;
     private final MemoryService memoryService;
@@ -57,7 +65,8 @@ public class AiChatController {
      * 持久化副作用：保存 user 与 assistant 消息；必要时创建会话。
      */
     @PostMapping("/chat")
-    public ChatResponse chat(@Valid @RequestBody ChatRequest request) {
+    public ChatResponse chat(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
+        markLegacyRoute(response);
         Long userId = getCurrentUserId();
         log.info("接受到了普通模式的请求，用户ID: {}", userId);
         return aiChatService.processChat(request, userId);
@@ -76,7 +85,8 @@ public class AiChatController {
      * - error: {conversationId, error} - 流错误
      */
     @PostMapping("/chat/stream")
-    public SseEmitter streamChat(@Valid @RequestBody ChatRequest request) {
+    public SseEmitter streamChat(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
+        markLegacyRoute(response);
         Long userId = getCurrentUserId();
         log.info("接受到了流式模式的请求，用户ID: {}", userId);
         return aiChatService.processStreamChat(request, userId);
@@ -173,5 +183,11 @@ public class AiChatController {
         }
         log.warn("无法获取当前用户ID，可能未正确认证");
         return null;
+    }
+
+    private void markLegacyRoute(HttpServletResponse response) {
+        if (response != null) {
+            response.setHeader(LEGACY_ROUTE_HEADER, LEGACY_CHAT_ROUTE);
+        }
     }
 }

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import { Ai, type AiChatRequest, type PostSummaryDTO } from '@/services/ai'
+import { Ai, type AgentPlanStep, type AiChatRequest, type PostSummaryDTO } from '@/services/ai'
 import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
 import { AiStream, StreamError } from '@/services/aiStream'
 import { isLoggedIn } from '@/utils/auth'
@@ -22,6 +22,30 @@ export interface ChatMessage {
   modelName?: string // 使用的模型名称
   articleResults?: PostSummaryDTO[]
   articleResultReason?: string
+  agentIntent?: string
+  agentRole?: string
+  agentPlanSteps?: AgentPlanStep[]
+  agentToolEvents?: AgentToolEvent[]
+  confirmation?: AgentConfirmation
+}
+
+export interface AgentToolEvent {
+  toolName: string
+  displayName: string
+  inputSummary?: string
+  success?: boolean
+  durationMs?: number
+  resultSummary?: string
+  errorMessage?: string
+  status: 'running' | 'success' | 'failed'
+}
+
+export interface AgentConfirmation {
+  actionId: number
+  actionType: string
+  title: string
+  description: string
+  riskLevel?: string
 }
 
 export interface TtsAudioItem {
@@ -316,6 +340,56 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  const attachAgentPlan = (messageId: number, steps?: AgentPlanStep[]) => {
+    const message = messages.value.find(msg => msg.id === messageId)
+    if (!message || !steps) return
+    message.agentPlanSteps = steps
+  }
+
+  const attachAgentStart = (messageId: number, payload: any) => {
+    const message = messages.value.find(msg => msg.id === messageId)
+    if (!message || !payload) return
+    message.agentIntent = payload.intent
+    message.agentRole = payload.role
+  }
+
+  const upsertToolEvent = (messageId: number, payload: any, status: AgentToolEvent['status']) => {
+    const message = messages.value.find(msg => msg.id === messageId)
+    if (!message || !payload?.toolName) return
+    const next: AgentToolEvent = {
+      toolName: payload.toolName,
+      displayName: payload.displayName || payload.toolName,
+      inputSummary: payload.inputSummary,
+      success: payload.success,
+      durationMs: payload.durationMs,
+      resultSummary: payload.resultSummary,
+      errorMessage: payload.errorMessage,
+      status
+    }
+    const events = message.agentToolEvents || []
+    const index = events.findIndex(item => item.toolName === payload.toolName && item.status === 'running')
+    if (index >= 0 && status !== 'running') {
+      events[index] = next
+    } else {
+      events.push(next)
+    }
+    message.agentToolEvents = events
+    message.isThinking = false
+  }
+
+  const attachConfirmation = (messageId: number, payload: any) => {
+    const message = messages.value.find(msg => msg.id === messageId)
+    if (!message || !payload) return
+    message.confirmation = {
+      actionId: payload.actionId,
+      actionType: payload.actionType,
+      title: payload.title,
+      description: payload.description,
+      riskLevel: payload.riskLevel
+    }
+    message.isThinking = false
+  }
+
   /**
    * 完成流式消息
    */
@@ -424,6 +498,10 @@ export const useChatStore = defineStore('chat', () => {
         },
         // onEvent - 接收到语音/心跳事件
         (eventType: string, payload: any) => {
+          if (eventType === 'agent-start') {
+            attachAgentStart(aiMessage.id, payload)
+            return
+          }
           if (eventType === 'article-results' && payload?.items?.length) {
             aiMessage.articleResults = payload.items
             aiMessage.articleResultReason = payload.reason || '我找到这些文章，可以直接点开阅读。'
@@ -432,7 +510,20 @@ export const useChatStore = defineStore('chat', () => {
             return
           }
           if (eventType === 'agent-plan') {
+            attachAgentPlan(aiMessage.id, payload?.steps || [])
             aiMessage.isThinking = false
+            return
+          }
+          if (eventType === 'tool-start') {
+            upsertToolEvent(aiMessage.id, payload, 'running')
+            return
+          }
+          if (eventType === 'tool-result') {
+            upsertToolEvent(aiMessage.id, payload, payload?.success === false ? 'failed' : 'success')
+            return
+          }
+          if (eventType === 'confirmation-required') {
+            attachConfirmation(aiMessage.id, payload)
             return
           }
           if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
@@ -515,6 +606,15 @@ export const useChatStore = defineStore('chat', () => {
         pendingAiMessage.articleResults = response.articleResults.items
         pendingAiMessage.articleResultReason = response.articleResults.reason || '我找到这些文章，可以直接点开阅读。'
         pendingAiMessage.renderedContent = undefined
+      }
+      if (response.plan?.length) {
+        pendingAiMessage.agentPlanSteps = response.plan
+      }
+      if (response.intent) {
+        pendingAiMessage.agentIntent = response.intent
+      }
+      if (response.role) {
+        pendingAiMessage.agentRole = response.role
       }
 
       // 更新会话ID

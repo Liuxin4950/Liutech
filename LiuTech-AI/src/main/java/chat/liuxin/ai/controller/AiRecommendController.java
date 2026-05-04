@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * AI推荐控制器
- * 提供文章推荐相关的REST API接口
+ * Legacy AI 推荐控制器。
+ *
+ * Web/Admin 看板娘主链路已统一通过 /ai/agent/chat 或 /ai/agent/stream 返回 article-results。
+ * 本接口只作为历史 REST 能力保留，新看板娘功能不得再依赖它。
  *
  * 核心功能：
  * 根据前端传递的参数，调用MCP工具获取推荐内容
@@ -29,6 +31,9 @@ import java.util.List;
 @RequestMapping("/ai/recommend")
 @RequiredArgsConstructor
 public class AiRecommendController {
+
+    private static final String LEGACY_ROUTE_HEADER = "X-LiuTech-AI-Route";
+    private static final String LEGACY_RECOMMEND_ROUTE = "legacy-recommend";
 
     private final BlogMcpTools blogMcpTools;
 
@@ -85,16 +90,22 @@ public class AiRecommendController {
 
                 default:
                     log.warn("未知的推荐类型: {}", request.getType());
-                    return ResponseEntity.badRequest().build();
+                    return ResponseEntity.badRequest()
+                            .header(LEGACY_ROUTE_HEADER, LEGACY_RECOMMEND_ROUTE)
+                            .build();
             }
 
             log.info("推荐内容获取成功 - type={}, posts={}",
                     request.getType(), response.getPosts().size());
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok()
+                    .header(LEGACY_ROUTE_HEADER, LEGACY_RECOMMEND_ROUTE)
+                    .body(response);
 
         } catch (Exception e) {
             log.error("获取推荐内容失败", e);
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError()
+                    .header(LEGACY_ROUTE_HEADER, LEGACY_RECOMMEND_ROUTE)
+                    .build();
         }
     }
 }

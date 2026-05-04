@@ -43,6 +43,7 @@ public class AgentToolExecutionService {
             "public.searchArticles", "搜索文章",
             "public.recommendBySearch", "搜索推荐",
             "public.latestArticles", "最新文章",
+            "public.getArticleDetail", "读取当前文章",
             "admin.createDraft", "创建草稿",
             "admin.publishPost", "发布文章",
             "admin.offlinePost", "下架文章"

@@ -68,7 +68,15 @@ export interface AiChatResponse {
   authenticated?: boolean
   admin?: boolean
   capabilities?: string[]
+  intent?: string
+  plan?: AgentPlanStep[]
   articleResults?: ArticleResultsPayload
+}
+
+export interface AgentPlanStep {
+    key: string
+    title: string
+    status: string
 }
 
 /**
@@ -200,6 +208,7 @@ export class Ai {
      */
     static async chat(request: AiChatRequest): Promise<AiChatResponse> {
         const { agentEnabled, ...requestBody } = request
+        // agentEnabled === false 只作为内部故障/开发回退，不是用户可见的聊天模式。
         if (agentEnabled !== false) {
             const response = await post<AiChatResponse>('/agent/chat', requestBody, {
                 serviceType: ServiceType.AI
@@ -258,6 +267,7 @@ export class Ai {
         }
 
         const { agentEnabled, ...requestBody } = requestWithMode
+        // agentEnabled === false 只作为内部故障/开发回退，不是用户可见的聊天模式。
         const endpoint = agentEnabled === false ? '/chat' : '/agent/chat'
         const response = await post<AiChatResponse>(endpoint, requestBody, {
             serviceType: ServiceType.AI

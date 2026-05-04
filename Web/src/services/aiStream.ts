@@ -164,6 +164,7 @@ export class AiStream {
 
       // 构建请求URL
       const aiBaseUrl = getServiceBaseURL(ServiceType.AI)
+      // agentEnabled === false 只作为内部故障/开发回退，不是用户可见的聊天模式。
       const useAgent = request.agentEnabled !== false
       const streamUrl = useAgent ? `${aiBaseUrl}/agent/stream` : `${aiBaseUrl}/chat/stream`
       const { agentEnabled, ...requestBody } = request

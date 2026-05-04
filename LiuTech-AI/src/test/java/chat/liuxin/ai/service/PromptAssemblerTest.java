@@ -3,6 +3,7 @@ package chat.liuxin.ai.service;
 import chat.liuxin.ai.config.AiPromptConfig;
 import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.security.AiPromptSecurityPolicy;
+import chat.liuxin.ai.security.AiSystemPromptProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -36,7 +37,8 @@ class PromptAssemblerTest {
         aiPromptSecurityPolicy = new AiPromptSecurityPolicy();
         setField(aiPromptSecurityPolicy, "enabled", true);
 
-        promptAssembler = new PromptAssembler(aiPromptConfig, blogContextService, memoryService, aiPromptSecurityPolicy);
+        AiSystemPromptProvider systemPromptProvider = new AiSystemPromptProvider(aiPromptConfig, aiPromptSecurityPolicy);
+        promptAssembler = new PromptAssembler(systemPromptProvider, blogContextService, memoryService, aiPromptSecurityPolicy);
         setField(promptAssembler, "historyLimit", 8);
     }
 

@@ -13,6 +13,9 @@ import type {
   AgentPlanStep,
   ArticleResultItem,
   ConfirmationRequiredPayload,
+  AgentActionResult,
+  AgentStartPayload,
+  ToolEventPayload,
 } from '../../types/agent'
 
 const props = defineProps<{
@@ -21,7 +24,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   applyDraft: [draft: Partial<AdminArticleDraftSnapshot>]
-  actionDone: []
+  actionDone: [result?: AgentActionResult]
 }>()
 
 const prompt = ref('')
@@ -30,8 +33,14 @@ const loading = ref(false)
 const plan = ref<AgentPlanStep[]>([])
 const articles = ref<ArticleResultItem[]>([])
 const confirmation = ref<ConfirmationRequiredPayload | null>(null)
+const toolEvents = ref<Array<ToolEventPayload & { status: 'running' | 'success' | 'failed' }>>([])
+const agentStart = ref<AgentStartPayload | null>(null)
 
 const canSend = computed(() => prompt.value.trim().length > 0 && !loading.value)
+const currentPlanIndex = computed(() => {
+  const running = plan.value.findIndex(item => item.status === 'running')
+  return running >= 0 ? running : Math.max(0, plan.value.length - 1)
+})
 
 const quickPrompts = [
   '帮我润色当前文章',
@@ -49,6 +58,8 @@ const send = async (text?: string) => {
   plan.value = []
   articles.value = []
   confirmation.value = null
+  toolEvents.value = []
+  agentStart.value = null
   prompt.value = ''
 
   try {
@@ -67,6 +78,21 @@ const send = async (text?: string) => {
         },
         onPlan: (steps) => {
           plan.value = steps
+        },
+        onStart: (payload) => {
+          agentStart.value = payload
+        },
+        onToolStart: (payload) => {
+          toolEvents.value.push({ ...payload, status: 'running' })
+        },
+        onToolResult: (payload) => {
+          const index = toolEvents.value.findIndex(item => item.toolName === payload.toolName && item.status === 'running')
+          const next = { ...payload, status: payload.success === false ? 'failed' as const : 'success' as const }
+          if (index >= 0) {
+            toolEvents.value[index] = next
+          } else {
+            toolEvents.value.push(next)
+          }
         },
         onArticles: (items) => {
           articles.value = items
@@ -94,7 +120,7 @@ const confirmAction = async () => {
     if (result.success) {
       message.success(result.message || '操作成功')
       confirmation.value = null
-      emit('actionDone')
+      emit('actionDone', result)
     } else {
       message.error(result.message || '操作失败')
     }
@@ -155,10 +181,29 @@ const applyPreview = () => {
     </a-button>
 
     <div v-if="plan.length" class="agent-section">
-      <div class="section-title">执行计划</div>
-      <a-steps direction="vertical" size="small" :current="1">
+      <div class="section-title">思考与执行</div>
+      <div v-if="agentStart" class="agent-meta">
+        <a-tag color="blue">{{ agentStart.intent || 'AGENT' }}</a-tag>
+        <a-tag>{{ agentStart.role || 'unknown' }}</a-tag>
+      </div>
+      <a-steps direction="vertical" size="small" :current="currentPlanIndex">
         <a-step v-for="step in plan" :key="step.key" :title="step.title" :description="step.status" />
       </a-steps>
+    </div>
+
+    <div v-if="toolEvents.length" class="agent-section">
+      <div class="section-title">工具调用</div>
+      <div class="tool-list">
+        <div v-for="(tool, index) in toolEvents" :key="`${tool.toolName}-${index}`" class="tool-item" :class="tool.status">
+          <span class="tool-dot"></span>
+          <div class="tool-main">
+            <div class="tool-title">{{ tool.displayName || tool.toolName }}</div>
+            <div class="tool-desc">
+              {{ tool.status === 'running' ? (tool.inputSummary || '执行中') : tool.status === 'success' ? (tool.resultSummary || '完成') : (tool.errorMessage || '失败') }}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="answer" class="agent-section">
@@ -252,6 +297,66 @@ const applyPreview = () => {
   color: #595959;
   margin-bottom: 8px;
   font-weight: 600;
+}
+
+.agent-meta {
+  margin-bottom: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.tool-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 6px;
+  background: #d9d9d9;
+  flex: 0 0 8px;
+}
+
+.tool-item.running .tool-dot {
+  background: #1677ff;
+}
+
+.tool-item.success .tool-dot {
+  background: #52c41a;
+}
+
+.tool-item.failed .tool-dot {
+  background: #ff4d4f;
+}
+
+.tool-main {
+  min-width: 0;
+}
+
+.tool-title {
+  font-size: 13px;
+  color: #262626;
+}
+
+.tool-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #8c8c8c;
+  word-break: break-word;
 }
 
 .answer-box {

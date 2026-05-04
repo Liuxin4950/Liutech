@@ -39,6 +39,10 @@ class AgentIntentClassifierTest {
         publish.setMessage("发布这篇文章");
         assertEquals(AgentIntent.PUBLISH_POST, classifier.classify(publish));
 
+        AgentChatRequest polish = new AgentChatRequest();
+        polish.setMessage("帮我润色当前文章");
+        assertEquals(AgentIntent.WRITE_ARTICLE, classifier.classify(polish));
+
         AgentChatRequest draftOnly = new AgentChatRequest();
         draftOnly.setMessage("请创建草稿，只保存草稿，不发布");
         assertEquals(AgentIntent.CREATE_DRAFT, classifier.classify(draftOnly));
@@ -46,5 +50,9 @@ class AgentIntentClassifierTest {
         AgentChatRequest offline = new AgentChatRequest();
         offline.setMessage("下架这篇文章");
         assertEquals(AgentIntent.OFFLINE_POST, classifier.classify(offline));
+
+        AgentChatRequest delete = new AgentChatRequest();
+        delete.setMessage("删除这篇文章");
+        assertEquals(AgentIntent.CHAT, classifier.classify(delete));
     }
 }

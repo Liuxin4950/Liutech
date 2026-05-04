@@ -10,7 +10,7 @@ import { formatDateTime } from '../../utils/uitls'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
 import { ImageUploadService } from '../../services/upload'
 import AdminAgentSidebar from '../../components/agent/AdminAgentSidebar.vue'
-import type { AdminArticleDraftSnapshot } from '../../types/agent'
+import type { AdminArticleDraftSnapshot, AgentActionResult } from '../../types/agent'
 
 // 响应式数据
 const loading = ref(false)
@@ -263,6 +263,19 @@ const handleAgentApplyDraft = (draft: Partial<AdminArticleDraftSnapshot>) => {
     ...draft,
     status: nextStatus
   }
+}
+
+const handleAgentActionDone = (result?: AgentActionResult) => {
+  const target = result?.target as { status?: string; postId?: number } | undefined
+  if (target?.status === 'published' || target?.status === 'draft' || target?.status === 'archived') {
+    formModel.value.status = target.status
+  }
+  if (!editingId.value && target?.postId) {
+    editingId.value = target.postId
+    isEdit.value = true
+    modalTitle.value = '编辑文章'
+  }
+  loadPosts()
 }
 
 // ============== 列表查询 ==============
@@ -668,7 +681,7 @@ onMounted(async () => {
       <AdminAgentSidebar
         :draft="agentDraftSnapshot"
         @apply-draft="handleAgentApplyDraft"
-        @action-done="loadPosts"
+        @action-done="handleAgentActionDone"
       />
       </div>
     </a-modal>

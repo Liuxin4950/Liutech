@@ -15,9 +15,11 @@ import chat.liuxin.ai.agent.response.ArticleResultItem;
 import chat.liuxin.ai.agent.response.ArticleResultsPayload;
 import chat.liuxin.ai.agent.response.ConfirmationRequiredPayload;
 import chat.liuxin.ai.agent.tool.PublicArticleTool;
+import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.security.AiCapabilityResolver;
 import chat.liuxin.ai.security.AiModelPolicy;
 import chat.liuxin.ai.security.AiPromptSecurityPolicy;
+import chat.liuxin.ai.security.AiSystemPromptProvider;
 import chat.liuxin.ai.security.AiToolAccessPolicy;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +62,7 @@ public class AgentOrchestrator {
             "spring boot", "spring ai", "typescript", "javascript", "docker", "kubernetes",
             "nginx", "mysql", "redis", "java", "vue", "react", "jwt", "agent", "ai", "vite", "maven"
     };
+    private static final int MAX_CONTEXT_CHARS = 6000;
 
     private final AgentIntentClassifier intentClassifier;
     private final AgentPlanService planService;
@@ -73,6 +76,7 @@ public class AgentOrchestrator {
     private final AiCapabilityResolver capabilityResolver;
     private final AiToolAccessPolicy toolAccessPolicy;
     private final AiPromptSecurityPolicy promptSecurityPolicy;
+    private final AiSystemPromptProvider systemPromptProvider;
     private final AiModelPolicy aiModelPolicy;
 
     /**
@@ -152,10 +156,11 @@ public class AgentOrchestrator {
                 case IDENTITY -> handleIdentity(request, user, task, plan);
                 case SEARCH_ARTICLES -> handleArticleSearch(request, task, plan, context);
                 case RECOMMEND_ARTICLES -> handleArticleRecommendation(request, task, plan, context);
-                case WRITE_ARTICLE, CREATE_DRAFT -> handleDraft(request, user, task, plan);
+                case WRITE_ARTICLE -> handleWritingAssist(request, task, plan, context);
+                case CREATE_DRAFT -> handleDraft(request, user, task, plan);
                 case PUBLISH_POST -> handlePublish(request, user, task, plan);
                 case OFFLINE_POST -> handleOffline(request, user, task, plan);
-                case SUMMARIZE -> handleTextGeneration(request, task, plan, "请结合上下文总结用户正在阅读的内容。");
+                case SUMMARIZE -> handleSummarize(request, task, plan, context);
                 default -> handleTextGeneration(request, task, plan, "请以 LiuTech 博客站内看板娘的口吻自然回复。");
             };
             enrichSecurityContext(response, user);
@@ -298,15 +303,23 @@ public class AgentOrchestrator {
             AgentSseContext context) {
         String keyword = extractRecommendationKeyword(request.getMessage());
         boolean topicRecommendation = !keyword.isBlank();
+        PostDetailDTO currentArticle = null;
 
+        if (!topicRecommendation && resolvePostId(request) != null) {
+            currentArticle = resolveCurrentArticle(request, task, context);
+            keyword = recommendationKeywordFromCurrentArticle(currentArticle);
+            topicRecommendation = !keyword.isBlank();
+        }
+
+        String searchKeyword = keyword;
         List<ArticleResultItem> items = topicRecommendation
                 ? (context != null
                     ? toolExecutionService.execute(context, "public.recommendBySearch",
-                        Map.of("keyword", keyword, "limit", 5),
-                        () -> publicArticleTool.searchArticles(keyword, 5))
+                        Map.of("keyword", searchKeyword, "limit", 5),
+                        () -> publicArticleTool.searchArticles(searchKeyword, 5))
                     : toolCallRecorder.record(taskId(task), "public.recommendBySearch",
-                        Map.of("keyword", keyword, "limit", 5),
-                        () -> publicArticleTool.searchArticles(keyword, 5)))
+                        Map.of("keyword", searchKeyword, "limit", 5),
+                        () -> publicArticleTool.searchArticles(searchKeyword, 5)))
                 : (context != null
                     ? toolExecutionService.execute(context, "public.latestArticles",
                         Map.of("limit", 5),
@@ -318,12 +331,18 @@ public class AgentOrchestrator {
         if (items == null) {
             items = List.of();
         }
+        if (currentArticle != null && currentArticle.getId() != null) {
+            Long currentId = currentArticle.getId();
+            items = items.stream()
+                    .filter(item -> item.getId() == null || !item.getId().equals(currentId))
+                    .toList();
+        }
 
         if (topicRecommendation) {
             items = rankTopicRecommendationItems(keyword, items);
         }
 
-        String source = topicRecommendation ? "search" : "latest";
+        String source = currentArticle != null ? "related" : (topicRecommendation ? "search" : "latest");
         String reason = topicRecommendation
                 ? (items.isEmpty() ? "没有找到与「" + keyword + "」直接相关的文章" : "与「" + keyword + "」相关的文章")
                 : "先给你几篇最近更新的内容";
@@ -342,6 +361,110 @@ public class AgentOrchestrator {
                 .intent(AgentIntent.RECOMMEND_ARTICLES.name())
                 .plan(plan)
                 .message(recommendationMessage(topicRecommendation, keyword, items))
+                .articleResults(payload)
+                .build();
+    }
+
+    /**
+     * 处理后台编辑器中的写作辅助。
+     *
+     * 这类请求只返回可应用的写作结果，不创建草稿、不发布文章。
+     */
+    private AgentChatResponse handleWritingAssist(
+            AgentChatRequest request,
+            AgentTask task,
+            List<AgentPlanStep> plan,
+            AgentSseContext context) {
+        AdminArticleDraftRequest draft = request.getDraft();
+        Long postId = resolvePostId(request);
+        PostDetailDTO currentArticle = resolveCurrentArticle(request, task, context);
+
+        String draftContext = buildDraftContext(draft);
+        String articleContext = currentArticle == null ? "" : limitText(currentArticle.toAiReadableFormat(), MAX_CONTEXT_CHARS);
+        String instruction = inferWritingInstruction(request.getMessage());
+        String prompt = promptSecurityPolicy.wrapUntrustedContent("WRITING_ASSIST_INPUT", """
+                你正在辅助管理员编辑 LiuTech 博客文章。请只给出可以直接应用到编辑器的内容或明确建议，不要声称已经保存、发布或修改线上数据。
+
+                用户要求：
+                %s
+
+                写作任务：
+                %s
+
+                当前编辑器草稿：
+                %s
+
+                当前文章详情（如果有）：
+                %s
+                """.formatted(request.getMessage(), instruction, draftContext, articleContext));
+
+        String answer = generateText(prompt, 900);
+        ArticleResultsPayload articlePayload = null;
+        if (currentArticle != null) {
+            ArticleResultItem card = publicArticleTool.currentArticleCard(currentArticle, "当前正在编辑或阅读的文章");
+            if (card != null) {
+                articlePayload = ArticleResultsPayload.builder()
+                        .source("current")
+                        .query(String.valueOf(currentArticle.getId()))
+                        .reason("当前文章")
+                        .items(List.of(card))
+                        .build();
+            }
+        }
+
+        return AgentChatResponse.builder()
+                .success(true)
+                .taskId(taskId(task))
+                .conversationId(request.getConversationId())
+                .intent(AgentIntent.WRITE_ARTICLE.name())
+                .plan(plan)
+                .message(answer)
+                .articleResults(articlePayload)
+                .build();
+    }
+
+    /**
+     * 处理当前文章总结。
+     */
+    private AgentChatResponse handleSummarize(
+            AgentChatRequest request,
+            AgentTask task,
+            List<AgentPlanStep> plan,
+            AgentSseContext context) {
+        PostDetailDTO currentArticle = resolveCurrentArticle(request, task, context);
+        if (currentArticle == null) {
+            return handleTextGeneration(request, task, plan, "请结合用户提供的上下文做总结；如果没有文章内容，说明需要先打开具体文章。");
+        }
+
+        String prompt = promptSecurityPolicy.wrapUntrustedContent("CURRENT_ARTICLE_SUMMARY_INPUT", """
+                请总结当前文章，要求：
+                - 先用 2-3 句话说明文章讲了什么。
+                - 再列出 3-5 个关键点。
+                - 最后给一个适合继续阅读或实践的建议。
+                - 只基于下面的文章内容，不要编造未出现的信息。
+
+                用户要求：
+                %s
+
+                文章内容：
+                %s
+                """.formatted(request.getMessage(), limitText(currentArticle.toAiReadableFormat(), MAX_CONTEXT_CHARS)));
+
+        ArticleResultItem card = publicArticleTool.currentArticleCard(currentArticle, "当前文章");
+        ArticleResultsPayload payload = card == null ? null : ArticleResultsPayload.builder()
+                .source("current")
+                .query(String.valueOf(currentArticle.getId()))
+                .reason("当前正在阅读的文章")
+                .items(List.of(card))
+                .build();
+
+        return AgentChatResponse.builder()
+                .success(true)
+                .taskId(taskId(task))
+                .conversationId(request.getConversationId())
+                .intent(AgentIntent.SUMMARIZE.name())
+                .plan(plan)
+                .message(generateText(prompt, 700))
                 .articleResults(payload)
                 .build();
     }
@@ -409,13 +532,21 @@ public class AgentOrchestrator {
         toolAccessPolicy.assertAllowed(user, chat.liuxin.ai.agent.domain.AgentActionType.PUBLISH_POST);
         Long postId = resolvePostId(request);
         if (postId == null) {
-            return AgentChatResponse.builder().success(true).taskId(taskId(task)).plan(plan).message("我还不能确定要发布哪篇文章，请先打开或选择具体草稿。").build();
+            return AgentChatResponse.builder()
+                    .success(true)
+                    .taskId(taskId(task))
+                    .conversationId(request.getConversationId())
+                    .intent(AgentIntent.PUBLISH_POST.name())
+                    .plan(plan)
+                    .message("我还不能确定要发布哪篇文章。请先打开已保存的草稿；如果这是新文章，我可以先帮你保存为草稿，等你审查后再发布。")
+                    .build();
         }
         ConfirmationRequiredPayload confirmation = agentActionService.createPublishAction(taskId(task), user, postId);
         finishTask(task, AgentTaskStatus.WAITING_CONFIRMATION, "等待管理员确认发布文章", null);
         return AgentChatResponse.builder()
                 .success(true)
                 .taskId(taskId(task))
+                .conversationId(request.getConversationId())
                 .intent(AgentIntent.PUBLISH_POST.name())
                 .plan(plan)
                 .message("我已经定位到目标草稿。发布前请确认你已经审查过正文。")
@@ -437,13 +568,21 @@ public class AgentOrchestrator {
         toolAccessPolicy.assertAllowed(user, chat.liuxin.ai.agent.domain.AgentActionType.OFFLINE_POST);
         Long postId = resolvePostId(request);
         if (postId == null) {
-            return AgentChatResponse.builder().success(true).taskId(taskId(task)).plan(plan).message("我还不能确定要下架哪篇文章，请先打开或选择具体文章。").build();
+            return AgentChatResponse.builder()
+                    .success(true)
+                    .taskId(taskId(task))
+                    .conversationId(request.getConversationId())
+                    .intent(AgentIntent.OFFLINE_POST.name())
+                    .plan(plan)
+                    .message("我还不能确定要下架哪篇文章，请先打开或选择具体文章。")
+                    .build();
         }
         ConfirmationRequiredPayload confirmation = agentActionService.createOfflineAction(taskId(task), user, postId);
         finishTask(task, AgentTaskStatus.WAITING_CONFIRMATION, "等待管理员确认下架文章", null);
         return AgentChatResponse.builder()
                 .success(true)
                 .taskId(taskId(task))
+                .conversationId(request.getConversationId())
                 .intent(AgentIntent.OFFLINE_POST.name())
                 .plan(plan)
                 .message("我已经定位到目标文章。下架会把文章状态改为草稿，请确认。")
@@ -538,7 +677,7 @@ public class AgentOrchestrator {
     private String generateText(String prompt, int maxTokens) {
         try {
             List<Message> messages = List.of(
-                    new SystemMessage(promptSecurityPolicy.systemRules()),
+                    new SystemMessage(systemPromptProvider.buildSystemPrompt()),
                     new UserMessage(prompt));
             return siliconFlowChatClient.chat(messages, aiModelPolicy.resolveModelName((String) null), 0.6, maxTokens);
         } catch (Exception e) {
@@ -570,6 +709,82 @@ public class AgentOrchestrator {
     }
 
     /**
+     * 读取当前文章详情。
+     */
+    private PostDetailDTO resolveCurrentArticle(AgentChatRequest request, AgentTask task, AgentSseContext context) {
+        Long postId = resolvePostId(request);
+        if (postId == null) {
+            return null;
+        }
+        return context != null
+                ? toolExecutionService.execute(context, "public.getArticleDetail",
+                    Map.of("postId", postId),
+                    () -> publicArticleTool.getArticleDetail(postId))
+                : toolCallRecorder.record(taskId(task), "public.getArticleDetail",
+                    Map.of("postId", postId),
+                    () -> publicArticleTool.getArticleDetail(postId));
+    }
+
+    /**
+     * 构建后台编辑器草稿上下文。
+     */
+    private String buildDraftContext(AdminArticleDraftRequest draft) {
+        if (draft == null) {
+            return "无编辑器草稿。";
+        }
+        return """
+                文章ID：%s
+                标题：%s
+                摘要：%s
+                分类ID：%s
+                标签ID：%s
+                状态：%s
+                正文：
+                %s
+                """.formatted(
+                draft.getPostId() == null ? "未保存" : draft.getPostId(),
+                nullToEmpty(draft.getTitle()),
+                nullToEmpty(draft.getSummary()),
+                draft.getCategoryId() == null ? "" : draft.getCategoryId(),
+                draft.getTagIds() == null ? "" : draft.getTagIds(),
+                nullToEmpty(draft.getStatus()),
+                limitText(nullToEmpty(draft.getContent()), MAX_CONTEXT_CHARS));
+    }
+
+    /**
+     * 根据用户话术推断写作辅助目标。
+     */
+    private String inferWritingInstruction(String message) {
+        String text = message == null ? "" : message.toLowerCase();
+        if (containsAny(text, "标题", "题目")) {
+            return "为当前文章生成 3-5 个标题备选，每个标题都要简洁、具体、适合技术博客。";
+        }
+        if (containsAny(text, "摘要", "简介", "seo")) {
+            return "为当前文章生成一段不超过 180 字的摘要，可直接放入摘要字段。";
+        }
+        if (containsAny(text, "润色", "优化", "改写")) {
+            return "润色当前正文，保持原意，提升结构、表达和技术准确性。";
+        }
+        if (containsAny(text, "扩写", "补充")) {
+            return "在当前内容基础上补充更完整的小节和实践说明。";
+        }
+        return "根据用户要求辅助当前文章写作，输出可以直接应用到编辑器的内容。";
+    }
+
+    /**
+     * 限制注入模型的上下文长度。
+     */
+    private String limitText(String value, int maxChars) {
+        if (value == null) {
+            return "";
+        }
+        if (value.length() <= maxChars) {
+            return value;
+        }
+        return value.substring(0, maxChars) + "\n\n（内容已截断）";
+    }
+
+    /**
      * 标准化关键词。
      */
     private String normalizeKeyword(String message) {
@@ -581,6 +796,26 @@ public class AgentOrchestrator {
      */
     private String extractRecommendationKeyword(String message) {
         return extractArticleKeyword(message);
+    }
+
+    /**
+     * 根据当前文章推断相关文章查询词。
+     */
+    private String recommendationKeywordFromCurrentArticle(PostDetailDTO article) {
+        if (article == null) {
+            return "";
+        }
+        if (article.getTags() != null) {
+            for (String tag : article.getTags()) {
+                if (!isBlank(tag)) {
+                    return tag.trim();
+                }
+            }
+        }
+        if (!isBlank(article.getCategoryName())) {
+            return article.getCategoryName().trim();
+        }
+        return isBlank(article.getTitle()) ? "" : article.getTitle().trim();
     }
 
     /**
@@ -690,6 +925,21 @@ public class AgentOrchestrator {
      */
     private boolean containsIgnoreCase(String value, String keyword) {
         return value != null && keyword != null && !keyword.isBlank() && value.toLowerCase().contains(keyword);
+    }
+
+    /**
+     * 判断文本是否包含任一关键词。
+     */
+    private boolean containsAny(String text, String... keywords) {
+        if (text == null) {
+            return false;
+        }
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

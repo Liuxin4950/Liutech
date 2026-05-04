@@ -3,6 +3,7 @@ package chat.liuxin.ai.agent.tool;
 import chat.liuxin.ai.agent.application.ArticleResultMapper;
 import chat.liuxin.ai.agent.response.ArticleResultItem;
 import chat.liuxin.ai.client.BlogApiClient;
+import chat.liuxin.ai.dto.PostDetailDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -49,6 +50,17 @@ public class PublicArticleTool {
                 blogApiClient.getHotPosts(size),
                 "hot",
                 "站内热度较高的文章"));
+    }
+
+    public PostDetailDTO getArticleDetail(Long postId) {
+        if (postId == null || postId <= 0) {
+            return null;
+        }
+        return blogApiClient.getPostDetail(postId);
+    }
+
+    public ArticleResultItem currentArticleCard(PostDetailDTO post, String reason) {
+        return articleResultMapper.fromDetail(post, "current", reason);
     }
 
     private int normalizeLimit(Integer limit) {
