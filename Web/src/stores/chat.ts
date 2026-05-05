@@ -5,6 +5,7 @@ import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
 import { AiStream, StreamError } from '@/services/aiStream'
 import { isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
+import { useUserStore } from '@/stores/user'
 
 /**
  * 聊天消息接口
@@ -27,6 +28,7 @@ export interface ChatMessage {
   agentPlanSteps?: AgentPlanStep[]
   agentToolEvents?: AgentToolEvent[]
   confirmation?: AgentConfirmation
+  showAgentTrace?: boolean
 }
 
 export interface AgentToolEvent {
@@ -83,6 +85,7 @@ interface ModelInfo {
  * 功能：集中管理聊天状态、历史记录和持久化
  */
 export const useChatStore = defineStore('chat', () => {
+  const userStore = useUserStore()
   const GUEST_CONTEXT_LIMIT = 10
   // ===== 状态 =====
   const messages = ref<ChatMessage[]>([])
@@ -147,6 +150,12 @@ export const useChatStore = defineStore('chat', () => {
   const GUEST_TTS_ENABLED_KEY = 'liutech-chat-tts-enabled-guest'
 
   const isGuestSession = () => !isLoggedIn()
+  const canUseAdminAgent = () => isLoggedIn() && userStore.isAdmin === true
+  const ensureUserRoleLoaded = async () => {
+    if (isLoggedIn() && !userStore.userInfo) {
+      await userStore.fetchUserInfo()
+    }
+  }
   const getStorage = () => (isGuestSession() ? sessionStorage : localStorage)
 
   // ===== 持久化方法 =====
@@ -351,6 +360,7 @@ export const useChatStore = defineStore('chat', () => {
     if (!message || !payload) return
     message.agentIntent = payload.intent
     message.agentRole = payload.role
+    message.showAgentTrace = false
   }
 
   const upsertToolEvent = (messageId: number, payload: any, status: AgentToolEvent['status']) => {
@@ -398,6 +408,7 @@ export const useChatStore = defineStore('chat', () => {
     if (streamingMsg) {
       streamingMsg.isStreaming = false
       streamingMsg.isThinking = false
+      streamingMsg.showAgentTrace = false
       // Clear rendered cache since streaming is complete
       streamingMsg.renderedContent = undefined
     }
@@ -441,6 +452,7 @@ export const useChatStore = defineStore('chat', () => {
   const sendMessage = async (content: string, context?: Record<string, any>, model?: string) => {
     if (!content.trim() || isLoading.value) return
 
+    await ensureUserRoleLoaded()
     const guestTempMessages = isGuestSession() ? buildGuestTempMessages() : undefined
 
     // 清空之前的错误
@@ -459,6 +471,7 @@ export const useChatStore = defineStore('chat', () => {
         context,
         model: model || defaultModel.value,  // 使用传入的模型或默认模型
         agentEnabled: true,
+        adminAgent: canUseAdminAgent(),
         ...(isGuestSession()
           ? { tempMessages: guestTempMessages }
           : { ...(conversationId.value && { conversationId: conversationId.value }) })
@@ -485,6 +498,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 创建空的AI消息用于流式更新
     const aiMessage = addAiMessage('', undefined, { isStreaming: true, isThinking: true })
+    aiMessage.showAgentTrace = false
 
     try {
       await AiStream.streamChat(
@@ -499,7 +513,9 @@ export const useChatStore = defineStore('chat', () => {
         // onEvent - 接收到语音/心跳事件
         (eventType: string, payload: any) => {
           if (eventType === 'agent-start') {
-            attachAgentStart(aiMessage.id, payload)
+            if (canUseAdminAgent()) {
+              attachAgentStart(aiMessage.id, payload)
+            }
             return
           }
           if (eventType === 'article-results' && payload?.items?.length) {
@@ -510,20 +526,28 @@ export const useChatStore = defineStore('chat', () => {
             return
           }
           if (eventType === 'agent-plan') {
-            attachAgentPlan(aiMessage.id, payload?.steps || [])
-            aiMessage.isThinking = false
+            if (canUseAdminAgent() && aiMessage.showAgentTrace) {
+              attachAgentPlan(aiMessage.id, payload?.steps || [])
+              aiMessage.isThinking = false
+            }
             return
           }
           if (eventType === 'tool-start') {
-            upsertToolEvent(aiMessage.id, payload, 'running')
+            if (canUseAdminAgent() && aiMessage.showAgentTrace) {
+              upsertToolEvent(aiMessage.id, payload, 'running')
+            }
             return
           }
           if (eventType === 'tool-result') {
-            upsertToolEvent(aiMessage.id, payload, payload?.success === false ? 'failed' : 'success')
+            if (canUseAdminAgent() && aiMessage.showAgentTrace) {
+              upsertToolEvent(aiMessage.id, payload, payload?.success === false ? 'failed' : 'success')
+            }
             return
           }
           if (eventType === 'confirmation-required') {
-            attachConfirmation(aiMessage.id, payload)
+            if (canUseAdminAgent() && aiMessage.showAgentTrace) {
+              attachConfirmation(aiMessage.id, payload)
+            }
             return
           }
           if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
@@ -594,6 +618,7 @@ export const useChatStore = defineStore('chat', () => {
    */
   const sendNormalMessage = async (request: AiChatRequest) => {
     const pendingAiMessage = addAiMessage('', undefined, { isThinking: true })
+    pendingAiMessage.showAgentTrace = false
 
     try {
       const response = await Ai.chat(request)
@@ -607,13 +632,13 @@ export const useChatStore = defineStore('chat', () => {
         pendingAiMessage.articleResultReason = response.articleResults.reason || '我找到这些文章，可以直接点开阅读。'
         pendingAiMessage.renderedContent = undefined
       }
-      if (response.plan?.length) {
+      if (canUseAdminAgent() && response.plan?.length) {
         pendingAiMessage.agentPlanSteps = response.plan
       }
-      if (response.intent) {
+      if (canUseAdminAgent() && response.intent) {
         pendingAiMessage.agentIntent = response.intent
       }
-      if (response.role) {
+      if (canUseAdminAgent() && response.role) {
         pendingAiMessage.agentRole = response.role
       }
 

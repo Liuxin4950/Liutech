@@ -13,7 +13,8 @@ class AgentPlanServiceTest {
         var writePlan = planService.buildPlan(AgentIntent.WRITE_ARTICLE, true);
         var draftPlan = planService.buildPlan(AgentIntent.CREATE_DRAFT, true);
 
-        assertEquals("assist", writePlan.get(1).getKey());
-        assertEquals("confirm", draftPlan.get(1).getKey());
+        assertEquals("context", writePlan.get(1).getKey());
+        assertEquals("taxonomy", writePlan.get(2).getKey());
+        assertEquals("confirm", draftPlan.get(2).getKey());
     }
 }

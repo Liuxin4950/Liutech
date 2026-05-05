@@ -16,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 博客API客户端
@@ -230,6 +231,39 @@ public class BlogApiClient {
             return results;
         } catch (Exception e) {
             log.error("获取分类API异常", e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 获取所有标签
+     */
+    public List<Object> getAllTags() {
+        try {
+            String url = blogApiUrl + "/tags";
+            log.debug("调用博客API获取所有标签: {}", url);
+
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode root = objectMapper.readTree(response);
+
+            List<Object> results = new ArrayList<>();
+            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+                JsonNode data = root.get("data");
+                if (data.isArray()) {
+                    for (JsonNode record : data) {
+                        Long id = record.has("id") ? record.get("id").asLong() : null;
+                        String name = getTextValue(record, "name");
+                        if (id != null && name != null) {
+                            results.add(Map.of("id", id, "name", name));
+                        }
+                    }
+                }
+            }
+
+            log.debug("标签结果: 找到{}个", results.size());
+            return results;
+        } catch (Exception e) {
+            log.error("获取标签API异常", e);
             return new ArrayList<>();
         }
     }

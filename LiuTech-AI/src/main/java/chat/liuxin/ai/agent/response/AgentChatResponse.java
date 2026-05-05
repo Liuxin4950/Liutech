@@ -15,6 +15,8 @@ public class AgentChatResponse {
     private String intent;
     private List<AgentPlanStep> plan;
     private ArticleResultsPayload articleResults;
+    private WritingDraftPayload writingDraft;
+    private FieldUpdatePayload fieldUpdate;
     private ConfirmationRequiredPayload confirmation;
     private String role;
     private Boolean authenticated;

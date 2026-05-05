@@ -1161,10 +1161,13 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .markdown-content :deep(.token) {
   background: none !important;
   text-shadow:none !important;
-
+  color: inherit !important;
 }
 
 .markdown-content :deep(pre) {
+  background: #1f2937 !important;
+  color: #e5e7eb !important;
+  border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 12px;
   padding: 24px;
   margin: 24px 0;
@@ -1195,6 +1198,12 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   border: none;
   padding: 0;
   font-size: inherit;
+  color: inherit !important;
+  white-space: pre;
+}
+
+.markdown-content :deep(pre code *) {
+  color: inherit !important;
 }
 
 /* 表格样式 */
@@ -1302,7 +1311,9 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 
 .dark .markdown-content :deep(pre) {
-  background-color: var(--bg-soft);
+  background: #111827 !important;
+  color: #f3f4f6 !important;
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
 .dark .markdown-content :deep(blockquote) {

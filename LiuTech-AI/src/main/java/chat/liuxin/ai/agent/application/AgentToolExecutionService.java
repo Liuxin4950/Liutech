@@ -44,6 +44,9 @@ public class AgentToolExecutionService {
             "public.recommendBySearch", "搜索推荐",
             "public.latestArticles", "最新文章",
             "public.getArticleDetail", "读取当前文章",
+            "admin.listCategories", "读取分类列表",
+            "admin.listTags", "读取标签列表",
+            "admin.generateWritingHtml", "生成富文本 HTML",
             "admin.createDraft", "创建草稿",
             "admin.publishPost", "发布文章",
             "admin.offlinePost", "下架文章"
@@ -86,7 +89,7 @@ public class AgentToolExecutionService {
             T result = toolCallRecorder.record(context.getTaskId(), toolName, input, supplier);
 
             long durationMs = System.currentTimeMillis() - start;
-            String resultSummary = summarizeOutput(result);
+            String resultSummary = summarizeOutput(toolName, result);
 
             // 发送 tool-result 成功事件
             streamPublisher.sendToolResultSuccess(
@@ -152,15 +155,22 @@ public class AgentToolExecutionService {
      * 汇总输出结果为可读字符串。
      * 例如："返回 6 条结果"、"执行成功"
      */
-    private String summarizeOutput(Object output) {
+    private String summarizeOutput(String toolName, Object output) {
         if (output == null) {
             return "无结果";
+        }
+        if ("admin.generateWritingHtml".equals(toolName)) {
+            if (output instanceof String s && !s.isBlank()) {
+                return "已生成富文本 HTML";
+            }
+            return "未生成正文";
         }
         if (output instanceof java.util.Collection<?> collection) {
             return "返回 " + collection.size() + " 条结果";
         }
         if (output instanceof String s) {
-            return s.length() > 100 ? s.substring(0, 100) + "..." : s;
+            String text = s.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim();
+            return text.length() > 40 ? text.substring(0, 40) + "..." : text;
         }
         return "执行成功";
     }

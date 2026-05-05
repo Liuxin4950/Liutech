@@ -3,6 +3,8 @@ package chat.liuxin.ai.agent.application;
 import chat.liuxin.ai.agent.request.AgentChatRequest;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AgentIntentClassifierTest {
@@ -54,5 +56,14 @@ class AgentIntentClassifierTest {
         AgentChatRequest delete = new AgentChatRequest();
         delete.setMessage("删除这篇文章");
         assertEquals(AgentIntent.CHAT, classifier.classify(delete));
+    }
+
+    @Test
+    void shouldPreferCurrentArticleSummaryOverSearchWhenPostContextExists() {
+        AgentChatRequest summary = new AgentChatRequest();
+        summary.setMessage("这篇文章讲了啥");
+        summary.setContext(Map.of("page", "post-detail", "postId", 38));
+
+        assertEquals(AgentIntent.SUMMARIZE, classifier.classify(summary));
     }
 }

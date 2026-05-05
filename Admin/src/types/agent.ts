@@ -10,6 +10,22 @@ export interface AdminArticleDraftSnapshot {
   thumbnail?: string
 }
 
+export interface WritingDraftPayload {
+  title?: string
+  summary?: string
+  contentHtml?: string
+  categoryId?: number
+  categoryName?: string
+  tagIds?: number[]
+  tagNames?: string[]
+  suggestedCategoryName?: string
+  suggestedTagNames?: string[]
+  coverPrompt?: string
+  notes?: string
+  checks?: string[]
+  htmlSafe?: boolean
+}
+
 export interface AgentChatRequest {
   message: string
   conversationId?: number
@@ -49,7 +65,7 @@ export interface ConfirmationRequiredPayload {
   actionType: string
   title: string
   description: string
-  preview?: AdminArticleDraftSnapshot | Record<string, unknown>
+  preview?: AdminArticleDraftSnapshot | WritingDraftPayload | Record<string, unknown>
   riskLevel?: string
 }
 
@@ -92,6 +108,20 @@ export interface ToolEventPayload {
   durationMs?: number
   resultSummary?: string
   errorMessage?: string
+}
+
+export interface WritingDraftEventPayload extends WritingDraftPayload {}
+
+export interface FieldUpdatePayload {
+  title?: string
+  summary?: string
+  contentHtml?: string
+  categoryId?: number
+  categoryName?: string
+  tagIds?: number[]
+  tagNames?: string[]
+  suggestedCategoryName?: string
+  suggestedTagNames?: string[]
 }
 
 /**

@@ -24,6 +24,65 @@
         </div>
       </div>
 
+      <div v-if="isAdminWritingAvailable" class="editor-ai-panel">
+        <AdminWritingAssistant
+          :draft="adminDraftSnapshot"
+          @field-update="handleFieldUpdate"
+        />
+        <section v-if="hasAiTaxonomySuggestions" class="ai-taxonomy-card">
+          <div class="ai-taxonomy-title">
+            <Icon name="plus" size="15" />
+            <span>AI 建议创建</span>
+          </div>
+          <div v-if="aiSuggestedCategoryName" class="ai-taxonomy-row">
+            <span class="ai-taxonomy-label">分类</span>
+            <button
+              type="button"
+              class="ai-taxonomy-chip"
+              :disabled="!!creatingAiSuggestion"
+              @click="createAiSuggestedCategory(aiSuggestedCategoryName)"
+            >
+              + {{ aiSuggestedCategoryName }}
+            </button>
+          </div>
+          <div v-if="aiSuggestedCategoryName && aiSuggestedTagNames.length" class="ai-taxonomy-row">
+            <span class="ai-taxonomy-label">全部</span>
+            <button
+              type="button"
+              class="ai-taxonomy-chip primary"
+              :disabled="!!creatingAiSuggestion"
+              @click="createAllAiSuggestedTaxonomy"
+            >
+              创建分类和标签并选中
+            </button>
+          </div>
+          <div v-if="aiSuggestedTagNames.length" class="ai-taxonomy-row">
+            <span class="ai-taxonomy-label">标签</span>
+            <button
+              v-for="name in aiSuggestedTagNames"
+              :key="name"
+              type="button"
+              class="ai-taxonomy-chip"
+              :disabled="!!creatingAiSuggestion"
+              @click="createAiSuggestedTag(name)"
+            >
+              + {{ name }}
+            </button>
+            <button
+              type="button"
+              class="ai-taxonomy-chip primary"
+              :disabled="!!creatingAiSuggestion"
+              @click="createAllAiSuggestedTags"
+            >
+              全部创建并选中
+            </button>
+          </div>
+          <p class="ai-taxonomy-hint">
+            这些不是已有分类/标签，点击后才会新增到后台并写入当前文章。
+          </p>
+        </section>
+      </div>
+
       <!-- 下侧设置面板 -->
       <div class="editor-sidebar ">
         <!-- 发布设置 -->
@@ -270,6 +329,20 @@
         <div>
           <span @click="goBack" class="link back">退出{{ isEditMode ? '更新' : '发布' }}</span>
         </div>
+        <div v-if="undoStack.length > 0" class="undo-inline">
+          <span class="undo-label">AI 已修改 {{ undoStack.length }} 个字段</span>
+          <div class="undo-actions">
+            <button
+              v-for="entry in undoStack"
+              :key="entry.field"
+              type="button"
+              class="undo-field-btn"
+              @click="undoField(entry.field)"
+            >
+              撤销{{ fieldLabels[entry.field] || entry.field }}
+            </button>
+          </div>
+        </div>
         <div class="flex gap-12">
           <button @click="saveDraft" class="btn-secondary" :disabled="saving">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -421,6 +494,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import DOMPurify from 'dompurify'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
+import AdminWritingAssistant from '@/components/AdminWritingAssistant.vue'
+import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '@/services/adminAgent'
 import { PostService, type PostDetail } from '@/services/post'
 import { type Tag } from '@/services/tag'
 import { CategoryService, type CreateCategoryRequest } from '@/services/category'
@@ -428,6 +503,7 @@ import { TagService, type CreateTagRequest } from '@/services/tag'
 import { ImageUploadService } from '@/services/utils'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
+import { useUserStore } from '@/stores/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate } from '@/utils/uitls'
 import Swal from 'sweetalert2'
@@ -435,6 +511,7 @@ import Swal from 'sweetalert2'
 const router = useRouter()
 const route = useRoute()
 const { handleAsync } = useErrorHandler()
+const userStore = useUserStore()
 
 // 表单数据
 const form = ref({
@@ -476,28 +553,28 @@ const saving = ref(false)
 const showPreview = ref(false)
 const isEditMode = ref(false)
 
-// 渲染预览内容（处理 Markdown 语法）
+// 预览使用和详情页相同的富文本处理规则，避免发布前后渲染不一致。
 const renderedPreviewContent = computed(() => {
   if (!form.value.content) return ''
   const content = form.value.content
   const hasHtmlTags = /<[^>]*>/g.test(content)
 
   if (hasHtmlTags) {
-    // HTML 内容中的 Markdown 语法转换
     const html = content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-    return DOMPurify.sanitize(html)
-  } else {
-    const html = content
-      .replace(/\n/g, '<br>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code>$1</code>')
     return DOMPurify.sanitize(html)
   }
+
+  const html = content
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+  return DOMPurify.sanitize(html)
 })
+
 const editingPostId = ref<number | null>(null)
 const loading = ref(false)
 
@@ -544,6 +621,9 @@ const creatingTag = ref(false)
 const newCategoryName = ref('')
 const newCategoryDescription = ref('')
 const newTagName = ref('')
+const aiSuggestedCategoryName = ref('')
+const aiSuggestedTagNames = ref<string[]>([])
+const creatingAiSuggestion = ref('')
 
 // 可选标签（排除已选择的）
 const availableTags = computed(() => {
@@ -551,6 +631,141 @@ const availableTags = computed(() => {
     !selectedTags.value.some(selected => selected.id === tag.id)
   )
 })
+
+const hasAiTaxonomySuggestions = computed(() =>
+  !!aiSuggestedCategoryName.value || aiSuggestedTagNames.value.length > 0
+)
+
+const isAdminWritingAvailable = computed(() => userStore.isAdmin)
+
+const adminDraftSnapshot = computed<AdminArticleDraftSnapshot>(() => ({
+  postId: editingPostId.value,
+  title: form.value.title,
+  content: form.value.content,
+  summary: form.value.summary,
+  categoryId: form.value.categoryId || undefined,
+  tagIds: selectedTags.value.map(tag => tag.id),
+  status: form.value.status,
+  coverImage: form.value.coverImage,
+  thumbnail: form.value.thumbnail
+}))
+
+// AI 字段回退栈
+const undoStack = ref<Array<{ field: string, oldValue: any }>>([])
+
+// 字段中文标签
+const fieldLabels: Record<string, string> = {
+  title: '标题',
+  summary: '摘要',
+  content: '正文',
+  categoryId: '分类',
+  tagIds: '标签'
+}
+
+const sameName = (left?: string, right?: string) =>
+  (left || '').trim().toLowerCase() === (right || '').trim().toLowerCase()
+
+const normalizeSuggestedNames = (names?: string[]) => {
+  const result: string[] = []
+  for (const raw of names || []) {
+    const name = (raw || '').trim()
+    if (!name || result.some(item => sameName(item, name))) continue
+    result.push(name)
+  }
+  return result.slice(0, 8)
+}
+
+const rememberAiTaxonomySuggestions = (payload: FieldUpdatePayload) => {
+  const suggestedCategory = (payload.suggestedCategoryName || '').trim()
+  if (suggestedCategory) {
+    const existing = categories.value.find(category => sameName(category.name, suggestedCategory))
+    if (existing) {
+      form.value.categoryId = String(existing.id)
+      aiSuggestedCategoryName.value = ''
+    } else {
+      aiSuggestedCategoryName.value = suggestedCategory
+    }
+  }
+
+  if (payload.suggestedTagNames?.length) {
+    const nextSuggestions: string[] = []
+    for (const name of normalizeSuggestedNames(payload.suggestedTagNames)) {
+      const existing = tags.value.find(tag => sameName(tag.name, name))
+      if (existing) {
+        if (!selectedTags.value.some(tag => tag.id === existing.id)) {
+          selectedTags.value.push(existing)
+        }
+      } else if (!nextSuggestions.some(item => sameName(item, name))) {
+        nextSuggestions.push(name)
+      }
+    }
+    aiSuggestedTagNames.value = nextSuggestions
+  }
+}
+
+const handleFieldUpdate = (payload: FieldUpdatePayload) => {
+  const nextUndoStack: Array<{ field: string, oldValue: any }> = []
+  if (payload.title !== undefined && payload.title !== null) {
+    nextUndoStack.push({ field: 'title', oldValue: form.value.title })
+    form.value.title = payload.title
+  }
+  if (payload.summary !== undefined && payload.summary !== null) {
+    nextUndoStack.push({ field: 'summary', oldValue: form.value.summary })
+    form.value.summary = payload.summary
+  }
+  if (payload.contentHtml !== undefined && payload.contentHtml !== null) {
+    nextUndoStack.push({ field: 'content', oldValue: form.value.content })
+    form.value.content = DOMPurify.sanitize(payload.contentHtml)
+  }
+  if (payload.categoryId !== undefined && payload.categoryId !== null) {
+    nextUndoStack.push({ field: 'categoryId', oldValue: form.value.categoryId })
+    form.value.categoryId = String(payload.categoryId)
+  }
+  if (payload.tagIds?.length) {
+    nextUndoStack.push({ field: 'tagIds', oldValue: [...selectedTags.value] })
+    const nextTags = tags.value.filter(tag => payload.tagIds?.includes(tag.id))
+    if (nextTags.length) {
+      selectedTags.value = nextTags
+    }
+    aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(name =>
+      !nextTags.some(tag => sameName(tag.name, name))
+    )
+  }
+  rememberAiTaxonomySuggestions(payload)
+  if (nextUndoStack.length) {
+    undoStack.value = nextUndoStack
+  }
+}
+
+const undoField = (field: string) => {
+  let index = -1
+  for (let i = undoStack.value.length - 1; i >= 0; i--) {
+    if (undoStack.value[i].field === field) { index = i; break }
+  }
+  if (index < 0) return
+
+  const entry = undoStack.value[index]
+  switch (entry.field) {
+    case 'title':
+      form.value.title = entry.oldValue
+      break
+    case 'summary':
+      form.value.summary = entry.oldValue
+      break
+    case 'content':
+      form.value.content = entry.oldValue
+      break
+    case 'categoryId':
+      form.value.categoryId = entry.oldValue
+      break
+    case 'tagIds':
+      selectedTags.value = entry.oldValue
+      break
+  }
+
+  // 移除该字段的所有回退记录
+  undoStack.value = undoStack.value.filter(e => e.field !== field)
+}
 
 // 获取分类名称
 const getCategoryName = (categoryId: string | number) => {
@@ -1291,6 +1506,106 @@ const createTag = async () => {
     }
   })
 }
+
+const createAiSuggestedCategory = async (name: string) => {
+  const categoryName = name.trim()
+  if (!categoryName || creatingAiSuggestion.value) return
+  const existing = categories.value.find(category => sameName(category.name, categoryName))
+  if (existing) {
+    form.value.categoryId = String(existing.id)
+    aiSuggestedCategoryName.value = ''
+    Swal.fire('已选中', `已选中分类「${categoryName}」`, 'success')
+    return
+  }
+
+  await handleAsync(async () => {
+    creatingAiSuggestion.value = `category:${categoryName}`
+    const created = await CategoryService.createCategory({
+      name: categoryName,
+      description: '由 AI 写作助手建议创建'
+    })
+    await categoryStore.fetchCategories(true)
+    if (created?.id) {
+      await categoryStore.fetchCategoryById(created.id)
+      form.value.categoryId = String(created.id)
+    } else {
+      const found = categories.value.find(category => sameName(category.name, categoryName))
+      if (found) form.value.categoryId = String(found.id)
+    }
+    aiSuggestedCategoryName.value = ''
+    Swal.fire('成功', `分类「${categoryName}」已创建并选中`, 'success')
+  }, {
+    onError: (err) => {
+      console.error('AI 建议分类创建失败:', err)
+      Swal.fire('错误', `创建分类失败: ${err.message || '请重试'}`, 'error')
+    },
+    onFinally: () => {
+      creatingAiSuggestion.value = ''
+    }
+  })
+}
+
+const createAiSuggestedTag = async (name: string, silent = false) => {
+  const tagName = name.trim()
+  if (!tagName || creatingAiSuggestion.value) return
+  const existing = tags.value.find(tag => sameName(tag.name, tagName))
+  if (existing) {
+    if (!selectedTags.value.some(tag => tag.id === existing.id)) {
+      selectedTags.value.push(existing)
+    }
+    aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(item => !sameName(item, tagName))
+    if (!silent) Swal.fire('已选中', `已选中标签「${tagName}」`, 'success')
+    return
+  }
+
+  await handleAsync(async () => {
+    creatingAiSuggestion.value = `tag:${tagName}`
+    const created = await TagService.createTag({ name: tagName })
+    await tagStore.fetchTags(true)
+    let tagToSelect = created
+    if (created?.id) {
+      const fetched = await tagStore.fetchTagById(created.id)
+      if (fetched) tagToSelect = fetched
+    } else {
+      tagToSelect = tags.value.find(tag => sameName(tag.name, tagName)) as Tag
+    }
+    if (tagToSelect?.id && !selectedTags.value.some(tag => tag.id === tagToSelect.id)) {
+      selectedTags.value.push(tagToSelect)
+    }
+    aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(item => !sameName(item, tagName))
+    if (!silent) Swal.fire('成功', `标签「${tagName}」已创建并选中`, 'success')
+  }, {
+    onError: (err) => {
+      console.error('AI 建议标签创建失败:', err)
+      Swal.fire('错误', `创建标签失败: ${err.message || '请重试'}`, 'error')
+    },
+    onFinally: () => {
+      creatingAiSuggestion.value = ''
+    }
+  })
+}
+
+const createAllAiSuggestedTags = async () => {
+  const names = [...aiSuggestedTagNames.value]
+  if (!names.length || creatingAiSuggestion.value) return
+  for (const name of names) {
+    await createAiSuggestedTag(name, true)
+  }
+  Swal.fire('成功', 'AI 建议标签已创建并选中', 'success')
+}
+
+const createAllAiSuggestedTaxonomy = async () => {
+  if (creatingAiSuggestion.value) return
+  const categoryName = aiSuggestedCategoryName.value
+  const tagNames = [...aiSuggestedTagNames.value]
+  if (categoryName) {
+    await createAiSuggestedCategory(categoryName)
+  }
+  for (const name of tagNames) {
+    await createAiSuggestedTag(name, true)
+  }
+  Swal.fire('成功', 'AI 建议分类和标签已处理完成', 'success')
+}
  
 // 组件挂载时加载数据
 onMounted(async () => {
@@ -1521,6 +1836,75 @@ onMounted(async () => {
   margin-bottom: 20px;
 }
 
+.editor-ai-panel {
+  margin-bottom: 20px;
+}
+
+.ai-taxonomy-card {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.ai-taxonomy-title,
+.ai-taxonomy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-taxonomy-title {
+  margin-bottom: 10px;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.ai-taxonomy-row + .ai-taxonomy-row {
+  margin-top: 10px;
+}
+
+.ai-taxonomy-label {
+  min-width: 36px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.ai-taxonomy-chip {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-base);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text-main);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.3;
+  transition: all 0.2s ease;
+}
+
+.ai-taxonomy-chip:hover:not(:disabled),
+.ai-taxonomy-chip.primary {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--bg-card));
+  color: var(--color-primary);
+}
+
+.ai-taxonomy-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-taxonomy-hint {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .title-section {
   border-bottom: 1px solid var(--border-soft);
   margin-bottom: 20px;
@@ -1528,13 +1912,21 @@ onMounted(async () => {
 
 .title-input {
   width: 100%;
-  padding: 12px 0;
-  border: none;
+  padding: 16px 18px;
+  border: 1px solid var(--border-light);
   outline: none;
   font-size: 24px;
-  font-weight: 400;
+  font-weight: 600;
   color: var(--text-main);
-  background: transparent;
+  background: var(--bg-card);
+  border-radius: 8px;
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.title-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(45, 144, 205, 0.14);
 }
 
 .title-input::placeholder {
@@ -1596,16 +1988,45 @@ onMounted(async () => {
   font-family: inherit;
 }
 
+.field-select {
+  min-height: 44px;
+  padding-right: 40px;
+  color-scheme: light;
+  appearance: none;
+  background-color: var(--bg-soft);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='m6 9 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+.field-select option {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+}
+
+.field-select option:checked {
+  background-color: var(--bg-hover);
+  color: var(--text-title);
+}
+
+:global(.dark) .field-select {
+  color-scheme: dark;
+  background-color: var(--bg-element);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23CBD5E1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='m6 9 6 6 6-6'/%3e%3c/svg%3e");
+}
+
 .field-input:focus,
 .field-textarea:focus,
 .field-select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(45, 144, 205, 0.15);
+  box-shadow: 0 0 0 2px rgba(45, 144, 205, 0.18);
 }
 
 .field-select:hover {
   border-color: var(--color-primary);
+  background-color: var(--bg-hover);
 }
 
 .char-count {
@@ -1817,24 +2238,84 @@ onMounted(async () => {
 }
 
 .markdown-content :deep(code) {
-  background: var(--bg-soft);
+  background-color: var(--bg-element);
+  color: var(--text-main);
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: 'Fira Code', 'Consolas', monospace;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.9em;
 }
 
+.markdown-content :deep(.token) {
+  background: none !important;
+  text-shadow: none !important;
+  color: inherit !important;
+}
+
 .markdown-content :deep(pre) {
-  background: var(--bg-soft);
-  padding: 16px;
-  border-radius: 8px;
+  background: #1f2937 !important;
+  color: #e5e7eb !important;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 24px 0;
   overflow-x: auto;
-  margin: 16px 0;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  position: relative;
 }
 
 .markdown-content :deep(pre code) {
   background: none;
+  border: none;
   padding: 0;
+  font-size: inherit;
+  color: inherit !important;
+  white-space: pre;
+}
+
+.markdown-content :deep(pre code *) {
+  color: inherit !important;
+}
+
+.markdown-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  background-color: var(--bg-card);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.markdown-content :deep(th),
+.markdown-content :deep(td) {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-base);
+  color: var(--text-main);
+}
+
+.markdown-content :deep(th) {
+  background-color: var(--bg-soft);
+  font-weight: 600;
+  color: var(--text-title);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.markdown-content :deep(tr:last-child td) {
+  border-bottom: none;
+}
+
+.markdown-content :deep(tr:hover) {
+  background-color: var(--bg-hover);
+}
+
+:global(.dark) .markdown-content :deep(pre) {
+  background: #111827 !important;
+  color: #f3f4f6 !important;
+  border-color: rgba(148, 163, 184, 0.3);
 }
 
 .markdown-content :deep(img) {
@@ -2086,20 +2567,33 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
-  margin-bottom: 20px;
-  background: var(--bg-card);
-  border-radius: 12px;
-  border: 1px solid var(--border-light);
+  padding: 4px 0 10px;
+  margin-bottom: 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 
 .page-title {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  padding-left: 14px;
   font-size: 18px;
   font-weight: 600;
   color: var(--text-title);
+}
+
+.page-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 4px;
+  border-radius: 999px;
+  background: var(--color-primary);
 }
 
 /* 快速添加行 */
@@ -2485,6 +2979,45 @@ onMounted(async () => {
 
 .btn-confirm:hover {
   background: var(--color-primary-dark);
+}
+
+.undo-inline {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 16px;
+}
+
+.undo-label {
+  font-size: 13px;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+.undo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.undo-field-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-soft);
+  color: var(--text-main);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.undo-field-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--bg-hover);
 }
 
 </style>

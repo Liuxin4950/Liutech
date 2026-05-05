@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import DOMPurify from 'dompurify'
 import PostsService from '../../services/posts'
 import CategoriesService from '../../services/categories'
 import TagsService from '../../services/tags'
@@ -10,7 +11,7 @@ import { formatDateTime } from '../../utils/uitls'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
 import { ImageUploadService } from '../../services/upload'
 import AdminAgentSidebar from '../../components/agent/AdminAgentSidebar.vue'
-import type { AdminArticleDraftSnapshot, AgentActionResult } from '../../types/agent'
+import type { AdminArticleDraftSnapshot, AgentActionResult, FieldUpdatePayload } from '../../types/agent'
 
 // 响应式数据
 const loading = ref(false)
@@ -63,6 +64,15 @@ const modalTitle = ref('新建文章')
 const isEdit = ref(false)
 const editingId = ref<number | null>(null)
 const confirmLoading = ref(false)
+const createCategoryVisible = ref(false)
+const createTagVisible = ref(false)
+const creatingCategory = ref(false)
+const creatingTag = ref(false)
+const newCategoryName = ref('')
+const newCategoryDescription = ref('')
+const newTagName = ref('')
+const aiSuggestedCategoryName = ref('')
+const aiSuggestedTagNames = ref<string[]>([])
 
 const formRef = ref()
 const formModel = ref<Partial<Post>>({
@@ -75,6 +85,9 @@ const formModel = ref<Partial<Post>>({
   tagIds: [],
   status: 'draft'
 })
+
+const undoStack = ref<Array<{ field: string; oldValue: any }>>([])
+const highlightedFields = reactive<Record<string, boolean>>({})
 
 const agentDraftSnapshot = computed(() => ({
   postId: editingId.value,
@@ -254,15 +267,97 @@ const handleCancel = () => {
   modalVisible.value = false
 }
 
-const handleAgentApplyDraft = (draft: Partial<AdminArticleDraftSnapshot>) => {
-  const nextStatus = draft.status === 'published' || draft.status === 'archived' || draft.status === 'draft'
-    ? draft.status
-    : (formModel.value.status || 'draft')
-  formModel.value = {
-    ...formModel.value,
-    ...draft,
-    status: nextStatus
+const fieldLabelMap: Record<string, string> = {
+  title: '标题',
+  summary: '摘要',
+  content: '正文',
+  categoryId: '分类',
+  tagIds: '标签',
+}
+
+const sameName = (left?: string, right?: string) =>
+  (left || '').trim().toLowerCase() === (right || '').trim().toLowerCase()
+
+const normalizeSuggestedNames = (names?: string[]) => {
+  const result: string[] = []
+  for (const raw of names || []) {
+    const name = (raw || '').trim()
+    if (!name || result.some(item => sameName(item, name))) continue
+    result.push(name)
   }
+  return result.slice(0, 8)
+}
+
+const rememberAiTaxonomySuggestions = (payload: FieldUpdatePayload) => {
+  const suggestedCategory = (payload.suggestedCategoryName || '').trim()
+  if (suggestedCategory) {
+    const existing = categoryOptions.value.find(item => sameName(item.label, suggestedCategory))
+    if (existing) {
+      formModel.value.categoryId = existing.value
+      aiSuggestedCategoryName.value = ''
+    } else {
+      aiSuggestedCategoryName.value = suggestedCategory
+    }
+  }
+
+  if (payload.suggestedTagNames?.length) {
+    const currentIds = formModel.value.tagIds || []
+    const nextSuggestions: string[] = []
+    for (const name of normalizeSuggestedNames(payload.suggestedTagNames)) {
+      const existing = tagOptions.value.find(item => sameName(item.label, name))
+      if (existing) {
+        if (!currentIds.includes(existing.value)) {
+          formModel.value.tagIds = [...currentIds, existing.value]
+          currentIds.push(existing.value)
+        }
+      } else if (!nextSuggestions.some(item => sameName(item, name))) {
+        nextSuggestions.push(name)
+      }
+    }
+    aiSuggestedTagNames.value = nextSuggestions
+  }
+}
+
+const handleFieldUpdate = (payload: FieldUpdatePayload) => {
+  const entries: Array<[string, any]> = []
+  if (payload.title !== undefined && payload.title !== null) entries.push(['title', payload.title])
+  if (payload.summary !== undefined && payload.summary !== null) entries.push(['summary', payload.summary])
+  if (payload.contentHtml !== undefined && payload.contentHtml !== null) entries.push(['content', DOMPurify.sanitize(payload.contentHtml)])
+  if (payload.categoryId !== undefined && payload.categoryId !== null) entries.push(['categoryId', payload.categoryId])
+  if (payload.tagIds?.length) entries.push(['tagIds', [...payload.tagIds]])
+
+  if (entries.length > 0) {
+    undoStack.value = []
+  }
+
+  for (const [field, newValue] of entries) {
+    const oldValue = (formModel.value as any)[field]
+    undoStack.value.push({ field, oldValue })
+    ;(formModel.value as any)[field] = newValue
+    highlightedFields[field] = true
+    nextTick(() => {
+      setTimeout(() => {
+        delete highlightedFields[field]
+      }, 1500)
+    })
+  }
+
+  if (entries.length > 0) {
+    message.success(`AI 已更新 ${entries.map(([f]) => fieldLabelMap[f] || f).join('、')}`)
+  }
+  rememberAiTaxonomySuggestions(payload)
+}
+
+const undoField = (field: string) => {
+  let lastIdx = -1
+  for (let i = undoStack.value.length - 1; i >= 0; i--) {
+    if (undoStack.value[i].field === field) { lastIdx = i; break }
+  }
+  if (lastIdx < 0) return
+  const { oldValue } = undoStack.value[lastIdx]
+  undoStack.value.splice(lastIdx, 1)
+  ;(formModel.value as any)[field] = oldValue
+  message.info(`已撤销「${fieldLabelMap[field] || field}」`)
 }
 
 const handleAgentActionDone = (result?: AgentActionResult) => {
@@ -276,6 +371,108 @@ const handleAgentActionDone = (result?: AgentActionResult) => {
     modalTitle.value = '编辑文章'
   }
   loadPosts()
+}
+
+const openCreateCategory = () => {
+  newCategoryName.value = ''
+  newCategoryDescription.value = ''
+  createCategoryVisible.value = true
+}
+
+const openCreateTag = () => {
+  newTagName.value = ''
+  createTagVisible.value = true
+}
+
+const createCategory = async () => {
+  const name = newCategoryName.value.trim()
+  if (!name) {
+    message.warning('请输入分类名称')
+    return
+  }
+  try {
+    creatingCategory.value = true
+    const res = await CategoriesService.createCategory({
+      name,
+      description: newCategoryDescription.value.trim()
+    } as any)
+    if (res.code === 200) {
+      await loadCategoriesAndTags()
+      const created = categoryOptions.value.find(item => item.label === name)
+      if (created) {
+        formModel.value.categoryId = created.value
+      }
+      createCategoryVisible.value = false
+      message.success('分类已创建并选中')
+    } else {
+      message.error(res.message || '创建分类失败')
+    }
+  } finally {
+    creatingCategory.value = false
+  }
+}
+
+const createTag = async () => {
+  const name = newTagName.value.trim()
+  if (!name) {
+    message.warning('请输入标签名称')
+    return
+  }
+  try {
+    creatingTag.value = true
+    const res = await TagsService.createTag({ name } as any)
+    if (res.code === 200) {
+      await loadCategoriesAndTags()
+      const created = tagOptions.value.find(item => item.label === name)
+      if (created) {
+        const current = formModel.value.tagIds || []
+        if (!current.includes(created.value)) {
+          formModel.value.tagIds = [...current, created.value]
+        }
+      }
+      createTagVisible.value = false
+      message.success('标签已创建并选中')
+    } else {
+      message.error(res.message || '创建标签失败')
+    }
+  } finally {
+    creatingTag.value = false
+  }
+}
+
+const createAiSuggestedCategory = async (name: string) => {
+  const categoryName = name.trim()
+  if (!categoryName) return
+  newCategoryName.value = categoryName
+  newCategoryDescription.value = '由 AI 写作助手建议创建'
+  await createCategory()
+  aiSuggestedCategoryName.value = ''
+}
+
+const createAiSuggestedTag = async (name: string) => {
+  const tagName = name.trim()
+  if (!tagName) return
+  newTagName.value = tagName
+  await createTag()
+  aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(item => !sameName(item, tagName))
+}
+
+const createAllAiSuggestedTags = async () => {
+  const names = [...aiSuggestedTagNames.value]
+  for (const name of names) {
+    await createAiSuggestedTag(name)
+  }
+}
+
+const createAllAiSuggestedTaxonomy = async () => {
+  const categoryName = aiSuggestedCategoryName.value
+  const tagNames = [...aiSuggestedTagNames.value]
+  if (categoryName) {
+    await createAiSuggestedCategory(categoryName)
+  }
+  for (const name of tagNames) {
+    await createAiSuggestedTag(name)
+  }
 }
 
 // ============== 列表查询 ==============
@@ -593,19 +790,23 @@ onMounted(async () => {
       <div class="editor-agent-layout">
       <div class="editor-form-pane">
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
+        <div :class="['field-wrapper', { 'field-highlight': highlightedFields.title }]">
         <a-form-item name="title" label="标题" required>
           <a-input v-model:value="formModel.title" placeholder="请输入标题" />
         </a-form-item>
-        
+        </div>
+
+        <div :class="['field-wrapper', { 'field-highlight': highlightedFields.summary }]">
         <a-form-item label="文章摘要">
-          <a-textarea 
-            v-model:value="formModel.summary" 
-            placeholder="请输入文章摘要，用于SEO和文章预览" 
+          <a-textarea
+            v-model:value="formModel.summary"
+            placeholder="请输入文章摘要，用于SEO和文章预览"
             :rows="3"
             :maxlength="200"
             show-count
           />
         </a-form-item>
+        </div>
 
         <a-form-item label="封面图片">
           <div class="image-upload-container">
@@ -657,19 +858,39 @@ onMounted(async () => {
           </div>
         </a-form-item>
 
+        <div :class="['field-wrapper', { 'field-highlight': highlightedFields.content }]">
         <a-form-item name="content" label="内容" required>
           <TinyMCEEditor v-model="formModel.content" placeholder="请输入文章内容" :height="400" />
         </a-form-item>
+        </div>
+        <div :class="['field-wrapper', { 'field-highlight': highlightedFields.categoryId }]">
         <a-form-item name="categoryId" label="分类" required>
-          <a-select v-model:value="formModel.categoryId" placeholder="请选择分类">
-            <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-          </a-select>
+          <a-input-group compact>
+            <a-select v-model:value="formModel.categoryId" placeholder="请选择分类" style="width: calc(100% - 40px)">
+              <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+            </a-select>
+            <a-tooltip title="新增分类">
+              <a-button @click="openCreateCategory">
+                <template #icon><PlusOutlined /></template>
+              </a-button>
+            </a-tooltip>
+          </a-input-group>
         </a-form-item>
+        </div>
+        <div :class="['field-wrapper', { 'field-highlight': highlightedFields.tagIds }]">
         <a-form-item name="tagIds" label="标签">
-          <a-select v-model:value="formModel.tagIds" mode="multiple" placeholder="请选择标签">
-            <a-select-option v-for="opt in tagOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-          </a-select>
+          <a-input-group compact>
+            <a-select v-model:value="formModel.tagIds" mode="multiple" placeholder="请选择标签" style="width: calc(100% - 40px)">
+              <a-select-option v-for="opt in tagOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+            </a-select>
+            <a-tooltip title="新增标签">
+              <a-button @click="openCreateTag">
+                <template #icon><PlusOutlined /></template>
+              </a-button>
+            </a-tooltip>
+          </a-input-group>
         </a-form-item>
+        </div>
         <a-form-item name="status" label="状态">
           <a-radio-group v-model:value="formModel.status">
             <a-radio value="draft">草稿</a-radio>
@@ -680,10 +901,79 @@ onMounted(async () => {
       </div>
       <AdminAgentSidebar
         :draft="agentDraftSnapshot"
-        @apply-draft="handleAgentApplyDraft"
+        @field-update="handleFieldUpdate"
         @action-done="handleAgentActionDone"
       />
       </div>
+      <div v-if="aiSuggestedCategoryName || aiSuggestedTagNames.length" class="ai-taxonomy-bar">
+        <span class="ai-taxonomy-label">AI 建议新增：</span>
+        <a-button
+          v-if="aiSuggestedCategoryName"
+          size="small"
+          :loading="creatingCategory"
+          @click="createAiSuggestedCategory(aiSuggestedCategoryName)"
+        >
+          分类：{{ aiSuggestedCategoryName }}
+        </a-button>
+        <a-button
+          v-for="name in aiSuggestedTagNames"
+          :key="name"
+          size="small"
+          :loading="creatingTag && newTagName === name"
+          @click="createAiSuggestedTag(name)"
+        >
+          标签：{{ name }}
+        </a-button>
+        <a-button
+          v-if="aiSuggestedTagNames.length > 1"
+          size="small"
+          type="primary"
+          ghost
+          :loading="creatingTag"
+          @click="createAllAiSuggestedTags"
+        >
+          全部创建并选中
+        </a-button>
+        <a-button
+          v-if="aiSuggestedCategoryName && aiSuggestedTagNames.length"
+          size="small"
+          type="primary"
+          :loading="creatingCategory || creatingTag"
+          @click="createAllAiSuggestedTaxonomy"
+        >
+          分类和标签全部处理
+        </a-button>
+      </div>
+      <div v-if="undoStack.length" class="undo-bar">
+        <span class="undo-bar-label">AI 已修改：</span>
+        <a-button
+          v-for="(entry, idx) in undoStack"
+          :key="idx"
+          size="small"
+          @click="undoField(entry.field)"
+        >
+          撤销「{{ fieldLabelMap[entry.field] || entry.field }}」
+        </a-button>
+      </div>
+    </a-modal>
+
+    <a-modal v-model:open="createCategoryVisible" title="新增分类" :confirm-loading="creatingCategory" @ok="createCategory">
+      <a-form layout="vertical">
+        <a-form-item label="分类名称" required>
+          <a-input v-model:value="newCategoryName" placeholder="请输入分类名称" maxlength="50" @press-enter="createCategory" />
+        </a-form-item>
+        <a-form-item label="分类描述">
+          <a-textarea v-model:value="newCategoryDescription" placeholder="可选" :rows="3" maxlength="200" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <a-modal v-model:open="createTagVisible" title="新增标签" :confirm-loading="creatingTag" @ok="createTag">
+      <a-form layout="vertical">
+        <a-form-item label="标签名称" required>
+          <a-input v-model:value="newTagName" placeholder="请输入标签名称" maxlength="30" @press-enter="createTag" />
+        </a-form-item>
+      </a-form>
     </a-modal>
   </div>
 </template>
@@ -763,5 +1053,59 @@ onMounted(async () => {
 .upload-text {
   margin-top: 8px;
   font-size: 14px;
+}
+
+.field-wrapper {
+  transition: background-color 0.3s ease;
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.field-wrapper.field-highlight {
+  background-color: #e6f7ff;
+  animation: field-flash 1.5s ease-out;
+}
+
+@keyframes field-flash {
+  0% { background-color: #bae7ff; }
+  100% { background-color: transparent; }
+}
+
+.undo-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #fffbe6;
+  border-top: 1px solid #ffe58f;
+  margin: 0 -24px -12px;
+  border-radius: 0 0 8px 8px;
+}
+
+.undo-bar-label {
+  font-size: 13px;
+  color: #d46b08;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ai-taxonomy-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #f6ffed;
+  border-top: 1px solid #b7eb8f;
+  margin: 0 -24px;
+}
+
+.ai-taxonomy-label {
+  font-size: 13px;
+  color: #389e0d;
+  font-weight: 500;
+  white-space: nowrap;
 }
 </style>

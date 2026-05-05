@@ -38,6 +38,8 @@ export interface AiChatRequest {
   maxTokens?: number
   /** 是否使用智能看板娘 Agent 入口；Web 主聊天默认启用，仅遗留兼容可显式传 false */
   agentEnabled?: boolean
+  /** 是否使用管理员 AI 入口；仅前端识别为 admin 时传入，后端仍会强制校验管理员权限 */
+  adminAgent?: boolean
   /**
    * 是否启用语音推理（由前端开关决定）
    * - true：后端会尝试把流式文本分段并触发 TTS，额外推送 audio 事件
@@ -207,10 +209,11 @@ export class Ai {
      * 使用AI服务8081端口
      */
     static async chat(request: AiChatRequest): Promise<AiChatResponse> {
-        const { agentEnabled, ...requestBody } = request
+        const { agentEnabled, adminAgent, ...requestBody } = request
         // agentEnabled === false 只作为内部故障/开发回退，不是用户可见的聊天模式。
         if (agentEnabled !== false) {
-            const response = await post<AiChatResponse>('/agent/chat', requestBody, {
+            const endpoint = adminAgent ? '/admin/agent/chat' : '/agent/chat'
+            const response = await post<AiChatResponse>(endpoint, requestBody, {
                 serviceType: ServiceType.AI
             })
             return response as unknown as AiChatResponse
@@ -266,9 +269,9 @@ export class Ai {
             throw new Error('实时响应请使用 AiStream.streamChat 方法')
         }
 
-        const { agentEnabled, ...requestBody } = requestWithMode
+        const { agentEnabled, adminAgent, ...requestBody } = requestWithMode
         // agentEnabled === false 只作为内部故障/开发回退，不是用户可见的聊天模式。
-        const endpoint = agentEnabled === false ? '/chat' : '/agent/chat'
+        const endpoint = agentEnabled === false ? '/chat' : (adminAgent ? '/admin/agent/chat' : '/agent/chat')
         const response = await post<AiChatResponse>(endpoint, requestBody, {
             serviceType: ServiceType.AI
         })

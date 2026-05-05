@@ -22,11 +22,14 @@ public class AgentPlanService {
                     new AgentPlanStep("recommend", "获取推荐文章", "running"),
                     new AgentPlanStep("respond", "返回推荐理由和文章卡片", "pending"));
             case WRITE_ARTICLE -> List.of(
-                    new AgentPlanStep("context", "读取当前文章和编辑器内容", "running"),
-                    new AgentPlanStep("assist", "生成写作辅助内容", "pending"),
+                    new AgentPlanStep("understand", "理解写作目标", "completed"),
+                    new AgentPlanStep("context", "读取当前草稿", "running"),
+                    new AgentPlanStep("taxonomy", "匹配分类和标签", "pending"),
+                    new AgentPlanStep("html", "生成富文本 HTML", "pending"),
                     new AgentPlanStep("apply", "等待你选择如何应用", "pending"));
             case CREATE_DRAFT -> List.of(
-                    new AgentPlanStep("draft", "生成文章草稿内容", "running"),
+                    new AgentPlanStep("draft", "生成结构化文章草稿", "running"),
+                    new AgentPlanStep("html", "整理 TinyMCE HTML 正文", "pending"),
                     new AgentPlanStep("confirm", "等待管理员确认创建草稿", admin ? "pending" : "blocked"),
                     new AgentPlanStep("save", "保存为草稿", "pending"));
             case PUBLISH_POST, OFFLINE_POST -> List.of(

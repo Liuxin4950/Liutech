@@ -17,7 +17,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -81,6 +83,16 @@ public class AdminBlogClient {
                 .build();
     }
 
+    public List<AdminTaxonomyItem> listCategories(String bearerToken) {
+        JsonNode data = exchange("/admin/categories?page=1&size=1000", HttpMethod.GET, null, bearerToken);
+        return readRecords(data);
+    }
+
+    public List<AdminTaxonomyItem> listTags(String bearerToken) {
+        JsonNode data = exchange("/admin/tags?page=1&size=1000", HttpMethod.GET, null, bearerToken);
+        return readRecords(data);
+    }
+
     private JsonNode exchange(String path, HttpMethod method, Object body, String bearerToken) {
         if (bearerToken == null || bearerToken.isBlank()) {
             throw new IllegalArgumentException("缺少管理员认证 token");
@@ -119,6 +131,26 @@ public class AdminBlogClient {
         return node != null && node.has(field) && !node.get(field).isNull() ? node.get(field).asText() : fallback;
     }
 
+    private List<AdminTaxonomyItem> readRecords(JsonNode data) {
+        JsonNode records = data != null && data.has("records") ? data.get("records") : data;
+        if (records == null || !records.isArray()) {
+            return List.of();
+        }
+        List<AdminTaxonomyItem> result = new ArrayList<>();
+        for (JsonNode record : records) {
+            Long id = readLong(record, "id");
+            String name = readText(record, "name", "");
+            if (id != null && name != null && !name.isBlank()) {
+                result.add(AdminTaxonomyItem.builder()
+                        .id(id)
+                        .name(name)
+                        .description(readText(record, "description", ""))
+                        .build());
+            }
+        }
+        return result;
+    }
+
     @Data
     @Builder
     public static class AdminPostActionResult {
@@ -127,5 +159,13 @@ public class AdminBlogClient {
         private String status;
         private String url;
         private String adminUrl;
+    }
+
+    @Data
+    @Builder
+    public static class AdminTaxonomyItem {
+        private Long id;
+        private String name;
+        private String description;
     }
 }

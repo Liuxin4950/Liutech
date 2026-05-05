@@ -85,7 +85,7 @@ defineExpose({
 
             <div v-else>
               <div
-                v-if="message.agentPlanSteps?.length || message.agentToolEvents?.length || message.confirmation"
+                v-if="message.showAgentTrace && (message.agentPlanSteps?.length || message.agentToolEvents?.length || message.confirmation)"
                 class="agent-trace"
               >
                 <div class="trace-header">

@@ -1,5 +1,5 @@
 <template>
-  <div class="tinymce-editor">
+  <div class="tinymce-editor" :class="{ dark: theme.current.value === 'dark' }">
     <div v-if="!editorLoaded" class="editor-loading">
       正在加载编辑器...
     </div>
@@ -79,17 +79,38 @@ const content = ref(props.modelValue)
 // 编辑器加载状态
 const editorLoaded = ref(false)
 
+const SYSTEM_FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif"
+const EDITOR_FONT_FORMATS = `系统默认=${SYSTEM_FONT_STACK};微软雅黑=Microsoft YaHei,Helvetica Neue,PingFang SC,sans-serif;苹果苹方=PingFang SC,Microsoft YaHei,sans-serif;宋体=simsun,serif;仿宋体=FangSong,serif;黑体=SimHei,sans-serif;Arial=arial,helvetica,sans-serif;Arial Black=arial black,avant garde;Book Antiqua=book antiqua,palatino;`
+
 // 动态主题样式 - 完全匹配主题系统
 const getContentStyle = (isDark: boolean) => {
   const lightStyle = `
+    html {
+      min-height: 100%;
+      background-color: #FFFFFF;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: ${SYSTEM_FONT_STACK};
       font-size: 16px;
       line-height: 1.8;
       color: #3C4043;
       background-color: #FFFFFF;
+      margin: 0;
       padding: 20px;
+      position: relative;
+      box-sizing: border-box;
+      min-height: 100%;
       word-wrap: break-word;
+      caret-color: #202124;
+    }
+
+    body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
+      left: 20px;
+      right: 20px;
+      color: #7D8694;
+      opacity: 1;
+      font-style: normal;
     }
 
     /* 标题样式 */
@@ -258,14 +279,32 @@ const getContentStyle = (isDark: boolean) => {
   `
 
   const darkStyle = `
+    html {
+      min-height: 100%;
+      background-color: #202124;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: ${SYSTEM_FONT_STACK};
       font-size: 16px;
       line-height: 1.8;
       color: #E8EAED;
       background-color: #202124;
+      margin: 0;
       padding: 20px;
+      position: relative;
+      box-sizing: border-box;
+      min-height: 100%;
       word-wrap: break-word;
+      caret-color: #FFFFFF;
+    }
+
+    body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
+      left: 20px;
+      right: 20px;
+      color: #A8B3C2;
+      opacity: 1;
+      font-style: normal;
     }
 
     /* 标题样式 */
@@ -452,16 +491,19 @@ const editorConfig = computed(() => ({
     'quickbars'
   ],
   toolbar: [
-    'undo redo | formatselect fontselect fontsizeselect | bold italic underline strikethrough',
+    'undo redo | styles fontfamily fontsize lineheight | bold italic underline strikethrough',
     'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent',
     'forecolor backcolor | link image media table emoticons | codesample code | searchreplace',
     'preview fullscreen | help'
   ].join(' | '),
+  toolbar_mode: 'wrap',
   quickbars_selection_toolbar: 'bold italic underline | forecolor backcolor | quicklink h2 h3 blockquote',
   quickbars_insert_toolbar: 'quickimage quicktable',
   // 字体选项
-  font_formats: '微软雅黑=Microsoft YaHei,Helvetica Neue,PingFang SC,sans-serif;苹果苹方=PingFang SC,Microsoft YaHei,sans-serif;宋体=simsun,serif;仿宋体=FangSong,serif;黑体=SimHei,sans-serif;Arial=arial,helvetica,sans-serif;Arial Black=arial black,avant garde;Book Antiqua=book antiqua,palatino;',
+  font_family_formats: EDITOR_FONT_FORMATS,
+  font_formats: EDITOR_FONT_FORMATS,
   // 字号选项
+  font_size_formats: '12px 14px 16px 18px 20px 22px 24px 26px 28px 30px 32px 34px 36px 38px 40px 42px 44px 46px 48px 50px 52px 54px 56px 58px 60px 62px 64px 66px 68px 70px 72px',
   fontsize_formats: '12px 14px 16px 18px 20px 22px 24px 26px 28px 30px 32px 34px 36px 38px 40px 42px 44px 46px 48px 50px 52px 54px 56px 58px 60px 62px 64px 66px 68px 70px 72px',
   // 行高选项
   lineheight_formats: '1 1.1 1.2 1.3 1.4 1.5 1.6 1.8 2.0 2.5 3.0',
@@ -625,8 +667,8 @@ const editorConfig = computed(() => ({
   content_style: getContentStyle(theme.current.value === 'dark'),
   placeholder: props.placeholder,
   promotion: false,
-  skin: theme.current.value === 'dark' ? 'oxide-dark' : 'oxide',
-  content_css: theme.current.value === 'dark' ? 'dark' : 'default',
+  skin: 'oxide',
+  content_css: false,
   directionality: 'ltr',
   element_format: 'html',
   entities: '160,nbsp,38,amp,60,lt,62,gt',
@@ -665,6 +707,7 @@ const editorConfig = computed(() => ({
     console.log('TinyMCE编辑器初始化完成:', editor.id)
     console.log('编辑器模式:', editor.readonly ? '只读' : '可编辑')
     console.log('当前主题:', theme.current.value)
+    applyEditorTheme(editor)
     // Ctrl+S 保存快捷键
     editor.shortcuts.add('ctrl+s', '保存内容', function () {
       console.log('保存内容...')
@@ -694,33 +737,43 @@ watch(content, (newValue) => {
 // 编辑器实例引用
 const editorInstance = ref<any>(null)
 
+const resolveEditor = (eventOrEditor: any, maybeEditor?: any) => {
+  if (maybeEditor && typeof maybeEditor.getDoc === 'function') return maybeEditor
+  if (eventOrEditor && typeof eventOrEditor.getDoc === 'function') return eventOrEditor
+  if (eventOrEditor?.target && typeof eventOrEditor.target.getDoc === 'function') return eventOrEditor.target
+  return null
+}
+
+const applyEditorTheme = (editor: any, mode = theme.current.value) => {
+  if (!editor || typeof editor.getDoc !== 'function') return
+  const isDark = mode === 'dark'
+  const doc = editor.getDoc()
+  const styleId = 'liutech-live-theme'
+  let styleNode = doc.getElementById(styleId) as HTMLStyleElement | null
+  if (!styleNode) {
+    const nextStyleNode = doc.createElement('style') as HTMLStyleElement
+    nextStyleNode.id = styleId
+    doc.head.appendChild(nextStyleNode)
+    styleNode = nextStyleNode
+  }
+  styleNode.textContent = getContentStyle(isDark)
+  doc.body.classList.toggle('liutech-editor-dark', isDark)
+  doc.body.classList.toggle('liutech-editor-light', !isDark)
+}
+
 // 编辑器初始化完成
-const onEditorInit = (editor: any) => {
+const onEditorInit = (eventOrEditor: any, maybeEditor?: any) => {
+  const editor = resolveEditor(eventOrEditor, maybeEditor)
+  if (!editor) return
   console.log('TinyMCE编辑器初始化完成')
   editorInstance.value = editor
   editorLoaded.value = true
+  applyEditorTheme(editor)
 }
 
-// 监听主题变化，重新初始化编辑器
-watch(() => theme.current.value, () => {
-  if (editorInstance.value && typeof editorInstance.value.remove === 'function') {
-    console.log('主题已切换，重新初始化编辑器')
-    // 保存当前内容
-    const currentContent = content.value
-    // 使用正确的方法销毁编辑器实例
-    try {
-      editorInstance.value.remove()
-    } catch (error) {
-      console.warn('编辑器销毁时出现警告:', error)
-    }
-    // 重置状态
-    editorInstance.value = null
-    editorLoaded.value = false
-    // 延迟重新初始化，确保DOM更新
-    setTimeout(() => {
-      content.value = currentContent
-    }, 100)
-  }
+// 监听主题变化，实时刷新 iframe 内容样式，避免销毁编辑器导致内容/光标状态丢失
+watch(() => theme.current.value, (mode) => {
+  applyEditorTheme(editorInstance.value, mode)
 })
 </script>
 
@@ -742,39 +795,74 @@ watch(() => theme.current.value, () => {
 /* TinyMCE样式覆盖 */
 :deep(.tox) {
   border-radius: 8px;
-  border: 1px solid var(--border-base, #d9d9d9);
-  background: var(--bg-card, #ffffff);
+  border: 1px solid #DDE4EC !important;
+  background: #FFFFFF !important;
+  color: #263445 !important;
   transition: all 0.3s ease;
 }
 
-:deep(.tox-toolbar) {
-  background: var(--bg-card, #ffffff);
-  border-bottom: 1px solid var(--border-base, #d9d9d9);
+:deep(.tox .tox-editor-header),
+:deep(.tox .tox-toolbar-overlord),
+:deep(.tox .tox-toolbar),
+:deep(.tox .tox-toolbar__primary) {
+  background: #FFFFFF !important;
+  color: #263445 !important;
   transition: all 0.3s ease;
+}
+
+:deep(.tox .tox-toolbar) {
+  border-bottom: 1px solid #DDE4EC !important;
 }
 
 :deep(.tox-edit-area) {
-  background: var(--bg-card, #ffffff);
+  background: #FFFFFF !important;
   transition: all 0.3s ease;
 }
 
 :deep(.tox-statusbar) {
-  background: var(--bg-card, #ffffff);
-  border-top: 1px solid var(--border-base, #d9d9d9);
-  color: var(--text-main, #1f1f1f);
+  background: #FFFFFF !important;
+  border-top: 1px solid #DDE4EC !important;
+  color: #526173 !important;
   transition: all 0.3s ease;
 }
 
+:deep(.tox-statusbar__path-item),
+:deep(.tox-statusbar__wordcount),
+:deep(.tox-statusbar a) {
+  color: #526173 !important;
+}
+
 :deep(.tox-toolbar__group) {
-  border-color: var(--border-base, #d9d9d9);
+  border-color: #E6ECF2 !important;
 }
 
-:deep(.tox-tbtn) {
-  color: var(--text-main, #1f1f1f);
+:deep(.tox .tox-tbtn),
+:deep(.tox .tox-split-button),
+:deep(.tox .tox-listboxfield .tox-listbox--select),
+:deep(.tox .tox-textfield) {
+  background: #F7F9FC !important;
+  border-color: #E6ECF2 !important;
+  color: #263445 !important;
 }
 
-:deep(.tox-tbtn:hover) {
-  background: var(--color-primary-bg, #e6f4ff);
+:deep(.tox .tox-tbtn svg) {
+  fill: currentColor !important;
+}
+
+:deep(.tox-tbtn--select) {
+  max-width: 178px;
+}
+
+:deep(.tox-tbtn--select .tox-tbtn__select-label) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:deep(.tox .tox-tbtn:hover),
+:deep(.tox .tox-split-button:hover) {
+  background: #EEF4FA !important;
+  color: #1F5F91 !important;
 }
 
 :deep(.tox-menubar) {
@@ -793,35 +881,56 @@ watch(() => theme.current.value, () => {
 
 /* 暗色主题适配 */
 .dark :deep(.tox) {
-  border-color: var(--border-base, #424242);
-  background: var(--bg-card, #141414);
+  border-color: #3C4653 !important;
+  background: #202124 !important;
+  color: #E8EAED !important;
 }
 
-.dark :deep(.tox-toolbar) {
-  background: var(--bg-card, #141414);
-  border-bottom-color: var(--border-base, #424242);
+.dark :deep(.tox .tox-editor-header),
+.dark :deep(.tox .tox-toolbar-overlord),
+.dark :deep(.tox .tox-toolbar),
+.dark :deep(.tox .tox-toolbar__primary) {
+  background: #202124 !important;
+  color: #E8EAED !important;
+}
+
+.dark :deep(.tox .tox-toolbar) {
+  border-bottom-color: #3C4653 !important;
 }
 
 .dark :deep(.tox-edit-area) {
-  background: var(--bg-card, #141414);
+  background: #202124 !important;
 }
 
 .dark :deep(.tox-statusbar) {
-  background: var(--bg-card, #141414);
-  border-top-color: var(--border-base, #424242);
-  color: var(--text-main, #ffffff);
+  background: #202124 !important;
+  border-top-color: #3C4653 !important;
+  color: #CBD5E1 !important;
+}
+
+.dark :deep(.tox-statusbar__path-item),
+.dark :deep(.tox-statusbar__wordcount),
+.dark :deep(.tox-statusbar a) {
+  color: #CBD5E1 !important;
 }
 
 .dark :deep(.tox-toolbar__group) {
-  border-color: var(--border-base, #424242);
+  border-color: #3C4653 !important;
 }
 
-.dark :deep(.tox-tbtn) {
-  color: var(--text-main, #ffffff);
+.dark :deep(.tox .tox-tbtn),
+.dark :deep(.tox .tox-split-button),
+.dark :deep(.tox .tox-listboxfield .tox-listbox--select),
+.dark :deep(.tox .tox-textfield) {
+  background: #2D2F30 !important;
+  border-color: #3C4653 !important;
+  color: #E8EAED !important;
 }
 
-.dark :deep(.tox-tbtn:hover) {
-  background: var(--color-primary-bg, #111b26);
+.dark :deep(.tox .tox-tbtn:hover),
+.dark :deep(.tox .tox-split-button:hover) {
+  background: #3C4043 !important;
+  color: #FFFFFF !important;
 }
 
 .dark :deep(.tox-tbtn--enabled) {

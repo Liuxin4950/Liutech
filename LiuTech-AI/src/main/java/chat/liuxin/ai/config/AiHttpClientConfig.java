@@ -32,7 +32,7 @@ public class AiHttpClientConfig {
     @Primary
     public RestClient.Builder aiRestClientBuilder(HttpClient aiHttpClient) {
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(aiHttpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(60));
+        requestFactory.setReadTimeout(Duration.ofSeconds(90));
         return RestClient.builder().requestFactory(requestFactory);
     }
 

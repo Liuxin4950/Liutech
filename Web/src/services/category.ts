@@ -20,7 +20,7 @@ export class CategoryService {
    * 获取所有分类列表
    */
   static async getCategories(): Promise<Category[]> {
-    const response = await get('/categories?limit=5')
+    const response = await get('/categories?limit=1000')
     return response.data
   }
 

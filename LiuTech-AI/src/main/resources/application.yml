@@ -11,7 +11,7 @@ spring:
     active: dev
   mvc:
     async:
-      request-timeout: 120s
+      request-timeout: 300s
   # 数据库连接池优化配置
   datasource:
     hikari:
@@ -84,7 +84,7 @@ spring:
       history-limit: 14
     # SSE配置
     sse:
-      timeout: 180000  # SSE超时时间（毫秒），默认3分钟
+      timeout: 300000  # SSE超时时间（毫秒），5分钟（需大于AI重试链最大耗时：30s×3+2s=92s）
     agent:
       tool-cache-ttl-ms: 60000
       max-article-results: 8

@@ -2,6 +2,7 @@ package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.exception.AIServiceException;
 import chat.liuxin.ai.mcp.BlogChatTools;
+import chat.liuxin.ai.mcp.WritingTools;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ public class SiliconFlowChatClient {
 
     private final ChatClient chatClient;
     private final BlogChatTools blogChatTools;
+    private final WritingTools writingTools;
 
     @Value("${spring.ai.model.default:zai-org/GLM-4.6}")
     private String defaultModel;
@@ -142,7 +144,51 @@ public class SiliconFlowChatClient {
             throw new AIServiceException("AI服务调用失败: " + e.getMessage(), e);
         }
     }
-    
+
+    /**
+     * 写作专用文本生成，不注册 MCP 工具。
+     * 内部使用流式调用（WebClient，无 read timeout），避免 RestClient 固定超时。
+     * 分类和标签匹配由 Java 代码处理，模型只需生成 HTML 内容。
+     */
+    public String chatForWriting(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
+        if (messages == null) {
+            messages = List.of();
+        }
+        String model = modelName != null ? modelName : defaultModel;
+        try {
+            log.debug("调用AI模型(写作专用): {}, 消息数量: {}, temperature: {}, maxTokens: {}",
+                    model, messages.size(), temperature, maxTokens);
+            OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder().model(model);
+            if (temperature != null && temperature >= 0.0 && temperature <= 1.0) {
+                optionsBuilder.temperature(temperature);
+            }
+            if (maxTokens != null && maxTokens > 0) {
+                optionsBuilder.maxTokens(maxTokens);
+            }
+            OpenAiChatOptions options = optionsBuilder.build();
+            OpenAiChatOptions safeOptions = Objects.requireNonNullElse(options, OpenAiChatOptions.builder().build());
+            @SuppressWarnings("null")
+            String response = chatClient
+                    .prompt()
+                    .messages(messages)
+                    .options(safeOptions)
+                    .tools(writingTools)
+                    .stream()
+                    .content()
+                    .collectList()
+                    .map(parts -> String.join("", parts))
+                    .block();
+            if (response == null || response.trim().isEmpty()) {
+                throw new AIServiceException("AI返回空响应");
+            }
+            log.debug("AI写作专用响应成功, 模型: {}, 响应长度: {}", model, response.length());
+            return response;
+        } catch (Exception e) {
+            log.error("AI写作专用调用失败, 模型: {}, 错误: {}", model, e.getMessage(), e);
+            throw new AIServiceException("AI服务调用失败: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * 使用指定模型进行流式聊天（兼容旧方法）
      */

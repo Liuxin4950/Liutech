@@ -14,6 +14,10 @@ import chat.liuxin.ai.agent.response.AgentResultPayload;
 import chat.liuxin.ai.agent.response.ArticleResultItem;
 import chat.liuxin.ai.agent.response.ArticleResultsPayload;
 import chat.liuxin.ai.agent.response.ConfirmationRequiredPayload;
+import chat.liuxin.ai.agent.response.FieldUpdatePayload;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import chat.liuxin.ai.agent.response.WritingDraftPayload;
+import chat.liuxin.ai.agent.tool.AdminBlogClient;
 import chat.liuxin.ai.agent.tool.PublicArticleTool;
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.security.AiCapabilityResolver;
@@ -27,10 +31,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -67,6 +73,7 @@ public class AgentOrchestrator {
     private final AgentIntentClassifier intentClassifier;
     private final AgentPlanService planService;
     private final PublicArticleTool publicArticleTool;
+    private final AdminBlogClient adminBlogClient;
     private final AgentActionService agentActionService;
     private final AgentStreamPublisher streamPublisher;
     private final AgentToolExecutionService toolExecutionService;
@@ -78,6 +85,8 @@ public class AgentOrchestrator {
     private final AiPromptSecurityPolicy promptSecurityPolicy;
     private final AiSystemPromptProvider systemPromptProvider;
     private final AiModelPolicy aiModelPolicy;
+    private final chat.liuxin.ai.mcp.WritingTools writingTools;
+    private final ObjectMapper objectMapper;
 
     /**
      * 非流式执行。
@@ -87,9 +96,22 @@ public class AgentOrchestrator {
      * @return 聊天响应
      */
     public AgentChatResponse execute(AgentChatRequest request, AgentUserContext user) {
-        AgentIntent intent = intentClassifier.classify(request);
+        AgentIntent intent = isAdminWritingContext(request, user)
+                ? AgentIntent.WRITE_ARTICLE
+                : intentClassifier.classify(request);
         AgentTask task = createTask(request, user, intent, AgentTaskStatus.RUNNING);
         var plan = planService.buildPlan(intent, user != null && user.isAdmin());
+        return executeTask(request, user, intent, task, plan, null);
+    }
+
+    public AgentChatResponse executeAdmin(AgentChatRequest request, AgentUserContext user) {
+        requireAdmin(user);
+        // 管理员入口：通过 context 自动判断写作意图
+        AgentIntent intent = isAdminWritingContext(request, user)
+                ? AgentIntent.WRITE_ARTICLE
+                : intentClassifier.classify(request);
+        AgentTask task = createTask(request, user, intent, AgentTaskStatus.RUNNING);
+        var plan = planService.buildPlan(intent, true);
         return executeTask(request, user, intent, task, plan, null);
     }
 
@@ -107,7 +129,17 @@ public class AgentOrchestrator {
      * @param emitter SSE 发射器
      */
     public void executeStream(AgentChatRequest request, AgentUserContext user, SseEmitter emitter) {
-        AgentIntent intent = intentClassifier.classify(request);
+        AgentIntent intent;
+        // 管理员在文章编辑页 → 强制写作意图，不走 MCP 工具
+        if (isAdminWritingContext(request, user)) {
+            intent = AgentIntent.WRITE_ARTICLE;
+        } else {
+            intent = intentClassifier.classify(request);
+        }
+        executeStreamWithIntent(request, user, emitter, intent);
+    }
+
+    private void executeStreamWithIntent(AgentChatRequest request, AgentUserContext user, SseEmitter emitter, AgentIntent intent) {
         AgentTask task = createTask(request, user, intent, AgentTaskStatus.RUNNING);
         var plan = planService.buildPlan(intent, user != null && user.isAdmin());
 
@@ -140,6 +172,28 @@ public class AgentOrchestrator {
     }
 
     /**
+     * 管理员流式入口。通过 context 自动判断写作意图。
+     */
+    public void executeAdminStream(AgentChatRequest request, AgentUserContext user, SseEmitter emitter) {
+        requireAdmin(user);
+        AgentIntent intent = isAdminWritingContext(request, user)
+                ? AgentIntent.WRITE_ARTICLE
+                : intentClassifier.classify(request);
+        executeStreamWithIntent(request, user, emitter, intent);
+    }
+
+    /**
+     * 判断是否为管理员写作上下文。
+     * 管理员在文章编辑页发消息时，context.page == "admin-post-editor"。
+     */
+    private boolean isAdminWritingContext(AgentChatRequest request, AgentUserContext user) {
+        if (user == null || !user.isAdmin()) return false;
+        Map<String, Object> ctx = request.getContext();
+        Object page = ctx == null ? null : ctx.get("page");
+        return "admin-post-editor".equals(page) || "web-create-post".equals(page);
+    }
+
+    /**
      * 执行任务。
      *
      * @return 聊天响应
@@ -156,7 +210,7 @@ public class AgentOrchestrator {
                 case IDENTITY -> handleIdentity(request, user, task, plan);
                 case SEARCH_ARTICLES -> handleArticleSearch(request, task, plan, context);
                 case RECOMMEND_ARTICLES -> handleArticleRecommendation(request, task, plan, context);
-                case WRITE_ARTICLE -> handleWritingAssist(request, task, plan, context);
+                case WRITE_ARTICLE -> handleWritingAssist(request, user, task, plan, context);
                 case CREATE_DRAFT -> handleDraft(request, user, task, plan);
                 case PUBLISH_POST -> handlePublish(request, user, task, plan);
                 case OFFLINE_POST -> handleOffline(request, user, task, plan);
@@ -211,6 +265,16 @@ public class AgentOrchestrator {
         // 文章结果事件
         if (response.getArticleResults() != null) {
             streamPublisher.send(emitter, "article-results", context.getTaskId(), context.getConversationId(), response.getArticleResults());
+        }
+
+        // 写作草稿事件（保留兼容）
+        if (response.getWritingDraft() != null) {
+            streamPublisher.send(emitter, "writing-draft", context.getTaskId(), context.getConversationId(), response.getWritingDraft());
+        }
+
+        // 字段级更新事件（新）
+        if (response.getFieldUpdate() != null) {
+            streamPublisher.send(emitter, "field-update", context.getTaskId(), context.getConversationId(), response.getFieldUpdate());
         }
 
         // 确认卡片事件
@@ -372,33 +436,74 @@ public class AgentOrchestrator {
      */
     private AgentChatResponse handleWritingAssist(
             AgentChatRequest request,
+            AgentUserContext user,
             AgentTask task,
             List<AgentPlanStep> plan,
             AgentSseContext context) {
+        if (user == null || !user.isAdmin()) {
+            return handleTextGeneration(request, task, plan, "请以普通写作建议的方式回复。不要返回管理员草稿结构，不要声称可以保存、发布或修改博客后台数据。");
+        }
+
         AdminArticleDraftRequest draft = request.getDraft();
         Long postId = resolvePostId(request);
         PostDetailDTO currentArticle = resolveCurrentArticle(request, task, context);
 
-        String draftContext = buildDraftContext(draft);
-        String articleContext = currentArticle == null ? "" : limitText(currentArticle.toAiReadableFormat(), MAX_CONTEXT_CHARS);
         String instruction = inferWritingInstruction(request.getMessage());
-        String prompt = promptSecurityPolicy.wrapUntrustedContent("WRITING_ASSIST_INPUT", """
-                你正在辅助管理员编辑 LiuTech 博客文章。请只给出可以直接应用到编辑器的内容或明确建议，不要声称已经保存、发布或修改线上数据。
+        WritingFieldScope fieldScope = inferWritingFieldScope(request);
+        if (fieldScope.checkOnly()) {
+            return buildWritingCheckResponse(request, task, plan, currentArticle);
+        }
 
-                用户要求：
-                %s
+        WritingDraftPayload writingDraft = buildWritingDraft(request, user, currentArticle, instruction, context);
+        FieldUpdatePayload fieldUpdate = buildScopedFieldUpdate(writingDraft, draft, fieldScope);
+        boolean hasConcreteFieldUpdate = hasFieldUpdates(fieldUpdate);
+        boolean hasAnyFieldUpdate = hasConcreteFieldUpdate || hasFieldSuggestions(fieldUpdate);
 
-                写作任务：
-                %s
+        String answer = hasConcreteFieldUpdate
+                ? buildWritingAnswer(fieldScope)
+                : buildWritingSuggestionAnswer(fieldUpdate);
+        ArticleResultsPayload articlePayload = null;
+        if (currentArticle != null) {
+            ArticleResultItem card = publicArticleTool.currentArticleCard(currentArticle, "当前正在编辑或阅读的文章");
+            if (card != null) {
+                articlePayload = ArticleResultsPayload.builder()
+                        .source("current")
+                        .query(String.valueOf(currentArticle.getId()))
+                        .reason("当前文章")
+                        .items(List.of(card))
+                        .build();
+            }
+        }
 
-                当前编辑器草稿：
-                %s
+        return AgentChatResponse.builder()
+                .success(true)
+                .taskId(taskId(task))
+                .conversationId(request.getConversationId())
+                .intent(AgentIntent.WRITE_ARTICLE.name())
+                .plan(plan)
+                .message(answer)
+                .fieldUpdate(hasAnyFieldUpdate ? fieldUpdate : null)
+                .articleResults(articlePayload)
+                .build();
+    }
 
-                当前文章详情（如果有）：
-                %s
-                """.formatted(request.getMessage(), instruction, draftContext, articleContext));
+    private AgentChatResponse buildWritingCheckResponse(
+            AgentChatRequest request,
+            AgentTask task,
+            List<AgentPlanStep> plan,
+            PostDetailDTO currentArticle) {
+        AdminArticleDraftRequest draft = request.getDraft();
+        String title = draft == null ? "" : defaultString(draft.getTitle());
+        String summary = draft == null ? "" : defaultString(draft.getSummary());
+        String content = draft == null ? "" : defaultString(draft.getContent());
+        List<String> checks = new ArrayList<>();
+        checks.add(isBlank(title) ? "标题还没有填写。" : "标题已填写，长度约 " + title.length() + " 个字符。");
+        checks.add(isBlank(summary) ? "摘要还没有填写，建议补一段 80-160 字的搜索摘要。" : "摘要已填写，长度约 " + summary.length() + " 个字符。");
+        checks.add(isBlank(content) ? "正文还没有内容。" : "正文已有内容，纯文本约 " + stripHtml(content).length() + " 个字符。");
+        checks.add(draft == null || draft.getCategoryId() == null ? "分类还没有选择。" : "分类已选择。");
+        checks.add(draft == null || draft.getTagIds() == null || draft.getTagIds().isEmpty() ? "标签还没有选择。" : "标签已选择 " + draft.getTagIds().size() + " 个。");
+        String answer = "发布前检查完成：\n\n- " + String.join("\n- ", checks) + "\n\n我没有改动编辑器字段。";
 
-        String answer = generateText(prompt, 900);
         ArticleResultsPayload articlePayload = null;
         if (currentArticle != null) {
             ArticleResultItem card = publicArticleTool.currentArticleCard(currentArticle, "当前正在编辑或阅读的文章");
@@ -421,6 +526,153 @@ public class AgentOrchestrator {
                 .message(answer)
                 .articleResults(articlePayload)
                 .build();
+    }
+
+    private FieldUpdatePayload buildScopedFieldUpdate(
+            WritingDraftPayload draft,
+            AdminArticleDraftRequest currentDraft,
+            WritingFieldScope scope) {
+        FieldUpdatePayload.FieldUpdatePayloadBuilder builder = FieldUpdatePayload.builder();
+        if (scope.title()) {
+            builder.title(draft.getTitle());
+        }
+        if (scope.summary()) {
+            builder.summary(draft.getSummary());
+        }
+        if (scope.content()) {
+            builder.contentHtml(draft.getContentHtml());
+        }
+        if (scope.category()) {
+            builder.categoryId(draft.getCategoryId())
+                    .categoryName(draft.getCategoryName())
+                    .suggestedCategoryName(draft.getSuggestedCategoryName());
+        }
+        if (scope.tags()) {
+            List<Long> tagIds = scope.appendTags()
+                    ? mergeIds(currentDraft == null ? null : currentDraft.getTagIds(), draft.getTagIds())
+                    : draft.getTagIds();
+            builder.tagIds(tagIds)
+                    .tagNames(draft.getTagNames())
+                    .suggestedTagNames(draft.getSuggestedTagNames());
+        }
+        return builder.build();
+    }
+
+    private boolean hasFieldUpdates(FieldUpdatePayload payload) {
+        return payload != null
+                && (!isBlank(payload.getTitle())
+                || !isBlank(payload.getSummary())
+                || !isBlank(payload.getContentHtml())
+                || payload.getCategoryId() != null
+                || (payload.getTagIds() != null && !payload.getTagIds().isEmpty()));
+    }
+
+    private boolean hasFieldSuggestions(FieldUpdatePayload payload) {
+        return payload != null
+                && (!isBlank(payload.getSuggestedCategoryName())
+                || (payload.getSuggestedTagNames() != null && !payload.getSuggestedTagNames().isEmpty()));
+    }
+
+    private String buildWritingAnswer(WritingFieldScope scope) {
+        List<String> fields = new ArrayList<>();
+        if (scope.title()) fields.add("标题");
+        if (scope.summary()) fields.add("摘要");
+        if (scope.content()) fields.add("正文");
+        if (scope.category()) fields.add("分类");
+        if (scope.tags()) fields.add("标签");
+        return fields.isEmpty()
+                ? "我已经检查了你的要求，这次没有需要自动写入的字段。"
+                : "已按你的要求更新：" + String.join("、", fields) + "。未请求的字段不会被覆盖。";
+    }
+
+    private String buildWritingSuggestionAnswer(FieldUpdatePayload payload) {
+        if (!hasFieldSuggestions(payload)) {
+            return "我检查了你的要求，但没有匹配到可直接写入的已有分类或标签，所以没有改动编辑器字段。你可以先新增分类/标签，或换一个更明确的名称。";
+        }
+        List<String> tips = new ArrayList<>();
+        if (!isBlank(payload.getSuggestedCategoryName())) {
+            tips.add("分类「" + payload.getSuggestedCategoryName() + "」");
+        }
+        if (payload.getSuggestedTagNames() != null && !payload.getSuggestedTagNames().isEmpty()) {
+            tips.add("标签「" + String.join("、", payload.getSuggestedTagNames()) + "」");
+        }
+        return "我没有找到可直接写入的已有分类或标签，但整理出了建议：" + String.join("，", tips)
+                + "。请在编辑器里确认创建并选中，避免我静默改动后台字典。";
+    }
+
+
+    private List<Long> mergeIds(List<Long> existing, List<Long> generated) {
+        List<Long> merged = new ArrayList<>();
+        if (existing != null) {
+            for (Long id : existing) {
+                if (id != null && !merged.contains(id)) merged.add(id);
+            }
+        }
+        if (generated != null) {
+            for (Long id : generated) {
+                if (id != null && !merged.contains(id)) merged.add(id);
+            }
+        }
+        return merged;
+    }
+
+    private WritingFieldScope inferWritingFieldScope(AgentChatRequest request) {
+        WritingFieldScope contextScope = fieldScopeFromContext(request == null ? null : request.getContext());
+        if (contextScope != null) {
+            return contextScope;
+        }
+        String message = request == null ? "" : request.getMessage();
+        String text = defaultString(message).toLowerCase();
+        boolean all = containsAny(text, "写一篇", "生成一篇", "新文章", "完整文章", "整篇", "全文", "全部", "应用全部");
+        boolean checkOnly = containsAny(text, "发布前检查", "检查一下", "帮我检查", "审查一下", "看看有没有问题");
+        boolean title = containsAny(text, "标题", "题目", "seo");
+        boolean summary = containsAny(text, "摘要", "简介", "概述", "seo", "描述");
+        boolean content = containsAny(text, "正文", "富文本", "html", "排版", "格式", "润色", "续写", "扩写", "改写", "章节", "代码", "段落");
+        boolean category = containsAny(text, "分类", "栏目");
+        boolean tags = containsAny(text, "标签", "tag");
+        boolean appendTags = tags && containsAny(text, "加", "增加", "添加", "补", "补充", "追加", "再来");
+
+        if (checkOnly && !containsAny(text, "修复", "修改", "改成", "写入", "应用")) {
+            return new WritingFieldScope(false, false, false, false, false, true, false);
+        }
+        if (all || (!title && !summary && !content && !category && !tags)) {
+            return WritingFieldScope.all();
+        }
+        return new WritingFieldScope(title, summary, content, category, tags, false, appendTags);
+    }
+
+    private WritingFieldScope fieldScopeFromContext(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object fieldsValue = context.get("requestedFields");
+        if (!(fieldsValue instanceof List<?> fields) || fields.isEmpty()) {
+            return null;
+        }
+        boolean title = fields.contains("title");
+        boolean summary = fields.contains("summary");
+        boolean content = fields.contains("content") || fields.contains("contentHtml");
+        boolean category = fields.contains("category") || fields.contains("categoryId");
+        boolean tags = fields.contains("tags") || fields.contains("tagIds");
+        boolean checkOnly = fields.contains("check");
+        boolean appendTags = Boolean.TRUE.equals(context.get("appendTags"));
+        if (checkOnly) {
+            return new WritingFieldScope(false, false, false, false, false, true, false);
+        }
+        return new WritingFieldScope(title, summary, content, category, tags, false, appendTags);
+    }
+
+    private record WritingFieldScope(
+            boolean title,
+            boolean summary,
+            boolean content,
+            boolean category,
+            boolean tags,
+            boolean checkOnly,
+            boolean appendTags) {
+        static WritingFieldScope all() {
+            return new WritingFieldScope(true, true, true, true, true, false, false);
+        }
     }
 
     /**
@@ -493,7 +745,7 @@ public class AgentOrchestrator {
 
         toolAccessPolicy.assertAllowed(user, chat.liuxin.ai.agent.domain.AgentActionType.CREATE_DRAFT);
 
-        AdminArticleDraftRequest draft = mergeGeneratedDraft(request);
+        AdminArticleDraftRequest draft = mergeGeneratedDraft(request, user);
         if (draft.getCategoryId() == null) {
             return AgentChatResponse.builder()
                     .success(true)
@@ -614,7 +866,7 @@ public class AgentOrchestrator {
     /**
      * 合并生成的草稿。
      */
-    private AdminArticleDraftRequest mergeGeneratedDraft(AgentChatRequest request) {
+    private AdminArticleDraftRequest mergeGeneratedDraft(AgentChatRequest request, AgentUserContext user) {
         AdminArticleDraftRequest draft = request.getDraft() == null ? new AdminArticleDraftRequest() : request.getDraft();
         if (!isBlank(draft.getContent())) {
             if (isBlank(draft.getTitle())) {
@@ -627,41 +879,208 @@ public class AgentOrchestrator {
             return draft;
         }
 
-        String prompt = promptSecurityPolicy.wrapUntrustedContent("DRAFT_GENERATION_INPUT", """
-                请为 LiuTech 博客生成一篇适合作为草稿的中文技术文章。
-                要求：
-                - 使用 Markdown 正文。
-                - 结构清晰，有标题、小节和结尾。
-                - 不要声称已经发布。
-                - 主题来自用户要求和当前编辑器内容。
+        WritingDraftPayload generated = buildWritingDraft(request, user, null, inferWritingInstruction(request.getMessage()), null);
+        draft.setContent(generated.getContentHtml());
+        if (isBlank(draft.getTitle())) {
+            draft.setTitle(generated.getTitle());
+        }
+        if (isBlank(draft.getSummary())) {
+            draft.setSummary(generated.getSummary());
+        }
+        if (draft.getCategoryId() == null) {
+            draft.setCategoryId(generated.getCategoryId());
+        }
+        if (draft.getTagIds() == null || draft.getTagIds().isEmpty()) {
+            draft.setTagIds(generated.getTagIds());
+        }
+        draft.setStatus("draft");
+        return draft;
+    }
+
+    private WritingDraftPayload buildWritingDraft(
+            AgentChatRequest request,
+            AgentUserContext user,
+            PostDetailDTO currentArticle,
+            String instruction,
+            AgentSseContext context) {
+        List<AdminBlogClient.AdminTaxonomyItem> categories = context == null
+                ? readCategories(user)
+                : defaultList(toolExecutionService.execute(
+                context,
+                "admin.listCategories",
+                Map.of("purpose", "writing-taxonomy-match"),
+                () -> readCategories(user)));
+        List<AdminBlogClient.AdminTaxonomyItem> tags = context == null
+                ? readTags(user)
+                : defaultList(toolExecutionService.execute(
+                context,
+                "admin.listTags",
+                Map.of("purpose", "writing-taxonomy-match"),
+                () -> readTags(user)));
+        String draftContext = buildDraftContext(request.getDraft());
+        String articleContext = currentArticle == null ? "" : limitText(currentArticle.toAiReadableFormat(), MAX_CONTEXT_CHARS);
+
+        String prompt = promptSecurityPolicy.wrapUntrustedContent("ADMIN_WRITING_DRAFT_INPUT", """
+                你是 LiuTech 博客管理员的文章写作助手。请生成可以直接应用到 TinyMCE 富文本编辑器的文章草稿。
+
+                严格要求：
+                - 正文必须是安全 HTML，不要输出 Markdown。
+                - 允许使用 <h2>、<h3>、<p>、<ul>、<ol>、<li>、<blockquote>、<pre><code>、<strong>、<em>。
+                - 禁止 <script>、<iframe>、style、onload、onclick 等事件属性。
+                - 代码示例必须放在 <pre><code>...</code></pre> 中。
+                - 不要声称已经保存、发布或修改线上数据。
+                - 禁止输出寒暄、工具说明、执行说明或“我来帮你/先让我获取分类标签”等助手旁白。
+                - 第一个可见内容必须是文章标题或正文，不要把执行过程写进正文。
+
+                分类和标签：
+                - 使用 listCategories 工具获取所有可用分类，选择最匹配的一个。
+                - 使用 listTags 工具获取所有可用标签，选择最匹配的 1-6 个。
+                - 如果没有合适的分类或标签，在输出末尾用建议名称标注。
+
+                输出格式（严格遵守）：
+                只输出正文 HTML，然后在最后一行输出一个 JSON 元数据块：
+                ```json
+                {"categoryId": null, "categoryName": "建议分类名", "tagIds": [], "tagNames": ["标签1", "标签2"]}
+                ```
+                categoryId 和 tagIds 填写匹配到的已有分类/标签的 ID（数字），没有匹配到则为 null。
+                categoryName 和 tagNames 填写建议的名称。
+
+                写作任务：
+                %s
 
                 用户要求：
                 %s
 
-                当前标题：%s
-                当前摘要：%s
-                当前正文：
+                当前编辑器草稿：
                 %s
-                """.formatted(
-                request.getMessage(),
-                nullToEmpty(draft.getTitle()),
-                nullToEmpty(draft.getSummary()),
-                nullToEmpty(draft.getContent())));
 
-        String generated = generateText(prompt, 1400);
-        if (isBlank(draft.getContent())) {
-            draft.setContent(generated);
-        } else {
-            draft.setContent(draft.getContent() + "\n\n" + generated);
+                当前文章详情：
+                %s
+                """.formatted(instruction, request.getMessage(), draftContext, articleContext));
+
+        String contentHtml = context == null
+                ? normalizeHtml(generateWritingText(prompt, 1800))
+                : defaultString(toolExecutionService.execute(
+                context,
+                "admin.generateWritingHtml",
+                Map.of(
+                        "instruction", limitText(instruction, 120),
+                        "messageLength", request.getMessage() == null ? 0 : request.getMessage().length(),
+                        "draftChars", request.getDraft() == null || request.getDraft().getContent() == null ? 0 : request.getDraft().getContent().length()),
+                () -> normalizeHtml(generateWritingText(prompt, 1800))));
+        // 从 AI 输出中解析 JSON 元数据（分类/标签选择）
+        Long aiCategoryId = null;
+        String aiCategoryName = null;
+        List<Long> aiTagIds = List.of();
+        List<String> aiTagNames = List.of();
+        String htmlOnly = contentHtml;
+
+        java.util.regex.Matcher metaMatcher = writingMetadataMatcher(contentHtml);
+        if (metaMatcher.find()) {
+            htmlOnly = contentHtml.substring(0, metaMatcher.start()).trim();
+            try {
+                com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree(metaMatcher.group(1));
+                if (meta.has("categoryId") && !meta.get("categoryId").isNull()) {
+                    aiCategoryId = meta.get("categoryId").asLong();
+                }
+                if (meta.has("categoryName") && !meta.get("categoryName").isNull()) {
+                    aiCategoryName = meta.get("categoryName").asText();
+                }
+                if (meta.has("tagIds") && meta.get("tagIds").isArray()) {
+                    List<Long> ids = new ArrayList<>();
+                    for (com.fasterxml.jackson.databind.JsonNode id : meta.get("tagIds")) {
+                        if (!id.isNull()) ids.add(id.asLong());
+                    }
+                    aiTagIds = ids;
+                }
+                if (meta.has("tagNames") && meta.get("tagNames").isArray()) {
+                    List<String> names = new ArrayList<>();
+                    for (com.fasterxml.jackson.databind.JsonNode name : meta.get("tagNames")) {
+                        if (!name.isNull()) names.add(name.asText());
+                    }
+                    aiTagNames = names;
+                }
+            } catch (Exception e) {
+                log.warn("解析 AI 分类标签元数据失败: {}", e.getMessage());
+            }
         }
-        if (isBlank(draft.getTitle())) {
-            draft.setTitle(extractTitle(generated));
+        contentHtml = normalizeHtml(htmlOnly);
+
+        String plain = stripHtml(contentHtml);
+        String title = firstNonBlank(
+                request.getDraft() == null ? null : request.getDraft().getTitle(),
+                extractHtmlHeading(contentHtml),
+                extractTitle(request.getMessage()));
+        String summary = firstNonBlank(
+                request.getDraft() == null ? null : request.getDraft().getSummary(),
+                buildSummary(plain));
+
+        AdminBlogClient.AdminTaxonomyItem category = null;
+        String suggestedCategoryName = null;
+        if (aiCategoryId != null) {
+            category = findTaxonomyById(categories, aiCategoryId);
         }
-        if (isBlank(draft.getSummary())) {
-            draft.setSummary(buildSummary(generated));
+        if (category == null && !isBlank(aiCategoryName)) {
+            category = findTaxonomyByName(categories, aiCategoryName);
+            if (category == null) {
+                suggestedCategoryName = aiCategoryName;
+            }
         }
-        draft.setStatus("draft");
-        return draft;
+        if (category == null) {
+            category = matchTaxonomy(categories, request.getMessage() + " " + title + " " + plain);
+        }
+
+        List<AdminBlogClient.AdminTaxonomyItem> selectedTags = findTaxonomiesByIds(tags, aiTagIds);
+        if (selectedTags.isEmpty() && aiTagNames != null && !aiTagNames.isEmpty()) {
+            selectedTags = findTaxonomiesByNames(tags, aiTagNames, 6);
+        }
+        if (selectedTags.isEmpty()) {
+            selectedTags = matchTaxonomies(tags, request.getMessage() + " " + title + " " + plain, 6);
+        }
+        List<Long> tagIds = selectedTags.stream().map(AdminBlogClient.AdminTaxonomyItem::getId).toList();
+        List<String> tagNames = selectedTags.stream().map(AdminBlogClient.AdminTaxonomyItem::getName).toList();
+        List<String> suggestedTagNames = suggestedTags(
+                request.getMessage(),
+                tagNames,
+                aiTagNames == null ? List.of() : aiTagNames);
+
+        return WritingDraftPayload.builder()
+                .title(limitText(title, 120).replace("\n", " ").trim())
+                .summary(limitText(summary, 500).replace("\n", " ").trim())
+                .contentHtml(contentHtml)
+                .categoryId(category == null ? null : category.getId())
+                .categoryName(category == null ? null : category.getName())
+                .tagIds(tagIds)
+                .tagNames(tagNames)
+                .suggestedCategoryName(category == null ? firstNonBlank(suggestedCategoryName, inferSuggestedCategory(request.getMessage())) : null)
+                .suggestedTagNames(suggestedTagNames)
+                .coverPrompt("为这篇技术博客生成一张简洁、现代、偏工程感的封面图，主题：" + title)
+                .notes("正文已按 TinyMCE HTML 生成；发布前建议再人工检查技术事实和代码示例。")
+                .checks(List.of(
+                        isBlank(title) ? "标题需要补充" : "标题已生成",
+                        isBlank(summary) ? "摘要需要补充" : "摘要已生成",
+                        category == null ? "未匹配到已有分类，可确认创建建议分类" : "已匹配分类：" + category.getName(),
+                        tagNames.isEmpty() ? "未匹配到已有标签，可确认创建建议标签" : "已匹配标签：" + String.join("、", tagNames),
+                        "正文使用 HTML 输出，已过滤明显危险片段"))
+                .htmlSafe(isHtmlSafe(contentHtml))
+                .build();
+    }
+
+    private java.util.regex.Matcher writingMetadataMatcher(String contentHtml) {
+        String source = defaultString(contentHtml);
+        List<java.util.regex.Pattern> patterns = List.of(
+                java.util.regex.Pattern.compile("```json\\s*(\\{.*?\"categoryId\".*?})\\s*```\\s*$", java.util.regex.Pattern.DOTALL),
+                java.util.regex.Pattern.compile("(?is)(?:^|\\R)\\s*json\\s*(\\{\\s*\"categoryId\".*?})\\s*$"),
+                java.util.regex.Pattern.compile("(?is)(\\{\\s*\"categoryId\".*?\"tagNames\"\\s*:\\s*\\[.*?]\\s*})\\s*$")
+        );
+        for (java.util.regex.Pattern pattern : patterns) {
+            java.util.regex.Matcher matcher = pattern.matcher(source);
+            if (matcher.find()) {
+                matcher.reset();
+                return matcher;
+            }
+        }
+        return java.util.regex.Pattern.compile("a^").matcher(source);
     }
 
     /**
@@ -672,7 +1091,8 @@ public class AgentOrchestrator {
     }
 
     /**
-     * 生成文本。
+     * 生成文本（通用，带 MCP 工具）。
+     * 用于 CHAT、SUMMARIZE 等意图，模型可以调用博客工具。
      */
     private String generateText(String prompt, int maxTokens) {
         try {
@@ -681,8 +1101,25 @@ public class AgentOrchestrator {
                     new UserMessage(prompt));
             return siliconFlowChatClient.chat(messages, aiModelPolicy.resolveModelName((String) null), 0.6, maxTokens);
         } catch (Exception e) {
-            log.warn("Agent 文本生成失败，使用降级草稿: {}", e.getMessage());
-            return "我先给你搭一个草稿框架：\n\n## 背景\n\n这里补充问题背景。\n\n## 核心思路\n\n这里展开主要观点。\n\n## 实践步骤\n\n1. 梳理目标。\n2. 设计实现路径。\n3. 验证结果。\n\n## 总结\n\n这篇文章可以继续补充真实案例和代码细节。";
+            log.warn("Agent 文本生成失败: {}", e.getMessage());
+            return "抱歉，AI 服务暂时不可用，请稍后再试。";
+        }
+    }
+
+    /**
+     * 写作专用文本生成，不注册 MCP 工具。
+     * 用于 WRITE_ARTICLE 意图，模型只生成 HTML 内容，不调用博客探索工具。
+     * 分类和标签由 Java 代码处理（readCategories/readTags/matchTaxonomy）。
+     */
+    private String generateWritingText(String prompt, int maxTokens) {
+        try {
+            List<Message> messages = List.of(
+                    new SystemMessage(systemPromptProvider.buildSystemPrompt()),
+                    new UserMessage(prompt));
+            return siliconFlowChatClient.chatForWriting(messages, aiModelPolicy.resolveModelName((String) null), 0.6, maxTokens);
+        } catch (Exception e) {
+            log.warn("Agent 写作生成失败，使用降级草稿: {}", e.getMessage());
+            return "<h2>背景</h2><p>这里补充问题背景。</p><h2>核心思路</h2><p>这里展开主要观点。</p><h2>实践步骤</h2><ol><li>梳理目标。</li><li>设计实现路径。</li><li>验证结果。</li></ol><h2>总结</h2><p>这篇文章可以继续补充真实案例和代码细节。</p>";
         }
     }
 
@@ -1047,6 +1484,354 @@ public class AgentOrchestrator {
                 .build();
     }
 
+    private void requireAdmin(AgentUserContext user) {
+        if (user == null || !user.isAdmin()) {
+            throw new AccessDeniedException("管理员写作助手需要管理员权限");
+        }
+    }
+
+    private List<AdminBlogClient.AdminTaxonomyItem> readCategories(AgentUserContext user) {
+        try {
+            if (user == null || isBlank(user.getBearerToken())) {
+                return List.of();
+            }
+            return adminBlogClient.listCategories(user.getBearerToken());
+        } catch (Exception e) {
+            log.warn("读取分类列表失败，降级为名称建议: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<AdminBlogClient.AdminTaxonomyItem> readTags(AgentUserContext user) {
+        try {
+            if (user == null || isBlank(user.getBearerToken())) {
+                return List.of();
+            }
+            return adminBlogClient.listTags(user.getBearerToken());
+        } catch (Exception e) {
+            log.warn("读取标签列表失败，降级为名称建议: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private AdminBlogClient.AdminTaxonomyItem matchTaxonomy(List<AdminBlogClient.AdminTaxonomyItem> items, String text) {
+        if (items == null || items.isEmpty() || text == null) {
+            return null;
+        }
+        String normalized = text.toLowerCase();
+        // 优先精确匹配（名称作为子串出现在文本中）
+        AdminBlogClient.AdminTaxonomyItem exact = items.stream()
+                .filter(item -> item.getName() != null && normalized.contains(item.getName().toLowerCase()))
+                .findFirst()
+                .orElse(null);
+        if (exact != null) return exact;
+        // 降级：按词匹配（名称中的每个词只要有一个出现在文本中即可）
+        return items.stream()
+                .filter(item -> item.getName() != null && containsAnyWord(normalized, item.getName().toLowerCase()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private List<AdminBlogClient.AdminTaxonomyItem> matchTaxonomies(
+            List<AdminBlogClient.AdminTaxonomyItem> items,
+            String text,
+            int limit) {
+        if (items == null || items.isEmpty() || text == null) {
+            return List.of();
+        }
+        String normalized = text.toLowerCase();
+        // 精确匹配优先，再按词匹配
+        List<AdminBlogClient.AdminTaxonomyItem> exact = items.stream()
+                .filter(item -> item.getName() != null && normalized.contains(item.getName().toLowerCase()))
+                .limit(limit)
+                .toList();
+        if (!exact.isEmpty()) return exact;
+        return items.stream()
+                .filter(item -> item.getName() != null && containsAnyWord(normalized, item.getName().toLowerCase()))
+                .limit(limit)
+                .toList();
+    }
+
+    private AdminBlogClient.AdminTaxonomyItem findTaxonomyById(
+            List<AdminBlogClient.AdminTaxonomyItem> items,
+            Long id) {
+        if (items == null || items.isEmpty() || id == null) {
+            return null;
+        }
+        return items.stream()
+                .filter(item -> id.equals(item.getId()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private AdminBlogClient.AdminTaxonomyItem findTaxonomyByName(
+            List<AdminBlogClient.AdminTaxonomyItem> items,
+            String name) {
+        if (items == null || items.isEmpty() || isBlank(name)) {
+            return null;
+        }
+        String normalized = name.trim();
+        return items.stream()
+                .filter(item -> item.getName() != null && item.getName().equalsIgnoreCase(normalized))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private List<AdminBlogClient.AdminTaxonomyItem> findTaxonomiesByIds(
+            List<AdminBlogClient.AdminTaxonomyItem> items,
+            List<Long> ids) {
+        if (items == null || items.isEmpty() || ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+                .filter(item -> ids.contains(item.getId()))
+                .limit(6)
+                .toList();
+    }
+
+    private List<AdminBlogClient.AdminTaxonomyItem> findTaxonomiesByNames(
+            List<AdminBlogClient.AdminTaxonomyItem> items,
+            List<String> names,
+            int limit) {
+        if (items == null || items.isEmpty() || names == null || names.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized = names.stream()
+                .filter(name -> !isBlank(name))
+                .map(name -> name.trim().toLowerCase())
+                .toList();
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+                .filter(item -> item.getName() != null && normalized.contains(item.getName().toLowerCase()))
+                .limit(limit)
+                .toList();
+    }
+
+    private String normalizeHtml(String value) {
+        if (isBlank(value)) {
+            return """
+                    <h2>背景</h2>
+                    <p>这里补充文章背景和目标读者。</p>
+                    <h2>核心思路</h2>
+                    <p>这里展开主要观点和技术路线。</p>
+                    <h2>实践步骤</h2>
+                    <ol><li>梳理目标。</li><li>设计实现路径。</li><li>验证结果。</li></ol>
+                    <h2>总结</h2>
+                    <p>这篇文章可以继续补充真实案例和代码细节。</p>
+                    """;
+        }
+        String html = stripWritingPreamble(value)
+                .replaceAll("(?is)```html", "")
+                .replaceAll("(?is)```", "")
+                .replaceAll("(?is)<script.*?>.*?</script>", "")
+                .replaceAll("(?is)<iframe.*?>.*?</iframe>", "")
+                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*\"[^\"]*\"", "")
+                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*'[^']*'", "")
+                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*[^\\s>]*", "")
+                .replaceAll("(?i)\\sstyle\\s*=\\s*\"[^\"]*\"", "")
+                .replaceAll("(?i)\\sstyle\\s*=\\s*'[^']*'", "")
+                .trim();
+        if (!html.matches("(?s).*<\\s*(h2|h3|p|ul|ol|blockquote|pre|div|section)\\b.*")) {
+            StringBuilder builder = new StringBuilder();
+            for (String paragraph : html.split("\\R{2,}")) {
+                String text = paragraph.trim();
+                if (!text.isBlank()) {
+                    builder.append("<p>").append(escapeHtml(text)).append("</p>\n");
+                }
+            }
+            html = builder.toString().trim();
+        }
+        return html;
+    }
+
+    private boolean isHtmlSafe(String html) {
+        if (html == null) {
+            return false;
+        }
+        String lower = html.toLowerCase();
+        return !lower.contains("<script")
+                && !lower.contains("<iframe")
+                && !lower.contains(" onclick=")
+                && !lower.contains(" onload=")
+                && !lower.contains("javascript:");
+    }
+
+    private String stripHtml(String html) {
+        return html == null ? "" : html.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim();
+    }
+
+    private String stripWritingPreamble(String value) {
+        if (isBlank(value)) {
+            return "";
+        }
+        String text = removeLeadingPreambleSentences(value.trim());
+        java.util.regex.Matcher firstArticleTag = java.util.regex.Pattern
+                .compile("(?is)<\\s*(h1|h2|h3|p|ul|ol|blockquote|pre|section|article)\\b")
+                .matcher(text);
+        if (firstArticleTag.find() && firstArticleTag.start() > 0) {
+            String prefix = stripHtml(text.substring(0, firstArticleTag.start()));
+            if (isAssistantPreamble(prefix)) {
+                text = text.substring(firstArticleTag.start()).trim();
+            }
+        }
+        StringBuilder builder = new StringBuilder();
+        boolean dropping = true;
+        for (String paragraph : text.split("\\R{2,}")) {
+            String trimmed = paragraph.trim();
+            if (trimmed.isBlank()) {
+                continue;
+            }
+            if (dropping && isAssistantPreamble(stripHtml(trimmed))) {
+                continue;
+            }
+            dropping = false;
+            if (!builder.isEmpty()) {
+                builder.append("\n\n");
+            }
+            builder.append(trimmed);
+        }
+        return builder.isEmpty() ? text : builder.toString();
+    }
+
+    private String removeLeadingPreambleSentences(String value) {
+        String text = value == null ? "" : value.trim();
+        boolean changed;
+        do {
+            changed = false;
+            String plain = stripHtml(text).trim();
+            if (!startsWithPreamblePhrase(plain)) {
+                break;
+            }
+            java.util.regex.Matcher sentenceEnd = java.util.regex.Pattern
+                    .compile("[。.!！]\\s*")
+                    .matcher(text);
+            if (sentenceEnd.find()) {
+                text = text.substring(sentenceEnd.end()).trim();
+                changed = true;
+            }
+        } while (changed && !text.isBlank());
+        return text;
+    }
+
+    private boolean isAssistantPreamble(String text) {
+        if (isBlank(text)) {
+            return false;
+        }
+        String normalized = text.replaceAll("\\s+", "");
+        if (normalized.length() > 160) {
+            return false;
+        }
+        return startsWithPreamblePhrase(normalized)
+                || containsAny(normalized, "获取一下可用的分类和标签", "获取一下现有的分类和标签", "获取分类和标签信息", "先获取分类标签");
+    }
+
+    private boolean startsWithPreamblePhrase(String text) {
+        if (isBlank(text)) {
+            return false;
+        }
+        String normalized = text.replaceAll("\\s+", "");
+        return normalized.startsWith("我来帮你")
+                || normalized.startsWith("我会帮你")
+                || normalized.startsWith("让我")
+                || normalized.startsWith("先让我")
+                || normalized.startsWith("首先让我")
+                || normalized.startsWith("下面")
+                || normalized.startsWith("以下是")
+                || normalized.startsWith("接下来");
+    }
+
+    private String extractHtmlHeading(String html) {
+        if (html == null) {
+            return "";
+        }
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("(?is)<h[12][^>]*>(.*?)</h[12]>")
+                .matcher(html);
+        if (matcher.find()) {
+            return stripHtml(matcher.group(1));
+        }
+        return "";
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value.trim();
+            }
+        }
+        return "纳西妲生成草稿";
+    }
+
+    private String inferSuggestedCategory(String message) {
+        String text = message == null ? "" : message.toLowerCase();
+        if (containsAny(text, "部署", "docker", "nginx", "运维")) {
+            return "部署运维";
+        }
+        if (containsAny(text, "spring", "java", "后端", "接口")) {
+            return "后端开发";
+        }
+        if (containsAny(text, "vue", "前端", "typescript", "页面")) {
+            return "前端开发";
+        }
+        if (containsAny(text, "ai", "agent", "模型", "提示词")) {
+            return "AI 实践";
+        }
+        return "技术笔记";
+    }
+
+    private List<String> suggestedTags(String message, List<String> existingNames) {
+        return suggestedTags(message, existingNames, List.of());
+    }
+
+    private List<String> suggestedTags(String message, List<String> existingNames, List<String> modelSuggestedNames) {
+        List<String> result = new ArrayList<>();
+        if (modelSuggestedNames != null) {
+            for (String name : modelSuggestedNames) {
+                if (!isBlank(name)
+                        && (existingNames == null || existingNames.stream().noneMatch(existing -> existing.equalsIgnoreCase(name)))
+                        && result.stream().noneMatch(existing -> existing.equalsIgnoreCase(name))) {
+                    result.add(name.trim());
+                }
+            }
+        }
+        String text = message == null ? "" : message.toLowerCase();
+        addSuggestedTag(result, existingNames, text, "Spring Boot", "spring", "后端");
+        addSuggestedTag(result, existingNames, text, "Vue", "vue", "前端");
+        addSuggestedTag(result, existingNames, text, "Docker", "docker", "部署");
+        addSuggestedTag(result, existingNames, text, "AI", "ai", "agent", "模型");
+        addSuggestedTag(result, existingNames, text, "MySQL", "mysql", "数据库");
+        if (result.isEmpty()) {
+            result.add("技术实践");
+            result.add("博客写作");
+        }
+        return result.stream().limit(6).toList();
+    }
+
+    private void addSuggestedTag(List<String> result, List<String> existingNames, String text, String tag, String... keywords) {
+        if (existingNames != null && existingNames.stream().anyMatch(name -> name.equalsIgnoreCase(tag))) {
+            return;
+        }
+        for (String keyword : keywords) {
+            if (text.contains(keyword) && !result.contains(tag)) {
+                result.add(tag);
+                return;
+            }
+        }
+    }
+
+    private String escapeHtml(String text) {
+        return text == null ? "" : text
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
+
     /**
      * 完成任务。
      */
@@ -1075,6 +1860,29 @@ public class AgentOrchestrator {
         return value == null ? "" : value;
     }
 
+    private <T> List<T> defaultList(List<T> value) {
+        return value == null ? List.of() : value;
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
+    }
+
+    /**
+     * 判断 text 中是否包含 name 中的任意一个词。
+     * 用于分类/标签的模糊匹配，例如 "后端开发" 拆分为 ["后端", "开发"]，
+     * 只要文本中包含其中一个词即视为匹配。
+     */
+    private boolean containsAnyWord(String text, String name) {
+        if (text == null || name == null) return false;
+        // 按中文字符和英文单词拆分
+        String[] words = name.split("[\\s,，、/]+");
+        for (String word : words) {
+            if (word.length() >= 2 && text.contains(word)) return true;
+        }
+        return false;
+    }
+
     /**
      * 判断是否为空。
      */
@@ -1088,7 +1896,7 @@ public class AgentOrchestrator {
     private String extractTitle(String markdown) {
         if (markdown != null) {
             for (String line : markdown.split("\\R")) {
-                String trimmed = line.replace("#", "").trim();
+                String trimmed = line.replaceFirst("^#+\\s*", "").trim();
                 if (!trimmed.isBlank()) {
                     return trimmed.length() > 60 ? trimmed.substring(0, 60) : trimmed;
                 }
@@ -1101,7 +1909,10 @@ public class AgentOrchestrator {
      * 构建摘要。
      */
     private String buildSummary(String markdown) {
-        String plain = markdown == null ? "" : markdown.replaceAll("[#>*`\\-]", "").replaceAll("\\s+", " ").trim();
+        String plain = stripWritingPreamble(markdown == null ? "" : markdown)
+                .replaceAll("[#>*`\\-]", "")
+                .replaceAll("\\s+", " ")
+                .trim();
         if (plain.isBlank()) {
             return "纳西妲生成的文章草稿";
         }
