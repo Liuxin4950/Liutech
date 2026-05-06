@@ -48,16 +48,16 @@ const handleMessageSuccess = () => {
               </text>
             </svg>
           </h1>
-          <p class="user-bio">全栈工程师 & 技术博主</p>
-          <p class="user-motto">「代码改变世界，热爱成就未来」</p>
+          <p class="user-bio">全栈开发学习者 / AI 应用实践者</p>
+          <p class="user-motto">「慢慢把想法做成东西，也慢慢把自己整理清楚」</p>
           <div class="social-links">
-            <a href="#" class="social-item" title="GitHub">
+            <a href="#" class="social-item" title="GitHub 待补充">
               <Icon name="github" size="20" />
             </a>
-            <a href="#" class="social-item" title="邮箱">
+            <a href="#" class="social-item" title="邮箱暂未公开">
               <Icon name="mail" size="20" />
             </a>
-            <a href="#" class="social-item" title="网站">
+            <a href="/" class="social-item" title="liuxin.chat">
               <Icon name="globe" size="20" />
             </a>
           </div>
@@ -78,27 +78,36 @@ const handleMessageSuccess = () => {
             </h2>
             <div class="card-body">
               <p class="about-text">
-                你好！我是刘鑫，一名热爱技术的全栈工程师。专注于前端开发、后端架构设计，
-                喜欢探索新技术并分享技术心得。拥有多年的开发经验，致力于构建高性能、
-                高可用的 Web 应用。
+                你好，我是刘鑫，目前正在学习和实践全栈开发。这个网站是我自己搭建的个人博客，
+                也是我用来记录技术学习、项目复盘、AI 实践和个人成长的地方。
               </p>
               <p class="about-text">
-                这个博客是我记录技术学习和生活感悟的地方，希望能够帮助到更多的开发者朋友。
-                在工作之余，我也活跃于开源社区，贡献代码并参与技术讨论。
+                我的主要方向是 Java 后端和 Vue 前端，平时会接触 Spring Boot、MyBatis-Plus、
+                MySQL、Redis、Vue 3、TypeScript、Docker、Nginx 等技术。相比于单纯堆技术名词，
+                我更在意能不能把一个真实业务从需求、数据库、接口、前端页面到部署运行完整做出来。
+              </p>
+              <p class="about-text">
+                最近我也在尝试把 AI 融入自己的开发流程，比如先整理 PRD，再让 AI 辅助分析项目结构、
+                生成代码、补充测试和排查问题。这个博客后续也会继续升级 AI 模块，尝试做成一个更像
+                “个人技术助手”的系统，而不是只会回答问题的聊天窗口。
+              </p>
+              <p class="about-text">
+                我不算什么大佬，只是在一点点补齐自己的工程能力。这个博客记录的也不是完美答案，
+                而是我从不会、混乱、踩坑，到逐渐理解系统设计和工程实践的过程。
               </p>
               
               <div class="stats-row">
                 <div class="stat-item">
-                  <span class="stat-num">3+</span>
-                  <span class="stat-label">开发经验</span>
+                  <span class="stat-num">2023</span>
+                  <span class="stat-label">开始深入 Web 开发</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-num">20+</span>
-                  <span class="stat-label">项目经历</span>
+                  <span class="stat-num">AI</span>
+                  <span class="stat-label">辅助开发实践中</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-num">50+</span>
-                  <span class="stat-label">技术文章</span>
+                  <span class="stat-num">Blog</span>
+                  <span class="stat-label">持续建设中</span>
                 </div>
               </div>
             </div>
@@ -113,31 +122,43 @@ const handleMessageSuccess = () => {
             <div class="card-body">
               <div class="timeline">
                 <div class="timeline-item">
+                  <div class="timeline-year">2026</div>
+                  <div class="timeline-content">
+                    <h3>实习、求职与项目复盘</h3>
+                    <p>
+                      进入真实项目环境后，开始更重视业务理解、数据库设计、接口规范、测试验证和部署流程。
+                      也逐渐意识到，写代码只是开发的一部分，真正困难的是把混乱需求变成可落地的系统。
+                    </p>
+                  </div>
+                </div>
+                <div class="timeline-item">
                   <div class="timeline-year">2025</div>
                   <div class="timeline-content">
-                    <h3>持续深耕 & AI 探索</h3>
-                    <p>专注于全栈技术深耕，同时探索 AI Agent 与现有业务的结合，开发了多个实用的 AI 辅助工具。</p>
+                    <h3>全栈能力建设</h3>
+                    <p>
+                      持续学习 Spring Boot、Vue、MySQL、Redis、Docker 等技术，并尝试独立完成博客系统、
+                      后台管理、接口设计和前后端联调，把零散知识逐渐串成完整项目经验。
+                    </p>
                   </div>
                 </div>
                 <div class="timeline-item">
                   <div class="timeline-year">2024</div>
                   <div class="timeline-content">
-                    <h3>Vue 3 + TypeScript</h3>
-                    <p>全面转向 Vue 3 生态，重构个人博客系统，深入学习 TypeScript 类型系统与工程化实践。</p>
+                    <h3>前后端分离实践</h3>
+                    <p>
+                      开始更系统地理解前后端分离项目，接触 Vue 3、TypeScript、组件化开发和接口对接，
+                      也逐渐形成了从页面、接口到数据表一起思考的习惯。
+                    </p>
                   </div>
                 </div>
                 <div class="timeline-item">
                   <div class="timeline-year">2023</div>
                   <div class="timeline-content">
-                    <h3>Spring Boot 实战</h3>
-                    <p>深入后端开发，掌握 Spring Boot 微服务架构，独立完成了首个企业级后台管理系统的开发。</p>
-                  </div>
-                </div>
-                <div class="timeline-item">
-                  <div class="timeline-year">2022</div>
-                  <div class="timeline-content">
-                    <h3>编程启蒙</h3>
-                    <p>开始系统学习计算机基础与 Java 编程，打下扎实的基础，开启了编程探索之旅。</p>
+                    <h3>比赛与方向确认</h3>
+                    <p>
+                      通过 Web 开发相关比赛积累了更扎实的实践经验，也逐渐确认自己想继续往全栈开发方向走。
+                      这段经历让我真正开始相信，技术不是背概念，而是把东西做出来。
+                    </p>
                   </div>
                 </div>
               </div>
@@ -171,7 +192,9 @@ const handleMessageSuccess = () => {
                   <span class="skill-tag">Vue 3</span>
                   <span class="skill-tag">TypeScript</span>
                   <span class="skill-tag">Vite</span>
-                  <span class="skill-tag">Tailwind</span>
+                  <span class="skill-tag">Pinia</span>
+                  <span class="skill-tag">Vue Router</span>
+                  <span class="skill-tag">Element Plus</span>
                 </div>
               </div>
               <div class="skill-group">
@@ -179,17 +202,33 @@ const handleMessageSuccess = () => {
                 <div class="skill-tags">
                   <span class="skill-tag">Java</span>
                   <span class="skill-tag">Spring Boot</span>
+                  <span class="skill-tag">MyBatis-Plus</span>
+                  <span class="skill-tag">Spring Security</span>
+                  <span class="skill-tag">JWT</span>
                   <span class="skill-tag">MySQL</span>
                   <span class="skill-tag">Redis</span>
                 </div>
               </div>
               <div class="skill-group">
-                <h3 class="skill-label">工具 & 运维</h3>
+                <h3 class="skill-label">工程与部署</h3>
                 <div class="skill-tags">
                   <span class="skill-tag">Git</span>
                   <span class="skill-tag">Docker</span>
+                  <span class="skill-tag">Docker Compose</span>
                   <span class="skill-tag">Nginx</span>
                   <span class="skill-tag">Linux</span>
+                  <span class="skill-tag">Apifox</span>
+                </div>
+              </div>
+              <div class="skill-group">
+                <h3 class="skill-label">AI 实践</h3>
+                <div class="skill-tags">
+                  <span class="skill-tag">AI 辅助开发</span>
+                  <span class="skill-tag">PRD 驱动开发</span>
+                  <span class="skill-tag">Agent 工作流</span>
+                  <span class="skill-tag">MCP</span>
+                  <span class="skill-tag">代码审查</span>
+                  <span class="skill-tag">测试辅助</span>
                 </div>
               </div>
             </div>
@@ -204,32 +243,28 @@ const handleMessageSuccess = () => {
             <div class="card-body">
               <div class="hobbies-grid">
                 <div class="hobby-item">
-                  <Icon name="code" size="24" class="hobby-icon" />
-                  <span>编程</span>
-                </div>
-                <div class="hobby-item">
                   <Icon name="book" size="24" class="hobby-icon" />
-                  <span>阅读</span>
-                </div>
-                <div class="hobby-item">
-                  <Icon name="music" size="24" class="hobby-icon" />
-                  <span>音乐</span>
+                  <span>小说</span>
                 </div>
                 <div class="hobby-item">
                   <Icon name="game" size="24" class="hobby-icon" />
                   <span>游戏</span>
                 </div>
                 <div class="hobby-item">
+                  <Icon name="music" size="24" class="hobby-icon" />
+                  <span>音乐</span>
+                </div>
+                <div class="hobby-item">
+                  <Icon name="code" size="24" class="hobby-icon" />
+                  <span>折腾项目</span>
+                </div>
+                <div class="hobby-item">
+                  <Icon name="chat" size="24" class="hobby-icon" />
+                  <span>AI 工具</span>
+                </div>
+                <div class="hobby-item">
                   <Icon name="film" size="24" class="hobby-icon" />
-                  <span>电影</span>
-                </div>
-                <div class="hobby-item">
-                  <Icon name="running" size="24" class="hobby-icon" />
-                  <span>跑步</span>
-                </div>
-                <div class="hobby-item">
-                  <Icon name="camera" size="24" class="hobby-icon" />
-                  <span>摄影</span>
+                  <span>二次元</span>
                 </div>
               </div>
             </div>
@@ -245,15 +280,15 @@ const handleMessageSuccess = () => {
               <ul class="contact-list">
                 <li>
                   <Icon name="mail" size="16" />
-                  <span>liuxin@example.com</span>
+                  <span>邮箱：暂未公开</span>
                 </li>
                 <li>
                   <Icon name="github" size="16" />
-                  <span>github.com/liuxin</span>
+                  <span>GitHub：待补充</span>
                 </li>
                 <li>
                   <Icon name="location" size="16" />
-                  <span>中国 · 深圳</span>
+                  <span>中国 · 重庆</span>
                 </li>
               </ul>
               <button class="message-btn" @click="openMessageModal">

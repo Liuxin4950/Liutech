@@ -125,11 +125,40 @@ const linkAttachments = computed(() => {
   return post.value?.attachments?.filter(a => a.resourceType === 'link') || []
 })
 
+const cleanPostSummary = computed(() => {
+  const summary = post.value?.summary?.trim() || ''
+  if (!summary) return ''
+
+  const cleaned = summary
+    .replace(/^我来帮你写一篇[^。！？]*[。！？]\s*/i, '')
+    .replace(/^首先让我看看[^。！？]*[。！？]\s*/i, '')
+    .trim()
+
+  return cleaned || summary
+})
+
+const stripWritingMetadata = (value: string) => {
+  const normalized = value.trim()
+  const metadataObject = [
+    '\\{[\\s\\S]*?(?:"|&quot;|\\\\")?categoryId(?:"|&quot;|\\\\")?',
+    '[\\s\\S]*?(?:"|&quot;|\\\\")?(?:tagIds|tagNames|categoryName)(?:"|&quot;|\\\\")?',
+    '[\\s\\S]*?\\}'
+  ].join('')
+  const blankParagraphTail = '(?:<p[^>]*>(?:\\s|&nbsp;|<br\\s*/?>)*</p>\\s*)*$'
+  const metadataTailPatterns = [
+    new RegExp(`(?:<p[^>]*>\\s*)?\`\`\`\\s*json\\s*(?:</p>\\s*<p[^>]*>\\s*)?${metadataObject}\\s*\`\`\`\\s*(?:</p>\\s*)?${blankParagraphTail}`, 'i'),
+    new RegExp(`(?:<p[^>]*>\\s*)?json\\s*(?:</p>\\s*<p[^>]*>\\s*)?${metadataObject}\\s*(?:\`\`\`)?\\s*(?:</p>\\s*)?${blankParagraphTail}`, 'i'),
+    new RegExp(`(?:^|\\n|<p[^>]*>\\s*)${metadataObject}\\s*(?:</p>\\s*)?${blankParagraphTail}`, 'i')
+  ]
+
+  return metadataTailPatterns.reduce((content, pattern) => content.replace(pattern, '').trim(), normalized)
+}
+
 // 计算属性：渲染富文本内容
 const renderedContent = computed(() => {
   if (!post.value?.content) return ''
 
-  let content = post.value.content
+  let content = stripWritingMetadata(post.value.content)
 
   // 检查是否包含HTML标签
   const hasHtmlTags = /<[^>]*>/g.test(content)
@@ -562,7 +591,12 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       <p>{{ error }}</p>
       <button @click="loadPostDetail" class="retry-btn bg-primary text-center rounded transition mt-8">重试</button>
     </div>
-    <div v-else-if="post" class="card bg-soft">
+    <div v-else-if="post" class="post-reading-layout">
+      <aside class="article-toc-panel" aria-label="文章目录">
+        <TableOfContents class="article-toc" />
+      </aside>
+
+      <div class="post-card card bg-soft">
       <!-- 文章头部信息 -->
       <header class="post-header">
         <h2 class="post-title">{{ post.title }}</h2>
@@ -577,6 +611,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
             <div class="author-info">
               <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
                 class="author-avatar">
+              <span v-else class="author-avatar-fallback">{{ (post.author?.username || 'L').slice(0, 1).toUpperCase() }}</span>
               <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
             </div>
           </div>
@@ -592,7 +627,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
             </div>
             <div class="meta-stat">
               <Icon name="heart" size="14" />
-              {{ post.likeCount || 0 }}
+              {{ currentLikeCount || 0 }}
             </div>
             <div class="meta-stat">
               <Icon name="message" size="14" />
@@ -608,19 +643,13 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       </header>
 
       <!-- 文章摘要 -->
-      <div v-if="post.summary" class="post-summary">
-        <p>{{ post.summary }}</p>
-      </div>
-
-      <div class="post-ai-actions">
-        <button class="ai-summary-btn" @click="summarizeWithAi">
-          <Icon name="message" size="16" />
-          AI 总结这篇文章
-        </button>
+      <div v-if="cleanPostSummary" class="post-summary">
+        <span class="summary-label">摘要</span>
+        <p>{{ cleanPostSummary }}</p>
       </div>
 
       <!-- 文章内容 -->
-      <article class="">
+      <article class="post-article">
         <div class="markdown-content" v-html="renderedContent"></div>
       </article>
 
@@ -763,6 +792,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
         </div>
 
         <div class="actions-right">
+          <button class="action-btn ai-action-btn" @click="summarizeWithAi">
+            <Icon name="bot" size="16" />
+            <span>AI 总结</span>
+          </button>
+
           <!-- 分享按钮 -->
           <div class="share-group">
             <button @click="toggleShare" class="action-btn share-btn">
@@ -800,6 +834,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       <div class="">
         <CommentSection :post-id="Number(route.params.id)" />
       </div>
+      </div>
     </div>
     <div v-else class="text-center p-20 ">
       <p>文章不存在</p>
@@ -809,38 +844,59 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     <!-- 登录弹窗 -->
     <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
 
-    <!-- 目录导航 -->
-    <!-- <div class="table-of-contents-container">
-      <TableOfContents class="table-of-contents" v-if="post && !loading && !error" />
-    </div> -->
   </div>
 </template>
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
-.table-of-contents-container {
-  position: absolute;
-  right: -280px;
-  top: 20px;
-  width: 280px;
-  height: 100%;
-
-  .table-of-contents {
-    position: sticky;
-    right: 20px;
-    top: 90px;
-    width: 280px;
-    overflow-y: auto;
-    float: right;
-    margin-left: 20px;
-
-  }
-
-}
-
 .post-detail {
   position: relative;
   margin: 0 auto;
+}
+
+.post-reading-layout {
+  width: min(1280px, calc(100vw - 48px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.post-card {
+  min-width: 0;
+  padding: 36px 40px 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.06);
+}
+
+.article-toc-panel {
+  position: sticky;
+  top: 96px;
+  max-height: calc(100vh - 130px);
+  z-index: 3;
+}
+
+:deep(.article-toc) {
+  position: static;
+  width: 100%;
+  max-height: calc(100vh - 130px);
+  border-radius: 14px;
+  border: 1px solid rgba(var(--color-primary-rgb), 0.14);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+:deep(.article-toc .toc-header) {
+  background: transparent;
+  border-bottom-color: var(--border-light);
+}
+
+:deep(.article-toc .toc-link) {
+  font-size: 12px;
 }
 
 .retry-btn {
@@ -857,18 +913,19 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 .post-header {
   position: relative;
+  padding-bottom: 18px;
 }
 
-// 文章标题样式 - 重新设计
 .post-title {
-  font-size: 2.8rem;
-  font-weight: 800;
+  max-width: 920px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 750;
   color: var(--text-title);
-  margin-bottom: 24px;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  margin: 0 0 22px;
+  line-height: 1.16;
+  letter-spacing: 0;
   position: relative;
-  padding-bottom: 20px;
+  padding-bottom: 18px;
   
   &::after {
     content: '';
@@ -901,22 +958,37 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .author-avatar {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--color-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.35);
 }
 
-// 文章元信息样式 - 重新设计
+.author-avatar-fallback {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.12), rgba(var(--color-primary-rgb), 0.04));
+  color: var(--color-primary);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.18);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .post-meta-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 32px;
-  padding: 20px;
-  background: var(--bg-soft);
+  gap: 18px;
+  margin-bottom: 22px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  background: transparent;
 }
 
 .meta-left-section {
@@ -934,13 +1006,15 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .author-name {
   font-weight: 600;
   color: var(--text-title);
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .meta-right-section {
   display: flex;
   align-items: center;
-  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .meta-stat {
@@ -948,9 +1022,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   align-items: center;
   gap: 6px;
   color: var(--text-subtle);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   transition: color 0.2s ease;
+  padding: 6px 8px;
+  border-radius: 999px;
 
   &:hover {
     color: var(--color-primary);
@@ -958,110 +1034,96 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .category-badge {
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  color: white;
-  padding: 6px 16px;
-  border-radius: 20px;
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+  padding: 6px 12px;
+  border: 1px solid rgba(var(--color-primary-rgb), 0.18);
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
-    opacity: 0.9;
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
   }
 }
 
 .post-summary {
-  margin: 24px 20px;
-  padding: 24px;
-  background: linear-gradient(to right, var(--bg-soft), var(--bg-card));
+  margin: 18px 0 8px;
+  padding: 18px 20px 18px 22px;
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.06), rgba(var(--color-primary-rgb), 0.02));
+  border: 1px solid rgba(var(--color-primary-rgb), 0.14);
   border-left: 4px solid var(--color-primary);
-  border-radius: 8px;
+  border-radius: 14px;
   color: var(--text-subtle);
-  font-size: 1.05rem;
-  line-height: 1.8;
+  font-size: 0.98rem;
+  line-height: 1.75;
   position: relative;
-  
-  &::before {
-    content: '"';
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-size: 40px;
-    color: var(--color-primary);
-    opacity: 0.1;
-    font-family: Georgia, serif;
-    line-height: 1;
-  }
 }
 
 .post-summary p {
-  margin: 0;
-  position: relative;
-  z-index: 1;
+  margin: 8px 0 0;
 }
 
-.post-ai-actions {
-  display: flex;
-  justify-content: flex-start;
-  margin: 16px 20px 0;
-}
-
-.ai-summary-btn {
+.summary-label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(var(--color-primary-rgb), 0.24);
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.12), rgba(255, 255, 255, 0.92));
-  color: var(--text-title);
-  border-radius: 999px;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.ai-summary-btn:hover {
-  transform: translateY(-1px);
-  border-color: rgba(var(--color-primary-rgb), 0.4);
-  box-shadow: 0 10px 24px rgba(var(--color-primary-rgb), 0.12);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
 /* 标签云样式优化 */
 .tags-cloud {
-  padding: 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid transparent;
+  color: var(--text-subtle);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &::before {
+    content: '#';
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+
+  &:hover {
+    border-color: rgba(var(--color-primary-rgb), 0.22);
+    color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb), 0.08);
+  }
 }
 
 
 
 /* 富文本内容样式 - 重新设计 */
 .markdown-content {
-  line-height: 1.7;
-  padding: 32px;
+  line-height: 1.85;
+  padding: 30px 0 26px;
   color: var(--text-main);
-  font-size: 16px;
+  font-size: 16.5px;
   word-wrap: break-word;
-  background: var(--bg-main);
-  border-radius: 12px;
-  margin: 24px 0;
-
-  /* 首段首字母放大 */
-  & > p:first-of-type::first-letter {
-    font-size: 3em;
-    font-weight: 700;
-    float: left;
-    line-height: 1;
-    margin-right: 8px;
-    margin-top: 4px;
-    color: var(--color-primary);
-  }
+  background: transparent;
+  border-radius: 0;
+  margin: 0;
 }
 
 /* 基础元素样式 */
@@ -1072,20 +1134,21 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .markdown-content :deep(h5),
 .markdown-content :deep(h6) {
   color: var(--text-title);
-  font-weight: 600;
-  margin: 24px 0 16px 0;
-  line-height: 1.4;
+  font-weight: 720;
+  margin: 34px 0 16px;
+  line-height: 1.35;
+  scroll-margin-top: 96px;
 }
 
 .markdown-content :deep(h1) { font-size: 2em; }
-.markdown-content :deep(h2) { font-size: 1.7em; }
-.markdown-content :deep(h3) { font-size: 1.4em; }
+.markdown-content :deep(h2) { font-size: 1.58em; }
+.markdown-content :deep(h3) { font-size: 1.28em; }
 .markdown-content :deep(h4) { font-size: 1.2em; }
 .markdown-content :deep(h5) { font-size: 1.1em; }
 .markdown-content :deep(h6) { font-size: 1em; }
 
 .markdown-content :deep(p) {
-  margin: 16px 0;
+  margin: 15px 0;
   color: var(--text-main);
 }
 
@@ -1115,36 +1178,40 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 /* 引用块样式 - 重新设计 */
 .markdown-content :deep(blockquote) {
-  margin: 24px 0;
-  padding: 20px 24px;
+  margin: 28px 0;
+  padding: 18px 20px 18px 54px;
+  border: 1px solid rgba(var(--color-primary-rgb), 0.14);
   border-left: 4px solid var(--color-primary);
-  background: linear-gradient(135deg, var(--bg-soft), var(--bg-hover));
-  color: var(--text-subtle);
-  font-style: italic;
-  border-radius: 0 12px 12px 0;
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.07), rgba(var(--color-primary-rgb), 0.025));
+  color: var(--text-main);
+  font-style: normal;
+  border-radius: 14px;
   position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
   
   &::before {
-    content: '"';
+    content: '!';
     position: absolute;
-    top: -10px;
-    left: 16px;
-    font-size: 48px;
-    color: var(--color-primary);
-    opacity: 0.2;
-    font-family: Georgia, serif;
-  }
-  
-  p {
-    margin: 0;
-    position: relative;
-    z-index: 1;
+    left: 18px;
+    top: 18px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-primary);
+    color: white;
+    font-size: 13px;
+    font-weight: 800;
+    font-family: inherit;
+    line-height: 1;
   }
 }
 
 .markdown-content :deep(blockquote p) {
   margin: 0;
+  color: var(--text-main);
 }
 
 /* 代码样式 - 简化版，让Prism处理高亮 */
@@ -1316,16 +1383,52 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   border-color: rgba(148, 163, 184, 0.3);
 }
 
+.dark .post-card {
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+}
+
+.dark :deep(.article-toc) {
+  background: rgba(32, 33, 36, 0.88);
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+}
+
+.dark .post-summary,
 .dark .markdown-content :deep(blockquote) {
-  background-color: var(--bg-soft);
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.13), rgba(255, 255, 255, 0.02));
+  border-color: rgba(var(--color-primary-rgb), 0.22);
   border-left-color: var(--color-primary);
-  color: var(--text-subtle);
+}
+
+.dark .post-actions {
+  background: rgba(32, 33, 36, 0.92);
+  box-shadow: 0 -14px 38px rgba(0, 0, 0, 0.24);
 }
 
 /* 响应式设计 */
+@media (max-width: 1180px) {
+  .post-reading-layout {
+    grid-template-columns: 1fr;
+    width: min(960px, calc(100vw - 40px));
+  }
+
+  .article-toc-panel {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
+  .post-reading-layout {
+    width: min(100%, calc(100vw - 24px));
+  }
+
+  .post-card {
+    padding: 24px 22px 0;
+    border-radius: 14px;
+  }
+
   .markdown-content {
-    padding: 16px;
+    padding: 22px 0;
     font-size: 15px;
   }
   
@@ -1344,61 +1447,62 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding:12px 24px;
-  /* 使用负 margin 抵消父元素的 padding */
-  margin-left: -20px;
-  margin-right: -20px;
-  border-top: 2px solid var(--border-light);
-  border-bottom: 2px solid var(--border-light);
-  background-color: var(--bg-card);
+  gap: 16px;
+  padding: 12px 14px;
+  margin: 10px -18px 0;
+  border: 1px solid var(--border-light);
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  border-radius: 18px 18px 0 0;
   position: sticky;
   bottom: 0;
-  z-index: 0;
+  z-index: 5;
+  box-shadow: 0 -14px 38px rgba(15, 23, 42, 0.08);
 }
 
 .actions-left {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .actions-right {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
 .action-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: var(--bg-soft);
-  border: 2px solid var(--border-light);
-  border-radius: 24px;
+  padding: 9px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
   color: var(--text-main);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
   
   &:hover {
-    background: var(--bg-hover);
-    border-color: var(--color-primary);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    background: rgba(var(--color-primary-rgb), 0.08);
+    border-color: rgba(var(--color-primary-rgb), 0.28);
+    color: var(--color-primary);
   }
   
   &:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
 }
 
 .action-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-main);
+  background: rgba(var(--color-primary-rgb), 0.08);
+  border-color: rgba(var(--color-primary-rgb), 0.28);
 }
 
 .action-btn.liked,
@@ -1413,6 +1517,20 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
+  padding: 9px 8px;
+  font-size: 13px;
+}
+
+.ai-action-btn {
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.12), rgba(var(--color-primary-rgb), 0.05));
+  border-color: rgba(var(--color-primary-rgb), 0.22);
+  color: var(--color-primary);
+
+  &:hover {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
 }
 
 /* 分享按钮 */
@@ -1568,11 +1686,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     font-size: 0.95rem;
   }
 
-  // 隐藏目录导航
-  .table-of-contents-container {
-    display: none;
-  }
-
   // 附件列表 - 移动端适配
   .action-btn {
     padding: 10px 16px;
@@ -1584,8 +1697,8 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     flex-direction: column;
     gap: 12px;
     padding: 16px;
-    margin-left: 0;
-    margin-right: 0;
+    margin-left: -8px;
+    margin-right: -8px;
   }
 
   .actions-left {
@@ -1622,10 +1735,12 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   .actions-right {
     width: 100%;
     justify-content: center;
+    gap: 8px;
   }
 
-  .share-btn {
-    width: 100%;
+  .share-btn,
+  .ai-action-btn {
+    flex: 1;
     justify-content: center;
   }
 
@@ -1877,12 +1992,8 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   }
 
   .markdown-content {
-    padding: 12px;
+    padding: 18px 0;
     font-size: 14px;
-
-    & > p:first-of-type::first-letter {
-      font-size: 2em;
-    }
   }
 
   .markdown-content :deep(h1) { font-size: 1.6em; }

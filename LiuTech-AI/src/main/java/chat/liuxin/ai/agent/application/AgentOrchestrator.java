@@ -958,8 +958,8 @@ public class AgentOrchestrator {
                 %s
                 """.formatted(instruction, request.getMessage(), draftContext, articleContext));
 
-        String contentHtml = context == null
-                ? normalizeHtml(generateWritingText(prompt, 1800))
+        String generatedContent = context == null
+                ? generateWritingText(prompt, 1800)
                 : defaultString(toolExecutionService.execute(
                 context,
                 "admin.generateWritingHtml",
@@ -967,19 +967,19 @@ public class AgentOrchestrator {
                         "instruction", limitText(instruction, 120),
                         "messageLength", request.getMessage() == null ? 0 : request.getMessage().length(),
                         "draftChars", request.getDraft() == null || request.getDraft().getContent() == null ? 0 : request.getDraft().getContent().length()),
-                () -> normalizeHtml(generateWritingText(prompt, 1800))));
+                () -> generateWritingText(prompt, 1800)));
         // 从 AI 输出中解析 JSON 元数据（分类/标签选择）
         Long aiCategoryId = null;
         String aiCategoryName = null;
         List<Long> aiTagIds = List.of();
         List<String> aiTagNames = List.of();
-        String htmlOnly = contentHtml;
+        String htmlOnly = generatedContent;
 
-        java.util.regex.Matcher metaMatcher = writingMetadataMatcher(contentHtml);
+        java.util.regex.Matcher metaMatcher = writingMetadataMatcher(generatedContent);
         if (metaMatcher.find()) {
-            htmlOnly = contentHtml.substring(0, metaMatcher.start()).trim();
+            htmlOnly = generatedContent.substring(0, metaMatcher.start()).trim();
             try {
-                com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree(metaMatcher.group(1));
+                com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree(unescapeMetadataJson(metaMatcher.group(1)));
                 if (meta.has("categoryId") && !meta.get("categoryId").isNull()) {
                     aiCategoryId = meta.get("categoryId").asLong();
                 }
@@ -1004,7 +1004,7 @@ public class AgentOrchestrator {
                 log.warn("解析 AI 分类标签元数据失败: {}", e.getMessage());
             }
         }
-        contentHtml = normalizeHtml(htmlOnly);
+        String contentHtml = normalizeHtml(htmlOnly);
 
         String plain = stripHtml(contentHtml);
         String title = firstNonBlank(
@@ -1068,10 +1068,16 @@ public class AgentOrchestrator {
 
     private java.util.regex.Matcher writingMetadataMatcher(String contentHtml) {
         String source = defaultString(contentHtml);
+        String quoted = "(?:\"|&quot;|\\\\\")";
+        String maybeQuoted = quoted + "?";
+        String taxonomyJson = "(\\{[\\s\\S]*?"
+                + maybeQuoted + "categoryId" + maybeQuoted
+                + "[\\s\\S]*?" + maybeQuoted + "(?:tagIds|tagNames|categoryName)" + maybeQuoted
+                + "[\\s\\S]*?\\})";
         List<java.util.regex.Pattern> patterns = List.of(
-                java.util.regex.Pattern.compile("```json\\s*(\\{.*?\"categoryId\".*?})\\s*```\\s*$", java.util.regex.Pattern.DOTALL),
-                java.util.regex.Pattern.compile("(?is)(?:^|\\R)\\s*json\\s*(\\{\\s*\"categoryId\".*?})\\s*$"),
-                java.util.regex.Pattern.compile("(?is)(\\{\\s*\"categoryId\".*?\"tagNames\"\\s*:\\s*\\[.*?]\\s*})\\s*$")
+                java.util.regex.Pattern.compile("(?is)(?:<p[^>]*>\\s*)?```\\s*json\\s*(?:</p>\\s*<p[^>]*>\\s*)?" + taxonomyJson + "\\s*```\\s*(?:</p>)?\\s*$"),
+                java.util.regex.Pattern.compile("(?is)(?:<p[^>]*>\\s*)?json\\s*(?:</p>\\s*<p[^>]*>\\s*)?" + taxonomyJson + "\\s*(?:```)?\\s*(?:</p>)?\\s*$"),
+                java.util.regex.Pattern.compile("(?is)(?:^|\\R|<p[^>]*>\\s*)" + taxonomyJson + "\\s*(?:</p>)?\\s*$")
         );
         for (java.util.regex.Pattern pattern : patterns) {
             java.util.regex.Matcher matcher = pattern.matcher(source);
@@ -1081,6 +1087,13 @@ public class AgentOrchestrator {
             }
         }
         return java.util.regex.Pattern.compile("a^").matcher(source);
+    }
+
+    private String unescapeMetadataJson(String value) {
+        return defaultString(value)
+                .replace("&quot;", "\"")
+                .replace("&amp;quot;", "\"")
+                .trim();
     }
 
     /**
@@ -1622,7 +1635,7 @@ public class AgentOrchestrator {
                     <p>这篇文章可以继续补充真实案例和代码细节。</p>
                     """;
         }
-        String html = stripWritingPreamble(value)
+        String html = stripWritingMetadataTail(stripWritingPreamble(value))
                 .replaceAll("(?is)```html", "")
                 .replaceAll("(?is)```", "")
                 .replaceAll("(?is)<script.*?>.*?</script>", "")
@@ -1643,7 +1656,19 @@ public class AgentOrchestrator {
             }
             html = builder.toString().trim();
         }
-        return html;
+        return stripWritingMetadataTail(html);
+    }
+
+    private String stripWritingMetadataTail(String value) {
+        String source = defaultString(value).trim();
+        if (source.isBlank()) {
+            return "";
+        }
+        java.util.regex.Matcher matcher = writingMetadataMatcher(source);
+        if (matcher.find()) {
+            return source.substring(0, matcher.start()).trim();
+        }
+        return source;
     }
 
     private boolean isHtmlSafe(String html) {
