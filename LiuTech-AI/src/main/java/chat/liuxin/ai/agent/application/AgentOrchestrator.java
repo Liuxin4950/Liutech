@@ -10,7 +10,6 @@ import chat.liuxin.ai.agent.response.AgentErrorCode;
 import chat.liuxin.ai.agent.response.AgentErrorPayload;
 import chat.liuxin.ai.agent.response.AgentErrorStage;
 import chat.liuxin.ai.agent.response.AgentPlanStep;
-import chat.liuxin.ai.agent.response.AgentResultPayload;
 import chat.liuxin.ai.agent.response.ArticleResultItem;
 import chat.liuxin.ai.agent.response.ArticleResultsPayload;
 import chat.liuxin.ai.agent.response.AvatarCuePayload;
@@ -379,7 +378,7 @@ public class AgentOrchestrator {
             AgentTask task,
             List<AgentPlanStep> plan,
             AgentSseContext context) {
-        String keyword = normalizeKeyword(request.getMessage());
+        String keyword = extractArticleKeyword(request.getMessage());
 
         List<ArticleResultItem> items = context != null
                 ? toolExecutionService.execute(context, "public.searchArticles",
@@ -1151,13 +1150,6 @@ public class AgentOrchestrator {
     }
 
     /**
-     * 生成文本。
-     */
-    private String generateText(String prompt) {
-        return generateText(prompt, 800);
-    }
-
-    /**
      * 生成文本（通用，带 MCP 工具）。
      * 用于 CHAT、SUMMARIZE 等意图，模型可以调用博客工具。
      */
@@ -1286,13 +1278,6 @@ public class AgentOrchestrator {
             return value;
         }
         return value.substring(0, maxChars) + "\n\n（内容已截断）";
-    }
-
-    /**
-     * 标准化关键词。
-     */
-    private String normalizeKeyword(String message) {
-        return extractArticleKeyword(message);
     }
 
     /**
@@ -1861,10 +1846,6 @@ public class AgentOrchestrator {
             return "AI 实践";
         }
         return "技术笔记";
-    }
-
-    private List<String> suggestedTags(String message, List<String> existingNames) {
-        return suggestedTags(message, existingNames, List.of());
     }
 
     private List<String> suggestedTags(String message, List<String> existingNames, List<String> modelSuggestedNames) {

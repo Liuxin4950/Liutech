@@ -843,9 +843,6 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const loadDefaultModel = async () => {
-    await loadRuntime()
-  }
 
   /**
    * 格式化模型名称用于显示
@@ -930,7 +927,6 @@ export const useChatStore = defineStore('chat', () => {
     shiftAvatarCueQueue,
     shiftAvatarCueQueueBySeq,
     loadRuntime,
-    loadDefaultModel,
     addUserMessage,
     addAiMessage,
     addErrorMessage

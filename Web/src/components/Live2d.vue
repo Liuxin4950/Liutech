@@ -3,7 +3,7 @@
         <!-- 音乐播放胶囊 -->
         <MusicCapsule ref="musicCapsuleRef" @play="onMusicPlay" @pause="onMusicPause" />
         <!-- 音乐播放胶囊 -->
-        <canvas @click="playTestAudio" id="canvas"></canvas>
+        <canvas @click="triggerRandomExpression" id="canvas"></canvas>
 
     </div>
 </template>
@@ -107,11 +107,6 @@ let expressionResetTimer: ReturnType<typeof setTimeout> | null = null
 // 拖拽相关变量
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
-
-// 音频播放状态
-const isAuto = ref<boolean>(true);//音频是否空闲
-let audioQueue = ref<string[]>([]); // 音频队列
-const audioChecker = ref<HTMLAudioElement | null>(null); // 音频检测对象
 
 // 窗口大小调整处理器
 let resizeHandler: (() => void) | null = null;
@@ -347,74 +342,7 @@ function onPointerMove(event: any) {
 function onPointerUp() {
     isDragging = false;
 }
-//
-//播放音频，同步模型嘴部。
-function talk(audioPath: string) {
-    return new Promise((resolve, reject) => {
-        isAuto.value = false; // 播放开始
-        audioChecker.value = new Audio(audioPath); // 用于判断播放完成
-
-        audioChecker.value.volume = 0; // 静音，用于检测播放状态
-        audioChecker.value.crossOrigin = "anonymous";
-
-        // 播放结束
-        audioChecker.value.onended = () => {
-            isAuto.value = true;
-            resolve(void 0);
-        };
-
-        // 播放失败
-        audioChecker.value.onerror = (err) => {
-            console.error("检测音频播放出错：", err);
-            isAuto.value = true; // 即使失败也恢复状态
-            reject(err);
-        };
-
-        // 播放检测对象
-        audioChecker.value.play().catch((err) => {
-            console.error("检测音频无法播放：", err);
-            isAuto.value = true;
-            reject(err);
-        });
-
-        // 随机选择一个表情
-        const randomIndex = Math.floor(Math.random() * expressions.length);
-        const randomExpression = expressions[randomIndex];
-
-        // 实际播放音频
-        model.speak(audioPath, {
-            volume: 1,
-            expression: randomExpression, // 随机表情
-            resetExpression: true,
-            crossOrigin: "anonymous",
-        });
-    });
-}
-
-// 监听队列播放音频
-watch(
-    audioQueue,
-    async () => {
-        // 队列非空且当前没有在播放时触发播放
-        if (audioQueue.value.length > 0 && isAuto.value) {
-            // const audioPath = getServiceBaseURL(ServiceType.AI) + `${audioQueue.value[0]}`;
-            const audioPath = audioQueue.value[0];
-            try {
-                isAuto.value = false;
-                await talk(audioPath); // 等待播放完成
-                audioQueue.value.shift(); // 播放完成后移除队列
-                isAuto.value = true;
-            } catch (error) {
-                console.error("音频播放失败：", error);
-                audioQueue.value.shift(); // 出现错误也移除队列
-                isAuto.value = true;
-            }
-        }
-    },
-    { deep: true }
-);
-
-// 触发随机表情
+// 触发随机表情（点击看板娘时调用）
 function triggerRandomExpression() {
     if (!model) {
         return;
@@ -432,48 +360,6 @@ function triggerRandomExpression() {
     }
 }
 
-// 播放测试音频
-function playTestAudio() {
-    // 触发随机表情
-    triggerRandomExpression();
-    return
-    // 判断是否已经有音频在播放了
-    if (!isAuto.value) {
-        stopSpeak()
-        return;
-    }
-    audioQueue.value.push("http://localhost:8080/uploads/music/2026/01/01/20260101134251_ce98531e432d493b854b07eb1bfb15fb.mp3");
-}
-function stopSpeak() {
-    try {
-        // 1. 停止检测用的 audioChecker
-        if (audioChecker.value) {
-            audioChecker.value.pause();
-            audioChecker.value.currentTime = 0;
-            audioChecker.value = null;
-        }
-
-        // 2. 尝试停止 Live2D 动作（如果支持）
-        if (model?.internalModel?.motionManager) {
-            model.internalModel.motionManager.stopAllMotions();
-        }
-
-        // 3. 强制关闭嘴型参数
-        if (model?.internalModel?.coreModel) {
-            model.internalModel.coreModel.setParameterValueById("ParamMouthOpenY", 0);
-        }
-
-        // 4. 恢复默认表情（防止 expression 卡住）
-        if (model?.expressionManager) {
-            model.expressionManager.setExpression(null);
-        }
-
-        // 5. 状态恢复
-        isAuto.value = true;
-    } catch (err) {
-        console.error("stopSpeak 出错:", err);
-    }
-}
 
 
 onMounted(() => {
@@ -608,11 +494,15 @@ const cleanup = () => {
         musicCapsuleRef.value.stopMusic();
     }
 
-    // 2. 停止音频播放
-    stopSpeak();
-
-    // 3. 清理音频队列
-    audioQueue.value = [];
+    // 2. 重置 Live2D 状态（嘴型、表情）
+    try {
+        if (model?.internalModel?.coreModel) {
+            model.internalModel.coreModel.setParameterValueById("ParamMouthOpenY", 0);
+        }
+        if (model?.expressionManager) {
+            model.expressionManager.setExpression(null);
+        }
+    } catch { }
 
     // 4. 移除窗口事件监听器
     if (resizeHandler) {

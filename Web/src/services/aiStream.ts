@@ -1,4 +1,4 @@
-import { get, ServiceType } from './api'
+import { ServiceType } from './api'
 import type { AiChatRequest } from './ai'
 import { getServiceBaseURL } from '@/config/services'
 

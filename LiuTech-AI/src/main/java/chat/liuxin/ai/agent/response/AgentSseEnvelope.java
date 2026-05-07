@@ -41,7 +41,7 @@ public class AgentSseEnvelope<T> {
     /**
      * 事件名称。
      * 前端 SSE parser 按此字段分发到对应 handler。
-     * 取值见 AgentSseEventType 枚举。
+     * 取值如 "agent-start"、"data"、"avatar-cue"、"audio"、"complete" 等。
      */
     private String event;
 
