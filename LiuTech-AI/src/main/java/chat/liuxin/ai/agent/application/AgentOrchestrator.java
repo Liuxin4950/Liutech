@@ -12,11 +12,9 @@ import chat.liuxin.ai.agent.response.AgentErrorStage;
 import chat.liuxin.ai.agent.response.AgentPlanStep;
 import chat.liuxin.ai.agent.response.ArticleResultItem;
 import chat.liuxin.ai.agent.response.ArticleResultsPayload;
-import chat.liuxin.ai.agent.response.AvatarCuePayload;
 import chat.liuxin.ai.agent.response.ConfirmationRequiredPayload;
 import chat.liuxin.ai.agent.response.FieldUpdatePayload;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import chat.liuxin.ai.client.TtsClient;
 import chat.liuxin.ai.agent.response.WritingDraftPayload;
 import chat.liuxin.ai.agent.tool.AdminBlogClient;
 import chat.liuxin.ai.agent.tool.PublicArticleTool;
@@ -27,8 +25,6 @@ import chat.liuxin.ai.security.AiPromptSecurityPolicy;
 import chat.liuxin.ai.security.AiSystemPromptProvider;
 import chat.liuxin.ai.security.AiToolAccessPolicy;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
-import chat.liuxin.ai.tts.AvatarCueService;
-import chat.liuxin.ai.tts.TtsSegmenter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -90,9 +86,7 @@ public class AgentOrchestrator {
     private final AiModelPolicy aiModelPolicy;
     private final chat.liuxin.ai.mcp.WritingTools writingTools;
     private final ObjectMapper objectMapper;
-    private final TtsClient ttsClient;
-    private final TtsSegmenter ttsSegmenter;
-    private final AvatarCueService avatarCueService;
+    private final SpeechOrchestrationService speechOrchestrationService;
 
     /**
      * 非流式执行。
@@ -171,7 +165,7 @@ public class AgentOrchestrator {
         publishResponse(context, response);
 
         // 发布语音和表情事件（必须在 complete 之前，否则前端会丢失后续事件）
-        publishSpeechAndAvatarEvents(context, request, response);
+        speechOrchestrationService.publishSpeechAndCues(context, request, response);
 
         // 发送 complete 事件
         streamPublisher.sendComplete(emitter, taskId(task), request.getConversationId());
@@ -289,50 +283,6 @@ public class AgentOrchestrator {
         // 确认卡片事件
         if (response.getConfirmation() != null) {
             streamPublisher.send(emitter, "confirmation-required", context.getTaskId(), context.getConversationId(), response.getConfirmation());
-        }
-    }
-
-    private void publishSpeechAndAvatarEvents(AgentSseContext context, AgentChatRequest request, AgentChatResponse response) {
-        String message = response == null ? null : response.getMessage();
-        if (isBlank(message)) {
-            if (Boolean.TRUE.equals(request.getTtsEnabled())) {
-                streamPublisher.sendAudioComplete(context.getEmitter(), context.getTaskId(), context.getConversationId(), 0, false);
-            }
-            return;
-        }
-
-        List<String> segments = ttsSegmenter.splitAll(message);
-        if (segments.isEmpty() && ttsSegmenter.containsSpeakableText(message)) {
-            segments = List.of(message.trim());
-        }
-
-        boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
-        int seq = 0;
-        for (String segment : segments) {
-            if (segment == null || segment.isBlank()) {
-                continue;
-            }
-            seq++;
-            AvatarCuePayload cue = avatarCueService.fromText(seq, context.getConversationId(), segment);
-            streamPublisher.sendAvatarCue(context.getEmitter(), context.getTaskId(), context.getConversationId(), cue);
-
-            if (!ttsEnabled) {
-                continue;
-            }
-            try {
-                String audioUrl = ttsClient.inferSingleAudioUrl(segment);
-                if (audioUrl == null || audioUrl.isBlank()) {
-                    streamPublisher.sendAudioSkip(context.getEmitter(), context.getTaskId(), context.getConversationId(), seq, segment, "empty-audio-url");
-                } else {
-                    streamPublisher.sendAudio(context.getEmitter(), context.getTaskId(), context.getConversationId(), seq, segment, audioUrl);
-                }
-            } catch (Exception e) {
-                streamPublisher.sendAudioSkip(context.getEmitter(), context.getTaskId(), context.getConversationId(), seq, segment, e.getClass().getSimpleName());
-            }
-        }
-
-        if (ttsEnabled) {
-            streamPublisher.sendAudioComplete(context.getEmitter(), context.getTaskId(), context.getConversationId(), seq, false);
         }
     }
 
@@ -552,7 +502,7 @@ public class AgentOrchestrator {
         List<String> checks = new ArrayList<>();
         checks.add(isBlank(title) ? "标题还没有填写。" : "标题已填写，长度约 " + title.length() + " 个字符。");
         checks.add(isBlank(summary) ? "摘要还没有填写，建议补一段 80-160 字的搜索摘要。" : "摘要已填写，长度约 " + summary.length() + " 个字符。");
-        checks.add(isBlank(content) ? "正文还没有内容。" : "正文已有内容，纯文本约 " + stripHtml(content).length() + " 个字符。");
+        checks.add(isBlank(content) ? "正文还没有内容。" : "正文已有内容，纯文本约 " + HtmlSanitizer.stripTags(content).length() + " 个字符。");
         checks.add(draft == null || draft.getCategoryId() == null ? "分类还没有选择。" : "分类已选择。");
         checks.add(draft == null || draft.getTagIds() == null || draft.getTagIds().isEmpty() ? "标签还没有选择。" : "标签已选择 " + draft.getTagIds().size() + " 个。");
         String answer = "发布前检查完成：\n\n- " + String.join("\n- ", checks) + "\n\n我没有改动编辑器字段。";
@@ -1028,11 +978,11 @@ public class AgentOrchestrator {
         List<String> aiTagNames = List.of();
         String htmlOnly = generatedContent;
 
-        java.util.regex.Matcher metaMatcher = writingMetadataMatcher(generatedContent);
+        java.util.regex.Matcher metaMatcher = HtmlSanitizer.metadataMatcher(generatedContent);
         if (metaMatcher.find()) {
             htmlOnly = generatedContent.substring(0, metaMatcher.start()).trim();
             try {
-                com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree(unescapeMetadataJson(metaMatcher.group(1)));
+                com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree(HtmlSanitizer.unescapeMetadataJson(metaMatcher.group(1)));
                 if (meta.has("categoryId") && !meta.get("categoryId").isNull()) {
                     aiCategoryId = meta.get("categoryId").asLong();
                 }
@@ -1057,12 +1007,12 @@ public class AgentOrchestrator {
                 log.warn("解析 AI 分类标签元数据失败: {}", e.getMessage());
             }
         }
-        String contentHtml = normalizeHtml(htmlOnly);
+        String contentHtml = HtmlSanitizer.sanitize(htmlOnly);
 
-        String plain = stripHtml(contentHtml);
+        String plain = HtmlSanitizer.stripTags(contentHtml);
         String title = firstNonBlank(
                 request.getDraft() == null ? null : request.getDraft().getTitle(),
-                extractHtmlHeading(contentHtml),
+                HtmlSanitizer.extractHeading(contentHtml),
                 extractTitle(request.getMessage()));
         String summary = firstNonBlank(
                 request.getDraft() == null ? null : request.getDraft().getSummary(),
@@ -1115,38 +1065,8 @@ public class AgentOrchestrator {
                         category == null ? "未匹配到已有分类，可确认创建建议分类" : "已匹配分类：" + category.getName(),
                         tagNames.isEmpty() ? "未匹配到已有标签，可确认创建建议标签" : "已匹配标签：" + String.join("、", tagNames),
                         "正文使用 HTML 输出，已过滤明显危险片段"))
-                .htmlSafe(isHtmlSafe(contentHtml))
+                .htmlSafe(HtmlSanitizer.isSafe(contentHtml))
                 .build();
-    }
-
-    private java.util.regex.Matcher writingMetadataMatcher(String contentHtml) {
-        String source = defaultString(contentHtml);
-        String quoted = "(?:\"|&quot;|\\\\\")";
-        String maybeQuoted = quoted + "?";
-        String taxonomyJson = "(\\{[\\s\\S]*?"
-                + maybeQuoted + "categoryId" + maybeQuoted
-                + "[\\s\\S]*?" + maybeQuoted + "(?:tagIds|tagNames|categoryName)" + maybeQuoted
-                + "[\\s\\S]*?\\})";
-        List<java.util.regex.Pattern> patterns = List.of(
-                java.util.regex.Pattern.compile("(?is)(?:<p[^>]*>\\s*)?```\\s*json\\s*(?:</p>\\s*<p[^>]*>\\s*)?" + taxonomyJson + "\\s*```\\s*(?:</p>)?\\s*$"),
-                java.util.regex.Pattern.compile("(?is)(?:<p[^>]*>\\s*)?json\\s*(?:</p>\\s*<p[^>]*>\\s*)?" + taxonomyJson + "\\s*(?:```)?\\s*(?:</p>)?\\s*$"),
-                java.util.regex.Pattern.compile("(?is)(?:^|\\R|<p[^>]*>\\s*)" + taxonomyJson + "\\s*(?:</p>)?\\s*$")
-        );
-        for (java.util.regex.Pattern pattern : patterns) {
-            java.util.regex.Matcher matcher = pattern.matcher(source);
-            if (matcher.find()) {
-                matcher.reset();
-                return matcher;
-            }
-        }
-        return java.util.regex.Pattern.compile("a^").matcher(source);
-    }
-
-    private String unescapeMetadataJson(String value) {
-        return defaultString(value)
-                .replace("&quot;", "\"")
-                .replace("&amp;quot;", "\"")
-                .trim();
     }
 
     /**
@@ -1661,164 +1581,6 @@ public class AgentOrchestrator {
                 .toList();
     }
 
-    private String normalizeHtml(String value) {
-        if (isBlank(value)) {
-            return """
-                    <h2>背景</h2>
-                    <p>这里补充文章背景和目标读者。</p>
-                    <h2>核心思路</h2>
-                    <p>这里展开主要观点和技术路线。</p>
-                    <h2>实践步骤</h2>
-                    <ol><li>梳理目标。</li><li>设计实现路径。</li><li>验证结果。</li></ol>
-                    <h2>总结</h2>
-                    <p>这篇文章可以继续补充真实案例和代码细节。</p>
-                    """;
-        }
-        String html = stripWritingMetadataTail(stripWritingPreamble(value))
-                .replaceAll("(?is)```html", "")
-                .replaceAll("(?is)```", "")
-                .replaceAll("(?is)<script.*?>.*?</script>", "")
-                .replaceAll("(?is)<iframe.*?>.*?</iframe>", "")
-                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*\"[^\"]*\"", "")
-                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*'[^']*'", "")
-                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*[^\\s>]*", "")
-                .replaceAll("(?i)\\sstyle\\s*=\\s*\"[^\"]*\"", "")
-                .replaceAll("(?i)\\sstyle\\s*=\\s*'[^']*'", "")
-                .trim();
-        if (!html.matches("(?s).*<\\s*(h2|h3|p|ul|ol|blockquote|pre|div|section)\\b.*")) {
-            StringBuilder builder = new StringBuilder();
-            for (String paragraph : html.split("\\R{2,}")) {
-                String text = paragraph.trim();
-                if (!text.isBlank()) {
-                    builder.append("<p>").append(escapeHtml(text)).append("</p>\n");
-                }
-            }
-            html = builder.toString().trim();
-        }
-        return stripWritingMetadataTail(html);
-    }
-
-    private String stripWritingMetadataTail(String value) {
-        String source = defaultString(value).trim();
-        if (source.isBlank()) {
-            return "";
-        }
-        java.util.regex.Matcher matcher = writingMetadataMatcher(source);
-        if (matcher.find()) {
-            return source.substring(0, matcher.start()).trim();
-        }
-        return source;
-    }
-
-    private boolean isHtmlSafe(String html) {
-        if (html == null) {
-            return false;
-        }
-        String lower = html.toLowerCase();
-        return !lower.contains("<script")
-                && !lower.contains("<iframe")
-                && !lower.contains(" onclick=")
-                && !lower.contains(" onload=")
-                && !lower.contains("javascript:");
-    }
-
-    private String stripHtml(String html) {
-        return html == null ? "" : html.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim();
-    }
-
-    private String stripWritingPreamble(String value) {
-        if (isBlank(value)) {
-            return "";
-        }
-        String text = removeLeadingPreambleSentences(value.trim());
-        java.util.regex.Matcher firstArticleTag = java.util.regex.Pattern
-                .compile("(?is)<\\s*(h1|h2|h3|p|ul|ol|blockquote|pre|section|article)\\b")
-                .matcher(text);
-        if (firstArticleTag.find() && firstArticleTag.start() > 0) {
-            String prefix = stripHtml(text.substring(0, firstArticleTag.start()));
-            if (isAssistantPreamble(prefix)) {
-                text = text.substring(firstArticleTag.start()).trim();
-            }
-        }
-        StringBuilder builder = new StringBuilder();
-        boolean dropping = true;
-        for (String paragraph : text.split("\\R{2,}")) {
-            String trimmed = paragraph.trim();
-            if (trimmed.isBlank()) {
-                continue;
-            }
-            if (dropping && isAssistantPreamble(stripHtml(trimmed))) {
-                continue;
-            }
-            dropping = false;
-            if (!builder.isEmpty()) {
-                builder.append("\n\n");
-            }
-            builder.append(trimmed);
-        }
-        return builder.isEmpty() ? text : builder.toString();
-    }
-
-    private String removeLeadingPreambleSentences(String value) {
-        String text = value == null ? "" : value.trim();
-        boolean changed;
-        do {
-            changed = false;
-            String plain = stripHtml(text).trim();
-            if (!startsWithPreamblePhrase(plain)) {
-                break;
-            }
-            java.util.regex.Matcher sentenceEnd = java.util.regex.Pattern
-                    .compile("[。.!！]\\s*")
-                    .matcher(text);
-            if (sentenceEnd.find()) {
-                text = text.substring(sentenceEnd.end()).trim();
-                changed = true;
-            }
-        } while (changed && !text.isBlank());
-        return text;
-    }
-
-    private boolean isAssistantPreamble(String text) {
-        if (isBlank(text)) {
-            return false;
-        }
-        String normalized = text.replaceAll("\\s+", "");
-        if (normalized.length() > 160) {
-            return false;
-        }
-        return startsWithPreamblePhrase(normalized)
-                || containsAny(normalized, "获取一下可用的分类和标签", "获取一下现有的分类和标签", "获取分类和标签信息", "先获取分类标签");
-    }
-
-    private boolean startsWithPreamblePhrase(String text) {
-        if (isBlank(text)) {
-            return false;
-        }
-        String normalized = text.replaceAll("\\s+", "");
-        return normalized.startsWith("我来帮你")
-                || normalized.startsWith("我会帮你")
-                || normalized.startsWith("让我")
-                || normalized.startsWith("先让我")
-                || normalized.startsWith("首先让我")
-                || normalized.startsWith("下面")
-                || normalized.startsWith("以下是")
-                || normalized.startsWith("接下来");
-    }
-
-    private String extractHtmlHeading(String html) {
-        if (html == null) {
-            return "";
-        }
-        java.util.regex.Matcher matcher = java.util.regex.Pattern
-                .compile("(?is)<h[12][^>]*>(.*?)</h[12]>")
-                .matcher(html);
-        if (matcher.find()) {
-            return stripHtml(matcher.group(1));
-        }
-        return "";
-    }
-
     private String firstNonBlank(String... values) {
         if (values == null) {
             return "";
@@ -1882,14 +1644,6 @@ public class AgentOrchestrator {
                 return;
             }
         }
-    }
-
-    private String escapeHtml(String text) {
-        return text == null ? "" : text
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
     }
 
     /**
@@ -1969,7 +1723,7 @@ public class AgentOrchestrator {
      * 构建摘要。
      */
     private String buildSummary(String markdown) {
-        String plain = stripWritingPreamble(markdown == null ? "" : markdown)
+        String plain = HtmlSanitizer.stripPreamble(markdown == null ? "" : markdown)
                 .replaceAll("[#>*`\\-]", "")
                 .replaceAll("\\s+", " ")
                 .trim();
