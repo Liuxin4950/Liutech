@@ -6,6 +6,7 @@ import { AiStream, StreamError } from '@/services/aiStream'
 import { isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
 import { useUserStore } from '@/stores/user'
+import { useSequencedBuffer } from '@/composables/useSequencedBuffer'
 
 /**
  * 聊天消息接口
@@ -124,26 +125,10 @@ export const useChatStore = defineStore('chat', () => {
    */
   const ttsAvailable = ref<boolean>(false)
 
-  /**
-   * 语音片段缓冲区（按 seq 存储）
-   *
-   * 设计动机：
-   * - AI 端的 TTS 推理是异步/可能并发的，audio 事件到达顺序不一定等于“应该播放顺序”
-   * - 因此前端必须按 seq 进行排序播放：只有拿到 nextSeq 才能播放下一段
-   */
-  const ttsAudioBuffer = ref<Record<number, TtsAudioItem>>({})
-  /**
-   * 下一段应该播放的序号（从 1 开始）
-   */
-  const ttsNextSeq = ref<number>(1)
-  /**
-   * 当前缓冲区待播放的片段数（用于 UI/监听触发播放）
-   */
-  const ttsPendingCount = computed(() => Object.keys(ttsAudioBuffer.value).length)
-
-  const avatarCueBuffer = ref<Record<number, AvatarCueItem>>({})
-  const avatarCueNextSeq = ref<number>(1)
-  const avatarCuePendingCount = computed(() => Object.keys(avatarCueBuffer.value).length)
+  // 语音片段和表情提示的顺序缓冲区
+  // 解决问题：SSE 事件到达顺序不一定等于播放顺序，通过 seq 保证严格按序消费
+  const ttsAudioQueue = useSequencedBuffer<TtsAudioItem>()
+  const avatarCueQueue = useSequencedBuffer<AvatarCueItem>()
 
   // 生成临时消息ID（使用负数，避免与后端返回的正数ID冲突）
   let messageIdCounter = 0
@@ -256,15 +241,8 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const clearTtsAudioQueue = () => {
-    ttsAudioBuffer.value = {}
-    ttsNextSeq.value = 1
-  }
-
-  const clearAvatarCueQueue = () => {
-    avatarCueBuffer.value = {}
-    avatarCueNextSeq.value = 1
-  }
+  const clearTtsAudioQueue = () => ttsAudioQueue.clear()
+  const clearAvatarCueQueue = () => avatarCueQueue.clear()
 
   const enqueueTtsAudio = (item: TtsAudioItem) => {
     if (!item) return
@@ -287,51 +265,22 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
     // 绑定对应的 avatar-cue，让音频播放时表情同步切换
-    const cue = avatarCueBuffer.value[item.seq]
+    const cue = avatarCueQueue.shiftBySeq(item.seq)
     if (cue) {
       enriched.cue = cue
-      delete avatarCueBuffer.value[item.seq]
-      if (item.seq >= avatarCueNextSeq.value) {
-        avatarCueNextSeq.value = item.seq + 1
-      }
     }
-    ttsAudioBuffer.value[item.seq] = enriched
+    ttsAudioQueue.enqueue(enriched)
   }
 
-  const shiftTtsAudioQueue = (): TtsAudioItem | null => {
-    const next = ttsAudioBuffer.value[ttsNextSeq.value]
-    if (!next) return null
-    delete ttsAudioBuffer.value[ttsNextSeq.value]
-    ttsNextSeq.value += 1
-    return next
-  }
+  const shiftTtsAudioQueue = (): TtsAudioItem | null => ttsAudioQueue.shift()
 
   const enqueueAvatarCue = (item: AvatarCueItem) => {
     if (!item) return
-    if (typeof item.seq !== 'number' || item.seq <= 0) return
-    avatarCueBuffer.value[item.seq] = {
-      ...item,
-      enqueuedAt: item.enqueuedAt ?? Date.now()
-    }
+    avatarCueQueue.enqueue({ ...item, enqueuedAt: item.enqueuedAt ?? Date.now() })
   }
 
-  const shiftAvatarCueQueue = (): AvatarCueItem | null => {
-    const next = avatarCueBuffer.value[avatarCueNextSeq.value]
-    if (!next) return null
-    delete avatarCueBuffer.value[avatarCueNextSeq.value]
-    avatarCueNextSeq.value += 1
-    return next
-  }
-
-  const shiftAvatarCueQueueBySeq = (seq: number): AvatarCueItem | null => {
-    const cue = avatarCueBuffer.value[seq]
-    if (!cue) return null
-    delete avatarCueBuffer.value[seq]
-    if (seq >= avatarCueNextSeq.value) {
-      avatarCueNextSeq.value = seq + 1
-    }
-    return cue
-  }
+  const shiftAvatarCueQueue = (): AvatarCueItem | null => avatarCueQueue.shift()
+  const shiftAvatarCueQueueBySeq = (seq: number): AvatarCueItem | null => avatarCueQueue.shiftBySeq(seq)
 
   /**
    * 清理localStorage
@@ -905,8 +854,8 @@ export const useChatStore = defineStore('chat', () => {
     currentModelInfo,
     ttsEnabled,
     ttsAvailable,
-    ttsPendingCount,
-    avatarCuePendingCount,
+    ttsPendingCount: ttsAudioQueue.pendingCount,
+    avatarCuePendingCount: avatarCueQueue.pendingCount,
 
     // 计算属性
     hasMessages,
