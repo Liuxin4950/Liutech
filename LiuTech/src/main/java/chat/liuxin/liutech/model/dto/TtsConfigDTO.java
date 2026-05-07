@@ -23,4 +23,34 @@ public class TtsConfigDTO {
      * 例如：原神-中文-纳西妲_ZH
      */
     private String voiceModel;
+
+    /**
+     * TTS 引擎：GPT_SOVITS / SILICONFLOW
+     */
+    private String provider;
+
+    /**
+     * SiliconFlow TTS 模型名称。
+     */
+    private String siliconFlowModel;
+
+    /**
+     * SiliconFlow 上传参考音频后返回的 speech:... 音色 URI。
+     */
+    private String siliconFlowVoiceUri;
+
+    /**
+     * 输出格式：mp3 / wav / opus / pcm。
+     */
+    private String responseFormat;
+
+    /**
+     * 输出采样率。
+     */
+    private Integer sampleRate;
+
+    /**
+     * 语速，SiliconFlow 支持 0.25 - 4.0。
+     */
+    private Double speed;
 }

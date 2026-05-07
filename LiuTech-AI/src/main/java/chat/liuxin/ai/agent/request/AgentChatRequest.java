@@ -17,6 +17,7 @@ public class AgentChatRequest {
     private String model;
     private Double temperature;
     private Integer maxTokens;
+    private Boolean ttsEnabled;
     private Map<String, Object> context;
 
     /**

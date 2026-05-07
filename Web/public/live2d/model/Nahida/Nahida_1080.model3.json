@@ -16,7 +16,7 @@
 				"File": "Angry.exp3.json"
 			},
 			{
-				"Name": "无语",
+				"Name": "遮脸",
 				"File": "black.exp3.json"
 			},
 			{
@@ -44,10 +44,6 @@
 				"File": "Sad1.exp3.json"
 			},
 			{
-				"Name": "伤心2",
-				"File": "Sad2.exp3.json"
-			},
-			{
 				"Name": "正常害羞",
 				"File": "shy_normal.exp3.json"
 			},
@@ -62,6 +58,62 @@
 			{
 				"Name": "眨眼",
 				"File": "Wink.exp3.json"
+			},
+			{
+				"Name": "思考",
+				"File": "Thinking.exp3.json"
+			},
+			{
+				"Name": "生气动画",
+				"File": "Angry2.exp3.json"
+			},
+			{
+				"Name": "星星眼动画",
+				"File": "StarEye2.exp3.json"
+			},
+			{
+				"Name": "嘟嘴",
+				"File": "MouthPout.exp3.json"
+			},
+			{
+				"Name": "挑眉",
+				"File": "BrowUpDown.exp3.json"
+			},
+			{
+				"Name": "嘟嘴思考",
+				"File": "PoutThink.exp3.json"
+			},
+			{
+				"Name": "生气完整",
+				"File": "AngryFull.exp3.json"
+			},
+			{
+				"Name": "伤心完整",
+				"File": "SadFull.exp3.json"
+			},
+			{
+				"Name": "害羞嘟嘴",
+				"File": "ShyPout.exp3.json"
+			},
+			{
+				"Name": "惊讶完整",
+				"File": "SurprisedFull.exp3.json"
+			},
+			{
+				"Name": "开心完整",
+				"File": "HappyFull.exp3.json"
+			},
+			{
+				"Name": "好奇",
+				"File": "Curious.exp3.json"
+			},
+			{
+				"Name": "慌张",
+				"File": "Flustered.exp3.json"
+			},
+			{
+				"Name": "坏笑",
+				"File": "Smirk.exp3.json"
 			}
 		]
 	},

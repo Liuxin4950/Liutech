@@ -13,6 +13,7 @@ import AiChat from "@/components/AiChat.vue"
 import LoginModal from '@/components/LoginModal.vue'
 import { requireAuth } from '@/utils/auth'
 import { useChatStore } from '@/stores/chat'
+import { getServiceBaseURL, ServiceType } from '@/config/services'
 
 const showLoader = ref(false)
 const router = useRouter()
@@ -43,6 +44,7 @@ let currentTtsAudio: HTMLAudioElement | null = null
 let isTtsPlaying = false
 let playbackToken = 0
 let audioUnlocked = false
+let isApplyingAvatarCue = false
 
 const handleExternalChatOpen = (event: Event) => {
   showModel.value = true
@@ -59,6 +61,10 @@ const handleExternalChatOpen = (event: Event) => {
 
 const resolveTtsPlayUrl = (audioUrl?: string) => {
   if (!audioUrl) return ''
+  if (audioUrl.startsWith('/')) {
+    const base = getServiceBaseURL(ServiceType.MAIN).replace(/\/$/, '')
+    return `${base}${audioUrl}`
+  }
   return audioUrl
 }
 
@@ -110,6 +116,12 @@ const playNextTts = async () => {
 
       const next = chatStore.shiftTtsAudioQueue()
       if (!next) break
+
+      // 播放前应用对应的 avatar-cue，保持表情与音频同步
+      // skipResetTimer: 由 playNextTts 的 finally 统一重置，避免段间闪回
+      if (next.cue) {
+        live2dRef.value.applyAvatarCue?.({ ...next.cue, skipResetTimer: true })
+      }
 
       if (next.status === 'skipped') {
         console.warn(
@@ -203,8 +215,27 @@ const playNextTts = async () => {
   } finally {
     if (token === playbackToken) {
       isTtsPlaying = false
+      live2dRef.value?.applyAvatarCue?.({ expression: 'neutral' })
       live2dRef.value?.resumeMusicAfterSpeechIfNeeded?.()
     }
+  }
+}
+
+const applyNextAvatarCues = async () => {
+  if (isApplyingAvatarCue) return
+  // TTS 播放中或等待音频到达时，由 playNextTts 同步消费 cue
+  if (isTtsPlaying || chatStore.ttsPendingCount > 0) return
+  if (!live2dRef.value || !showModel.value) return
+  isApplyingAvatarCue = true
+  try {
+    while (live2dRef.value && showModel.value) {
+      const next = chatStore.shiftAvatarCueQueue()
+      if (!next) break
+      live2dRef.value.applyAvatarCue?.(next)
+      await delay(120)
+    }
+  } finally {
+    isApplyingAvatarCue = false
   }
 }
 
@@ -313,6 +344,29 @@ watch(
 )
 
 watch(
+  () => chatStore.aiThinking,
+  (thinking) => {
+    if (thinking && live2dRef.value && showModel.value) {
+      live2dRef.value.applyAvatarCue?.({ expression: 'thinking', durationMs: 8000 })
+    }
+  }
+)
+
+watch(
+  () => chatStore.ttsStopSignal,
+  () => {
+    stopTtsPlayback()
+  }
+)
+
+watch(
+  () => chatStore.avatarCuePendingCount,
+  () => {
+    applyNextAvatarCues()
+  }
+)
+
+watch(
   () => showModel.value,
   (visible) => {
     if (!visible) {
@@ -321,6 +375,7 @@ watch(
     }
     setTimeout(() => {
       playNextTts()
+      applyNextAvatarCues()
     }, 0)
   }
 )

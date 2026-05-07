@@ -13,9 +13,11 @@ import chat.liuxin.ai.agent.response.AgentPlanStep;
 import chat.liuxin.ai.agent.response.AgentResultPayload;
 import chat.liuxin.ai.agent.response.ArticleResultItem;
 import chat.liuxin.ai.agent.response.ArticleResultsPayload;
+import chat.liuxin.ai.agent.response.AvatarCuePayload;
 import chat.liuxin.ai.agent.response.ConfirmationRequiredPayload;
 import chat.liuxin.ai.agent.response.FieldUpdatePayload;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import chat.liuxin.ai.client.TtsClient;
 import chat.liuxin.ai.agent.response.WritingDraftPayload;
 import chat.liuxin.ai.agent.tool.AdminBlogClient;
 import chat.liuxin.ai.agent.tool.PublicArticleTool;
@@ -26,6 +28,8 @@ import chat.liuxin.ai.security.AiPromptSecurityPolicy;
 import chat.liuxin.ai.security.AiSystemPromptProvider;
 import chat.liuxin.ai.security.AiToolAccessPolicy;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
+import chat.liuxin.ai.tts.AvatarCueService;
+import chat.liuxin.ai.tts.TtsSegmenter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -87,6 +91,9 @@ public class AgentOrchestrator {
     private final AiModelPolicy aiModelPolicy;
     private final chat.liuxin.ai.mcp.WritingTools writingTools;
     private final ObjectMapper objectMapper;
+    private final TtsClient ttsClient;
+    private final TtsSegmenter ttsSegmenter;
+    private final AvatarCueService avatarCueService;
 
     /**
      * 非流式执行。
@@ -163,6 +170,9 @@ public class AgentOrchestrator {
 
         // 发布响应事件
         publishResponse(context, response);
+
+        // 发布语音和表情事件（必须在 complete 之前，否则前端会丢失后续事件）
+        publishSpeechAndAvatarEvents(context, request, response);
 
         // 发送 complete 事件
         streamPublisher.sendComplete(emitter, taskId(task), request.getConversationId());
@@ -280,6 +290,50 @@ public class AgentOrchestrator {
         // 确认卡片事件
         if (response.getConfirmation() != null) {
             streamPublisher.send(emitter, "confirmation-required", context.getTaskId(), context.getConversationId(), response.getConfirmation());
+        }
+    }
+
+    private void publishSpeechAndAvatarEvents(AgentSseContext context, AgentChatRequest request, AgentChatResponse response) {
+        String message = response == null ? null : response.getMessage();
+        if (isBlank(message)) {
+            if (Boolean.TRUE.equals(request.getTtsEnabled())) {
+                streamPublisher.sendAudioComplete(context.getEmitter(), context.getTaskId(), context.getConversationId(), 0, false);
+            }
+            return;
+        }
+
+        List<String> segments = ttsSegmenter.splitAll(message);
+        if (segments.isEmpty() && ttsSegmenter.containsSpeakableText(message)) {
+            segments = List.of(message.trim());
+        }
+
+        boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
+        int seq = 0;
+        for (String segment : segments) {
+            if (segment == null || segment.isBlank()) {
+                continue;
+            }
+            seq++;
+            AvatarCuePayload cue = avatarCueService.fromText(seq, context.getConversationId(), segment);
+            streamPublisher.sendAvatarCue(context.getEmitter(), context.getTaskId(), context.getConversationId(), cue);
+
+            if (!ttsEnabled) {
+                continue;
+            }
+            try {
+                String audioUrl = ttsClient.inferSingleAudioUrl(segment);
+                if (audioUrl == null || audioUrl.isBlank()) {
+                    streamPublisher.sendAudioSkip(context.getEmitter(), context.getTaskId(), context.getConversationId(), seq, segment, "empty-audio-url");
+                } else {
+                    streamPublisher.sendAudio(context.getEmitter(), context.getTaskId(), context.getConversationId(), seq, segment, audioUrl);
+                }
+            } catch (Exception e) {
+                streamPublisher.sendAudioSkip(context.getEmitter(), context.getTaskId(), context.getConversationId(), seq, segment, e.getClass().getSimpleName());
+            }
+        }
+
+        if (ttsEnabled) {
+            streamPublisher.sendAudioComplete(context.getEmitter(), context.getTaskId(), context.getConversationId(), seq, false);
         }
     }
 

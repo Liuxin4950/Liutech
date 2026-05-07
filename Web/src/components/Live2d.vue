@@ -43,24 +43,66 @@ const cubism4Model = '/live2d/model/Nahida/Nahida_1080.model3.json';
 // 可用的表情列表
 const expressions = [
     "生气",
-    "无语",
+    "遮脸",
     "半眼",
     "手势变化",
     "开心1",
     "草草",
     "嘴型变化",
     "伤心1",
-    "伤心2",
     "正常害羞",
     "害羞",
     "星星眼",
-    "眨眼"
+    "眨眼",
+    "思考",
+    "生气动画",
+    "星星眼动画",
+    "嘟嘴",
+    "挑眉",
+    "嘟嘴思考",
+    "生气完整",
+    "伤心完整",
+    "害羞嘟嘴",
+    "惊讶完整",
+    "开心完整",
+    "好奇",
+    "慌张",
+    "坏笑"
 ];
+
+interface AvatarCue {
+    expression?: string
+    motion?: string | null
+    intensity?: number
+    durationMs?: number
+    text?: string
+    skipResetTimer?: boolean
+}
+
+const EXPRESSION_MIN_INTERVAL_MS = 1200
+const MOTION_MIN_INTERVAL_MS = 3000
+
+const expressionMap: Record<string, string | null> = {
+    happy: '开心1',
+    sad: '伤心1',
+    angry: '生气',
+    thinking: '思考',
+    surprised: '星星眼',
+    shy: '害羞',
+    confused: '遮脸',
+    neutral: null,
+    calm: '草草'
+}
 
 // 模型实例和PIXI应用实例
 let model: any = null;
 let app: any = null;
 let isInitialized = false; // 初始化状态标记
+let lastExpressionAt = 0
+let lastMotionAt = 0
+let pendingAvatarCue: AvatarCue | null = null
+let pendingAvatarCueTimer: ReturnType<typeof setTimeout> | null = null
+let expressionResetTimer: ReturnType<typeof setTimeout> | null = null
 
 // 拖拽相关变量
 let isDragging = false;
@@ -200,9 +242,87 @@ const speakAudioElement = async (audio: HTMLAudioElement) => {
     return audio
 }
 
+const resetExpression = () => {
+    try {
+        model?.expressionManager?.setExpression?.(null)
+    } catch {
+    }
+}
+
+const resolveExpressionName = (cue: AvatarCue): string | null => {
+    const raw = (cue.expression || 'neutral').trim()
+    if (!raw) return null
+    if (expressions.includes(raw)) return raw
+    return expressionMap[raw] ?? null
+}
+
+const flushAvatarCue = () => {
+    if (pendingAvatarCueTimer) {
+        clearTimeout(pendingAvatarCueTimer)
+        pendingAvatarCueTimer = null
+    }
+    const cue = pendingAvatarCue
+    pendingAvatarCue = null
+    if (!cue || !model) return
+
+    const expression = resolveExpressionName(cue)
+    try {
+        if (expression) {
+            model.expression(expression)
+        } else {
+            resetExpression()
+        }
+        lastExpressionAt = Date.now()
+    } catch (error) {
+        console.error("触发表情失败:", error)
+    }
+
+    const motion = cue.motion?.trim()
+    if (motion && motion !== 'none') {
+        const now = Date.now()
+        if (now - lastMotionAt >= MOTION_MIN_INTERVAL_MS) {
+            try {
+                const motions = model?.internalModel?.settings?.motions
+                if (!motions || motions[motion]) {
+                    model.motion(motion)
+                    lastMotionAt = now
+                }
+            } catch {
+            }
+        }
+    }
+
+    if (expressionResetTimer) {
+        clearTimeout(expressionResetTimer)
+        expressionResetTimer = null
+    }
+    if (!cue.skipResetTimer) {
+        const duration = Math.max(1600, Math.min(6000, cue.durationMs || 2600))
+        expressionResetTimer = setTimeout(() => {
+            resetExpression()
+            expressionResetTimer = null
+        }, duration)
+    }
+}
+
+const applyAvatarCue = (cue: AvatarCue) => {
+    if (!cue) return
+    pendingAvatarCue = cue
+    const waitMs = Math.max(0, EXPRESSION_MIN_INTERVAL_MS - (Date.now() - lastExpressionAt))
+    if (waitMs <= 0) {
+        flushAvatarCue()
+        return
+    }
+    if (pendingAvatarCueTimer) {
+        clearTimeout(pendingAvatarCueTimer)
+    }
+    pendingAvatarCueTimer = setTimeout(flushAvatarCue, waitMs)
+}
+
 defineExpose({
     speakAudioUrl,
     speakAudioElement,
+    applyAvatarCue,
     resumeMusicAfterSpeechIfNeeded,
     lipSyncConfig: lipSync.config,
     setLipSyncConfig: lipSync.updateConfig
@@ -305,10 +425,10 @@ function triggerRandomExpression() {
     const randomExpression = expressions[randomIndex];
 
     try {
-        // 触发表情
         model.expression(randomExpression);
+        console.log(`[Live2D] 表情: ${randomExpression} (${randomIndex + 1}/${expressions.length})`)
     } catch (error) {
-        console.error("触发表情失败:", error);
+        console.error("[Live2D] 触发表情失败:", error);
     }
 }
 
@@ -503,6 +623,15 @@ const cleanup = () => {
         window.removeEventListener('mousemove', windowMouseMoveHandler)
         windowMouseMoveHandler = null
     }
+    if (pendingAvatarCueTimer) {
+        clearTimeout(pendingAvatarCueTimer)
+        pendingAvatarCueTimer = null
+    }
+    if (expressionResetTimer) {
+        clearTimeout(expressionResetTimer)
+        expressionResetTimer = null
+    }
+    pendingAvatarCue = null
 
     // 5. 清理模型资源
     if (model) {

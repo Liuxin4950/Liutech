@@ -29,6 +29,46 @@ public class TtsStatusDTO {
     private String voiceModel;
 
     /**
+     * 当前 TTS 引擎。
+     */
+    private String provider;
+
+    /**
+     * SiliconFlow 当前模型。
+     */
+    private String siliconFlowModel;
+
+    /**
+     * SiliconFlow 当前音色 URI。
+     */
+    private String siliconFlowVoiceUri;
+
+    /**
+     * 输出格式。
+     */
+    private String responseFormat;
+
+    /**
+     * 输出采样率。
+     */
+    private Integer sampleRate;
+
+    /**
+     * 语速。
+     */
+    private Double speed;
+
+    /**
+     * SiliconFlow API Key 是否已经在环境中配置。
+     */
+    private boolean siliconFlowApiKeyConfigured;
+
+    /**
+     * SiliconFlow API Key 来源，只暴露变量名，不暴露密钥值。
+     */
+    private String siliconFlowApiKeySource;
+
+    /**
      * 最近一次探测时间（毫秒时间戳）
      */
     private long checkedAt;

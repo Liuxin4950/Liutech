@@ -41,6 +41,26 @@ public enum AgentSseEventType {
     DATA("data"),
 
     /**
+     * Live2D 表情/动作提示事件。
+     */
+    AVATAR_CUE("avatar-cue"),
+
+    /**
+     * TTS 音频片段事件。
+     */
+    AUDIO("audio"),
+
+    /**
+     * TTS 音频跳过事件。
+     */
+    AUDIO_SKIP("audio-skip"),
+
+    /**
+     * TTS 音频队列完成事件。
+     */
+    AUDIO_COMPLETE("audio-complete"),
+
+    /**
      * 文章搜索/推荐结果事件。
      * 只承载文章卡片列表和推荐/搜索元信息。
      */

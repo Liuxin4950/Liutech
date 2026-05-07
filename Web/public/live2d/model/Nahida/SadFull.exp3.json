@@ -2,8 +2,13 @@
 	"Type": "Live2D Expression",
 	"Parameters": [
 		{
-			"Id": "ParamPale",
+			"Id": "Param24",
 			"Value": 30,
+			"Blend": "Add"
+		},
+		{
+			"Id": "ParamBrowLY",
+			"Value": -1,
 			"Blend": "Add"
 		}
 	]

@@ -31,6 +31,7 @@ import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.service.PromptAssembler;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
+import chat.liuxin.ai.tts.TtsSegmenter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -71,6 +72,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final PromptAssembler promptAssembler;
     private final AiModelPolicy aiModelPolicy;
     private final SensitiveLogSanitizer sensitiveLogSanitizer;
+    private final TtsSegmenter ttsSegmenter;
 
     @Value("${spring.ai.openai.chat.options.model:THUDM/glm-4-9b-chat}")
     private String defaultModel; // 默认AI模型名称
@@ -310,7 +312,7 @@ public class AiChatServiceImpl implements AiChatService {
                             if (ttsEnabled) {
                                 ttsBuffer.append(chunk);
                                 // 根据切分规则从缓冲区提取“可发送给 TTS 的语音片段”
-                                List<String> segments = extractTtsSegments(ttsBuffer, ttsSeq.get() > 0);
+                                List<String> segments = ttsSegmenter.extractSegments(ttsBuffer, ttsSeq.get() > 0);
                                 if (!segments.isEmpty()) {
                                     for (String seg : segments) {
                                         enqueueTtsTask(emitter, ttsExecutor, ttsFutures, ttsSeq, finalConversationId, seg);
@@ -366,7 +368,7 @@ public class AiChatServiceImpl implements AiChatService {
 
                             if (ttsEnabled) {
                                 // 流结束时再做一次切分/收尾：避免最后一段因为时机问题没切出来
-                                List<String> tailSegments = extractTtsSegments(ttsBuffer, ttsSeq.get() > 0);
+                                List<String> tailSegments = ttsSegmenter.extractSegments(ttsBuffer, ttsSeq.get() > 0);
                                 if (!tailSegments.isEmpty()) {
                                     for (String seg : tailSegments) {
                                         enqueueTtsTask(emitter, ttsExecutor, ttsFutures, ttsSeq, finalConversationId, seg);
@@ -489,7 +491,7 @@ public class AiChatServiceImpl implements AiChatService {
     ) {
         String segment = text == null ? "" : text.trim();
         if (segment.isEmpty()) return;
-        if (!containsSpeakableText(segment)) return;
+        if (!ttsSegmenter.containsSpeakableText(segment)) return;
 
         int currentSeq = seq.incrementAndGet();
         CompletableFuture<Void> next = CompletableFuture.runAsync(() -> {

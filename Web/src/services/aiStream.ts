@@ -312,6 +312,7 @@ export class AiStream {
         case 'audio':
         case 'audio-skip':
         case 'audio-complete':
+        case 'avatar-cue':
         case 'heartbeat':
           // 音频事件，直接透传
           onEvent?.(eventType, parsedData)

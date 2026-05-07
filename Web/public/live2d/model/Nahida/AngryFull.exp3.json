@@ -1,0 +1,20 @@
+{
+	"Type": "Live2D Expression",
+	"Parameters": [
+		{
+			"Id": "ParamAngry",
+			"Value": 1,
+			"Blend": "Add"
+		},
+		{
+			"Id": "ParamAngry2",
+			"Value": 30,
+			"Blend": "Add"
+		},
+		{
+			"Id": "ParamMouthForm",
+			"Value": -1,
+			"Blend": "Add"
+		}
+	]
+}

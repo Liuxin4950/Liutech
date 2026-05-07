@@ -5,12 +5,15 @@ import chat.liuxin.ai.agent.response.AgentErrorPayload;
 import chat.liuxin.ai.agent.response.AgentSseEnvelope;
 import chat.liuxin.ai.agent.response.AgentStartPayload;
 import chat.liuxin.ai.agent.response.AgentToolEventPayload;
+import chat.liuxin.ai.agent.response.AvatarCuePayload;
 import chat.liuxin.ai.agent.response.DataPayload;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Agent SSE 事件发布器。
@@ -180,6 +183,36 @@ public class AgentStreamPublisher {
      */
     public void sendData(SseEmitter emitter, Long taskId, Long conversationId, String content) {
         send(emitter, "data", taskId, conversationId, DataPayload.of(content));
+    }
+
+    public void sendAvatarCue(SseEmitter emitter, Long taskId, Long conversationId, AvatarCuePayload payload) {
+        send(emitter, "avatar-cue", taskId, conversationId, payload);
+    }
+
+    public void sendAudio(SseEmitter emitter, Long taskId, Long conversationId, int seq, String text, String audioUrl) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("seq", seq);
+        payload.put("text", text);
+        payload.put("audioUrl", audioUrl);
+        payload.put("conversationId", conversationId);
+        send(emitter, "audio", taskId, conversationId, payload);
+    }
+
+    public void sendAudioSkip(SseEmitter emitter, Long taskId, Long conversationId, int seq, String text, String reason) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("seq", seq);
+        payload.put("text", text);
+        payload.put("reason", reason == null ? "unknown" : reason);
+        payload.put("conversationId", conversationId);
+        send(emitter, "audio-skip", taskId, conversationId, payload);
+    }
+
+    public void sendAudioComplete(SseEmitter emitter, Long taskId, Long conversationId, int segments, boolean timedOut) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("segments", segments);
+        payload.put("timedOut", timedOut);
+        payload.put("conversationId", conversationId);
+        send(emitter, "audio-complete", taskId, conversationId, payload);
     }
 
     /**

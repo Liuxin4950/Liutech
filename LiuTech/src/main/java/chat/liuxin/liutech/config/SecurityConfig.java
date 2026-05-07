@@ -106,6 +106,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/user/author/profile").permitAll()
                 .requestMatchers(HttpMethod.GET, "/author/profile").permitAll()
                 .requestMatchers(HttpMethod.GET, "/tts/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/tts/speech").permitAll()
                 .requestMatchers(HttpMethod.GET, "/runtime/ai").permitAll()
                 .requestMatchers(HttpMethod.GET, "/resources/**").denyAll()
                 .requestMatchers(HttpMethod.HEAD, "/resources/**").denyAll()

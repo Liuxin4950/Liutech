@@ -7,6 +7,7 @@ import chat.liuxin.ai.req.ChatRequest;
 import chat.liuxin.ai.security.AiModelPolicy;
 import chat.liuxin.ai.security.SensitiveLogSanitizer;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
+import chat.liuxin.ai.tts.TtsSegmenter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +34,7 @@ class AiChatServiceImplTest {
     private AiModelPolicy aiModelPolicy;
     private SensitiveLogSanitizer sensitiveLogSanitizer;
     private AiChatServiceImpl service;
+    private TtsSegmenter ttsSegmenter;
 
     private Method extractTtsSegmentsMethod;
     private Method extractTtsSegmentsWithModeMethod;
@@ -49,6 +51,7 @@ class AiChatServiceImplTest {
         promptAssembler = mock(PromptAssembler.class);
         aiModelPolicy = new AiModelPolicy(aiModelConfigService);
         sensitiveLogSanitizer = new SensitiveLogSanitizer();
+        ttsSegmenter = new TtsSegmenter();
         setField(aiModelPolicy, "configuredDefaultModel", "fallback-model");
         setField(aiModelPolicy, "strictWhitelist", true);
         setField(aiModelPolicy, "maxTokensCeiling", 4096);
@@ -60,7 +63,8 @@ class AiChatServiceImplTest {
                 ttsClient,
                 promptAssembler,
                 aiModelPolicy,
-                sensitiveLogSanitizer
+                sensitiveLogSanitizer,
+                ttsSegmenter
         );
 
         setField(service, "defaultModel", "fallback-model");

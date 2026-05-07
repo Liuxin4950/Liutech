@@ -59,6 +59,18 @@ export interface TtsAudioItem {
   audioEl?: HTMLAudioElement
   status?: 'ready' | 'skipped'
   reason?: string
+  cue?: AvatarCueItem
+}
+
+export interface AvatarCueItem {
+  seq: number
+  expression?: string
+  motion?: string | null
+  intensity?: number
+  durationMs?: number
+  text?: string
+  conversationId?: number
+  enqueuedAt?: number
 }
 
 /**
@@ -92,6 +104,8 @@ export const useChatStore = defineStore('chat', () => {
   const conversationId = ref<number | null>(null)
   const isLoading = ref(false)
   const isStreaming = ref(false)
+  const aiThinking = ref(false)
+  const ttsStopSignal = ref(0)
   const mode = ref<ChatMode>('stream')
   const errorMessage = ref('')
   const defaultModel = ref<string>('zai-org/GLM-4.6')  // 默认模型
@@ -126,6 +140,10 @@ export const useChatStore = defineStore('chat', () => {
    * 当前缓冲区待播放的片段数（用于 UI/监听触发播放）
    */
   const ttsPendingCount = computed(() => Object.keys(ttsAudioBuffer.value).length)
+
+  const avatarCueBuffer = ref<Record<number, AvatarCueItem>>({})
+  const avatarCueNextSeq = ref<number>(1)
+  const avatarCuePendingCount = computed(() => Object.keys(avatarCueBuffer.value).length)
 
   // 生成临时消息ID（使用负数，避免与后端返回的正数ID冲突）
   let messageIdCounter = 0
@@ -243,6 +261,11 @@ export const useChatStore = defineStore('chat', () => {
     ttsNextSeq.value = 1
   }
 
+  const clearAvatarCueQueue = () => {
+    avatarCueBuffer.value = {}
+    avatarCueNextSeq.value = 1
+  }
+
   const enqueueTtsAudio = (item: TtsAudioItem) => {
     if (!item) return
     if (typeof item.seq !== 'number' || item.seq <= 0) return
@@ -263,6 +286,15 @@ export const useChatStore = defineStore('chat', () => {
       } catch {
       }
     }
+    // 绑定对应的 avatar-cue，让音频播放时表情同步切换
+    const cue = avatarCueBuffer.value[item.seq]
+    if (cue) {
+      enriched.cue = cue
+      delete avatarCueBuffer.value[item.seq]
+      if (item.seq >= avatarCueNextSeq.value) {
+        avatarCueNextSeq.value = item.seq + 1
+      }
+    }
     ttsAudioBuffer.value[item.seq] = enriched
   }
 
@@ -272,6 +304,33 @@ export const useChatStore = defineStore('chat', () => {
     delete ttsAudioBuffer.value[ttsNextSeq.value]
     ttsNextSeq.value += 1
     return next
+  }
+
+  const enqueueAvatarCue = (item: AvatarCueItem) => {
+    if (!item) return
+    if (typeof item.seq !== 'number' || item.seq <= 0) return
+    avatarCueBuffer.value[item.seq] = {
+      ...item,
+      enqueuedAt: item.enqueuedAt ?? Date.now()
+    }
+  }
+
+  const shiftAvatarCueQueue = (): AvatarCueItem | null => {
+    const next = avatarCueBuffer.value[avatarCueNextSeq.value]
+    if (!next) return null
+    delete avatarCueBuffer.value[avatarCueNextSeq.value]
+    avatarCueNextSeq.value += 1
+    return next
+  }
+
+  const shiftAvatarCueQueueBySeq = (seq: number): AvatarCueItem | null => {
+    const cue = avatarCueBuffer.value[seq]
+    if (!cue) return null
+    delete avatarCueBuffer.value[seq]
+    if (seq >= avatarCueNextSeq.value) {
+      avatarCueNextSeq.value = seq + 1
+    }
+    return cue
   }
 
   /**
@@ -494,7 +553,10 @@ export const useChatStore = defineStore('chat', () => {
    */
   const sendStreamMessage = async (request: AiChatRequest) => {
     isStreaming.value = true
+    aiThinking.value = true
+    ttsStopSignal.value++
     clearTtsAudioQueue()
+    clearAvatarCueQueue()
 
     // 创建空的AI消息用于流式更新
     const aiMessage = addAiMessage('', undefined, { isStreaming: true, isThinking: true })
@@ -550,6 +612,20 @@ export const useChatStore = defineStore('chat', () => {
             }
             return
           }
+          if (eventType === 'avatar-cue' && payload && typeof payload.seq === 'number') {
+            aiThinking.value = false
+            enqueueAvatarCue({
+              seq: payload.seq,
+              expression: payload.expression,
+              motion: payload.motion,
+              intensity: payload.intensity,
+              durationMs: payload.durationMs,
+              text: payload.text,
+              conversationId: payload.conversationId,
+              enqueuedAt: Date.now()
+            })
+            return
+          }
           if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
           if (eventType === 'audio' && payload && payload.audioUrl && typeof payload.seq === 'number') {
             enqueueTtsAudio({
@@ -576,6 +652,7 @@ export const useChatStore = defineStore('chat', () => {
         (response) => {
           completeStreamingMessage()
           isStreaming.value = false
+          aiThinking.value = false
           isLoading.value = false
 
           // 更新会话ID
@@ -595,6 +672,7 @@ export const useChatStore = defineStore('chat', () => {
           addErrorMessage(error.message)
           errorMessage.value = error.message
           isStreaming.value = false
+          aiThinking.value = false
           isLoading.value = false
         }
       )
@@ -610,6 +688,7 @@ export const useChatStore = defineStore('chat', () => {
       if (isStreaming.value) {
         isStreaming.value = false
       }
+      aiThinking.value = false
     }
   }
 
@@ -820,6 +899,8 @@ export const useChatStore = defineStore('chat', () => {
     conversationId,
     isLoading,
     isStreaming,
+    aiThinking,
+    ttsStopSignal,
     mode,
     errorMessage,
     defaultModel,
@@ -828,6 +909,7 @@ export const useChatStore = defineStore('chat', () => {
     ttsEnabled,
     ttsAvailable,
     ttsPendingCount,
+    avatarCuePendingCount,
 
     // 计算属性
     hasMessages,
@@ -843,6 +925,10 @@ export const useChatStore = defineStore('chat', () => {
     enqueueTtsAudio,
     clearTtsAudioQueue,
     shiftTtsAudioQueue,
+    enqueueAvatarCue,
+    clearAvatarCueQueue,
+    shiftAvatarCueQueue,
+    shiftAvatarCueQueueBySeq,
     loadRuntime,
     loadDefaultModel,
     addUserMessage,

@@ -39,6 +39,9 @@ public class TtsStatusService {
     @Autowired
     private TtsConfigService ttsConfigService;
 
+    @Autowired
+    private SiliconFlowKeyResolver siliconFlowKeyResolver;
+
     public TtsStatusDTO getStatus() {
         TtsStatusDTO hit = cached.get();
         if (hit != null && (System.currentTimeMillis() - hit.getCheckedAt()) <= CACHE_TTL_MS) {
@@ -50,11 +53,38 @@ public class TtsStatusService {
         status.setEnabled(cfg.getEnabled() != null && cfg.getEnabled());
         status.setBaseUrl(cfg.getBaseUrl());
         status.setVoiceModel(cfg.getVoiceModel());
+        status.setProvider(cfg.getProvider());
+        status.setSiliconFlowModel(cfg.getSiliconFlowModel());
+        status.setSiliconFlowVoiceUri(cfg.getSiliconFlowVoiceUri());
+        status.setResponseFormat(cfg.getResponseFormat());
+        status.setSampleRate(cfg.getSampleRate());
+        status.setSpeed(cfg.getSpeed());
+        status.setSiliconFlowApiKeyConfigured(hasSiliconFlowApiKey());
+        status.setSiliconFlowApiKeySource(siliconFlowKeyResolver.resolveTtsApiKeySource());
         status.setCheckedAt(System.currentTimeMillis());
 
         if (!status.isEnabled()) {
             status.setOnline(false);
             status.setMessage("语音功能已关闭");
+            cached.set(status);
+            return status;
+        }
+
+        if (TtsConfigService.PROVIDER_SILICONFLOW.equals(status.getProvider())) {
+            if (!hasSiliconFlowApiKey()) {
+                status.setOnline(false);
+                status.setMessage("未配置 SiliconFlow API Key");
+                cached.set(status);
+                return status;
+            }
+            if (status.getSiliconFlowVoiceUri() == null || status.getSiliconFlowVoiceUri().isBlank()) {
+                status.setOnline(false);
+                status.setMessage("未配置 SiliconFlow 自定义音色 URI");
+                cached.set(status);
+                return status;
+            }
+            status.setOnline(true);
+            status.setMessage("SiliconFlow 已配置");
             cached.set(status);
             return status;
         }
@@ -83,5 +113,13 @@ public class TtsStatusService {
 
         cached.set(status);
         return status;
+    }
+
+    public void clearCache() {
+        cached.set(null);
+    }
+
+    private boolean hasSiliconFlowApiKey() {
+        return siliconFlowKeyResolver.hasTtsApiKey();
     }
 }
