@@ -8,6 +8,7 @@
 
     /* ----- 1. 品牌主色（现代科技蓝）----- */
     --color-primary: #2d90cd;       /* 主色：现代靛蓝（基于样品分析） */
+    --color-primary-rgb: 45, 144, 205;
     --color-primary-light: #F7F9FC; /* 辅助色：极淡灰蓝（样品风格） */
     --color-primary-dark: #3A4F9A;  /* 强调色：深主色，用于导航或按钮按下 */
 
@@ -25,6 +26,8 @@
     --bg-active: #E8F0FE;    /* 激活态背景（与主色体系一致） */
     --bg-tag: #E8F0FE;       /* 标签背景（呼应主色调） */
     --bg-tag-hover: #5a77d5; /* 标签hover背景（使用主色） */
+    --surface-glass: rgba(255, 255, 255, 0.9);
+    --surface-glass-muted: rgba(255, 255, 255, 0.72);
 
 
     /* ----- 3. 文本色（现代舒适灰阶） ----- */
@@ -38,8 +41,13 @@
 
     /* ----- 4. 边框色（现代简洁） ----- */
     --border-light: #F1F3F4; /* 极浅边框 */
+    --border-soft: rgba(32, 33, 36, 0.1);
     --border-base: #E8EAED;  /* 常规边框（现代感） */
     --border-strong: #BDC1C6; /* 深边框（清晰分层） */
+    --state-primary-bg: rgba(var(--color-primary-rgb), 0.09);
+    --state-primary-bg-hover: rgba(var(--color-primary-rgb), 0.13);
+    --state-primary-bg-active: rgba(var(--color-primary-rgb), 0.16);
+    --state-primary-border: rgba(var(--color-primary-rgb), 0.24);
 
 
     /* ----- 5. 状态色（现代舒适色调） ----- */
@@ -67,6 +75,7 @@
 .dark {
     /* ----- 1. 品牌主色（深色模式优化）----- */
     --color-primary: #8AB4F8;      /* 主色：明亮科技蓝（深色模式） */
+    --color-primary-rgb: 138, 180, 248;
     --color-primary-light: #2D3748; /* 辅助色：深色背景块 */
     --color-primary-dark: #1A202C; /* 强调色：深底色 */
 
@@ -84,6 +93,8 @@
     --bg-active: #334155;    /* 激活态背景 */
     --bg-tag: #3C4043;       /* 标签背景 */
     --bg-tag-hover: #8AB4F8; /* 标签hover背景（使用主色） */
+    --surface-glass: rgba(45, 47, 48, 0.9);
+    --surface-glass-muted: rgba(32, 33, 36, 0.72);
 
 
     /* ----- 3. 文本色（深色模式优化） ----- */
@@ -97,8 +108,13 @@
 
     /* ----- 4. 边框色 ----- */
     --border-light: #3C4043;
+    --border-soft: rgba(232, 234, 237, 0.14);
     --border-base: #5F6368;
     --border-strong: #9AA0A6;
+    --state-primary-bg: rgba(var(--color-primary-rgb), 0.13);
+    --state-primary-bg-hover: rgba(var(--color-primary-rgb), 0.18);
+    --state-primary-bg-active: rgba(var(--color-primary-rgb), 0.22);
+    --state-primary-border: rgba(var(--color-primary-rgb), 0.34);
 
 
     /* ----- 5. 状态色（深色模式优化） ----- */

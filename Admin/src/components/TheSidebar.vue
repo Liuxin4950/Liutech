@@ -17,6 +17,7 @@ import {
   RobotOutlined,
   MessageOutlined
 } from '@ant-design/icons-vue'
+import logoUrl from '@/assets/image/logo/logo.png'
 
 const router = useRouter()
 const route = useRoute()
@@ -140,9 +141,10 @@ const toggleCollapsed = () => {
 
 <template>
   <div class="sidebar-content">
-    <div class="logo">
-        <h2>LiuTech 管理后台</h2>
-      </div>
+    <div class="logo" :class="{ collapsed }" @click="router.push('/')">
+      <img :src="logoUrl" alt="LiuTech 管理后台" class="logo-mark" />
+      <h2 v-show="!collapsed">LiuTech 管理后台</h2>
+    </div>
     <!-- 折叠按钮 -->
     <div class="collapse-trigger" @click="toggleCollapsed">
       <MenuUnfoldOutlined v-if="collapsed" />
@@ -187,18 +189,40 @@ const toggleCollapsed = () => {
   display: flex;
   flex-direction: column;
 }
-.logo{
+.logo {
   width: 100%;
   height: 63px; 
-  line-height: 63px;
-  text-align: center;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border-light);
+  transition: all 0.2s ease;
 }
+
+.logo.collapsed {
+  padding: 0;
+  gap: 0;
+}
+
+.logo-mark {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  border-radius: 8px;
+}
+
 .logo h2 {
   margin: 0;
   color: var(--color-primary);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   white-space: nowrap;
+  line-height: 1;
 }
 .collapse-trigger {
   height: 48px;

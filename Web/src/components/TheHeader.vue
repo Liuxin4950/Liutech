@@ -6,6 +6,7 @@ import { useUserStore } from '../stores/user'
 import Icon from './Icon.vue'
 import menuIconLight from '@/assets/image/icon/menu.png'
 import menuIconDark from '@/assets/image/icon/menu_dark.png'
+import logoUrl from '@/assets/image/logo/logo.png'
 
 // 接收滚动位置
 const props = defineProps<{
@@ -121,7 +122,10 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     <div class="content px-20 flex-sb flex-ac">
 
       <!-- LOGO -->
-      <h2 class="logo link text-primary">LiuTech</h2>
+      <h2 class="logo link text-primary" @click="navigateTo('/')">
+        <img :src="logoUrl" alt="LiuTech" class="logo-mark" />
+        <span>LiuTech</span>
+      </h2>
 
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
@@ -249,9 +253,21 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
-.logo{
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 32px;
   font-weight: bold;
+  line-height: 1;
+}
+
+.logo-mark {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  border-radius: 8px;
 }
 
 header {

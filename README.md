@@ -316,6 +316,7 @@ mysql -u root -p < sql/sql.sql
 <summary>⚙️ 后端服务启动</summary>
 
 后端和 AI 服务需要从项目根目录 `.env` 注入 `DB_PASSWORD`、`JWT_SECRET`、`SPRING_AI_OPENAI_API_KEY` 等配置；首次运行可复制 `.env.example` 为 `.env` 后填写本地值。Windows 开发建议使用下面的启动脚本，它会自动加载 `.env`。
+本地和生产环境应保持相同的变量名与 `docker-compose.yml` 服务结构；敏感值可以按环境区分，例如本地数据库密码可与生产不同。
 
 **主后端服务 (LiuTech)**
 ```bash
@@ -427,18 +428,32 @@ Liutech/
 
 创建 `.env` 文件：
 ```bash
-# 数据库配置
-DB_ROOT_PASSWORD=your_root_password
-DB_PASSWORD=your_db_password
+# 服务端口
+WEB_PORT=3000
+ADMIN_PORT=3001
+BACKEND_PORT=8080
+AI_PORT=8081
+MYSQL_PORT=3306
+NGINX_HTTP=80
+NGINX_HTTPS=443
 
-# 应用配置
-SERVER_PORT=8080
-FILE_UPLOAD_PATH=/opt/uploads
+# 数据库：生产环境请使用强密码，本地可使用开发密码
+DB_PASSWORD=your_mysql_root_password
 
-# JWT 配置
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRATION=86400000
+# JWT：后端和 AI 服务必须保持一致
+JWT_SECRET=your_strong_jwt_secret_key_min_32_chars
+
+# SiliconFlow / AI
+SPRING_AI_OPENAI_API_KEY=your_siliconflow_api_key
+SILICONFLOW_API_KEY=your_siliconflow_api_key
+SILICONFLOW_TTS_API_KEY=your_siliconflow_tts_api_key
+TTS_PROXY_INTERNAL_TOKEN=your_internal_tts_token
+
+# 应用基础 URL：本地可用 http://localhost:8080，生产建议使用 HTTPS 域名
+SERVER_BASE_URL=https://www.liuxin.chat
 ```
+
+`docker-compose.yml` 中后端和 AI 服务的 JDBC URL 已包含 `allowPublicKeyRetrieval=true`，用于兼容 MySQL 8 的认证流程。
 
 ### 应用配置文件
 
@@ -532,7 +547,7 @@ POST   /api/tags              # 创建标签
 - **内存**: 4GB+ 推荐
 - **存储**: 20GB+ 可用空间
 - **软件**: Docker ≥ 20.10.0, Docker Compose
-- **网络**: 开放相应端口 (80, 443, 3306, 8080, 8081)
+- **网络**: 开放相应端口 (80, 443, 8080, 8081；如需远程维护数据库，再按安全组白名单开放 3306)
 
 </details>
 
@@ -543,14 +558,14 @@ POST   /api/tags              # 创建标签
 # 1️⃣ 本地构建项目
 .\快速打包文件.bat
 
-# 2️⃣ 导出镜像（可选）
+# 2️⃣ 导出 5 个业务镜像（可选，不导出 MySQL）
 # .\镜像导出脚本.bat
 
 # 3️⃣ 上传文件到服务器
 # - docker-compose.yml
 # - sql/ 目录
 # - 服务器部署脚本.sh
-# - 镜像文件（如果需要）
+# - docker-images/ 下的业务镜像文件（如果需要）
 
 # 4️⃣ 服务器执行
 cd /opt/liutech
@@ -561,6 +576,8 @@ chmod +x 服务器部署脚本.sh
 docker-compose ps
 curl http://localhost:80
 ```
+
+业务镜像更新时只重建 `backend ai web admin nginx`；不要执行 `docker compose down -v`，不要删除 `mysql_data` 数据卷。MySQL 镜像和数据卷由服务器环境维护，不随业务镜像包覆盖。
 
 </details>
 

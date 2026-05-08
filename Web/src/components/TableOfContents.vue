@@ -1,8 +1,8 @@
 <template>
   <div v-if="headings.length > 0" class="table-of-contents" :class="{ 'visible': isVisible }">
-    <div class="toc-header">
+    <div class="toc-header" @click="toggleVisibility">
       <h4>目录</h4>
-      <button @click="toggleVisibility" class="toggle-btn">
+      <button @click.stop="toggleVisibility" class="toggle-btn" :aria-expanded="isVisible" aria-label="切换目录">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M6 9l6 6 6-6"/>
         </svg>
@@ -31,6 +31,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 
+const props = withDefaults(defineProps<{
+  collapsedBelow?: number
+}>(), {
+  collapsedBelow: 0
+})
+
 interface Heading {
   id: string
   text: string
@@ -41,6 +47,49 @@ interface Heading {
 const headings = ref<Heading[]>([])
 const activeId = ref<string>('')
 const isVisible = ref(true)
+let userToggledVisibility = false
+
+const normalizeHeadingText = (text: string) => text.replace(/\s+/g, ' ').trim()
+
+const buildHeadingId = (text: string, index: number) => {
+  const safeText = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return safeText || `heading-${index}`
+}
+
+const shouldIncludeHeading = (element: Element, text: string, index: number) => {
+  const postTitle = normalizeHeadingText(document.querySelector('.post-title')?.textContent || '')
+  const normalizedText = normalizeHeadingText(text)
+
+  if (!normalizedText) return false
+  if (index === 0 && postTitle && normalizedText === postTitle) return false
+  if (element.closest('pre, code, table, blockquote')) return false
+
+  const rect = element.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0
+}
+
+const smoothScrollTo = (targetY: number) => {
+  const startY = window.pageYOffset || document.documentElement.scrollTop
+  const distance = targetY - startY
+  const duration = Math.min(760, Math.max(420, Math.abs(distance) * 0.35))
+  const startTime = performance.now()
+  const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+
+  const animate = (now: number) => {
+    const progress = Math.min((now - startTime) / duration, 1)
+    window.scrollTo(0, startY + distance * easeInOutCubic(progress))
+
+    if (progress < 1) {
+      requestAnimationFrame(animate)
+    }
+  }
+
+  requestAnimationFrame(animate)
+}
 
 // 提取标题
 const extractHeadings = () => {
@@ -53,16 +102,16 @@ const extractHeadings = () => {
   headingElements.forEach((element, index) => {
     const tagName = element.tagName.toLowerCase()
     const level = parseInt(tagName.charAt(1))
-    const text = element.textContent?.trim() || ''
+    const text = normalizeHeadingText(element.textContent || '')
     
-    if (text) {
+    if (shouldIncludeHeading(element, text, index)) {
       // 生成唯一ID
-      let id = element.id || `heading-${index}-${text.replace(/\s+/g, '-').toLowerCase()}`
+      let id = element.id || buildHeadingId(text, index)
       
       // 确保ID唯一
       let counter = 1
       let originalId = id
-      while (document.getElementById(id)) {
+      while (document.getElementById(id) && document.getElementById(id) !== element) {
         id = `${originalId}-${counter}`
         counter++
       }
@@ -90,16 +139,21 @@ const scrollToHeading = (id: string) => {
     const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
     const offsetPosition = elementPosition - offset
 
-    window.scrollTo({
-      top: offsetPosition,
-      behavior: 'smooth'
-    })
+    smoothScrollTo(offsetPosition)
+    activeId.value = id
   }
 }
 
 // 切换目录可见性
 const toggleVisibility = () => {
+  userToggledVisibility = true
   isVisible.value = !isVisible.value
+}
+
+const syncResponsiveVisibility = () => {
+  if (!props.collapsedBelow || userToggledVisibility) return
+
+  isVisible.value = window.innerWidth > props.collapsedBelow
 }
 
 // 监听滚动，高亮当前标题
@@ -167,6 +221,7 @@ const delayedExtractHeadings = () => {
 let contentObserver: MutationObserver | null = null
 
 onMounted(() => {
+  syncResponsiveVisibility()
   nextTick(() => {
     delayedExtractHeadings()
     handleScroll()
@@ -174,10 +229,12 @@ onMounted(() => {
   })
   
   window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('resize', syncResponsiveVisibility, { passive: true })
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', syncResponsiveVisibility)
   if (contentObserver) {
     contentObserver.disconnect()
   }
@@ -199,10 +256,11 @@ defineExpose({
   right: 20px;
   width: 280px;
   max-height: calc(100vh - 200px);
-  background: var(--bg-soft);
+  background: var(--surface-glass);
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(14px);
   overflow: hidden;
   transition: all 0.3s ease;
 
@@ -217,29 +275,33 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--bg-main);
+  padding: 12px 14px 10px;
+  background: linear-gradient(180deg, var(--state-primary-bg), transparent);
   border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  user-select: none;
 
   h4 {
     margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-title);
   }
 
   .toggle-btn {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    color: var(--text-subtle);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 999px;
+    color: var(--color-primary);
     transition: all 0.2s ease;
 
     &:hover {
-      background: var(--bg-hover);
-      color: var(--text-main);
+      background: var(--state-primary-bg-hover);
+      color: var(--color-primary);
     }
 
     svg {
@@ -251,7 +313,7 @@ defineExpose({
 .toc-nav {
   max-height: calc(100vh - 280px);
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 10px 8px 12px;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -274,53 +336,74 @@ defineExpose({
 }
 
 .toc-item {
-  margin: 0;
-
-  &.toc-level-1 {
-    padding-left: 16px;
-  }
-
-  &.toc-level-2 {
-    padding-left: 28px;
-  }
-
-  &.toc-level-3 {
-    padding-left: 40px;
-  }
-
-  &.toc-level-4 {
-    padding-left: 52px;
-  }
-
-  &.toc-level-5 {
-    padding-left: 64px;
-  }
-
-  &.toc-level-6 {
-    padding-left: 76px;
-  }
+  margin: 2px 0;
 
   &.active .toc-link {
     color: var(--color-primary);
-    background: var(--bg-hover);
-    border-left: 3px solid var(--color-primary);
+    background: linear-gradient(90deg, var(--state-primary-bg-active), var(--state-primary-bg));
+    font-weight: 700;
+  }
+
+  &.active .toc-link::before {
+    background: var(--color-primary);
+    box-shadow: 0 0 0 4px var(--state-primary-bg-hover);
+    transform: translateY(-50%) scale(1.12);
+  }
+
+  &.toc-level-1 .toc-link {
+    padding-left: 22px;
+    font-weight: 700;
+  }
+
+  &.toc-level-2 .toc-link {
+    padding-left: 32px;
+  }
+
+  &.toc-level-3 .toc-link {
+    padding-left: 44px;
+  }
+
+  &.toc-level-4 .toc-link,
+  &.toc-level-5 .toc-link,
+  &.toc-level-6 .toc-link {
+    padding-left: 54px;
+    font-size: 12px;
+    color: var(--text-muted);
   }
 }
 
 .toc-link {
+  position: relative;
   display: block;
-  padding: 6px 16px 6px 0;
+  padding: 7px 10px 7px 32px;
   color: var(--text-subtle);
   text-decoration: none;
-  font-size: 13px;
-  line-height: 1.4;
-  border-left: 3px solid transparent;
+  font-size: 12.5px;
+  line-height: 1.45;
+  border-radius: 10px;
   transition: all 0.2s ease;
   word-break: break-word;
 
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 10px;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--state-primary-border);
+    transform: translateY(-50%);
+    transition: all 0.2s ease;
+  }
+
   &:hover {
     color: var(--text-main);
-    background: var(--bg-hover);
+    background: var(--state-primary-bg);
+  }
+
+  &:hover::before {
+    background: var(--color-primary);
   }
 }
 

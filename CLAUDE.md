@@ -125,10 +125,7 @@ docker-compose logs -f web
 
 **初始化数据库:**
 ```sql
-CREATE DATABASE liutech CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE liutech_ai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-mysql -u root -p liutech < sql/sql.sql
-mysql -u root -p liutech_ai < sql/ai_chat_tables.sql
+mysql -u root -p < sql/sql.sql
 ```
 
 ## 📁 关键目录与文件
@@ -174,7 +171,7 @@ src/
 ### 环境变量 (.env)
 ```bash
 # 数据库
-DB_ROOT_PASSWORD=123456          # MySQL root 密码
+DB_PASSWORD=123456               # MySQL root 密码；生产环境使用强密码
 MYSQL_PORT=3306
 
 # 服务端口
@@ -187,6 +184,9 @@ NGINX_HTTPS=443
 
 # AI 服务
 SPRING_AI_OPENAI_API_KEY=your_api_key    # AI 服务必需
+SILICONFLOW_API_KEY=your_api_key         # SiliconFlow 通用 API Key
+SILICONFLOW_TTS_API_KEY=your_api_key     # TTS API Key，可与通用 Key 相同
+TTS_PROXY_INTERNAL_TOKEN=your_internal_token  # 后端和 AI 服务共用的 TTS 内部令牌
 
 # JWT (重要：后端和 AI 服务必须使用相同的密钥)
 JWT_SECRET=your_strong_jwt_secret_key_min_32_chars    # 生产环境必需
@@ -196,12 +196,15 @@ FILE_UPLOAD_BASE_PATH=/app/uploads           # 容器内路径
 # 文件实际存储在宿主机 /liuxin/uploads 目录 (挂载到容器 /app/uploads)
 
 # 服务器
-SERVER_BASE_URL=http://liuxin.chat           # 应用基础 URL
+SERVER_BASE_URL=https://www.liuxin.chat      # 应用基础 URL
 ```
 
 **重要提示:**
 - `JWT_SECRET` 在 `backend` 和 `ai` 服务中必须完全相同，否则 token 验证会失败
+- `DB_PASSWORD` 的变量名应在本地和生产保持一致，但值可以按环境区分；生产环境不要使用开发密码
 - AI 服务使用 SiliconFlow API 密钥: https://www.siliconflow.com/
+- 后端和 AI 服务的 MySQL JDBC URL 需要包含 `allowPublicKeyRetrieval=true`，用于兼容 MySQL 8 认证流程
+- `TTS_PROXY_INTERNAL_TOKEN` 在后端和 AI 服务中必须一致，否则 TTS 代理调用会失败
 - 文件上传持久化在宿主机 `/liuxin/uploads` 目录 (bind mount 到容器)
 - **HTTPS (生产环境)**: SSL 证书应放置在服务器的 `/opt/liutech/nginx/` 目录:
   - `/opt/liutech/nginx/liuxin.chat_bundle.crt` - SSL 证书
@@ -418,8 +421,7 @@ docker exec -it liutech-mysql mysql -u root -p123456
 - 外部访问: 使用暴露端口 (8080, 8081, 3000, 3001)
 
 ### 数据库迁移
-- 主数据库: `sql/sql.sql`
-- AI 数据库: `sql/ai_chat_tables.sql`
+- 主数据库和 AI 数据库: `sql/sql.sql`
 
 ### 代码风格
 - 后端: 遵循 Java 规范 (Spring Boot 标准)

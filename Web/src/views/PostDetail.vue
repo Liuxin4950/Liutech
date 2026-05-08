@@ -593,7 +593,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     </div>
     <div v-else-if="post" class="post-reading-layout">
       <aside class="article-toc-panel" aria-label="文章目录">
-        <TableOfContents class="article-toc" />
+        <TableOfContents class="article-toc" :collapsed-below="1680" />
       </aside>
 
       <div class="post-card card bg-soft">
@@ -852,15 +852,13 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .post-detail {
   position: relative;
   margin: 0 auto;
+  overflow: visible;
 }
 
 .post-reading-layout {
-  width: min(1280px, calc(100vw - 48px));
+  width: 100%;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 24px;
-  align-items: start;
+  position: relative;
 }
 
 .post-card {
@@ -875,8 +873,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .article-toc-panel {
   position: sticky;
   top: 96px;
+  width: 220px;
+  height: 0;
+  margin-left: -244px;
   max-height: calc(100vh - 130px);
-  z-index: 3;
+  z-index: 12;
 }
 
 :deep(.article-toc) {
@@ -884,19 +885,19 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   width: 100%;
   max-height: calc(100vh - 130px);
   border-radius: 14px;
-  border: 1px solid rgba(var(--color-primary-rgb), 0.14);
-  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid var(--border-soft);
+  background: var(--surface-glass);
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(14px);
 }
 
 :deep(.article-toc .toc-header) {
-  background: transparent;
-  border-bottom-color: var(--border-light);
+  background: linear-gradient(180deg, var(--state-primary-bg), transparent);
+  border-bottom-color: var(--border-soft);
 }
 
 :deep(.article-toc .toc-link) {
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .retry-btn {
@@ -1053,29 +1054,42 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .post-summary {
-  margin: 18px 0 8px;
-  padding: 18px 20px 18px 22px;
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.06), rgba(var(--color-primary-rgb), 0.02));
-  border: 1px solid rgba(var(--color-primary-rgb), 0.14);
-  border-left: 4px solid var(--color-primary);
-  border-radius: 14px;
-  color: var(--text-subtle);
-  font-size: 0.98rem;
-  line-height: 1.75;
+  margin: 24px 0 10px;
+  padding: 18px 22px;
+  background:
+    linear-gradient(135deg, var(--surface-glass-muted), transparent),
+    var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  color: var(--text-main);
+  font-size: 0.96rem;
+  line-height: 1.78;
   position: relative;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
 
 .post-summary p {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
+  color: var(--text-main);
 }
 
 .summary-label {
   display: inline-flex;
   align-items: center;
-  color: var(--color-primary);
+  gap: 8px;
+  color: var(--text-subtle);
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+}
+
+.summary-label::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 4px rgba(240, 184, 192, 0.16);
 }
 
 /* 标签云样式优化 */
@@ -1179,33 +1193,27 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 /* 引用块样式 - 重新设计 */
 .markdown-content :deep(blockquote) {
   margin: 28px 0;
-  padding: 18px 20px 18px 54px;
-  border: 1px solid rgba(var(--color-primary-rgb), 0.14);
-  border-left: 4px solid var(--color-primary);
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.07), rgba(var(--color-primary-rgb), 0.025));
+  padding: 18px 22px 18px 28px;
+  border: 1px solid var(--border-soft);
+  background:
+    linear-gradient(135deg, var(--surface-glass-muted), transparent),
+    var(--bg-card);
   color: var(--text-main);
   font-style: normal;
-  border-radius: 14px;
+  border-radius: 12px;
   position: relative;
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
   
   &::before {
-    content: '!';
+    content: "";
     position: absolute;
-    left: 18px;
-    top: 18px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-primary);
-    color: white;
-    font-size: 13px;
-    font-weight: 800;
-    font-family: inherit;
-    line-height: 1;
+    left: 13px;
+    top: 20px;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--color-accent);
+    box-shadow: 0 0 0 4px rgba(240, 184, 192, 0.16);
   }
 }
 
@@ -1388,16 +1396,18 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .dark :deep(.article-toc) {
-  background: rgba(32, 33, 36, 0.88);
-  border-color: rgba(148, 163, 184, 0.18);
+  background: var(--surface-glass);
+  border-color: var(--border-soft);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
 }
 
 .dark .post-summary,
 .dark .markdown-content :deep(blockquote) {
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.13), rgba(255, 255, 255, 0.02));
-  border-color: rgba(var(--color-primary-rgb), 0.22);
-  border-left-color: var(--color-primary);
+  background:
+    linear-gradient(135deg, var(--surface-glass-muted), transparent),
+    var(--bg-card);
+  border-color: var(--border-soft);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .dark .post-actions {
@@ -1406,25 +1416,110 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 /* 响应式设计 */
-@media (max-width: 1180px) {
+@media (max-width: 1680px) {
   .post-reading-layout {
-    grid-template-columns: 1fr;
-    width: min(960px, calc(100vw - 40px));
+    width: 100%;
   }
 
   .article-toc-panel {
-    display: none;
+    position: sticky;
+    top: 88px;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    height: 0;
+    margin-left: calc((1200px - 100vw) / 2 - 20px);
+    width: auto;
+    max-width: 100vw;
+    max-height: min(520px, calc(100vh - 140px));
+    z-index: 30;
+  }
+
+  :deep(.article-toc) {
+    position: static !important;
+    inset: auto !important;
+    width: min(280px, 100vw);
+    max-height: min(520px, calc(100vh - 140px));
+  }
+
+  :deep(.article-toc:not(.visible)) {
+    width: 46px;
+    height: 104px;
+    border-radius: 16px;
+    border-color: var(--state-primary-border);
+    overflow: hidden;
+    background: var(--surface-glass);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+    cursor: pointer;
+  }
+
+  :deep(.article-toc:not(.visible) .toc-header) {
+    width: 46px;
+    height: 104px;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    padding: 0;
+    border-bottom-color: transparent;
+    cursor: pointer;
+  }
+
+  :deep(.article-toc:not(.visible) .toc-header h4) {
+    display: block;
+    writing-mode: vertical-rl;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    color: var(--color-primary);
+  }
+
+  :deep(.article-toc:not(.visible) .toggle-btn) {
+    width: 28px;
+    height: 22px;
+    padding: 0;
+    color: var(--color-primary);
+    background: var(--state-primary-bg);
+  }
+
+  :deep(.article-toc:not(.visible) .toggle-btn:hover) {
+    background: var(--state-primary-bg-hover);
+    color: var(--color-primary);
+  }
+}
+
+@media (max-width: 1200px) {
+  .article-toc-panel {
+    margin-left: -20px;
   }
 }
 
 @media (max-width: 768px) {
   .post-reading-layout {
-    width: min(100%, calc(100vw - 24px));
+    width: 100%;
   }
 
   .post-card {
     padding: 24px 22px 0;
     border-radius: 14px;
+  }
+
+  .article-toc-panel {
+    position: sticky;
+    top: 72px;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    transform: none;
+    width: auto;
+    margin-left: -20px;
+    max-width: 100vw;
+  }
+
+  :deep(.article-toc) {
+    width: min(280px, 100vw);
   }
 
   .markdown-content {

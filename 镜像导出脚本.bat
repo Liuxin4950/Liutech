@@ -3,8 +3,7 @@ echo Starting Docker image export...
 
 if not exist docker-images mkdir docker-images
 
-echo Exporting MySQL image...
-docker save mysql:8.0 -o docker-images/mysql-8.0.tar
+echo Skipping MySQL image export. Production data is kept in the mysql_data volume.
 
 echo Exporting backend image...
 docker save liutech-backend:latest -o docker-images/liutech-backend.tar

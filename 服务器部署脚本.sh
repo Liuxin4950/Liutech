@@ -53,14 +53,7 @@ else
     echo "警告: 未找到 sql/sql.sql 文件"
 fi
 
-if [ -f ./sql/ai_chat_tables.sql ]; then
-    cp ./sql/ai_chat_tables.sql "$INSTALL_DIR/sql/"
-    echo "已复制 ai_chat_tables.sql"
-else
-    echo "警告: 未找到 sql/ai_chat_tables.sql 文件"
-fi
-
-# Removed 00_create_databases.sql to match local docker-compose.yml config
+# sql/sql.sql 已包含主后端 liutech 库和 AI 服务 liutech_ai 库的表结构。
 
 # 复制Nginx配置
 if [ -d ./nginx ]; then
@@ -86,7 +79,6 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./sql/sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      - ./sql/ai_chat_tables.sql:/docker-entrypoint-initdb.d/ai_chat_tables.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:?DB_PASSWORD is required}"]
@@ -104,7 +96,7 @@ services:
       - "${BACKEND_PORT:-8080}:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       # JWT签名密钥 - 生产环境必须配置强密钥
@@ -112,6 +104,15 @@ services:
       # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 $INSTALL_DIR/uploads 到此路径
       - FILE_UPLOAD_BASE_PATH=/app/uploads
       - SERVER_BASE_URL=${SERVER_BASE_URL:-http://liuxin.chat}
+      # SiliconFlow TTS：只由主后端读取，不返回前端
+      - SILICONFLOW_TTS_API_KEY=${SILICONFLOW_TTS_API_KEY:-}
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
+      # 可选：保护 /tts/speech 代理入口，需与 AI 服务保持一致
+      - TTS_PROXY_INTERNAL_TOKEN=${TTS_PROXY_INTERNAL_TOKEN:-}
+      # TTS 临时缓存清理策略
+      - TTS_CACHE_MAX_AGE_HOURS=${TTS_CACHE_MAX_AGE_HOURS:-24}
+      - TTS_CACHE_MAX_BYTES=${TTS_CACHE_MAX_BYTES:-536870912}
+      - TTS_CACHE_CLEANUP_INTERVAL_MS=${TTS_CACHE_CLEANUP_INTERVAL_MS:-3600000}
       # 静态资源路径（可选，用于直接返回文件）
       - SPRING_WEB_RESOURCES_STATIC_LOCATIONS=file:/app/uploads
     volumes:
@@ -131,11 +132,15 @@ services:
       - "${AI_PORT:-8081}:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - BLOG_API_URL=http://backend:8080
+      # 可选：AI 服务调用主后端 TTS 代理时携带
+      - TTS_PROXY_INTERNAL_TOKEN=${TTS_PROXY_INTERNAL_TOKEN:-}
+      # 默认 1，保护本地 GPT-SoVITS 笔记本推理资源
+      - TTS_PROXY_CONCURRENCY=${TTS_PROXY_CONCURRENCY:-1}
       # JWT密钥 - 必须与后端一致，否则无法验证token
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
@@ -203,7 +208,7 @@ load_image() {
     fi
 }
 
-load_image "mysql-8.0.tar" "MySQL镜像"
+echo "跳过 MySQL 镜像加载：生产数据库使用现有 mysql:8.0 镜像和 mysql_data 数据卷"
 load_image "liutech-nginx.tar" "Nginx镜像"
 load_image "liutech-backend.tar" "后端镜像"
 load_image "liutech-ai.tar" "AI服务镜像"
@@ -231,7 +236,7 @@ NGINX_HTTP=80
 NGINX_HTTPS=443
 
 # 服务器配置
-SERVER_BASE_URL=http://liuxin.chat
+SERVER_BASE_URL=https://www.liuxin.chat
 
 # MySQL root 密码（必需配置）
 DB_PASSWORD=your_mysql_root_password
@@ -242,15 +247,24 @@ JWT_SECRET=your_strong_jwt_secret_min_32_chars
 # AI服务API Key（必需配置）
 # 请替换为你的SiliconFlow API Key
 SPRING_AI_OPENAI_API_KEY=your_siliconflow_api_key
+
+# SiliconFlow 通用 API Key（后端和 AI 能力共用）
+SILICONFLOW_API_KEY=your_siliconflow_api_key
+
+# SiliconFlow TTS API Key（可与通用 API Key 相同，也可单独配置）
+SILICONFLOW_TTS_API_KEY=your_siliconflow_tts_api_key
+
+# AI 服务调用主后端 TTS 的内部令牌（后端和 AI 必须一致）
+TTS_PROXY_INTERNAL_TOKEN=your_tts_internal_token
 EOF
     echo "环境配置文件 .env 已创建"
 else
     echo "环境配置文件 .env 已存在，跳过创建"
 fi
 
-echo "请检查 .env 文件中的 DB_PASSWORD / JWT_SECRET / SPRING_AI_OPENAI_API_KEY"
+echo "请检查 .env 文件中的 DB_PASSWORD / JWT_SECRET / SPRING_AI_OPENAI_API_KEY / SILICONFLOW_API_KEY / TTS_PROXY_INTERNAL_TOKEN"
 
-if grep -q '^DB_PASSWORD=your_' .env || grep -q '^JWT_SECRET=your_' .env || grep -q '^SPRING_AI_OPENAI_API_KEY=your_' .env; then
+if grep -q '^DB_PASSWORD=your_' .env || grep -q '^JWT_SECRET=your_' .env || grep -q '^SPRING_AI_OPENAI_API_KEY=your_' .env || grep -q '^SILICONFLOW_API_KEY=your_' .env || grep -q '^TTS_PROXY_INTERNAL_TOKEN=your_' .env; then
     echo "错误：检测到 .env 仍是示例配置，请先修改后再执行部署"
     exit 1
 fi
