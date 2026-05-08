@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import PointsService from '../../services/points'
+import { UserService } from '../../services/user'
 import type { TransactionListParams, CheckinListParams, PointsStats } from '../../services/points'
 import type { PointsTransaction, UserCheckin } from '../../services/points'
 import { formatDateTime } from '../../utils/utils'
@@ -216,8 +217,32 @@ const adjustForm = ref({
 })
 
 const adjustRules = {
-  userId: [{ required: true, message: '请输入用户ID' }],
+  userId: [{ required: true, message: '请选择用户' }],
   amount: [{ required: true, message: '请输入调整金额' }]
+}
+
+// 用户搜索
+const userOptions = ref<{ label: string; value: number }[]>([])
+const userSearchLoading = ref(false)
+const handleUserSearch = async (value: string) => {
+  if (!value || value.length < 1) {
+    userOptions.value = []
+    return
+  }
+  try {
+    userSearchLoading.value = true
+    const res = await UserService.getUserList({ page: 1, size: 20, username: value })
+    if (res.code === 200) {
+      userOptions.value = res.data.records.map((u: any) => ({
+        label: `${u.username} (${u.nickname || u.email || 'ID:' + u.id})`,
+        value: u.id
+      }))
+    }
+  } catch (e) {
+    // ignore
+  } finally {
+    userSearchLoading.value = false
+  }
 }
 
 const openAdjustModal = () => {
@@ -502,12 +527,17 @@ onMounted(() => {
       destroy-on-close
     >
       <a-form :model="adjustForm" :rules="adjustRules" ref="adjustFormRef" layout="vertical">
-        <a-form-item name="userId" label="用户ID" required>
-          <a-input-number
+        <a-form-item name="userId" label="选择用户" required>
+          <a-select
             v-model:value="adjustForm.userId"
-            placeholder="请输入目标用户ID"
+            placeholder="输入用户名搜索"
+            show-search
+            :filter-option="false"
+            :options="userOptions"
+            :loading="userSearchLoading"
+            @search="handleUserSearch"
             style="width: 100%"
-            :min="1"
+            allow-clear
           />
         </a-form-item>
         <a-form-item name="amount" label="调整金额" required>

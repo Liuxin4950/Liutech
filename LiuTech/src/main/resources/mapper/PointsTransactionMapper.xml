@@ -63,7 +63,6 @@
         <foreach collection="types" item="type" open="(" separator="," close=")">
             #{type}
         </foreach>
-        AND deleted_at IS NULL
     </select>
 
     <!-- 按单个交易类型求和（SQL 聚合） -->
@@ -71,7 +70,6 @@
         SELECT COALESCE(SUM(amount), 0)
         FROM points_transactions
         WHERE transaction_type = #{type}
-        AND deleted_at IS NULL
     </select>
 
     <!-- 查询所有用户的积分余额总和（SQL 聚合） -->

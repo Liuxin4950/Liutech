@@ -101,6 +101,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/messages/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/messages").permitAll()
+                .requestMatchers("/announcements/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/announcements/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/carousels").permitAll()
                 .requestMatchers(HttpMethod.GET, "/user/author/profile").permitAll()

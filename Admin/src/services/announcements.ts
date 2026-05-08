@@ -78,7 +78,7 @@ export class AnnouncementsService {
    * 根据ID查询公告详情
    */
   static async getAnnouncementById(id: number): Promise<ApiResponse<AnnouncementListItem>> {
-    return get<AnnouncementListItem>(`${this.BASE_URL}/${id}`)
+    return get<AnnouncementListItem>(`${this.ADMIN_BASE_URL}/${id}`)
   }
 
   /**
