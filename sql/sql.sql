@@ -327,7 +327,17 @@ VALUES
   ('tts.siliconFlowVoiceUri', '', 'SiliconFlow 自定义音色 URI'),
   ('tts.responseFormat', 'mp3', 'TTS 输出音频格式'),
   ('tts.sampleRate', '44100', 'TTS 输出采样率'),
-  ('tts.speed', '1.0', 'TTS 语速')
+  ('tts.speed', '1.0', 'TTS 语速'),
+  ('site.name', 'LiuTech', '站点名称'),
+  ('site.description', '', '站点描述（SEO description）'),
+  ('site.keywords', '', 'SEO 关键词（逗号分隔）'),
+  ('site.logo_url', '', '站点 Logo URL'),
+  ('site.favicon_url', '', 'Favicon URL'),
+  ('site.footer_text', '', '页脚文本'),
+  ('site.icp_number', '', 'ICP 备案号'),
+  ('site.analytics_code', '', '统计代码（如 Google Analytics）'),
+  ('comment.need_review', 'true', '评论是否需要审核（true/false）'),
+  ('upload.max_size_mb', '100', '上传文件最大大小（MB）')
 ON DUPLICATE KEY UPDATE
   description = VALUES(description);
 

@@ -65,7 +65,7 @@ onUnmounted(() => {
           <a-dropdown v-if="userStore.isLoggedIn" class="user-dropdown">
             <template #overlay>
               <a-menu>
-                <a-menu-item key="profile">
+                <a-menu-item key="profile" @click="router.push('/profile')">
                   <UserOutlined />
                   个人资料
                 </a-menu-item>

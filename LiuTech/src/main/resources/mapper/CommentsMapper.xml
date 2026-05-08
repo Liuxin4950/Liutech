@@ -116,4 +116,124 @@
         DELETE FROM comments WHERE post_id = #{postId} AND parent_id IS NULL
     </delete>
 
+    <!-- 管理端评论结果映射（关联用户和文章信息） -->
+    <resultMap id="AdminCommentMap" type="chat.liuxin.liutech.model.Comments">
+        <id property="id" column="id"/>
+        <result property="postId" column="post_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="content" column="content"/>
+        <result property="parentId" column="parent_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="deletedAt" column="deleted_at"/>
+        <!-- 关联用户信息 -->
+        <association property="user" javaType="chat.liuxin.liutech.model.Users">
+            <id property="id" column="user_id"/>
+            <result property="username" column="username"/>
+            <result property="email" column="email"/>
+            <result property="avatarUrl" column="avatar_url"/>
+        </association>
+        <!-- 文章标题（非实体字段，通过额外列传递） -->
+        <result property="postTitle" column="post_title"/>
+    </resultMap>
+
+    <!-- 管理端分页查询评论列表 -->
+    <select id="selectCommentsForAdmin" resultMap="AdminCommentMap">
+        SELECT
+            c.id,
+            c.post_id,
+            c.user_id,
+            c.content,
+            c.parent_id,
+            c.created_at,
+            c.updated_at,
+            c.deleted_at,
+            u.username,
+            u.email,
+            u.avatar_url,
+            p.title AS post_title
+        FROM comments c
+        LEFT JOIN users u ON c.user_id = u.id
+        LEFT JOIN posts p ON c.post_id = p.id
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">
+                c.deleted_at IS NULL
+            </if>
+            <if test="postId != null">
+                AND c.post_id = #{postId}
+            </if>
+            <if test="userId != null">
+                AND c.user_id = #{userId}
+            </if>
+            <if test="status != null and status == 'deleted'">
+                AND c.deleted_at IS NOT NULL
+            </if>
+            <if test="status != null and status == 'active'">
+                AND c.deleted_at IS NULL
+            </if>
+        </where>
+        ORDER BY c.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 管理端查询评论总数 -->
+    <select id="countCommentsForAdmin" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM comments c
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">
+                c.deleted_at IS NULL
+            </if>
+            <if test="postId != null">
+                AND c.post_id = #{postId}
+            </if>
+            <if test="userId != null">
+                AND c.user_id = #{userId}
+            </if>
+            <if test="status != null and status == 'deleted'">
+                AND c.deleted_at IS NOT NULL
+            </if>
+            <if test="status != null and status == 'active'">
+                AND c.deleted_at IS NULL
+            </if>
+        </where>
+    </select>
+
+    <!-- 恢复已删除的评论 -->
+    <update id="restoreCommentById">
+        UPDATE comments
+        SET deleted_at = NULL, updated_at = NOW()
+        WHERE id = #{id} AND deleted_at IS NOT NULL
+    </update>
+
+    <!-- 根据ID查询评论详情（管理端） -->
+    <select id="selectCommentsForAdminById" resultMap="AdminCommentMap">
+        SELECT
+            c.id,
+            c.post_id,
+            c.user_id,
+            c.content,
+            c.parent_id,
+            c.created_at,
+            c.updated_at,
+            c.deleted_at,
+            u.username,
+            u.email,
+            u.avatar_url,
+            p.title AS post_title
+        FROM comments c
+        LEFT JOIN users u ON c.user_id = u.id
+        LEFT JOIN posts p ON c.post_id = p.id
+        WHERE c.id = #{id}
+    </select>
+
+    <!-- 根据ID列表物理删除评论 -->
+    <delete id="permanentDeleteByIds">
+        DELETE FROM comments
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
 </mapper>

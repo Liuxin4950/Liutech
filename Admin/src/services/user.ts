@@ -82,6 +82,13 @@ export class UserService {
     return put<string>('/user/profile', data)
   }
 
+  /**
+   * 修改密码
+   */
+  static async changePassword(data: { oldPassword: string; newPassword: string; confirmPassword: string }): Promise<ApiResponse<string>> {
+    return put<string>('/user/password', data)
+  }
+
   // === 管理端用户管理接口 ===
 
   /**

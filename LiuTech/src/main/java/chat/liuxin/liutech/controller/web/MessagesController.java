@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.CreateMessageReq;
@@ -43,6 +44,7 @@ public class MessagesController {
      * 提交留言（无需登录）
      */
     @PostMapping
+    @OperationLog(action = "create", targetType = "message", description = "提交留言")
     public Result<MessageResp> createMessage(@Valid @RequestBody CreateMessageReq req) {
         log.info("收到留言提交请求");
         try {

@@ -1,5 +1,6 @@
 package chat.liuxin.ai.controller.admin;
 
+import chat.liuxin.ai.aspect.OperationLog;
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.dto.ModelConfigRequest;
 import chat.liuxin.ai.dto.ModelUsageStats;
@@ -8,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,7 +43,7 @@ import java.util.Optional;
 @Slf4j
 @RestController
 @RequestMapping({"/admin/models", "/ai/admin/models"})
-@CrossOrigin(origins = "*")
+@PreAuthorize("hasRole('ADMIN')")
 @Validated
 @RequiredArgsConstructor
 public class AiModelAdminController {
@@ -100,6 +102,7 @@ public class AiModelAdminController {
      * @return 创建的模型配置
      */
     @PostMapping
+    @OperationLog(action = "create", targetType = "ai_model", description = "添加AI模型")
     public ModelConfigDTO addModel(@Valid @RequestBody ModelConfigRequest request) {
         log.info("管理员添加新模型，模型名称: {}", request.getModelName());
         return modelConfigService.addModel(request);
@@ -113,6 +116,7 @@ public class AiModelAdminController {
      * @return 更新后的模型配置
      */
     @PutMapping("/{id}")
+    @OperationLog(action = "update", targetType = "ai_model", description = "更新AI模型")
     public ModelConfigDTO updateModel(
             @PathVariable Long id,
             @Valid @RequestBody ModelConfigRequest request) {
@@ -126,6 +130,7 @@ public class AiModelAdminController {
      * @param id 模型ID
      */
     @DeleteMapping("/{id}")
+    @OperationLog(action = "delete", targetType = "ai_model", description = "删除AI模型")
     public void deleteModel(@PathVariable Long id) {
         log.info("管理员删除模型，ID: {}", id);
         modelConfigService.deleteModel(id);
@@ -138,6 +143,7 @@ public class AiModelAdminController {
      * @param id 模型ID
      */
     @PutMapping("/{id}/default")
+    @OperationLog(action = "update", targetType = "ai_model", description = "设置默认AI模型")
     public void setDefaultModel(@PathVariable Long id) {
         log.info("管理员设置默认模型，ID: {}", id);
         modelConfigService.setDefaultModel(id);
@@ -150,6 +156,7 @@ public class AiModelAdminController {
      * @param enabled 是否启用
      */
     @PutMapping("/{id}/toggle")
+    @OperationLog(action = "update", targetType = "ai_model", description = "切换AI模型启用状态")
     public void toggleEnabled(
             @PathVariable Long id,
             @RequestParam boolean enabled) {

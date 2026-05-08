@@ -49,7 +49,7 @@ export const getRecentActivities = async () => {
   try {
     // 获取最近的文章
     const recentPosts = await api.get('/admin/posts?page=1&size=5')
-    return recentPosts.data.data.items || []
+    return recentPosts.data.data.records || []
   } catch (error) {
     console.error('获取最近活动失败:', error)
     return []

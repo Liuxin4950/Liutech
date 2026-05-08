@@ -203,7 +203,6 @@ const loadUsers = async () => {
     }
   } catch (error) {
     message.error('加载用户列表失败')
-    console.error('加载用户列表失败:', error)
   } finally {
     loading.value = false
   }
@@ -252,7 +251,6 @@ const handleDelete = async (id: number) => {
     }
   } catch (error) {
     message.error('删除失败')
-    console.error('删除失败:', error)
   }
 }
 
@@ -274,7 +272,6 @@ const handleBatchDelete = async () => {
     }
   } catch (error) {
     message.error('批量删除失败')
-    console.error('批量删除失败:', error)
   }
 }
 
@@ -290,7 +287,6 @@ const handleRestore = async (id: number) => {
     }
   } catch (error) {
     message.error('恢复失败')
-    console.error('恢复失败:', error)
   }
 }
 
@@ -312,7 +308,6 @@ const handleBatchRestore = async () => {
     }
   } catch (error) {
     message.error('批量恢复失败')
-    console.error('批量恢复失败:', error)
   }
 }
 
@@ -334,7 +329,6 @@ const handleBatchEnable = async () => {
     }
   } catch (error) {
     message.error('批量启用失败')
-    console.error('批量启用失败:', error)
   }
 }
 
@@ -356,7 +350,6 @@ const handleBatchDisable = async () => {
     }
   } catch (error) {
     message.error('批量禁用失败')
-    console.error('批量禁用失败:', error)
   }
 }
 
@@ -374,7 +367,6 @@ const handleStatusChange = async (id: number, status: number) => {
     }
   } catch (error) {
     message.error('状态更新失败')
-    console.error('状态更新失败:', error)
   }
 }
 

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
@@ -132,6 +133,7 @@ public class TagsController {
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "create", targetType = "tag", description = "创建标签")
     public Result<Boolean> createTag(@RequestBody TagResp tagResp) {
         try {
             boolean result = tagsService.save(tagResp);

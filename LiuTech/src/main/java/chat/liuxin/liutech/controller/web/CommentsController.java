@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Comments;
@@ -152,6 +153,7 @@ public class CommentsController {
      * @return 创建的评论
      */
     @PostMapping
+    @OperationLog(action = "create", targetType = "comment", description = "发表评论")
     public Result<CommentResp> createComment(@Valid @RequestBody CreateCommentReq createCommentReq) {
         log.info("创建评论 - 请求: {}", createCommentReq);
 

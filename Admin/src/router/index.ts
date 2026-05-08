@@ -50,12 +50,30 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'comments',
+        name: 'comments-management',
+        component: () => import('../views/admin/CommentsManagement.vue'),
+        meta: {
+          title: '评论管理',
+          section: 'comments'
+        }
+      },
+      {
         path: 'users',
         name: 'users-management',
         component: () => import('../views/admin/UsersManagement.vue'),
         meta: {
           title: '用户管理',
           section: 'users'
+        }
+      },
+      {
+        path: 'points',
+        name: 'points-management',
+        component: () => import('../views/admin/PointsManagement.vue'),
+        meta: {
+          title: '积分管理',
+          section: 'points'
         }
       },
       {
@@ -117,12 +135,48 @@ const routes: RouteRecordRaw[] = [
         redirect: '/ai-settings'
       },
       {
+        path: 'images',
+        name: 'images-management',
+        component: () => import('../views/admin/ImagesManagement.vue'),
+        meta: {
+          title: '图片管理',
+          section: 'images'
+        }
+      },
+      {
         path: 'messages',
         name: 'messages-management',
         component: () => import('../views/admin/MessagesManagement.vue'),
         meta: {
           title: '留言管理',
           section: 'messages'
+        }
+      },
+      {
+        path: 'resources',
+        name: 'resources-management',
+        component: () => import('../views/admin/ResourcesManagement.vue'),
+        meta: {
+          title: '资源管理',
+          section: 'resources'
+        }
+      },
+      {
+        path: 'settings',
+        name: 'system-settings',
+        component: () => import('../views/admin/SystemSettings.vue'),
+        meta: {
+          title: '系统设置',
+          section: 'settings'
+        }
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('../views/Profile.vue'),
+        meta: {
+          title: '个人资料',
+          section: 'profile'
         }
       }
     ]

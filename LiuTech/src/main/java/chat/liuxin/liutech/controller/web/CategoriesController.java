@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
@@ -81,6 +82,7 @@ public class CategoriesController {
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "create", targetType = "category", description = "创建分类")
     public Result<Boolean> createCategory(@RequestBody CategoryResp categoryResp) {
         try {
             boolean result = categoriesService.save(categoryResp);

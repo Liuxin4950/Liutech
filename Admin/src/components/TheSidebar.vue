@@ -15,7 +15,10 @@ import {
   SettingOutlined,
   PictureOutlined,
   RobotOutlined,
-  MessageOutlined
+  MessageOutlined,
+  CommentOutlined,
+  DollarOutlined,
+  CloudDownloadOutlined
 } from '@ant-design/icons-vue'
 import logoUrl from '@/assets/image/logo/logo.png'
 
@@ -41,15 +44,19 @@ const menuItems = [
     children: [
       { key: 'posts', icon: FileTextOutlined, label: '文章管理', path: '/posts' },
       { key: 'categories', icon: FolderOutlined, label: '分类管理', path: '/categories' },
-      { key: 'tags', icon: TagsOutlined, label: '标签管理', path: '/tags' }
+      { key: 'tags', icon: TagsOutlined, label: '标签管理', path: '/tags' },
+      { key: 'comments', icon: CommentOutlined, label: '评论管理', path: '/comments' }
     ]
   },
-  // 用户管理
+  // 用户与积分管理
   {
-    key: 'users',
+    key: 'user-management',
     icon: TeamOutlined,
     label: '用户管理',
-    path: '/users'
+    children: [
+      { key: 'users', icon: TeamOutlined, label: '用户管理', path: '/users' },
+      { key: 'points', icon: DollarOutlined, label: '积分管理', path: '/points' }
+    ]
   },
   // 系统管理分组
   {
@@ -60,10 +67,13 @@ const menuItems = [
       { key: 'announcements', icon: NotificationOutlined, label: '公告管理', path: '/announcements' },
       { key: 'carousels', icon: PictureOutlined, label: '轮播图管理', path: '/carousels' },
       { key: 'messages', icon: MessageOutlined, label: '留言管理', path: '/messages' },
+      { key: 'resources', icon: CloudDownloadOutlined, label: '资源管理', path: '/resources' },
+      { key: 'images', icon: PictureOutlined, label: '图片管理', path: '/images' },
       { key: 'logs', icon: HistoryOutlined, label: '操作日志', path: '/logs' },
       { key: 'music', icon: CloudOutlined, label: 'AI音乐', path: '/music' },
       { key: 'ai-settings', icon: SettingOutlined, label: 'AI设置', path: '/ai-settings' },
       { key: 'ai-models', icon: RobotOutlined, label: 'AI模型', path: '/ai-models' },
+      { key: 'settings', icon: SettingOutlined, label: '系统设置', path: '/settings' },
     ]
   }
 ]
@@ -75,24 +85,32 @@ const getSelectedKey = (): string[] => {
   if (path.startsWith('/posts')) return ['posts']
   if (path.startsWith('/categories')) return ['categories']
   if (path.startsWith('/tags')) return ['tags']
+  if (path.startsWith('/comments')) return ['comments']
   if (path.startsWith('/users')) return ['users']
+  if (path.startsWith('/points')) return ['points']
   if (path.startsWith('/announcements')) return ['announcements']
   if (path.startsWith('/carousels')) return ['carousels']
   if (path.startsWith('/messages')) return ['messages']
+  if (path.startsWith('/resources')) return ['resources']
+  if (path.startsWith('/images')) return ['images']
   if (path.startsWith('/logs')) return ['logs']
   if (path.startsWith('/music')) return ['music']
   if (path.startsWith('/ai-settings') || path.startsWith('/tts')) return ['ai-settings']
   if (path.startsWith('/ai-models')) return ['ai-models']
+  if (path.startsWith('/settings')) return ['settings']
   return ['dashboard']
 }
 
 // 获取当前展开的 submenu keys
 const getOpenKeys = (): string[] => {
   const path = route.path
-  if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/tags')) {
+  if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/tags') || path.startsWith('/comments')) {
     return ['content']
   }
-  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages') || path.startsWith('/logs') || path.startsWith('/music') || path.startsWith('/ai-settings') || path.startsWith('/ai-models') || path.startsWith('/tts')) {
+  if (path.startsWith('/users') || path.startsWith('/points')) {
+    return ['user-management']
+  }
+  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages') || path.startsWith('/resources') || path.startsWith('/images') || path.startsWith('/logs') || path.startsWith('/music') || path.startsWith('/ai-settings') || path.startsWith('/ai-models') || path.startsWith('/tts') || path.startsWith('/settings')) {
     return ['system']
   }
   return []
@@ -191,7 +209,7 @@ const toggleCollapsed = () => {
 }
 .logo {
   width: 100%;
-  height: 63px; 
+  height: 63px;
   padding: 0 16px;
   display: flex;
   align-items: center;
@@ -244,7 +262,7 @@ const toggleCollapsed = () => {
 .sidebar-menu {
   flex: 1;
   border-right: 0;
-  padding:0 5px 0 0; 
+  padding:0 5px 0 0;
 }
 
 /* 深色模式覆盖 */

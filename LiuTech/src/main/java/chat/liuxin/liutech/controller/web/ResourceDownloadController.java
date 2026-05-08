@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.service.ResourceDownloadService;
 import chat.liuxin.liutech.utils.UserUtils;
@@ -38,6 +39,7 @@ public class ResourceDownloadController {
      * @return 购买结果
      */
     @PostMapping("/purchase/{resourceId}")
+    @OperationLog(action = "purchase", targetType = "resource", description = "购买资源")
     public Result<String> purchaseResource(@PathVariable Long resourceId) {
         Long userId = userUtils.getCurrentUserId();
         log.info("用户 {} 尝试购买资源 {}", userId, resourceId);

@@ -11,4 +11,46 @@
         AND deleted_at IS NULL
     </select>
 
+    <!-- 管理端分页查询下载记录 -->
+    <select id="selectDownloadLogsForAdmin" resultType="chat.liuxin.liutech.resp.DownloadLogResp">
+        SELECT
+            dl.id,
+            dl.user_id,
+            dl.resource_id,
+            dl.points_used,
+            dl.downloaded_at,
+            dl.created_at,
+            dl.updated_at,
+            dl.deleted_at,
+            u.username,
+            r.name as resource_name
+        FROM download_logs dl
+        LEFT JOIN users u ON dl.user_id = u.id
+        LEFT JOIN resources r ON dl.resource_id = r.id
+        <where>
+            <if test="userId != null">
+                AND dl.user_id = #{userId}
+            </if>
+            <if test="resourceId != null">
+                AND dl.resource_id = #{resourceId}
+            </if>
+        </where>
+        ORDER BY dl.downloaded_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 管理端查询下载记录总数 -->
+    <select id="countDownloadLogsForAdmin" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM download_logs dl
+        <where>
+            <if test="userId != null">
+                AND dl.user_id = #{userId}
+            </if>
+            <if test="resourceId != null">
+                AND dl.resource_id = #{resourceId}
+            </if>
+        </where>
+    </select>
+
 </mapper>

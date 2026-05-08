@@ -90,4 +90,55 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      * 再删除顶级评论（parent_id 为空）
      */
     int deleteRootsByPostId(@Param("postId") Long postId);
+
+    /**
+     * 管理端分页查询评论列表（关联用户名和文章标题）
+     * @param offset 偏移量
+     * @param limit 限制数量
+     * @param postId 文章ID（可选）
+     * @param userId 用户ID（可选）
+     * @param status 状态过滤（可选）：deleted / active
+     * @param includeDeleted 是否包含已删除评论
+     * @return 评论列表
+     */
+    List<Comments> selectCommentsForAdmin(@Param("offset") Integer offset,
+                                          @Param("limit") Integer limit,
+                                          @Param("postId") Long postId,
+                                          @Param("userId") Long userId,
+                                          @Param("status") String status,
+                                          @Param("includeDeleted") Boolean includeDeleted);
+
+    /**
+     * 管理端查询评论总数
+     * @param postId 文章ID（可选）
+     * @param userId 用户ID（可选）
+     * @param status 状态过滤（可选）
+     * @param includeDeleted 是否包含已删除评论
+     * @return 总数
+     */
+    Integer countCommentsForAdmin(@Param("postId") Long postId,
+                                  @Param("userId") Long userId,
+                                  @Param("status") String status,
+                                  @Param("includeDeleted") Boolean includeDeleted);
+
+    /**
+     * 恢复已删除的评论
+     * @param id 评论ID
+     * @return 影响的行数
+     */
+    int restoreCommentById(@Param("id") Long id);
+
+    /**
+     * 根据ID查询评论详情（管理端，关联用户和文章信息）
+     * @param id 评论ID
+     * @return 评论信息
+     */
+    Comments selectCommentsForAdminById(@Param("id") Long id);
+
+    /**
+     * 根据ID列表物理删除评论
+     * @param ids 评论ID列表
+     * @return 影响的行数
+     */
+    int permanentDeleteByIds(@Param("ids") List<Long> ids);
 }

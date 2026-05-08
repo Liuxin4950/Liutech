@@ -20,6 +20,7 @@
             u.username,
             u.email,
             u.nickname,
+            u.role,
             u.avatar_url as avatarUrl,
             u.bio,
             u.points,
@@ -39,6 +40,9 @@
             <if test="email != null and email != ''">
                 AND u.email LIKE CONCAT('%', #{email}, '%')
             </if>
+            <if test="role != null and role != ''">
+                AND u.role = #{role}
+            </if>
             <if test="status != null">
                 AND u.status = #{status}
             </if>
@@ -52,7 +56,7 @@
                 </otherwise>
             </choose>
         </where>
-        GROUP BY u.id, u.username, u.email, u.nickname, u.avatar_url, u.bio, u.points, u.status, u.last_login_at, u.password_hash, u.created_at, u.updated_at, u.deleted_at
+        GROUP BY u.id, u.username, u.email, u.nickname, u.role, u.avatar_url, u.bio, u.points, u.status, u.last_login_at, u.password_hash, u.created_at, u.updated_at, u.deleted_at
         ORDER BY u.created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
@@ -67,6 +71,9 @@
             </if>
             <if test="email != null and email != ''">
                 AND u.email LIKE CONCAT('%', #{email}, '%')
+            </if>
+            <if test="role != null and role != ''">
+                AND u.role = #{role}
             </if>
             <if test="status != null">
                 AND u.status = #{status}
@@ -131,6 +138,16 @@
         WHERE id = #{userId}
         AND version = #{currentVersion}
         AND points >= #{amount}
+    </update>
+
+    <!-- 使用乐观锁原子性增加用户积分 -->
+    <update id="addPointsWithVersion">
+        UPDATE users
+        SET points = points + #{amount},
+            version = #{newVersion},
+            updated_at = NOW()
+        WHERE id = #{userId}
+        AND version = #{currentVersion}
     </update>
 
 </mapper>

@@ -1,38 +1,5 @@
-import axios from 'axios'
-
-// 创建 axios 实例
-const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
-  timeout: 60000 // 上传可能需要更长时间
-})
-
-// 请求拦截器 - 添加 token
-instance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-// 响应拦截器
-instance.interceptors.response.use(
-  (response) => {
-    const { data } = response
-    if (data.code === 200) {
-      return data
-    }
-    return Promise.reject(new Error(data.message || '请求失败'))
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
+import { get, post, put, del } from './api'
+import type { ApiResponse } from './api'
 
 /**
  * 音乐数据类型
@@ -79,14 +46,14 @@ const musicService = {
    * 获取音乐列表
    */
   getMusicList: (params?: any) => {
-    return instance.get<Music[]>('/admin/music/list', { params })
+    return get<Music[]>('/admin/music/list', params)
   },
 
   /**
    * 获取音乐详情
    */
   getMusicById: (id: number) => {
-    return instance.get<Music>(`/music/${id}`)
+    return get<Music>(`/music/${id}`)
   },
 
   /**
@@ -105,8 +72,8 @@ const musicService = {
     formData.append('fullAudio', params.fullAudio)
     formData.append('vocalAudio', params.vocalAudio)
 
-    // 不设置 Content-Type，让 axios 自动处理 boundary
-    return instance.post<number>('/admin/music', formData)
+    // 不设置 Content-Type，让 axios 自动处理 boundary；上传需要更长超时
+    return post<number>('/admin/music', formData, { timeout: 60000 })
   },
 
   /**
@@ -120,7 +87,7 @@ const musicService = {
     if (params.sortOrder !== undefined) formData.append('sortOrder', String(params.sortOrder))
     if (params.status !== undefined) formData.append('status', String(params.status))
 
-    return instance.put<boolean>(`/admin/music/${id}`, formData, {
+    return put<boolean>(`/admin/music/${id}`, formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       }
@@ -131,7 +98,7 @@ const musicService = {
    * 删除音乐（硬删除）
    */
   deleteMusic: (id: number) => {
-    return instance.delete<boolean>(`/admin/music/${id}`)
+    return del<boolean>(`/admin/music/${id}`)
   },
 
   /**
@@ -141,7 +108,7 @@ const musicService = {
     const formData = new URLSearchParams()
     ids.forEach((id) => formData.append('ids', String(id)))
 
-    return instance.put<boolean>('/admin/music/sort', formData, {
+    return put<boolean>('/admin/music/sort', formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       }
@@ -152,7 +119,7 @@ const musicService = {
    * 批量删除音乐（硬删除 + 清理文件）
    */
   batchDelete: (ids: number[]) => {
-    return instance.post<boolean>('/admin/music/batch', ids)
+    return post<boolean>('/admin/music/batch', ids)
   }
 }
 

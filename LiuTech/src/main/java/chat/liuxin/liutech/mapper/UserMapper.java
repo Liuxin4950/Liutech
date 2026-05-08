@@ -25,6 +25,7 @@ public interface UserMapper extends BaseMapper<Users> {
      * @param limit 限制数量
      * @param username 用户名（可选，模糊搜索）
      * @param email 邮箱（可选，模糊搜索）
+     * @param role 角色（可选，精确匹配）
      * @param status 用户状态（可选，0禁用，1启用）
      * @param includeDeleted 是否包含已删除用户
      * @return 用户列表
@@ -33,6 +34,7 @@ public interface UserMapper extends BaseMapper<Users> {
                                        @Param("limit") Integer limit,
                                        @Param("username") String username,
                                        @Param("email") String email,
+                                       @Param("role") String role,
                                        @Param("status") Integer status,
                                        @Param("includeDeleted") Boolean includeDeleted);
 
@@ -40,12 +42,14 @@ public interface UserMapper extends BaseMapper<Users> {
      * 管理端查询用户总数
      * @param username 用户名（可选，模糊搜索）
      * @param email 邮箱（可选，模糊搜索）
+     * @param role 角色（可选，精确匹配）
      * @param status 用户状态（可选，0禁用，1启用）
      * @param includeDeleted 是否包含已删除用户
      * @return 总数
      */
     Integer countUsersForAdmin(@Param("username") String username,
                               @Param("email") String email,
+                              @Param("role") String role,
                               @Param("status") Integer status,
                               @Param("includeDeleted") Boolean includeDeleted);
 
@@ -105,6 +109,22 @@ public interface UserMapper extends BaseMapper<Users> {
      * @return 影响的行数（0表示失败，1表示成功）
      */
     int deductPointsWithVersion(
+        @Param("userId") Long userId,
+        @Param("amount") java.math.BigDecimal amount,
+        @Param("currentVersion") Integer currentVersion,
+        @Param("newVersion") Integer newVersion
+    );
+
+    /**
+     * 使用乐观锁增加用户积分（原子操作）
+     *
+     * @param userId 用户ID
+     * @param amount 增加金额
+     * @param currentVersion 当前版本号
+     * @param newVersion 新版本号
+     * @return 影响的行数（0表示失败，1表示成功）
+     */
+    int addPointsWithVersion(
         @Param("userId") Long userId,
         @Param("amount") java.math.BigDecimal amount,
         @Param("currentVersion") Integer currentVersion,

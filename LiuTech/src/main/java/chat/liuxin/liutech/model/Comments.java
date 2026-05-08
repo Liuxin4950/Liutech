@@ -48,4 +48,10 @@ public class Comments extends BaseEntity {
      */
     @TableField(exist = false)
     private List<Comments> children;
+
+    /**
+     * 文章标题（管理端关联查询）
+     */
+    @TableField(exist = false)
+    private String postTitle;
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined, SortAscendingOutlined } from '@ant-design/icons-vue'
 import type { Carousel } from '../../services/carousel'
 import CarouselService from '../../services/carousel'
 import { formatDateTime, formatRelativeTime } from '../../utils/uitls'
@@ -37,7 +37,7 @@ const columns = [
   { title: '状态', dataIndex: 'statusName', key: 'statusName', width: 70 },
   { title: '删除状态', key: 'deleteStatus', width: 70 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 160 },
-  { title: '操作', key: 'action', width: 200, fixed: 'right' }
+  { title: '操作', key: 'action', width: 260, fixed: 'right' }
 ]
 
 const statusOptions = [
@@ -165,11 +165,8 @@ const handleCancel = () => {
 const handleImageChange = async (info: any) => {
   const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
   if (!file) {
-    console.log('图片文件为空', info)
     return
   }
-
-  console.log('准备上传图片', file.name, file.size, file.type)
 
   // 先显示本地预览
   imagePreview.value = URL.createObjectURL(file)
@@ -178,9 +175,7 @@ const handleImageChange = async (info: any) => {
   try {
     imageUploading.value = true
     const result = await ImageUploadService.uploadImage(file)
-    console.log('上传结果:', result)
     formModel.value.imageUrl = result.fileUrl
-    console.log('设置的imageUrl:', formModel.value.imageUrl)
     message.success('图片上传成功')
   } catch (e: any) {
     message.error(e.message || '图片上传失败')
@@ -199,12 +194,9 @@ const loadCarousels = async () => {
       size: pagination.pageSize,
       ...searchParams.value
     }
-    console.log('请求参数:', params)
-    console.log('includeDeleted 值:', params.includeDeleted, '类型:', typeof params.includeDeleted)
     const res = await CarouselService.getCarouselList(params)
 
     if (res && res.code === 200) {
-      console.log('返回数据:', res.data)
       dataSource.value = res.data?.records || []
       pagination.total = res.data?.total || 0
     } else {
@@ -293,13 +285,11 @@ const handlePermanentDelete = async (id: number) => {
 
 // 批量彻底删除轮播图
 const handleBatchPermanentDelete = async () => {
-  console.log('selectedRowKeys.value:', selectedRowKeys.value, Array.isArray(selectedRowKeys.value))
   if (!selectedRowKeys.value.length) {
     message.warning('请选择要彻底删除的轮播图')
     return
   }
   try {
-    console.log('准备发送删除请求，ids:', JSON.stringify(selectedRowKeys.value))
     const res = await CarouselService.batchPermanentDeleteCarousels(selectedRowKeys.value)
     if (res && res.code === 200) {
       message.success('批量彻底删除成功')
@@ -349,18 +339,36 @@ const handleStatusChange = async (id: number, status: number) => {
   }
 }
 
-const handleSortChange = async (id: number, sortOrder: number) => {
+const handleSortChange = async (id: number, direction: 'up' | 'down') => {
+  const index = dataSource.value.findIndex((item) => item.id === id)
+  if (index === -1) return
+
+  const newIndex = direction === 'up' ? index - 1 : index + 1
+  if (newIndex < 0 || newIndex >= dataSource.value.length) return
+
+  // 交换排序值
+  const current = dataSource.value[index]
+  const neighbor = dataSource.value[newIndex]
+  const tempSort = current.sortOrder
+  current.sortOrder = neighbor.sortOrder
+  neighbor.sortOrder = tempSort
+
+  // 保存到后端
   try {
-    const res = await CarouselService.updateCarouselSort(id, sortOrder)
-    if (res && res.code === 200) {
+    const [res1, res2] = await Promise.all([
+      CarouselService.updateCarouselSort(current.id!, current.sortOrder),
+      CarouselService.updateCarouselSort(neighbor.id!, neighbor.sortOrder)
+    ])
+    if (res1?.code === 200 && res2?.code === 200) {
       message.success('排序更新成功')
-      loadCarousels()
     } else {
-      message.warning(res?.message || '排序更新失败')
+      message.warning('排序更新失败')
     }
+    loadCarousels()
   } catch (e) {
     console.error('更新排序异常:', e)
     message.warning('排序更新失败，请稍后重试')
+    loadCarousels()
   }
 }
 
@@ -496,10 +504,28 @@ onMounted(async () => {
                   </a-button>
                 </a-popconfirm>
               </template>
-              <!-- 正常记录：显示编辑、状态切换、删除 -->
+              <!-- 正常记录：显示编辑、排序、状态切换、删除 -->
               <template v-else>
                 <a-button type="link" size="small" @click="openEdit(record)">
                   编辑
+                </a-button>
+
+                <!-- 排序按钮 -->
+                <a-button
+                  type="link"
+                  size="small"
+                  :disabled="dataSource.indexOf(record) === 0"
+                  @click="handleSortChange(record.id, 'up')"
+                >
+                  <SortAscendingOutlined style="transform: rotate(180deg)" />
+                </a-button>
+                <a-button
+                  type="link"
+                  size="small"
+                  :disabled="dataSource.indexOf(record) === dataSource.length - 1"
+                  @click="handleSortChange(record.id, 'down')"
+                >
+                  <SortAscendingOutlined />
                 </a-button>
 
                 <!-- 状态切换 -->

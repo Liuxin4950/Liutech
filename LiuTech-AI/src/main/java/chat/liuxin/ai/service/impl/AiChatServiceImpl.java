@@ -112,7 +112,7 @@ public class AiChatServiceImpl implements AiChatService {
             messages.add(new UserMessage(input));
 
             if (!guestMode && conversationId == null) {
-                String title = "新会话";//TODO 需要考虑更具第一次用户询问的问题生成标题不超过10字。
+                String title = generateConversationTitle(input);
                 conversationId = memoryService.createConversation(userIdStr, title);
             }
 
@@ -159,7 +159,7 @@ public class AiChatServiceImpl implements AiChatService {
             log.error("AI普通聊天失败", e);
             try {
                 if (!guestMode && conversationId != null) {
-                    memoryService.saveAssistantMessage(userIdStr, conversationId, null, modelName, 9, null);
+                    memoryService.saveAssistantMessage(userIdStr, conversationId, null, modelName, 3, null);
                 }
             } catch (Exception ignore) {
                 log.warn("记录AI错误消息失败: {}", ignore.getMessage());
@@ -248,7 +248,7 @@ public class AiChatServiceImpl implements AiChatService {
         CompletableFuture.runAsync(() -> {
             Long currentConversationId = conversationId;
             if (!guestMode && currentConversationId == null) {
-                String title = "新会话";
+                String title = generateConversationTitle(input);
                 currentConversationId = memoryService.createConversation(userIdStr, title);
             }
             final Long finalConversationId = currentConversationId;
@@ -338,7 +338,7 @@ public class AiChatServiceImpl implements AiChatService {
                             shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
                             shutdownExecutor(ttsExecutorRef.getAndSet(null), true);
                             if (!guestMode && finalConversationId != null) {
-                                memoryService.saveAssistantMessage(userIdStr, finalConversationId, null, modelName, 9, null);
+                                memoryService.saveAssistantMessage(userIdStr, finalConversationId, null, modelName, 3, null);
                             }
                             sendSseEvent(emitter, "error", eventPayload(
                                 "conversationId", finalConversationId,
@@ -454,7 +454,7 @@ public class AiChatServiceImpl implements AiChatService {
                     shutdownExecutor(heartbeatExecutorRef.getAndSet(null), true);
                     shutdownExecutor(ttsExecutorRef.getAndSet(null), true);
                     if (!guestMode && finalErrorConversationId != null && finalErrorConversationId > 0) {
-                        memoryService.saveAssistantMessage(userIdStr, finalErrorConversationId, null, modelName, 9, null);
+                        memoryService.saveAssistantMessage(userIdStr, finalErrorConversationId, null, modelName, 3, null);
                     }
                     
                     sendSseEvent(emitter, "error", eventPayload(
@@ -620,6 +620,22 @@ public class AiChatServiceImpl implements AiChatService {
 
     private boolean isSoftTtsCutPunctuation(char c) {
         return c == '，' || c == '、' || c == ',' || c == '：' || c == ':';
+    }
+
+    /**
+     * 根据用户首条消息生成会话标题
+     * <p>
+     * 规则：截取用户首条消息的前10个字符作为标题，不足10字则使用原文；若为空则返回"新会话"。
+     *
+     * @param firstMessage 用户首条消息内容
+     * @return 不超过10个字符的会话标题
+     */
+    private String generateConversationTitle(String firstMessage) {
+        if (firstMessage == null || firstMessage.trim().isEmpty()) {
+            return "新会话";
+        }
+        String trimmed = firstMessage.trim();
+        return trimmed.length() > 10 ? trimmed.substring(0, 10) + "..." : trimmed;
     }
 
     private List<Message> buildPromptMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode) {

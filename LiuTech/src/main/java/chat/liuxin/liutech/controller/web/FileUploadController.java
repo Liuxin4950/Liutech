@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.FileUploadResp;
 import chat.liuxin.liutech.service.FileUploadService;
@@ -39,6 +40,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/image")
+    @OperationLog(action = "upload", targetType = "image", description = "上传图片")
     public Result<FileUploadResp> uploadImage(
             @RequestParam("file") MultipartFile file,
             HttpServletRequest request) {
@@ -58,6 +60,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/document")
+    @OperationLog(action = "upload", targetType = "document", description = "上传文档")
     public Result<FileUploadResp> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "description", required = false) String description,
@@ -83,6 +86,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/resource")
+    @OperationLog(action = "upload", targetType = "resource", description = "上传资源")
     public Result<FileUploadResp> uploadResource(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "description", required = false) String description,
@@ -143,6 +147,7 @@ public class FileUploadController {
      * @return 删除结果
      */
     @DeleteMapping("/attachments/{resourceId}")
+    @OperationLog(action = "delete", targetType = "attachment", description = "删除附件")
     public Result<?> deleteAttachment(
             @PathVariable("resourceId") Long resourceId,
             HttpServletRequest request) {
@@ -224,6 +229,7 @@ public class FileUploadController {
      * 更新附件元信息（下载类型、所需积分）
      */
     @PutMapping("/attachments/{resourceId}/meta")
+    @OperationLog(action = "update", targetType = "attachment", description = "更新附件信息")
     public Result<?> updateAttachmentMeta(
             @PathVariable("resourceId") Long resourceId,
             @RequestParam(value = "downloadType", required = false, defaultValue = "0") Integer downloadType,
@@ -249,6 +255,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/resource/external")
+    @OperationLog(action = "create", targetType = "resource", description = "创建外部链接资源")
     public Result<FileUploadResp> createExternalLinkResource(
             @RequestParam("name") String name,
             @RequestParam(value = "description", required = false) String description,
@@ -278,6 +285,7 @@ public class FileUploadController {
      * @return 更新结果
      */
     @PutMapping("/attachments/{resourceId}/purchased-note")
+    @OperationLog(action = "update", targetType = "resource", description = "更新购买说明")
     public Result<?> updatePurchasedNote(
             @PathVariable("resourceId") Long resourceId,
             @RequestParam("purchasedNote") String purchasedNote,

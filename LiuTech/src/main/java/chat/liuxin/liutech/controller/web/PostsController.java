@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.PostCreateReq;
@@ -252,6 +253,7 @@ public class PostsController {
      * @return 创建成功的文章信息
      */
     @PostMapping
+    @OperationLog(action = "create", targetType = "post", description = "创建文章")
     public Result<PostCreateResp> createPost(@Valid @RequestBody PostCreateReq req, HttpServletRequest request) {
         try {
             // 从请求中获取当前用户ID（这里需要根据实际的认证机制获取）
@@ -279,6 +281,7 @@ public class PostsController {
      * @return 更新结果
      */
     @PutMapping("/{id}")
+    @OperationLog(action = "update", targetType = "post", description = "更新文章")
     public Result<Boolean> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req, HttpServletRequest request) {
         try {
             // 获取当前用户ID
@@ -306,6 +309,7 @@ public class PostsController {
      * @return 删除结果
      */
     @DeleteMapping("/{id}")
+    @OperationLog(action = "delete", targetType = "post", description = "删除文章")
     public Result<Boolean> deletePost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID
@@ -331,6 +335,7 @@ public class PostsController {
      * @return 发布结果
      */
     @PutMapping("/{id}/publish")
+    @OperationLog(action = "publish", targetType = "post", description = "发布文章")
     public Result<Boolean> publishPost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID
@@ -356,6 +361,7 @@ public class PostsController {
      * @return 操作结果
      */
     @PutMapping("/{id}/unpublish")
+    @OperationLog(action = "offline", targetType = "post", description = "下线文章")
     public Result<Boolean> unpublishPost(@PathVariable Long id, HttpServletRequest request) {
         try {
             // 获取当前用户ID

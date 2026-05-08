@@ -2,6 +2,7 @@ package chat.liuxin.liutech.mapper;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
@@ -13,6 +14,7 @@ import chat.liuxin.liutech.model.PostAttachments;
  * @author 刘鑫
  * @date 2025-01-08
  */
+@Mapper
 public interface PostAttachmentsMapper extends BaseMapper<PostAttachments> {
     
     /**

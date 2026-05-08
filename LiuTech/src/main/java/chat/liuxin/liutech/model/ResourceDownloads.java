@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
@@ -62,7 +63,20 @@ public class ResourceDownloads {
     private Date updatedAt;
     
     /**
+     * 创建人ID
+     */
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdBy;
+
+    /**
+     * 更新人ID
+     */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedBy;
+
+    /**
      * 删除时间（软删除）
      */
+    @TableLogic
     private Date deletedAt;
 }

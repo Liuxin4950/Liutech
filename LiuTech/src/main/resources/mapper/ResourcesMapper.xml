@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.ResourcesMapper">
+
+    <!-- 管理端分页查询资源列表 -->
+    <select id="selectResourcesForAdmin" resultType="chat.liuxin.liutech.resp.ResourceResp">
+        SELECT
+            r.id,
+            r.name,
+            r.description,
+            r.file_url,
+            r.external_link,
+            r.resource_type,
+            r.purchased_note,
+            r.uploader_id,
+            r.download_type,
+            r.points_needed,
+            r.created_at,
+            r.updated_at,
+            r.deleted_at,
+            u.username as uploader_username
+        FROM resources r
+        LEFT JOIN users u ON r.uploader_id = u.id
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">
+                r.deleted_at IS NULL
+            </if>
+            <if test="name != null and name != ''">
+                AND r.name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="resourceType != null and resourceType != ''">
+                AND r.resource_type = #{resourceType}
+            </if>
+            <if test="downloadType != null">
+                AND r.download_type = #{downloadType}
+            </if>
+        </where>
+        ORDER BY r.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 管理端查询资源总数 -->
+    <select id="countResourcesForAdmin" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT r.id)
+        FROM resources r
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">
+                r.deleted_at IS NULL
+            </if>
+            <if test="name != null and name != ''">
+                AND r.name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="resourceType != null and resourceType != ''">
+                AND r.resource_type = #{resourceType}
+            </if>
+            <if test="downloadType != null">
+                AND r.download_type = #{downloadType}
+            </if>
+        </where>
+    </select>
+
+    <!-- 恢复已删除的资源 -->
+    <update id="restoreResourceById">
+        UPDATE resources
+        SET deleted_at = NULL, updated_at = NOW()
+        WHERE id = #{id} AND deleted_at IS NOT NULL
+    </update>
+
+    <!-- 根据ID列表物理删除资源 -->
+    <delete id="permanentDeleteByIds">
+        DELETE FROM resources
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

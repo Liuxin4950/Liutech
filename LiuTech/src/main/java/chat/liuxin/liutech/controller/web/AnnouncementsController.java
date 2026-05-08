@@ -1,7 +1,10 @@
 package chat.liuxin.liutech.controller.web;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,9 +18,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 
+import chat.liuxin.liutech.aspect.OperationLog;
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.AnnouncementReq;
 import chat.liuxin.liutech.resp.AnnouncementResp;
@@ -114,6 +121,7 @@ public class AnnouncementsController {
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "create", targetType = "announcement", description = "创建公告")
     public Result<Long> createAnnouncement(@Valid @RequestBody AnnouncementReq req) {
         Long id = announcementsService.createAnnouncement(req);
         return Result.success(id);
@@ -127,6 +135,7 @@ public class AnnouncementsController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "update", targetType = "announcement", description = "更新公告")
     public Result<Boolean> updateAnnouncement(
             @PathVariable Long id,
             @Valid @RequestBody AnnouncementReq req) {
@@ -142,6 +151,7 @@ public class AnnouncementsController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "delete", targetType = "announcement", description = "删除公告")
     public Result<Boolean> deleteAnnouncement(
             @PathVariable Long id) {
         boolean success = announcementsService.deleteAnnouncement(id);
@@ -155,6 +165,7 @@ public class AnnouncementsController {
      */
     @PostMapping("/batch")
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "delete", targetType = "announcement", description = "批量删除公告")
     public Result<Boolean> batchDeleteAnnouncements(
             @RequestBody List<Long> ids) {
         boolean success = announcementsService.batchDeleteAnnouncements(ids);
@@ -169,6 +180,7 @@ public class AnnouncementsController {
      */
     @PutMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "update", targetType = "announcement", description = "更新公告状态")
     public Result<Boolean> updateAnnouncementStatus(
             @PathVariable Long id,
             @RequestBody StatusUpdateRequest request) {
@@ -183,6 +195,7 @@ public class AnnouncementsController {
      */
     @PutMapping("/batch/status")
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "update", targetType = "announcement", description = "批量更新公告状态")
     public Result<Boolean> batchUpdateAnnouncementStatus(
             @RequestBody BatchStatusUpdateRequest request) {
         boolean success = announcementsService.batchUpdateAnnouncementStatus(request.getIds(), request.getStatus());
@@ -196,6 +209,7 @@ public class AnnouncementsController {
      */
     @PutMapping("/{id}/restore")
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "restore", targetType = "announcement", description = "恢复公告")
     public Result<Boolean> restoreAnnouncement(
             @PathVariable Long id) {
         boolean success = announcementsService.restoreAnnouncement(id);
@@ -210,6 +224,7 @@ public class AnnouncementsController {
      */
     @PutMapping("/{id}/top")
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "update", targetType = "announcement", description = "切换公告置顶")
     public Result<Boolean> toggleAnnouncementTop(
             @PathVariable Long id,
             @RequestBody TopUpdateRequest request) {
@@ -224,10 +239,98 @@ public class AnnouncementsController {
      */
     @PutMapping("/batch/top")
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "update", targetType = "announcement", description = "批量切换公告置顶")
     public Result<Boolean> batchToggleAnnouncementTop(
             @RequestBody BatchTopUpdateRequest request) {
         boolean success = announcementsService.batchToggleAnnouncementTop(request.getIds(), request.getIsTop());
         return Result.success(success);
+    }
+
+    /**
+     * 导出公告数据为Excel
+     * @param request 导出筛选条件
+     * @param response HTTP响应
+     */
+    @PostMapping("/admin/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "export", targetType = "announcement", description = "导出公告")
+    public void exportAnnouncements(
+            @RequestBody(required = false) ExportRequest request,
+            HttpServletResponse response) throws IOException {
+        Integer status = (request != null) ? request.getStatus() : null;
+        Integer type = (request != null) ? request.getType() : null;
+        String keyword = (request != null) ? request.getKeyword() : null;
+        Boolean includeDeleted = (request != null && request.getIncludeDeleted() != null) ? request.getIncludeDeleted() : false;
+
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String fileName = java.net.URLEncoder.encode("公告数据", "UTF-8").replaceAll("\\+", "%20");
+        response.setHeader("Content-Disposition", "attachment;filename=" + fileName + ".xlsx");
+        announcementsService.exportToExcel(status, type, keyword, includeDeleted, response.getOutputStream());
+        response.getOutputStream().flush();
+    }
+
+    /**
+     * 从Excel导入公告
+     * @param file 上传的Excel文件
+     * @return 导入结果（成功数、失败数、错误信息）
+     */
+    @PostMapping("/admin/import")
+    @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "import", targetType = "announcement", description = "导入公告")
+    public Result<Map<String, Object>> importAnnouncements(
+            @RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "上传文件不能为空");
+        }
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || (!originalFilename.endsWith(".xlsx") && !originalFilename.endsWith(".xls"))) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "只支持 .xlsx 或 .xls 格式的Excel文件");
+        }
+        Map<String, Object> result = announcementsService.importFromExcel(file);
+        return Result.success(result);
+    }
+
+    /**
+     * 导出请求参数
+     */
+    public static class ExportRequest {
+        private Integer status;
+        private Integer type;
+        private String keyword;
+        private Boolean includeDeleted;
+
+        public Integer getStatus() {
+            return status;
+        }
+
+        public void setStatus(Integer status) {
+            this.status = status;
+        }
+
+        public Integer getType() {
+            return type;
+        }
+
+        public void setType(Integer type) {
+            this.type = type;
+        }
+
+        public String getKeyword() {
+            return keyword;
+        }
+
+        public void setKeyword(String keyword) {
+            this.keyword = keyword;
+        }
+
+        public Boolean getIncludeDeleted() {
+            return includeDeleted;
+        }
+
+        public void setIncludeDeleted(Boolean includeDeleted) {
+            this.includeDeleted = includeDeleted;
+        }
     }
 
     /**

@@ -95,7 +95,7 @@ public class MemoryServiceImpl implements MemoryService {
     }
 
     /** 
-     * 保存一条 AI 消息（role=assistant；status=1/9）
+     * 保存一条 AI 消息（role=assistant；status=1完成/3异常）
      * 重构说明：移除了metadata字段，简化存储
      * 注意：聊天系统实时性要求高，不适合使用缓存
      */
@@ -207,7 +207,6 @@ public class MemoryServiceImpl implements MemoryService {
 
     /**
      * 创建会话
-     * 重构说明：移除了type、status、metadata字段，简化创建逻辑
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -216,6 +215,8 @@ public class MemoryServiceImpl implements MemoryService {
         LocalDateTime time = LocalDateTime.now();
         c.setUserId(userId);
         c.setTitle(title);
+        c.setStatus(0);
+        c.setMessageCount(0);
         c.setCreatedAt(time);
         c.setUpdatedAt(time);
         conversationMapper.insert(c);
@@ -223,8 +224,7 @@ public class MemoryServiceImpl implements MemoryService {
     }
 
     /**
-     * 查询用户会话列表
-     * 重构说明：移除了type、status、messageCount、lastMessageAt字段，简化查询逻辑
+     * 查询用户会话列表（排除已归档的会话）
      */
     @Override
     public List<AiConversation> listConversations(String userId, String type, int page, int size) {
@@ -237,8 +237,12 @@ public class MemoryServiceImpl implements MemoryService {
                         AiConversation::getUserId,
                         AiConversation::getTitle,
                         AiConversation::getCreatedAt,
-                        AiConversation::getUpdatedAt)
+                        AiConversation::getUpdatedAt,
+                        AiConversation::getStatus,
+                        AiConversation::getMessageCount,
+                        AiConversation::getLastMessageAt)
                 .eq(AiConversation::getUserId, userId)
+                .ne(AiConversation::getStatus, 9)
                 .orderByDesc(AiConversation::getUpdatedAt)
                 .orderByDesc(AiConversation::getId)
                 .last(false, "LIMIT " + safeOffset + ", " + safeSize);
@@ -336,14 +340,17 @@ public class MemoryServiceImpl implements MemoryService {
     }
 
     /**
-     * 归档会话
-     * 重构说明：移除了status字段，简化为直接删除会话
+     * 归档会话（软删除：设置 status=9）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void archiveConversation(Long conversationId) {
-        // 新表结构中没有status字段，直接删除会话
-        deleteConversation(conversationId);
+        var c = conversationMapper.selectById(conversationId);
+        if (c != null) {
+            c.setStatus(9);
+            c.setUpdatedAt(LocalDateTime.now());
+            conversationMapper.updateById(c);
+        }
     }
 
     /**

@@ -33,18 +33,9 @@ public class RequestTimingAspect {
      * 环绕通知：拦截所有Controller中的方法
      * 切点表达式说明：
      * - execution(* chat.liuxin.liutech.controller..*.*(..))：匹配controller包及其子包下的所有方法
-     * - @annotation(org.springframework.web.bind.annotation.RequestMapping)：匹配带有@RequestMapping注解的方法
-     * - @annotation(org.springframework.web.bind.annotation.GetMapping)：匹配带有@GetMapping注解的方法
-     * - @annotation(org.springframework.web.bind.annotation.PostMapping)：匹配带有@PostMapping注解的方法
-     * - @annotation(org.springframework.web.bind.annotation.PutMapping)：匹配带有@PutMapping注解的方法
-     * - @annotation(org.springframework.web.bind.annotation.DeleteMapping)：匹配带有@DeleteMapping注解的方法
+     *   该表达式已覆盖所有 Mapping 注解方法，无需额外 @annotation 切点
      */
-    @Around("execution(* chat.liuxin.liutech.controller..*.*(..)) || " +
-            "@annotation(org.springframework.web.bind.annotation.RequestMapping) || " +
-            "@annotation(org.springframework.web.bind.annotation.GetMapping) || " +
-            "@annotation(org.springframework.web.bind.annotation.PostMapping) || " +
-            "@annotation(org.springframework.web.bind.annotation.PutMapping) || " +
-            "@annotation(org.springframework.web.bind.annotation.DeleteMapping)")
+    @Around("execution(* chat.liuxin.liutech.controller..*.*(..))")
     public Object logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
         // 获取请求信息
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();

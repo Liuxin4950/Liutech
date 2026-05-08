@@ -1,5 +1,7 @@
 import axios from 'axios'
 import type { AxiosInstance } from 'axios'
+import router from '../router'
+import { handleApiError } from '../utils/errorHandler'
 
 type DataAxiosInstance = Omit<
   AxiosInstance,
@@ -15,7 +17,7 @@ type DataAxiosInstance = Omit<
   patch<T = any>(url: string, data?: unknown, config?: unknown): Promise<T>
 }
 
-// 创建 AI 服务专用的 axios 实例
+// 创建 AI 服务专用的 axios 实例（独立 baseURL，指向 AI 服务 8081 端口）
 const aiApi = axios.create({
   baseURL: import.meta.env.VITE_AI_BASE_URL || 'http://127.0.0.1:8081',
   timeout: 30000,
@@ -38,12 +40,30 @@ aiApi.interceptors.request.use(
   }
 )
 
-// 响应拦截器
+// 响应拦截器（统一错误处理：401 跳转登录、403 跳转权限不足）
 aiApi.interceptors.response.use(
   (response) => {
     return response.data
   },
   (error) => {
+    // 使用统一错误处理器
+    handleApiError(error)
+
+    // 401 跳转登录页
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      if (router.currentRoute.value.path !== '/login') {
+        router.push('/login')
+      }
+    }
+
+    // 403 跳转权限不足页面
+    if (error.response?.status === 403) {
+      if (router.currentRoute.value.path !== '/403') {
+        router.push('/403')
+      }
+    }
+
     return Promise.reject(error)
   }
 )

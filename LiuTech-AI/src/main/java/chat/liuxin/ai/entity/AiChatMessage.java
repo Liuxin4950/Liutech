@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
  * 关系与设计：
  * - 与 AiConversation 为多对一关系，通过 conversation_id 进行关联。
  * - role 仅允许 user/assistant/system 三类，和 Spring AI 消息类型一一对应。
- * - status 约定：1=完成；2=部分；9=错误。
+ * - status 约定：1=完成；0=流式中断；2=内容审核拒绝；3=API异常。
  * - tokens 字段记录Token总数（输入+输出），用于成本统计。
  * - seq_no 字段记录消息序号（同一会话内顺序），保证消息顺序。
  * - metadata 使用JSON格式存储扩展信息（如温度、traceId、错误信息等）。
@@ -60,7 +60,7 @@ public class AiChatMessage {
     @TableField("metadata")
     private String metadata;
 
-    /** 状态：1=完成；2=部分；9=错误 */
+    /** 状态：1=完成；0=流式中断；2=内容审核拒绝；3=API异常 */
     @TableField("status")
     private Integer status;
 

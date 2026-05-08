@@ -86,7 +86,7 @@ const sanitizeAnnouncementContent = (content?: string) => {
 const uploadVisible = ref(false)
 const uploadLoading = ref(false)
 const fileList = ref<any[]>([])
-const exportImportEnabled = false
+const exportImportEnabled = true
 
 const formRef = ref()
 const formModel = ref<Partial<Announcement>>({
@@ -149,7 +149,6 @@ const openEdit = async (record: AnnouncementListItem) => {
       message.error(res.message || '获取公告详情失败')
     }
   } catch (e) {
-    console.error('获取公告详情异常:', e)
     message.warning('获取公告详情失败，请稍后重试')
   }
 }
@@ -192,7 +191,6 @@ const handleSubmit = async () => {
       }
     }
   } catch (e) {
-    console.error('提交表单异常:', e)
     // 表单校验失败或请求错误，不显示错误信息避免重复提示
   } finally {
     confirmLoading.value = false
@@ -293,7 +291,6 @@ const loadAnnouncements = async () => {
       }
     }
   } catch (e) {
-    console.error('加载公告列表异常:', e)
     // 异常时清空数据，显示空状态，不抛出全局错误
     dataSource.value = []
     pagination.total = 0
@@ -338,7 +335,6 @@ const handleDelete = async (id: number) => {
       message.warning(res?.message || '删除失败')
     }
   } catch (e) {
-    console.error('删除公告异常:', e)
     message.warning('删除失败，请稍后重试')
   }
 }
@@ -353,7 +349,6 @@ const handleRestore = async (id: number) => {
       message.warning(res?.message || '恢复失败')
     }
   } catch (e) {
-    console.error('恢复公告异常:', e)
     message.warning('恢复失败，请稍后重试')
   }
 }
@@ -373,7 +368,6 @@ const handleBatchDelete = async () => {
       message.warning(res?.message || '批量删除失败')
     }
   } catch (e) {
-    console.error('批量删除公告异常:', e)
     message.warning('批量删除失败，请稍后重试')
   }
 }
@@ -388,7 +382,6 @@ const handleStatusChange = async (id: number, status: number) => {
       message.warning(res?.message || '状态更新失败')
     }
   } catch (e) {
-    console.error('更新公告状态异常:', e)
     message.warning('状态更新失败，请稍后重试')
   }
 }
@@ -403,7 +396,6 @@ const handleToggleTop = async (id: number, isTop: number) => {
       message.warning(res?.message || '操作失败')
     }
   } catch (e) {
-    console.error('切换置顶状态异常:', e)
     message.warning('操作失败，请稍后重试')
   }
 }
@@ -423,7 +415,6 @@ const handleBatchStatusUpdate = async (status: number) => {
       message.warning(res?.message || '批量状态更新失败')
     }
   } catch (e) {
-    console.error('批量更新状态异常:', e)
     message.warning('批量状态更新失败，请稍后重试')
   }
 }
@@ -443,7 +434,6 @@ const handleBatchTopUpdate = async (isTop: number) => {
       message.warning(res?.message || '批量操作失败')
     }
   } catch (e) {
-    console.error('批量置顶操作异常:', e)
     message.warning('批量操作失败，请稍后重试')
   }
 }
@@ -468,7 +458,6 @@ const handleExport = async () => {
     message.success('导出成功')
   } catch (e) {
     message.destroy()
-    console.error('导出异常:', e)
     message.error('导出失败，请稍后重试')
   }
 }
@@ -495,7 +484,6 @@ const handleUpload = async (file: any) => {
       message.error(res.message || '导入失败')
     }
   } catch (e) {
-    console.error('导入异常:', e)
     message.error('导入失败，请稍后重试')
   } finally {
     uploadLoading.value = false

@@ -74,11 +74,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     private boolean shouldSkipAuthentication(String requestURI, String method) {
         // 白名单：公开接口与跨域预检请求不做认证
-        // 说明：不改变逻辑，仅补充注释，便于维护
-        // 跳过登录注册接口
-        if ("/user/login".equals(requestURI) || "/user/register".equals(requestURI)) {
-            return true;
-        }
+        // 与 SecurityConfig permitAll() 保持同步
+
         // 跳过OPTIONS预检请求（避免跨域失败）
         if ("OPTIONS".equalsIgnoreCase(method)) {
             return true;
@@ -87,13 +84,73 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if ("/".equals(requestURI)) {
             return true;
         }
-        // 跳过公开静态资源目录；付费资源目录 /uploads/resources/** 由受控下载接口处理
-        if (requestURI.startsWith("/uploads/images/")
-                || requestURI.startsWith("/uploads/documents/")
-                || requestURI.startsWith("/uploads/music/")
-                || requestURI.startsWith("/files/")) {
+        // 跳过登录注册接口
+        if ("/user/login".equals(requestURI) || "/user/register".equals(requestURI)) {
             return true;
         }
+
+        // GET 请求的公开接口（与 SecurityConfig 的 GET permitAll 同步）
+        if ("GET".equalsIgnoreCase(method)) {
+            // 文章公开接口（不含 /posts/my、/posts/drafts、/posts/favorites 等需认证的路径）
+            if ("/posts".equals(requestURI) || "/posts/".equals(requestURI)
+                    || requestURI.startsWith("/posts/slug/")
+                    || requestURI.startsWith("/posts/id/")
+                    || requestURI.startsWith("/posts/category/")
+                    || requestURI.startsWith("/posts/tag/")
+                    || requestURI.startsWith("/posts/archive/")) {
+                return true;
+            }
+            // 分类、标签、评论、留言、公告、轮播图、作者资料
+            if (requestURI.startsWith("/categories/")
+                    || requestURI.startsWith("/tags/")
+                    || requestURI.startsWith("/comments/")
+                    || requestURI.startsWith("/messages/")
+                    || requestURI.startsWith("/announcements/")
+                    || "/carousels".equals(requestURI)
+                    || "/user/author/profile".equals(requestURI)
+                    || "/author/profile".equals(requestURI)) {
+                return true;
+            }
+            // TTS 状态与音频、音乐、Sitemap、运行时信息
+            if ("/tts/status".equals(requestURI)
+                    || requestURI.startsWith("/tts/audio/")
+                    || requestURI.startsWith("/music/")
+                    || "/sitemap.xml".equals(requestURI)
+                    || requestURI.startsWith("/sitemap/")
+                    || "/runtime/ai".equals(requestURI)) {
+                return true;
+            }
+            // 公开静态资源目录；付费资源目录 /uploads/resources/** 由受控下载接口处理
+            if (requestURI.startsWith("/uploads/images/")
+                    || requestURI.startsWith("/uploads/documents/")
+                    || requestURI.startsWith("/uploads/music/")
+                    || requestURI.startsWith("/files/")) {
+                return true;
+            }
+        }
+
+        // HEAD 请求的公开接口（TTS 音频、上传文件的 HEAD 探测）
+        if ("HEAD".equalsIgnoreCase(method)) {
+            if (requestURI.startsWith("/tts/audio/")
+                    || requestURI.startsWith("/uploads/images/")
+                    || requestURI.startsWith("/uploads/documents/")
+                    || requestURI.startsWith("/uploads/music/")) {
+                return true;
+            }
+        }
+
+        // POST 请求的公开接口
+        if ("POST".equalsIgnoreCase(method)) {
+            // POST /messages（匿名留言）
+            if ("/messages".equals(requestURI)) {
+                return true;
+            }
+            // POST /tts/speech（TTS 语音合成）
+            if ("/tts/speech".equals(requestURI)) {
+                return true;
+            }
+        }
+
         return false;
     }
 

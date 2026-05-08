@@ -59,13 +59,13 @@ public interface MemoryService {
 
     /**
      * 保存一条 AI 消息（role=assistant）
-     * 状态约定：status=1 表示成功；status=9 表示错误（content 可为空）
+     * 状态约定：status=1 表示完成；status=3 表示API异常（content 可为空）
      * 重构说明：移除了metadata字段，简化存储
      * @param userId         用户ID
      * @param conversationId 会话ID
      * @param content        AI输出文本（错误时可为空）
      * @param model          模型名称
-     * @param status         1成功；9错误
+     * @param status         1=完成；0=流式中断；2=内容审核拒绝；3=API异常
      */
     void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson);
 
@@ -127,7 +127,7 @@ public interface MemoryService {
     /** 重命名会话标题 */
     void renameConversation(Long conversationId, String title);
 
-    /** 归档会话（直接删除） */
+    /** 归档会话（设置 status=9） */
     void archiveConversation(Long conversationId);
 
     /** 删除会话（通过外键约束自动删除消息） */

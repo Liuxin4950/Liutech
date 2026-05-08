@@ -21,9 +21,6 @@
         <result property="viewCount" column="view_count"/>
         <result property="likeCount" column="like_count"/>
         <result property="favoriteCount" column="favorite_count"/>
-        <result property="commentCount" column="comment_count"/>
-        <result property="likeStatus" column="like_status"/>
-        <result property="favoriteStatus" column="favorite_status"/>
     </resultMap>
 
     <!-- PostListResl响应类结果映射 -->
@@ -528,48 +525,6 @@
         LIMIT #{limit}
     </select>
 
-    <!-- 查询最新文章列表（返回PostListResl） -->
-    <select id="selectLatestPostListResl" resultMap="PostListReslMap">
-        SELECT
-            p.id,
-            p.title,
-            p.summary,
-            p.cover_image,
-            p.thumbnail,
-            p.category_id,
-            p.author_id,
-            p.status,
-            p.view_count,
-            p.like_count,
-            p.favorite_count,
-            p.created_at,
-            p.updated_at,
-            c.id as category_id,
-            c.name as category_name,
-            u.id as author_id,
-            u.username as author_username,
-            u.avatar_url as author_avatar_url,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
-            <if test="userId != null">
-                CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
-                CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
-            </if>
-            <if test="userId == null">
-                0 as like_status,
-                0 as favorite_status
-            </if>
-        FROM posts p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN users u ON p.author_id = u.id
-        <if test="userId != null">
-            LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
-            LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
-        </if>
-        WHERE p.deleted_at IS NULL AND p.status = 'published'
-        ORDER BY p.created_at DESC
-        LIMIT #{limit}
-    </select>
-
 
     <!-- 查询当前用户的收藏文章列表（返回PostListResl） -->
     <select id="selectFavoritePostList" resultMap="PostListReslMap">
@@ -622,7 +577,7 @@
     </select>
 
     <!-- 根据标签ID查询文章数量 -->
-    <select id="countPostsByTag" resultType="java.lang.Integer">
+    <select id="countPostsByTagId" resultType="java.lang.Integer">
         SELECT COUNT(DISTINCT p.id)
         FROM posts p
         INNER JOIN post_tags pt ON p.id = pt.post_id

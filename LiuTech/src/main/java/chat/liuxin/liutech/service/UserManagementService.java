@@ -139,12 +139,13 @@ public class UserManagementService {
 
     /**
      * 管理端分页查询用户列表
-     * 管理员专用功能，支持多条件搜索（用户名、邮箱、状态）和分页查询
+     * 管理员专用功能，支持多条件搜索（用户名、邮箱、角色、状态）和分页查询
      *
      * @param page 页码（从1开始），必须大于0
      * @param size 每页大小，范围1-100
      * @param username 用户名（可选，模糊搜索）
      * @param email 邮箱（可选，模糊搜索）
+     * @param role 角色（可选，精确匹配）
      * @param status 用户状态（可选，0-禁用，1-启用）
      * @param includeDeleted 是否包含已删除用户
      * @return 分页用户列表，包含总数、当前页数据等信息
@@ -153,19 +154,19 @@ public class UserManagementService {
      * @date 2025-01-30
      */
     public PageResp<UserResp> getUserListForAdmin(Integer page, Integer size, String username,
-                                                  String email, Integer status, Boolean includeDeleted) {
-        log.info("管理端查询用户列表 - 页码: {}, 每页: {}, 用户名: {}, 邮箱: {}, 状态: {}, 包含已删除: {}",
-                page, size, username, email, status, includeDeleted);
+                                                  String email, String role, Integer status, Boolean includeDeleted) {
+        log.info("管理端查询用户列表 - 页码: {}, 每页: {}, 用户名: {}, 邮箱: {}, 角色: {}, 状态: {}, 包含已删除: {}",
+                page, size, username, email, role, status, includeDeleted);
 
         try {
             // 1. 参数验证
             validatePaginationParams(page, size);
 
             // 2. 查询用户列表
-            List<UserResp> users = queryUsersForAdmin(page, size, username, email, status, includeDeleted);
+            List<UserResp> users = queryUsersForAdmin(page, size, username, email, role, status, includeDeleted);
 
             // 3. 查询总数
-            int total = userMapper.countUsersForAdmin(username, email, status, includeDeleted);
+            int total = userMapper.countUsersForAdmin(username, email, role, status, includeDeleted);
 
             // 4. 构建分页结果
             return buildPageResult(users, total, page, size);
@@ -192,9 +193,9 @@ public class UserManagementService {
      * 查询管理端用户列表
      */
     private List<UserResp> queryUsersForAdmin(Integer page, Integer size, String username,
-                                              String email, Integer status, Boolean includeDeleted) {
+                                              String email, String role, Integer status, Boolean includeDeleted) {
         int offset = (page - 1) * size;
-        List<UserResp> users = userMapper.selectUsersForAdmin(offset, size, username, email, status, includeDeleted);
+        List<UserResp> users = userMapper.selectUsersForAdmin(offset, size, username, email, role, status, includeDeleted);
 
         // 不返回密码等敏感信息
         users.forEach(user -> user.setPasswordHash(null));

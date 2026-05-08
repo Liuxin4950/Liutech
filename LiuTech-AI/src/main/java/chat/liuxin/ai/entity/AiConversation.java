@@ -30,4 +30,16 @@ public class AiConversation {
     private LocalDateTime createdAt;
     @TableField("updated_at")
     private LocalDateTime updatedAt;
+
+    /** 会话状态：0=正常，9=已归档 */
+    @TableField("status")
+    private Integer status;
+
+    /** 消息总数 */
+    @TableField("message_count")
+    private Integer messageCount;
+
+    /** 最后消息时间 */
+    @TableField("last_message_at")
+    private LocalDateTime lastMessageAt;
 }

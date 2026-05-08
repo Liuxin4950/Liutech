@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.ImagesMapper">
+
+    <!-- 管理端分页查询图片列表 -->
+    <select id="selectImagesForAdmin" resultType="chat.liuxin.liutech.model.Images">
+        SELECT
+            i.id,
+            i.file_name,
+            i.file_url,
+            i.file_path,
+            i.file_hash,
+            i.file_size,
+            i.mime_type,
+            i.extension,
+            i.width,
+            i.height,
+            i.uploader_id,
+            i.usage_count,
+            i.status,
+            i.created_at,
+            i.updated_at,
+            i.deleted_at,
+            i.created_by,
+            i.updated_by
+        FROM images i
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">
+                i.deleted_at IS NULL
+            </if>
+            <if test="fileName != null and fileName != ''">
+                AND i.file_name LIKE CONCAT('%', #{fileName}, '%')
+            </if>
+            <if test="mimeType != null and mimeType != ''">
+                AND i.mime_type LIKE CONCAT('%', #{mimeType}, '%')
+            </if>
+            <if test="status != null">
+                AND i.status = #{status}
+            </if>
+        </where>
+        ORDER BY i.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 管理端查询图片总数 -->
+    <select id="countImagesForAdmin" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT i.id)
+        FROM images i
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">
+                i.deleted_at IS NULL
+            </if>
+            <if test="fileName != null and fileName != ''">
+                AND i.file_name LIKE CONCAT('%', #{fileName}, '%')
+            </if>
+            <if test="mimeType != null and mimeType != ''">
+                AND i.mime_type LIKE CONCAT('%', #{mimeType}, '%')
+            </if>
+            <if test="status != null">
+                AND i.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <!-- 恢复已删除的图片 -->
+    <update id="restoreImageById">
+        UPDATE images
+        SET deleted_at = NULL, updated_at = NOW()
+        WHERE id = #{id} AND deleted_at IS NOT NULL
+    </update>
+
+    <!-- 查询孤立图片（usage_count = 0 且未删除） -->
+    <select id="selectOrphanImages" resultType="chat.liuxin.liutech.model.Images">
+        SELECT
+            i.id,
+            i.file_name,
+            i.file_url,
+            i.file_path,
+            i.file_hash,
+            i.file_size,
+            i.mime_type,
+            i.extension,
+            i.width,
+            i.height,
+            i.uploader_id,
+            i.usage_count,
+            i.status,
+            i.created_at,
+            i.updated_at,
+            i.deleted_at,
+            i.created_by,
+            i.updated_by
+        FROM images i
+        WHERE i.deleted_at IS NULL
+          AND i.usage_count = 0
+        ORDER BY i.created_at DESC
+    </select>
+
+    <!-- 批量物理删除图片 -->
+    <delete id="batchPermanentDelete">
+        DELETE FROM images
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

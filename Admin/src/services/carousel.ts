@@ -130,7 +130,6 @@ export class CarouselService {
    * 批量彻底删除轮播图（物理删除）
    */
   static async batchPermanentDeleteCarousels(ids: number[]): Promise<ApiResponse<boolean>> {
-    console.log('批量彻底删除轮播图，发送数据:', JSON.stringify(ids))
     return post<boolean>(`${this.ADMIN_BASE_URL}/batch/permanent`, ids)
   }
 }

@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.controller.web;
 
+import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.model.Users;
@@ -113,6 +114,7 @@ public class UserController {
      * @return 修改结果
      */
     @PutMapping("/password")
+    @OperationLog(action = "update", targetType = "user", description = "修改密码")
     public Result<String> changePassword(@Valid @RequestBody ChangePasswordReq changePasswordReq) {
         // 安全：默认需认证；UserAuthService.changePasswordWithAuth 内部使用 UserUtils 获取当前用户并完成改密
         log.info("收到修改密码请求");
@@ -129,6 +131,7 @@ public class UserController {
      * @return 更新后的用户信息
      */
     @PutMapping("/profile")
+    @OperationLog(action = "update", targetType = "user", description = "更新个人资料")
     public Result<UserResp> updateProfile(@Valid @RequestBody UpdateProfileReq updateProfileReq) {
         // 安全：默认需认证；Profile 更新由 UserProfileService 完成并返回脱敏信息
         log.info("收到更新个人资料请求");
@@ -189,6 +192,7 @@ public class UserController {
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "create", targetType = "user", description = "创建用户")
     public Result<String> createUser(@Valid @RequestBody Users user) {
         // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验
         log.info("管理员创建用户: {}", user.getUsername());

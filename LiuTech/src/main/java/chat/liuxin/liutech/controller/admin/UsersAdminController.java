@@ -37,6 +37,7 @@ public class UsersAdminController extends BaseAdminController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String email,
+            @RequestParam(required = false) String role,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
 
@@ -44,7 +45,7 @@ public class UsersAdminController extends BaseAdminController {
         ValidationUtil.validateRange(size, "页面大小", 1, 100);
 
         try {
-            PageResp<UserResp> result = userManagementService.getUserListForAdmin(page, size, username, email, status, includeDeleted);
+            PageResp<UserResp> result = userManagementService.getUserListForAdmin(page, size, username, email, role, status, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询用户列表");
