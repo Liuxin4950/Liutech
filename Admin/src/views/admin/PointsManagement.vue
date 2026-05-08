@@ -291,7 +291,7 @@ onMounted(() => {
             title="总发放积分"
             :value="stats.totalIssued"
             :precision="2"
-            :value-style="{ color: '#52c41a' }"
+            :value-style="{ color: 'var(--color-success)' }"
           />
         </a-card>
       </a-col>
@@ -301,7 +301,7 @@ onMounted(() => {
             title="总消耗积分"
             :value="stats.totalConsumed"
             :precision="2"
-            :value-style="{ color: '#ff4d4f' }"
+            :value-style="{ color: 'var(--color-error)' }"
           />
         </a-card>
       </a-col>
@@ -311,7 +311,7 @@ onMounted(() => {
             title="总用户积分余额"
             :value="stats.totalBalance"
             :precision="2"
-            :value-style="{ color: '#1890ff' }"
+            :value-style="{ color: 'var(--color-info)' }"
           />
         </a-card>
       </a-col>
@@ -407,7 +407,7 @@ onMounted(() => {
                 </a-tag>
               </template>
               <template v-else-if="column.key === 'amount'">
-                <span :style="{ color: record.amount >= 0 ? '#52c41a' : '#ff4d4f', fontWeight: 600 }">
+                <span :style="{ color: record.amount >= 0 ? 'var(--color-success)' : 'var(--color-error)', fontWeight: 600 }">
                   {{ record.amount >= 0 ? '+' : '' }}{{ record.amount }}
                 </span>
               </template>
@@ -476,7 +476,7 @@ onMounted(() => {
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'pointsEarned'">
-                <span style="color: #52c41a; font-weight: 600">+{{ record.pointsEarned }}</span>
+                <span style="color: var(--color-success); font-weight: 600">+{{ record.pointsEarned }}</span>
               </template>
               <template v-else-if="column.key === 'consecutiveDays'">
                 <a-tag :color="record.consecutiveDays >= 7 ? 'gold' : record.consecutiveDays >= 3 ? 'blue' : 'default'">

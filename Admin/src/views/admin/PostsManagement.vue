@@ -47,7 +47,7 @@ const columns = [
   { title: '状态', dataIndex: 'status', key: 'status' },
   { title: '删除状态', key: 'deleteStatus' },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
-  { title: '操作', key: 'action' }
+  { title: '操作', key: 'action', width: 200, fixed: 'right' as const }
 ]
 
 // 下拉选项
@@ -957,7 +957,7 @@ onMounted(async () => {
       </div>
     </a-modal>
 
-    <a-modal v-model:open="createCategoryVisible" title="新增分类" :confirm-loading="creatingCategory" @ok="createCategory">
+    <a-modal v-model:open="createCategoryVisible" title="新增分类" :confirm-loading="creatingCategory" destroy-on-close @ok="createCategory" @cancel="createCategoryVisible = false">
       <a-form layout="vertical">
         <a-form-item label="分类名称" required>
           <a-input v-model:value="newCategoryName" placeholder="请输入分类名称" maxlength="50" @press-enter="createCategory" />
@@ -968,7 +968,7 @@ onMounted(async () => {
       </a-form>
     </a-modal>
 
-    <a-modal v-model:open="createTagVisible" title="新增标签" :confirm-loading="creatingTag" @ok="createTag">
+    <a-modal v-model:open="createTagVisible" title="新增标签" :confirm-loading="creatingTag" destroy-on-close @ok="createTag" @cancel="createTagVisible = false">
       <a-form layout="vertical">
         <a-form-item label="标签名称" required>
           <a-input v-model:value="newTagName" placeholder="请输入标签名称" maxlength="30" @press-enter="createTag" />

@@ -552,13 +552,13 @@ onMounted(() => {
   font-size: 20px;
 }
 
-.bg-blue { background: #eff6ff; color: #2563eb; }
-.bg-green { background: #f0fdf4; color: #16a34a; }
-.bg-orange { background: #fff7ed; color: #ea580c; }
-.bg-purple { background: #faf5ff; color: #9333ea; }
+.bg-blue { background: var(--color-info-bg, #eff6ff); color: var(--color-info, #2563eb); }
+.bg-green { background: var(--color-success-bg, #f0fdf4); color: var(--color-success, #16a34a); }
+.bg-orange { background: var(--color-warning-bg, #fff7ed); color: var(--color-warning, #ea580c); }
+.bg-purple { background: var(--color-primary-bg, #faf5ff); color: var(--color-primary, #9333ea); }
 
 .stat-label {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 13px;
   margin-bottom: 4px;
 }
@@ -566,7 +566,7 @@ onMounted(() => {
 .stat-value {
   font-size: 20px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   line-height: 1.2;
 }
 
@@ -575,7 +575,7 @@ onMounted(() => {
 }
 
 .stat-sub {
-  color: #9ca3af;
+  color: var(--text-tertiary);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -583,7 +583,7 @@ onMounted(() => {
 .section-title {
   font-size: 14px;
   font-weight: 700;
-  color: #374151;
+  color: var(--text-secondary);
   margin-bottom: 12px;
 }
 
@@ -596,7 +596,7 @@ onMounted(() => {
 }
 
 .upload-file-name {
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 13px;
 }
 </style>

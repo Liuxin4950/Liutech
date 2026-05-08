@@ -256,7 +256,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="messages-management">
+  <div class="p-24">
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
@@ -383,8 +383,9 @@ onMounted(() => {
       v-model:open="replyModalVisible"
       title="回复留言"
       :confirm-loading="replyConfirmLoading"
-      @ok="handleReplySubmit"
       destroy-on-close
+      @ok="handleReplySubmit"
+      @cancel="replyModalVisible = false"
     >
       <a-form layout="vertical">
         <a-form-item label="回复内容">
@@ -416,10 +417,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.messages-management {
-  padding: 24px;
-}
-
 .message-content {
   max-width: 300px;
   overflow: hidden;
@@ -428,12 +425,12 @@ onMounted(() => {
 }
 
 .reply-content {
-  color: #52c41a;
+  color: var(--color-success);
   font-size: 12px;
 }
 
 .text-placeholder {
-  color: #bfbfbf;
+  color: var(--text-disabled);
 }
 
 .detail-content,
@@ -444,9 +441,9 @@ onMounted(() => {
 }
 
 .detail-reply {
-  background: #f6ffed;
+  background: var(--color-success-bg, #f6ffed);
   padding: 8px 12px;
   border-radius: 4px;
-  border-left: 3px solid #52c41a;
+  border-left: 3px solid var(--color-success);
 }
 </style>

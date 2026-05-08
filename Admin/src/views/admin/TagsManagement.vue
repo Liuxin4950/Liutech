@@ -33,7 +33,7 @@ const columns = [
   { title: '状态', key: 'status' },
   { title: '创建者', dataIndex: 'creatorUsername', key: 'creatorUsername' },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
-  { title: '操作', key: 'action' }
+  { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
 ]
 
 // 弹窗相关
@@ -249,6 +249,7 @@ onMounted(() => { loadTags() })
         :pagination="pagination"
         :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
         row-key="id"
+        :scroll="{ x: 800 }"
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">

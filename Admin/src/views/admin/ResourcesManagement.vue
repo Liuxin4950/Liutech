@@ -243,7 +243,7 @@ onMounted(() => { loadResources() })
 </script>
 
 <template>
-  <div class="resources-management">
+  <div class="p-24">
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
@@ -405,10 +405,6 @@ onMounted(() => { loadResources() })
 </template>
 
 <style scoped>
-.resources-management {
-  padding: 24px;
-}
-
 .search-card,
 .action-card {
   margin-bottom: 16px;

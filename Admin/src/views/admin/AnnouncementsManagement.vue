@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import DOMPurify from 'dompurify'
 import dayjs, { Dayjs } from 'dayjs'
 import AnnouncementsService from '../../services/announcements'
@@ -578,11 +578,11 @@ onMounted(async () => {
           </a-col>
           <a-col :span="6" class="text-right">
             <a-space>
-               <a-tooltip title="显示已删除的公告">
+               <a-tooltip title="显示已删除">
                   <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
                </a-tooltip>
-              <a-button type="primary" @click="handleSearch">搜索</a-button>
-              <a-button @click="handleReset">重置</a-button>
+              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
+              <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
             </a-space>
           </a-col>
         </a-row>
@@ -646,6 +646,7 @@ onMounted(async () => {
           onChange: onSelectChange
         }"
         :scroll="{ x: 1200 }"
+        row-key="id"
         @change="handleTableChange"
       >
         <!-- 标题列 -->
@@ -740,9 +741,9 @@ onMounted(async () => {
 
               <!-- 删除/恢复操作 -->
               <template v-if="record.deletedAt !== null && record.deletedAt !== undefined">
-                <a-button type="link" size="small" @click="handleRestore(record.id)">
-                  恢复
-                </a-button>
+                <a-popconfirm title="确定恢复该记录吗？" @confirm="handleRestore(record.id)">
+                  <a-button type="link" size="small">恢复</a-button>
+                </a-popconfirm>
                 <a-popconfirm
                   title="确定要彻底删除这个公告吗？此操作不可恢复！"
                   ok-text="确定"
@@ -776,6 +777,7 @@ onMounted(async () => {
       :title="modalTitle"
       :confirm-loading="confirmLoading"
       :width="800"
+      destroy-on-close
       @ok="handleSubmit"
       @cancel="handleCancel"
     >
@@ -874,6 +876,7 @@ onMounted(async () => {
       title="公告预览"
       :width="800"
       :footer="null"
+      destroy-on-close
       @cancel="closePreview"
     >
       <div v-if="previewData" class="announcement-preview">
@@ -910,6 +913,7 @@ onMounted(async () => {
       v-model:open="uploadVisible"
       title="导入公告数据"
       :confirm-loading="uploadLoading"
+      destroy-on-close
       @ok="() => fileList[0] && handleUpload(fileList[0])"
       @cancel="() => { uploadVisible = false; fileList = [] }"
     >

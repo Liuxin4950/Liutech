@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -25,6 +25,16 @@ interface MusicItem extends Music {
 const loading = ref(false)
 const dataSource = ref<MusicItem[]>([])
 const selectedRowKeys = ref<number[]>([])
+
+// 分页配置 - 使用 reactive 对象确保响应式
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (total: number) => `共 ${total} 条记录`
+})
 
 // 搜索参数
 const searchParams = ref({
@@ -253,6 +263,7 @@ const loadMusicList = async () => {
     const res = await musicService.getMusicList(params)
     // 后端已按 sortOrder 排序，直接使用
     dataSource.value = res.data || []
+    pagination.total = (res.data || []).length
   } catch (e: any) {
     message.error(e.message || '加载失败')
     dataSource.value = []
@@ -263,6 +274,12 @@ const loadMusicList = async () => {
 
 const onSelectChange = (keys: number[]) => {
   selectedRowKeys.value = keys
+}
+
+const handleTableChange = (p: any) => {
+  pagination.current = p.current
+  pagination.pageSize = p.pageSize
+  loadMusicList()
 }
 
 const handleDelete = async (id: number) => {
@@ -430,7 +447,9 @@ onMounted(() => {
           selectedRowKeys,
           onChange: onSelectChange
         }"
-        :pagination="false"
+        row-key="id"
+        :pagination="pagination"
+        @change="handleTableChange"
       >
         <!-- 封面列 -->
         <template #bodyCell="{ column, record }">
@@ -441,7 +460,7 @@ onMounted(() => {
               shape="square"
               :size="50"
             />
-            <a-avatar v-else shape="square" :size="50" style="background: #667eea">
+            <a-avatar v-else shape="square" :size="50" style="background: var(--color-primary)">
               <CloudOutlined />
             </a-avatar>
           </template>
@@ -530,6 +549,7 @@ onMounted(() => {
       title="上传AI音乐"
       :confirm-loading="uploadLoading"
       :width="500"
+      destroy-on-close
       @ok="handleUpload"
       @cancel="() => { uploadModalVisible = false; resetUploadForm() }"
     >
@@ -592,7 +612,9 @@ onMounted(() => {
       title="编辑音乐"
       :confirm-loading="editLoading"
       :width="400"
+      destroy-on-close
       @ok="handleEditSubmit"
+      @cancel="editModalVisible = false"
     >
       <a-form layout="vertical">
         <a-form-item label="歌曲名">
@@ -625,7 +647,7 @@ onMounted(() => {
   height: 100px;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px dashed #d9d9d9;
+  border: 1px dashed var(--border-base);
 }
 
 .cover-preview img {

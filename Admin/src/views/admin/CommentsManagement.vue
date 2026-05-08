@@ -115,7 +115,7 @@ onMounted(() => { loadComments() })
 </script>
 
 <template>
-  <div class="comments-management">
+  <div class="p-24">
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
@@ -232,10 +232,6 @@ onMounted(() => { loadComments() })
 </template>
 
 <style scoped>
-.comments-management {
-  padding: 24px;
-}
-
 .mb-16 {
   margin-bottom: 16px;
 }

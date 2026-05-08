@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined, SortAscendingOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined, SortAscendingOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import type { Carousel } from '../../services/carousel'
 import CarouselService from '../../services/carousel'
 import { formatDateTime, formatRelativeTime } from '../../utils/utils'
@@ -395,11 +395,11 @@ onMounted(async () => {
           </a-col>
           <a-col :span="12" class="text-right">
             <a-space>
-              <a-tooltip :title="searchParams.includeDeleted ? '显示未删除的轮播图' : '显示已删除的轮播图'">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="已删" un-checked-children="正常" />
+              <a-tooltip title="显示已删除">
+                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
               </a-tooltip>
-              <a-button type="primary" @click="handleSearch">搜索</a-button>
-              <a-button @click="handleReset">重置</a-button>
+              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
+              <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
             </a-space>
           </a-col>
         </a-row>
@@ -433,7 +433,7 @@ onMounted(async () => {
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
-        :row-key="(record: Carousel) => record.id"
+        row-key="id"
         :row-selection="{
           selectedRowKeys,
           onChange: onSelectChange
@@ -492,9 +492,9 @@ onMounted(async () => {
             <a-space>
               <!-- 已删除的记录：显示恢复和彻底删除 -->
               <template v-if="record.deletedAt !== null && record.deletedAt !== undefined">
-                <a-button type="link" size="small" @click="handleRestore(record.id)">
-                  恢复
-                </a-button>
+                <a-popconfirm title="确定恢复该记录吗？" @confirm="handleRestore(record.id)">
+                  <a-button type="link" size="small">恢复</a-button>
+                </a-popconfirm>
                 <a-popconfirm
                   title="确定要彻底删除这个轮播图吗？此操作不可恢复！"
                   @confirm="handlePermanentDelete(record.id)"
@@ -558,6 +558,7 @@ onMounted(async () => {
       :title="modalTitle"
       :confirm-loading="confirmLoading"
       :width="600"
+      destroy-on-close
       @ok="handleSubmit"
       @cancel="handleCancel"
     >

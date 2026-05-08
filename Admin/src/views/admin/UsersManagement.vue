@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, h } from 'vue'
 import { message } from 'ant-design-vue'
-import { DownOutlined } from '@ant-design/icons-vue'
+import { DownOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import UserService from '../../services/user'
 import type { UserListParams, User } from '../../services/user'
 import { formatDateTime } from '../../utils/utils'
@@ -78,7 +78,9 @@ const columns = [
   },
   {
     title: '操作',
-    key: 'action'
+    key: 'action',
+    width: 200,
+    fixed: 'right' as const
   }
 ]
 
@@ -417,11 +419,11 @@ onMounted(() => {
           </a-col>
           <a-col :span="8" class="text-right mt-16">
             <a-space>
-               <a-tooltip title="显示已删除的用户">
-                 <a-switch v-model:checked="searchParams.includeDeleted" checked-children="删" un-checked-children="正常" />
+               <a-tooltip title="显示已删除">
+                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
                </a-tooltip>
-              <a-button type="primary" @click="handleSearch">搜索</a-button>
-              <a-button @click="handleReset">重置</a-button>
+              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
+              <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
             </a-space>
           </a-col>
         </a-row>
@@ -472,6 +474,7 @@ onMounted(() => {
           selectedRowKeys,
           onChange: onSelectChange
         }"
+        :scroll="{ x: 1200 }"
         @change="handleTableChange"
         row-key="id"
       >

@@ -269,7 +269,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="images-management">
+  <div class="p-24">
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
@@ -419,9 +419,11 @@ onMounted(() => {
       v-model:open="previewVisible"
       :title="previewFileName"
       :footer="null"
+      destroy-on-close
       centered
       width="auto"
       class="image-preview-modal"
+      @cancel="previewVisible = false"
     >
       <img :src="previewImage" :alt="previewFileName" class="preview-image" />
     </a-modal>
@@ -431,7 +433,9 @@ onMounted(() => {
       v-model:open="orphanModalVisible"
       title="孤立图片清理"
       width="800"
+      destroy-on-close
       :footer="null"
+      @cancel="orphanModalVisible = false"
     >
       <div class="orphan-modal-content">
         <a-alert
@@ -493,9 +497,6 @@ export default { name: 'ImagesManagement' }
 </script>
 
 <style scoped>
-.images-management {
-  padding: 24px;
-}
 
 .mb-16 {
   margin-bottom: 16px;

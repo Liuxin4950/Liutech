@@ -231,22 +231,22 @@ onMounted(() => {
           <template #default="{ record }">
             <a-space>
               <a-tooltip v-if="!record.isDefault" title="设为默认">
-                <a-button type="text" size="small" @click="setDefaultModel(record)">
+                <a-button type="link" size="small" @click="setDefaultModel(record)">
                   <StarOutlined class="text-gold" />
                 </a-button>
               </a-tooltip>
               <a-tooltip :title="record.isEnabled ? '禁用' : '启用'">
-                <a-button type="text" size="small" @click="toggleEnabled(record)">
+                <a-button type="link" size="small" @click="toggleEnabled(record)">
                   <component :is="record.isEnabled ? StopOutlined : CheckCircleOutlined" :class="record.isEnabled ? 'text-red' : 'text-green'" />
                 </a-button>
               </a-tooltip>
               <a-tooltip title="编辑">
-                <a-button type="text" size="small" @click="showEditModal(record)">
+                <a-button type="link" size="small" @click="showEditModal(record)">
                   <EditOutlined class="text-blue" />
                 </a-button>
               </a-tooltip>
               <a-tooltip v-if="!record.isDefault" title="删除">
-                <a-button type="text" size="small" danger @click="removeModel(record)">
+                <a-button type="link" size="small" danger @click="removeModel(record)">
                   <DeleteOutlined />
                 </a-button>
               </a-tooltip>
@@ -316,7 +316,7 @@ onMounted(() => {
 
 .title-sub {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .model-main {
@@ -330,27 +330,27 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-main);
 }
 
 .model-name {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .model-desc,
 .param-text {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .full-width {
   width: 100%;
 }
 
-.text-gold { color: #d4a017; }
-.text-red { color: #dc2626; }
-.text-green { color: #16a34a; }
-.text-blue { color: #2563eb; }
+.text-gold { color: var(--color-warning); }
+.text-red { color: var(--color-error); }
+.text-green { color: var(--color-success); }
+.text-blue { color: var(--color-primary); }
 </style>
