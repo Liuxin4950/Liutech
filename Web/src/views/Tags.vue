@@ -211,26 +211,5 @@ onMounted(async () => {
     padding: 10px 12px;
   }
 }
-.search-box {
-  position: relative;
-  flex: 1;
-  max-width: 400px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 40px 12px 16px;
-  border: 2px solid var(--border-soft);
-  border-radius: 25px;
-  font-size: 14px;
-  background-color: var(--bg-soft);
-  color: var(--text-main);
-  transition: border-color 0.3s;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--border-focus);
-}
 
 </style>

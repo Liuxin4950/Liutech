@@ -385,7 +385,7 @@ const handleMessageSuccess = () => {
       }
       
       .name-base {
-        fill: #000;
+        fill: var(--text-main);
         fill-opacity: 0.4;
         stroke: none;
         filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.5));
@@ -412,7 +412,7 @@ const handleMessageSuccess = () => {
   
   .user-bio {
     font-size: 1.1rem;
-    color: rgba($color: #000000, $alpha: 0.6);
+    color: var(--text-subtle);
     margin-bottom: 8px;
     font-weight: 500;
     filter: drop-shadow(2px 2px 2px rgba(255, 255, 255, .5));
@@ -420,7 +420,7 @@ const handleMessageSuccess = () => {
   
   .user-motto {
     filter: drop-shadow(2px 2px 2px rgba(255, 255, 255, .5));
-    color: rgba($color: #000000, $alpha: 0.6);
+    color: var(--text-subtle);
     font-size: 0.95rem;
     font-style: italic;
     margin-bottom: 24px;

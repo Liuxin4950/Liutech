@@ -3,7 +3,7 @@
     <!-- 页面标题 -->
     <div class="text-center mb-20">
       <h1 class="text-3xl font-bold mb-16">文章归档</h1>
-      <p class="text-base text-gray-600">按时间浏览所有文章</p>
+      <p class="text-base text-subtle">按时间浏览所有文章</p>
     </div>
 
     <!-- 统计信息 -->
@@ -11,15 +11,15 @@
       <div class="flex flex-jc gap-30">
         <div class="stat-item">
           <div class="text-2xl font-bold text-primary">{{ totalPosts }}</div>
-          <div class="text-sm text-gray-600">篇文章</div>
+          <div class="text-sm text-subtle">篇文章</div>
         </div>
         <div class="stat-item">
           <div class="text-2xl font-bold text-primary">{{ monthCount }}</div>
-          <div class="text-sm text-gray-600">个月份</div>
+          <div class="text-sm text-subtle">个月份</div>
         </div>
         <div class="stat-item">
           <div class="text-2xl font-bold text-primary">{{ yearCount }}</div>
-          <div class="text-sm text-gray-600">个年份</div>
+          <div class="text-sm text-subtle">个年份</div>
         </div>
       </div>
     </div>
@@ -32,7 +32,7 @@
 
     <!-- 错误状态 -->
     <div v-else-if="error" class="text-center p-20 text-sm">
-      <p class="text-red-500 mb-12">{{ error }}</p>
+      <p class="text-error mb-12">{{ error }}</p>
       <button @click="loadArchiveData" class="btn btn-primary">重试</button>
     </div>
 
@@ -42,7 +42,7 @@
         <!-- 年份标题 -->
         <div class="year-header flex flex-ac gap-12 mb-20">
           <h2 class="text-2xl font-bold">{{ yearData.year }}</h2>
-          <span class="text-sm text-gray-600">({{ yearData.totalPosts }}篇文章)</span>
+          <span class="text-sm text-subtle">({{ yearData.totalPosts }}篇文章)</span>
         </div>
 
         <!-- 月份列表 -->
@@ -52,8 +52,8 @@
             <div class="month-header flex flex-ac gap-12 mb-12 cursor-pointer" 
                  @click="toggleMonth(yearData.year, monthData.month)">
               <h3 class="text-lg font-semibold">{{ monthData.monthName }}</h3>
-              <span class="text-sm text-gray-600">({{ monthData.posts.length }}篇)</span>
-              <span class="ml-auto text-gray-400">
+              <span class="text-sm text-subtle">({{ monthData.posts.length }}篇)</span>
+              <span class="ml-auto" style="color: var(--text-muted)">
                 {{ expandedMonths.has(`${yearData.year}-${monthData.month}`) ? '▼' : '▶' }}
               </span>
             </div>
@@ -62,14 +62,15 @@
             <div v-show="expandedMonths.has(`${yearData.year}-${monthData.month}`)" 
                  class="posts-list ml-20  rounded-lg">
               <div v-for="post in monthData.posts" :key="post.id" 
-                   class="post-item bg-card mb-16 flex flex-ac gap-12 p-12 border-l-2 border-gray-200 hover:bg-hover transition cursor-pointer"
+                   class="post-item bg-card mb-16 flex flex-ac gap-12 p-12 border-l-2 hover:bg-hover transition cursor-pointer"
+                   style="border-color: var(--border-light)"
                    @click="goToPost(post.id)">
-                <div class="post-date text-sm text-gray-500 w-60 flex-shrink-0">
+                <div class="post-date text-sm text-subtle w-60 flex-shrink-0">
                   {{ formatDate(post.createdAt, 'MM-dd') }}
                 </div>
                 <div class="post-info flex-1">
                   <h4 class="post-title text-base font-medium hover:text-primary transition">{{ post.title }}</h4>
-                  <div class="post-meta flex flex-ac gap-12 mt-4 text-xs text-gray-500">
+                  <div class="post-meta flex flex-ac gap-12 mt-4 text-xs text-subtle">
                     <span>{{ post.category.name }}</span>
                     <span v-if="post.tags && post.tags.length > 0">
                       {{ post.tags.map(tag => tag.name).join(', ') }}
@@ -87,7 +88,7 @@
     <!-- 空状态 -->
     <div v-if="!loading && !error && archiveData.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
       <h3 class="text-xl font-semibold mb-12">暂无文章</h3>
-      <p class="text-base text-gray-600 mb-20">还没有发布任何文章</p>
+      <p class="text-base text-subtle mb-20">还没有发布任何文章</p>
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
       <router-link to="/create" class="btn btn-primary">发布第一篇文章</router-link>
     </div>
@@ -253,21 +254,6 @@ onMounted(() => {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--border-base);
-  border-top: 4px solid var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
 
 .post-item:hover {
   color: var(--color-primary);

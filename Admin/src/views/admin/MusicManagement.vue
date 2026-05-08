@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons-vue'
 import type { Music } from '../../services/music'
 import musicService from '../../services/music'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime } from '../../utils/utils'
 import { ImageUploadService } from '../../services/upload'
 
 // 扩展 Music 类型以支持前端状态

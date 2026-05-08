@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined, SortAscendingOutlined } from '@ant-design/icons-vue'
 import type { Carousel } from '../../services/carousel'
 import CarouselService from '../../services/carousel'
-import { formatDateTime, formatRelativeTime } from '../../utils/uitls'
+import { formatDateTime, formatRelativeTime } from '../../utils/utils'
 import { ImageUploadService } from '../../services/upload'
 
 // 响应式数据

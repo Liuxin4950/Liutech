@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import PointsService from '../../services/points'
 import type { TransactionListParams, CheckinListParams, PointsStats } from '../../services/points'
 import type { PointsTransaction, UserCheckin } from '../../services/points'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime } from '../../utils/utils'
 
 // 当前激活的 Tab
 const activeTab = ref('transactions')

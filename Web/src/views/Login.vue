@@ -391,8 +391,6 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-
 // 底部链接
 .card-footer {
   text-align: center;

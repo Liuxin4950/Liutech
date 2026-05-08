@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
 import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { formatRelativeTime } from '@/utils/uitls'
+import { formatRelativeTime } from '@/utils/utils'
 import Pagination from '@/components/Pagination.vue'
 import Icon from '@/components/Icon.vue'
 
@@ -267,10 +267,6 @@ onMounted(async () => {
 }
 
 .actions-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 20px; }
-.search-box { position: relative; flex: 1; max-width: 400px; }
-.search-input { width: 100%; padding: 12px 40px 12px 16px; border: 2px solid var(--border-soft); border-radius: 25px; font-size: 14px; background-color: var(--bg-soft); color: var(--text-main); transition: border-color 0.3s; }
-.search-input:focus { outline: none; border-color: var(--color-primary); }
-.search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-main); opacity: 0.6; }
 .create-btn { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background-color: var(--color-primary); color: white; border: none; border-radius: 25px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; white-space: nowrap; }
 .create-btn:hover { background-color: var(--color-primary-dark); transform: translateY(-2px); }
 
@@ -290,12 +286,12 @@ onMounted(async () => {
 
 .draft-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .action-btn { width: 36px; height: 36px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 14px; }
-.edit-btn { background: #fff3e0; color: #f57c00; }
-.edit-btn:hover { background: #ffe0b2; }
-.publish-btn { background: #e3f9ea; color: #2f855a; }
-.publish-btn:hover { background: #c6f6d5; }
-.delete-btn { background: #ffebee; color: #d32f2f; }
-.delete-btn:hover { background: #ffcdd2; }
+.edit-btn { background: var(--bg-warning, #fff3e0); color: var(--color-warning, #f57c00); }
+.edit-btn:hover { background: var(--bg-warning, #ffe0b2); }
+.publish-btn { background: var(--bg-success, #e3f9ea); color: var(--color-success, #2f855a); }
+.publish-btn:hover { background: var(--bg-success, #c6f6d5); }
+.delete-btn { background: var(--bg-error, #ffebee); color: var(--color-error, #d32f2f); }
+.delete-btn:hover { background: var(--bg-error, #ffcdd2); }
 
 .pagination { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 40px; }
 .retry-btn { padding: 10px 20px; background-color: var(--color-primary); color: white; border: none; border-radius: 20px; cursor: pointer; margin-top: 15px; }
@@ -315,15 +311,6 @@ onMounted(async () => {
   text-align: center;
 }
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--border-soft);
-  border-top: 4px solid var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
 /* 响应式设计 */
 @include respond(md) {
   .drafts-page { padding: 15px; }

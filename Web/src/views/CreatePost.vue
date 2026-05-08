@@ -505,7 +505,7 @@ import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import { useUserStore } from '@/stores/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import Swal from 'sweetalert2'
 
 const router = useRouter()

@@ -20,6 +20,7 @@ const currentYear = new Date().getFullYear();
           <router-link to="/" class="nav-item">首页</router-link>
           <router-link to="/categories" class="nav-item">分类</router-link>
           <router-link to="/archive" class="nav-item">归档</router-link>
+          <router-link to="/tags" class="nav-item">标签</router-link>
           <router-link to="/about" class="nav-item">关于</router-link>
           <span class="divider">|</span>
           <a href="/rss.xml" class="nav-item">RSS</a>

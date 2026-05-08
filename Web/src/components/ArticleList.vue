@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import Pagination from '@/components/Pagination.vue'
 import Icon from './Icon.vue'
 import defaultPostImage from '@/assets/image/images.jpg'

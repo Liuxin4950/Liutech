@@ -46,12 +46,6 @@ export const useCategoryStore = defineStore('category', () => {
       categories.value = response || []
       lastFetchTime.value = Date.now()
 
-      // 持久化到本地存储
-      localStorage.setItem('blog_categories', JSON.stringify({
-        data: categories.value,
-        timestamp: lastFetchTime.value
-      }))
-
       return categories.value
     } catch (error) {
       console.error('获取分类列表失败:', error)
@@ -84,12 +78,6 @@ export const useCategoryStore = defineStore('category', () => {
         } else {
           categories.value.push(response)
         }
-
-        // 更新持久化存储
-        localStorage.setItem('blog_categories', JSON.stringify({
-          data: categories.value,
-          timestamp: lastFetchTime.value
-        }))
       }
 
       return response
@@ -102,26 +90,12 @@ export const useCategoryStore = defineStore('category', () => {
 
   /**
    * 初始化分类数据
-   * 从本地存储恢复数据，如果数据过期则重新获取
+   * Pinia persist 插件会自动恢复状态，此处仅检查数据是否过期并按需刷新
    */
   const initCategories = async () => {
-    try {
-      const stored = localStorage.getItem('blog_categories')
-      if (stored) {
-        const { data, timestamp } = JSON.parse(stored)
-
-        // 检查数据是否过期
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          categories.value = data || []
-          lastFetchTime.value = timestamp
-          return
-        }
-      }
-    } catch (error) {
+    if (categories.value.length === 0 || isDataStale.value) {
+      await fetchCategories(true)
     }
-
-    // 如果没有有效的本地数据，则从服务器获取
-    await fetchCategories(true)
   }
 
   /**
@@ -130,7 +104,6 @@ export const useCategoryStore = defineStore('category', () => {
   const clearCache = () => {
     categories.value = []
     lastFetchTime.value = 0
-    localStorage.removeItem('blog_categories')
   }
 
   /**

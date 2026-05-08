@@ -57,7 +57,7 @@
         <div v-for="post in filteredPosts" :key="post.id" class="post-card bg-card">
           <img v-if="post.thumbnail" class="fit" :src="post.coverImage" alt="">
           <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="">
-          <img v-else="post.coverImage" class="fit" src="@/assets/image/images.jpg" alt="">
+          <img v-else class="fit" src="@/assets/image/images.jpg" alt="">
           
           <div class="post-content flex flex-col gap-12">
             <h3 class="post-title text-primary" @click="viewPost(post.id)">
@@ -138,7 +138,7 @@ import { useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
 import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
@@ -182,8 +182,7 @@ const loadPosts = async () => {
     })
 
     posts.value = response.records
-    console.log(posts.value);
-    
+
     totalCount.value = response.total
   }, {
     onError: (err) => {
@@ -322,37 +321,6 @@ onMounted(async () => {
   gap: 20px;
 }
 
-.search-box {
-  position: relative;
-  flex: 1;
-  max-width: 400px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 40px 12px 16px;
-  border: 2px solid var(--border-soft);
-  border-radius: 25px;
-  font-size: 14px;
-  background-color: var(--bg-soft);
-  color: var(--text-main);
-  transition: border-color 0.3s;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.search-icon {
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-main);
-  opacity: 0.6;
-}
-
 .create-btn {
   display: flex;
   align-items: center;
@@ -387,26 +355,6 @@ onMounted(async () => {
   justify-content: center;
   padding: 60px 20px;
   text-align: center;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--border-soft);
-  border-top: 4px solid var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 .error-icon,
@@ -466,17 +414,6 @@ onMounted(async () => {
   color: var(--color-primary);
 }
 
-.post-summary {
-  color: var(--text-main);
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* 限制显示2行 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-  max-height: 3em; /* 2行的高度 (1.5 * 2) */
-  word-break: break-word;
-}
-
 .post-meta {
   display: flex;
   gap: 20px;
@@ -510,39 +447,39 @@ onMounted(async () => {
 }
 
 .view-btn {
-  background-color: #e3f2fd;
-  color: #1976d2;
+  background-color: var(--bg-info, #e3f2fd);
+  color: var(--color-info, #1976d2);
 }
 
 .view-btn:hover {
-  background-color: #bbdefb;
+  background-color: var(--bg-info, #bbdefb);
 }
 
 .edit-btn {
-  background-color: #fff3e0;
-  color: #f57c00;
+  background-color: var(--bg-warning, #fff3e0);
+  color: var(--color-warning, #f57c00);
 }
 
 .edit-btn:hover {
-  background-color: #ffe0b2;
+  background-color: var(--bg-warning, #ffe0b2);
 }
 
 .unpublish-btn {
-  background-color: #f3e5f5;
-  color: #7b1fa2;
+  background-color: rgba(var(--color-primary-rgb, 118, 75, 162), 0.1);
+  color: var(--color-primary);
 }
 
 .unpublish-btn:hover {
-  background-color: #e1bee7;
+  background-color: rgba(var(--color-primary-rgb, 118, 75, 162), 0.2);
 }
 
 .delete-btn {
-  background-color: #ffebee;
-  color: #d32f2f;
+  background-color: var(--bg-error, #ffebee);
+  color: var(--color-error, #d32f2f);
 }
 
 .delete-btn:hover {
-  background-color: #ffcdd2;
+  background-color: var(--bg-error, #ffcdd2);
 }
 
 .pagination {

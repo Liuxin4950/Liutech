@@ -82,7 +82,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Comment } from '@/services/comment'
-import { formatRelativeTime } from '@/utils/uitls'
+import { formatRelativeTime } from '@/utils/utils'
 import CommentForm from './CommentForm.vue'
 import Icon from './Icon.vue'
 

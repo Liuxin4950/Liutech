@@ -161,7 +161,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/user'
 import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse } from '../services/user'
 import { showSuccess, showError } from '../utils/errorHandler'
-import { formatRelativeTime } from '../utils/uitls'
+import { formatRelativeTime } from '../utils/utils'
 import CheckinCard from '../components/CheckinCard.vue'
 import Icon from '../components/Icon.vue'
 
@@ -321,7 +321,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #fff;
+  color: var(--text-on-primary, #fff);
   transition: all 0.2s;
 
   &:hover {
@@ -337,7 +337,7 @@ onMounted(() => {
   padding: 4px 12px;
   background: linear-gradient(135deg, var(--color-warning) 0%, #d97706 100%);
   border-radius: 12px;
-  color: #fff;
+  color: var(--text-on-primary, #fff);
   font-size: 0.8rem;
   font-weight: 500;
 }
@@ -671,7 +671,7 @@ onMounted(() => {
 
 .btn-primary {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--text-on-primary, #fff);
 
   &:hover:not(:disabled) {
     background: var(--color-primary-dark);

@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, MessageOutlined } from '@ant-design/icons-vue'
 import MessagesService from '../../services/message'
 import type { Message, MessageListParams } from '../../services/message'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime } from '../../utils/utils'
 
 // 响应式数据
 const loading = ref(false)

@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { MessageService } from '@/services/message'
+import { showSuccess, showError } from '@/utils/errorHandler'
 
 interface Props {
   visible: boolean
@@ -104,12 +105,12 @@ const handleSubmit = async () => {
       email: formData.email,
       content: formData.content
     })
-    alert('留言提交成功！等待管理员审核后显示。')
+    showSuccess('留言提交成功！等待管理员审核后显示。')
     emit('success')
     close()
   } catch (error: any) {
     console.error('留言提交失败', error)
-    alert(error.message || '留言提交失败，请稍后重试')
+    showError(error.message || '留言提交失败，请稍后重试')
   } finally {
     submitting.value = false
   }

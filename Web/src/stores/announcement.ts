@@ -64,12 +64,6 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       announcements.value = response.records || []
       lastFetchTime.value = Date.now()
 
-      // 持久化到本地存储
-      localStorage.setItem('blog_announcements', JSON.stringify({
-        data: announcements.value,
-        timestamp: lastFetchTime.value
-      }))
-
       return response
     } catch (error) {
       console.error('获取公告列表失败:', error)
@@ -130,12 +124,6 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       latestAnnouncements.value = response || []
       lastLatestFetchTime.value = Date.now()
 
-      // 持久化到本地存储
-      localStorage.setItem('blog_latest_announcements', JSON.stringify({
-        data: latestAnnouncements.value,
-        timestamp: lastLatestFetchTime.value
-      }))
-
       return latestAnnouncements.value
     } catch (error) {
       console.error('获取最新公告失败:', error)
@@ -168,12 +156,6 @@ export const useAnnouncementStore = defineStore('announcement', () => {
         } else {
           announcements.value.push(response)
         }
-
-        // 更新持久化存储
-        localStorage.setItem('blog_announcements', JSON.stringify({
-          data: announcements.value,
-          timestamp: lastFetchTime.value
-        }))
       }
 
       return response
@@ -186,50 +168,10 @@ export const useAnnouncementStore = defineStore('announcement', () => {
 
   /**
    * 初始化公告数据
-   * 从本地存储恢复数据，如果数据过期则重新获取
+   * Pinia persist 插件会自动恢复状态，此处仅检查数据是否过期并按需刷新
    */
   const initAnnouncements = async () => {
-    try {
-      // 恢复最新公告数据（最常用的）
-      const latestStored = localStorage.getItem('blog_latest_announcements')
-      if (latestStored) {
-        const { data, timestamp } = JSON.parse(latestStored)
-
-        // 检查数据是否过期
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          latestAnnouncements.value = data || []
-          lastLatestFetchTime.value = timestamp
-        }
-      }
-
-      // 恢复置顶公告数据
-      const topStored = localStorage.getItem('blog_top_announcements')
-      if (topStored) {
-        const { data, timestamp } = JSON.parse(topStored)
-
-        // 检查数据是否过期
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          topAnnouncements.value = data || []
-          lastTopFetchTime.value = timestamp
-        }
-      }
-
-      // 恢复一般公告数据
-      const stored = localStorage.getItem('blog_announcements')
-      if (stored) {
-        const { data, timestamp } = JSON.parse(stored)
-
-        // 检查数据是否过期
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          announcements.value = data || []
-          lastFetchTime.value = timestamp
-        }
-      }
-    } catch (error) {
-      console.warn('恢复公告数据失败:', error)
-    }
-
-    // 如果没有有效的本地数据，则从服务器获取最新公告
+    // 如果没有有效的缓存数据，则从服务器获取最新公告
     if (latestAnnouncements.value.length === 0 || isLatestDataStale.value) {
       await fetchLatestAnnouncements(5, true)
     }
@@ -245,9 +187,6 @@ export const useAnnouncementStore = defineStore('announcement', () => {
     lastFetchTime.value = 0
     lastTopFetchTime.value = 0
     lastLatestFetchTime.value = 0
-    localStorage.removeItem('blog_announcements')
-    localStorage.removeItem('blog_top_announcements')
-    localStorage.removeItem('blog_latest_announcements')
   }
 
   /**

@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import CategoriesService from '../../services/categories'
 import type { Category, CategoryListParams } from '../../services/categories'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime } from '../../utils/utils'
 
 // 响应式数据
 const loading = ref(false)

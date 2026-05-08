@@ -46,7 +46,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PostService from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -100,7 +100,6 @@ const loadFavoritePosts = async (page: number = 1) => {
     }
 
     const response = await PostService.getFavoritePosts(params)
-    console.log('收藏文章响应:', response)
 
     favoritePosts.value = response.records
 
@@ -189,17 +188,6 @@ onMounted(async () => {
   color: var(--color-text-subtle);
 }
 
-/* 文章摘要省略号样式 */
-.post-summary {
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* 限制显示2行 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-  max-height: 3em; /* 2行的高度 (1.5 * 2) */
-  word-break: break-word;
-}
-
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 16px;
@@ -212,38 +200,6 @@ onMounted(async () => {
   margin-bottom: 30px;
   gap: 20px;
 }
-
-.search-box {
-  position: relative;
-  flex: 1;
-  max-width: 400px;
-}
-
-.search-input {
-  width: 100%;
-  padding: 12px 40px 12px 16px;
-  border: 2px solid var(--border-soft);
-  border-radius: 25px;
-  font-size: 14px;
-  background-color: var(--bg-soft);
-  color: var(--text-main);
-  transition: border-color 0.3s;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.search-icon {
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-main);
-  opacity: 0.6;
-}
-
 
 .link-btn {
   display: inline-block;
@@ -288,7 +244,7 @@ onMounted(async () => {
 .posts-img {
   width: 200px;
   height: 150px;
-  background-color: white;
+  background-color: var(--bg-card);
   border-radius: 12px;
   overflow: hidden;
 }

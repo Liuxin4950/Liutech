@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, DeleteOutlined, CommentOutlined } from '@ant-design/icons-vue'
 import CommentsService from '../../services/comments'
 import type { Comment, CommentListParams } from '../../services/comments'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime } from '../../utils/utils'
 
 // 响应式数据
 const loading = ref(false)

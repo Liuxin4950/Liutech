@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons-vue'
 import ImagesService from '../../services/images'
 import type { Image, ImageListParams } from '../../services/images'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime } from '../../utils/utils'
 
 // 响应式数据
 const loading = ref(false)

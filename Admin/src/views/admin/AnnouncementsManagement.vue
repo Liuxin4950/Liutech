@@ -6,7 +6,7 @@ import DOMPurify from 'dompurify'
 import dayjs, { Dayjs } from 'dayjs'
 import AnnouncementsService from '../../services/announcements'
 import type { AnnouncementListParams, Announcement, AnnouncementListItem } from '../../services/announcements'
-import { formatDateTime, formatRelativeTime } from '../../utils/uitls'
+import { formatDateTime, formatRelativeTime } from '../../utils/utils'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 
 // 响应式数据

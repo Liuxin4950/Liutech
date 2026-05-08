@@ -50,7 +50,7 @@ import { useHead } from '@vueuse/head'
 import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import type { ProfileInfo} from '@/services/user'
 import { getProfile,getAuthorProfile } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
@@ -292,7 +292,7 @@ onMounted(() => {
 .posts-img {
   width: 200px;
   height: 150px;
-  background-color: white;
+  background-color: var(--bg-card);
   border-radius: $card-radius;
   overflow: hidden;
 
@@ -359,15 +359,6 @@ onMounted(() => {
     }
   }
 }
-.post-summary {
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* 限制显示2行 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-  max-height: 3em; /* 2行的高度 (1.5 * 2) */
-  word-break: break-word;
-}
 
 
 .loading-text,
@@ -375,22 +366,6 @@ onMounted(() => {
   text-align: center;
   padding: 40px 20px;
   color: var(--text-muted);
-}
-
-.retry-btn {
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 8px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: var(--color-primary-dark);
-    transform: translateY(-1px);
-  }
 }
 
 /* 右侧主内容区 */
@@ -417,7 +392,7 @@ onMounted(() => {
 
 /* 欢迎横幅 */
 .welcome-banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #764ba2) 100%);
   border-radius: $card-radius;
   padding: 40px;
   text-align: center;

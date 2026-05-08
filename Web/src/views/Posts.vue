@@ -74,7 +74,7 @@ import type { PostListItem, PostQueryParams } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import Pagination from '@/components/Pagination.vue'
 import ArticleList from '@/components/ArticleList.vue'
 import Icon from '@/components/Icon.vue'
@@ -225,30 +225,6 @@ onMounted(async () => {
   padding: 20px;
 }
 
-.retry-btn {
-  margin-top: 12px;
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-/* 文章摘要省略号样式 */
-.post-summary {
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* 限制显示2行 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.5;
-  max-height: 3em; /* 2行的高度 (1.5 * 2) */
-  word-break: break-word;
-}
-
-.retry-btn:hover {
-  background: var(--color-primary-dark);
-}
 .relative > .badge{
   position: absolute;
   top: 0;
@@ -341,7 +317,7 @@ onMounted(async () => {
 }
 
 /* 统一首页与全部文章列表的图片容器尺寸与样式 */
-.posts-img { width: 200px; height: 150px; background-color: white; border-radius: 12px; overflow: hidden; }
+.posts-img { width: 200px; height: 150px; background-color: var(--bg-card); border-radius: 12px; overflow: hidden; }
 
 .card.bg-card.flex.flex-fw.gap-16.flex-ac {
   @include respond(md) {

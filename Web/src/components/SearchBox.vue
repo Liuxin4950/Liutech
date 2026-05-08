@@ -77,7 +77,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Icon from './Icon.vue'
 import { PostService, type PostListItem } from '@/services/post'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 
 const router = useRouter()

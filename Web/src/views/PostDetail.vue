@@ -6,7 +6,7 @@ import DOMPurify from 'dompurify'
 import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import CommentSection from '@/components/CommentSection.vue'
 import { isLoggedIn } from '../utils/auth'
 import LoginModal from '../components/LoginModal.vue'
@@ -898,18 +898,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 :deep(.article-toc .toc-link) {
   font-size: 12.5px;
-}
-
-.retry-btn {
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-.retry-btn:hover {
-  background: var(--color-primary-dark) !important;
 }
 
 .post-header {
@@ -2046,11 +2034,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     opacity: 0.6;
     cursor: not-allowed;
   }
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 @include respond(md) {

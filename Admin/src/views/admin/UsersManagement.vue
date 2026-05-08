@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import { DownOutlined } from '@ant-design/icons-vue'
 import UserService from '../../services/user'
 import type { UserListParams, User } from '../../services/user'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime } from '../../utils/utils'
 
 // 响应式数据
 const loading = ref(false)

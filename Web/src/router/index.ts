@@ -155,7 +155,10 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
-    redirect: '/'
+    component: () => import('../views/NotFound.vue'),
+    meta: {
+      title: '页面不存在'
+    }
   }
 ]
 
@@ -187,7 +190,9 @@ router.beforeEach(async (to, from, next) => {
   document.title = `Liutech-${to.meta.title || '博客'}`
 
   // 需要登录的页面
-  const requiresAuth = ['create-post', 'drafts', 'my-posts', 'favorites', 'profile', 'chat-history', 'ai-chat-full']
+  const requiresAuth = ['create-post', 'drafts', 'my-posts', 'favorites', 'profile', 'ai-chat-full']
+  // 需要管理员权限的页面
+  const requiresAdmin = ['create-post', 'drafts', 'my-posts']
 
   // 检查是否需要登录
   if (requiresAuth.includes(to.name as string)) {
@@ -202,6 +207,12 @@ router.beforeEach(async (to, from, next) => {
     await userStore.fetchUserInfo()
     if (!userStore.isLoggedIn) {
       next({ name: 'login', query: { redirect: to.fullPath } })
+      return
+    }
+
+    // 检查管理员权限
+    if (requiresAdmin.includes(to.name as string) && !userStore.isAdmin) {
+      next({ name: 'home' })
       return
     }
   }

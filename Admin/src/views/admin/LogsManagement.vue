@@ -2,7 +2,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import LogService, { type LogItem, type LogListParams } from '../../services/log'
-import { formatDateTime } from '../../utils/uitls'
+import { formatDateTime } from '../../utils/utils'
 import {
   SearchOutlined,
   ReloadOutlined,

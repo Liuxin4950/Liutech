@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import type { PostListItem } from '@/services/post'
-import { formatDate } from '@/utils/uitls'
+import { formatDate } from '@/utils/utils'
 import Icon from './Icon.vue'
 import defaultPostImage from '@/assets/image/images.jpg'
 

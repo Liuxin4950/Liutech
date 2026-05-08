@@ -205,21 +205,6 @@ onMounted(() => {
   padding: 6px 12px;
 }
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid var(--border-base);
-  border-top: 4px solid var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 20px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 @include respond(md) {
   .flex.flex-sb.flex-ac.mb-20.flex-fw {
     flex-direction: column;

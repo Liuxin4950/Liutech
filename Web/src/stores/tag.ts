@@ -113,12 +113,6 @@ export const useTagStore = defineStore('tag', () => {
         } else {
           tags.value.push(response)
         }
-
-        // 更新持久化存储
-        localStorage.setItem('blog_tags', JSON.stringify({
-          data: tags.value,
-          timestamp: lastFetchTime.value
-        }))
       }
 
       return response

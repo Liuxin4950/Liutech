@@ -54,7 +54,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { UserService, type CheckinStatus, type CheckinResponse } from '@/services/user'
-import { formatDateTime } from '@/utils/uitls'
+import { formatDateTime } from '@/utils/utils'
+import { showError } from '@/utils/errorHandler'
 
 // 响应式数据
 const checkinStatus = ref<CheckinStatus | null>(null)
@@ -119,7 +120,7 @@ const handleCheckin = async () => {
   } catch (error: any) {
     console.error('签到失败:', error)
     // 这里可以添加错误提示
-    alert(error.message || '签到失败，请稍后重试')
+    showError(error.message || '签到失败，请稍后重试')
   } finally {
     isLoading.value = false
   }
