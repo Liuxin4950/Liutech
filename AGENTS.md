@@ -117,10 +117,7 @@ docker-compose logs -f web
 
 **初始化数据库:**
 ```sql
-CREATE DATABASE liutech CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE liutech_ai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-mysql -u root -p liutech < sql/sql.sql
-mysql -u root -p liutech_ai < sql/ai_chat_tables.sql
+mysql -u root -p < sql/sql.sql
 ```
 
 ## 📁 关键目录与文件
@@ -409,8 +406,7 @@ docker exec -it liutech-mysql mysql -u root -p123456
 - 外部访问: 使用暴露端口 (8080, 8081, 3000, 3001)
 
 ### 数据库迁移
-- 主数据库: `sql/sql.sql`
-- AI 数据库: `sql/ai_chat_tables.sql`
+- 主数据库和 AI 数据库: `sql/sql.sql`
 
 ### 代码风格
 - 后端: 遵循 Java 规范 (Spring Boot 标准)

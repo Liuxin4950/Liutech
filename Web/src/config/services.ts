@@ -33,10 +33,7 @@ const getBackendURL = (): string => {
   if (isDevelopment) {
     return 'http://127.0.0.1:8080'
   }
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return '/api'
-  }
-  return 'https://api.liutech.com'
+  return '/api'
 }
 
 // 服务配置映射

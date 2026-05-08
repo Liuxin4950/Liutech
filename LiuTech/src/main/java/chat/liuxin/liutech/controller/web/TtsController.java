@@ -16,11 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.model.dto.TtsConfigDTO;
+import chat.liuxin.liutech.model.dto.TtsPublicStatusDTO;
 import chat.liuxin.liutech.model.dto.TtsSpeechRequestDTO;
 import chat.liuxin.liutech.model.dto.TtsSpeechResponseDTO;
-import chat.liuxin.liutech.model.dto.TtsStatusDTO;
-import chat.liuxin.liutech.service.TtsConfigService;
 import chat.liuxin.liutech.service.TtsSpeechService;
 import chat.liuxin.liutech.service.TtsStatusService;
 import jakarta.validation.Valid;
@@ -32,8 +30,8 @@ import java.util.concurrent.TimeUnit;
  * TTS（语音推理）公共接口
  *
  * 说明：
- * - 前端用它判断“语音功能是否可用”
- * - 不需要登录即可访问（由 SecurityConfig 放行）
+ * - 前端和 AI 服务用它判断“语音功能是否可用”
+ * - 公共状态只返回最小字段，完整配置和诊断信息走 /admin/tts/**
  */
 @RestController
 @RequestMapping("/tts")
@@ -43,22 +41,14 @@ public class TtsController {
     private TtsStatusService ttsStatusService;
 
     @Autowired
-    private TtsConfigService ttsConfigService;
-
-    @Autowired
     private TtsSpeechService ttsSpeechService;
 
     @Value("${tts.proxy.internal-token:${TTS_PROXY_INTERNAL_TOKEN:}}")
     private String internalToken;
 
     @GetMapping("/status")
-    public Result<TtsStatusDTO> status() {
-        return Result.success(ttsStatusService.getStatus());
-    }
-
-    @GetMapping("/config")
-    public Result<TtsConfigDTO> config() {
-        return Result.success(ttsConfigService.getConfig());
+    public Result<TtsPublicStatusDTO> status() {
+        return Result.success(TtsPublicStatusDTO.from(ttsStatusService.getStatus()));
     }
 
     @PostMapping("/speech")

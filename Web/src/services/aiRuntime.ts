@@ -3,8 +3,7 @@ import { get } from './api'
 export interface RuntimeTtsStatusDTO {
   enabled: boolean
   online: boolean
-  baseUrl: string | null
-  voiceModel: string | null
+  provider?: string | null
   checkedAt: number
   message?: string | null
 }

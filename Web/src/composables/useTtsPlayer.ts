@@ -20,6 +20,7 @@ export function useTtsPlayer(
   chatStore: {
     ttsEnabled: boolean
     ttsAvailable: boolean
+    ttsAwaitingAudio: boolean
     ttsPendingCount: number
     shiftTtsAudioQueue: () => any
     shiftAvatarCueQueue: () => any
@@ -39,6 +40,7 @@ export function useTtsPlayer(
     if (!audioUrl) return ''
     if (audioUrl.startsWith('/')) {
       const base = getServiceBaseURL(ServiceType.MAIN).replace(/\/$/, '')
+      if (base.startsWith('/') && audioUrl.startsWith(`${base}/`)) return audioUrl
       return `${base}${audioUrl}`
     }
     return audioUrl
@@ -176,7 +178,7 @@ export function useTtsPlayer(
    */
   async function applyNextAvatarCues() {
     if (isApplyingAvatarCue) return
-    if (isTtsPlaying || chatStore.ttsPendingCount > 0) return
+    if (isTtsPlaying || chatStore.ttsAwaitingAudio || chatStore.ttsPendingCount > 0) return
     if (!live2dRef.value || !showModel.value) return
     isApplyingAvatarCue = true
     try {

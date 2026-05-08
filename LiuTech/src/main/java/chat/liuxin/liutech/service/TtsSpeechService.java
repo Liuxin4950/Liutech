@@ -31,13 +31,18 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 /**
  * 统一 TTS 推理、缓存和 SiliconFlow 音色管理。
@@ -56,11 +61,21 @@ public class TtsSpeechService {
     private final HttpClient httpClient = HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(10))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
+    private final AtomicLong lastCacheCleanupAt = new AtomicLong(0L);
 
     @Value("${siliconflow.base-url:https://api.siliconflow.cn}")
     private String siliconFlowBaseUrl;
+
+    @Value("${tts.cache.max-age-hours:${TTS_CACHE_MAX_AGE_HOURS:24}}")
+    private long cacheMaxAgeHours;
+
+    @Value("${tts.cache.max-bytes:${TTS_CACHE_MAX_BYTES:536870912}}")
+    private long cacheMaxBytes;
+
+    @Value("${tts.cache.cleanup-interval-ms:${TTS_CACHE_CLEANUP_INTERVAL_MS:3600000}}")
+    private long cacheCleanupIntervalMs;
 
     public TtsSpeechResponseDTO synthesize(String text) {
         String normalizedText = normalizeText(text);
@@ -275,7 +290,8 @@ public class TtsSpeechService {
             body.put("gain", 0.0);
 
             String requestBody = objectMapper.writeValueAsString(body);
-            log.info("SiliconFlow TTS 请求: input={}", text);
+            log.debug("SiliconFlow TTS 请求: model={}, format={}, inputLength={}",
+                    body.get("model"), format, text.length());
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(siliconFlowUrl("/v1/audio/speech")))
                     .timeout(Duration.ofSeconds(120))
@@ -303,15 +319,35 @@ public class TtsSpeechService {
     }
 
     private byte[] downloadAudio(String audioUrl, String expectedBaseUrl) throws IOException, InterruptedException {
-        URI uri = URI.create(audioUrl);
-        if (!isAllowedAudioHost(uri, expectedBaseUrl)) {
-            throw new BusinessException(ErrorCode.NETWORK_ERROR, "不允许的音频下载地址: " + uri.getHost());
+        String base = normalizeBaseUrl(expectedBaseUrl);
+        if (base == null) {
+            throw new BusinessException(ErrorCode.NETWORK_ERROR, "缺少允许的音频下载源");
         }
+        return downloadAudioFollowingSafeRedirects(URI.create(audioUrl), URI.create(base), 0);
+    }
+
+    private byte[] downloadAudioFollowingSafeRedirects(URI uri, URI expectedBaseUri, int redirects)
+            throws IOException, InterruptedException {
+        if (!isAllowedAudioUri(uri, expectedBaseUri)) {
+            throw new BusinessException(ErrorCode.NETWORK_ERROR, "不允许的音频下载地址: " + safeHost(uri));
+        }
+
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofSeconds(120))
                 .GET()
                 .build();
         HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        if (isRedirectStatus(response.statusCode())) {
+            if (redirects >= 3) {
+                throw new BusinessException(ErrorCode.NETWORK_ERROR, "TTS 音频下载重定向次数过多");
+            }
+            String location = response.headers().firstValue(HttpHeaders.LOCATION).orElse(null);
+            if (location == null || location.isBlank()) {
+                throw new BusinessException(ErrorCode.NETWORK_ERROR, "TTS 音频下载重定向缺少 Location");
+            }
+            URI next = uri.resolve(location.trim());
+            return downloadAudioFollowingSafeRedirects(next, expectedBaseUri, redirects + 1);
+        }
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new BusinessException(ErrorCode.NETWORK_ERROR, "下载 TTS 音频失败（HTTP " + response.statusCode() + "）");
         }
@@ -326,6 +362,7 @@ public class TtsSpeechService {
         String fileName = UUID.randomUUID() + "." + ext;
         Files.createDirectories(cacheDir());
         Files.write(cacheDir().resolve(fileName), audio);
+        cleanupAudioCacheIfDue();
         return "/tts/audio/" + fileName;
     }
 
@@ -366,17 +403,124 @@ public class TtsSpeechService {
         return "SiliconFlow 请求失败：" + truncated;
     }
 
-    private boolean isAllowedAudioHost(URI uri, String expectedBaseUrl) {
-        if (uri == null || uri.getHost() == null) return false;
-        String host = uri.getHost();
-        // 允许配置的 baseUrl 主机
-        String base = normalizeBaseUrl(expectedBaseUrl);
-        if (base != null) {
-            URI baseUri = URI.create(base);
-            if (host.equalsIgnoreCase(baseUri.getHost())) return true;
+    private void cleanupAudioCacheIfDue() {
+        long now = System.currentTimeMillis();
+        long previous = lastCacheCleanupAt.get();
+        long interval = Math.max(60_000L, cacheCleanupIntervalMs);
+        if ((now - previous) < interval) {
+            return;
         }
-        // 允许 localhost
-        return "127.0.0.1".equals(host) || "localhost".equalsIgnoreCase(host);
+        if (lastCacheCleanupAt.compareAndSet(previous, now)) {
+            cleanupAudioCache();
+        }
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(
+            fixedDelayString = "${tts.cache.cleanup-interval-ms:${TTS_CACHE_CLEANUP_INTERVAL_MS:3600000}}")
+    public void cleanupAudioCache() {
+        Path dir = cacheDir();
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+
+        Instant cutoff = Instant.now().minus(Duration.ofHours(Math.max(1L, cacheMaxAgeHours)));
+        List<AudioCacheFile> activeFiles = new ArrayList<>();
+        long[] totalBytes = new long[] {0L};
+        int[] deleted = new int[] {0};
+
+        try (Stream<Path> paths = Files.list(dir)) {
+            paths.filter(this::isManagedAudioCacheFile)
+                    .forEach(path -> collectOrDeleteExpiredAudio(path, cutoff, activeFiles, totalBytes, deleted));
+        } catch (Exception e) {
+            log.warn("清理 TTS 缓存目录失败: {}", e.getMessage());
+            return;
+        }
+
+        long maxBytes = Math.max(0L, cacheMaxBytes);
+        if (maxBytes > 0 && totalBytes[0] > maxBytes) {
+            activeFiles.sort(Comparator.comparing(AudioCacheFile::modifiedAt));
+            for (AudioCacheFile file : activeFiles) {
+                if (totalBytes[0] <= maxBytes) {
+                    break;
+                }
+                if (deleteCacheFile(file.path())) {
+                    totalBytes[0] -= file.size();
+                    deleted[0]++;
+                }
+            }
+        }
+
+        if (deleted[0] > 0) {
+            log.info("TTS 缓存清理完成: deleted={}, remainingBytes={}", deleted[0], totalBytes[0]);
+        }
+    }
+
+    private void collectOrDeleteExpiredAudio(
+            Path path,
+            Instant cutoff,
+            List<AudioCacheFile> activeFiles,
+            long[] totalBytes,
+            int[] deleted) {
+        try {
+            FileTime modifiedAt = Files.getLastModifiedTime(path);
+            long size = Files.size(path);
+            if (modifiedAt.toInstant().isBefore(cutoff)) {
+                if (deleteCacheFile(path)) {
+                    deleted[0]++;
+                }
+                return;
+            }
+            activeFiles.add(new AudioCacheFile(path, size, modifiedAt));
+            totalBytes[0] += size;
+        } catch (Exception e) {
+            log.debug("跳过不可读 TTS 缓存文件 {}: {}", path.getFileName(), e.getMessage());
+        }
+    }
+
+    private boolean isManagedAudioCacheFile(Path path) {
+        if (path == null || !Files.isRegularFile(path)) {
+            return false;
+        }
+        String fileName = path.getFileName() == null ? "" : path.getFileName().toString();
+        return fileName.matches("[a-f0-9\\-]{36}\\.(mp3|wav|opus|pcm)");
+    }
+
+    private boolean deleteCacheFile(Path path) {
+        try {
+            return Files.deleteIfExists(path);
+        } catch (Exception e) {
+            log.debug("删除 TTS 缓存文件失败 {}: {}", path.getFileName(), e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean isAllowedAudioUri(URI uri, URI expectedBaseUri) {
+        if (uri == null || expectedBaseUri == null) return false;
+        if (!isHttpScheme(uri.getScheme()) || !isHttpScheme(expectedBaseUri.getScheme())) return false;
+        if (uri.getHost() == null || expectedBaseUri.getHost() == null) return false;
+        return uri.getScheme().equalsIgnoreCase(expectedBaseUri.getScheme())
+                && uri.getHost().equalsIgnoreCase(expectedBaseUri.getHost())
+                && effectivePort(uri) == effectivePort(expectedBaseUri);
+    }
+
+    private boolean isHttpScheme(String scheme) {
+        return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+    }
+
+    private int effectivePort(URI uri) {
+        if (uri.getPort() >= 0) {
+            return uri.getPort();
+        }
+        return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+    }
+
+    private boolean isRedirectStatus(int statusCode) {
+        return statusCode == 301 || statusCode == 302 || statusCode == 303
+                || statusCode == 307 || statusCode == 308;
+    }
+
+    private String safeHost(URI uri) {
+        return uri == null || uri.getHost() == null ? "unknown" : uri.getHost();
     }
 
     private String normalizeAudioUrl(String audioUrl, String baseUrl) {
@@ -466,5 +610,8 @@ public class TtsSpeechService {
 
     private String textValue(JsonNode node, String field) {
         return node != null && node.has(field) && !node.get(field).isNull() ? node.get(field).asText() : null;
+    }
+
+    private record AudioCacheFile(Path path, long size, FileTime modifiedAt) {
     }
 }

@@ -28,7 +28,7 @@ public class AiRuntimeDTO {
     private String defaultModel;
 
     /**
-     * TTS 运行时状态
+     * TTS 公共运行时状态
      */
-    private TtsStatusDTO tts;
+    private TtsPublicStatusDTO tts;
 }

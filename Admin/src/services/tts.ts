@@ -52,7 +52,7 @@ export const updateTtsConfig = async (config: TtsConfigDTO): Promise<void> => {
 }
 
 export const getTtsStatus = async (): Promise<TtsStatusDTO> => {
-  const resp = await get<TtsStatusDTO>('/tts/status')
+  const resp = await get<TtsStatusDTO>('/admin/tts/status')
   return resp.data
 }
 
@@ -92,6 +92,7 @@ export const resolveMainAudioUrl = (audioUrl?: string | null): string => {
   if (!audioUrl) return ''
   if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) return audioUrl
   const base = String(axiosInstance.defaults.baseURL || '').replace(/\/$/, '')
+  if (base.startsWith('/') && audioUrl.startsWith(`${base}/`)) return audioUrl
   if (audioUrl.startsWith('/')) return `${base}${audioUrl}`
   return `${base}/${audioUrl}`
 }

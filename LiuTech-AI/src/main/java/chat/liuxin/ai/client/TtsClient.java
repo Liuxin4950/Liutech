@@ -16,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,9 +33,12 @@ public class TtsClient {
     @Value("${tts.proxy.internal-token:${TTS_PROXY_INTERNAL_TOKEN:}}")
     private String internalToken;
 
+    @Value("${tts.proxy.concurrency:${TTS_PROXY_CONCURRENCY:1}}")
+    private int proxyConcurrency;
+
     private volatile TtsStatus cachedStatus;
     private volatile long cachedAt = 0L;
-    private final Semaphore ttsSemaphore = new Semaphore(5);
+    private volatile Semaphore ttsSemaphore = new Semaphore(1);
 
     /**
      * 主服务 TTS 状态缓存时间（毫秒）
@@ -49,6 +53,13 @@ public class TtsClient {
     public TtsClient() {
         this.restTemplate = new RestTemplate();
         this.objectMapper = new ObjectMapper();
+    }
+
+    @PostConstruct
+    void initConcurrencyLimit() {
+        int permits = Math.max(1, proxyConcurrency);
+        ttsSemaphore = new Semaphore(permits);
+        log.info("TTS proxy concurrency limit initialized: {}", permits);
     }
 
     /**
@@ -106,8 +117,9 @@ public class TtsClient {
         if (!status.isEnabled() || !status.isOnline()) return null;
 
         boolean acquired = false;
+        Semaphore semaphore = ttsSemaphore;
         try {
-            ttsSemaphore.acquire();
+            semaphore.acquire();
             acquired = true;
 
             Map<String, Object> body = new HashMap<>();
@@ -135,7 +147,7 @@ public class TtsClient {
             log.warn("TTS推理失败: {}", e.getMessage());
         } finally {
             if (acquired) {
-                ttsSemaphore.release();
+                semaphore.release();
             }
         }
 

@@ -440,8 +440,7 @@ onMounted(async () => {
     const status = runtime?.tts
     const available = status?.enabled === true && status?.online === true
     if (status) {
-      const voiceSuffix = status.voiceModel ? ` / ${status.voiceModel}` : ''
-      ttsStatusText.value = (status.message || (available ? '语音可用' : '语音不可用')) + voiceSuffix
+      ttsStatusText.value = status.message || (available ? '语音可用' : '语音不可用')
     } else {
       ttsStatusText.value = available ? '语音可用' : '语音不可用'
     }

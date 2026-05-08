@@ -1,7 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.model.dto.AiRuntimeDTO;
-import chat.liuxin.liutech.model.dto.TtsStatusDTO;
+import chat.liuxin.liutech.model.dto.TtsPublicStatusDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -36,8 +36,7 @@ public class AiRuntimeService {
 
     public AiRuntimeDTO getRuntime() {
         AiRuntimeDTO dto = new AiRuntimeDTO();
-        TtsStatusDTO ttsStatus = ttsStatusService.getStatus();
-        dto.setTts(ttsStatus);
+        dto.setTts(TtsPublicStatusDTO.from(ttsStatusService.getStatus()));
 
         try {
             String normalizedBaseUrl = normalizeBaseUrl(aiServiceUrl);

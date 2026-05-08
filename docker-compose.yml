@@ -13,7 +13,6 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./sql/sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      - ./sql/ai_chat_tables.sql:/docker-entrypoint-initdb.d/ai_chat_tables.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:?DB_PASSWORD is required}"]
@@ -44,6 +43,10 @@ services:
       - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
       # 可选：保护 /tts/speech 代理入口，需与 AI 服务保持一致
       - TTS_PROXY_INTERNAL_TOKEN=${TTS_PROXY_INTERNAL_TOKEN:-}
+      # TTS 临时缓存清理策略
+      - TTS_CACHE_MAX_AGE_HOURS=${TTS_CACHE_MAX_AGE_HOURS:-24}
+      - TTS_CACHE_MAX_BYTES=${TTS_CACHE_MAX_BYTES:-536870912}
+      - TTS_CACHE_CLEANUP_INTERVAL_MS=${TTS_CACHE_CLEANUP_INTERVAL_MS:-3600000}
       # 静态资源路径（可选，用于直接返回文件）
       - SPRING_WEB_RESOURCES_STATIC_LOCATIONS=file:/app/uploads
     volumes:
@@ -72,6 +75,8 @@ services:
       - BLOG_API_URL=http://backend:8080
       # 可选：AI 服务调用主后端 TTS 代理时携带
       - TTS_PROXY_INTERNAL_TOKEN=${TTS_PROXY_INTERNAL_TOKEN:-}
+      # 默认 1，保护本地 GPT-SoVITS 笔记本推理资源
+      - TTS_PROXY_CONCURRENCY=${TTS_PROXY_CONCURRENCY:-1}
       # JWT密钥 - 必须与后端一致，否则无法验证token
       - JWT_SECRET=${JWT_SECRET}
     depends_on:

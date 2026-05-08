@@ -38,11 +38,7 @@ export class ImageUploadService {
           if (import.meta.env.DEV) {
             return 'http://127.0.0.1:8080'
           }
-          const hostname = window.location.hostname
-          if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return '/api'
-          }
-          return 'https://api.liutech.com'
+          return '/api'
         }
 
         fetch(`${getBackendURL()}/upload/tinymce/image`, {

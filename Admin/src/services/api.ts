@@ -28,12 +28,8 @@ const getBackendURL = (): string => {
   if (import.meta.env.DEV) {
     return 'http://127.0.0.1:8080'
   }
-  // 生产环境兜底
-  const hostname = window.location.hostname
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return '/api'
-  }
-  return 'https://api.liutech.com'
+  // 生产环境通过根 Nginx 的 /api 同源代理访问主后端
+  return '/api'
 }
 
 // 创建 axios 实例

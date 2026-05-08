@@ -306,15 +306,8 @@ docker-compose logs -f
 <summary>🗄️ 数据库配置</summary>
 
 ```sql
--- 创建主数据库
-CREATE DATABASE liutech CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- 创建AI数据库
-CREATE DATABASE liutech_ai CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- 导入数据表结构
-mysql -u root -p liutech < sql/sql.sql
-mysql -u root -p liutech_ai < sql/ai_chat_tables.sql
+-- 一次性导入主后端和 AI 服务表结构
+mysql -u root -p < sql/sql.sql
 ```
 
 </details>
@@ -417,8 +410,7 @@ Liutech/
 │   ├── 📄 nginx.conf          # 主配置文件
 │   └── 📁 conf.d/             # 虚拟主机配置
 ├── � sql/                    # 数据库脚本
-│   ├── 📄 sql.sql             # 主数据库初始化脚本
-│   └── �� ai_chat_tables.sql  # AI数据库表结构
+│   └── 📄 sql.sql             # 主后端 + AI 服务数据库初始化脚本
 ├── 📄 docker-compose.yml      # Docker 编排配置
 ├── 📄 快速部署指南.md          # 快速部署指南
 ├── 📄 服务器部署脚本.sh        # 服务器部署脚本

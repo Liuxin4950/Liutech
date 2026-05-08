@@ -7,6 +7,7 @@ import { isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
 import { useUserStore } from '@/stores/user'
 import { useSequencedBuffer } from '@/composables/useSequencedBuffer'
+import { getServiceBaseURL, ServiceType } from '@/config/services'
 
 /**
  * 聊天消息接口
@@ -125,6 +126,7 @@ export const useChatStore = defineStore('chat', () => {
    * - 用于控制 UI 是否允许开启语音
    */
   const ttsAvailable = ref<boolean>(false)
+  const ttsAwaitingAudio = ref<boolean>(false)
 
   // 语音片段和表情提示的顺序缓冲区
   // 解决问题：SSE 事件到达顺序不一定等于播放顺序，通过 seq 保证严格按序消费
@@ -238,12 +240,22 @@ export const useChatStore = defineStore('chat', () => {
   const setTtsAvailable = (available: boolean) => {
     ttsAvailable.value = available
     if (!available) {
+      ttsAwaitingAudio.value = false
       setTtsEnabled(false)
     }
   }
 
   const clearTtsAudioQueue = () => ttsAudioQueue.clear()
   const clearAvatarCueQueue = () => avatarCueQueue.clear()
+
+  const resolveTtsAudioUrl = (audioUrl?: string): string => {
+    if (!audioUrl) return ''
+    if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) return audioUrl
+    const base = getServiceBaseURL(ServiceType.MAIN).replace(/\/$/, '')
+    if (base.startsWith('/') && audioUrl.startsWith(`${base}/`)) return audioUrl
+    if (audioUrl.startsWith('/')) return `${base}${audioUrl}`
+    return `${base}/${audioUrl}`
+  }
 
   const enqueueTtsAudio = (item: TtsAudioItem) => {
     if (!item) return
@@ -256,6 +268,7 @@ export const useChatStore = defineStore('chat', () => {
     }
     if (enriched.status === 'ready' && enriched.audioUrl) {
       try {
+        enriched.audioUrl = resolveTtsAudioUrl(enriched.audioUrl)
         // 收到音频地址后立即预加载，尽量把“网络/磁盘等待”提前到播放之前完成
         const pre = new Audio(enriched.audioUrl)
         pre.preload = 'auto'
@@ -507,6 +520,8 @@ export const useChatStore = defineStore('chat', () => {
     ttsCancelCounter.value++
     clearTtsAudioQueue()
     clearAvatarCueQueue()
+    const shouldUseTts = ttsEnabled.value === true && ttsAvailable.value === true
+    ttsAwaitingAudio.value = shouldUseTts
 
     // 创建空的AI消息用于流式更新
     const aiMessage = addAiMessage('', undefined, { isStreaming: true, isThinking: true })
@@ -516,7 +531,7 @@ export const useChatStore = defineStore('chat', () => {
       await AiStream.streamChat(
         {
           ...request,
-          ttsEnabled: ttsEnabled.value === true && ttsAvailable.value === true
+          ttsEnabled: shouldUseTts
         },
         // onChunk - 接收到内容块
         (chunk: string) => {
@@ -580,6 +595,11 @@ export const useChatStore = defineStore('chat', () => {
             })
             return
           }
+          // audio-complete 用来解除“等待音频绑定 cue”的状态
+          if (eventType === 'audio-complete') {
+            ttsAwaitingAudio.value = false
+            return
+          }
           // TTS 未启用时，丢弃音频事件（avatar-cue 不受此限制，始终处理）
           if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
           if (eventType === 'audio' && payload && payload.audioUrl && typeof payload.seq === 'number') {
@@ -608,6 +628,7 @@ export const useChatStore = defineStore('chat', () => {
           completeStreamingMessage()
           isStreaming.value = false
           aiThinking.value = false
+          ttsAwaitingAudio.value = false
           isLoading.value = false
 
           // 更新会话ID
@@ -628,6 +649,7 @@ export const useChatStore = defineStore('chat', () => {
           errorMessage.value = error.message
           isStreaming.value = false
           aiThinking.value = false
+          ttsAwaitingAudio.value = false
           isLoading.value = false
         }
       )
@@ -644,6 +666,7 @@ export const useChatStore = defineStore('chat', () => {
         isStreaming.value = false
       }
       aiThinking.value = false
+      ttsAwaitingAudio.value = false
     }
   }
 
@@ -744,6 +767,7 @@ export const useChatStore = defineStore('chat', () => {
       messages.value = []
       conversationId.value = null
       errorMessage.value = ''
+      ttsAwaitingAudio.value = false
       messageIdCounter = 0  // 重置计数器
 
       // 取消正在进行的流式请求
@@ -860,6 +884,7 @@ export const useChatStore = defineStore('chat', () => {
     currentModelInfo,
     ttsEnabled,
     ttsAvailable,
+    ttsAwaitingAudio,
     ttsPendingCount: ttsAudioQueue.pendingCount,
     avatarCuePendingCount: avatarCueQueue.pendingCount,
 
