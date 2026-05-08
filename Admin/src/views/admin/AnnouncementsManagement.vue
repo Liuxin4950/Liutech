@@ -43,7 +43,7 @@ const columns = [
   { title: '删除状态', key: 'deleteStatus', width: 80 },
   { title: '浏览量', dataIndex: 'viewCount', key: 'viewCount', width: 80 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  { title: '操作', key: 'action', width: 280, fixed: 'right' }
+  { title: '操作', key: 'action', width: 320, fixed: 'right' }
 ]
 
 // 下拉选项
@@ -438,6 +438,39 @@ const handleBatchTopUpdate = async (isTop: number) => {
   }
 }
 
+const handlePermanentDelete = async (id: number) => {
+  try {
+    const res = await AnnouncementsService.permanentDeleteAnnouncement(id)
+    if (res && res.code === 200) {
+      message.success('彻底删除成功')
+      loadAnnouncements()
+    } else {
+      message.warning(res?.message || '彻底删除失败')
+    }
+  } catch (e) {
+    message.warning('彻底删除失败，请稍后重试')
+  }
+}
+
+const handleBatchPermanentDelete = async () => {
+  if (!selectedRowKeys.value.length) {
+    message.warning('请选择要彻底删除的公告')
+    return
+  }
+  try {
+    const res = await AnnouncementsService.batchPermanentDeleteAnnouncements(selectedRowKeys.value)
+    if (res && res.code === 200) {
+      message.success('批量彻底删除成功')
+      selectedRowKeys.value = []
+      loadAnnouncements()
+    } else {
+      message.warning(res?.message || '批量彻底删除失败')
+    }
+  } catch (e) {
+    message.warning('批量彻底删除失败，请稍后重试')
+  }
+}
+
 // ============== 导入导出功能 ==============
 const handleExport = async () => {
   try {
@@ -575,6 +608,17 @@ onMounted(async () => {
             <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
               <DeleteOutlined /> 批量删除
             </a-button>
+            <a-popconfirm
+              v-if="searchParams.includeDeleted"
+              title="确定要批量彻底删除选中的公告吗？此操作不可恢复！"
+              ok-text="确定"
+              cancel-text="取消"
+              @confirm="handleBatchPermanentDelete"
+            >
+              <a-button danger :disabled="selectedRowKeys.length === 0">
+                <DeleteOutlined /> 批量彻底删除
+              </a-button>
+            </a-popconfirm>
             <a-dropdown>
               <template #overlay>
                 <a-menu>
@@ -699,6 +743,16 @@ onMounted(async () => {
                 <a-button type="link" size="small" @click="handleRestore(record.id)">
                   恢复
                 </a-button>
+                <a-popconfirm
+                  title="确定要彻底删除这个公告吗？此操作不可恢复！"
+                  ok-text="确定"
+                  cancel-text="取消"
+                  @confirm="handlePermanentDelete(record.id)"
+                >
+                  <a-button type="link" size="small" danger>
+                    彻底删除
+                  </a-button>
+                </a-popconfirm>
               </template>
               <template v-else>
                 <a-popconfirm

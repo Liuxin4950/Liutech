@@ -186,6 +186,34 @@ public class AnnouncementsController {
     }
 
     /**
+     * 物理删除单条公告（彻底删除，不可恢复）
+     * @param id 公告ID
+     * @return 是否成功
+     */
+    @DeleteMapping("/{id}/permanent")
+    @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "delete", targetType = "announcement", description = "物理删除公告")
+    public Result<Boolean> permanentDeleteAnnouncement(
+            @PathVariable Long id) {
+        boolean success = announcementsService.permanentDeleteAnnouncement(id);
+        return Result.success(success);
+    }
+
+    /**
+     * 批量物理删除公告（彻底删除，不可恢复）
+     * @param ids 公告ID列表
+     * @return 是否成功
+     */
+    @PostMapping("/batch/permanent")
+    @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "delete", targetType = "announcement", description = "批量物理删除公告")
+    public Result<Boolean> batchPermanentDeleteAnnouncements(
+            @RequestBody List<Long> ids) {
+        boolean success = announcementsService.batchPermanentDeleteAnnouncements(ids);
+        return Result.success(success);
+    }
+
+    /**
      * 更新公告状态
      * @param id 公告ID
      * @param request 状态更新请求

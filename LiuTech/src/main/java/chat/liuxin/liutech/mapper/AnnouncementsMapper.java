@@ -2,6 +2,7 @@ package chat.liuxin.liutech.mapper;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -69,4 +70,20 @@ public interface AnnouncementsMapper extends BaseMapper<Announcements> {
             "ORDER BY created_at DESC " +
             "LIMIT #{limit}")
     List<Announcements> selectLatestAnnouncements(@Param("limit") Integer limit);
+
+    /**
+     * 物理删除单条公告（绕过 @TableLogic）
+     * @param id 公告ID
+     * @return 影响行数
+     */
+    @Delete("DELETE FROM announcements WHERE id = #{id}")
+    int permanentDeleteById(@Param("id") Long id);
+
+    /**
+     * 批量物理删除公告（绕过 @TableLogic）
+     * @param ids 公告ID列表
+     * @return 影响行数
+     */
+    @Delete("<script>DELETE FROM announcements WHERE id IN <foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    int batchPermanentDeleteByIds(@Param("ids") List<Long> ids);
 }

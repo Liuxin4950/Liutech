@@ -264,6 +264,41 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
     }
 
     /**
+     * 物理删除单条公告（绕过 @TableLogic，直接 DELETE）
+     * @param id 公告ID
+     * @return 是否成功
+     */
+    @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
+    public boolean permanentDeleteAnnouncement(Long id) {
+        validateAnnouncementId(id);
+
+        Announcements announcement = this.getById(id);
+        if (announcement == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
+        }
+
+        int result = announcementsMapper.permanentDeleteById(id);
+        return result > 0;
+    }
+
+    /**
+     * 批量物理删除公告（绕过 @TableLogic，直接 DELETE）
+     * @param ids 公告ID列表
+     * @return 是否成功
+     */
+    @Transactional
+    @CacheEvict(value = "announcements", allEntries = true)
+    public boolean batchPermanentDeleteAnnouncements(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "公告ID列表不能为空");
+        }
+
+        int result = announcementsMapper.batchPermanentDeleteByIds(ids);
+        return result > 0;
+    }
+
+    /**
      * 置顶/取消置顶公告
      * @param id 公告ID
      * @param isTop 是否置顶(0否,1是)

@@ -110,6 +110,20 @@ export class AnnouncementsService {
   }
 
   /**
+   * 彻底删除公告（物理删除，不可恢复）
+   */
+  static async permanentDeleteAnnouncement(id: number): Promise<ApiResponse<boolean>> {
+    return del<boolean>(`${this.BASE_URL}/${id}/permanent`)
+  }
+
+  /**
+   * 批量彻底删除公告（物理删除，不可恢复）
+   */
+  static async batchPermanentDeleteAnnouncements(ids: number[]): Promise<ApiResponse<boolean>> {
+    return post<boolean>(`${this.BASE_URL}/batch/permanent`, ids)
+  }
+
+  /**
    * 更新公告状态
    */
   static async updateAnnouncementStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
