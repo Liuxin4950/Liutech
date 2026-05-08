@@ -93,6 +93,19 @@ public class AnnouncementsController {
     }
 
     /**
+     * 管理员根据ID获取公告详情（不限状态）
+     * @param id 公告ID
+     * @return 公告详情
+     */
+    @GetMapping("/admin/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Result<AnnouncementResp> getAnnouncementByIdForAdmin(
+            @PathVariable Long id) {
+        AnnouncementResp result = announcementsService.getAnnouncementByIdForAdmin(id);
+        return Result.success(result);
+    }
+
+    /**
      * 管理员分页查询所有公告
      * @param current 当前页
      * @param size 每页大小

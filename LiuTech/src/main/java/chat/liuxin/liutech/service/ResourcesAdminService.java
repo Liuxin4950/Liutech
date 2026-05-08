@@ -70,33 +70,13 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
     }
 
     /**
-     * 根据ID获取资源详情
+     * 根据ID获取资源详情（包含上传者用户名）
      *
      * @param id 资源ID
      * @return 资源信息
      */
     public ResourceResp getResourceById(Long id) {
-        Resources resource = super.getById(id);
-        if (resource == null) {
-            return null;
-        }
-
-        ResourceResp resp = new ResourceResp();
-        resp.setId(resource.getId());
-        resp.setName(resource.getName());
-        resp.setDescription(resource.getDescription());
-        resp.setFileUrl(resource.getFileUrl());
-        resp.setExternalLink(resource.getExternalLink());
-        resp.setResourceType(resource.getResourceType());
-        resp.setPurchasedNote(resource.getPurchasedNote());
-        resp.setUploaderId(resource.getUploaderId());
-        resp.setDownloadType(resource.getDownloadType());
-        resp.setPointsNeeded(resource.getPointsNeeded());
-        resp.setCreatedAt(resource.getCreatedAt());
-        resp.setUpdatedAt(resource.getUpdatedAt());
-        resp.setDeletedAt(resource.getDeletedAt());
-
-        return resp;
+        return resourcesMapper.selectResourceById(id);
     }
 
     /**

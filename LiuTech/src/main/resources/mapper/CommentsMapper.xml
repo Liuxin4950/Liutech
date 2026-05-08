@@ -236,4 +236,18 @@
         </foreach>
     </delete>
 
+    <!-- 递归查询指定评论的所有子孙评论ID（不含传入的ID本身） -->
+    <select id="selectAllDescendantIds" resultType="java.lang.Long">
+        WITH RECURSIVE descendants AS (
+            SELECT id FROM comments WHERE parent_id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            UNION ALL
+            SELECT c.id FROM comments c
+            INNER JOIN descendants d ON c.parent_id = d.id
+        )
+        SELECT id FROM descendants
+    </select>
+
 </mapper>

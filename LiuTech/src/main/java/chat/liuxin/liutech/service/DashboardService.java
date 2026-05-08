@@ -234,20 +234,7 @@ public class DashboardService {
      * 获取活跃用户 TOP N（按文章数量排序）
      */
     private List<UserRank> getTopAuthors(int limit) {
-        List<UserRank> topAuthors = new ArrayList<>();
-
-        var users = userMapper.selectUsersForAdmin(0, limit, null, null, null, null, false);
-        if (users != null) {
-            for (var user : users) {
-                topAuthors.add(UserRank.builder()
-                        .id(user.getId())
-                        .username(user.getUsername())
-                        .nickname(user.getNickname())
-                        .postCount(user.getPostCount() != null ? user.getPostCount().longValue() : 0L)
-                        .build());
-            }
-        }
-
-        return topAuthors;
+        List<UserRank> topAuthors = userMapper.selectTopAuthors(limit);
+        return topAuthors != null ? topAuthors : new ArrayList<>();
     }
 }

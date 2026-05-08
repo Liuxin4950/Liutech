@@ -141,4 +141,11 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      * @return 影响的行数
      */
     int permanentDeleteByIds(@Param("ids") List<Long> ids);
+
+    /**
+     * 递归查询指定评论的所有子孙评论ID（不含传入的ID本身）
+     * @param ids 祖先评论ID列表
+     * @return 所有子孙评论ID
+     */
+    List<Long> selectAllDescendantIds(@Param("ids") List<Long> ids);
 }

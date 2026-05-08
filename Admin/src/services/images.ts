@@ -16,6 +16,7 @@ export interface Image {
   width: number
   height: number
   uploaderId: number
+  uploaderUsername?: string
   usageCount: number
   status: number
   createdAt: string

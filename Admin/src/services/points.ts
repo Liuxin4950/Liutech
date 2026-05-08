@@ -6,6 +6,7 @@ import type { PageResult } from './user'
 export interface PointsTransaction {
   id: number
   userId: number
+  username: string
   transactionType: string
   amount: number
   balanceAfter: number
@@ -19,6 +20,7 @@ export interface PointsTransaction {
 export interface UserCheckin {
   id: number
   userId: number
+  username: string
   checkinDate: string
   pointsEarned: number
   consecutiveDays: number

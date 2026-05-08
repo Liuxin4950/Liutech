@@ -151,6 +151,9 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean reviewMessage(Long id, Integer status, Long adminId) {
+        if (status == null || (status != 1 && status != 2)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "审核状态必须为 1(通过) 或 2(拒绝)");
+        }
         Messages message = this.getById(id);
         if (message == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "留言不存在");

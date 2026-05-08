@@ -19,6 +19,13 @@ import chat.liuxin.liutech.resp.ResourceResp;
 public interface ResourcesMapper extends BaseMapper<Resources> {
 
     /**
+     * 根据ID查询资源详情（包含上传者信息）
+     * @param id 资源ID
+     * @return 资源详情
+     */
+    ResourceResp selectResourceById(@Param("id") Long id);
+
+    /**
      * 管理端分页查询资源列表（包含上传者信息）
      * @param offset 偏移量
      * @param limit 限制数量

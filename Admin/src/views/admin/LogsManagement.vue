@@ -45,7 +45,14 @@ const actionOptions = [
   { label: '恢复', value: 'restore' },
   { label: '发布', value: 'publish' },
   { label: '下线', value: 'offline' },
-  { label: '启用/禁用', value: 'disable' }
+  { label: '启用/禁用', value: 'disable' },
+  { label: '上传', value: 'upload' },
+  { label: '购买', value: 'purchase' },
+  { label: '签到', value: 'checkin' },
+  { label: '审核', value: 'review' },
+  { label: '回复', value: 'reply' },
+  { label: '导出', value: 'export' },
+  { label: '导入', value: 'import' }
 ]
 
 // 表格列定义
@@ -107,7 +114,16 @@ const getTargetLabel = (target: string) => {
     user: '用户',
     category: '分类',
     tag: '标签',
-    announcement: '公告'
+    announcement: '公告',
+    message: '留言',
+    image: '图片',
+    carousel: '轮播图',
+    resource: '资源',
+    attachment: '附件',
+    points: '积分',
+    comment: '评论',
+    tts: '语音',
+    ai_model: 'AI模型'
   }
   return targetMap[target] || target || '-'
 }

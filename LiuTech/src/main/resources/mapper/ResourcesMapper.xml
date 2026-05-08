@@ -39,6 +39,28 @@
         LIMIT #{offset}, #{limit}
     </select>
 
+    <!-- 根据ID查询资源详情（包含上传者信息） -->
+    <select id="selectResourceById" resultType="chat.liuxin.liutech.resp.ResourceResp">
+        SELECT
+            r.id,
+            r.name,
+            r.description,
+            r.file_url,
+            r.external_link,
+            r.resource_type,
+            r.purchased_note,
+            r.uploader_id,
+            r.download_type,
+            r.points_needed,
+            r.created_at,
+            r.updated_at,
+            r.deleted_at,
+            u.username as uploader_username
+        FROM resources r
+        LEFT JOIN users u ON r.uploader_id = u.id
+        WHERE r.id = #{id}
+    </select>
+
     <!-- 管理端查询资源总数 -->
     <select id="countResourcesForAdmin" resultType="java.lang.Integer">
         SELECT COUNT(DISTINCT r.id)

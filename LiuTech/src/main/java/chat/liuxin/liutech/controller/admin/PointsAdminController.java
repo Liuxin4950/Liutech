@@ -5,6 +5,8 @@ import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.PointsTransaction;
 import chat.liuxin.liutech.model.UserCheckin;
 import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.PointsTransactionResp;
+import chat.liuxin.liutech.resp.UserCheckinResp;
 import chat.liuxin.liutech.service.PointsAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
@@ -46,7 +48,7 @@ public class PointsAdminController extends BaseAdminController {
      * @return 分页积分流水列表
      */
     @GetMapping("/transactions")
-    public Result<PageResp<PointsTransaction>> getTransactionList(
+    public Result<PageResp<PointsTransactionResp>> getTransactionList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long userId,
@@ -58,7 +60,7 @@ public class PointsAdminController extends BaseAdminController {
         ValidationUtil.validateRange(size, "页面大小", 1, 100);
 
         try {
-            PageResp<PointsTransaction> result = pointsAdminService.getTransactionList(
+            PageResp<PointsTransactionResp> result = pointsAdminService.getTransactionList(
                     page, size, userId, transactionType, startTime, endTime);
             return Result.success(result);
         } catch (Exception e) {
@@ -129,7 +131,7 @@ public class PointsAdminController extends BaseAdminController {
      * @return 分页签到记录列表
      */
     @GetMapping("/checkins")
-    public Result<PageResp<UserCheckin>> getCheckinList(
+    public Result<PageResp<UserCheckinResp>> getCheckinList(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) Long userId,
@@ -140,7 +142,7 @@ public class PointsAdminController extends BaseAdminController {
         ValidationUtil.validateRange(size, "页面大小", 1, 100);
 
         try {
-            PageResp<UserCheckin> result = pointsAdminService.getCheckinList(page, size, userId, startDate, endDate);
+            PageResp<UserCheckinResp> result = pointsAdminService.getCheckinList(page, size, userId, startDate, endDate);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询签到记录");

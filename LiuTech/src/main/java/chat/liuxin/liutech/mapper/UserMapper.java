@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.mapper;
 
 import chat.liuxin.liutech.model.Users;
+import chat.liuxin.liutech.resp.DashboardResp.UserRank;
 import chat.liuxin.liutech.resp.UserResp;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
@@ -130,5 +131,13 @@ public interface UserMapper extends BaseMapper<Users> {
         @Param("currentVersion") Integer currentVersion,
         @Param("newVersion") Integer newVersion
     );
+
+    /**
+     * 查询活跃作者 TOP N（按文章数量降序）
+     *
+     * @param limit 返回数量
+     * @return 活跃作者列表
+     */
+    List<UserRank> selectTopAuthors(@Param("limit") Integer limit);
 
 }

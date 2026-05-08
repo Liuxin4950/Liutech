@@ -53,6 +53,7 @@ const columns = [
   { title: '大小', key: 'fileSize', width: 100 },
   { title: '尺寸', key: 'dimensions', width: 110 },
   { title: 'MIME类型', dataIndex: 'mimeType', key: 'mimeType', width: 140 },
+  { title: '上传者', dataIndex: 'uploaderUsername', key: 'uploaderUsername', width: 100 },
   { title: '引用次数', dataIndex: 'usageCount', key: 'usageCount', width: 90 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
   { title: '操作', key: 'action', width: 150, fixed: 'right' as const }
@@ -451,6 +452,7 @@ onMounted(() => {
               { title: '文件名', dataIndex: 'fileName' },
               { title: '大小', key: 'fileSize', width: 100 },
               { title: 'MIME类型', dataIndex: 'mimeType', width: 140 },
+              { title: '上传者', dataIndex: 'uploaderUsername', width: 100 },
               { title: '创建时间', key: 'createdAt', width: 170 }
             ]"
             :data-source="orphanImages"

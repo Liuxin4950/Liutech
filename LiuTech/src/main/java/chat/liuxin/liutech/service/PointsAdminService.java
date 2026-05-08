@@ -9,6 +9,8 @@ import chat.liuxin.liutech.model.PointsTransaction;
 import chat.liuxin.liutech.model.UserCheckin;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.PointsTransactionResp;
+import chat.liuxin.liutech.resp.UserCheckinResp;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +49,7 @@ public class PointsAdminService {
     private UserMapper userMapper;
 
     /**
-     * 分页查询积分流水
+     * 分页查询积分流水（关联用户名）
      *
      * @param page            页码（从1开始）
      * @param size            每页大小
@@ -54,37 +57,20 @@ public class PointsAdminService {
      * @param transactionType 交易类型（可选）
      * @param startTime       开始时间（可选）
      * @param endTime         结束时间（可选）
-     * @return 分页积分流水列表
+     * @return 分页积分流水列表（含用户名）
      */
-    public PageResp<PointsTransaction> getTransactionList(int page, int size, Long userId,
-                                                          String transactionType, Date startTime, Date endTime) {
+    public PageResp<PointsTransactionResp> getTransactionList(int page, int size, Long userId,
+                                                              String transactionType, Date startTime, Date endTime) {
         log.info("查询积分流水 - 页码: {}, 每页: {}, 用户ID: {}, 交易类型: {}, 时间范围: {} ~ {}",
                 page, size, userId, transactionType, startTime, endTime);
 
-        LambdaQueryWrapper<PointsTransaction> wrapper = new LambdaQueryWrapper<>();
-        if (userId != null) {
-            wrapper.eq(PointsTransaction::getUserId, userId);
-        }
-        if (transactionType != null && !transactionType.isEmpty()) {
-            wrapper.eq(PointsTransaction::getTransactionType, transactionType);
-        }
-        if (startTime != null) {
-            wrapper.ge(PointsTransaction::getCreatedAt, startTime);
-        }
-        if (endTime != null) {
-            wrapper.le(PointsTransaction::getCreatedAt, endTime);
-        }
-        wrapper.orderByDesc(PointsTransaction::getCreatedAt);
+        Long total = pointsTransactionMapper.countTransactionsForAdmin(userId, transactionType, startTime, endTime);
 
-        // 查询总数
-        Long total = pointsTransactionMapper.selectCount(wrapper);
-
-        // 分页查询
         int offset = (page - 1) * size;
-        wrapper.last("LIMIT " + size + " OFFSET " + offset);
-        List<PointsTransaction> records = pointsTransactionMapper.selectList(wrapper);
+        List<PointsTransactionResp> records = pointsTransactionMapper.selectTransactionsForAdmin(
+                offset, size, userId, transactionType, startTime, endTime);
 
-        return buildPageResult(records, total, page, size);
+        return buildTransactionPageResult(records, total, page, size);
     }
 
     /**
@@ -188,37 +174,25 @@ public class PointsAdminService {
     }
 
     /**
-     * 分页查询签到记录
+     * 分页查询签到记录（关联用户名）
      *
      * @param page      页码（从1开始）
      * @param size      每页大小
      * @param userId    用户ID（可选）
      * @param startDate 开始日期（可选）
      * @param endDate   结束日期（可选）
-     * @return 分页签到记录列表
+     * @return 分页签到记录列表（含用户名）
      */
-    public PageResp<UserCheckin> getCheckinList(int page, int size, Long userId,
-                                                LocalDate startDate, LocalDate endDate) {
+    public PageResp<UserCheckinResp> getCheckinList(int page, int size, Long userId,
+                                                    LocalDate startDate, LocalDate endDate) {
         log.info("查询签到记录 - 页码: {}, 每页: {}, 用户ID: {}, 日期范围: {} ~ {}",
                 page, size, userId, startDate, endDate);
 
-        LambdaQueryWrapper<UserCheckin> wrapper = new LambdaQueryWrapper<>();
-        if (userId != null) {
-            wrapper.eq(UserCheckin::getUserId, userId);
-        }
-        if (startDate != null) {
-            wrapper.ge(UserCheckin::getCheckinDate, startDate);
-        }
-        if (endDate != null) {
-            wrapper.le(UserCheckin::getCheckinDate, endDate);
-        }
-        wrapper.orderByDesc(UserCheckin::getCheckinDate);
-
-        Long total = userCheckinMapper.selectCount(wrapper);
+        Long total = userCheckinMapper.countCheckinsForAdmin(userId, startDate, endDate);
 
         int offset = (page - 1) * size;
-        wrapper.last("LIMIT " + size + " OFFSET " + offset);
-        List<UserCheckin> records = userCheckinMapper.selectList(wrapper);
+        List<UserCheckinResp> records = userCheckinMapper.selectCheckinsForAdmin(
+                offset, size, userId, startDate, endDate);
 
         return buildCheckinPageResult(records, total, page, size);
     }
@@ -244,12 +218,13 @@ public class PointsAdminService {
         wrapper.last("LIMIT " + size + " OFFSET " + offset);
         List<UserCheckin> records = userCheckinMapper.selectList(wrapper);
 
-        return buildCheckinPageResult(records, total, page, size);
+        return buildUserCheckinPageResult(records, total, page, size);
     }
 
     /**
      * 获取积分统计信息
      * 包括：总发放积分、总消耗积分、总用户积分余额
+     * 使用 SQL 聚合查询，避免全量加载数据到内存
      *
      * @return 统计数据 Map
      */
@@ -258,68 +233,40 @@ public class PointsAdminService {
 
         Map<String, BigDecimal> stats = new HashMap<>();
 
-        // 总发放积分（签到 + 管理员增加 + 退款）
-        BigDecimal totalIssued = queryTotalByTypes("checkin", "admin_adjust", "refund");
+        // 总发放积分（签到 + 管理员增加 + 退款）- SQL 聚合
+        BigDecimal totalIssued = pointsTransactionMapper.sumPointsByTypes(
+                Arrays.asList("checkin", "admin_adjust", "refund"));
         stats.put("totalIssued", totalIssued != null ? totalIssued : BigDecimal.ZERO);
 
-        // 总消耗积分
-        BigDecimal totalConsumed = queryTotalByType("consumption");
+        // 总消耗积分 - SQL 聚合（取绝对值）
+        BigDecimal totalConsumed = pointsTransactionMapper.sumPointsByType("consumption");
         stats.put("totalConsumed", totalConsumed != null ? totalConsumed.abs() : BigDecimal.ZERO);
 
-        // 总用户积分余额
-        BigDecimal totalBalance = queryTotalUserPoints();
+        // 总用户积分余额 - SQL 聚合
+        BigDecimal totalBalance = pointsTransactionMapper.sumTotalUserPoints();
         stats.put("totalBalance", totalBalance != null ? totalBalance : BigDecimal.ZERO);
 
         return stats;
     }
 
     /**
-     * 按交易类型查询积分变动总额（多个类型）
+     * 构建积分流水分页结果（含用户名）
      */
-    private BigDecimal queryTotalByTypes(String... types) {
-        LambdaQueryWrapper<PointsTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.in(PointsTransaction::getTransactionType, (Object[]) types);
-        List<PointsTransaction> transactions = pointsTransactionMapper.selectList(wrapper);
-        if (transactions == null || transactions.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-        return transactions.stream()
-                .map(t -> t.getAmount() != null ? t.getAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    private PageResp<PointsTransactionResp> buildTransactionPageResult(List<PointsTransactionResp> records,
+                                                                       Long total, int page, int size) {
+        PageResp<PointsTransactionResp> pageResult = new PageResp<>();
+        pageResult.setRecords(records);
+        pageResult.setTotal(total);
+        pageResult.setCurrent((long) page);
+        pageResult.setSize((long) size);
+        pageResult.setPages((long) Math.ceil((double) total / size));
+        pageResult.setHasNext((long) page < pageResult.getPages());
+        pageResult.setHasPrevious((long) page > 1);
+        return pageResult;
     }
 
     /**
-     * 按交易类型查询积分变动总额（单个类型）
-     */
-    private BigDecimal queryTotalByType(String type) {
-        LambdaQueryWrapper<PointsTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PointsTransaction::getTransactionType, type);
-        List<PointsTransaction> transactions = pointsTransactionMapper.selectList(wrapper);
-        if (transactions == null || transactions.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-        return transactions.stream()
-                .map(t -> t.getAmount() != null ? t.getAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    /**
-     * 查询所有用户的积分余额总和
-     */
-    private BigDecimal queryTotalUserPoints() {
-        LambdaQueryWrapper<Users> wrapper = new LambdaQueryWrapper<>();
-        wrapper.isNull(Users::getDeletedAt);
-        List<Users> users = userMapper.selectList(wrapper);
-        if (users == null || users.isEmpty()) {
-            return BigDecimal.ZERO;
-        }
-        return users.stream()
-                .map(u -> u.getPoints() != null ? u.getPoints() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    /**
-     * 构建积分流水分页结果
+     * 构建积分流水分页结果（基础实体）
      */
     private PageResp<PointsTransaction> buildPageResult(List<PointsTransaction> records, Long total, int page, int size) {
         PageResp<PointsTransaction> pageResult = new PageResp<>();
@@ -334,9 +281,26 @@ public class PointsAdminService {
     }
 
     /**
-     * 构建签到记录分页结果
+     * 构建签到记录分页结果（含用户名）
      */
-    private PageResp<UserCheckin> buildCheckinPageResult(List<UserCheckin> records, Long total, int page, int size) {
+    private PageResp<UserCheckinResp> buildCheckinPageResult(List<UserCheckinResp> records,
+                                                             Long total, int page, int size) {
+        PageResp<UserCheckinResp> pageResult = new PageResp<>();
+        pageResult.setRecords(records);
+        pageResult.setTotal(total);
+        pageResult.setCurrent((long) page);
+        pageResult.setSize((long) size);
+        pageResult.setPages((long) Math.ceil((double) total / size));
+        pageResult.setHasNext((long) page < pageResult.getPages());
+        pageResult.setHasPrevious((long) page > 1);
+        return pageResult;
+    }
+
+    /**
+     * 构建签到记录分页结果（基础实体）
+     */
+    private PageResp<UserCheckin> buildUserCheckinPageResult(List<UserCheckin> records,
+                                                             Long total, int page, int size) {
         PageResp<UserCheckin> pageResult = new PageResp<>();
         pageResult.setRecords(records);
         pageResult.setTotal(total);

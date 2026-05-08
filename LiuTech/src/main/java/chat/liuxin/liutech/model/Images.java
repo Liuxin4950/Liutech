@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.model;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 
 import lombok.Data;
@@ -76,4 +77,10 @@ public class Images extends BaseEntity {
      * 状态（0禁用，1正常）
      */
     private Integer status;
+
+    /**
+     * 上传者用户名（非数据库字段，通过 JOIN 查询获取）
+     */
+    @TableField(exist = false)
+    private String uploaderUsername;
 }

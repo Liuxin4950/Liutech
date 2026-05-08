@@ -534,7 +534,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
     }
 
     /**
-     * 根据ID获取有效公告
+     * 根据ID获取已发布公告（公开访问，只返回 status=1 的公告）
      * @param id 公告ID
      * @return 公告实体
      */
@@ -543,16 +543,32 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         if (announcement == null || announcement.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
         }
+        if (announcement.getStatus() != null && announcement.getStatus() != 1) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
+        }
         return announcement;
     }
 
     /**
-     * 增加浏览量
+     * 管理员根据ID获取公告详情（不限状态，可查看草稿/下线公告）
+     * @param id 公告ID
+     * @return 公告详情
+     */
+    public AnnouncementResp getAnnouncementByIdForAdmin(Long id) {
+        validateAnnouncementId(id);
+        Announcements announcement = this.getById(id);
+        if (announcement == null || announcement.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
+        }
+        return convertToResl(announcement);
+    }
+
+    /**
+     * 增加浏览量（原子操作，避免并发竞态）
      * @param announcement 公告实体
      */
     private void incrementViewCount(Announcements announcement) {
-        announcement.setViewCount(announcement.getViewCount() + 1);
-        this.updateById(announcement);
+        announcementsMapper.incrementViewCount(announcement.getId());
     }
 
     /**

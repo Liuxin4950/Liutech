@@ -164,12 +164,12 @@ public class SystemSettingsAdminService {
      */
     private String resolveGroup(String key) {
         if (key == null) return "other";
+        // site.icp_number 和 site.analytics_code 归入 filing（必须在 site. 前缀判断之前）
+        if ("site.icp_number".equals(key) || "site.analytics_code".equals(key)) return "filing";
         if (key.startsWith("site.")) return "site";
         if (key.startsWith("comment.")) return "comment";
         if (key.startsWith("upload.")) return "upload";
         if (key.startsWith("tts.")) return "tts";
-        // site.icp_number 和 site.analytics_code 归入 filing
-        if ("site.icp_number".equals(key) || "site.analytics_code".equals(key)) return "filing";
         return "other";
     }
 }

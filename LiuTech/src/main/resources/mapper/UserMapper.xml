@@ -111,9 +111,9 @@
         </foreach>
     </update>
 
-    <!-- 统计用户总数 -->
+    <!-- 统计用户总数（排除已删除用户） -->
     <select id="countTotalUsers" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM users
+        SELECT COUNT(*) FROM users WHERE deleted_at IS NULL
     </select>
 
     <!-- 统计指定日期注册的用户数量 -->
@@ -149,5 +149,20 @@
         WHERE id = #{userId}
         AND version = #{currentVersion}
     </update>
+
+    <!-- 查询活跃作者 TOP N（按文章数量降序） -->
+    <select id="selectTopAuthors" resultType="chat.liuxin.liutech.resp.DashboardResp$UserRank">
+        SELECT
+            u.id,
+            u.username,
+            u.nickname,
+            COUNT(p.id) AS postCount
+        FROM users u
+        LEFT JOIN posts p ON u.id = p.author_id AND p.deleted_at IS NULL
+        WHERE u.deleted_at IS NULL
+        GROUP BY u.id, u.username, u.nickname
+        ORDER BY postCount DESC
+        LIMIT #{limit}
+    </select>
 
 </mapper>

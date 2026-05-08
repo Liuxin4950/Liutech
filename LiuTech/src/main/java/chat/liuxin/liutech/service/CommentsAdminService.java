@@ -3,7 +3,6 @@ package chat.liuxin.liutech.service;
 import chat.liuxin.liutech.mapper.CommentsMapper;
 import chat.liuxin.liutech.model.Comments;
 import chat.liuxin.liutech.resp.PageResp;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
@@ -149,7 +148,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
 
     /**
      * 彻底删除评论（物理删除）
-     * 如果有子评论，先删除子评论再删除自身
+     * 递归删除所有子孙评论后再删除自身
      *
      * @param id 评论ID
      * @return 是否删除成功
@@ -163,15 +162,11 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
                 return false;
             }
 
-            // 先删除子评论
-            LambdaQueryWrapper<Comments> childQuery = new LambdaQueryWrapper<>();
-            childQuery.eq(Comments::getParentId, id);
-            List<Comments> children = commentsMapper.selectList(childQuery);
-            if (!children.isEmpty()) {
-                for (Comments child : children) {
-                    commentsMapper.deleteById(child.getId());
-                }
-                log.info("彻底删除评论的子评论数量: {}", children.size());
+            // 递归查询所有子孙评论ID
+            List<Long> descendantIds = commentsMapper.selectAllDescendantIds(List.of(id));
+            if (descendantIds != null && !descendantIds.isEmpty()) {
+                commentsMapper.permanentDeleteByIds(descendantIds);
+                log.info("彻底删除评论的子孙评论数量: {}", descendantIds.size());
             }
 
             // 删除自身
@@ -187,6 +182,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
 
     /**
      * 批量彻底删除评论（物理删除）
+     * 递归删除所有子孙评论后再删除自身
      *
      * @param ids 评论ID列表
      * @return 是否删除成功
@@ -200,16 +196,11 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
                 return false;
             }
 
-            // 先删除这些评论的子评论
-            for (Long id : ids) {
-                LambdaQueryWrapper<Comments> childQuery = new LambdaQueryWrapper<>();
-                childQuery.eq(Comments::getParentId, id);
-                List<Comments> children = commentsMapper.selectList(childQuery);
-                if (!children.isEmpty()) {
-                    for (Comments child : children) {
-                        commentsMapper.deleteById(child.getId());
-                    }
-                }
+            // 递归查询所有子孙评论ID
+            List<Long> descendantIds = commentsMapper.selectAllDescendantIds(ids);
+            if (descendantIds != null && !descendantIds.isEmpty()) {
+                commentsMapper.permanentDeleteByIds(descendantIds);
+                log.info("批量彻底删除评论的子孙评论数量: {}", descendantIds.size());
             }
 
             // 批量删除自身

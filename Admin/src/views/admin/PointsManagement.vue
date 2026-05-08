@@ -70,7 +70,7 @@ const transactionTypeMap: Record<string, { label: string; color: string }> = {
 // 积分流水表格列
 const txColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-  { title: '用户ID', dataIndex: 'userId', key: 'userId', width: 90 },
+  { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
   { title: '交易类型', dataIndex: 'transactionType', key: 'transactionType', width: 120 },
   { title: '金额', dataIndex: 'amount', key: 'amount', width: 100 },
   { title: '余额', dataIndex: 'balanceAfter', key: 'balanceAfter', width: 100 },
@@ -150,7 +150,7 @@ const checkinSearchParams = ref<CheckinListParams>({
 // 签到记录表格列
 const checkinColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
-  { title: '用户ID', dataIndex: 'userId', key: 'userId', width: 90 },
+  { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
   { title: '签到日期', dataIndex: 'checkinDate', key: 'checkinDate', width: 120 },
   { title: '获得积分', dataIndex: 'pointsEarned', key: 'pointsEarned', width: 100 },
   { title: '连续签到天数', dataIndex: 'consecutiveDays', key: 'consecutiveDays', width: 120 },
