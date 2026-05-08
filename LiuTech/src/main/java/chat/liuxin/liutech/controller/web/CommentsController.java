@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 
+import chat.liuxin.liutech.utils.UserUtils;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,6 +38,9 @@ public class CommentsController {
 
     @Autowired
     private CommentsService commentsService;
+
+    @Autowired
+    private UserUtils userUtils;
 
     /**
      * 分页查询文章评论
@@ -158,6 +163,13 @@ public class CommentsController {
         log.info("创建评论 - 请求: {}", createCommentReq);
 
         try {
+            // 方法级认证确认：确保用户已登录
+            Long currentUserId = userUtils.getCurrentUserId();
+            if (currentUserId == null) {
+                log.warn("用户未登录，无法发表评论");
+                return Result.fail(ErrorCode.UNAUTHORIZED);
+            }
+
             CommentResp comment = commentsService.createComment(createCommentReq);
             log.info("创建评论成功 - ID: {}", comment.getId());
             return Result.success("创建成功", comment);

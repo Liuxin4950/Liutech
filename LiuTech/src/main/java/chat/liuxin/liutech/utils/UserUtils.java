@@ -30,6 +30,11 @@ public class UserUtils {
     private UserMapper userMapper;
 
     /**
+     * 缓存过期时间：5 分钟（毫秒）
+     */
+    private static final long CACHE_TTL_MS = 5 * 60 * 1000L;
+
+    /**
      * 用户名到用户ID的缓存，避免重复查询数据库
      */
     private final ConcurrentHashMap<String, Long> usernameToUserIdCache = new ConcurrentHashMap<>();
@@ -38,7 +43,33 @@ public class UserUtils {
      * 用户信息缓存，避免重复查询数据库
      */
     private final ConcurrentHashMap<String, Users> usernameToUserCache = new ConcurrentHashMap<>();
-    
+
+    /**
+     * 缓存写入时间戳（用户名 -> 写入时的毫秒数）
+     */
+    private final ConcurrentHashMap<String, Long> cacheTimestamps = new ConcurrentHashMap<>();
+
+    /**
+     * 判断指定用户名的缓存是否已过期
+     *
+     * @param username 缓存键
+     * @return true 表示已过期或无记录，false 表示未过期
+     */
+    private boolean isCacheExpired(String username) {
+        Long timestamp = cacheTimestamps.get(username);
+        return timestamp == null || (System.currentTimeMillis() - timestamp) > CACHE_TTL_MS;
+    }
+
+    /**
+     * 清除指定用户名的所有缓存条目（包括时间戳）
+     */
+    private void evictCache(String username) {
+        usernameToUserIdCache.remove(username);
+        usernameToUserCache.remove(username);
+        cacheTimestamps.remove(username);
+        log.debug("缓存已过期，清除用户 {} 的缓存", username);
+    }
+
     /**
      * 从Spring Security上下文获取当前用户ID
      * 优先策略：
@@ -72,18 +103,23 @@ public class UserUtils {
             // 2) 回退：从principal的用户名获取用户ID
             Object principal = authentication.getPrincipal();
             if (principal instanceof String username && StringUtils.hasText(username)) {
-                // 先从缓存查找
-                Long cachedUserId = usernameToUserIdCache.get(username);
-                if (cachedUserId != null) {
-                    log.debug("从缓存获取到用户ID: {} for username: {}", cachedUserId, username);
-                    return cachedUserId;
+                // 先从缓存查找（检查 TTL）
+                if (!isCacheExpired(username)) {
+                    Long cachedUserId = usernameToUserIdCache.get(username);
+                    if (cachedUserId != null) {
+                        log.debug("从缓存获取到用户ID: {} for username: {}", cachedUserId, username);
+                        return cachedUserId;
+                    }
+                } else {
+                    evictCache(username);
                 }
 
-                // 缓存未命中，查询数据库
+                // 缓存未命中或已过期，查询数据库
                 Users user = userMapper.findByUserName(username).stream().findFirst().orElse(null);
                 if (user != null && user.getId() != null) {
-                    // 缓存结果
+                    // 缓存结果并记录时间戳
                     usernameToUserIdCache.put(username, user.getId());
+                    cacheTimestamps.put(username, System.currentTimeMillis());
                     log.debug("从数据库查询并缓存用户ID: {} for username: {}", user.getId(), username);
                     return user.getId();
                 }
@@ -138,19 +174,24 @@ public class UserUtils {
                 return null;
             }
 
-            // 先从缓存查找
-            Users cachedUser = usernameToUserCache.get(username);
-            if (cachedUser != null) {
-                log.debug("从缓存获取到用户信息 for username: {}", username);
-                return cachedUser;
+            // 先从缓存查找（检查 TTL）
+            if (!isCacheExpired(username)) {
+                Users cachedUser = usernameToUserCache.get(username);
+                if (cachedUser != null) {
+                    log.debug("从缓存获取到用户信息 for username: {}", username);
+                    return cachedUser;
+                }
+            } else {
+                evictCache(username);
             }
 
-            // 缓存未命中，查询数据库
+            // 缓存未命中或已过期，查询数据库
             Users user = userMapper.findByUserName(username).stream().findFirst().orElse(null);
             if (user != null) {
-                // 缓存结果
+                // 缓存结果并记录时间戳
                 usernameToUserCache.put(username, user);
                 usernameToUserIdCache.put(username, user.getId());
+                cacheTimestamps.put(username, System.currentTimeMillis());
                 log.debug("从数据库查询并缓存用户信息 for username: {}", username);
                 return user;
             }
@@ -194,6 +235,7 @@ public class UserUtils {
         if (StringUtils.hasText(username)) {
             usernameToUserIdCache.remove(username);
             usernameToUserCache.remove(username);
+            cacheTimestamps.remove(username);
             log.debug("已清除用户 {} 的缓存", username);
         }
     }
@@ -208,6 +250,7 @@ public class UserUtils {
 
         usernameToUserIdCache.clear();
         usernameToUserCache.clear();
+        cacheTimestamps.clear();
 
         log.info("已清除所有用户缓存，用户ID缓存: {} 项，用户信息缓存: {} 项", userIdCacheSize, userCacheSize);
     }

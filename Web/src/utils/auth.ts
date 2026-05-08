@@ -22,35 +22,6 @@ export const getToken = (): string | null => {
 }
 
 /**
- * 获取当前用户ID
- * @returns {string | null} 用户ID
- */
-export const getCurrentUserId = (): string | null => {
-  return localStorage.getItem('userId')
-}
-
-/**
- * 清除用户认证信息
- */
-export const clearAuth = (): void => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('userId')
-  localStorage.removeItem('username')
-}
-
-/**
- * 设置用户认证信息
- * @param token 用户token
- * @param userId 用户ID
- * @param username 用户名
- */
-export const setAuth = (token: string, userId: string, username: string): void => {
-  localStorage.setItem('token', token)
-  localStorage.setItem('userId', userId)
-  localStorage.setItem('username', username)
-}
-
-/**
  * 登录拦截检查
  * @param callback 登录后的回调函数
  * @param showModal 显示登录弹窗的函数

@@ -115,7 +115,10 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "delete", targetType = "post", description = "删除文章", targetName = "#id")
     public Result<String> deletePost(@PathVariable Long id) {
         try {
-            Long operatorId = 1L;
+            Long operatorId = userUtils.getCurrentUserId();
+            if (operatorId == null) {
+                return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
+            }
             boolean success = postsService.deletePostForAdmin(id, operatorId);
             return handleOperationResult(success, "文章删除成功", "文章删除");
         } catch (Exception e) {

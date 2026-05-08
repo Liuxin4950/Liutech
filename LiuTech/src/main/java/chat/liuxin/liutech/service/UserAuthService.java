@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 用户认证服务类
@@ -46,6 +47,16 @@ public class UserAuthService {
 
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
+
+    // ========== 登录暴力破解防护 ==========
+    /** 最大允许连续失败次数 */
+    private static final int MAX_LOGIN_FAILURES = 5;
+    /** 锁定时长（毫秒），15分钟 */
+    private static final long LOCK_DURATION_MS = 15 * 60 * 1000L;
+    /** 每个用户名的连续登录失败次数 */
+    private static final ConcurrentHashMap<String, Integer> LOGIN_FAILURE_COUNTS = new ConcurrentHashMap<>();
+    /** 每个用户名最后一次登录失败的时间戳 */
+    private static final ConcurrentHashMap<String, Long> LAST_FAILURE_TIMES = new ConcurrentHashMap<>();
 
     /**
      * 用户注册
@@ -184,7 +195,7 @@ public class UserAuthService {
      *
      * @param loginReq 登录请求参数
      * @return 包含JWT token的登录响应
-     * @throws BusinessException 当用户名或密码错误、账户被禁用时抛出
+     * @throws BusinessException 当用户名或密码错误、账户被禁用或账户被锁定时抛出
      */
     @Transactional(rollbackFor = Exception.class)
     public LoginResp login(LoginReq loginReq) {
@@ -193,16 +204,28 @@ public class UserAuthService {
         // 依赖说明：查询与密码校验依赖 UserMapper/BCrypt；生成token依赖 JwtUtil
         // 授权说明：后续请求由 JwtAuthenticationFilter 解析 token 并注入 Authentication
 
+        // 0. 检查账户是否因暴力破解被锁定
+        checkAccountLocked(loginReq.getUsername());
+
         // 1. 查询并验证用户（存在且状态为启用）
         Users user = validateUserForLogin(loginReq);
 
         // 2. 验证密码（BCrypt匹配）
-        validatePassword(loginReq.getPassword(), user);
+        try {
+            validatePassword(loginReq.getPassword(), user);
+        } catch (BusinessException e) {
+            // 密码错误，记录失败次数
+            recordLoginFailure(loginReq.getUsername());
+            throw e;
+        }
 
-        // 3. 更新最后登录时间（尽力而为，失败不影响登录）
+        // 3. 登录成功，清除失败计数
+        clearLoginFailures(loginReq.getUsername());
+
+        // 4. 更新最后登录时间（尽力而为，失败不影响登录）
         updateLastLoginTime(user);
 
-        // 4. 生成并返回JWT token（claims: userId/username/passwordHash）
+        // 5. 生成并返回JWT token（claims: userId/username/passwordHash）
         return generateLoginResponse(user);
     }
 
@@ -247,6 +270,60 @@ public class UserAuthService {
             log.warn("登录失败，密码错误: {}", user.getUsername());
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
+    }
+
+    // ========== 登录暴力破解防护方法 ==========
+
+    /**
+     * 检查账户是否因连续登录失败被锁定
+     * 如果锁定时间已过期，自动解除锁定
+     *
+     * @param username 用户名
+     * @throws BusinessException 当账户处于锁定状态时抛出
+     */
+    private void checkAccountLocked(String username) {
+        Long lastFailureTime = LAST_FAILURE_TIMES.get(username);
+        if (lastFailureTime == null) {
+            return;
+        }
+
+        Integer failureCount = LOGIN_FAILURE_COUNTS.get(username);
+        if (failureCount != null && failureCount >= MAX_LOGIN_FAILURES) {
+            long elapsed = System.currentTimeMillis() - lastFailureTime;
+            if (elapsed < LOCK_DURATION_MS) {
+                long remainingMinutes = (LOCK_DURATION_MS - elapsed) / 60000 + 1;
+                log.warn("账户已锁定，用户名: {}, 剩余锁定时间: {}分钟", username, remainingMinutes);
+                throw new BusinessException(ErrorCode.ACCOUNT_LOCKED,
+                        "登录失败次数过多，账户已被锁定，请" + remainingMinutes + "分钟后再试");
+            } else {
+                // 锁定时间已过期，清除计数
+                clearLoginFailures(username);
+                log.info("账户锁定已过期，已自动解除，用户名: {}", username);
+            }
+        }
+    }
+
+    /**
+     * 记录一次登录失败
+     * 使用原子操作递增失败计数，并记录失败时间
+     *
+     * @param username 用户名
+     */
+    private void recordLoginFailure(String username) {
+        int newCount = LOGIN_FAILURE_COUNTS.compute(username, (key, val) -> val == null ? 1 : val + 1);
+        LAST_FAILURE_TIMES.put(username, System.currentTimeMillis());
+        log.warn("记录登录失败，用户名: {}, 当前连续失败次数: {}/{}", username, newCount, MAX_LOGIN_FAILURES);
+    }
+
+    /**
+     * 清除用户的登录失败计数
+     * 登录成功时调用，重置暴力破解防护状态
+     *
+     * @param username 用户名
+     */
+    private void clearLoginFailures(String username) {
+        LOGIN_FAILURE_COUNTS.remove(username);
+        LAST_FAILURE_TIMES.remove(username);
     }
 
     /**

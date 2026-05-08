@@ -101,9 +101,18 @@ const isEdit = ref(false)
 const editingId = ref<number | null>(null)
 const confirmLoading = ref(false)
 
-// 使用 Partial<User> 以简化创建/编辑时的必填校验
+// 表单数据类型：与 User 响应类型分离，passwordHash 仅用于创建用户请求
+interface UserFormData {
+  username: string
+  email: string
+  nickname?: string
+  role?: string
+  status?: number
+  passwordHash?: string  // 创建用户时的明文密码，后端会加密存储
+}
+
 const formRef = ref()
-const formModel = ref<Partial<User>>({
+const formModel = ref<UserFormData>({
   username: '',
   email: '',
   nickname: '',

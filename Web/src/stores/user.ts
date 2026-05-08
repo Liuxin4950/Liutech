@@ -30,7 +30,7 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const isAdmin = computed(() => {
-    return userInfo.value?.role === 'admin'
+    return userInfo.value?.role?.toLowerCase() === 'admin'
   })
 
   // 动作
@@ -145,5 +145,7 @@ export const useUserStore = defineStore('user', () => {
     updateUserInfo
   }
 }, {
-  persist: true
+  persist: {
+    pick: ['userInfo']
+  }
 })

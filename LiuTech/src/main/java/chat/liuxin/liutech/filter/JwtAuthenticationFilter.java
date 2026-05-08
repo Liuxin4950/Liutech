@@ -205,7 +205,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return false;
         }
         String tokenPasswordHash = jwtUtil.getPasswordHashFromToken(token);
-        return !StringUtils.hasText(tokenPasswordHash) || tokenPasswordHash.equals(currentUser.getPasswordHash());
+        // token 中存储的是 SHA-256(passwordHash)，需要对数据库值也做 SHA-256 后再比较
+        return !StringUtils.hasText(tokenPasswordHash) || tokenPasswordHash.equals(JwtUtil.sha256(currentUser.getPasswordHash()));
     }
 
     /**

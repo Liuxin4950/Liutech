@@ -10,7 +10,6 @@ export interface User {
   avatar?: string
   status: number  // 用户状态：0禁用，1正常
   role?: string
-  passwordHash?: string
   createdAt?: string
   updatedAt?: string
   deletedAt?: string  // 软删除时间

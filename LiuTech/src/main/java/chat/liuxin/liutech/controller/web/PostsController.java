@@ -3,6 +3,7 @@ package chat.liuxin.liutech.controller.web;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -253,6 +254,7 @@ public class PostsController {
      * @return 创建成功的文章信息
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "create", targetType = "post", description = "创建文章")
     public Result<PostCreateResp> createPost(@Valid @RequestBody PostCreateReq req, HttpServletRequest request) {
         try {
@@ -281,6 +283,7 @@ public class PostsController {
      * @return 更新结果
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "update", targetType = "post", description = "更新文章")
     public Result<Boolean> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req, HttpServletRequest request) {
         try {
@@ -309,6 +312,7 @@ public class PostsController {
      * @return 删除结果
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "delete", targetType = "post", description = "删除文章")
     public Result<Boolean> deletePost(@PathVariable Long id, HttpServletRequest request) {
         try {
@@ -335,6 +339,7 @@ public class PostsController {
      * @return 发布结果
      */
     @PutMapping("/{id}/publish")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "publish", targetType = "post", description = "发布文章")
     public Result<Boolean> publishPost(@PathVariable Long id, HttpServletRequest request) {
         try {
@@ -361,6 +366,7 @@ public class PostsController {
      * @return 操作结果
      */
     @PutMapping("/{id}/unpublish")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "offline", targetType = "post", description = "下线文章")
     public Result<Boolean> unpublishPost(@PathVariable Long id, HttpServletRequest request) {
         try {

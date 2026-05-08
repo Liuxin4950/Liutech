@@ -471,12 +471,13 @@ public class UserManagementService {
 
     /**
      * 添加用户
-     * 基础操作方法
+     * 基础操作方法，自动加密密码并设置默认值（status、points、role）
      *
      * @param user 用户信息
      */
     public void addUser(Users user) {
         log.debug("添加用户: {}", user.getUsername());
+        preprocessUserForSave(user);
         userMapper.insert(user);
     }
 

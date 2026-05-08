@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,6 +48,27 @@ public class JwtUtil {
     }
 
     /**
+     * 计算 SHA-256 摘要（十六进制小写字符串）
+     * 用于对 passwordHash 做二次摘要后再放入 JWT claims，
+     * 避免 BCrypt 哈希值在 token payload 中明文暴露。
+     */
+    public static String sha256(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * 生成JWT token
      *
      * @param userId 用户ID
@@ -59,7 +82,7 @@ public class JwtUtil {
         claims.put("userId", userId);
         claims.put("username", username);
         claims.put("role", role);
-        claims.put("passwordHash", passwordHash);
+        claims.put("passwordHash", sha256(passwordHash));
         return createToken(claims, username);
     }
 
@@ -227,6 +250,8 @@ public class JwtUtil {
      */
     public String refreshToken(String token) {
         // 简单刷新：沿用旧claims生成新token（过期时间更新）
+        // 注意：从旧 token 提取的 passwordHash 已经是 SHA-256 摘要，
+        // 直接写入新 claims，避免 generateToken 重复哈希
         Claims claims = getClaimsFromToken(token);
         if (claims == null) {
             return null;
@@ -235,6 +260,12 @@ public class JwtUtil {
         String username = claims.getSubject();
         String role = (String) claims.get("role");
         String passwordHash = (String) claims.get("passwordHash");
-        return generateToken(userId, username, role != null ? role : "user", passwordHash);
+
+        Map<String, Object> newClaims = new HashMap<>();
+        newClaims.put("userId", userId);
+        newClaims.put("username", username);
+        newClaims.put("role", role != null ? role : "user");
+        newClaims.put("passwordHash", passwordHash); // 已是 SHA-256 值，直接写入
+        return createToken(newClaims, username);
     }
 }

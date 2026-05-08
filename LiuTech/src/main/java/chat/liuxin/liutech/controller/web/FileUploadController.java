@@ -2,6 +2,7 @@ package chat.liuxin.liutech.controller.web;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -40,6 +41,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/image")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "upload", targetType = "image", description = "上传图片")
     public Result<FileUploadResp> uploadImage(
             @RequestParam("file") MultipartFile file,
@@ -60,6 +62,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/document")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "upload", targetType = "document", description = "上传文档")
     public Result<FileUploadResp> uploadDocument(
             @RequestParam("file") MultipartFile file,
@@ -86,6 +89,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/resource")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "upload", targetType = "resource", description = "上传资源")
     public Result<FileUploadResp> uploadResource(
             @RequestParam("file") MultipartFile file,
@@ -147,6 +151,7 @@ public class FileUploadController {
      * @return 删除结果
      */
     @DeleteMapping("/attachments/{resourceId}")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "delete", targetType = "attachment", description = "删除附件")
     public Result<?> deleteAttachment(
             @PathVariable("resourceId") Long resourceId,
@@ -167,6 +172,7 @@ public class FileUploadController {
      * @return TinyMCE格式的响应
      */
     @PostMapping("/tinymce/image")
+    @PreAuthorize("hasRole('ADMIN')")
     public Object uploadImageForTinyMCE(
             @RequestParam("file") MultipartFile file,
             HttpServletRequest request) {
@@ -229,6 +235,7 @@ public class FileUploadController {
      * 更新附件元信息（下载类型、所需积分）
      */
     @PutMapping("/attachments/{resourceId}/meta")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "update", targetType = "attachment", description = "更新附件信息")
     public Result<?> updateAttachmentMeta(
             @PathVariable("resourceId") Long resourceId,
@@ -255,6 +262,7 @@ public class FileUploadController {
      * @return 上传结果
      */
     @PostMapping("/resource/external")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "create", targetType = "resource", description = "创建外部链接资源")
     public Result<FileUploadResp> createExternalLinkResource(
             @RequestParam("name") String name,
@@ -285,6 +293,7 @@ public class FileUploadController {
      * @return 更新结果
      */
     @PutMapping("/attachments/{resourceId}/purchased-note")
+    @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "update", targetType = "resource", description = "更新购买说明")
     public Result<?> updatePurchasedNote(
             @PathVariable("resourceId") Long resourceId,
