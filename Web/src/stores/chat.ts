@@ -106,7 +106,8 @@ export const useChatStore = defineStore('chat', () => {
   const isLoading = ref(false)
   const isStreaming = ref(false)
   const aiThinking = ref(false)
-  const ttsStopSignal = ref(0)
+  // TTS 取消计数器：每次发新消息时递增，MainLayout 的 watcher 监听到后停止旧播放
+  const ttsCancelCounter = ref(0)
   const mode = ref<ChatMode>('stream')
   const errorMessage = ref('')
   const defaultModel = ref<string>('zai-org/GLM-4.6')  // 默认模型
@@ -503,7 +504,7 @@ export const useChatStore = defineStore('chat', () => {
   const sendStreamMessage = async (request: AiChatRequest) => {
     isStreaming.value = true
     aiThinking.value = true
-    ttsStopSignal.value++
+    ttsCancelCounter.value++
     clearTtsAudioQueue()
     clearAvatarCueQueue()
 
@@ -521,8 +522,11 @@ export const useChatStore = defineStore('chat', () => {
         (chunk: string) => {
           updateStreamingMessage(chunk)
         },
-        // onEvent - 接收到语音/心跳事件
+        // onEvent - SSE 事件分发
+        // 处理的事件类型：agent-start, article-results, agent-plan, tool-start,
+        //   tool-result, confirmation-required, avatar-cue, audio, audio-skip
         (eventType: string, payload: any) => {
+          // agent-start: 仅管理员可见，展示任务启动信息
           if (eventType === 'agent-start') {
             if (canUseAdminAgent()) {
               attachAgentStart(aiMessage.id, payload)
@@ -561,6 +565,7 @@ export const useChatStore = defineStore('chat', () => {
             }
             return
           }
+          // avatar-cue: 表情提示到达，说明 AI 已开始输出，结束"思考"状态
           if (eventType === 'avatar-cue' && payload && typeof payload.seq === 'number') {
             aiThinking.value = false
             enqueueAvatarCue({
@@ -575,6 +580,7 @@ export const useChatStore = defineStore('chat', () => {
             })
             return
           }
+          // TTS 未启用时，丢弃音频事件（avatar-cue 不受此限制，始终处理）
           if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
           if (eventType === 'audio' && payload && payload.audioUrl && typeof payload.seq === 'number') {
             enqueueTtsAudio({
@@ -846,7 +852,7 @@ export const useChatStore = defineStore('chat', () => {
     isLoading,
     isStreaming,
     aiThinking,
-    ttsStopSignal,
+    ttsCancelCounter,
     mode,
     errorMessage,
     defaultModel,

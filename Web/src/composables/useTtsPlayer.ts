@@ -120,6 +120,8 @@ export function useTtsPlayer(
         currentTtsAudio = audio
 
         // 尝试播放，处理浏览器 autoplay 策略
+        // NotAllowedError 表示浏览器永久禁止了该上下文的自动播放，重试无意义
+        // 其他错误（如网络抖动）用递增延迟重试：250ms, 450ms, 650ms, ...
         let started = false
         for (let attempt = 0; attempt < 6 && token === playbackToken; attempt++) {
           try {
@@ -145,7 +147,9 @@ export function useTtsPlayer(
           continue
         }
 
-        // 等待音频播放结束（60 秒超时保护）
+        // 等待音频播放结束
+        // ended: 正常播完; error: 播放出错; pause: 被外部停止（如 stopTtsPlayback）
+        // 60 秒超时保护：防止异常情况下永久阻塞
         await Promise.race([
           waitOnce(audio, 'ended', 60000),
           waitOnce(audio, 'error', 60000),

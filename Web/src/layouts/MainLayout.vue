@@ -123,6 +123,9 @@ onUnmounted(() => {
   window.removeEventListener('ai-chat-open', handleExternalChatOpen)
 })
 
+// TTS 生命周期：这些 watcher 将 chatStore 的响应式状态变化桥接到 useTtsPlayer 的命令式 API
+
+// TTS 开关/可用性/队列变化：禁用时停止播放并清队列，启用且有待播音频时开始播放
 watch(
   () => [chatStore.ttsEnabled, chatStore.ttsAvailable, chatStore.ttsPendingCount],
   () => {
@@ -135,6 +138,7 @@ watch(
   }
 )
 
+// AI 开始思考时，给 Live2D 应用"思考"表情（半眼+手势变化）
 watch(
   () => chatStore.aiThinking,
   (thinking) => {
@@ -144,13 +148,15 @@ watch(
   }
 )
 
+// 新消息发送时（ttsCancelCounter 递增），停止当前 TTS 播放，避免旧音频和新回复重叠
 watch(
-  () => chatStore.ttsStopSignal,
+  () => chatStore.ttsCancelCounter,
   () => {
     stopTtsPlayback()
   }
 )
 
+// TTS 关闭时，独立的 avatar-cue 仍可驱动表情变化
 watch(
   () => chatStore.avatarCuePendingCount,
   () => {
@@ -158,6 +164,8 @@ watch(
   }
 )
 
+// Live2D 模型显示/隐藏时，同步控制 TTS 播放状态
+// setTimeout(0) 延迟到下一个 tick，确保 showModel 的 DOM 更新完成后再执行
 watch(
   () => showModel.value,
   (visible) => {

@@ -67,6 +67,13 @@ public class AgentOrchestrator {
             "spring boot", "spring ai", "typescript", "javascript", "docker", "kubernetes",
             "nginx", "mysql", "redis", "java", "vue", "react", "jwt", "agent", "ai", "vite", "maven"
     };
+    /** 从用户消息中提取搜索关键词时需要移除的停用词 */
+    private static final List<String> SEARCH_STOPWORDS = List.of(
+            "相关文章", "类似文章", "推荐", "搜索", "查找", "找一下", "找找",
+            "文章", "博客", "教程", "内容", "我在", "我想", "正在", "学习", "了解",
+            "关于", "相关", "有没有", "有", "你", "给我", "帮我", "几篇", "一些",
+            "一下", "几个", "哪些", "什么", "有什么", "的", "吗", "呢", "啊"
+    );
     private static final int MAX_CONTEXT_CHARS = 6000;
 
     private final AgentIntentClassifier intentClassifier;
@@ -368,7 +375,7 @@ public class AgentOrchestrator {
             AgentTask task,
             List<AgentPlanStep> plan,
             AgentSseContext context) {
-        String keyword = extractRecommendationKeyword(request.getMessage());
+        String keyword = extractArticleKeyword(request.getMessage());
         boolean topicRecommendation = !keyword.isBlank();
         PostDetailDTO currentArticle = null;
 
@@ -1159,12 +1166,12 @@ public class AgentOrchestrator {
                 %s
                 """.formatted(
                 draft.getPostId() == null ? "未保存" : draft.getPostId(),
-                nullToEmpty(draft.getTitle()),
-                nullToEmpty(draft.getSummary()),
+                defaultString(draft.getTitle()),
+                defaultString(draft.getSummary()),
                 draft.getCategoryId() == null ? "" : draft.getCategoryId(),
                 draft.getTagIds() == null ? "" : draft.getTagIds(),
-                nullToEmpty(draft.getStatus()),
-                limitText(nullToEmpty(draft.getContent()), MAX_CONTEXT_CHARS));
+                defaultString(draft.getStatus()),
+                limitText(defaultString(draft.getContent()), MAX_CONTEXT_CHARS));
     }
 
     /**
@@ -1201,13 +1208,6 @@ public class AgentOrchestrator {
     }
 
     /**
-     * 提取推荐关键词。
-     */
-    private String extractRecommendationKeyword(String message) {
-        return extractArticleKeyword(message);
-    }
-
-    /**
      * 根据当前文章推断相关文章查询词。
      */
     private String recommendationKeywordFromCurrentArticle(PostDetailDTO article) {
@@ -1240,44 +1240,12 @@ public class AgentOrchestrator {
                 return topic;
             }
         }
-        String keyword = normalized
-                .replaceAll("[，。！？、,.!?]", " ")
-                .replace("相关文章", "")
-                .replace("类似文章", "")
-                .replace("推荐", "")
-                .replace("搜索", "")
-                .replace("查找", "")
-                .replace("找一下", "")
-                .replace("找找", "")
-                .replace("文章", "")
-                .replace("博客", "")
-                .replace("教程", "")
-                .replace("内容", "")
-                .replace("我在", "")
-                .replace("我想", "")
-                .replace("正在", "")
-                .replace("学习", "")
-                .replace("了解", "")
-                .replace("关于", "")
-                .replace("相关", "")
-                .replace("有没有", "")
-                .replace("有", "")
-                .replace("你", "")
-                .replace("给我", "")
-                .replace("帮我", "")
-                .replace("几篇", "")
-                .replace("一些", "")
-                .replace("一下", "")
-                .replace("几个", "")
-                .replace("哪些", "")
-                .replace("什么", "")
-                .replace("有什么", "")
-                .replace("的", "")
-                .replace("吗", "")
-                .replace("呢", "")
-                .replace("啊", "")
-                .trim()
-                .replaceAll("\\s+", " ");
+        // 从用户消息中提取搜索关键词：去标点 → 去停用词 → 截断
+        String keyword = normalized.replaceAll("[，。！？、,.!?]", " ");
+        for (String stopword : SEARCH_STOPWORDS) {
+            keyword = keyword.replace(stopword, "");
+        }
+        keyword = keyword.trim().replaceAll("\\s+", " ");
         return keyword.length() > 40 ? keyword.substring(0, 40).trim() : keyword;
     }
 
@@ -1670,16 +1638,12 @@ public class AgentOrchestrator {
     /**
      * null 转空字符串。
      */
-    private String nullToEmpty(String value) {
+    private String defaultString(String value) {
         return value == null ? "" : value;
     }
 
     private <T> List<T> defaultList(List<T> value) {
         return value == null ? List.of() : value;
-    }
-
-    private String defaultString(String value) {
-        return value == null ? "" : value;
     }
 
     /**
