@@ -83,9 +83,8 @@ const loadComments = async () => {
     const data = await CommentService.getTreeComments(props.postId)
     comments.value = data
   }, {
-    onError: (err) => {
+    onError: () => {
       error.value = '加载评论失败，请稍后重试'
-      console.error('加载评论失败:', err)
     },
     onFinally: () => {
       loading.value = false

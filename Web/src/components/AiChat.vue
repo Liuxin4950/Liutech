@@ -176,8 +176,8 @@ const loadConversations = async () => {
   try {
     isLoadingHistory.value = true
     conversations.value = await ConversationService.list('general', 1, 50)
-  } catch (error) {
-    console.error('加载会话历史失败:', error)
+  } catch {
+    // 加载会话历史失败时静默处理
   } finally {
     isLoadingHistory.value = false
   }
@@ -214,8 +214,8 @@ const loadConversation = async (conversationId: number) => {
 
     showHistorySidebar.value = false
     await scrollToBottom()
-  } catch (error) {
-    console.error('加载会话失败:', error)
+  } catch {
+    // 加载会话失败时静默处理
   } finally {
     isLoadingHistory.value = false
   }
@@ -232,8 +232,8 @@ const deleteConversation = async (conversationId: number, event: Event) => {
     if (chatStore.conversationId === conversationId) {
       chatStore.clearHistory()
     }
-  } catch (error) {
-    console.error('删除会话失败:', error)
+  } catch {
+    // 删除会话失败时静默处理
   }
 }
 
@@ -259,8 +259,8 @@ const saveTitle = async (conversationId: number) => {
     if (conversation) {
       conversation.title = editingTitle.value.trim()
     }
-  } catch (error) {
-    console.error('重命名失败:', error)
+  } catch {
+    // 重命名失败时静默处理
   } finally {
     cancelEditTitle()
   }

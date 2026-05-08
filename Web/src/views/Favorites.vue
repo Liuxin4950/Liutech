@@ -110,9 +110,8 @@ const loadFavoritePosts = async (page: number = 1) => {
       pages: response.pages
     }
   }, {
-    onError: (err) => {
+    onError: () => {
       postsError.value = '加载收藏文章失败，请稍后重试'
-      console.error('加载收藏文章失败:', err)
     },
     onFinally: () => {
       postsLoading.value = false

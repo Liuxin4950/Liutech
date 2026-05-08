@@ -35,7 +35,7 @@ public class PromptAssembler {
 
         String systemPrompt = systemPromptProvider.buildSystemPrompt();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
-            messages.add(new SystemMessage(aiPromptSecurityPolicy.appendSystemRules(systemPrompt)));
+            messages.add(new SystemMessage(systemPrompt));
         }
 
         String contextPrompt = blogContextService.buildContextPrompt(request.getContext(), request.getMessage());

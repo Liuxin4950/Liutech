@@ -81,8 +81,8 @@ const formatDate = (dateStr: string) => {
 const fetchCheckinStatus = async () => {
   try {
     checkinStatus.value = await UserService.getCheckinStatus()
-  } catch (error) {
-    console.error('获取签到状态失败:', error)
+  } catch {
+    // 获取签到状态失败时静默处理
   }
 }
 
@@ -118,8 +118,6 @@ const handleCheckin = async () => {
     emit('checkinSuccess', result)
     
   } catch (error: any) {
-    console.error('签到失败:', error)
-    // 这里可以添加错误提示
     showError(error.message || '签到失败，请稍后重试')
   } finally {
     isLoading.value = false

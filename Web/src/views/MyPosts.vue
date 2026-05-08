@@ -185,9 +185,8 @@ const loadPosts = async () => {
 
     totalCount.value = response.total
   }, {
-    onError: (err) => {
+    onError: () => {
       error.value = '加载文章失败，请稍后重试'
-      console.error('加载文章失败:', err)
     },
     onFinally: () => {
       loading.value = false
@@ -198,8 +197,8 @@ const loadPosts = async () => {
 const loadCategories = async () => {
   try {
     categories.value = await CategoryService.getCategories()
-  } catch (error) {
-    console.error('加载分类失败:', error)
+  } catch {
+    // 加载分类失败时静默处理
   }
 }
 // 跳转到标签页面
@@ -239,8 +238,7 @@ const deletePost = async (postId: number) => {
     // 显示成功消息
     showToastSuccess('文章删除成功！')
   }, {
-    onError: (err) => {
-      console.error('删除文章失败:', err)
+    onError: () => {
       showToastError('删除文章失败，请稍后重试')
     }
   })
@@ -261,8 +259,7 @@ const unpublishPost = async (postId: number) => {
     // 显示成功消息
     showToastSuccess('文章已取消发布，转为草稿状态！')
   }, {
-    onError: (err) => {
-      console.error('取消发布文章失败:', err)
+    onError: () => {
       showToastError('取消发布文章失败，请稍后重试')
     }
   })

@@ -98,9 +98,8 @@ const loadCategory = async () => {
       route.meta.title = `${categoryData.name} - 分类文章`
     }
   }, {
-    onError: (err) => {
+    onError: () => {
       categoryError.value = '分类不存在'
-      console.error('加载分类信息失败:', err)
     }
   })
 }
@@ -120,9 +119,8 @@ const loadPosts = async () => {
     posts.value = response.records
     totalPosts.value = response.total
   }, {
-    onError: (err) => {
+    onError: () => {
       error.value = '加载文章失败，请稍后重试'
-      console.error('加载文章失败:', err)
     },
     onFinally: () => {
       loading.value = false

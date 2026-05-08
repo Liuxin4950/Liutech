@@ -224,8 +224,8 @@ const loadUserStats = async () => {
   if (!userStore.isLoggedIn) return
   try {
     userStats.value = await UserService.getUserStats()
-  } catch (error) {
-    console.error(error)
+  } catch {
+    // 加载用户统计数据失败时静默处理
   }
 }
 

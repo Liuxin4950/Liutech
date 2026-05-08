@@ -15,6 +15,12 @@ import TableOfContents from '@/components/TableOfContents.vue'
 import Icon from '@/components/Icon.vue'
 import defaultCoverImage from '@/assets/image/images.jpg'
 
+// DOMPurify 安全配置：禁止危险标签和事件属性
+const sanitizeConfig = {
+  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'],
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit']
+}
+
 // 动态加载Prism.js和Prism.css用于代码高亮
 const loadPrism = () => {
   // 直接加载完整版Prism
@@ -171,7 +177,7 @@ const renderedContent = computed(() => {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code>$1</code>')
-    return DOMPurify.sanitize(content)
+    return DOMPurify.sanitize(content, sanitizeConfig)
   } else {
     // 纯文本内容，进行简单的格式化
     const html = content
@@ -179,7 +185,7 @@ const renderedContent = computed(() => {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/`(.*?)`/g, '<code>$1</code>')
-    return DOMPurify.sanitize(html)
+    return DOMPurify.sanitize(html, sanitizeConfig)
   }
 })
 
@@ -293,9 +299,8 @@ const loadPostDetail = async () => {
     // 预加载封面图片
     preloadCoverImage(postData)
   }, {
-    onError: (err) => {
+    onError: () => {
       error.value = '加载文章详情失败，请稍后重试'
-      console.error('加载文章详情失败:', err)
     },
     onFinally: () => {
       loading.value = false
@@ -317,8 +322,7 @@ const onPurchase = async (resourceId: number) => {
     showSuccessToast('购买成功！')
     await loadPostDetail()
   }, {
-    onError: (err) => {
-      console.error('购买失败:', err)
+    onError: () => {
       // 业务错误已通过拦截器Toast提示，这里不再额外弹模态框
     },
     onFinally: () => {
@@ -343,8 +347,7 @@ const handleDownload = async (resourceId: number, fileName: string) => {
     await PostService.downloadResource(resourceId, fileName)
     showSuccessToast('下载成功！')
   }, {
-    onError: (err) => {
-      console.error('下载失败:', err)
+    onError: () => {
       // 业务错误已通过拦截器Toast提示，这里不再额外弹模态框
     },
     onFinally: () => {
@@ -385,8 +388,7 @@ const handleLike = async () => {
     // 显示成功提示
     showSuccessToast(isLiked.value ? '点赞成功！' : '取消点赞成功！')
   }, {
-    onError: (err) => {
-      console.error('点赞失败:', err)
+    onError: () => {
       showError('操作失败，请稍后重试')
     },
     onFinally: () => {
@@ -419,8 +421,7 @@ const handleFavorite = async () => {
     // 显示成功提示
     showSuccessToast(isFavorited.value ? '收藏成功！' : '取消收藏成功！')
   }, {
-    onError: (err) => {
-      console.error('收藏失败:', err)
+    onError: () => {
       showError('操作失败，请稍后重试')
     },
     onFinally: () => {
@@ -519,8 +520,7 @@ const copyLink = async () => {
   try {
     await navigator.clipboard.writeText(window.location.href)
     showSuccessToast('链接已复制到剪贴板！')
-  } catch (err) {
-    console.error('复制失败:', err)
+  } catch {
     // 备用方案
     try {
       const textArea = document.createElement('textarea')
@@ -530,8 +530,7 @@ const copyLink = async () => {
       document.execCommand('copy')
       document.body.removeChild(textArea)
       showSuccessToast('链接已复制到剪贴板！')
-    } catch (fallbackErr) {
-      console.error('备用复制方案也失败:', fallbackErr)
+    } catch {
       showError('复制失败，请手动复制链接')
     }
   }

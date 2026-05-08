@@ -169,9 +169,8 @@ const loadCategories = async () => {
         const result = await categoryStore.fetchCategories()
         categories.value = result || []
     }, {
-        onError: (err) => {
+        onError: () => {
             error.value = '加载分类失败，请稍后重试'
-            console.error('加载分类失败:', err)
         },
         onFinally: () => {
             loading.value = false

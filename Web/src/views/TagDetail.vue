@@ -122,7 +122,6 @@ const loadTagInfo = async () => {
     // 加载标签信息成功后，加载文章列表
     await loadPosts()
   } catch (err: any) {
-    console.error('加载标签信息失败:', err)
     showBusinessError(err?.response?.data?.message || err?.message || '加载标签信息失败')
   } finally {
     loading.value = false
@@ -153,7 +152,6 @@ const loadPosts = async (page: number = 1) => {
       pages: response.pages || 0
     }
   } catch (err: any) {
-    console.error('加载文章列表失败:', err)
     showBusinessError(err?.response?.data?.message || err?.message || '加载文章列表失败')
   } finally {
     postsLoading.value = false

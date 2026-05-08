@@ -51,9 +51,8 @@ const loadDrafts = async () => {
     drafts.value = response.records
     totalCount.value = response.total
   }, {
-    onError: (err) => {
+    onError: () => {
       error.value = '加载草稿失败，请稍后重试'
-      console.error('加载草稿失败:', err)
     },
     onFinally: () => {
       loading.value = false
@@ -64,8 +63,8 @@ const loadDrafts = async () => {
 const loadCategories = async () => {
   try {
     categories.value = await CategoryService.getCategories()
-  } catch (error) {
-    console.error('加载分类失败:', error)
+  } catch {
+    // 加载分类失败时静默处理，不影响主流程
   }
 }
 // 跳转到标签页面
@@ -95,8 +94,7 @@ const publishDraft = async (draftId: number) => {
 
     showToastSuccess('草稿发布成功！')
   }, {
-    onError: (err) => {
-      console.error('发布草稿失败:', err)
+    onError: () => {
       showToastError('发布失败，请稍后重试')
     }
   })
@@ -116,8 +114,7 @@ const deleteDraft = async (draftId: number) => {
 
     showToastSuccess('草稿已删除')
   }, {
-    onError: (err) => {
-      console.error('删除草稿失败:', err)
+    onError: () => {
       showToastError('删除失败，请稍后重试')
     }
   })
@@ -194,7 +191,7 @@ onMounted(async () => {
         <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card bg-card gap-12">
           <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="">
           <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="">
-          <img v-else="draft.coverImage" class="fit" src="@/assets/image/images.jpg" alt="">
+          <img v-else class="fit" src="@/assets/image/images.jpg" alt="">
           <div class="draft-content flex flex-col gap-12">
             <h3 class="draft-title text-primary" @click="editDraft(draft.id)">
               {{ draft.title || '无标题草稿' }}

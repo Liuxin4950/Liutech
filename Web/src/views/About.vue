@@ -51,11 +51,8 @@ const handleMessageSuccess = () => {
           <p class="user-bio">全栈开发学习者 / AI 应用实践者</p>
           <p class="user-motto">「慢慢把想法做成东西，也慢慢把自己整理清楚」</p>
           <div class="social-links">
-            <a href="#" class="social-item" title="GitHub 待补充">
+            <a href="https://github.com/liuxin77777" class="social-item" title="GitHub" target="_blank" rel="noopener noreferrer">
               <Icon name="github" size="20" />
-            </a>
-            <a href="#" class="social-item" title="邮箱暂未公开">
-              <Icon name="mail" size="20" />
             </a>
             <a href="/" class="social-item" title="liuxin.chat">
               <Icon name="globe" size="20" />

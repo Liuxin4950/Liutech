@@ -236,9 +236,8 @@ const loadArchiveData = async () => {
       }
     }
   }, {
-    onError: (err) => {
+    onError: () => {
       error.value = '加载归档数据失败，请稍后重试'
-      console.error('加载归档数据失败:', err)
     },
     onFinally: () => {
       loading.value = false

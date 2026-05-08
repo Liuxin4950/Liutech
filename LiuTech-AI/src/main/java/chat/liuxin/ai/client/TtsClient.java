@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -51,7 +52,10 @@ public class TtsClient {
     private static final long CACHE_TTL_MS = 5000L;
 
     public TtsClient() {
-        this.restTemplate = new RestTemplate();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(30000);
+        this.restTemplate = new RestTemplate(factory);
         this.objectMapper = new ObjectMapper();
     }
 
@@ -144,7 +148,7 @@ public class TtsClient {
                 return normalizeBackendAudioUrl(audioUrl);
             }
         } catch (Exception e) {
-            log.warn("TTS推理失败: {}", e.getMessage());
+            log.warn("TTS推理失败: {}", e.getMessage(), e);
         } finally {
             if (acquired) {
                 semaphore.release();

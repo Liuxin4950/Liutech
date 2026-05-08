@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AgentIntentClassifier {
 
-    private static final String[] ARTICLE_TOPICS = {
+    static final String[] ARTICLE_TOPICS = {
             "spring boot", "spring ai", "typescript", "javascript", "docker", "kubernetes",
             "nginx", "mysql", "redis", "java", "vue", "react", "jwt", "agent", "ai", "vite", "maven"
     };

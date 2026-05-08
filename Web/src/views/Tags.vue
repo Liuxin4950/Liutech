@@ -139,8 +139,8 @@ watch(searchKeyword, (newVal) => {
     isSearching.value = true
     try {
       searchResults.value = await tagStore.searchTagsByAPI(newVal.trim())
-    } catch (err) {
-      console.error('搜索标签失败:', err)
+    } catch {
+      // 搜索标签失败时静默处理
     } finally {
       isSearching.value = false
     }

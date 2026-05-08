@@ -145,9 +145,8 @@ const loadPosts = async (page: number = 1) => {
       pages: response.pages
     }
   }, {
-    onError: (err) => {
+    onError: () => {
       error.value = '加载文章列表失败，请稍后重试'
-      console.error('加载文章列表失败:', err)
     },
     onFinally: () => {
       loading.value = false

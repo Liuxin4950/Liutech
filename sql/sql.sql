@@ -25,14 +25,15 @@ CREATE TABLE IF NOT EXISTS users (
   created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
   updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
-  INDEX idx_username (username),
-  INDEX idx_email (email),
   INDEX idx_role (role),
-  INDEX idx_points (points) COMMENT '积分索引，用于排行榜'
+  INDEX idx_points (points) COMMENT '积分索引，用于排行榜',
+  INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
--- 为现有用户设置角色（admin 用户为管理员）
-UPDATE users SET role = 'admin' WHERE username = 'admin';
+-- 初始化 admin 用户（如不存在则插入，已存在则确保角色为管理员）
+INSERT INTO users (username, email, password_hash, role, status, points, nickname)
+VALUES ('admin', 'admin@liuxin.chat', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 'admin', 1, 0, '管理员')
+ON DUPLICATE KEY UPDATE role = 'admin';
 
 CREATE TABLE IF NOT EXISTS categories (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '分类ID',
@@ -42,7 +43,8 @@ CREATE TABLE IF NOT EXISTS categories (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
   updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
-  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间'
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
+  INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章分类表';
 
 CREATE TABLE IF NOT EXISTS tags (
@@ -53,7 +55,8 @@ CREATE TABLE IF NOT EXISTS tags (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
   updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
-  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间'
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
+  INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签表';
 
 CREATE TABLE IF NOT EXISTS posts (
@@ -77,6 +80,9 @@ CREATE TABLE IF NOT EXISTS posts (
   INDEX idx_category_id (category_id),
   INDEX idx_author_id (author_id),
   INDEX idx_status (status),
+  INDEX idx_category_status (category_id, status),
+  INDEX idx_author_status (author_id, status),
+  INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (category_id) REFERENCES categories(id),
   FOREIGN KEY (author_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章表';
@@ -90,6 +96,7 @@ CREATE TABLE IF NOT EXISTS post_tags (
   updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   PRIMARY KEY (post_id, tag_id),
+  INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (post_id) REFERENCES posts(id),
   FOREIGN KEY (tag_id) REFERENCES tags(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章-标签关联表';
@@ -141,6 +148,8 @@ CREATE TABLE IF NOT EXISTS comments (
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_post_id (post_id),
   INDEX idx_user_id (user_id),
+  INDEX idx_parent_id (parent_id),
+  INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (post_id) REFERENCES posts(id),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (parent_id) REFERENCES comments(id)
@@ -164,6 +173,7 @@ CREATE TABLE IF NOT EXISTS resources (
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_uploader_id (uploader_id),
   INDEX idx_resource_type (resource_type),
+  INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (uploader_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资源表';
 
@@ -181,6 +191,7 @@ CREATE TABLE IF NOT EXISTS download_logs (
   UNIQUE KEY uk_user_resource (user_id, resource_id) COMMENT '用户资源唯一索引，防止重复购买',
   INDEX idx_user_id (user_id),
   INDEX idx_resource_id (resource_id),
+  INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (resource_id) REFERENCES resources(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='下载记录表';
@@ -224,7 +235,8 @@ CREATE TABLE IF NOT EXISTS announcements (
   INDEX idx_priority (priority),
   INDEX idx_is_top (is_top),
   INDEX idx_start_time (start_time),
-  INDEX idx_end_time (end_time)
+  INDEX idx_end_time (end_time),
+  INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告表';
 
 -- 用户签到记录表
@@ -257,6 +269,7 @@ CREATE TABLE IF NOT EXISTS post_attachments (
   INDEX idx_draft_key (draft_key),
   INDEX idx_post_id (post_id),
   INDEX idx_resource_id (resource_id),
+  INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (post_id) REFERENCES posts(id),
   FOREIGN KEY (resource_id) REFERENCES resources(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章附件表（草稿态与文章态通用）';
@@ -355,7 +368,8 @@ CREATE TABLE IF NOT EXISTS carousels (
   updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_sort_order (sort_order),
-  INDEX idx_status (status)
+  INDEX idx_status (status),
+  INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='轮播图表';
 
 -- 图片表（用于图片上传去重）
@@ -401,7 +415,8 @@ CREATE TABLE IF NOT EXISTS messages (
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_status (status),
   INDEX idx_created_at (created_at),
-  INDEX idx_email (email)
+  INDEX idx_email (email),
+  INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='访客留言表';
 
 
@@ -445,7 +460,7 @@ CREATE TABLE IF NOT EXISTS ai_chat_message
     model           VARCHAR(100)                       NULL COMMENT '使用的AI模型名',
     tokens          INT                                NULL COMMENT 'Token使用量估算',
     metadata        JSON                               NULL COMMENT '扩展元数据（JSON格式）',
-    status          TINYINT                            NOT NULL DEFAULT 1 COMMENT '消息状态：1=完成, 2=部分, 9=错误',
+    status          TINYINT                            NOT NULL DEFAULT 1 COMMENT '消息状态：0=流式中断, 1=完成, 2=内容审核拒绝, 3=API异常',
     created_at      DATETIME                           NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at      DATETIME                           NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
@@ -457,7 +472,7 @@ CREATE TABLE IF NOT EXISTS ai_chat_message
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='AI聊天消息表';
 
--- 用户记忆摘要表
+-- 用户记忆摘要表（预留表，暂未使用 — 项目中无任何代码引用此表）
 CREATE TABLE IF NOT EXISTS ai_chat_memory_summary
 (
     user_id        VARCHAR(64) NOT NULL COMMENT '用户ID',
@@ -519,7 +534,8 @@ CREATE TABLE IF NOT EXISTS ai_agent_task (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_user_created (user_id, created_at),
-    KEY idx_status_created (status, created_at)
+    KEY idx_status_created (status, created_at),
+    CONSTRAINT fk_agent_task_conversation FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI Agent任务表';
 
 -- AI Agent 待确认动作表
@@ -538,7 +554,8 @@ CREATE TABLE IF NOT EXISTS ai_agent_action (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_task_id (task_id),
-    KEY idx_user_status (user_id, status)
+    KEY idx_user_status (user_id, status),
+    CONSTRAINT fk_agent_action_task FOREIGN KEY (task_id) REFERENCES ai_agent_task(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI Agent待确认动作表';
 
 -- AI Agent 工具调用记录表
@@ -554,7 +571,8 @@ CREATE TABLE IF NOT EXISTS ai_agent_tool_call (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     KEY idx_task_id (task_id),
-    KEY idx_tool_created (tool_name, created_at)
+    KEY idx_tool_created (tool_name, created_at),
+    CONSTRAINT fk_agent_tool_call_task FOREIGN KEY (task_id) REFERENCES ai_agent_task(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI Agent工具调用记录表';
 
 SET FOREIGN_KEY_CHECKS = 1;

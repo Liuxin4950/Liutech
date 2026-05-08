@@ -106,8 +106,7 @@ export function useMarkdown() {
       cache.value[cacheKey] = sanitizedHtml
 
       return sanitizedHtml
-    } catch (error) {
-      console.error('Markdown processing error:', error)
+    } catch {
       // Fallback to sanitized plain text
       return DOMPurify.sanitize(content.replace(/\n/g, '<br>'))
     }
@@ -155,8 +154,7 @@ export function useMarkdown() {
       sanitizedHtml = sanitizedHtml.replace(/<pre><code[^>]*>\s*<\/code><\/pre>/g, '')
 
       return sanitizedHtml
-    } catch (error) {
-      console.error('Streaming markdown processing error:', error)
+    } catch {
       // Fallback to plain text with line breaks
       return DOMPurify.sanitize(content.replace(/\n/g, '<br>'))
     }

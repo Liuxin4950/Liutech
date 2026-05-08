@@ -33,8 +33,8 @@ const loadMessages = async () => {
   loading.value = true
   try {
     messages.value = await MessageService.getPublicMessages()
-  } catch (error) {
-    console.error('加载留言失败', error)
+  } catch {
+    // 加载留言失败时静默处理
   } finally {
     loading.value = false
   }

@@ -109,7 +109,6 @@ const handleSubmit = async () => {
     emit('success')
     close()
   } catch (error: any) {
-    console.error('留言提交失败', error)
     showError(error.message || '留言提交失败，请稍后重试')
   } finally {
     submitting.value = false

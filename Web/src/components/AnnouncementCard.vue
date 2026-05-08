@@ -77,8 +77,8 @@ const formatDateTime = (dateStr?: string) => {
 const fetchAnnouncements = async () => {
   try {
     const data = await announcementStore.fetchLatestAnnouncements(5)
-  } catch (error) {
-    console.error('获取公告失败:', error)
+  } catch {
+    // 获取公告失败时静默处理
   }
 }
 
@@ -86,8 +86,8 @@ const fetchAnnouncements = async () => {
 const refreshAnnouncements = async () => {
   try {
     const data = await announcementStore.refreshLatestAnnouncements(5)
-  } catch (error) {
-    console.error('刷新公告失败:', error)
+  } catch {
+    // 刷新公告失败时静默处理
   }
 }
 

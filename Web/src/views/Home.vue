@@ -171,9 +171,8 @@ const loadAllPosts = async (page: number = 1) => {
       pages: response.pages
     }
   }, {
-    onError: (err) => {
+    onError: () => {
       postsError.value = '加载文章列表失败，请稍后重试'
-      console.error('加载文章列表失败:', err)
     },
     onFinally: () => {
       postsLoading.value = false
@@ -207,8 +206,7 @@ const loadRecommendedPosts = async () => {
     const response = await PostService.getLatestPosts(5)
     recommendedPosts.value = response || []
   }, {
-    onError: (err) => {
-      console.error('加载推荐文章失败:', err)
+    onError: () => {
       recommendedPosts.value = []
     },
     onFinally: () => {
@@ -218,9 +216,12 @@ const loadRecommendedPosts = async () => {
 }
 
 
-// 跳转到公告页面
+// 跳转到公告页面：滚动到侧边栏公告卡片区域
 const goToAnnouncements = () => {
-  // TODO: 实现公告列表页面路由跳转
+  const el = document.querySelector('.announcement-card')
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 }
 
 // 加载作者(开发者)个人资料
@@ -231,8 +232,8 @@ const loadProfile = async () => {
     const response = await getAuthorProfile()
     profileInfo.value = response || {}
   }, {
-    onError: (err) => {
-      console.error('加载个人资料失败:', err)
+    onError: () => {
+      // 加载个人资料失败时静默处理，保留默认值
     },
     onFinally: () => {
       profileLoading.value = false

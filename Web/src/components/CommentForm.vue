@@ -112,8 +112,7 @@ const submitComment = async () => {
       emit('cancel')
     }
   }, {
-    onError: (err) => {
-      console.error('发表评论失败:', err)
+    onError: () => {
       // 错误处理已在 useErrorHandler 中统一处理
     },
     onFinally: () => {

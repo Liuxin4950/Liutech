@@ -268,8 +268,8 @@ const flushAvatarCue = () => {
             resetExpression()
         }
         lastExpressionAt = Date.now()
-    } catch (error) {
-        console.error("触发表情失败:", error)
+    } catch {
+        // 触发表情失败时静默处理
     }
 
     const motion = cue.motion?.trim()
@@ -355,8 +355,8 @@ function triggerRandomExpression() {
     try {
         model.expression(randomExpression);
         console.log(`[Live2D] 表情: ${randomExpression} (${randomIndex + 1}/${expressions.length})`)
-    } catch (error) {
-        console.error("[Live2D] 触发表情失败:", error);
+    } catch {
+        // 触发表情失败时静默处理
     }
 }
 
@@ -378,7 +378,6 @@ onMounted(() => {
         // 检查Live2D是否可用
         const Live2DModelClass = (window as any).PIXI?.live2d?.Live2DModel || (window as any).Live2DModel;
         if (!Live2DModelClass) {
-            console.error('Live2D模型类未找到，请检查脚本加载');
             return;
         }
 
@@ -445,8 +444,8 @@ onMounted(() => {
 
             // 自动眨眼和呼吸
             live2dModel.internalModel.motionManager.startRandomMotion('idle');
-        }).catch((error: any) => {
-            console.error('Live2D模型加载失败:', error);
+        }).catch(() => {
+            // Live2D模型加载失败时静默处理
         });
 
         // 窗口大小调整
@@ -543,8 +542,8 @@ const cleanup = () => {
             if (model.destroy) {
                 model.destroy();
             }
-        } catch (error) {
-            console.error('清理模型时出错:', error);
+        } catch {
+            // 清理模型时静默处理
         }
         model = null;
     }
@@ -564,8 +563,8 @@ const cleanup = () => {
                 texture: true,
                 baseTexture: true
             });
-        } catch (error) {
-            console.error('清理PIXI应用时出错:', error);
+        } catch {
+            // 清理PIXI应用时静默处理
         }
         app = null;
     }

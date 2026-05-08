@@ -140,8 +140,7 @@ const handleSearch = async () => {
     totalResults.value = response.total
     totalPages.value = response.pages
 
-  } catch (error) {
-    console.error('搜索失败:', error)
+  } catch {
     searchError.value = '搜索失败，请稍后重试'
     showError('搜索文章失败')
   } finally {

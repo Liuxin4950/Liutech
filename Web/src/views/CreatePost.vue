@@ -778,8 +778,7 @@ const loadCategories = async () => {
   await handleAsync(async () => {
     await categoryStore.fetchCategories()
   }, {
-    onError: (err) => {
-      console.error('加载分类失败:', err)
+    onError: () => {
       Swal.fire('错误', '加载分类失败，请刷新页面重试', 'error')
     }
   })
@@ -790,8 +789,8 @@ const loadTags = async () => {
   await handleAsync(async () => {
     await tagStore.fetchTags()
   }, {
-    onError: (err) => {
-      console.error('加载标签失败:', err)
+    onError: () => {
+      // 加载标签失败时静默处理
     }
   })
 }
@@ -909,8 +908,7 @@ const submitPost = async () => {
     // 跳转到文章详情页
     router.push(`/post/${postId}?from=home`)
   }, {
-    onError: (err) => {
-      console.error('提交文章失败:', err)
+    onError: () => {
       const actionText = isEditMode.value
         ? (form.value.status === 'draft' ? '更新草稿' : '更新文章')
         : (form.value.status === 'draft' ? '保存草稿' : '发布文章')
@@ -938,9 +936,8 @@ const flushAttachmentMetaUpdates = async () => {
         att.downloadType === 1 ? 1 : 0,
         att.downloadType === 1 ? Math.max(1, Math.floor(Number(att.pointsNeeded || 1))) : 0
       )
-    } catch (err) {
-      console.error('同步附件收费设置失败:', err)
-      // 不阻塞整体提交，仅记录错误；如需更严格可在此抛出
+    } catch {
+      // 不阻塞整体提交，仅静默处理；如需更严格可在此抛出
     }
   }
 }
@@ -998,8 +995,7 @@ const onPointsNeededInput = async (attachment: {
         1,
         attachment.pointsNeeded
       )
-    } catch (err) {
-      console.error('防抖更新附件积分失败:', err)
+    } catch {
       // 不在输入过程中弹窗打断，留给提交前统一校验
     } finally {
       attachment._updateTimer = null
@@ -1054,13 +1050,11 @@ const loadPostData = async (postId: number) => {
         downloadType: Number(item.downloadType ?? 0),
         pointsNeeded: Number(item.pointsNeeded ?? 0)
       }))
-    } catch (e) {
-      console.error('加载文章附件失败:', e)
+    } catch {
       // 不影响编辑表单，附件区域留空
     }
   }, {
-    onError: (err) => {
-      console.error('加载文章数据失败:', err)
+    onError: () => {
       Swal.fire('错误', '加载文章数据失败，请重试', 'error')
       router.back()
     },
@@ -1148,7 +1142,6 @@ const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
     }
   }, {
     onError: (err) => {
-      console.error('图片上传失败:', err)
       Swal.fire('错误', err.message || '图片上传失败，请重试', 'error')
     }
   })
@@ -1176,8 +1169,8 @@ const handleAttachmentUpload = async (event: Event) => {
 
     // 清空文件输入
     target.value = ''
-  } catch (error) {
-    console.error('附件上传失败:', error)
+  } catch {
+    // 附件上传失败时静默处理，单个附件上传的错误已在 uploadAttachment 中处理
   } finally {
     uploadingAttachment.value = false
   }
@@ -1209,8 +1202,7 @@ const uploadAttachment = async (file: File) => {
 
     Swal.fire('成功', `附件 "${file.name}" 上传成功！`, 'success')
   }, {
-    onError: (err) => {
-      console.error('附件上传失败:', err)
+    onError: () => {
       Swal.fire('错误', `附件 "${file.name}" 上传失败，请重试`, 'error')
     }
   })
@@ -1279,8 +1271,7 @@ const createExternalLinkResource = async () => {
     Swal.fire('成功', '外部链接资源添加成功！', 'success')
 
   }, {
-    onError: (err) => {
-      console.error('创建外部链接资源失败:', err)
+    onError: () => {
       Swal.fire('错误', '创建外部链接资源失败，请重试', 'error')
     }
   })
@@ -1307,8 +1298,7 @@ const removeAttachment = async (attachmentId: string) => {
       attachments.value = attachments.value.filter(att => att.id !== attachmentId)
       Swal.fire('已删除', '附件已删除', 'success')
     }, {
-      onError: (err) => {
-        console.error('删除附件失败:', err)
+      onError: () => {
         Swal.fire('错误', '删除附件失败，请重试', 'error')
       }
     })
@@ -1344,8 +1334,7 @@ const onDownloadTypeChange = async (attachment: {
       newType,
       newType === 1 ? attachment.pointsNeeded : 0
     )
-  } catch (err) {
-    console.error('更新附件下载类型失败:', err)
+  } catch {
     Swal.fire('错误', '更新附件下载类型失败，已为你恢复原值', 'error')
     // 回滚
     attachment.downloadType = prevType
@@ -1386,8 +1375,7 @@ const onPointsNeededChange = async (attachment: {
       1,
       newPoints
     )
-  } catch (err) {
-    console.error('更新附件积分失败:', err)
+  } catch {
     Swal.fire('错误', '更新附件积分失败，已为你恢复原值', 'error')
     // 回滚
     attachment.pointsNeeded = prevPoints
@@ -1451,7 +1439,6 @@ const createCategory = async () => {
     Swal.fire('成功', '分类创建成功！', 'success')
   }, {
     onError: (err) => {
-      console.error('创建分类失败:', err)
       Swal.fire('错误', `创建分类失败: ${err.message || '请重试'}`, 'error')
     },
     onFinally: () => {
@@ -1493,7 +1480,6 @@ const createTag = async () => {
     Swal.fire('成功', '标签创建成功！', 'success')
   }, {
     onError: (err) => {
-      console.error('创建标签失败:', err)
       Swal.fire('错误', `创建标签失败: ${err.message || '请重试'}`, 'error')
     },
     onFinally: () => {
@@ -1536,7 +1522,6 @@ const createAiSuggestedCategory = async (name: string) => {
     Swal.fire('成功', `分类「${categoryName}」已创建并选中`, 'success')
   }, {
     onError: (err) => {
-      console.error('AI 建议分类创建失败:', err)
       Swal.fire('错误', `创建分类失败: ${err.message || '请重试'}`, 'error')
     },
     onFinally: () => {
@@ -1576,7 +1561,6 @@ const createAiSuggestedTag = async (name: string, silent = false) => {
     if (!silent) Swal.fire('成功', `标签「${tagName}」已创建并选中`, 'success')
   }, {
     onError: (err) => {
-      console.error('AI 建议标签创建失败:', err)
       Swal.fire('错误', `创建标签失败: ${err.message || '请重试'}`, 'error')
     },
     onFinally: () => {

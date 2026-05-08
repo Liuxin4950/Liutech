@@ -58,13 +58,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 public class AiChatServiceImpl implements AiChatService {
 
-    // 文本分段配置
-    private static final int FIRST_SEGMENT_MIN_LEN = 20;// 第一个分段最小长度
-    private static final int FIRST_SEGMENT_HARD_CUT_LEN = 40;// 第一个分段硬切分长度
-    private static final int FOLLOW_SEGMENT_MIN_LEN = 60;// 后续分段最小长度
-    private static final int FOLLOW_SEGMENT_SOFT_PUNCT_LEN = 80;// 后续分段软切分长度
-    private static final int FOLLOW_SEGMENT_HARD_CUT_LEN = 100;// 后续分段硬切分长度
-
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final AiMetrics aiMetrics;
@@ -527,99 +520,6 @@ public class AiChatServiceImpl implements AiChatService {
         if (futures != null) {
             futures.add(next);
         }
-    }
-
-    /**
-     * 判断片段是否包含“可读文本”
-     *
-     * 用途：过滤掉纯 emoji / 纯标点 / 纯空白，避免 TTS 推理浪费与播放异常。
-     */
-    private boolean containsSpeakableText(String s) {
-        if (s == null) return false;
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (Character.isLetterOrDigit(c)) return true;
-            Character.UnicodeBlock b = Character.UnicodeBlock.of(c);
-            if (b == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
-                    || b == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
-                    || b == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_B
-                    || b == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
-                    || b == Character.UnicodeBlock.HIRAGANA
-                    || b == Character.UnicodeBlock.KATAKANA
-                    || b == Character.UnicodeBlock.HANGUL_SYLLABLES) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 从缓冲区提取若干段可用于 TTS 推理的文本片段，并从 buffer 中删除已提取内容
-     *
-     * 规则说明：
-     * - 首段优先低延迟：8 字起步，18 字硬切，并允许逗号级标点触发
-     * - 后续段优先连续播放：32 字起步，40 字后才允许逗号级标点，80 字硬切
-     * - 这样可以尽快“开口”，同时让后续单段音频更长，覆盖下一次 TTS 推理耗时
-     */
-    private List<String> extractTtsSegments(StringBuilder buffer, boolean firstSegmentSent) {
-        List<String> out = new ArrayList<>();
-        if (buffer == null || buffer.length() == 0) return out;
-
-        while (true) {
-            int len = buffer.length();
-            final int minSendLen = firstSegmentSent ? FOLLOW_SEGMENT_MIN_LEN : FIRST_SEGMENT_MIN_LEN;
-            final int hardCutLen = firstSegmentSent ? FOLLOW_SEGMENT_HARD_CUT_LEN : FIRST_SEGMENT_HARD_CUT_LEN;
-            final boolean allowSoftPunctuation = !firstSegmentSent;
-
-            if (len < minSendLen) break;
-
-            int cut = -1;
-            int scanLen = Math.min(len, hardCutLen);
-            int lastStrongPuncBeforeLimit = -1;
-            int lastSoftPuncBeforeLimit = -1;
-            for (int i = 0; i < scanLen; i++) {
-                char c = buffer.charAt(i);
-                if (isStrongTtsCutPunctuation(c)) {
-                    lastStrongPuncBeforeLimit = i + 1;
-                } else if (allowSoftPunctuation && isSoftTtsCutPunctuation(c)) {
-                    lastSoftPuncBeforeLimit = i + 1;
-                }
-            }
-
-            if (lastStrongPuncBeforeLimit >= minSendLen) {
-                cut = lastStrongPuncBeforeLimit;
-            } else if (!firstSegmentSent && lastSoftPuncBeforeLimit >= minSendLen) {
-                cut = lastSoftPuncBeforeLimit;
-            } else if (firstSegmentSent && lastSoftPuncBeforeLimit >= FOLLOW_SEGMENT_SOFT_PUNCT_LEN) {
-                cut = lastSoftPuncBeforeLimit;
-            } else if (len >= hardCutLen) {
-                cut = hardCutLen;
-            }
-
-            if (cut <= 0) break;
-
-            String seg = buffer.substring(0, cut).trim();
-            buffer.delete(0, cut);
-            if (!seg.isEmpty()) out.add(seg);
-        }
-
-        return out;
-    }
-
-    /**
-     * 兼容旧调用与测试。
-     */
-    private List<String> extractTtsSegments(StringBuilder buffer) {
-        return extractTtsSegments(buffer, false);
-    }
-
-    private boolean isStrongTtsCutPunctuation(char c) {
-        return c == '。' || c == '！' || c == '？' || c == '；' || c == '\n'
-                || c == '!' || c == '?' || c == ';';
-    }
-
-    private boolean isSoftTtsCutPunctuation(char c) {
-        return c == '，' || c == '、' || c == ',' || c == '：' || c == ':';
     }
 
     /**

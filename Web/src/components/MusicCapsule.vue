@@ -102,8 +102,8 @@ const fetchMusicList = async () => {
       currentIndex.value = 0
       currentMusic.value = list[0]
     }
-  } catch (error) {
-    console.error('获取音乐列表失败:', error)
+  } catch {
+    // 获取音乐列表失败时静默处理
   }
 }
 

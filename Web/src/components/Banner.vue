@@ -120,8 +120,8 @@ const loadCarousels = async () => {
             currentIndex.value = 0
             startAutoPlay()
         }
-    } catch (error) {
-        console.error('加载轮播图失败:', error)
+    } catch {
+        // 加载轮播图失败时静默处理
     }
 }
 

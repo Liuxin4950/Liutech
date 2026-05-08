@@ -63,10 +63,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AgentOrchestrator {
 
-    private static final String[] ARTICLE_TOPICS = {
-            "spring boot", "spring ai", "typescript", "javascript", "docker", "kubernetes",
-            "nginx", "mysql", "redis", "java", "vue", "react", "jwt", "agent", "ai", "vite", "maven"
-    };
     /** 从用户消息中提取搜索关键词时需要移除的停用词 */
     private static final List<String> SEARCH_STOPWORDS = List.of(
             "相关文章", "类似文章", "推荐", "搜索", "查找", "找一下", "找找",
@@ -1235,7 +1231,7 @@ public class AgentOrchestrator {
             return "";
         }
         String normalized = message.toLowerCase();
-        for (String topic : ARTICLE_TOPICS) {
+        for (String topic : AgentIntentClassifier.ARTICLE_TOPICS) {
             if (normalized.contains(topic)) {
                 return topic;
             }
