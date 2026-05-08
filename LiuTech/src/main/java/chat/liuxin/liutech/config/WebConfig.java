@@ -31,6 +31,10 @@ public class WebConfig implements WebMvcConfigurer {
         // 配置文档访问路径
         registry.addResourceHandler("/uploads/documents/**")
                 .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/" + fileUploadConfig.getDocumentPath() + "/");
+
+        // 配置音乐访问路径
+        registry.addResourceHandler("/uploads/music/**")
+                .addResourceLocations("file:" + fileUploadConfig.getBasePath() + "/" + fileUploadConfig.getMusicPath() + "/");
         
         // 付费/附件资源不做静态暴露，必须通过 /resource/download/{id} 做购买校验后下载。
     }
