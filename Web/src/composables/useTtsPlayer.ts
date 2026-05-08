@@ -102,8 +102,8 @@ export function useTtsPlayer(
         if (!next) break
 
         // 播放前应用对应的 avatar-cue，保持表情与音频同步
-        // skipResetTimer: 由 finally 统一重置，避免段间闪回 neutral
-        if (next.cue) {
+        // 跳过 neutral cue：中间段不需要重置表情，由 finally 统一处理
+        if (next.cue && next.cue.expression !== 'neutral') {
           live2dRef.value.applyAvatarCue?.({ ...next.cue, skipResetTimer: true })
         }
 
