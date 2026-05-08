@@ -126,6 +126,8 @@
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <result property="deletedAt" column="deleted_at"/>
+        <!-- 文章标题（非实体字段，通过额外列传递） -->
+        <result property="postTitle" column="post_title"/>
         <!-- 关联用户信息 -->
         <association property="user" javaType="chat.liuxin.liutech.model.Users">
             <id property="id" column="user_id"/>
@@ -133,8 +135,6 @@
             <result property="email" column="email"/>
             <result property="avatarUrl" column="avatar_url"/>
         </association>
-        <!-- 文章标题（非实体字段，通过额外列传递） -->
-        <result property="postTitle" column="post_title"/>
     </resultMap>
 
     <!-- 管理端分页查询评论列表 -->
