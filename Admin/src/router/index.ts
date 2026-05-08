@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import Swal from 'sweetalert2'
 import { useTagsStore } from '@/stores/tabs'
 import { useUserStore } from '@/stores/user'
 
@@ -223,6 +224,9 @@ const router = createRouter({
  * 设置页面标题和权限检查
  */
 router.beforeEach(async (to, from, next) => {
+  // 路由切换时清除所有弹窗，防止残留
+  Swal.close()
+
   // 设置页面标题
   document.title = `${to.meta.title || '博客'} - MyBlog`
 

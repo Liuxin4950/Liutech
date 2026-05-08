@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type { AxiosInstance } from 'axios'
+import Swal from 'sweetalert2'
 import router from '../router'
-import { handleApiError } from '../utils/errorHandler'
 
 type DataAxiosInstance = Omit<
   AxiosInstance,
@@ -40,17 +40,17 @@ aiApi.interceptors.request.use(
   }
 )
 
-// 响应拦截器（统一错误处理：401 跳转登录、403 跳转权限不足）
+// 响应拦截器（只负责路由跳转，不弹窗）
 aiApi.interceptors.response.use(
   (response) => {
     return response.data
   },
   (error) => {
-    // 使用统一错误处理器
-    handleApiError(error)
+    // 拦截器只负责路由跳转，不弹窗（弹窗由调用方处理）
 
     // 401 跳转登录页
     if (error.response?.status === 401) {
+      Swal.close() // 清除所有已弹出的弹窗
       localStorage.removeItem('token')
       if (router.currentRoute.value.path !== '/login') {
         router.push('/login')
@@ -59,6 +59,7 @@ aiApi.interceptors.response.use(
 
     // 403 跳转权限不足页面
     if (error.response?.status === 403) {
+      Swal.close() // 清除所有已弹出的弹窗
       if (router.currentRoute.value.path !== '/403') {
         router.push('/403')
       }

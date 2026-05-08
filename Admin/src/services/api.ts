@@ -1,7 +1,8 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import Swal from 'sweetalert2'
 import router from '../router'
-import { handleApiError } from '../utils/errorHandler'
+import { showErrorToast } from '../utils/errorHandler'
 
 // API 响应接口
 export interface ApiResponse<T = any> {
@@ -67,19 +68,24 @@ instance.interceptors.response.use(
     // 检查业务状态码
     if (data.code !== 200) {
       console.error('API 业务错误:', data.message)
-      throw new Error(data.message || '请求失败')
+      // 标记为业务错误，保留 .response 供调用方判断
+      const err: any = new Error(data.message || '请求失败')
+      err.isBusiness = true
+      err.response = response
+      showErrorToast(data.message || '请求失败')
+      throw err
     }
     
     return response
   },
   (error) => {
     console.error('API 请求失败', error)
-    
-    // 使用统一错误处理器
-    handleApiError(error)
-    
+
+    // 拦截器只负责路由跳转，不弹窗（弹窗由调用方或 handleApiError 处理）
+
     // 特殊处理401错误，需要跳转登录页
     if (error.response?.status === 401) {
+      Swal.close() // 清除所有已弹出的弹窗
       localStorage.removeItem('token')
       if (router.currentRoute.value.path !== '/login') {
         router.push('/login')
@@ -88,11 +94,12 @@ instance.interceptors.response.use(
 
     // 特殊处理403错误，跳转权限不足页面
     if (error.response?.status === 403) {
+      Swal.close() // 清除所有已弹出的弹窗
       if (router.currentRoute.value.path !== '/403') {
         router.push('/403')
       }
     }
-    
+
     // 重新抛出错误，保持原有的错误传播机制
     // 确保抛出的是一个有效的错误对象，避免抛出null
     if (error === null || error === undefined) {

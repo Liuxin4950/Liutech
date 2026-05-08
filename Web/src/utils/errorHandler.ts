@@ -172,65 +172,75 @@ export function showPrompt(
   })
 }
 
+// 错误去重：相同消息在 5 秒内只显示一次
+const recentErrors = new Map<string, number>()
+
+/**
+ * 错误去重检查
+ * @param message 错误消息
+ * @returns 是否应该跳过（重复消息）
+ */
+function isDuplicateError(message: string): boolean {
+  const now = Date.now()
+  const lastTime = recentErrors.get(message)
+  if (lastTime && now - lastTime < 5000) return true
+  recentErrors.set(message, now)
+  setTimeout(() => recentErrors.delete(message), 5000)
+  return false
+}
+
 /**
  * 处理API错误
- * 根据后端返回的错误信息显示相应提示
+ * 使用 Toast 提示（自动消失），带去重机制
  * @param error 错误对象
  */
 export function handleApiError(error: any) {
   console.error('API错误:', error)
-  
+
   // 如果是网络错误
   if (!error.response) {
-    showError('网络连接失败，请检查网络设置', '网络错误')
+    const msg = '网络连接失败，请检查网络设置'
+    if (!isDuplicateError(msg)) showErrorToast(msg)
     return
   }
-  
+
   const status = error.response.status
   const message = error.response.data?.message || '请求失败'
-  
-  switch (status) {
-    case 401:
-      // 401错误由API拦截器统一处理
-      // 不显示弹窗，避免重复提示和打扰用户
-      break
-    case 403:
-      showError('权限不足，禁止访问', '权限错误')
-      break
-    case 404:
-      showError('请求的资源不存在', '资源不存在')
-      break
-    case 500:
-      showError('服务器内部错误，请稍后重试', '服务器错误')
-      break
-    default:
-      showError(message, '请求失败')
+
+  // 401 错误由拦截器统一处理，不弹窗
+  if (status === 401) return
+
+  // 所有错误统一使用 Toast（自动消失），带去重
+  if (!isDuplicateError(message)) {
+    showErrorToast(message)
   }
 }
 
 /**
  * 处理表单验证错误
+ * 使用 Toast 提示（自动消失）
  * @param errors 验证错误对象
  */
 export function handleValidationError(errors: any) {
+  let message: string
+
   if (typeof errors === 'string') {
-    showError(errors, '输入错误')
-    return
-  }
-  
-  // 如果是对象形式的验证错误
-  if (typeof errors === 'object' && errors !== null) {
+    message = errors
+  } else if (typeof errors === 'object' && errors !== null) {
     const firstError = Object.values(errors)[0]
-    const message = Array.isArray(firstError) ? firstError[0] : firstError
-    showError(String(message), '输入错误')
-    return
+    message = String(Array.isArray(firstError) ? firstError[0] : firstError)
+  } else {
+    message = '输入信息有误，请检查后重试'
   }
-  
-  showError('输入信息有误，请检查后重试', '输入错误')
+
+  if (!isDuplicateError(message)) {
+    showErrorToast(message)
+  }
 }
 
 /**
  * 处理未知错误
+ * 使用 Toast 提示（自动消失），带去重机制
  * @param error 错误对象
  */
 export function handleUnknownError(error: any) {
@@ -240,5 +250,7 @@ export function handleUnknownError(error: any) {
   }
   console.error('未知错误:', error)
   const message = error?.message || '发生未知错误，请稍后重试'
-  showError(message, '系统错误')
+  if (!isDuplicateError(message)) {
+    showErrorToast(message)
+  }
 }

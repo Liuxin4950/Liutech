@@ -93,12 +93,12 @@ export function useErrorHandler() {
   }
 
   /**
-   * 显示业务错误
+   * 显示业务错误（Toast 自动消失）
    * @param message 错误消息
-   * @param title 错误标题
+   * @param title 错误标题（Toast 模式下不使用）
    */
-  const showBusinessError = (message: string, title?: string) => {
-    showError(message, title)
+  const showBusinessError = (message: string, _title?: string) => {
+    showErrorToast(message)
     setError(message)
   }
 

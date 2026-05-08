@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { UserService, type UserInfo, type RegisterRequest } from '../services/user'
-import { handleApiError, showError } from '../utils/errorHandler'
+import { showErrorToast } from '../utils/errorHandler'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
@@ -46,7 +46,7 @@ export const useUserStore = defineStore('user', () => {
       await fetchUserInfo()
       return true
     } catch (error) {
-      handleApiError(error)
+      // 错误提示由拦截器或调用方统一处理
       return false
     } finally {
       isLoading.value = false
@@ -64,7 +64,7 @@ export const useUserStore = defineStore('user', () => {
       userInfo.value = userData
       return true
     } catch (error) {
-      handleApiError(error)
+      // 错误提示由拦截器或调用方统一处理
       return false
     } finally {
       isLoading.value = false
@@ -97,8 +97,8 @@ export const useUserStore = defineStore('user', () => {
       if (error.response?.status === 401) {
         logout()
       } else {
-        // 其他错误才显示提示
-        showError('获取用户信息失败，请重新登录')
+        // 其他错误使用 Toast 提示（自动消失）
+        showErrorToast('获取用户信息失败，请重新登录')
         logout()
       }
     }

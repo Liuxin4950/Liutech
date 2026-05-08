@@ -5,7 +5,6 @@
 import {defineStore} from 'pinia'
 import {computed, ref} from 'vue'
 import {type Category, CategoryService} from '../services/category'
-import {handleApiError} from '../utils/errorHandler'
 
 export const useCategoryStore = defineStore('category', () => {
   // 状态
@@ -49,7 +48,6 @@ export const useCategoryStore = defineStore('category', () => {
       return categories.value
     } catch (error) {
       console.error('获取分类列表失败:', error)
-      handleApiError(error)
       return []
     } finally {
       isLoading.value = false
@@ -83,7 +81,6 @@ export const useCategoryStore = defineStore('category', () => {
       return response
     } catch (error) {
       console.error('获取分类详情失败:', error)
-      handleApiError(error)
       return null
     }
   }

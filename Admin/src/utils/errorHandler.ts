@@ -4,6 +4,23 @@
  */
 import Swal from 'sweetalert2'
 
+// 去重机制：相同消息 5 秒内只显示一次
+const recentErrors = new Map<string, number>()
+
+/**
+ * 去重检查：相同消息 5 秒内只显示一次
+ * @param message 错误消息
+ * @returns 是否应该跳过（true = 跳过，false = 显示）
+ */
+function shouldDedupe(message: string): boolean {
+  const now = Date.now()
+  const lastTime = recentErrors.get(message)
+  if (lastTime && now - lastTime < 5000) return true
+  recentErrors.set(message, now)
+  setTimeout(() => recentErrors.delete(message), 5000)
+  return false
+}
+
 /**
  * 显示错误消息
  * @param message 错误消息
@@ -108,37 +125,39 @@ export function showConfirm(message: string, title: string = '确认'): Promise<
 
 /**
  * 处理API错误
- * 根据后端返回的错误信息显示相应提示
+ * 根据后端返回的错误信息显示相应提示（Toast 自动消失，带去重）
  * @param error 错误对象
  */
 export function handleApiError(error: any) {
   console.error('API错误:', error)
-  
-  // 如果是网络错误
+
+  let message: string
+
+  // 如果是网络错误（没有 response）
   if (!error.response) {
-    showError('网络连接失败，请检查网络设置', '网络错误')
-    return
+    message = '网络连接失败，请检查网络设置'
+  } else {
+    const status = error.response.status
+    switch (status) {
+      case 401:
+        message = '登录已过期，请重新登录'
+        break
+      case 403:
+        message = '权限不足，禁止访问'
+        break
+      case 404:
+        message = '请求的资源不存在'
+        break
+      case 500:
+        message = '服务器内部错误，请稍后重试'
+        break
+      default:
+        message = error.response.data?.message || '请求失败'
+    }
   }
-  
-  const status = error.response.status
-  const message = error.response.data?.message || '请求失败'
-  
-  switch (status) {
-    case 401:
-      showError('登录已过期，请重新登录', '认证失败')
-      // 可以在这里添加跳转到登录页的逻辑
-      break
-    case 403:
-      showError('权限不足，禁止访问', '权限错误')
-      break
-    case 404:
-      showError('请求的资源不存在', '资源不存在')
-      break
-    case 500:
-      showError('服务器内部错误，请稍后重试', '服务器错误')
-      break
-    default:
-      showError(message, '请求失败')
+
+  if (!shouldDedupe(message)) {
+    showErrorToast(message)
   }
 }
 
@@ -164,18 +183,20 @@ export function handleValidationError(errors: any) {
 }
 
 /**
- * 处理未知错误
+ * 处理未知错误（Toast 自动消失，带去重）
  * @param error 错误对象
  */
 export function handleUnknownError(error: any) {
   console.error('未知错误:', error)
-  
+
   // 如果错误为null或undefined，直接返回，不显示错误提示
   if (error === null || error === undefined) {
     console.warn('捕获到null/undefined错误，已忽略')
     return
   }
-  
+
   const message = error?.message || error?.toString?.() || '发生未知错误，请稍后重试'
-  showError(message, '系统错误')
+  if (!shouldDedupe(message)) {
+    showErrorToast(message)
+  }
 }

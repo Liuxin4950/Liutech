@@ -5,7 +5,6 @@
 import {defineStore} from 'pinia'
 import {computed, ref} from 'vue'
 import {type Announcement, AnnouncementService} from '../services/announcement'
-import {handleApiError} from '../utils/errorHandler'
 
 export const useAnnouncementStore = defineStore('announcement', () => {
   // 状态
@@ -67,7 +66,6 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       return response
     } catch (error) {
       console.error('获取公告列表失败:', error)
-      handleApiError(error)
       return {
         records: [],
         total: 0,
@@ -100,7 +98,6 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       return topAnnouncements.value
     } catch (error) {
       console.error('获取置顶公告失败:', error)
-      handleApiError(error)
       return []
     } finally {
       isTopLoading.value = false
@@ -127,7 +124,6 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       return latestAnnouncements.value
     } catch (error) {
       console.error('获取最新公告失败:', error)
-      handleApiError(error)
       return []
     } finally {
       isLatestLoading.value = false
@@ -161,7 +157,6 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       return response
     } catch (error) {
       console.error('获取公告详情失败:', error)
-      handleApiError(error)
       return null
     }
   }

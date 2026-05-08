@@ -5,7 +5,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { UserService, type User, type RegisterRequest } from '../services/user'
-import { handleApiError, showError } from '../utils/errorHandler'
+import { showErrorToast } from '../utils/errorHandler'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
@@ -45,8 +45,8 @@ export const useUserStore = defineStore('user', () => {
       } else {
         throw new Error(response.message || '登录失败')
       }
-    } catch (error) {
-      handleApiError(error)
+    } catch (error: any) {
+      showErrorToast(error?.message || '登录失败')
       return false
     } finally {
       isLoading.value = false
@@ -67,8 +67,8 @@ export const useUserStore = defineStore('user', () => {
       } else {
         throw new Error(response.message || '注册失败')
       }
-    } catch (error) {
-      handleApiError(error)
+    } catch (error: any) {
+      showErrorToast(error?.message || '注册失败')
       return false
     } finally {
       isLoading.value = false
@@ -101,7 +101,7 @@ export const useUserStore = defineStore('user', () => {
       }
     } catch (error) {
       console.error('获取用户信息失败:', error)
-      showError('获取用户信息失败，请重新登录')
+      showErrorToast('获取用户信息失败，请重新登录')
       // 如果获取用户信息失败，可能是token过期，清除登录状态
       logout()
     }

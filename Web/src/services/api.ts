@@ -1,7 +1,8 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import Swal from 'sweetalert2'
 import router from '../router'
-import { handleApiError, showErrorToast } from '../utils/errorHandler'
+import { showErrorToast } from '../utils/errorHandler'
 import { ServiceType, getServiceConfig, DEFAULT_SERVICE } from '../config/services'
 
 // API 响应接口
@@ -94,11 +95,9 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
     (error) => {
       console.error(`${serviceType.toUpperCase()} API 请求失败`, error)
 
-      // 使用统一错误处理器
-      handleApiError(error)
-
-      // 特殊处理401错误：清除token
+      // 特殊处理401错误：清除所有弹窗、token，跳转登录页
       if (error.response?.status === 401) {
+        Swal.close()
         localStorage.removeItem('token')
         const currentRoute = router.currentRoute.value
         if (currentRoute.name !== 'login') {
@@ -106,7 +105,12 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
         }
       }
 
-      // 重新抛出错误，保持原有的错误传播机制
+      // 特殊处理403错误：清除弹窗
+      if (error.response?.status === 403) {
+        Swal.close()
+      }
+
+      // 重新抛出错误，由调用方决定是否弹窗
       throw error
     }
   )

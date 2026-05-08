@@ -5,7 +5,6 @@
 import {defineStore} from 'pinia'
 import {computed, ref} from 'vue'
 import {type Tag, TagService} from '../services/tag'
-import {handleApiError} from '../utils/errorHandler'
 
 export const useTagStore = defineStore('tag', () => {
   // 状态
@@ -57,7 +56,6 @@ export const useTagStore = defineStore('tag', () => {
       return tags.value
     } catch (error) {
       console.error('获取标签列表失败:', error)
-      handleApiError(error)
       return []
     } finally {
       isLoading.value = false
@@ -84,7 +82,6 @@ export const useTagStore = defineStore('tag', () => {
       return hotTags.value
     } catch (error) {
       console.error('获取热门标签失败:', error)
-      handleApiError(error)
       return []
     } finally {
       isHotTagsLoading.value = false
@@ -118,7 +115,6 @@ export const useTagStore = defineStore('tag', () => {
       return response
     } catch (error) {
       console.error('获取标签详情失败:', error)
-      handleApiError(error)
       return null
     }
   }
@@ -133,7 +129,6 @@ export const useTagStore = defineStore('tag', () => {
       return response || []
     } catch (error) {
       console.error('获取文章标签失败:', error)
-      handleApiError(error)
       return []
     }
   }
@@ -206,7 +201,6 @@ export const useTagStore = defineStore('tag', () => {
       return result
     } catch (error) {
       console.error('搜索标签失败:', error)
-      handleApiError(error)
       // 如果API调用失败，回退到本地搜索
       return searchTags.value(keyword)
     }
