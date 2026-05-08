@@ -105,7 +105,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     || requestURI.startsWith("/tags/")
                     || requestURI.startsWith("/comments/")
                     || requestURI.startsWith("/messages/")
-                    || requestURI.startsWith("/announcements/")
+                    || (requestURI.startsWith("/announcements/") && !requestURI.startsWith("/announcements/admin/"))
                     || "/carousels".equals(requestURI)
                     || "/user/author/profile".equals(requestURI)
                     || "/author/profile".equals(requestURI)) {
