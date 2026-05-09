@@ -189,9 +189,9 @@ onMounted(async () => {
       <!-- 草稿列表 -->
       <div v-else class="drafts-list">
         <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card bg-card gap-12">
-          <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="">
-          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="">
-          <img v-else class="fit" src="@/assets/image/images.jpg" alt="">
+          <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="" loading="lazy">
+          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="" loading="lazy">
+          <img v-else class="fit" src="@/assets/image/images.jpg" alt="" loading="lazy">
           <div class="draft-content flex flex-col gap-12">
             <h3 class="draft-title text-primary" @click="editDraft(draft.id)">
               {{ draft.title || '无标题草稿' }}

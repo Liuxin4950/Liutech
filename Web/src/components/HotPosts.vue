@@ -29,10 +29,11 @@
         <div class="post-content">
           <!-- 缩略图 -->
           <div class="post-thumbnail">
-            <img 
+            <img
               :src="post.thumbnail || post.coverImage || defaultPostImage"
-              :alt="post.title" 
-              class="thumbnail-image" 
+              :alt="post.title"
+              class="thumbnail-image"
+              loading="lazy"
             />
           </div>
           

@@ -53,6 +53,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * 查询所有分类（包含文章数量）
      * @return 分类列表
      */
+    @Transactional(readOnly = true)
     @Cacheable(value = "categories", unless = "#result == null || #result.isEmpty()")
     public List<CategoryResp> getAllCategoriesWithPostCount() {
         return categoriesMapper.selectCategoriesWithPostCount();
@@ -70,6 +71,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public PageResp<CategoryResp> getCategoryListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
         // 计算偏移量
         Integer offset = (page - 1) * size;
@@ -102,6 +104,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public CategoryResp getById(Long id) {
         Categories category = super.getById(id);
         if (category == null) {
@@ -129,6 +132,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     @Cacheable(value = "categories", key = "#name")
     public Categories getCategoryByName(String name) {
         if (name == null || name.trim().isEmpty()) {

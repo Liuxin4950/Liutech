@@ -45,6 +45,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * 获取启用的音乐列表
      * @return 音乐列表
      */
+    @Transactional(readOnly = true)
     public List<Music> getMusicList() {
         return musicMapper.selectList(new LambdaQueryWrapper<Music>()
                 .eq(Music::getStatus, 1)
@@ -58,6 +59,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @param keyword 关键词
      * @return 音乐列表
      */
+    @Transactional(readOnly = true)
     public List<Music> getAdminMusicList(Integer status, String keyword) {
         LambdaQueryWrapper<Music> wrapper = new LambdaQueryWrapper<>();
         if (status != null) {
@@ -77,6 +79,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @param id 音乐ID
      * @return 音乐
      */
+    @Transactional(readOnly = true)
     public Music getMusicById(Long id) {
         Music music = musicMapper.selectById(id);
         if (music == null || music.getStatus() != 1) {

@@ -2,6 +2,7 @@ package chat.liuxin.liutech.mapper;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -374,5 +375,13 @@ public interface PostsMapper extends BaseMapper<Posts> {
      */
     @Select("SELECT id, cover_image, thumbnail, content FROM posts WHERE deleted_at IS NULL")
     List<Posts> selectAllPostsWithContent();
+
+    /**
+     * 批量查询多篇文章的标签（避免 N+1 查询）
+     *
+     * @param postIds 文章ID列表
+     * @return 每行包含 postId, id, name
+     */
+    List<Map<String, Object>> selectTagsByPostIds(@Param("postIds") List<Long> postIds);
 
 }

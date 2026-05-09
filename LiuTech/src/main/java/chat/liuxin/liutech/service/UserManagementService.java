@@ -50,6 +50,7 @@ public class UserManagementService {
      * @return 当前用户信息（脱敏后），不包含密码等敏感信息
      * @throws BusinessException 当用户未认证或不存在时抛出异常
      */
+    @Transactional(readOnly = true)
     public UserResp getCurrentUser() {
         log.info("开始获取当前用户信息");
 
@@ -89,6 +90,7 @@ public class UserManagementService {
      * @return 查询结果，可能是单个用户对象或用户列表
      * @throws BusinessException 当查询失败时抛出异常
      */
+    @Transactional(readOnly = true)
     public Object getUsersByCondition(Long id, String username) {
         log.info("根据条件查询用户 - ID: {}, 用户名: {}", id, username);
 
@@ -153,6 +155,7 @@ public class UserManagementService {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public PageResp<UserResp> getUserListForAdmin(Integer page, Integer size, String username,
                                                   String email, String role, Integer status, Boolean includeDeleted) {
         log.info("管理端查询用户列表 - 页码: {}, 每页: {}, 用户名: {}, 邮箱: {}, 角色: {}, 状态: {}, 包含已删除: {}",
@@ -419,6 +422,7 @@ public class UserManagementService {
      *
      * @return 用户列表
      */
+    @Transactional(readOnly = true)
     public List<Users> findAllUsers() {
         log.debug("查询所有用户");
         return userMapper.selectList(null);
@@ -431,6 +435,7 @@ public class UserManagementService {
      * @param id 用户ID
      * @return 用户信息，不存在时返回null
      */
+    @Transactional(readOnly = true)
     public Users findUserById(Long id) {
         log.debug("根据ID查询用户: {}", id);
         if (id == null) {
@@ -446,6 +451,7 @@ public class UserManagementService {
      * @param username 用户名
      * @return 用户列表
      */
+    @Transactional(readOnly = true)
     public List<Users> findUsersByUsername(String username) {
         log.debug("根据用户名查询用户: {}", username);
         if (!StringUtils.hasText(username)) {
@@ -461,6 +467,7 @@ public class UserManagementService {
      * @param email 邮箱
      * @return 用户列表
      */
+    @Transactional(readOnly = true)
     public List<Users> findUsersByEmail(String email) {
         log.debug("根据邮箱查询用户: {}", email);
         if (!StringUtils.hasText(email)) {
@@ -637,6 +644,7 @@ public class UserManagementService {
      *
      * @return 用户总数
      */
+    @Transactional(readOnly = true)
     public Long countTotalUsers() {
         try {
             return userMapper.countTotalUsers();

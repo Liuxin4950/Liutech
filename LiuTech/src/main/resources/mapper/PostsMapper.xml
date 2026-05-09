@@ -51,8 +51,7 @@
             <result property="username" column="author_username"/>
             <result property="avatarUrl" column="author_avatar_url"/>
         </association>
-        <!-- 标签信息（使用嵌套查询，避免主查询JOIN导致分页数量减少） -->
-        <collection property="tags" ofType="chat.liuxin.liutech.resp.PostListResp$TagInfo" column="{postId=id}" select="selectTagInfosByPostId"/>
+        <!-- 标签信息由Java侧批量加载（避免N+1查询） -->
     </resultMap>
 
     <!-- PostDetailResl响应类结果映射 -->
@@ -673,6 +672,21 @@
         FROM tags t
         INNER JOIN post_tags pt ON t.id = pt.tag_id
         WHERE pt.post_id = #{postId}
+        ORDER BY t.name
+    </select>
+
+    <!-- 批量查询多篇文章的标签（避免 N+1） -->
+    <select id="selectTagsByPostIds" resultType="hashmap">
+        SELECT
+            pt.post_id AS postId,
+            t.id AS id,
+            t.name AS name
+        FROM tags t
+        INNER JOIN post_tags pt ON t.id = pt.tag_id
+        WHERE pt.post_id IN
+        <foreach collection="postIds" item="pid" open="(" separator="," close=")">
+            #{pid}
+        </foreach>
         ORDER BY t.name
     </select>
 

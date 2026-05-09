@@ -65,6 +65,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param size 每页大小
      * @return 公告分页数据
      */
+    @Transactional(readOnly = true)
     public IPage<AnnouncementResp> getValidAnnouncements(long current, long size) {
         Page<Announcements> page = new Page<>(current, size);
         IPage<Announcements> announcementPage = announcementsMapper.selectValidAnnouncements(page);
@@ -76,6 +77,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param limit 限制数量
      * @return 置顶公告列表
      */
+    @Transactional(readOnly = true)
     public List<AnnouncementResp> getTopAnnouncements(Integer limit) {
         Integer validLimit = validateAndSetDefaultLimit(limit, 5);
         List<Announcements> announcements = announcementsMapper.selectTopAnnouncements(validLimit);
@@ -87,6 +89,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param limit 限制数量
      * @return 最新公告列表
      */
+    @Transactional(readOnly = true)
     @Cacheable(value = "announcements", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<AnnouncementResp> getLatestAnnouncements(Integer limit) {
         Integer validLimit = validateAndSetDefaultLimit(limit, 10);
@@ -160,10 +163,12 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param includeDeleted 是否包含已删除的公告
      * @return 公告分页数据
      */
+    @Transactional(readOnly = true)
     public IPage<AnnouncementResp> getAllAnnouncements(long current, long size, Integer status, Integer type, Boolean includeDeleted) {
         return getAllAnnouncements(current, size, status, type, null, includeDeleted);
     }
 
+    @Transactional(readOnly = true)
     public IPage<AnnouncementResp> getAllAnnouncements(long current, long size, Integer status, Integer type, String keyword, Boolean includeDeleted) {
         Page<Announcements> page = new Page<>(current, size);
         QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, keyword, includeDeleted);
@@ -353,6 +358,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param includeDeleted 是否包含已删除
      * @param outputStream 输出流
      */
+    @Transactional(readOnly = true)
     public void exportToExcel(Integer status, Integer type, String keyword, Boolean includeDeleted, OutputStream outputStream) {
         QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, keyword, includeDeleted);
         List<Announcements> announcements = this.list(queryWrapper);
@@ -589,6 +595,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param id 公告ID
      * @return 公告详情
      */
+    @Transactional(readOnly = true)
     public AnnouncementResp getAnnouncementByIdForAdmin(Long id) {
         validateAnnouncementId(id);
         Announcements announcement = this.getById(id);

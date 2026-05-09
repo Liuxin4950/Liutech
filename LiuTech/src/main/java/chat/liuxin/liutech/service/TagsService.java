@@ -46,6 +46,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public List<TagResp> getAllTagsWithPostCount() {
         return tagsMapper.selectTagsWithPostCount();
     }
@@ -55,6 +56,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param postId 文章ID
      * @return 标签列表
      */
+    @Transactional(readOnly = true)
     public List<TagResp> getTagsByPostId(Long postId) {
         return tagsMapper.selectTagsByPostId(postId);
     }
@@ -70,6 +72,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * key = "#limit" 以方法参数 limit 作为缓存键
      * unless = "#result == null || #result.isEmpty()" 当返回值为 null 或空列表时不缓存
      */
+    @Transactional(readOnly = true)
     @Cacheable(value = "hotTags", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<TagResp> getHotTags(Integer limit) {
         return tagsMapper.selectHotTags(limit);
@@ -82,6 +85,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param id 标签ID
      * @return 标签详情，包含文章数量统计
      */
+    @Transactional(readOnly = true)
     public TagResp getTagByIdWithPostCount(Long id) {
         return tagsMapper.selectTagByIdWithPostCount(id);
     }
@@ -93,6 +97,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param name 标签名字，支持模糊搜索
      * @return 匹配的标签列表，包含文章数量统计
      */
+    @Transactional(readOnly = true)
     public List<TagResp> getTagsByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             log.warn("搜索关键词为空");
@@ -114,6 +119,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public PageResp<TagResp> getTagListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
         // 计算偏移量
         Integer offset = (page - 1) * size;
@@ -142,6 +148,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @param id 标签ID
      * @return 标签详情
      */
+    @Transactional(readOnly = true)
     public TagResp getById(Long id) {
         Tags tag = super.getById(id);
         if (tag == null) {
@@ -169,6 +176,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Tags getTagByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             return null;

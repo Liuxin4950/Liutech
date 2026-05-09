@@ -144,6 +144,7 @@ public class UserProfileService {
      * @return 用户统计信息
      * @throws BusinessException 当用户未认证或不存在时抛出异常
      */
+    @Transactional(readOnly = true)
     @Cacheable(value = "userStats", key = "#root.target.getCurrentUserId()", unless = "#result == null")
     public UserStatsResp getCurrentUserStats() {
         log.info("开始获取当前用户统计信息");
@@ -211,6 +212,7 @@ public class UserProfileService {
      *
      * @return 个人资料信息
      */
+    @Transactional(readOnly = true)
     public ProfileResp getProfile() {
         // 检查用户是否已登录
         if (userUtils.isCurrentUserLoggedIn()) {
@@ -278,6 +280,7 @@ public class UserProfileService {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public ProfileResp getDefaultProfile() {
         ProfileResp profile = new ProfileResp();
         profile.setName("LiuTech");
@@ -321,6 +324,7 @@ public class UserProfileService {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Long getCurrentUserId() {
         return userUtils.getCurrentUserId();
     }

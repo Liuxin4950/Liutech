@@ -52,6 +52,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * 获取启用的轮播图列表（前台展示）
      * @return 轮播图响应列表
      */
+    @Transactional(readOnly = true)
     public List<CarouselResp> getActiveCarousels() {
         List<Carousel> carousels = carouselMapper.selectActiveCarousels();
         return carousels.stream().map(this::convertToResp).collect(Collectors.toList());
@@ -63,6 +64,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param size 每页大小
      * @return 轮播图分页数据
      */
+    @Transactional(readOnly = true)
     public IPage<CarouselResp> getValidCarousels(long current, long size) {
         Page<Carousel> page = new Page<>(current, size);
         IPage<Carousel> carouselPage = carouselMapper.selectValidCarousels(page);
@@ -77,6 +79,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param includeDeleted 是否包含已删除的轮播图
      * @return 轮播图分页数据
      */
+    @Transactional(readOnly = true)
     public IPage<CarouselResp> getAllCarousels(long current, long size, Integer status, Boolean includeDeleted) {
         Page<Carousel> page = new Page<>(current, size);
         // 使用自定义查询，绕过 @TableLogic 逻辑删除
@@ -89,6 +92,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param id 轮播图ID
      * @return 轮播图详情
      */
+    @Transactional(readOnly = true)
     public CarouselResp getCarouselById(Long id) {
         validateCarouselId(id);
         // 使用自定义查询，绕过 @TableLogic

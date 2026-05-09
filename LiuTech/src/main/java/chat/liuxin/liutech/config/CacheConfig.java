@@ -30,6 +30,7 @@ public class CacheConfig {
         cacheManager.setCacheNames(java.util.Arrays.asList(
             "hotPosts",        // 热门文章缓存
             "latestPosts",     // 最新文章缓存
+            "postList",        // 文章列表缓存
             "hotTags",         // 热门标签缓存
             "categories",      // 分类列表缓存
             "announcements",   // 公告列表缓存

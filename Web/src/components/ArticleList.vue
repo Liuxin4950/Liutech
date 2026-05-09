@@ -31,6 +31,7 @@
             :src="post.coverImage || post.thumbnail || defaultPostImage"
             :alt="post.title"
             class="fit"
+            loading="lazy"
           />
         </div>
 

@@ -55,9 +55,9 @@
       <!-- 文章列表 -->
       <div v-else class="posts-list">
         <div v-for="post in filteredPosts" :key="post.id" class="post-card bg-card">
-          <img v-if="post.thumbnail" class="fit" :src="post.coverImage" alt="">
-          <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="">
-          <img v-else class="fit" src="@/assets/image/images.jpg" alt="">
+          <img v-if="post.thumbnail" class="fit" :src="post.coverImage" alt="" loading="lazy">
+          <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="" loading="lazy">
+          <img v-else class="fit" src="@/assets/image/images.jpg" alt="" loading="lazy">
           
           <div class="post-content flex flex-col gap-12">
             <h3 class="post-title text-primary" @click="viewPost(post.id)">

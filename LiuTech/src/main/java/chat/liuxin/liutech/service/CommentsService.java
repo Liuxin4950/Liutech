@@ -48,6 +48,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @param size 每页大小
      * @return 分页评论列表，包含评论内容和分页信息
      */
+    @Transactional(readOnly = true)
     public PageResp<CommentResp> getCommentsByPostId(Long postId, Integer page, Integer size) {
         Page<Comments> pageParam = new Page<>(page, size);
         IPage<Comments> result = commentsMapper.selectCommentsByPostId(pageParam, postId);
@@ -66,6 +67,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @param postId 文章ID
      * @return 顶级评论列表，每个评论包含其所有子孙评论
      */
+    @Transactional(readOnly = true)
     public List<CommentResp> getTopLevelCommentsByPostId(Long postId) {
         List<Comments> topComments = commentsMapper.selectTopLevelCommentsByPostId(postId);
         return topComments.stream()
@@ -107,6 +109,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @param postId 文章ID
      * @return 评论总数量
      */
+    @Transactional(readOnly = true)
     public Integer countCommentsByPostId(Long postId) {
         return commentsMapper.countCommentsByPostId(postId);
     }
@@ -118,6 +121,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @param limit 限制数量，最多返回的评论数
      * @return 最新评论列表，按时间降序排列
      */
+    @Transactional(readOnly = true)
     public List<Comments> getLatestComments(Integer limit) {
         return commentsMapper.selectLatestComments(limit);
     }
@@ -131,6 +135,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public List<Comments> getChildCommentsByParentId(Long parentId) {
         return commentsMapper.selectChildCommentsByParentId(parentId);
     }
@@ -144,6 +149,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Integer countCommentsByUserId(Long userId) {
         return commentsMapper.countCommentsByUserId(userId);
     }
@@ -157,6 +163,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Date getLastCommentTimeByUserId(Long userId) {
         return commentsMapper.getLastCommentTimeByUserId(userId);
     }
@@ -169,6 +176,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Integer countAllComments() {
         return commentsMapper.countAllComments();
     }

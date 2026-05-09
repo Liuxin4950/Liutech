@@ -35,6 +35,7 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
     /**
      * 获取已审核的公开留言列表
      */
+    @Transactional(readOnly = true)
     public List<MessageResp> getApprovedMessages() {
         QueryWrapper<Messages> wrapper = new QueryWrapper<>();
         wrapper.eq("status", 1)  // 只查询已审核
@@ -128,6 +129,7 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
     /**
      * 管理员分页查询留言列表
      */
+    @Transactional(readOnly = true)
     public IPage<Messages> getMessagesForAdmin(Integer page, Integer size, String nickname, Integer status, Boolean includeDeleted) {
         Page<Messages> pageParam = new Page<>(page, size);
         QueryWrapper<Messages> wrapper = new QueryWrapper<>();

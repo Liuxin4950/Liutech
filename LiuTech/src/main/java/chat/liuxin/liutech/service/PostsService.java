@@ -92,6 +92,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public PageResp<PostListResp> getPostList(PostQueryReq req) {
         return getPostList(req, null);
     }
@@ -107,6 +108,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "postList", key = "#req.page + ':' + #req.size + ':' + #req.categoryId + ':' + #req.tagId + ':' + #req.keyword + ':' + #req.status + ':' + #req.authorId + ':' + #userId", unless = "#result == null")
     public PageResp<PostListResp> getPostList(PostQueryReq req, Long userId) {
         // 创建分页对象
         Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
@@ -118,7 +121,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         IPage<PostListResp> result = postsMapper.selectPostListResl(page, req.getCategoryId(), req.getTagId(), keyword,
                 req.getStatus(), req.getAuthorId(), userId);
 
-        // 使用MyBatis-Plus自动统计的总数
+        // 批量加载标签（替代N+1嵌套查询）
+        fillTags(result.getRecords());
         result.getRecords().forEach(this::normalizePostListUrls);
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
@@ -231,6 +235,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public PostDetailResp getPostDetailForAdmin(Long id) {
         PostDetailResp postDetail = postsMapper.selectPostDetailResl(id, null);
         if (postDetail == null) {
@@ -358,6 +363,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @param limit 限制数量，最多返回的文章数
      * @return 热门文章列表，按热度降序排列
      */
+    @Transactional(readOnly = true)
     @Cacheable(value = "hotPosts", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<PostListResp> getHotPosts(Integer limit) {
         return getHotPosts(limit, null);
@@ -371,10 +377,37 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 热门文章列表，按热度降序排列，包含用户状态信息
      */
+    @Transactional(readOnly = true)
     public List<PostListResp> getHotPosts(Integer limit, Long userId) {
         List<PostListResp> posts = postsMapper.selectHotPostListResl(limit, userId);
+        fillTags(posts);
         posts.forEach(this::normalizePostListUrls);
         return posts;
+    }
+
+    /**
+     * 批量加载标签并合并到文章列表（替代 N+1 嵌套查询）
+     */
+    private void fillTags(List<PostListResp> posts) {
+        if (posts == null || posts.isEmpty()) return;
+        List<Long> postIds = posts.stream().map(PostListResp::getId).toList();
+        List<Map<String, Object>> tagRows = postsMapper.selectTagsByPostIds(postIds);
+        Map<Long, List<PostListResp.TagInfo>> tagMap = tagRows.stream()
+                .collect(Collectors.groupingBy(
+                        row -> ((Number) row.get("postId")).longValue(),
+                        Collectors.mapping(
+                                row -> {
+                                    PostListResp.TagInfo tag = new PostListResp.TagInfo();
+                                    tag.setId(((Number) row.get("id")).longValue());
+                                    tag.setName((String) row.get("name"));
+                                    return tag;
+                                },
+                                Collectors.toList()
+                        )
+                ));
+        posts.forEach(post -> post.setTags(
+                tagMap.getOrDefault(post.getId(), List.of())
+        ));
     }
 
     private void normalizePostListUrls(PostListResp post) {
@@ -429,6 +462,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @param limit 限制数量，最多返回的文章数
      * @return 最新文章列表，按发布时间降序排列
      */
+    @Transactional(readOnly = true)
     @Cacheable(value = "latestPosts", key = "#limit", unless = "#result == null || #result.isEmpty()")
     public List<PostListResp> getLatestPosts(Integer limit) {
         return getLatestPosts(limit, null);
@@ -442,8 +476,10 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @param userId 当前用户ID，用于查询点赞收藏状态，可为null
      * @return 最新文章列表，按发布时间降序排列，包含用户状态信息
      */
+    @Transactional(readOnly = true)
     public List<PostListResp> getLatestPosts(Integer limit, Long userId) {
         List<PostListResp> posts = postsMapper.selectLatestPostListResl(limit, userId);
+        fillTags(posts);
         posts.forEach(this::normalizePostListUrls);
         return posts;
     }
@@ -460,7 +496,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public PostCreateResp createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
@@ -523,7 +559,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean updatePost(PostUpdateReq req, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(req.getId());
@@ -634,7 +670,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean deletePost(Long id, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(id);
@@ -682,7 +718,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean publishPost(Long id, Long authorId) {
         return updatePostStatus(id, "published", authorId);
     }
@@ -791,6 +827,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Integer countPublishedPostsByUserId(Long userId) {
         return postsMapper.countPostsByUserIdAndStatus(userId, "published");
     }
@@ -804,6 +841,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Integer countDraftsByUserId(Long userId) {
         return postsMapper.countPostsByUserIdAndStatus(userId, "draft");
     }
@@ -817,6 +855,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Date getLastPostTimeByUserId(Long userId) {
         return postsMapper.getLastPostTimeByUserId(userId);
     }
@@ -831,6 +870,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Integer countPostsByUserId(Long userId, String status) {
         return postsMapper.countPostsByUserIdAndStatus(userId, status);
     }
@@ -843,6 +883,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Integer countAllPublishedPosts() {
         return postsMapper.countPublishedPosts();
     }
@@ -855,6 +896,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Long countAllViews() {
         return postsMapper.countAllViews();
     }
@@ -868,6 +910,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public Long countViewsByUserId(Long userId) {
         return postsMapper.countViewsByUserId(userId);
     }
@@ -887,6 +930,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-01-30
      */
+    @Transactional(readOnly = true)
     public PageResp<PostListResp> getPostListForAdmin(int page, int size, String title, Long categoryId, String status,
                                                       Long authorId, Boolean includeDeleted) {
         log.info("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}, 包含已删除: {}",
@@ -905,7 +949,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
             log.info("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
 
-            // 使用MyBatis-Plus自动统计的总数
+            // 批量加载标签（替代N+1嵌套查询）
+            fillTags(result.getRecords());
+            result.getRecords().forEach(this::normalizePostListUrls);
             return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
 
         } catch (Exception e) {
@@ -927,7 +973,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean updatePostStatusForAdmin(Long id, String status, Long operatorId) {
         log.info("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
 
@@ -967,7 +1013,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean deletePostForAdmin(Long id, Long operatorId) {
         log.info("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
 
@@ -1017,7 +1063,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
         log.info("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
 
@@ -1053,7 +1099,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -1101,7 +1147,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean restorePost(Long id) {
         try {
             if (id == null) {
@@ -1128,7 +1174,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
     public boolean batchRestorePosts(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -1296,6 +1342,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author LiuTech
      * @date 2025-01-18
      */
+    @Transactional(readOnly = true)
     public List<Posts> getPublishedPosts() {
         return postsMapper.selectPublishedPosts();
     }
@@ -1308,6 +1355,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @author 刘鑫
      * @date 2025-09-26T00:20:02+08:00
      */
+    @Transactional(readOnly = true)
     public PageResp<PostListResp> getFavoritePosts(PostQueryReq req, Long userId) {
         // 创建分页对象
         Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
@@ -1318,7 +1366,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 执行分页查询，查询用户收藏的文章
         IPage<PostListResp> result = postsMapper.selectFavoritePostList(page, userId, keyword);
 
-        // 使用MyBatis-Plus自动统计的总数
+        // 批量加载标签
+        fillTags(result.getRecords());
+        result.getRecords().forEach(this::normalizePostListUrls);
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 }
