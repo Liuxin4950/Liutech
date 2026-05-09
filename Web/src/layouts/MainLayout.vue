@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
 import Banner from '@/components/Banner.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
-import Live2d from '@/components/Live2d.vue'
+const Live2d = defineAsyncComponent(() => import('@/components/Live2d.vue'))
 // 全局页面加载（作者：刘鑫，修改时间：2025-09-24 20:11:17 +08:00）
 import GlobalPageLoader from '../components/GlobalPageLoader.vue'
-import AiChat from "@/components/AiChat.vue"
+const AiChat = defineAsyncComponent(() => import('@/components/AiChat.vue'))
 import LoginModal from '@/components/LoginModal.vue'
 import { requireAuth } from '@/utils/auth'
 import { useChatStore } from '@/stores/chat'

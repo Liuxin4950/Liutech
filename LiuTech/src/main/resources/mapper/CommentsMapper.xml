@@ -114,6 +114,22 @@
         DELETE FROM comments WHERE post_id = #{postId} AND parent_id IS NULL
     </delete>
 
+    <!-- 根据文章ID列表批量删除子评论（parent_id 非空） -->
+    <delete id="deleteChildrenByPostIds">
+        DELETE FROM comments WHERE parent_id IS NOT NULL AND post_id IN
+        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+    </delete>
+
+    <!-- 根据文章ID列表批量删除顶级评论（parent_id 为空） -->
+    <delete id="deleteRootsByPostIds">
+        DELETE FROM comments WHERE parent_id IS NULL AND post_id IN
+        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+    </delete>
+
     <!-- 管理端评论结果映射（关联用户和文章信息） -->
     <resultMap id="AdminCommentMap" type="chat.liuxin.liutech.model.Comments">
         <id property="id" column="id"/>
@@ -246,6 +262,38 @@
             INNER JOIN descendants d ON c.parent_id = d.id
         )
         SELECT id FROM descendants
+    </select>
+
+    <!-- 递归查询指定评论的所有子孙评论（含用户信息，不含传入的ID本身） -->
+    <select id="selectAllDescendantsByRootIds" resultMap="CommentWithUserMap">
+        WITH RECURSIVE descendants AS (
+            SELECT c.id, c.post_id, c.user_id, c.content, c.parent_id, c.created_at, c.updated_at, c.deleted_at
+            FROM comments c
+            WHERE c.parent_id IN
+            <foreach collection="rootIds" item="rootId" open="(" separator="," close=")">
+                #{rootId}
+            </foreach>
+            AND c.deleted_at IS NULL
+            UNION ALL
+            SELECT c.id, c.post_id, c.user_id, c.content, c.parent_id, c.created_at, c.updated_at, c.deleted_at
+            FROM comments c
+            INNER JOIN descendants d ON c.parent_id = d.id
+            WHERE c.deleted_at IS NULL
+        )
+        SELECT
+            d.id,
+            d.post_id,
+            d.user_id,
+            d.content,
+            d.parent_id,
+            d.created_at,
+            d.updated_at,
+            d.deleted_at,
+            u.username,
+            u.avatar_url
+        FROM descendants d
+        LEFT JOIN users u ON d.user_id = u.id
+        ORDER BY d.created_at ASC
     </select>
 
 </mapper>

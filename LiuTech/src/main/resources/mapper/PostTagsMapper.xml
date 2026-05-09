@@ -21,4 +21,12 @@
         DELETE FROM post_tags WHERE tag_id = #{tagId}
     </delete>
 
+    <!-- 根据文章ID列表批量删除标签关联 -->
+    <delete id="deleteByPostIds">
+        DELETE FROM post_tags WHERE post_id IN
+        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+    </delete>
+
 </mapper>

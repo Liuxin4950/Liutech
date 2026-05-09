@@ -92,6 +92,16 @@ public interface CommentsMapper extends BaseMapper<Comments> {
     int deleteRootsByPostId(@Param("postId") Long postId);
 
     /**
+     * 根据文章ID列表批量删除子评论（parent_id 非空）
+     */
+    int deleteChildrenByPostIds(@Param("postIds") List<Long> postIds);
+
+    /**
+     * 根据文章ID列表批量删除顶级评论（parent_id 为空）
+     */
+    int deleteRootsByPostIds(@Param("postIds") List<Long> postIds);
+
+    /**
      * 管理端分页查询评论列表（关联用户名和文章标题）
      * @param offset 偏移量
      * @param limit 限制数量
@@ -148,4 +158,12 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      * @return 所有子孙评论ID
      */
     List<Long> selectAllDescendantIds(@Param("ids") List<Long> ids);
+
+    /**
+     * 递归查询指定评论的所有子孙评论（含用户信息，不含传入的ID本身）
+     * 使用递归CTE一次性获取所有层级的子孙评论，避免N+1查询
+     * @param rootIds 根评论ID列表（顶级评论的ID）
+     * @return 所有子孙评论列表，按created_at升序排列
+     */
+    List<Comments> selectAllDescendantsByRootIds(@Param("rootIds") List<Long> rootIds);
 }

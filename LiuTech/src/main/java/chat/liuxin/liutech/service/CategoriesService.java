@@ -277,22 +277,13 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
             List<Long> postIds = postsMapper.selectIdsByCategoryIdIncludingDeleted(id);
 
             if (!postIds.isEmpty()) {
-                // 按正确顺序删除文章的关联数据
-                for (Long postId : postIds) {
-                    // 删除文章收藏记录
-                    postFavoritesMapper.deleteByPostId(postId);
-                    // 删除文章点赞记录
-                    postLikesMapper.deleteByPostId(postId);
-                    // 删除文章评论
-                    // commentsMapper.deleteByPostId(postId);
-                    commentsMapper.deleteChildrenByPostId(postId);
-                    // 删除顶级评论
-                    commentsMapper.deleteRootsByPostId(postId);
-                    // 删除文章标签关联
-                    postTagsMapper.deleteByPostId(postId);
-                    // 删除文章附件关联
-                    postAttachmentsMapper.deleteByPostId(postId);
-                }
+                // 批量删除文章的关联数据
+                postFavoritesMapper.deleteByPostIds(postIds);
+                postLikesMapper.deleteByPostIds(postIds);
+                commentsMapper.deleteChildrenByPostIds(postIds);
+                commentsMapper.deleteRootsByPostIds(postIds);
+                postTagsMapper.deleteByPostIds(postIds);
+                postAttachmentsMapper.deleteByPostIds(postIds);
 
                 // 物理删除该分类下的所有文章
                 postsMapper.permanentDeleteByIds(postIds);
@@ -334,22 +325,13 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
             List<Long> postIds = postsMapper.selectIdsByCategoryIdsIncludingDeleted(ids);
 
             if (!postIds.isEmpty()) {
-                // 按正确顺序删除文章的关联数据
-                for (Long postId : postIds) {
-                    // 删除文章收藏记录
-                    postFavoritesMapper.deleteByPostId(postId);
-                    // 删除文章点赞记录
-                    postLikesMapper.deleteByPostId(postId);
-                    // 删除文章评论
-                    // commentsMapper.deleteByPostId(postId);
-                    commentsMapper.deleteChildrenByPostId(postId);
-                    // 删除顶级评论
-                    commentsMapper.deleteRootsByPostId(postId);
-                    // 删除文章标签关联
-                    postTagsMapper.deleteByPostId(postId);
-                    // 删除文章附件关联
-                    postAttachmentsMapper.deleteByPostId(postId);
-                }
+                // 批量删除文章的关联数据
+                postFavoritesMapper.deleteByPostIds(postIds);
+                postLikesMapper.deleteByPostIds(postIds);
+                commentsMapper.deleteChildrenByPostIds(postIds);
+                commentsMapper.deleteRootsByPostIds(postIds);
+                postTagsMapper.deleteByPostIds(postIds);
+                postAttachmentsMapper.deleteByPostIds(postIds);
 
                 // 物理删除这些分类下的所有文章
                 postsMapper.permanentDeleteByIds(postIds);

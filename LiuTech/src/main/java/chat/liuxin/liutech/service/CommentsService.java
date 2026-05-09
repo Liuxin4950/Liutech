@@ -1,7 +1,11 @@
 package chat.liuxin.liutech.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,39 +66,54 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
     /**
      * 查询文章的顶级评论（树形结构）
-     * 获取文章的所有顶级评论，并递归加载所有层级的子评论，构建完整树形结构
+     * 获取文章的所有顶级评论，使用递归CTE一次性加载所有子孙评论，在内存中构建完整树形结构。
+     * 相比原来的递归逐层查询，消除了N+1查询问题。
      *
      * @param postId 文章ID
      * @return 顶级评论列表，每个评论包含其所有子孙评论
      */
     @Transactional(readOnly = true)
     public List<CommentResp> getTopLevelCommentsByPostId(Long postId) {
+        // 1. 查询顶级评论
         List<Comments> topComments = commentsMapper.selectTopLevelCommentsByPostId(postId);
+        if (topComments.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. 用递归CTE一次性查询所有子孙评论
+        List<Long> topIds = topComments.stream()
+            .map(Comments::getId)
+            .collect(Collectors.toList());
+        List<Comments> allDescendants = commentsMapper.selectAllDescendantsByRootIds(topIds);
+
+        // 3. 按parentId分组，构建 parent -> children 映射
+        Map<Long, List<Comments>> childrenByParentId = new HashMap<>();
+        for (Comments child : allDescendants) {
+            childrenByParentId
+                .computeIfAbsent(child.getParentId(), k -> new ArrayList<>())
+                .add(child);
+        }
+
+        // 4. 为每个顶级评论构建树形结构
         return topComments.stream()
-            .map(this::buildCommentTree)
+            .map(top -> buildTreeFromMap(top, childrenByParentId))
             .collect(Collectors.toList());
     }
 
     /**
-     * 递归构建评论树
-     * 递归加载评论的所有子孙评论，构建完整的树形结构
+     * 使用预先加载的子孙映射构建评论树（内存操作，无数据库查询）
      *
      * @param comment 当前评论
+     * @param childrenByParentId 按parentId分组的子孙评论映射
      * @return 包含所有子孙评论的响应对象
-     * @author 刘鑫
-     * @date 2025-01-30
      */
-    private CommentResp buildCommentTree(Comments comment) {
-        // 加载直接子评论
-        List<Comments> children = commentsMapper.selectChildCommentsByParentId(comment.getId());
-
-        // 转换为响应对象
+    private CommentResp buildTreeFromMap(Comments comment, Map<Long, List<Comments>> childrenByParentId) {
         CommentResp commentResp = convertToCommentResl(comment);
 
-        // 递归处理子评论
+        List<Comments> children = childrenByParentId.get(comment.getId());
         if (children != null && !children.isEmpty()) {
             List<CommentResp> childResps = children.stream()
-                .map(this::buildCommentTree)
+                .map(child -> buildTreeFromMap(child, childrenByParentId))
                 .collect(Collectors.toList());
             commentResp.setChildren(childResps);
         }

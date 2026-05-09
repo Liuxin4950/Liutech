@@ -53,6 +53,14 @@
         DELETE FROM post_favorites WHERE post_id = #{postId}
     </delete>
 
+    <!-- 根据文章ID列表批量删除收藏记录 -->
+    <delete id="deleteByPostIds">
+        DELETE FROM post_favorites WHERE post_id IN
+        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+    </delete>
+
     <!-- 统计用户的收藏数量 -->
     <select id="countFavoritesByUserId" resultType="java.lang.Integer">
         SELECT COUNT(*)

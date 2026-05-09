@@ -35,4 +35,11 @@ public interface PostTagsMapper extends BaseMapper<PostTags> {
      * @return 删除数量
      */
     int deleteByTagId(@Param("tagId") Long tagId);
+
+    /**
+     * 根据文章ID列表批量删除标签关联
+     * @param postIds 文章ID列表
+     * @return 删除数量
+     */
+    int deleteByPostIds(@Param("postIds") List<Long> postIds);
 }

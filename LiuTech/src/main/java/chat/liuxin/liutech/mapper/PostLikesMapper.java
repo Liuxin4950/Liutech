@@ -1,5 +1,7 @@
 package chat.liuxin.liutech.mapper;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -62,4 +64,11 @@ public interface PostLikesMapper extends BaseMapper<PostLikes> {
      * @return 影响行数
      */
     int deleteByPostId(@Param("postId") Long postId);
+
+    /**
+     * 根据文章ID列表批量删除点赞记录
+     * @param postIds 文章ID列表
+     * @return 影响行数
+     */
+    int deleteByPostIds(@Param("postIds") List<Long> postIds);
 }

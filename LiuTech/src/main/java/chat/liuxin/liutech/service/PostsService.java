@@ -1283,22 +1283,13 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 imageUrls.addAll(fileUtil.extractImageUrls(post.getContent()));
             }
 
-            // 删除文章的所有关联数据（按正确顺序）
-            for (Long postId : ids) {
-                // 删除文章收藏记录
-                postFavoritesMapper.deleteByPostId(postId);
-                // 删除文章点赞记录
-                postLikesMapper.deleteByPostId(postId);
-                // 删除文章评论
-                // commentsMapper.deleteByPostId(postId);
-                commentsMapper.deleteChildrenByPostId(postId);
-                // 删除顶级评论
-                commentsMapper.deleteRootsByPostId(postId);
-                // 删除文章标签关联
-                postTagsMapper.deleteByPostId(postId);
-                // 删除文章附件关联
-                postAttachmentsMapper.deleteByPostId(postId);
-            }
+            // 批量删除文章的所有关联数据
+            postFavoritesMapper.deleteByPostIds(ids);
+            postLikesMapper.deleteByPostIds(ids);
+            commentsMapper.deleteChildrenByPostIds(ids);
+            commentsMapper.deleteRootsByPostIds(ids);
+            postTagsMapper.deleteByPostIds(ids);
+            postAttachmentsMapper.deleteByPostIds(ids);
 
             // 批量物理删除文章
             postsMapper.permanentDeleteByIds(ids);
