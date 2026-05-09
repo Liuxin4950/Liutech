@@ -320,7 +320,11 @@ defineExpose({
     applyAvatarCue,
     resumeMusicAfterSpeechIfNeeded,
     lipSyncConfig: lipSync.config,
-    setLipSyncConfig: lipSync.updateConfig
+    setLipSyncConfig: lipSync.updateConfig,
+    refresh() {
+        if (resizeHandler) resizeHandler()
+        if (app?.renderer) app.renderer.render(app.stage)
+    }
 })
 
 // 拖拽事件处理

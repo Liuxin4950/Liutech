@@ -176,6 +176,7 @@ watch(
     setTimeout(() => {
       playNextTts()
       applyNextAvatarCues()
+      live2dRef.value?.refresh?.()
     }, 0)
   }
 )
@@ -254,12 +255,11 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       <div v-if="showModel || showChat" class="ai-content" :class="{ 'expanded': isExpanded }">
         <div class="ai-box">
           <Live2d
-            v-show="showModel"
             ref="live2dRef"
             @click="handleModelClick"
             @wheel="handleModelWheel"
             class="live2d"
-            :class="{ 'centered': isExpanded }"
+            :class="{ 'centered': isExpanded, 'is-hidden': !showModel }"
             :interactive="true"
           ></Live2d>
           <AiChat
@@ -389,6 +389,14 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -46%);
+  @include respond(md) {
+    width: 100vw;
+    height: calc(100vh - 56px);
+    top: 56px;
+    left: 0;
+    transform: none;
+    padding: 0;
+  }
 }
 
 .ai-box {
@@ -405,11 +413,16 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   transition-property: width, height, left, bottom, transform, opacity;
   transition-duration: 0.4s;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  &.is-hidden {
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
 }
 
 .ai-chat {
   width: 400px;
-  height: 500px;
+  height: 560px;
   position: absolute;
   right: 100%;
   bottom: 0;
@@ -440,6 +453,13 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   width: min(450px, 40vw);
   height: min(450px, 40vw);
   z-index: 30;
+}
+
+@media (max-width: 768px) {
+  .live2d.centered {
+    width: min(400px, 85vw);
+    height: min(400px, 85vw);
+  }
 }
 
 </style>

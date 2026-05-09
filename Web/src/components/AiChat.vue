@@ -585,7 +585,8 @@ defineExpose({
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
 @use "@/assets/styles/tokens" as *;
 
 .chat-box {
@@ -605,6 +606,12 @@ defineExpose({
   overflow: hidden;
   border-radius: 24px;
   background: var(--bg-card);
+}
+
+@include respond(md) {
+  .chat-box.expanded {
+    border-radius: 0;
+  }
 }
 
 .chat-popup {
@@ -656,6 +663,7 @@ defineExpose({
 .chat-input-layer {
   bottom: 0;
   z-index: 40;
+  max-height: 50vh;
 }
 
 .chat-box.compact .chat-main {
@@ -694,7 +702,13 @@ defineExpose({
 
 .chat-box.expanded .chat-body-layer :deep(.chat-body) {
   padding-top: 80px;
-  padding-bottom: 120px;
+  padding-bottom: 140px;
+}
+
+@include respond(md) {
+  .chat-box.expanded .chat-body-layer :deep(.chat-body) {
+    padding-bottom: 160px;
+  }
 }
 
 .history-sidebar {

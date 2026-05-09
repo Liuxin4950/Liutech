@@ -167,7 +167,8 @@ defineExpose({
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
 .chat-body {
   width: 100%;
   height: 100%;
@@ -180,6 +181,12 @@ defineExpose({
   background: var(--bg-card);
   border-radius: 24px;
   overflow: hidden;
+}
+
+@include respond(md) {
+  .chat-body.expanded {
+    border-radius: 0;
+  }
 }
 
 .chat-body.compact {

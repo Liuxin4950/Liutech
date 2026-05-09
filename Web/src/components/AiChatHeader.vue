@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { ChatMode } from '@/stores/chat'
 import Icon from './Icon.vue'
 
@@ -26,6 +26,8 @@ const emit = defineEmits<{
 }>()
 
 const isModeDropdownOpen = ref(false)
+const showMoreMenu = ref(false)
+const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
 const toolbarIconSize = 15
 
 const modeLabel = computed(() => props.mode === 'stream' ? '实时响应' : '完整响应')
@@ -43,6 +45,18 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 }
 
+const handleMoreClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (!target.closest('.more-menu-container')) {
+    showMoreMenu.value = false
+  }
+}
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth < 768
+  if (!isMobile.value) showMoreMenu.value = false
+}
+
 const selectMode = (mode: ChatMode) => {
   emit('setMode', mode)
   isModeDropdownOpen.value = false
@@ -50,10 +64,14 @@ const selectMode = (mode: ChatMode) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('click', handleMoreClickOutside)
+  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('click', handleMoreClickOutside)
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -75,6 +93,8 @@ onUnmounted(() => {
     </div>
 
     <div class="header-right">
+      <!-- Desktop or compact: show all buttons -->
+      <template v-if="!isMobile || !expanded">
       <div class="mode-selector">
         <button
           class="icon-action-btn mode-toggle-btn"
@@ -134,14 +154,78 @@ onUnmounted(() => {
         <Icon name="layout" :size="toolbarIconSize" />
       </button>
 
-      <button class="icon-action-btn close-btn" @click="emit('close')" title="关闭聊天窗口">
+      <button v-if="expanded" class="icon-action-btn close-btn" @click="emit('close')" title="关闭聊天窗口">
         <Icon name="close" :size="toolbarIconSize" />
       </button>
+      </template>
+
+      <!-- Mobile expanded: mode + more menu -->
+      <template v-else>
+      <div class="mode-selector">
+        <button
+          class="icon-action-btn mode-toggle-btn"
+          :class="{ active: mode === 'stream' }"
+          @click.stop="isModeDropdownOpen = !isModeDropdownOpen"
+          :title="modeToggleTitle()"
+        >
+          <Icon :name="mode === 'stream' ? 'zap' : 'message'" :size="toolbarIconSize" />
+        </button>
+
+        <div v-show="isModeDropdownOpen" class="mode-dropdown">
+          <button :class="['mode-option', { active: mode === 'stream' }]" @click="selectMode('stream')">
+            <span class="mode-option-dot stream"></span>
+            实时响应
+          </button>
+          <button :class="['mode-option', { active: mode === 'normal' }]" @click="selectMode('normal')">
+            <span class="mode-option-dot normal"></span>
+            完整响应
+          </button>
+        </div>
+      </div>
+
+      <div class="more-menu-container">
+        <button
+          class="icon-action-btn more-btn"
+          @click.stop="showMoreMenu = !showMoreMenu"
+          title="更多选项"
+        >
+          <Icon name="more" :size="toolbarIconSize" />
+        </button>
+
+        <div v-show="showMoreMenu" class="more-dropdown">
+          <button class="more-option" @click="emit('toggleTts'); showMoreMenu = false" :disabled="!ttsAvailable">
+            <Icon name="music" :size="14" />
+            <span>{{ ttsEnabled ? '关闭语音' : '开启语音' }}</span>
+          </button>
+          <button v-if="showHistoryButton" class="more-option" @click="emit('toggleHistory'); showMoreMenu = false">
+            <Icon name="conversations" :size="14" />
+            <span>会话历史</span>
+          </button>
+          <button v-if="showModelToggleButton" class="more-option" @click="emit('toggleModel'); showMoreMenu = false">
+            <Icon :name="modelVisible ? 'eyeOff' : 'eye'" :size="14" />
+            <span>{{ modelVisible ? '隐藏模型' : '显示模型' }}</span>
+          </button>
+          <button class="more-option" @click="emit('clear'); showMoreMenu = false">
+            <Icon name="trash2" :size="14" />
+            <span>清空聊天</span>
+          </button>
+          <button class="more-option" @click="emit('expand'); showMoreMenu = false">
+            <Icon name="layout" :size="14" />
+            <span>退出大窗</span>
+          </button>
+          <button class="more-option danger" @click="emit('close'); showMoreMenu = false">
+            <Icon name="close" :size="14" />
+            <span>关闭聊天</span>
+          </button>
+        </div>
+      </div>
+      </template>
     </div>
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
 .chat-header {
   width: 100%;
   display: flex;
@@ -202,6 +286,30 @@ onUnmounted(() => {
   color: var(--color-primary);
   position: relative;
   flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.chat-header.compact .assistant-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+}
+
+.chat-header.compact .assistant-avatar .assistant-mode-dot {
+  width: 7px;
+  height: 7px;
+  right: 2px;
+  bottom: 2px;
+  border-width: 1.5px;
+}
+
+.chat-header.compact .assistant-avatar .assistant-guest-badge {
+  width: 14px;
+  height: 14px;
+  top: -3px;
+  left: -3px;
 }
 
 .assistant-avatar.stream {
@@ -356,5 +464,91 @@ onUnmounted(() => {
 
 .mode-option-dot.normal {
   background-color: var(--color-primary);
+}
+
+.more-menu-container {
+  position: relative;
+}
+
+.more-btn {
+  background: none;
+  border-color: transparent;
+}
+
+.more-btn:hover {
+  background: var(--bg-hover);
+}
+
+.more-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 1000;
+  min-width: 160px;
+  padding: 4px;
+}
+
+.more-option {
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--text-main);
+  border-radius: 6px;
+}
+
+.more-option:hover {
+  background: var(--bg-hover);
+}
+
+.more-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.more-option.danger {
+  color: var(--color-error);
+}
+
+.more-option.danger:hover {
+  background: var(--bg-error);
+}
+
+@include respond(md) {
+  .chat-header:not(.compact) {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .chat-header:not(.compact) .assistant-meta h3 {
+    font-size: 14px;
+  }
+
+  .chat-header:not(.compact) .assistant-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .chat-header:not(.compact) .header-right {
+    gap: 4px;
+  }
+
+  .chat-header:not(.compact) .icon-action-btn {
+    width: 32px;
+    height: 32px;
+  }
 }
 </style>

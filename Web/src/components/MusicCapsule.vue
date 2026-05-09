@@ -401,6 +401,7 @@ onBeforeUnmount(() => {
   @include respond(md) {
     top: -60px;
     right: 10px;
+    left: 10px;
   }
 }
 
@@ -420,7 +421,8 @@ onBeforeUnmount(() => {
   transition: width 0.28s ease, padding 0.28s ease, border-radius 0.28s ease, box-shadow 0.2s ease;
 
   @include respond(md) {
-    width: 320px;
+    width: auto;
+    max-width: 100%;
     height: 50px;
     padding: 6px 12px 6px 6px;
   }
