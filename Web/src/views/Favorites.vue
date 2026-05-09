@@ -46,18 +46,12 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PostService from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
-import { formatDate } from '@/utils/utils'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { useCategoryStore } from '@/stores/category'
-import { useTagStore } from '@/stores/tag'
-import Pagination from '@/components/Pagination.vue'
 import Icon from '@/components/Icon.vue'
 import ArticleList from '@/components/ArticleList.vue'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
-const categoryStore = useCategoryStore()
-const tagStore = useTagStore()
 
 // 响应式数据
 const favoritePosts = ref<PostListItem[]>([])
@@ -76,16 +70,6 @@ const postsPagination = ref({
 // 跳转到文章详情
 const goToPost = (postId: number) => {
   router.push(`/post/${postId}?from=favorites`)
-}
-
-// 跳转到分类详情
-const goToCategory = (categoryId: number) => {
-  router.push(`/category-detail/${categoryId}`)
-}
-
-// 跳转到标签页面
-const goToTag = (tagId: number) => {
-  router.push(`/tags/${tagId}`)
 }
 
 // 加载收藏文章列表
@@ -126,13 +110,6 @@ const searchFavorites = () => {
   loadFavoritePosts(1)
 }
 
-// 清除搜索
-const clearSearch = () => {
-  searchKeyword.value = ''
-  postsPagination.value.current = 1
-  loadFavoritePosts(1)
-}
-
 // 跳转到指定页面
 const goToPostsPage = (page: number) => {
   if (page < 1 || page > postsPagination.value.pages || page === postsPagination.value.current) {
@@ -142,23 +119,9 @@ const goToPostsPage = (page: number) => {
   loadFavoritePosts(page)
 }
 
-// 加载分类
-const loadCategories = async () => {
-  await categoryStore.fetchCategories()
-}
-
-// 加载热门标签
-const loadHotTags = async () => {
-  await tagStore.fetchHotTags(10)
-}
-
 // 页面挂载时加载数据
 onMounted(async () => {
-  await Promise.all([
-    loadFavoritePosts(),
-    loadCategories(),
-    loadHotTags()
-  ])
+  await loadFavoritePosts()
 })
 </script>
 

@@ -1908,7 +1908,7 @@ onMounted(async () => {
 
 .title-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(45, 144, 205, 0.14);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.14);
 }
 
 .title-input::placeholder {
@@ -2008,7 +2008,7 @@ onMounted(async () => {
 .field-select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(45, 144, 205, 0.18);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.18);
 }
 
 .field-select:hover {

@@ -31,7 +31,6 @@ export function initGlobalErrorHandler() {
     event.preventDefault()
   })
 
-  console.log('✅ 全局错误处理已初始化')
 }
 
 /**

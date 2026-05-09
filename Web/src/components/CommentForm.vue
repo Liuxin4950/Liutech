@@ -234,7 +234,7 @@ const submitComment = async () => {
 
 .submit-btn {
   padding: 10px 20px;
-  background: #000;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 6px;

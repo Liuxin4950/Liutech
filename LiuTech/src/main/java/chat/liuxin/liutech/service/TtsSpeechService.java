@@ -377,7 +377,8 @@ public class TtsSpeechService {
             if (root.has("error")) {
                 return "SiliconFlow 请求失败：" + root.get("error").asText();
             }
-        } catch (Exception ignore) {
+        } catch (Exception parseEx) {
+            log.debug("Failed to parse error response", parseEx);
         }
         String truncated = body.length() > 200 ? body.substring(0, 200) + "..." : body;
         return "SiliconFlow 请求失败：" + truncated;
@@ -429,7 +430,8 @@ public class TtsSpeechService {
             if (isLocalHost && path != null && !path.isBlank()) {
                 return base + path + (query != null && !query.isBlank() ? ("?" + query) : "");
             }
-        } catch (Exception ignore) {
+        } catch (Exception e) {
+            log.debug("Failed to normalize audio URL", e);
         }
         return u;
     }

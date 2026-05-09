@@ -225,7 +225,7 @@ onUnmounted(() => {
 
         <!-- 主题按钮 -->
         <button @click="theme.toggle" class="link transition p-8 theme-btn" :title="theme.current.value === 'light' ? '切换到深色模式' : '切换到浅色模式'">
-          <Icon :style="{ color: theme.current.value === 'light' ? '#333333' : '#FFD700', filter: theme.current.value === 'light' ? 'drop-shadow(0 0 4px rgba(224, 247, 250, 0.8))' : 'none' }" :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="20" class="theme-icon" />
+          <Icon :style="{ color: theme.current.value === 'light' ? 'var(--text-main)' : '#FFD700', filter: theme.current.value === 'light' ? 'drop-shadow(0 0 4px rgba(224, 247, 250, 0.8))' : 'none' }" :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="20" class="theme-icon" />
         </button>
 
         <!-- 移动端按钮 -->

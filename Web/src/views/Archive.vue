@@ -54,12 +54,12 @@
               <h3 class="text-lg font-semibold">{{ monthData.monthName }}</h3>
               <span class="text-sm text-subtle">({{ monthData.posts.length }}篇)</span>
               <span class="ml-auto" style="color: var(--text-muted)">
-                {{ expandedMonths.has(`${yearData.year}-${monthData.month}`) ? '▼' : '▶' }}
+                {{ expandedMonths[`${yearData.year}-${monthData.month}`] ? '▼' : '▶' }}
               </span>
             </div>
 
             <!-- 文章列表 -->
-            <div v-show="expandedMonths.has(`${yearData.year}-${monthData.month}`)" 
+            <div v-show="expandedMonths[`${yearData.year}-${monthData.month}`]"
                  class="posts-list ml-20  rounded-lg">
               <div v-for="post in monthData.posts" :key="post.id" 
                    class="post-item bg-card mb-16 flex flex-ac gap-12 p-12 border-l-2 hover:bg-hover transition cursor-pointer"
@@ -108,7 +108,7 @@ const { handleAsync } = useErrorHandler()
 const loading = ref(false)
 const error = ref('')
 const archiveData = ref<PostListItem[]>([])
-const expandedMonths = ref(new Set<string>())
+const expandedMonths = ref<Record<string, boolean>>({})
 
 // 计算属性
 const totalPosts = computed(() => archiveData.value.length)
@@ -185,11 +185,7 @@ const getMonthName = (month: number): string => {
 // 切换月份展开状态
 const toggleMonth = (year: number, month: number) => {
   const key = `${year}-${month}`
-  if (expandedMonths.value.has(key)) {
-    expandedMonths.value.delete(key)
-  } else {
-    expandedMonths.value.add(key)
-  }
+  expandedMonths.value[key] = !expandedMonths.value[key]
 }
 
 // 格式化日期
@@ -231,7 +227,7 @@ const loadArchiveData = async () => {
       if (latestYear.months.length > 0) {
         // 展开最新年份的前3个月
         latestYear.months.slice(0, 3).forEach(month => {
-          expandedMonths.value.add(`${latestYear.year}-${month.month}`)
+          expandedMonths.value[`${latestYear.year}-${month.month}`] = true
         })
       }
     }

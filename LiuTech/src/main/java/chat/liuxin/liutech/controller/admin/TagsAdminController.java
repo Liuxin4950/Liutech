@@ -19,7 +19,6 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/admin/tags")
-@CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
 public class TagsAdminController extends BaseAdminController {
 

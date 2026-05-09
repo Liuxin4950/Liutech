@@ -334,7 +334,7 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
   transition: all 0.25s ease;
   &::placeholder { color: var(--text-muted); }
   &:hover { border-color: var(--border-strong); }
-  &:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(45, 144, 205, 0.1); }
+  &:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.1); }
   &.error { border-color: var(--color-error); box-shadow: 0 0 0 4px rgba(234, 67, 53, 0.1); }
 }
 
@@ -378,7 +378,7 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(45, 144, 205, 0.4); }
+  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.4); }
   &:disabled { opacity: 0.7; cursor: not-allowed; }
 }
 

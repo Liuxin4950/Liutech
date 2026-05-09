@@ -358,7 +358,6 @@ function triggerRandomExpression() {
 
     try {
         model.expression(randomExpression);
-        console.log(`[Live2D] 表情: ${randomExpression} (${randomIndex + 1}/${expressions.length})`)
     } catch {
         // 触发表情失败时静默处理
     }

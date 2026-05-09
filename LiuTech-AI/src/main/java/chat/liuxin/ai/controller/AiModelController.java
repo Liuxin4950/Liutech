@@ -27,7 +27,6 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/ai/models")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class AiModelController {
 

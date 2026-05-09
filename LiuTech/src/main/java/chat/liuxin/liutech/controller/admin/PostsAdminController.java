@@ -15,6 +15,7 @@ import chat.liuxin.liutech.utils.UserUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -24,7 +25,6 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/admin/posts")
-@CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
 public class PostsAdminController extends BaseAdminController {
 
@@ -72,7 +72,7 @@ public class PostsAdminController extends BaseAdminController {
      */
     @PostMapping
     @OperationLog(action = "create", targetType = "post", description = "创建文章: #req.title", targetName = "#req.title")
-    public Result<PostCreateResp> createPost(@RequestBody PostCreateReq req) {
+    public Result<PostCreateResp> createPost(@Valid @RequestBody PostCreateReq req) {
         try {
             // 获取当前管理员用户ID
             Long currentUserId = userUtils.getCurrentUserId();
@@ -92,7 +92,7 @@ public class PostsAdminController extends BaseAdminController {
      */
     @PutMapping("/{id}")
     @OperationLog(action = "update", targetType = "post", description = "更新文章", targetName = "#req.title")
-    public Result<String> updatePost(@PathVariable Long id, @RequestBody PostUpdateReq req) {
+    public Result<String> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req) {
         try {
             // 获取当前管理员用户ID
             Long currentUserId = userUtils.getCurrentUserId();

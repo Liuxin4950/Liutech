@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,7 @@ import java.util.Map;
  * 本地 Spring Boot 直跑时不会自动加载项目根目录 .env，所以这里做一层轻量兜底。
  * 优先级：TTS 专用 key > 通用 SiliconFlow key > AI 模型 key。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SiliconFlowKeyResolver {
@@ -121,7 +123,8 @@ public class SiliconFlowKeyResolver {
                     values.put(key, normalized);
                 }
             }
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            log.debug("Failed to read .env file", e);
         }
         return values;
     }

@@ -21,7 +21,6 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/admin/users")
-@CrossOrigin(origins = "http://localhost:3000")
 @PreAuthorize("hasRole('ADMIN')")
 public class UsersAdminController extends BaseAdminController {
 

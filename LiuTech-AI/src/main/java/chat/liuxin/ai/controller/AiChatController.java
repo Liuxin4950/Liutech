@@ -37,7 +37,6 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequestMapping("/ai")
-@CrossOrigin(origins = "*")
 @Validated
 @RequiredArgsConstructor
 public class AiChatController {

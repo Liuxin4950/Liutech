@@ -17,7 +17,6 @@
         <association property="user" javaType="chat.liuxin.liutech.model.Users">
             <id property="id" column="user_id"/>
             <result property="username" column="username"/>
-            <result property="email" column="email"/>
             <result property="avatarUrl" column="avatar_url"/>
         </association>
     </resultMap>
@@ -34,7 +33,6 @@
             c.updated_at,
             c.deleted_at,
             u.username,
-            u.email,
             u.avatar_url
         FROM comments c
         LEFT JOIN users u ON c.user_id = u.id

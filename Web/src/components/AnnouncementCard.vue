@@ -319,22 +319,22 @@ onUnmounted(() => {
 
 .badge-red {
   background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  color: var(--color-error);
 }
 
 .badge-blue {
   background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
+  color: var(--color-info);
 }
 
 .badge-orange {
   background: rgba(249, 115, 22, 0.1);
-  color: #ea580c;
+  color: var(--color-warning);
 }
 
 .badge-gray {
   background: rgba(107, 114, 128, 0.1);
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .modal-content-text {

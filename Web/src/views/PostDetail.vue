@@ -46,14 +46,29 @@ const addCopyButtons = () => {
   })
 }
 
+let prismLinkEl: HTMLLinkElement | null = null
+let prismScriptEl: HTMLScriptElement | null = null
+const prismLangScripts: HTMLScriptElement[] = []
+
 const loadPrism = () => {
+  // 防止重复注入
+  if (prismScriptEl || (window as any).Prism) {
+    if ((window as any).Prism) {
+      (window as any).Prism.highlightAll()
+      addCopyButtons()
+    }
+    return
+  }
+
   // 直接加载完整版Prism
   const link = document.createElement('link')
+  prismLinkEl = link
   link.rel = 'stylesheet'
   link.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css'
   document.head.appendChild(link)
 
   const script = document.createElement('script')
+  prismScriptEl = script
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js'
   script.onload = () => {
     // 自动检测页面中有什么语言，只加载需要的
@@ -95,6 +110,7 @@ const loadPrism = () => {
           }
         }
         document.head.appendChild(langScript)
+        prismLangScripts.push(langScript)
       })
     }, 100)
   }
@@ -586,9 +602,21 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
 })
 
-// 组件卸载时清理事件监听器
+// 组件卸载时清理事件监听器和注入的 Prism.js 资源
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (prismLinkEl?.parentNode) {
+    prismLinkEl.parentNode.removeChild(prismLinkEl)
+    prismLinkEl = null
+  }
+  if (prismScriptEl?.parentNode) {
+    prismScriptEl.parentNode.removeChild(prismScriptEl)
+    prismScriptEl = null
+  }
+  prismLangScripts.forEach(el => {
+    if (el.parentNode) el.parentNode.removeChild(el)
+  })
+  prismLangScripts.length = 0
 })
 
 const interactionStore = usePostInteractionStore()

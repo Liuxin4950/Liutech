@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Icon from '../components/Icon.vue'
+import moonImg from '@/assets/image/moon.png'
 import { ref } from 'vue'
 import MessageModal from '@/components/MessageModal.vue'
 import MessageList from '@/components/MessageList.vue'
@@ -106,7 +107,7 @@ const contacts = [
     <div class="hero-section">
       <div class="hero-content">
         <div class="avatar-wrapper">
-          <div class="user-avatar">
+          <div class="user-avatar" :style="{ backgroundImage: `url(${moonImg})` }">
             <img src="@/assets/image/gif/坐下.gif" alt="刘鑫" class="liuyin" />
           </div>
         </div>
@@ -446,6 +447,8 @@ const contacts = [
     border-radius: 50%;
     border: 4px solid var(--bg-main);
     background-color: var(--bg-hover);
+    background-size: cover;
+    background-position: center;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     object-fit: cover;
     transition: transform 0.3s ease;
