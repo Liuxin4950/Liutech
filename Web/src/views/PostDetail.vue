@@ -1417,24 +1417,24 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 
 
-.dark .markdown-content :deep(pre) {
+:root.dark .markdown-content :deep(pre) {
   background: #111827 !important;
   color: #f3f4f6 !important;
   border-color: rgba(148, 163, 184, 0.3);
 }
 
-.dark .post-card {
+:root.dark .post-card {
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
 }
 
-.dark :deep(.article-toc) {
+:root.dark :deep(.article-toc) {
   background: var(--surface-glass);
   border-color: var(--border-soft);
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
 }
 
-.dark .post-summary,
-.dark .markdown-content :deep(blockquote) {
+:root.dark .post-summary,
+:root.dark .markdown-content :deep(blockquote) {
   background:
     linear-gradient(135deg, var(--surface-glass-muted), transparent),
     var(--bg-card);
@@ -1442,7 +1442,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-.dark .post-actions {
+:root.dark .post-actions {
   background: rgba(32, 33, 36, 0.92);
   box-shadow: 0 -14px 38px rgba(0, 0, 0, 0.24);
 }

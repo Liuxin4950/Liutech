@@ -25,10 +25,10 @@ const currentYear = new Date().getFullYear();
         </nav>
         <!-- 3. 右侧：社交链接 -->
         <div class="footer-social">
-          <a href="https://github.com" target="_blank" class="social-btn" aria-label="GitHub">
+          <a href="https://github.com/Liuxin4950" target="_blank" class="social-btn" aria-label="GitHub">
             <Icon name="github" size="20" />
           </a>
-          <a href="mailto:example@example.com" class="social-btn" aria-label="Email">
+          <a href="mailto:liuxin4950@gmail.com" class="social-btn" aria-label="Email">
             <Icon name="mail" size="20" />
           </a>
         </div>

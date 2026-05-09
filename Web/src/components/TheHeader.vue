@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme.ts'
 import { useUserStore } from '../stores/user'
@@ -80,6 +80,27 @@ const isActive = (section: string) => {
   return route.meta?.section === section
 }
 
+/** 导航滑块 */
+const navListRef = ref<HTMLUListElement>()
+const sliderStyle = ref({ transform: 'scale(0)', width: '0px' })
+
+const updateSlider = () => {
+  if (!navListRef.value) return
+  const activeLi = navListRef.value.querySelector('.is-active')?.closest('li') as HTMLElement
+  if (activeLi) {
+    const ul = navListRef.value
+    const pl = parseInt(getComputedStyle(ul).paddingLeft) || 0
+    const pr = parseInt(getComputedStyle(ul).paddingRight) || 0
+    sliderStyle.value = {
+      left: `${-pl}px`,
+      transform: `translateX(${activeLi.offsetLeft}px)`,
+      width: `${ul.scrollWidth - pr}px`
+    }
+  } else {
+    sliderStyle.value = { left: '0', transform: 'scale(0)', width: '0px' }
+  }
+}
+
 /** 点击外部关闭菜单 */
 const handleClickOutside = (e: Event) => {
   const target = e.target as HTMLElement
@@ -91,8 +112,17 @@ const handleClickOutside = (e: Event) => {
   }
 }
 
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onUnmounted(() => document.removeEventListener('click', handleClickOutside))
+watch(() => route.path, () => nextTick(updateSlider))
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+  window.addEventListener('resize', updateSlider)
+  nextTick(updateSlider)
+})
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('resize', updateSlider)
+})
 </script>
 
 
@@ -108,7 +138,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
-        <ul class="flex nav-pill">
+        <ul ref="navListRef" class="flex nav-pill">
+          <div class="nav-slider" :style="sliderStyle"></div>
           <li v-for="item in navItems" :key="item.path">
             <router-link
               :to="item.path"
@@ -283,6 +314,8 @@ header>div {
 
 /* Nav Pill Style */
 .nav-pill {
+  position: relative;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -447,6 +480,7 @@ ol {
   text-decoration: none;
   font-weight: 500;
   position: relative;
+  z-index: 1;
   padding: 6px 12px;
   margin: 0 4px;
   border-radius: 20px;
@@ -468,6 +502,22 @@ ol {
   color: var(--color-primary);
 }
 
+.nav-slider {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(var(--color-primary-rgb), 0.12);
+  border-radius: 40px;
+  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  will-change: transform;
+  z-index: 0;
+}
+
+:root.dark .nav-slider {
+  background: rgba(var(--color-primary-rgb), 0.18);
+}
+
 .nav-icon {
   vertical-align: -2px;
 }
@@ -475,20 +525,11 @@ ol {
 .nav-link.router-link-exact-active,
 .nav-link.is-active {
   color: var(--color-primary);
-  font-weight: 600;
 }
 
-.nav-link.router-link-exact-active::after,
-.nav-link.is-active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--color-primary);
+.nav-link.router-link-exact-active:hover,
+.nav-link.is-active:hover {
+  background: transparent;
 }
 /* 默认隐藏移动端菜单按钮 */
 

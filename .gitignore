@@ -12,11 +12,23 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
 *.log
+
+### 脚手架残留 ###
+**/prefixfree.min.js
+**/vite.svg
+
+### 本地配置 ###
+.claude/settings.local.json
+
+### 大型二进制资源 ###
+**/*.flac
+**/*.wav
+**/*.mp3
 
 
 ### NetBeans ###

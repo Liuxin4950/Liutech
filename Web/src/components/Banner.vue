@@ -23,7 +23,7 @@
         </template>
         <!-- 无轮播图时显示默认图片 -->
         <template v-else>
-            <img class="banner-image" src="@/assets/image/banner/liuyin.jpeg" alt="Banner">
+            <img class="banner-image" src="@/assets/image/banner/liuyin.png" alt="Banner">
         </template>
 
         <!-- 切换按钮（多张图片时显示） -->

@@ -305,13 +305,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       var(--bg-main-fade) 600px,
       var(--bg-main-fade) 700px,
       transparent 800px
-    ),
-    radial-gradient(circle at 15% 20%, rgba(45, 144, 205, 0.08) 0%, transparent 40%) no-repeat,
-    radial-gradient(circle at 85% 80%, rgba(240, 184, 192, 0.1) 0%, transparent 40%) no-repeat,
-    radial-gradient(circle at 50% 50%, rgba(45, 144, 205, 0.05) 0%, transparent 50%) no-repeat,
-    radial-gradient(circle at 80% 20%, rgba(45, 144, 205, 0.06) 0%, transparent 30%) no-repeat,
-    radial-gradient(circle at 20% 70%, rgba(240, 184, 192, 0.08) 0%, transparent 35%) no-repeat;
-  background-size: 100% 100%;
+    );
 
   @include respond(md) {
     background:
@@ -321,12 +315,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
         var(--bg-main-fade) 380px,
         var(--bg-main-fade) 450px,
         transparent 520px
-      ),
-      radial-gradient(circle at 15% 20%, rgba(45, 144, 205, 0.08) 0%, transparent 40%) no-repeat,
-      radial-gradient(circle at 85% 80%, rgba(240, 184, 192, 0.1) 0%, transparent 40%) no-repeat,
-      radial-gradient(circle at 50% 50%, rgba(45, 144, 205, 0.05) 0%, transparent 50%) no-repeat,
-      radial-gradient(circle at 80% 20%, rgba(45, 144, 205, 0.06) 0%, transparent 30%) no-repeat,
-      radial-gradient(circle at 20% 70%, rgba(240, 184, 192, 0.08) 0%, transparent 35%) no-repeat;
+      );
   }
 
   @include respond(sm) {
@@ -337,12 +326,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
         var(--bg-main-fade) 280px,
         var(--bg-main-fade) 330px,
         transparent 380px
-      ),
-      radial-gradient(circle at 15% 20%, rgba(45, 144, 205, 0.08) 0%, transparent 40%) no-repeat,
-      radial-gradient(circle at 85% 80%, rgba(240, 184, 192, 0.1) 0%, transparent 40%) no-repeat,
-      radial-gradient(circle at 50% 50%, rgba(45, 144, 205, 0.05) 0%, transparent 50%) no-repeat,
-      radial-gradient(circle at 80% 20%, rgba(45, 144, 205, 0.06) 0%, transparent 30%) no-repeat,
-      radial-gradient(circle at 20% 70%, rgba(240, 184, 192, 0.08) 0%, transparent 35%) no-repeat;
+      );
   }
 }
 
