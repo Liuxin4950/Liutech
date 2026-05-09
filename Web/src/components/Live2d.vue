@@ -20,6 +20,8 @@ import { onMounted, onBeforeUnmount, watch, ref } from 'vue';
 import MusicCapsule from './MusicCapsule.vue';
 import { useLipSync } from '@/composables/useLipSync'
 
+const emit = defineEmits(['click'])
+
 const props = withDefaults(defineProps<{
     interactive?: boolean
     followPointer?: boolean
@@ -348,6 +350,8 @@ function onPointerUp() {
 }
 // 触发随机表情（点击看板娘时调用）
 function triggerRandomExpression() {
+    emit('click')
+
     if (!model) {
         return;
     }
