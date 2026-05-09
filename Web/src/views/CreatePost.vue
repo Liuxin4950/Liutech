@@ -3,7 +3,7 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <div class="page-title">
-        <Icon :name="isEditMode ? 'edit-2' : 'plus'" size="20" />
+        <Icon :name="isEditMode ? 'edit' : 'plus'" size="20" />
         <span>{{ isEditMode ? '编辑文章' : '新建文章' }}</span>
       </div>
     </div>
@@ -111,9 +111,12 @@
             <div v-if="attachments.length > 0" class="attachment-list">
               <div v-for="attachment in attachments" :key="attachment.id" class="attachment-item">
                 <div class="att-info">
-                  <span class="att-name" :title="attachment.name">{{ attachment.name }}</span>
+                  <div class="att-name-row">
+                    <Icon :name="attachment.resourceType === 'link' ? 'link' : 'file'" size="14" class="text-muted" />
+                    <span class="att-name" :title="attachment.name">{{ attachment.name }}</span>
+                  </div>
                   <div class="att-meta">
-                    <span class="att-type">{{ attachment.resourceType === 'link' ? '外链' : (attachment.size > 0 ? formatFileSize(attachment.size) : '文件') }}</span>
+                    <span class="att-type text-muted">{{ attachment.resourceType === 'link' ? '外链' : (attachment.size > 0 ? formatFileSize(attachment.size) : '文件') }}</span>
                     <!-- 积分切换 -->
                     <div class="att-pricing" @click.stop>
                       <label class="pricing-toggle" :class="{ active: attachment.downloadType === 0 }">
@@ -184,7 +187,7 @@
           </div>
 
           <!-- 标签设置 -->
-          <div class="sidebar-item flex flex-ac gap-20">
+          <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">文章标签</div>
             <div class="sidebar-content">
               <div v-if="selectedTags.length > 0" class="selected-tags tags-cloud mb-12">
@@ -195,7 +198,7 @@
                   </button>
                 </span>
               </div>
-              <div class="flex gap-8">
+              <div class="flex gap-8 w-full">
                 <select v-model="selectedTagId" @change="addTag" class="field-select" style="flex: 1;">
                   <option value="">选择标签</option>
                   <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">
@@ -205,22 +208,19 @@
                 <button 
                   type="button" 
                   @click="showCreateTagDialog" 
-                  class="btn-secondary" 
+                  class="btn-secondary flex-shrink-0" 
                   title="创建新标签"
                   style="padding: 8px 12px; min-width: auto;"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
+                  <Icon name="plus" size="14" />
                 </button>
               </div>
             </div>
           </div>
           <!-- 图片 -->
-          <div class="sidebar-item flex flex-ac gap-20">
+          <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">添加封面</div>
-            <div class="sidebar-content flex gap-20">
+            <div class="sidebar-content flex gap-12 flex-fw">
               <!-- 封面图片上传 -->
               <div class="image-upload-container">
                 <div class="image-preview-box" @click="triggerCoverImageUpload"
@@ -255,7 +255,7 @@
             </div>
           </div>
 
-          <div class="sidebar-item flex flex-ac gap-20 relative">
+          <div class="sidebar-item flex-col gap-8 relative">
             <div class="sidebar-title">文章摘要</div>
             <div class="sidebar-content">
               <textarea v-model="form.summary" class="field-textarea" placeholder="请输入文章摘要（可选）" rows="4"
@@ -264,10 +264,10 @@
             </div>
           </div>
 
-          <div class="sidebar-item flex flex-ac gap-20">
+          <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">文章分类</div>
             <div class="sidebar-content">
-              <div class="flex gap-8">
+              <div class="flex gap-8 w-full">
                 <select v-model="form.categoryId" class="field-select" required style="flex: 1;">
                   <option value="">请选择分类</option>
                   <option
@@ -281,38 +281,32 @@
                 <button 
                   type="button" 
                   @click="showCreateCategoryDialog" 
-                  class="btn-secondary" 
+                  class="btn-secondary flex-shrink-0" 
                   title="创建新分类"
                   style="padding: 8px 12px; min-width: auto;"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
+                  <Icon name="plus" size="14" />
                 </button>
               </div>
             </div>
           </div>
 
 
-          <div class="sidebar-item flex flex-ac gap-20">
+          <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">发布状态</div>
             <div class="sidebar-content">
-              <select v-model="form.status" class="field-select">
-                <option value="draft"><Icon name="edit" /> 草稿</option>
-                <option value="published"><Icon name="rocket" /> 发布</option>
+              <select v-model="form.status" class="field-select w-full">
+                <option value="draft">草稿</option>
+                <option value="published">发布</option>
               </select>
             </div>
           </div>
 
-          <div class="sidebar-item flex flex-ac gap-20">
+          <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">文章预览</div>
             <div class="sidebar-content">
               <button @click="previewPost" class="btn-secondary w-full" :disabled="!form.title || !form.content">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
+                <Icon name="eye" size="14" />
                 预览文章
               </button>
             </div>
@@ -494,6 +488,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import DOMPurify from 'dompurify'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
+import Icon from '@/components/Icon.vue'
 import AdminWritingAssistant from '@/components/AdminWritingAssistant.vue'
 import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '@/services/adminAgent'
 import { PostService, type PostDetail } from '@/services/post'
@@ -1644,13 +1639,14 @@ onMounted(async () => {
 
 /* 图片上传组件样式 */
 .image-upload-container {
-  width: 200px;
-  height: 150px;
+  flex: 1;
+  min-width: 120px;
 }
 
 .image-preview-box {
   position: relative;
   width: 100%;
+  min-height: 150px;
   height: 100%;
   border: 2px dashed var(--border-soft);
   border-radius: 8px;
@@ -1658,6 +1654,8 @@ onMounted(async () => {
   cursor: pointer;
   transition: all 0.3s ease;
   background: var(--bg-main);
+  display: flex;
+  align-items: center;
 }
 
 /* 附件上传样式 */
@@ -1782,7 +1780,7 @@ onMounted(async () => {
 }
 
 .upload-text {
-  text-align: center;
+  text-align: left;
   color: white;
   font-weight: 500;
 }
@@ -1931,10 +1929,14 @@ onMounted(async () => {
 }
 
 .sidebar-section {
-  padding: 40px;
+  padding: 30px;
   border-radius: 8px;
   box-shadow: 0 0px 2px rgba(0, 0, 0, 0.3);
   background-color: var(--bg-card);
+  
+  @include respond(md) {
+    padding: 20px;
+  }
 }
 
 .sidebar-item {
@@ -1952,6 +1954,7 @@ onMounted(async () => {
 
 .sidebar-content {
   width: 100%;
+  text-align: left;
 }
 
 
@@ -2548,9 +2551,7 @@ onMounted(async () => {
 
 /* 页面标题头 */
 .page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: block;
   padding: 4px 0 10px;
   margin-bottom: 14px;
   background: transparent;
@@ -2702,6 +2703,12 @@ onMounted(async () => {
   gap: 2px;
 }
 
+.att-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .att-name {
   font-size: 14px;
   font-weight: 500;
@@ -2751,13 +2758,14 @@ onMounted(async () => {
 }
 
 .points-mini-input {
-  width: 44px;
+  width: 48px;
   padding: 2px 4px;
   border: 1px solid var(--border-base);
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
   background: var(--bg-main);
+  color: var(--text-main);
 }
 
 .points-mini-input:focus {
@@ -3034,7 +3042,15 @@ onMounted(async () => {
   }
 
   .attach-actions {
-    flex-direction: column;
+    flex-direction: row; /* 平板端仍可以横向排列 */
+  }
+
+  .image-upload-container {
+    min-width: 100px;
+  }
+
+  .image-preview-box {
+    min-height: 120px;
   }
 
   .preview-modal .preview-content {
@@ -3045,6 +3061,29 @@ onMounted(async () => {
   .modal-content {
     width: 95%;
     margin: 20px;
+  }
+
+  .tool .toot-content {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 16px;
+    align-items: stretch;
+  }
+
+  .tool {
+    height: auto;
+    min-height: 60px;
+  }
+
+  .undo-inline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin: 4px 0;
+  }
+
+  .markdown-content {
+    padding: 20px;
   }
 }
 
@@ -3066,6 +3105,58 @@ onMounted(async () => {
   .btn-primary {
     padding: 8px 12px;
     font-size: 13px;
+  }
+
+  .attach-actions {
+    flex-direction: column; /* 小屏竖排 */
+  }
+
+  .image-upload-container {
+    min-width: 80px;
+  }
+
+  .image-preview-box {
+    min-height: 100px;
+  }
+
+  .upload-overlay .upload-text span {
+    font-size: 11px;
+  }
+
+  .att-pricing {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+
+  .tool .toot-content {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .tool {
+    height: auto;
+    min-height: 60px;
+  }
+
+  .preview-content {
+    width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .preview-title {
+    font-size: 18px;
+  }
+
+  .preview-cover {
+    height: 140px;
+  }
+
+  .markdown-content {
+    padding: 16px;
+    font-size: 14px;
+    margin: 12px 0;
   }
 }
 

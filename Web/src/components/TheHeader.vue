@@ -20,41 +20,6 @@ const userStore = useUserStore()
 const isMenuOpen = ref(false)
 const isUserMenuOpen = ref(false)
 
-// 计算背景颜色和透明度
-const headerBackgroundStyle = computed(() => {
-  const scrollValue = props.scrollY || 0
-  // 滚动0-100px范围内，透明度从0渐变到0.95
-  const maxScroll = 100
-  const minOpacity = 0  // 默认状态下的基础透明度
-  const opacity = minOpacity + Math.min(scrollValue / maxScroll, 0.9)
-
-  // 引用 theme.current 确保主题切换时重新计算
-  void theme.current.value
-
-  // 获取当前主题的背景色
-  const rootStyles = getComputedStyle(document.documentElement)
-  const bgColor = rootStyles.getPropertyValue('--bg-main').trim()
-  
-  // 将十六进制颜色转换为rgba
-  let r = 255, g = 255, b = 255 // 默认白色
-  if (bgColor.startsWith('#')) {
-    const hex = bgColor.slice(1)
-    if (hex.length === 3) {
-      r = parseInt(hex[0] + hex[0], 16)
-      g = parseInt(hex[1] + hex[1], 16)
-      b = parseInt(hex[2] + hex[2], 16)
-    } else if (hex.length === 6) {
-      r = parseInt(hex[0] + hex[1], 16)
-      g = parseInt(hex[2] + hex[3], 16)
-      b = parseInt(hex[4] + hex[5], 16)
-    }
-  }
-  
-  return {
-    backgroundColor: `rgba(${r}, ${g}, ${b}, ${opacity})`
-  }
-})
-
 /** 导航配置（避免重复写） */
 const navItems = [
   { label: '首页', path: '/', section: 'home', icon: 'home' },
@@ -72,7 +37,16 @@ const closeMenus = () => {
 
 /** 打开/关闭菜单 */
 const toggleMenu = () => (isMenuOpen.value = !isMenuOpen.value)
-const toggleUserMenu = () => (isUserMenuOpen.value = !isUserMenuOpen.value)
+const toggleUserMenu = () => {
+  // 如果是移动端（假设宽度小于768px），则点击头像打开侧边栏
+  if (window.innerWidth <= 768) {
+    isMenuOpen.value = !isMenuOpen.value
+    isUserMenuOpen.value = false
+  } else {
+    // Web 和平板尺寸，打开下拉菜单
+    isUserMenuOpen.value = !isUserMenuOpen.value
+  }
+}
 
 /** 跳转并关闭菜单 */
 const navigateTo = (path: string) => {
@@ -109,7 +83,12 @@ const isActive = (section: string) => {
 /** 点击外部关闭菜单 */
 const handleClickOutside = (e: Event) => {
   const target = e.target as HTMLElement
-  if (!target.closest('header')) closeMenus()
+  if (!target.closest('.user-menu-container')) {
+    isUserMenuOpen.value = false
+  }
+  if (!target.closest('.mobile-drawer') && !target.closest('.mobile-menu-btn')) {
+    isMenuOpen.value = false
+  }
 }
 
 onMounted(() => document.addEventListener('click', handleClickOutside))
@@ -118,7 +97,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 
 <template>
-  <header class="sticky top-0 z-100" :style="headerBackgroundStyle">
+  <header class="sticky top-0 z-100">
     <div class="content px-20 flex-sb flex-ac">
 
       <!-- LOGO -->
@@ -129,7 +108,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
-        <ul class="flex">
+        <ul class="flex nav-pill">
           <li v-for="item in navItems" :key="item.path">
             <router-link
               :to="item.path"
@@ -144,14 +123,14 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       </nav>
 
       <!-- 用户区域 + 主题 + 移动端按钮 -->
-      <div class="flex flex-ac nav-user">
+      <div class="flex flex-ac nav-user nav-pill relative">
 
         <!-- 用户信息 -->
-        <div class="relative user-menu-container">
+        <div class="user-menu-container">
           <div
             v-if="userStore.isLoggedIn"
-            class="flex flex-ac gap-8 link rounded"
-            @click="toggleUserMenu"
+            class="flex flex-ac gap-8 link rounded user-info-btn"
+            @click.stop="toggleUserMenu"
           >
             <div class="user-avatar rounded-full link flex-jc">
               <img
@@ -175,32 +154,47 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
           <!-- 未登录 -->
           <button
             v-else
-            class="text-main flex flex-ac gap-8 transition rounded p-8 hover-lift"
+            class="text-main flex flex-ac gap-8 transition rounded p-8 hover-lift login-btn"
             @click="navigateTo('/login')"
+            style="white-space: nowrap;"
           >
             <Icon name="user" size="16" />
-            <span>登录/注册</span>
+            <span class="hide-on-mobile">登录/注册</span>
           </button>
 
           <!-- 用户菜单 -->
-          <div
-            v-show="isUserMenuOpen"
-            class="avatar-menu absolute card transition bg-main"
-            @click.stop
-          >
-            <ul class="list">
-              <li @click="navigateTo('/profile')" class="transition link">个人资料</li>
-              <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="transition link">我的文章</li>
-              <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="transition link">草稿箱</li>
-              <li @click="navigateTo('/favorites')" class="transition link">我的收藏</li>
-              <li @click="handleLogout" class="transition link border-t text-danger">退出登录</li>
-            </ul>
-          </div>
+          <Transition name="fade">
+            <div
+              v-show="isUserMenuOpen"
+              class="avatar-menu absolute transition"
+              @click.stop
+            >
+              <ul class="list">
+                <li @click="navigateTo('/profile')" class="transition link">
+                  <Icon name="user" size="16" class="mr-8" />个人资料
+                </li>
+                <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="transition link">
+                  <Icon name="edit" size="16" class="mr-8" />我的文章
+                </li>
+                <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="transition link">
+                  <Icon name="file" size="16" class="mr-8" />草稿箱
+                </li>
+                <li @click="navigateTo('/favorites')" class="transition link">
+                  <Icon name="favorite" size="16" class="mr-8" />我的收藏
+                </li>
+                <li @click="handleLogout" class="transition link text-danger">
+                  <Icon name="close" size="16" class="mr-8" />退出登录
+                </li>
+              </ul>
+            </div>
+          </Transition>
         </div>
 
+        <div class="divider mx-8"></div>
+
         <!-- 主题按钮 -->
-        <button @click="theme.toggle" class="link transition p-8" :title="theme.current.value === 'light' ? '切换到深色模式' : '切换到浅色模式'">
-          <Icon :style="{ color: theme.current.value === 'light' ? '#333333' : '#FFD700', filter: theme.current.value === 'light' ? 'drop-shadow(0 0 4px rgba(224, 247, 250, 0.8))' : 'none' }" :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="24" />
+        <button @click="theme.toggle" class="link transition p-8 theme-btn" :title="theme.current.value === 'light' ? '切换到深色模式' : '切换到浅色模式'">
+          <Icon :style="{ color: theme.current.value === 'light' ? '#333333' : '#FFD700', filter: theme.current.value === 'light' ? 'drop-shadow(0 0 4px rgba(224, 247, 250, 0.8))' : 'none' }" :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="20" class="theme-icon" />
         </button>
 
         <!-- 移动端按钮 -->
@@ -209,12 +203,12 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
           :src="theme.current.value === 'light'
             ? menuIconLight
             : menuIconDark"
-          @click="toggleMenu"
+          @click.stop="toggleMenu"
         />
       </div>
 
       <!-- 移动端抽屉 -->
-      <div class="mobile-drawer" :style="headerBackgroundStyle" :class="{ open: isMenuOpen }" @click.stop>
+      <div class="mobile-drawer" :class="{ open: isMenuOpen }" @click.stop>
         <ul class="list">
           <li
             v-for="item in navItems"
@@ -273,20 +267,89 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 header {
   width: 100%;
   height: 70px;
-  background-color: rgba(255, 255, 255, 0);
-  backdrop-filter: blur(2px);
-  // box-shadow: var(--shadow-sm);
-  transition: background-color 0.3s ease;
+  /* Remove the whole header background to allow pills to stand out */
+  background-color: transparent !important;
+  transition: all 0.3s ease;
+  /* 移除 overflow: hidden; 否则下拉菜单会被截断 */
 }
 
 header>div {
   height: 70px;
+  /* 在移动端可能需要调整内容区域的边距 */
+  @include respond(md) {
+    padding: 0 10px;
+  }
+}
+
+/* Nav Pill Style */
+.nav-pill {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 40px;
+  padding: 4px 16px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+  
+  @include respond(md) {
+    padding: 2px 6px;
+    gap: 2px;
+    /* 移动端缩小胶囊的最大宽度或者调整边距 */
+  }
+}
+
+:root.dark .nav-pill {
+  background: rgba(30, 30, 30, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-base);
+  opacity: 0.5;
+  
+  @include respond(md) {
+    margin: 0 4px !important;
+  }
+}
+
+.user-info-btn {
+  @include respond(md) {
+    gap: 4px;
+  }
 }
 
 .user-avatar {
   width: 40px;
   height: 40px;
   border: 1px solid var(--border-base);
+  
+  @include respond(md) {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+.login-btn {
+  @include respond(md) {
+    padding: 4px;
+    gap: 4px;
+  }
+}
+
+.theme-btn {
+  @include respond(md) {
+    padding: 4px;
+  }
+}
+
+.theme-icon {
+  @include respond(md) {
+    font-size: 16px !important;
+  }
 }
 
 .font-medium{
@@ -315,24 +378,58 @@ ol {
 }
 
 .avatar-menu {
-  padding: 0;
-  top: 60px;
-  width: 140px;
-  z-index: 99;
-  overflow: hidden;
+  padding: 8px;
+  top: calc(100% + 8px); /* 动态计算：在整个右侧药丸正下方 8px 的位置 */
+  right: 0; /* 与右侧药丸右边缘对齐 */
+  width: 160px; /* 稍微加宽一点以更好地容纳图标和文字 */
+  z-index: 999;
+  border-radius: 16px;
+  /* 统一为毛玻璃样式 */
+  background: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  /* 在移动端隐藏这个下拉框，因为移动端有侧边栏 */
+  @include respond(md) {
+    display: none !important;
+  }
 
   li {
-    padding: 6px 16px;
+    padding: 10px 16px;
+    margin: 4px 0;
+    border-radius: 12px;
     cursor: pointer;
+    font-weight: 500;
+    color: var(--text-main);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    background-color: transparent;
   }
 
   li:last-child {
-    color: red;
+    color: var(--color-error);
+    margin-top: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 0 0 12px 12px;
   }
 
   li:hover {
-    color: white;
-    background: var(--color-primary);
+    background-color: rgba(var(--color-primary-rgb), 0.1);
+    color: var(--color-primary);
+    padding-left: 20px;
+  }
+}
+
+:root.dark .avatar-menu {
+  background: rgba(30, 30, 30, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  
+  li:last-child {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -350,12 +447,25 @@ ol {
   text-decoration: none;
   font-weight: 500;
   position: relative;
-  padding: 10px 0;
-  margin: 0 16px;
+  padding: 6px 12px;
+  margin: 0 4px;
+  border-radius: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
+  transition: all 0.3s ease;
+  
+  @include respond(md) {
+    padding: 4px 8px;
+    margin: 0 2px;
+    font-size: 14px;
+  }
+}
+
+.nav-link:hover {
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
 }
 
 .nav-icon {
@@ -383,64 +493,100 @@ ol {
 /* 默认隐藏移动端菜单按钮 */
 
 .mobile-menu-btn {
-  height: 50px;
-  width: 50px;
+  height: 28px; /* 进一步减小按钮高度 */
+  width: 28px;  /* 进一步减小按钮宽度 */
+  margin-left: 2px; /* 减小左边距 */
   display: none;
+  cursor: pointer;
   @include respond(md) {
-
    display: block;
-
   }
 }
 
 
+.hide-on-mobile {
+  @include respond(md) {
+    display: none;
+  }
+}
+
 .mobile-drawer {
   position: fixed;
   top: 70px;
-  right: 0;
-  width: 80%;
-  max-width: 200px;
-  height: calc(100vh - 70px);
+  right: 10px; /* 改为悬浮卡片，距离右侧有边距 */
+  width: 240px; /* 固定合理宽度 */
+  max-height: calc(100vh - 90px);
+  /* 使用与顶部药丸风格一致的毛玻璃效果 */
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  transform: translateX(100%);
-  transition: transform 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px; /* 圆润的边角 */
+  
+  /* 修改动画：从缩小渐隐到放大显示，类似弹出菜单 */
+  transform: scale(0.95);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top right;
+  
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 2px var(--shadow-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  padding: 12px 8px; /* 调整内边距 */
+  
   li {
-    margin: 8px 16px;
-    padding: 12px 20px;
+    margin: 4px 8px; /* 减小菜单项间距 */
+    padding: 12px 16px;
     border-radius: 12px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
     font-weight: 500;
     color: var(--text-main);
     display: flex;
     align-items: center;
     border: 1px solid transparent;
-    background-color: var(--bg-card);
-    box-shadow: var(--shadow-sm);
-    gap: 5px;
-    vertical-align: middle;
-
+    /* 移除每个li默认的卡片背景，让整体的毛玻璃透出来 */
+    background-color: transparent;
+    box-shadow: none;
+    gap: 8px;
   }
+  
   li:hover {
-      // background-color: var(--color-primary);
-      color: var(--color-primary);
-      padding-left: 24px;
-      border-color: var(--border-light);
-    }
+    background-color: rgba(var(--color-primary-rgb), 0.1);
+    color: var(--color-primary);
+    padding-left: 20px; /* 轻微缩进反馈 */
+  }
 
   li:active {
-      transform: scale(0.98);
-      background-color: var(--bg-main);
-    }
-  
+    transform: scale(0.98);
+    background-color: rgba(var(--color-primary-rgb), 0.15);
+  }
+}
+
+:root.dark .mobile-drawer {
+  background: rgba(30, 30, 30, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Vue Transition 渐变动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 .mobile-drawer.open {
-  transform: translateX(0);
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 

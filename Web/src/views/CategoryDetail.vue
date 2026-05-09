@@ -49,6 +49,7 @@ import { PostService, type PostListItem } from '@/services/post'
 import type { Category } from '@/services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
+import Icon from '@/components/Icon.vue'
 import ArticleList from '@/components/ArticleList.vue'
 
 const router = useRouter()

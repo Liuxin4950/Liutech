@@ -51,6 +51,7 @@ import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import Pagination from '@/components/Pagination.vue'
+import Icon from '@/components/Icon.vue'
 import ArticleList from '@/components/ArticleList.vue'
 
 const router = useRouter()

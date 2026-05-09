@@ -242,7 +242,9 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
+
 /***** 修改人：刘鑫；修改时间：2025-08-26；统一草稿页按钮颜色到“我的文章”风格 *****/
 .drafts-page { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
@@ -264,6 +266,37 @@ onMounted(async () => {
 }
 
 .actions-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 20px; }
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-base);
+  border-radius: 20px;
+  padding: 8px 16px;
+  width: 300px;
+  transition: all 0.3s;
+}
+
+.search-box:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  color: var(--text-main);
+  font-size: 14px;
+}
+
+.search-icon {
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
 .create-btn { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background-color: var(--color-primary); color: white; border: none; border-radius: 25px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; white-space: nowrap; }
 .create-btn:hover { background-color: var(--color-primary-dark); transform: translateY(-2px); }
 
@@ -279,7 +312,9 @@ onMounted(async () => {
 
 .draft-meta { display: flex; gap: 20px; flex-wrap: wrap; }
 .draft-date, .draft-words, .draft-category { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--text-main); opacity: 0.7; }
-.meta-icon { font-size: 14px; }
+.tags-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.tag { padding: 4px 10px; background-color: var(--bg-soft); color: var(--text-subtle); border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.3s; }
+.tag:hover { background-color: var(--color-primary); color: white; }
 
 .draft-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .action-btn { width: 36px; height: 36px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 14px; }
@@ -311,11 +346,41 @@ onMounted(async () => {
 /* 响应式设计 */
 @include respond(md) {
   .drafts-page { padding: 15px; }
-  .actions-bar { flex-direction: column; align-items: stretch; }
-  .search-box { max-width: none; }
-  .draft-card { flex-direction: column; gap: 15px; }
-  .draft-actions { align-self: flex-end; }
-  .draft-meta { gap: 15px; }
-  .draft-card>img { width: 100%; height: auto; }
+  .actions-bar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .search-box { width: 100%; max-width: none; }
+  
+  .draft-card { 
+    flex-direction: column; 
+    gap: 15px; 
+    padding: 16px;
+  }
+  
+  .draft-card>img { 
+    width: 100%; 
+    height: 180px; /* 移动端给一个固定高度，防止图片过大或比例失调 */
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  
+  .draft-title { font-size: 1.1rem; }
+  
+  .draft-actions { 
+    align-self: stretch; /* 按钮区域横向拉伸 */
+    justify-content: flex-end;
+    margin-top: 10px;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 12px;
+  }
+  
+  .draft-meta { gap: 10px; flex-direction: column; align-items: flex-start; }
+}
+
+@include respond(sm) {
+  .draft-actions {
+    justify-content: space-between; /* 在更小的屏幕上，按钮平分底部空间 */
+  }
+  .action-btn {
+    flex: 1; /* 让按钮宽度均分 */
+  }
 }
 </style>

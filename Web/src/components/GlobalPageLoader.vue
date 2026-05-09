@@ -111,6 +111,14 @@ defineProps<{ show: boolean }>()
 	height: 5.5em;
 	transform: rotateX(12deg) rotateZ(3deg);
 	transform-style: preserve-3d;
+	
+	/* 移动端适配：缩小字体基准值，从而按比例缩小整个由 em 构建的动画 */
+	@media (max-width: 768px) {
+		font-size: 12px; 
+	}
+	@media (max-width: 480px) {
+		font-size: 10px; /* 适当增大，防止过小 */
+	}
 }
 
 .cube,
@@ -129,16 +137,20 @@ defineProps<{ show: boolean }>()
 	transform-style: preserve-3d;
 	transition: .3s;
 	box-shadow: var(--shadow-md);
-	animation: letterPulse 1.2s infinite;
+	animation: letterPulse 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; /* 使用缓动函数使动画更流畅自然 */
 	border-radius: 3px;
 }
 .cube:after {
-	background-color: var(--color-primary-dark);
+	/* 侧面阴影面：用伪元素自身的背景色叠加半透明黑来制造立体阴影，避免在深色模式下用死黑导致看不见 */
+	background-color: inherit;
+	filter: brightness(0.7);
 	transform: rotateX(-90deg) translateY(1em);
 	transform-origin: 100% 100%;
 }
 .cube:before {
-	background-color: var(--color-primary-light);
+	/* 顶面高光面：用叠加半透明白或提亮来制造立体高光 */
+	background-color: inherit;
+	filter: brightness(1.2);
 	transform: rotateY(90deg) translateX(1em);
 	transform-origin: 100% 0;
 }
@@ -214,15 +226,24 @@ defineProps<{ show: boolean }>()
 .letter-u { background-color: var(--color-primary) !important; }
 .letter-t { background-color: var(--color-success) !important; }
 .letter-e { background-color: var(--color-warning) !important; }
-.letter-c { background-color: var(--color-primary-light) !important; }
-.letter-h { background-color: var(--color-primary-dark) !important; }
+/* 在深色模式下原先的 light 和 dark 颜色可能太暗，这里做特殊处理或者改用显眼的颜色 */
+.letter-c { background-color: var(--color-accent, #F0B8C0) !important; }
+.letter-h { background-color: #A78BFA !important; /* 柔和的紫色，确保在深色下清晰 */ }
+
+/* 为深色模式特殊提亮 c 和 h 的颜色，并稍微提亮其他颜色的侧面，增加发光感 */
+:root.dark .cube {
+	box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+}
+:root.dark .letter-c { background-color: #F8B4B4 !important; } /* 深色下的 accent 颜色 */
+:root.dark .letter-h { background-color: #C4B5FD !important; } /* 更亮的紫色 */
 
 @keyframes letterPulse {
 	0%, 100% {
 		transform: translateZ(1em) scale(1);
 	}
 	50% {
-		transform: translateZ(2em) scale(1.1);
+		/* 增加 Z 轴跳跃幅度和大小缩放，使动画更活泼生动 */
+		transform: translateZ(3em) scale(1.15);
 	}
 }
 </style>
