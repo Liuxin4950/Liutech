@@ -2,7 +2,6 @@ package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
-import chat.liuxin.liutech.config.FileUploadConfig;
 import chat.liuxin.liutech.model.dto.SiliconFlowVoiceDTO;
 import chat.liuxin.liutech.model.dto.TtsConfigDTO;
 import chat.liuxin.liutech.model.dto.TtsSpeechResponseDTO;
@@ -31,18 +30,13 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.FileTime;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Stream;
 
 /**
  * 统一 TTS 推理、缓存和 SiliconFlow 音色管理。
@@ -53,7 +47,7 @@ import java.util.stream.Stream;
 public class TtsSpeechService {
 
     private final TtsConfigService ttsConfigService;
-    private final FileUploadConfig fileUploadConfig;
+    private final TtsCacheManager cacheManager;
     private final SiliconFlowKeyResolver siliconFlowKeyResolver;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -63,19 +57,9 @@ public class TtsSpeechService {
             .connectTimeout(Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NEVER)
             .build();
-    private final AtomicLong lastCacheCleanupAt = new AtomicLong(0L);
 
     @Value("${siliconflow.base-url:https://api.siliconflow.cn}")
     private String siliconFlowBaseUrl;
-
-    @Value("${tts.cache.max-age-hours:${TTS_CACHE_MAX_AGE_HOURS:24}}")
-    private long cacheMaxAgeHours;
-
-    @Value("${tts.cache.max-bytes:${TTS_CACHE_MAX_BYTES:536870912}}")
-    private long cacheMaxBytes;
-
-    @Value("${tts.cache.cleanup-interval-ms:${TTS_CACHE_CLEANUP_INTERVAL_MS:3600000}}")
-    private long cacheCleanupIntervalMs;
 
     public TtsSpeechResponseDTO synthesize(String text) {
         String normalizedText = normalizeText(text);
@@ -98,8 +82,8 @@ public class TtsSpeechService {
         if (fileName == null || !fileName.matches("[a-f0-9\\-]{36}\\.(mp3|wav|opus|pcm)")) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音频文件不存在");
         }
-        Path path = cacheDir().resolve(fileName).normalize();
-        if (!path.startsWith(cacheDir()) || !Files.exists(path) || !Files.isRegularFile(path)) {
+        Path path = cacheManager.cacheDir().resolve(fileName).normalize();
+        if (!path.startsWith(cacheManager.cacheDir()) || !Files.exists(path) || !Files.isRegularFile(path)) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音频文件不存在");
         }
         return path;
@@ -360,14 +344,10 @@ public class TtsSpeechService {
         }
         String ext = normalizeFormat(format);
         String fileName = UUID.randomUUID() + "." + ext;
-        Files.createDirectories(cacheDir());
-        Files.write(cacheDir().resolve(fileName), audio);
-        cleanupAudioCacheIfDue();
+        Files.createDirectories(cacheManager.cacheDir());
+        Files.write(cacheManager.cacheDir().resolve(fileName), audio);
+        cacheManager.cleanupIfDue();
         return "/tts/audio/" + fileName;
-    }
-
-    private Path cacheDir() {
-        return Path.of(fileUploadConfig.getBasePath(), "tts-cache").toAbsolutePath().normalize();
     }
 
     private HttpHeaders siliconFlowHeaders() {
@@ -401,97 +381,6 @@ public class TtsSpeechService {
         }
         String truncated = body.length() > 200 ? body.substring(0, 200) + "..." : body;
         return "SiliconFlow 请求失败：" + truncated;
-    }
-
-    private void cleanupAudioCacheIfDue() {
-        long now = System.currentTimeMillis();
-        long previous = lastCacheCleanupAt.get();
-        long interval = Math.max(60_000L, cacheCleanupIntervalMs);
-        if ((now - previous) < interval) {
-            return;
-        }
-        if (lastCacheCleanupAt.compareAndSet(previous, now)) {
-            cleanupAudioCache();
-        }
-    }
-
-    @org.springframework.scheduling.annotation.Scheduled(
-            fixedDelayString = "${tts.cache.cleanup-interval-ms:${TTS_CACHE_CLEANUP_INTERVAL_MS:3600000}}")
-    public void cleanupAudioCache() {
-        Path dir = cacheDir();
-        if (!Files.isDirectory(dir)) {
-            return;
-        }
-
-        Instant cutoff = Instant.now().minus(Duration.ofHours(Math.max(1L, cacheMaxAgeHours)));
-        List<AudioCacheFile> activeFiles = new ArrayList<>();
-        long[] totalBytes = new long[] {0L};
-        int[] deleted = new int[] {0};
-
-        try (Stream<Path> paths = Files.list(dir)) {
-            paths.filter(this::isManagedAudioCacheFile)
-                    .forEach(path -> collectOrDeleteExpiredAudio(path, cutoff, activeFiles, totalBytes, deleted));
-        } catch (Exception e) {
-            log.warn("清理 TTS 缓存目录失败: {}", e.getMessage());
-            return;
-        }
-
-        long maxBytes = Math.max(0L, cacheMaxBytes);
-        if (maxBytes > 0 && totalBytes[0] > maxBytes) {
-            activeFiles.sort(Comparator.comparing(AudioCacheFile::modifiedAt));
-            for (AudioCacheFile file : activeFiles) {
-                if (totalBytes[0] <= maxBytes) {
-                    break;
-                }
-                if (deleteCacheFile(file.path())) {
-                    totalBytes[0] -= file.size();
-                    deleted[0]++;
-                }
-            }
-        }
-
-        if (deleted[0] > 0) {
-            log.info("TTS 缓存清理完成: deleted={}, remainingBytes={}", deleted[0], totalBytes[0]);
-        }
-    }
-
-    private void collectOrDeleteExpiredAudio(
-            Path path,
-            Instant cutoff,
-            List<AudioCacheFile> activeFiles,
-            long[] totalBytes,
-            int[] deleted) {
-        try {
-            FileTime modifiedAt = Files.getLastModifiedTime(path);
-            long size = Files.size(path);
-            if (modifiedAt.toInstant().isBefore(cutoff)) {
-                if (deleteCacheFile(path)) {
-                    deleted[0]++;
-                }
-                return;
-            }
-            activeFiles.add(new AudioCacheFile(path, size, modifiedAt));
-            totalBytes[0] += size;
-        } catch (Exception e) {
-            log.debug("跳过不可读 TTS 缓存文件 {}: {}", path.getFileName(), e.getMessage());
-        }
-    }
-
-    private boolean isManagedAudioCacheFile(Path path) {
-        if (path == null || !Files.isRegularFile(path)) {
-            return false;
-        }
-        String fileName = path.getFileName() == null ? "" : path.getFileName().toString();
-        return fileName.matches("[a-f0-9\\-]{36}\\.(mp3|wav|opus|pcm)");
-    }
-
-    private boolean deleteCacheFile(Path path) {
-        try {
-            return Files.deleteIfExists(path);
-        } catch (Exception e) {
-            log.debug("删除 TTS 缓存文件失败 {}: {}", path.getFileName(), e.getMessage());
-            return false;
-        }
     }
 
     private boolean isAllowedAudioUri(URI uri, URI expectedBaseUri) {
@@ -610,8 +499,5 @@ public class TtsSpeechService {
 
     private String textValue(JsonNode node, String field) {
         return node != null && node.has(field) && !node.get(field).isNull() ? node.get(field).asText() : null;
-    }
-
-    private record AudioCacheFile(Path path, long size, FileTime modifiedAt) {
     }
 }

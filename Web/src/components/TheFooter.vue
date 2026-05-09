@@ -17,15 +17,12 @@ const currentYear = new Date().getFullYear();
 
         <!-- 2. 中间：简洁导航 -->
         <nav class="footer-nav">
-          <router-link to="/" class="nav-item">首页</router-link>
-          <router-link to="/categories" class="nav-item">分类</router-link>
-          <router-link to="/archive" class="nav-item">归档</router-link>
-          <router-link to="/tags" class="nav-item">标签</router-link>
-          <router-link to="/about" class="nav-item">关于</router-link>
-          <span class="divider">|</span>
-          <a href="/rss.xml" class="nav-item">RSS</a>
+          <router-link to="/" class="nav-item"><Icon name="home" size="14" /> 首页</router-link>
+          <router-link to="/categories" class="nav-item"><Icon name="folder" size="14" /> 分类</router-link>
+          <router-link to="/tags" class="nav-item"><Icon name="tag" size="14" /> 标签</router-link>
+          <router-link to="/archive" class="nav-item"><Icon name="archive" size="14" /> 归档</router-link>
+          <router-link to="/about" class="nav-item"><Icon name="user" size="14" /> 关于我</router-link>
         </nav>
-
         <!-- 3. 右侧：社交链接 -->
         <div class="footer-social">
           <a href="https://github.com" target="_blank" class="social-btn" aria-label="GitHub">
@@ -113,6 +110,9 @@ const currentYear = new Date().getFullYear();
   }
 
   .nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 15px;
     color: var(--text-subtle);
     text-decoration: none;
@@ -122,11 +122,6 @@ const currentYear = new Date().getFullYear();
     &:hover {
       color: var(--color-primary);
     }
-  }
-
-  .divider {
-    color: var(--border-base);
-    font-size: 12px;
   }
 }
 

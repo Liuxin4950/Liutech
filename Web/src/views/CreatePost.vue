@@ -3004,4 +3004,69 @@ onMounted(async () => {
   background: var(--bg-hover);
 }
 
+/* ===== 响应式适配 ===== */
+@include respond(lg) {
+  .sidebar-section {
+    padding: 24px;
+  }
+}
+
+@include respond(md) {
+  .page-header {
+    padding: 4px 0 8px;
+  }
+
+  .title-input {
+    font-size: 20px;
+    padding: 12px 14px;
+  }
+
+  .sidebar-section {
+    padding: 16px;
+  }
+
+  .sidebar-item > .sidebar-title {
+    width: auto;
+  }
+
+  .sidebar-title {
+    font-size: 15px;
+  }
+
+  .attach-actions {
+    flex-direction: column;
+  }
+
+  .preview-modal .preview-content {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .modal-content {
+    width: 95%;
+    margin: 20px;
+  }
+}
+
+@include respond(sm) {
+  .title-input {
+    font-size: 17px;
+    padding: 10px 12px;
+  }
+
+  .sidebar-section {
+    padding: 12px;
+  }
+
+  .sidebar-item {
+    margin-bottom: 16px;
+  }
+
+  .btn-secondary,
+  .btn-primary {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
 </style>

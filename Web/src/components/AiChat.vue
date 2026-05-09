@@ -587,7 +587,6 @@ defineExpose({
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
-@use "@/assets/styles/tokens" as *;
 
 .chat-box {
   width: 100%;

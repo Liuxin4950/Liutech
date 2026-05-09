@@ -1,3 +1,24 @@
+-- ============================================================================
+-- LiuTech 全栈初始化脚本 (唯一权威版本)
+-- 
+-- 本文件是项目唯一的数据库初始化脚本，同时初始化主后端库 liutech 和 AI 服务库 liutech_ai。
+-- Docker 部署时通过 docker-entrypoint-initdb.d 自动执行（仅首次初始化）。
+--
+-- 幂等性保证：
+--   - 所有 CREATE TABLE 使用 IF NOT EXISTS，重复执行不会报错。
+--   - 所有 INSERT 使用 IGNORE 或 ON DUPLICATE KEY UPDATE，避免主键冲突。
+--   - 所有 ALTER TABLE 包含条件判断，跳过已存在的列/索引。
+--
+-- 历史迁移合并（2026-05-08）：
+--   - sql/ai_chat_tables.sql         → 合并到本文件
+--   - sql/ai_agent_migration_*.sql   → 合并到本文件
+--   - sql/tts_dual_provider_*.sql    → 合并到本文件
+--
+-- 已有环境使用说明：
+--   如果数据库已通过旧脚本初始化过，直接执行本文件不会破坏现有数据
+--   （CREATE IF NOT EXISTS 和 INSERT IGNORE 保证安全）。
+--   只需确保缺失的表/数据被补齐即可。
+-- ============================================================================
 -- 关闭外键检查，避免顺序限制导致错误
 SET FOREIGN_KEY_CHECKS = 0;
 -- 创建数据库
@@ -5,7 +26,6 @@ CREATE DATABASE IF NOT EXISTS liutech DEFAULT CHARACTER SET utf8mb4 COLLATE utf8
 
 -- 切换到liutech数据库
 USE liutech;
-
 
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
@@ -274,8 +294,6 @@ CREATE TABLE IF NOT EXISTS post_attachments (
   FOREIGN KEY (resource_id) REFERENCES resources(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章附件表（草稿态与文章态通用）';
 
-
-
 -- 音乐表
 CREATE TABLE IF NOT EXISTS music (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '音乐ID',
@@ -419,7 +437,6 @@ CREATE TABLE IF NOT EXISTS messages (
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='访客留言表';
 
-
 -- 重新开启外键检查
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -473,16 +490,6 @@ CREATE TABLE IF NOT EXISTS ai_chat_message
   DEFAULT CHARSET = utf8mb4 COMMENT ='AI聊天消息表';
 
 -- 用户记忆摘要表（预留表，暂未使用 — 项目中无任何代码引用此表）
-CREATE TABLE IF NOT EXISTS ai_chat_memory_summary
-(
-    user_id        VARCHAR(64) NOT NULL COMMENT '用户ID',
-    summary        LONGTEXT    NOT NULL COMMENT '记忆摘要内容',
-    token_estimate INT         NULL COMMENT '摘要的token估算',
-    created_at     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    updated_at     DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (user_id)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4 COMMENT ='用户级记忆摘要表（可选）';
 
 -- AI 模型配置表
 CREATE TABLE IF NOT EXISTS ai_model_config (

@@ -22,6 +22,30 @@ const sanitizeConfig = {
 }
 
 // 动态加载Prism.js和Prism.css用于代码高亮
+const addCopyButtons = () => {
+  document.querySelectorAll('.markdown-content pre').forEach(pre => {
+    if (pre.querySelector('.copy-btn')) return
+    const btn = document.createElement('button')
+    btn.className = 'copy-btn'
+    btn.textContent = '复制'
+    btn.addEventListener('click', () => {
+      const code = pre.querySelector('code')
+      const text = code?.textContent || ''
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.style.cssText = 'position:fixed;left:-9999px;opacity:0'
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      btn.textContent = '已复制'
+      setTimeout(() => { btn.textContent = '复制' }, 1500)
+    })
+    ;(pre as HTMLElement).style.position = 'relative'
+    pre.appendChild(btn)
+  })
+}
+
 const loadPrism = () => {
   // 直接加载完整版Prism
   const link = document.createElement('link')
@@ -52,6 +76,7 @@ const loadPrism = () => {
         // 没有特殊语言，直接高亮
         if ((window as any).Prism) {
           (window as any).Prism.highlightAll()
+          addCopyButtons()
         }
         return
       }
@@ -65,6 +90,7 @@ const loadPrism = () => {
             // 所有语言加载完成，执行高亮
             if ((window as any).Prism) {
               (window as any).Prism.highlightAll()
+              addCopyButtons()
             }
           }
         }
@@ -140,7 +166,13 @@ const cleanPostSummary = computed(() => {
     .replace(/^首先让我看看[^。！？]*[。！？]\s*/i, '')
     .trim()
 
-  return cleaned || summary
+  const result = cleaned || summary
+
+  // 如果摘要和正文开头重复，不显示摘要
+  const content = (post.value?.content || '').replace(/<[^>]+>/g, '').trim()
+  if (content && content.startsWith(result.slice(0, 50))) return ''
+
+  return result
 })
 
 const stripWritingMetadata = (value: string) => {
@@ -195,6 +227,7 @@ watch(() => renderedContent.value, () => {
     setTimeout(() => {
       if ((window as any).Prism) {
         (window as any).Prism.highlightAll()
+        addCopyButtons()
       }
   }, 100)
   })
@@ -1238,21 +1271,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   font-size: 14px;
   line-height: 1.6;
   position: relative;
-  
-  &::before {
-    content: attr(data-language);
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: var(--color-primary);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 16px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
 }
 
 .markdown-content :deep(pre code) {
@@ -1266,6 +1284,33 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 .markdown-content :deep(pre code *) {
   color: inherit !important;
+}
+
+/* 代码块复制按钮 */
+.markdown-content :deep(.copy-btn) {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text-subtle);
+  background: var(--bg-hover);
+ border: 1px solid var(--border-light);
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 1;
+}
+
+.markdown-content :deep(pre:hover .copy-btn) {
+  opacity: 1;
+}
+
+.markdown-content :deep(.copy-btn:hover) {
+  background: var(--bg-active);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
 /* 表格样式 */
@@ -1728,8 +1773,8 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
   .meta-right-section {
     flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
+    gap: 8px 12px;
+    justify-content: flex-start;
     width: 100%;
   }
 

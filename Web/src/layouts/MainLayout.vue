@@ -455,7 +455,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   z-index: 30;
 }
 
-@media (max-width: 768px) {
+@include respond(md) {
   .live2d.centered {
     width: min(400px, 85vw);
     height: min(400px, 85vw);

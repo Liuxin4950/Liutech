@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { ChatMode } from '@/stores/chat'
 import Icon from './Icon.vue'
+import { BREAKPOINT_MD } from '@/utils/breakpoints'
 
 const props = defineProps<{
   expanded?: boolean
@@ -27,7 +28,7 @@ const emit = defineEmits<{
 
 const isModeDropdownOpen = ref(false)
 const showMoreMenu = ref(false)
-const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false)
+const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < BREAKPOINT_MD : false)
 const toolbarIconSize = 15
 
 const modeLabel = computed(() => props.mode === 'stream' ? '实时响应' : '完整响应')
@@ -53,7 +54,7 @@ const handleMoreClickOutside = (event: MouseEvent) => {
 }
 
 const handleResize = () => {
-  isMobile.value = window.innerWidth < 768
+  isMobile.value = window.innerWidth < BREAKPOINT_MD
   if (!isMobile.value) showMoreMenu.value = false
 }
 

@@ -348,11 +348,9 @@ const handleMessageSuccess = () => {
     transition: transform 0.3s ease;
     position: relative;
     .liuyin{
-      width: 160px ;
-      height: 140px;
       position: absolute;
-      top: 10px;
-      left: -20px;
+      top: 20px;
+      left: -10px;
     }
     
     &:hover {

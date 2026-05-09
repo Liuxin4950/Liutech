@@ -36,9 +36,6 @@ class AiChatServiceImplTest {
     private AiChatServiceImpl service;
     private TtsSegmenter ttsSegmenter;
 
-    private Method extractTtsSegmentsMethod;
-    private Method extractTtsSegmentsWithModeMethod;
-    private Method containsSpeakableTextMethod;
     private Method resolveModelNameMethod;
 
     @BeforeEach
@@ -69,31 +66,20 @@ class AiChatServiceImplTest {
 
         setField(service, "defaultModel", "fallback-model");
 
-        extractTtsSegmentsMethod = AiChatServiceImpl.class.getDeclaredMethod("extractTtsSegments", StringBuilder.class);
-        extractTtsSegmentsMethod.setAccessible(true);
-
-        extractTtsSegmentsWithModeMethod = AiChatServiceImpl.class.getDeclaredMethod("extractTtsSegments", StringBuilder.class, boolean.class);
-        extractTtsSegmentsWithModeMethod.setAccessible(true);
-
-        containsSpeakableTextMethod = AiChatServiceImpl.class.getDeclaredMethod("containsSpeakableText", String.class);
-        containsSpeakableTextMethod.setAccessible(true);
-
         resolveModelNameMethod = AiChatServiceImpl.class.getDeclaredMethod("resolveModelName", ChatRequest.class);
         resolveModelNameMethod.setAccessible(true);
     }
 
-    @SuppressWarnings("unchecked")
-    private List<String> extractSegments(String content) throws Exception {
-        return (List<String>) extractTtsSegmentsMethod.invoke(service, new StringBuilder(content));
+    private List<String> extractSegments(String content) {
+        return ttsSegmenter.extractSegments(new StringBuilder(content), true);
     }
 
-    @SuppressWarnings("unchecked")
-    private List<String> extractSegments(String content, boolean firstSegmentSent) throws Exception {
-        return (List<String>) extractTtsSegmentsWithModeMethod.invoke(service, new StringBuilder(content), firstSegmentSent);
+    private List<String> extractSegments(String content, boolean firstSegmentSent) {
+        return ttsSegmenter.extractSegments(new StringBuilder(content), firstSegmentSent);
     }
 
-    private boolean containsSpeakableText(String content) throws Exception {
-        return (boolean) containsSpeakableTextMethod.invoke(service, content);
+    private boolean containsSpeakableText(String content) {
+        return ttsSegmenter.containsSpeakableText(content);
     }
 
     private String resolveModelName(ChatRequest request) throws Exception {

@@ -365,24 +365,26 @@ ol {
 .nav-link.router-link-exact-active,
 .nav-link.is-active {
   color: var(--color-primary);
+  font-weight: 600;
 }
 
 .nav-link.router-link-exact-active::after,
 .nav-link.is-active::after {
   content: '';
   position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  border-radius: 1px;
   background: var(--color-primary);
 }
-
 /* 默认隐藏移动端菜单按钮 */
+
 .mobile-menu-btn {
-  width: 50px;
   height: 50px;
-  padding: 5px;
+  width: 50px;
   display: none;
   @include respond(md) {
 

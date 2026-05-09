@@ -204,7 +204,8 @@ onUnmounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
 /* 弹窗遮罩层 */
 .modal-overlay {
   position: fixed;
@@ -518,7 +519,7 @@ onUnmounted(() => {
 }
 
 /* 响应式设计 */
-@media (max-width: 768px) {
+@include respond(md) {
   .modal-overlay {
     padding: 16px;
     align-items: flex-end;
@@ -573,7 +574,7 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 480px) {
+@include respond(sm) {
   .modal-overlay {
     padding: 12px;
   }

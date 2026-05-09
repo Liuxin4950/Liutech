@@ -61,6 +61,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { BREAKPOINT_MD } from '@/utils/breakpoints'
 
 /**
  * 通用分页器组件
@@ -98,7 +99,7 @@ const showPagination = computed(() => {
 })
 
 // 响应式窗口宽度检测
-const windowWidth = ref(768)
+const windowWidth = ref(BREAKPOINT_MD)
 
 const updateWindowWidth = () => {
   windowWidth.value = window.innerWidth
@@ -116,7 +117,7 @@ onUnmounted(() => {
 // 响应式最大可见页码数量
 const responsiveMaxVisible = computed(() => {
   // 在移动端使用更少的页码数量
-  return windowWidth.value <= 768 ? props.mobileMaxVisible : props.maxVisiblePages
+  return windowWidth.value <= BREAKPOINT_MD ? props.mobileMaxVisible : props.maxVisiblePages
 })
 
 // 计算可见的页码
