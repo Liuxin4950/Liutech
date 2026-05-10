@@ -210,39 +210,10 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /opt/liutech
-
-            # 拉取最新镜像（带重试）
-            PULL_SUCCESS=false
-            for i in 1 2 3; do
-              if docker compose pull; then
-                PULL_SUCCESS=true
-                break
-              fi
-              echo "Pull failed, retrying in 10s... ($i/3)"
-              sleep 10
-            done
-
-            # pull 失败则退出，不执行 down（避免用旧镜像重建）
-            if [ "$PULL_SUCCESS" = false ]; then
-              echo "❌ Pull failed after 3 attempts, skipping deploy"
-              exit 1
-            fi
-
-            # pull 成功后才重建
+            docker compose pull
             docker compose down
             docker compose up -d --remove-orphans
-
-            # 清理旧镜像
             docker image prune -f
-
-            # 健康检查
-            sleep 10
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost | grep -qE "^(200|301|302)$"; then
-              echo "✅ 部署成功，网站可访问"
-            else
-              echo "⚠️ 部署完成，但网站可能未正常响应"
-            fi
-
             echo "部署完成: $(date)"
 
             echo "部署完成: $(date)"
