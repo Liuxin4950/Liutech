@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import Editor from '@tinymce/tinymce-vue'
 import theme from '@/utils/theme'
 import { ImageUploadService } from '@/services/utils'
@@ -483,6 +483,7 @@ const editorConfig = computed(() => ({
   base_url: '/tinymce', // 设置TinyMCE资源基础路径
   suffix: '.min', // 使用压缩版本
   license_key: 'gpl',
+  skin: theme.current.value === 'dark' ? 'oxide-dark' : 'oxide',
   plugins: [
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
@@ -742,49 +743,6 @@ watch(content, (newValue) => {
   emit('change', newValue)
 })
 
-// Toolbar 深色模式样式
-const toolbarDarkStyleId = 'liutech-toolbar-dark-style'
-const toolbarDarkCSS = `
-  :root.dark .tox { border-color: #3C4653 !important; background: #2D2F30 !important; color: #E8EAED !important; }
-  :root.dark .tox .tox-editor-header,
-  :root.dark .tox .tox-toolbar-overlord,
-  :root.dark .tox .tox-toolbar,
-  :root.dark .tox .tox-toolbar__primary { background: #2D2F30 !important; color: #E8EAED !important; }
-  :root.dark .tox .tox-toolbar { border-bottom-color: #3C4653 !important; }
-  :root.dark .tox-edit-area { background: #202124 !important; }
-  :root.dark .tox-statusbar { background: #2D2F30 !important; border-top-color: #3C4653 !important; color: #CBD5E1 !important; }
-  :root.dark .tox-statusbar__path-item,
-  :root.dark .tox-statusbar__wordcount,
-  :root.dark .tox-statusbar a { color: #CBD5E1 !important; }
-  :root.dark .tox-toolbar__group { border-color: #3C4653 !important; }
-  :root.dark .tox .tox-tbtn,
-  :root.dark .tox .tox-split-button,
-  :root.dark .tox .tox-listboxfield .tox-listbox--select,
-  :root.dark .tox .tox-textfield { background: #3C4043 !important; border-color: #5F6368 !important; color: #E8EAED !important; }
-  :root.dark .tox .tox-tbtn svg,
-  :root.dark .tox .tox-split-button svg { fill: #E8EAED !important; }
-  :root.dark .tox .tox-tbtn:hover,
-  :root.dark .tox .tox-split-button:hover { background: #5F6368 !important; color: #FFFFFF !important; }
-  :root.dark .tox .tox-tbtn:hover svg,
-  :root.dark .tox .tox-split-button:hover svg { fill: #FFFFFF !important; }
-  :root.dark .tox .tox-tbtn--enabled { background: #8AB4F8 !important; color: #202124 !important; }
-  :root.dark .tox .tox-tbtn--enabled svg { fill: #202124 !important; }
-  :root.dark .tox-menubar { background: #3C4043 !important; border-bottom-color: #5F6368 !important; }
-  :root.dark .tox-menubar .tox-mbtn,
-  :root.dark .tox .tox-mbtn { color: #E8EAED !important; }
-  :root.dark .tox .tox-tbtn__select-label { color: #E8EAED !important; }
-`
-
-const injectToolbarDarkStyle = () => {
-  let styleEl = document.getElementById(toolbarDarkStyleId)
-  if (!styleEl) {
-    styleEl = document.createElement('style')
-    styleEl.id = toolbarDarkStyleId
-    styleEl.textContent = toolbarDarkCSS
-    document.head.appendChild(styleEl)
-  }
-}
-
 // 编辑器实例引用
 const editorInstance = ref<any>(null)
 
@@ -824,11 +782,6 @@ const onEditorInit = (eventOrEditor: any, maybeEditor?: any) => {
 // 监听主题变化，实时刷新 iframe 内容样式，避免销毁编辑器导致内容/光标状态丢失
 watch(() => theme.current.value, (mode) => {
   applyEditorTheme(editorInstance.value, mode)
-})
-
-// 组件挂载时注入 toolbar 深色模式样式
-onMounted(() => {
-  injectToolbarDarkStyle()
 })
 </script>
 
