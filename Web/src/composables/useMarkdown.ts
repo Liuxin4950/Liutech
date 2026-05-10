@@ -22,17 +22,8 @@ hljs.registerLanguage('bash', bash)
 hljs.registerLanguage('json', json)
 hljs.registerLanguage('xml', xml)
 hljs.registerLanguage('markdown', markdown)
-import { ref, computed } from 'vue'
-
-interface MarkdownCache {
-  [key: string]: string
-}
 
 export function useMarkdown() {
-  // Cache for processed markdown to improve performance
-  const cache = ref<MarkdownCache>({})
-  const maxCacheSize = 1000
-
   // Security configuration for DOMPurify
   const sanitizeConfig = {
     ALLOWED_TAGS: [
@@ -95,40 +86,16 @@ export function useMarkdown() {
   const processMarkdown = (content: string, isStreaming: boolean = false): string => {
     if (!content) return ''
 
-    // For streaming, we need special handling
     if (isStreaming) {
       return processStreamingMarkdown(content)
     }
 
-    // Check cache first
-    const cacheKey = content
-    if (cache.value[cacheKey]) {
-      return cache.value[cacheKey]
-    }
-
     try {
-      // Parse markdown to HTML
       const html = marked.parse(content) as string
-
-      // Sanitize HTML
       let sanitizedHtml = DOMPurify.sanitize(html, sanitizeConfig)
-
-      // 移除空的代码块
       sanitizedHtml = sanitizedHtml.replace(/<pre><code[^>]*>\s*<\/code><\/pre>/g, '')
-
-      // Cache result (with size limit)
-      if (Object.keys(cache.value).length >= maxCacheSize) {
-        // Remove oldest entries (simple FIFO)
-        const keys = Object.keys(cache.value)
-        for (let i = 0; i < 100; i++) {
-          delete cache.value[keys[i]]
-        }
-      }
-      cache.value[cacheKey] = sanitizedHtml
-
       return sanitizedHtml
     } catch {
-      // Fallback to sanitized plain text
       return DOMPurify.sanitize(content.replace(/\n/g, '<br>'))
     }
   }
@@ -181,26 +148,7 @@ export function useMarkdown() {
     }
   }
 
-  /**
-   * Clear the markdown cache
-   */
-  const clearCache = () => {
-    cache.value = {}
-  }
-
-  /**
-   * Get cache statistics
-   */
-  const getCacheStats = () => {
-    return {
-      size: Object.keys(cache.value).length,
-      maxSize: maxCacheSize
-    }
-  }
-
   return {
-    processMarkdown,
-    clearCache,
-    getCacheStats
+    processMarkdown
   }
 }

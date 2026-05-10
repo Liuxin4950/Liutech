@@ -9,30 +9,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import hljs from 'highlight.js/lib/core'
-import javascript from 'highlight.js/lib/languages/javascript'
-import typescript from 'highlight.js/lib/languages/typescript'
-import java from 'highlight.js/lib/languages/java'
-import python from 'highlight.js/lib/languages/python'
-import css from 'highlight.js/lib/languages/css'
-import sql from 'highlight.js/lib/languages/sql'
-import bash from 'highlight.js/lib/languages/bash'
-import json from 'highlight.js/lib/languages/json'
-import xml from 'highlight.js/lib/languages/xml'
-import markdown from 'highlight.js/lib/languages/markdown'
-
-hljs.registerLanguage('javascript', javascript)
-hljs.registerLanguage('typescript', typescript)
-hljs.registerLanguage('java', java)
-hljs.registerLanguage('python', python)
-hljs.registerLanguage('css', css)
-hljs.registerLanguage('sql', sql)
-hljs.registerLanguage('bash', bash)
-hljs.registerLanguage('json', json)
-hljs.registerLanguage('xml', xml)
-hljs.registerLanguage('markdown', markdown)
 import { useMarkdown } from '@/composables/useMarkdown'
-// Import highlight.js CSS
 import 'highlight.js/styles/github-dark.css'
 
 interface Props {
