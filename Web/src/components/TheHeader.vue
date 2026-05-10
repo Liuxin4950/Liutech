@@ -158,7 +158,7 @@ onUnmounted(() => {
       <div class="flex flex-ac nav-user nav-pill relative">
 
         <!-- 用户信息 -->
-        <div class="user-menu-container relative">
+        <div class="user-menu-container">
           <div
             v-if="userStore.isLoggedIn"
             class="flex flex-ac gap-8 link rounded user-info-btn"
