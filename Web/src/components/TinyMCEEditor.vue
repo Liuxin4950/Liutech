@@ -86,22 +86,22 @@ const getContentStyle = (isDark: boolean) => {
   const lightStyle = `
     html {
       min-height: 100%;
-      background-color: var(--bg-card);
+      background-color: #FFFFFF;
     }
 
     body {
       font-family: ${SYSTEM_FONT_STACK};
       font-size: 16px;
       line-height: 1.8;
-      color: var(--text-main);
-      background-color: var(--bg-card);
+      color: #3C4043;
+      background-color: #FFFFFF;
       margin: 0;
       padding: 20px;
       position: relative;
       box-sizing: border-box;
       min-height: 100%;
       word-wrap: break-word;
-      caret-color: var(--text-title);
+      caret-color: #202124;
     }
 
     body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
@@ -116,7 +116,7 @@ const getContentStyle = (isDark: boolean) => {
     h1, h2, h3, h4, h5, h6 {
       margin: 24px 0 16px 0;
       font-weight: 600;
-      color: var(--text-title);
+      color: #202124;
       line-height: 1.4;
     }
     h1 { font-size: 2em; }
@@ -129,10 +129,10 @@ const getContentStyle = (isDark: boolean) => {
     /* 段落样式 */
     p {
       margin: 16px 0;
-      color: var(--text-main);
+      color: #3C4043;
       line-height: 1.8;
     }
-    
+
     /* 链接样式 */
     a {
       color: #4A69D1;
@@ -140,53 +140,53 @@ const getContentStyle = (isDark: boolean) => {
       transition: color 0.2s ease;
     }
     a:hover {
-      color: var(--color-primary-dark);
+      color: #3A4F9A;
       text-decoration: underline;
     }
-    
+
     /* 列表样式 */
     ul, ol {
       margin: 16px 0;
       padding-left: 24px;
-      color: var(--text-main);
+      color: #3C4043;
     }
     li {
       margin: 8px 0;
       line-height: 1.6;
     }
-    
+
     /* 引用块样式 */
-    blockquote { 
-      border-left: 4px solid #4A69D1; 
-      margin: 20px 0; 
-      padding: 16px 20px; 
-      background: var(--bg-soft);
-      color: var(--text-subtle);
+    blockquote {
+      border-left: 4px solid #4A69D1;
+      margin: 20px 0;
+      padding: 16px 20px;
+      background: #F8F9FA;
+      color: #5F6368;
       font-style: italic;
       border-radius: 0 8px 8px 0;
     }
     blockquote p {
       margin: 0;
     }
-    
+
     /* 代码样式 */
     code {
-      background: var(--bg-element);
+      background: #F7F9FC;
       padding: 2px 6px;
       border-radius: 4px;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      color: var(--color-error);
+      color: #EA4335;
       font-size: 0.9em;
-      border: 1px solid var(--border-light);
+      border: 1px solid #F1F3F4;
     }
-    
+
     pre {
-      background: var(--bg-soft);
-      border: 1px solid var(--border-base);
+      background: #F8F9FA;
+      border: 1px solid #E8EAED;
       border-radius: 8px;
       padding: 16px;
       overflow-x: auto;
-      color: var(--text-main);
+      color: #3C4043;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 0.9em;
       line-height: 1.5;
@@ -198,40 +198,40 @@ const getContentStyle = (isDark: boolean) => {
       color: inherit;
       font-size: inherit;
     }
-    
+
     /* 表格样式 */
-    table { 
-      border-collapse: collapse; 
-      width: 100%; 
+    table {
+      border-collapse: collapse;
+      width: 100%;
       margin: 20px 0;
-      background-color: var(--bg-card);
+      background-color: #FFFFFF;
       border-radius: 8px;
       overflow: hidden;
       box-shadow: 0 1px 2px rgba(32, 33, 36, 0.1);
     }
     table td, table th {
-      border: 1px solid var(--border-base);
+      border: 1px solid #E8EAED;
       padding: 12px 16px;
-      color: var(--text-main);
+      color: #3C4043;
       text-align: left;
     }
     table th {
-      background-color: var(--bg-soft);
+      background-color: #F8F9FA;
       font-weight: 600;
-      color: var(--text-title);
+      color: #202124;
       border-bottom: 2px solid #4A69D1;
     }
     table tr:last-child td {
       border-bottom: none;
     }
     table tr:hover {
-      background-color: var(--bg-hover);
+      background-color: #F1F3F4;
     }
-    
+
     /* 图片样式 */
-    img { 
-      max-width: 100%; 
-      height: auto; 
+    img {
+      max-width: 100%;
+      height: auto;
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(32, 33, 36, 0.12), 0 1px 3px rgba(32, 33, 36, 0.08);
       margin: 16px 0;
@@ -239,39 +239,39 @@ const getContentStyle = (isDark: boolean) => {
       margin-left: auto;
       margin-right: auto;
     }
-    
+
     /* 分隔线样式 */
     hr {
       border: none;
       height: 2px;
-      background: linear-gradient(to right, transparent, var(--border-base), transparent);
+      background: linear-gradient(to right, transparent, #E8EAED, transparent);
       margin: 32px 0;
     }
 
     /* 强调文本 */
     strong, b {
-      color: var(--text-title);
+      color: #202124;
       font-weight: 600;
     }
-    
+
     em, i {
-      color: var(--text-subtle);
+      color: #5F6368;
       font-style: italic;
     }
 
     del, s {
-      color: var(--text-muted);
+      color: #9AA0A6;
       text-decoration: line-through;
     }
-    
+
     u {
       text-decoration: underline;
       color: #F0B8C0;
     }
-    
+
     mark {
       background-color: #FEF7E0;
-      color: var(--text-main);
+      color: #3C4043;
       padding: 2px 4px;
       border-radius: 3px;
     }
@@ -280,22 +280,22 @@ const getContentStyle = (isDark: boolean) => {
   const darkStyle = `
     html {
       min-height: 100%;
-      background-color: var(--bg-main);
+      background-color: #202124;
     }
 
     body {
       font-family: ${SYSTEM_FONT_STACK};
       font-size: 16px;
       line-height: 1.8;
-      color: var(--text-main);
-      background-color: var(--bg-main);
+      color: #E8EAED;
+      background-color: #202124;
       margin: 0;
       padding: 20px;
       position: relative;
       box-sizing: border-box;
       min-height: 100%;
       word-wrap: break-word;
-      caret-color: var(--text-title);
+      caret-color: #FFFFFF;
     }
 
     body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
@@ -305,12 +305,12 @@ const getContentStyle = (isDark: boolean) => {
       opacity: 1;
       font-style: normal;
     }
-    
+
     /* 标题样式 */
     h1, h2, h3, h4, h5, h6 {
       margin: 24px 0 16px 0;
       font-weight: 600;
-      color: var(--text-title);
+      color: #FFFFFF;
       line-height: 1.4;
     }
     h1 { font-size: 2em; }
@@ -319,17 +319,17 @@ const getContentStyle = (isDark: boolean) => {
     h4 { font-size: 1.2em; }
     h5 { font-size: 1.1em; }
     h6 { font-size: 1em; }
-    
+
     /* 段落样式 */
     p {
       margin: 16px 0;
-      color: var(--text-main);
+      color: #E8EAED;
       line-height: 1.8;
     }
 
     /* 链接样式 */
     a {
-      color: var(--color-primary);
+      color: #8AB4F8;
       text-decoration: none;
       transition: color 0.2s ease;
     }
@@ -337,50 +337,50 @@ const getContentStyle = (isDark: boolean) => {
       color: #66B1FF;
       text-decoration: underline;
     }
-    
+
     /* 列表样式 */
     ul, ol {
       margin: 16px 0;
       padding-left: 24px;
-      color: var(--text-main);
+      color: #E8EAED;
     }
     li {
       margin: 8px 0;
       line-height: 1.6;
     }
-    
+
     /* 引用块样式 */
-    blockquote { 
-      border-left: 4px solid var(--color-primary);
+    blockquote {
+      border-left: 4px solid #8AB4F8;
       margin: 20px 0;
       padding: 16px 20px;
-      background: var(--bg-card);
-      color: var(--text-subtle);
+      background: #2D2F30;
+      color: #9AA0A6;
       font-style: italic;
       border-radius: 0 8px 8px 0;
     }
     blockquote p {
       margin: 0;
     }
-    
+
     /* 代码样式 */
     code {
-      background: var(--bg-element);
+      background: #3C4043;
       padding: 2px 6px;
       border-radius: 4px;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       color: #4285F4;
       font-size: 0.9em;
-      border: 1px solid var(--border-base);
+      border: 1px solid #5F6368;
     }
-    
+
     pre {
-      background: var(--bg-card);
-      border: 1px solid var(--border-base);
+      background: #2D2F30;
+      border: 1px solid #5F6368;
       border-radius: 8px;
       padding: 16px;
       overflow-x: auto;
-      color: var(--text-main);
+      color: #E8EAED;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 0.9em;
       line-height: 1.5;
@@ -392,39 +392,39 @@ const getContentStyle = (isDark: boolean) => {
       color: inherit;
       font-size: inherit;
     }
-    
+
     /* 表格样式 */
-    table { 
-      border-collapse: collapse; 
-      width: 100%; 
+    table {
+      border-collapse: collapse;
+      width: 100%;
       margin: 20px 0;
-      background-color: var(--bg-card);
+      background-color: #2D2F30;
       border-radius: 8px;
       overflow: hidden;
     }
     table td, table th {
-      border: 1px solid var(--border-base);
+      border: 1px solid #5F6368;
       padding: 12px 16px;
-      color: var(--text-main);
+      color: #E8EAED;
       text-align: left;
     }
     table th {
-      background-color: var(--bg-card);
+      background-color: #2D2F30;
       font-weight: 600;
-      color: var(--text-title);
-      border-bottom: 2px solid var(--color-primary);
+      color: #FFFFFF;
+      border-bottom: 2px solid #8AB4F8;
     }
     table tr:last-child td {
       border-bottom: none;
     }
     table tr:hover {
-      background-color: var(--bg-hover);
+      background-color: #3C4043;
     }
-    
+
     /* 图片样式 */
-    img { 
-      max-width: 100%; 
-      height: auto; 
+    img {
+      max-width: 100%;
+      height: auto;
       border-radius: 8px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
       margin: 16px 0;
@@ -432,39 +432,39 @@ const getContentStyle = (isDark: boolean) => {
       margin-left: auto;
       margin-right: auto;
     }
-    
+
     /* 分隔线样式 */
     hr {
       border: none;
       height: 2px;
-      background: linear-gradient(to right, transparent, var(--border-base), transparent);
+      background: linear-gradient(to right, transparent, #5F6368, transparent);
       margin: 32px 0;
     }
-    
+
     /* 强调文本 */
     strong, b {
-      color: var(--text-title);
+      color: #FFFFFF;
       font-weight: 600;
     }
 
     em, i {
-      color: var(--text-subtle);
+      color: #9AA0A6;
       font-style: italic;
     }
 
     del, s {
-      color: var(--text-muted);
+      color: #80868B;
       text-decoration: line-through;
     }
-    
+
     u {
       text-decoration: underline;
       color: #F8B4B4;
     }
-    
+
     mark {
       background-color: #856404;
-      color: var(--text-main);
+      color: #E8EAED;
       padding: 2px 4px;
       border-radius: 3px;
     }
