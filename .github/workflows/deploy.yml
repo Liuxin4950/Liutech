@@ -211,10 +211,24 @@ jobs:
           script: |
             cd /opt/liutech
 
-            # 拉取最新镜像
-            docker compose pull
+            # 拉取最新镜像（带重试）
+            PULL_SUCCESS=false
+            for i in 1 2 3; do
+              if docker compose pull; then
+                PULL_SUCCESS=true
+                break
+              fi
+              echo "Pull failed, retrying in 10s... ($i/3)"
+              sleep 10
+            done
 
-            # 停止并重建（比 --force-recreate 更稳定）
+            # pull 失败则退出，不执行 down（避免用旧镜像重建）
+            if [ "$PULL_SUCCESS" = false ]; then
+              echo "❌ Pull failed after 3 attempts, skipping deploy"
+              exit 1
+            fi
+
+            # pull 成功后才重建
             docker compose down
             docker compose up -d --remove-orphans
 
