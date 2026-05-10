@@ -76,6 +76,14 @@ public interface AnnouncementsMapper extends BaseMapper<Announcements> {
      * @param id 公告ID
      * @return 影响行数
      */
+    /**
+     * 根据ID查询公告（绕过 @TableLogic，包含已删除的公告）
+     * @param id 公告ID
+     * @return 公告实体（可能为null）
+     */
+    @Select("SELECT * FROM announcements WHERE id = #{id}")
+    Announcements selectAllById(@Param("id") Long id);
+
     @Delete("DELETE FROM announcements WHERE id = #{id}")
     int permanentDeleteById(@Param("id") Long id);
 

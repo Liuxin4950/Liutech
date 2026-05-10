@@ -23,7 +23,7 @@
     <select id="countFavoritesByPostId" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM post_favorites
-        WHERE post_id = #{postId} AND is_favorite = 1
+        WHERE post_id = #{postId} AND is_favorite = 1 AND deleted_at IS NULL
     </select>
 
     <!-- 删除用户对文章的收藏记录 -->

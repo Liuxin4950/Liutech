@@ -113,7 +113,7 @@ public class PointsService {
     }
 
     /**
-     * 增加用户积分（原子操作）
+     * 增加用户积分（原子操作，使用乐观锁防止并发竞态）
      *
      * @param userId 用户ID
      * @param amount 增加金额（必须为正数）
@@ -134,12 +134,27 @@ public class PointsService {
             throw new RuntimeException("用户不存在");
         }
 
-        BigDecimal currentPoints = user.getPoints() != null ? user.getPoints() : BigDecimal.ZERO;
-        BigDecimal newPoints = currentPoints.add(amount);
+        // 2. 使用乐观锁更新积分（重试机制，防止并发竞态）
+        boolean updated = false;
+        BigDecimal newPoints = BigDecimal.ZERO;
+        for (int i = 0; i < 3; i++) {
+            user = userMapper.selectById(userId);
+            BigDecimal currentPoints = user.getPoints() != null ? user.getPoints() : BigDecimal.ZERO;
+            Integer currentVersion = user.getVersion() != null ? user.getVersion() : 0;
+            int newVersion = currentVersion + 1;
+            newPoints = currentPoints.add(amount);
 
-        // 2. 更新用户积分
-        user.setPoints(newPoints);
-        userMapper.updateById(user);
+            int rows = userMapper.addPointsWithVersion(userId, amount, currentVersion, newVersion);
+            if (rows > 0) {
+                updated = true;
+                break;
+            }
+            log.warn("用户{}积分增加乐观锁冲突，重试第{}次", userId, i + 1);
+        }
+
+        if (!updated) {
+            throw new RuntimeException("系统繁忙，请稍后重试");
+        }
 
         // 3. 记录积分流水
         PointsTransaction transaction = new PointsTransaction();

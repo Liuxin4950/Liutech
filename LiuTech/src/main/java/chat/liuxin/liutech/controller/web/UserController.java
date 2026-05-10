@@ -102,6 +102,7 @@ public class UserController {
         }
         UserResp userResp = new UserResp();
         BeanUtils.copyProperties(currentUser, userResp);
+        userResp.setPasswordHash(null);
         log.info("获取当前用户信息成功");
         return Result.success("获取用户信息成功", userResp);
     }

@@ -125,6 +125,7 @@ public class UserAuthService {
         user.setUsername(registerReq.getUsername());
         user.setEmail(registerReq.getEmail());
         user.setPasswordHash(passwordEncoder.encode(registerReq.getPassword()));
+        user.setRole("user"); // 默认角色为普通用户
         user.setStatus(1); // 默认激活状态
         user.setPoints(BigDecimal.ZERO); // 初始积分为0
 

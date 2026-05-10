@@ -254,7 +254,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
     public boolean restoreAnnouncement(Long id) {
         validateAnnouncementId(id);
 
-        Announcements announcement = this.getById(id);
+        Announcements announcement = announcementsMapper.selectAllById(id);
         if (announcement == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
         }
@@ -278,7 +278,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
     public boolean permanentDeleteAnnouncement(Long id) {
         validateAnnouncementId(id);
 
-        Announcements announcement = this.getById(id);
+        Announcements announcement = announcementsMapper.selectAllById(id);
         if (announcement == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
         }
