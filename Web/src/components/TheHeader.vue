@@ -90,11 +90,12 @@ const updateSlider = () => {
   if (activeLi) {
     const ul = navListRef.value
     const pl = parseInt(getComputedStyle(ul).paddingLeft) || 0
-    const pr = parseInt(getComputedStyle(ul).paddingRight) || 0
+    const pillRect = ul.getBoundingClientRect()
+    const liRect = activeLi.getBoundingClientRect()
     sliderStyle.value = {
       left: `${-pl}px`,
       transform: `translateX(${activeLi.offsetLeft}px)`,
-      width: `${ul.scrollWidth - pr}px`
+      width: `${liRect.right - pillRect.left}px`
     }
   } else {
     sliderStyle.value = { left: '0', transform: 'scale(0)', width: '0px' }
