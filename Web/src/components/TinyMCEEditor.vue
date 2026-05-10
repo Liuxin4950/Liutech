@@ -86,22 +86,22 @@ const getContentStyle = (isDark: boolean) => {
   const lightStyle = `
     html {
       min-height: 100%;
-      background-color: #FFFFFF;
+      background-color: var(--bg-card);
     }
 
-    body { 
+    body {
       font-family: ${SYSTEM_FONT_STACK};
       font-size: 16px;
       line-height: 1.8;
-      color: #3C4043;
-      background-color: #FFFFFF;
+      color: var(--text-main);
+      background-color: var(--bg-card);
       margin: 0;
       padding: 20px;
       position: relative;
       box-sizing: border-box;
       min-height: 100%;
       word-wrap: break-word;
-      caret-color: #202124;
+      caret-color: var(--text-title);
     }
 
     body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
@@ -113,10 +113,10 @@ const getContentStyle = (isDark: boolean) => {
     }
     
     /* 标题样式 */
-    h1, h2, h3, h4, h5, h6 { 
-      margin: 24px 0 16px 0; 
-      font-weight: 600; 
-      color: #202124;
+    h1, h2, h3, h4, h5, h6 {
+      margin: 24px 0 16px 0;
+      font-weight: 600;
+      color: var(--text-title);
       line-height: 1.4;
     }
     h1 { font-size: 2em; }
@@ -125,11 +125,11 @@ const getContentStyle = (isDark: boolean) => {
     h4 { font-size: 1.2em; }
     h5 { font-size: 1.1em; }
     h6 { font-size: 1em; }
-    
+
     /* 段落样式 */
-    p { 
-      margin: 16px 0; 
-      color: #3C4043;
+    p {
+      margin: 16px 0;
+      color: var(--text-main);
       line-height: 1.8;
     }
     
@@ -140,7 +140,7 @@ const getContentStyle = (isDark: boolean) => {
       transition: color 0.2s ease;
     }
     a:hover {
-      color: #3A4F9A;
+      color: var(--color-primary-dark);
       text-decoration: underline;
     }
     
@@ -148,7 +148,7 @@ const getContentStyle = (isDark: boolean) => {
     ul, ol {
       margin: 16px 0;
       padding-left: 24px;
-      color: #3C4043;
+      color: var(--text-main);
     }
     li {
       margin: 8px 0;
@@ -160,8 +160,8 @@ const getContentStyle = (isDark: boolean) => {
       border-left: 4px solid #4A69D1; 
       margin: 20px 0; 
       padding: 16px 20px; 
-      background: #F8F9FA;
-      color: #5F6368;
+      background: var(--bg-soft);
+      color: var(--text-subtle);
       font-style: italic;
       border-radius: 0 8px 8px 0;
     }
@@ -170,23 +170,23 @@ const getContentStyle = (isDark: boolean) => {
     }
     
     /* 代码样式 */
-    code { 
-      background: #F7F9FC; 
-      padding: 2px 6px; 
-      border-radius: 4px; 
+    code {
+      background: var(--bg-element);
+      padding: 2px 6px;
+      border-radius: 4px;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      color: #EA4335;
+      color: var(--color-error);
       font-size: 0.9em;
-      border: 1px solid #F1F3F4;
+      border: 1px solid var(--border-light);
     }
     
-    pre { 
-      background: #F8F9FA; 
-      border: 1px solid #E8EAED; 
-      border-radius: 8px; 
-      padding: 16px; 
+    pre {
+      background: var(--bg-soft);
+      border: 1px solid var(--border-base);
+      border-radius: 8px;
+      padding: 16px;
       overflow-x: auto;
-      color: #3C4043;
+      color: var(--text-main);
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 0.9em;
       line-height: 1.5;
@@ -204,28 +204,28 @@ const getContentStyle = (isDark: boolean) => {
       border-collapse: collapse; 
       width: 100%; 
       margin: 20px 0;
-      background-color: #FFFFFF;
+      background-color: var(--bg-card);
       border-radius: 8px;
       overflow: hidden;
       box-shadow: 0 1px 2px rgba(32, 33, 36, 0.1);
     }
-    table td, table th { 
-      border: 1px solid #E8EAED; 
-      padding: 12px 16px; 
-      color: #3C4043;
+    table td, table th {
+      border: 1px solid var(--border-base);
+      padding: 12px 16px;
+      color: var(--text-main);
       text-align: left;
     }
-    table th { 
-      background-color: #F8F9FA; 
-      font-weight: 600; 
-      color: #202124;
+    table th {
+      background-color: var(--bg-soft);
+      font-weight: 600;
+      color: var(--text-title);
       border-bottom: 2px solid #4A69D1;
     }
     table tr:last-child td {
       border-bottom: none;
     }
     table tr:hover {
-      background-color: #F1F3F4;
+      background-color: var(--bg-hover);
     }
     
     /* 图片样式 */
@@ -244,23 +244,23 @@ const getContentStyle = (isDark: boolean) => {
     hr {
       border: none;
       height: 2px;
-      background: linear-gradient(to right, transparent, #E8EAED, transparent);
+      background: linear-gradient(to right, transparent, var(--border-base), transparent);
       margin: 32px 0;
     }
-    
+
     /* 强调文本 */
     strong, b {
-      color: #202124;
+      color: var(--text-title);
       font-weight: 600;
     }
     
     em, i {
-      color: #5F6368;
+      color: var(--text-subtle);
       font-style: italic;
     }
-    
+
     del, s {
-      color: #9AA0A6;
+      color: var(--text-muted);
       text-decoration: line-through;
     }
     
@@ -271,7 +271,7 @@ const getContentStyle = (isDark: boolean) => {
     
     mark {
       background-color: #FEF7E0;
-      color: #3C4043;
+      color: var(--text-main);
       padding: 2px 4px;
       border-radius: 3px;
     }
@@ -280,22 +280,22 @@ const getContentStyle = (isDark: boolean) => {
   const darkStyle = `
     html {
       min-height: 100%;
-      background-color: #202124;
+      background-color: var(--bg-main);
     }
 
-    body { 
+    body {
       font-family: ${SYSTEM_FONT_STACK};
       font-size: 16px;
       line-height: 1.8;
-      color: #E8EAED;
-      background-color: #202124;
+      color: var(--text-main);
+      background-color: var(--bg-main);
       margin: 0;
       padding: 20px;
       position: relative;
       box-sizing: border-box;
       min-height: 100%;
       word-wrap: break-word;
-      caret-color: #FFFFFF;
+      caret-color: var(--text-title);
     }
 
     body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
@@ -307,10 +307,10 @@ const getContentStyle = (isDark: boolean) => {
     }
     
     /* 标题样式 */
-    h1, h2, h3, h4, h5, h6 { 
-      margin: 24px 0 16px 0; 
-      font-weight: 600; 
-      color: #FFFFFF;
+    h1, h2, h3, h4, h5, h6 {
+      margin: 24px 0 16px 0;
+      font-weight: 600;
+      color: var(--text-title);
       line-height: 1.4;
     }
     h1 { font-size: 2em; }
@@ -321,15 +321,15 @@ const getContentStyle = (isDark: boolean) => {
     h6 { font-size: 1em; }
     
     /* 段落样式 */
-    p { 
-      margin: 16px 0; 
-      color: #E8EAED;
+    p {
+      margin: 16px 0;
+      color: var(--text-main);
       line-height: 1.8;
     }
-    
+
     /* 链接样式 */
     a {
-      color: #8AB4F8;
+      color: var(--color-primary);
       text-decoration: none;
       transition: color 0.2s ease;
     }
@@ -342,7 +342,7 @@ const getContentStyle = (isDark: boolean) => {
     ul, ol {
       margin: 16px 0;
       padding-left: 24px;
-      color: #E8EAED;
+      color: var(--text-main);
     }
     li {
       margin: 8px 0;
@@ -351,11 +351,11 @@ const getContentStyle = (isDark: boolean) => {
     
     /* 引用块样式 */
     blockquote { 
-      border-left: 4px solid #8AB4F8; 
-      margin: 20px 0; 
-      padding: 16px 20px; 
-      background: #2D2F30;
-      color: #9AA0A6;
+      border-left: 4px solid var(--color-primary);
+      margin: 20px 0;
+      padding: 16px 20px;
+      background: var(--bg-card);
+      color: var(--text-subtle);
       font-style: italic;
       border-radius: 0 8px 8px 0;
     }
@@ -364,23 +364,23 @@ const getContentStyle = (isDark: boolean) => {
     }
     
     /* 代码样式 */
-    code { 
-      background: #3C4043; 
-      padding: 2px 6px; 
-      border-radius: 4px; 
+    code {
+      background: var(--bg-element);
+      padding: 2px 6px;
+      border-radius: 4px;
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       color: #4285F4;
       font-size: 0.9em;
-      border: 1px solid #5F6368;
+      border: 1px solid var(--border-base);
     }
     
-    pre { 
-      background: #2D2F30; 
-      border: 1px solid #5F6368; 
-      border-radius: 8px; 
-      padding: 16px; 
+    pre {
+      background: var(--bg-card);
+      border: 1px solid var(--border-base);
+      border-radius: 8px;
+      padding: 16px;
       overflow-x: auto;
-      color: #E8EAED;
+      color: var(--text-main);
       font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
       font-size: 0.9em;
       line-height: 1.5;
@@ -398,27 +398,27 @@ const getContentStyle = (isDark: boolean) => {
       border-collapse: collapse; 
       width: 100%; 
       margin: 20px 0;
-      background-color: #2D2F30;
+      background-color: var(--bg-card);
       border-radius: 8px;
       overflow: hidden;
     }
-    table td, table th { 
-      border: 1px solid #5F6368; 
-      padding: 12px 16px; 
-      color: #E8EAED;
+    table td, table th {
+      border: 1px solid var(--border-base);
+      padding: 12px 16px;
+      color: var(--text-main);
       text-align: left;
     }
-    table th { 
-      background-color: #2D2F30; 
-      font-weight: 600; 
-      color: #FFFFFF;
-      border-bottom: 2px solid #8AB4F8;
+    table th {
+      background-color: var(--bg-card);
+      font-weight: 600;
+      color: var(--text-title);
+      border-bottom: 2px solid var(--color-primary);
     }
     table tr:last-child td {
       border-bottom: none;
     }
     table tr:hover {
-      background-color: #3C4043;
+      background-color: var(--bg-hover);
     }
     
     /* 图片样式 */
@@ -437,23 +437,23 @@ const getContentStyle = (isDark: boolean) => {
     hr {
       border: none;
       height: 2px;
-      background: linear-gradient(to right, transparent, #5F6368, transparent);
+      background: linear-gradient(to right, transparent, var(--border-base), transparent);
       margin: 32px 0;
     }
     
     /* 强调文本 */
     strong, b {
-      color: #FFFFFF;
+      color: var(--text-title);
       font-weight: 600;
     }
-    
+
     em, i {
-      color: #9AA0A6;
+      color: var(--text-subtle);
       font-style: italic;
     }
-    
+
     del, s {
-      color: #80868B;
+      color: var(--text-muted);
       text-decoration: line-through;
     }
     
@@ -464,7 +464,7 @@ const getContentStyle = (isDark: boolean) => {
     
     mark {
       background-color: #856404;
-      color: #E8EAED;
+      color: var(--text-main);
       padding: 2px 4px;
       border-radius: 3px;
     }
@@ -793,9 +793,9 @@ watch(() => theme.current.value, (mode) => {
 .editor-loading {
   padding: 20px;
   text-align: center;
-  color: #666;
-  background: #f9f9f9;
-  border: 1px solid #e1e5e9;
+  color: var(--text-subtle);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-base);
   border-radius: 8px;
   margin-bottom: 10px;
 }
@@ -804,7 +804,7 @@ watch(() => theme.current.value, (mode) => {
 :deep(.tox) {
   border-radius: 8px;
   border: 1px solid #DDE4EC !important;
-  background: #FFFFFF !important;
+  background: var(--bg-card) !important;
   color: #263445 !important;
   transition: all 0.3s ease;
 }
@@ -813,7 +813,7 @@ watch(() => theme.current.value, (mode) => {
 :deep(.tox .tox-toolbar-overlord),
 :deep(.tox .tox-toolbar),
 :deep(.tox .tox-toolbar__primary) {
-  background: #FFFFFF !important;
+  background: var(--bg-card) !important;
   color: #263445 !important;
   transition: all 0.3s ease;
 }
@@ -823,12 +823,12 @@ watch(() => theme.current.value, (mode) => {
 }
 
 :deep(.tox-edit-area) {
-  background: #FFFFFF !important;
+  background: var(--bg-card) !important;
   transition: all 0.3s ease;
 }
 
 :deep(.tox-statusbar) {
-  background: #FFFFFF !important;
+  background: var(--bg-card) !important;
   border-top: 1px solid #DDE4EC !important;
   color: #526173 !important;
   transition: all 0.3s ease;
@@ -848,7 +848,7 @@ watch(() => theme.current.value, (mode) => {
 :deep(.tox .tox-split-button),
 :deep(.tox .tox-listboxfield .tox-listbox--select),
 :deep(.tox .tox-textfield) {
-  background: #F7F9FC !important;
+  background: var(--bg-element) !important;
   border-color: #E6ECF2 !important;
   color: #263445 !important;
 }
@@ -876,16 +876,16 @@ watch(() => theme.current.value, (mode) => {
 /* 暗色主题适配 */
 :root.dark :deep(.tox) {
   border-color: #3C4653 !important;
-  background: #202124 !important;
-  color: #E8EAED !important;
+  background: var(--bg-main) !important;
+  color: var(--text-main) !important;
 }
 
 :root.dark :deep(.tox .tox-editor-header),
 :root.dark :deep(.tox .tox-toolbar-overlord),
 :root.dark :deep(.tox .tox-toolbar),
 :root.dark :deep(.tox .tox-toolbar__primary) {
-  background: #202124 !important;
-  color: #E8EAED !important;
+  background: var(--bg-main) !important;
+  color: var(--text-main) !important;
 }
 
 :root.dark :deep(.tox .tox-toolbar) {
@@ -893,11 +893,11 @@ watch(() => theme.current.value, (mode) => {
 }
 
 :root.dark :deep(.tox-edit-area) {
-  background: #202124 !important;
+  background: var(--bg-main) !important;
 }
 
 :root.dark :deep(.tox-statusbar) {
-  background: #202124 !important;
+  background: var(--bg-main) !important;
   border-top-color: #3C4653 !important;
   color: #CBD5E1 !important;
 }
@@ -916,15 +916,15 @@ watch(() => theme.current.value, (mode) => {
 :root.dark :deep(.tox .tox-split-button),
 :root.dark :deep(.tox .tox-listboxfield .tox-listbox--select),
 :root.dark :deep(.tox .tox-textfield) {
-  background: #2D2F30 !important;
+  background: var(--bg-card) !important;
   border-color: #3C4653 !important;
-  color: #E8EAED !important;
+  color: var(--text-main) !important;
 }
 
 :root.dark :deep(.tox .tox-tbtn:hover),
 :root.dark :deep(.tox .tox-split-button:hover) {
-  background: #3C4043 !important;
-  color: #FFFFFF !important;
+  background: var(--bg-hover) !important;
+  color: var(--text-title) !important;
 }
 
 :root.dark :deep(.tox-tbtn--enabled) {

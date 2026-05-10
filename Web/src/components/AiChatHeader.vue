@@ -237,7 +237,7 @@ onUnmounted(() => {
   border: 1px solid var(--border-light);
   border-radius: 18px;
   background: var(--bg-card);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-xl);
 }
 
 .chat-header:not(.compact) {

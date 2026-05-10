@@ -95,7 +95,7 @@ const updateSlider = () => {
     sliderStyle.value = {
       left: `${-pl}px`,
       transform: `translateX(${activeLi.offsetLeft}px)`,
-      width: `${liRect.right - pillRect.left}px`
+      width: `${activeLi.offsetWidth}px`
     }
   } else {
     sliderStyle.value = { left: '0', transform: 'scale(0)', width: '0px' }
@@ -298,7 +298,7 @@ onUnmounted(() => {
 
 header {
   width: 100%;
-  height: 70px;
+  height: var(--header-height);
   /* Remove the whole header background to allow pills to stand out */
   background-color: transparent !important;
   transition: all 0.3s ease;
@@ -306,7 +306,7 @@ header {
 }
 
 header>div {
-  height: 70px;
+  height: var(--header-height);
   /* 在移动端可能需要调整内容区域的边距 */
   @include respond(md) {
     padding: 0 10px;
@@ -317,26 +317,17 @@ header>div {
 .nav-pill {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--surface-glass-muted);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 40px;
-  padding: 4px 16px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-soft);
   transition: all 0.3s ease;
-  
   @include respond(md) {
     padding: 2px 6px;
     gap: 2px;
-    /* 移动端缩小胶囊的最大宽度或者调整边距 */
   }
-}
-
-:root.dark .nav-pill {
-  background: rgba(30, 30, 30, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .divider {
@@ -419,11 +410,11 @@ ol {
   z-index: 999;
   border-radius: 16px;
   /* 统一为毛玻璃样式 */
-  background: rgba(255, 255, 255, 0.7) !important;
+  background: var(--surface-glass-muted);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-md);
 
   /* 在移动端隐藏这个下拉框，因为移动端有侧边栏 */
   @include respond(md) {
@@ -446,24 +437,14 @@ ol {
   li:last-child {
     color: var(--color-error);
     margin-top: 8px;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-top: 1px solid var(--border-light);
     border-radius: 0 0 12px 12px;
   }
 
   li:hover {
-    background-color: rgba(var(--color-primary-rgb), 0.1);
+    background-color: var(--state-primary-bg);
     color: var(--color-primary);
     padding-left: 20px;
-  }
-}
-
-:root.dark .avatar-menu {
-  background: rgba(30, 30, 30, 0.75) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  
-  li:last-child {
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
   }
 }
 
@@ -476,19 +457,16 @@ ol {
 
 /* 导航链接样式 */
 .nav-link {
-  text-shadow: 0 0 2px rgba(var(--bg-card), $alpha: .5);
   color: var(--text-main);
   text-decoration: none;
   font-weight: 500;
   position: relative;
   z-index: 1;
-  padding: 6px 12px;
-  margin: 0 4px;
+  padding: 10px 16px;
   border-radius: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
   transition: all 0.3s ease;
   
   @include respond(md) {
@@ -554,15 +532,15 @@ ol {
 
 .mobile-drawer {
   position: fixed;
-  top: 70px;
+  top: var(--header-height);
   right: 10px; /* 改为悬浮卡片，距离右侧有边距 */
   width: 240px; /* 固定合理宽度 */
-  max-height: calc(100vh - 90px);
+  max-height: calc(100vh - var(--header-height) - 20px);
   /* 使用与顶部药丸风格一致的毛玻璃效果 */
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--surface-glass-muted);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid var(--border-soft);
   border-radius: 20px; /* 圆润的边角 */
   
   /* 修改动画：从缩小渐隐到放大显示，类似弹出菜单 */
@@ -575,7 +553,7 @@ ol {
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
   overflow-y: auto;
   padding: 12px 8px; /* 调整内边距 */
   
@@ -603,14 +581,8 @@ ol {
 
   li:active {
     transform: scale(0.98);
-    background-color: rgba(var(--color-primary-rgb), 0.15);
+    background-color: var(--state-primary-bg-active);
   }
-}
-
-:root.dark .mobile-drawer {
-  background: rgba(30, 30, 30, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 /* Vue Transition 渐变动画 */

@@ -136,19 +136,19 @@ onMounted(async () => {
 .section-title {
   font-size: 2rem;
   font-weight: bold;
-  color: var(--color-text-primary);
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 
 .section-subtitle {
-  color: var(--color-text-subtle);
+  color: var(--text-subtle);
   font-size: 1rem;
 }
 
 .empty-text {
   text-align: center;
   padding: 60px 20px;
-  color: var(--color-text-subtle);
+  color: var(--text-subtle);
 }
 
 .empty-icon {
@@ -176,7 +176,7 @@ onMounted(async () => {
 }
 
 .link-btn:hover {
-  background: var(--color-primary-hover);
+  background: var(--color-primary-dark);
 }
 
 .retry-btn {
@@ -191,7 +191,7 @@ onMounted(async () => {
 }
 
 .retry-btn:hover {
-  background: var(--color-primary-hover);
+  background: var(--color-primary-dark);
 }
 
 .relative > .badge{

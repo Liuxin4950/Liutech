@@ -530,10 +530,10 @@ const contacts = [
       fill-opacity: 0.6;
     }
     .user-bio {
-      color: rgba(0, 0, 0, 0.75);
+      color: var(--text-main);
     }
     .user-motto {
-      color: rgba(0, 0, 0, 0.55);
+      color: var(--text-subtle);
     }
   }
 }

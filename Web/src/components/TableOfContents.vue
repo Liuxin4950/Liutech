@@ -259,7 +259,7 @@ defineExpose({
   background: var(--surface-glass);
   border: 1px solid var(--border-soft);
   border-radius: 14px;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+  box-shadow: var(--shadow-xl);
   backdrop-filter: blur(14px);
   overflow: hidden;
   transition: all 0.3s ease;

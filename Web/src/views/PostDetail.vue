@@ -134,6 +134,64 @@ const normalizePublicUrl = (url?: string | null) => {
 // 已移除：旧的基于 referrer 的导航激活逻辑，改由 Header 基于当前路径自动判定
 // 响应式数据
 const post = ref<PostDetail | null>(null)
+
+// SEO Meta — 在 setup 阶段调用 useHead，通过响应式 post 驱动更新
+useHead(() => {
+  const p = post.value
+  if (!p) {
+    return { title: '加载中... - LiuTech' }
+  }
+  const postUrl = `${PUBLIC_SITE_URL}/post/${p.id}`
+  const imageUrl = normalizePublicUrl(p.coverImage) || `${PUBLIC_SITE_URL}/og-image.svg`
+  return {
+    title: `${p.title} - LiuTech`,
+    meta: [
+      { name: 'description', content: p.summary || p.content?.substring(0, 150) || `LiuTech 技术博客 - ${p.title}` },
+      { name: 'keywords', content: p.tags?.map((t: any) => t.name).join(', ') || '技术博客, 编程' },
+      { property: 'og:title', content: `${p.title} - LiuTech` },
+      { property: 'og:description', content: p.summary || p.content?.substring(0, 150) || `LiuTech 技术博客 - ${p.title}` },
+      { property: 'og:url', content: postUrl },
+      { property: 'og:image', content: imageUrl },
+      { property: 'twitter:title', content: `${p.title} - LiuTech` },
+      { property: 'twitter:description', content: p.summary || p.content?.substring(0, 150) || `LiuTech 技术博客 - ${p.title}` },
+      { property: 'twitter:image', content: imageUrl }
+    ],
+    link: [
+      { rel: 'canonical', href: postUrl }
+    ],
+    script: [
+      {
+        type: 'application/ld+json',
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Article",
+          "headline": p.title,
+          "description": p.summary || p.content?.substring(0, 150) || `LiuTech 技术博客 - ${p.title}`,
+          "image": imageUrl,
+          "author": {
+            "@type": "Person",
+            "name": p.author?.username || "LiuTech",
+            "url": `${PUBLIC_SITE_URL}/`
+          },
+          "publisher": {
+            "@type": "Organization",
+            "name": "LiuTech",
+            "logo": {
+              "@type": "ImageObject",
+              "url": `${PUBLIC_SITE_URL}/logo.svg`
+            }
+          },
+          "datePublished": p.createdAt,
+          "dateModified": p.updatedAt || p.createdAt,
+          "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": postUrl
+          }
+        }, null, 2)
+      }
+    ]
+  }
+})
 const loading = ref(false)
 const error = ref('')
 
@@ -278,63 +336,7 @@ const loadPostDetail = async () => {
     // 动态更新页面标题与面包屑末项
     if (postData && route.meta) {
       route.meta.title = postData.title
-      // 同步更新浏览器标题（路由守卫只会在切换时触发，这里手动更新）
       document.title = `${postData.title} - LiuTech`
-
-    // 设置 SEO Meta 信息
-    if (postData) {
-      const postUrl = `${PUBLIC_SITE_URL}/post/${postData.id}`
-      const imageUrl = normalizePublicUrl(postData.coverImage) || `${PUBLIC_SITE_URL}/og-image.svg`
-      
-      useHead({
-        title: `${postData.title} - LiuTech`,
-        meta: [
-          { name: 'description', content: postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}` },
-          { name: 'keywords', content: postData.tags?.map((t: any) => t.name).join(', ') || '技术博客, 编程' },
-          { property: 'og:title', content: `${postData.title} - LiuTech` },
-          { property: 'og:description', content: postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}` },
-          { property: 'og:url', content: postUrl },
-          { property: 'og:image', content: imageUrl },
-          { property: 'twitter:title', content: `${postData.title} - LiuTech` },
-          { property: 'twitter:description', content: postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}` },
-          { property: 'twitter:image', content: imageUrl }
-        ],
-        link: [
-          { rel: 'canonical', href: postUrl }
-        ],
-        script: [
-          {
-            type: 'application/ld+json',
-            children: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Article",
-              "headline": postData.title,
-              "description": postData.summary || postData.content?.substring(0, 150) || `LiuTech 技术博客 - ${postData.title}`,
-              "image": imageUrl,
-              "author": {
-                "@type": "Person",
-                "name": postData.author?.username || "LiuTech",
-                "url": `${PUBLIC_SITE_URL}/`
-              },
-              "publisher": {
-                "@type": "Organization",
-                "name": "LiuTech",
-                "logo": {
-                  "@type": "ImageObject",
-                  "url": `${PUBLIC_SITE_URL}/logo.svg`
-                }
-              },
-              "datePublished": postData.createdAt,
-              "dateModified": postData.updatedAt || postData.createdAt,
-              "mainEntityOfPage": {
-                "@type": "WebPage",
-                "@id": `${PUBLIC_SITE_URL}/post/${postData.id}`
-              }
-            }, null, 2)
-          }
-        ]
-      })
-    }
     }
 
     // 初始化点赞和收藏状态
@@ -927,7 +929,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 18px;
-  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-xl);
 }
 
 .article-toc-panel {
@@ -947,7 +949,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   border-radius: 14px;
   border: 1px solid var(--border-soft);
   background: var(--surface-glass);
-  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-xl);
   backdrop-filter: blur(14px);
 }
 
@@ -1288,8 +1290,8 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .markdown-content :deep(pre) {
-  background: #1f2937 !important;
-  color: #e5e7eb !important;
+  background: var(--bg-code) !important;
+  color: var(--text-code) !important;
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 12px;
   padding: 24px;
@@ -1446,13 +1448,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 
 :root.dark .markdown-content :deep(pre) {
-  background: #111827 !important;
-  color: #f3f4f6 !important;
   border-color: rgba(148, 163, 184, 0.3);
 }
 
 :root.dark .post-card {
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--shadow-xl);
 }
 
 :root.dark :deep(.article-toc) {
@@ -1510,7 +1510,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     border-color: var(--state-primary-border);
     overflow: hidden;
     background: var(--surface-glass);
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+    box-shadow: var(--shadow-xl);
     cursor: pointer;
   }
 
@@ -1700,7 +1700,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-modal);
   display: flex;
   flex-direction: column;
   gap: 4px;

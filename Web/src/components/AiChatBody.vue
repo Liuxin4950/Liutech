@@ -328,13 +328,13 @@ defineExpose({
   color: var(--text-main);
   border: 1px solid var(--border-light);
   border-bottom-left-radius: 6px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-xl);
 }
 
 .chat-body.expanded .message.ai .message-text {
   background: var(--bg-card);
   border-color: var(--border-light);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-xl);
 }
 
 .thinking-message {

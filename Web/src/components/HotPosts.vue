@@ -96,7 +96,7 @@ defineEmits<{
   background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   border: 1px solid var(--border-base);
 }
 
@@ -176,7 +176,7 @@ defineEmits<{
 
 .post-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   border-color: var(--color-primary);
 }
 

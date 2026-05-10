@@ -1729,7 +1729,7 @@ onMounted(async () => {
 }
 
 .attachment-remove:hover {
-  background: var(--color-danger);
+  background: var(--color-error);
   color: white;
 }
 
@@ -1760,7 +1760,7 @@ onMounted(async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay-bg-strong);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1912,7 +1912,7 @@ onMounted(async () => {
 }
 
 .title-input::placeholder {
-  color: var(--tag-text-color);
+  color: var(--text-subtle);
 }
 
 .content-section {
@@ -1931,7 +1931,7 @@ onMounted(async () => {
 .sidebar-section {
   padding: 30px;
   border-radius: 8px;
-  box-shadow: 0 0px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
   background-color: var(--bg-card);
   
   @include respond(md) {
@@ -2054,7 +2054,7 @@ onMounted(async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2240,8 +2240,8 @@ onMounted(async () => {
 }
 
 .markdown-content :deep(pre) {
-  background: #1f2937 !important;
-  color: #e5e7eb !important;
+  background: var(--bg-code) !important;
+  color: var(--text-code) !important;
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 12px;
   padding: 24px;
@@ -2300,8 +2300,6 @@ onMounted(async () => {
 }
 
 :global(.dark) .markdown-content :deep(pre) {
-  background: #111827 !important;
-  color: #f3f4f6 !important;
   border-color: rgba(148, 163, 184, 0.3);
 }
 
@@ -2349,7 +2347,7 @@ onMounted(async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2816,7 +2814,7 @@ onMounted(async () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;

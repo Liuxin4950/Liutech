@@ -11,6 +11,9 @@ $gap-lg: 20px;
 $gap-md: 16px;
 $gap-sm: 12px;
 
+// 布局常量
+$header-height: 70px;
+
 // 通用响应式混入：在不同断点下注入样式
 @mixin respond($bp) {
   @if $bp == lg {

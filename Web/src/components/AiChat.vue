@@ -598,7 +598,7 @@ defineExpose({
 .chat-box.compact {
   overflow: hidden;
   border-radius: 16px;
-  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-xl);
 }
 
 .chat-box.expanded {

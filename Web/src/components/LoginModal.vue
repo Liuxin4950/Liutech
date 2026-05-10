@@ -60,7 +60,7 @@ const goToLogin = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -70,7 +70,7 @@ const goToLogin = () => {
 .modal-content {
   background: var(--bg-soft);
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-modal);
   max-width: 400px;
   width: 90%;
   max-height: 90vh;

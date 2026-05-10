@@ -394,7 +394,7 @@ onBeforeUnmount(() => {
 @use "@/assets/styles/tokens" as *;
 .music-shell {
   position: absolute;
-  top: -70px;
+  top: calc(-1 * var(--header-height));
   right: 20px;
   z-index: 100;
 

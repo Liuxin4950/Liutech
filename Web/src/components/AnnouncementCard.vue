@@ -210,7 +210,7 @@ onUnmounted(() => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay-bg-strong);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -397,7 +397,7 @@ onUnmounted(() => {
 }
 
 .modal-content-text :deep(pre) {
-  background: #1f2937;
+  background: var(--bg-code);
   color: #f9fafb;
   border-radius: 8px;
   padding: 16px;
@@ -540,7 +540,7 @@ onUnmounted(() => {
 
   .modal-body {
     padding: 20px;
-    max-height: calc(90vh - 70px);
+    max-height: calc(90vh - var(--header-height));
   }
 
   .modal-header {

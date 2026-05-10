@@ -375,7 +375,7 @@ onMounted(() => {
   flex-direction: column;
   gap: $gap-lg;
   position: sticky;
-  top: 70px;
+  top: var(--header-height);
 
   @include respond(md) {
     position: static;

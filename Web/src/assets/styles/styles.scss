@@ -162,7 +162,7 @@ input{
 .card {
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 0px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-sm);
   background-color: var(--bg-card);
   @include respond(sm) {
     width: 100%;
