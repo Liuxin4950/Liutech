@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme.ts'
 import { useUserStore } from '../stores/user'
@@ -85,9 +85,9 @@ const navListRef = ref<HTMLUListElement>()
 const sliderStyle = ref({ left: '0px', transform: 'scale(0)', width: '0px' })
 const isHovering = ref(false)
 
-const updateSlider = (targetLi?: HTMLElement) => {
+const updateSlider = (target?: HTMLElement | Event) => {
   if (!navListRef.value) return
-  const li = targetLi || navListRef.value.querySelector('.is-active')?.closest('li') as HTMLElement
+  const li = (target instanceof HTMLElement ? target : null) || navListRef.value.querySelector('.is-active')?.closest('li') as HTMLElement
   if (li) {
     const ul = navListRef.value
     const pl = parseInt(getComputedStyle(ul).paddingLeft) || 0
@@ -169,7 +169,7 @@ onUnmounted(() => {
       </nav>
 
       <!-- 用户区域 + 主题 + 移动端按钮 -->
-      <div class="flex flex-ac nav-user nav-pill relative">
+      <div class="flex flex-ac nav-user nav-pill-light relative">
 
         <!-- 用户信息 -->
         <div class="user-menu-container">
@@ -337,6 +337,21 @@ header>div {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-soft);
   transition: all 0.3s ease;
+  @include respond(md) {
+    padding: 2px 6px;
+    gap: 2px;
+  }
+}
+.nav-pill-light {
+  position: relative;
+  background: var(--surface-glass-muted);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 40px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-soft);
+  transition: all 0.3s ease;
+  padding: 4px 8px;
   @include respond(md) {
     padding: 2px 6px;
     gap: 2px;
@@ -518,9 +533,14 @@ ol {
   color: var(--color-primary);
 }
 
-/* hover 时禁用激活样式的文本颜色 */
-.is-hovering .nav-link.router-link-exact-active,
-.is-hovering .nav-link.is-active {
+/* hover 时，鼠标所在的导航项文字变色 */
+.is-hovering .nav-link:hover {
+  color: var(--color-primary);
+}
+
+/* hover 时，原先激活的导航项文字恢复普通色（除非鼠标在它上面） */
+.is-hovering .nav-link.router-link-exact-active:not(:hover),
+.is-hovering .nav-link.is-active:not(:hover) {
   color: var(--text-main);
 }
 

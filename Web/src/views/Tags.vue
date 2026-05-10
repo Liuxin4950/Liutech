@@ -5,7 +5,7 @@
       <div class="flex flex-col gap-16">
         <div class="flex flex-col gap-12">
           <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
-            <Icon name="tag" size="24" /> 标签云
+            <Icon name="tag" size="20" /> 标签云
           </h1>
           <p class="text-muted text-base mb-0">
             探索不同主题的文章标签
@@ -21,8 +21,10 @@
     <!-- 热门标签 -->
     <div v-if="popularTags.length > 0" class="card bg-soft mb-16">
       <div class="flex flex-col gap-16">
-        <h2 class="text-lg text-primary flex flex-ac">
-          <Icon name="fire" size="20" /> 热门标签
+        <h2 class="text-lg text-primary flex flex-ac gap-8">
+          <Icon name="fire" size="20" />
+          <div class="">热门标签</div>
+          
         </h2>
         <div class="flex flex-wrap flex-fw gap-12" >
           <router-link
@@ -43,7 +45,7 @@
     <div class="card bg-soft  mb-16">
       <div class="flex flex-col gap-16">
         <h2 class="text-lg font-semibold text-primary mb-0 flex flex-ac gap-8">
-          <Icon name="book" size="20" /> 所有标签
+          <Icon name="book" size="20" />所有标签
         </h2>
          <!-- 搜索框 -->
         <div class="search-section">
@@ -80,8 +82,9 @@
             :to="`/tags/${tag.id}`"
             class="tag flex flex-ac gap-8 px-12 rounded-8 transition link"
           >
+            <Icon :name="getTagIcon(tag.name)" size="14" />
             <span class="">{{ tag.name }}</span>
-            <span class="">({{ tag.postCount }})</span>
+            <span class="text-muted">({{ tag.postCount }})</span>
           </router-link>
         </div>
       </div>
