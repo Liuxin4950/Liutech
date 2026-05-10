@@ -23,7 +23,7 @@ services:
 
   # 后端应用服务
   backend:
-    image: liutech-backend:latest
+    image: ${DOCKER_HUB:-liuxin}/liutech-backend:latest
     container_name: liutech-backend
     restart: unless-stopped
     ports:
@@ -59,7 +59,7 @@ services:
 
     # AI服务
   ai:
-    image: liutech-ai:latest
+    image: ${DOCKER_HUB:-liuxin}/liutech-ai:latest
     container_name: liutech-ai
     restart: unless-stopped
     ports:
@@ -85,7 +85,7 @@ services:
 
   # Web前端服务
   web:
-    image: liutech-web:latest
+    image: ${DOCKER_HUB:-liuxin}/liutech-web:latest
     container_name: liutech-web
     restart: unless-stopped
     ports:
@@ -95,7 +95,7 @@ services:
 
   # Admin前端服务
   admin:
-    image: liutech-admin:latest
+    image: ${DOCKER_HUB:-liuxin}/liutech-admin:latest
     container_name: liutech-admin
     restart: unless-stopped
     ports:
@@ -105,7 +105,7 @@ services:
 
   # Nginx反向代理服务
   nginx:
-    image: liutech-nginx:latest
+    image: ${DOCKER_HUB:-liuxin}/liutech-nginx:latest
     container_name: liutech-nginx
     restart: unless-stopped
     ports:
