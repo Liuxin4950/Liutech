@@ -872,83 +872,93 @@ watch(() => theme.current.value, (mode) => {
   color: #1F5F91 !important;
 }
 
-/* 暗色主题适配 */
-:root.dark :deep(.tox) {
+/* 暗色主题适配 - 使用更高优先级的选择器 */
+:root.dark .tox {
   border-color: #3C4653 !important;
-  background: #202124 !important;
+  background: #2D2F30 !important;
   color: #E8EAED !important;
 }
 
-:root.dark :deep(.tox .tox-editor-header),
-:root.dark :deep(.tox .tox-toolbar-overlord),
-:root.dark :deep(.tox .tox-toolbar),
-:root.dark :deep(.tox .tox-toolbar__primary) {
-  background: #202124 !important;
+:root.dark .tox .tox-editor-header,
+:root.dark .tox .tox-toolbar-overlord,
+:root.dark .tox .tox-toolbar,
+:root.dark .tox .tox-toolbar__primary {
+  background: #2D2F30 !important;
   color: #E8EAED !important;
 }
 
-:root.dark :deep(.tox .tox-toolbar) {
+:root.dark .tox .tox-toolbar {
   border-bottom-color: #3C4653 !important;
 }
 
-:root.dark :deep(.tox-edit-area) {
+:root.dark .tox-edit-area {
   background: #202124 !important;
 }
 
-:root.dark :deep(.tox-statusbar) {
-  background: #202124 !important;
+:root.dark .tox-statusbar {
+  background: #2D2F30 !important;
   border-top-color: #3C4653 !important;
   color: #CBD5E1 !important;
 }
 
-:root.dark :deep(.tox-statusbar__path-item),
-:root.dark :deep(.tox-statusbar__wordcount),
-:root.dark :deep(.tox-statusbar a) {
+:root.dark .tox-statusbar__path-item,
+:root.dark .tox-statusbar__wordcount,
+:root.dark .tox-statusbar a {
   color: #CBD5E1 !important;
 }
 
-:root.dark :deep(.tox-toolbar__group) {
+:root.dark .tox-toolbar__group {
   border-color: #3C4653 !important;
 }
 
-:root.dark :deep(.tox .tox-tbtn),
-:root.dark :deep(.tox .tox-split-button),
-:root.dark :deep(.tox .tox-listboxfield .tox-listbox--select),
-:root.dark :deep(.tox .tox-textfield) {
-  background: #2D2F30 !important;
-  border-color: #3C4653 !important;
+:root.dark .tox .tox-tbtn,
+:root.dark .tox .tox-split-button,
+:root.dark .tox .tox-listboxfield .tox-listbox--select,
+:root.dark .tox .tox-textfield {
+  background: #3C4043 !important;
+  border-color: #5F6368 !important;
   color: #E8EAED !important;
 }
 
-:root.dark :deep(.tox .tox-tbtn svg) {
+:root.dark .tox .tox-tbtn svg,
+:root.dark .tox .tox-split-button svg {
   fill: #E8EAED !important;
 }
 
-:root.dark :deep(.tox .tox-tbtn:hover),
-:root.dark :deep(.tox .tox-split-button:hover) {
-  background: #3C4043 !important;
+:root.dark .tox .tox-tbtn:hover,
+:root.dark .tox .tox-split-button:hover {
+  background: #5F6368 !important;
   color: #FFFFFF !important;
 }
 
-:root.dark :deep(.tox .tox-tbtn:hover svg) {
+:root.dark .tox .tox-tbtn:hover svg,
+:root.dark .tox .tox-split-button:hover svg {
   fill: #FFFFFF !important;
 }
 
-:root.dark :deep(.tox-tbtn--enabled) {
+:root.dark .tox .tox-tbtn--enabled {
   background: #8AB4F8 !important;
   color: #202124 !important;
 }
 
-:root.dark :deep(.tox-tbtn--enabled svg) {
+:root.dark .tox .tox-tbtn--enabled svg {
   fill: #202124 !important;
 }
 
-:root.dark :deep(.tox-menubar) {
-  background: #2D2F30 !important;
+:root.dark .tox-menubar {
+  background: #3C4043 !important;
   border-bottom-color: #5F6368 !important;
 }
 
-:root.dark :deep(.tox-menubar .tox-mbtn) {
+:root.dark .tox-menubar .tox-mbtn {
+  color: #E8EAED !important;
+}
+
+:root.dark .tox .tox-mbtn {
+  color: #E8EAED !important;
+}
+
+:root.dark .tox .tox-tbtn__select-label {
   color: #E8EAED !important;
 }
 
