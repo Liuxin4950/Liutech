@@ -1780,7 +1780,9 @@ onMounted(async () => {
 }
 
 .upload-text {
-  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: white;
   font-weight: 500;
 }
@@ -1791,8 +1793,7 @@ onMounted(async () => {
 
 .overlay-icon {
   display: flex;
-  font-size: 24px;
-  margin-bottom: 8px;
+  font-size: 20px;
 }
 
 .upload-text span {
