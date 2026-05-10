@@ -84,22 +84,31 @@ const isActive = (section: string) => {
 const navListRef = ref<HTMLUListElement>()
 const sliderStyle = ref({ left: '0px', transform: 'scale(0)', width: '0px' })
 
-const updateSlider = () => {
+const updateSlider = (targetLi?: HTMLElement) => {
   if (!navListRef.value) return
-  const activeLi = navListRef.value.querySelector('.is-active')?.closest('li') as HTMLElement
-  if (activeLi) {
+  const li = targetLi || navListRef.value.querySelector('.is-active')?.closest('li') as HTMLElement
+  if (li) {
     const ul = navListRef.value
     const pl = parseInt(getComputedStyle(ul).paddingLeft) || 0
-    const pillRect = ul.getBoundingClientRect()
-    const liRect = activeLi.getBoundingClientRect()
     sliderStyle.value = {
       left: `${-pl}px`,
-      transform: `translateX(${activeLi.offsetLeft}px)`,
-      width: `${activeLi.offsetWidth}px`
+      transform: `translateX(${li.offsetLeft}px)`,
+      width: `${li.offsetWidth}px`
     }
   } else {
     sliderStyle.value = { left: '0', transform: 'scale(0)', width: '0px' }
   }
+}
+
+/** hover 时滑块跟随 */
+const onNavHover = (e: MouseEvent) => {
+  const li = (e.target as HTMLElement).closest('li') as HTMLElement
+  if (li) updateSlider(li)
+}
+
+/** 鼠标移开时恢复到激活位置 */
+const onNavLeave = () => {
+  updateSlider()
 }
 
 /** 点击外部关闭菜单 */
@@ -139,7 +148,7 @@ onUnmounted(() => {
 
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
-        <ul ref="navListRef" class="flex nav-pill">
+        <ul ref="navListRef" class="flex nav-pill" @mouseenter="onNavHover" @mouseleave="onNavLeave">
           <div class="nav-slider" :style="sliderStyle"></div>
           <li v-for="item in navItems" :key="item.path">
             <router-link
