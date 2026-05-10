@@ -69,21 +69,18 @@
           <div class="section-card">
             <div class="section-header">成就徽章</div>
             <div class="badges-grid">
-              <div class="badge-item" :class="{ locked: !userStats?.favoriteCount }">
-                <Icon name="book" size="18" class="badge-icon" />
-                <span class="badge-name">藏书达人</span>
-              </div>
-              <div class="badge-item" :class="{ locked: (userStats?.commentCount || 0) < 10 }">
-                <Icon name="message" size="18" class="badge-icon" />
-                <span class="badge-name">热心观众</span>
-              </div>
-              <div class="badge-item" :class="{ locked: (userStats?.points || 0) < 100 }">
-                <Icon name="star" size="18" class="badge-icon" />
-                <span class="badge-name">积分达人</span>
-              </div>
-              <div class="badge-item" :class="{ locked: !userStore.isAdmin || (userStats?.postCount || 0) < 1 }">
-                <Icon name="pen" size="18" class="badge-icon" />
-                <span class="badge-name">首发文章</span>
+              <div
+                v-for="badge in achievements"
+                :key="badge.name"
+                class="badge-item"
+                :class="{ locked: badge.locked }"
+                :title="badge.description"
+              >
+                <Icon :name="badge.icon" size="18" class="badge-icon" />
+                <div class="badge-info">
+                  <span class="badge-name">{{ badge.name }}</span>
+                  <span v-if="badge.total" class="badge-progress">{{ badge.progress }}/{{ badge.total }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -92,22 +89,16 @@
           <div class="section-card">
             <div class="section-header">最近动态</div>
             <div class="timeline">
-              <div class="timeline-item" v-if="userStats?.lastPostAt && userStore.isAdmin">
-                <span class="timeline-dot"></span>
-                <span class="timeline-text">发布了新文章</span>
-                <span class="timeline-time">{{ formatRelativeTime(userStats.lastPostAt) }}</span>
+              <div
+                v-for="(item, index) in timelineItems"
+                :key="index"
+                class="timeline-item"
+              >
+                <Icon :name="item.icon" size="14" class="timeline-icon" />
+                <span class="timeline-text">{{ item.text }}</span>
+                <span class="timeline-time">{{ item.time }}</span>
               </div>
-              <div class="timeline-item" v-if="userStats?.lastCommentAt">
-                <span class="timeline-dot"></span>
-                <span class="timeline-text">发表了评论</span>
-                <span class="timeline-time">{{ formatRelativeTime(userStats.lastCommentAt) }}</span>
-              </div>
-              <div class="timeline-item">
-                <span class="timeline-dot"></span>
-                <span class="timeline-text">加入了平台</span>
-                <span class="timeline-time">{{ formatRelativeTime(userInfo?.createdAt || '') }}</span>
-              </div>
-              <div v-if="!userStats?.lastPostAt && !userStats?.lastCommentAt" class="empty-tip">
+              <div v-if="timelineItems.length === 0" class="empty-tip">
                 暂无活动记录
               </div>
             </div>
@@ -159,7 +150,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '../stores/user'
-import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse } from '../services/user'
+import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse, type CheckinStatus } from '../services/user'
 import { showSuccess, showError } from '../utils/errorHandler'
 import { formatRelativeTime } from '../utils/utils'
 import CheckinCard from '../components/CheckinCard.vue'
@@ -169,6 +160,7 @@ const userStore = useUserStore()
 const isLoading = ref(false)
 const showEditForm = ref(false)
 const userStats = ref<UserStats | null>(null)
+const checkinStatus = ref<CheckinStatus | null>(null)
 
 const formData = reactive<UpdateProfileRequest>({
   email: '',
@@ -192,6 +184,118 @@ const calculateLevel = (points: number) => {
   if (points >= 1) return 1
   return 0
 }
+
+// �态成就列表 - 基于真实数据计算
+const achievements = computed(() => {
+  const stats = userStats.value
+  const consecutive = checkinStatus.value?.consecutiveDays || 0
+  const totalCheckins = checkinStatus.value?.totalCheckins || 0
+  const points = stats?.points || 0
+  const commentCount = stats?.commentCount || 0
+  const favoriteCount = stats?.favoriteCount || 0
+  const postCount = stats?.postCount || 0
+
+  return [
+    {
+      name: '初来乍到',
+      icon: 'user',
+      locked: false, // 注册即解锁
+      description: '完成注册，加入平台'
+    },
+    {
+      name: '藏书达人',
+      icon: 'book',
+      locked: favoriteCount < 1,
+      description: '收藏第一篇文章'
+    },
+    {
+      name: '热心观众',
+      icon: 'message',
+      locked: commentCount < 10,
+      description: '累计发表 10 条评论',
+      progress: Math.min(commentCount, 10),
+      total: 10
+    },
+    {
+      name: '积分达人',
+      icon: 'star',
+      locked: points < 100,
+      description: '累计获得 100 积分',
+      progress: Math.min(points, 100),
+      total: 100
+    },
+    {
+      name: '签到达人',
+      icon: 'calendar',
+      locked: totalCheckins < 30,
+      description: '累计签到 30 天',
+      progress: Math.min(totalCheckins, 30),
+      total: 30
+    },
+    {
+      name: '坚持不懈',
+      icon: 'fire',
+      locked: consecutive < 7,
+      description: '连续签到 7 天',
+      progress: Math.min(consecutive, 7),
+      total: 7
+    },
+    {
+      name: '收藏家',
+      icon: 'heart',
+      locked: favoriteCount < 10,
+      description: '收藏 10 篇文章',
+      progress: Math.min(favoriteCount, 10),
+      total: 10
+    },
+    {
+      name: '积分大师',
+      icon: 'trophy',
+      locked: points < 500,
+      description: '累计获得 500 积分',
+      progress: Math.min(points, 500),
+      total: 500
+    },
+    // 仅管理员可见的成就
+    ...(userStore.isAdmin ? [
+      {
+        name: '首发文章',
+        icon: 'pen',
+        locked: postCount < 1,
+        description: '发布第一篇文章'
+      },
+      {
+        name: '文章达人',
+        icon: 'edit',
+        locked: postCount < 10,
+        description: '发布 10 篇文章',
+        progress: Math.min(postCount, 10),
+        total: 10
+      }
+    ] : [])
+  ]
+})
+
+// 动态时间线 - 基于真实数据生成
+const timelineItems = computed(() => {
+  const stats = userStats.value
+  const items: { text: string; time: string; icon: string }[] = []
+
+  if (stats?.lastPostAt && userStore.isAdmin) {
+    items.push({ text: '发布了新文章', time: formatRelativeTime(stats.lastPostAt), icon: 'pen' })
+  }
+  if (stats?.lastCommentAt) {
+    items.push({ text: '发表了评论', time: formatRelativeTime(stats.lastCommentAt), icon: 'message' })
+  }
+  if (checkinStatus.value?.lastCheckinDate) {
+    items.push({ text: '完成签到', time: formatRelativeTime(checkinStatus.value.lastCheckinDate), icon: 'calendar' })
+  }
+  if (userInfo.value?.createdAt) {
+    items.push({ text: '加入了平台', time: formatRelativeTime(userInfo.value.createdAt), icon: 'user' })
+  }
+
+  return items
+})
 
 const initForm = () => {
   if (userInfo.value) {
@@ -223,14 +327,24 @@ const handleSubmit = async () => {
 const loadUserStats = async () => {
   if (!userStore.isLoggedIn) return
   try {
-    userStats.value = await UserService.getUserStats()
+    const [stats, checkin] = await Promise.all([
+      UserService.getUserStats(),
+      UserService.getCheckinStatus()
+    ])
+    userStats.value = stats
+    checkinStatus.value = checkin
   } catch {
-    // 加载用户统计数据失败时静默处理
+    // 加载失败时静默处理
   }
 }
 
 const handleCheckinSuccess = (result: CheckinResponse) => {
   if (userStats.value) userStats.value.points = result.totalPoints
+  if (checkinStatus.value) {
+    checkinStatus.value.consecutiveDays = result.consecutiveDays
+    checkinStatus.value.hasCheckedInToday = true
+    checkinStatus.value.totalCheckins++
+  }
 }
 
 onMounted(() => {
@@ -488,6 +602,7 @@ onMounted(() => {
   background: var(--bg-soft);
   border-radius: 8px;
   transition: all 0.2s;
+  cursor: default;
 
   &:hover {
     transform: translateY(-1px);
@@ -500,11 +615,24 @@ onMounted(() => {
 
 .badge-icon {
   font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.badge-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .badge-name {
   font-size: 0.9rem;
   color: var(--text-main);
+}
+
+.badge-progress {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 /* 时间线 */
@@ -524,11 +652,8 @@ onMounted(() => {
   }
 }
 
-.timeline-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--color-primary);
-  border-radius: 50%;
+.timeline-icon {
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 
