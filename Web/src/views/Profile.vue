@@ -32,8 +32,8 @@
         <div class="stats-section">
           <div class="stats-row">
             <div class="stat-item">
-              <span class="stat-value">{{ userStats?.favoriteCount || 0 }}</span>
-              <span class="stat-label">收藏</span>
+              <span class="stat-value">{{ userStats?.postCount || 0 }}</span>
+              <span class="stat-label">文章</span>
             </div>
             <span class="stat-divider">·</span>
             <div class="stat-item">
@@ -42,16 +42,14 @@
             </div>
             <span class="stat-divider">·</span>
             <div class="stat-item">
+              <span class="stat-value">{{ userStats?.favoriteCount || 0 }}</span>
+              <span class="stat-label">收藏</span>
+            </div>
+            <span class="stat-divider">·</span>
+            <div class="stat-item">
               <span class="stat-value">{{ userStats?.points || 0 }}</span>
               <span class="stat-label">积分</span>
             </div>
-            <template v-if="userStore.isAdmin">
-              <span class="stat-divider">·</span>
-              <div class="stat-item admin">
-                <span class="stat-value">{{ userStats?.postCount || 0 }}</span>
-                <span class="stat-label">文章</span>
-              </div>
-            </template>
           </div>
         </div>
       </div>
@@ -193,7 +191,6 @@ const achievements = computed(() => {
   const points = stats?.points || 0
   const commentCount = stats?.commentCount || 0
   const favoriteCount = stats?.favoriteCount || 0
-  const postCount = stats?.postCount || 0
 
   return [
     {
@@ -255,24 +252,7 @@ const achievements = computed(() => {
       description: '累计获得 500 积分',
       progress: Math.min(points, 500),
       total: 500
-    },
-    // 仅管理员可见的成就
-    ...(userStore.isAdmin ? [
-      {
-        name: '首发文章',
-        icon: 'pen',
-        locked: postCount < 1,
-        description: '发布第一篇文章'
-      },
-      {
-        name: '文章达人',
-        icon: 'edit',
-        locked: postCount < 10,
-        description: '发布 10 篇文章',
-        progress: Math.min(postCount, 10),
-        total: 10
-      }
-    ] : [])
+    }
   ]
 })
 
@@ -281,7 +261,7 @@ const timelineItems = computed(() => {
   const stats = userStats.value
   const items: { text: string; time: string; icon: string }[] = []
 
-  if (stats?.lastPostAt && userStore.isAdmin) {
+  if (stats?.lastPostAt) {
     items.push({ text: '发布了新文章', time: formatRelativeTime(stats.lastPostAt), icon: 'pen' })
   }
   if (stats?.lastCommentAt) {
