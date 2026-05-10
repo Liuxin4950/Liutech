@@ -920,17 +920,3 @@ onMounted(() => {
   color: #1F5F91 !important;
 }
 </style>
-
-:root.dark :deep(.tox-collection__item) {
-  background: #2D2F30 !important;
-  color: #E8EAED !important;
-}
-
-:root.dark :deep(.tox-collection__item:hover) {
-  background: #3C4043 !important;
-}
-
-:root.dark :deep(.tox .tox-tbtn__select-label) {
-  color: #E8EAED !important;
-}
-</style>
