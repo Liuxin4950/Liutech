@@ -9,6 +9,11 @@ on:
     branches: [main]
   workflow_dispatch:  # 允许手动触发
 
+# 避免并发部署
+concurrency:
+  group: liutech-production
+  cancel-in-progress: true
+
 # 环境变量（所有 job 共享）
 env:
   DOCKER_HUB: liuxin4950  # Docker Hub 用户名
@@ -42,7 +47,9 @@ jobs:
         with:
           context: ./LiuTech
           push: true
-          tags: ${{ env.DOCKER_HUB }}/liutech-backend:latest
+          tags: |
+            ${{ env.DOCKER_HUB }}/liutech-backend:latest
+            ${{ env.DOCKER_HUB }}/liutech-backend:${{ github.sha }}
           platforms: linux/amd64
 
   # ==================== Job 2: 构建 AI 服务 ====================
@@ -73,7 +80,9 @@ jobs:
         with:
           context: ./LiuTech-AI
           push: true
-          tags: ${{ env.DOCKER_HUB }}/liutech-ai:latest
+          tags: |
+            ${{ env.DOCKER_HUB }}/liutech-ai:latest
+            ${{ env.DOCKER_HUB }}/liutech-ai:${{ github.sha }}
           platforms: linux/amd64
 
   # ==================== Job 3: 构建 Web 前端 ====================
@@ -109,7 +118,9 @@ jobs:
         with:
           context: ./Web
           push: true
-          tags: ${{ env.DOCKER_HUB }}/liutech-web:latest
+          tags: |
+            ${{ env.DOCKER_HUB }}/liutech-web:latest
+            ${{ env.DOCKER_HUB }}/liutech-web:${{ github.sha }}
           platforms: linux/amd64
 
   # ==================== Job 4: 构建 Admin 前端 ====================
@@ -145,7 +156,9 @@ jobs:
         with:
           context: ./Admin
           push: true
-          tags: ${{ env.DOCKER_HUB }}/liutech-admin:latest
+          tags: |
+            ${{ env.DOCKER_HUB }}/liutech-admin:latest
+            ${{ env.DOCKER_HUB }}/liutech-admin:${{ github.sha }}
           platforms: linux/amd64
 
   # ==================== Job 5: 构建 Nginx ====================
@@ -167,7 +180,9 @@ jobs:
         with:
           context: ./nginx
           push: true
-          tags: ${{ env.DOCKER_HUB }}/liutech-nginx:latest
+          tags: |
+            ${{ env.DOCKER_HUB }}/liutech-nginx:latest
+            ${{ env.DOCKER_HUB }}/liutech-nginx:${{ github.sha }}
           platforms: linux/amd64
 
   # ==================== Job 6: 自动部署到服务器 ====================
@@ -199,19 +214,15 @@ jobs:
             # 拉取最新镜像
             docker compose pull
 
-            # 逐个重启服务（避免全部停止导致中断）
-            docker compose up -d --force-recreate --no-deps backend
-            docker compose up -d --force-recreate --no-deps ai
-            docker compose up -d --force-recreate --no-deps web
-            docker compose up -d --force-recreate --no-deps admin
-            docker compose up -d --force-recreate --no-deps nginx
+            # 重建所有服务（--remove-orphans 清理已删除的服务）
+            docker compose up -d --remove-orphans
 
             # 清理旧镜像
             docker image prune -f
 
             # 健康检查
             sleep 10
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost | grep -q "200\|301\|302"; then
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost | grep -qE "^(200|301|302)$"; then
               echo "✅ 部署成功，网站可访问"
             else
               echo "⚠️ 部署完成，但网站可能未正常响应"
