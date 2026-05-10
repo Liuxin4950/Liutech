@@ -148,7 +148,7 @@ onUnmounted(() => {
 
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
-        <ul ref="navListRef" class="flex nav-pill" @mouseenter="onNavHover" @mouseleave="onNavLeave">
+        <ul ref="navListRef" class="flex nav-pill" @mouseover="onNavHover" @mouseleave="onNavLeave">
           <div class="nav-slider" :style="sliderStyle"></div>
           <li v-for="item in navItems" :key="item.path">
             <router-link
