@@ -876,16 +876,16 @@ watch(() => theme.current.value, (mode) => {
 /* 暗色主题适配 */
 :root.dark :deep(.tox) {
   border-color: #3C4653 !important;
-  background: var(--bg-main) !important;
-  color: var(--text-main) !important;
+  background: #202124 !important;
+  color: #E8EAED !important;
 }
 
 :root.dark :deep(.tox .tox-editor-header),
 :root.dark :deep(.tox .tox-toolbar-overlord),
 :root.dark :deep(.tox .tox-toolbar),
 :root.dark :deep(.tox .tox-toolbar__primary) {
-  background: var(--bg-main) !important;
-  color: var(--text-main) !important;
+  background: #202124 !important;
+  color: #E8EAED !important;
 }
 
 :root.dark :deep(.tox .tox-toolbar) {
@@ -893,11 +893,11 @@ watch(() => theme.current.value, (mode) => {
 }
 
 :root.dark :deep(.tox-edit-area) {
-  background: var(--bg-main) !important;
+  background: #202124 !important;
 }
 
 :root.dark :deep(.tox-statusbar) {
-  background: var(--bg-main) !important;
+  background: #202124 !important;
   border-top-color: #3C4653 !important;
   color: #CBD5E1 !important;
 }
@@ -916,33 +916,53 @@ watch(() => theme.current.value, (mode) => {
 :root.dark :deep(.tox .tox-split-button),
 :root.dark :deep(.tox .tox-listboxfield .tox-listbox--select),
 :root.dark :deep(.tox .tox-textfield) {
-  background: var(--bg-card) !important;
+  background: #2D2F30 !important;
   border-color: #3C4653 !important;
-  color: var(--text-main) !important;
+  color: #E8EAED !important;
+}
+
+:root.dark :deep(.tox .tox-tbtn svg) {
+  fill: #E8EAED !important;
 }
 
 :root.dark :deep(.tox .tox-tbtn:hover),
 :root.dark :deep(.tox .tox-split-button:hover) {
-  background: var(--bg-hover) !important;
-  color: var(--text-title) !important;
+  background: #3C4043 !important;
+  color: #FFFFFF !important;
+}
+
+:root.dark :deep(.tox .tox-tbtn:hover svg) {
+  fill: #FFFFFF !important;
 }
 
 :root.dark :deep(.tox-tbtn--enabled) {
-  background: var(--color-primary);
-  color: #ffffff;
+  background: #8AB4F8 !important;
+  color: #202124 !important;
+}
+
+:root.dark :deep(.tox-tbtn--enabled svg) {
+  fill: #202124 !important;
 }
 
 :root.dark :deep(.tox-menubar) {
-  background: var(--bg-card);
-  border-bottom-color: var(--border-base);
+  background: #2D2F30 !important;
+  border-bottom-color: #5F6368 !important;
+}
+
+:root.dark :deep(.tox-menubar .tox-mbtn) {
+  color: #E8EAED !important;
 }
 
 :root.dark :deep(.tox-collection__item) {
-  background: var(--bg-card);
-  color: var(--text-main);
+  background: #2D2F30 !important;
+  color: #E8EAED !important;
 }
 
 :root.dark :deep(.tox-collection__item:hover) {
-  background: var(--bg-hover);
+  background: #3C4043 !important;
+}
+
+:root.dark :deep(.tox .tox-tbtn__select-label) {
+  color: #E8EAED !important;
 }
 </style>
