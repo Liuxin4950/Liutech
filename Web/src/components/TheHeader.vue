@@ -158,7 +158,7 @@ onUnmounted(() => {
       <div class="flex flex-ac nav-user nav-pill relative">
 
         <!-- 用户信息 -->
-        <div class="user-menu-container">
+        <div class="user-menu-container relative">
           <div
             v-if="userStore.isLoggedIn"
             class="flex flex-ac gap-8 link rounded user-info-btn"
@@ -316,7 +316,6 @@ header>div {
 /* Nav Pill Style */
 .nav-pill {
   position: relative;
-  overflow: hidden;
   background: var(--surface-glass-muted);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
