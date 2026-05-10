@@ -11,7 +11,7 @@ on:
 
 # 环境变量（所有 job 共享）
 env:
-  DOCKER_HUB: liuxin  # Docker Hub 用户名，改成你的
+  DOCKER_HUB: liuxin4950  # Docker Hub 用户名
 
 jobs:
   # ==================== Job 1: 构建后端 ====================

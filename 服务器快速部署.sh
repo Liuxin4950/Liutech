@@ -8,7 +8,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-DOCKER_HUB="liuxin"  # Docker Hub 用户名，改成你的
+DOCKER_HUB="liuxin4950"  # Docker Hub 用户名
 INSTALL_DIR=/opt/liutech
 
 echo -e "${GREEN}========================================${NC}"
