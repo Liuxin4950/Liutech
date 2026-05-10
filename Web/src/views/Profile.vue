@@ -81,7 +81,7 @@
                 <Icon name="star" size="18" class="badge-icon" />
                 <span class="badge-name">积分达人</span>
               </div>
-              <div class="badge-item" :class="{ locked: userStore.isAdmin && (userStats?.postCount || 0) < 1 }">
+              <div class="badge-item" :class="{ locked: !userStore.isAdmin || (userStats?.postCount || 0) < 1 }">
                 <Icon name="pen" size="18" class="badge-icon" />
                 <span class="badge-name">首发文章</span>
               </div>
