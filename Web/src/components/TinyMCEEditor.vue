@@ -673,7 +673,6 @@ const editorConfig = computed(() => ({
   content_style: getContentStyle(theme.current.value === 'dark'),
   placeholder: props.placeholder,
   promotion: false, // 隐藏升级提示
-  skin: 'oxide',
   content_css: false,
   directionality: 'ltr',
   element_format: 'html',
