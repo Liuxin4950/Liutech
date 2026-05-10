@@ -214,7 +214,8 @@ jobs:
             # 拉取最新镜像
             docker compose pull
 
-            # 重建所有服务（--remove-orphans 清理已删除的服务）
+            # 停止并重建（比 --force-recreate 更稳定）
+            docker compose down
             docker compose up -d --remove-orphans
 
             # 清理旧镜像
@@ -227,5 +228,7 @@ jobs:
             else
               echo "⚠️ 部署完成，但网站可能未正常响应"
             fi
+
+            echo "部署完成: $(date)"
 
             echo "部署完成: $(date)"
