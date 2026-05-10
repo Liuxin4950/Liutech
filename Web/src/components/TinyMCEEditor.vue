@@ -482,6 +482,7 @@ const editorConfig = computed(() => ({
   language: 'zh_CN', // 设置语言为中文
   base_url: '/tinymce', // 设置TinyMCE资源基础路径
   suffix: '.min', // 使用压缩版本
+  license_key: 'gpl',
   plugins: [
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
     'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
@@ -679,7 +680,6 @@ const editorConfig = computed(() => ({
   indent: false,
   keep_styles: false,
   paste_webkit_styles: 'none',
-  paste_retain_style_properties: 'color font-size',
   // 高级功能配置 - 保存相关功能暂时禁用
   // autosave_interval: '30s',
   // autosave_prefix: 'tinymce-autosave-{path}{query}-{id}-',
@@ -694,7 +694,6 @@ const editorConfig = computed(() => ({
   max_height: 800,
   autoresize_bottom_margin: 50,
   autoresize_overflow_padding: 16,
-  paste_word_valid_elements: 'b,strong,i,em,h1,h2,h3,h4,h5,h6,p,div,ul,ol,li,table,tr,td,th,blockquote,code',
   // 链接配置
   link_context_toolbar: true,
   link_default_target: '_blank',
