@@ -83,6 +83,7 @@ const isActive = (section: string) => {
 /** 导航滑块 */
 const navListRef = ref<HTMLUListElement>()
 const sliderStyle = ref({ left: '0px', transform: 'scale(0)', width: '0px' })
+const isHovering = ref(false)
 
 const updateSlider = (targetLi?: HTMLElement) => {
   if (!navListRef.value) return
@@ -103,11 +104,15 @@ const updateSlider = (targetLi?: HTMLElement) => {
 /** hover 时滑块跟随 */
 const onNavHover = (e: MouseEvent) => {
   const li = (e.target as HTMLElement).closest('li') as HTMLElement
-  if (li) updateSlider(li)
+  if (li) {
+    isHovering.value = true
+    updateSlider(li)
+  }
 }
 
 /** 鼠标移开时恢复到激活位置 */
 const onNavLeave = () => {
+  isHovering.value = false
   updateSlider()
 }
 
@@ -148,7 +153,7 @@ onUnmounted(() => {
 
       <!-- 桌面端导航 -->
       <nav class="desktop-nav">
-        <ul ref="navListRef" class="flex nav-pill" @mouseover="onNavHover" @mouseleave="onNavLeave">
+        <ul ref="navListRef" class="flex nav-pill" :class="{ 'is-hovering': isHovering }" @mouseover="onNavHover" @mouseleave="onNavLeave">
           <div class="nav-slider" :style="sliderStyle"></div>
           <li v-for="item in navItems" :key="item.path">
             <router-link
@@ -485,8 +490,7 @@ ol {
 }
 
 .nav-link:hover {
-  background: rgba(var(--color-primary-rgb), 0.1);
-  color: var(--color-primary);
+  background: transparent;
 }
 
 .nav-slider {
@@ -512,6 +516,12 @@ ol {
 .nav-link.router-link-exact-active,
 .nav-link.is-active {
   color: var(--color-primary);
+}
+
+/* hover 时禁用激活样式的文本颜色 */
+.is-hovering .nav-link.router-link-exact-active,
+.is-hovering .nav-link.is-active {
+  color: var(--text-main);
 }
 
 .nav-link.router-link-exact-active:hover,
