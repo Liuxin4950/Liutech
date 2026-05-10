@@ -82,7 +82,7 @@ const isActive = (section: string) => {
 
 /** 导航滑块 */
 const navListRef = ref<HTMLUListElement>()
-const sliderStyle = ref({ transform: 'scale(0)', width: '0px' })
+const sliderStyle = ref({ left: '0px', transform: 'scale(0)', width: '0px' })
 
 const updateSlider = () => {
   if (!navListRef.value) return
