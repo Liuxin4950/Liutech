@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="content">
     <div class="home-layout">
       <!-- 左侧边栏 -->
@@ -19,7 +19,7 @@
       <!-- 右侧主内容区 -->
       <aside class="sidebar">
         <!-- 搜索框 -->
-        <!-- <SearchBox /> -->
+        <SearchBox />
 
         <!-- 个人信息卡片 -->
         <ProfileCard :name="profileInfo.name" :title="profileInfo.title" :avatar="profileInfo.avatar"
@@ -64,6 +64,7 @@ import RecommendedPosts from '@/components/RecommendedPosts.vue'
 import FriendLinks from '@/components/FriendLinks.vue'
 import Pagination from '@/components/Pagination.vue'
 import ArticleList from '@/components/ArticleList.vue'
+import SearchBox from '@/components/SearchBox.vue'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()

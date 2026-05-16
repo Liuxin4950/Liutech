@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="card">
     <div class="card-title"><Icon name="search" size="18" /> 文章搜索</div>
     <div class="search-container">
