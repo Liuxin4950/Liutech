@@ -34,7 +34,7 @@ const columns = [
   { title: '文章标题', dataIndex: 'postTitle', key: 'postTitle', ellipsis: true },
   { title: '评论者', key: 'username', width: 120 },
   { title: '评论内容', dataIndex: 'content', key: 'content', ellipsis: true },
-  { title: '父评论ID', dataIndex: 'parentId', key: 'parentId', width: 100 },
+  { title: '父评论', dataIndex: 'parentId', key: 'parentId', width: 100 },
   { title: '状态', key: 'status', width: 80 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
@@ -120,13 +120,13 @@ onMounted(() => { loadComments() })
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
           <a-col :span="5">
-            <a-form-item label="文章ID" class="mb-0">
-              <a-input-number v-model:value="searchParams.postId" placeholder="文章ID" allow-clear style="width: 100%" />
+            <a-form-item label="文章" class="mb-0">
+              <a-input-number v-model:value="searchParams.postId" placeholder="输入文章ID" allow-clear style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :span="5">
-            <a-form-item label="用户ID" class="mb-0">
-              <a-input-number v-model:value="searchParams.userId" placeholder="用户ID" allow-clear style="width: 100%" />
+            <a-form-item label="用户" class="mb-0">
+              <a-input-number v-model:value="searchParams.userId" placeholder="输入用户ID" allow-clear style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :span="5">
@@ -196,7 +196,8 @@ onMounted(() => { loadComments() })
             </a-tooltip>
           </template>
           <template v-else-if="column.key === 'parentId'">
-            {{ record.parentId || '-' }}
+            <a-tag v-if="record.parentId" color="blue">回复 #{{ record.parentId }}</a-tag>
+            <span v-else class="text-placeholder">-</span>
           </template>
           <template v-else-if="column.key === 'status'">
             <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>

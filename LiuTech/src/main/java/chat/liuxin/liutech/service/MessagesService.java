@@ -197,9 +197,7 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
         if (message == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "留言不存在");
         }
-        message.setDeletedAt(new Date());
-        message.setUpdatedAt(new Date());
-        return this.updateById(message);
+        return baseMapper.softDeleteById(id) > 0;
     }
 
     /**
@@ -207,16 +205,14 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchDeleteMessages(List<Long> ids) {
-        Date now = new Date();
-        return ids.stream().allMatch(id -> {
+        int total = 0;
+        for (Long id : ids) {
             Messages message = this.getById(id);
             if (message != null) {
-                message.setDeletedAt(now);
-                message.setUpdatedAt(now);
-                return this.updateById(message);
+                total += baseMapper.softDeleteById(id);
             }
-            return true;
-        });
+        }
+        return total > 0;
     }
 
     /**
@@ -224,19 +220,16 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean restoreMessage(Long id) {
-        Messages message = this.query().eq("id", id).isNull("deleted_at").one();
-        if (message != null) {
+        // 使用原生 SQL 查询，绕过 @TableLogic 自动过滤
+        Messages message = baseMapper.selectUnfilteredById(id);
+        if (message == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "留言不存在");
+        }
+        if (message.getDeletedAt() == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该留言未被删除");
         }
 
-        Messages deletedMessage = this.query().eq("id", id).isNotNull("deleted_at").one();
-        if (deletedMessage == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "留言不存在");
-        }
-
-        deletedMessage.setDeletedAt(null);
-        deletedMessage.setUpdatedAt(new Date());
-        return this.updateById(deletedMessage);
+        return baseMapper.restoreById(id) > 0;
     }
 
     /**
@@ -244,7 +237,8 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeleteMessage(Long id) {
-        return this.removeById(id);
+        // 使用原生 DELETE SQL，绕过 @TableLogic 逻辑删除拦截
+        return baseMapper.physicalDeleteById(id) > 0;
     }
 
     /**
@@ -252,6 +246,10 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeleteMessages(List<Long> ids) {
-        return this.removeByIds(ids);
+        int total = 0;
+        for (Long id : ids) {
+            total += baseMapper.physicalDeleteById(id);
+        }
+        return total > 0;
     }
 }

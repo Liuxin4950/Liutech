@@ -263,6 +263,13 @@ public class OperationLogAspect {
         actionMap.put("disable", "禁用");
         actionMap.put("upload", "上传");
         actionMap.put("download", "下载");
+        actionMap.put("review", "审核");
+        actionMap.put("reply", "回复");
+        actionMap.put("purchase", "购买");
+        actionMap.put("checkin", "签到");
+        actionMap.put("export", "导出");
+        actionMap.put("import", "导入");
+        actionMap.put("test", "测试");
         return actionMap.getOrDefault(action.toLowerCase(), action);
     }
 
@@ -279,6 +286,14 @@ public class OperationLogAspect {
         typeMap.put("comment", "评论");
         typeMap.put("resource", "资源");
         typeMap.put("music", "音乐");
+        typeMap.put("image", "图片");
+        typeMap.put("document", "文档");
+        typeMap.put("attachment", "附件");
+        typeMap.put("message", "留言");
+        typeMap.put("carousel", "轮播图");
+        typeMap.put("tts", "语音推理");
+        typeMap.put("system_setting", "系统设置");
+        typeMap.put("points", "积分");
         return typeMap.getOrDefault(targetType.toLowerCase(), targetType);
     }
 }

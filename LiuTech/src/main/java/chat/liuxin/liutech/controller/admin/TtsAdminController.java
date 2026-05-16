@@ -93,6 +93,7 @@ public class TtsAdminController extends BaseAdminController {
     }
 
     @PostMapping("/test-speech")
+    @OperationLog(action = "test", targetType = "tts", description = "测试语音合成")
     public Result<TtsSpeechResponseDTO> testSpeech(@Valid @RequestBody TtsSpeechRequestDTO request) {
         return Result.success(ttsSpeechService.synthesize(request.getText()));
     }

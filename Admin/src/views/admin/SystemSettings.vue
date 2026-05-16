@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { ReloadOutlined, SaveOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import SettingsService from '@/services/settings'
 import type { SystemSetting, GroupedSettings, SettingUpdateItem } from '@/services/settings'
+import { getTtsVoices } from '@/services/tts'
 
 const loading = ref(false)
 const savingGroup = ref<string | null>(null)
@@ -11,6 +12,9 @@ const grouped = ref<GroupedSettings>({})
 
 // 每个分组的表单数据（key -> value）
 const formData = ref<Record<string, string>>({})
+
+// 动态加载的语音模型列表
+const voiceOptions = ref<string[]>([])
 
 // 分组中文名称映射
 const groupLabels: Record<string, string> = {
@@ -33,11 +37,67 @@ const fieldLabels: Record<string, string> = {
   'site.icp_number': 'ICP 备案号',
   'site.analytics_code': '统计代码',
   'comment.need_review': '评论需要审核',
-  'upload.max_size_mb': '最大上传大小 (MB)'
+  'upload.max_size_mb': '最大上传大小 (MB)',
+  'tts.enabled': '语音推理开关',
+  'tts.provider': '推理引擎',
+  'tts.baseUrl': 'TTS 服务地址',
+  'tts.voiceModel': '语音模型',
+  'tts.siliconFlowModel': 'SiliconFlow 模型',
+  'tts.siliconFlowVoiceUri': '云端音色 URI',
+  'tts.responseFormat': '音频格式',
+  'tts.sampleRate': '采样率',
+  'tts.speed': '语速'
 }
 
 // 布尔类型的设置项
-const booleanKeys = new Set(['comment.need_review'])
+const booleanKeys = new Set(['comment.need_review', 'tts.enabled'])
+
+// 预定义选项的设置项（key -> options）
+const selectOptions: Record<string, { value: string; label: string }[]> = {
+  'tts.provider': [
+    { value: 'GPT_SOVITS', label: '自定义 GPT-SoVITS' },
+    { value: 'SILICONFLOW', label: 'SiliconFlow 云端' }
+  ],
+  'tts.siliconFlowModel': [
+    { value: 'FunAudioLLM/CosyVoice2-0.5B', label: 'CosyVoice2-0.5B' },
+    { value: 'IndexTeam/IndexTTS-2', label: 'IndexTTS-2' },
+    { value: 'fnlp/MOSS-TTSD-v0.5', label: 'MOSS-TTSD-v0.5' }
+  ],
+  'tts.responseFormat': [
+    { value: 'mp3', label: 'MP3' },
+    { value: 'wav', label: 'WAV' },
+    { value: 'opus', label: 'Opus' },
+    { value: 'pcm', label: 'PCM' }
+  ],
+  'tts.sampleRate': [
+    { value: '8000', label: '8000 Hz' },
+    { value: '16000', label: '16000 Hz' },
+    { value: '24000', label: '24000 Hz' },
+    { value: '32000', label: '32000 Hz' },
+    { value: '44100', label: '44100 Hz' },
+    { value: '48000', label: '48000 Hz' }
+  ]
+}
+
+// 获取设置项的选项列表
+const getOptions = (key: string): { value: string; label: string }[] => {
+  if (key === 'tts.voiceModel') {
+    return voiceOptions.value.map(item => ({ value: item, label: item }))
+  }
+  return selectOptions[key] || []
+}
+
+// 加载语音模型列表
+const loadVoiceOptions = async () => {
+  try {
+    const baseUrl = formData.value['tts.baseUrl']
+    if (baseUrl) {
+      voiceOptions.value = await getTtsVoices(baseUrl)
+    }
+  } catch {
+    voiceOptions.value = []
+  }
+}
 
 const loadSettings = async () => {
   if (loading.value) return
@@ -54,6 +114,9 @@ const loadSettings = async () => {
       }
     }
     formData.value = form
+
+    // 加载语音模型选项
+    await loadVoiceOptions()
   } catch (error: any) {
     message.error(error?.message || '加载系统设置失败')
   } finally {
@@ -142,6 +205,21 @@ onMounted(() => {
                     @change="(val: boolean) => formData[setting.settingKey] = val ? 'true' : 'false'"
                     checked-children="是"
                     un-checked-children="否"
+                  />
+                  <div class="field-desc" v-if="setting.description">{{ setting.description }}</div>
+                </a-form-item>
+
+                <!-- 有预定义选项的用 Select -->
+                <a-form-item
+                  v-else-if="selectOptions[setting.settingKey] || setting.settingKey === 'tts.voiceModel'"
+                  :label="getLabel(setting.settingKey, setting.description)"
+                >
+                  <a-select
+                    v-model:value="formData[setting.settingKey]"
+                    :options="getOptions(setting.settingKey)"
+                    :placeholder="setting.description || setting.settingKey"
+                    allow-clear
+                    show-search
                   />
                   <div class="field-desc" v-if="setting.description">{{ setting.description }}</div>
                 </a-form-item>

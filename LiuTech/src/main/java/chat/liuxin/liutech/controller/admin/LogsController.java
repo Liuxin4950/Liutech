@@ -132,6 +132,15 @@ public class LogsController extends BaseAdminController {
         actions.add("offline");
         actions.add("enable");
         actions.add("disable");
+        actions.add("upload");
+        actions.add("download");
+        actions.add("review");
+        actions.add("reply");
+        actions.add("purchase");
+        actions.add("checkin");
+        actions.add("export");
+        actions.add("import");
+        actions.add("test");
         return Result.success(actions);
     }
 
@@ -151,6 +160,14 @@ public class LogsController extends BaseAdminController {
         targetTypes.add("comment");
         targetTypes.add("resource");
         targetTypes.add("music");
+        targetTypes.add("image");
+        targetTypes.add("document");
+        targetTypes.add("attachment");
+        targetTypes.add("message");
+        targetTypes.add("carousel");
+        targetTypes.add("tts");
+        targetTypes.add("system_setting");
+        targetTypes.add("points");
         return Result.success(targetTypes);
     }
 

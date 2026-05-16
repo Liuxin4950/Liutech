@@ -68,6 +68,18 @@ const transactionTypeMap: Record<string, { label: string; color: string }> = {
   admin_adjust: { label: '管理员调整', color: 'blue' }
 }
 
+// 来源类型显示映射
+const sourceTypeMap: Record<string, string> = {
+  post_purchase: '文章购买',
+  checkin: '签到',
+  admin_adjust: '管理员调整',
+  refund: '退款',
+  registration: '注册奖励',
+  daily_login: '每日登录',
+  post_reward: '文章奖励',
+  comment_reward: '评论奖励'
+}
+
 // 积分流水表格列
 const txColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
@@ -351,10 +363,10 @@ onMounted(() => {
           <a-form layout="horizontal" :model="txSearchParams" class="mb-16">
             <a-row :gutter="24">
               <a-col :span="4">
-                <a-form-item label="用户ID" class="mb-0">
+                <a-form-item label="用户" class="mb-0">
                   <a-input-number
                     v-model:value="txSearchParams.userId"
-                    placeholder="请输入用户ID"
+                    placeholder="输入用户ID"
                     style="width: 100%"
                     :min="1"
                     allow-clear
@@ -431,6 +443,9 @@ onMounted(() => {
                   {{ transactionTypeMap[record.transactionType]?.label || record.transactionType }}
                 </a-tag>
               </template>
+              <template v-else-if="column.key === 'sourceType'">
+                {{ sourceTypeMap[record.sourceType] || record.sourceType || '-' }}
+              </template>
               <template v-else-if="column.key === 'amount'">
                 <span :style="{ color: record.amount >= 0 ? 'var(--color-success)' : 'var(--color-error)', fontWeight: 600 }">
                   {{ record.amount >= 0 ? '+' : '' }}{{ record.amount }}
@@ -449,10 +464,10 @@ onMounted(() => {
           <a-form layout="horizontal" :model="checkinSearchParams" class="mb-16">
             <a-row :gutter="24">
               <a-col :span="4">
-                <a-form-item label="用户ID" class="mb-0">
+                <a-form-item label="用户" class="mb-0">
                   <a-input-number
                     v-model:value="checkinSearchParams.userId"
-                    placeholder="请输入用户ID"
+                    placeholder="输入用户ID"
                     style="width: 100%"
                     :min="1"
                     allow-clear
