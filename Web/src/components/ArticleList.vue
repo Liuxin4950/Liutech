@@ -165,6 +165,9 @@ function handleCategoryClick(categoryId: number) {
 
 .post-title{
     padding-right: 70px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .post-summary {
   display: -webkit-box;

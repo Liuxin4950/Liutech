@@ -352,6 +352,7 @@ header>div {
   border: 1px solid var(--border-soft);
   transition: all 0.3s ease;
   padding: 4px 8px;
+  min-height: 54px;
   @include respond(md) {
     padding: 2px 6px;
     gap: 2px;
@@ -490,8 +491,10 @@ ol {
   font-weight: 500;
   position: relative;
   z-index: 1;
-  padding: 10px 16px;
-  border-radius: 20px;
+  padding: 14px 20px;
+  //同步最右侧导航栏高度
+  min-height: 54px;
+  border-radius: 25px;
   cursor: pointer;
   display: flex;
   align-items: center;
