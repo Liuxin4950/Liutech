@@ -661,12 +661,15 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       <div class="post-card card bg-soft">
       <!-- 文章头部信息 -->
       <header class="post-header">
-        <h2 class="post-title">{{ post.title }}</h2>
-
+        <h1 class="post-title">{{ post.title }}</h1>
         <!-- 封面图片 -->
         <!-- <div v-if="displayImage" class="post-cover mb-24">
           <img :src="displayImage" :alt="post.title" class="cover-image" :class="{ 'loading': imageLoading }">
         </div> -->
+        <!-- 文章摘要 -->
+        <div v-if="cleanPostSummary" class="post-excerpt">
+          {{ cleanPostSummary }}
+        </div>
 
         <div class="post-meta-info">
           <div class="meta-left-section">
@@ -704,12 +707,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
         </div>
       </header>
 
-      <!-- 文章摘要 -->
-      <div v-if="cleanPostSummary" class="post-summary">
-        <span class="summary-label">摘要</span>
-        <p>{{ cleanPostSummary }}</p>
-      </div>
-
+    
       <!-- 文章内容 -->
       <article class="post-article">
         <div class="markdown-content" v-html="renderedContent"></div>
@@ -963,35 +961,29 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .post-header {
-  position: relative;
-  padding-bottom: 18px;
+  margin-bottom: 32px;
 }
 
 .post-title {
-  max-width: 920px;
   font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 750;
   color: var(--text-title);
-  margin: 0 0 22px;
   line-height: 1.16;
   letter-spacing: 0;
   position: relative;
-  padding-bottom: 18px;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 80px;
-    height: 4px;
-    background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
-    border-radius: 2px;
-  }
 }
 
 .post-cover {
   overflow: hidden;
+}
+
+.post-excerpt {
+  color: var(--text-subtle);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  margin: 16px 0 24px;
+  padding-left: 16px;
+  border-left: 3px solid var(--color-primary);
 }
 
 .cover-image {
@@ -1000,12 +992,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   max-height: 400px;
   object-fit: cover;
   display: block;
-  transition: opacity 0.3s ease-in-out;
-}
-
-.cover-image.loading {
-  opacity: 0.7;
-  filter: blur(1px);
+  border-radius: 8px;
 }
 
 .author-avatar {
@@ -1071,76 +1058,26 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .meta-stat {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   color: var(--text-subtle);
   font-size: 13px;
-  font-weight: 500;
-  transition: color 0.2s ease;
-  padding: 6px 8px;
-  border-radius: 999px;
-
-  &:hover {
-    color: var(--color-primary);
-  }
 }
 
 .category-badge {
   background: rgba(var(--color-primary-rgb), 0.1);
   color: var(--color-primary);
-  padding: 6px 12px;
-  border: 1px solid rgba(var(--color-primary-rgb), 0.18);
-  border-radius: 999px;
+  padding: 4px 12px;
+  border-radius: 4px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
 
   &:hover {
-    transform: translateY(-2px);
     background: var(--color-primary);
     color: white;
-    border-color: var(--color-primary);
   }
 }
 
-.post-summary {
-  margin: 24px 0 10px;
-  padding: 18px 22px;
-  background:
-    linear-gradient(135deg, var(--surface-glass-muted), transparent),
-    var(--bg-card);
-  border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  color: var(--text-main);
-  font-size: 0.96rem;
-  line-height: 1.78;
-  position: relative;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.36);
-}
-
-.post-summary p {
-  margin: 10px 0 0;
-  color: var(--text-main);
-}
-
-.summary-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-subtle);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.summary-label::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--color-accent);
-  box-shadow: 0 0 0 4px rgba(240, 184, 192, 0.16);
-}
 
 /* 标签云样式优化 */
 .tags-cloud {
@@ -1181,7 +1118,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 /* 富文本内容样式 - 重新设计 */
 .markdown-content {
   line-height: 1.85;
-  padding: 30px 0 26px;
+  padding: 10px 0 20px;
   color: var(--text-main);
   font-size: 16.5px;
   word-wrap: break-word;
@@ -1461,7 +1398,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
 }
 
-:root.dark .post-summary,
 :root.dark .markdown-content :deep(blockquote) {
   background:
     linear-gradient(135deg, var(--surface-glass-muted), transparent),
@@ -1778,12 +1714,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 @include respond(md) {
   .post-title {
     font-size: 1.8rem;
-    padding-bottom: 16px;
-
-    &::after {
-      width: 60px;
-      height: 3px;
-    }
   }
 
   // 文章元信息 - 移动端适配
@@ -1808,17 +1738,10 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
   .meta-stat {
     font-size: 12px;
-    gap: 4px;
-
-    svg {
-      width: 14px;
-      height: 14px;
-    }
   }
 
   .category-badge {
     font-size: 11px;
-    padding: 5px 12px;
   }
 
   // 标签云 - 移动端适配
@@ -1832,13 +1755,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   .tag {
     font-size: 12px;
     padding: 4px 10px;
-  }
-
-  // 文章摘要 - 移动端适配
-  .post-summary {
-    margin: 16px 0;
-    padding: 16px;
-    font-size: 0.95rem;
   }
 
   // 附件列表 - 移动端适配
@@ -2144,35 +2060,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   .markdown-content {
     padding: 18px 0;
     font-size: 14px;
-  }
-
-  .markdown-content :deep(h1) { font-size: 1.6em; }
-  .markdown-content :deep(h2) { font-size: 1.4em; }
-  .markdown-content :deep(h3) { font-size: 1.2em; }
-  .markdown-content :deep(h4) { font-size: 1.1em; }
-
-  .markdown-content :deep(pre) {
-    padding: 12px;
-    font-size: 12px;
-    overflow-x: auto;
-  }
-
-  .markdown-content :deep(img) {
-    max-width: 100%;
-    height: auto;
-    border-radius: 6px;
-  }
-
-  .markdown-content :deep(table) {
-    font-size: 12px;
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-
-  .markdown-content :deep(th),
-  .markdown-content :deep(td) {
-    padding: 8px 10px;
   }
 }
 </style>

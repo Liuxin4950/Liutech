@@ -1010,7 +1010,7 @@ const loadPostData = async (postId: number) => {
       content: postData.content,
       summary: postData.summary || '',
       categoryId: postData.category.id.toString(),
-      status: 'published', // 编辑已发布文章时默认保持发布状态
+      status: postData.status === 'draft' ? 'draft' : 'published',
       coverImage: postData.coverImage || '',
       thumbnail: postData.thumbnail || '',
       viewCount: postData.viewCount || 0,

@@ -35,12 +35,12 @@
           />
         </div>
 
-        <div class="flex flex-col flex-sb flex-1 relative">
+        <div class="flex flex-col flex-sb flex-1 relative ">
           <!-- <img class="article-image" src="@/assets/image/趴.webp" alt=""> -->
           <span v-if="post.category" class="article-category" @click.stop="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
           <div class="flex-1 flex flex-col gap-12">
             <h3 class="font-semibold text-primary text-xl post-title">{{ post.title }}</h3>
-            <p v-if="post.summary" class="text-subtle text-base text-sm post-summary">
+            <p v-if="post.summary" class="text-subtle text-sm post-summary">
               {{ post.summary }}
             </p>
             <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
@@ -50,7 +50,7 @@
             </div>
           </div>
 
-          <div class="flex flex-sb flex-ac mt-8">
+          <div class="article-meta mt-8">
             <div class="flex flex-ac gap-8 text-subtle">
               <img
                 v-if="post.author?.avatarUrl"
@@ -61,7 +61,7 @@
               />
               <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
             </div>
-            <div class="flex gap-12 text-sm text-subtle">
+            <div class="meta-stats flex gap-12 text-sm text-subtle">
               <span class="flex flex-ac gap-4"><Icon name="eye" size="14" /> {{ post.viewCount || 0 }}</span>
               <span class="flex flex-ac gap-4"><Icon name="heart" size="14" /> {{ post.likeCount || 0 }}</span>
               <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount }}</span>
@@ -121,6 +121,7 @@ function handleCategoryClick(categoryId: number) {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+
   .article-image{
     width: 200px;
     height: 200px;
@@ -138,12 +139,18 @@ function handleCategoryClick(categoryId: number) {
     @include respond(lg) {
       flex-wrap: wrap;
     }
+  }
 
-
+  .article-category {
+    @include respond(md) {
+      position: static;
+      align-self: flex-start;
+      margin-bottom: 8px;
+    }
   }
 .posts-img {
-  width: 200px;
-  height: 150px;
+  width: 240px;
+  height: 170px;
   border-radius: 8px;
   overflow: hidden;
    @include respond(md) {
@@ -168,6 +175,10 @@ function handleCategoryClick(categoryId: number) {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    @include respond(md) {
+      white-space: normal;
+      padding-right: 0;
+    }
 }
 .post-summary {
   display: -webkit-box;
@@ -175,9 +186,12 @@ function handleCategoryClick(categoryId: number) {
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.5;
-  height: 3em;
+  max-height: 3em;
   word-break: break-word;
-  padding-right: 20px;//图片
+  padding-right: 20px;
+  @include respond(md) {
+    padding-right: 0;
+  }
 }
 
 .retry-btn {
@@ -192,5 +206,23 @@ function handleCategoryClick(categoryId: number) {
 
 .retry-btn:hover {
   background: var(--color-primary-dark);
+}
+
+.article-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  @include respond(sm) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+.meta-stats {
+  @include respond(sm) {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 }
 </style>
