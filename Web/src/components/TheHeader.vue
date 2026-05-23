@@ -189,9 +189,9 @@ onUnmounted(() => {
               </div>
             </div>
 
-            <div class="flex flex-col link">
-              <span class="font-medium">{{ userStore.username }}</span>
-              <span class="flex flex-ac text-sm text-muted">
+            <div class="user-info-text link">
+              <span class="user-name">{{ userStore.username }}</span>
+              <span class="user-points-row">
                 <span class="user-points">{{ userStore.points }}</span>积分
               </span>
             </div>
@@ -347,21 +347,21 @@ header>div {
   background: var(--surface-glass-muted);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-radius: 40px;
+  border-radius: 25px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-soft);
   transition: all 0.3s ease;
-  padding: 4px 8px;
-  min-height: 54px;
+  padding: 0 12px;
+  height: 45px;
   @include respond(md) {
-    padding: 2px 6px;
+    padding: 0 8px;
     gap: 2px;
   }
 }
 
 .divider {
   width: 1px;
-  height: 20px;
+  height: 18px;
   background-color: var(--border-base);
   opacity: 0.5;
   
@@ -371,57 +371,95 @@ header>div {
 }
 
 .user-info-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  
   @include respond(md) {
     gap: 4px;
   }
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--border-base);
+  flex-shrink: 0;
   
   @include respond(md) {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
   }
 }
 
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.1;
+  max-width: 100px; /* 限制最大宽度防止撑开 */
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 2px var(--bg-card);
+}
+
+.user-points-row {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  margin-top: 1px;
+}
+
 .login-btn {
+  height: 100%;
+  padding: 0 8px;
   @include respond(md) {
-    padding: 4px;
+    padding: 0 4px;
     gap: 4px;
   }
 }
 
 .theme-btn {
+  height: 32px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
   @include respond(md) {
-    padding: 4px;
+    height: 36px;
+    width: 36px;
   }
 }
 
 .theme-icon {
   @include respond(md) {
-    font-size: 16px !important;
+    font-size: 20px !important;
   }
 }
 
-.font-medium{
-  text-shadow: 0 0 2px var(--bg-card);
-}
 .user-points {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  margin-right: 5px;
+  min-width: 16px;
+  height: 14px;
+  padding: 0 4px;
+  margin-right: 3px;
   display: inline-flex;
   justify-content: center;
   align-items: center;
   background-color: var(--color-warning);
-  border-radius: 9px;
+  border-radius: 7px;
   color: var(--text-main);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 ul,
@@ -491,9 +529,9 @@ ol {
   font-weight: 500;
   position: relative;
   z-index: 1;
-  padding: 14px 20px;
+  padding: 10px 20px;
   //同步最右侧导航栏高度
-  min-height: 54px;
+  height: 45px;
   border-radius: 25px;
   cursor: pointer;
   display: flex;

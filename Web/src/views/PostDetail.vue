@@ -13,7 +13,6 @@ import LoginModal from '../components/LoginModal.vue'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
 import Icon from '@/components/Icon.vue'
-import defaultCoverImage from '@/assets/image/images.jpg'
 
 // DOMPurify 安全配置：禁止危险标签和事件属性
 const sanitizeConfig = {
@@ -212,10 +211,6 @@ const showShare = ref(false)
 const showLoginModal = ref(false)
 const loginMessage = ref('点赞和收藏功能需要登录后才能使用')
 
-// 图片预加载相关状态
-const imageLoading = ref(true)
-const displayImage = ref(defaultCoverImage) // 默认图片
-
 // 购买状态
 const purchasingId = ref<number | null>(null)
 
@@ -231,79 +226,16 @@ const linkAttachments = computed(() => {
   return post.value?.attachments?.filter(a => a.resourceType === 'link') || []
 })
 
-const cleanPostSummary = computed(() => {
-  const summary = post.value?.summary?.trim() || ''
-  if (!summary) return ''
-
-  const cleaned = summary
-    .replace(/^我来帮你写一篇[^。！？]*[。！？]\s*/i, '')
-    .replace(/^首先让我看看[^。！？]*[。！？]\s*/i, '')
-    .trim()
-
-  const result = cleaned || summary
-
-  // 如果摘要和正文开头重复，不显示摘要
-  const content = (post.value?.content || '').replace(/<[^>]+>/g, '').trim()
-  if (content && content.startsWith(result.slice(0, 50))) return ''
-
-  return result
-})
-
-const stripWritingMetadata = (value: string) => {
-  const normalized = value.trim()
-  const metadataObject = [
-    '\\{[\\s\\S]*?(?:"|&quot;|\\\\")?categoryId(?:"|&quot;|\\\\")?',
-    '[\\s\\S]*?(?:"|&quot;|\\\\")?(?:tagIds|tagNames|categoryName)(?:"|&quot;|\\\\")?',
-    '[\\s\\S]*?\\}'
-  ].join('')
-  const blankParagraphTail = '(?:<p[^>]*>(?:\\s|&nbsp;|<br\\s*/?>)*</p>\\s*)*$'
-  const metadataTailPatterns = [
-    new RegExp(`(?:<p[^>]*>\\s*)?\`\`\`\\s*json\\s*(?:</p>\\s*<p[^>]*>\\s*)?${metadataObject}\\s*\`\`\`\\s*(?:</p>\\s*)?${blankParagraphTail}`, 'i'),
-    new RegExp(`(?:<p[^>]*>\\s*)?json\\s*(?:</p>\\s*<p[^>]*>\\s*)?${metadataObject}\\s*(?:\`\`\`)?\\s*(?:</p>\\s*)?${blankParagraphTail}`, 'i'),
-    new RegExp(`(?:^|\\n|<p[^>]*>\\s*)${metadataObject}\\s*(?:</p>\\s*)?${blankParagraphTail}`, 'i')
-  ]
-
-  return metadataTailPatterns.reduce((content, pattern) => content.replace(pattern, '').trim(), normalized)
-}
-
 // 计算属性：渲染富文本内容
-const renderedContent = computed(() => {
-  if (!post.value?.content) return ''
-
-  let content = stripWritingMetadata(post.value.content)
-
-  // 检查是否包含HTML标签
-  const hasHtmlTags = /<[^>]*>/g.test(content)
-
-  if (hasHtmlTags) {
-    // TinyMCE生成的HTML内容中，可能包含Markdown语法（如 **bold**）
-    // 需要将这些Markdown语法转换为HTML
-    // 注意：只转换不在HTML标签内的文本
-    content = content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-    return DOMPurify.sanitize(content, sanitizeConfig)
-  } else {
-    // 纯文本内容，进行简单的格式化
-    const html = content
-      .replace(/\n/g, '<br>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-    return DOMPurify.sanitize(html, sanitizeConfig)
-  }
-})
+const renderedContent = computed(() => DOMPurify.sanitize(post.value?.content || '', sanitizeConfig))
 
 // 监听内容变化，触发代码高亮
 watch(() => renderedContent.value, () => {
   nextTick(() => {
-    setTimeout(() => {
-      if ((window as any).Prism) {
-        (window as any).Prism.highlightAll()
-        addCopyButtons()
-      }
-  }, 100)
+    if ((window as any).Prism) {
+      (window as any).Prism.highlightAll()
+      addCopyButtons()
+    }
   })
 }, { flush: 'post' })
 
@@ -344,11 +276,6 @@ const loadPostDetail = async () => {
     currentFavoriteCount.value = postData.favoriteCount || 0
     isLiked.value = postData.likeStatus === 1  // 1表示已点赞
     isFavorited.value = postData.favoriteStatus === 1  // 1表示已收藏
-
-
-
-    // 预加载封面图片
-    preloadCoverImage(postData)
   }, {
     onError: () => {
       error.value = '加载文章详情失败，请稍后重试'
@@ -481,28 +408,6 @@ const handleFavorite = async () => {
   })
 }
 
-// 预加载封面图片
-const preloadCoverImage = (postData: PostDetail) => {
-  const imageUrl = postData.coverImage || postData.thumbnail
-
-  if (imageUrl) {
-    const img = new Image()
-    img.onload = () => {
-      // 图片加载完成，替换显示的图片
-      displayImage.value = imageUrl
-      imageLoading.value = false
-    }
-    img.onerror = () => {
-      // 图片加载失败，保持默认图片
-      imageLoading.value = false
-    }
-    img.src = imageUrl
-  } else {
-    // 没有封面图片，直接使用默认图片
-    imageLoading.value = false
-  }
-}
-
 // 返回上一页
 const goBack = () => {
   router.back()
@@ -532,38 +437,6 @@ const summarizeWithAi = () => {
 // 切换分享选项显示
 const toggleShare = () => {
   showShare.value = !showShare.value
-}
-
-// 分享到微信
-const shareToWeChat = () => {
-  const url = window.location.href
-  const title = post.value?.title || '分享文章'
-
-  // 微信分享通常需要微信JS-SDK，这里提供一个简单的实现
-  if (navigator.share) {
-    navigator.share({
-      title: title,
-      text: post.value?.summary || '来看看这篇有趣的文章',
-      url: url
-    }).catch(err => {
-      showError('分享失败，请稍后重试')
-    })
-  } else {
-    // 备用方案：复制链接
-    copyLink()
-  }
-  showShare.value = false
-}
-
-// 分享到QQ
-const shareToQQ = () => {
-  const url = encodeURIComponent(window.location.href)
-  const title = encodeURIComponent(post.value?.title || '分享文章')
-  const summary = encodeURIComponent(post.value?.summary || '来看看这篇有趣的文章')
-
-  const qqShareUrl = `https://connect.qq.com/widget/shareqq/index.html?url=${url}&title=${title}&summary=${summary}`
-  window.open(qqShareUrl, '_blank', 'width=600,height=400')
-  showShare.value = false
 }
 
 // 复制链接
@@ -662,13 +535,9 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       <!-- 文章头部信息 -->
       <header class="post-header">
         <h1 class="post-title">{{ post.title }}</h1>
-        <!-- 封面图片 -->
-        <!-- <div v-if="displayImage" class="post-cover mb-24">
-          <img :src="displayImage" :alt="post.title" class="cover-image" :class="{ 'loading': imageLoading }">
-        </div> -->
         <!-- 文章摘要 -->
-        <div v-if="cleanPostSummary" class="post-excerpt">
-          {{ cleanPostSummary }}
+        <div v-if="post.summary" class="post-excerpt">
+          {{ post.summary }}
         </div>
 
         <div class="post-meta-info">
@@ -816,37 +685,27 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
         <div class="actions-left">
           <!-- 点赞按钮 -->
           <button @click="handleLike" :class="['action-btn', { 'liked': isLiked }]" :disabled="liking">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path
-                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
+            <Icon name="heart" size="16" />
             <span>{{ isLiked ? '已点赞' : '点赞' }}</span>
             <span class="count">({{ currentLikeCount }})</span>
           </button>
 
           <!-- 收藏按钮 -->
           <button @click="handleFavorite" :class="['action-btn', { 'favorited': isFavorited }]" :disabled="favoriting">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-            </svg>
+            <Icon name="star" size="16" />
             <span>{{ isFavorited ? '已收藏' : '收藏' }}</span>
             <span class="count">({{ currentFavoriteCount }})</span>
           </button>
 
           <!-- 评论数 -->
           <div class="action-info">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
+            <Icon name="message" size="16" />
             <span>评论 ({{ post?.commentCount || 0 }})</span>
           </div>
 
           <!-- 阅读数 -->
           <div class="action-info">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            <Icon name="eye" size="16" />
             <span>阅读 ({{ post?.viewCount || 0 }})</span>
           </div>
         </div>
@@ -860,28 +719,12 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
           <!-- 分享按钮 -->
           <div class="share-group">
             <button @click="toggleShare" class="action-btn share-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
+              <Icon name="share" size="16" />
               <span>分享</span>
             </button>
 
             <!-- 分享选项 -->
             <div v-if="showShare" class="share-options">
-              <button @click="shareToWeChat" class="share-option wechat" title="分享到微信">
-                <Icon name="wechat" size="20" />
-                <span>微信</span>
-              </button>
-
-              <button @click="shareToQQ" class="share-option qq" title="分享到QQ">
-                <Icon name="qq" size="20" />
-                <span>QQ</span>
-              </button>
-
               <button @click="copyLink" class="share-option link" title="复制链接">
                 <Icon name="link" size="20" />
                 <span>复制链接</span>
@@ -979,11 +822,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 .post-excerpt {
   color: var(--text-subtle);
-  font-size: 0.95rem;
+  font-size: 1rem;
   line-height: 1.7;
   margin: 16px 0 24px;
-  padding-left: 16px;
-  border-left: 3px solid var(--color-primary);
+  padding: 0;
+  opacity: 0.85;
 }
 
 .cover-image {
@@ -1632,7 +1475,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .share-options {
   position: absolute;
   right: 0;
-  top: 52px;
+  bottom: 56px;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 12px;
@@ -1643,13 +1486,13 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   padding: 8px;
   min-width: 160px;
   z-index: 100;
-  animation: slideDown 0.2s ease-out;
+  animation: slideUp 0.2s ease-out;
 }
 
-@keyframes slideDown {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -1681,24 +1524,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .share-option:hover {
   background: var(--bg-soft);
   transform: translateX(4px);
-}
-
-.share-option.wechat:hover {
-  background: linear-gradient(135deg, #07c160, #05a850);
-  color: white;
-
-  &:deep(svg) {
-    color: white;
-  }
-}
-
-.share-option.qq:hover {
-  background: linear-gradient(135deg, #12b7f5, #0e9dd8);
-  color: white;
-
-  &:deep(svg) {
-    color: white;
-  }
 }
 
 .share-option.link:hover {

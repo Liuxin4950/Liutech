@@ -173,6 +173,13 @@ onMounted(() => {
   opacity: 0.7;
 }
 
+.fit-err {
+  width: 250px;
+  height: auto;
+  margin-top: 20px;
+  opacity: 0.6;
+}
+
 .loading p, .empty p {
   font-size: 1rem;
   margin: 0;

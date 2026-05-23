@@ -263,6 +263,8 @@ defineExpose({
   backdrop-filter: blur(14px);
   overflow: hidden;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 
   &:not(.visible) {
     .toc-header .toggle-btn svg {
@@ -275,17 +277,31 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 14px 10px;
-  background: linear-gradient(180deg, var(--state-primary-bg), transparent);
-  border-bottom: 1px solid var(--border-soft);
+  padding: 16px 20px 12px;
+  background: transparent;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
   cursor: pointer;
   user-select: none;
+  z-index: 2;
 
   h4 {
     margin: 0;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--text-title);
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    
+    &::before {
+      content: "";
+      display: block;
+      width: 4px;
+      height: 14px;
+      background: var(--color-primary);
+      border-radius: 2px;
+    }
   }
 
   .toggle-btn {
@@ -295,13 +311,16 @@ defineExpose({
     width: 28px;
     height: 28px;
     padding: 0;
-    border-radius: 999px;
-    color: var(--color-primary);
+    border-radius: 8px;
+    color: var(--text-muted);
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
-      background: var(--state-primary-bg-hover);
-      color: var(--color-primary);
+      background: var(--bg-hover);
+      color: var(--text-main);
     }
 
     svg {
@@ -310,10 +329,15 @@ defineExpose({
   }
 }
 
+:root.dark .toc-header {
+  border-bottom-color: rgba(255,255,255,0.04);
+}
+
 .toc-nav {
   max-height: calc(100vh - 280px);
   overflow-y: auto;
-  padding: 10px 8px 12px;
+  padding: 8px 12px 16px;
+  position: relative;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -325,7 +349,19 @@ defineExpose({
 
   &::-webkit-scrollbar-thumb {
     background: var(--border-soft);
+    border-radius: 4px;
+  }
+  
+  &::before {
+    content: "";
+    position: absolute;
+    left: 20px;
+    top: 8px;
+    bottom: 16px;
+    width: 2px;
+    background: var(--border-light);
     border-radius: 2px;
+    z-index: 0;
   }
 }
 
@@ -333,54 +369,47 @@ defineExpose({
   list-style: none;
   margin: 0;
   padding: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .toc-item {
-  margin: 2px 0;
+  margin: 4px 0;
+  position: relative;
 
   &.active .toc-link {
     color: var(--color-primary);
-    background: linear-gradient(90deg, var(--state-primary-bg-active), var(--state-primary-bg));
-    font-weight: 700;
+    font-weight: 600;
+    background: linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.08), transparent);
   }
 
   &.active .toc-link::before {
     background: var(--color-primary);
-    box-shadow: 0 0 0 4px var(--state-primary-bg-hover);
-    transform: translateY(-50%) scale(1.12);
+    height: 14px;
+    transform: translateY(-50%);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
   }
 
-  &.toc-level-1 .toc-link {
-    padding-left: 22px;
-    font-weight: 700;
-  }
-
-  &.toc-level-2 .toc-link {
-    padding-left: 32px;
-  }
-
-  &.toc-level-3 .toc-link {
-    padding-left: 44px;
-  }
-
+  &.toc-level-1 .toc-link { padding-left: 28px; font-weight: 600; color: var(--text-main); }
+  &.toc-level-2 .toc-link { padding-left: 28px; }
+  &.toc-level-3 .toc-link { padding-left: 40px; }
   &.toc-level-4 .toc-link,
   &.toc-level-5 .toc-link,
   &.toc-level-6 .toc-link {
-    padding-left: 54px;
+    padding-left: 52px;
     font-size: 12px;
-    color: var(--text-muted);
   }
 }
 
 .toc-link {
   position: relative;
   display: block;
-  padding: 7px 10px 7px 32px;
+  padding: 6px 12px 6px 28px;
   color: var(--text-subtle);
   text-decoration: none;
-  font-size: 12.5px;
-  line-height: 1.45;
-  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  border-radius: 6px;
   transition: all 0.2s ease;
   word-break: break-word;
 
@@ -388,21 +417,22 @@ defineExpose({
     content: "";
     position: absolute;
     top: 50%;
-    left: 10px;
-    width: 5px;
-    height: 5px;
-    border-radius: 999px;
-    background: var(--state-primary-border);
+    left: 8px;
+    width: 2px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--text-muted);
     transform: translateY(-50%);
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   &:hover {
-    color: var(--text-main);
-    background: var(--state-primary-bg);
+    color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb), 0.04);
   }
 
   &:hover::before {
+    height: 10px;
     background: var(--color-primary);
   }
 }

@@ -35,8 +35,7 @@
           />
         </div>
 
-        <div class="flex flex-col flex-sb flex-1 relative ">
-          <!-- <img class="article-image" src="@/assets/image/趴.webp" alt=""> -->
+        <div class="flex flex-col flex-sb flex-1 relative article-content ">
           <span v-if="post.category" class="article-category" @click.stop="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
           <div class="flex-1 flex flex-col gap-12">
             <h3 class="font-semibold text-primary text-xl post-title">{{ post.title }}</h3>
@@ -139,6 +138,10 @@ function handleCategoryClick(categoryId: number) {
     @include respond(lg) {
       flex-wrap: wrap;
     }
+  }
+
+  .article-content{
+    width: 100%;
   }
 
   .article-category {
