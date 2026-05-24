@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
 import Banner from '@/components/Banner.vue'
@@ -17,6 +17,7 @@ import { useTtsPlayer } from '@/composables/useTtsPlayer'
 
 const showLoader = ref(false)
 const router = useRouter()
+const route = useRoute()
 
 // 滚动位置状态
 const scrollY = ref(0)
@@ -249,8 +250,10 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   <div class="main-layout">
     <TheHeader class="header" :scroll-y="scrollY" />
     <main class="main-content">
-      <Banner class="banner" />
-      <Breadcrumb />
+      <template v-if="!route.meta.immersive">
+        <Banner class="banner" />
+        <Breadcrumb />
+      </template>
       <router-view />
       <div v-if="showModel || showChat" class="ai-content" :class="{ 'expanded': isExpanded }">
         <div class="ai-box">

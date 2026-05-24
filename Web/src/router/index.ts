@@ -134,6 +134,16 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'honors',
+        name: 'honors',
+        component: () => import('../views/Honors.vue'),
+        meta: {
+          title: '荣誉证书',
+          section: 'about',
+          immersive: true
+        }
+      },
+      {
         path: 'ai-chat',
         name: 'ai-chat-full',
         component: () => import('../components/AiChat.vue'),
