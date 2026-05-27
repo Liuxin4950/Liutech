@@ -21,7 +21,7 @@ const closePreview = () => {
 </script>
 
 <template>
-  <div class="honors-page content">
+  <div class="content">
     <section class="honors-hero">
       <div class="hero-copy">
         <h1>荣誉与证书</h1>
@@ -84,12 +84,6 @@ const closePreview = () => {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
-
-.honors-page {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 96px 20px 48px;
-}
 
 .honors-hero {
   margin-bottom: 18px;

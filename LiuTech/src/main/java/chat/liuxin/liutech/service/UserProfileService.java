@@ -227,8 +227,9 @@ public class UserProfileService {
                 ProfileResp profile = new ProfileResp();
 
                 // 设置基本信息
-                profile.setName(StringUtils.hasText(currentUser.getNickname()) ? currentUser.getNickname() : currentUser.getUsername());
-                profile.setTitle("全栈工程师"); // 默认职位，后续可以从用户表扩展字段获取
+                // profile.setName(StringUtils.hasText(currentUser.getNickname()) ? currentUser.getNickname() : currentUser.getUsername());
+                profile.setName("Liuxin");
+                profile.setTitle("全栈工程师"); 
                 profile.setAvatar(StringUtils.hasText(currentUser.getAvatarUrl()) ? currentUser.getAvatarUrl() : "/default-avatar.svg");
                 profile.setBio(StringUtils.hasText(currentUser.getBio()) ? currentUser.getBio() : "专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。");
 

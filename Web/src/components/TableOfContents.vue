@@ -47,6 +47,7 @@ interface Heading {
 const headings = ref<Heading[]>([])
 const activeId = ref<string>('')
 const isVisible = ref(true)
+const isScrolling = ref(false)
 let userToggledVisibility = false
 
 const normalizeHeadingText = (text: string) => text.replace(/\s+/g, ' ').trim()
@@ -79,12 +80,18 @@ const smoothScrollTo = (targetY: number) => {
   const startTime = performance.now()
   const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
 
+  isScrolling.value = true
+
   const animate = (now: number) => {
     const progress = Math.min((now - startTime) / duration, 1)
     window.scrollTo(0, startY + distance * easeInOutCubic(progress))
 
     if (progress < 1) {
       requestAnimationFrame(animate)
+    } else {
+      isScrolling.value = false
+      // 动画完成后更新高亮状态
+      handleScroll()
     }
   }
 
@@ -131,13 +138,15 @@ const extractHeadings = () => {
   headings.value = extractedHeadings
 }
 
+// 滚动偏移量，与固定头部高度一致
+const SCROLL_OFFSET = 80
+
 // 滚动到指定标题
 const scrollToHeading = (id: string) => {
   const element = document.getElementById(id)
   if (element) {
-    const offset = 80 // 考虑固定头部的高度
     const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
-    const offsetPosition = elementPosition - offset
+    const offsetPosition = elementPosition - SCROLL_OFFSET
 
     smoothScrollTo(offsetPosition)
     activeId.value = id
@@ -158,26 +167,31 @@ const syncResponsiveVisibility = () => {
 
 // 监听滚动，高亮当前标题
 const handleScroll = () => {
+  // 滚动动画期间不更新高亮
+  if (isScrolling.value) return
   if (headings.value.length === 0) return
 
   const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-  const offset = 100
+  let newActiveId = headings.value[0]?.id || ''
 
-  // 找到当前可见的标题
-  let currentHeading = headings.value[0]
-  
-  for (const heading of headings.value) {
-    const element = heading.element
-    const elementTop = element.getBoundingClientRect().top + scrollTop
-    
-    if (scrollTop + offset >= elementTop) {
-      currentHeading = heading
+  // 找到当前可见的标题：最后一个顶部在视口上方的标题
+  for (let i = 0; i < headings.value.length; i++) {
+    const heading = headings.value[i]
+    const elementTop = heading.element.getBoundingClientRect().top + scrollTop
+
+    // 标题顶部在视口上方（考虑偏移量）
+    if (elementTop - SCROLL_OFFSET <= scrollTop) {
+      newActiveId = heading.id
     } else {
+      // 标题在视口下方，停止查找
       break
     }
   }
 
-  activeId.value = currentHeading.id
+  // 只有当找到不同的标题时才更新
+  if (activeId.value !== newActiveId) {
+    activeId.value = newActiveId
+  }
 }
 
 // 监听内容变化，重新提取标题
@@ -254,21 +268,38 @@ defineExpose({
   position: fixed;
   top: 120px;
   right: 20px;
-  width: 280px;
+  width: 260px;
   max-height: calc(100vh - 200px);
-  background: var(--surface-glass);
-  border: 1px solid var(--border-soft);
-  border-radius: 14px;
-  box-shadow: var(--shadow-xl);
-  backdrop-filter: blur(14px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
   overflow: hidden;
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
 
   &:not(.visible) {
-    .toc-header .toggle-btn svg {
-      transform: rotate(-90deg);
+    width: 44px;
+    height: auto;
+    border-radius: 12px;
+
+    .toc-header {
+      padding: 12px 0;
+      justify-content: center;
+      border-bottom: none;
+
+      h4 {
+        display: none;
+      }
+
+      .toggle-btn {
+        transform: rotate(-90deg);
+      }
+    }
+
+    .toc-nav {
+      display: none;
     }
   }
 }
@@ -277,41 +308,29 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px 12px;
-  background: transparent;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
+  padding: 16px 16px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
   cursor: pointer;
   user-select: none;
-  z-index: 2;
 
   h4 {
     margin: 0;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-title);
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    
-    &::before {
-      content: "";
-      display: block;
-      width: 4px;
-      height: 14px;
-      background: var(--color-primary);
-      border-radius: 2px;
-    }
+    letter-spacing: 1px;
+    text-transform: uppercase;
   }
 
   .toggle-btn {
     background: none;
     border: none;
     cursor: pointer;
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
     padding: 0;
-    border-radius: 8px;
+    border-radius: 6px;
     color: var(--text-muted);
     transition: all 0.2s ease;
     display: flex;
@@ -329,119 +348,82 @@ defineExpose({
   }
 }
 
-:root.dark .toc-header {
-  border-bottom-color: rgba(255,255,255,0.04);
-}
-
 .toc-nav {
-  max-height: calc(100vh - 280px);
+  max-height: calc(100vh - 240px);
   overflow-y: auto;
-  padding: 8px 12px 16px;
-  position: relative;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-soft);
-    border-radius: 4px;
-  }
-  
-  &::before {
-    content: "";
-    position: absolute;
-    left: 20px;
-    top: 8px;
-    bottom: 16px;
-    width: 2px;
-    background: var(--border-light);
-    border-radius: 2px;
-    z-index: 0;
-  }
+  padding: 8px 0;
 }
 
 .toc-list {
   list-style: none;
   margin: 0;
-  padding: 0;
-  position: relative;
-  z-index: 1;
+  padding: 0 8px;
 }
 
 .toc-item {
-  margin: 4px 0;
+  margin: 1px 0;
   position: relative;
 
-  &.active .toc-link {
-    color: var(--color-primary);
-    font-weight: 600;
-    background: linear-gradient(90deg, rgba(var(--color-primary-rgb), 0.08), transparent);
+  &.active {
+    .toc-link {
+      color: var(--color-primary);
+      font-weight: 500;
+    }
   }
 
-  &.active .toc-link::before {
-    background: var(--color-primary);
-    height: 14px;
-    transform: translateY(-50%);
-    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
-  }
-
-  &.toc-level-1 .toc-link { padding-left: 28px; font-weight: 600; color: var(--text-main); }
-  &.toc-level-2 .toc-link { padding-left: 28px; }
-  &.toc-level-3 .toc-link { padding-left: 40px; }
+  &.toc-level-1 .toc-link { padding-left: 16px; font-weight: 600; }
+  &.toc-level-2 .toc-link { padding-left: 16px; }
+  &.toc-level-3 .toc-link { padding-left: 28px; font-size: 12px; }
   &.toc-level-4 .toc-link,
   &.toc-level-5 .toc-link,
   &.toc-level-6 .toc-link {
-    padding-left: 52px;
-    font-size: 12px;
+    padding-left: 40px;
+    font-size: 11px;
   }
 }
 
 .toc-link {
   position: relative;
-  display: block;
-  padding: 6px 12px 6px 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
   color: var(--text-subtle);
   text-decoration: none;
   font-size: 13px;
-  line-height: 1.5;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  word-break: break-word;
+  line-height: 1.4;
+  border-radius: 8px;
+  transition: color 0.15s ease;
 
   &::before {
     content: "";
-    position: absolute;
-    top: 50%;
-    left: 8px;
-    width: 2px;
-    height: 6px;
-    border-radius: 2px;
-    background: var(--text-muted);
-    transform: translateY(-50%);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--border-soft);
+    transition: background 0.15s ease;
   }
 
   &:hover {
     color: var(--color-primary);
-    background: rgba(var(--color-primary-rgb), 0.04);
-  }
 
-  &:hover::before {
-    height: 10px;
-    background: var(--color-primary);
+    &::before {
+      background: var(--color-primary);
+    }
   }
+}
+
+// 激活状态
+.toc-item.active .toc-link::before {
+  background: var(--color-primary);
 }
 
 // 响应式样式
 @include respond(lg) {
   .table-of-contents {
-    width: 240px;
-    right: 15px;
+    width: 220px;
+    right: 12px;
   }
 }
 
@@ -454,18 +436,9 @@ defineExpose({
     left: 20px;
     width: auto;
     max-height: 50vh;
-
-    &:not(.visible) {
-      .toc-nav {
-        display: none;
-      }
-    }
   }
 
   .toc-header {
-    cursor: pointer;
-    user-select: none;
-
     &:hover {
       background: var(--bg-hover);
     }

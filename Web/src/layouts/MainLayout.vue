@@ -250,10 +250,8 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   <div class="main-layout">
     <TheHeader class="header" :scroll-y="scrollY" />
     <main class="main-content">
-      <template v-if="!route.meta.immersive">
-        <Banner class="banner" />
-        <Breadcrumb />
-      </template>
+      <Banner class="banner" />
+      <Breadcrumb />
       <router-view />
       <div v-if="showModel || showChat" class="ai-content" :class="{ 'expanded': isExpanded }">
         <div class="ai-box">

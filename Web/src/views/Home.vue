@@ -92,7 +92,7 @@ const postsPagination = ref({
 const profileInfo = ref<ProfileInfo>({
   name: 'LiuTech',
   title: '全栈工程师',
-  avatar: '/default-avatar.svg',
+  avatar: '@/assets/洛天依.png',
   bio: '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。',
   stats: {
     posts: 0,
@@ -231,6 +231,7 @@ const loadProfile = async () => {
 
     profileLoading.value = true
     const response = await getAuthorProfile()
+    // 停止网络请求
     profileInfo.value = response || {}
   }, {
     onError: () => {

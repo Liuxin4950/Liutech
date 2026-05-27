@@ -97,7 +97,8 @@
                 <span class="timeline-time">{{ item.time }}</span>
               </div>
               <div v-if="timelineItems.length === 0" class="empty-tip">
-                暂无活动记录
+                <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+                <span>暂无活动记录</span>
               </div>
             </div>
           </div>
@@ -648,6 +649,9 @@ onMounted(() => {
 }
 
 .empty-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   color: var(--text-muted);
   font-size: 0.9rem;
   text-align: center;

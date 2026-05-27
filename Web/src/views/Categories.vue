@@ -89,7 +89,7 @@
                 <h2 class="text-lg font-semibold text-primary mb-0 flex flex-ac gap-8">
                     <Icon name="fire" size="20" /> 热门分类
                 </h2>
-                <div class="flex flex-wrap gap-12">
+                <div class="flex-fw gap-12">
                     <div v-for="category in popularCategories" :key="category.id"
                         class="tag  flex flex-ac gap-8 px-12 py-8 rounded-8  transition link"
                         @click="goToCategory(category.id)">

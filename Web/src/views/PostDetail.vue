@@ -787,20 +787,36 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   position: static;
   width: 100%;
   max-height: calc(100vh - 130px);
-  border-radius: 14px;
-  border: 1px solid var(--border-soft);
-  background: var(--surface-glass);
-  box-shadow: var(--shadow-xl);
-  backdrop-filter: blur(14px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
 }
 
 :deep(.article-toc .toc-header) {
-  background: linear-gradient(180deg, var(--state-primary-bg), transparent);
-  border-bottom-color: var(--border-soft);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  padding: 16px 16px 12px;
+}
+
+:deep(.article-toc .toc-header h4) {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 :deep(.article-toc .toc-link) {
-  font-size: 12.5px;
+  font-size: 13px;
+}
+
+:deep(.article-toc .toc-item.active .toc-link) {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+:deep(.article-toc .toc-item.active .toc-link::before) {
+  background: var(--color-primary);
 }
 
 .post-header {
@@ -1236,9 +1252,13 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 :root.dark :deep(.article-toc) {
-  background: var(--surface-glass);
+  background: var(--bg-card);
   border-color: var(--border-soft);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-md);
+}
+
+:root.dark :deep(.article-toc:not(.visible):hover) {
+  border-color: var(--color-primary);
 }
 
 :root.dark .markdown-content :deep(blockquote) {
@@ -1283,49 +1303,31 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   }
 
   :deep(.article-toc:not(.visible)) {
-    width: 46px;
-    height: 104px;
-    border-radius: 16px;
-    border-color: var(--state-primary-border);
-    overflow: hidden;
-    background: var(--surface-glass);
-    box-shadow: var(--shadow-xl);
+    width: 44px;
+    height: auto;
+    border-radius: 10px;
+    border: none;
+    background: var(--bg-card);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     cursor: pointer;
+  }
+
+  :deep(.article-toc:not(.visible):hover) {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   }
 
   :deep(.article-toc:not(.visible) .toc-header) {
-    width: 46px;
-    height: 104px;
-    flex-direction: column;
-    gap: 8px;
+    padding: 12px 0;
     justify-content: center;
-    align-items: center;
-    padding: 0;
-    border-bottom-color: transparent;
-    cursor: pointer;
+    border-bottom: none;
   }
 
   :deep(.article-toc:not(.visible) .toc-header h4) {
-    display: block;
-    writing-mode: vertical-rl;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0;
-    color: var(--color-primary);
+    display: none;
   }
 
   :deep(.article-toc:not(.visible) .toggle-btn) {
-    width: 28px;
-    height: 22px;
-    padding: 0;
-    color: var(--color-primary);
-    background: var(--state-primary-bg);
-  }
-
-  :deep(.article-toc:not(.visible) .toggle-btn:hover) {
-    background: var(--state-primary-bg-hover);
-    color: var(--color-primary);
+    transform: rotate(-90deg);
   }
 }
 
@@ -1669,7 +1671,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 /* 附件分组样式 */
 .attachment-section {
-  margin: 40px 32px;
+  margin: 0 0 20px 0;
 }
 
 .attachment-group {

@@ -1,7 +1,10 @@
 <template>
   <div class="card bg-card relative gap-20">
     <div class="flex flex-col flex-ac ">
-      <img :src="avatar" :alt="name" class="avatar">
+      <!-- <img :src="avatar" :alt="name" class="avatar"> -->
+      <img src="@/assets/洛天依.png" :alt="name" class="avatar">
+
+
       <div class="flex flex-col flex-ac">
         <h3 class="text-lg font-semibold mb-4">{{ name }}</h3>
         <p class="text-muted text-lg mb-0">{{ title }}</p>
@@ -47,9 +50,9 @@ interface Props {
 
 
 withDefaults(defineProps<Props>(), {
-  avatar: '/assets/image/me.png',
-  bio: '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。'
-})
+  avatar: '@/assets/洛天依.png',
+  name: 'Liuxin'
+  })
 </script>
 
 <style scoped>

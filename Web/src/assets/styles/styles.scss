@@ -37,12 +37,15 @@ input{
   height: 100%;
   object-fit: cover;
 }
+.fit-err {
+  width: 250px;
+  height: auto;
+  margin-top: 20px;
+  opacity: 0.8;
+}
 .link{
   cursor: pointer;
 }
-
-
-
 /* =================================
    应用容器样式
    ================================= */
@@ -88,7 +91,9 @@ input{
 }
 
 .flex-fw {
+  display: flex;
   flex-wrap: wrap;
+  row-gap: 12px;
 }
 
 .flex-1 {
@@ -181,7 +186,7 @@ input{
 }
 
 .tag {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   padding: 6px 14px;
   background: var(--bg-soft);

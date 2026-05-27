@@ -40,7 +40,7 @@ const currentYear = new Date().getFullYear();
           &copy; {{ currentYear }} LiuTech. All Rights Reserved.
         </p>
         <p class="made-with">
-          Made with <span class="heart">❤</span> by LiuTech
+          由 liuxin 打造
         </p>
       </div>
     </div>
@@ -165,16 +165,5 @@ const currentYear = new Date().getFullYear();
     flex-direction: column;
     gap: 12px;
   }
-
-  .heart {
-    color: var(--color-error);
-    display: inline-block;
-    animation: heartbeat 1.5s infinite ease-in-out;
-  }
-}
-
-@keyframes heartbeat {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
 }
 </style>
