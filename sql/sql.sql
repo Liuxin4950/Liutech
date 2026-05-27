@@ -368,7 +368,11 @@ VALUES
   ('site.icp_number', '', 'ICP 备案号'),
   ('site.analytics_code', '', '统计代码（如 Google Analytics）'),
   ('comment.need_review', 'true', '评论是否需要审核（true/false）'),
-  ('upload.max_size_mb', '100', '上传文件最大大小（MB）')
+  ('upload.max_size_mb', '100', '上传文件最大大小（MB）'),
+  ('author.name', '小鑫同学', '作者昵称（首页侧边栏展示）'),
+  ('author.title', '欢迎访问', '作者头衔/职位'),
+  ('author.avatar', '/洛天依.png', '作者头像 URL'),
+  ('author.bio', '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。', '作者个人简介')
 ON DUPLICATE KEY UPDATE
   description = VALUES(description);
 

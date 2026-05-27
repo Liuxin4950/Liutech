@@ -23,6 +23,7 @@ const groupLabels: Record<string, string> = {
   comment: '评论设置',
   upload: '上传设置',
   tts: '语音设置',
+  author: '作者资料设置',
   other: '其他'
 }
 
@@ -46,7 +47,11 @@ const fieldLabels: Record<string, string> = {
   'tts.siliconFlowVoiceUri': '云端音色 URI',
   'tts.responseFormat': '音频格式',
   'tts.sampleRate': '采样率',
-  'tts.speed': '语速'
+  'tts.speed': '语速',
+  'author.name': '作者昵称',
+  'author.title': '作者头衡',
+  'author.avatar': '作者头像 URL',
+  'author.bio': '个人简介'
 }
 
 // 布尔类型的设置项

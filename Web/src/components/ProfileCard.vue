@@ -1,8 +1,7 @@
 <template>
   <div class="card bg-card relative gap-20">
     <div class="flex flex-col flex-ac ">
-      <!-- <img :src="avatar" :alt="name" class="avatar"> -->
-      <img src="@/assets/洛天依.png" :alt="name" class="avatar">
+      <img :src="avatar" :alt="name" class="avatar">
 
 
       <div class="flex flex-col flex-ac">
@@ -50,7 +49,7 @@ interface Props {
 
 
 withDefaults(defineProps<Props>(), {
-  avatar: '@/assets/洛天依.png',
+  avatar: '/洛天依.png',
   name: 'Liuxin'
   })
 </script>

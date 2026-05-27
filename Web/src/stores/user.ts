@@ -46,8 +46,8 @@ export const useUserStore = defineStore('user', () => {
       await fetchUserInfo()
       return true
     } catch (error) {
-      // 错误提示由拦截器或调用方统一处理
-      return false
+      // 重新抛出，由调用方（如 handleFormSubmit）捕获并弹出 Toast
+      throw error
     } finally {
       isLoading.value = false
     }
@@ -64,8 +64,8 @@ export const useUserStore = defineStore('user', () => {
       userInfo.value = userData
       return true
     } catch (error) {
-      // 错误提示由拦截器或调用方统一处理
-      return false
+      // 重新抛出，由调用方（如 handleFormSubmit）捕获并弹出 Toast
+      throw error
     } finally {
       isLoading.value = false
     }

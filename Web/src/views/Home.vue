@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="content">
     <div class="home-layout">
       <!-- 左侧边栏 -->
@@ -92,7 +92,7 @@ const postsPagination = ref({
 const profileInfo = ref<ProfileInfo>({
   name: 'LiuTech',
   title: '全栈工程师',
-  avatar: '@/assets/洛天依.png',
+  avatar: '/洛天依.png',
   bio: '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。',
   stats: {
     posts: 0,

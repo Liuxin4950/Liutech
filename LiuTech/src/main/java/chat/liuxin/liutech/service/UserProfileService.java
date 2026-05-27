@@ -6,6 +6,7 @@ import chat.liuxin.liutech.mapper.CommentsMapper;
 import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
+import chat.liuxin.liutech.mapper.SystemSettingMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Users;
@@ -58,6 +59,9 @@ public class UserProfileService {
 
     @Autowired
     private FileUtil fileUtil;
+
+    @Autowired
+    private SystemSettingMapper systemSettingMapper;
 
     /**
      * 更新当前用户个人资料
@@ -230,7 +234,7 @@ public class UserProfileService {
                 // profile.setName(StringUtils.hasText(currentUser.getNickname()) ? currentUser.getNickname() : currentUser.getUsername());
                 profile.setName("Liuxin");
                 profile.setTitle("全栈工程师"); 
-                profile.setAvatar(StringUtils.hasText(currentUser.getAvatarUrl()) ? currentUser.getAvatarUrl() : "/default-avatar.svg");
+                profile.setAvatar(StringUtils.hasText(currentUser.getAvatarUrl()) ? currentUser.getAvatarUrl() : "/洛天依.png");
                 profile.setBio(StringUtils.hasText(currentUser.getBio()) ? currentUser.getBio() : "专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。");
 
                 // 获取统计信息
@@ -284,16 +288,22 @@ public class UserProfileService {
     @Transactional(readOnly = true)
     public ProfileResp getDefaultProfile() {
         ProfileResp profile = new ProfileResp();
-        profile.setName("LiuTech");
-        profile.setTitle("欢迎访问");
-        profile.setAvatar("/default-avatar.svg");
-        profile.setBio("欢迎来到我的博客！这里分享技术文章、编程心得和生活感悟。");
+
+        // 从数据库读取作者资料配置
+        String authorName = getSettingValue("author.name", "小鑫同学");
+        String authorTitle = getSettingValue("author.title", "欢迎访问");
+        String authorAvatar = getSettingValue("author.avatar", "/洛天依.png");
+        String authorBio = getSettingValue("author.bio", "欢迎来到我的博客！这里分享技术文章、编程心得和生活感悟。");
+
+        profile.setName(authorName);
+        profile.setTitle(authorTitle);
+        profile.setAvatar(authorAvatar != null && !authorAvatar.isEmpty() ? authorAvatar : "/洛天依.png");
+        profile.setBio(authorBio);
 
         // 设置默认统计信息
         ProfileResp.Stats stats = new ProfileResp.Stats();
 
         try {
-            // 获取网站总体统计信息
             Integer totalComments = commentsMapper.countAllComments();
             Integer totalPosts = postsMapper.countAllPublishedPosts();
             Long totalViews = postsMapper.countAllViews();
@@ -307,7 +317,6 @@ public class UserProfileService {
 
         } catch (Exception e) {
             log.error("获取默认个人资料统计信息失败: {}", e.getMessage(), e);
-            // 如果获取失败，设置默认值
             stats.setComments(0L);
             stats.setPosts(0L);
             stats.setViews(0L);
@@ -315,6 +324,21 @@ public class UserProfileService {
 
         profile.setStats(stats);
         return profile;
+    }
+
+    /**
+     * 从 system_settings 表读取配置值，不存在时返回默认值
+     */
+    private String getSettingValue(String key, String defaultValue) {
+        try {
+            var setting = systemSettingMapper.selectByKey(key);
+            if (setting != null && setting.getSettingValue() != null && !setting.getSettingValue().isEmpty()) {
+                return setting.getSettingValue();
+            }
+        } catch (Exception e) {
+            log.warn("读取系统设置失败: key={}, error={}", key, e.getMessage());
+        }
+        return defaultValue;
     }
 
     /**

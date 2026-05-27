@@ -45,6 +45,11 @@ public class SystemSettingsAdminService {
         PREDEFINED_SETTINGS.put("comment.need_review", new String[]{"true", "评论是否需要审核（true/false）", "comment"});
         // 上传设置
         PREDEFINED_SETTINGS.put("upload.max_size_mb", new String[]{"100", "上传文件最大大小（MB）", "upload"});
+        // 作者资料设置
+        PREDEFINED_SETTINGS.put("author.name", new String[]{"小鑫同学", "作者昵称（首页侧边栏展示）", "author"});
+        PREDEFINED_SETTINGS.put("author.title", new String[]{"欢迎访问", "作者头衔/职位", "author"});
+        PREDEFINED_SETTINGS.put("author.avatar", new String[]{"/洛天依.png", "作者头像 URL", "author"});
+        PREDEFINED_SETTINGS.put("author.bio", new String[]{"专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。", "作者个人简介", "author"});
     }
 
     /**
@@ -122,6 +127,7 @@ public class SystemSettingsAdminService {
         groupLabels.put("comment", "评论设置");
         groupLabels.put("upload", "上传设置");
         groupLabels.put("tts", "语音设置");
+        groupLabels.put("author", "作者资料设置");
         groupLabels.put("other", "其他");
 
         for (String group : groupLabels.keySet()) {
@@ -170,6 +176,7 @@ public class SystemSettingsAdminService {
         if (key.startsWith("comment.")) return "comment";
         if (key.startsWith("upload.")) return "upload";
         if (key.startsWith("tts.")) return "tts";
+        if (key.startsWith("author.")) return "author";
         return "other";
     }
 }
