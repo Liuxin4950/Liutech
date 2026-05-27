@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { ref, onMounted } from 'vue'
+import { useTablePage, useModalForm } from '@/composables'
 import PointsService from '../../services/points'
 import { UserService } from '../../services/user'
 import type { TransactionListParams, CheckinListParams, PointsStats } from '../../services/points'
@@ -12,19 +12,13 @@ const activeTab = ref('transactions')
 
 // =================== 积分统计 ===================
 const statsLoading = ref(false)
-const stats = ref<PointsStats>({
-  totalIssued: 0,
-  totalConsumed: 0,
-  totalBalance: 0
-})
+const stats = ref<PointsStats>({ totalIssued: 0, totalConsumed: 0, totalBalance: 0 })
 
 const loadStats = async () => {
   try {
     statsLoading.value = true
     const response = await PointsService.getPointsStats()
-    if (response.code === 200) {
-      stats.value = response.data
-    }
+    if (response.code === 200) stats.value = response.data
   } catch (error) {
     console.error('加载积分统计失败:', error)
   } finally {
@@ -33,26 +27,6 @@ const loadStats = async () => {
 }
 
 // =================== 积分流水 Tab ===================
-const txLoading = ref(false)
-const txDataSource = ref<PointsTransaction[]>([])
-
-const txPagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
-})
-
-const txSearchParams = ref<TransactionListParams>({
-  userId: undefined,
-  transactionType: undefined,
-  startTime: undefined,
-  endTime: undefined
-})
-
-// 交易类型选项
 const transactionTypeOptions = [
   { label: '签到', value: 'checkin' },
   { label: '消费', value: 'consumption' },
@@ -60,7 +34,6 @@ const transactionTypeOptions = [
   { label: '管理员调整', value: 'admin_adjust' }
 ]
 
-// 交易类型显示映射
 const transactionTypeMap: Record<string, { label: string; color: string }> = {
   checkin: { label: '签到', color: 'green' },
   consumption: { label: '消费', color: 'red' },
@@ -68,7 +41,6 @@ const transactionTypeMap: Record<string, { label: string; color: string }> = {
   admin_adjust: { label: '管理员调整', color: 'blue' }
 }
 
-// 来源类型显示映射
 const sourceTypeMap: Record<string, string> = {
   post_purchase: '文章购买',
   checkin: '签到',
@@ -80,7 +52,6 @@ const sourceTypeMap: Record<string, string> = {
   comment_reward: '评论奖励'
 }
 
-// 积分流水表格列
 const txColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
   { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
@@ -92,75 +63,18 @@ const txColumns = [
   { title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 }
 ]
 
-// 加载积分流水
-const loadTransactions = async () => {
-  try {
-    txLoading.value = true
-    const params = {
-      page: txPagination.current,
-      size: txPagination.pageSize,
-      ...txSearchParams.value
-    }
-    const response = await PointsService.getTransactionList(params)
-    if (response.code === 200) {
-      txDataSource.value = response.data.records
-      txPagination.total = response.data.total
-    } else {
-      message.error(response.message || '加载积分流水失败')
-    }
-  } catch (error) {
-    message.error('加载积分流水失败')
-    console.error('加载积分流水失败:', error)
-  } finally {
-    txLoading.value = false
-  }
-}
-
-// 积分流水搜索
-const handleTxSearch = () => {
-  txPagination.current = 1
-  loadTransactions()
-}
-
-// 积分流水重置
-const handleTxReset = () => {
-  txSearchParams.value = {
-    userId: undefined,
-    transactionType: undefined,
-    startTime: undefined,
-    endTime: undefined
-  }
-  txPagination.current = 1
-  loadTransactions()
-}
-
-// 积分流水分页变化
-const handleTxTableChange = (p: any) => {
-  txPagination.current = p.current
-  txPagination.pageSize = p.pageSize
-  loadTransactions()
-}
+const {
+  loading: txLoading, dataSource: txDataSource, searchParams: txSearchParams,
+  pagination: txPagination, load: loadTransactions, handleSearch: handleTxSearch,
+  handleReset: handleTxReset, handleTableChange: handleTxTableChange
+} = useTablePage<PointsTransaction, TransactionListParams>({
+  loadFn: (params) => PointsService.getTransactionList(params),
+  defaultSearchParams: { userId: undefined, transactionType: undefined, startTime: undefined, endTime: undefined },
+  loadErrorMessage: '加载积分流水失败',
+  autoLoad: false
+})
 
 // =================== 签到记录 Tab ===================
-const checkinLoading = ref(false)
-const checkinDataSource = ref<UserCheckin[]>([])
-
-const checkinPagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
-})
-
-const checkinSearchParams = ref<CheckinListParams>({
-  userId: undefined,
-  startDate: undefined,
-  endDate: undefined
-})
-
-// 签到记录表格列
 const checkinColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
   { title: '用户名', dataIndex: 'username', key: 'username', width: 120 },
@@ -170,68 +84,37 @@ const checkinColumns = [
   { title: '签到时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 }
 ]
 
-// 加载签到记录
-const loadCheckins = async () => {
-  try {
-    checkinLoading.value = true
-    const params = {
-      page: checkinPagination.current,
-      size: checkinPagination.pageSize,
-      ...checkinSearchParams.value
-    }
-    const response = await PointsService.getCheckinList(params)
-    if (response.code === 200) {
-      checkinDataSource.value = response.data.records
-      checkinPagination.total = response.data.total
-    } else {
-      message.error(response.message || '加载签到记录失败')
-    }
-  } catch (error) {
-    message.error('加载签到记录失败')
-    console.error('加载签到记录失败:', error)
-  } finally {
-    checkinLoading.value = false
-  }
-}
-
-// 签到记录搜索
-const handleCheckinSearch = () => {
-  checkinPagination.current = 1
-  loadCheckins()
-}
-
-// 签到记录重置
-const handleCheckinReset = () => {
-  checkinSearchParams.value = {
-    userId: undefined,
-    startDate: undefined,
-    endDate: undefined
-  }
-  checkinPagination.current = 1
-  loadCheckins()
-}
-
-// 签到记录分页变化
-const handleCheckinTableChange = (p: any) => {
-  checkinPagination.current = p.current
-  checkinPagination.pageSize = p.pageSize
-  loadCheckins()
-}
-
-// =================== 手动调整积分弹窗 ===================
-const adjustModalVisible = ref(false)
-const adjustLoading = ref(false)
-const adjustFormRef = ref()
-const adjustForm = ref({
-  userId: undefined as number | undefined,
-  amount: undefined as number | undefined,
-  description: ''
+const {
+  loading: checkinLoading, dataSource: checkinDataSource, searchParams: checkinSearchParams,
+  pagination: checkinPagination, load: loadCheckins, handleSearch: handleCheckinSearch,
+  handleReset: handleCheckinReset, handleTableChange: handleCheckinTableChange
+} = useTablePage<UserCheckin, CheckinListParams>({
+  loadFn: (params) => PointsService.getCheckinList(params),
+  defaultSearchParams: { userId: undefined, startDate: undefined, endDate: undefined },
+  loadErrorMessage: '加载签到记录失败',
+  autoLoad: false
 })
 
+// =================== 手动调整积分弹窗 ===================
 const adjustRules = {
   userId: [{ required: true, message: '请选择用户' }],
   amount: [{ required: true, message: '请输入调整金额' }]
 }
+
+const {
+  modalVisible: adjustModalVisible, confirmLoading: adjustLoading,
+  formRef: adjustFormRef, formModel: adjustForm,
+  openCreate: openAdjustModal, handleOk: handleAdjustOk, handleCancel: handleAdjustCancel
+} = useModalForm({
+  createFn: async (data) => PointsService.adjustPoints({
+    userId: data.userId as number,
+    amount: data.amount as number,
+    description: data.description || undefined
+  }),
+  defaultForm: () => ({ userId: undefined as number | undefined, amount: undefined as number | undefined, description: '' }),
+  onCreateSuccess: () => { loadTransactions(); loadStats() },
+  entityName: '积分调整'
+})
 
 // 用户搜索
 const userOptions = ref<{ label: string; value: number }[]>([])
@@ -250,55 +133,11 @@ const handleUserSearch = async (value: string) => {
         value: u.id
       }))
     }
-  } catch (e) {
+  } catch {
     // ignore
   } finally {
     userSearchLoading.value = false
   }
-}
-
-const openAdjustModal = () => {
-  adjustForm.value = {
-    userId: undefined,
-    amount: undefined,
-    description: ''
-  }
-  adjustModalVisible.value = true
-}
-
-const handleAdjustOk = async () => {
-  try {
-    adjustLoading.value = true
-    await adjustFormRef.value?.validate?.()
-
-    if (!adjustForm.value.userId || adjustForm.value.amount === undefined) {
-      message.error('请填写完整信息')
-      return
-    }
-
-    const response = await PointsService.adjustPoints({
-      userId: adjustForm.value.userId,
-      amount: adjustForm.value.amount,
-      description: adjustForm.value.description || undefined
-    })
-
-    if (response.code === 200) {
-      message.success('积分调整成功')
-      adjustModalVisible.value = false
-      loadTransactions()
-      loadStats()
-    } else {
-      message.error(response.message || '积分调整失败')
-    }
-  } catch (e) {
-    // 表单校验失败或请求错误
-  } finally {
-    adjustLoading.value = false
-  }
-}
-
-const handleAdjustCancel = () => {
-  adjustModalVisible.value = false
 }
 
 // =================== Tab 切换 ===================
@@ -359,7 +198,6 @@ onMounted(() => {
       <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
         <!-- 积分流水 Tab -->
         <a-tab-pane key="transactions" tab="积分流水">
-          <!-- 搜索区域 -->
           <a-form layout="horizontal" :model="txSearchParams" class="mb-16">
             <a-row :gutter="24">
               <a-col :span="4">
@@ -423,12 +261,10 @@ onMounted(() => {
             </a-row>
           </a-form>
 
-          <!-- 操作栏 -->
           <div class="mb-16">
             <a-button type="primary" @click="openAdjustModal">手动调整积分</a-button>
           </div>
 
-          <!-- 表格 -->
           <a-table
             :columns="txColumns"
             :data-source="txDataSource"
@@ -460,7 +296,6 @@ onMounted(() => {
 
         <!-- 签到记录 Tab -->
         <a-tab-pane key="checkins" tab="签到记录">
-          <!-- 搜索区域 -->
           <a-form layout="horizontal" :model="checkinSearchParams" class="mb-16">
             <a-row :gutter="24">
               <a-col :span="4">
@@ -505,7 +340,6 @@ onMounted(() => {
             </a-row>
           </a-form>
 
-          <!-- 表格 -->
           <a-table
             :columns="checkinColumns"
             :data-source="checkinDataSource"
@@ -576,20 +410,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.mb-0 {
-  margin-bottom: 0;
-}
-
-.mb-16 {
-  margin-bottom: 16px;
-}
-
 .mt-16 {
   margin-top: 16px;
-}
-
-.text-right {
-  text-align: right;
 }
 
 .form-tip {

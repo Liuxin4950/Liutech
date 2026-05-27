@@ -79,7 +79,7 @@ instance.interceptors.response.use(
     return response
   },
   (error) => {
-    console.error('API 请求失败', error)
+    console.error('API 请求失败:', error?.message, error?.code, error?.config?.url, error?.response?.status)
 
     // 拦截器只负责路由跳转，不弹窗（弹窗由调用方或 handleApiError 处理）
 
@@ -177,3 +177,5 @@ export const del = async <T = any>(
 // 导出 axios 实例，供特殊需求使用
 export { instance as axiosInstance }
 export default instance
+
+

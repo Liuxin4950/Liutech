@@ -1,32 +1,54 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import CategoriesService from '../../services/categories'
 import type { Category, CategoryListParams } from '../../services/categories'
 import { formatDateTime } from '../../utils/utils'
 
-// 响应式数据
-const loading = ref(false)
-const dataSource = ref<Category[]>([])
-const selectedRowKeys = ref<number[]>([])
-
-// 分页配置 - 使用 reactive 对象确保响应式
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
+// 表格页面：加载、分页、搜索、选择
+const {
+  loading, dataSource, selectedRowKeys, searchParams, pagination,
+  load, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
+} = useTablePage<Category, CategoryListParams>({
+  loadFn: (params) => CategoriesService.getCategoryList(params),
+  defaultSearchParams: { name: '', includeDeleted: false },
+  loadErrorMessage: '加载分类失败'
 })
 
-// 搜索参数
-const searchParams = ref<CategoryListParams>({
-  name: '',
-  includeDeleted: false
+// CRUD 操作：删除、恢复、彻底删除、批量操作
+const {
+  handleDelete, handleBatchDelete, handleRestore,
+  handlePermanentDelete, handleBatchPermanentDelete
+} = useCrudActions({
+  deleteFn: (id) => CategoriesService.deleteCategory(id),
+  batchDeleteFn: (ids) => CategoriesService.batchDeleteCategories(id),
+  restoreFn: (id) => CategoriesService.restoreCategory(id),
+  permanentDeleteFn: (id) => CategoriesService.permanentDeleteCategory(id),
+  batchPermanentDeleteFn: (ids) => CategoriesService.batchPermanentDeleteCategories(id),
+  onRefresh: load,
+  clearSelection,
+  entityName: '分类'
 })
 
+// 弹窗表单：新建/编辑
+const {
+  modalVisible, modalTitle, confirmLoading,
+  formRef, formModel, openCreate, openEdit, handleOk, handleCancel
+} = useModalForm<Category>({
+  createFn: (data) => CategoriesService.createCategory(data) as any,
+  updateFn: (id, data) => CategoriesService.updateCategory(id, data) as any,
+  defaultForm: () => ({ name: '', description: '' }),
+  onCreateSuccess: () => { pagination.current = 1; load() },
+  onUpdateSuccess: load,
+  entityName: '分类'
+})
+
+// 表单校验规则
+const rules = {
+  name: [{ required: true, message: '请输入分类名称' }]
+}
+
+// 表格列定义
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
   { title: '描述', dataIndex: 'description', key: 'description' },
@@ -35,132 +57,11 @@ const columns = [
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
   { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
 ]
-
-// 弹窗相关
-const modalVisible = ref(false)
-const modalTitle = ref('新建分类')
-const isEdit = ref(false)
-const editingId = ref<number | null>(null)
-const confirmLoading = ref(false)
-
-const formRef = ref()
-const formModel = ref<Partial<Category>>({ name: '', description: '' })
-const rules = {
-  name: [{ required: true, message: '请输入分类名称' }]
-}
-
-const openCreate = () => {
-  isEdit.value = false
-  modalTitle.value = '新建分类'
-  editingId.value = null
-  formModel.value = { name: '', description: '' }
-  modalVisible.value = true
-}
-
-const openEdit = (record: Category) => {
-  isEdit.value = true
-  modalTitle.value = '编辑分类'
-  editingId.value = record.id || null
-  formModel.value = { name: record.name, description: record.description }
-  modalVisible.value = true
-}
-
-const handleOk = async () => {
-  try {
-    confirmLoading.value = true
-    await formRef.value?.validate?.()
-    if (isEdit.value) {
-      const res = await CategoriesService.updateCategory(editingId.value as number, formModel.value as any)
-      if (res.code === 200) {
-        message.success('更新成功')
-        modalVisible.value = false
-        loadCategories()
-      } else {
-        message.error(res.message || '更新失败')
-      }
-    } else {
-      const res = await CategoriesService.createCategory(formModel.value as any)
-      if (res.code === 200) {
-        message.success('创建成功')
-        modalVisible.value = false
-        pagination.current = 1
-        loadCategories()
-      } else {
-        message.error(res.message || '创建失败')
-      }
-    }
-  } catch (e) {
-    // ignore
-  } finally {
-    confirmLoading.value = false
-  }
-}
-
-const handleCancel = () => { modalVisible.value = false }
-
-// 列表加载
-const loadCategories = async () => {
-  try {
-    loading.value = true
-    const params = { page: pagination.current, size: pagination.pageSize, ...searchParams.value }
-    const res = await CategoriesService.getCategoryList(params)
-    if (res.code === 200) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total
-    } else {
-      message.error(res.message || '加载分类失败')
-    }
-  } catch (e) {
-    message.error('加载分类失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleSearch = () => { pagination.current = 1; loadCategories() }
-const handleReset = () => { searchParams.value = { name: '', includeDeleted: false }; pagination.current = 1; loadCategories() }
-
-// 恢复删除
-const handleRestore = async (id: number) => {
-  const res = await CategoriesService.restoreCategory(id)
-  if (res.code === 200) { message.success('恢复成功'); loadCategories() } else { message.error(res.message || '恢复失败') }
-}
-
-// 彻底删除
-const handlePermanentDelete = async (id: number) => {
-  const res = await CategoriesService.permanentDeleteCategory(id)
-  if (res.code === 200) { message.success('彻底删除成功'); loadCategories() } else { message.error(res.message || '彻底删除失败') }
-}
-
-// 批量彻底删除
-const handleBatchPermanentDelete = async () => {
-  if (!selectedRowKeys.value.length) { message.warning('请选择要彻底删除的分类'); return }
-  const res = await CategoriesService.batchPermanentDeleteCategories(selectedRowKeys.value)
-  if (res.code === 200) { message.success('批量彻底删除成功'); selectedRowKeys.value = []; loadCategories() } else { message.error(res.message || '批量彻底删除失败') }
-}
-const handleTableChange = (p: any) => {
-  pagination.current = p.current
-  pagination.pageSize = p.pageSize
-  loadCategories()
-}
-const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
-
-const handleDelete = async (id: number) => {
-  const res = await CategoriesService.deleteCategory(id)
-  if (res.code === 200) { message.success('删除成功'); loadCategories() } else { message.error(res.message || '删除失败') }
-}
-
-const handleBatchDelete = async () => {
-  if (!selectedRowKeys.value.length) { message.warning('请选择要删除的分类'); return }
-  const res = await CategoriesService.batchDeleteCategories(selectedRowKeys.value)
-  if (res.code === 200) { message.success('批量删除成功'); selectedRowKeys.value = []; loadCategories() } else { message.error(res.message || '批量删除失败') }
-}
-
-onMounted(() => { loadCategories() })
 </script>
 
 <template>
   <div class="p-24">
+    <!-- 搜索卡片 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
@@ -188,26 +89,27 @@ onMounted(() => { loadCategories() })
       </a-form>
     </a-card>
 
-
+    <!-- 表格卡片 -->
     <a-card :bordered="false">
-       <template #title>
-        <span>分类列表</span>
-      </template>
+      <template #title><span>分类列表</span></template>
       <template #extra>
         <a-space>
-        <a-button type="primary" @click="openCreate"> <template #icon><PlusOutlined /></template>新建分类</a-button>
-        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
-          <template #icon><DeleteOutlined /></template>批量删除</a-button>
-        <a-popconfirm 
-          v-if="searchParams.includeDeleted"
-          title="确定要批量彻底删除选中的分类吗？此操作不可恢复！" 
-          ok-text="确定" 
-          cancel-text="取消"
-          @confirm="handleBatchPermanentDelete"
-        >
-          <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
-        </a-popconfirm>
-      </a-space>
+          <a-button type="primary" @click="openCreate">
+            <template #icon><PlusOutlined /></template>新建分类
+          </a-button>
+          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
+            <template #icon><DeleteOutlined /></template>批量删除
+          </a-button>
+          <a-popconfirm
+            v-if="searchParams.includeDeleted"
+            title="确定要批量彻底删除选中的分类吗？此操作不可恢复！"
+            ok-text="确定"
+            cancel-text="取消"
+            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+          >
+            <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+          </a-popconfirm>
+        </a-space>
       </template>
       <a-table
         :columns="columns"
@@ -237,9 +139,9 @@ onMounted(() => { loadCategories() })
                 <a-popconfirm title="确定恢复该分类吗？" @confirm="handleRestore(record.id)">
                   <a-button type="link" size="small">恢复</a-button>
                 </a-popconfirm>
-                <a-popconfirm 
-                  title="确定要彻底删除该分类吗？此操作不可恢复！" 
-                  ok-text="确定" 
+                <a-popconfirm
+                  title="确定要彻底删除该分类吗？此操作不可恢复！"
+                  ok-text="确定"
                   cancel-text="取消"
                   @confirm="handlePermanentDelete(record.id)"
                 >
@@ -252,6 +154,7 @@ onMounted(() => { loadCategories() })
       </a-table>
     </a-card>
 
+    <!-- 新建/编辑弹窗 -->
     <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
         <a-form-item name="name" label="分类名称" required>
@@ -264,11 +167,3 @@ onMounted(() => { loadCategories() })
     </a-modal>
   </div>
 </template>
-
-<style scoped>
-.search-card,
-.action-card {
-  margin-bottom: 16px;
-  border-radius: 8px;
-}
-</style>

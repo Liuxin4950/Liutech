@@ -1,34 +1,42 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
-import { SearchOutlined, ReloadOutlined, DeleteOutlined, CommentOutlined } from '@ant-design/icons-vue'
+import { SearchOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { useTablePage, useCrudActions } from '@/composables'
 import CommentsService from '../../services/comments'
 import type { Comment, CommentListParams } from '../../services/comments'
 import { formatDateTime } from '../../utils/utils'
 
-// 响应式数据
-const loading = ref(false)
-const dataSource = ref<Comment[]>([])
-const selectedRowKeys = ref<number[]>([])
-
-// 分页配置
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
+// 表格页面：加载、分页、搜索、选择
+const {
+  loading, dataSource, selectedRowKeys, searchParams, pagination,
+  load, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
+} = useTablePage<Comment, CommentListParams>({
+  loadFn: (params) => CommentsService.getCommentList(params),
+  defaultSearchParams: { postId: undefined, userId: undefined, status: undefined, includeDeleted: false },
+  loadErrorMessage: '加载评论失败'
 })
 
-// 搜索参数
-const searchParams = ref<CommentListParams>({
-  postId: undefined,
-  userId: undefined,
-  status: undefined,
-  includeDeleted: false
+// CRUD 操作：删除、恢复、彻底删除、批量操作
+const {
+  handleDelete, handleBatchDelete, handleRestore,
+  handlePermanentDelete, handleBatchPermanentDelete
+} = useCrudActions({
+  deleteFn: (id) => CommentsService.deleteComment(id),
+  batchDeleteFn: (ids) => CommentsService.batchDeleteComments(id),
+  restoreFn: (id) => CommentsService.restoreComment(id),
+  permanentDeleteFn: (id) => CommentsService.permanentDeleteComment(id),
+  batchPermanentDeleteFn: (ids) => CommentsService.batchPermanentDeleteComments(id),
+  onRefresh: load,
+  clearSelection,
+  entityName: '评论'
 })
 
+// 截取评论内容前100字
+const truncateContent = (content: string) => {
+  if (!content) return ''
+  return content.length > 100 ? content.substring(0, 100) + '...' : content
+}
+
+// 表格列定义
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
   { title: '文章标题', dataIndex: 'postTitle', key: 'postTitle', ellipsis: true },
@@ -39,83 +47,11 @@ const columns = [
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
 ]
-
-// 截取评论内容前100字
-const truncateContent = (content: string) => {
-  if (!content) return ''
-  return content.length > 100 ? content.substring(0, 100) + '...' : content
-}
-
-// 列表加载
-const loadComments = async () => {
-  try {
-    loading.value = true
-    const params = { page: pagination.current, size: pagination.pageSize, ...searchParams.value }
-    const res = await CommentsService.getCommentList(params)
-    if (res.code === 200) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total
-    } else {
-      message.error(res.message || '加载评论失败')
-    }
-  } catch (e) {
-    message.error('加载评论失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleSearch = () => { pagination.current = 1; loadComments() }
-const handleReset = () => {
-  searchParams.value = { postId: undefined, userId: undefined, status: undefined, includeDeleted: false }
-  pagination.current = 1
-  loadComments()
-}
-
-// 软删除
-const handleDelete = async (id: number) => {
-  const res = await CommentsService.deleteComment(id)
-  if (res.code === 200) { message.success('删除成功'); loadComments() } else { message.error(res.message || '删除失败') }
-}
-
-// 批量软删除
-const handleBatchDelete = async () => {
-  if (!selectedRowKeys.value.length) { message.warning('请选择要删除的评论'); return }
-  const res = await CommentsService.batchDeleteComments(selectedRowKeys.value)
-  if (res.code === 200) { message.success('批量删除成功'); selectedRowKeys.value = []; loadComments() } else { message.error(res.message || '批量删除失败') }
-}
-
-// 恢复
-const handleRestore = async (id: number) => {
-  const res = await CommentsService.restoreComment(id)
-  if (res.code === 200) { message.success('恢复成功'); loadComments() } else { message.error(res.message || '恢复失败') }
-}
-
-// 彻底删除
-const handlePermanentDelete = async (id: number) => {
-  const res = await CommentsService.permanentDeleteComment(id)
-  if (res.code === 200) { message.success('彻底删除成功'); loadComments() } else { message.error(res.message || '彻底删除失败') }
-}
-
-// 批量彻底删除
-const handleBatchPermanentDelete = async () => {
-  if (!selectedRowKeys.value.length) { message.warning('请选择要彻底删除的评论'); return }
-  const res = await CommentsService.batchPermanentDeleteComments(selectedRowKeys.value)
-  if (res.code === 200) { message.success('批量彻底删除成功'); selectedRowKeys.value = []; loadComments() } else { message.error(res.message || '批量彻底删除失败') }
-}
-
-const handleTableChange = (p: any) => {
-  pagination.current = p.current
-  pagination.pageSize = p.pageSize
-  loadComments()
-}
-const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
-
-onMounted(() => { loadComments() })
 </script>
 
 <template>
   <div class="p-24">
+    <!-- 搜索卡片 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
@@ -156,13 +92,12 @@ onMounted(() => { loadComments() })
       </a-form>
     </a-card>
 
+    <!-- 表格卡片 -->
     <a-card :bordered="false">
-      <template #title>
-        <span>评论列表</span>
-      </template>
+      <template #title><span>评论列表</span></template>
       <template #extra>
         <a-space>
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
+          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
             <template #icon><DeleteOutlined /></template>批量删除
           </a-button>
           <a-popconfirm
@@ -170,7 +105,7 @@ onMounted(() => { loadComments() })
             title="确定要批量彻底删除选中的评论吗？此操作不可恢复！"
             ok-text="确定"
             cancel-text="取消"
-            @confirm="handleBatchPermanentDelete"
+            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
           >
             <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
           </a-popconfirm>
@@ -231,13 +166,3 @@ onMounted(() => { loadComments() })
     </a-card>
   </div>
 </template>
-
-<style scoped>
-.mb-16 {
-  margin-bottom: 16px;
-}
-
-.text-right {
-  text-align: right;
-}
-</style>

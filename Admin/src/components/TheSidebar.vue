@@ -11,14 +11,17 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   HistoryOutlined,
-  CloudOutlined,
   SettingOutlined,
   PictureOutlined,
   RobotOutlined,
   MessageOutlined,
   CommentOutlined,
   DollarOutlined,
-  CloudDownloadOutlined
+  CloudOutlined,
+  CloudDownloadOutlined,
+  FundOutlined,
+  CloudServerOutlined,
+  ThunderboltOutlined
 } from '@ant-design/icons-vue'
 import logoUrl from '@/assets/image/logo/logo.png'
 
@@ -58,22 +61,46 @@ const menuItems = [
       { key: 'points', icon: DollarOutlined, label: '积分管理', path: '/points' }
     ]
   },
+  // 运营管理分组
+  {
+    key: 'operations',
+    icon: FundOutlined,
+    label: '运营管理',
+    children: [
+      { key: 'announcements', icon: NotificationOutlined, label: '公告管理', path: '/announcements' },
+      { key: 'carousels', icon: PictureOutlined, label: '轮播图管理', path: '/carousels' },
+      { key: 'messages', icon: MessageOutlined, label: '留言管理', path: '/messages' }
+    ]
+  },
+  // 媒体资源分组
+  {
+    key: 'media',
+    icon: CloudServerOutlined,
+    label: '媒体资源',
+    children: [
+      { key: 'images', icon: PictureOutlined, label: '图片管理', path: '/images' },
+      { key: 'resources', icon: CloudDownloadOutlined, label: '资源管理', path: '/resources' },
+      { key: 'music', icon: CloudOutlined, label: 'AI音乐管理', path: '/music' }
+    ]
+  },
+  // AI 中心分组
+  {
+    key: 'ai-center',
+    icon: ThunderboltOutlined,
+    label: 'AI 中心',
+    children: [
+      { key: 'ai-models', icon: RobotOutlined, label: 'AI模型管理', path: '/ai-models' },
+      { key: 'ai-settings', icon: SettingOutlined, label: 'AI设置', path: '/ai-settings' }
+    ]
+  },
   // 系统管理分组
   {
     key: 'system',
     icon: SettingOutlined,
     label: '系统管理',
     children: [
-      { key: 'announcements', icon: NotificationOutlined, label: '公告管理', path: '/announcements' },
-      { key: 'carousels', icon: PictureOutlined, label: '轮播图管理', path: '/carousels' },
-      { key: 'messages', icon: MessageOutlined, label: '留言管理', path: '/messages' },
-      { key: 'resources', icon: CloudDownloadOutlined, label: '资源管理', path: '/resources' },
-      { key: 'images', icon: PictureOutlined, label: '图片管理', path: '/images' },
       { key: 'logs', icon: HistoryOutlined, label: '操作日志', path: '/logs' },
-      { key: 'music', icon: CloudOutlined, label: 'AI音乐', path: '/music' },
-      { key: 'ai-settings', icon: SettingOutlined, label: 'AI设置', path: '/ai-settings' },
-      { key: 'ai-models', icon: RobotOutlined, label: 'AI模型', path: '/ai-models' },
-      { key: 'settings', icon: SettingOutlined, label: '系统设置', path: '/settings' },
+      { key: 'settings', icon: SettingOutlined, label: '系统设置', path: '/settings' }
     ]
   }
 ]
@@ -91,12 +118,12 @@ const getSelectedKey = (): string[] => {
   if (path.startsWith('/announcements')) return ['announcements']
   if (path.startsWith('/carousels')) return ['carousels']
   if (path.startsWith('/messages')) return ['messages']
-  if (path.startsWith('/resources')) return ['resources']
   if (path.startsWith('/images')) return ['images']
-  if (path.startsWith('/logs')) return ['logs']
+  if (path.startsWith('/resources')) return ['resources']
   if (path.startsWith('/music')) return ['music']
-  if (path.startsWith('/ai-settings') || path.startsWith('/tts')) return ['ai-settings']
   if (path.startsWith('/ai-models')) return ['ai-models']
+  if (path.startsWith('/ai-settings') || path.startsWith('/tts')) return ['ai-settings']
+  if (path.startsWith('/logs')) return ['logs']
   if (path.startsWith('/settings')) return ['settings']
   return ['dashboard']
 }
@@ -110,7 +137,16 @@ const getOpenKeys = (): string[] => {
   if (path.startsWith('/users') || path.startsWith('/points')) {
     return ['user-management']
   }
-  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages') || path.startsWith('/resources') || path.startsWith('/images') || path.startsWith('/logs') || path.startsWith('/music') || path.startsWith('/ai-settings') || path.startsWith('/ai-models') || path.startsWith('/tts') || path.startsWith('/settings')) {
+  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages')) {
+    return ['operations']
+  }
+  if (path.startsWith('/images') || path.startsWith('/resources') || path.startsWith('/music')) {
+    return ['media']
+  }
+  if (path.startsWith('/ai-models') || path.startsWith('/ai-settings') || path.startsWith('/tts')) {
+    return ['ai-center']
+  }
+  if (path.startsWith('/logs') || path.startsWith('/settings')) {
     return ['system']
   }
   return []

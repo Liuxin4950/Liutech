@@ -160,6 +160,20 @@ export class UserService {
     return put<string>(`${this.ADMIN_BASE_URL}/batch/restore`, ids)
   }
 
+  /**
+   * 彻底删除用户（管理端）
+   */
+  static async permanentDeleteUser(id: number): Promise<ApiResponse<string>> {
+    return del<string>(`${this.ADMIN_BASE_URL}/${id}/permanent`)
+  }
+
+  /**
+   * 批量彻底删除用户（管理端）
+   */
+  static async batchPermanentDeleteUsers(ids: number[]): Promise<ApiResponse<string>> {
+    return post<string>(`${this.ADMIN_BASE_URL}/batch/permanent`, ids)
+  }
+
 }
 
 // 导出便捷方法
@@ -177,7 +191,10 @@ export const {
   updateUserStatus,
   batchUpdateUserStatus,
   restoreUser,
-  batchRestoreUsers
+  batchRestoreUsers,
+  permanentDeleteUser,
+  batchPermanentDeleteUsers
 } = UserService
 
 export default UserService
+

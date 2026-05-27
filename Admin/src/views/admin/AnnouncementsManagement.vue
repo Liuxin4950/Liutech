@@ -1,5 +1,5 @@
-<script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+﻿<script setup lang="ts">
+import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import DOMPurify from 'dompurify'
@@ -8,112 +8,49 @@ import AnnouncementsService from '../../services/announcements'
 import type { AnnouncementListParams, Announcement, AnnouncementListItem } from '../../services/announcements'
 import { formatDateTime, formatRelativeTime } from '../../utils/utils'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
+import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 
-// 响应式数据
-const loading = ref(false)
-const dataSource = ref<AnnouncementListItem[]>([])
-const selectedRowKeys = ref<number[]>([])
-
-// 分页配置
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
+// ============== 表格页面 ==============
+const {
+  loading, dataSource, selectedRowKeys, searchParams, pagination,
+  load: loadAnnouncements, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
+} = useTablePage<AnnouncementListItem, AnnouncementListParams & { keyword?: string }>({
+  loadFn: (params) => {
+    const { page, ...rest } = params
+    return AnnouncementsService.getAnnouncementList({ current: page, ...rest })
+  },
+  defaultSearchParams: {
+    status: undefined,
+    type: undefined,
+    includeDeleted: false,
+    keyword: ''
+  },
+  loadErrorMessage: '加载公告列表失败'
 })
 
-// 搜索参数
-const searchParams = ref<AnnouncementListParams & { keyword?: string }>({
-  status: undefined,
-  type: undefined,
-  includeDeleted: false,
-  keyword: ''
+// ============== CRUD 操作 ==============
+const {
+  handleDelete, handleBatchDelete, handleRestore,
+  handlePermanentDelete, handleBatchPermanentDelete
+} = useCrudActions({
+  deleteFn: (id) => AnnouncementsService.deleteAnnouncement(id),
+  batchDeleteFn: (ids) => AnnouncementsService.batchDeleteAnnouncements(id),
+  restoreFn: (id) => AnnouncementsService.restoreAnnouncement(id),
+  permanentDeleteFn: (id) => AnnouncementsService.permanentDeleteAnnouncement(id),
+  batchPermanentDeleteFn: (ids) => AnnouncementsService.batchPermanentDeleteAnnouncements(id),
+  onRefresh: loadAnnouncements,
+  clearSelection,
+  entityName: '公告'
 })
 
-// 表格列定义
-const columns = [
-  { title: '标题', dataIndex: 'title', key: 'title', width: 250 },
-  { title: '类型', dataIndex: 'typeName', key: 'typeName', width: 80 },
-  { title: '优先级', dataIndex: 'priorityName', key: 'priorityName', width: 80 },
-  { title: '状态', dataIndex: 'statusName', key: 'statusName', width: 80 },
-  { title: '置顶', key: 'isTop', width: 60 },
-  { title: '有效性', key: 'isValid', width: 80 },
-  { title: '删除状态', key: 'deleteStatus', width: 80 },
-  { title: '浏览量', dataIndex: 'viewCount', key: 'viewCount', width: 80 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  { title: '操作', key: 'action', width: 320, fixed: 'right' }
-]
-
-// 下拉选项
-const typeOptions = [
-  { label: '系统', value: 1 },
-  { label: '活动', value: 2 },
-  { label: '维护', value: 3 },
-  { label: '其他', value: 4 }
-]
-
-const priorityOptions = [
-  { label: '低', value: 1 },
-  { label: '中', value: 2 },
-  { label: '高', value: 3 },
-  { label: '紧急', value: 4 }
-]
-
-const statusOptions = [
-  { label: '草稿', value: 0 },
-  { label: '发布', value: 1 },
-  { label: '下线', value: 2 }
-]
-
-// ============== 新建/编辑 弹窗 ==============
-const modalVisible = ref(false)
-const modalTitle = ref('新建公告')
-const isEdit = ref(false)
-const editingId = ref<number | null>(null)
-const confirmLoading = ref(false)
-
-// ============== 预览功能 ==============
-const previewVisible = ref(false)
-const previewData = ref<AnnouncementListItem | null>(null)
-
-const sanitizeAnnouncementContent = (content?: string) => {
-  return DOMPurify.sanitize(content || '')
-}
-
-// ============== 导入导出功能 ==============
-const uploadVisible = ref(false)
-const uploadLoading = ref(false)
-const fileList = ref<any[]>([])
-const exportImportEnabled = true
-
-const formRef = ref()
-const formModel = ref<Partial<Announcement>>({
-  title: '',
-  content: '',
-  type: 1,
-  priority: 2,
-  status: 0,
-  isTop: 0,
-  startTime: undefined,
-  endTime: undefined
-})
-
-const rules = {
-  title: [{ required: true, message: '请输入公告标题' }],
-  content: [{ required: true, message: '请输入公告内容' }],
-  type: [{ required: true, message: '请选择公告类型' }],
-  priority: [{ required: true, message: '请选择优先级' }],
-  status: [{ required: true, message: '请选择状态' }]
-}
-
-// ============== 弹窗操作 ==============
-const openCreate = () => {
-  modalTitle.value = '新建公告'
-  isEdit.value = false
-  editingId.value = null
-  formModel.value = {
+// ============== 弹窗表单 ==============
+const {
+  modalVisible, modalTitle, isEdit, editingId, confirmLoading,
+  formRef, formModel, openCreate, handleCancel
+} = useModalForm<Announcement>({
+  createFn: (data) => AnnouncementsService.createAnnouncement(data as any),
+  updateFn: (id, data) => AnnouncementsService.updateAnnouncement(id, data as unknown as Partial<Announcement>),
+  defaultForm: () => ({
     title: '',
     content: '',
     type: 1,
@@ -122,15 +59,18 @@ const openCreate = () => {
     isTop: 0,
     startTime: undefined,
     endTime: undefined
-  }
-  modalVisible.value = true
-}
+  }),
+  onCreateSuccess: () => { pagination.current = 1; loadAnnouncements() },
+  onUpdateSuccess: loadAnnouncements,
+  entityName: '公告'
+})
 
+// 自定义 openEdit（获取详情并转换 dayjs 字段）
 const openEdit = async (record: AnnouncementListItem) => {
-  modalTitle.value = '编辑公告'
   isEdit.value = true
+  modalTitle.value = '编辑公告'
   editingId.value = record.id
-  
+
   try {
     const res = await AnnouncementsService.getAnnouncementById(record.id)
     if (res.code === 200) {
@@ -153,12 +93,12 @@ const openEdit = async (record: AnnouncementListItem) => {
   }
 }
 
+// 自定义提交（处理时间格式）
 const handleSubmit = async () => {
   try {
     confirmLoading.value = true
     await formRef.value?.validate?.()
-    
-    // 处理时间字段格式
+
     const formatTime = (time: string | Dayjs | undefined): string | undefined => {
       if (!time) return undefined
       return typeof time === 'string' ? time : time.format('YYYY-MM-DD HH:mm:ss')
@@ -169,7 +109,7 @@ const handleSubmit = async () => {
       startTime: formatTime(formModel.value.startTime),
       endTime: formatTime(formModel.value.endTime)
     }
-    
+
     if (isEdit.value) {
       const res = await AnnouncementsService.updateAnnouncement(editingId.value as number, submitData)
       if (res.code === 200) {
@@ -191,17 +131,29 @@ const handleSubmit = async () => {
       }
     }
   } catch (e) {
-    // 表单校验失败或请求错误，不显示错误信息避免重复提示
+    // 表单校验失败或请求错误
   } finally {
     confirmLoading.value = false
   }
 }
 
-const handleCancel = () => {
-  modalVisible.value = false
+// ============== 表单校验规则 ==============
+const rules = {
+  title: [{ required: true, message: '请输入公告标题' }],
+  content: [{ required: true, message: '请输入公告内容' }],
+  type: [{ required: true, message: '请选择公告类型' }],
+  priority: [{ required: true, message: '请选择优先级' }],
+  status: [{ required: true, message: '请选择状态' }]
 }
 
 // ============== 预览功能 ==============
+const previewVisible = ref(false)
+const previewData = ref<AnnouncementListItem | null>(null)
+
+const sanitizeAnnouncementContent = (content?: string) => {
+  return DOMPurify.sanitize(content || '')
+}
+
 const openPreview = (record: AnnouncementListItem) => {
   previewData.value = { ...record }
   previewVisible.value = true
@@ -212,166 +164,80 @@ const closePreview = () => {
   previewData.value = null
 }
 
-// ============== 辅助函数 ==============
-const getTypeName = (type: number) => {
-  const typeMap: Record<number, string> = {
-    1: '系统',
-    2: '活动', 
-    3: '维护',
-    4: '其他'
-  }
-  return typeMap[type] || '未知'
-}
+// ============== 导入导出功能 ==============
+const uploadVisible = ref(false)
+const uploadLoading = ref(false)
+const fileList = ref<any[]>([])
+const exportImportEnabled = true
 
-const getPriorityName = (priority: number) => {
-  const priorityMap: Record<number, string> = {
-    1: '低',
-    2: '中',
-    3: '高',
-    4: '紧急'
-  }
-  return priorityMap[priority] || '未知'
-}
-
-const getStatusName = (status: number) => {
-  const statusMap: Record<number, string> = {
-    0: '草稿',
-    1: '发布',
-    2: '下线'
-  }
-  return statusMap[status] || '未知'
-}
-
-const getTypeColor = (type: number) => {
-  const colorMap: Record<number, string> = {
-    1: 'blue',
-    2: 'green',
-    3: 'orange',
-    4: 'default'
-  }
-  return colorMap[type] || 'default'
-}
-
-const getPriorityColor = (priority: number) => {
-  const colorMap: Record<number, string> = {
-    1: 'default',
-    2: 'blue',
-    3: 'orange',
-    4: 'red'
-  }
-  return colorMap[priority] || 'default'
-}
-
-const stripHtml = (html: string) => {
-  if (!html) return ''
-  return html.replace(/<[^>]*>/g, '').substring(0, 100) + (html.length > 100 ? '...' : '')
-}
-
-// ============== 列表查询 ==============
-const loadAnnouncements = async () => {
+const handleExport = async () => {
   try {
-    loading.value = true
-    const params = {
-      current: pagination.current,
-      size: pagination.pageSize,
-      ...searchParams.value
-    }
-    const res = await AnnouncementsService.getAnnouncementList(params)
+    message.loading('正在导出数据...', 0)
+    const blob = await AnnouncementsService.exportAnnouncements(searchParams.value)
 
-    if (res && res.code === 200) {
-      // 确保数据结构正确，避免null错误
-      dataSource.value = res.data?.records || []
-      pagination.total = res.data?.total || 0
-    } else {
-      // 请求失败时，清空数据并显示空状态
-      dataSource.value = []
-      pagination.total = 0
-      if (res?.message) {
-        message.warning(res.message)
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `公告数据_${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    message.destroy()
+    message.success('导出成功')
+  } catch (e) {
+    message.destroy()
+    message.error('导出失败，请稍后重试')
+  }
+}
+
+const handleUpload = async (file: any) => {
+  if (!file) return
+
+  try {
+    uploadLoading.value = true
+    const res = await AnnouncementsService.importAnnouncements(file.file)
+
+    if (res.code === 200) {
+      const { success, failed, errors } = res.data
+      if (errors && errors.length > 0) {
+        message.warning(`导入完成：成功 ${success} 条，失败 ${failed} 条。错误详情：${errors.join(', ')}`)
+      } else {
+        message.success(`导入成功：共 ${success} 条数据`)
       }
+
+      uploadVisible.value = false
+      fileList.value = []
+      loadAnnouncements()
+    } else {
+      message.error(res.message || '导入失败')
     }
   } catch (e) {
-    // 异常时清空数据，显示空状态，不抛出全局错误
-    dataSource.value = []
-    pagination.total = 0
-    // 只在开发环境显示详细错误信息
-    if (import.meta.env.DEV) {
-      message.warning('加载公告列表失败，请检查网络连接')
-    }
+    message.error('导入失败，请稍后重试')
   } finally {
-    loading.value = false
+    uploadLoading.value = false
   }
 }
 
-const handleSearch = () => {
-  pagination.current = 1
-  loadAnnouncements()
-}
-
-const handleReset = () => {
-  searchParams.value = { status: undefined, type: undefined, includeDeleted: false, keyword: '' }
-  pagination.current = 1
-  loadAnnouncements()
-}
-
-// ============== 表格操作 ==============
-const handleTableChange = (p: any) => {
-  pagination.current = p.current
-  pagination.pageSize = p.pageSize
-  loadAnnouncements()
-}
-
-const onSelectChange = (keys: number[]) => {
-  selectedRowKeys.value = keys
-}
-
-const handleDelete = async (id: number) => {
-  try {
-    const res = await AnnouncementsService.deleteAnnouncement(id)
-    if (res && res.code === 200) {
-      message.success('删除成功')
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '删除失败')
-    }
-  } catch (e) {
-    message.warning('删除失败，请稍后重试')
+const beforeUpload = (file: File) => {
+  const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                 file.type === 'application/vnd.ms-excel'
+  if (!isExcel) {
+    message.error('只能上传Excel文件!')
+    return false
   }
+
+  const isLt10M = file.size / 1024 / 1024 < 10
+  if (!isLt10M) {
+    message.error('文件大小不能超过10MB!')
+    return false
+  }
+
+  return false
 }
 
-const handleRestore = async (id: number) => {
-  try {
-    const res = await AnnouncementsService.restoreAnnouncement(id)
-    if (res && res.code === 200) {
-      message.success('恢复成功')
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '恢复失败')
-    }
-  } catch (e) {
-    message.warning('恢复失败，请稍后重试')
-  }
-}
-
-const handleBatchDelete = async () => {
-  if (!selectedRowKeys.value.length) {
-    message.warning('请选择要删除的公告')
-    return
-  }
-  try {
-    const res = await AnnouncementsService.batchDeleteAnnouncements(selectedRowKeys.value)
-    if (res && res.code === 200) {
-      message.success('批量删除成功')
-      selectedRowKeys.value = []
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '批量删除失败')
-    }
-  } catch (e) {
-    message.warning('批量删除失败，请稍后重试')
-  }
-}
-
+// ============== 批量状态/置顶操作 ==============
 const handleStatusChange = async (id: number, status: number) => {
   try {
     const res = await AnnouncementsService.updateAnnouncementStatus(id, status)
@@ -438,113 +304,70 @@ const handleBatchTopUpdate = async (isTop: number) => {
   }
 }
 
-const handlePermanentDelete = async (id: number) => {
-  try {
-    const res = await AnnouncementsService.permanentDeleteAnnouncement(id)
-    if (res && res.code === 200) {
-      message.success('彻底删除成功')
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '彻底删除失败')
-    }
-  } catch (e) {
-    message.warning('彻底删除失败，请稍后重试')
-  }
+// ============== 辅助函数 ==============
+const typeOptions = [
+  { label: '系统', value: 1 },
+  { label: '活动', value: 2 },
+  { label: '维护', value: 3 },
+  { label: '其他', value: 4 }
+]
+
+const priorityOptions = [
+  { label: '低', value: 1 },
+  { label: '中', value: 2 },
+  { label: '高', value: 3 },
+  { label: '紧急', value: 4 }
+]
+
+const statusOptions = [
+  { label: '草稿', value: 0 },
+  { label: '发布', value: 1 },
+  { label: '下线', value: 2 }
+]
+
+const columns = [
+  { title: '标题', dataIndex: 'title', key: 'title', width: 250 },
+  { title: '类型', dataIndex: 'typeName', key: 'typeName', width: 80 },
+  { title: '优先级', dataIndex: 'priorityName', key: 'priorityName', width: 80 },
+  { title: '状态', dataIndex: 'statusName', key: 'statusName', width: 80 },
+  { title: '置顶', key: 'isTop', width: 60 },
+  { title: '有效性', key: 'isValid', width: 80 },
+  { title: '删除状态', key: 'deleteStatus', width: 80 },
+  { title: '浏览量', dataIndex: 'viewCount', key: 'viewCount', width: 80 },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '操作', key: 'action', width: 320, fixed: 'right' }
+]
+
+const getTypeName = (type: number) => {
+  const typeMap: Record<number, string> = { 1: '系统', 2: '活动', 3: '维护', 4: '其他' }
+  return typeMap[type] || '未知'
 }
 
-const handleBatchPermanentDelete = async () => {
-  if (!selectedRowKeys.value.length) {
-    message.warning('请选择要彻底删除的公告')
-    return
-  }
-  try {
-    const res = await AnnouncementsService.batchPermanentDeleteAnnouncements(selectedRowKeys.value)
-    if (res && res.code === 200) {
-      message.success('批量彻底删除成功')
-      selectedRowKeys.value = []
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '批量彻底删除失败')
-    }
-  } catch (e) {
-    message.warning('批量彻底删除失败，请稍后重试')
-  }
+const getPriorityName = (priority: number) => {
+  const priorityMap: Record<number, string> = { 1: '低', 2: '中', 3: '高', 4: '紧急' }
+  return priorityMap[priority] || '未知'
 }
 
-// ============== 导入导出功能 ==============
-const handleExport = async () => {
-  try {
-    message.loading('正在导出数据...', 0)
-    const blob = await AnnouncementsService.exportAnnouncements(searchParams.value)
-    
-    // 创建下载链接
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `公告数据_${new Date().toISOString().slice(0, 10)}.xlsx`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-    
-    message.destroy()
-    message.success('导出成功')
-  } catch (e) {
-    message.destroy()
-    message.error('导出失败，请稍后重试')
-  }
+const getStatusName = (status: number) => {
+  const statusMap: Record<number, string> = { 0: '草稿', 1: '发布', 2: '下线' }
+  return statusMap[status] || '未知'
 }
 
-const handleUpload = async (file: any) => {
-  if (!file) return
-  
-  try {
-    uploadLoading.value = true
-    const res = await AnnouncementsService.importAnnouncements(file.file)
-    
-    if (res.code === 200) {
-      const { success, failed, errors } = res.data
-      if (errors && errors.length > 0) {
-        message.warning(`导入完成：成功 ${success} 条，失败 ${failed} 条。错误详情：${errors.join(', ')}`)
-      } else {
-        message.success(`导入成功：共 ${success} 条数据`)
-      }
-      
-      uploadVisible.value = false
-      fileList.value = []
-      loadAnnouncements()
-    } else {
-      message.error(res.message || '导入失败')
-    }
-  } catch (e) {
-    message.error('导入失败，请稍后重试')
-  } finally {
-    uploadLoading.value = false
-  }
+const getTypeColor = (type: number) => {
+  const colorMap: Record<number, string> = { 1: 'blue', 2: 'green', 3: 'orange', 4: 'default' }
+  return colorMap[type] || 'default'
 }
 
-const beforeUpload = (file: File) => {
-  const isExcel = file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-                 file.type === 'application/vnd.ms-excel'
-  if (!isExcel) {
-    message.error('只能上传Excel文件!')
-    return false
-  }
-  
-  const isLt10M = file.size / 1024 / 1024 < 10
-  if (!isLt10M) {
-    message.error('文件大小不能超过10MB!')
-    return false
-  }
-  
-  return false // 阻止自动上传，手动处理
+const getPriorityColor = (priority: number) => {
+  const colorMap: Record<number, string> = { 1: 'default', 2: 'blue', 3: 'orange', 4: 'red' }
+  return colorMap[priority] || 'default'
 }
 
-onMounted(async () => {
-  await loadAnnouncements()
-})
+const stripHtml = (html: string) => {
+  if (!html) return ''
+  return html.replace(/<[^>]*>/g, '').substring(0, 100) + (html.length > 100 ? '...' : '')
+}
 </script>
-
 
 <template>
   <div class="p-24">
@@ -605,7 +428,7 @@ onMounted(async () => {
             <a-button :disabled="!exportImportEnabled" @click="uploadVisible = true">
               <UploadOutlined /> 导入Excel
             </a-button>
-            <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
+            <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
               <DeleteOutlined /> 批量删除
             </a-button>
             <a-popconfirm
@@ -613,7 +436,7 @@ onMounted(async () => {
               title="确定要批量彻底删除选中的公告吗？此操作不可恢复！"
               ok-text="确定"
               cancel-text="取消"
-              @confirm="handleBatchPermanentDelete"
+              @confirm="handleBatchPermanentDelete(selectedRowKeys)"
             >
               <a-button danger :disabled="selectedRowKeys.length === 0">
                 <DeleteOutlined /> 批量彻底删除
@@ -649,7 +472,6 @@ onMounted(async () => {
         row-key="id"
         @change="handleTableChange"
       >
-        <!-- 标题列 -->
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'title'">
             <div class="title-cell">
@@ -670,28 +492,23 @@ onMounted(async () => {
             </div>
           </template>
 
-          <!-- 置顶列 -->
           <template v-else-if="column.key === 'isTop'">
             <a-tag :color="(record.isTop !== null && record.isTop !== undefined && record.isTop) ? 'red' : 'default'">
               {{ (record.isTop !== null && record.isTop !== undefined && record.isTop) ? '置顶' : '普通' }}
             </a-tag>
           </template>
 
-          <!-- 有效性列 -->
           <template v-else-if="column.key === 'isValid'">
             <a-tag :color="(record.isValid !== null && record.isValid !== undefined && record.isValid) ? 'green' : 'orange'">
               {{ (record.isValid !== null && record.isValid !== undefined && record.isValid) ? '有效' : '无效' }}
             </a-tag>
           </template>
 
-          <!-- 删除状态列 -->
           <template v-else-if="column.key === 'deleteStatus'">
-            <a-tag :color="(record.deletedAt !== null && record.deletedAt !== undefined) ? 'red' : 'green'">
-              {{ (record.deletedAt !== null && record.deletedAt !== undefined) ? '已删除' : '正常' }}
-            </a-tag>
+            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
+            <a-tag v-else color="green">正常</a-tag>
           </template>
 
-          <!-- 创建时间列 -->
           <template v-else-if="column.key === 'createdAt'">
             <div v-if="record.createdAt" class="time-cell">
               <div class="relative-time">{{ formatRelativeTime(record.createdAt) }}</div>
@@ -700,7 +517,6 @@ onMounted(async () => {
             <span v-else>-</span>
           </template>
 
-          <!-- 操作列 -->
           <template v-else-if="column.key === 'action'">
             <a-space>
               <a-button type="link" size="small" @click="openPreview(record)">
@@ -709,8 +525,7 @@ onMounted(async () => {
               <a-button type="link" size="small" @click="openEdit(record)">
                 编辑
               </a-button>
-              
-              <!-- 状态操作 -->
+
               <a-dropdown>
                 <template #overlay>
                   <a-menu>
@@ -730,22 +545,20 @@ onMounted(async () => {
                 </a-button>
               </a-dropdown>
 
-              <!-- 置顶操作 -->
-              <a-button 
-                type="link" 
-                size="small" 
+              <a-button
+                type="link"
+                size="small"
                 @click="handleToggleTop(record.id, (record.isTop !== null && record.isTop !== undefined && record.isTop) ? 0 : 1)"
               >
                 {{ (record.isTop !== null && record.isTop !== undefined && record.isTop) ? '取消置顶' : '置顶' }}
               </a-button>
 
-              <!-- 删除/恢复操作 -->
               <template v-if="record.deletedAt !== null && record.deletedAt !== undefined">
-                <a-popconfirm title="确定恢复该记录吗？" @confirm="handleRestore(record.id)">
+                <a-popconfirm title="确定恢复该公告吗？" @confirm="handleRestore(record.id)">
                   <a-button type="link" size="small">恢复</a-button>
                 </a-popconfirm>
                 <a-popconfirm
-                  title="确定要彻底删除这个公告吗？此操作不可恢复！"
+                  title="确定要彻底删除该公告吗？此操作不可恢复！"
                   ok-text="确定"
                   cancel-text="取消"
                   @confirm="handlePermanentDelete(record.id)"
@@ -757,7 +570,7 @@ onMounted(async () => {
               </template>
               <template v-else>
                 <a-popconfirm
-                  title="确定要删除这个公告吗？"
+                  title="确定删除该公告吗？"
                   @confirm="handleDelete(record.id)"
                 >
                   <a-button type="link" size="small" danger>
@@ -828,20 +641,20 @@ onMounted(async () => {
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="开始时间">
-              <a-date-picker 
-                v-model:value="formModel.startTime" 
-                show-time 
-                placeholder="请选择开始时间" 
+              <a-date-picker
+                v-model:value="formModel.startTime"
+                show-time
+                placeholder="请选择开始时间"
                 style="width: 100%"
               />
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="结束时间">
-              <a-date-picker 
-                v-model:value="formModel.endTime" 
-                show-time 
-                placeholder="请选择结束时间" 
+              <a-date-picker
+                v-model:value="formModel.endTime"
+                show-time
+                placeholder="请选择结束时间"
                 style="width: 100%"
               />
             </a-form-item>
@@ -880,7 +693,6 @@ onMounted(async () => {
       @cancel="closePreview"
     >
       <div v-if="previewData" class="announcement-preview">
-        <!-- 公告头部信息 -->
         <div class="preview-header">
           <div class="preview-title">{{ previewData.title }}</div>
           <div class="preview-meta">
@@ -892,11 +704,9 @@ onMounted(async () => {
             </a-space>
           </div>
         </div>
-        
-        <!-- 公告内容 -->
+
         <div class="preview-content" v-html="sanitizeAnnouncementContent(previewData.content)"></div>
-        
-        <!-- 公告底部信息 -->
+
         <div class="preview-footer">
           <a-space split="|">
             <span>浏览量: {{ previewData.viewCount || 0 }}</span>
@@ -929,7 +739,7 @@ onMounted(async () => {
           选择Excel文件
         </a-button>
       </a-upload>
-      
+
       <div class="upload-tips">
         <p>• 支持格式：.xlsx、.xls</p>
         <p>• 文件大小：不超过10MB</p>
@@ -1116,3 +926,5 @@ onMounted(async () => {
   margin-bottom: 0;
 }
 </style>
+
+

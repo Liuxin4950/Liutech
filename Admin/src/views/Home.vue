@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { getDashboardStats, type DashboardStats, type BasicStats } from '@/services/dashboard'
 import { message } from 'ant-design-vue'
 import {

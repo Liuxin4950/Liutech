@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useTablePage, useModalForm } from '@/composables'
 import aiModelsService from '@/services/aiModels'
 import type { ModelConfig, ModelConfigRequest } from '@/services/aiModels'
 import { message, Modal } from 'ant-design-vue'
@@ -15,15 +16,37 @@ import {
   RobotOutlined
 } from '@ant-design/icons-vue'
 
-const loading = ref(false)
-const searchText = ref('')
-const modelList = ref<ModelConfig[]>([])
+// ============== 表格页面 ==============
+const {
+  loading, dataSource,
+  load
+} = useTablePage<ModelConfig, { keyword: string }>({
+  loadFn: async () => {
+    const result = await aiModelsService.getModelList()
+    const list = Array.isArray(result) ? result
+      : Array.isArray((result as any)?.data) ? (result as any).data
+      : []
+    return { code: 200, message: 'ok', data: { records: list as ModelConfig[], total: list.length } }
+  },
+  defaultSearchParams: { keyword: '' },
+  autoLoad: true,
+  loadErrorMessage: '加载模型失败'
+})
 
-const modalVisible = ref(false)
-const isEditMode = ref(false)
-const editingId = ref<number | null>(null)
-const formRef = ref()
-const formData = ref<ModelConfigRequest>({
+// 客户端搜索过滤
+const searchText = ref('')
+const filteredModels = computed(() => {
+  const keyword = searchText.value.trim().toLowerCase()
+  if (!keyword) return dataSource.value
+  return dataSource.value.filter(item =>
+    item.displayName.toLowerCase().includes(keyword) ||
+    item.modelName.toLowerCase().includes(keyword) ||
+    (item.description || '').toLowerCase().includes(keyword)
+  )
+})
+
+// ============== 弹窗表单 ==============
+const defaultModelForm = (): ModelConfigRequest => ({
   modelName: '',
   displayName: '',
   provider: 'siliconflow',
@@ -34,57 +57,45 @@ const formData = ref<ModelConfigRequest>({
   description: ''
 })
 
-const formRules = {
-  modelName: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
-  displayName: [{ required: true, message: '请输入显示名称', trigger: 'blur' }]
-}
-
-const filteredModels = computed(() => {
-  const keyword = searchText.value.trim().toLowerCase()
-  if (!keyword) return modelList.value
-  return modelList.value.filter(item =>
-    item.displayName.toLowerCase().includes(keyword) ||
-    item.modelName.toLowerCase().includes(keyword) ||
-    (item.description || '').toLowerCase().includes(keyword)
-  )
+const {
+  modalVisible, modalTitle, isEdit, editingId, confirmLoading,
+  formRef, formModel, openCreate: baseOpenCreate, handleOk, handleCancel
+} = useModalForm<ModelConfigRequest>({
+  createFn: async (data) => {
+    try {
+      const result = await aiModelsService.addModel(data as ModelConfigRequest)
+      return result && typeof result === 'object' && 'code' in result ? result : { code: 200, data: result }
+    } catch (e: any) {
+      return { code: 500, message: e?.message || '创建失败', data: null }
+    }
+  },
+  updateFn: async (id, data) => {
+    try {
+      const result = await aiModelsService.updateModel(id, data as ModelConfigRequest)
+      return result && typeof result === 'object' && 'code' in result ? result : { code: 200, data: result }
+    } catch (e: any) {
+      return { code: 500, message: e?.message || '更新失败', data: null }
+    }
+  },
+  defaultForm: defaultModelForm,
+  onCreateSuccess: load,
+  onUpdateSuccess: load,
+  entityName: '模型'
 })
 
-const loadModels = async () => {
-  if (loading.value) return
-  loading.value = true
-  try {
-    modelList.value = await aiModelsService.getModelList()
-  } catch (error: any) {
-    message.error(error?.message || '加载模型失败')
-  } finally {
-    loading.value = false
-  }
+// 覆盖 openCreate：自定义标题和默认排序
+const openCreate = () => {
+  baseOpenCreate()
+  modalTitle.value = '新增模型'
+  formModel.value.sortOrder = dataSource.value.length
 }
 
-const resetForm = () => {
-  formData.value = {
-    modelName: '',
-    displayName: '',
-    provider: 'siliconflow',
-    isEnabled: true,
-    sortOrder: modelList.value.length,
-    maxTokens: undefined,
-    temperature: undefined,
-    description: ''
-  }
-}
-
-const showAddModal = () => {
-  isEditMode.value = false
-  editingId.value = null
-  resetForm()
-  modalVisible.value = true
-}
-
-const showEditModal = (record: ModelConfig) => {
-  isEditMode.value = true
+// 覆盖 openEdit：精确映射字段
+const openEdit = (record: ModelConfig) => {
+  isEdit.value = true
+  modalTitle.value = '编辑模型'
   editingId.value = record.id
-  formData.value = {
+  formModel.value = {
     modelName: record.modelName,
     displayName: record.displayName,
     provider: record.provider || 'siliconflow',
@@ -97,31 +108,18 @@ const showEditModal = (record: ModelConfig) => {
   modalVisible.value = true
 }
 
-const saveModel = async () => {
-  await formRef.value.validate()
-  loading.value = true
-  try {
-    if (isEditMode.value && editingId.value) {
-      await aiModelsService.updateModel(editingId.value, formData.value)
-      message.success('模型已更新')
-    } else {
-      await aiModelsService.addModel(formData.value)
-      message.success('模型已添加')
-    }
-    modalVisible.value = false
-    await loadModels()
-  } catch (error: any) {
-    message.error(error?.message || '保存失败')
-  } finally {
-    loading.value = false
-  }
+// 表单校验规则
+const formRules = {
+  modelName: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
+  displayName: [{ required: true, message: '请输入显示名称', trigger: 'blur' }]
 }
 
+// ============== 特殊操作 ==============
 const setDefaultModel = async (record: ModelConfig) => {
   try {
     await aiModelsService.setDefaultModel(record.id)
     message.success('默认模型已更新')
-    await loadModels()
+    await load()
   } catch (error: any) {
     message.error(error?.message || '设置默认模型失败')
   }
@@ -131,7 +129,7 @@ const toggleEnabled = async (record: ModelConfig) => {
   try {
     await aiModelsService.toggleEnabled(record.id, !record.isEnabled)
     message.success(record.isEnabled ? '模型已禁用' : '模型已启用')
-    await loadModels()
+    await load()
   } catch (error: any) {
     message.error(error?.message || '切换模型状态失败')
   }
@@ -148,21 +146,17 @@ const removeModel = (record: ModelConfig) => {
       try {
         await aiModelsService.deleteModel(record.id)
         message.success('模型已删除')
-        await loadModels()
+        await load()
       } catch (error: any) {
         message.error(error?.message || '删除失败')
       }
     }
   })
 }
-
-onMounted(() => {
-  loadModels()
-})
 </script>
 
 <template>
-  <div class="page-container">
+  <div class="p-24">
     <a-card :bordered="false" class="models-card">
       <template #title>
         <div class="title-row">
@@ -181,24 +175,19 @@ onMounted(() => {
             style="width: 220px"
             allow-clear
           />
-          <a-button @click="loadModels" :loading="loading">
+          <a-button @click="load" :loading="loading">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
-          <a-button type="primary" @click="showAddModal">
+          <a-button type="primary" @click="openCreate">
             <template #icon><PlusOutlined /></template>
             新增模型
           </a-button>
         </a-space>
       </template>
 
-      <a-table
-        :data-source="filteredModels"
-        :loading="loading"
-        row-key="id"
-        :pagination="{ pageSize: 10, showTotal: (t:any) => `共 ${t} 个模型` }"
-      >
-        <a-table-column title="模型" key="model">
+      <a-table :data-source="filteredModels" :loading="loading" :pagination="false" row-key="id" size="small">
+        <a-table-column title="模型" key="model" :ellipsis="true">
           <template #default="{ record }">
             <div class="model-main">
               <div class="model-title">
@@ -241,7 +230,7 @@ onMounted(() => {
                 </a-button>
               </a-tooltip>
               <a-tooltip title="编辑">
-                <a-button type="link" size="small" @click="showEditModal(record)">
+                <a-button type="link" size="small" @click="openEdit(record)">
                   <EditOutlined class="text-blue" />
                 </a-button>
               </a-tooltip>
@@ -258,31 +247,31 @@ onMounted(() => {
 
     <a-modal
       v-model:open="modalVisible"
-      :title="isEditMode ? '编辑模型' : '新增模型'"
-      @ok="saveModel"
-      :confirm-loading="loading"
+      :title="modalTitle"
+      @ok="handleOk"
+      :confirm-loading="confirmLoading"
     >
-      <a-form ref="formRef" :model="formData" :rules="formRules" layout="vertical">
+      <a-form ref="formRef" :model="formModel" :rules="formRules" layout="vertical">
         <a-form-item label="显示名称" name="displayName">
-          <a-input v-model:value="formData.displayName" placeholder="例如：GLM-4.6" />
+          <a-input v-model:value="formModel.displayName" placeholder="例如：GLM-4.6" />
         </a-form-item>
         <a-form-item label="模型名称" name="modelName">
-          <a-input v-model:value="formData.modelName" :disabled="isEditMode" placeholder="例如：zai-org/GLM-4.6" />
+          <a-input v-model:value="formModel.modelName" :disabled="isEdit" placeholder="例如：zai-org/GLM-4.6" />
         </a-form-item>
         <a-form-item label="最大 Token">
-          <a-input-number v-model:value="formData.maxTokens" :min="0" :step="1024" class="full-width" />
+          <a-input-number v-model:value="formModel.maxTokens" :min="0" :step="1024" class="full-width" />
         </a-form-item>
         <a-form-item label="Temperature">
-          <a-input-number v-model:value="formData.temperature" :min="0" :max="2" :step="0.1" class="full-width" />
+          <a-input-number v-model:value="formModel.temperature" :min="0" :max="2" :step="0.1" class="full-width" />
         </a-form-item>
         <a-form-item label="排序">
-          <a-input-number v-model:value="formData.sortOrder" :min="0" class="full-width" />
+          <a-input-number v-model:value="formModel.sortOrder" :min="0" class="full-width" />
         </a-form-item>
         <a-form-item label="描述">
-          <a-textarea v-model:value="formData.description" :rows="3" placeholder="写给你自己看的维护备注即可" />
+          <a-textarea v-model:value="formModel.description" :rows="3" placeholder="写给你自己看的维护备注即可" />
         </a-form-item>
         <a-form-item>
-          <a-checkbox v-model:checked="formData.isEnabled">立即启用</a-checkbox>
+          <a-checkbox v-model:checked="formModel.isEnabled">立即启用</a-checkbox>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -290,12 +279,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-container {
-  padding: 24px;
-  background: var(--bg-main);
-  min-height: 100vh;
-}
-
 .models-card {
   border-radius: 12px;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);

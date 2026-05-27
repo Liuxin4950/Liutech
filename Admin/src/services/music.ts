@@ -105,14 +105,9 @@ const musicService = {
    * 更新排序
    */
   updateSortOrder: (ids: number[]) => {
-    const formData = new URLSearchParams()
-    ids.forEach((id) => formData.append('ids', String(id)))
-
-    return put<boolean>('/admin/music/sort', formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    })
+    const params = new URLSearchParams()
+    ids.forEach((id) => params.append('ids', String(id)))
+    return put<boolean>(`/admin/music/sort?${params.toString()}`)
   },
 
   /**

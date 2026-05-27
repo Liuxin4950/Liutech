@@ -1,46 +1,105 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import ResourcesService from '../../services/resources'
-import type { Resource, ResourceListParams } from '../../services/resources'
+import type { Resource } from '../../services/resources'
 import { formatDateTime } from '../../utils/utils'
+import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 
-// 响应式数据
-const loading = ref(false)
-const dataSource = ref<Resource[]>([])
-const selectedRowKeys = ref<number[]>([])
-
-// 分页配置
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
-})
-
-// 搜索参数
-const searchParams = ref<ResourceListParams>({
-  name: '',
-  resourceType: undefined,
-  downloadType: undefined,
-  includeDeleted: false
-})
-
-// 资源类型选项
 const resourceTypeOptions = [
   { label: '文件', value: 'file' },
   { label: '链接', value: 'link' },
   { label: '两者都有', value: 'both' }
 ]
 
-// 下载类型选项
 const downloadTypeOptions = [
   { label: '免费', value: 0 },
   { label: '积分', value: 1 }
 ]
+
+const {
+  loading,
+  dataSource,
+  selectedRowKeys,
+  searchParams,
+  pagination,
+  load,
+  handleSearch,
+  handleReset,
+  handleTableChange,
+  onSelectChange,
+  clearSelection
+} = useTablePage<Resource, {
+  name: string
+  resourceType: string | undefined
+  downloadType: number | undefined
+  includeDeleted: boolean
+}>({
+  loadFn: async (params) => ResourcesService.getResourceList(params),
+  defaultSearchParams: {
+    name: '',
+    resourceType: undefined,
+    downloadType: undefined,
+    includeDeleted: false
+  },
+  loadErrorMessage: '加载资源失败'
+})
+
+const {
+  handleDelete,
+  handleBatchDelete,
+  handleRestore,
+  handlePermanentDelete,
+  handleBatchPermanentDelete
+} = useCrudActions({
+  deleteFn: (id) => ResourcesService.deleteResource(id),
+  batchDeleteFn: (ids) => ResourcesService.batchDeleteResources(id),
+  restoreFn: (id) => ResourcesService.restoreResource(id),
+  permanentDeleteFn: (id) => ResourcesService.permanentDeleteResource(id),
+  batchPermanentDeleteFn: (ids) => ResourcesService.batchPermanentDeleteResources(id),
+  onRefresh: load,
+  clearSelection,
+  entityName: '资源'
+})
+
+const {
+  modalVisible,
+  modalTitle,
+  isEdit,
+  confirmLoading,
+  formRef,
+  formModel,
+  openCreate,
+  openEdit,
+  handleOk,
+  handleCancel
+} = useModalForm<Resource>({
+  createFn: (data) => ResourcesService.createResource(data) as any,
+  updateFn: (id, data) => ResourcesService.updateResource(id, data) as any,
+  onCreateSuccess: () => {
+    pagination.current = 1
+    load()
+  },
+  onUpdateSuccess: load,
+  defaultForm: () => ({
+    name: '',
+    description: '',
+    fileUrl: '',
+    externalLink: '',
+    resourceType: 'file',
+    purchasedNote: '',
+    uploaderId: undefined,
+    downloadType: 0,
+    pointsNeeded: 0
+  }),
+  entityName: '资源'
+})
+
+const rules = {
+  name: [{ required: true, message: '请输入资源名称' }],
+  resourceType: [{ required: true, message: '请选择资源类型' }],
+  downloadType: [{ required: true, message: '请选择下载类型' }]
+}
 
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
@@ -54,33 +113,6 @@ const columns = [
   { title: '操作', key: 'action', width: 200, fixed: 'right' as const }
 ]
 
-// 弹窗相关
-const modalVisible = ref(false)
-const modalTitle = ref('新建资源')
-const isEdit = ref(false)
-const editingId = ref<number | null>(null)
-const confirmLoading = ref(false)
-
-const formRef = ref()
-const formModel = ref<Partial<Resource>>({
-  name: '',
-  description: '',
-  fileUrl: '',
-  externalLink: '',
-  resourceType: 'file',
-  purchasedNote: '',
-  uploaderId: undefined,
-  downloadType: 0,
-  pointsNeeded: 0
-})
-
-const rules = {
-  name: [{ required: true, message: '请输入资源名称' }],
-  resourceType: [{ required: true, message: '请选择资源类型' }],
-  downloadType: [{ required: true, message: '请选择下载类型' }]
-}
-
-// 资源类型标签颜色
 const getResourceTypeColor = (type?: string) => {
   switch (type) {
     case 'file': return 'blue'
@@ -107,139 +139,13 @@ const getDownloadTypeColor = (type?: number) => {
   return type === 1 ? 'orange' : 'green'
 }
 
-const openCreate = () => {
-  isEdit.value = false
-  modalTitle.value = '新建资源'
-  editingId.value = null
-  formModel.value = {
-    name: '',
-    description: '',
-    fileUrl: '',
-    externalLink: '',
-    resourceType: 'file',
-    purchasedNote: '',
-    uploaderId: undefined,
-    downloadType: 0,
-    pointsNeeded: 0
+const handleBatchPermanentDeleteAction = () => {
+  if (!selectedRowKeys.value.length) {
+    message.warning('请选择要彻底删除的资源')
+    return
   }
-  modalVisible.value = true
+  handleBatchPermanentDelete(selectedRowKeys.value)
 }
-
-const openEdit = (record: Resource) => {
-  isEdit.value = true
-  modalTitle.value = '编辑资源'
-  editingId.value = record.id || null
-  formModel.value = {
-    name: record.name,
-    description: record.description,
-    fileUrl: record.fileUrl,
-    externalLink: record.externalLink,
-    resourceType: record.resourceType,
-    purchasedNote: record.purchasedNote,
-    uploaderId: record.uploaderId,
-    downloadType: record.downloadType,
-    pointsNeeded: record.pointsNeeded
-  }
-  modalVisible.value = true
-}
-
-const handleOk = async () => {
-  try {
-    confirmLoading.value = true
-    await formRef.value?.validate?.()
-    if (isEdit.value) {
-      const res = await ResourcesService.updateResource(editingId.value as number, formModel.value as any)
-      if (res.code === 200) {
-        message.success('更新成功')
-        modalVisible.value = false
-        loadResources()
-      } else {
-        message.error(res.message || '更新失败')
-      }
-    } else {
-      const res = await ResourcesService.createResource(formModel.value as any)
-      if (res.code === 200) {
-        message.success('创建成功')
-        modalVisible.value = false
-        pagination.current = 1
-        loadResources()
-      } else {
-        message.error(res.message || '创建失败')
-      }
-    }
-  } catch (e) {
-    // ignore
-  } finally {
-    confirmLoading.value = false
-  }
-}
-
-const handleCancel = () => { modalVisible.value = false }
-
-// 列表加载
-const loadResources = async () => {
-  try {
-    loading.value = true
-    const params = { page: pagination.current, size: pagination.pageSize, ...searchParams.value }
-    const res = await ResourcesService.getResourceList(params)
-    if (res.code === 200) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total
-    } else {
-      message.error(res.message || '加载资源失败')
-    }
-  } catch (e) {
-    message.error('加载资源失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleSearch = () => { pagination.current = 1; loadResources() }
-const handleReset = () => {
-  searchParams.value = { name: '', resourceType: undefined, downloadType: undefined, includeDeleted: false }
-  pagination.current = 1
-  loadResources()
-}
-
-// 恢复删除
-const handleRestore = async (id: number) => {
-  const res = await ResourcesService.restoreResource(id)
-  if (res.code === 200) { message.success('恢复成功'); loadResources() } else { message.error(res.message || '恢复失败') }
-}
-
-// 彻底删除
-const handlePermanentDelete = async (id: number) => {
-  const res = await ResourcesService.permanentDeleteResource(id)
-  if (res.code === 200) { message.success('彻底删除成功'); loadResources() } else { message.error(res.message || '彻底删除失败') }
-}
-
-// 批量彻底删除
-const handleBatchPermanentDelete = async () => {
-  if (!selectedRowKeys.value.length) { message.warning('请选择要彻底删除的资源'); return }
-  const res = await ResourcesService.batchPermanentDeleteResources(selectedRowKeys.value)
-  if (res.code === 200) { message.success('批量彻底删除成功'); selectedRowKeys.value = []; loadResources() } else { message.error(res.message || '批量彻底删除失败') }
-}
-
-const handleTableChange = (p: any) => {
-  pagination.current = p.current
-  pagination.pageSize = p.pageSize
-  loadResources()
-}
-const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
-
-const handleDelete = async (id: number) => {
-  const res = await ResourcesService.deleteResource(id)
-  if (res.code === 200) { message.success('删除成功'); loadResources() } else { message.error(res.message || '删除失败') }
-}
-
-const handleBatchDelete = async () => {
-  if (!selectedRowKeys.value.length) { message.warning('请选择要删除的资源'); return }
-  const res = await ResourcesService.batchDeleteResources(selectedRowKeys.value)
-  if (res.code === 200) { message.success('批量删除成功'); selectedRowKeys.value = []; loadResources() } else { message.error(res.message || '批量删除失败') }
-}
-
-onMounted(() => { loadResources() })
 </script>
 
 <template>
@@ -286,15 +192,13 @@ onMounted(() => { loadResources() })
     </a-card>
 
     <a-card :bordered="false">
-      <template #title>
-        <span>资源列表</span>
-      </template>
+      <template #title><span>资源列表</span></template>
       <template #extra>
         <a-space>
           <a-button type="primary" @click="openCreate">
             <template #icon><PlusOutlined /></template>新建资源
           </a-button>
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
+          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
             <template #icon><DeleteOutlined /></template>批量删除
           </a-button>
           <a-popconfirm
@@ -302,7 +206,7 @@ onMounted(() => { loadResources() })
             title="确定要批量彻底删除选中的资源吗？此操作不可恢复！"
             ok-text="确定"
             cancel-text="取消"
-            @confirm="handleBatchPermanentDelete"
+            @confirm="handleBatchPermanentDeleteAction"
           >
             <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
           </a-popconfirm>
@@ -403,11 +307,3 @@ onMounted(() => { loadResources() })
     </a-modal>
   </div>
 </template>
-
-<style scoped>
-.search-card,
-.action-card {
-  margin-bottom: 16px;
-  border-radius: 8px;
-}
-</style>

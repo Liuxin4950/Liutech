@@ -1,32 +1,54 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import TagsService from '../../services/tags'
 import type { Tag, TagListParams } from '../../services/tags'
 import { formatDateTime } from '../../utils/utils'
 
-// 响应式数据
-const loading = ref(false)
-const dataSource = ref<Tag[]>([])
-const selectedRowKeys = ref<number[]>([])
-
-// 分页配置
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
+// 表格页面：加载、分页、搜索、选择
+const {
+  loading, dataSource, selectedRowKeys, searchParams, pagination,
+  load, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
+} = useTablePage<Tag, TagListParams>({
+  loadFn: (params) => TagsService.getTagList(params),
+  defaultSearchParams: { name: '', includeDeleted: false },
+  loadErrorMessage: '加载标签失败'
 })
 
-// 搜索参数
-const searchParams = ref<TagListParams>({
-  name: '',
-  includeDeleted: false
+// CRUD 操作：删除、恢复、彻底删除、批量操作
+const {
+  handleDelete, handleBatchDelete, handleRestore,
+  handlePermanentDelete, handleBatchPermanentDelete
+} = useCrudActions({
+  deleteFn: (id) => TagsService.deleteTag(id),
+  batchDeleteFn: (ids) => TagsService.batchDeleteTags(id),
+  restoreFn: (id) => TagsService.restoreTag(id),
+  permanentDeleteFn: (id) => TagsService.permanentDeleteTag(id),
+  batchPermanentDeleteFn: (ids) => TagsService.batchPermanentDeleteTags(id),
+  onRefresh: load,
+  clearSelection,
+  entityName: '标签'
 })
 
+// 弹窗表单：新建/编辑
+const {
+  modalVisible, modalTitle, confirmLoading,
+  formRef, formModel, openCreate, openEdit, handleOk, handleCancel
+} = useModalForm<Tag>({
+  createFn: (data) => TagsService.createTag(data) as any,
+  updateFn: (id, data) => TagsService.updateTag(id, data) as any,
+  defaultForm: () => ({ name: '', description: '' }),
+  onCreateSuccess: () => { pagination.current = 1; load() },
+  onUpdateSuccess: load,
+  entityName: '标签'
+})
+
+// 表单校验规则
+const rules = {
+  name: [{ required: true, message: '请输入标签名称' }]
+}
+
+// 表格列定义
 const columns = [
   { title: '名称', dataIndex: 'name', key: 'name' },
   { title: '描述', dataIndex: 'description', key: 'description' },
@@ -35,161 +57,11 @@ const columns = [
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
   { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
 ]
-
-// 弹窗相关
-const modalVisible = ref(false)
-const modalTitle = ref('新建标签')
-const isEdit = ref(false)
-const editingId = ref<number | null>(null)
-const confirmLoading = ref(false)
-
-const formRef = ref()
-const formModel = ref<Partial<Tag>>({ name: '', description: '' })
-const rules = {
-  name: [{ required: true, message: '请输入标签名称' }]
-}
-
-const openCreate = () => {
-  isEdit.value = false
-  modalTitle.value = '新建标签'
-  editingId.value = null
-  formModel.value = { name: '', description: '' }
-  modalVisible.value = true
-}
-
-const openEdit = (record: Tag) => {
-  isEdit.value = true
-  modalTitle.value = '编辑标签'
-  editingId.value = record.id || null
-  formModel.value = { name: record.name, description: record.description }
-  modalVisible.value = true
-}
-
-const handleOk = async () => {
-  try {
-    confirmLoading.value = true
-    await formRef.value?.validate?.()
-    if (isEdit.value) {
-      const res = await TagsService.updateTag(editingId.value as number, formModel.value as any)
-      if (res.code === 200) {
-        message.success('更新成功')
-        modalVisible.value = false
-        loadTags()
-      } else {
-        message.error(res.message || '更新失败')
-      }
-    } else {
-      const res = await TagsService.createTag(formModel.value as any)
-      if (res.code === 200) {
-        message.success('创建成功')
-        modalVisible.value = false
-        pagination.current = 1
-        loadTags()
-      } else {
-        message.error(res.message || '创建失败')
-      }
-    }
-  } catch (e) {
-    // ignore
-  } finally {
-    confirmLoading.value = false
-  }
-}
-
-const handleCancel = () => { modalVisible.value = false }
-
-// 列表加载
-const loadTags = async () => {
-  try {
-    loading.value = true
-    const params = { page: pagination.current, size: pagination.pageSize, ...searchParams.value }
-    const res = await TagsService.getTagList(params)
-    if (res.code === 200) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total
-    } else {
-      message.error(res.message || '加载标签失败')
-    }
-  } catch (e) {
-    message.error('加载标签失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleSearch = () => { pagination.current = 1; loadTags() }
-const handleReset = () => { searchParams.value = { name: '', includeDeleted: false }; pagination.current = 1; loadTags() }
-
-// 恢复删除
-const handleRestore = async (id: number) => {
-  const res = await TagsService.restoreTag(id)
-  if (res.code === 200) { message.success('恢复成功'); loadTags() } else { message.error(res.message || '恢复失败') }
-}
-
-// 彻底删除
-const handlePermanentDelete = async (id: number) => {
-  const res = await TagsService.permanentDeleteTag(id)
-  if (res.code === 200) { message.success('彻底删除成功'); loadTags() } else { message.error(res.message || '彻底删除失败') }
-}
-
-// 批量彻底删除
-const handleBatchPermanentDelete = async () => {
-  if (!selectedRowKeys.value.length) { message.warning('请选择要彻底删除的标签'); return }
-  const res = await TagsService.batchPermanentDeleteTags(selectedRowKeys.value)
-  if (res.code === 200) { message.success('批量彻底删除成功'); selectedRowKeys.value = []; loadTags() } else { message.error(res.message || '批量彻底删除失败') }
-}
-const handleTableChange = (p: any) => {
-  pagination.current = p.current
-  pagination.pageSize = p.pageSize
-  loadTags()
-}
-const onSelectChange = (keys: number[]) => { selectedRowKeys.value = keys }
-
-const handleDelete = async (id: number) => {
-  try {
-    const res = await TagsService.deleteTag(id)
-    if (res.code === 200) {
-      message.success('删除成功')
-      loadTags()
-    } else {
-      // 针对外键约束错误给出更友好的提示
-      if (res.message && res.message.includes('foreign key constraint')) {
-        message.error('无法删除该标签，因为还有文章正在使用此标签')
-      } else {
-        message.error(res.message || '删除失败')
-      }
-    }
-  } catch (error) {
-    message.error('删除操作失败，请稍后重试')
-  }
-}
-
-const handleBatchDelete = async () => {
-  if (!selectedRowKeys.value.length) { message.warning('请选择要删除的标签'); return }
-  try {
-    const res = await TagsService.batchDeleteTags(selectedRowKeys.value)
-    if (res.code === 200) {
-      message.success('批量删除成功')
-      selectedRowKeys.value = []
-      loadTags()
-    } else {
-      // 针对外键约束错误给出更友好的提示
-      if (res.message && res.message.includes('foreign key constraint')) {
-        message.error('无法删除选中的标签，因为还有文章正在使用这些标签')
-      } else {
-        message.error(res.message || '批量删除失败')
-      }
-    }
-  } catch (error) {
-    message.error('批量删除操作失败，请稍后重试')
-  }
-}
-
-onMounted(() => { loadTags() })
 </script>
 
 <template>
   <div class="p-24">
+    <!-- 搜索卡片 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
@@ -217,26 +89,23 @@ onMounted(() => { loadTags() })
       </a-form>
     </a-card>
 
+    <!-- 表格卡片 -->
     <a-card :bordered="false">
-      <template #title>
-        <span>标签列表</span>
-      </template>
+      <template #title><span>标签列表</span></template>
       <template #extra>
         <a-space>
           <a-button type="primary" @click="openCreate">
-            <template #icon><PlusOutlined /></template>
-            新建标签
+            <template #icon><PlusOutlined /></template>新建标签
           </a-button>
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
-            <template #icon><DeleteOutlined /></template>
-            批量删除
+          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
+            <template #icon><DeleteOutlined /></template>批量删除
           </a-button>
           <a-popconfirm
             v-if="searchParams.includeDeleted"
             title="确定要批量彻底删除选中的标签吗？此操作不可恢复！"
             ok-text="确定"
             cancel-text="取消"
-            @confirm="handleBatchPermanentDelete"
+            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
           >
             <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
           </a-popconfirm>
@@ -270,9 +139,9 @@ onMounted(() => { loadTags() })
                 <a-popconfirm title="确定恢复该标签吗？" @confirm="handleRestore(record.id)">
                   <a-button type="link" size="small">恢复</a-button>
                 </a-popconfirm>
-                <a-popconfirm 
-                  title="确定要彻底删除该标签吗？此操作不可恢复！" 
-                  ok-text="确定" 
+                <a-popconfirm
+                  title="确定要彻底删除该标签吗？此操作不可恢复！"
+                  ok-text="确定"
                   cancel-text="取消"
                   @confirm="handlePermanentDelete(record.id)"
                 >
@@ -285,6 +154,7 @@ onMounted(() => { loadTags() })
       </a-table>
     </a-card>
 
+    <!-- 新建/编辑弹窗 -->
     <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
         <a-form-item name="name" label="标签名称" required>
@@ -297,6 +167,3 @@ onMounted(() => { loadTags() })
     </a-modal>
   </div>
 </template>
-
-<style scoped>
-</style>

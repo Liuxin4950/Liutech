@@ -54,6 +54,7 @@ export interface UserRank {
   id: number
   username: string
   nickname: string
+  avatar: string
   postCount: number
 }
 

@@ -1,39 +1,17 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { message } from 'ant-design-vue'
+import { SearchOutlined, ReloadOutlined, FileTextOutlined, ClockCircleOutlined, GlobalOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
+import { useTablePage } from '@/composables'
 import LogService, { type LogItem, type LogListParams } from '../../services/log'
 import { formatDateTime } from '../../utils/utils'
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  FileTextOutlined,
-  ClockCircleOutlined,
-  UserOutlined,
-  GlobalOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined
-} from '@ant-design/icons-vue'
 
-// 响应式数据
-const loading = ref(false)
-const dataSource = ref<LogItem[]>([])
-
-// 分页配置
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
-})
-
-// 搜索参数
-const searchParams = ref<LogListParams>({
-  operator: '',
-  action: '',
-  startTime: undefined,
-  endTime: undefined
+// 表格页面：加载、分页、搜索
+const {
+  loading, dataSource, searchParams, pagination,
+  load, handleSearch, handleReset, handleTableChange
+} = useTablePage<LogItem, LogListParams>({
+  loadFn: (params) => LogService.getLogList(params),
+  defaultSearchParams: { operator: '', action: '', startTime: undefined, endTime: undefined },
+  loadErrorMessage: '加载日志列表失败'
 })
 
 // 操作类型选项
@@ -55,52 +33,6 @@ const actionOptions = [
   { label: '导入', value: 'import' }
 ]
 
-// 表格列定义
-const columns = [
-  {
-    title: '时间',
-    dataIndex: 'createdAt',
-    key: 'createdAt',
-    width: 180
-  },
-  {
-    title: '操作人',
-    dataIndex: 'operator',
-    key: 'operator',
-    width: 120
-  },
-  {
-    title: '操作类型',
-    dataIndex: 'action',
-    key: 'action',
-    width: 100
-  },
-  {
-    title: '目标类型',
-    dataIndex: 'target',
-    key: 'target',
-    width: 80
-  },
-  {
-    title: '操作描述',
-    dataIndex: 'description',
-    key: 'description',
-    ellipsis: true
-  },
-  {
-    title: 'IP地址',
-    dataIndex: 'ip',
-    key: 'ip',
-    width: 140
-  },
-  {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    width: 80
-  }
-]
-
 // 获取操作类型显示名称
 const getActionLabel = (action: string) => {
   const option = actionOptions.find(opt => opt.value === action)
@@ -110,20 +42,10 @@ const getActionLabel = (action: string) => {
 // 获取目标类型显示名称
 const getTargetLabel = (target: string) => {
   const targetMap: Record<string, string> = {
-    post: '文章',
-    user: '用户',
-    category: '分类',
-    tag: '标签',
-    announcement: '公告',
-    message: '留言',
-    image: '图片',
-    carousel: '轮播图',
-    resource: '资源',
-    attachment: '附件',
-    points: '积分',
-    comment: '评论',
-    tts: '语音',
-    ai_model: 'AI模型'
+    post: '文章', user: '用户', category: '分类', tag: '标签',
+    announcement: '公告', message: '留言', image: '图片',
+    carousel: '轮播图', resource: '资源', attachment: '附件',
+    points: '积分', comment: '评论', tts: '语音', ai_model: 'AI模型'
   }
   return targetMap[target] || target || '-'
 }
@@ -133,73 +55,16 @@ const getStatusColor = (status: string) => {
   return status === '成功' ? 'success' : 'error'
 }
 
-// =================== 列表与查询 ===================
-// 加载日志列表
-const loadLogs = async () => {
-  try {
-    loading.value = true
-    const params: LogListParams = {
-      page: pagination.current,
-      size: pagination.pageSize,
-      ...searchParams.value
-    }
-    // 移除空值参数
-    Object.keys(params).forEach(key => {
-      const value = params[key as keyof LogListParams]
-      if (value === '' || value === undefined) {
-        delete params[key as keyof LogListParams]
-      }
-    })
-
-    const response = await LogService.getLogList(params)
-    if (response.code === 200 && response.data) {
-      dataSource.value = response.data.records
-      pagination.total = response.data.total
-    } else {
-      message.error(response.message || '加载日志列表失败')
-    }
-  } catch (error) {
-    message.error('加载日志列表失败')
-    console.error('加载日志列表失败:', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 搜索
-const handleSearch = () => {
-  pagination.current = 1
-  loadLogs()
-}
-
-// 重置搜索
-const handleReset = () => {
-  searchParams.value = {
-    operator: '',
-    action: '',
-    startTime: undefined,
-    endTime: undefined
-  }
-  pagination.current = 1
-  loadLogs()
-}
-
-// 刷新
-const handleRefresh = () => {
-  loadLogs()
-}
-
-// 分页变化
-const handleTableChange = (p: any) => {
-  pagination.current = p.current
-  pagination.pageSize = p.pageSize
-  loadLogs()
-}
-
-// 组件挂载时加载数据
-onMounted(() => {
-  loadLogs()
-})
+// 表格列定义
+const columns = [
+  { title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '操作人', dataIndex: 'operator', key: 'operator', width: 120 },
+  { title: '操作类型', dataIndex: 'action', key: 'action', width: 100 },
+  { title: '目标类型', dataIndex: 'target', key: 'target', width: 80 },
+  { title: '操作描述', dataIndex: 'description', key: 'description', ellipsis: true },
+  { title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 140 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 }
+]
 </script>
 
 <template>
@@ -210,27 +75,13 @@ onMounted(() => {
         <a-row :gutter="24">
           <a-col :span="5">
             <a-form-item label="操作人" class="mb-0">
-              <a-input
-                v-model:value="searchParams.operator"
-                placeholder="请输入操作人"
-                allow-clear
-              >
-                <template #prefix><UserOutlined /></template>
-              </a-input>
+              <a-input v-model:value="searchParams.operator" placeholder="输入操作人" allow-clear />
             </a-form-item>
           </a-col>
           <a-col :span="5">
-            <a-form-item label="类型" class="mb-0">
-              <a-select
-                v-model:value="searchParams.action"
-                placeholder="请选择"
-                allow-clear
-              >
-                <a-select-option
-                  v-for="option in actionOptions.slice(1)"
-                  :key="option.value"
-                  :value="option.value"
-                >
+            <a-form-item label="操作类型" class="mb-0">
+              <a-select v-model:value="searchParams.action" placeholder="全部" allow-clear>
+                <a-select-option v-for="option in actionOptions" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </a-select-option>
               </a-select>
@@ -238,22 +89,12 @@ onMounted(() => {
           </a-col>
           <a-col :span="5">
             <a-form-item label="开始" class="mb-0">
-              <a-date-picker
-                v-model:value="searchParams.startTime"
-                value-format="YYYY-MM-DD"
-                placeholder="开始时间"
-                style="width: 100%"
-              />
+              <a-date-picker v-model:value="searchParams.startTime" value-format="YYYY-MM-DD" placeholder="开始时间" style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :span="5">
             <a-form-item label="结束" class="mb-0">
-              <a-date-picker
-                v-model:value="searchParams.endTime"
-                value-format="YYYY-MM-DD"
-                placeholder="结束时间"
-                style="width: 100%"
-              />
+              <a-date-picker v-model:value="searchParams.endTime" value-format="YYYY-MM-DD" placeholder="结束时间" style="width: 100%" />
             </a-form-item>
           </a-col>
           <a-col :span="4" class="text-right">
@@ -276,11 +117,11 @@ onMounted(() => {
       </template>
       <template #extra>
         <a-space>
-           <span class="text-secondary text-sm mr-4">共 {{ pagination.total }} 条记录</span>
-           <a-button type="primary" @click="handleRefresh" :loading="loading">
-             <template #icon><ReloadOutlined /></template>
-             刷新
-           </a-button>
+          <span class="text-secondary text-sm mr-4">共 {{ pagination.total }} 条记录</span>
+          <a-button type="primary" @click="load" :loading="loading">
+            <template #icon><ReloadOutlined /></template>
+            刷新
+          </a-button>
         </a-space>
       </template>
       <a-table
@@ -384,7 +225,6 @@ onMounted(() => {
   gap: 4px;
 }
 
-/* 表格样式覆盖 */
 :deep(.ant-table) {
   background: transparent;
 }
@@ -405,12 +245,7 @@ onMounted(() => {
   background: var(--bg-hover);
 }
 
-/* 响应式 */
 @media (max-width: 768px) {
-  .logs-management {
-    padding: 16px;
-  }
-
   :deep(.ant-form-inline) {
     display: flex;
     flex-direction: column;
@@ -422,3 +257,4 @@ onMounted(() => {
   }
 }
 </style>
+

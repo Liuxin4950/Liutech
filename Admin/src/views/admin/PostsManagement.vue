@@ -3,6 +3,7 @@ import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import DOMPurify from 'dompurify'
+import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import PostsService from '../../services/posts'
 import CategoriesService from '../../services/categories'
 import TagsService from '../../services/tags'
@@ -13,30 +14,55 @@ import { ImageUploadService } from '../../services/upload'
 import AdminAgentSidebar from '../../components/agent/AdminAgentSidebar.vue'
 import type { AdminArticleDraftSnapshot, AgentActionResult, FieldUpdatePayload } from '../../types/agent'
 
-// 响应式数据
-const loading = ref(false)
-const dataSource = ref<PostListItem[]>([])
-const selectedRowKeys = ref<number[]>([])
-
-// 分页配置
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
+// ============== 表格页面 ==============
+const {
+  loading, dataSource, selectedRowKeys, searchParams, pagination,
+  load, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
+} = useTablePage<PostListItem, PostListParams>({
+  loadFn: (params) => PostsService.getPostList(params),
+  defaultSearchParams: { title: '', categoryId: undefined, status: undefined, includeDeleted: false },
+  loadErrorMessage: '加载文章列表失败',
+  autoLoad: false
 })
 
-// 搜索参数
-const searchParams = ref<PostListParams>({
-  title: '',
-  categoryId: undefined,
-  status: undefined,
-  includeDeleted: false
+// ============== CRUD 操作 ==============
+const {
+  handleDelete, handleBatchDelete, handleRestore,
+  handlePermanentDelete, handleBatchPermanentDelete
+} = useCrudActions({
+  deleteFn: (id) => PostsService.deletePost(id),
+  batchDeleteFn: (ids) => PostsService.batchDeletePosts(id),
+  restoreFn: (id) => PostsService.restorePost(id),
+  permanentDeleteFn: (id) => PostsService.permanentDeletePost(id),
+  batchPermanentDeleteFn: (ids) => PostsService.batchPermanentDeletePosts(id),
+  onRefresh: load,
+  clearSelection,
+  entityName: '文章'
 })
 
-// 表格列定义
+// ============== 弹窗表单 ==============
+const {
+  modalVisible, modalTitle, isEdit, editingId, confirmLoading,
+  formRef, formModel, handleOk, handleCancel
+} = useModalForm<Post>({
+  createFn: (data) => PostsService.createPost(data as Post),
+  updateFn: (id, data) => PostsService.updatePost(id, data as Post),
+  defaultForm: () => ({
+    title: '',
+    content: '',
+    summary: '',
+    coverImage: '',
+    thumbnail: '',
+    categoryId: undefined,
+    tagIds: [],
+    status: 'draft'
+  }),
+  onCreateSuccess: () => { pagination.current = 1; load() },
+  onUpdateSuccess: load,
+  entityName: '文章'
+})
+
+// ============== 表格列与选项 ==============
 const columns = [
   { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
   { title: '分类', dataIndex: 'category', key: 'category' },
@@ -50,7 +76,6 @@ const columns = [
   { title: '操作', key: 'action', width: 200, fixed: 'right' as const }
 ]
 
-// 下拉选项
 const categoryOptions = ref<{ label: string; value: number }[]>([])
 const tagOptions = ref<{ label: string; value: number }[]>([])
 const statusOptions = [
@@ -58,12 +83,20 @@ const statusOptions = [
   { label: '已发布', value: 'published' }
 ]
 
-// ============== 新建/编辑 弹窗 ==============
-const modalVisible = ref(false)
-const modalTitle = ref('新建文章')
-const isEdit = ref(false)
-const editingId = ref<number | null>(null)
-const confirmLoading = ref(false)
+// ============== 分类/标签管理 ==============
+const loadCategoriesAndTags = async () => {
+  const [cats, tags] = await Promise.all([
+    CategoriesService.getCategoryList({ page: 1, size: 1000 }),
+    TagsService.getTagList({ page: 1, size: 1000 })
+  ])
+  if (cats.code === 200) {
+    categoryOptions.value = cats.data.records.map((c: any) => ({ label: c.name, value: c.id }))
+  }
+  if (tags.code === 200) {
+    tagOptions.value = tags.data.records.map((t: any) => ({ label: t.name, value: t.id }))
+  }
+}
+
 const createCategoryVisible = ref(false)
 const createTagVisible = ref(false)
 const creatingCategory = ref(false)
@@ -71,118 +104,71 @@ const creatingTag = ref(false)
 const newCategoryName = ref('')
 const newCategoryDescription = ref('')
 const newTagName = ref('')
-const aiSuggestedCategoryName = ref('')
-const aiSuggestedTagNames = ref<string[]>([])
 
-const formRef = ref()
-const formModel = ref<Partial<Post>>({
-  title: '',
-  content: '',
-  summary: '',
-  coverImage: '',
-  thumbnail: '',
-  categoryId: undefined,
-  tagIds: [],
-  status: 'draft'
-})
-
-const undoStack = ref<Array<{ field: string; oldValue: any }>>([])
-const highlightedFields = reactive<Record<string, boolean>>({})
-
-const agentDraftSnapshot = computed(() => ({
-  postId: editingId.value,
-  title: formModel.value.title,
-  content: formModel.value.content,
-  summary: formModel.value.summary,
-  categoryId: formModel.value.categoryId,
-  tagIds: formModel.value.tagIds,
-  status: formModel.value.status,
-  coverImage: formModel.value.coverImage,
-  thumbnail: formModel.value.thumbnail
-}))
-
-const rules = {
-  title: [{ required: true, message: '请输入标题' }],
-  content: [{ required: true, message: '请输入内容' }],
-  categoryId: [{ required: true, message: '请选择分类' }]
+const openCreateCategory = () => {
+  newCategoryName.value = ''
+  newCategoryDescription.value = ''
+  createCategoryVisible.value = true
 }
 
-// 图片上传相关
-const coverImageInput = ref<HTMLInputElement>()
-const thumbnailInput = ref<HTMLInputElement>()
-const uploadingCover = ref(false)
-const uploadingThumbnail = ref(false)
-
-// 触发封面图片上传
-const triggerCoverImageUpload = () => {
-  coverImageInput.value?.click()
+const openCreateTag = () => {
+  newTagName.value = ''
+  createTagVisible.value = true
 }
 
-// 触发缩略图上传
-const triggerThumbnailUpload = () => {
-  thumbnailInput.value?.click()
-}
-
-// 处理封面图片上传
-const handleCoverImageUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
+const createCategory = async () => {
+  const name = newCategoryName.value.trim()
+  if (!name) { message.warning('请输入分类名称'); return }
   try {
-    uploadingCover.value = true
-    const result = await ImageUploadService.uploadImage(file)
-    formModel.value.coverImage = result.fileUrl
-    message.success('封面图片上传成功')
-  } catch (error: any) {
-    message.error(error.message || '封面图片上传失败')
+    creatingCategory.value = true
+    const res = await CategoriesService.createCategory({ name, description: newCategoryDescription.value.trim() } as any)
+    if (res.code === 200) {
+      await loadCategoriesAndTags()
+      const created = categoryOptions.value.find(item => item.label === name)
+      if (created) formModel.value.categoryId = created.value
+      createCategoryVisible.value = false
+      message.success('分类已创建并选中')
+    } else {
+      message.error(res.message || '创建分类失败')
+    }
   } finally {
-    uploadingCover.value = false
-    // 清空input值，允许重复选择同一文件
-    if (target) target.value = ''
+    creatingCategory.value = false
   }
 }
 
-// 处理缩略图上传
-const handleThumbnailUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
-
+const createTag = async () => {
+  const name = newTagName.value.trim()
+  if (!name) { message.warning('请输入标签名称'); return }
   try {
-    uploadingThumbnail.value = true
-    const result = await ImageUploadService.uploadImage(file)
-    formModel.value.thumbnail = result.fileUrl
-    message.success('缩略图上传成功')
-  } catch (error: any) {
-    message.error(error.message || '缩略图上传失败')
+    creatingTag.value = true
+    const res = await TagsService.createTag({ name } as any)
+    if (res.code === 200) {
+      await loadCategoriesAndTags()
+      const created = tagOptions.value.find(item => item.label === name)
+      if (created) {
+        const current = formModel.value.tagIds || []
+        if (!current.includes(created.value)) {
+          formModel.value.tagIds = [...current, created.value]
+        }
+      }
+      createTagVisible.value = false
+      message.success('标签已创建并选中')
+    } else {
+      message.error(res.message || '创建标签失败')
+    }
   } finally {
-    uploadingThumbnail.value = false
-    // 清空input值，允许重复选择同一文件
-    if (target) target.value = ''
+    creatingTag.value = false
   }
 }
 
-// 删除封面图片
-const removeCoverImage = () => {
-  formModel.value.coverImage = ''
-}
-
-// 删除缩略图
-const removeThumbnail = () => {
-  formModel.value.thumbnail = ''
-}
-
+// ============== 覆盖 openCreate/openEdit ==============
 const openCreate = async () => {
-  isEdit.value = false
-  modalTitle.value = '新建文章'
-  editingId.value = null
-  
-  // 确保分类和标签数据已加载
   if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
     await loadCategoriesAndTags()
   }
-  
+  isEdit.value = false
+  modalTitle.value = '新建文章'
+  editingId.value = null
   formModel.value = {
     title: '',
     content: '',
@@ -198,20 +184,15 @@ const openCreate = async () => {
 
 const openEdit = async (record: PostListItem) => {
   try {
-    isEdit.value = true
-    modalTitle.value = '编辑文章'
-    editingId.value = record.id || null
-    
-    // 确保分类和标签数据已加载
     if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
       await loadCategoriesAndTags()
     }
-    
-    // 获取完整的文章详情（包含content字段）
+    isEdit.value = true
+    modalTitle.value = '编辑文章'
+    editingId.value = record.id || null
     const res = await PostsService.getPostById(record.id)
     if (res.code === 200) {
       const postDetail = res.data
-      
       formModel.value = {
         title: postDetail.title,
         content: postDetail.content || '',
@@ -222,7 +203,6 @@ const openEdit = async (record: PostListItem) => {
         tagIds: postDetail.tags?.map(tag => tag.id) || [],
         status: postDetail.status === 'published' ? 'published' : 'draft'
       }
-      
       modalVisible.value = true
     } else {
       message.error(res.message || '获取文章详情失败')
@@ -232,40 +212,69 @@ const openEdit = async (record: PostListItem) => {
   }
 }
 
-const handleOk = async () => {
+// ============== 图片上传 ==============
+const coverImageInput = ref<HTMLInputElement>()
+const thumbnailInput = ref<HTMLInputElement>()
+const uploadingCover = ref(false)
+const uploadingThumbnail = ref(false)
+
+const triggerCoverImageUpload = () => { coverImageInput.value?.click() }
+const triggerThumbnailUpload = () => { thumbnailInput.value?.click() }
+
+const handleCoverImageUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
   try {
-    confirmLoading.value = true
-    await formRef.value?.validate?.()
-    if (isEdit.value) {
-      const res = await PostsService.updatePost(editingId.value as number, formModel.value as any)
-      if (res.code === 200) {
-        message.success('更新成功')
-        modalVisible.value = false
-        loadPosts()
-      } else {
-        message.error(res.message || '更新失败')
-      }
-    } else {
-      const res = await PostsService.createPost(formModel.value as any)
-      if (res.code === 200) {
-        message.success('创建成功')
-        modalVisible.value = false
-        pagination.current = 1
-        loadPosts()
-      } else {
-        message.error(res.message || '创建失败')
-      }
-    }
-  } catch (e) {
-    // 表单校验失败或请求错误
+    uploadingCover.value = true
+    const result = await ImageUploadService.uploadImage(file)
+    formModel.value.coverImage = result.fileUrl
+    message.success('封面图片上传成功')
+  } catch (error: any) {
+    message.error(error.message || '封面图片上传失败')
   } finally {
-    confirmLoading.value = false
+    uploadingCover.value = false
+    if (target) target.value = ''
   }
 }
 
-const handleCancel = () => {
-  modalVisible.value = false
+const handleThumbnailUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  try {
+    uploadingThumbnail.value = true
+    const result = await ImageUploadService.uploadImage(file)
+    formModel.value.thumbnail = result.fileUrl
+    message.success('缩略图上传成功')
+  } catch (error: any) {
+    message.error(error.message || '缩略图上传失败')
+  } finally {
+    uploadingThumbnail.value = false
+    if (target) target.value = ''
+  }
 }
+
+const removeCoverImage = () => { formModel.value.coverImage = '' }
+const removeThumbnail = () => { formModel.value.thumbnail = '' }
+
+// ============== AI Agent 集成 ==============
+const aiSuggestedCategoryName = ref('')
+const aiSuggestedTagNames = ref<string[]>([])
+const undoStack = ref<Array<{ field: string; oldValue: any }>>([])
+const highlightedFields = reactive<Record<string, boolean>>({})
+
+const agentDraftSnapshot = computed(() => ({
+  postId: editingId.value,
+  title: formModel.value.title,
+  content: formModel.value.content,
+  summary: formModel.value.summary,
+  categoryId: formModel.value.categoryId,
+  tagIds: formModel.value.tagIds,
+  status: formModel.value.status,
+  coverImage: formModel.value.coverImage,
+  thumbnail: formModel.value.thumbnail
+}))
 
 const fieldLabelMap: Record<string, string> = {
   title: '标题',
@@ -299,7 +308,6 @@ const rememberAiTaxonomySuggestions = (payload: FieldUpdatePayload) => {
       aiSuggestedCategoryName.value = suggestedCategory
     }
   }
-
   if (payload.suggestedTagNames?.length) {
     const currentIds = formModel.value.tagIds || []
     const nextSuggestions: string[] = []
@@ -325,23 +333,16 @@ const handleFieldUpdate = (payload: FieldUpdatePayload) => {
   if (payload.contentHtml !== undefined && payload.contentHtml !== null) entries.push(['content', DOMPurify.sanitize(payload.contentHtml)])
   if (payload.categoryId !== undefined && payload.categoryId !== null) entries.push(['categoryId', payload.categoryId])
   if (payload.tagIds?.length) entries.push(['tagIds', [...payload.tagIds]])
-
-  if (entries.length > 0) {
-    undoStack.value = []
-  }
-
+  if (entries.length > 0) undoStack.value = []
   for (const [field, newValue] of entries) {
     const oldValue = (formModel.value as any)[field]
     undoStack.value.push({ field, oldValue })
     ;(formModel.value as any)[field] = newValue
     highlightedFields[field] = true
     nextTick(() => {
-      setTimeout(() => {
-        delete highlightedFields[field]
-      }, 1500)
+      setTimeout(() => { delete highlightedFields[field] }, 1500)
     })
   }
-
   if (entries.length > 0) {
     message.success(`AI 已更新 ${entries.map(([f]) => fieldLabelMap[f] || f).join('、')}`)
   }
@@ -370,74 +371,7 @@ const handleAgentActionDone = (result?: AgentActionResult) => {
     isEdit.value = true
     modalTitle.value = '编辑文章'
   }
-  loadPosts()
-}
-
-const openCreateCategory = () => {
-  newCategoryName.value = ''
-  newCategoryDescription.value = ''
-  createCategoryVisible.value = true
-}
-
-const openCreateTag = () => {
-  newTagName.value = ''
-  createTagVisible.value = true
-}
-
-const createCategory = async () => {
-  const name = newCategoryName.value.trim()
-  if (!name) {
-    message.warning('请输入分类名称')
-    return
-  }
-  try {
-    creatingCategory.value = true
-    const res = await CategoriesService.createCategory({
-      name,
-      description: newCategoryDescription.value.trim()
-    } as any)
-    if (res.code === 200) {
-      await loadCategoriesAndTags()
-      const created = categoryOptions.value.find(item => item.label === name)
-      if (created) {
-        formModel.value.categoryId = created.value
-      }
-      createCategoryVisible.value = false
-      message.success('分类已创建并选中')
-    } else {
-      message.error(res.message || '创建分类失败')
-    }
-  } finally {
-    creatingCategory.value = false
-  }
-}
-
-const createTag = async () => {
-  const name = newTagName.value.trim()
-  if (!name) {
-    message.warning('请输入标签名称')
-    return
-  }
-  try {
-    creatingTag.value = true
-    const res = await TagsService.createTag({ name } as any)
-    if (res.code === 200) {
-      await loadCategoriesAndTags()
-      const created = tagOptions.value.find(item => item.label === name)
-      if (created) {
-        const current = formModel.value.tagIds || []
-        if (!current.includes(created.value)) {
-          formModel.value.tagIds = [...current, created.value]
-        }
-      }
-      createTagVisible.value = false
-      message.success('标签已创建并选中')
-    } else {
-      message.error(res.message || '创建标签失败')
-    }
-  } finally {
-    creatingTag.value = false
-  }
+  load()
 }
 
 const createAiSuggestedCategory = async (name: string) => {
@@ -459,103 +393,17 @@ const createAiSuggestedTag = async (name: string) => {
 
 const createAllAiSuggestedTags = async () => {
   const names = [...aiSuggestedTagNames.value]
-  for (const name of names) {
-    await createAiSuggestedTag(name)
-  }
+  for (const name of names) await createAiSuggestedTag(name)
 }
 
 const createAllAiSuggestedTaxonomy = async () => {
   const categoryName = aiSuggestedCategoryName.value
   const tagNames = [...aiSuggestedTagNames.value]
-  if (categoryName) {
-    await createAiSuggestedCategory(categoryName)
-  }
-  for (const name of tagNames) {
-    await createAiSuggestedTag(name)
-  }
+  if (categoryName) await createAiSuggestedCategory(categoryName)
+  for (const name of tagNames) await createAiSuggestedTag(name)
 }
 
-// ============== 列表查询 ==============
-const loadCategoriesAndTags = async () => {
-  const [cats, tags] = await Promise.all([
-    CategoriesService.getCategoryList({ page: 1, size: 1000 }),
-    TagsService.getTagList({ page: 1, size: 1000 })
-  ])
-  if (cats.code === 200) {
-    categoryOptions.value = cats.data.records.map((c: any) => ({ label: c.name, value: c.id }))
-  }
-  if (tags.code === 200) {
-    tagOptions.value = tags.data.records.map((t: any) => ({ label: t.name, value: t.id }))
-  }
-}
-
-const loadPosts = async () => {
-  try {
-    loading.value = true
-    const params = {
-      page: pagination.current,
-      size: pagination.pageSize,
-      ...searchParams.value
-    }
-    const res = await PostsService.getPostList(params)
-    if (res.code === 200) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total
-    } else {
-      message.error(res.message || '加载文章列表失败')
-    }
-  } catch (e) {
-    message.error('加载文章列表失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleSearch = () => {
-  pagination.current = 1
-  loadPosts()
-}
-
-const handleReset = () => {
-  searchParams.value = { title: '', categoryId: undefined, status: undefined, includeDeleted: false }
-  pagination.current = 1
-  loadPosts()
-}
-
-// 恢复删除
-const handleRestore = async (id: number) => {
-  const res = await PostsService.restorePost(id)
-  if (res.code === 200) { message.success('恢复成功'); loadPosts() } else { message.error(res.message || '恢复失败') }
-}
-
-// 彻底删除
-const handlePermanentDelete = async (id: number) => {
-  const res = await PostsService.permanentDeletePost(id)
-  if (res.code === 200) {
-    message.success('彻底删除成功')
-    loadPosts()
-  } else {
-    message.error(res.message || '彻底删除失败')
-  }
-}
-
-// 批量彻底删除
-const handleBatchPermanentDelete = async () => {
-  if (!selectedRowKeys.value.length) {
-    message.warning('请选择要彻底删除的文章')
-    return
-  }
-  const res = await PostsService.batchPermanentDeletePosts(selectedRowKeys.value)
-  if (res.code === 200) {
-    message.success('批量彻底删除成功')
-    selectedRowKeys.value = []
-    loadPosts()
-  } else {
-    message.error(res.message || '批量彻底删除失败')
-  }
-}
-
-// 批量恢复文章
+// ============== 自定义操作 ==============
 const handleBatchRestore = async () => {
   if (!selectedRowKeys.value.length) {
     message.warning('请选择要恢复的文章')
@@ -564,45 +412,10 @@ const handleBatchRestore = async () => {
   const res = await PostsService.batchRestorePosts(selectedRowKeys.value)
   if (res.code === 200) {
     message.success('批量恢复成功')
-    selectedRowKeys.value = []
-    loadPosts()
+    clearSelection()
+    load()
   } else {
     message.error(res.message || '批量恢复失败')
-  }
-}
-
-const handleTableChange = (p: any) => {
-  pagination.current = p.current
-  pagination.pageSize = p.pageSize
-  loadPosts()
-}
-
-const onSelectChange = (keys: number[]) => {
-  selectedRowKeys.value = keys
-}
-
-const handleDelete = async (id: number) => {
-  const res = await PostsService.deletePost(id)
-  if (res.code === 200) {
-    message.success('删除成功')
-    loadPosts()
-  } else {
-    message.error(res.message || '删除失败')
-  }
-}
-
-const handleBatchDelete = async () => {
-  if (!selectedRowKeys.value.length) {
-    message.warning('请选择要删除的文章')
-    return
-  }
-  const res = await PostsService.batchDeletePosts(selectedRowKeys.value)
-  if (res.code === 200) {
-    message.success('批量删除成功')
-    selectedRowKeys.value = []
-    loadPosts()
-  } else {
-    message.error(res.message || '批量删除失败')
   }
 }
 
@@ -614,8 +427,8 @@ const handleBatchStatusUpdate = async (status: string) => {
   const res = await PostsService.batchUpdatePostStatus(selectedRowKeys.value, status)
   if (res.code === 200) {
     message.success('批量状态更新成功')
-    selectedRowKeys.value = []
-    loadPosts()
+    clearSelection()
+    load()
   } else {
     message.error(res.message || '批量状态更新失败')
   }
@@ -625,18 +438,25 @@ const handleStatusChange = async (id: number, status: string) => {
   const res = await PostsService.updatePostStatus(id, status)
   if (res.code === 200) {
     message.success('状态更新成功')
-    loadPosts()
+    load()
   } else {
     message.error(res.message || '状态更新失败')
   }
 }
 
+// 表单校验规则
+const rules = {
+  title: [{ required: true, message: '请输入标题' }],
+  content: [{ required: true, message: '请输入内容' }],
+  categoryId: [{ required: true, message: '请选择分类' }]
+}
+
+// ============== 初始化 ==============
 onMounted(async () => {
   await loadCategoriesAndTags()
-  await loadPosts()
+  await load()
 })
 </script>
-
 <template>
   <div class="p-24">
     <!-- 搜索区域 -->
@@ -696,7 +516,7 @@ onMounted(async () => {
             <template v-if="!searchParams.includeDeleted">
                <a-popconfirm
                   title="确定要批量删除选中的文章吗？"
-                  @confirm="handleBatchDelete"
+                  @confirm="handleBatchDelete(selectedRowKeys)"
                   :disabled="selectedRowKeys.length === 0"
                 >
                   <a-button danger :disabled="selectedRowKeys.length === 0">
@@ -711,7 +531,7 @@ onMounted(async () => {
                 title="确定要彻底删除选中的文章吗？此操作不可恢复！"
                 ok-text="确定"
                 cancel-text="取消"
-                @confirm="handleBatchPermanentDelete"
+                @confirm="handleBatchPermanentDelete(selectedRowKeys)"
               >
                 <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
               </a-popconfirm>
@@ -1109,3 +929,4 @@ onMounted(async () => {
   white-space: nowrap;
 }
 </style>
+

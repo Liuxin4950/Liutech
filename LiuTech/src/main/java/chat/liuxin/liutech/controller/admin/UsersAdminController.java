@@ -208,6 +208,38 @@ public class UsersAdminController extends BaseAdminController {
     }
 
     /**
+
+    /**
+     * 彻底删除用户（物理删除）
+     */
+    @DeleteMapping("/{id}/permanent")
+    @OperationLog(action = "delete", targetType = "user", description = "彻底删除用户", targetName = "#id")
+    public Result<String> permanentDeleteUser(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "用户ID");
+        try {
+            boolean success = userManagementService.permanentDeleteUser(id);
+            return handleOperationResult(success, "用户彻底删除成功", "用户彻底删除");
+        } catch (Exception e) {
+            return handleException(e, "用户彻底删除");
+        }
+    }
+
+    /**
+     * 批量彻底删除用户（物理删除）
+     */
+    @PostMapping("/batch/permanent")
+    @OperationLog(action = "delete", targetType = "user", description = "批量彻底删除用户")
+    public Result<String> batchPermanentDeleteUsers(@RequestBody List<Long> ids) {
+        ValidationUtil.validateNotEmpty(ids, "用户ID列表");
+        try {
+            boolean success = userManagementService.batchPermanentDeleteUsers(ids);
+            return handleOperationResult(success, "批量彻底删除用户成功", "批量彻底删除用户");
+        } catch (Exception e) {
+            return handleException(e, "批量彻底删除用户");
+        }
+    }
+
+    /**
      * 如果密码为空则保留原密码
      */
     private void preservePasswordIfEmpty(Users user, Long id) {
@@ -229,3 +261,5 @@ public class UsersAdminController extends BaseAdminController {
         return user;
     }
 }
+
+

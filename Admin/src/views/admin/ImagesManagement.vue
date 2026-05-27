@@ -1,5 +1,5 @@
-<script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+﻿<script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined,
@@ -12,126 +12,40 @@ import {
 import ImagesService from '../../services/images'
 import type { Image, ImageListParams } from '../../services/images'
 import { formatDateTime } from '../../utils/utils'
+import { useTablePage, useCrudActions } from '@/composables'
 
-// 响应式数据
-const loading = ref(false)
-const dataSource = ref<Image[]>([])
-const selectedRowKeys = ref<number[]>([])
-
-// 分页配置
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showQuickJumper: true,
-  showTotal: (total: number) => `共 ${total} 条记录`
+// ============== 表格页面 ==============
+const {
+  loading, dataSource, selectedRowKeys, searchParams, pagination,
+  load: loadImages, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
+} = useTablePage<Image, ImageListParams>({
+  loadFn: (params) => ImagesService.getImageList(params),
+  defaultSearchParams: {
+    fileName: '',
+    mimeType: '',
+    status: undefined,
+    includeDeleted: false
+  },
+  loadErrorMessage: '加载图片列表失败'
 })
 
-// 搜索参数
-const searchParams = ref<ImageListParams>({
-  fileName: '',
-  mimeType: '',
-  status: undefined,
-  includeDeleted: false
+// ============== CRUD 操作 ==============
+const {
+  handleRestore,
+  handlePermanentDelete,
+  handleBatchPermanentDelete
+} = useCrudActions({
+  deleteFn: (id) => ImagesService.deleteImage(id),
+  batchDeleteFn: (ids) => ImagesService.batchDeleteImages(id),
+  restoreFn: (id) => ImagesService.restoreImage(id),
+  permanentDeleteFn: (id) => ImagesService.permanentDeleteImage(id),
+  batchPermanentDeleteFn: (ids) => ImagesService.batchPermanentDeleteImages(id),
+  onRefresh: loadImages,
+  clearSelection,
+  entityName: '图片'
 })
 
-// 图片预览
-const previewVisible = ref(false)
-const previewImage = ref('')
-const previewFileName = ref('')
-
-// 孤立图片
-const orphanModalVisible = ref(false)
-const orphanImages = ref<Image[]>([])
-const orphanLoading = ref(false)
-const cleanupLoading = ref(false)
-
-const columns = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-  { title: '文件名', key: 'fileName', width: 280 },
-  { title: '大小', key: 'fileSize', width: 100 },
-  { title: '尺寸', key: 'dimensions', width: 110 },
-  { title: 'MIME类型', dataIndex: 'mimeType', key: 'mimeType', width: 140 },
-  { title: '上传者', dataIndex: 'uploaderUsername', key: 'uploaderUsername', width: 100 },
-  { title: '引用次数', dataIndex: 'usageCount', key: 'usageCount', width: 90 },
-  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
-  { title: '操作', key: 'action', width: 150, fixed: 'right' as const }
-]
-
-/**
- * 格式化文件大小
- */
-const formatFileSize = (bytes: number | undefined | null): string => {
-  if (bytes === undefined || bytes === null || bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const k = 1024
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + units[i]
-}
-
-/**
- * 格式化图片尺寸
- */
-const formatDimensions = (width: number | null, height: number | null): string => {
-  if (!width || !height) return '-'
-  return `${width} x ${height}`
-}
-
-/**
- * 列表加载
- */
-const loadImages = async () => {
-  try {
-    loading.value = true
-    const params = { page: pagination.current, size: pagination.pageSize, ...searchParams.value }
-    const res = await ImagesService.getImageList(params)
-    if (res.code === 200) {
-      dataSource.value = res.data.records
-      pagination.total = res.data.total
-    } else {
-      message.error(res.message || '加载图片列表失败')
-    }
-  } catch (e) {
-    message.error('加载图片列表失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-const handleSearch = () => {
-  pagination.current = 1
-  loadImages()
-}
-
-const handleReset = () => {
-  searchParams.value = { fileName: '', mimeType: '', status: undefined, includeDeleted: false }
-  pagination.current = 1
-  loadImages()
-}
-
-const handleTableChange = (p: any) => {
-  pagination.current = p.current
-  pagination.pageSize = p.pageSize
-  loadImages()
-}
-
-const onSelectChange = (keys: number[]) => {
-  selectedRowKeys.value = keys
-}
-
-/**
- * 预览图片
- */
-const handlePreview = (record: Image) => {
-  previewImage.value = record.fileUrl
-  previewFileName.value = record.fileName
-  previewVisible.value = true
-}
-
-/**
- * 软删除图片
- */
+// 自定义删除（支持额外警告信息）
 const handleDelete = async (id: number) => {
   const res = await ImagesService.deleteImage(id)
   if (res.code === 200) {
@@ -146,9 +60,6 @@ const handleDelete = async (id: number) => {
   }
 }
 
-/**
- * 批量软删除
- */
 const handleBatchDelete = async () => {
   if (!selectedRowKeys.value.length) {
     message.warning('请选择要删除的图片')
@@ -168,53 +79,37 @@ const handleBatchDelete = async () => {
   }
 }
 
-/**
- * 恢复图片
- */
-const handleRestore = async (id: number) => {
-  const res = await ImagesService.restoreImage(id)
-  if (res.code === 200) {
-    message.success('恢复成功')
-    loadImages()
-  } else {
-    message.error(res.message || '恢复失败')
-  }
+// ============== 格式化函数 ==============
+const formatFileSize = (bytes: number | undefined | null): string => {
+  if (bytes === undefined || bytes === null || bytes === 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const k = 1024
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + units[i]
 }
 
-/**
- * 彻底删除图片
- */
-const handlePermanentDelete = async (id: number) => {
-  const res = await ImagesService.permanentDeleteImage(id)
-  if (res.code === 200) {
-    message.success('彻底删除成功')
-    loadImages()
-  } else {
-    message.error(res.message || '彻底删除失败')
-  }
+const formatDimensions = (width: number | null, height: number | null): string => {
+  if (!width || !height) return '-'
+  return `${width} x ${height}`
 }
 
-/**
- * 批量彻底删除
- */
-const handleBatchPermanentDelete = async () => {
-  if (!selectedRowKeys.value.length) {
-    message.warning('请选择要彻底删除的图片')
-    return
-  }
-  const res = await ImagesService.batchPermanentDeleteImages(selectedRowKeys.value)
-  if (res.code === 200) {
-    message.success('批量彻底删除成功')
-    selectedRowKeys.value = []
-    loadImages()
-  } else {
-    message.error(res.message || '批量彻底删除失败')
-  }
+// ============== 图片预览 ==============
+const previewVisible = ref(false)
+const previewImage = ref('')
+const previewFileName = ref('')
+
+const handlePreview = (record: Image) => {
+  previewImage.value = record.fileUrl
+  previewFileName.value = record.fileName
+  previewVisible.value = true
 }
 
-/**
- * 打开孤立图片弹窗
- */
+// ============== 孤立图片清理 ==============
+const orphanModalVisible = ref(false)
+const orphanImages = ref<Image[]>([])
+const orphanLoading = ref(false)
+const cleanupLoading = ref(false)
+
 const handleShowOrphans = async () => {
   orphanModalVisible.value = true
   orphanLoading.value = true
@@ -232,9 +127,6 @@ const handleShowOrphans = async () => {
   }
 }
 
-/**
- * 清理孤立图片
- */
 const handleCleanupOrphans = () => {
   Modal.confirm({
     title: '确认清理',
@@ -263,9 +155,18 @@ const handleCleanupOrphans = () => {
   })
 }
 
-onMounted(() => {
-  loadImages()
-})
+// ============== 表格列定义 ==============
+const columns = [
+  { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
+  { title: '文件名', key: 'fileName', width: 280 },
+  { title: '大小', key: 'fileSize', width: 100 },
+  { title: '尺寸', key: 'dimensions', width: 110 },
+  { title: 'MIME类型', dataIndex: 'mimeType', key: 'mimeType', width: 140 },
+  { title: '上传者', dataIndex: 'uploaderUsername', key: 'uploaderUsername', width: 100 },
+  { title: '引用次数', dataIndex: 'usageCount', key: 'usageCount', width: 90 },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
+  { title: '操作', key: 'action', width: 150, fixed: 'right' as const }
+]
 </script>
 
 <template>
@@ -322,7 +223,7 @@ onMounted(() => {
             title="确定要批量彻底删除选中的图片吗？此操作不可恢复！"
             ok-text="确定"
             cancel-text="取消"
-            @confirm="handleBatchPermanentDelete"
+            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
           >
             <a-button danger :disabled="selectedRowKeys.length === 0">
               <template #icon><DeleteOutlined /></template>批量彻底删除
@@ -357,7 +258,7 @@ onMounted(() => {
                 <a-tooltip :title="record.fileName">
                   <span class="file-name">{{ record.fileName }}</span>
                 </a-tooltip>
-                <span v-if="record.deletedAt" class="deleted-tag">已删除</span>
+                <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
               </div>
             </div>
           </template>
@@ -497,7 +398,6 @@ export default { name: 'ImagesManagement' }
 </script>
 
 <style scoped>
-
 .mb-16 {
   margin-bottom: 16px;
 }
@@ -523,10 +423,6 @@ export default { name: 'ImagesManagement' }
   font-size: 13px;
 }
 
-.deleted-tag {
-  color: #ff4d4f;
-  font-size: 12px;
-}
 
 .image-thumbnail {
   border-radius: 4px;
@@ -554,3 +450,4 @@ export default { name: 'ImagesManagement' }
   text-align: right;
 }
 </style>
+

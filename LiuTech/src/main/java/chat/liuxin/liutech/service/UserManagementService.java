@@ -640,6 +640,88 @@ public class UserManagementService {
     }
 
     /**
+
+    /**
+     * 彻底删除用户（物理删除）
+     * 永久删除用户记录，此操作不可恢复
+     *
+     * @param id 用户ID
+     * @return 是否删除成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean permanentDeleteUser(Long id) {
+        log.info("彻底删除用户 - 用户ID: {}", id);
+
+        try {
+            if (id == null) {
+                log.warn("用户ID不能为空");
+                return false;
+            }
+
+            // 清理用户缓存
+            Users user = userMapper.selectById(id);
+            if (user != null && StringUtils.hasText(user.getUsername())) {
+                userUtils.clearUserCache(user.getUsername());
+                log.info("已清理彻底删除用户 {} 的缓存", user.getUsername());
+            }
+
+            // 物理删除
+            int result = userMapper.deleteById(id);
+            boolean success = result > 0;
+
+            log.info("彻底删除用户{} - 用户ID: {}", success ? "成功" : "失败", id);
+            return success;
+
+        } catch (Exception e) {
+            log.error("彻底删除用户失败 - 用户ID: {}, 错误: {}", id, e.getMessage(), e);
+            throw new RuntimeException("彻底删除用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 批量彻底删除用户（物理删除）
+     * 永久删除用户记录，此操作不可恢复
+     *
+     * @param ids 用户ID列表
+     * @return 是否删除成功
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public boolean batchPermanentDeleteUsers(List<Long> ids) {
+        log.info("批量彻底删除用户 - 用户ID列表: {}", ids);
+
+        try {
+            if (ids == null || ids.isEmpty()) {
+                log.warn("用户ID列表不能为空");
+                return false;
+            }
+
+            // 清理相关用户的缓存
+            LambdaQueryWrapper<Users> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.in(Users::getId, ids);
+            List<Users> users = userMapper.selectList(queryWrapper);
+            if (users != null && !users.isEmpty()) {
+                users.forEach(u -> {
+                    if (StringUtils.hasText(u.getUsername())) {
+                        userUtils.clearUserCache(u.getUsername());
+                    }
+                });
+                log.info("已清理 {} 个用户的缓存", users.size());
+            }
+
+            // 批量物理删除
+            int result = userMapper.deleteBatchIds(ids);
+            boolean success = result > 0;
+
+            log.info("批量彻底删除用户{} - 影响用户数: {}", success ? "成功" : "失败", ids.size());
+            return success;
+
+        } catch (Exception e) {
+            log.error("批量彻底删除用户失败 - 用户ID列表: {}, 错误: {}", ids, e.getMessage(), e);
+            throw new RuntimeException("批量彻底删除用户失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 统计用户总数（用于仪表盘）
      *
      * @return 用户总数
@@ -654,3 +736,5 @@ public class UserManagementService {
         }
     }
 }
+
+

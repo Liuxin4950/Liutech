@@ -54,13 +54,13 @@ onMounted(() => {
 
         <div class="content-wrapper">
           <!-- 使用 KeepAlive 缓存页面组件 -->
-          <KeepAlive :include="tagsStore.cachedViews">
-            <router-view v-slot="{ Component }">
+          <router-view v-slot="{ Component }">
+            <KeepAlive :include="tagsStore.cachedViews">
               <transition name="fade" mode="out-in">
                 <component :is="Component" />
               </transition>
-            </router-view>
-          </KeepAlive>
+            </KeepAlive>
+          </router-view>
         </div>
         <TheFooter />
       </a-layout-content>

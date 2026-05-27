@@ -10,13 +10,13 @@ import { handleUnknownError } from './errorHandler'
 export function initGlobalErrorHandler() {
   // 捕获未处理的JavaScript错误
   window.addEventListener('error', (event) => {
-    console.error('全局错误:', event.error)
     // 过滤掉ResizeObserver错误，这是浏览器的已知问题
     if (event.error && event.error.message && event.error.message.includes('ResizeObserver')) {
       return
     }
     // 只处理非null/undefined的错误
     if (event.error !== null && event.error !== undefined) {
+      console.error('全局错误:', event.error)
       handleUnknownError(event.error)
     }
   })

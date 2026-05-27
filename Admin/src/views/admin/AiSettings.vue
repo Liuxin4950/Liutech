@@ -256,7 +256,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="page-container">
+  <div class="p-24">
     <a-row :gutter="[16, 16]" class="mb-16">
       <a-col :xs="24" :sm="12" :lg="6">
         <a-card :bordered="false" class="stat-card">
@@ -520,16 +520,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-container {
-  padding: 24px;
-  background: var(--bg-main);
-  min-height: 100vh;
-}
-
-.mb-16 {
-  margin-bottom: 16px;
-}
-
 .stat-card,
 .settings-card {
   border-radius: 12px;
@@ -600,3 +590,4 @@ onMounted(() => {
   font-size: 13px;
 }
 </style>
+

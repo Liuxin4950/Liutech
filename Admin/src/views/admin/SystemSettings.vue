@@ -158,7 +158,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="page-container">
+  <div class="p-24">
     <a-card :bordered="false" class="page-header-card">
       <div class="page-header">
         <div class="page-header-left">
@@ -253,12 +253,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-container {
-  padding: 24px;
-  background: var(--bg-main);
-  min-height: 100vh;
-}
-
 .page-header-card {
   margin-bottom: 16px;
   border-radius: 12px;
@@ -307,3 +301,4 @@ onMounted(() => {
   margin-top: 4px;
 }
 </style>
+
