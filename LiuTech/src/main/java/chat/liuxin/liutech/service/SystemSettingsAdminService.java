@@ -18,8 +18,11 @@ import chat.liuxin.liutech.model.SystemSetting;
 /**
  * 系统设置管理服务（管理端专用）
  *
- * 在 SystemSettingService 的基础上提供管理端 CRUD 和分组查询能力。
- * 预定义常用设置项，首次访问时自动初始化默认值。
+ * 仅保留真正被业务消费的设置项：
+ * - author.*  作者资料（首页侧边栏展示）
+ * - tts.*     语音合成配置
+ *
+ * site.* / comment.* / upload.* 等已移除，改为硬编码或由 Spring 配置控制。
  */
 @Service
 public class SystemSettingsAdminService {
@@ -31,25 +34,21 @@ public class SystemSettingsAdminService {
     private static final Map<String, String[]> PREDEFINED_SETTINGS = new LinkedHashMap<>();
 
     static {
-        // 站点基本设置
-        PREDEFINED_SETTINGS.put("site.name", new String[]{"LiuTech", "站点名称", "site"});
-        PREDEFINED_SETTINGS.put("site.description", new String[]{"", "站点描述（SEO description）", "site"});
-        PREDEFINED_SETTINGS.put("site.keywords", new String[]{"", "SEO 关键词（逗号分隔）", "site"});
-        PREDEFINED_SETTINGS.put("site.logo_url", new String[]{"", "站点 Logo URL", "site"});
-        PREDEFINED_SETTINGS.put("site.favicon_url", new String[]{"", "Favicon URL", "site"});
-        PREDEFINED_SETTINGS.put("site.footer_text", new String[]{"", "页脚文本", "site"});
-        // 备案信息
-        PREDEFINED_SETTINGS.put("site.icp_number", new String[]{"", "ICP 备案号", "filing"});
-        PREDEFINED_SETTINGS.put("site.analytics_code", new String[]{"", "统计代码（如 Google Analytics）", "filing"});
-        // 评论设置
-        PREDEFINED_SETTINGS.put("comment.need_review", new String[]{"true", "评论是否需要审核（true/false）", "comment"});
-        // 上传设置
-        PREDEFINED_SETTINGS.put("upload.max_size_mb", new String[]{"100", "上传文件最大大小（MB）", "upload"});
-        // 作者资料设置
+        // 作者资料设置（首页侧边栏展示，Admin 可动态修改）
         PREDEFINED_SETTINGS.put("author.name", new String[]{"小鑫同学", "作者昵称（首页侧边栏展示）", "author"});
         PREDEFINED_SETTINGS.put("author.title", new String[]{"欢迎访问", "作者头衔/职位", "author"});
         PREDEFINED_SETTINGS.put("author.avatar", new String[]{"/洛天依.png", "作者头像 URL", "author"});
         PREDEFINED_SETTINGS.put("author.bio", new String[]{"专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。", "作者个人简介", "author"});
+        // TTS 语音设置（TtsConfigService 消费）
+        PREDEFINED_SETTINGS.put("tts.enabled", new String[]{"true", "语音推理全局开关：true/false", "tts"});
+        PREDEFINED_SETTINGS.put("tts.provider", new String[]{"GPT_SOVITS", "语音推理引擎：GPT_SOVITS/SILICONFLOW", "tts"});
+        PREDEFINED_SETTINGS.put("tts.baseUrl", new String[]{"", "语音推理服务基础地址", "tts"});
+        PREDEFINED_SETTINGS.put("tts.voiceModel", new String[]{"", "默认语音模型", "tts"});
+        PREDEFINED_SETTINGS.put("tts.siliconFlowModel", new String[]{"FunAudioLLM/CosyVoice2-0.5B", "SiliconFlow TTS 模型名称", "tts"});
+        PREDEFINED_SETTINGS.put("tts.siliconFlowVoiceUri", new String[]{"", "SiliconFlow 自定义音色 URI", "tts"});
+        PREDEFINED_SETTINGS.put("tts.responseFormat", new String[]{"mp3", "TTS 输出音频格式", "tts"});
+        PREDEFINED_SETTINGS.put("tts.sampleRate", new String[]{"44100", "TTS 输出采样率", "tts"});
+        PREDEFINED_SETTINGS.put("tts.speed", new String[]{"1.0", "TTS 语速", "tts"});
     }
 
     /**
@@ -111,7 +110,7 @@ public class SystemSettingsAdminService {
     /**
      * 按分组获取设置
      *
-     * 返回格式：{ "site": [...], "comment": [...], ... }
+     * 返回格式：{ "author": [...], "tts": [...], "other": [...] }
      * 如果数据库中还没有预定义的设置项，会自动初始化默认值。
      */
     public Map<String, List<SystemSetting>> getGroupedSettings() {
@@ -122,12 +121,8 @@ public class SystemSettingsAdminService {
 
         // 先按预定义分组顺序初始化空列表
         Map<String, String> groupLabels = new LinkedHashMap<>();
-        groupLabels.put("site", "站点基本设置");
-        groupLabels.put("filing", "备案与统计");
-        groupLabels.put("comment", "评论设置");
-        groupLabels.put("upload", "上传设置");
-        groupLabels.put("tts", "语音设置");
         groupLabels.put("author", "作者资料设置");
+        groupLabels.put("tts", "语音设置");
         groupLabels.put("other", "其他");
 
         for (String group : groupLabels.keySet()) {
@@ -170,13 +165,8 @@ public class SystemSettingsAdminService {
      */
     private String resolveGroup(String key) {
         if (key == null) return "other";
-        // site.icp_number 和 site.analytics_code 归入 filing（必须在 site. 前缀判断之前）
-        if ("site.icp_number".equals(key) || "site.analytics_code".equals(key)) return "filing";
-        if (key.startsWith("site.")) return "site";
-        if (key.startsWith("comment.")) return "comment";
-        if (key.startsWith("upload.")) return "upload";
-        if (key.startsWith("tts.")) return "tts";
         if (key.startsWith("author.")) return "author";
+        if (key.startsWith("tts.")) return "tts";
         return "other";
     }
 }

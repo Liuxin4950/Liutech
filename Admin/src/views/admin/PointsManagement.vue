@@ -129,7 +129,7 @@ const handleUserSearch = async (value: string) => {
     const res = await UserService.getUserList({ page: 1, size: 20, username: value })
     if (res.code === 200) {
       userOptions.value = res.data.records.map((u: any) => ({
-        label: `${u.username} (${u.nickname || u.email || 'ID:' + u.id})`,
+        label: u.username + (u.nickname ? ' (' + u.nickname + ')' : ''),
         value: u.id
       }))
     }
@@ -137,6 +137,52 @@ const handleUserSearch = async (value: string) => {
     // ignore
   } finally {
     userSearchLoading.value = false
+  }
+}
+
+const txUserOptions = ref<{ label: string; value: number }[]>([])
+const txUserSearchLoading = ref(false)
+const handleTxUserSearch = async (value: string) => {
+  if (!value || value.length < 1) {
+    txUserOptions.value = []
+    return
+  }
+  try {
+    txUserSearchLoading.value = true
+    const res = await UserService.getUserList({ page: 1, size: 20, username: value })
+    if (res.code === 200) {
+      txUserOptions.value = res.data.records.map((u: any) => ({
+        label: u.username + (u.nickname ? ' (' + u.nickname + ')' : ''),
+        value: u.id
+      }))
+    }
+  } catch {
+    // ignore
+  } finally {
+    txUserSearchLoading.value = false
+  }
+}
+
+const checkinUserOptions = ref<{ label: string; value: number }[]>([])
+const checkinUserSearchLoading = ref(false)
+const handleCheckinUserSearch = async (value: string) => {
+  if (!value || value.length < 1) {
+    checkinUserOptions.value = []
+    return
+  }
+  try {
+    checkinUserSearchLoading.value = true
+    const res = await UserService.getUserList({ page: 1, size: 20, username: value })
+    if (res.code === 200) {
+      checkinUserOptions.value = res.data.records.map((u: any) => ({
+        label: u.username + (u.nickname ? ' (' + u.nickname + ')' : ''),
+        value: u.id
+      }))
+    }
+  } catch {
+    // ignore
+  } finally {
+    checkinUserSearchLoading.value = false
   }
 }
 
@@ -202,11 +248,15 @@ onMounted(() => {
             <a-row :gutter="24">
               <a-col :span="4">
                 <a-form-item label="用户" class="mb-0">
-                  <a-input-number
+                  <a-select
                     v-model:value="txSearchParams.userId"
-                    placeholder="输入用户ID"
+                    placeholder="输入用户名搜索"
+                    show-search
+                    :filter-option="false"
+                    :options="txUserOptions"
+                    :loading="txUserSearchLoading"
+                    @search="handleTxUserSearch"
                     style="width: 100%"
-                    :min="1"
                     allow-clear
                   />
                 </a-form-item>
@@ -300,11 +350,15 @@ onMounted(() => {
             <a-row :gutter="24">
               <a-col :span="4">
                 <a-form-item label="用户" class="mb-0">
-                  <a-input-number
+                  <a-select
                     v-model:value="checkinSearchParams.userId"
-                    placeholder="输入用户ID"
+                    placeholder="输入用户名搜索"
+                    show-search
+                    :filter-option="false"
+                    :options="checkinUserOptions"
+                    :loading="checkinUserSearchLoading"
+                    @search="handleCheckinUserSearch"
                     style="width: 100%"
-                    :min="1"
                     allow-clear
                   />
                 </a-form-item>
@@ -420,3 +474,7 @@ onMounted(() => {
   margin-top: 4px;
 }
 </style>
+
+
+
+

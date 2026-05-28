@@ -34,10 +34,10 @@ const {
   handlePermanentDelete, handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => AnnouncementsService.deleteAnnouncement(id),
-  batchDeleteFn: (ids) => AnnouncementsService.batchDeleteAnnouncements(id),
+  batchDeleteFn: (ids) => AnnouncementsService.batchDeleteAnnouncements(ids),
   restoreFn: (id) => AnnouncementsService.restoreAnnouncement(id),
   permanentDeleteFn: (id) => AnnouncementsService.permanentDeleteAnnouncement(id),
-  batchPermanentDeleteFn: (ids) => AnnouncementsService.batchPermanentDeleteAnnouncements(id),
+  batchPermanentDeleteFn: (ids) => AnnouncementsService.batchPermanentDeleteAnnouncements(ids),
   onRefresh: loadAnnouncements,
   clearSelection,
   entityName: '公告'

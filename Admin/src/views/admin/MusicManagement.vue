@@ -59,7 +59,7 @@ const {
   handleDelete, handleBatchDelete
 } = useCrudActions({
   deleteFn: (id) => musicService.deleteMusic(id),
-  batchDeleteFn: (ids) => musicService.batchDelete(id),
+  batchDeleteFn: (ids) => musicService.batchDelete(ids),
   onRefresh: load,
   clearSelection,
   entityName: '音乐',

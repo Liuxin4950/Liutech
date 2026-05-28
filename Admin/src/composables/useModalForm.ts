@@ -6,9 +6,9 @@ import { message } from 'ant-design-vue'
  */
 export interface UseModalFormOptions<T> {
   /** 创建 API */
-  createFn?: (data: Partial<T>) => Promise<any>
+  createFn?: (data: any) => Promise<any>
   /** 更新 API */
-  updateFn?: (id: number, data: Partial<T>) => Promise<any>
+  updateFn?: (id: number, data: any) => Promise<any>
   /** 创建成功后回调 */
   onCreateSuccess?: () => void
   /** 更新成功后回调 */
@@ -62,7 +62,7 @@ export function useModalForm<T extends Record<string, any>>(options: UseModalFor
   /**
    * 打开编辑弹窗
    */
-  const openEdit = (record: T) => {
+  const openEdit = (record: Partial<T> & Record<string, any>) => {
     if (!updateFn) {
       console.warn('[useModalForm] updateFn 未配置，无法编辑')
       return
@@ -142,3 +142,5 @@ export function useModalForm<T extends Record<string, any>>(options: UseModalFor
     handleCancel
   }
 }
+
+

@@ -18,27 +18,13 @@ const voiceOptions = ref<string[]>([])
 
 // 分组中文名称映射
 const groupLabels: Record<string, string> = {
-  site: '站点基本设置',
-  filing: '备案与统计',
-  comment: '评论设置',
-  upload: '上传设置',
   tts: '语音设置',
   author: '作者资料设置',
   other: '其他'
 }
 
-// 设置项的中文标签（从 description 中提取，或手动映射）
+// 设置项的中文标签
 const fieldLabels: Record<string, string> = {
-  'site.name': '站点名称',
-  'site.description': '站点描述',
-  'site.keywords': 'SEO 关键词',
-  'site.logo_url': '站点 Logo URL',
-  'site.favicon_url': 'Favicon URL',
-  'site.footer_text': '页脚文本',
-  'site.icp_number': 'ICP 备案号',
-  'site.analytics_code': '统计代码',
-  'comment.need_review': '评论需要审核',
-  'upload.max_size_mb': '最大上传大小 (MB)',
   'tts.enabled': '语音推理开关',
   'tts.provider': '推理引擎',
   'tts.baseUrl': 'TTS 服务地址',
@@ -49,15 +35,15 @@ const fieldLabels: Record<string, string> = {
   'tts.sampleRate': '采样率',
   'tts.speed': '语速',
   'author.name': '作者昵称',
-  'author.title': '作者头衡',
+  'author.title': '作者头衔',
   'author.avatar': '作者头像 URL',
   'author.bio': '个人简介'
 }
 
 // 布尔类型的设置项
-const booleanKeys = new Set(['comment.need_review', 'tts.enabled'])
+const booleanKeys = new Set(['tts.enabled'])
 
-// 预定义选项的设置项（key -> options）
+// 预定义选项的设置项
 const selectOptions: Record<string, { value: string; label: string }[]> = {
   'tts.provider': [
     { value: 'GPT_SOVITS', label: '自定义 GPT-SoVITS' },
@@ -165,7 +151,7 @@ onMounted(() => {
           <SettingOutlined class="page-header-icon" />
           <div>
             <h3 class="page-title">系统设置</h3>
-            <p class="page-desc">管理站点名称、SEO、评论、上传等全局配置</p>
+            <p class="page-desc">管理作者资料和语音合成配置</p>
           </div>
         </div>
         <a-button @click="loadSettings" :loading="loading">
@@ -301,4 +287,3 @@ onMounted(() => {
   margin-top: 4px;
 }
 </style>
-

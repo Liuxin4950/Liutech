@@ -31,10 +31,10 @@ const {
   handlePermanentDelete, handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => PostsService.deletePost(id),
-  batchDeleteFn: (ids) => PostsService.batchDeletePosts(id),
+  batchDeleteFn: (ids) => PostsService.batchDeletePosts(ids),
   restoreFn: (id) => PostsService.restorePost(id),
   permanentDeleteFn: (id) => PostsService.permanentDeletePost(id),
-  batchPermanentDeleteFn: (ids) => PostsService.batchPermanentDeletePosts(id),
+  batchPermanentDeleteFn: (ids) => PostsService.batchPermanentDeletePosts(ids),
   onRefresh: load,
   clearSelection,
   entityName: '文章'

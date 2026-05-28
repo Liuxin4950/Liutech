@@ -21,10 +21,10 @@ const {
   handlePermanentDelete, handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => TagsService.deleteTag(id),
-  batchDeleteFn: (ids) => TagsService.batchDeleteTags(id),
+  batchDeleteFn: (ids) => TagsService.batchDeleteTags(ids),
   restoreFn: (id) => TagsService.restoreTag(id),
   permanentDeleteFn: (id) => TagsService.permanentDeleteTag(id),
-  batchPermanentDeleteFn: (ids) => TagsService.batchPermanentDeleteTags(id),
+  batchPermanentDeleteFn: (ids) => TagsService.batchPermanentDeleteTags(ids),
   onRefresh: load,
   clearSelection,
   entityName: '标签'

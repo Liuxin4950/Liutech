@@ -53,7 +53,7 @@ const {
   handlePermanentDelete
 } = useCrudActions({
   deleteFn: (id) => UserService.deleteUser(id),
-  batchDeleteFn: (ids) => UserService.batchDeleteUsers(id),
+  batchDeleteFn: (ids) => UserService.batchDeleteUsers(ids),
   restoreFn: (id) => UserService.restoreUser(id),
   permanentDeleteFn: (id) => UserService.permanentDeleteUser(id),
   onRefresh: load,

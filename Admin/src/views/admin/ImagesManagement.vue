@@ -36,10 +36,10 @@ const {
   handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => ImagesService.deleteImage(id),
-  batchDeleteFn: (ids) => ImagesService.batchDeleteImages(id),
+  batchDeleteFn: (ids) => ImagesService.batchDeleteImages(ids),
   restoreFn: (id) => ImagesService.restoreImage(id),
   permanentDeleteFn: (id) => ImagesService.permanentDeleteImage(id),
-  batchPermanentDeleteFn: (ids) => ImagesService.batchPermanentDeleteImages(id),
+  batchPermanentDeleteFn: (ids) => ImagesService.batchPermanentDeleteImages(ids),
   onRefresh: loadImages,
   clearSelection,
   entityName: '图片'

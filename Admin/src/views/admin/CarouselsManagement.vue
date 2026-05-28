@@ -30,10 +30,10 @@ const {
   handlePermanentDelete, handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => CarouselService.deleteCarousel(id),
-  batchDeleteFn: (ids) => CarouselService.batchDeleteCarousels(id),
+  batchDeleteFn: (ids) => CarouselService.batchDeleteCarousels(ids),
   restoreFn: (id) => CarouselService.restoreCarousel(id),
   permanentDeleteFn: (id) => CarouselService.permanentDeleteCarousel(id),
-  batchPermanentDeleteFn: (ids) => CarouselService.batchPermanentDeleteCarousels(id),
+  batchPermanentDeleteFn: (ids) => CarouselService.batchPermanentDeleteCarousels(ids),
   onRefresh: loadCarousels,
   clearSelection,
   entityName: '轮播图'

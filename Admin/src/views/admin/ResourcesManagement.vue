@@ -53,10 +53,10 @@ const {
   handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => ResourcesService.deleteResource(id),
-  batchDeleteFn: (ids) => ResourcesService.batchDeleteResources(id),
+  batchDeleteFn: (ids) => ResourcesService.batchDeleteResources(ids),
   restoreFn: (id) => ResourcesService.restoreResource(id),
   permanentDeleteFn: (id) => ResourcesService.permanentDeleteResource(id),
-  batchPermanentDeleteFn: (ids) => ResourcesService.batchPermanentDeleteResources(id),
+  batchPermanentDeleteFn: (ids) => ResourcesService.batchPermanentDeleteResources(ids),
   onRefresh: load,
   clearSelection,
   entityName: '资源'

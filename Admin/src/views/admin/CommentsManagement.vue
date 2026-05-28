@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { SearchOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { useTablePage, useCrudActions } from '@/composables'
 import CommentsService from '../../services/comments'
+import { PostsService } from '../../services/posts'
+import { UserService } from '../../services/user'
 import type { Comment, CommentListParams } from '../../services/comments'
 import { formatDateTime } from '../../utils/utils'
 
-// 表格页面：加载、分页、搜索、选择
 const {
   loading, dataSource, selectedRowKeys, searchParams, pagination,
   load, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
@@ -15,28 +17,25 @@ const {
   loadErrorMessage: '加载评论失败'
 })
 
-// CRUD 操作：删除、恢复、彻底删除、批量操作
 const {
   handleDelete, handleBatchDelete, handleRestore,
   handlePermanentDelete, handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => CommentsService.deleteComment(id),
-  batchDeleteFn: (ids) => CommentsService.batchDeleteComments(id),
+  batchDeleteFn: (ids) => CommentsService.batchDeleteComments(ids),
   restoreFn: (id) => CommentsService.restoreComment(id),
   permanentDeleteFn: (id) => CommentsService.permanentDeleteComment(id),
-  batchPermanentDeleteFn: (ids) => CommentsService.batchPermanentDeleteComments(id),
+  batchPermanentDeleteFn: (ids) => CommentsService.batchPermanentDeleteComments(ids),
   onRefresh: load,
   clearSelection,
   entityName: '评论'
 })
 
-// 截取评论内容前100字
 const truncateContent = (content: string) => {
   if (!content) return ''
   return content.length > 100 ? content.substring(0, 100) + '...' : content
 }
 
-// 表格列定义
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
   { title: '文章标题', dataIndex: 'postTitle', key: 'postTitle', ellipsis: true },
@@ -47,22 +46,87 @@ const columns = [
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
 ]
+
+const postOptions = ref<{ label: string; value: number }[]>([])
+const postSearchLoading = ref(false)
+const handlePostSearch = async (value: string) => {
+  if (!value || value.length < 1) {
+    postOptions.value = []
+    return
+  }
+  try {
+    postSearchLoading.value = true
+    const res = await PostsService.getPostList({ page: 1, size: 20, title: value })
+    if (res.code === 200) {
+      postOptions.value = res.data.records.map((p) => ({
+        label: p.title + (p.author?.username ? ' - ' + p.author.username : ''),
+        value: p.id
+      }))
+    }
+  } catch {
+    // ignore
+  } finally {
+    postSearchLoading.value = false
+  }
+}
+
+const userOptions = ref<{ label: string; value: number }[]>([])
+const userSearchLoading = ref(false)
+const handleUserSearch = async (value: string) => {
+  if (!value || value.length < 1) {
+    userOptions.value = []
+    return
+  }
+  try {
+    userSearchLoading.value = true
+    const res = await UserService.getUserList({ page: 1, size: 20, username: value })
+    if (res.code === 200) {
+      userOptions.value = res.data.records.map((u: any) => ({
+        label: u.username + (u.nickname ? ' (' + u.nickname + ')' : ''),
+        value: u.id
+      }))
+    }
+  } catch {
+    // ignore
+  } finally {
+    userSearchLoading.value = false
+  }
+}
 </script>
 
 <template>
   <div class="p-24">
-    <!-- 搜索卡片 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
         <a-row :gutter="24">
-          <a-col :span="5">
+          <a-col :span="6">
             <a-form-item label="文章" class="mb-0">
-              <a-input-number v-model:value="searchParams.postId" placeholder="输入文章ID" allow-clear style="width: 100%" />
+              <a-select
+                v-model:value="searchParams.postId"
+                placeholder="输入文章标题搜索"
+                show-search
+                :filter-option="false"
+                :options="postOptions"
+                :loading="postSearchLoading"
+                @search="handlePostSearch"
+                style="width: 100%"
+                allow-clear
+              />
             </a-form-item>
           </a-col>
-          <a-col :span="5">
+          <a-col :span="6">
             <a-form-item label="用户" class="mb-0">
-              <a-input-number v-model:value="searchParams.userId" placeholder="输入用户ID" allow-clear style="width: 100%" />
+              <a-select
+                v-model:value="searchParams.userId"
+                placeholder="输入用户名搜索"
+                show-search
+                :filter-option="false"
+                :options="userOptions"
+                :loading="userSearchLoading"
+                @search="handleUserSearch"
+                style="width: 100%"
+                allow-clear
+              />
             </a-form-item>
           </a-col>
           <a-col :span="5">
@@ -73,7 +137,7 @@ const columns = [
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="9" class="text-right">
+          <a-col :span="7" class="text-right">
             <a-space>
               <a-tooltip title="显示已删除">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
@@ -92,7 +156,6 @@ const columns = [
       </a-form>
     </a-card>
 
-    <!-- 表格卡片 -->
     <a-card :bordered="false">
       <template #title><span>评论列表</span></template>
       <template #extra>
@@ -166,3 +229,5 @@ const columns = [
     </a-card>
   </div>
 </template>
+
+

@@ -21,10 +21,10 @@ const {
   handlePermanentDelete, handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => CategoriesService.deleteCategory(id),
-  batchDeleteFn: (ids) => CategoriesService.batchDeleteCategories(id),
+  batchDeleteFn: (ids) => CategoriesService.batchDeleteCategories(ids),
   restoreFn: (id) => CategoriesService.restoreCategory(id),
   permanentDeleteFn: (id) => CategoriesService.permanentDeleteCategory(id),
-  batchPermanentDeleteFn: (ids) => CategoriesService.batchPermanentDeleteCategories(id),
+  batchPermanentDeleteFn: (ids) => CategoriesService.batchPermanentDeleteCategories(ids),
   onRefresh: load,
   clearSelection,
   entityName: '分类'

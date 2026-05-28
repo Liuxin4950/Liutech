@@ -57,10 +57,10 @@ const {
   handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => MessagesService.deleteMessage(id),
-  batchDeleteFn: (ids) => MessagesService.batchDeleteMessages(id),
+  batchDeleteFn: (ids) => MessagesService.batchDeleteMessages(ids),
   restoreFn: (id) => MessagesService.restoreMessage(id),
   permanentDeleteFn: (id) => MessagesService.permanentDeleteMessage(id),
-  batchPermanentDeleteFn: (ids) => MessagesService.batchPermanentDeleteMessages(id),
+  batchPermanentDeleteFn: (ids) => MessagesService.batchPermanentDeleteMessages(ids),
   onRefresh: load,
   clearSelection,
   entityName: '留言'
