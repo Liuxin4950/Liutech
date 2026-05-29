@@ -1,8 +1,8 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.req.ChatRequest;
-import chat.liuxin.ai.security.AiPromptSecurityPolicy;
-import chat.liuxin.ai.security.AiSystemPromptProvider;
+import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.infra.security.AiPromptSecurityPolicy;
+import chat.liuxin.ai.infra.security.AiSystemPromptProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;

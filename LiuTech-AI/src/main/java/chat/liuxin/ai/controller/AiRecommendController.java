@@ -1,9 +1,9 @@
 package chat.liuxin.ai.controller;
 
-import chat.liuxin.ai.mcp.BlogMcpTools;
+import chat.liuxin.ai.common.mcp.BlogMcpTools;
 import chat.liuxin.ai.dto.PostSummaryDTO;
-import chat.liuxin.ai.req.RecommendRequest;
-import chat.liuxin.ai.resp.RecommendResponse;
+import chat.liuxin.ai.dto.RecommendRequest;
+import chat.liuxin.ai.dto.RecommendResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

@@ -32,6 +32,7 @@
             :alt="post.title"
             class="fit"
             loading="lazy"
+            @error="handleImageError"
           />
         </div>
 
@@ -57,6 +58,7 @@
                 :alt="post.author.username"
                 class="rounded"
                 style="width: 24px; height: 24px; object-fit: cover"
+                @error="handleImageError"
               />
               <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
             </div>
@@ -85,9 +87,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { formatDate } from '@/utils/utils'
+import { handleImageError } from '@/composables/useImageFallback'
 import Pagination from '@/components/Pagination.vue'
 import Icon from './Icon.vue'
-import defaultPostImage from '@/assets/image/images.jpg'
+import defaultPostImage from '@/assets/image/err.png'
 
 const router = useRouter()
 

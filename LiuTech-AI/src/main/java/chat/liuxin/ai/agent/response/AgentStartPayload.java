@@ -12,9 +12,9 @@ import java.util.List;
  *   {
  *     "taskId": 123,
  *     "conversationId": 43,
- *     "intent": "SEARCH_ARTICLES",
- *     "role": "guest|user|admin",
- *     "capabilities": ["CHAT", "SEARCH_PUBLIC_ARTICLES", ...]
+ *     "handlerName": "search",
+ *     "role": "user|admin",
+ *     "capabilities": ["CHAT", "READ", "WRITE"]
  *   }
  *
  * @author liuxin
@@ -31,20 +31,20 @@ public class AgentStartPayload {
     private Long conversationId;
 
     /**
-     * 意图名称。
-     * 例如：SEARCH_ARTICLES、RECOMMEND_ARTICLES、IDENTITY、CHAT 等。
+     * Handler 名称。
+     * 例如：search、recommend、identity、chat 等。
      */
-    private String intent;
+    private String handlerName;
 
     /**
      * 角色。
-     * guest=访客，user=普通用户，admin=管理员。
+     * user=普通用户（含访客），admin=管理员。
      */
     private String role;
 
     /**
      * 支持的能力列表。
-     * 例如：["CHAT", "SEARCH_PUBLIC_ARTICLES", "WRITE_DRAFT"]
+     * 例如：["CHAT", "READ", "WRITE"]
      */
     private List<String> capabilities;
 }

@@ -37,8 +37,6 @@
         <!-- 推荐文章 -->
         <RecommendedPosts :posts="recommendedPosts" :loading="recommendedLoading" @post-click="goToPost" />
 
-        <!-- 友情链接 -->
-        <FriendLinks :links="friendLinks" />
       </aside>
     </div>
   </div>
@@ -61,7 +59,6 @@ import AnnouncementCard from '@/components/AnnouncementCard.vue'
 import CategoriesCard from '@/components/CategoriesCard.vue'
 import HotTags from '@/components/HotTags.vue'
 import RecommendedPosts from '@/components/RecommendedPosts.vue'
-import FriendLinks from '@/components/FriendLinks.vue'
 import Pagination from '@/components/Pagination.vue'
 import ArticleList from '@/components/ArticleList.vue'
 import SearchBox from '@/components/SearchBox.vue'
@@ -104,28 +101,6 @@ const profileInfo = ref<ProfileInfo>({
 
 const profileLoading = ref(false)
 // 公告相关数据已移至AnnouncementCard组件内部处理
-
-// 友情链接数据
-const friendLinks = ref([
-  {
-    id: 1,
-    url: 'https://github.com',
-    iconName: 'github',
-    text: 'GitHub'
-  },
-  {
-    id: 2,
-    url: 'https://vue.js.org',
-    iconName: 'vue',
-    text: 'Vue.js'
-  },
-  {
-    id: 3,
-    url: 'https://spring.io',
-    iconName: 'spring',
-    text: 'Spring'
-  }
-])
 
 // 从store获取数据
 const categories = computed(() => categoryStore.categories.slice(0, 10))

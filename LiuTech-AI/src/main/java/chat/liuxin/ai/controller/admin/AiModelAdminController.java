@@ -1,6 +1,6 @@
 package chat.liuxin.ai.controller.admin;
 
-import chat.liuxin.ai.aspect.OperationLog;
+import chat.liuxin.ai.infra.aspect.OperationLog;
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.dto.ModelConfigRequest;
 import chat.liuxin.ai.dto.ModelUsageStats;

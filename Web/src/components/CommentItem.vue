@@ -4,11 +4,11 @@
     <div class="comment-main">
       <!-- 用户头像 -->
       <div class="comment-avatar">
-        <img 
-          :src="comment.user?.avatarUrl || '/default-avatar.svg'"
+        <img
+          :src="comment.user?.avatarUrl || errImg"
           :alt="comment.user?.username || '匿名用户'"
           class="avatar-img"
-          @error="handleAvatarError"
+          @error="handleImageError"
         />
       </div>
       
@@ -83,6 +83,7 @@
 import { ref, computed } from 'vue'
 import type { Comment } from '@/services/comment'
 import { formatRelativeTime } from '@/utils/utils'
+import { handleImageError, errImg } from '@/composables/useImageFallback'
 import CommentForm from './CommentForm.vue'
 import Icon from './Icon.vue'
 
@@ -129,17 +130,12 @@ const toggleChildren = () => {
 const handleReplyCreated = (newReply: Comment) => {
   // 关闭回复表单
   showReplyForm.value = false
-  
+
   // 确保子评论展开
   showChildren.value = true
-  
+
   // 向上传递事件
   emit('replyCreated', newReply)
-}
-
-const handleAvatarError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  img.src = '/default-avatar.svg'
 }
 
 

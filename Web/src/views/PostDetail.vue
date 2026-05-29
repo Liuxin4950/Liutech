@@ -7,6 +7,7 @@ import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate } from '@/utils/utils'
+import { handleImageError } from '@/composables/useImageFallback'
 import CommentSection from '@/components/CommentSection.vue'
 import { isLoggedIn } from '../utils/auth'
 import LoginModal from '../components/LoginModal.vue'
@@ -544,7 +545,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
           <div class="meta-left-section">
             <div class="author-info">
               <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
-                class="author-avatar">
+                class="author-avatar" @error="handleImageError">
               <span v-else class="author-avatar-fallback">{{ (post.author?.username || 'L').slice(0, 1).toUpperCase() }}</span>
               <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
             </div>

@@ -1,8 +1,8 @@
 package chat.liuxin.ai.controller;
 
-import chat.liuxin.ai.req.ChatRequest;
-import chat.liuxin.ai.resp.ChatResponse;
-import chat.liuxin.ai.resp.ChatHistoryResponse;
+import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.dto.ChatResponse;
+import chat.liuxin.ai.dto.ChatHistoryResponse;
 import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.entity.AiChatMessage;
@@ -167,9 +167,9 @@ public class AiChatController {
      */
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        log.info("认证对象: {}", authentication);
+        log.debug("认证对象: {}", authentication);
         if (authentication != null) {
-            log.info("认证状态: {}, 主体: {}, 详情: {}",
+            log.debug("认证状态: {}, 主体: {}, 详情: {}",
                 authentication.isAuthenticated(),
                 authentication.getPrincipal(),
                 authentication.getDetails());

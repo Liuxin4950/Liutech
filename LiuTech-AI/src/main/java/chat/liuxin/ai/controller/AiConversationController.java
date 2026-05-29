@@ -2,7 +2,7 @@ package chat.liuxin.ai.controller;
 
 import chat.liuxin.ai.entity.AiConversation;
 import chat.liuxin.ai.entity.AiChatMessage;
-import chat.liuxin.ai.resp.ChatResponse;
+import chat.liuxin.ai.dto.ChatResponse;
 import chat.liuxin.ai.service.MemoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Icon from '../components/Icon.vue'
+import { handleImageError } from '@/composables/useImageFallback'
 import MessageModal from '@/components/MessageModal.vue'
 import moonImg from '@/assets/image/moon.png'
 import aboutHonorsImg from '@/assets/image/about/about-honors-collage.png'
@@ -27,7 +28,7 @@ const openMessageModal = () => {
       <div class="hero-content">
         <div class="avatar-wrapper">
           <div class="user-avatar" :style="{ backgroundImage: `url(${moonImg})` }">
-            <img src="@/assets/image/gif/坐下.gif" alt="刘鑫" class="liuyin" />
+            <img src="@/assets/image/gif/坐下.gif" alt="刘鑫" class="liuyin" @error="handleImageError" />
           </div>
         </div>
         <div class="hero-text">
@@ -47,8 +48,8 @@ const openMessageModal = () => {
               </text>
             </svg>
           </h1>
-          <p class="user-bio">从前端开始，向全栈和 AI 应用继续探索</p>
-          <p class="user-motto">「把学习、项目和生活的痕迹，慢慢整理成自己的系统」</p>
+          <p class="user-bio">全栈工程师 & 技术博主</p>
+          <p class="user-motto">「代码改变世界，热爱成就未来」</p>
           <div class="social-links">
             <a href="https://github.com/Liuxin4950" class="social-item" title="GitHub" target="_blank" rel="noopener noreferrer">
               <Icon name="github" size="20" />
@@ -65,14 +66,13 @@ const openMessageModal = () => {
       <section class="about-intro">
         <h2>关于我</h2>
         <p>
-          我是刘鑫，正在从前端继续往全栈和 AI 应用方向学习。这个博客记录学习笔记、
-          项目实践、荣誉证书和一些生活里的内容。
+          我是刘鑫，全栈开发者，前端、后端、AI 都在做。这个博客记录我学到的东西和正在走的路。
         </p>
       </section>
 
       <section class="honors-spotlight">
         <div class="honors-art">
-          <img :src="aboutHonorsImg" alt="证书与奖杯插画" loading="lazy">
+          <img :src="aboutHonorsImg" alt="证书与奖杯插画" loading="lazy" @error="handleImageError">
         </div>
         <div class="honors-copy">
           <h2>荣誉与证书</h2>
@@ -210,19 +210,20 @@ const openMessageModal = () => {
 
       .name-base {
         fill: #ffffff;
-        fill-opacity: 0.5;
+        fill-opacity: 0.9;
         stroke: none;
-        filter: drop-shadow(2px 2px 2px rgba(0, 0, 0, 0.3));
+        filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.4));
       }
 
       .name-stroke {
         fill: transparent;
         stroke: url(#about-name-gradient);
-        stroke-width: 1.5px;
+        stroke-width: 1.8px;
         stroke-linecap: round;
-        stroke-dasharray: 100 300;
+        stroke-dasharray: 80 320;
         stroke-dashoffset: 400;
-        animation: stroke-flow 4s linear infinite;
+        animation: stroke-flow 6s linear infinite;
+        opacity: 0.9;
       }
     }
   }
@@ -250,7 +251,7 @@ const openMessageModal = () => {
   :root.dark & {
     .name-base {
       fill: #1a1a1a;
-      fill-opacity: 0.6;
+      fill-opacity: 0.8;
     }
 
     .user-bio {
@@ -317,9 +318,13 @@ const openMessageModal = () => {
 
   p {
     max-width: 760px;
-    margin: 0;
+    margin: 0 0 10px;
     color: var(--text-secondary);
     line-height: 1.9;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
   }
 }
 

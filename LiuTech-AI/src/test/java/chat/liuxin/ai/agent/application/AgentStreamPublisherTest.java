@@ -43,8 +43,8 @@ class AgentStreamPublisherTest {
         var payload = AgentStartPayload.builder()
                 .taskId(taskId)
                 .conversationId(conversationId)
-                .intent("SEARCH_ARTICLES")
-                .role("guest")
+                .handlerName("search")
+                .role("user")
                 .capabilities(List.of("chat", "search"))
                 .build();
 
@@ -144,3 +144,4 @@ class AgentStreamPublisherTest {
         verify(emitter).send(any(SseEmitter.SseEventBuilder.class));
     }
 }
+

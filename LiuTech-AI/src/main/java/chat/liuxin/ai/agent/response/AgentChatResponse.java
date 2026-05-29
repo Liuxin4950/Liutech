@@ -12,7 +12,7 @@ public class AgentChatResponse {
     private String message;
     private Long taskId;
     private Long conversationId;
-    private String intent;
+    private String handlerName;
     private List<AgentPlanStep> plan;
     private ArticleResultsPayload articleResults;
     private WritingDraftPayload writingDraft;

@@ -1,7 +1,7 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.req.ChatRequest;
-import chat.liuxin.ai.resp.ChatResponse;
+import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.dto.ChatResponse;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**

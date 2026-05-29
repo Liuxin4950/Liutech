@@ -1,4 +1,5 @@
 package chat.liuxin.ai.agent.application;
+import chat.liuxin.ai.dto.AgentUserContext;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.Authentication;
@@ -47,3 +48,4 @@ public class AgentUserContextResolver {
         return authorization.substring(7);
     }
 }
+

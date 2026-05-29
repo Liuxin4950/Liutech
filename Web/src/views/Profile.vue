@@ -6,7 +6,7 @@
         <!-- 头像区域 -->
         <div class="avatar-section">
           <div class="avatar-container">
-            <img :src="userInfo?.avatarUrl || '/default-avatar.svg'" :alt="userInfo?.username" class="user-avatar" />
+            <img :src="userInfo?.avatarUrl || errImg" :alt="userInfo?.username" class="user-avatar" @error="handleImageError" />
             <button class="avatar-edit" @click="showEditForm = true" title="编辑资料">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
@@ -130,7 +130,7 @@
           <div class="form-group">
             <label>头像</label>
             <div class="avatar-preview-section">
-              <img :src="formData.avatarUrl || '/default-avatar.svg'" class="avatar-preview" />
+              <img :src="formData.avatarUrl || errImg" class="avatar-preview" @error="handleImageError" />
               <input type="url" v-model="formData.avatarUrl" class="form-input flex-1" placeholder="头像链接" />
             </div>
           </div>
@@ -152,6 +152,7 @@ import { useUserStore } from '../stores/user'
 import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse, type CheckinStatus } from '../services/user'
 import { showSuccess, showError } from '../utils/errorHandler'
 import { formatRelativeTime } from '../utils/utils'
+import { handleImageError, errImg } from '@/composables/useImageFallback'
 import CheckinCard from '../components/CheckinCard.vue'
 import Icon from '../components/Icon.vue'
 

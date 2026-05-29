@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import Icon from '@/components/Icon.vue'
+import { handleImageError } from '@/composables/useImageFallback'
 import { honorCategories, honors, type HonorCategory, type HonorItem } from '@/data/honors'
 
 const activeCategory = ref<HonorCategory>('all')
@@ -45,7 +46,7 @@ const closePreview = () => {
     <section class="honor-grid" aria-label="荣誉证书列表">
       <article v-for="honor in filteredHonors" :key="honor.id" class="honor-card">
         <button type="button" class="honor-image-button" @click="openPreview(honor)">
-          <img :src="honor.image" :alt="`${honor.title}${honor.level}证书预览`" loading="lazy">
+          <img :src="honor.image" :alt="`${honor.title}${honor.level}证书预览`" loading="lazy" @error="handleImageError">
           <span class="image-overlay">
             <Icon name="maximize" size="18" />
             查看证书
@@ -74,7 +75,7 @@ const closePreview = () => {
             </button>
           </header>
           <div class="preview-body">
-            <img :src="selectedHonor.image" :alt="`${selectedHonor.title}${selectedHonor.level}证书大图`">
+            <img :src="selectedHonor.image" :alt="`${selectedHonor.title}${selectedHonor.level}证书大图`" @error="handleImageError">
           </div>
         </div>
       </div>

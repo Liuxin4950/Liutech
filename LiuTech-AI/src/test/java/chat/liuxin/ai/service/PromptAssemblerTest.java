@@ -1,9 +1,9 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.config.AiPromptConfig;
-import chat.liuxin.ai.req.ChatRequest;
-import chat.liuxin.ai.security.AiPromptSecurityPolicy;
-import chat.liuxin.ai.security.AiSystemPromptProvider;
+import chat.liuxin.ai.infra.config.AiPromptConfig;
+import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.infra.security.AiPromptSecurityPolicy;
+import chat.liuxin.ai.infra.security.AiSystemPromptProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;

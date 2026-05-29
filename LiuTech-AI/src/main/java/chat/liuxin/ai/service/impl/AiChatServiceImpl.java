@@ -20,18 +20,18 @@ package chat.liuxin.ai.service.impl;
  * 时间：2025-12-01
  */
 
-import chat.liuxin.ai.exception.AIServiceException;
-import chat.liuxin.ai.client.TtsClient;
-import chat.liuxin.ai.monitor.AiMetrics;
-import chat.liuxin.ai.req.ChatRequest;
-import chat.liuxin.ai.resp.ChatResponse;
-import chat.liuxin.ai.security.AiModelPolicy;
-import chat.liuxin.ai.security.SensitiveLogSanitizer;
+import chat.liuxin.ai.infra.exception.AIServiceException;
+import chat.liuxin.ai.common.client.TtsClient;
+import chat.liuxin.ai.common.monitor.AiMetrics;
+import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.dto.ChatResponse;
+import chat.liuxin.ai.infra.security.AiModelPolicy;
+import chat.liuxin.ai.infra.security.SensitiveLogSanitizer;
 import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.service.PromptAssembler;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
-import chat.liuxin.ai.tts.TtsSegmenter;
+import chat.liuxin.ai.common.tts.TtsSegmenter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;

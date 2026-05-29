@@ -5,7 +5,7 @@ import chat.liuxin.ai.agent.response.AgentErrorPayload;
 import chat.liuxin.ai.agent.response.AgentSseEnvelope;
 import chat.liuxin.ai.agent.response.AgentStartPayload;
 import chat.liuxin.ai.agent.response.AgentToolEventPayload;
-import chat.liuxin.ai.agent.response.AvatarCuePayload;
+import chat.liuxin.ai.dto.AvatarCuePayload;
 import chat.liuxin.ai.agent.response.DataPayload;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -86,16 +86,16 @@ public class AgentStreamPublisher {
      * @param emitter         SSE 发射器
      * @param taskId         任务 ID
      * @param conversationId 对话 ID
-     * @param intent         意图名称
+     * @param handlerName  Handler 名称
      * @param role           角色
      * @param capabilities   能力列表
      */
     public void sendAgentStart(SseEmitter emitter, Long taskId, Long conversationId,
-                               String intent, String role, java.util.List<String> capabilities) {
+                               String handlerName, String role, java.util.List<String> capabilities) {
         AgentStartPayload payload = AgentStartPayload.builder()
                 .taskId(taskId)
                 .conversationId(conversationId)
-                .intent(intent)
+                .handlerName(handlerName)
                 .role(role)
                 .capabilities(capabilities)
                 .build();
@@ -248,3 +248,5 @@ public class AgentStreamPublisher {
         }
     }
 }
+
+

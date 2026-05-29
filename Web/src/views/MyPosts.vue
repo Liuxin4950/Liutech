@@ -55,9 +55,9 @@
       <!-- 文章列表 -->
       <div v-else class="posts-list">
         <div v-for="post in filteredPosts" :key="post.id" class="post-card bg-card">
-          <img v-if="post.thumbnail" class="fit" :src="post.coverImage" alt="" loading="lazy">
-          <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="" loading="lazy">
-          <img v-else class="fit" src="@/assets/image/images.jpg" alt="" loading="lazy">
+          <img v-if="post.thumbnail" class="fit" :src="post.coverImage" alt="" loading="lazy" @error="handleImageError">
+          <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="" loading="lazy" @error="handleImageError">
+          <img v-else class="fit" src="@/assets/image/err.png" alt="" loading="lazy">
           
           <div class="post-content flex flex-col gap-12">
             <h3 class="post-title text-primary" @click="viewPost(post.id)">
@@ -139,6 +139,7 @@ import { PostService, type PostListItem, type PageResponse } from '../services/p
 import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate } from '@/utils/utils'
+import { handleImageError } from '@/composables/useImageFallback'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()

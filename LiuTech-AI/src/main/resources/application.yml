@@ -91,6 +91,11 @@ spring:
       max-article-results: 8
       blog-connect-timeout-ms: 3000
       blog-read-timeout-ms: 8000
+      max-context-chars: 6000
+    # 看板娘角色配置
+    persona:
+      name: "纳西妲"
+      title-suffix: "生成"
     security:
       prompt-guard:
         enabled: true

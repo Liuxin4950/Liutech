@@ -1,7 +1,7 @@
 <template>
   <div class="card bg-card relative gap-20">
     <div class="flex flex-col flex-ac ">
-      <img :src="avatar" :alt="name" class="avatar">
+      <img :src="avatar" :alt="name" class="avatar" @error="handleImageError">
 
 
       <div class="flex flex-col flex-ac">
@@ -31,6 +31,7 @@
 
 <script setup lang="ts">
 import { getUserStats } from '@/services/user.ts'
+import { handleImageError } from '@/composables/useImageFallback'
 
 // 定义props
 interface Stats {

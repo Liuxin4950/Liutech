@@ -1,13 +1,13 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.client.TtsClient;
+import chat.liuxin.ai.common.client.TtsClient;
 import chat.liuxin.ai.dto.ModelConfigDTO;
-import chat.liuxin.ai.monitor.AiMetrics;
-import chat.liuxin.ai.req.ChatRequest;
-import chat.liuxin.ai.security.AiModelPolicy;
-import chat.liuxin.ai.security.SensitiveLogSanitizer;
+import chat.liuxin.ai.common.monitor.AiMetrics;
+import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.infra.security.AiModelPolicy;
+import chat.liuxin.ai.infra.security.SensitiveLogSanitizer;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
-import chat.liuxin.ai.tts.TtsSegmenter;
+import chat.liuxin.ai.common.tts.TtsSegmenter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

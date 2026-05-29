@@ -12,6 +12,7 @@
                     class="banner-image"
                     :src="currentCarousel.imageUrl"
                     :alt="currentCarousel.title"
+                    @error="handleImageError"
                 >
             </a>
             <img
@@ -19,6 +20,7 @@
                 class="banner-image"
                 :src="currentCarousel.imageUrl"
                 :alt="currentCarousel.title"
+                @error="handleImageError"
             >
         </template>
         <!-- 无轮播图时显示默认图片 -->
@@ -71,6 +73,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import CarouselService, { type Carousel } from '@/services/carousel'
+import { handleImageError } from '@/composables/useImageFallback'
 
 const carousels = ref<Carousel[]>([])
 const currentIndex = ref(0)

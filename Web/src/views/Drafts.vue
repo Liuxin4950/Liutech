@@ -5,6 +5,7 @@ import { PostService, type PostListItem, type PageResponse } from '../services/p
 import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatRelativeTime } from '@/utils/utils'
+import { handleImageError } from '@/composables/useImageFallback'
 import Pagination from '@/components/Pagination.vue'
 import Icon from '@/components/Icon.vue'
 
@@ -189,9 +190,9 @@ onMounted(async () => {
       <!-- 草稿列表 -->
       <div v-else class="drafts-list">
         <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card bg-card gap-12">
-          <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="" loading="lazy">
-          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="" loading="lazy">
-          <img v-else class="fit" src="@/assets/image/images.jpg" alt="" loading="lazy">
+          <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="" loading="lazy" @error="handleImageError">
+          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="" loading="lazy" @error="handleImageError">
+          <img v-else class="fit" src="@/assets/image/err.png" alt="" loading="lazy">
           <div class="draft-content flex flex-col gap-12">
             <h3 class="draft-title text-primary" @click="editDraft(draft.id)">
               {{ draft.title || '无标题草稿' }}

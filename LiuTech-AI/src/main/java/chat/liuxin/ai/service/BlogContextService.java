@@ -1,6 +1,6 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.client.BlogApiClient;
+import chat.liuxin.ai.common.client.BlogApiClient;
 import chat.liuxin.ai.dto.AuthorProfileDTO;
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;

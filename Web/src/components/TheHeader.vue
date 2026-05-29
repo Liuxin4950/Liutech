@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme.ts'
 import { useUserStore } from '../stores/user'
+import { handleImageError } from '@/composables/useImageFallback'
 import Icon from './Icon.vue'
 import menuIconLight from '@/assets/image/icon/menu.png'
 import menuIconDark from '@/assets/image/icon/menu_dark.png'
@@ -147,7 +148,7 @@ onUnmounted(() => {
 
       <!-- LOGO -->
       <h2 class="logo link text-primary" @click="navigateTo('/')">
-        <img :src="logoUrl" alt="LiuTech" class="logo-mark" />
+        <img :src="logoUrl" alt="LiuTech" class="logo-mark" @error="handleImageError" />
         <span>LiuTech</span>
       </h2>
 
@@ -183,6 +184,7 @@ onUnmounted(() => {
                 v-if="userStore.avatar"
                 :src="userStore.avatar" :alt="userStore.username"
                 class="fit rounded-full"
+                @error="handleImageError"
               />
               <div v-else class="text-main font-semibold text-sm">
                 {{ userStore.username?.charAt(0).toUpperCase() }}
@@ -250,6 +252,7 @@ onUnmounted(() => {
             ? menuIconLight
             : menuIconDark"
           @click.stop="toggleMenu"
+          @error="handleImageError"
         />
       </div>
 

@@ -1,5 +1,9 @@
 package chat.liuxin.ai.agent.application;
 
+import org.owasp.html.HtmlPolicyBuilder;
+import org.owasp.html.AttributePolicy;
+import org.owasp.html.PolicyFactory;
+
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -8,38 +12,74 @@ import java.util.regex.Pattern;
  * HTML 清理和提取工具。
  *
  * 职责：
- * - 清理 AI 生成的 HTML（移除 script、iframe、事件属性、style）
+ * - 使用 OWASP Java HTML Sanitizer 清理 AI 生成的 HTML（安全且标准）
  * - 剥离 AI 助手的前言/旁白文本
  * - 提取标题、摘要等结构化信息
  * - 检测 JSON 元数据尾部并移除
+ *
+ * 安全说明：
+ * 正则清理容易被绕过（如嵌套标签、编码变体），
+ * OWASP Java HTML Sanitizer 基于白名单策略，能有效防御 XSS 注入。
  */
 final class HtmlSanitizer {
 
     private HtmlSanitizer() {}
 
     /**
+     * OWASP HTML 策略：仅允许安全的 HTML 标签和属性。
+     * 白名单包含 TinyMCE 编辑器常用的格式化标签，
+     * 禁止 script、iframe、style、事件属性等危险内容。
+     */
+    /** 仅允许 data:image/ 前缀的 data: URI，防止 data:text/html 等 XSS 向量 */
+    private static final AttributePolicy IMG_DATA_SRC_POLICY = (elementName, attributeName, value) -> {
+        if (value != null && value.startsWith("data:image/")) {
+            return value;
+        }
+        return null;
+    };
+
+    private static final PolicyFactory HTML_POLICY = new HtmlPolicyBuilder()
+            .allowElements(
+                    "h1", "h2", "h3", "h4", "h5", "h6",
+                    "p", "br", "hr",
+                    "ul", "ol", "li",
+                    "blockquote", "pre", "code",
+                    "strong", "em", "b", "i", "u", "s",
+                    "table", "thead", "tbody", "tr", "th", "td",
+                    "a", "img",
+                    "div", "span", "section", "article"
+            )
+            .allowAttributes("href").onElements("a")
+            .allowAttributes("src", "alt", "title", "width", "height").onElements("img")
+            .allowAttributes("class").onElements("h1", "h2", "h3", "h4", "h5", "h6",
+                    "p", "pre", "code", "blockquote", "ul", "ol", "li",
+                    "table", "thead", "tbody", "tr", "th", "td",
+                    "div", "span", "section", "article")
+            .allowAttributes("target", "rel").onElements("a")
+            .allowUrlProtocols("https", "http")
+            .allowAttributes("src").matching(IMG_DATA_SRC_POLICY).onElements("img")
+            .toFactory();
+
+    /**
      * 清理 AI 生成的 HTML，确保安全且适合 TinyMCE 编辑器。
      *
      * 处理步骤：
      * 1. 剥离 AI 助手前言和元数据尾部
-     * 2. 移除危险标签（script、iframe）和事件属性
-     * 3. 如果没有 HTML 块标签，将纯文本转为 <p> 段落
+     * 2. 通过 OWASP 策略清理危险标签和属性
+     * 3. 如果没有 HTML 块标签，将纯文本转为 &lt;p&gt; 段落
      */
     static String sanitize(String value) {
         if (isBlank(value)) {
             return defaultFallback();
         }
+        // 1. 剥离前言和元数据
         String html = stripMetadataTail(stripPreamble(value))
                 .replaceAll("(?is)```html", "")
                 .replaceAll("(?is)```", "")
-                .replaceAll("(?is)<script.*?>.*?</script>", "")
-                .replaceAll("(?is)<iframe.*?>.*?</iframe>", "")
-                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*\"[^\"]*\"", "")
-                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*'[^']*'", "")
-                .replaceAll("(?i)\\bon[a-z]+\\s*=\\s*[^\\s>]*", "")
-                .replaceAll("(?i)\\sstyle\\s*=\\s*\"[^\"]*\"", "")
-                .replaceAll("(?i)\\sstyle\\s*=\\s*'[^']*'", "")
                 .trim();
+        // 2. 使用 OWASP Sanitizer 安全清理
+        html = HTML_POLICY.sanitize(html);
+        // 3. 如果没有块级标签，将纯文本包裹为 <p>
         if (!html.matches("(?s).*<\\s*(h2|h3|p|ul|ol|blockquote|pre|div|section)\\b.*")) {
             StringBuilder builder = new StringBuilder();
             for (String paragraph : html.split("\\R{2,}")) {

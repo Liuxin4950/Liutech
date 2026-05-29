@@ -7,6 +7,7 @@
           :src="currentMusic.coverUrl"
           alt="封面"
           class="cover-image"
+          @error="handleImageError"
         />
         <div v-else class="cover-placeholder">
           <span class="music-icon">♪</span>
@@ -75,6 +76,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { getMusicList, type MusicItem } from '../services/musicApi'
+import { handleImageError } from '@/composables/useImageFallback'
 
 // 播放状态
 const musicList = ref<MusicItem[]>([])

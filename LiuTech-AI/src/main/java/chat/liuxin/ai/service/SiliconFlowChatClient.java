@@ -1,8 +1,8 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.exception.AIServiceException;
-import chat.liuxin.ai.mcp.BlogChatTools;
-import chat.liuxin.ai.mcp.WritingTools;
+import chat.liuxin.ai.infra.exception.AIServiceException;
+import chat.liuxin.ai.common.mcp.BlogMcpTools;
+import chat.liuxin.ai.common.mcp.WritingTools;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +44,7 @@ import java.util.List;
 public class SiliconFlowChatClient {
 
     private final ChatClient chatClient;
-    private final BlogChatTools blogChatTools;
+    private final BlogMcpTools blogMcpTools;
     private final WritingTools writingTools;
 
     @Value("${spring.ai.model.default:zai-org/GLM-4.6}")
@@ -125,7 +125,7 @@ public class SiliconFlowChatClient {
                     .prompt()
                     .messages(messages)
                     .options(safeOptions)
-                    .tools(blogChatTools)
+                    .tools(blogMcpTools)
                     .call()
                     .content();
             
@@ -145,11 +145,62 @@ public class SiliconFlowChatClient {
         }
     }
 
+
+    /**
+     * 纯文本生成，不注册任何 MCP 工具。
+     *
+     * 与 chat() 的区别：chat() 注册了 BlogChatTools，模型可以自主调用搜索工具；
+     * chatWithoutTools() 完全不注册工具，模型只做纯文本生成。
+     *
+     * 使用场景：AgentOrchestrator 在 CHAT 意图下使用，避免双重搜索问题——
+     * Handler 已经执行了确定性工具调用，不应再把搜索工具交给模型自主调用。
+     */
+    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChatWithParams")
+    @RateLimiter(name = "aiService")
+    public String chatWithoutTools(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
+        if (messages == null) {
+            messages = List.of();
+        }
+        String model = modelName != null ? modelName : defaultModel;
+        try {
+            log.debug("调用AI模型(无工具): {}, 消息数量: {}, temperature: {}, maxTokens: {}",
+                    model, messages.size(), temperature, maxTokens);
+            OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder().model(model);
+            if (temperature != null && temperature >= 0.0 && temperature <= 1.0) {
+                optionsBuilder.temperature(temperature);
+            }
+            if (maxTokens != null && maxTokens > 0) {
+                optionsBuilder.maxTokens(maxTokens);
+            }
+            OpenAiChatOptions options = optionsBuilder.build();
+            OpenAiChatOptions safeOptions = Objects.requireNonNullElse(options, OpenAiChatOptions.builder().build());
+            @SuppressWarnings("null")
+            String response = chatClient
+                    .prompt()
+                    .messages(messages)
+                    .options(safeOptions)
+                    // 不注册任何工具，避免双重搜索
+                    .call()
+                    .content();
+            if (response == null || response.trim().isEmpty()) {
+                throw new AIServiceException("AI返回空响应");
+            }
+            log.debug("AI响应成功(无工具), 模型: {}, 响应长度: {}", model, response.length());
+            return response;
+        } catch (Exception e) {
+            log.error("AI调用失败(无工具), 模型: {}, 错误: {}", model, e.getMessage(), e);
+            throw new AIServiceException("AI服务调用失败: " + e.getMessage(), e);
+        }
+    }
     /**
      * 写作专用文本生成，不注册 MCP 工具。
      * 内部使用流式调用（WebClient，无 read timeout），避免 RestClient 固定超时。
      * 分类和标签匹配由 Java 代码处理，模型只需生成 HTML 内容。
      */
+    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChatWithParams")
+    @RateLimiter(name = "aiService")
     public String chatForWriting(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
         if (messages == null) {
             messages = List.of();
@@ -253,7 +304,7 @@ public class SiliconFlowChatClient {
                     .prompt()
                     .messages(messages)
                     .options(safeStreamOptions)
-                    .tools(blogChatTools)
+                    .tools(blogMcpTools)
                     .stream()
                     .content();
             

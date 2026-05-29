@@ -225,7 +225,7 @@
               <div class="image-upload-container">
                 <div class="image-preview-box" @click="triggerCoverImageUpload"
                   :class="{ 'has-image': form.coverImage }">
-                  <img v-if="form.coverImage" :src="form.coverImage" alt="封面图片预览" class="preview-image">
+                  <img v-if="form.coverImage" :src="form.coverImage" alt="封面图片预览" class="preview-image" @error="handleImageError">
                   <div class="upload-overlay">
                     <div class="upload-text">
                       <span class="overlay-icon"><Icon name="camera" /></span>
@@ -241,7 +241,7 @@
               <div class="image-upload-container">
                 <div class="image-preview-box thumbnail-box" @click="triggerThumbnailUpload"
                   :class="{ 'has-image': form.thumbnail }">
-                  <img v-if="form.thumbnail" :src="form.thumbnail" alt="缩略图预览" class="preview-image">
+                  <img v-if="form.thumbnail" :src="form.thumbnail" alt="缩略图预览" class="preview-image" @error="handleImageError">
                   <div class="upload-overlay">
                     <div class="upload-text">
                       <span class="overlay-icon"><Icon name="image" /></span>
@@ -379,7 +379,7 @@
 
             <!-- 封面图片 -->
             <div v-if="form.coverImage" class="preview-cover rounded-lg mb-16">
-              <img :src="form.coverImage" :alt="form.title" class="preview-cover-image">
+              <img :src="form.coverImage" :alt="form.title" class="preview-cover-image" @error="handleImageError">
             </div>
 
             <div class="flex flex-sb flex-ac mb-16 flex-fw gap-12">
@@ -500,6 +500,7 @@ import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import { useUserStore } from '@/stores/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { handleImageError } from '@/composables/useImageFallback'
 import { formatDate } from '@/utils/utils'
 import Swal from 'sweetalert2'
 
