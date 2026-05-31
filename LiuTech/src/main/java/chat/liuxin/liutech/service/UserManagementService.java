@@ -258,7 +258,7 @@ public class UserManagementService {
 
         } catch (Exception e) {
             log.error("保存用户失败，用户名: {}, 错误: {}", user.getUsername(), e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "保存用户失败");
         }
     }
 
@@ -323,7 +323,7 @@ public class UserManagementService {
 
         } catch (Exception e) {
             log.error("更新用户失败，用户ID: {}, 错误: {}", user.getId(), e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新用户失败");
         }
     }
 
@@ -374,7 +374,7 @@ public class UserManagementService {
 
         } catch (Exception e) {
             log.error("删除用户失败 - 用户ID: {}, 错误: {}", id, e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "删除用户失败");
         }
     }
 
@@ -412,7 +412,7 @@ public class UserManagementService {
 
         } catch (Exception e) {
             log.error("批量删除用户失败，用户ID列表: {}, 错误: {}", ids, e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量删除用户失败");
         }
     }
 
@@ -549,7 +549,7 @@ public class UserManagementService {
 
         } catch (Exception e) {
             log.error("恢复用户失败 - 用户ID: {}, 错误: {}", id, e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复用户失败");
         }
     }
 
@@ -580,7 +580,7 @@ public class UserManagementService {
 
         } catch (Exception e) {
             log.error("批量恢复用户失败 - 用户ID列表: {}, 错误: {}", ids, e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量恢复用户失败");
         }
     }
 
@@ -635,7 +635,7 @@ public class UserManagementService {
 
         } catch (Exception e) {
             log.error("批量更新用户状态失败 - 用户ID列表: {}, 错误: {}", ids, e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量更新用户状态失败");
         }
     }
 
@@ -732,7 +732,7 @@ public class UserManagementService {
             return userMapper.countTotalUsers();
         } catch (Exception e) {
             log.error("统计用户总数失败: {}", e.getMessage(), e);
-            return 0L;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "统计用户总数失败");
         }
     }
 }

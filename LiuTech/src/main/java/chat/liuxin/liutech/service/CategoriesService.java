@@ -222,7 +222,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除分类失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量删除分类失败");
         }
     }
 
@@ -250,7 +250,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
             return result > 0;
         } catch (Exception e) {
             log.error("恢复分类失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复分类失败");
         }
     }
 

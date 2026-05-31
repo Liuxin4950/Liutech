@@ -1133,7 +1133,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除文章失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量删除文章失败");
         }
     }
 
@@ -1161,7 +1161,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             return result > 0;
         } catch (Exception e) {
             log.error("恢复文章失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复文章失败");
         }
     }
 
@@ -1189,7 +1189,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             return result > 0;
         } catch (Exception e) {
             log.error("批量恢复文章失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量恢复文章失败");
         }
     }
 
@@ -1311,7 +1311,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             this.permanentDeletePost(id, null);
             return true;
         } catch (Exception e) {
-            return false;
+            log.error("彻底删除文章失败: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "彻底删除文章失败");
         }
     }
 
@@ -1321,7 +1322,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             this.batchPermanentDeletePosts(ids, null);
             return true;
         } catch (Exception e) {
-            return false;
+            log.error("批量彻底删除文章失败: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量彻底删除文章失败");
         }
     }
 

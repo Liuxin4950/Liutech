@@ -260,7 +260,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除标签失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量删除标签失败");
         }
     }
 
@@ -288,7 +288,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
             return result > 0;
         } catch (Exception e) {
             log.error("恢复标签失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复标签失败");
         }
     }
 

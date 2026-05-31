@@ -1,5 +1,7 @@
 package chat.liuxin.liutech.service;
 
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CommentsMapper;
 import chat.liuxin.liutech.model.Comments;
 import chat.liuxin.liutech.resp.PageResp;
@@ -93,7 +95,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             return result > 0;
         } catch (Exception e) {
             log.error("软删除评论失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "软删除评论失败");
         }
     }
 
@@ -120,7 +122,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             return result > 0;
         } catch (Exception e) {
             log.error("批量软删除评论失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量软删除评论失败");
         }
     }
 
@@ -142,7 +144,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             return result > 0;
         } catch (Exception e) {
             log.error("恢复评论失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复评论失败");
         }
     }
 

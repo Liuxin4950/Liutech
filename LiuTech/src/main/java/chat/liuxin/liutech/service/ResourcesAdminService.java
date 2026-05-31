@@ -18,6 +18,8 @@ import chat.liuxin.liutech.model.Resources;
 import chat.liuxin.liutech.resp.DownloadLogResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.ResourceResp;
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -142,7 +144,7 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除资源失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量删除资源失败");
         }
     }
 
@@ -164,7 +166,7 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
             return result > 0;
         } catch (Exception e) {
             log.error("恢复资源失败: {}", e.getMessage(), e);
-            return false;
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "恢复资源失败");
         }
     }
 
