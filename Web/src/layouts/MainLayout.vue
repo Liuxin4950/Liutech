@@ -11,6 +11,7 @@ import Live2d from '@/components/Live2d.vue'
 import GlobalPageLoader from '../components/GlobalPageLoader.vue'
 import AiChat from '@/components/AiChat.vue'
 import LoginModal from '@/components/LoginModal.vue'
+import GlobalSearchModal from '@/components/GlobalSearchModal.vue'
 import { requireAuth } from '@/utils/auth'
 import { useChatStore } from '@/stores/chat'
 import { useTtsPlayer } from '@/composables/useTtsPlayer'
@@ -41,6 +42,15 @@ let modelToggleTimeout: ReturnType<typeof setTimeout> | null = null;
 const chatStore = useChatStore()
 const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
 const aiChatRef = ref<InstanceType<typeof AiChat> | null>(null)
+const searchModalRef = ref<InstanceType<typeof GlobalSearchModal> | null>(null)
+
+// 全局搜索快捷键
+const handleGlobalKeydown = (e: KeyboardEvent) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault()
+    searchModalRef.value?.open()
+  }
+}
 
 // TTS 播放器：负责音频队列消费、表情同步、autoplay 处理
 const { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio } = useTtsPlayer(chatStore, live2dRef, showModel)
@@ -80,6 +90,7 @@ onMounted(() => {
   // 添加滚动监听
   window.addEventListener('scroll', handleScroll, { passive: true })
   window.addEventListener('ai-chat-open', handleExternalChatOpen)
+  window.addEventListener('keydown', handleGlobalKeydown)
   if (timer) { window.clearTimeout(timer) }
 
   // 兜底 3s 自动结束
@@ -122,6 +133,7 @@ onUnmounted(() => {
   // 移除滚动监听
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('ai-chat-open', handleExternalChatOpen)
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 
 // TTS 生命周期：这些 watcher 将 chatStore 的响应式状态变化桥接到 useTtsPlayer 的命令式 API
@@ -248,7 +260,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
 <template>
   <div class="main-layout">
-    <TheHeader class="header" :scroll-y="scrollY" />
+    <TheHeader class="header" :scroll-y="scrollY" @open-search="searchModalRef?.open()" />
     <main class="main-content">
       <Banner class="banner" />
       <Breadcrumb />
@@ -282,6 +294,9 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
     <!-- 登录弹窗 -->
     <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
+
+    <!-- 全局搜索 -->
+    <GlobalSearchModal ref="searchModalRef" />
   </div>
 </template>
 

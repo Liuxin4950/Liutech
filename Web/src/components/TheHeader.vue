@@ -14,6 +14,8 @@ const props = defineProps<{
   scrollY?: number
 }>()
 
+const emit = defineEmits(['open-search'])
+
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
@@ -169,8 +171,12 @@ onUnmounted(() => {
         </ul>
       </nav>
 
-      <!-- 用户区域 + 主题 + 移动端按钮 -->
-      <div class="flex flex-ac nav-user nav-pill-light relative">
+      <!-- 搜索 + 用户区域（右侧整体） -->
+      <div class="flex flex-ac">
+        <button class="search-trigger" @click="emit('open-search')" title="搜索 (Ctrl+K)">
+          <Icon name="search" size="18" />
+        </button>
+        <div class="flex flex-ac nav-user nav-pill-light relative">
 
         <!-- 用户信息 -->
         <div class="user-menu-container">
@@ -254,11 +260,21 @@ onUnmounted(() => {
           @click.stop="toggleMenu"
           @error="handleImageError"
         />
+        </div>
       </div>
 
       <!-- 移动端抽屉 -->
       <div class="mobile-drawer" :class="{ open: isMenuOpen }" @click.stop>
         <ul class="list">
+          <!-- 搜索 -->
+          <li @click="emit('open-search'); isMenuOpen = false" class="p-16 hover-bg transition border-b link">
+            <Icon name="search" size="18" class="mr-8" />搜索文章
+          </li>
+          <!-- 主题切换 -->
+          <li @click="theme.toggle" class="p-16 hover-bg transition border-b link">
+            <Icon :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="18" class="mr-8" />
+            {{ theme.current.value === 'light' ? '深色模式' : '浅色模式' }}
+          </li>
           <li
             v-for="item in navItems"
             :key="item.path"
@@ -296,6 +312,37 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+
+.search-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 45px;
+  height: 45px;
+  border: none;
+  background: var(--surface-glass-muted);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text-subtle);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-soft);
+  margin-right: 12px;
+
+  @include respond(md) {
+    display: none;
+  }
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+    transform: scale(1.05);
+  }
+}
+
 .logo {
   display: inline-flex;
   align-items: center;
@@ -438,8 +485,7 @@ header>div {
   justify-content: center;
   border-radius: 50%;
   @include respond(md) {
-    height: 36px;
-    width: 36px;
+    display: none;
   }
 }
 
