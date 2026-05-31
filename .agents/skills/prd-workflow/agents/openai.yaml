@@ -1,4 +1,0 @@
-interface:
-  display_name: "PRD 工作流"
-  short_description: "共创需求 PRD、审查需求并生成实现 PRD"
-  default_prompt: "用户明确要求生成 PRD、审查 PRD、先设计方案或实现前规划时，使用 PRD 工作流。先读取项目适配文件；如果还没有需求 PRD，先共创需求 PRD；如果已有需求 PRD，结合项目架构和代码库审查需求，再生成实现 PRD。"
