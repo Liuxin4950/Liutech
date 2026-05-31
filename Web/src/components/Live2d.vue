@@ -369,126 +369,149 @@ function triggerRandomExpression() {
 
 
 
+// 动态加载 Live2D 脚本（按顺序，确保全局变量可用）
+const loadLive2DScripts = (): Promise<void> => {
+    if (window.PIXI) return Promise.resolve()
+
+    const scripts = [
+        '/live2d/pixi.min.js',
+        '/live2d/live2dcubismcore.min.js',
+        '/live2d/live2d.min.js',
+        '/live2d/cubism4.min.js'
+    ]
+
+    const loadScript = (src: string): Promise<void> =>
+        new Promise((resolve, reject) => {
+            const el = document.createElement('script')
+            el.src = src
+            el.onload = () => resolve()
+            el.onerror = () => reject(new Error(`Failed to load ${src}`))
+            document.head.appendChild(el)
+        })
+
+    return scripts.reduce(
+        (chain, src) => chain.then(() => loadScript(src)),
+        Promise.resolve()
+    )
+}
+
 onMounted(() => {
     // 防止重复初始化
     if (isInitialized) {
         return;
     }
 
-    // 等待全局脚本加载完成
-    const initLive2D = () => {
-        if (!window.PIXI) {
-            setTimeout(initLive2D, 100);
-            return;
-        }
+    // 动态加载脚本后再初始化
+    loadLive2DScripts().then(() => {
+        initLive2D()
+    }).catch(() => {
+        // 脚本加载失败时静默处理
+    })
+});
 
-        // 检查Live2D是否可用
-        const Live2DModelClass = (window as any).PIXI?.live2d?.Live2DModel || (window as any).Live2DModel;
-        if (!Live2DModelClass) {
-            return;
-        }
+// 等待全局脚本加载完成
+const initLive2D = () => {
+    if (!window.PIXI) {
+        setTimeout(initLive2D, 100);
+        return;
+    }
 
-        // 标记为已初始化
-        isInitialized = true;
+    // 检查Live2D是否可用
+    const Live2DModelClass = (window as any).PIXI?.live2d?.Live2DModel || (window as any).Live2DModel;
+    if (!Live2DModelClass) {
+        return;
+    }
 
-        // 创建 PIXI 应用
+    // 标记为已初始化
+    isInitialized = true;
+
+    // 创建 PIXI 应用
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    const container = canvas.parentElement;
+    const containerWidth = container?.clientWidth || 400;
+    const containerHeight = container?.clientHeight || 400;
+
+    app = new window.PIXI.Application({
+        view: canvas,
+        width: containerWidth,
+        height: containerHeight,
+        backgroundColor: 0x000000,
+        backgroundAlpha: 0, // 设置背景透明
+        antialias: true,
+        resolution: window.devicePixelRatio || 1
+    });
+
+    // 加载Live2D模型
+    Live2DModelClass.from(cubism4Model).then((live2dModel: any) => {
+        model = live2dModel;
+        app.stage.addChild(live2dModel);
+        // 设置模型锚点为中心
+        live2dModel.anchor.set(0.5, 0.28);
+        // 模型居中显示 - 动态获取容器尺寸
+        live2dModel.x = containerWidth / 2;
+        live2dModel.y = containerHeight / 2;
+        // 固定模型大小，不受页面缩放影响
+        const fixedScale = 0.15;
+        live2dModel.scale.set(fixedScale);
+
+        // 启用交互
+        live2dModel.interactive = props.interactive === true;
+        // 监听鼠标按下事件，开始拖拽
+        live2dModel.on('pointerdown', onPointerDown);
+        // 监听鼠标移动事件，实现拖拽移动
+        live2dModel.on('pointermove', onPointerMove);
+        // 监听鼠标松开事件，结束拖拽
+        live2dModel.on('pointerup', onPointerUp);
+        // 监听鼠标移出模型区域事件，同样结束拖拽
+        live2dModel.on('pointerupoutside', onPointerUp);
+
+        // 鼠标跟随
+        app.stage.interactive = props.interactive === true;
+        app.stage.on('pointermove', (event: any) => {
+            const point = event.data.global;
+            live2dModel.focus(point.x, point.y);
+        });
+
+        // 点击触发动作
+        live2dModel.on('hit', (hitAreas: any) => {
+            if (hitAreas.includes('body')) {
+                live2dModel.motion('tap_body');
+                // 同时触发随机表情
+                triggerRandomExpression();
+            }
+        });
+
+        // 自动眨眼和呼吸
+        live2dModel.internalModel.motionManager.startRandomMotion('idle');
+    }).catch(() => {
+        // Live2D模型加载失败时静默处理
+    });
+
+    // 窗口大小调整
+    resizeHandler = () => {
         const canvas = document.getElementById('canvas') as HTMLCanvasElement;
         const container = canvas.parentElement;
-        const containerWidth = container?.clientWidth || 400;
-        const containerHeight = container?.clientHeight || 400;
+        const currentWidth = container?.clientWidth || 400;
+        const currentHeight = container?.clientHeight || 400;
 
-        app = new window.PIXI.Application({
-            view: canvas,
-            width: containerWidth,
-            height: containerHeight,
-            backgroundColor: 0x000000,
-            backgroundAlpha: 0, // 设置背景透明
-            antialias: true,
-            resolution: window.devicePixelRatio || 1
-        });
-
-        // 加载Live2D模型
-        Live2DModelClass.from(cubism4Model).then((live2dModel: any) => {
-            model = live2dModel;
-            app.stage.addChild(live2dModel);
-            // 设置模型锚点为中心
-            live2dModel.anchor.set(0.5, 0.28);
-            // 模型居中显示 - 动态获取容器尺寸
-            live2dModel.x = containerWidth / 2;
-            live2dModel.y = containerHeight / 2;
-            // 固定模型大小，不受页面缩放影响
-            const fixedScale = 0.15;
-            live2dModel.scale.set(fixedScale);
-
-
-            // 启用交互
-            // 启用模型的交互功能
-            live2dModel.interactive = props.interactive === true;
-            // 监听鼠标按下事件，开始拖拽
-            live2dModel.on('pointerdown', onPointerDown);
-            // 监听鼠标移动事件，实现拖拽移动
-            live2dModel.on('pointermove', onPointerMove);
-            // 监听鼠标松开事件，结束拖拽
-            live2dModel.on('pointerup', onPointerUp);
-            // 监听鼠标移出模型区域事件，同样结束拖拽
-            live2dModel.on('pointerupoutside', onPointerUp);
-
-            // 鼠标跟随
-            app.stage.interactive = props.interactive === true;
-            app.stage.on('pointermove', (event: any) => {
-                const point = event.data.global;
-                live2dModel.focus(point.x, point.y);
-            });
-
-            // 点击触发动作
-            live2dModel.on('hit', (hitAreas: any) => {
-                if (hitAreas.includes('body')) {
-                    live2dModel.motion('tap_body');
-                    // 同时触发随机表情
-                    triggerRandomExpression();
-                }
-            });
-
-            // 自动眨眼和呼吸
-            live2dModel.internalModel.motionManager.startRandomMotion('idle');
-        }).catch(() => {
-            // Live2D模型加载失败时静默处理
-        });
-
-        // 窗口大小调整
-        resizeHandler = () => {
-            // 动态获取容器尺寸
-            const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-            const container = canvas.parentElement;
-            const currentWidth = container?.clientWidth || 400;
-            const currentHeight = container?.clientHeight || 400;
-
-            if (app && app.renderer) {
-                app.renderer.resize(currentWidth, currentHeight);
-            }
-            if (model) {
-                // 模型位置居中显示 - 动态计算
-                model.x = currentWidth / 2;
-                model.y = currentHeight / 2;
-                // 保持原有锚点设置，不重置
-                // model.anchor.set(0.5, 0.5); // 注释掉，避免覆盖用户设置的锚点
-            }
-        };
-
-        window.addEventListener('resize', resizeHandler);
-
-        // 初始调整大小
-        if (resizeHandler) {
-            resizeHandler();
+        if (app && app.renderer) {
+            app.renderer.resize(currentWidth, currentHeight);
         }
-
-        applyInteractionMode()
-        updatePointerTracking()
+        if (model) {
+            model.x = currentWidth / 2;
+            model.y = currentHeight / 2;
+        }
     };
 
-    // 开始初始化
-    initLive2D();
-});
+    window.addEventListener('resize', resizeHandler);
+
+    if (resizeHandler) {
+        resizeHandler();
+    }
+
+    applyInteractionMode()
+    updatePointerTracking()
+};
 
 // 资源清理函数
 const cleanup = () => {
