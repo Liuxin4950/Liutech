@@ -16,10 +16,10 @@
 ## 2. 过程文档目录
 
 ```text
-doc/需求PRD/
-doc/实现PRD/
-doc/开发记录/
-doc/项目架构/
+doc/PRD/
+doc/PRD/
+doc/记录/
+doc/记录/
 ```
 
 ## 3. 项目模块

@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(~/.claude/skills/gstack/browse/dist/browse --port 9334 goto \"file:///tmp/sketch-new-post.html\")",
-      "Bash(~/.claude/skills/gstack/browse/dist/browse --port 9334 screenshot /tmp/sketch-new-post.png)"
-    ]
-  }
-}

@@ -9,7 +9,7 @@ description: 通用 PRD 工作流。仅当用户明确要求“生成需求PRD�
 
 使用本 skill 将功能想法推进到实现 PRD。流程必须把产品思考和技术实现拆开：需求 PRD 定义业务逻辑、产品边界、用户流程和验收标准；实现 PRD 说明如何基于当前代码库落地。
 
-本 skill 的终点是生成并确认 `doc/实现PRD/功能名_YYYY-MM-DD.md`。用户确认开始开发后，切换到 `delivery-workflow`。
+本 skill 的终点是生成并确认 `doc/PRD/功能名_YYYY-MM-DD.md`（合并的业务需求 + 实现方案文档）。用户确认后，切换到 `delivery-workflow`。
 
 如果项目存在 `.codex/project-adapter.md`，先读取它以获取项目名、模块、文档目录、高风险范围和验证约定。复制本 skill 到其他项目时，优先创建或更新该 adapter；可参考 `references/project-adapter-template.md`。
 
@@ -20,7 +20,7 @@ description: 通用 PRD 工作流。仅当用户明确要求“生成需求PRD�
 3. 如果已经存在需求 PRD，进入需求审查模式。
 4. 如果审查发现冲突、风险或需要决策的问题，暂停并与用户讨论；用户确认后再更新需求 PRD。
 5. 如果需求 PRD 已确认，读取项目架构和真实代码库，再生成实现 PRD。
-6. 如果用户只是要求“帮我实现”“开始开发”“修复 bug”，先退出本 skill 触发判断，按 `.codex/rules/ai-development-workflow.md` 做变更分级。
+6. 如果用户只是要求”帮我实现””开始开发””修复 bug”，先退出本 skill 触发判断，按 `.codex/rules/ai-development-workflow.md` 做变更分级。
 7. 用户确认开始开发后，切换到 `delivery-workflow`。
 
 ## 文件规则
@@ -28,58 +28,43 @@ description: 通用 PRD 工作流。仅当用户明确要求“生成需求PRD�
 使用项目内固定文档目录：
 
 ```text
-doc/需求PRD/功能名_YYYY-MM-DD.md
-doc/实现PRD/功能名_YYYY-MM-DD.md
-doc/开发记录/功能名_YYYY-MM-DD.md
-doc/项目架构/功能名_YYYY-MM-DD.md
+doc/PRD/功能名_YYYY-MM-DD.md          # 业务需求 + 实现方案合并文档
+doc/记录/开发-功能名_YYYY-MM-DD.md    # 开发记录
+doc/记录/架构-功能名_YYYY-MM-DD.md    # 架构文档
 ```
 
 本 skill 只创建或更新：
 
 ```text
-doc/需求PRD/功能名_YYYY-MM-DD.md
-doc/实现PRD/功能名_YYYY-MM-DD.md
+doc/PRD/功能名_YYYY-MM-DD.md
 ```
 
 同一功能在所有过程文档中必须使用完全一致的 `功能名_YYYY-MM-DD.md` 文件名。
 
-## 模式 A：需求共创
+## 模式 A：业务需求共创
 
 当用户明确希望把某个功能想法落成需求 PRD，且还没有需求 PRD 时使用。
 
 1. 使用中文与用户讨论产品逻辑。
 2. 聚焦业务目标、目标用户、使用场景、功能范围、非目标范围、用户流程、验收标准、约束假设和待确认问题。
-3. 需求 PRD 不受当前代码实现约束，先把“想做什么、做到什么程度”讲清楚。
-4. 创建 `doc/需求PRD/功能名_YYYY-MM-DD.md`。
-5. 请用户确认或修改需求 PRD。
-6. 用户未确认需求 PRD 前，不生成实现 PRD。
+3. 业务需求不受当前代码实现约束，先把“想做什么、做到什么程度”讲清楚。
+4. 在 `doc/PRD/功能名_YYYY-MM-DD.md` 中创建 `## 业务需求` 章节。
+5. 请用户确认业务需求；未确认前不进入实现方案阶段。
 
 创建文档时读取并使用 `references/requirement-prd-template.md` 模板。
 
-## 模式 B：需求审查
+## 模式 B：实现方案生成
 
-当用户已经提供需求 PRD，或项目中已经存在需求 PRD 时使用。
+仅在业务需求已被用户确认后使用。
 
-1. 阅读需求 PRD。
-2. 阅读 `.codex/rules/ai-development-workflow.md` 和 `.codex/project-adapter.md`。
-3. 阅读相关 `doc/项目架构/` 文档。
-4. 查询当前代码库，覆盖可能受影响的前端、后端、数据库、配置、部署和测试。
-5. 读取 `references/prd-review-checklist.md`，向用户输出需求审查摘要，包含：与当前代码一致的部分、与当前代码或架构冲突的部分、隐藏风险、需要用户决策的问题、建议调整方案。
-6. 如果存在冲突或决策点，必须暂停并与用户讨论。
-7. 用户决策后，如有必要，更新同一个需求 PRD 文件。
-8. 只有用户确认最终需求 PRD 后，才能继续。
-
-## 模式 C：实现 PRD
-
-仅在需求 PRD 已被用户确认后使用。
-
-1. 重新阅读最终版需求 PRD。
-2. 重新阅读相关项目架构文档。
+1. 重新阅读业务需求章节。
+2. 重新阅读相关项目架构文档（`doc/记录/`、`doc/记录/当前架构.md`）。
 3. 使用 `rg`、文件阅读、定向检查 mapper/controller/service/component 等方式查询真实代码路径。
-4. 生成 `doc/实现PRD/功能名_YYYY-MM-DD.md`。
-5. 实现 PRD 必须包含当前系统现状、影响范围、后端方案、前端方案、数据库与迁移影响、接口与数据流、安全影响、性能影响、测试方案、回滚方案和开放问题。
-6. 如果实现规划阶段发现需求必须调整，立即暂停，回到需求审查流程。
-7. 除非用户在实现 PRD 后明确要求开始开发，否则不修改代码。
+4. 在同一个 `doc/PRD/功能名_YYYY-MM-DD.md` 中追加 `## 实现方案` 章节。
+5. 实现方案必须包含当前系统现状、影响范围、后端方案、前端方案、数据库与迁移影响、接口与数据流、安全影响、性能影响、测试方案、回滚方案和开放问题。
+6. 如果实现规划阶段发现业务需求必须调整，立即暂停，回到模式 A 重新对齐。
+7. 除非用户明确要求开始开发，否则不修改代码。
+8. 用户确认 PRD 整体后，切换到 `delivery-workflow`。
 
 创建文档时读取并使用 `references/implementation-prd-template.md` 模板。
 

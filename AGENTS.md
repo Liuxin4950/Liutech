@@ -392,7 +392,7 @@ docker exec -it liutech-mysql mysql -u root -p123456
 .codex/skills/delivery-workflow
 ```
 
-日常交流、解释概念、头脑风暴、非落地讨论时，不主动加载 PRD、实现 PRD、开发记录或项目架构。用户明确要求生成 PRD、审查 PRD、先设计方案、实现前规划时，使用 `.codex/skills/prd-workflow`。用户明确要求开始开发、修复、重构、安全整改或性能优化时，使用 `.codex/skills/delivery-workflow`。触发任一 workflow skill 后，先读取 `.codex/project-adapter.md`。
+日常交流、解释概念、头脑风暴、非落地讨论时，不主动加载 PRD、开发记录或项目架构。用户明确要求生成 PRD、审查 PRD、先设计方案、实现前规划时，使用 `.codex/skills/prd-workflow`。用户明确要求开始开发、修复、重构、安全整改或性能优化时，使用 `.codex/skills/delivery-workflow`。触发任一 workflow skill 后，先读取 `.codex/project-adapter.md`。
 
 ### 添加新功能
 1. 后端: 创建 controller → service → mapper 层

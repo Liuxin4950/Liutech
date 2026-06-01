@@ -4,469 +4,109 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目说明
 
-本项目是一个**全栈博客平台**，文档和注释主要使用中文编写。
+本项目是一个**全栈博客平台**（LiuTech），文档和注释主要使用中文编写。前后端分离 + Spring Boot 微服务，部署在 Docker Compose 上。
 
-## 核心行为准则
+## 🏗️ 顶层模块
 
-**深度研究，不计代价。** 找不到完整上下文不执行。
+| 路径 | 角色 | 端口 |
+| --- | --- | --- |
+| `Web/` | 用户前台博客（Vue 3 + TS + Vite） | 3000 |
+| `Admin/` | 管理后台（Vue 3 + Ant Design Vue） | 3001 |
+| `LiuTech/` | 主后端 REST API（Spring Boot 3.5.6 + MyBatis-Plus） | 8080 |
+| `LiuTech-AI/` | AI 聊天 / 推荐 / TTS 服务（Spring Boot） | 8081 |
+| `nginx/` | 反向代理、CORS、SSE 配置 | 80/443 |
+| `sql/sql.sql` | MySQL 初始化脚本（两个库：`liutech` 与 `liutech_ai`） | 3306 |
 
-我的核心竞争力是算力预算宽松——可以开多个智能体并行搜索、不计代价地穷尽上下文。遇到复杂任务时，主动开 sub-agent 并行研究不同方向，穷尽搜索相关文件，确保理解正确再动手。
+容器内部使用服务名通信：`backend:8080`、`ai:8081`、`mysql:3306`。完整编排见 `docker-compose.yml`。
 
-详见：`.claude/rules/deep-research.md`
+后端分层（`LiuTech/src/main/java/chat/liuxin/liutech/`）：`controller/{admin,web}` → `service` → `mapper` → `model`，横切关注点放在 `common/`、`config/`、`aspect/`、`filter/`；AI 服务结构类似但包名为 `chat.liuxin.ai`。
 
-## 🏗️ 系统架构
+前端分层（`Web/src/` 与 `Admin/src/`）：`views/`（页面）→ `components/`（复用）→ `services/`（API）→ `stores/`（Pinia）→ `router/`、`composables/`、`utils/`。Web 含 Live2D、TinyMCE、看板娘聊天；Admin 以表格/表单 CRUD 为主。
 
-这是一个**全栈博客平台**，采用微服务架构：
+## 🛠️ 常用命令
 
-- **前端**: Vue 3 + TypeScript 应用
-  - `Web/` - 用户前台博客 (端口 3000)
-  - `Admin/` - 管理后台 (端口 3001)
+按影响范围选择，不要机械全跑。完整验证集见 `.claude/project-adapter.md`。
 
-- **后端**: Spring Boot 微服务
-  - `LiuTech/` - 主后端 API 服务 (端口 8080)
-  - `LiuTech-AI/` - AI 聊天助手服务 (端口 8081)
-
-- **数据库与缓存**: MySQL 8.0 + 可选 Redis
-- **反向代理**: Nginx 负载均衡和路由
-- **容器化**: 完整的 Docker Compose 配置
-
-### Service Dependencies
-```
-Nginx (80/443)
-  ├── Web Frontend (3000)
-  ├── Admin Frontend (3001)
-  ├── LiuTech Backend (8080)
-  └── LiuTech-AI Service (8081)
-        └── MySQL (3306)
-```
-
-## 🛠️ 常用开发命令
-
-### 后端 (Spring Boot)
-
-**主后端服务 (LiuTech):**
 ```bash
-cd LiuTech
-mvn clean compile                    # 编译 Java 代码
-mvn spring-boot:run                  # 开发模式运行
-mvn test                             # 运行单元测试
-mvn test -Dtest=UserControllerTest   # 运行指定测试
-mvn clean package -DskipTests        # 构建生产 JAR
-java -jar target/liutech-backend-*.jar  # 运行编译后的 JAR
-```
-
-**AI 服务 (LiuTech-AI):**
-```bash
-cd LiuTech-AI
-mvn clean compile
-mvn spring-boot:run
-mvn test
-mvn clean package -DskipTests
-java -jar target/liutech-ai-*.jar
-```
-
-**父模块 (所有后端服务):**
-```bash
-# 从项目根目录构建所有模块
-mvn clean install -DskipTests        # 构建所有模块
-mvn test                             # 运行所有测试
-mvn clean install                    # 构建并运行测试
-```
-
-### 前端 (Vue 3)
-
-**用户前台 (Web):**
-```bash
-cd Web
-npm install                          # 安装依赖
-npm run dev                          # 启动开发服务器 (端口 3000)
-npm run build                        # 生产构建
-npm run preview                      # 预览生产构建
-```
-
-**管理后台 (Admin):**
-```bash
-cd Admin
-npm install
-npm run dev                          # 启动开发服务器 (端口 3001)
-npm run build
-npm run preview
-```
-
-**安装所有前端依赖:**
-```bash
-cd Web && npm install && cd ../Admin && npm install
-```
-
-### Docker 开发
-
-**构建所有镜像:**
-```bash
-./快速打包文件.bat        # Windows 构建脚本
-```
-
-**启动全栈:**
-```bash
-docker-compose up -d        # 启动所有服务
-docker-compose up -d mysql  # 仅启动 MySQL
-docker-compose ps           # 检查服务状态
-docker-compose logs -f      # 查看日志
-docker-compose down         # 停止所有服务
-```
-
-**查看日志:**
-```bash
-docker-compose logs -f backend
-docker-compose logs -f ai
-docker-compose logs -f web
-```
-
-### 数据库
-
-**初始化数据库:**
-```sql
-mysql -u root -p < sql/sql.sql
-```
-
-## 📁 关键目录与文件
-
-### 后端结构 (LiuTech/)
-```
-src/main/java/chat/liuxin/liutech/
-├── controller/          # REST 接口层
-│   ├── admin/          # 管理后台 API
-│   └── web/            # 公开 API
-├── service/            # 业务逻辑层
-├── mapper/             # MyBatis 数据访问层
-├── model/              # 数据模型 (User, Post 等)
-├── config/             # Spring 配置类
-├── common/             # 公共工具类
-└── aspect/             # AOP 切面
-```
-
-### 前端结构 (Web/ & Admin/)
-```
-src/
-├── views/              # 页面组件
-├── components/         # 可复用组件
-├── stores/             # Pinia 状态管理
-├── services/           # API 服务层
-├── router/             # Vue Router 配置
-├── composables/        # Vue 组合式函数
-├── utils/              # 工具函数
-└── assets/             # 静态资源
-```
-
-### 配置文件
-- `pom.xml` - Maven 父模块 (依赖管理)
-- `LiuTech/pom.xml` - 主后端依赖
-- `LiuTech-AI/pom.xml` - AI 服务依赖
-- `Web/package.json` - 前端依赖 (Web)
-- `Admin/package.json` - 前端依赖 (Admin)
-- `docker-compose.yml` - 服务编排
-- `.env` - 环境变量
-
-## 🔧 配置
-
-### 环境变量 (.env)
-```bash
-# 数据库
-DB_PASSWORD=123456               # MySQL root 密码；生产环境使用强密码
-MYSQL_PORT=3306
-
-# 服务端口
-BACKEND_PORT=8080
-AI_PORT=8081
-WEB_PORT=3000
-ADMIN_PORT=3001
-NGINX_HTTP=80
-NGINX_HTTPS=443
-
-# AI 服务
-SPRING_AI_OPENAI_API_KEY=your_api_key    # AI 服务必需
-SILICONFLOW_API_KEY=your_api_key         # SiliconFlow 通用 API Key
-SILICONFLOW_TTS_API_KEY=your_api_key     # TTS API Key，可与通用 Key 相同
-TTS_PROXY_INTERNAL_TOKEN=your_internal_token  # 后端和 AI 服务共用的 TTS 内部令牌
-
-# JWT (重要：后端和 AI 服务必须使用相同的密钥)
-JWT_SECRET=your_strong_jwt_secret_key_min_32_chars    # 生产环境必需
-
-# 文件上传 (Docker)
-FILE_UPLOAD_BASE_PATH=/app/uploads           # 容器内路径
-# 文件实际存储在宿主机 /liuxin/uploads 目录 (挂载到容器 /app/uploads)
-
-# 服务器
-SERVER_BASE_URL=https://www.liuxin.chat      # 应用基础 URL
-```
-
-**重要提示:**
-- `JWT_SECRET` 在 `backend` 和 `ai` 服务中必须完全相同，否则 token 验证会失败
-- `DB_PASSWORD` 的变量名应在本地和生产保持一致，但值可以按环境区分；生产环境不要使用开发密码
-- AI 服务使用 SiliconFlow API 密钥: https://www.siliconflow.com/
-- 后端和 AI 服务的 MySQL JDBC URL 需要包含 `allowPublicKeyRetrieval=true`，用于兼容 MySQL 8 认证流程
-- `TTS_PROXY_INTERNAL_TOKEN` 在后端和 AI 服务中必须一致，否则 TTS 代理调用会失败
-- 文件上传持久化在宿主机 `/liuxin/uploads` 目录 (bind mount 到容器)
-- **HTTPS (生产环境)**: SSL 证书应放置在服务器的 `/opt/liutech/nginx/` 目录:
-  - `/opt/liutech/nginx/liuxin.chat_bundle.crt` - SSL 证书
-  - `/opt/liutech/nginx/liuxin.chat.key` - SSL 私钥
-
-### 后端配置 (application.yml)
-关键配置位于 `LiuTech/src/main/resources/`:
-- `application.yml` - 基础配置
-- `application-dev.yml` - 开发环境 (本地 MySQL)
-- `application-prod.yml` - 生产环境 (Docker 网络)
-- 文件上传设置 (最大 100MB)
-- JWT 配置 (7 天过期)
-- MyBatis-Plus 分页配置
-
-### 前端配置 (.env.development)
-```bash
-VITE_API_BASE_URL=http://127.0.0.1:8080
-```
-
-## 🎯 核心功能
-
-### 用户系统
-- JWT 认证
-- 基于角色的访问控制 (user/admin)
-- 用户注册/登录
-- 个人资料管理与头像上传
-
-### 内容管理
-- 富文本编辑器 (TinyMCE 7.9.1)
-- 文章 CRUD 操作
-- 分类和标签
-- 文件/图片上传
-- 草稿和发布状态
-
-### AI 助手
-- 聊天式 AI 集成 (LiuTech-AI 服务)
-- 上下文感知对话
-- 内容写作辅助
-
-### 管理功能
-- 用户管理
-- 内容审核
-- 系统统计
-- 分类/标签管理
-
-## 🔌 API 架构
-
-### 基础 URL
-- 主 API: `http://localhost:8080` (backend)
-- AI API: `http://localhost:8081` (ai)
-- Docker 内部: `http://backend:8080`, `http://ai:8081`
-
-### 认证
-所有受保护的路由需要在请求头中携带 JWT token:
-```
-Authorization: Bearer {token}
-```
-Token 有效期为 7 天。后端和 AI 服务使用相同的 JWT_SECRET 进行验证。
-
-### 主要接口
-- `POST /user/login` - 用户登录 (返回 JWT token)
-- `POST /user/register` - 用户注册
-- `GET /posts` - 获取文章列表 (带分页)
-- `POST /posts` - 创建文章 (需要认证)
-- `GET /posts/{id}` - 获取文章详情
-- `GET /admin/users` - 用户管理 (仅管理员)
-- `POST /ai/chat` - AI 聊天 (SSE 流式响应)
-
-完整 API 文档: `LiuTech/API文档.md`
-
-## 🚀 部署
-
-### 快速启动 (推荐)
-```bash
-./快速打包文件.bat    # 构建所有组件
-docker-compose up -d  # 启动全栈
-```
-
-访问地址:
-- 用户前台: http://localhost:3000
-- 管理后台: http://localhost:3001
-- API: http://localhost:8080
-- AI 服务: http://localhost:8081
-
-### 生产环境部署
-1. 本地构建: `.\快速打包文件.bat`
-2. 导出镜像: `.\镜像导出脚本.bat` (可选)
-3. 上传到服务器: `/opt/liutech/`
-4. 运行: `chmod +x 服务器部署脚本.sh && ./服务器部署脚本.sh`
-5. 配置 `.env` 文件中的 JWT_SECRET 和 SPRING_AI_OPENAI_API_KEY
-6. 重启服务: `docker compose restart backend ai`
-
-详细生产部署说明请参考: 快速部署指南.md
-
-### 生产构建
-```bash
-# 后端
-cd LiuTech && mvn clean package -DskipTests
-cd LiuTech-AI && mvn clean package -DskipTests
+# 后端单服务
+cd LiuTech && mvn test                       # 单元测试
+cd LiuTech && mvn clean package -DskipTests # 构建 JAR
+cd LiuTech-AI && mvn spring-boot:run        # 本地起 AI 服务
 
 # 前端
-cd Web && npm run build
-cd Admin && npm run build
+cd Web && npm run dev                        # 起 Web 开发服务器
+cd Web && npm run build                      # 生产构建（npm test 当前未配置）
+cd Admin && npm run build                    # Admin 构建
 
-# 使用 Docker 部署
-docker-compose up -d
+# 全栈
+mvn clean install -DskipTests                # 从根构建所有后端模块
+./快速打包文件.bat && docker-compose up -d   # Windows 一键构建并启动
+docker-compose logs -f backend               # 跟踪后端日志
+
+# 数据库
+mysql -u root -p < sql/sql.sql               # 一次性初始化两个库
+docker exec -it liutech-mysql mysql -u root -p
 ```
 
-注意: 构建脚本 `快速打包文件.bat` 会自动处理以上所有步骤。
+## ⚠️ 跨服务集成约束（最容易出错的点）
 
-## 🧪 测试
+- **`JWT_SECRET`** 在 `backend` 和 `ai` 服务中**必须完全一致**，否则 token 验证失败。
+- **`TTS_PROXY_INTERNAL_TOKEN`** 在 `backend` 和 `ai` 服务中**必须一致**，AI 服务通过 `/tts/speech` 代理调用主后端 TTS。
+- **AI 服务 → 主后端** URL：在 Docker 内是 `http://backend:8080`（`BLOG_API_URL`），本地开发用 `http://localhost:8080`。
+- **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证。
+- **文件上传**：容器内 `/app/uploads` 绑定到宿主机 `/liuxin/uploads`；**不要**用 `docker compose down -v`，会清空 `mysql_data` 卷。
+- **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`，会破坏 JSON 响应（406）。
+- **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`。
+- **环境变量**从根目录 `.env` 注入；`.env.example` 是模板，生产替换为强密钥。
 
-### 后端测试
-```bash
-# 运行所有测试
-mvn test
+## 🤖 AI 工作流契约
 
-# 运行指定测试类
-mvn test -Dtest=UserServiceTest
-
-# 运行测试并生成覆盖率报告
-mvn test jacoco:report
-```
-
-### 前端测试
-前端使用 Vite - 目前未配置测试框架。
-
-## 🐛 调试
-
-### 后端日志
-```bash
-# 开发模式
-mvn spring-boot:run  # 日志输出到控制台
-
-# Docker
-docker-compose logs -f backend
-docker-compose logs -f ai
-docker-compose logs -f mysql
-```
-
-### 前端开发工具
-```bash
-npm run dev  # Vite 开发服务器，支持 HMR
-```
-
-### 常见问题
-- **AI 服务返回 406 Not Acceptable**: Nginx 配置问题 - 确保没有设置 `proxy_set_header Accept "text/event-stream";` (这会破坏非 SSE 的 AI 请求)
-- **AI 服务无法连接后端**: 检查 AI 服务配置中的 `BLOG_API_URL=http://backend:8080`
-- **JWT token 验证失败**: 确保 `JWT_SECRET` 在后端和 AI 服务中完全相同
-- **文件上传不持久**: 检查宿主机上是否存在 bind mount `/liuxin/uploads:/app/uploads`
-- **HTTPS 不工作**: 确保 SSL 证书位于 `/opt/liutech/nginx/liuxin.chat_bundle.crt` 和 `liuxin.chat.key`
-- **SSE 流式传输不工作**: Nginx 必须设置 `proxy_buffering off` 和足够高的 `proxy_read_timeout`
-
-### 数据库访问
-```bash
-# 连接 Docker 中的 MySQL
-docker exec -it liutech-mysql mysql -u root -p123456
-```
-
-## 📚 关键技术
-
-**后端:**
-- Spring Boot (3.5.9 父模块, 3.5.6 子模块)
-- Spring Security + JWT
-- MyBatis-Plus (3.5.12)
-- MySQL 8.0
-- Java 21
-
-**前端:**
-- Vue 3.5.17 + TypeScript
-- Vite 7.1.3
-- Pinia (状态管理)
-- Vue Router 4.5.1
-- Ant Design Vue (管理后台)
-- TinyMCE (富文本编辑器)
-- Live2D 动画
-
-**基础设施:**
-- Docker + Docker Compose
-- Nginx (反向代理)
-- MySQL 8.0
-
-## 📝 开发说明
-
-### AI 开发工程流程
-
-本项目的 AI 流程采用”轻量规则 + 专用 skill”：
+本项目使用**轻量规则 + 专用 skill**，核心文件：
 
 ```text
-.claude/rules/deep-research.md    # 深度研究准则（核心）
-.claude/rules/ai-development-workflow.md
-.claude/project-adapter.md
-.claude/skills/prd-workflow
-.claude/skills/delivery-workflow
+.claude/rules/deep-research.md              # 深度研究准则（核心行为）
+.claude/rules/ai-development-workflow.md    # 入口规则，定义变更分级
+.claude/rules/style.md                      # 沟通与代码风格
+.claude/project-adapter.md                  # 项目适配器：模块/目录/验证命令/高风险定义
+.claude/skills/prd-workflow                 # 需求共创 → 实现 PRD
+.claude/skills/delivery-workflow            # 编码交付 + 验证 + 架构更新
+.claude/skills/delivery-workflow/references/excellent-code-index.md  # 项目内优秀范式索引
 ```
 
-日常交流、解释概念、头脑风暴、非落地讨论时，不主动加载 PRD、实现 PRD、开发记录或项目架构。用户明确要求生成 PRD、审查 PRD、先设计方案、实现前规划时，使用 `.claude/skills/prd-workflow`。用户明确要求开始开发、修复、重构、安全整改或性能优化时，使用 `.claude/skills/delivery-workflow`。触发任一 workflow skill 后，先读取 `.claude/project-adapter.md`。
+**触发任一 workflow skill 后，先读 `.claude/project-adapter.md`。**
 
-### 添加新功能
-1. 后端: 创建 controller → service → mapper 层
-2. 前端: 添加路由 → 视图组件 → API 服务
-3. 数据库: 在 `sql/` 目录添加迁移文件
-4. 测试: 为新功能添加单元测试
+- 日常交流、概念解释、头脑风暴 → **不**主动加载 PRD/架构/规则。
+- 用户说"生成/审查 PRD / 先设计方案 / 实现前规划" → `prd-workflow`。
+- 用户说"帮我实现 / 开始开发 / 修复 bug / 重构 / 安全整改 / 性能优化 / 写开发记录 / 更新项目架构" → `delivery-workflow`。
 
-### Maven 多模块结构
-- 父 `pom.xml` 定义 `spring-boot-starter-parent` 3.5.9 并管理依赖
-- 子模块 (`LiuTech`, `LiuTech-AI`) 继承父模块
-- 从根目录构建: `mvn clean install -DskipTests` 构建所有模块
+**变更分级（来自 `ai-development-workflow.md`）：**
 
-### Docker 服务通信
-服务使用容器名称进行内部通信:
-- AI 服务 → 后端: `http://backend:8080`
-- 所有服务 → MySQL: `mysql:3306`
-- 外部访问: 使用暴露端口 (8080, 8081, 3000, 3001)
+- **极小修**（仅文案/注释/格式，无行为变化）：可不写开发记录，但回复需说明"无行为影响"。
+- **小修 / Bug 修复**：可跳过 PRD，但必须写开发记录。
+- **普通功能**（满足下方豁免条件时）：可直接进入 `delivery-workflow`，只写开发记录。
+- **普通功能**（不满足豁免条件时）：PRD（业务需求 + 实现方案）→ 开发 → 验证 → 写记录。
+- **重大 / 高风险**：完整走完 PRD → 开发 → 验证 → 写记录 → 更新 `doc/记录/`。高风险领域包括：认证授权、积分/支付/下载权限、数据库结构、上传下载、AI/SSE/TTS、Nginx、Docker、CI/CD、跨服务调用。**无论大小一律按重大处理。**
 
-### 数据库迁移
-- 主数据库和 AI 数据库: `sql/sql.sql`
+**普通功能豁免 PRD 的条件**（全部满足才可豁免）：改动 < 约 200 行；不跨服务；不触及高风险领域；不引入/修改接口协议；不新增库表或迁移脚本。
 
-### 代码风格
-- 后端: 遵循 Java 规范 (Spring Boot 标准)
-- 前端: Vue 3 Composition API + TypeScript
-- 前端已配置 ESLint/Prettier
+**过程文件命名**：同一功能在 4 类目录下用**完全一致**的 `功能名_YYYY-MM-DD.md`。
 
-## 🔗 重要资源
+## 📁 文档目录
 
-- README.md - 完整项目文档
-- LiuTech/API文档.md - 完整 API 参考
-- 快速部署指南.md - 部署指南
-- docker-compose.yml - 服务配置
-- 服务器部署脚本.sh - 服务器部署脚本
-
-## 🚦 服务端口
-
-| 服务 | 端口 | 描述 |
-|---------|------|-------------|
-| 用户前台 | 3000 | 用户博客前端 |
-| 管理后台 | 3001 | 管理面板 |
-| 后端 API | 8080 | 主 REST API |
-| AI 服务 | 8081 | AI 聊天助手 |
-| MySQL | 3306 | 主数据库 |
-| Nginx | 80/443 | 反向代理 |
-
-## 🌐 Nginx 路由配置
-
-Nginx 作为统一入口，根据路径路由到不同服务:
-
-- `/` → Web 前端 (端口 3000)
-- `/api/` → 后端 API (端口 8080)
-- `/ai/` → AI 服务 (端口 8081)
-- `/uploads/` → 后端文件服务 (端口 8080)
-- 端口 81 → Admin 管理后台 (端口 3001)
-
-### CORS 配置
-- 后端 API: 允许所有来源 (`Access-Control-Allow-Origin *`)
-- AI 服务: 使用动态来源 (`$http_origin`) 以支持 SSE 流式响应
-- 所有请求支持 GET, POST, PUT, DELETE, OPTIONS 方法
-
-### SSE 流式响应配置
-AI 服务的 SSE (Server-Sent Events) 需要特殊 Nginx 配置:
-```nginx
-proxy_http_version 1.1;
-proxy_set_header Connection "";
-proxy_buffering off;
-proxy_read_timeout 3600s;
+```text
+doc/PRD/功能名_YYYY-MM-DD.md          # 业务需求 + 实现方案合并文档
+doc/记录/开发-功能名_YYYY-MM-DD.md    # 实际改了什么、为什么、怎么验证
+doc/记录/架构-功能名_YYYY-MM-DD.md    # 单次架构变化
+doc/记录/当前架构.md                   # 长期有效的总体架构，定期汇总
 ```
+
+写实现 PRD / 开发记录前先读 `references/development-record-template.md` 和 `references/implementation-prd-template.md`（在对应 skill 目录下）。
+
+## 🔗 重要资源指针
+
+- `README.md` — 完整功能介绍、特性列表、部署流程（产品向）
+- `LiuTech/API文档.md` — 后端 API 完整参考
+- `快速部署指南.md` — 生产环境部署步骤
+- `doc/记录/当前架构.md` — 当前生效的总体架构
+- `.claude/project-adapter.md` — 验证命令、高风险定义、模块表
+- `.claude/skills/delivery-workflow/references/excellent-code-index.md` — 优秀代码范式索引
