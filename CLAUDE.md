@@ -68,7 +68,7 @@ docker exec -it liutech-mysql mysql -u root -p
 .claude/rules/ai-development-workflow.md    # 入口规则，定义变更分级
 .claude/rules/style.md                      # 沟通与代码风格
 .claude/project-adapter.md                  # 项目适配器：模块/目录/验证命令/高风险定义
-.claude/skills/prd-workflow                 # 需求共创 → 实现 PRD
+.claude/skills/prd-workflow                 # 业务需求共创 + 实现方案生成（合并 PRD）
 .claude/skills/delivery-workflow            # 编码交付 + 验证 + 架构更新
 .claude/skills/delivery-workflow/references/excellent-code-index.md  # 项目内优秀范式索引
 ```
@@ -100,7 +100,7 @@ doc/记录/架构-功能名_YYYY-MM-DD.md    # 单次架构变化
 doc/记录/当前架构.md                   # 长期有效的总体架构，定期汇总
 ```
 
-写实现 PRD / 开发记录前先读 `references/development-record-template.md` 和 `references/implementation-prd-template.md`（在对应 skill 目录下）。
+写 PRD / 开发记录前先读对应 skill 下的模板（`requirement-prd-template.md`、`implementation-prd-template.md`、`development-record-template.md`）。
 
 ## 🔗 重要资源指针
 
