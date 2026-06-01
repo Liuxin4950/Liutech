@@ -20,7 +20,7 @@ public class LiuTechAiApplication {
     public static void main(String[] args) {
         log.info("=== LiuTech AI 服务启动中... ===");
         SpringApplication.run(LiuTechAiApplication.class, args);
-        log.info("Agent服务地址: http://localhost:8081/ai/agent/stream");
+        log.info("AI服务地址: http://localhost:8081/ai/chat/stream");
         log.info("=== LiuTech AI 服务启动完成！===");
     }
 }

@@ -4,6 +4,7 @@
     v-html="renderedContent"
     class="markdown-content"
     :class="{ 'streaming': isStreaming }"
+    @click="onContentClick"
   ></div>
 </template>
 
@@ -32,6 +33,7 @@ hljs.registerLanguage('json', json)
 hljs.registerLanguage('xml', xml)
 hljs.registerLanguage('markdown', markdown)
 import { useMarkdown } from '@/composables/useMarkdown'
+import { useRouter } from 'vue-router'
 import 'highlight.js/styles/github-dark.css'
 
 interface Props {
@@ -45,6 +47,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { processMarkdown } = useMarkdown()
 const contentRef = ref<HTMLElement | null>(null)
+const router = useRouter()
 
 const appendStreamingCaret = (html: string) => {
   if (!html) {
@@ -86,6 +89,14 @@ watch(() => props.isStreaming, async (streaming) => {
   await nextTick()
   contentRef.value?.querySelectorAll('.streaming-caret').forEach((node) => node.remove())
 })
+
+const onContentClick = (e: MouseEvent) => {
+  const anchor = (e.target as HTMLElement).closest('a[href^="/"]') as HTMLAnchorElement | null
+  if (anchor) {
+    e.preventDefault()
+    router.push(anchor.getAttribute('href') || '/')
+  }
+}
 
 const highlightCodeBlocks = () => {
   const codeBlocks = contentRef.value?.querySelectorAll('pre code') || []
@@ -189,6 +200,25 @@ const highlightCodeBlocks = () => {
   100% {
     opacity: 0;
   }
+}
+
+
+.markdown-content :deep(h1),
+.markdown-content :deep(h2),
+.markdown-content :deep(h3) {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.markdown-content :deep(h4),
+.markdown-content :deep(h5),
+.markdown-content :deep(h6) {
+  font-size: 0.95em;
+  font-weight: 600;
+  margin-top: 0.4rem;
+  margin-bottom: 0.2rem;
 }
 
 /* Base markdown styles will be imported from markdown.css */

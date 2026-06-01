@@ -60,9 +60,12 @@ export function useMarkdown() {
   // Custom link renderer for security
   renderer.link = (href, title, text) => {
     const titleAttr = title ? ` title="${title}"` : ''
-    // Only allow http, https, mailto protocols
     if (href && !href.match(/^(https?:\/\/|mailto:|\/)/)) {
       return text
+    }
+    // 内部链接走 Vue Router，不刷新页面
+    if (href && href.startsWith('/')) {
+      return `<a href="${href}"${titleAttr}>${text}</a>`
     }
     return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`
   }

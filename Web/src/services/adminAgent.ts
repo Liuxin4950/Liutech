@@ -85,7 +85,7 @@ const CONTRACT_VERSION = 1
 export class AdminAgentService {
   static async stream(request: AdminAgentRequest, handlers: AdminAgentHandlers) {
     const token = localStorage.getItem('token')
-    const response = await fetch(`${getServiceBaseURL(ServiceType.AI)}/admin/agent/stream`, {
+    const response = await fetch(`${getServiceBaseURL(ServiceType.AI)}/writing/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

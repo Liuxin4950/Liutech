@@ -184,6 +184,19 @@ export class PostService {
   }
 
   /**
+   * 获取文章详情（管理员，可查草稿）
+   */
+  static async getPostDetailForAdmin(id: number): Promise<PostDetail> {
+    try {
+      const response = await get(`/admin/posts/${id}`)
+      return response.data
+    } catch (error) {
+      console.error('获取文章详情(管理员)失败:', error)
+      throw error
+    }
+  }
+
+  /**
    * 获取热门文章列表
    * @param limit 返回数量，默认10
    * @returns 热门文章列表

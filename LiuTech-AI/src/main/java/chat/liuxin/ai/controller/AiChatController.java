@@ -19,15 +19,14 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 /**
- * Legacy AI 聊天控制器。
- *
- * Web/Admin 看板娘主聊天入口已经统一迁移到 /ai/agent/chat 和 /ai/agent/stream。
- * 本控制器只保留历史聊天、调试和兼容用途；新看板娘能力不得继续接入这里。
+ * AI 聊天控制器。
  *
  * 路由说明：
- * - POST /ai/chat        legacy 完整回复。
- * - POST /ai/chat/stream legacy SSE 回复。
- * - GET  /ai/chat/history 分页查询用户全局历史（倒序），便于回放与列表展示。
+ * - POST /ai/chat        看板娘聊天完整回复。
+ * - POST /ai/chat/stream 看板娘聊天 SSE 回复。
+ * - POST /ai/writing     写作助手完整回复。
+ * - POST /ai/writing/stream 写作助手 SSE 回复。
+ * - GET  /ai/chat/history 分页查询用户全局历史（倒序）。
  * - DELETE /ai/chat/memory 清空用户所有聊天消息（物理删除，仅消息表）。
  *
  * 会话与消息副作用：
@@ -91,6 +90,32 @@ public class AiChatController {
         return aiChatService.processStreamChat(request, userId);
     }
 
+    /**
+     * AI写作助手接口 - 普通模式
+     * 使用 WritingTools，AI 可以调用分类/标签工具
+     */
+    @PostMapping("/writing")
+    public ChatResponse writing(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
+        markLegacyRoute(response);
+        Long userId = getCurrentUserId();
+        log.info("接受到了写作助手请求，用户ID: {}", userId);
+        return aiChatService.processWriting(request, userId);
+    }
+
+    /**
+     * AI写作助手接口 - 流式模式
+     */
+    @PostMapping("/writing/stream")
+    public SseEmitter writingStream(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
+        markLegacyRoute(response);
+        Long userId = getCurrentUserId();
+        log.info("接受到了写作助手流式请求，用户ID: {}", userId);
+        return aiChatService.processWritingStream(request, userId);
+    }
+
+    
+
+
     
 
     /**
@@ -128,6 +153,7 @@ public class AiChatController {
         }
     }
 
+    
     /** 清空用户聊天记忆接口（仅删除消息表，不影响会话表） */
     @DeleteMapping("/chat/memory")
     public ChatResponse clearChatMemory() {

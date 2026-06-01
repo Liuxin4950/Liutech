@@ -42,10 +42,10 @@
           v-model="searchKeyword" 
           type="text" 
           placeholder="搜索文章标题或内容..."
-          class="flex-1 p-8 rounded border-t text-sm"
+          class="search-input"
           @keyup.enter="handleSearch"
         >
-        <button @click="handleSearch" class="bg-primary text-sm font-medium p-8 rounded transition hover-lift">
+        <button @click="handleSearch" class="search-btn">
           <Icon name="search" size="14" /> 搜索
         </button>
       </div>

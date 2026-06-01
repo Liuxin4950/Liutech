@@ -2,7 +2,6 @@ package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.infra.config.AiPromptConfig;
 import chat.liuxin.ai.dto.ChatRequest;
-import chat.liuxin.ai.infra.security.AiPromptSecurityPolicy;
 import chat.liuxin.ai.infra.security.AiSystemPromptProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +25,6 @@ class PromptAssemblerTest {
     private AiPromptConfig aiPromptConfig;
     private BlogContextService blogContextService;
     private MemoryService memoryService;
-    private AiPromptSecurityPolicy aiPromptSecurityPolicy;
     private PromptAssembler promptAssembler;
 
     @BeforeEach
@@ -34,11 +32,13 @@ class PromptAssemblerTest {
         aiPromptConfig = mock(AiPromptConfig.class);
         blogContextService = mock(BlogContextService.class);
         memoryService = mock(MemoryService.class);
-        aiPromptSecurityPolicy = new AiPromptSecurityPolicy();
-        setField(aiPromptSecurityPolicy, "enabled", true);
 
-        AiSystemPromptProvider systemPromptProvider = new AiSystemPromptProvider(aiPromptConfig, aiPromptSecurityPolicy);
-        promptAssembler = new PromptAssembler(systemPromptProvider, blogContextService, memoryService, aiPromptSecurityPolicy);
+        AiSystemPromptProvider systemPromptProvider = new AiSystemPromptProvider(aiPromptConfig);
+        Field enabled = AiSystemPromptProvider.class.getDeclaredField("guardEnabled");
+        enabled.setAccessible(true);
+        enabled.set(systemPromptProvider, true);
+
+        promptAssembler = new PromptAssembler(systemPromptProvider, blogContextService, memoryService);
         setField(promptAssembler, "historyLimit", 8);
     }
 

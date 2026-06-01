@@ -535,7 +535,7 @@ onMounted(() => {
 
 /* 主要内容 */
 .main-content {
-  padding: 40px 0 60px;
+  // padding: 40px 0 60px;
 }
 
 .content-grid {

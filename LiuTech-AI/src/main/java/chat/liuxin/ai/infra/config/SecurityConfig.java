@@ -105,8 +105,7 @@ public class SecurityConfig {
                 .requestMatchers("/ai/models/**").permitAll()
                 .requestMatchers("/ai/status").permitAll()
                 .requestMatchers("/ai/chat", "/ai/chat/stream").permitAll()
-                .requestMatchers("/ai/agent/chat", "/ai/agent/stream").permitAll()
-                .requestMatchers("/ai/recommend/**").permitAll()
+                .requestMatchers("/ai/writing", "/ai/writing/stream").permitAll()
 
                 // 管理员API：模型管理（必须是管理员）
                 .requestMatchers("/admin/**", "/ai/admin/**").hasRole("ADMIN")

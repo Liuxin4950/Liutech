@@ -500,6 +500,7 @@ import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import { useUserStore } from '@/stores/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { useMarkdown } from '@/composables/useMarkdown'
 import { handleImageError } from '@/composables/useImageFallback'
 import { formatDate } from '@/utils/utils'
 import Swal from 'sweetalert2'
@@ -507,6 +508,7 @@ import Swal from 'sweetalert2'
 const router = useRouter()
 const route = useRoute()
 const { handleAsync } = useErrorHandler()
+const { processMarkdown } = useMarkdown()
 const userStore = useUserStore()
 
 // 表单数据
@@ -552,23 +554,7 @@ const isEditMode = ref(false)
 // 预览使用和详情页相同的富文本处理规则，避免发布前后渲染不一致。
 const renderedPreviewContent = computed(() => {
   if (!form.value.content) return ''
-  const content = form.value.content
-  const hasHtmlTags = /<[^>]*>/g.test(content)
-
-  if (hasHtmlTags) {
-    const html = content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`(.*?)`/g, '<code>$1</code>')
-    return DOMPurify.sanitize(html)
-  }
-
-  const html = content
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`(.*?)`/g, '<code>$1</code>')
-  return DOMPurify.sanitize(html)
+  return processMarkdown(form.value.content)
 })
 
 const editingPostId = ref<number | null>(null)
@@ -1003,7 +989,7 @@ const onPointsNeededInput = async (attachment: {
 const loadPostData = async (postId: number) => {
   await handleAsync(async () => {
     loading.value = true
-    const postData: PostDetail = await PostService.getPostDetail(postId)
+    const postData: PostDetail = await PostService.getPostDetailForAdmin(postId)
 
     // 填充表单数据
     form.value = {
@@ -2108,9 +2094,9 @@ onMounted(async () => {
 }
 
 .preview-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-main);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 750;
+  color: var(--text-title);
   margin: 0 0 16px 0;
   line-height: 1.3;
 }
@@ -2132,6 +2118,45 @@ onMounted(async () => {
 }
 
 
+
+/* 预览标签样式 - 与详情页同步 */
+.preview-post-header .tags-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+}
+
+.preview-post-header .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  border: 1px solid transparent;
+  color: var(--text-subtle);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-post-header .tag::before {
+  content: '#';
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.preview-post-header .tag:hover {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.preview-post-header .tag:hover::before {
+  color: white;
+}
+
 /* 预览摘要样式 */
 .preview-summary {
   margin-bottom: 0;
@@ -2139,7 +2164,10 @@ onMounted(async () => {
 
 .preview-summary p {
   margin: 0;
-  font-style: italic;
+  color: var(--text-subtle);
+  font-size: 1rem;
+  line-height: 1.7;
+  opacity: 0.85;
 }
 
 /* 预览内容样式 - 与详情页同步 */

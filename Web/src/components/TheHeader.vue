@@ -225,19 +225,19 @@ onUnmounted(() => {
             >
               <ul class="list">
                 <li @click="navigateTo('/profile')" class="transition link">
-                  <Icon name="user" size="16" class="mr-8" />个人资料
+                  <Icon name="user" size="16" />个人资料
                 </li>
                 <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="transition link">
-                  <Icon name="edit" size="16" class="mr-8" />我的文章
+                  <Icon name="edit" size="16" />我的文章
                 </li>
                 <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="transition link">
-                  <Icon name="file" size="16" class="mr-8" />草稿箱
+                  <Icon name="file" size="16" />草稿子箱
                 </li>
                 <li @click="navigateTo('/favorites')" class="transition link">
-                  <Icon name="favorite" size="16" class="mr-8" />我的收藏
+                  <Icon name="favorite" size="16" />我的收藏
                 </li>
                 <li @click="handleLogout" class="transition link text-danger">
-                  <Icon name="close" size="16" class="mr-8" />退出登录
+                  <Icon name="close" size="16" />退出登录
                 </li>
               </ul>
             </div>
@@ -268,11 +268,11 @@ onUnmounted(() => {
         <ul class="list">
           <!-- 搜索 -->
           <li @click="emit('open-search'); isMenuOpen = false" class="p-16 hover-bg transition border-b link">
-            <Icon name="search" size="18" class="mr-8" />搜索文章
+            <Icon name="search" size="18" />搜索文章
           </li>
           <!-- 主题切换 -->
           <li @click="theme.toggle" class="p-16 hover-bg transition border-b link">
-            <Icon :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="18" class="mr-8" />
+            <Icon :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="18" />
             {{ theme.current.value === 'light' ? '深色模式' : '浅色模式' }}
           </li>
           <li
@@ -281,24 +281,24 @@ onUnmounted(() => {
             @click="navigateTo(item.path)"
             class="p-16 hover-bg transition border-b link"
           >
-            <Icon :name="item.icon" size="18" class="mr-8" />
+            <Icon :name="item.icon" size="18" />
             {{ item.label }}
           </li>
 
           <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')" class="p-16 border-b link">
-            <Icon name="user" size="18" class="mr-8" />个人资料
+            <Icon name="user" size="18" />个人资料
           </li>
           <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="p-16 border-b link">
-            <Icon name="edit" size="18" class="mr-8" />我的文章
+            <Icon name="edit" size="18" />我的文章
           </li>
           <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="p-16 border-b link">
-            <Icon name="file" size="18" class="mr-8" />草稿箱
+            <Icon name="file" size="18" />草稿子箱
           </li>
           <li v-if="userStore.isLoggedIn" @click="navigateTo('/favorites')" class="p-16 border-b link">
-            <Icon name="favorite" size="18" class="mr-8" />我的收藏
+            <Icon name="favorite" size="18" />我的收藏
           </li>
           <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 text-error border-b link">
-            <Icon name="close" size="18" class="mr-8" />退出登录
+            <Icon name="close" size="18" />退出登录
           </li>
         </ul>
       </div>
@@ -401,7 +401,7 @@ header>div {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-soft);
   transition: all 0.3s ease;
-  padding: 0 12px;
+  padding: 0 8px;
   height: 45px;
   @include respond(md) {
     padding: 0 8px;
@@ -547,6 +547,7 @@ ol {
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
+    gap: 8px;
     background-color: transparent;
   }
 
@@ -585,6 +586,8 @@ ol {
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 5px;
   transition: all 0.3s ease;
   
   @include respond(md) {

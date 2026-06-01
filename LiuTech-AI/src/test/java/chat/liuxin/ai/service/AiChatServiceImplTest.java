@@ -1,13 +1,14 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.common.client.TtsClient;
-import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.common.monitor.AiMetrics;
+import chat.liuxin.ai.common.tts.AvatarCueService;
+import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import chat.liuxin.ai.infra.security.SensitiveLogSanitizer;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
-import chat.liuxin.ai.common.tts.TtsSegmenter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,9 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,9 +32,9 @@ class AiChatServiceImplTest {
     private PromptAssembler promptAssembler;
     private AiModelPolicy aiModelPolicy;
     private SensitiveLogSanitizer sensitiveLogSanitizer;
-    private AiChatServiceImpl service;
     private TtsSegmenter ttsSegmenter;
-
+    private AvatarCueService avatarCueService;
+    private AiChatServiceImpl service;
     private Method resolveModelNameMethod;
 
     @BeforeEach
@@ -49,21 +48,15 @@ class AiChatServiceImplTest {
         aiModelPolicy = new AiModelPolicy(aiModelConfigService);
         sensitiveLogSanitizer = new SensitiveLogSanitizer();
         ttsSegmenter = new TtsSegmenter();
+        avatarCueService = new AvatarCueService();
         setField(aiModelPolicy, "configuredDefaultModel", "fallback-model");
         setField(aiModelPolicy, "strictWhitelist", true);
         setField(aiModelPolicy, "maxTokensCeiling", 4096);
 
         service = new AiChatServiceImpl(
-                siliconFlowChatClient,
-                memoryService,
-                aiMetrics,
-                ttsClient,
-                promptAssembler,
-                aiModelPolicy,
-                sensitiveLogSanitizer,
-                ttsSegmenter
+                siliconFlowChatClient, memoryService, aiMetrics, ttsClient,
+                promptAssembler, aiModelPolicy, sensitiveLogSanitizer, ttsSegmenter, avatarCueService
         );
-
         setField(service, "defaultModel", "fallback-model");
 
         resolveModelNameMethod = AiChatServiceImpl.class.getDeclaredMethod("resolveModelName", ChatRequest.class);

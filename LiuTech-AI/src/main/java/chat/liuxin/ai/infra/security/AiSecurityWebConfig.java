@@ -17,8 +17,7 @@ public class AiSecurityWebConfig implements WebMvcConfigurer {
                 .addPathPatterns(
                         "/ai/chat",
                         "/ai/chat/stream",
-                        "/ai/agent/chat",
-                        "/ai/agent/stream",
-                        "/ai/recommend/**");
+                        "/ai/writing",
+                        "/ai/writing/stream");
     }
 }

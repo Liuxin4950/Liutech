@@ -308,25 +308,6 @@ const send = async (text?: string) => {
   }
 }
 
-const confirmAction = async () => {
-  if (!confirmation.value) return
-  try {
-    loading.value = true
-    const result = await AgentService.confirmAction(confirmation.value.actionId)
-    if (result.success) {
-      message.success(result.message || '操作成功')
-      confirmation.value = null
-      emit('actionDone', result)
-    } else {
-      message.error(result.message || '操作失败')
-    }
-  } catch (error: any) {
-    message.error(error?.message || '确认失败')
-  } finally {
-    loading.value = false
-  }
-}
-
 const applyPreview = () => {
   const preview = confirmation.value?.preview as AdminArticleDraftSnapshot | undefined
   if (!preview) return
@@ -431,12 +412,6 @@ const applyPreview = () => {
         <template #icon><FileAddOutlined /></template>
         应用预览到表单
       </a-button>
-      <a-popconfirm title="确认让 Agent 执行该操作吗？" @confirm="confirmAction">
-        <a-button type="primary" size="small" :loading="loading">
-          <template #icon><CheckCircleOutlined /></template>
-          确认执行
-        </a-button>
-      </a-popconfirm>
     </div>
   </aside>
 </template>

@@ -492,8 +492,6 @@ export const useChatStore = defineStore('chat', () => {
         message: content.trim(),
         context,
         model: model || defaultModel.value,  // 使用传入的模型或默认模型
-        agentEnabled: true,
-        adminAgent: canUseAdminAgent(),
         ...(isGuestSession()
           ? { tempMessages: guestTempMessages }
           : { ...(conversationId.value && { conversationId: conversationId.value }) })

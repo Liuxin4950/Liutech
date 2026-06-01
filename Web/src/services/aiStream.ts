@@ -164,15 +164,13 @@ export class AiStream {
 
       // 构建请求URL
       const aiBaseUrl = getServiceBaseURL(ServiceType.AI)
-      // agentEnabled === false 只作为内部故障/开发回退，不是用户可见的聊天模式。
-      const useAgent = request.agentEnabled !== false
-      const streamUrl = useAgent ? `${aiBaseUrl}/agent/stream` : `${aiBaseUrl}/chat/stream`
-      const { agentEnabled, adminAgent, ...requestBody } = request
+      // 看板娘聊天走 /ai/chat/stream，写作助手走 /ai/writing/stream
+      const { chatType, ...requestBody } = request
+      const streamUrl = chatType === 'writing' ? `${aiBaseUrl}/writing/stream` : `${aiBaseUrl}/chat/stream`
 
       // 由于EventSource不支持自定义请求头和POST方法，
       // 我们使用fetch流式读取作为替代方案
-      const response = await fetch(
-        useAgent && adminAgent ? `${aiBaseUrl}/admin/agent/stream` : streamUrl,
+      const response = await fetch(streamUrl,
         {
         method: 'POST',
         headers: {

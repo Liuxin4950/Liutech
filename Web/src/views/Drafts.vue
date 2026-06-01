@@ -150,9 +150,9 @@ onMounted(async () => {
     <!-- 操作栏 -->
     <div class="actions-bar">
       <div class="search-box">
+                <Icon name="search" size="16" class="search-icon" />
         <input v-model="searchKeyword" type="text" placeholder="搜索草稿..." class="search-input"
           @keyup.enter="handleSearch" />
-        <Icon name="search" size="16" class="search-icon" />
       </div>
       <button class="create-btn" @click="createNewDraft">
         <Icon name="edit" size="16" />
@@ -233,11 +233,10 @@ onMounted(async () => {
     </div>
 
     <!-- 分页器 -->
-    <Pagination 
+    <Pagination class="mt-24"
       v-if="!loading && drafts.length > 0"
       :current-page="currentPage"
       :total-pages="totalPages"
-      :show-page-numbers="false"
       @page-change="changePage"
     />
   </div>
@@ -269,33 +268,30 @@ onMounted(async () => {
 .actions-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 20px; }
 
 .search-box {
-  display: flex;
-  align-items: center;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: 20px;
-  padding: 8px 16px;
-  width: 300px;
-  transition: all 0.3s;
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 400px;
 }
 
-.search-box:focus-within {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+
+
+
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
 }
 
 .search-input {
-  border: none;
-  background: transparent;
-  outline: none;
-  width: 100%;
-  color: var(--text-main);
-  font-size: 14px;
-}
-
-.search-icon {
-  color: var(--text-muted);
-  cursor: pointer;
+    flex: 1;
+    padding: 8px 36px 8px 12px;
+    min-width: 0;
 }
 
 .create-btn { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background-color: var(--color-primary); color: white; border: none; border-radius: 25px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; white-space: nowrap; }
@@ -307,9 +303,9 @@ onMounted(async () => {
 .draft-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
 
 .draft-content { flex: 1; margin-right: 0; }
-.draft-title { font-size: 1.3rem; font-weight: 600; cursor: pointer; transition: color 0.3s; line-height: 1.4; }
+.draft-title { font-size: 1.3rem; font-weight: 600; cursor: pointer; transition: color 0.3s; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .draft-title:hover { color: var(--color-primary); }
-.draft-summary { color: var(--text-main); opacity: 0.8; line-height: 1.6; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.draft-summary { color: var(--text-main); opacity: 0.8; line-height: 1.6; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 
 .draft-meta { display: flex; gap: 20px; flex-wrap: wrap; }
 .draft-date, .draft-words, .draft-category { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--text-main); opacity: 0.7; }
@@ -326,13 +322,7 @@ onMounted(async () => {
 .delete-btn { background: var(--bg-error, #ffebee); color: var(--color-error, #d32f2f); }
 .delete-btn:hover { background: var(--bg-error, #ffcdd2); }
 
-.pagination { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 40px; }
 .retry-btn { padding: 10px 20px; background-color: var(--color-primary); color: white; border: none; border-radius: 20px; cursor: pointer; margin-top: 15px; }
-.page-btn { padding: 10px 20px; border: 1px solid var(--border-soft); background-color: var(--bg-soft); color: var(--text-main); border-radius: 8px; cursor: pointer; transition: all 0.3s; }
-.page-btn:hover:not(:disabled) { background-color: var(--color-primary); color: white; border-color: var(--color-primary); }
-.page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.page-info { color: var(--text-main); font-weight: 500; }
-
 .loading-state,
 .error-state,
 .empty-state {
@@ -345,10 +335,10 @@ onMounted(async () => {
 }
 
 /* 响应式设计 */
+
 @include respond(md) {
   .drafts-page { padding: 15px; }
   .actions-bar { flex-direction: column; align-items: stretch; gap: 12px; }
-  .search-box { width: 100%; max-width: none; }
   
   .draft-card { 
     flex-direction: column; 

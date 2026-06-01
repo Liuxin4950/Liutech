@@ -20,6 +20,12 @@
 
         <!-- 分类网格 -->
         <div class="card shadow-sm mb-16">
+            <!-- 搜索框 -->
+            <div class="search-box">
+                <Icon name="search" size="16" class="search-icon" />
+                <input v-model="searchKeyword" type="text" placeholder="搜索分类..." class="search-input" />
+            </div>
+
             <!-- 加载异常处理 -->
             <div v-if="loading" class="loading-text text-sm">加载中...</div>
             <div v-else-if="error" class="loading-text text-primary text-sm">
@@ -28,14 +34,14 @@
                     class="bg-primary text-sm font-medium p-8 rounded transition hover-lift mt-8">重试</button>
             </div>
 
-            <div v-else-if="categories.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
-                <h3 class="text-base font-semibold mb-8">暂无分类</h3>
-                <p class="text-muted text-sm mb-0">还没有创建任何分类</p>
+            <div v-else-if="filteredCategories.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
+                <h3 class="text-base font-semibold mb-8">{{ searchKeyword ? '未找到相关分类' : '暂无分类' }}</h3>
+                <p class="text-muted text-sm mb-0">{{ searchKeyword ? '尝试使用其他关键词搜索' : '还没有创建任何分类' }}</p>
                 <img src="@/assets/image/扑到.png" alt="" class="fit-err">
             </div>
             
             <div v-else class="grid gap-20">
-                <div v-for="category in categories" :key="category.id"
+                <div v-for="category in filteredCategories" :key="category.id"
                     class="category-card bg-card card transition-all hover-lift cursor-pointer relative overflow-hidden"
                     @click="goToCategory(category.id)">
                     <!-- 装饰性背景渐变 -->
@@ -119,10 +125,20 @@ const { handleAsync } = useErrorHandler()
 const categories = ref<Category[]>([])
 const loading = ref(false)
 const error = ref('')
+const searchKeyword = ref('')
 
 // 计算属性
 const totalPosts = computed(() => {
     return categories.value.reduce((total, category) => total + (category.postCount || 0), 0)
+})
+
+const filteredCategories = computed(() => {
+    if (!searchKeyword.value.trim()) return categories.value
+    const kw = searchKeyword.value.trim().toLowerCase()
+    return categories.value.filter(c =>
+        c.name.toLowerCase().includes(kw) ||
+        (c.description && c.description.toLowerCase().includes(kw))
+    )
 })
 
 const popularCategories = computed(() => {
@@ -192,7 +208,30 @@ onMounted(() => {
 <style scoped>
 /* 分类页面样式优化 */
 .categories-page {
-    padding: 20px;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 400px;
+    margin-bottom: 16px;
+}
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.search-input {
+    flex: 1;
+    padding: 8px 36px 8px 12px;
+    min-width: 0;
 }
 
 /* 分类卡片样式 */

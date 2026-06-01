@@ -57,7 +57,7 @@ export interface AgentStreamHandlers {
 export class AgentService {
   static async stream(request: AgentChatRequest, handlers: AgentStreamHandlers) {
     const token = getToken()
-    const response = await fetch(`${normalizeAiBaseUrl()}/admin/agent/stream`, {
+    const response = await fetch(`${normalizeAiBaseUrl()}/writing/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -99,22 +99,6 @@ export class AgentService {
       handlers.onError?.('连接中断，请重试')
       handlers.onComplete?.({} as AgentCompletePayload)
     }
-  }
-
-  static async confirmAction(actionId: number): Promise<AgentActionResult> {
-    const token = getToken()
-    const response = await fetch(`${normalizeAiBaseUrl()}/admin/agent/actions/${actionId}/confirm`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ confirmed: true }),
-    })
-    if (!response.ok) {
-      throw new Error(`确认操作失败：${response.status}`)
-    }
-    return await response.json()
   }
 
   /**

@@ -36,10 +36,12 @@ export interface AiChatRequest {
   temperature?: number
   /** 最大token数 */
   maxTokens?: number
-  /** 是否使用智能看板娘 Agent 入口；Web 主聊天默认启用，仅遗留兼容可显式传 false */
-  agentEnabled?: boolean
-  /** 是否使用管理员 AI 入口；仅前端识别为 admin 时传入，后端仍会强制校验管理员权限 */
-  adminAgent?: boolean
+  /**
+   * 聊天类型
+   * - 'chat': 看板娘聊天（注册 BlogMcpTools，可搜索/推荐文章）
+   * - 'writing': 写作助手（注册 WritingTools，可调用分类/标签工具）
+   */
+  chatType?: 'chat' | 'writing'
   /**
    * 是否启用语音推理（由前端开关决定）
    * - true：后端会尝试把流式文本分段并触发 TTS，额外推送 audio 事件
@@ -113,36 +115,6 @@ export interface ChatHistoryResponse {
 }
 
 /**
- * 推荐请求接口
- */
-export interface RecommendRequest {
-    /** 推荐类型: search, category, latest, hot */
-    type: string
-    /** 搜索关键词 (type=search时使用) */
-    keyword?: string
-    /** 分类ID (type=category时使用) */
-    categoryId?: number
-    /** 返回数量限制 */
-    limit?: number
-}
-
-/**
- * 推荐响应接口
- */
-export interface RecommendResponse {
-    /** 推荐类型 */
-    type: string
-    /** 搜索关键词 */
-    keyword?: string
-    /** 分类信息 */
-    category?: CategoryDTO
-    /** 推荐的文章列表 */
-    posts: PostSummaryDTO[]
-    /** 推荐理由 */
-    reason: string
-}
-
-/**
  * 分类DTO
  */
 export interface CategoryDTO {
@@ -209,17 +181,10 @@ export class Ai {
      * 使用AI服务8081端口
      */
     static async chat(request: AiChatRequest): Promise<AiChatResponse> {
-        const { agentEnabled, adminAgent, ...requestBody } = request
-        // agentEnabled === false 只作为内部故障/开发回退，不是用户可见的聊天模式。
-        if (agentEnabled !== false) {
-            const endpoint = adminAgent ? '/admin/agent/chat' : '/agent/chat'
-            const response = await post<AiChatResponse>(endpoint, requestBody, {
-                serviceType: ServiceType.AI
-            })
-            return response as unknown as AiChatResponse
-        }
-        // post 返回的已是服务端响应体，AI服务为 {success, message, ...}
-        const response = await post<AiChatResponse>('/chat', requestBody, {
+        const { chatType, ...requestBody } = request
+        // 看板娘聊天走 /ai/chat，写作助手走 /ai/writing
+        const endpoint = chatType === 'writing' ? '/writing' : '/chat'
+        const response = await post<AiChatResponse>(endpoint, requestBody, {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse
@@ -269,24 +234,13 @@ export class Ai {
             throw new Error('实时响应请使用 AiStream.streamChat 方法')
         }
 
-        const { agentEnabled, adminAgent, ...requestBody } = requestWithMode
-        // agentEnabled === false 只作为内部故障/开发回退，不是用户可见的聊天模式。
-        const endpoint = agentEnabled === false ? '/chat' : (adminAgent ? '/admin/agent/chat' : '/agent/chat')
+        const { chatType, ...requestBody } = requestWithMode
+        // chatType='writing' 走写作助手接口，其他走看板娘接口
+        const endpoint = chatType === 'writing' ? '/writing' : '/chat'
         const response = await post<AiChatResponse>(endpoint, requestBody, {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse
-    }
-
-    /**
-     * 获取推荐内容
-     * 使用AI服务8081端口
-     */
-    static async recommend(request: RecommendRequest): Promise<RecommendResponse> {
-        const response = await post<RecommendResponse>('/recommend', request, {
-            serviceType: ServiceType.AI
-        })
-        return response as unknown as RecommendResponse
     }
 
     /**

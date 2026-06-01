@@ -1,5 +1,5 @@
 <template>
-  <div class="content">
+  <div class="content my-posts-page">
     <div class="page-header">
       <h1 class="page-title"><Icon name="book" size="24" /> 我的文章</h1>
       <p class="page-description">管理您已发布的文章，编辑或删除</p>
@@ -8,9 +8,9 @@
     <!-- 操作栏 -->
     <div class="actions-bar">
       <div class="search-box">
+                <Icon name="search" size="16" class="search-icon" />
         <input v-model="searchKeyword" type="text" placeholder="搜索文章..." class="search-input"
           @keyup.enter="handleSearch" />
-        <Icon name="search" size="16" class="search-icon" />
       </div>
       <div class="flex gap-20">
         <button class="create-btn" @click="createNewPost">
@@ -18,8 +18,8 @@
           新建文章
         </button>
         <button class="create-btn" @click="goDrafts">
-          <!-- <span class="btn-icon"></span> -->
-          草稿箱 
+          <Icon name="file" size="16" />
+          草稿子箱
         </button>
       </div>
    
@@ -120,15 +120,12 @@
     </div>
 
     <!-- 分页 -->
-    <div v-if="totalPages > 1" class="pagination">
-      <button class="page-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
-        上一页
-      </button>
-      <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-      <button class="page-btn" :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)">
-        下一页
-      </button>
-    </div>
+    <Pagination class="mt-24"
+      v-if="!loading && filteredPosts.length > 0"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      @page-change="changePage"
+    />
   </div>
 </template>
 
@@ -140,6 +137,7 @@ import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate } from '@/utils/utils'
 import { handleImageError } from '@/composables/useImageFallback'
+import Pagination from '@/components/Pagination.vue'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
@@ -287,11 +285,14 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
 .my-posts-page {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .page-header {
@@ -385,6 +386,8 @@ onMounted(async () => {
   align-items: flex-start;
   transition: all 0.3s;
   gap: 20px;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .post-card:hover {
@@ -406,10 +409,25 @@ onMounted(async () => {
   font-weight: 600;
   cursor: pointer;
   transition: color 0.3s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .post-title:hover {
   color: var(--color-primary);
+}
+
+.post-summary {
+  color: var(--text-subtle);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .post-meta {
@@ -480,41 +498,32 @@ onMounted(async () => {
   background-color: var(--bg-error, #ffcdd2);
 }
 
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 20px;
-  margin-top: 40px;
-}
 
-.page-btn {
-  padding: 10px 20px;
-  border: 1px solid var(--border-soft);
-  background-color: var(--bg-soft);
-  color: var(--text-main);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.page-btn:hover:not(:disabled) {
-  background-color: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.page-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.page-info {
-  font-weight: 500;
-  color: var(--text-main);
-}
 
 /* 响应式设计 */
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 400px;
+}
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.search-input {
+    flex: 1;
+    padding: 8px 36px 8px 12px;
+    min-width: 0;
+}
+
 @include respond(md) {
   .my-posts-page {
     padding: 15px;
@@ -523,28 +532,59 @@ onMounted(async () => {
   .actions-bar {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
 
   .search-box {
-    max-width: none;
+    width: 100%;
   }
 
   .post-card {
     flex-direction: column;
     gap: 15px;
+    padding: 16px;
+  }
+
+  .post-card>img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+
+  .post-title {
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .post-actions {
-    justify-content: center;
+    align-self: stretch;
+    justify-content: flex-end;
+    margin-top: 10px;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 12px;
   }
 
   .post-meta {
-    gap: 15px;
+    gap: 10px;
+    flex-direction: column;
+    align-items: flex-start;
   }
-  
-.post-card>img {
-  width: 100%;
-  height: auto;
 }
+
+@include respond(sm) {
+  .actions-bar {
+    gap: 10px;
+  }
+
+  .post-actions {
+    justify-content: space-between;
+  }
+
+  .action-btn {
+    flex: 1;
+  }
 }
 </style>

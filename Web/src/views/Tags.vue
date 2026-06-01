@@ -50,13 +50,13 @@
          <!-- 搜索框 -->
         <div class="search-section">
           <div class="search-box relative">
-            <input
-              v-model="searchKeyword"
-              type="text"
-              placeholder="搜索标签..."
-              class="search-input"
-            />
-           
+              <Icon name="search" size="16" class="search-icon" />
+              <input
+                v-model="searchKeyword"
+                type="text"
+                placeholder="搜索标签..."
+                class="search-input"
+              />
           </div>
         </div>
 
@@ -208,11 +208,34 @@ onMounted(async () => {
   }
 }
 
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 400px;
+}
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.search-input {
+    flex: 1;
+    padding: 8px 36px 8px 12px;
+    min-width: 0;
+}
+
 .search-box input {
-  @include respond(sm) {
-    font-size: 14px;
-    padding: 10px 12px;
-  }
+    @include respond(sm) {
+        font-size: 14px;
+        padding: 10px 36px 10px 12px;
+    }
 }
 
 </style>

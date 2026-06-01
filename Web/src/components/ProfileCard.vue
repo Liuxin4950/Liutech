@@ -10,7 +10,7 @@
       </div>
     </div>
 
-    <div class="text-light text-lg mb-0" style="line-height: 1.5">{{ bio }}</div>
+    <div class="text-light text-lg mb-0" style="line-height: 1.5; text-align: center">{{ bio }}</div>
 
     <div class="flex flex-sb mb-16 p-12 border-t border-b">
       <div class="flex-1 text-center">

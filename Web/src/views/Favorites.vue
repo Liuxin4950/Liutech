@@ -11,9 +11,9 @@
           <!-- 搜索框 -->
           <div class="actions-container">
             <div class="search-box">
+                            <Icon name="search" size="16" class="search-icon" />
               <input v-model="searchKeyword" type="text" placeholder="搜索文章..." class="search-input"
                 @keyup.enter="searchFavorites" />
-              <span class="search-icon"><Icon name="search" /></span>
             </div>
           </div>
 
@@ -212,16 +212,39 @@ onMounted(async () => {
   overflow: hidden;
 }
 
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 400px;
+}
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.search-input {
+    flex: 1;
+    padding: 8px 36px 8px 12px;
+    min-width: 0;
+}
+
 // 响应式样式
 @include respond(md) {
+  .search-box {
+    max-width: none;
+  }
+
   .actions-container {
     flex-direction: column;
     align-items: stretch;
     gap: 16px;
-  }
-
-  .search-box {
-    max-width: none;
   }
 
   .list article {

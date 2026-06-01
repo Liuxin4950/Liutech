@@ -21,8 +21,37 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
 
     private final AiRequestRateLimitProperties properties;
     private final ObjectMapper objectMapper;
-    private final ConcurrentHashMap<String, AiRateLimitBucket> buckets = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final AtomicLong lastCleanupMillis = new AtomicLong(0);
+
+    /** 滑动窗口计数桶，每个 key 一个实例 */
+    private static class Bucket {
+        private long windowStartMillis;
+        private int count;
+        private long lastSeenMillis;
+
+        Bucket(long now) {
+            this.windowStartMillis = now;
+            this.lastSeenMillis = now;
+        }
+
+        synchronized boolean tryAcquire(long now, long windowMillis, int maxRequests) {
+            lastSeenMillis = now;
+            if (now - windowStartMillis >= windowMillis) {
+                windowStartMillis = now;
+                count = 0;
+            }
+            if (count >= maxRequests) {
+                return false;
+            }
+            count++;
+            return true;
+        }
+
+        synchronized boolean expired(long now, long ttlMillis) {
+            return now - lastSeenMillis > ttlMillis;
+        }
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -38,7 +67,7 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
         int maxRequests = resolveMaxRequests(role);
         long windowMillis = Math.max(1, properties.getWindowSeconds()) * 1000L;
 
-        AiRateLimitBucket bucket = buckets.computeIfAbsent(key, ignored -> new AiRateLimitBucket(now));
+        Bucket bucket = buckets.computeIfAbsent(key, ignored -> new Bucket(now));
         if (bucket.tryAcquire(now, windowMillis, maxRequests)) {
             return true;
         }

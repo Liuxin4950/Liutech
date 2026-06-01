@@ -38,7 +38,7 @@ public class BlogMcpTools {
      * @param limit 返回数量，默认5
      * @return 文章列表
      */
-    @Tool(description = "根据关键词搜索博客文章，适合用户要求找文章、推荐文章、查相关文章时调用")
+    @Tool(description = "根据关键词搜索博客文章，适合用户要求找文章、推荐文章、查相关文章时调用。推荐文章时必须使用 [标题](/post/ID) 格式引用")
     public List<PostSummaryDTO> searchPosts(
             @ToolParam(description = "搜索关键词，例如 Spring AI、JWT、Vue3") String keyword,
             @ToolParam(description = "返回数量，建议 1 到 8") Integer limit
@@ -74,7 +74,7 @@ public class BlogMcpTools {
      * @param limit 返回数量，默认5
      * @return 文章列表
      */
-    @Tool(description = "获取博客最新发布的文章列表，适合用户要求看看最近更新了什么时调用")
+    @Tool(description = "获取博客最新发布的文章列表，适合用户要求看看最近更新了什么时调用。推荐文章时必须使用 [标题](/post/ID) 格式引用")
     public List<PostSummaryDTO> getLatestPosts(@ToolParam(description = "返回数量，建议 1 到 8") Integer limit) {
         log.debug("工具调用: getLatestPosts, limit={}", limit);
         int size = limit != null ? limit : 5;
@@ -89,7 +89,7 @@ public class BlogMcpTools {
      * @param limit 返回数量，默认5
      * @return 文章列表
      */
-    @Tool(description = "获取博客热门文章列表，适合用户要求看热门内容时调用")
+    @Tool(description = "获取博客热门文章列表，适合用户要求看热门内容时调用。推荐文章时必须使用 [标题](/post/ID) 格式引用")
     public List<PostSummaryDTO> getHotPosts(@ToolParam(description = "返回数量，建议 1 到 8") Integer limit) {
         log.debug("工具调用: getHotPosts, limit={}", limit);
         int size = limit != null ? limit : 5;

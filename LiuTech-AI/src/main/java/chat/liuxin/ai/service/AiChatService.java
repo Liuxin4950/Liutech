@@ -37,4 +37,16 @@ public interface AiChatService {
      * @return SseEmitter对象，用于推送流式响应
      */
     SseEmitter processStreamChat(ChatRequest request, Long userId);
+
+    /**
+     * 写作助手：一次性返回完整AI回复
+     * 使用 WritingTools，AI 可以调用分类/标签工具
+     */
+    ChatResponse processWriting(ChatRequest request, Long userId);
+
+    /**
+     * 写作助手：流式返回
+     * 使用 WritingTools
+     */
+    SseEmitter processWritingStream(ChatRequest request, Long userId);
 }
