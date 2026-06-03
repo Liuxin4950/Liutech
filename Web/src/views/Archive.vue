@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="content max-w-1200 mx-auto p-20">
     <!-- 页面标题 -->
     <div class="text-center mb-20">

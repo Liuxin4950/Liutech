@@ -57,6 +57,7 @@
       <!-- 纳西妲看板娘入口（需要登录）第一期 -->
       <!-- 改为普通用户也可以使用，但是没有记忆功能  v-if="userStore.isLoggedIn" -->
       <button
+        data-onboarding="ai-assistant"
         class="fab"
         @click="goAiChat"
         aria-label="纳西妲"

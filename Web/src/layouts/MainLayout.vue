@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
@@ -15,6 +15,8 @@ import GlobalSearchModal from '@/components/GlobalSearchModal.vue'
 import { requireAuth } from '@/utils/auth'
 import { useChatStore } from '@/stores/chat'
 import { useTtsPlayer } from '@/composables/useTtsPlayer'
+import { useOnboarding } from '@/composables/useOnboarding'
+import OnboardingGuide from '@/components/OnboardingGuide.vue'
 
 const showLoader = ref(false)
 const router = useRouter()
@@ -43,6 +45,9 @@ const chatStore = useChatStore()
 const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
 const aiChatRef = ref<InstanceType<typeof AiChat> | null>(null)
 const searchModalRef = ref<InstanceType<typeof GlobalSearchModal> | null>(null)
+
+// 新用户引导
+const { initOnboarding } = useOnboarding()
 
 // 全局搜索快捷键
 const handleGlobalKeydown = (e: KeyboardEvent) => {
@@ -73,7 +78,14 @@ const handleScroll = () => {
   scrollY.value = window.scrollY
 }
 
+const handleSpotlightClick = () => {
+  showModel.value = true
+}
+
 onMounted(() => {
+  // 初始化新用户引导
+  setTimeout(() => initOnboarding(), 2000)
+
   // 页面加载时立即显示加载动画
   showLoader.value = true
 
@@ -297,6 +309,12 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
     <!-- 全局搜索 -->
     <GlobalSearchModal ref="searchModalRef" />
+
+    <!-- 新用户引导 -->
+    <OnboardingGuide
+      @spotlight-click="handleSpotlightClick"
+      @complete=""
+    />
   </div>
 </template>
 
