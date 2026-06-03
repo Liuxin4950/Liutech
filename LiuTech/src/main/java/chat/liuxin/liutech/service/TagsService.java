@@ -47,6 +47,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @date 2025-01-30
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "allTags", unless = "#result == null || #result.isEmpty()")
     public List<TagResp> getAllTagsWithPostCount() {
         return tagsMapper.selectTagsWithPostCount();
     }
@@ -197,7 +198,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    @CacheEvict(value = "hotTags", allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
     public boolean save(TagResp tagResp) {
         // 检查标签名称是否已存在
         if (getTagByName(tagResp.getName()) != null) {
@@ -220,7 +221,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    @CacheEvict(value = "hotTags", allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
     public boolean updateById(TagResp tagResp) {
         Tags tag = new Tags();
         tag.setId(tagResp.getId());
@@ -239,7 +240,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @return 是否删除成功
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "hotTags", allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -274,7 +275,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "hotTags", allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
     public boolean restoreTag(Long id) {
         try {
             if (id == null) {
@@ -302,7 +303,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "hotTags", allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
     public boolean permanentDeleteTag(Long id) {
         log.info("彻底删除标签 - 标签ID: {}", id);
 
@@ -339,7 +340,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "hotTags", allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
     public boolean batchPermanentDeleteTags(List<Long> ids) {
         log.info("批量彻底删除标签 - 标签数量: {}", ids.size());
 

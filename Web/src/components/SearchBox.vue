@@ -178,10 +178,17 @@ const clearSearch = () => {
 </script>
 
 <style scoped>
+.card {
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
 .search-container {
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .search-input {

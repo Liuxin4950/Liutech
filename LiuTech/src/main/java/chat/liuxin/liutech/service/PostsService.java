@@ -496,7 +496,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public PostCreateResp createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
@@ -559,7 +559,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean updatePost(PostUpdateReq req, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(req.getId());
@@ -670,7 +670,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean deletePost(Long id, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(id);
@@ -718,7 +718,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean publishPost(Long id, Long authorId) {
         return updatePostStatus(id, "published", authorId);
     }
@@ -973,7 +973,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean updatePostStatusForAdmin(Long id, String status, Long operatorId) {
         log.info("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
 
@@ -1013,7 +1013,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean deletePostForAdmin(Long id, Long operatorId) {
         log.info("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
 
@@ -1063,7 +1063,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
         log.info("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
 
@@ -1099,7 +1099,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -1147,7 +1147,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean restorePost(Long id) {
         try {
             if (id == null) {
@@ -1174,7 +1174,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean batchRestorePosts(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {

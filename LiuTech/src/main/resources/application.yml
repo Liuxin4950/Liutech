@@ -29,12 +29,6 @@ spring:
       leak-detection-threshold: 60000
       pool-name: HikariCP-Blog
       connection-test-query: SELECT 1
-  # data:
-    #   redis:
-    #     host: localhost
-    #     port: 6379
-    #     password: ""    # 如果 Redis 没有密码可以留空
-    #     database: 0     # Redis 默认数据库 0
 
 mybatis-plus:
   mapper-locations: classpath:/mapper/**/*.xml
@@ -64,7 +58,6 @@ logging:
     "[chat.liuxin.liutech.mapper]": WARN
     "[chat.liuxin.liutech.aspect]": DEBUG
     "[org.springframework.data.repository.config.RepositoryConfigurationDelegate]": WARN
-    "[org.springframework.data.redis]": WARN
 
 server:
   port: 8080

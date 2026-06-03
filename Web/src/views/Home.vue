@@ -314,6 +314,7 @@ onMounted(() => {
   @include respond(lg) {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: $gap-md;
   }
 
@@ -354,9 +355,10 @@ onMounted(() => {
   position: sticky;
   top: var(--header-height);
 
-  @include respond(md) {
+  @include respond(lg) {
     position: static;
     order: 2;
+    width: 100%;
     gap: $gap-md;
   }
 }
