@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useErrorHandler } from '../composables/useErrorHandler'
@@ -11,11 +11,16 @@ const userStore = useUserStore()
 const { handleFormSubmit, showSuccess, clearError, showSuccessToast } = useErrorHandler()
 
 const isLogin = ref(true)
+const loginMode = ref<'password' | 'email'>('password') // 密码登录或邮箱验证码登录
 
 const loginForm = reactive({ username: '', password: '' })
-const registerForm = reactive({ username: '', email: '', password: '', confirmPassword: '', nickname: '' })
+const emailLoginForm = reactive({ email: '', code: '' })
+const emailLoginErrors = reactive({ email: '', code: '' })
+const emailCountdown = ref(0)
+let emailTimer: ReturnType<typeof setInterval> | null = null
+const registerForm = reactive({ username: '', email: '', code: '', nickname: '' })
 
-const errors = reactive({ username: '', email: '', password: '', confirmPassword: '' })
+const errors = reactive({ username: '', email: '', password: '', code: '', confirmPassword: '' })
 
 const showPassword = reactive({ login: false, register: false, confirm: false })
 
@@ -23,11 +28,11 @@ const toggleMode = () => { isLogin.value = !isLogin.value; clearError() }
 
 const clearForms = () => {
   Object.assign(loginForm, { username: '', password: '' })
-  Object.assign(registerForm, { username: '', email: '', password: '', confirmPassword: '', nickname: '' })
+  Object.assign(registerForm, { username: '', email: '', code: '', nickname: '' })
 }
 
 const clearErrors = () => {
-  Object.assign(errors, { username: '', email: '', password: '', confirmPassword: '' })
+  Object.assign(errors, { username: '', email: '', password: '', code: '', confirmPassword: '' })
 }
 
 const validateForm = () => {
@@ -41,10 +46,7 @@ const validateForm = () => {
     else if (registerForm.username.length < 3 || registerForm.username.length > 20) { errors.username = '用户名长度应为3-20位字符'; isValid = false }
     if (!registerForm.email.trim()) { errors.email = '请输入邮箱地址'; isValid = false }
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) { errors.email = '请输入有效的邮箱地址'; isValid = false }
-    if (!registerForm.password) { errors.password = '请输入密码'; isValid = false }
-    else if (registerForm.password.length < 8) { errors.password = '密码至少8位字符'; isValid = false }
-    else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(registerForm.password)) { errors.password = '密码至少8位且只能包含字母和数字'; isValid = false }
-    if (registerForm.password !== registerForm.confirmPassword) { errors.confirmPassword = '两次输入的密码不一致'; isValid = false }
+    if (!registerForm.code.trim()) { errors.code = '请输入验证码'; isValid = false }
   }
   return isValid
 }
@@ -52,19 +54,68 @@ const validateForm = () => {
 const handleLogin = async () => {
   if (!validateForm()) return
   const result = await handleFormSubmit(async () => await userStore.login(loginForm.username, loginForm.password))
-  if (result) { showSuccessToast("登录成功！"); router.push((router.currentRoute.value.query.redirect as string) || '/') }
+  if (result) { showSuccessToast("登录成功！"); setTimeout(() => router.push((router.currentRoute.value.query.redirect as string) || '/'), 600) }
 }
 
 const handleRegister = async () => {
   if (!validateForm()) return
   const result = await handleFormSubmit(async () => {
-    const data: RegisterRequest = { username: registerForm.username, email: registerForm.email, password: registerForm.password, nickname: registerForm.nickname || undefined }
+    const data: RegisterRequest = { username: registerForm.username, email: registerForm.email, code: registerForm.code, nickname: registerForm.nickname || undefined }
     return await userStore.register(data)
   })
   if (result) { showSuccess('注册成功！请登录您的账户'); isLogin.value = true; clearForms() }
 }
 
 const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
+
+// 注册验证码相关
+const registerCountdown = ref(0)
+let registerTimer: ReturnType<typeof setInterval> | null = null
+
+// M13: 页面卸载时清理所有 timer
+onUnmounted(() => {
+  if (registerTimer) { clearInterval(registerTimer); registerTimer = null }
+  if (emailTimer) { clearInterval(emailTimer); emailTimer = null }
+})
+
+const handleSendRegisterCode = async () => {
+  errors.email = ''
+  if (!registerForm.email.trim()) { errors.email = '请输入邮箱地址'; return }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) { errors.email = '请输入有效的邮箱地址'; return }
+  const { sendRegisterCode } = await import('../services/user')
+  const result = await handleFormSubmit(async () => await sendRegisterCode(registerForm.email))
+  if (result) { showSuccessToast('验证码已发送到您的邮箱'); startRegisterCountdown() }
+}
+
+const startRegisterCountdown = () => {
+  if (registerTimer) { clearInterval(registerTimer); registerTimer = null }
+  registerCountdown.value = 60
+  registerTimer = setInterval(() => { registerCountdown.value--; if (registerCountdown.value <= 0 && registerTimer) { clearInterval(registerTimer); registerTimer = null } }, 1000)
+}
+
+// 邮箱登录相关方法
+import { sendEmailLoginCode } from '../services/user'
+
+const handleSendEmailCode = async () => {
+  emailLoginErrors.email = ''
+  if (!emailLoginForm.email.trim()) { emailLoginErrors.email = '请输入邮箱地址'; return }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLoginForm.email)) { emailLoginErrors.email = '请输入有效的邮箱地址'; return }
+  const result = await handleFormSubmit(async () => await sendEmailLoginCode(emailLoginForm.email))
+  if (result) { showSuccessToast('验证码已发送到您的邮箱'); startEmailCountdown() }
+}
+
+const handleEmailLogin = async () => {
+  emailLoginErrors.code = ''
+  if (!emailLoginForm.code.trim()) { emailLoginErrors.code = '请输入验证码'; return }
+  const result = await handleFormSubmit(async () => await userStore.emailLogin(emailLoginForm.email, emailLoginForm.code))
+  if (result) { showSuccessToast('登录成功！'); setTimeout(() => router.push((router.currentRoute.value.query.redirect as string) || '/'), 600) }
+}
+
+const startEmailCountdown = () => {
+  if (emailTimer) { clearInterval(emailTimer); emailTimer = null }
+  emailCountdown.value = 60
+  emailTimer = setInterval(() => { emailCountdown.value--; if (emailCountdown.value <= 0 && emailTimer) { clearInterval(emailTimer); emailTimer = null } }, 1000)
+}
 </script>
 
 <template>
@@ -75,6 +126,11 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
       <div class="bg-circle circle-2"></div>
       <div class="bg-circle circle-3"></div>
     </div>
+
+    <!-- 返回首页 -->
+    <router-link to="/" class="back-home">
+      <Icon name="arrow_back" size="16" /> 返回首页
+    </router-link>
 
     <!-- 拼接卡片容器 -->
     <div class="card-container">
@@ -94,8 +150,18 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
             <div class="tab-indicator" :class="{ 'tab-indicator-right': !isLogin }"></div>
           </div>
 
+          <!-- 登录模式切换（仅登录时显示） -->
+          <div v-if="isLogin" class="login-mode-tabs">
+            <button type="button" class="mode-tab-sm" :class="{ active: loginMode === 'password' }" @click="loginMode = 'password'">
+              <Icon name="lock" size="14" /> 密码登录
+            </button>
+            <button type="button" class="mode-tab-sm" :class="{ active: loginMode === 'email' }" @click="loginMode = 'email'">
+              <Icon name="mail" size="14" /> 邮箱登录
+            </button>
+          </div>
+
           <!-- 表单 -->
-          <form @submit.prevent="handleSubmit" class="login-form">
+          <form v-if="loginMode === 'password' || !isLogin" @submit.prevent="handleSubmit" class="login-form">
             <div class="form-group">
               <label>用户名</label>
               <div class="input-wrapper">
@@ -112,8 +178,22 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
                 <div class="input-wrapper">
                   <Icon name="mail" size="18" class="input-icon" />
                   <input v-model="registerForm.email" type="email" placeholder="请输入邮箱地址" :class="{ error: errors.email }" />
+                  <button type="button" class="resend-btn" :disabled="registerCountdown > 0" @click="handleSendRegisterCode">
+                    {{ registerCountdown > 0 ? `${registerCountdown}s` : '获取验证码' }}
+                  </button>
                 </div>
                 <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
+              </div>
+            </transition>
+
+            <transition name="slide-fade">
+              <div v-if="!isLogin" class="form-group">
+                <label>验证码</label>
+                <div class="input-wrapper">
+                  <Icon name="key" size="18" class="input-icon" />
+                  <input v-model="registerForm.code" type="text" placeholder="请输入6位验证码" maxlength="6" :class="{ error: errors.code }" />
+                </div>
+                <span v-if="errors.code" class="error-message">{{ errors.code }}</span>
               </div>
             </transition>
 
@@ -122,42 +202,62 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
                 <label>昵称 (可选)</label>
                 <div class="input-wrapper">
                   <Icon name="user" size="18" class="input-icon" />
-                  <input v-model="registerForm.nickname" type="text" placeholder="请输入昵称" />
+                  <input v-model="registerForm.nickname" type="text" placeholder="注册后可在个人资料修改" />
                 </div>
               </div>
             </transition>
 
-            <div class="form-group">
+            <div v-if="isLogin" class="form-group">
               <label>密码</label>
               <div class="input-wrapper">
                 <Icon name="lock" size="18" class="input-icon" />
-                <input v-if="isLogin" v-model="loginForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="请输入密码" :class="{ error: errors.password }" />
-                <input v-else v-model="registerForm.password" :type="showPassword.register ? 'text' : 'password'" placeholder="至少8位，只能包含字母和数字" :class="{ error: errors.password }" />
-                <button type="button" class="toggle-password" @click="isLogin ? showPassword.login = !showPassword.login : showPassword.register = !showPassword.register">
-                  <Icon :name="(isLogin ? showPassword.login : showPassword.register) ? 'visibility_off' : 'visibility'" size="18" />
+                <input v-model="loginForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="请输入密码" :class="{ error: errors.password }" />
+                <button type="button" class="toggle-password" @click="showPassword.login = !showPassword.login">
+                  <Icon :name="showPassword.login ? 'visibility_off' : 'visibility'" size="18" />
                 </button>
               </div>
               <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
             </div>
+            <div v-if="isLogin" class="forgot-password">
+              <router-link to="/forgot-password" class="link-btn-sm">忘记密码？</router-link>
+            </div>
 
-            <transition name="slide-fade">
-              <div v-if="!isLogin" class="form-group">
-                <label>确认密码</label>
-                <div class="input-wrapper">
-                  <Icon name="lock" size="18" class="input-icon" />
-                  <input v-model="registerForm.confirmPassword" :type="showPassword.confirm ? 'text' : 'password'" placeholder="请再次输入密码" :class="{ error: errors.confirmPassword }" />
-                  <button type="button" class="toggle-password" @click="showPassword.confirm = !showPassword.confirm">
-                    <Icon :name="showPassword.confirm ? 'visibility_off' : 'visibility'" size="18" />
-                  </button>
-                </div>
-                <span v-if="errors.confirmPassword" class="error-message">{{ errors.confirmPassword }}</span>
-              </div>
-            </transition>
+
 
             <button type="submit" class="submit-btn" :disabled="userStore.isLoading">
               <span v-if="userStore.isLoading" class="loading-spinner"></span>
               <Icon v-else :name="isLogin ? 'login' : 'person_add'" size="18" />
               {{ userStore.isLoading ? '处理中...' : (isLogin ? '登 录' : '立即注册') }}
+            </button>
+          </form>
+
+          <!-- 邮箱验证码登录表单 -->
+          <form v-if="isLogin && loginMode === 'email'" @submit.prevent="handleEmailLogin" class="login-form">
+            <div class="form-group">
+              <label>邮箱地址</label>
+              <div class="input-wrapper">
+                <Icon name="mail" size="18" class="input-icon" />
+                <input v-model="emailLoginForm.email" type="email" placeholder="请输入注册邮箱" :class="{ error: emailLoginErrors.email }" />
+              </div>
+              <span v-if="emailLoginErrors.email" class="error-message">{{ emailLoginErrors.email }}</span>
+            </div>
+
+            <div class="form-group">
+              <label>验证码</label>
+              <div class="input-wrapper">
+                <Icon name="key" size="18" class="input-icon" />
+                <input v-model="emailLoginForm.code" type="text" placeholder="请输入6位验证码" maxlength="6" :class="{ error: emailLoginErrors.code }" />
+                <button type="button" class="resend-btn" :disabled="emailCountdown > 0" @click="handleSendEmailCode">
+                  {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取验证码' }}
+                </button>
+              </div>
+              <span v-if="emailLoginErrors.code" class="error-message">{{ emailLoginErrors.code }}</span>
+            </div>
+
+            <button type="submit" class="submit-btn" :disabled="userStore.isLoading">
+              <span v-if="userStore.isLoading" class="loading-spinner"></span>
+              <Icon v-else name="login" size="18" />
+              {{ userStore.isLoading ? '处理中...' : '登 录' }}
             </button>
           </form>
 
@@ -171,12 +271,14 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
       <!-- 右侧品牌区 -->
       <div class="card-right">
         <div class="brand-content">
+          <router-link to="/" class="brand-link">
           <div class="brand-logo">
             <Icon name="code" size="48" class="logo-icon" />
           </div>
           <h1 class="brand-title">LiuTech</h1>
           <p class="brand-subtitle">技术博客平台</p>
           <p class="brand-desc">分享技术，记录成长<br />探索无限可能</p>
+          </router-link>
         </div>
       </div>
     </div>
@@ -231,6 +333,29 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
   background: var(--color-primary);
   top: 40%;
   left: 10%;
+}
+
+
+// 返回首页链接
+.back-home {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: var(--color-primary);
+    background: var(--bg-soft);
+  }
 }
 
 // 拼接卡片容器
@@ -304,6 +429,66 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
 // 表单样式
 .login-form { margin-bottom: 16px; }
 
+/* 登录模式切换 */
+.login-mode-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.mode-tab-sm {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  color: var(--text-subtle);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  &.active {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: white;
+  }
+  &:hover:not(.active) { border-color: var(--border-strong); }
+}
+
+/* 忘记密码链接 */
+.forgot-password {
+  text-align: right;
+  margin-top: -8px;
+  margin-bottom: 16px;
+}
+.link-btn-sm {
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+/* 邮箱登录重新发送按钮 */
+.resend-btn {
+  position: absolute;
+  right: 12px;
+  background: var(--color-primary);
+  border: none;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+  &:hover:not(:disabled) { background: var(--color-primary-dark); }
+  &:disabled { background: var(--border-base); color: var(--text-muted); cursor: not-allowed; }
+}
+
 .form-group { margin-bottom: 16px; }
 
 .form-group label {
@@ -336,6 +521,8 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
   &:hover { border-color: var(--border-strong); }
   &:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.1); }
   &.error { border-color: var(--color-error); box-shadow: 0 0 0 4px rgba(234, 67, 53, 0.1); }
+  /* M14: 验证码输入框右侧留空间给获取验证码按钮 */
+  .input-wrapper:has(.resend-btn) & { padding-right: 96px; }
 }
 
 .toggle-password {
@@ -425,6 +612,17 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
   order: 2;
 }
 
+
+// 品牌区可点击跳转首页
+.brand-link {
+  text-decoration: none;
+  display: block;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+
+  &:hover { opacity: 0.9; }
+}
+
 .brand-content {
   text-align: center;
   position: relative;
@@ -504,3 +702,4 @@ const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
   .submit-btn { padding: 12px; }
 }
 </style>
+

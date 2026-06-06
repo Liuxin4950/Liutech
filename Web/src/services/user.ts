@@ -6,12 +6,34 @@ export interface LoginRequest {
   password: string
 }
 
+// 邮箱验证码登录请求参数接口
+export interface EmailLoginRequest {
+  email: string
+}
+
+// 邮箱验证码登录验证参数接口
+export interface EmailLoginVerifyRequest {
+  email: string
+  code: string
+}
+
+// 忘记密码请求参数接口
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+// 重置密码请求参数接口
+export interface ResetPasswordRequest {
+  email: string
+  code: string
+  newPassword: string
+}
+
 // 注册请求参数接口
 export interface RegisterRequest {
   username: string
   email: string
-  password: string
-  avatar?: string
+  code: string
   nickname?: string
 }
 
@@ -283,6 +305,50 @@ export class UserService {
       throw error
     }
   }
+
+  /**
+   * 忘记密码 - 发送验证码
+   */
+  static async sendForgotPasswordCode(email: string) {
+    return await post<null>('/user/forgot-password', { email })
+  }
+
+  /**
+   * 注册 - 发送邮箱验证码
+   */
+  static async sendRegisterCode(email: string) {
+    return await post<null>('/user/register/send-code', { email })
+  }
+
+  /**
+   * 忘记密码 - 重置密码
+   */
+  static async resetPassword(data: ResetPasswordRequest) {
+    return await post<null>('/user/reset-password', data)
+  }
+
+  /**
+   * 邮箱登录 - 发送验证码
+   */
+  static async sendEmailLoginCode(email: string) {
+    return await post<null>('/user/login/email/send', { email })
+  }
+
+  /**
+   * 邮箱登录 - 验证码校验
+   */
+  static async verifyEmailLogin(data: EmailLoginVerifyRequest): Promise<LoginResponse> {
+    try {
+      const response = await post<LoginResponse>('/user/login/email/verify', data)
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token)
+      }
+      return response.data
+    } catch (error) {
+      console.error('邮箱验证码登录失败', error)
+      throw error
+    }
+  }
 }
 
 // 导出便捷方法
@@ -301,5 +367,12 @@ export const {
   checkin,
   getCheckinStatus
 } = UserService
+
+// 新增方法导出
+export const sendForgotPasswordCode = UserService.sendForgotPasswordCode
+export const sendRegisterCode = UserService.sendRegisterCode
+export const resetPassword = UserService.resetPassword
+export const sendEmailLoginCode = UserService.sendEmailLoginCode
+export const verifyEmailLogin = UserService.verifyEmailLogin
 
 export default UserService

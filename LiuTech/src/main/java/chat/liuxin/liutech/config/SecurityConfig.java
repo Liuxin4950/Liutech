@@ -89,6 +89,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/user/register", "/user/login").permitAll()
+                .requestMatchers("/user/forgot-password", "/user/reset-password").permitAll()
+                .requestMatchers("/user/login/email/send", "/user/login/email/verify").permitAll()
+                .requestMatchers("/user/register/send-code").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/posts/my").authenticated()

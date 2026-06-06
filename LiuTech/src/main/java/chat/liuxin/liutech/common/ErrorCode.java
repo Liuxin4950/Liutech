@@ -233,7 +233,12 @@ public enum ErrorCode {
     /**
      * 操作失败 - 通用操作错误
      */
-    OPERATION_ERROR(503, "操作失败");
+    OPERATION_ERROR(503, "操作失败"),
+
+    // ========== 邮箱相关业务错误 1600-1699 ==========
+    VERIFICATION_CODE_INVALID(1601, "验证码无效或已过期"),
+    EMAIL_NOT_REGISTERED(1602, "该邮箱未注册"),
+    EMAIL_SEND_FAILED(1603, "邮件发送失败，请稍后重试");
 
     /**
      * 错误码

@@ -6,14 +6,10 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 注册请求
- * 注册只需用户名 + 邮箱 + 验证码，密码后续通过忘记密码设置
+ * 邮箱验证码登录 - 第二步：验证码校验登录
  */
 @Data
-public class RegisterReq {
-    @NotBlank(message = "用户名不能为空")
-    @Size(min = 3, max = 20, message = "用户名长度必须在3-20之间")
-    private String username;
+public class EmailLoginVerifyReq {
 
     @NotBlank(message = "邮箱不能为空")
     @Email(message = "邮箱格式不正确")
@@ -22,6 +18,4 @@ public class RegisterReq {
     @NotBlank(message = "验证码不能为空")
     @Size(min = 4, max = 6, message = "验证码长度为4-6位")
     private String code;
-
-    private String nickname;
 }

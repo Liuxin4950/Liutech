@@ -2,19 +2,28 @@ package chat.liuxin.liutech.controller.web;
 
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.LoginReq;
 import chat.liuxin.liutech.req.RegisterReq;
 import chat.liuxin.liutech.req.ChangePasswordReq;
 import chat.liuxin.liutech.req.UpdateProfileReq;
+import chat.liuxin.liutech.req.ForgotPasswordReq;
+import chat.liuxin.liutech.req.ResetPasswordReq;
+import chat.liuxin.liutech.req.EmailLoginReq;
+import chat.liuxin.liutech.req.EmailLoginVerifyReq;
 import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.resp.LoginResp;
 import chat.liuxin.liutech.resp.ProfileResp;
 import chat.liuxin.liutech.service.UserAuthService;
 import chat.liuxin.liutech.service.UserProfileService;
 import chat.liuxin.liutech.service.UserManagementService;
+import chat.liuxin.liutech.service.VerificationCodeService;
 import chat.liuxin.liutech.utils.UserUtils;
+import chat.liuxin.liutech.utils.JwtUtil;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import java.util.List;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +63,15 @@ public class UserController {
 
     @Autowired
     private UserUtils userUtils;
+
+    @Autowired
+    private VerificationCodeService verificationCodeService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
     /**
      * 用户注册接口
      * 创建新用户账户，包括用户名唯一性检查、邮箱唯一性检查、密码加密等
@@ -68,6 +86,16 @@ public class UserController {
         UserResp userResp = userAuthService.register(registerReq);
         log.info("用户注册成功，用户名: {}", registerReq.getUsername());
         return Result.success("注册成功", userResp);
+    }
+
+    /**
+     * 注册 - 发送邮箱验证码
+     */
+    @PostMapping("/register/send-code")
+    public Result<String> sendRegisterCode(@Valid @RequestBody ForgotPasswordReq req) {
+        log.info("收到注册验证码请求，邮箱: {}", req.getEmail());
+        verificationCodeService.sendCode(req.getEmail(), "REGISTER", "注册验证");
+        return Result.success("验证码已发送到您的邮箱");
     }
 
     /**
@@ -281,6 +309,95 @@ public class UserController {
         ProfileResp profile = userProfileService.getDefaultProfile();
         log.info("获取网站作者资料成功");
         return Result.success("获取网站作者资料成功", profile);
+    }
+
+    // ==================== 忘记密码 ====================
+
+    /**
+     * 忘记密码 - 发送验证码
+     * 用户输入注册邮箱，系统发送6位验证码
+     */
+    @PostMapping("/forgot-password")
+    public Result<String> forgotPassword(@Valid @RequestBody ForgotPasswordReq req) {
+        log.info("收到忘记密码请求，邮箱: {}", req.getEmail());
+        // 邮箱未注册时也返回成功（防止邮箱枚举攻击），但不实际发送邮件
+        List<Users> users = userManagementService.findUsersByEmail(req.getEmail());
+        if (users != null && !users.isEmpty()) {
+            verificationCodeService.sendCode(req.getEmail(), "FORGOT_PASSWORD", "忘记密码");
+        }
+        return Result.success("如果该邮箱已注册，验证码已发送到您的邮箱");
+    }
+
+    /**
+     * 忘记密码 - 重置密码
+     * 验证码校验通过后设置新密码
+     */
+    @PostMapping("/reset-password")
+    public Result<String> resetPassword(@Valid @RequestBody ResetPasswordReq req) {
+        log.info("收到重置密码请求，邮箱: {}", req.getEmail());
+        // 校验验证码
+        chat.liuxin.liutech.model.VerificationCode vc =
+            verificationCodeService.verifyCode(req.getEmail(), "FORGOT_PASSWORD", req.getCode());
+        // 查找用户并更新密码
+        List<Users> users = userManagementService.findUsersByEmail(req.getEmail());
+        if (users == null || users.isEmpty()) {
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
+        }
+        Users user = users.get(0);
+        user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
+        user.setUpdatedAt(new java.util.Date());
+        userManagementService.updateUser(user);
+        // 业务成功后标记验证码已使用
+        verificationCodeService.markUsed(vc.getId());
+        return Result.success("密码重置成功，请使用新密码登录");
+    }
+
+    // ==================== 邮箱验证码登录 ====================
+
+    /**
+     * 邮箱登录 - 发送验证码
+     * 用户输入邮箱，系统发送6位登录验证码
+     */
+    @PostMapping("/login/email/send")
+    public Result<String> sendEmailLoginCode(@Valid @RequestBody EmailLoginReq req) {
+        log.info("收到邮箱登录验证码请求，邮箱: {}", req.getEmail());
+        // 邮箱未注册时也返回成功（防止邮箱枚举攻击），但不实际发送邮件
+        List<Users> users = userManagementService.findUsersByEmail(req.getEmail());
+        if (users != null && !users.isEmpty()) {
+            verificationCodeService.sendCode(req.getEmail(), "EMAIL_LOGIN", "邮箱登录");
+        }
+        return Result.success("如果该邮箱已注册，验证码已发送到您的邮箱");
+    }
+
+    /**
+     * 邮箱登录 - 验证码校验登录
+     * 验证码正确后返回JWT token
+     */
+    @PostMapping("/login/email/verify")
+    public Result<LoginResp> verifyEmailLogin(@Valid @RequestBody EmailLoginVerifyReq req) {
+        log.info("收到邮箱验证码登录请求，邮箱: {}", req.getEmail());
+        // 校验验证码
+        chat.liuxin.liutech.model.VerificationCode vc =
+            verificationCodeService.verifyCode(req.getEmail(), "EMAIL_LOGIN", req.getCode());
+        // 查找用户
+        List<Users> users = userManagementService.findUsersByEmail(req.getEmail());
+        if (users == null || users.isEmpty()) {
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
+        }
+        Users user = users.get(0);
+        if (user.getStatus() != 1) {
+            throw new BusinessException(ErrorCode.ACCOUNT_DISABLED);
+        }
+        // 生成JWT token
+        String role = user.getRole() != null ? user.getRole() : "user";
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), role, user.getPasswordHash());
+        // 更新最后登录时间
+        user.setLastLoginAt(new java.util.Date());
+        user.setUpdatedAt(new java.util.Date());
+        userManagementService.updateUser(user);
+        // 业务成功后标记验证码已使用
+        verificationCodeService.markUsed(vc.getId());
+        return Result.success("登录成功", new LoginResp(token));
     }
 
 

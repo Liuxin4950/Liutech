@@ -80,6 +80,22 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /**
+   * 邮箱验证码登录
+   */
+  const emailLogin = async (email: string, code: string) => {
+    isLoading.value = true
+    try {
+      await UserService.verifyEmailLogin({ email, code })
+      await fetchUserInfo()
+      return true
+    } catch (error) {
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
    * 获取用户信息
    */
   const fetchUserInfo = async () => {
@@ -140,6 +156,7 @@ export const useUserStore = defineStore('user', () => {
     login,
     register,
     logout,
+    emailLogin,
     fetchUserInfo,
     initUserState,
     updateUserInfo

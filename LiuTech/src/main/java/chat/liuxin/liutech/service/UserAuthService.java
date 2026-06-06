@@ -48,6 +48,9 @@ public class UserAuthService {
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
+    @Autowired
+    private VerificationCodeService verificationCodeService;
+
     // ========== 登录暴力破解防护 ==========
     /** 最大允许连续失败次数 */
     private static final int MAX_LOGIN_FAILURES = 5;
@@ -67,19 +70,25 @@ public class UserAuthService {
      * @throws BusinessException 当用户名已存在或邮箱已被注册时抛出
      */
     @Transactional(rollbackFor = Exception.class)
-    public UserResp register(RegisterReq registerReq) {
+   public UserResp register(RegisterReq registerReq) {
         log.info("开始用户注册流程，用户名: {}", registerReq.getUsername());
 
-        // 1. 验证用户名和邮箱是否已存在
+        // 1. 先校验用户名和邮箱是否已存在（不消耗验证码）
         validateUserNotExists(registerReq.getUsername(), registerReq.getEmail());
 
-        // 2. 创建用户对象
+        // 2. 校验邮箱验证码
+        chat.liuxin.liutech.model.VerificationCode vc = verificationCodeService.verifyCode(registerReq.getEmail(), "REGISTER", registerReq.getCode());
+
+        // 3. 创建用户对象
         Users user = createUserFromRegisterReq(registerReq);
 
-        // 3. 保存用户到数据库
+        // 4. 保存用户到数据库
         saveUserWithExceptionHandling(user);
 
-        // 4. 转换为响应对象
+        // 5. 业务成功后标记验证码已使用
+        verificationCodeService.markUsed(vc.getId());
+
+        // 6. 转换为响应对象
         return convertToUserResl(user);
     }
 
@@ -124,7 +133,8 @@ public class UserAuthService {
         Users user = new Users();
         user.setUsername(registerReq.getUsername());
         user.setEmail(registerReq.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(registerReq.getPassword()));
+        // 注册时不设密码，用随机哈希占位，用户后续通过忘记密码设置真实密码
+        user.setPasswordHash(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
         user.setRole("user"); // 默认角色为普通用户
         user.setStatus(1); // 默认激活状态
         user.setPoints(BigDecimal.ZERO); // 初始积分为0

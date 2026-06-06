@@ -162,6 +162,14 @@ const routes: RouteRecordRaw[] = [
       title: '登录'
     }
   },
+  {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('../views/ForgotPassword.vue'),
+    meta: {
+      title: '重置密码'
+    }
+  },
   // 404页面
   {
     path: '/:pathMatch(.*)*',
