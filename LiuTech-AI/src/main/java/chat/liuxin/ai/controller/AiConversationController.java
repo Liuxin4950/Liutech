@@ -6,8 +6,7 @@ import chat.liuxin.ai.dto.ChatResponse;
 import chat.liuxin.ai.service.MemoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import chat.liuxin.ai.common.utils.AuthUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,13 +28,14 @@ import java.util.List;
 public class AiConversationController {
 
     private final MemoryService memoryService;
+    private final AuthUtils authUtils;
 
     /** 列出当前用户的会话列表（按最后消息时间倒序） */
     @GetMapping
     public List<AiConversation> list(@RequestParam(required = false) String type,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        String userId = getCurrentUserIdStr();
+        String userId = authUtils.getCurrentUserIdStr();
         return memoryService.listConversations(userId, type, page, size);
     }
 
@@ -43,7 +43,7 @@ public class AiConversationController {
     @PostMapping
     public ChatResponse create(@RequestParam(required = false) String type,
             @RequestParam(required = false) String title) {
-        String userId = getCurrentUserIdStr();
+        String userId = authUtils.getCurrentUserIdStr();
         Long id = memoryService.createConversation(userId, title != null ? title : "新会话");
         return ChatResponse.builder()
                 .success(true)
@@ -57,14 +57,14 @@ public class AiConversationController {
     public List<AiChatMessage> messages(@PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "50") int size) {
-        String userId = getCurrentUserIdStr();
+        String userId = authUtils.getCurrentUserIdStr();
         return memoryService.listMessagesByConversation(userId, id, page, size);
     }
 
     /** 重命名会话标题 */
     @PutMapping("/{id}/rename")
     public ChatResponse rename(@PathVariable Long id, @RequestParam String title) {
-        String userId = getCurrentUserIdStr();
+        String userId = authUtils.getCurrentUserIdStr();
         memoryService.getConversationOwnedByUser(userId, id);
         memoryService.renameConversation(id, title);
         return ChatResponse.success("会话重命名成功");
@@ -73,7 +73,7 @@ public class AiConversationController {
     /** 归档会话（status=9） */
     @PutMapping("/{id}/archive")
     public ChatResponse archive(@PathVariable Long id) {
-        String userId = getCurrentUserIdStr();
+        String userId = authUtils.getCurrentUserIdStr();
         memoryService.getConversationOwnedByUser(userId, id);
         memoryService.archiveConversation(id);
         return ChatResponse.success("会话已归档");
@@ -82,16 +82,10 @@ public class AiConversationController {
     /** 删除会话（先删消息、再删会话） */
     @DeleteMapping("/{id}")
     public ChatResponse delete(@PathVariable Long id) {
-        String userId = getCurrentUserIdStr();
+        String userId = authUtils.getCurrentUserIdStr();
         memoryService.getConversationOwnedByUser(userId, id);
         memoryService.deleteConversation(id);
         return ChatResponse.success("会话已删除");
     }
 
-    private String getCurrentUserIdStr() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        Object details = authentication != null ? authentication.getDetails() : null;
-        Long uid = (details instanceof Long) ? (Long) details : 0L;
-        return uid.toString();
-    }
 }

@@ -8,8 +8,7 @@ import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.entity.AiChatMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import chat.liuxin.ai.common.utils.AuthUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -45,13 +44,14 @@ public class AiChatController {
 
     private final AiChatService aiChatService;
     private final MemoryService memoryService;
+    private final AuthUtils authUtils;
 
     /**
      * 测试服务是否可用
      */
     @GetMapping("/status")
     public String testStatus() {
-        Long userId = getCurrentUserId();
+        Long userId = authUtils.getCurrentUserId();
         log.info("测试服务是否可用，用户ID: {}", userId);
         return "服务可用，用户ID: " + userId;
     }
@@ -65,7 +65,7 @@ public class AiChatController {
     @PostMapping("/chat")
     public ChatResponse chat(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
-        Long userId = getCurrentUserId();
+        Long userId = authUtils.getCurrentUserId();
         log.info("接受到了普通模式的请求，用户ID: {}", userId);
         return aiChatService.processChat(request, userId);
     }
@@ -85,7 +85,7 @@ public class AiChatController {
     @PostMapping("/chat/stream")
     public SseEmitter streamChat(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
-        Long userId = getCurrentUserId();
+        Long userId = authUtils.getCurrentUserId();
         log.info("接受到了流式模式的请求，用户ID: {}", userId);
         return aiChatService.processStreamChat(request, userId);
     }
@@ -97,7 +97,7 @@ public class AiChatController {
     @PostMapping("/writing")
     public ChatResponse writing(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
-        Long userId = getCurrentUserId();
+        Long userId = authUtils.getCurrentUserId();
         log.info("接受到了写作助手请求，用户ID: {}", userId);
         return aiChatService.processWriting(request, userId);
     }
@@ -108,7 +108,7 @@ public class AiChatController {
     @PostMapping("/writing/stream")
     public SseEmitter writingStream(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
-        Long userId = getCurrentUserId();
+        Long userId = authUtils.getCurrentUserId();
         log.info("接受到了写作助手流式请求，用户ID: {}", userId);
         return aiChatService.processWritingStream(request, userId);
     }
@@ -128,7 +128,7 @@ public class AiChatController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         try {
-            Long userId = getCurrentUserId();
+            Long userId = authUtils.getCurrentUserId();
             if (userId == null) {
                 return ChatHistoryResponse.error("用户未认证");
             }
@@ -158,7 +158,7 @@ public class AiChatController {
     @DeleteMapping("/chat/memory")
     public ChatResponse clearChatMemory() {
         try {
-            Long userId = getCurrentUserId();
+            Long userId = authUtils.getCurrentUserId();
             if (userId == null) {
                 return ChatResponse.error("用户未认证");
             }
@@ -191,24 +191,6 @@ public class AiChatController {
      * 从JWT认证上下文中获取当前用户ID
      * @return 用户ID，如果未认证则返回null
      */
-    private Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        log.debug("认证对象: {}", authentication);
-        if (authentication != null) {
-            log.debug("认证状态: {}, 主体: {}, 详情: {}",
-                authentication.isAuthenticated(),
-                authentication.getPrincipal(),
-                authentication.getDetails());
-            if (authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
-                Object details = authentication.getDetails();
-                if (details instanceof Long) {
-                    return (Long) details;
-                }
-            }
-        }
-        log.warn("无法获取当前用户ID，可能未正确认证");
-        return null;
-    }
 
     private void markLegacyRoute(HttpServletResponse response) {
         if (response != null) {

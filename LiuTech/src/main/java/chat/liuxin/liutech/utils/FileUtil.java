@@ -84,6 +84,27 @@ public class FileUtil {
         
         return relativePath;
     }
+
+    /**
+     * 保存字节数组为文件（用于压缩后的图片保存）
+     * 路径生成规则与 saveFile(MultipartFile) 完全一致
+     *
+     * @param data 文件字节
+     * @param subPath 子路径（如：images）
+     * @param originalFilename 用于生成扩展名的文件名
+     * @return 文件相对路径
+     * @throws IOException IO异常
+     */
+    public String saveFile(byte[] data, String subPath, String originalFilename) throws IOException {
+        String fileName = generateFileName(originalFilename);
+        String datePath = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+        String relativePath = subPath + "/" + datePath + "/" + fileName;
+        Path base = Paths.get(fileUploadConfig.getBasePath());
+        Path fullPath = (base.isAbsolute() ? base : base.toAbsolutePath()).resolve(relativePath);
+        Files.createDirectories(fullPath.getParent());
+        Files.write(fullPath, data);
+        return relativePath;
+    }
     
     /**
      * 生成唯一文件名

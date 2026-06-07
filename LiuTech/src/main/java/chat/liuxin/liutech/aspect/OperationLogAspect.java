@@ -18,6 +18,7 @@ import chat.liuxin.liutech.model.AdminLogs;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.service.LogService;
 import chat.liuxin.liutech.utils.UserUtils;
+import chat.liuxin.liutech.utils.RequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 
 import lombok.extern.slf4j.Slf4j;
@@ -112,7 +113,7 @@ public class OperationLogAspect {
 
         // 设置IP地址
         if (request != null) {
-            logEntry.setIp(getClientIP(request));
+            logEntry.setIp(RequestUtils.getClientIp(request));
             logEntry.setUserAgent(request.getHeader("User-Agent"));
         }
 
@@ -136,32 +137,6 @@ public class OperationLogAspect {
         logService.saveLog(logEntry);
     }
 
-    /**
-     * 获取客户端真实IP
-     */
-    private String getClientIP(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (StringUtils.isBlank(ip) || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-        if (StringUtils.isBlank(ip) || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (StringUtils.isBlank(ip) || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("HTTP_CLIENT_IP");
-        }
-        if (StringUtils.isBlank(ip) || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
-        }
-        if (StringUtils.isBlank(ip) || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        // 多个代理时，第一个IP为真实IP
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-        return ip;
-    }
 
     /**
      * 解析目标名称

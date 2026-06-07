@@ -8,6 +8,10 @@ import appSoftwareBronzeAward from '@/assets/image/honors/应用软件开发-铜
 import textAppExcellenceAward from '@/assets/image/honors/文本应用开发-优秀奖.jpg'
 import cProgrammingEngineerCert from '@/assets/image/honors/C语言程序设计工程师证书.jpg'
 
+import webFrontendSecondPrize from '@/assets/image/honors/中职技能大赛Web前端开发-二等奖.jpg'
+import mobileAppNationalSecondPrize from '@/assets/image/honors/全国职业院校技能大赛移动应用与开发-二等奖.jpg'
+import bricsDataVizThirdPrize from '@/assets/image/honors/金砖国家技能大赛数据分析与可视化-三等奖.jpg'
+
 export type HonorCategory = 'all' | 'dev' | 'test' | 'miniapp' | 'lowcode' | 'cert'
 
 export interface HonorItem {
@@ -100,5 +104,29 @@ export const honors: HonorItem[] = [
     year: '2026',
     category: 'dev',
     image: textAppExcellenceAward
+  },
+  {
+    id: 'web-frontend-second-prize',
+    title: '重庆市第十三届中职技能大赛 Web 前端开发',
+    level: '二等奖',
+    year: '2021',
+    category: 'dev',
+    image: webFrontendSecondPrize
+  },
+  {
+    id: 'mobile-app-national-second-prize',
+    title: '全国职业院校技能大赛中职组 移动应用与开发',
+    level: '团体二等奖',
+    year: '2023',
+    category: 'dev',
+    image: mobileAppNationalSecondPrize
+  },
+  {
+    id: 'brics-data-viz-third-prize',
+    title: '一带一路暨金砖国家技能发展与技术创新大赛 数据分析与可视化',
+    level: '团体三等奖',
+    year: '2021',
+    category: 'dev',
+    image: bricsDataVizThirdPrize
   }
 ]

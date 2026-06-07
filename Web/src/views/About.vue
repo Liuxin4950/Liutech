@@ -13,6 +13,67 @@ const links = [
   { icon: 'mail', label: '邮箱', value: 'liuxin4950@gmail.com', href: 'mailto:liuxin4950@gmail.com' }
 ]
 
+// 技术栈数据
+const skillGroups = [
+  {
+    category: '前端开发',
+    icon: 'layout',
+    accent: 'frontend',
+    skills: [
+      { name: 'Vue 3', icon: 'vue' },
+      { name: 'TypeScript', icon: 'code' },
+      { name: 'Vite', icon: 'zap' },
+      { name: 'SCSS', icon: 'layers' },
+      { name: 'Ant Design', icon: 'grid' },
+      { name: 'TailwindCSS', icon: 'wind' },
+    ]
+  },
+  {
+    category: '后端与运维',
+    icon: 'server',
+    accent: 'backend',
+    skills: [
+      { name: 'Spring Boot', icon: 'spring' },
+      { name: 'Java', icon: 'coffee' },
+      { name: 'MyBatis', icon: 'database' },
+      { name: 'MySQL', icon: 'database' },
+      { name: 'Docker', icon: 'package' },
+      { name: 'Nginx', icon: 'server' },
+    ]
+  },
+  {
+    category: 'AI & 工具',
+    icon: 'bot',
+    accent: 'ai',
+    skills: [
+      { name: 'Spring AI', icon: 'spring' },
+      { name: '大模型 API', icon: 'brain' },
+      { name: 'Prompt Engineering', icon: 'lightbulb' },
+      { name: 'SSE 流式', icon: 'zap' },
+      { name: 'Git', icon: 'gitBranch' },
+      { name: 'Live2D', icon: 'game' },
+    ]
+  },
+]
+
+// 项目经历数据
+const projects = [
+  {
+    name: 'LiuTech 博客',
+    description: '全栈个人博客平台，前后端分离架构，支持文章管理、评论互动、AI 聊天助手、Live2D 看板娘等功能。',
+    tags: ['Vue 3', 'Spring Boot', 'MySQL', 'Docker'],
+    icon: 'home',
+    link: '/'
+  },
+  {
+    name: 'LiuTech-AI',
+    description: '独立 AI 微服务，基于 Spring AI 接入 GLM-4.6 大模型，支持多轮对话、工具调用、SSE 流式响应和 TTS 语音合成。',
+    tags: ['Spring AI', 'GLM-4.6', 'SSE', 'TTS'],
+    icon: 'bot',
+    link: null
+  },
+]
+
 const openMessageModal = () => {
   messageModalVisible.value = true
 }
@@ -66,8 +127,61 @@ const openMessageModal = () => {
       <section class="about-intro">
         <h2>关于我</h2>
         <p>
-          我是刘鑫，全栈开发者，前端、后端、AI 都在做。这个博客记录我学到的东西和正在走的路。
+          你好，我是刘鑫。作为一名全栈开发者，我穿梭于前端的像素级还原、后端的架构设计以及 AI 的探索应用之间。
+          这个博客是我技术沉淀的数字花园，也是我记录生活与成长的自留地。
         </p>
+        <p>
+          我喜欢折腾新技术，也享受把一个想法从零变成可用产品的过程。
+          从 Vue 3 + Spring Boot 的全栈博客，到接入大模型的 AI 微服务，每一步都是真实的工程实践。
+        </p>
+      </section>
+
+      <!-- 技术栈 -->
+      <section class="tech-stack-section">
+        <h2>技术栈</h2>
+        <div class="skill-groups">
+          <div
+            v-for="group in skillGroups"
+            :key="group.category"
+            class="skill-group"
+            :class="`skill-group--${group.accent}`"
+          >
+            <div class="skill-group-header">
+              <Icon :name="group.icon" size="16" />
+              <span>{{ group.category }}</span>
+            </div>
+            <div class="skill-tags">
+              <span v-for="skill in group.skills" :key="skill.name" class="skill-tag">
+                <Icon :name="skill.icon" size="13" />
+                {{ skill.name }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 项目经历 -->
+      <section class="projects-section">
+        <h2>项目经历</h2>
+        <div class="project-grid">
+          <article v-for="project in projects" :key="project.name" class="project-card">
+            <div class="project-icon">
+              <Icon :name="project.icon" size="22" />
+            </div>
+            <div class="project-info">
+              <h3>
+                {{ project.name }}
+                <a v-if="project.link" :href="project.link" class="project-link" title="访问项目">
+                  <Icon name="external" size="14" />
+                </a>
+              </h3>
+              <p>{{ project.description }}</p>
+              <div class="project-tags">
+                <span v-for="tag in project.tags" :key="tag" class="project-tag">{{ tag }}</span>
+              </div>
+            </div>
+          </article>
+        </div>
       </section>
 
       <section class="honors-spotlight">
@@ -76,7 +190,7 @@ const openMessageModal = () => {
         </div>
         <div class="honors-copy">
           <h2>荣誉与证书</h2>
-          <p>软件开发、软件测试、小程序、低代码和技术认证相关证书。</p>
+          <p>全国职业院校技能大赛团体二等奖、重庆市选拔赛第一名、Web 应用开发一等奖、金砖国家技能大赛三等奖……持续积累中。</p>
           <router-link to="/honors" class="text-link">
             查看全部荣誉 <Icon name="chevronRight" size="15" />
           </router-link>
@@ -334,6 +448,161 @@ const openMessageModal = () => {
   overflow: hidden;
 }
 
+/* ── 技术栈 ── */
+.tech-stack-section,
+.projects-section {
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  padding: 34px;
+
+  h2 {
+    margin: 0 0 20px;
+    color: var(--text-title);
+    font-size: clamp(1.45rem, 3vw, 1.9rem);
+    line-height: 1.25;
+  }
+}
+
+.skill-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.skill-group {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 12px rgba(var(--color-primary-rgb, 53, 80, 113), 0.08);
+  }
+}
+
+.skill-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-title);
+
+  .skill-group--frontend & { color: #4f8c81; }
+  .skill-group--backend & { color: #355071; }
+  .skill-group--ai & { color: #9b59b6; }
+}
+
+.skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-title);
+    border-color: var(--color-primary);
+  }
+}
+
+/* ── 项目经历 ── */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.project-card {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 12px rgba(var(--color-primary-rgb, 53, 80, 113), 0.08);
+  }
+}
+
+.project-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.project-info {
+  flex: 1;
+  min-width: 0;
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-title);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  p {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+}
+
+.project-link {
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.project-tag {
+  padding: 2px 9px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+}
+
 .honors-art {
   min-height: 320px;
   background: #eef3ed;
@@ -492,6 +761,14 @@ const openMessageModal = () => {
     }
   }
 
+  .skill-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+
   .honors-spotlight,
   .contact-section {
     grid-template-columns: 1fr;
@@ -562,11 +839,168 @@ const openMessageModal = () => {
 
   .about-intro,
   .honors-copy,
-  .contact-section {
+  .contact-section,
+  .tech-stack-section,
+  .projects-section {
     padding: 24px;
   }
 
-  .honors-art {
+  /* ── 技术栈 ── */
+.tech-stack-section,
+.projects-section {
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  padding: 34px;
+
+  h2 {
+    margin: 0 0 20px;
+    color: var(--text-title);
+    font-size: clamp(1.45rem, 3vw, 1.9rem);
+    line-height: 1.25;
+  }
+}
+
+.skill-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.skill-group {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 12px rgba(var(--color-primary-rgb, 53, 80, 113), 0.08);
+  }
+}
+
+.skill-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-title);
+
+  .skill-group--frontend & { color: #4f8c81; }
+  .skill-group--backend & { color: #355071; }
+  .skill-group--ai & { color: #9b59b6; }
+}
+
+.skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-title);
+    border-color: var(--color-primary);
+  }
+}
+
+/* ── 项目经历 ── */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.project-card {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 12px rgba(var(--color-primary-rgb, 53, 80, 113), 0.08);
+  }
+}
+
+.project-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.project-info {
+  flex: 1;
+  min-width: 0;
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-title);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  p {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+}
+
+.project-link {
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.project-tag {
+  padding: 2px 9px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+}
+
+.honors-art {
     min-height: 210px;
   }
 

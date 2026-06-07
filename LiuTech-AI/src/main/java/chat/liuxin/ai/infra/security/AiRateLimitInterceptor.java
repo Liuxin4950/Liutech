@@ -5,9 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
+import chat.liuxin.ai.common.utils.AuthUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -21,6 +19,7 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
 
     private final AiRequestRateLimitProperties properties;
     private final ObjectMapper objectMapper;
+    private final AuthUtils authUtils;
     private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final AtomicLong lastCleanupMillis = new AtomicLong(0);
 
@@ -96,29 +95,19 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
     }
 
     private String resolveKey(HttpServletRequest request, String role) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated() && !"anonymousUser".equals(authentication.getPrincipal())) {
-            Object details = authentication.getDetails();
-            if (details instanceof Long id) {
-                return "user:" + id;
-            }
-            Object principal = authentication.getPrincipal();
-            if (principal != null) {
-                return "principal:" + principal;
-            }
+        Long userId = authUtils.getCurrentUserId();
+        if (userId != null) {
+            return "user:" + userId;
+        }
+        String username = authUtils.getCurrentUsername();
+        if (username != null) {
+            return "principal:" + username;
         }
         return "ip:" + role + ":" + resolveClientIp(request);
     }
 
     private String resolveRole() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
-            return "guest";
-        }
-        boolean admin = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch("ROLE_ADMIN"::equals);
-        return admin ? "admin" : "user";
+        return authUtils.resolveRole();
     }
 
     private int resolveMaxRequests(String role) {

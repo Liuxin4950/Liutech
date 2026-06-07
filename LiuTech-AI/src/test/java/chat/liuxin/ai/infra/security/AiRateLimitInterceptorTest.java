@@ -1,5 +1,6 @@
 package chat.liuxin.ai.infra.security;
 
+import chat.liuxin.ai.common.utils.AuthUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -17,7 +18,7 @@ class AiRateLimitInterceptorTest {
         properties.setEnabled(true);
         properties.setWindowSeconds(60);
         properties.setGuestMaxRequests(1);
-        AiRateLimitInterceptor interceptor = new AiRateLimitInterceptor(properties, new ObjectMapper());
+        AiRateLimitInterceptor interceptor = new AiRateLimitInterceptor(properties, new ObjectMapper(), new AuthUtils());
 
         MockHttpServletRequest first = new MockHttpServletRequest("POST", "/ai/chat");
         first.setRemoteAddr("127.0.0.1");

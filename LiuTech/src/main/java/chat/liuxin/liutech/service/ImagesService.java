@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import chat.liuxin.liutech.resp.ImageUploadResult;
+import chat.liuxin.liutech.service.ImageCompressService;
 
 /**
  * 图片服务
@@ -28,6 +29,9 @@ public class ImagesService {
 
     @Autowired
     private FileUtil fileUtil;
+
+    @Autowired
+    private ImageCompressService imageCompressService;
 
     /**
      * 上传图片（带去重）
@@ -51,8 +55,20 @@ public class ImagesService {
             return new ImageUploadResult(existingImage, true);
         }
 
-        // 3. 不存在，保存文件
-        String relativePath = fileUtil.saveFile(file, subPath);
+        // 3. 压缩图片后保存
+        byte[] compressedBytes = imageCompressService.compress(file.getBytes(), file.getOriginalFilename());
+        String relativePath;
+        long fileSize;
+        if (compressedBytes != null) {
+            // 压缩成功，保存压缩版
+            relativePath = fileUtil.saveFile(compressedBytes, subPath, file.getOriginalFilename());
+            fileSize = compressedBytes.length;
+            log.info("图片已压缩: {}KB -> {}KB", file.getSize() / 1024, fileSize / 1024);
+        } else {
+            // 无需压缩（GIF、小图片等），原样保存
+            relativePath = fileUtil.saveFile(file, subPath);
+            fileSize = file.getSize();
+        }
         String fileUrl = fileUtil.generateFileUrl(relativePath);
 
         // 4. 创建新记录
@@ -61,7 +77,7 @@ public class ImagesService {
         newImage.setFileUrl(fileUrl);
         newImage.setFilePath(relativePath);
         newImage.setFileHash(fileHash);
-        newImage.setFileSize(file.getSize());
+        newImage.setFileSize(fileSize);
         newImage.setMimeType(file.getContentType());
         newImage.setExtension(fileUtil.getFileExtension(file.getOriginalFilename()));
         newImage.setUploaderId(uploaderId);
