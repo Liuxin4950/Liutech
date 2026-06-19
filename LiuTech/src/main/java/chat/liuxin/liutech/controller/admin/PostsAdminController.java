@@ -100,7 +100,7 @@ import java.util.List;
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
             req.setId(id);
-            boolean success = postsService.updatePost(req, currentUserId);
+            boolean success = postsService.updatePostForAdmin(req, currentUserId);
             return handleOperationResult(success, "文章更新成功", "文章更新");
         } catch (Exception e) {
             return handleException(e, "文章更新");

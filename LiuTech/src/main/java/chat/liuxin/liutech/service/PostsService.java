@@ -555,6 +555,42 @@ import chat.liuxin.liutech.utils.FileUtil;
         return true;
     }
 
+    /**
+     * 更新文章（管理员版本，跳过作者权限校验）
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
+    public boolean updatePostForAdmin(PostUpdateReq req, Long operatorId) {
+        Posts existPost = this.getById(req.getId());
+        if (existPost == null || existPost.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
+        }
+
+        List<String> oldImageUrls = collectPostImageUrls(existPost.getCoverImage(), existPost.getThumbnail(), existPost.getContent());
+        List<String> newImageUrls = collectPostImageUrls(req.getCoverImage(), req.getThumbnail(), req.getContent());
+
+        Posts post = new Posts();
+        BeanUtils.copyProperties(req, post);
+        post.setUpdatedAt(new Date());
+        post.setUpdatedBy(operatorId);
+
+        boolean updated = this.updateById(post);
+        if (!updated) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章更新失败");
+        }
+
+        syncImageReferences(oldImageUrls, newImageUrls);
+        updatePostTags(req.getId(), req.getTagIds());
+
+        if (org.springframework.util.StringUtils.hasText(req.getDraftKey())) {
+            int bindCount = postAttachmentsMapper.bindDraftToPost(req.getDraftKey(), req.getId());
+            log.info("编辑时绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
+                    req.getId(), req.getDraftKey(), bindCount);
+        }
+
+        return true;
+    }
+
     private List<String> collectPostImageUrls(String coverImage, String thumbnail, String content) {
         List<String> urls = new ArrayList<>();
         if (StringUtils.hasText(coverImage)) {
