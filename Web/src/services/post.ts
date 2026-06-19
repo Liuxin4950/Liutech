@@ -1,20 +1,20 @@
 import { get, post, put, del } from './api'
 
 // 文章分类信息接口
-export interface CategoryInfo {
+interface CategoryInfo {
   id: number
   name: string
 }
 
 // 文章作者信息接口
-export interface AuthorInfo {
+interface AuthorInfo {
   id: number
   username: string
   avatarUrl?: string
 }
 
 // 文章标签信息接口
-export interface TagInfo {
+interface TagInfo {
   id: number
   name: string
 }
@@ -71,7 +71,7 @@ export interface PostQueryParams {
 }
 
 // 创建文章请求接口
-export interface CreatePostRequest {
+interface CreatePostRequest {
   title: string
   content: string
   summary?: string
@@ -86,7 +86,7 @@ export interface CreatePostRequest {
 }
 
 // 创建文章响应接口
-export interface CreatePostResponse {
+interface CreatePostResponse {
   id: number
   title: string
   status: string
@@ -94,7 +94,7 @@ export interface CreatePostResponse {
 }
 
 // 更新文章请求接口
-export interface UpdatePostRequest {
+interface UpdatePostRequest {
   id?: number
   title?: string
   content?: string
@@ -109,7 +109,7 @@ export interface UpdatePostRequest {
 }
 
 // 附件相关接口
-export interface AttachmentInfo {
+interface AttachmentInfo {
   id: number
   name: string
   size: number
@@ -120,7 +120,7 @@ export interface AttachmentInfo {
   createdAt: string
 }
 
-export interface AttachmentUploadResponse {
+interface AttachmentUploadResponse {
   resourceId: number
   attachmentId?: number
   fileUrl: string
@@ -128,10 +128,8 @@ export interface AttachmentUploadResponse {
   fileSize: number
 }
 
-export type FileUploadResp = AttachmentUploadResponse
-
 // 文章详情返回中的附件信息（与后端 PostDetailResl.AttachmentInfo 对应）
-export interface PostAttachment {
+interface PostAttachment {
   attachmentId: number
   resourceId: number
   fileName: string
@@ -194,21 +192,6 @@ export class PostService {
       return response.data
     } catch (error) {
       console.error('获取文章详情(管理员)失败:', error)
-      throw error
-    }
-  }
-
-  /**
-   * 获取热门文章列表
-   * @param limit 返回数量，默认10
-   * @returns 热门文章列表
-   */
-  static async getHotPosts(limit: number = 10): Promise<PostListItem[]> {
-    try {
-      const response = await get('/posts/hot', { limit })
-      return response.data
-    } catch (error) {
-      console.error('获取热门文章失败:', error)
       throw error
     }
   }
@@ -384,17 +367,6 @@ export class PostService {
       return response.data
     } catch (error) {
       console.error('上传附件失败:', error)
-      throw error
-    }
-  }
-
-  /** 获取草稿附件 */
-  static async getDraftAttachments(draftKey: string): Promise<AttachmentInfo[]> {
-    try {
-      const response = await get(`/upload/attachments/draft/${draftKey}`)
-      return response.data as any
-    } catch (error) {
-      console.error('获取草稿附件失败:', error)
       throw error
     }
   }

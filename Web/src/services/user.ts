@@ -1,29 +1,29 @@
 import { get, post, put } from './api'
 
 // 登录请求参数接口
-export interface LoginRequest {
+interface LoginRequest {
   username: string
   password: string
 }
 
 // 邮箱验证码登录请求参数接口
-export interface EmailLoginRequest {
+interface EmailLoginRequest {
   email: string
 }
 
 // 邮箱验证码登录验证参数接口
-export interface EmailLoginVerifyRequest {
+interface EmailLoginVerifyRequest {
   email: string
   code: string
 }
 
 // 忘记密码请求参数接口
-export interface ForgotPasswordRequest {
+interface ForgotPasswordRequest {
   email: string
 }
 
 // 重置密码请求参数接口
-export interface ResetPasswordRequest {
+interface ResetPasswordRequest {
   email: string
   code: string
   newPassword: string
@@ -38,7 +38,7 @@ export interface RegisterRequest {
 }
 
 // 修改密码请求参数接口
-export interface ChangePasswordRequest {
+interface ChangePasswordRequest {
   oldPassword: string
   newPassword: string
   confirmPassword: string
@@ -69,7 +69,7 @@ export interface UserInfo {
 }
 
 // 个人资料统计信息接口
-export interface ProfileStats {
+interface ProfileStats {
   posts: number
   comments: number
   views: number
@@ -122,7 +122,7 @@ export interface CheckinStatus {
 }
 
 // 登录响应数据接口
-export interface LoginResponse {
+interface LoginResponse {
   token: string
 }
 
@@ -353,19 +353,9 @@ export class UserService {
 
 // 导出便捷方法
 export const {
-  login,
-  register,
-  getCurrentUser,
-  changePassword,
-  updateProfile,
-  logout,
-  isLoggedIn,
-  getToken,
   getUserStats,
   getProfile,
-  getAuthorProfile,
-  checkin,
-  getCheckinStatus
+  getAuthorProfile
 } = UserService
 
 // 新增方法导出
@@ -373,6 +363,5 @@ export const sendForgotPasswordCode = UserService.sendForgotPasswordCode
 export const sendRegisterCode = UserService.sendRegisterCode
 export const resetPassword = UserService.resetPassword
 export const sendEmailLoginCode = UserService.sendEmailLoginCode
-export const verifyEmailLogin = UserService.verifyEmailLogin
 
 export default UserService

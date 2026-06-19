@@ -25,13 +25,3 @@ export const getMusicList = async (): Promise<MusicItem[]> => {
   const response = await get<MusicItem[]>('/music/list')
   return response.data
 }
-
-/**
- * 获取音乐详情
- * @param id 音乐ID
- * @returns 音乐详情
- */
-export const getMusicDetail = async (id: number): Promise<MusicItem> => {
-  const response = await get<MusicItem>(`/music/${id}`)
-  return response.data
-}

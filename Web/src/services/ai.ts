@@ -1,24 +1,8 @@
-import {del, get, post, ServiceType} from './api'
+import {post, ServiceType} from './api'
 import type { AiChatRequest } from './ai-types'
 
 // 重新导出共享类型，保持向后兼容
 export type { AiChatRequest } from './ai-types'
-
-/**
- * AI模型配置接口
- */
-export interface AiModelConfig {
-  id: number
-  modelName: string
-  displayName: string
-  provider: string
-  isEnabled: boolean
-  isDefault: boolean
-  maxTokens?: number
-  temperature?: number
-  description?: string
-  sortOrder?: number
-}
 
 export interface AiChatResponse {
   success: boolean
@@ -54,47 +38,6 @@ export interface AgentPlanStep {
 }
 
 /**
- * 聊天消息实体
- */
-export interface AiChatMessage {
-    id: number
-    userId: string
-    role: 'user' | 'assistant' | 'system'
-    content: string
-    model?: string
-    tokens?: number
-    metadata?: string
-    status: number
-    createdAt: string
-    updatedAt: string
-}
-
-/**
- * 聊天历史记录响应接口
- */
-export interface ChatHistoryResponse {
-    success: boolean
-    message?: string
-    data?: AiChatMessage[]
-    page: number
-    size: number
-    total: number
-    totalPages: number
-    userId?: string
-    timestamp: number
-}
-
-/**
- * 分类DTO
- */
-export interface CategoryDTO {
-    id: number
-    name: string
-    description?: string
-    postCount: number
-}
-
-/**
  * 文章摘要DTO
  */
 export interface PostSummaryDTO {
@@ -126,7 +69,6 @@ export interface ArticleResultsPayload {
     items: PostSummaryDTO[]
 }
 
-
 /**
  * AI服务类
  * 使用AI服务专用端口8081
@@ -135,17 +77,6 @@ export interface ArticleResultsPayload {
  * 时间：2025-01-27
  */
 export class Ai {
-    /**
-     * AI服务可用测试
-     * 使用AI服务8081端口
-     */
-    static async chatStatus(): Promise<AiChatResponse> {
-        // get 返回的已是服务端响应体，AI服务为 {success, message, ...}
-        const response = await get<AiChatResponse>('/status', {}, {
-            serviceType: ServiceType.AI
-        })
-        return response as unknown as AiChatResponse
-    }
     /**
      * 普通聊天请求
      * 使用AI服务8081端口
@@ -158,81 +89,6 @@ export class Ai {
             serviceType: ServiceType.AI
         })
         return response as unknown as AiChatResponse
-    }
-     /**
-     * 聊天历史请求
-     * 使用AI服务8081端口
-     */
-    static async chatHistory(page: number = 1, size: number = 20): Promise<ChatHistoryResponse> {
-        // get 返回的已是服务端响应体，AI服务为 {success, message, ...}
-         const response = await get<ChatHistoryResponse>(`/chat/history?page=${page}&size=${size}`, {}, {
-            serviceType: ServiceType.AI
-        })
-        return response as unknown as ChatHistoryResponse
-    }
-
-    /**
-     * 清空聊天记忆
-     * 使用AI服务8081端口
-     */
-    static async clearChatMemory(): Promise<AiChatResponse> {
-        // del 返回的已是服务端响应体，AI服务为 {success, message, ...}
-        const response = await del<AiChatResponse>('/chat/memory', {
-            serviceType: ServiceType.AI
-        })
-        return response as unknown as AiChatResponse
-    }
-
-    /**
-     * 发送聊天消息（支持模式选择）
-     * @param request 聊天请求
-     * @param mode 聊天模式，默认为 normal
-     * @returns Promise<AiChatResponse>
-     */
-    static async sendMessage(
-        request: AiChatRequest,
-        mode: 'normal' | 'stream' = 'normal'
-    ): Promise<AiChatResponse> {
-        // 添加模式参数到请求体
-        const requestWithMode = {
-            ...request,
-            mode: mode
-        }
-
-        if (mode === 'stream') {
-            // 实时响应应该使用 AiStream 服务
-            throw new Error('实时响应请使用 AiStream.streamChat 方法')
-        }
-
-        const { chatType, ...requestBody } = requestWithMode
-        // chatType='writing' 走写作助手接口，其他走看板娘接口
-        const endpoint = chatType === 'writing' ? '/writing' : '/chat'
-        const response = await post<AiChatResponse>(endpoint, requestBody, {
-            serviceType: ServiceType.AI
-        })
-        return response as unknown as AiChatResponse
-    }
-
-    /**
-     * 获取默认模型
-     * 使用AI服务8081端口，无需认证
-     */
-    static async getDefaultModel(): Promise<string> {
-        const response = await get<string>('/models/default', {}, {
-            serviceType: ServiceType.AI
-        })
-        return response as unknown as string
-    }
-
-    /**
-     * 获取所有启用的模型列表
-     * 使用AI服务8081端口，无需认证
-     */
-    static async getEnabledModels(): Promise<AiModelConfig[]> {
-        const response = await get<AiModelConfig[]>('/models/enabled', {}, {
-            serviceType: ServiceType.AI
-        })
-        return response as unknown as AiModelConfig[]
     }
 }
 

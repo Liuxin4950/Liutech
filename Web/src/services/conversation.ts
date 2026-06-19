@@ -9,7 +9,7 @@ export interface Conversation {
   lastMessageAt?: string
 }
 
-export interface ChatMessageItem {
+interface ChatMessageItem {
   id: number
   role: 'user' | 'assistant' | 'system'
   content: string
@@ -35,9 +35,6 @@ export const ConversationService = {
   },
   async rename(id: number, title: string): Promise<void> {
     await put(`/conversations/${id}/rename`, null as any, {params: {title}, serviceType: ServiceType.AI} as any)
-  },
-  async archive(id: number): Promise<void> {
-    await put(`/conversations/${id}/archive`, null as any, {serviceType: ServiceType.AI} as any)
   },
   async remove(id: number): Promise<void> {
     await del(`/conversations/${id}`, {serviceType: ServiceType.AI} as any)
