@@ -1,7 +1,8 @@
 package chat.liuxin.liutech.filter;
 
-import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.config.SecurityWhitelist;
 import chat.liuxin.liutech.model.Users;
+import chat.liuxin.liutech.service.UserAuthLookupService;
 import chat.liuxin.liutech.utils.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -42,7 +43,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private JwtUtil jwtUtil;
 
     @Autowired
-    private UserMapper userMapper;
+    private UserAuthLookupService userAuthLookupService;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
@@ -67,91 +68,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 判断是否应该跳过JWT认证
+     * 判断是否应该跳过JWT认证（委托给 SecurityWhitelist 统一管理）
      * @param requestURI 请求URI
      * @param method HTTP方法
      * @return 是否跳过认证
      */
     private boolean shouldSkipAuthentication(String requestURI, String method) {
-        // 白名单：公开接口与跨域预检请求不做认证
-        // 与 SecurityConfig permitAll() 保持同步
-
-        // 跳过OPTIONS预检请求（避免跨域失败）
-        if ("OPTIONS".equalsIgnoreCase(method)) {
-            return true;
-        }
-        // 跳过根路径
-        if ("/".equals(requestURI)) {
-            return true;
-        }
-        // 跳过登录注册接口
-        if ("/user/login".equals(requestURI) || "/user/register".equals(requestURI)) {
-            return true;
-        }
-
-        // GET 请求的公开接口（与 SecurityConfig 的 GET permitAll 同步）
-        if ("GET".equalsIgnoreCase(method)) {
-            // 文章公开接口（不含 /posts/my、/posts/drafts、/posts/favorites 等需认证的路径）
-            if ("/posts".equals(requestURI) || "/posts/".equals(requestURI)
-                    || requestURI.startsWith("/posts/slug/")
-                    || requestURI.startsWith("/posts/id/")
-                    || requestURI.startsWith("/posts/category/")
-                    || requestURI.startsWith("/posts/tag/")
-                    || requestURI.startsWith("/posts/archive/")) {
-                return true;
-            }
-            // 分类、标签、评论、留言、公告、轮播图、作者资料
-            if (requestURI.startsWith("/categories/")
-                    || requestURI.startsWith("/tags/")
-                    || requestURI.startsWith("/comments/")
-                    || requestURI.startsWith("/messages/")
-                    || (requestURI.startsWith("/announcements/") && !requestURI.startsWith("/announcements/admin/"))
-                    || "/carousels".equals(requestURI)
-                    || "/user/author/profile".equals(requestURI)
-                    || "/author/profile".equals(requestURI)) {
-                return true;
-            }
-            // TTS 状态与音频、音乐、Sitemap、运行时信息
-            if ("/tts/status".equals(requestURI)
-                    || requestURI.startsWith("/tts/audio/")
-                    || requestURI.startsWith("/music/")
-                    || "/sitemap.xml".equals(requestURI)
-                    || requestURI.startsWith("/sitemap/")
-                    || "/runtime/ai".equals(requestURI)) {
-                return true;
-            }
-            // 公开静态资源目录；付费资源目录 /uploads/resources/** 由受控下载接口处理
-            if (requestURI.startsWith("/uploads/images/")
-                    || requestURI.startsWith("/uploads/documents/")
-                    || requestURI.startsWith("/uploads/music/")
-                    || requestURI.startsWith("/files/")) {
-                return true;
-            }
-        }
-
-        // HEAD 请求的公开接口（TTS 音频、上传文件的 HEAD 探测）
-        if ("HEAD".equalsIgnoreCase(method)) {
-            if (requestURI.startsWith("/tts/audio/")
-                    || requestURI.startsWith("/uploads/images/")
-                    || requestURI.startsWith("/uploads/documents/")
-                    || requestURI.startsWith("/uploads/music/")) {
-                return true;
-            }
-        }
-
-        // POST 请求的公开接口
-        if ("POST".equalsIgnoreCase(method)) {
-            // POST /messages（匿名留言）
-            if ("/messages".equals(requestURI)) {
-                return true;
-            }
-            // POST /tts/speech（TTS 语音合成）
-            if ("/tts/speech".equals(requestURI)) {
-                return true;
-            }
-        }
-
-        return false;
+        return SecurityWhitelist.shouldSkipAuthentication(requestURI, method);
     }
 
     /**
@@ -182,31 +105,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Long userId = jwtUtil.getUserIdFromToken(token);
 
         if (username != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            Users currentUser = userMapper.selectById(userId);
-            if (!isCurrentUserTokenValid(currentUser, username, token)) {
+            Users currentUser = userAuthLookupService.selectById(userId);
+            if (!userAuthLookupService.isCurrentUserTokenValid(currentUser, username, token)) {
                 log.warn("JWT用户状态校验失败，用户ID: {}, 请求路径: {}", userId, request.getRequestURI());
                 return;
             }
             setAuthenticationContext(currentUser.getUsername(), userId, currentUser.getRole(), request);
         }
-    }
-
-    /**
-     * 使用数据库当前用户状态校验 token，避免禁用、删除、降权或改密后的旧 token 继续生效。
-     */
-    private boolean isCurrentUserTokenValid(Users currentUser, String tokenUsername, String token) {
-        if (currentUser == null || currentUser.getDeletedAt() != null) {
-            return false;
-        }
-        if (!StringUtils.hasText(currentUser.getUsername()) || !currentUser.getUsername().equals(tokenUsername)) {
-            return false;
-        }
-        if (!Integer.valueOf(1).equals(currentUser.getStatus())) {
-            return false;
-        }
-        String tokenPasswordHash = jwtUtil.getPasswordHashFromToken(token);
-        // token 中存储的是 SHA-256(passwordHash)，需要对数据库值也做 SHA-256 后再比较
-        return !StringUtils.hasText(tokenPasswordHash) || tokenPasswordHash.equals(JwtUtil.sha256(currentUser.getPasswordHash()));
     }
 
     /**
