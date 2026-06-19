@@ -309,14 +309,14 @@ const rememberAiTaxonomySuggestions = (payload: FieldUpdatePayload) => {
     }
   }
   if (payload.suggestedTagNames?.length) {
-    const currentIds = formModel.value.tagIds || []
+    let currentIds = formModel.value.tagIds || []
     const nextSuggestions: string[] = []
     for (const name of normalizeSuggestedNames(payload.suggestedTagNames)) {
       const existing = tagOptions.value.find(item => sameName(item.label, name))
       if (existing) {
         if (!currentIds.includes(existing.value)) {
-          formModel.value.tagIds = [...currentIds, existing.value]
-          currentIds.push(existing.value)
+          currentIds = [...currentIds, existing.value]
+          formModel.value.tagIds = currentIds
         }
       } else if (!nextSuggestions.some(item => sameName(item, name))) {
         nextSuggestions.push(name)
