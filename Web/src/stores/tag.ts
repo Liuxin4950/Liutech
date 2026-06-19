@@ -22,9 +22,7 @@ export const useTagStore = defineStore('tag', () => {
     return tags.value.filter(tag => tag.postCount && tag.postCount > 0)
   })
 
-  const getTagById = computed(() => {
-    return (id: number) => tags.value.find(tag => tag.id === id)
-  })
+  const getTagById = (id: number) => tags.value.find(tag => tag.id === id)
 
   const isDataStale = computed(() => {
     return Date.now() - lastFetchTime.value > CACHE_DURATION
@@ -94,7 +92,7 @@ export const useTagStore = defineStore('tag', () => {
    */
   const fetchTagById = async (id: number) => {
     // 先从本地缓存查找
-    const localTag = getTagById.value(id)
+    const localTag = getTagById(id)
     if (localTag) {
       return localTag
     }
