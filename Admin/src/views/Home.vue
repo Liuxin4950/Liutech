@@ -535,7 +535,7 @@ onUnmounted(() => {
               <div class="chart-container">
                 <div class="chart-header">
                   <span class="chart-title">近7日文章发布</span>
-                  <span class="chart-total">{{ dashboardStats.postTrend.reduce((acc, cur) => acc + cur.count, 0) }} 篇</span>
+                  <span class="chart-total">{{ (dashboardStats.postTrend || []).reduce((acc, cur) => acc + cur.count, 0) }} 篇</span>
                 </div>
                 <div ref="postTrendChartRef" class="echarts-box"></div>
               </div>
@@ -543,7 +543,7 @@ onUnmounted(() => {
               <div class="chart-container">
                 <div class="chart-header">
                   <span class="chart-title">近7日新增用户</span>
-                  <span class="chart-total">{{ dashboardStats.userTrend.reduce((acc, cur) => acc + cur.count, 0) }} 人</span>
+                  <span class="chart-total">{{ (dashboardStats.userTrend || []).reduce((acc, cur) => acc + cur.count, 0) }} 人</span>
                 </div>
                 <div ref="userTrendChartRef" class="echarts-box"></div>
               </div>
