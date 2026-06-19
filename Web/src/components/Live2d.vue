@@ -18,7 +18,158 @@
  */
 import { onMounted, onBeforeUnmount, watch, ref } from 'vue';
 import MusicCapsule from './MusicCapsule.vue';
-import { useLipSync } from '@/composables/useLipSync'
+
+// --- useLipSync (内联，仅本组件使用) ---
+
+type MouthController = (mouthOpenY01: number) => void
+
+interface LipSyncConfig {
+  noiseFloor: number
+  gain: number
+  smoothIn: number
+  smoothOut: number
+  curve: number
+}
+
+interface SpeakOptions {
+  url: string
+  volume?: number
+  crossOrigin?: '' | 'anonymous' | 'use-credentials'
+  play?: boolean
+}
+
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
+
+const createDefaultLipSyncConfig = (): LipSyncConfig => ({
+  noiseFloor: 0.006,
+  gain: 10,
+  smoothIn: 0.6,
+  smoothOut: 0.8,
+  curve: 0.75
+})
+
+const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partial<LipSyncConfig>) => {
+  const config: LipSyncConfig = { ...createDefaultLipSyncConfig(), ...(initialConfig || {}) }
+
+  let audio: HTMLAudioElement | null = null
+  let context: AudioContext | null = null
+  let analyser: AnalyserNode | null = null
+  let source: MediaElementAudioSourceNode | null = null
+  let sourceMap: WeakMap<HTMLAudioElement, MediaElementAudioSourceNode> | null = null
+  let data: Uint8Array<ArrayBuffer> | null = null
+  let rafId: number | null = null
+  let mouthSmoothed = 0
+  let detachListeners: (() => void) | null = null
+
+  const ensureContext = async () => {
+    if (!context) {
+      const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined
+      if (!Ctx) return false
+      context = new Ctx()
+      analyser = context.createAnalyser()
+      analyser.fftSize = 2048
+      analyser.smoothingTimeConstant = 0.85
+      data = new Uint8Array(new ArrayBuffer(analyser.fftSize))
+      sourceMap = new WeakMap()
+      analyser.connect(context.destination)
+    }
+    if (context.state === 'suspended') {
+      try { await context.resume() } catch {}
+    }
+    return true
+  }
+
+  const detachAudioListeners = () => {
+    if (!detachListeners) return
+    detachListeners()
+    detachListeners = null
+  }
+
+  const stop = () => {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null }
+    detachAudioListeners()
+    mouthSmoothed = 0
+    setMouthOpen(0)
+  }
+
+  const attach = async (mediaElement: HTMLAudioElement) => {
+    stop()
+    const ok = await ensureContext()
+    if (!ok || !context || !analyser || !data) return false
+    if (audio !== mediaElement) {
+      try { source?.disconnect() } catch {}
+      audio = mediaElement
+      const cachedSource = sourceMap?.get(mediaElement)
+      source = cachedSource ?? context.createMediaElementSource(mediaElement)
+      if (!cachedSource) sourceMap?.set(mediaElement, source)
+      try { source.connect(analyser) } catch {}
+    }
+    detachAudioListeners()
+    const onPauseOrEnd = () => stop()
+    mediaElement.addEventListener('pause', onPauseOrEnd)
+    mediaElement.addEventListener('ended', onPauseOrEnd)
+    detachListeners = () => {
+      mediaElement.removeEventListener('pause', onPauseOrEnd)
+      mediaElement.removeEventListener('ended', onPauseOrEnd)
+    }
+    return true
+  }
+
+  const computeRms = (buffer: Uint8Array) => {
+    let sum = 0
+    for (let i = 0; i < buffer.length; i++) {
+      const n = (buffer[i] - 128) / 128
+      sum += n * n
+    }
+    return Math.sqrt(sum / buffer.length)
+  }
+
+  const tick = () => {
+    if (!audio || !analyser || !data) return
+    if (audio.paused || audio.ended) { stop(); return }
+    analyser.getByteTimeDomainData(data)
+    const rms = computeRms(data)
+    const raw = (rms - config.noiseFloor) * config.gain
+    const target = Math.pow(clamp01(raw), config.curve)
+    const alpha = target > mouthSmoothed ? config.smoothIn : config.smoothOut
+    mouthSmoothed = mouthSmoothed * alpha + target * (1 - alpha)
+    setMouthOpen(mouthSmoothed)
+    rafId = requestAnimationFrame(tick)
+  }
+
+  const start = async (mediaElement: HTMLAudioElement) => {
+    const ok = await attach(mediaElement)
+    if (!ok) return false
+    rafId = requestAnimationFrame(tick)
+    return true
+  }
+
+  const speak = async (options: SpeakOptions) => {
+    const el = new Audio(options.url)
+    el.preload = 'auto'
+    el.crossOrigin = options.crossOrigin ?? 'anonymous'
+    el.volume = options.volume ?? 1
+    try { await start(el) } catch {}
+    return el
+  }
+
+  const updateConfig = (partial: Partial<LipSyncConfig>) => {
+    Object.assign(config, partial)
+  }
+
+  const destroy = () => {
+    stop()
+    try { source?.disconnect() } catch {}
+    try { analyser?.disconnect() } catch {}
+    if (context) {
+      context.close().catch(() => {})
+      context = null
+    }
+    source = null; analyser = null; sourceMap = null; data = null; audio = null
+  }
+
+  return { config, start, stop, speak, updateConfig, destroy }
+}
 
 const emit = defineEmits(['click'])
 
