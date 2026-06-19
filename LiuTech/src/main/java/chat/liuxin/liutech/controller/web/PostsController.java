@@ -27,6 +27,7 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostCreateResp;
 import chat.liuxin.liutech.resp.PostDetailResp;
 import chat.liuxin.liutech.resp.PostListResp;
+import chat.liuxin.liutech.service.PostInteractionService;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,9 @@ public class PostsController {
 
     @Autowired
     private PostsService postsService;
+
+    @Autowired
+    private PostInteractionService postInteractionService;
 
     @Autowired
     private UserUtils userUtils;
@@ -135,7 +139,7 @@ public class PostsController {
         }
 
         try {
-            boolean isLiked = postsService.toggleLike(id, currentUserId);
+            boolean isLiked = postInteractionService.toggleLike(id, currentUserId);
             String message = isLiked ? "点赞成功" : "取消点赞成功";
             String action = isLiked ? "liked" : "unliked";
 
@@ -166,7 +170,7 @@ public class PostsController {
         }
 
         try {
-            boolean isFavorited = postsService.toggleFavorite(id, currentUserId);
+            boolean isFavorited = postInteractionService.toggleFavorite(id, currentUserId);
             String message = isFavorited ? "收藏成功" : "取消收藏成功";
             String action = isFavorited ? "favorited" : "unfavorited";
 
@@ -503,7 +507,7 @@ public class PostsController {
             req.setKeyword(keyword);
             req.setSort("latest"); // 按最新收藏时间排序
 
-            PageResp<PostListResp> result = postsService.getFavoritePosts(req, userId);
+            PageResp<PostListResp> result = postInteractionService.getFavoritePosts(req, userId);
             log.info("查询用户收藏文章成功 - 用户ID: {}, 总数: {}", userId, result.getTotal());
 
             return Result.success("查询成功", result);

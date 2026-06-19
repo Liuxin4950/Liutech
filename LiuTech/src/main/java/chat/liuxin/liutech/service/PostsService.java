@@ -10,7 +10,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -215,99 +214,6 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             return true;
         }
         return userId != null && postDetail.getAuthorId() != null && postDetail.getAuthorId().equals(userId);
-    }
-
-    /**
-     * 点赞文章（已废弃，请使用toggleLike方法）
-     *
-     * @param id 文章ID
-     * @return 是否成功
-     * @deprecated 使用toggleLike(Long postId, Long userId)替代
-     */
-    @Deprecated
-    @Transactional(rollbackFor = Exception.class)
-    public boolean likePost(Long id) {
-        // 检查文章是否存在
-        Posts post = this.getById(id);
-        if (post == null || post.getDeletedAt() != null) {
-            return false;
-        }
-
-        // 点赞数自增
-        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(Posts::getId, id)
-                .setSql("like_count = IFNULL(like_count, 0) + 1");
-        return this.update(updateWrapper);
-    }
-
-    /**
-     * 切换文章点赞状态
-     * 如果用户未点赞则点赞，如果已点赞则取消点赞，同时更新文章点赞数
-     *
-     * @param postId 文章ID
-     * @param userId 用户ID
-     * @return 点赞后的状态（true=已点赞，false=已取消点赞）
-     * @throws BusinessException 当文章不存在时抛出异常
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public boolean toggleLike(Long postId, Long userId) {
-        // 检查文章是否存在
-        Posts post = this.getById(postId);
-        if (post == null || post.getDeletedAt() != null) {
-            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
-        }
-
-        // 查询当前点赞状态
-        Integer currentStatus = postLikesMapper.getLikeStatus(userId, postId);
-        boolean isLiked = currentStatus != null && currentStatus == 1;
-
-        // 切换点赞状态
-        boolean newStatus = !isLiked;
-        postLikesMapper.insertOrUpdateLike(userId, postId, newStatus ? 1 : 0);
-
-        // 更新文章点赞数
-        Integer likeCount = postLikesMapper.countLikesByPostId(postId);
-        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(Posts::getId, postId)
-                .set(Posts::getLikeCount, likeCount);
-        this.update(updateWrapper);
-
-        return newStatus;
-    }
-
-    /**
-     * 切换文章收藏状态
-     * 如果用户未收藏则收藏，如果已收藏则取消收藏，同时更新文章收藏数
-     *
-     * @param postId 文章ID
-     * @param userId 用户ID
-     * @return 收藏后的状态（true=已收藏，false=已取消收藏）
-     * @throws BusinessException 当文章不存在时抛出异常
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public boolean toggleFavorite(Long postId, Long userId) {
-        // 检查文章是否存在
-        Posts post = this.getById(postId);
-        if (post == null || post.getDeletedAt() != null) {
-            throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
-        }
-
-        // 查询当前收藏状态
-        Integer currentStatus = postFavoritesMapper.getFavoriteStatus(userId, postId);
-        boolean isFavorited = currentStatus != null && currentStatus == 1;
-
-        // 切换收藏状态
-        boolean newStatus = !isFavorited;
-        postFavoritesMapper.insertOrUpdateFavorite(userId, postId, newStatus ? 1 : 0);
-
-        // 更新文章收藏数
-        Integer favoriteCount = postFavoritesMapper.countFavoritesByPostId(postId);
-        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(Posts::getId, postId)
-                .set(Posts::getFavoriteCount, favoriteCount);
-        this.update(updateWrapper);
-
-        return newStatus;
     }
 
     /**
@@ -918,28 +824,4 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         return postsMapper.selectPublishedPosts();
     }
 
-    /**
-     * 获取用户收藏的文章列表
-     * @param req 查询请求参数
-     * @param userId 用户ID
-     * @return 分页的文章列表
-     * @author 刘鑫
-     * @date 2025-09-26T00:20:02+08:00
-     */
-    @Transactional(readOnly = true)
-    public PageResp<PostListResp> getFavoritePosts(PostQueryReq req, Long userId) {
-        // 创建分页对象
-        Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
-
-        // 处理搜索关键词
-        String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
-
-        // 执行分页查询，查询用户收藏的文章
-        IPage<PostListResp> result = postsMapper.selectFavoritePostList(page, userId, keyword);
-
-        // 批量加载标签
-        fillTags(result.getRecords());
-        result.getRecords().forEach(this::normalizePostListUrls);
-        return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
-    }
 }
