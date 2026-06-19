@@ -172,6 +172,22 @@ public class CarouselAdminController extends BaseAdminController {
     }
 
     /**
+     * 批量更新轮播图状态
+     * @param request 批量状态更新请求
+     * @return 是否成功
+     */
+    @OperationLog(action = "update", targetType = "carousel", description = "批量更新轮播图状态", targetName = "#ids")
+    @PutMapping("/batch/status")
+    public Result<Boolean> batchUpdateCarouselStatus(@RequestBody BatchStatusUpdateRequest request) {
+        try {
+            boolean success = carouselService.batchUpdateCarouselStatus(request.getIds(), request.getStatus());
+            return Result.success(success);
+        } catch (Exception e) {
+            return handleException(e, "批量更新轮播图状态");
+        }
+    }
+
+    /**
      * 更新轮播图排序
      * @param id 轮播图ID
      * @param request 排序更新请求
@@ -265,6 +281,30 @@ public class CarouselAdminController extends BaseAdminController {
 
         public void setSortOrder(Integer sortOrder) {
             this.sortOrder = sortOrder;
+        }
+    }
+
+    /**
+     * 批量状态更新请求
+     */
+    public static class BatchStatusUpdateRequest {
+        private List<Long> ids;
+        private Integer status;
+
+        public List<Long> getIds() {
+            return ids;
+        }
+
+        public void setIds(List<Long> ids) {
+            this.ids = ids;
+        }
+
+        public Integer getStatus() {
+            return status;
+        }
+
+        public void setStatus(Integer status) {
+            this.status = status;
         }
     }
 }

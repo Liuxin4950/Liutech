@@ -212,6 +212,25 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
     }
 
     /**
+     * 批量更新轮播图状态
+     * @param ids 轮播图ID列表
+     * @param status 新状态
+     * @return 是否成功
+     */
+    @Transactional
+    public boolean batchUpdateCarouselStatus(List<Long> ids, Integer status) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
+        }
+        validateCarouselStatus(status);
+
+        LambdaUpdateWrapper<Carousel> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(Carousel::getId, ids)
+                .set(Carousel::getStatus, status);
+        return this.update(updateWrapper);
+    }
+
+    /**
      * 更新轮播图排序
      * @param id 轮播图ID
      * @param sortOrder 新排序
