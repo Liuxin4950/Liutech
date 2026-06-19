@@ -9,7 +9,6 @@ import chat.liuxin.liutech.resp.DashboardResp;
 import chat.liuxin.liutech.resp.DashboardResp.*;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
