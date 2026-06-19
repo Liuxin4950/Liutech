@@ -95,7 +95,7 @@ public class AiChatServiceImpl implements AiChatService {
             List<Message> messages = prepareMessages(request, userIdStr, conversationId, guestMode);
             AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
             logParameterApplication(modelName, params);
-            String aiOutput = siliconFlowChatClient.chatForWriting(messages, modelName, params.temperature(), params.maxTokens());
+            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING);
 
             long cost = System.currentTimeMillis() - begin;
             aiMetrics.recordSuccess(modelName, cost, estimateTokens(aiOutput));

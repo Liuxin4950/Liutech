@@ -22,12 +22,10 @@ import java.util.Objects;
 /**
  * 硅基流动 AI 客户端。
  *
- * <p>统一封装 Spring AI ChatClient 调用，对外提供四种语义：
+ * <p>对外提供两个核心方法：
  * <ul>
- *   <li>{@code chat}       — 看板娘聊天（注册 BlogMcpTools，同步调用）</li>
- *   <li>{@code chatForWriting} — 写作助手（注册 WritingTools，内部流式收集避免超时）</li>
- *   <li>{@code chatWithoutTools} — 纯文本生成（不注册工具）</li>
- *   <li>{@code stream*}    — 上述三种的流式变体</li>
+ *   <li>{@code chat}       — 同步调用（CHAT 模式注册 BlogMcpTools，WRITING 模式注册 WritingTools 并内部流式收集）</li>
+ *   <li>{@code streamChat} — 流式调用（CHAT 模式注册 BlogMcpTools，WRITING 模式注册 WritingTools）</li>
  * </ul>
  *
  * <p>所有公共方法均带 Resilience4j 重试/熔断/限流注解。
@@ -37,6 +35,9 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class SiliconFlowChatClient {
 
+    /** 聊天模式：CHAT 使用看板娘工具，WRITING 使用写作工具 */
+    public enum ChatMode { CHAT, WRITING }
+
     private final ChatClient chatClient;
     private final BlogMcpTools blogMcpTools;
     private final WritingTools writingTools;
@@ -44,147 +45,94 @@ public class SiliconFlowChatClient {
     @Value("${spring.ai.model.default:zai-org/GLM-4.6}")
     private String defaultModel;
 
-    // ==================== 看板娘聊天（BlogMcpTools） ====================
+    // ==================== 核心方法 ====================
 
-    public String chat(List<Message> messages) {
-        return chat(messages, null, null, null);
-    }
-
-    public String chat(List<Message> messages, String modelName) {
-        return chat(messages, modelName, null, null);
-    }
-
-    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChatWithParams")
-    @RateLimiter(name = "aiService")
+    /** 同步调用（默认 CHAT 模式） */
     public String chat(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
-        String model = resolveModel(modelName);
-        List<Message> safeMsgs = safeMessages(messages);
-        OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
-        try {
-            log.debug("调用AI模型: {}, 消息数: {}", model, safeMsgs.size());
-            String response = chatClient.prompt().messages(safeMsgs).options(options)
-                    .tools(blogMcpTools).call().content();
-            return requireNonEmpty(response, model);
-        } catch (AIServiceException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("AI调用失败, 模型: {}", model, e);
-            throw new AIServiceException("AI服务调用失败: " + e.getMessage(), e);
-        }
+        return chat(messages, modelName, temperature, maxTokens, ChatMode.CHAT);
     }
-
-    // ==================== 看板娘流式 ====================
-
-    public Flux<String> streamChat(List<Message> messages, String modelName) {
-        return streamChat(messages, modelName, null, null);
-    }
-
-    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackStreamChatWithParams")
-    @RateLimiter(name = "aiService")
-    public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
-        String model = resolveModel(modelName);
-        List<Message> safeMsgs = safeMessages(messages);
-        OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
-        try {
-            log.debug("调用AI模型(流式): {}, 消息数: {}", model, safeMsgs.size());
-            return chatClient.prompt().messages(safeMsgs).options(options)
-                    .tools(blogMcpTools).stream().content();
-        } catch (Exception e) {
-            log.error("AI流式调用失败, 模型: {}", model, e);
-            throw new AIServiceException("AI服务流式调用失败: " + e.getMessage(), e);
-        }
-    }
-
-    // ==================== 写作助手（WritingTools） ====================
 
     /**
-     * 写作助手同步调用。内部使用流式收集（WebClient，无 read timeout），避免 RestClient 超时。
+     * 同步调用。
+     *
+     * <p>CHAT 模式：直接调用，注册 BlogMcpTools。
+     * <p>WRITING 模式：内部流式收集（避免 RestClient 超时），注册 WritingTools。
      */
     @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChatWithParams")
+    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChat")
     @RateLimiter(name = "aiService")
-    public String chatForWriting(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
+    public String chat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode) {
         String model = resolveModel(modelName);
         List<Message> safeMsgs = safeMessages(messages);
         OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
+        Object tools = resolveTools(mode);
         try {
-            log.debug("调用AI模型(写作): {}, 消息数: {}", model, safeMsgs.size());
-            String response = chatClient.prompt().messages(safeMsgs).options(options)
-                    .tools(writingTools).stream().content()
-                    .collectList().map(parts -> String.join("", parts)).block();
-            return requireNonEmpty(response, model);
+            log.debug("调用AI模型: {}, 模式: {}, 消息数: {}", model, mode, safeMsgs.size());
+            if (mode == ChatMode.WRITING) {
+                // 写作模式：内部流式收集，避免 RestClient 超时
+                String response = chatClient.prompt().messages(safeMsgs).options(options)
+                        .tools(tools).stream().content()
+                        .collectList().map(parts -> String.join("", parts)).block();
+                return requireNonEmpty(response, model);
+            } else {
+                // 聊天模式：直接调用
+                String response = chatClient.prompt().messages(safeMsgs).options(options)
+                        .tools(tools).call().content();
+                return requireNonEmpty(response, model);
+            }
         } catch (AIServiceException e) {
             throw e;
         } catch (Exception e) {
-            log.error("AI写作调用失败, 模型: {}", model, e);
+            log.error("AI调用失败, 模型: {}, 模式: {}", model, mode, e);
             throw new AIServiceException("AI服务调用失败: " + e.getMessage(), e);
         }
     }
 
+    /** 流式调用（默认 CHAT 模式） */
+    public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
+        return streamChat(messages, modelName, temperature, maxTokens, ChatMode.CHAT);
+    }
+
+    /**
+     * 流式调用。
+     *
+     * <p>CHAT 模式注册 BlogMcpTools，WRITING 模式注册 WritingTools。
+     */
     @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackStreamChatWithParams")
+    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackStreamChat")
     @RateLimiter(name = "aiService")
-    public Flux<String> streamChatForWriting(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
+    public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode) {
         String model = resolveModel(modelName);
         List<Message> safeMsgs = safeMessages(messages);
         OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
+        Object tools = resolveTools(mode);
         try {
-            log.debug("调用AI模型(写作流式): {}, 消息数: {}", model, safeMsgs.size());
+            log.debug("调用AI模型(流式): {}, 模式: {}, 消息数: {}", model, mode, safeMsgs.size());
             return chatClient.prompt().messages(safeMsgs).options(options)
-                    .tools(writingTools).stream().content();
+                    .tools(tools).stream().content();
         } catch (Exception e) {
-            log.error("AI写作流式调用失败, 模型: {}", model, e);
-            throw new AIServiceException("AI服务写作流式调用失败: " + e.getMessage(), e);
-        }
-    }
-
-    // ==================== 无工具调用 ====================
-
-    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-    @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChatWithParams")
-    @RateLimiter(name = "aiService")
-    public String chatWithoutTools(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
-        String model = resolveModel(modelName);
-        List<Message> safeMsgs = safeMessages(messages);
-        OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
-        try {
-            log.debug("调用AI模型(无工具): {}, 消息数: {}", model, safeMsgs.size());
-            String response = chatClient.prompt().messages(safeMsgs).options(options)
-                    .call().content();
-            return requireNonEmpty(response, model);
-        } catch (AIServiceException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("AI调用失败(无工具), 模型: {}", model, e);
-            throw new AIServiceException("AI服务调用失败: " + e.getMessage(), e);
+            log.error("AI流式调用失败, 模型: {}, 模式: {}", model, mode, e);
+            throw new AIServiceException("AI服务流式调用失败: " + e.getMessage(), e);
         }
     }
 
     // ==================== Fallback ====================
 
-    public String fallbackChat(List<Message> messages, String modelName, Exception exception) {
-        log.warn("AI服务熔断, 模型: {}, 异常: {}", modelName, exception.getMessage());
+    public String fallbackChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, Exception exception) {
+        log.warn("AI服务熔断, 模型: {}, 模式: {}, 异常: {}", modelName, mode, exception.getMessage());
         return "抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage();
     }
 
-    public Flux<String> fallbackStreamChat(List<Message> messages, String modelName, Exception exception) {
-        log.warn("AI服务流式熔断, 模型: {}, 异常: {}", modelName, exception.getMessage());
-        return Flux.just("抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage());
-    }
-
-    public String fallbackChatWithParams(List<Message> messages, String modelName, Double temperature, Integer maxTokens, Exception exception) {
-        log.warn("AI服务熔断, 模型: {}, 异常: {}", modelName, exception.getMessage());
-        return "抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage();
-    }
-
-    public Flux<String> fallbackStreamChatWithParams(List<Message> messages, String modelName, Double temperature, Integer maxTokens, Exception exception) {
-        log.warn("AI服务流式熔断, 模型: {}, 异常: {}", modelName, exception.getMessage());
+    public Flux<String> fallbackStreamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, Exception exception) {
+        log.warn("AI服务流式熔断, 模型: {}, 模式: {}, 异常: {}", modelName, mode, exception.getMessage());
         return Flux.just("抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage());
     }
 
     // ==================== 内部方法 ====================
+
+    private Object resolveTools(ChatMode mode) {
+        return mode == ChatMode.WRITING ? writingTools : blogMcpTools;
+    }
 
     private String resolveModel(String modelName) {
         return modelName != null ? modelName : defaultModel;

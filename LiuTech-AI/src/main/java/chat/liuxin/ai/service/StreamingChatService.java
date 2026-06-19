@@ -166,7 +166,7 @@ public class StreamingChatService {
                 sseHelper.sendSseEvent(emitter, "start", sseHelper.eventPayload(
                         "conversationId", conversationId, "model", modelName, "mode", "writing"));
 
-                Flux<String> flux = siliconFlowChatClient.streamChatForWriting(messages, modelName, params.temperature(), params.maxTokens());
+                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING);
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, conversationId, ttsEnabled, emitterClosed, ttsExecutorRef,
