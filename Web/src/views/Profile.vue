@@ -148,6 +148,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse, type CheckinStatus } from '../services/user'
 import { showSuccess, showError } from '../utils/errorHandler'
@@ -157,6 +158,7 @@ import CheckinCard from '../components/CheckinCard.vue'
 import Icon from '../components/Icon.vue'
 
 const userStore = useUserStore()
+const router = useRouter()
 const isLoading = ref(false)
 const showEditForm = ref(false)
 const userStats = ref<UserStats | null>(null)
@@ -185,7 +187,7 @@ const calculateLevel = (points: number) => {
   return 0
 }
 
-// �态成就列表 - 基于真实数据计算
+// 动态成就列表 - 基于真实数据计算
 const achievements = computed(() => {
   const stats = userStats.value
   const consecutive = checkinStatus.value?.consecutiveDays || 0
@@ -330,6 +332,10 @@ const handleCheckinSuccess = (result: CheckinResponse) => {
 }
 
 onMounted(() => {
+  if (!userStore.isLoggedIn) {
+    router.push('/login')
+    return
+  }
   initForm()
   loadUserStats()
 })
