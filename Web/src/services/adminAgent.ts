@@ -82,6 +82,9 @@ interface SseEnvelope<T = unknown> {
 
 const CONTRACT_VERSION = 1
 
+/** 将 SSE payload 安全转换为目标类型（服务端 contract 保证结构一致） */
+const asPayload = <T>(value: unknown): T => value as T
+
 export class AdminAgentService {
   static async stream(request: AdminAgentRequest, handlers: AdminAgentHandlers) {
     const token = localStorage.getItem('token')
@@ -153,16 +156,16 @@ export class AdminAgentService {
         handlers.onPlan?.((p?.steps as AgentPlanStep[]) || [])
         break
       case 'tool-start':
-        handlers.onToolStart?.(p as unknown as ToolEventPayload)
+        handlers.onToolStart?.(asPayload<ToolEventPayload>(p))
         break
       case 'tool-result':
-        handlers.onToolResult?.(p as unknown as ToolEventPayload)
+        handlers.onToolResult?.(asPayload<ToolEventPayload>(p))
         break
       case 'writing-draft':
-        handlers.onWritingDraft?.(p as unknown as WritingDraftPayload)
+        handlers.onWritingDraft?.(asPayload<WritingDraftPayload>(p))
         break
       case 'field-update':
-        handlers.onFieldUpdate?.(p as unknown as FieldUpdatePayload)
+        handlers.onFieldUpdate?.(asPayload<FieldUpdatePayload>(p))
         break
       case 'complete':
         handlers.onComplete?.()
