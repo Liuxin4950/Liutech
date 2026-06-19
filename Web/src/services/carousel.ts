@@ -1,5 +1,4 @@
 import { get } from './api'
-import type { ApiResponse } from './api'
 
 /**
  * 轮播图接口类型定义
@@ -26,8 +25,9 @@ export class CarouselService {
   /**
    * 获取启用的轮播图列表（前台展示）
    */
-  static async getActiveCarousels(): Promise<ApiResponse<Carousel[]>> {
-    return get<Carousel[]>(this.BASE_URL)
+  static async getActiveCarousels(): Promise<Carousel[]> {
+    const res = await get<Carousel[]>(this.BASE_URL)
+    return res.data
   }
 }
 

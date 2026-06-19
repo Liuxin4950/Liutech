@@ -117,9 +117,9 @@ const stopAutoPlay = () => {
 
 const loadCarousels = async () => {
     try {
-        const res = await CarouselService.getActiveCarousels()
-        if (res.code === 200 && res.data) {
-            carousels.value = res.data
+        const data = await CarouselService.getActiveCarousels()
+        if (data) {
+            carousels.value = data
             currentIndex.value = 0
             startAutoPlay()
         }
