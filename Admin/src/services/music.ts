@@ -53,7 +53,7 @@ const musicService = {
    * 获取音乐详情
    */
   getMusicById: (id: number) => {
-    return get<Music>(`/music/${id}`)
+    return get<Music>(`/admin/music/${id}`)
   },
 
   /**

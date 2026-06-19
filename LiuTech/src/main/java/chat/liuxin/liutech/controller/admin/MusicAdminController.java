@@ -51,6 +51,20 @@ public class MusicAdminController extends BaseAdminController {
     }
 
     /**
+     * 获取音乐详情（管理端，不限状态）
+     */
+    @GetMapping("/{id}")
+    public Result<Music> getMusicById(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "音乐ID");
+        try {
+            Music music = musicService.getAdminMusicById(id);
+            return Result.success(music);
+        } catch (Exception e) {
+            return handleException(e, "获取音乐详情");
+        }
+    }
+
+    /**
      * 上传音乐
      */
     @PostMapping

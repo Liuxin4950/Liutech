@@ -86,6 +86,20 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
     }
 
     /**
+     * 管理端根据ID获取音乐（不限状态）
+     * @param id 音乐ID
+     * @return 音乐
+     */
+    @Transactional(readOnly = true)
+    public Music getAdminMusicById(Long id) {
+        Music music = musicMapper.selectById(id);
+        if (music == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "音乐不存在");
+        }
+        return music;
+    }
+
+    /**
      * 上传音乐（Admin）
      * @param title 歌曲名
      * @param artist 艺术家
