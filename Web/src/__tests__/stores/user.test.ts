@@ -143,7 +143,7 @@ describe('useUserStore', () => {
 
   describe('register', () => {
     it('should call UserService.register and set userInfo', async () => {
-      const userData = { username: 'new', email: 'new@test.com', code: '123' }
+      const userData = { username: 'new', email: 'new@test.com', code: '123', password: 'test123' }
       const newUser = { id: 2, username: 'new', email: 'new@test.com', points: 0 }
       mockUserService.register.mockResolvedValue(newUser)
 

@@ -51,7 +51,7 @@ const validatePassword = () => {
   let valid = true
   if (!form.code.trim()) { errors.code = '请输入验证码'; valid = false }
   if (!form.newPassword) { errors.newPassword = '请输入新密码'; valid = false }
-  else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(form.newPassword)) { errors.newPassword = '密码至少8位且包含字母和数字'; valid = false }
+  else if (form.newPassword.length < 6) { errors.newPassword = '密码至少6位'; valid = false }
   if (form.newPassword !== form.confirmPassword) { errors.confirmPassword = '两次输入的密码不一致'; valid = false }
   return valid
 }
@@ -182,7 +182,7 @@ const handleResendCode = async () => {
               <label>新密码</label>
               <div class="input-wrapper">
                 <Icon name="lock" size="18" class="input-icon" />
-                <input v-model="form.newPassword" :type="showPassword.new ? 'text' : 'password'" placeholder="至少8位，包含字母和数字" :class="{ error: errors.newPassword }" />
+                <input v-model="form.newPassword" :type="showPassword.new ? 'text' : 'password'" placeholder="至少6位" :class="{ error: errors.newPassword }" />
                 <button type="button" class="toggle-password" @click="showPassword.new = !showPassword.new">
                   <Icon :name="showPassword.new ? 'visibility_off' : 'visibility'" size="18" />
                 </button>

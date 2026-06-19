@@ -45,7 +45,7 @@ describe('UserService', () => {
   // ---------- register ----------
   describe('register', () => {
     it('should POST /user/register', async () => {
-      const userData = { username: 'new', email: 'new@test.com', code: '123456' }
+      const userData = { username: 'new', email: 'new@test.com', code: '123456', password: 'test123' }
       const mockResponse = { id: 1, username: 'new', email: 'new@test.com', points: 0 }
       mockPost.mockResolvedValue({ code: 200, message: 'ok', data: mockResponse })
 
@@ -253,7 +253,7 @@ describe('UserService', () => {
   describe('error paths', () => {
     it('register should throw on error', async () => {
       mockPost.mockRejectedValue(new Error('username taken'))
-      await expect(UserService.register({ username: 'dup', email: 'd@d.com', code: '123' })).rejects.toThrow('username taken')
+      await expect(UserService.register({ username: 'dup', email: 'd@d.com', code: '123', password: 'test123' })).rejects.toThrow('username taken')
     })
 
     it('getCurrentUser should throw on error', async () => {
