@@ -757,7 +757,6 @@ const applyEditorTheme = (editor: any, mode = theme.current.value) => {
 const onEditorInit = (eventOrEditor: any, maybeEditor?: any) => {
   const editor = resolveEditor(eventOrEditor, maybeEditor)
   if (!editor) return
-  console.log('TinyMCE编辑器初始化完成')
   editorInstance.value = editor
   editorLoaded.value = true
   applyEditorTheme(editor)
