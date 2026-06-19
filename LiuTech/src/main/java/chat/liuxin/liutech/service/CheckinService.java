@@ -1,13 +1,13 @@
 package chat.liuxin.liutech.service;
 
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.UserCheckinMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.UserCheckin;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.CheckinResp;
 import chat.liuxin.liutech.resp.CheckinStatusResp;
-import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.common.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,73 +40,60 @@ public class CheckinService {
      * @return 签到结果
      */
     @Transactional(rollbackFor = Exception.class)
-    public Result<CheckinResp> checkin(Long userId) {
-        try {
-            LocalDate today = LocalDate.now();
+    public CheckinResp checkin(Long userId) {
+        LocalDate today = LocalDate.now();
 
-            // 检查今日是否已签到
-            UserCheckin todayCheckin = userCheckinMapper.findByUserIdAndDate(userId, today);
-            if (todayCheckin != null) {
-                return Result.fail(ErrorCode.PARAMS_ERROR, "今日已签到");
-            }
-
-            // 获取用户信息
-            Users user = userMapper.selectById(userId);
-            if (user == null) {
-                return Result.fail(ErrorCode.NOT_FOUND, "用户不存在");
-            }
-
-            // 计算连续签到天数
-            int consecutiveDays = calculateConsecutiveDays(userId, today);
-
-            // 计算获得积分（基础1积分 + 连续签到奖励）
-            BigDecimal pointsEarned = calculatePointsEarned(consecutiveDays);
-
-            // 创建签到记录（显式填充时间，兜底MyBatis-Plus自动填充）
-            Date now = new Date();
-            UserCheckin checkin = new UserCheckin()
-                    .setUserId(userId)
-                    .setCheckinDate(today)
-                    .setPointsEarned(pointsEarned)
-                    .setConsecutiveDays(consecutiveDays)
-                    .setCreatedAt(now)
-                    .setUpdatedAt(now);
-
-            userCheckinMapper.insert(checkin);
-
-            // 使用PointsService增加积分（原子操作 + 流水记录）
-            try {
-                pointsService.addPoints(
-                    userId,
-                    pointsEarned,
-                    PointsService.TYPE_CHECKIN,
-                    PointsService.SOURCE_SYSTEM_REWARD,
-                    null,
-                    "连续签到" + consecutiveDays + "天奖励"
-                );
-            } catch (Exception e) {
-                log.error("用户{}签到积分增加失败", userId, e);
-                throw new RuntimeException("积分奖励发放失败，请稍后重试");
-            }
-
-            // 获取用户最新积分
-            Users updatedUser = userMapper.selectById(userId);
-            BigDecimal newPoints = updatedUser.getPoints();
-
-            // 构建响应
-            CheckinResp response = new CheckinResp()
-                    .setPointsEarned(pointsEarned)
-                    .setTotalPoints(newPoints)
-                    .setConsecutiveDays(consecutiveDays)
-                    .setCheckinDate(today);
-
-            log.info("用户{}签到成功，获得{}积分，连续签到{}天", userId, pointsEarned, consecutiveDays);
-            return Result.success("签到成功", response);
-
-        } catch (Exception e) {
-            log.error("用户{}签到失败", userId, e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "签到失败，请稍后重试");
+        // 检查今日是否已签到
+        UserCheckin todayCheckin = userCheckinMapper.findByUserIdAndDate(userId, today);
+        if (todayCheckin != null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "今日已签到");
         }
+
+        // 获取用户信息
+        Users user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+
+        // 计算连续签到天数
+        int consecutiveDays = calculateConsecutiveDays(userId, today);
+
+        // 计算获得积分（基础1积分 + 连续签到奖励）
+        BigDecimal pointsEarned = calculatePointsEarned(consecutiveDays);
+
+        // 创建签到记录
+        Date now = new Date();
+        UserCheckin checkin = new UserCheckin()
+                .setUserId(userId)
+                .setCheckinDate(today)
+                .setPointsEarned(pointsEarned)
+                .setConsecutiveDays(consecutiveDays)
+                .setCreatedAt(now)
+                .setUpdatedAt(now);
+
+        userCheckinMapper.insert(checkin);
+
+        // 使用PointsService增加积分（原子操作 + 流水记录）
+        pointsService.addPoints(
+            userId,
+            pointsEarned,
+            PointsService.TYPE_CHECKIN,
+            PointsService.SOURCE_SYSTEM_REWARD,
+            null,
+            "连续签到" + consecutiveDays + "天奖励"
+        );
+
+        // 获取用户最新积分
+        Users updatedUser = userMapper.selectById(userId);
+        BigDecimal newPoints = updatedUser.getPoints();
+
+        log.info("用户{}签到成功，获得{}积分，连续签到{}天", userId, pointsEarned, consecutiveDays);
+
+        return new CheckinResp()
+                .setPointsEarned(pointsEarned)
+                .setTotalPoints(newPoints)
+                .setConsecutiveDays(consecutiveDays)
+                .setCheckinDate(today);
     }
 
     /**
@@ -115,54 +102,41 @@ public class CheckinService {
      * @param userId 用户ID
      * @return 签到状态
      */
-    public Result<CheckinStatusResp> getCheckinStatus(Long userId) {
-        try {
-            LocalDate today = LocalDate.now();
+    public CheckinStatusResp getCheckinStatus(Long userId) {
+        LocalDate today = LocalDate.now();
 
-            // 检查今日是否已签到
-            UserCheckin todayCheckin = userCheckinMapper.findByUserIdAndDate(userId, today);
-            boolean hasCheckedInToday = todayCheckin != null;
+        // 检查今日是否已签到
+        UserCheckin todayCheckin = userCheckinMapper.findByUserIdAndDate(userId, today);
+        boolean hasCheckedInToday = todayCheckin != null;
 
-            // 获取最后一次签到记录
-            UserCheckin lastCheckin = userCheckinMapper.findLastCheckinByUserId(userId);
+        // 获取最后一次签到记录
+        UserCheckin lastCheckin = userCheckinMapper.findLastCheckinByUserId(userId);
 
-            // 计算连续签到天数
-            int consecutiveDays = 0;
-            LocalDate lastCheckinDate = null;
+        // 计算连续签到天数
+        int consecutiveDays = 0;
+        LocalDate lastCheckinDate = null;
 
-            if (lastCheckin != null) {
-                lastCheckinDate = lastCheckin.getCheckinDate();
-                if (hasCheckedInToday) {
-                    consecutiveDays = lastCheckin.getConsecutiveDays();
-                } else {
-                    // 如果今天没签到，需要重新计算连续天数
-                    consecutiveDays = calculateConsecutiveDays(userId, today);
-                }
+        if (lastCheckin != null) {
+            lastCheckinDate = lastCheckin.getCheckinDate();
+            if (hasCheckedInToday) {
+                consecutiveDays = lastCheckin.getConsecutiveDays();
+            } else {
+                consecutiveDays = calculateConsecutiveDays(userId, today);
             }
-
-            // 统计总签到次数
-            Integer totalCheckins = userCheckinMapper.countByUserId(userId);
-
-            CheckinStatusResp response = new CheckinStatusResp()
-                    .setHasCheckedInToday(hasCheckedInToday)
-                    .setConsecutiveDays(consecutiveDays)
-                    .setLastCheckinDate(lastCheckinDate)
-                    .setTotalCheckins(totalCheckins != null ? totalCheckins : 0);
-
-            return Result.success("获取签到状态成功", response);
-
-        } catch (Exception e) {
-            log.error("获取用户{}签到状态失败", userId, e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "获取签到状态失败");
         }
+
+        // 统计总签到次数
+        Integer totalCheckins = userCheckinMapper.countByUserId(userId);
+
+        return new CheckinStatusResp()
+                .setHasCheckedInToday(hasCheckedInToday)
+                .setConsecutiveDays(consecutiveDays)
+                .setLastCheckinDate(lastCheckinDate)
+                .setTotalCheckins(totalCheckins != null ? totalCheckins : 0);
     }
 
     /**
      * 计算连续签到天数
-     *
-     * @param userId 用户ID
-     * @param currentDate 当前日期
-     * @return 连续签到天数
      */
     private int calculateConsecutiveDays(Long userId, LocalDate currentDate) {
         List<UserCheckin> recentCheckins = userCheckinMapper.findRecentCheckins(userId, 100);
@@ -188,19 +162,15 @@ public class CheckinService {
 
     /**
      * 计算获得积分
-     *
-     * @param consecutiveDays 连续签到天数
-     * @return 获得积分
      */
     private BigDecimal calculatePointsEarned(int consecutiveDays) {
-        BigDecimal basePoints = BigDecimal.ONE; // 基础1积分
+        BigDecimal basePoints = BigDecimal.ONE;
         BigDecimal bonusPoints = BigDecimal.ZERO;
 
-        // 连续签到奖励
         if (consecutiveDays >= 30) {
-            bonusPoints = new BigDecimal("5"); // 连续30天额外5积分
+            bonusPoints = new BigDecimal("5");
         } else if (consecutiveDays >= 7) {
-            bonusPoints = BigDecimal.ONE; // 连续7天额外1积分
+            bonusPoints = BigDecimal.ONE;
         }
 
         return basePoints.add(bonusPoints);
