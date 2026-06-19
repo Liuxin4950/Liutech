@@ -5,12 +5,12 @@ import chat.liuxin.ai.common.tts.AvatarCueService;
 import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.AvatarCuePayload;
 import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
@@ -47,12 +47,7 @@ public class StreamingChatService {
     private final TtsSegmenter ttsSegmenter;
     private final AvatarCueService avatarCueService;
     private final SseEmitterHelper sseHelper;
-
-    @Value("${spring.ai.sse.timeout:120000}")
-    private long sseTimeout;
-
-    @Value("${tts.stream.concurrency:1}")
-    private int ttsStreamConcurrency;
+    private final AiChatProperties aiChatProperties;
 
     // ==================== 公开接口 ====================
 
@@ -66,7 +61,7 @@ public class StreamingChatService {
         Long conversationId = guestMode ? null : request.getConversationId();
         String input = request.getMessage();
 
-        SseEmitter emitter = new SseEmitter(sseTimeout);
+        SseEmitter emitter = new SseEmitter(aiChatProperties.getSseTimeout());
         AtomicReference<ExecutorService> ttsExecutorRef = new AtomicReference<>();
         AtomicReference<ScheduledExecutorService> heartbeatRef = new AtomicReference<>();
         AtomicBoolean emitterClosed = new AtomicBoolean(false);
@@ -145,7 +140,7 @@ public class StreamingChatService {
         String userIdStr = userId != null ? userId.toString() : null;
         Long conversationId = guestMode ? null : request.getConversationId();
 
-        SseEmitter emitter = new SseEmitter(sseTimeout);
+        SseEmitter emitter = new SseEmitter(aiChatProperties.getSseTimeout());
         AtomicReference<ExecutorService> ttsExecutorRef = new AtomicReference<>();
         AtomicBoolean emitterClosed = new AtomicBoolean(false);
 
@@ -201,7 +196,7 @@ public class StreamingChatService {
         StringBuilder textBuffer = new StringBuilder();
         AtomicInteger seq = new AtomicInteger(0);
 
-        int poolSize = Math.max(1, ttsStreamConcurrency);
+        int poolSize = Math.max(1, aiChatProperties.getTtsStreamConcurrency());
         ExecutorService ttsExecutor = Executors.newFixedThreadPool(poolSize);
         ttsExecutorRef.set(ttsExecutor);
         List<CompletableFuture<Void>> ttsFutures = Collections.synchronizedList(new ArrayList<>());
@@ -280,7 +275,7 @@ public class StreamingChatService {
                                 boolean timedOut = false;
                                 try {
                                     CompletableFuture.allOf(ttsFutures.toArray(new CompletableFuture[0]))
-                                            .get(Math.max(30_000L, sseTimeout), TimeUnit.MILLISECONDS);
+                                            .get(Math.max(30_000L, aiChatProperties.getSseTimeout()), TimeUnit.MILLISECONDS);
                                 } catch (TimeoutException e) {
                                     timedOut = true;
                                 } catch (Exception e) {

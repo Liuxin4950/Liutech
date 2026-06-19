@@ -2,10 +2,10 @@ package chat.liuxin.ai.infra.security;
 
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.service.AiModelConfigService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,15 +18,7 @@ import java.util.Optional;
 public class AiModelPolicy {
 
     private final AiModelConfigService aiModelConfigService;
-
-    @Value("${spring.ai.openai.chat.options.model:zai-org/GLM-4.6}")
-    private String configuredDefaultModel;
-
-    @Value("${spring.ai.security.model-policy.strict-whitelist:true}")
-    private boolean strictWhitelist;
-
-    @Value("${spring.ai.security.model-policy.max-tokens-ceiling:4096}")
-    private int maxTokensCeiling;
+    private final AiChatProperties aiChatProperties;
 
     public String resolveModelName(ChatRequest request) {
         return resolveModelName(request == null ? null : request.getModel());
@@ -47,7 +39,7 @@ public class AiModelPolicy {
             return requestedConfig.get().getModelName();
         }
 
-        if (!strictWhitelist && enabledModels.isEmpty()) {
+        if (!aiChatProperties.getSecurity().isModelPolicyStrictWhitelist() && enabledModels.isEmpty()) {
             log.warn("模型白名单未启用且无启用模型配置，沿用请求模型: {}", requested);
             return requested;
         }
@@ -65,7 +57,7 @@ public class AiModelPolicy {
             log.warn("前端传递的 temperature 超出范围 [0.0, 1.0]: {}, 将忽略", temperature);
             temperature = null;
         }
-        if (maxTokens != null && (maxTokens <= 0 || maxTokens > maxTokensCeiling)) {
+        if (maxTokens != null && (maxTokens <= 0 || maxTokens > aiChatProperties.getSecurity().getModelPolicyMaxTokensCeiling())) {
             log.warn("前端传递的 maxTokens 无效或超过上限: {}, 将忽略", maxTokens);
             maxTokens = null;
         }
@@ -80,7 +72,7 @@ public class AiModelPolicy {
                         temperature = config.getTemperature().doubleValue();
                     }
                     if (maxTokens == null && config.getMaxTokens() != null && config.getMaxTokens() > 0) {
-                        maxTokens = Math.min(config.getMaxTokens(), maxTokensCeiling);
+                        maxTokens = Math.min(config.getMaxTokens(), aiChatProperties.getSecurity().getModelPolicyMaxTokensCeiling());
                     }
                     source = "database";
                 } else {
@@ -103,10 +95,10 @@ public class AiModelPolicy {
                     .filter(Objects::nonNull)
                     .map(String::trim)
                     .filter(value -> !value.isEmpty())
-                    .orElse(configuredDefaultModel);
+                    .orElse(aiChatProperties.getDefaultModel());
         } catch (Exception e) {
             log.warn("读取默认模型配置失败，使用配置默认模型: {}", e.getMessage());
-            return configuredDefaultModel;
+            return aiChatProperties.getDefaultModel();
         }
     }
 

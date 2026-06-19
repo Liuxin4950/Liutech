@@ -2,11 +2,11 @@ package chat.liuxin.ai.infra.security;
 
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.service.AiModelConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -22,12 +22,11 @@ class AiModelPolicyTest {
     private AiModelPolicy policy;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         modelConfigService = mock(AiModelConfigService.class);
-        policy = new AiModelPolicy(modelConfigService);
-        setField(policy, "configuredDefaultModel", "fallback-model");
-        setField(policy, "strictWhitelist", true);
-        setField(policy, "maxTokensCeiling", 4096);
+        AiChatProperties props = new AiChatProperties();
+        props.setDefaultModel("fallback-model");
+        policy = new AiModelPolicy(modelConfigService, props);
     }
 
     @Test
@@ -66,9 +65,4 @@ class AiModelPolicyTest {
         assertNull(params.maxTokens());
     }
 
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
-    }
 }

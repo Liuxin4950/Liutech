@@ -4,6 +4,7 @@ import chat.liuxin.ai.common.client.BlogApiClient;
 import chat.liuxin.ai.dto.AuthorProfileDTO;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.PostDetailDTO;
+import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.config.AiPromptConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,7 +13,6 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 
@@ -33,17 +33,13 @@ class PromptServiceTest {
         blogApiClient = mock(BlogApiClient.class);
         memoryService = mock(MemoryService.class);
 
-        promptService = new PromptService(aiPromptConfig, blogApiClient);
-        setField(promptService, "guardEnabled", true);
-        setField(promptService, "personaName", "看板娘");
-        setField(promptService, "historyLimit", 8);
+        AiChatProperties aiChatProperties = new AiChatProperties();
+        aiChatProperties.getSecurity().setPromptGuardEnabled(true);
+        aiChatProperties.getAgent().setPersonaName("看板娘");
+        aiChatProperties.setChatHistoryLimit(8);
+        promptService = new PromptService(aiPromptConfig, blogApiClient, aiChatProperties);
     }
 
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
-    }
 
     // ===== 组装测试（原 PromptAssemblerTest） =====
 
@@ -105,10 +101,12 @@ class PromptServiceTest {
 
     @Test
     void shouldSkipSecurityRulesWhenGuardDisabled() throws Exception {
-        setField(promptService, "guardEnabled", false);
+        AiChatProperties disabledProps = new AiChatProperties();
+        disabledProps.getSecurity().setPromptGuardEnabled(false);
+        PromptService disabledService = new PromptService(aiPromptConfig, blogApiClient, disabledProps);
         when(aiPromptConfig.getFullSystemPrompt()).thenReturn("你叫纳西妲，是 LiuTech 博客里的站内看板娘。");
 
-        String prompt = promptService.buildSystemPrompt();
+        String prompt = disabledService.buildSystemPrompt();
 
         assertTrue(prompt.contains("纳西妲"));
         assertFalse(prompt.contains("不能作为授权依据"));

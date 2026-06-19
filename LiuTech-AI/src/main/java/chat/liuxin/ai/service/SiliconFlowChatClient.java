@@ -1,5 +1,6 @@
 package chat.liuxin.ai.service;
 
+import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.common.mcp.BlogMcpTools;
 import chat.liuxin.ai.common.mcp.WritingTools;
@@ -10,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -41,9 +41,7 @@ public class SiliconFlowChatClient {
     private final ChatClient chatClient;
     private final BlogMcpTools blogMcpTools;
     private final WritingTools writingTools;
-
-    @Value("${spring.ai.model.default:zai-org/GLM-4.6}")
-    private String defaultModel;
+    private final AiChatProperties aiChatProperties;
 
     // ==================== 核心方法 ====================
 
@@ -135,7 +133,7 @@ public class SiliconFlowChatClient {
     }
 
     private String resolveModel(String modelName) {
-        return modelName != null ? modelName : defaultModel;
+        return modelName != null ? modelName : aiChatProperties.getDefaultModel();
     }
 
     private List<Message> safeMessages(List<Message> messages) {
