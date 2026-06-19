@@ -1,50 +1,4 @@
-import axios from 'axios'
-import type { AxiosInstance } from 'axios'
-import { message } from 'ant-design-vue'
-import router from '../router'
-
-// AI 服务 axios 实例（独立 baseURL，指向 AI 服务）
-// 开发环境：http://127.0.0.1:8081，生产环境通过 Nginx 的 /ai/ 代理
-const aiApi: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_AI_BASE_URL || 'http://127.0.0.1:8081',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// 请求拦截器 —— 添加 token（与主 api.ts 一致）
-aiApi.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
-
-// 响应拦截器 —— 路由跳转 + 统一解包
-aiApi.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      message.destroy()
-      localStorage.removeItem('token')
-      if (router.currentRoute.value.path !== '/login') {
-        router.push('/login')
-      }
-    }
-    if (error.response?.status === 403) {
-      message.destroy()
-      if (router.currentRoute.value.path !== '/403') {
-        router.push('/403')
-      }
-    }
-    return Promise.reject(error)
-  }
-)
+import { get, post, put } from './api'
 
 /**
  * 模型配置接口
@@ -84,24 +38,35 @@ export interface ModelUsageStats {
   usageCount: number
 }
 
+const BASE_URL = '/ai/admin/models'
+
 const aiModelsService = {
-  getModelList: (): Promise<ModelConfig[]> =>
-    aiApi.get('/admin/models/list'),
+  getModelList: async (): Promise<ModelConfig[]> => {
+    const resp = await get<ModelConfig[]>(`${BASE_URL}/list`)
+    return resp.data
+  },
 
-  addModel: (data: ModelConfigRequest): Promise<ModelConfig> =>
-    aiApi.post('/admin/models', data),
+  addModel: async (data: ModelConfigRequest): Promise<ModelConfig> => {
+    const resp = await post<ModelConfig>(BASE_URL, data)
+    return resp.data
+  },
 
-  updateModel: (id: number, data: ModelConfigRequest): Promise<ModelConfig> =>
-    aiApi.put(`/admin/models/${id}`, data),
+  updateModel: async (id: number, data: ModelConfigRequest): Promise<ModelConfig> => {
+    const resp = await put<ModelConfig>(`${BASE_URL}/${id}`, data)
+    return resp.data
+  },
 
-  deleteModel: (id: number): Promise<void> =>
-    aiApi.delete(`/admin/models/${id}`),
+  deleteModel: async (id: number): Promise<void> => {
+    await put<void>(`${BASE_URL}/${id}`)
+  },
 
-  setDefaultModel: (id: number): Promise<void> =>
-    aiApi.put(`/admin/models/${id}/default`),
+  setDefaultModel: async (id: number): Promise<void> => {
+    await put<void>(`${BASE_URL}/${id}/default`)
+  },
 
-  toggleEnabled: (id: number, enabled: boolean): Promise<void> =>
-    aiApi.put(`/admin/models/${id}/toggle`, null, { params: { enabled } }),
+  toggleEnabled: async (id: number, enabled: boolean): Promise<void> => {
+    await put<void>(`${BASE_URL}/${id}/toggle`, null, { params: { enabled } })
+  },
 }
 
 export default aiModelsService
