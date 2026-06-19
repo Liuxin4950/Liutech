@@ -85,15 +85,19 @@ const statusOptions = [
 
 // ============== 分类/标签管理 ==============
 const loadCategoriesAndTags = async () => {
-  const [cats, tags] = await Promise.all([
-    CategoriesService.getCategoryList({ page: 1, size: 1000 }),
-    TagsService.getTagList({ page: 1, size: 1000 })
-  ])
-  if (cats.code === 200) {
-    categoryOptions.value = cats.data.records.map((c: any) => ({ label: c.name, value: c.id }))
-  }
-  if (tags.code === 200) {
-    tagOptions.value = tags.data.records.map((t: any) => ({ label: t.name, value: t.id }))
+  try {
+    const [cats, tags] = await Promise.all([
+      CategoriesService.getCategoryList({ page: 1, size: 1000 }),
+      TagsService.getTagList({ page: 1, size: 1000 })
+    ])
+    if (cats.code === 200) {
+      categoryOptions.value = cats.data.records.map((c: any) => ({ label: c.name, value: c.id }))
+    }
+    if (tags.code === 200) {
+      tagOptions.value = tags.data.records.map((t: any) => ({ label: t.name, value: t.id }))
+    }
+  } catch (e) {
+    message.error('加载分类或标签失败')
   }
 }
 
