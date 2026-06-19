@@ -1,27 +1,16 @@
 package chat.liuxin.liutech.service;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import com.alibaba.excel.EasyExcel;
-import com.alibaba.excel.context.AnalysisContext;
-import com.alibaba.excel.read.listener.ReadListener;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -31,7 +20,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.AnnouncementsMapper;
-import chat.liuxin.liutech.model.AnnouncementExcelData;
 import chat.liuxin.liutech.model.Announcements;
 import chat.liuxin.liutech.req.AnnouncementReq;
 import chat.liuxin.liutech.resp.AnnouncementResp;
@@ -352,201 +340,6 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
     }
 
     /**
-     * 导出公告数据为Excel
-     * @param status 状态筛选
-     * @param type 类型筛选
-     * @param keyword 关键词筛选
-     * @param includeDeleted 是否包含已删除
-     * @param outputStream 输出流
-     */
-    @Transactional(readOnly = true)
-    public void exportToExcel(Integer status, Integer type, String keyword, Boolean includeDeleted, OutputStream outputStream) {
-        QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, keyword, includeDeleted);
-        List<Announcements> announcements = this.list(queryWrapper);
-
-        List<AnnouncementExcelData> excelDataList = announcements.stream()
-                .map(this::convertToExcelData)
-                .collect(Collectors.toList());
-
-        EasyExcel.write(outputStream, AnnouncementExcelData.class)
-                .sheet("公告数据")
-                .doWrite(excelDataList);
-    }
-
-    /**
-     * 从Excel导入公告
-     * @param file 上传的Excel文件
-     * @return 导入结果 [成功数, 失败数, 错误信息列表]
-     */
-    @Transactional
-    @CacheEvict(value = "announcements", allEntries = true)
-    public Map<String, Object> importFromExcel(MultipartFile file) {
-        List<String> errors = new ArrayList<>();
-        int[] counts = {0, 0}; // [success, failed]
-
-        try (InputStream inputStream = file.getInputStream()) {
-            EasyExcel.read(inputStream, AnnouncementExcelData.class, new ReadListener<AnnouncementExcelData>() {
-                @Override
-                public void invoke(AnnouncementExcelData data, AnalysisContext context) {
-                    try {
-                        AnnouncementReq req = convertExcelDataToReq(data);
-                        validateAnnouncementReq(req);
-                        Announcements announcement = buildAnnouncementFromReq(req);
-                        saveAnnouncementWithValidation(announcement);
-                        counts[0]++;
-                    } catch (Exception e) {
-                        counts[1]++;
-                        int rowNum = context.readRowHolder().getRowIndex() + 1;
-                        errors.add("第" + rowNum + "行: " + e.getMessage());
-                    }
-                }
-
-                @Override
-                public void doAfterAllAnalysed(AnalysisContext context) {
-                    // 读取完成
-                }
-            }).sheet().doRead();
-        } catch (IOException e) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "读取Excel文件失败: " + e.getMessage());
-        }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("success", counts[0]);
-        result.put("failed", counts[1]);
-        result.put("errors", errors);
-        return result;
-    }
-
-    /**
-     * 将公告实体转换为Excel数据模型
-     * @param announcement 公告实体
-     * @return Excel数据模型
-     */
-    private AnnouncementExcelData convertToExcelData(Announcements announcement) {
-        AnnouncementExcelData data = new AnnouncementExcelData();
-        data.setId(announcement.getId());
-        data.setTitle(announcement.getTitle());
-        data.setContent(announcement.getContent());
-        data.setType(getTypeName(announcement.getType()));
-        data.setPriority(getPriorityName(announcement.getPriority()));
-        data.setStatus(getStatusName(announcement.getStatus()));
-        data.setIsTop(announcement.getIsTop() != null && announcement.getIsTop() == 1 ? "是" : "否");
-        data.setStartTime(announcement.getStartTime());
-        data.setEndTime(announcement.getEndTime());
-        data.setViewCount(announcement.getViewCount());
-        data.setCreatedAt(announcement.getCreatedAt());
-        return data;
-    }
-
-    /**
-     * 将Excel数据模型转换为公告请求
-     * @param data Excel数据模型
-     * @return 公告请求
-     */
-    private AnnouncementReq convertExcelDataToReq(AnnouncementExcelData data) {
-        AnnouncementReq req = new AnnouncementReq();
-        req.setTitle(data.getTitle());
-        req.setContent(data.getContent());
-        req.setType(parseType(data.getType()));
-        req.setPriority(parsePriority(data.getPriority()));
-        req.setStatus(parseStatus(data.getStatus()));
-        req.setIsTop(parseIsTop(data.getIsTop()));
-        req.setStartTime(data.getStartTime());
-        req.setEndTime(data.getEndTime());
-        return req;
-    }
-
-    /**
-     * 解析类型名称为类型值
-     * @param typeName 类型名称
-     * @return 类型值
-     */
-    private Integer parseType(String typeName) {
-        if (typeName == null || typeName.trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "类型不能为空");
-        }
-        switch (typeName.trim()) {
-            case "系统": return 1;
-            case "活动": return 2;
-            case "维护": return 3;
-            case "其他": return 4;
-            default:
-                // 尝试解析数字
-                try {
-                    int val = Integer.parseInt(typeName.trim());
-                    if (val >= 1 && val <= 4) return val;
-                } catch (NumberFormatException ignored) {}
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "类型无效: " + typeName + "，应为 系统/活动/维护/其他 或 1-4");
-        }
-    }
-
-    /**
-     * 解析优先级名称为优先级值
-     * @param priorityName 优先级名称
-     * @return 优先级值
-     */
-    private Integer parsePriority(String priorityName) {
-        if (priorityName == null || priorityName.trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "优先级不能为空");
-        }
-        switch (priorityName.trim()) {
-            case "低": return 1;
-            case "中": return 2;
-            case "高": return 3;
-            case "紧急": return 4;
-            default:
-                try {
-                    int val = Integer.parseInt(priorityName.trim());
-                    if (val >= 1 && val <= 4) return val;
-                } catch (NumberFormatException ignored) {}
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "优先级无效: " + priorityName + "，应为 低/中/高/紧急 或 1-4");
-        }
-    }
-
-    /**
-     * 解析状态名称为状态值
-     * @param statusName 状态名称
-     * @return 状态值
-     */
-    private Integer parseStatus(String statusName) {
-        if (statusName == null || statusName.trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态不能为空");
-        }
-        switch (statusName.trim()) {
-            case "草稿": return 0;
-            case "发布": return 1;
-            case "下线": return 2;
-            default:
-                try {
-                    int val = Integer.parseInt(statusName.trim());
-                    if (val >= 0 && val <= 2) return val;
-                } catch (NumberFormatException ignored) {}
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态无效: " + statusName + "，应为 草稿/发布/下线 或 0-2");
-        }
-    }
-
-    /**
-     * 解析置顶状态
-     * @param isTopStr 置顶字符串
-     * @return 置顶值 (0或1)
-     */
-    private Integer parseIsTop(String isTopStr) {
-        if (isTopStr == null || isTopStr.trim().isEmpty()) {
-            return 0;
-        }
-        switch (isTopStr.trim()) {
-            case "是": return 1;
-            case "否": return 0;
-            default:
-                try {
-                    int val = Integer.parseInt(isTopStr.trim());
-                    return (val == 1) ? 1 : 0;
-                } catch (NumberFormatException ignored) {}
-                return 0;
-        }
-    }
-
-    /**
      * 验证并设置默认限制数量
      * @param limit 输入的限制数量
      * @param defaultValue 默认值
@@ -685,7 +478,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param includeDeleted 是否包含已删除的公告
      * @return 查询条件
      */
-    private QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type, String keyword, Boolean includeDeleted) {
+    QueryWrapper<Announcements> buildAnnouncementQueryWrapper(Integer status, Integer type, String keyword, Boolean includeDeleted) {
         QueryWrapper<Announcements> queryWrapper = new QueryWrapper<>();
 
         // 如果不包含已删除的公告，则只查询未删除的

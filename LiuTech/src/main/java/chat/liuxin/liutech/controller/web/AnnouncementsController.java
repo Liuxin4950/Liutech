@@ -28,6 +28,7 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.AnnouncementReq;
 import chat.liuxin.liutech.resp.AnnouncementResp;
+import chat.liuxin.liutech.service.AnnouncementImportService;
 import chat.liuxin.liutech.service.AnnouncementsService;
 // Swagger注解已移除，项目暂不使用API文档
 
@@ -41,6 +42,9 @@ public class AnnouncementsController {
 
     @Autowired
     private AnnouncementsService announcementsService;
+
+    @Autowired
+    private AnnouncementImportService announcementImportService;
 
     /**
      * 分页查询有效公告（前台用户）
@@ -307,7 +311,7 @@ public class AnnouncementsController {
         response.setCharacterEncoding("utf-8");
         String fileName = java.net.URLEncoder.encode("公告数据", "UTF-8").replaceAll("\\+", "%20");
         response.setHeader("Content-Disposition", "attachment;filename=" + fileName + ".xlsx");
-        announcementsService.exportToExcel(status, type, keyword, includeDeleted, response.getOutputStream());
+        announcementImportService.exportToExcel(status, type, keyword, includeDeleted, response.getOutputStream());
         response.getOutputStream().flush();
     }
 
@@ -328,7 +332,7 @@ public class AnnouncementsController {
         if (originalFilename == null || (!originalFilename.endsWith(".xlsx") && !originalFilename.endsWith(".xls"))) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "只支持 .xlsx 或 .xls 格式的Excel文件");
         }
-        Map<String, Object> result = announcementsService.importFromExcel(file);
+        Map<String, Object> result = announcementImportService.importFromExcel(file);
         return Result.success(result);
     }
 
