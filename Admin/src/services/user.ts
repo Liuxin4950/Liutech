@@ -1,5 +1,6 @@
 import { post, get, put, del } from './api'
 import type { ApiResponse } from './api'
+import type { PageResult } from './types'
 
 // 用户相关接口类型定义
 export interface User {
@@ -39,14 +40,6 @@ export interface UserListParams {
   status?: number  // 用户状态：0禁用，1启用
   includeDeleted?: boolean  // 是否包含已删除用户
   role?: string
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
-  pages: number
 }
 
 /**

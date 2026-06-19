@@ -1,5 +1,6 @@
 import { get, post, put, del } from './api'
 import type { ApiResponse } from './api'
+import type { PageResult } from './types'
 
 /**
  * 图片相关接口类型定义
@@ -33,14 +34,6 @@ export interface ImageListParams {
   mimeType?: string
   status?: number
   includeDeleted?: boolean
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
-  pages: number
 }
 
 /**

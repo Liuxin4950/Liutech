@@ -1,6 +1,7 @@
 import type { Dayjs } from 'dayjs'
 import { get, post, put, del } from './api'
 import type { ApiResponse } from './api'
+import type { PageResult } from './types'
 
 // 公告相关接口类型定义
 export interface Announcement {
@@ -45,14 +46,6 @@ export interface AnnouncementListParams {
   type?: number
   includeDeleted?: boolean
   keyword?: string
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
-  pages: number
 }
 
 /**

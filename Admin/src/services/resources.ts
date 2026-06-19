@@ -1,5 +1,6 @@
 import { get, post, put, del } from './api'
 import type { ApiResponse } from './api'
+import type { PageResult } from './types'
 
 // 资源相关接口类型定义
 export interface Resource {
@@ -46,14 +47,6 @@ export interface DownloadLogListParams {
   size?: number
   userId?: number
   resourceId?: number
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
-  pages: number
 }
 
 /**

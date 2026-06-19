@@ -1,5 +1,6 @@
 import { get } from './api'
 import type { ApiResponse } from './api'
+import type { PageResult } from './types'
 
 /**
  * 操作日志相关接口类型定义
@@ -23,14 +24,6 @@ export interface LogListParams {
   action?: string
   startTime?: string
   endTime?: string
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
-  pages: number
 }
 
 const ADMIN_LOGS_URL = '/admin/logs'

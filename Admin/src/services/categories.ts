@@ -1,5 +1,6 @@
 import { get, post, put, del } from './api'
 import type { ApiResponse } from './api'
+import type { PageResult } from './types'
 
 // 分类相关接口类型定义
 export interface Category {
@@ -15,14 +16,6 @@ export interface CategoryListParams {
   size?: number
   name?: string
   includeDeleted?: boolean
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
-  pages: number
 }
 
 /**

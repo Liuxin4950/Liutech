@@ -1,5 +1,6 @@
 import { get, post, put, del } from './api'
 import type { ApiResponse } from './api'
+import type { PageResult } from './types'
 
 /**
  * 轮播图接口类型定义（管理端）
@@ -24,14 +25,6 @@ export interface CarouselListParams {
   size?: number
   status?: number
   includeDeleted?: boolean
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
-  pages: number
 }
 
 export interface CarouselFormData {

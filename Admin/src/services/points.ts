@@ -1,6 +1,6 @@
 import { get, post } from './api'
 import type { ApiResponse } from './api'
-import type { PageResult } from './user'
+import type { PageResult } from './types'
 
 // 积分流水记录
 export interface PointsTransaction {

@@ -1,5 +1,6 @@
 import { get, post, put, del } from './api'
 import type { ApiResponse } from './api'
+import type { PageResult } from './types'
 
 // 评论相关接口类型定义
 export interface Comment {
@@ -29,14 +30,6 @@ export interface CommentListParams {
   userId?: number
   status?: string
   includeDeleted?: boolean
-}
-
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  current: number
-  size: number
-  pages: number
 }
 
 /**
