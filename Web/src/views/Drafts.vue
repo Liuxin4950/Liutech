@@ -190,7 +190,7 @@ onMounted(async () => {
       <!-- 草稿列表 -->
       <div v-else class="drafts-list">
         <div v-for="draft in filteredDrafts" :key="draft.id" class="draft-card bg-card gap-12">
-          <img v-if="draft.thumbnail" class="fit" :src="draft.coverImage" alt="" loading="lazy" @error="handleImageError">
+          <img v-if="draft.thumbnail" class="fit" :src="draft.thumbnail" alt="" loading="lazy" @error="handleImageError">
           <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="" loading="lazy" @error="handleImageError">
           <img v-else class="fit" src="@/assets/image/err.png" alt="" loading="lazy">
           <div class="draft-content flex flex-col gap-12">
@@ -234,7 +234,7 @@ onMounted(async () => {
 
     <!-- 分页器 -->
     <Pagination class="mt-24"
-      v-if="!loading && drafts.length > 0"
+      v-if="!loading && filteredDrafts.length > 0"
       :current-page="currentPage"
       :total-pages="totalPages"
       @page-change="changePage"
