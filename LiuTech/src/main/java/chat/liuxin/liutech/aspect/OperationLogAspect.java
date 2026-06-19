@@ -14,7 +14,6 @@ import chat.liuxin.liutech.model.AdminLogs;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.service.LogService;
 import chat.liuxin.liutech.utils.UserUtils;
-import chat.liuxin.liutech.utils.RequestUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 
@@ -74,7 +73,7 @@ public class OperationLogAspect {
         }
 
         if (request != null) {
-            logEntry.setIp(RequestUtils.getClientIp(request));
+            logEntry.setIp(getClientIp(request));
             logEntry.setUserAgent(request.getHeader("User-Agent"));
         }
 
@@ -96,5 +95,28 @@ public class OperationLogAspect {
         logEntry.setDescription(description);
 
         logService.saveLog(logEntry);
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        if (request == null) {
+            return "unknown";
+        }
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
+            return ip.split(",")[0].trim();
+        }
+        ip = request.getHeader("X-Real-IP");
+        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
+            return ip;
+        }
+        ip = request.getHeader("Proxy-Client-IP");
+        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
+            return ip;
+        }
+        ip = request.getHeader("WL-Proxy-Client-IP");
+        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
+            return ip;
+        }
+        return request.getRemoteAddr();
     }
 }
