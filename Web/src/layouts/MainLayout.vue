@@ -14,7 +14,7 @@ import LoginModal from '@/components/LoginModal.vue'
 import GlobalSearchModal from '@/components/GlobalSearchModal.vue'
 import { requireAuth } from '@/utils/auth'
 import { useChatStore } from '@/stores/chat'
-import { useTtsPlayer } from '@/composables/useTtsPlayer'
+import { getServiceBaseURL, ServiceType } from '@/config/services'
 import { useOnboarding } from '@/composables/useOnboarding'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
 
@@ -57,8 +57,167 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
   }
 }
 
-// TTS 播放器：负责音频队列消费、表情同步、autoplay 处理
-const { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio } = useTtsPlayer(chatStore, live2dRef, showModel)
+// TTS 播放器（内联，仅本组件使用）
+function useTtsPlayer() {
+  let isTtsPlaying = false
+  let playbackToken = 0
+  let currentTtsAudio: HTMLAudioElement | null = null
+  let isApplyingAvatarCue = false
+  let audioUnlocked = false
+
+  function resolveTtsPlayUrl(audioUrl?: string): string {
+    if (!audioUrl) return ''
+    if (audioUrl.startsWith('/')) {
+      const base = getServiceBaseURL(ServiceType.MAIN).replace(/\/$/, '')
+      if (base.startsWith('/') && audioUrl.startsWith(`${base}/`)) return audioUrl
+      return `${base}${audioUrl}`
+    }
+    return audioUrl
+  }
+
+  function stopTtsPlayback() {
+    playbackToken++
+    try { currentTtsAudio?.pause() } catch {}
+    currentTtsAudio = null
+    isTtsPlaying = false
+    live2dRef.value?.resumeMusicAfterSpeechIfNeeded?.()
+  }
+
+  function waitOnce(audio: HTMLAudioElement, event: string, timeoutMs: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      let done = false
+      const timer = window.setTimeout(() => {
+        if (done) return
+        done = true
+        resolve(false)
+      }, timeoutMs)
+      audio.addEventListener(event, () => {
+        if (done) return
+        done = true
+        window.clearTimeout(timer)
+        resolve(true)
+      }, { once: true })
+    })
+  }
+
+  const delay = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms))
+
+  async function playNextTts() {
+    if (isTtsPlaying) return
+    if (chatStore.ttsEnabled !== true || chatStore.ttsAvailable !== true) return
+    if (!live2dRef.value) return
+
+    const token = playbackToken
+    isTtsPlaying = true
+
+    try {
+      while (token === playbackToken) {
+        if (chatStore.ttsEnabled !== true || chatStore.ttsAvailable !== true) break
+        if (!live2dRef.value) break
+
+        const next = chatStore.shiftTtsAudioQueue()
+        if (!next) break
+
+        if (next.cue && next.cue.expression !== 'neutral') {
+          live2dRef.value.applyAvatarCue?.({ ...next.cue, skipResetTimer: true })
+        }
+
+        if (next.status === 'skipped') {
+          console.warn(`[TTS][skip] seq=${next.seq} reason=${next.reason ?? 'unknown'}`)
+          continue
+        }
+
+        const playUrl = resolveTtsPlayUrl(next.audioUrl)
+        if (!playUrl) continue
+
+        let audio = next.audioEl
+          ? await live2dRef.value.speakAudioElement(next.audioEl)
+          : await live2dRef.value.speakAudioUrl(playUrl)
+        if (!audio) continue
+        currentTtsAudio = audio
+
+        let started = false
+        for (let attempt = 0; attempt < 6 && token === playbackToken; attempt++) {
+          try {
+            await audio.play()
+            started = true
+            break
+          } catch (e: any) {
+            if (e?.name === 'NotAllowedError') break
+            try { audio.pause() } catch {}
+            currentTtsAudio = null
+            await delay(250 + attempt * 200)
+            if (!live2dRef.value) break
+            const retryAudio = await live2dRef.value.speakAudioUrl(playUrl)
+            if (!retryAudio) break
+            audio = retryAudio
+            currentTtsAudio = audio
+          }
+        }
+
+        if (!started) {
+          try { currentTtsAudio?.pause() } catch {}
+          currentTtsAudio = null
+          continue
+        }
+
+        await Promise.race([
+          waitOnce(audio, 'ended', 60000),
+          waitOnce(audio, 'error', 60000),
+          waitOnce(audio, 'pause', 60000)
+        ])
+
+        currentTtsAudio = null
+      }
+    } finally {
+      if (token === playbackToken) {
+        isTtsPlaying = false
+        live2dRef.value?.applyAvatarCue?.({ expression: 'neutral' })
+        live2dRef.value?.resumeMusicAfterSpeechIfNeeded?.()
+      }
+    }
+  }
+
+  async function applyNextAvatarCues() {
+    if (isApplyingAvatarCue) return
+    if (isTtsPlaying || chatStore.ttsAwaitingAudio || chatStore.ttsPendingCount > 0) return
+    if (!live2dRef.value || !showModel.value) return
+    isApplyingAvatarCue = true
+    try {
+      while (live2dRef.value && showModel.value) {
+        const next = chatStore.shiftAvatarCueQueue()
+        if (!next) break
+        live2dRef.value.applyAvatarCue?.(next)
+        await delay(120)
+      }
+    } finally {
+      isApplyingAvatarCue = false
+    }
+  }
+
+  async function unlockAudio() {
+    if (audioUnlocked) return
+    audioUnlocked = true
+    try {
+      const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined
+      if (!Ctx) return
+      const ctx = new Ctx()
+      const gain = ctx.createGain()
+      gain.gain.value = 0
+      const osc = ctx.createOscillator()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      try { await ctx.resume() } catch {}
+      osc.start()
+      osc.stop(ctx.currentTime + 0.01)
+      window.setTimeout(() => { ctx.close().catch(() => {}) }, 50)
+    } catch {}
+  }
+
+  return { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio }
+}
+
+const { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio } = useTtsPlayer()
 
 const handleExternalChatOpen = (event: Event) => {
   showModel.value = true
