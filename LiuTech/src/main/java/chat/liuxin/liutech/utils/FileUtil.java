@@ -1,9 +1,6 @@
 package chat.liuxin.liutech.utils;
 
 import chat.liuxin.liutech.config.FileUploadConfig;
-import chat.liuxin.liutech.mapper.ImagesMapper;
-import chat.liuxin.liutech.model.Images;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,9 +36,6 @@ public class FileUtil {
 
     @Autowired
     private FileUploadConfig fileUploadConfig;
-
-    @Autowired
-    private ImagesMapper imagesMapper;
 
     /** 图片URL提取正则：匹配 <img src="URL">，支持属性换行和多种格式 */
     private static final Pattern IMG_SRC_PATTERN = Pattern.compile(
@@ -359,76 +353,5 @@ public class FileUtil {
         }
 
         return urls;
-    }
-
-    public int incrementImageUsageCountByUrl(String url, int delta) {
-        String relativePath = normalizeToRelativePath(url);
-        if (relativePath == null) {
-            return 0;
-        }
-
-        LambdaQueryWrapper<Images> query = new LambdaQueryWrapper<>();
-        query.eq(Images::getFilePath, relativePath)
-                .isNull(Images::getDeletedAt)
-                .eq(Images::getStatus, 1);
-        Images image = imagesMapper.selectOne(query);
-        if (image == null) {
-            return 0;
-        }
-        return imagesMapper.incrementUsageCount(image.getId(), delta);
-    }
-
-    public int decrementImageUsageCountByUrl(String url) {
-        return incrementImageUsageCountByUrl(url, -1);
-    }
-
-    private String normalizeToRelativePath(String fileUrlOrRelativePath) {
-        if (fileUrlOrRelativePath == null || fileUrlOrRelativePath.isEmpty()) {
-            return null;
-        }
-
-        String relativePath = extractRelativePath(fileUrlOrRelativePath);
-        if (relativePath != null && !relativePath.isEmpty()) {
-            return relativePath;
-        }
-
-        if (fileUrlOrRelativePath.contains("://")) {
-            return null;
-        }
-
-        String value = fileUrlOrRelativePath.trim();
-        if (value.startsWith("/")) {
-            value = value.substring(1);
-        }
-        if (value.startsWith("uploads/")) {
-            value = value.substring("uploads/".length());
-        }
-        if (value.isEmpty()) {
-            return null;
-        }
-        return value;
-    }
-
-    /**
-     * 根据URL获取图片记录
-     *
-     * @param url 图片URL
-     * @return 图片记录，不存在或已删除返回null
-     */
-    public Images getImageByUrl(String url) {
-        if (url == null || url.isEmpty()) {
-            return null;
-        }
-
-        String relativePath = extractRelativePath(url);
-        if (relativePath == null) {
-            return null;
-        }
-
-        LambdaQueryWrapper<Images> query = new LambdaQueryWrapper<>();
-        query.eq(Images::getFilePath, relativePath)
-             .isNull(Images::getDeletedAt)
-             .eq(Images::getStatus, 1);
-        return imagesMapper.selectOne(query);
     }
 }

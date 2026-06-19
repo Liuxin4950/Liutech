@@ -5,7 +5,11 @@ import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.ChatResponse;
 import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
-import chat.liuxin.ai.service.*;
+import chat.liuxin.ai.service.AiChatService;
+import chat.liuxin.ai.service.MemoryService;
+import chat.liuxin.ai.service.PromptService;
+import chat.liuxin.ai.service.SiliconFlowChatClient;
+import chat.liuxin.ai.service.StreamingChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -30,7 +34,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final AiMetrics aiMetrics;
-    private final PromptAssembler promptAssembler;
+    private final PromptService promptService;
     private final AiModelPolicy aiModelPolicy;
     private final StreamingChatService streamingChatService;
 
@@ -128,7 +132,7 @@ public class AiChatServiceImpl implements AiChatService {
     // ==================== 内部工具 ====================
 
     private List<Message> prepareMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode) {
-        List<Message> messages = promptAssembler.assemble(request, userId, conversationId, guestMode);
+        List<Message> messages = promptService.assemble(request, userId, conversationId, guestMode, memoryService);
         messages.add(new UserMessage(request.getMessage() != null ? request.getMessage() : ""));
         return messages;
     }

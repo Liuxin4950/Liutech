@@ -29,7 +29,7 @@ class AiChatServiceImplTest {
     private AiMetrics aiMetrics;
     private AiModelConfigService aiModelConfigService;
     private TtsClient ttsClient;
-    private PromptAssembler promptAssembler;
+    private PromptService promptService;
     private AiModelPolicy aiModelPolicy;
     private SensitiveLogSanitizer sensitiveLogSanitizer;
     private TtsSegmenter ttsSegmenter;
@@ -45,7 +45,7 @@ class AiChatServiceImplTest {
         aiMetrics = mock(AiMetrics.class);
         aiModelConfigService = mock(AiModelConfigService.class);
         ttsClient = mock(TtsClient.class);
-        promptAssembler = mock(PromptAssembler.class);
+        promptService = mock(PromptService.class);
         streamingChatService = mock(StreamingChatService.class);
         aiModelPolicy = new AiModelPolicy(aiModelConfigService);
         sensitiveLogSanitizer = new SensitiveLogSanitizer();
@@ -57,7 +57,7 @@ class AiChatServiceImplTest {
 
         service = new AiChatServiceImpl(
                 siliconFlowChatClient, memoryService, aiMetrics,
-                promptAssembler, aiModelPolicy, streamingChatService
+                promptService, aiModelPolicy, streamingChatService
         );
 
         resolveModelNameMethod = AiChatServiceImpl.class.getDeclaredMethod("resolveModelName", ChatRequest.class);

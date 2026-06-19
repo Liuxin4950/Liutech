@@ -22,7 +22,6 @@ import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.model.Carousel;
 import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.resp.CarouselResp;
-import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -43,10 +42,10 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
     private CarouselMapper carouselMapper;
 
     @Autowired
-    private FileUtil fileUtil;
+    private ImagesMapper imagesMapper;
 
     @Autowired
-    private ImagesMapper imagesMapper;
+    private ImagesService imagesService;
 
     /**
      * 获取启用的轮播图列表（前台展示）
@@ -402,7 +401,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             return;
         }
         try {
-            Images img = fileUtil.getImageByUrl(imageUrl);
+            Images img = imagesService.getImageByUrl(imageUrl);
             if (img != null && img.getDeletedAt() == null) {
                 imagesMapper.incrementUsageCount(img.getId(), 1);
                 log.debug("轮播图增加图片引用: {} -> {}", imageUrl, img.getUsageCount() + 1);
@@ -421,7 +420,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
             return;
         }
         try {
-            Images img = fileUtil.getImageByUrl(imageUrl);
+            Images img = imagesService.getImageByUrl(imageUrl);
             if (img != null) {
                 // 无论图片是否已软删除，都减少 usage_count
                 imagesMapper.incrementUsageCount(img.getId(), -1);

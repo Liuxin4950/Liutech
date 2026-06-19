@@ -82,6 +82,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     @Autowired
     private FileUtil fileUtil;
 
+    @Autowired
+    private ImagesService imagesService;
+
     /**
      * 分页查询文章列表（公开接口）
      * 支持按分类、标签、关键词、状态、作者等条件进行筛选
@@ -654,7 +657,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             if (delta == null || delta == 0) {
                 continue;
             }
-            fileUtil.incrementImageUsageCountByUrl(entry.getKey(), delta);
+            imagesService.incrementImageUsageCountByUrl(entry.getKey(), delta);
         }
     }
 
@@ -1247,7 +1250,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             }
 
             for (String url : imageUrls) {
-                fileUtil.decrementImageUsageCountByUrl(url);
+                imagesService.decrementImageUsageCountByUrl(url);
             }
 
             log.info("彻底删除文章成功，文章ID: {}, 操作者: {}", id, updatedBy);
@@ -1295,7 +1298,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             postsMapper.permanentDeleteByIds(ids);
 
             for (String url : imageUrls) {
-                fileUtil.decrementImageUsageCountByUrl(url);
+                imagesService.decrementImageUsageCountByUrl(url);
             }
 
             log.info("批量彻底删除文章成功，文章ID: {}, 操作者: {}", ids, updatedBy);

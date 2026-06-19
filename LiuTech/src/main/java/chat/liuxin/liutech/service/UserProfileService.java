@@ -14,7 +14,6 @@ import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.resp.UserStatsResp;
 import chat.liuxin.liutech.resp.ProfileResp;
-import chat.liuxin.liutech.utils.FileUtil;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -58,7 +57,7 @@ public class UserProfileService {
     private ImagesMapper imagesMapper;
 
     @Autowired
-    private FileUtil fileUtil;
+    private ImagesService imagesService;
 
     @Autowired
     private SystemSettingMapper systemSettingMapper;
@@ -365,7 +364,7 @@ public class UserProfileService {
             return;
         }
         try {
-            Images img = fileUtil.getImageByUrl(imageUrl);
+            Images img = imagesService.getImageByUrl(imageUrl);
             if (img != null && img.getDeletedAt() == null) {
                 imagesMapper.incrementUsageCount(img.getId(), 1);
                 log.debug("用户头像增加引用: {} -> {}", imageUrl, img.getUsageCount() + 1);
@@ -384,7 +383,7 @@ public class UserProfileService {
             return;
         }
         try {
-            Images img = fileUtil.getImageByUrl(imageUrl);
+            Images img = imagesService.getImageByUrl(imageUrl);
             if (img != null && img.getDeletedAt() == null) {
                 imagesMapper.incrementUsageCount(img.getId(), -1);
                 log.debug("用户头像减少引用: {} -> {}", imageUrl, Math.max(0, img.getUsageCount() - 1));

@@ -42,7 +42,7 @@ public class StreamingChatService {
 
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
-    private final PromptAssembler promptAssembler;
+    private final PromptService promptService;
     private final TtsClient ttsClient;
     private final TtsSegmenter ttsSegmenter;
     private final AvatarCueService avatarCueService;
@@ -363,7 +363,7 @@ public class StreamingChatService {
     // ==================== 内部工具 ====================
 
     private List<Message> prepareMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode) {
-        List<Message> messages = promptAssembler.assemble(request, userId, conversationId, guestMode);
+        List<Message> messages = promptService.assemble(request, userId, conversationId, guestMode, memoryService);
         messages.add(new UserMessage(request.getMessage() != null ? request.getMessage() : ""));
         return messages;
     }

@@ -14,7 +14,6 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.config.FileUploadConfig;
-import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.mapper.MusicMapper;
 import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Music;
@@ -39,7 +38,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
     private FileUploadConfig fileUploadConfig;
 
     @Autowired
-    private ImagesMapper imagesMapper;
+    private ImagesService imagesService;
 
     /**
      * 获取启用的音乐列表
@@ -287,9 +286,9 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
             return;
         }
         try {
-            Images img = fileUtil.getImageByUrl(coverUrl);
+            Images img = imagesService.getImageByUrl(coverUrl);
             if (img != null && img.getDeletedAt() == null) {
-                imagesMapper.incrementUsageCount(img.getId(), 1);
+                imagesService.incrementUsageCount(img.getId(), 1);
                 log.debug("音乐封面增加引用: {} -> {}", coverUrl, img.getUsageCount() + 1);
             }
         } catch (Exception e) {
@@ -306,10 +305,10 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
             return;
         }
         try {
-            Images img = fileUtil.getImageByUrl(coverUrl);
+            Images img = imagesService.getImageByUrl(coverUrl);
             if (img != null) {
                 // 无论图片是否已软删除，都减少 usage_count
-                imagesMapper.incrementUsageCount(img.getId(), -1);
+                imagesService.incrementUsageCount(img.getId(), -1);
                 log.debug("音乐封面减少引用: {} -> {}", coverUrl, Math.max(0, img.getUsageCount() - 1));
             }
         } catch (Exception e) {
