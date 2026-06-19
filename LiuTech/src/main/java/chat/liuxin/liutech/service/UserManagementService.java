@@ -6,8 +6,8 @@ import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.resp.PageResp;
-import chat.liuxin.liutech.utils.BeanConvertUtil;
 import chat.liuxin.liutech.utils.UserUtils;
+import org.springframework.beans.BeanUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -76,8 +76,21 @@ public class UserManagementService {
     /**
      * 转换为用户响应对象（脱敏）
      */
-    private UserResp convertToUserResl(Users user) {
-        return BeanConvertUtil.convertToUserResl(user);
+    private UserResp toUserResp(Users user) {
+        if (user == null) {
+            return null;
+        }
+        UserResp resp = new UserResp();
+        BeanUtils.copyProperties(user, resp);
+        resp.setPasswordHash(null);
+        return resp;
+    }
+
+    private List<UserResp> toUserRespList(List<Users> users) {
+        if (users == null || users.isEmpty()) {
+            return List.of();
+        }
+        return users.stream().map(this::toUserResp).toList();
     }
 
     /**
@@ -117,7 +130,7 @@ public class UserManagementService {
             log.warn("用户不存在，ID: {}", id);
             throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
-        return BeanConvertUtil.convertToUserResl(user);
+        return toUserResp(user);
     }
 
     /**
@@ -129,14 +142,14 @@ public class UserManagementService {
             log.warn("用户不存在，用户名: {}", username);
             throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
         }
-        return BeanConvertUtil.convertToUserReslList(users);
+        return toUserRespList(users);
     }
 
     /**
      * 查询所有用户
      */
     private List<UserResp> getAllUsers() {
-        return BeanConvertUtil.convertToUserReslList(userMapper.selectList(null));
+        return toUserRespList(userMapper.selectList(null));
     }
 
     /**
