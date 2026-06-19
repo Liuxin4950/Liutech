@@ -6,8 +6,8 @@ import { AiStream, StreamError } from '@/services/aiStream'
 import { isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
 import { useUserStore } from '@/stores/user'
-import { useSequencedBuffer } from '@/composables/useSequencedBuffer'
-import { getServiceBaseURL, ServiceType } from '@/config/services'
+import { useChatTts } from '@/composables/chatTts'
+import { useChatAgent } from '@/composables/chatAgent'
 
 /**
  * 聊天消息接口
@@ -128,10 +128,8 @@ export const useChatStore = defineStore('chat', () => {
   const ttsAvailable = ref<boolean>(false)
   const ttsAwaitingAudio = ref<boolean>(false)
 
-  // 语音片段和表情提示的顺序缓冲区
-  // 解决问题：SSE 事件到达顺序不一定等于播放顺序，通过 seq 保证严格按序消费
-  const ttsAudioQueue = useSequencedBuffer<TtsAudioItem>()
-  const avatarCueQueue = useSequencedBuffer<AvatarCueItem>()
+  // TTS 音频队列 + Avatar Cue 管理（拆分到 composables/chatTts.ts）
+  const chatTts = useChatTts({ ttsEnabled, ttsAvailable, ttsAwaitingAudio })
 
   // 生成临时消息ID（使用负数，避免与后端返回的正数ID冲突）
   let messageIdCounter = 0
@@ -229,7 +227,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   const setTtsEnabled = (enabled: boolean) => {
-    ttsEnabled.value = enabled
+    chatTts.setTtsEnabled(enabled)
     try {
       const storage = getStorage()
       storage.setItem(isGuestSession() ? GUEST_TTS_ENABLED_KEY : TTS_ENABLED_KEY, String(enabled))
@@ -237,64 +235,14 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const setTtsAvailable = (available: boolean) => {
-    ttsAvailable.value = available
-    if (!available) {
-      ttsAwaitingAudio.value = false
-      setTtsEnabled(false)
-    }
-  }
-
-  const clearTtsAudioQueue = () => ttsAudioQueue.clear()
-  const clearAvatarCueQueue = () => avatarCueQueue.clear()
-
-  const resolveTtsAudioUrl = (audioUrl?: string): string => {
-    if (!audioUrl) return ''
-    if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) return audioUrl
-    const base = getServiceBaseURL(ServiceType.MAIN).replace(/\/$/, '')
-    if (base.startsWith('/') && audioUrl.startsWith(`${base}/`)) return audioUrl
-    if (audioUrl.startsWith('/')) return `${base}${audioUrl}`
-    return `${base}/${audioUrl}`
-  }
-
-  const enqueueTtsAudio = (item: TtsAudioItem) => {
-    if (!item) return
-    if (typeof item.seq !== 'number' || item.seq <= 0) return
-    const now = Date.now()
-    const enriched: TtsAudioItem = {
-      ...item,
-      status: item.status ?? (item.audioUrl ? 'ready' : 'skipped'),
-      enqueuedAt: item.enqueuedAt ?? now
-    }
-    if (enriched.status === 'ready' && enriched.audioUrl) {
-      try {
-        enriched.audioUrl = resolveTtsAudioUrl(enriched.audioUrl)
-        // 收到音频地址后立即预加载，尽量把“网络/磁盘等待”提前到播放之前完成
-        const pre = new Audio(enriched.audioUrl)
-        pre.preload = 'auto'
-        pre.crossOrigin = 'anonymous'
-        pre.load()
-        enriched.audioEl = pre
-      } catch {
-      }
-    }
-    // 绑定对应的 avatar-cue，让音频播放时表情同步切换
-    const cue = avatarCueQueue.shiftBySeq(item.seq)
-    if (cue) {
-      enriched.cue = cue
-    }
-    ttsAudioQueue.enqueue(enriched)
-  }
-
-  const shiftTtsAudioQueue = (): TtsAudioItem | null => ttsAudioQueue.shift()
-
-  const enqueueAvatarCue = (item: AvatarCueItem) => {
-    if (!item) return
-    avatarCueQueue.enqueue({ ...item, enqueuedAt: item.enqueuedAt ?? Date.now() })
-  }
-
-  const shiftAvatarCueQueue = (): AvatarCueItem | null => avatarCueQueue.shift()
-  const shiftAvatarCueQueueBySeq = (seq: number): AvatarCueItem | null => avatarCueQueue.shiftBySeq(seq)
+  const setTtsAvailable = (available: boolean) => chatTts.setTtsAvailable(available)
+  const clearTtsAudioQueue = () => chatTts.clearTtsAudioQueue()
+  const clearAvatarCueQueue = () => chatTts.clearAvatarCueQueue()
+  const enqueueTtsAudio = (item: TtsAudioItem) => chatTts.enqueueTtsAudio(item)
+  const shiftTtsAudioQueue = (): TtsAudioItem | null => chatTts.shiftTtsAudioQueue()
+  const enqueueAvatarCue = (item: AvatarCueItem) => chatTts.enqueueAvatarCue(item)
+  const shiftAvatarCueQueue = (): AvatarCueItem | null => chatTts.shiftAvatarCueQueue()
+  const shiftAvatarCueQueueBySeq = (seq: number): AvatarCueItem | null => chatTts.shiftAvatarCueQueueBySeq(seq)
 
   /**
    * 清理localStorage
@@ -372,56 +320,8 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const attachAgentPlan = (messageId: number, steps?: AgentPlanStep[]) => {
-    const message = messages.value.find(msg => msg.id === messageId)
-    if (!message || !steps) return
-    message.agentPlanSteps = steps
-  }
-
-  const attachAgentStart = (messageId: number, payload: { intent?: string; role?: string }) => {
-    const message = messages.value.find(msg => msg.id === messageId)
-    if (!message || !payload) return
-    message.agentIntent = payload.intent
-    message.agentRole = payload.role
-    message.showAgentTrace = false
-  }
-
-  const upsertToolEvent = (messageId: number, payload: { toolName: string; displayName?: string; inputSummary?: string; success?: boolean; durationMs?: number; resultSummary?: string; errorMessage?: string }, status: AgentToolEvent['status']) => {
-    const message = messages.value.find(msg => msg.id === messageId)
-    if (!message || !payload?.toolName) return
-    const next: AgentToolEvent = {
-      toolName: payload.toolName,
-      displayName: payload.displayName || payload.toolName,
-      inputSummary: payload.inputSummary,
-      success: payload.success,
-      durationMs: payload.durationMs,
-      resultSummary: payload.resultSummary,
-      errorMessage: payload.errorMessage,
-      status
-    }
-    const events = message.agentToolEvents || []
-    const index = events.findIndex(item => item.toolName === payload.toolName && item.status === 'running')
-    if (index >= 0 && status !== 'running') {
-      events[index] = next
-    } else {
-      events.push(next)
-    }
-    message.agentToolEvents = events
-    message.isThinking = false
-  }
-
-  const attachConfirmation = (messageId: number, payload: { actionId: number; actionType: string; title: string; description: string; riskLevel?: string }) => {
-    const message = messages.value.find(msg => msg.id === messageId)
-    if (!message || !payload) return
-    message.confirmation = {
-      actionId: payload.actionId,
-      actionType: payload.actionType,
-      title: payload.title,
-      description: payload.description,
-      riskLevel: payload.riskLevel
-    }
-    message.isThinking = false
-  }
+  // Agent 事件辅助函数（拆分到 composables/chatAgent.ts）
+  const { attachAgentPlan, attachAgentStart, upsertToolEvent, attachConfirmation } = useChatAgent(messages)
 
   /**
    * 完成流式消息
@@ -887,8 +787,8 @@ export const useChatStore = defineStore('chat', () => {
     ttsEnabled,
     ttsAvailable,
     ttsAwaitingAudio,
-    ttsPendingCount: ttsAudioQueue.pendingCount,
-    avatarCuePendingCount: avatarCueQueue.pendingCount,
+    ttsPendingCount: chatTts.ttsAudioQueue.pendingCount,
+    avatarCuePendingCount: chatTts.avatarCueQueue.pendingCount,
 
     // 计算属性
     hasMessages,
