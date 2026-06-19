@@ -6,11 +6,11 @@
 <mapper namespace="chat.liuxin.liutech.mapper.UserMapper">
 
     <select id="findByUserName" parameterType="string" resultType="chat.liuxin.liutech.model.Users">
-        SELECT * FROM users WHERE username = #{username}
+        SELECT id, username, email, password_hash, avatar_url, points, version, role, status, last_login_at, nickname, bio, created_at, updated_at, created_by, updated_by, deleted_at FROM users WHERE username = #{username}
     </select>
 
     <select id="findByEmail" parameterType="string" resultType="chat.liuxin.liutech.model.Users">
-        SELECT * FROM users WHERE email = #{email}
+        SELECT id, username, email, password_hash, avatar_url, points, version, role, status, last_login_at, nickname, bio, created_at, updated_at, created_by, updated_by, deleted_at FROM users WHERE email = #{email}
     </select>
 
     <!-- 管理端分页查询用户列表 -->
