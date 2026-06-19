@@ -85,45 +85,54 @@ public class SecurityConfig {
                 })
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // 白名单配置：公开接口
-            .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/").permitAll()
-                .requestMatchers("/user/register", "/user/login").permitAll()
-                .requestMatchers("/user/forgot-password", "/user/reset-password").permitAll()
-                .requestMatchers("/user/login/email/send", "/user/login/email/verify").permitAll()
-                .requestMatchers("/user/register/send-code").permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/admin/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/posts/my").authenticated()
-                .requestMatchers(HttpMethod.GET, "/posts/drafts").authenticated()
-                .requestMatchers(HttpMethod.GET, "/posts/favorites").authenticated()
-                .requestMatchers(HttpMethod.GET, "/sitemap.xml", "/sitemap/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/posts/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/tags/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/comments/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/messages/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/messages").permitAll()
-                .requestMatchers("/announcements/admin/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/announcements/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/carousels").permitAll()
-                .requestMatchers(HttpMethod.GET, "/user/author/profile").permitAll()
-                .requestMatchers(HttpMethod.GET, "/author/profile").permitAll()
-                .requestMatchers(HttpMethod.GET, "/tts/status", "/tts/audio/**").permitAll()
-                .requestMatchers(HttpMethod.HEAD, "/tts/audio/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/tts/speech").permitAll()
-                .requestMatchers(HttpMethod.GET, "/runtime/ai").permitAll()
-                .requestMatchers(HttpMethod.GET, "/resources/**").denyAll()
-                .requestMatchers(HttpMethod.HEAD, "/resources/**").denyAll()
-                .requestMatchers(HttpMethod.GET, "/uploads/resources/**").denyAll()
-                .requestMatchers(HttpMethod.HEAD, "/uploads/resources/**").denyAll()
-                .requestMatchers(HttpMethod.GET, "/uploads/images/**", "/uploads/documents/**", "/uploads/music/**").permitAll()
-                .requestMatchers(HttpMethod.HEAD, "/uploads/images/**", "/uploads/documents/**", "/uploads/music/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/music/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/upload/**").authenticated()
+            // 白名单配置：公开接口（统一使用 SecurityWhitelist，与 JwtAuthenticationFilter 同源）
+            .authorizeHttpRequests(authz -> {
+                // OPTIONS 预检请求
+                authz.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
 
-                .anyRequest().authenticated()
-            )
+                // 完全公开路径（任意方法）
+                for (String path : SecurityWhitelist.FULLY_PUBLIC) {
+                    authz.requestMatchers(path).permitAll();
+                }
+
+                // 需认证的路径（在公开前缀下但需要登录）
+                for (String path : SecurityWhitelist.AUTHENTICATED_PATHS) {
+                    authz.requestMatchers(HttpMethod.GET, path).authenticated();
+                }
+
+                // GET 公开精确路径
+                authz.requestMatchers(HttpMethod.GET,
+                        SecurityWhitelist.PUBLIC_GET_EXACT.toArray(new String[0])).permitAll();
+
+                // GET 公开前缀路径
+                for (String prefix : SecurityWhitelist.PUBLIC_GET_PREFIXES) {
+                    authz.requestMatchers(HttpMethod.GET, prefix + "**").permitAll();
+                }
+
+                // HEAD 公开前缀路径
+                for (String prefix : SecurityWhitelist.PUBLIC_HEAD_PREFIXES) {
+                    authz.requestMatchers(HttpMethod.HEAD, prefix + "**").permitAll();
+                }
+
+                // POST 公开精确路径
+                authz.requestMatchers(HttpMethod.POST,
+                        SecurityWhitelist.PUBLIC_POST_EXACT.toArray(new String[0])).permitAll();
+
+                // 拒绝访问的路径（GET/HEAD）
+                for (String prefix : SecurityWhitelist.DENY_PREFIXES) {
+                    authz.requestMatchers(HttpMethod.GET, prefix + "**").denyAll();
+                    authz.requestMatchers(HttpMethod.HEAD, prefix + "**").denyAll();
+                }
+
+                // 管理后台
+                authz.requestMatchers("/admin/**").hasRole("ADMIN");
+                authz.requestMatchers("/announcements/admin/**").hasRole("ADMIN");
+
+                // 上传需认证
+                authz.requestMatchers(HttpMethod.POST, "/upload/**").authenticated();
+
+                authz.anyRequest().authenticated();
+            })
             // 依赖：JwtAuthenticationFilter 提供身份认证上下文
             .addFilterBefore(requestTraceFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
