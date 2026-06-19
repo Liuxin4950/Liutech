@@ -339,6 +339,7 @@ onMounted(() => {
               <a-select
                 v-model:value="form.defaultModelId"
                 placeholder="请选择默认模型"
+                allow-clear
                 :options="modelOptions.filter(item => item.isEnabled).map(item => ({ value: item.id, label: `${item.displayName} (${item.modelName})` }))"
               />
             </a-form-item>
