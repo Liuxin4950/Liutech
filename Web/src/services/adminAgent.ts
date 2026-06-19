@@ -133,43 +133,43 @@ export class AdminAgentService {
       if (line.startsWith('data:')) dataLines.push(line.substring(5).trim())
     }
     if (!dataLines.length) return
-    let raw: unknown
+    let payload: unknown
     try {
-      raw = JSON.parse(dataLines.join('\n'))
+      payload = JSON.parse(dataLines.join('\n'))
     } catch {
       return
     }
-    let payload = raw as Record<string, unknown> | null
-    if (payload?.contractVersion === CONTRACT_VERSION) {
-      const envelope = payload as SseEnvelope
-      eventType = envelope.event
-      payload = envelope.payload
+    if ((payload as SseEnvelope)?.contractVersion === CONTRACT_VERSION) {
+      const envelope = (payload as SseEnvelope).payload as Record<string, unknown>
+      eventType = (payload as SseEnvelope).event
+      payload = envelope
     }
+    const p = payload as Record<string, unknown> | null
     switch (eventType) {
       case 'data':
-        handlers.onData?.(payload?.content || '')
+        handlers.onData?.((p?.content as string) || '')
         break
       case 'agent-plan':
-        handlers.onPlan?.(payload?.steps || [])
+        handlers.onPlan?.((p?.steps as AgentPlanStep[]) || [])
         break
       case 'tool-start':
-        handlers.onToolStart?.(payload as ToolEventPayload)
+        handlers.onToolStart?.(p as unknown as ToolEventPayload)
         break
       case 'tool-result':
-        handlers.onToolResult?.(payload as ToolEventPayload)
+        handlers.onToolResult?.(p as unknown as ToolEventPayload)
         break
       case 'writing-draft':
-        handlers.onWritingDraft?.(payload as WritingDraftPayload)
+        handlers.onWritingDraft?.(p as unknown as WritingDraftPayload)
         break
       case 'field-update':
-        handlers.onFieldUpdate?.(payload as FieldUpdatePayload)
+        handlers.onFieldUpdate?.(p as unknown as FieldUpdatePayload)
         break
       case 'complete':
         handlers.onComplete?.()
         flags?.complete?.()
         break
       case 'error':
-        handlers.onError?.(payload?.message || '写作助手执行失败')
+        handlers.onError?.((p?.message as string) || '写作助手执行失败')
         flags?.error?.()
         break
     }
