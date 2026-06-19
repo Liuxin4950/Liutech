@@ -332,15 +332,6 @@ export class PostService {
   }
 
   /**
-   * 获取文章列表（别名方法）
-   * @param params 查询参数
-   * @returns 分页文章列表
-   */
-  static async getPosts(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
-    return this.getPostList(params)
-  }
-
-  /**
    * 点赞文章
    * @param id 文章ID
    * @returns 操作结果

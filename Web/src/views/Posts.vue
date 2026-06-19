@@ -135,7 +135,7 @@ const loadPosts = async (page: number = 1) => {
       params.keyword = searchKeyword.value.trim()
     }
 
-    const response = await PostService.getPosts(params)
+    const response = await PostService.getPostList(params)
     
     posts.value = response.records
     pagination.value = {

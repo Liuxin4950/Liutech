@@ -137,7 +137,7 @@ const loadAllPosts = async (page: number = 1) => {
       sortBy: 'latest' // 按最新排序
     }
 
-    const response = await PostService.getPosts(params)
+    const response = await PostService.getPostList(params)
     allPosts.value = response.records
 
     postsPagination.value = {
