@@ -105,12 +105,16 @@ const statusOptions = [
 ]
 
 const handleReview = async (id: number, status: number) => {
-  const res = await MessagesService.reviewMessage(id, status)
-  if (res.code === 200) {
-    message.success(status === 1 ? '已通过' : '已拒绝')
-    load()
-  } else {
-    message.error(res.message || '操作失败')
+  try {
+    const res = await MessagesService.reviewMessage(id, status)
+    if (res.code === 200) {
+      message.success(status === 1 ? '已通过' : '已拒绝')
+      load()
+    } else {
+      message.error(res.message || '操作失败')
+    }
+  } catch {
+    message.error('操作失败，请检查网络')
   }
 }
 
@@ -128,10 +132,19 @@ const handleBatchApprove = async () => {
     message.warning('请选择要通过的留言')
     return
   }
+  let failed = 0
   for (const id of selectedRowKeys.value) {
-    await MessagesService.reviewMessage(id, 1)
+    try {
+      await MessagesService.reviewMessage(id, 1)
+    } catch {
+      failed++
+    }
   }
-  message.success('批量通过成功')
+  if (failed > 0) {
+    message.warning(`${failed} 条留言通过失败`)
+  } else {
+    message.success('批量通过成功')
+  }
   clearSelection()
   load()
 }
@@ -141,10 +154,19 @@ const handleBatchReject = async () => {
     message.warning('请选择要拒绝的留言')
     return
   }
+  let failed = 0
   for (const id of selectedRowKeys.value) {
-    await MessagesService.reviewMessage(id, 2)
+    try {
+      await MessagesService.reviewMessage(id, 2)
+    } catch {
+      failed++
+    }
   }
-  message.success('批量拒绝成功')
+  if (failed > 0) {
+    message.warning(`${failed} 条留言拒绝失败`)
+  } else {
+    message.success('批量拒绝成功')
+  }
   clearSelection()
   load()
 }
