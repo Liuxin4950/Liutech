@@ -39,7 +39,7 @@
                 <h4 class="result-title">{{ post.title }}</h4>
                 <p class="result-summary">{{ post.summary || '暂无摘要' }}</p>
                 <div class="result-meta">
-                  <span class="result-category">{{ post.category.name }}</span>
+                  <span class="result-category">{{ post.category?.name }}</span>
                   <span class="result-date">{{ formatDate(post.createdAt) }}</span>
                 </div>
               </article>
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Icon from './Icon.vue'
 import { PostService, type PostListItem } from '@/services/post'
@@ -114,6 +114,13 @@ const goToPost = (id: number) => {
   router.push(`/post/${id}`)
   close()
 }
+
+onUnmounted(() => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+    searchTimeout = null
+  }
+})
 
 defineExpose({ open, close })
 </script>
