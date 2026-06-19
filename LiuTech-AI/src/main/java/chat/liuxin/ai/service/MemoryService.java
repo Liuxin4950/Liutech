@@ -102,47 +102,6 @@ public class MemoryService {
         return lastMessage != null ? lastMessage.getSeqNo() : 0;
     }
 
-    @Transactional(rollbackFor = Exception.class)
-    public void cleanupByRetainLastN(String userId, int retainLastN) {
-        if (retainLastN <= 0) return;
-
-        int safeRetainLastN = Math.max(0, Math.min(retainLastN, 1000));
-
-        List<AiChatMessage> boundaryMessages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
-                .in(AiChatMessage::getConversationId,
-                    conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
-                            .eq(AiConversation::getUserId, userId)
-                            .select(AiConversation::getId))
-                    .stream().map(AiConversation::getId).toList())
-                .orderByDesc(AiChatMessage::getCreatedAt)
-                .orderByDesc(AiChatMessage::getId)
-                .last(false, "LIMIT " + safeRetainLastN + ", 1")
-        );
-
-        if (boundaryMessages == null || boundaryMessages.isEmpty()) {
-            return;
-        }
-
-        LocalDateTime boundary = boundaryMessages.get(0).getCreatedAt();
-
-        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
-                .eq(AiConversation::getUserId, userId)
-                .select(AiConversation::getId))
-                .stream().map(AiConversation::getId).toList();
-
-        int deleted = 0;
-        if (!conversationIds.isEmpty()) {
-            deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
-                    .in(AiChatMessage::getConversationId, conversationIds)
-                    .lt(AiChatMessage::getCreatedAt, boundary)
-            );
-        }
-
-        if (deleted > 0) {
-            log.info("记忆清理：userId={}, 删除{}条，保留最近{}条", userId, deleted, retainLastN);
-        }
-    }
-
     /** 清空用户所有聊天记忆（物理删除） */
     @Transactional(rollbackFor = Exception.class)
     public void clearAllMemory(String userId) {
