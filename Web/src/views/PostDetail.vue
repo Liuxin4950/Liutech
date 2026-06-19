@@ -821,7 +821,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .post-header {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 .post-title {
