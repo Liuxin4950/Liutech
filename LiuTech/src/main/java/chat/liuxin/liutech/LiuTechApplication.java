@@ -5,10 +5,12 @@ import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.env.Environment;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Slf4j
 @SpringBootApplication
-@MapperScan("chat.liuxin.liutech.mapper") // 指向你的 mapper 包
+@MapperScan("chat.liuxin.liutech.mapper")
+@EnableScheduling
 public class LiuTechApplication {
     public static void main(String[] args) {
         var context = SpringApplication.run(LiuTechApplication.class, args);
