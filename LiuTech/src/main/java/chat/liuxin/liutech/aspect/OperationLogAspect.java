@@ -1,9 +1,18 @@
 package chat.liuxin.liutech.aspect;
 
+import java.lang.reflect.Method;
+
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.core.DefaultParameterNameDiscoverer;
+import org.springframework.core.ParameterNameDiscoverer;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -19,12 +28,15 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 操作日志切面
- * 自动记录管理端操作日志
+ * 自动记录管理端操作日志，支持 SpEL 表达式解析 targetName 和 description
  */
 @Slf4j
 @Aspect
 @Component
 public class OperationLogAspect {
+
+    private static final ExpressionParser PARSER = new SpelExpressionParser();
+    private static final ParameterNameDiscoverer NAME_DISCOVERER = new DefaultParameterNameDiscoverer();
 
     @Lazy
     private final LogService logService;
@@ -48,14 +60,14 @@ public class OperationLogAspect {
             throw e;
         } finally {
             try {
-                recordOperationLog(operationLog, success, errorMessage);
+                recordOperationLog(point, operationLog, success, errorMessage);
             } catch (Exception e) {
                 log.error("记录操作日志失败", e);
             }
         }
     }
 
-    private void recordOperationLog(OperationLog operationLog, boolean success, String errorMessage) {
+    private void recordOperationLog(ProceedingJoinPoint point, OperationLog operationLog, boolean success, String errorMessage) {
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         HttpServletRequest request = attributes != null ? attributes.getRequest() : null;
 
@@ -82,9 +94,12 @@ public class OperationLogAspect {
             logEntry.setErrorMessage(errorMessage.length() > 500 ? errorMessage.substring(0, 500) : errorMessage);
         }
 
-        logEntry.setTargetName(StringUtils.isBlank(operationLog.targetName()) ? null : operationLog.targetName());
+        EvaluationContext evalContext = createEvaluationContext(point);
 
-        String description = operationLog.description();
+        String targetName = resolveExpression(operationLog.targetName(), evalContext);
+        logEntry.setTargetName(StringUtils.isBlank(targetName) ? null : targetName);
+
+        String description = resolveExpression(operationLog.description(), evalContext);
         if (StringUtils.isBlank(description)) {
             description = operationLog.action() + " " + operationLog.targetType();
         }
@@ -94,6 +109,44 @@ public class OperationLogAspect {
         logEntry.setDescription(description);
 
         logService.saveLog(logEntry);
+    }
+
+    /**
+     * 创建 SpEL 评估上下文，将方法参数注入为变量
+     */
+    private EvaluationContext createEvaluationContext(ProceedingJoinPoint point) {
+        StandardEvaluationContext context = new StandardEvaluationContext();
+        MethodSignature signature = (MethodSignature) point.getSignature();
+        Method method = signature.getMethod();
+        if (method != null) {
+            String[] paramNames = NAME_DISCOVERER.getParameterNames(method);
+            Object[] args = point.getArgs();
+            if (paramNames != null) {
+                for (int i = 0; i < paramNames.length; i++) {
+                    context.setVariable(paramNames[i], args[i]);
+                }
+            }
+        }
+        return context;
+    }
+
+    /**
+     * 解析 SpEL 表达式，非 SpEL 表达式原样返回
+     */
+    private String resolveExpression(String expression, EvaluationContext context) {
+        if (StringUtils.isBlank(expression) || context == null) {
+            return expression;
+        }
+        if (!expression.contains("#")) {
+            return expression;
+        }
+        try {
+            Object value = PARSER.parseExpression(expression).getValue(context);
+            return value != null ? value.toString() : null;
+        } catch (Exception e) {
+            log.warn("SpEL 表达式解析失败: {}", expression, e);
+            return expression;
+        }
     }
 
     private String getClientIp(HttpServletRequest request) {
