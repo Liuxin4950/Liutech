@@ -185,6 +185,8 @@ export class PostService {
 
   /**
    * 获取文章详情（管理员，可查草稿）
+   * 仅用于 CreatePost.vue 编辑模式加载草稿/未发布文章，需要 ADMIN 角色。
+   * 普通用户应使用 getPostDetail()。
    */
   static async getPostDetailForAdmin(id: number): Promise<PostDetail> {
     try {
