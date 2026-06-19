@@ -47,8 +47,9 @@ export const getTtsConfig = async (): Promise<TtsConfigDTO> => {
   return resp.data
 }
 
-export const updateTtsConfig = async (config: TtsConfigDTO): Promise<void> => {
-  await put('/admin/tts/config', config)
+export const updateTtsConfig = async (config: TtsConfigDTO): Promise<string> => {
+  const resp = await put<string>('/admin/tts/config', config)
+  return resp.data
 }
 
 export const getTtsStatus = async (): Promise<TtsStatusDTO> => {
