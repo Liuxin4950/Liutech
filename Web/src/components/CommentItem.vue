@@ -110,8 +110,6 @@ const emit = defineEmits<Emits>()
 // 响应式数据
 const showReplyForm = ref(false)
 const showChildren = ref(props.depth < 1) // depth=0(顶级评论)时默认展开子评论，depth>=1时默认隐藏
-const isLiked = ref(false)
-const likeCount = ref(0)
 
 // 计算属性
 const hasChildren = computed(() => {
