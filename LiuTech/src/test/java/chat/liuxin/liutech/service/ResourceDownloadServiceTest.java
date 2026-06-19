@@ -32,10 +32,8 @@ class ResourceDownloadServiceTest {
     void setUp() {
         resourcesMapper = mock(ResourcesMapper.class);
         resourceDownloadsMapper = mock(ResourceDownloadsMapper.class);
-        service = new ResourceDownloadService();
-        ReflectionTestUtils.setField(service, "resourcesMapper", resourcesMapper);
-        ReflectionTestUtils.setField(service, "resourceDownloadsMapper", resourceDownloadsMapper);
-        ReflectionTestUtils.setField(service, "pointsService", mock(PointsService.class));
+        PointsService pointsService = mock(PointsService.class);
+        service = new ResourceDownloadService(resourcesMapper, resourceDownloadsMapper, pointsService);
         ReflectionTestUtils.setField(service, "uploadDir", uploadDir.toString());
     }
 

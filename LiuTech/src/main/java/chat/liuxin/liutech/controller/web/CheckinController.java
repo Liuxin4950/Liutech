@@ -1,6 +1,5 @@
 package chat.liuxin.liutech.controller.web;
 
-import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.resp.CheckinResp;
 import chat.liuxin.liutech.resp.CheckinStatusResp;
 import chat.liuxin.liutech.service.CheckinService;
@@ -29,6 +28,8 @@ public class CheckinController {
 
     /**
      * 每日签到
+     *
+     * @return 签到结果
      */
     @PostMapping("/checkin")
     @OperationLog(action = "checkin", targetType = "user", description = "用户签到")
@@ -38,17 +39,17 @@ public class CheckinController {
             if (userId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }
-            return Result.success("签到成功", checkinService.checkin(userId));
-        } catch (BusinessException e) {
-            return Result.fail(e.getErrorCode(), e.getMessage());
+            return checkinService.checkin(userId);
         } catch (Exception e) {
             log.error("签到接口异常", e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "签到失败，请稍后重试");
+            return Result.fail(ErrorCode.SYSTEM_ERROR);
         }
     }
 
     /**
      * 获取签到状态
+     *
+     * @return 签到状态
      */
     @GetMapping("/checkin/status")
     public Result<CheckinStatusResp> getCheckinStatus() {
@@ -57,10 +58,10 @@ public class CheckinController {
             if (userId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED);
             }
-            return Result.success("获取签到状态成功", checkinService.getCheckinStatus(userId));
+            return checkinService.getCheckinStatus(userId);
         } catch (Exception e) {
             log.error("获取签到状态接口异常", e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "获取签到状态失败");
+            return Result.fail(ErrorCode.SYSTEM_ERROR);
         }
     }
 }

@@ -9,7 +9,6 @@ import chat.liuxin.liutech.service.CategoriesService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -24,10 +23,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/categories")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class CategoriesAdminController extends BaseAdminController {
 
-    private final CategoriesService categoriesService;
+    @Autowired
+    private CategoriesService categoriesService;
 
     /**
      * 分页查询分类列表
@@ -64,7 +63,7 @@ import java.util.List;
      * 创建分类
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "category", description = "创建分类")
+    @OperationLog(action = "create", targetType = "category", description = "创建分类: #category.name", targetName = "#category.name")
     public Result<String> createCategory(@RequestBody CategoryResp category) {
         ValidationUtil.validateNotNull(category, "分类信息");
         try {
@@ -79,7 +78,7 @@ import java.util.List;
      * 更新分类
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "category", description = "更新分类")
+    @OperationLog(action = "update", targetType = "category", description = "更新分类: #category.name", targetName = "#category.name")
     public Result<String> updateCategory(@PathVariable Long id, @RequestBody CategoryResp category) {
         ValidationUtil.validateId(id, "分类ID");
         ValidationUtil.validateNotNull(category, "分类信息");
@@ -96,7 +95,7 @@ import java.util.List;
      * 删除分类
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "category", description = "删除分类")
+    @OperationLog(action = "delete", targetType = "category", description = "删除分类", targetName = "#id")
     public Result<String> deleteCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -126,7 +125,7 @@ import java.util.List;
      * 恢复已删除的分类
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "category", description = "恢复分类")
+    @OperationLog(action = "restore", targetType = "category", description = "恢复分类", targetName = "#id")
     public Result<String> restoreCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -141,7 +140,7 @@ import java.util.List;
      * 彻底删除分类（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "category", description = "彻底删除分类")
+    @OperationLog(action = "delete", targetType = "category", description = "彻底删除分类", targetName = "#id")
     public Result<String> permanentDeleteCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -156,7 +155,7 @@ import java.util.List;
      * 批量彻底删除分类（物理删除）
      */
     @PostMapping("/batch/permanent")
-    @OperationLog(action = "delete", targetType = "category", description = "批量彻底删除分类")
+    @OperationLog(action = "delete", targetType = "category", description = "批量彻底删除分类", targetName = "#ids")
     public Result<String> batchPermanentDeleteCategories(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "分类ID列表");
         try {

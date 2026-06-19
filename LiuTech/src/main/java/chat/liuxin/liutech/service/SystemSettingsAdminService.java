@@ -27,7 +27,7 @@ import chat.liuxin.liutech.model.SystemSetting;
  */
 @Service
 @RequiredArgsConstructor
- {
+public class SystemSettingsAdminService {
 
     private final SystemSettingMapper systemSettingMapper;
 

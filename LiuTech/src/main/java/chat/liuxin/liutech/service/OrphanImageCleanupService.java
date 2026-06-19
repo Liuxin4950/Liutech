@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class OrphanImageCleanupService {
 
     /**
      * 图片上传基础路径

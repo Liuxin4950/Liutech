@@ -17,20 +17,21 @@ import chat.liuxin.liutech.service.CategoriesService;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.service.TagsService;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @RestController
-@RequiredArgsConstructor
- {
+public class SitemapController {
 
     private static final String BASE_URL = "https://liuxin.chat";
 
-    private final PostsService postsService;
+    @Autowired
+    private PostsService postsService;
 
-    private final CategoriesService categoriesService;
+    @Autowired
+    private CategoriesService categoriesService;
 
-    private final TagsService tagsService;
+    @Autowired
+    private TagsService tagsService;
 
     @GetMapping(value = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
     public String generateSitemap() {

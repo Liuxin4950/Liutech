@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<AdminLogsMapper, AdminLogs> {
+public class LogService extends ServiceImpl<AdminLogsMapper, AdminLogs> {
 
     private final AdminLogsMapper adminLogsMapper;
 

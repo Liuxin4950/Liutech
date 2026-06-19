@@ -21,7 +21,7 @@ import jakarta.mail.internet.MimeMessage;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class EmailService {
 
     private final JavaMailSender mailSender;
 

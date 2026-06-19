@@ -37,7 +37,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class PointsAdminService {
 
     private static final int MAX_OPTIMISTIC_LOCK_RETRIES = 3;
 

@@ -32,7 +32,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<TagsMapper, Tags> {
+public class TagsService extends ServiceImpl<TagsMapper, Tags> {
 
     private final TagsMapper tagsMapper;
 

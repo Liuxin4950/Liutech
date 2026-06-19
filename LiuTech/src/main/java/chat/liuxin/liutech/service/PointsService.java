@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class PointsService {
 
     private final UserMapper userMapper;
 

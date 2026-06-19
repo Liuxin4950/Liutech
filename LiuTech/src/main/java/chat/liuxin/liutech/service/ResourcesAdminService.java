@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<ResourcesMapper, Resources> {
+public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resources> {
 
     private final ResourcesMapper resourcesMapper;
 

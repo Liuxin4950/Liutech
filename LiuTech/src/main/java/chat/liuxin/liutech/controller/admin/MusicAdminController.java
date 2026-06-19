@@ -21,7 +21,6 @@ import chat.liuxin.liutech.model.Music;
 import chat.liuxin.liutech.service.MusicService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 管理端音乐控制器
@@ -31,10 +30,10 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/admin/music")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class MusicAdminController extends BaseAdminController {
 
-    private final MusicService musicService;
+    @Autowired
+    private MusicService musicService;
 
     /**
      * 获取音乐列表（支持状态和关键词筛选）
@@ -55,7 +54,7 @@ import lombok.RequiredArgsConstructor;
      * 上传音乐
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "music", description = "上传音乐")
+    @OperationLog(action = "create", targetType = "music", description = "上传音乐: #title", targetName = "#title")
     public Result<Long> uploadMusic(
             @RequestParam String title,
             @RequestParam(required = false) String artist,
@@ -78,7 +77,7 @@ import lombok.RequiredArgsConstructor;
      * 更新音乐信息
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "music", description = "更新音乐")
+    @OperationLog(action = "update", targetType = "music", description = "更新音乐: #id", targetName = "#id")
     public Result<String> updateMusic(
             @PathVariable Long id,
             @RequestParam(required = false) String title,
@@ -100,7 +99,7 @@ import lombok.RequiredArgsConstructor;
      * 删除音乐（硬删除 + 清理文件）
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "music", description = "删除音乐")
+    @OperationLog(action = "delete", targetType = "music", description = "删除音乐", targetName = "#id")
     public Result<String> deleteMusic(@PathVariable Long id) {
         ValidationUtil.validateId(id, "音乐ID");
 

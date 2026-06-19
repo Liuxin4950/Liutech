@@ -30,7 +30,6 @@ import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 文章控制器
@@ -41,12 +40,13 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @RestController
 @RequestMapping("/posts")
-@RequiredArgsConstructor
- {
+public class PostsController {
 
-    private final PostsService postsService;
+    @Autowired
+    private PostsService postsService;
 
-    private final UserUtils userUtils;
+    @Autowired
+    private UserUtils userUtils;
 
 
     /**

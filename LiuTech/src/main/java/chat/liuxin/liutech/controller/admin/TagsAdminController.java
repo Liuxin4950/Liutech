@@ -7,7 +7,6 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -21,10 +20,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/tags")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class TagsAdminController extends BaseAdminController {
 
-    private final TagsService tagsService;
+    @Autowired
+    private TagsService tagsService;
 
     /**
      * 分页查询标签列表
@@ -72,7 +71,7 @@ import java.util.List;
      * 创建标签
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "tag", description = "创建标签")
+    @OperationLog(action = "create", targetType = "tag", description = "创建标签: #tag.name", targetName = "#tag.name")
     public Result<String> createTag(@RequestBody TagResp tag) {
         try {
             boolean success = tagsService.save(tag);
@@ -86,7 +85,7 @@ import java.util.List;
      * 更新标签
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "tag", description = "更新标签")
+    @OperationLog(action = "update", targetType = "tag", description = "更新标签: #tag.name", targetName = "#tag.name")
     public Result<String> updateTag(@PathVariable Long id, @RequestBody TagResp tag) {
         try {
             tag.setId(id);
@@ -101,7 +100,7 @@ import java.util.List;
      * 删除标签
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "tag", description = "删除标签")
+    @OperationLog(action = "delete", targetType = "tag", description = "删除标签", targetName = "#id")
     public Result<String> deleteTag(@PathVariable Long id) {
         try {
             List<Long> ids = List.of(id);
@@ -130,7 +129,7 @@ import java.util.List;
      * 恢复已删除的标签
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "tag", description = "恢复标签")
+    @OperationLog(action = "restore", targetType = "tag", description = "恢复标签", targetName = "#id")
     public Result<String> restoreTag(@PathVariable Long id) {
         try {
             boolean success = tagsService.restoreTag(id);
@@ -144,7 +143,7 @@ import java.util.List;
      * 彻底删除标签（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "tag", description = "彻底删除标签")
+    @OperationLog(action = "delete", targetType = "tag", description = "彻底删除标签", targetName = "#id")
     public Result<String> permanentDeleteTag(@PathVariable Long id) {
         try {
             boolean success = tagsService.permanentDeleteTag(id);

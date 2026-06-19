@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<ImagesMapper, Images> {
+public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
 
     private final ImagesMapper imagesMapper;
 

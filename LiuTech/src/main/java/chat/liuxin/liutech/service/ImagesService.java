@@ -24,7 +24,7 @@ import chat.liuxin.liutech.resp.ImageUploadResult;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class ImagesService {
 
     private final ImagesMapper imagesMapper;
 

@@ -11,7 +11,7 @@ import chat.liuxin.liutech.model.dto.TtsConfigDTO;
  */
 @Service
 @RequiredArgsConstructor
- {
+public class TtsConfigService {
 
     public static final String KEY_ENABLED = "tts.enabled";
     public static final String KEY_BASE_URL = "tts.baseUrl";

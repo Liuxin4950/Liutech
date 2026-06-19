@@ -17,7 +17,6 @@ import chat.liuxin.liutech.service.ImageUsageReconcileService;
 import chat.liuxin.liutech.service.ImagesAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 管理端图片控制器
@@ -29,12 +28,13 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/admin/images")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class ImagesAdminController extends BaseAdminController {
 
-    private final ImageUsageReconcileService imageUsageReconcileService;
+    @Autowired
+    private ImageUsageReconcileService imageUsageReconcileService;
 
-    private final ImagesAdminService imagesAdminService;
+    @Autowired
+    private ImagesAdminService imagesAdminService;
 
     /**
      * 图片引用对账
@@ -85,7 +85,7 @@ import lombok.RequiredArgsConstructor;
      * 软删除图片
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "image", description = "软删除图片")
+    @OperationLog(action = "delete", targetType = "image", description = "软删除图片", targetName = "#id")
     public Result<Map<String, Object>> softDeleteImage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "图片ID");
         try {
@@ -115,7 +115,7 @@ import lombok.RequiredArgsConstructor;
      * 恢复已删除的图片
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "image", description = "恢复图片")
+    @OperationLog(action = "restore", targetType = "image", description = "恢复图片", targetName = "#id")
     public Result<String> restoreImage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "图片ID");
         try {
@@ -130,7 +130,7 @@ import lombok.RequiredArgsConstructor;
      * 物理删除图片（同时删除文件系统中的文件）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "image", description = "彻底删除图片")
+    @OperationLog(action = "delete", targetType = "image", description = "彻底删除图片", targetName = "#id")
     public Result<String> permanentDeleteImage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "图片ID");
         try {

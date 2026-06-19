@@ -38,7 +38,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<CarouselMapper, Carousel> {
+public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
 
     private final CarouselMapper carouselMapper;
 

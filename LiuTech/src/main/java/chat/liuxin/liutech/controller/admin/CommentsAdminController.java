@@ -9,7 +9,6 @@ import chat.liuxin.liutech.service.CommentsAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,10 +25,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/comments")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class CommentsAdminController extends BaseAdminController {
 
-    private final CommentsAdminService commentsAdminService;
+    @Autowired
+    private CommentsAdminService commentsAdminService;
 
     /**
      * 分页查询评论列表
@@ -69,7 +68,7 @@ import java.util.List;
      * 软删除评论
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "comment", description = "软删除评论")
+    @OperationLog(action = "delete", targetType = "comment", description = "软删除评论", targetName = "#id")
     public Result<String> deleteComment(@PathVariable Long id) {
         ValidationUtil.validateId(id, "评论ID");
         try {
@@ -99,7 +98,7 @@ import java.util.List;
      * 恢复已删除的评论
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "comment", description = "恢复评论")
+    @OperationLog(action = "restore", targetType = "comment", description = "恢复评论", targetName = "#id")
     public Result<String> restoreComment(@PathVariable Long id) {
         ValidationUtil.validateId(id, "评论ID");
         try {
@@ -114,7 +113,7 @@ import java.util.List;
      * 彻底删除评论（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "comment", description = "彻底删除评论")
+    @OperationLog(action = "delete", targetType = "comment", description = "彻底删除评论", targetName = "#id")
     public Result<String> permanentDeleteComment(@PathVariable Long id) {
         ValidationUtil.validateId(id, "评论ID");
         try {

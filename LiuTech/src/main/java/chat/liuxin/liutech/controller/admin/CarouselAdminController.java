@@ -6,7 +6,6 @@ import java.util.Objects;
 import jakarta.validation.Valid;
 
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,10 +36,10 @@ import chat.liuxin.liutech.service.CarouselService;
 @RestController
 @RequestMapping("/admin/carousels")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class CarouselAdminController extends BaseAdminController {
 
-    private final CarouselService carouselService;
+    @Autowired
+    private CarouselService carouselService;
 
     /**
      * 分页查询轮播图列表
@@ -104,7 +103,7 @@ import chat.liuxin.liutech.service.CarouselService;
      * @param req 轮播图请求数据
      * @return 是否成功
      */
-    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图")
+    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图", targetName = "#id")
     @PutMapping("/{id}")
     public Result<Boolean> updateCarousel(
             @PathVariable Long id,
@@ -126,7 +125,7 @@ import chat.liuxin.liutech.service.CarouselService;
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @OperationLog(action = "delete", targetType = "carousel", description = "删除轮播图")
+    @OperationLog(action = "delete", targetType = "carousel", description = "删除轮播图", targetName = "#id")
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteCarousel(@PathVariable Long id) {
         try {
@@ -142,7 +141,7 @@ import chat.liuxin.liutech.service.CarouselService;
      * @param ids 轮播图ID列表
      * @return 是否成功
      */
-    @OperationLog(action = "delete", targetType = "carousel", description = "批量删除轮播图")
+    @OperationLog(action = "delete", targetType = "carousel", description = "批量删除轮播图", targetName = "#ids")
     @PostMapping("/batch")
     public Result<Boolean> batchDeleteCarousels(@RequestBody List<Long> ids) {
         try {
@@ -159,7 +158,7 @@ import chat.liuxin.liutech.service.CarouselService;
      * @param request 状态更新请求
      * @return 是否成功
      */
-    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图状态")
+    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图状态", targetName = "#id")
     @PutMapping("/{id}/status")
     public Result<Boolean> updateCarouselStatus(
             @PathVariable Long id,
@@ -196,7 +195,7 @@ import chat.liuxin.liutech.service.CarouselService;
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @OperationLog(action = "restore", targetType = "carousel", description = "恢复轮播图")
+    @OperationLog(action = "restore", targetType = "carousel", description = "恢复轮播图", targetName = "#id")
     @PutMapping("/{id}/restore")
     public Result<Boolean> restoreCarousel(@PathVariable Long id) {
         try {
@@ -212,7 +211,7 @@ import chat.liuxin.liutech.service.CarouselService;
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @OperationLog(action = "delete", targetType = "carousel", description = "彻底删除轮播图")
+    @OperationLog(action = "delete", targetType = "carousel", description = "彻底删除轮播图", targetName = "#id")
     @DeleteMapping("/{id}/permanent")
     public Result<Boolean> permanentDeleteCarousel(@PathVariable Long id) {
         try {
@@ -228,7 +227,7 @@ import chat.liuxin.liutech.service.CarouselService;
      * @param ids 轮播图ID列表
      * @return 是否成功
      */
-    @OperationLog(action = "delete", targetType = "carousel", description = "批量彻底删除轮播图")
+    @OperationLog(action = "delete", targetType = "carousel", description = "批量彻底删除轮播图", targetName = "#ids")
     @PostMapping("/batch/permanent")
     public Result<Boolean> batchPermanentDeleteCarousels(@RequestBody List<Long> ids) {
         try {

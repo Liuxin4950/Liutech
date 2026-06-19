@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class UserAuthService {
 
     private final UserMapper userMapper;
 

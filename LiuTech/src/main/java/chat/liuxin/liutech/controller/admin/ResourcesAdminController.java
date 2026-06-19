@@ -10,7 +10,6 @@ import chat.liuxin.liutech.service.ResourcesAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -27,10 +26,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/resources")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class ResourcesAdminController extends BaseAdminController {
 
-    private final ResourcesAdminService resourcesAdminService;
+    @Autowired
+    private ResourcesAdminService resourcesAdminService;
 
     /**
      * 分页查询资源列表
@@ -70,7 +69,7 @@ import java.util.List;
      * 创建资源
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "resource", description = "创建资源")
+    @OperationLog(action = "create", targetType = "resource", description = "创建资源: #resource.name", targetName = "#resource.name")
     public Result<String> createResource(@RequestBody ResourceResp resource) {
         ValidationUtil.validateNotNull(resource, "资源信息");
         try {
@@ -85,7 +84,7 @@ import java.util.List;
      * 更新资源
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "resource", description = "更新资源")
+    @OperationLog(action = "update", targetType = "resource", description = "更新资源: #resource.name", targetName = "#resource.name")
     public Result<String> updateResource(@PathVariable Long id, @RequestBody ResourceResp resource) {
         ValidationUtil.validateId(id, "资源ID");
         ValidationUtil.validateNotNull(resource, "资源信息");
@@ -102,7 +101,7 @@ import java.util.List;
      * 删除资源（软删除）
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "resource", description = "删除资源")
+    @OperationLog(action = "delete", targetType = "resource", description = "删除资源", targetName = "#id")
     public Result<String> deleteResource(@PathVariable Long id) {
         ValidationUtil.validateId(id, "资源ID");
         try {
@@ -132,7 +131,7 @@ import java.util.List;
      * 恢复已删除的资源
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "resource", description = "恢复资源")
+    @OperationLog(action = "restore", targetType = "resource", description = "恢复资源", targetName = "#id")
     public Result<String> restoreResource(@PathVariable Long id) {
         ValidationUtil.validateId(id, "资源ID");
         try {
@@ -147,7 +146,7 @@ import java.util.List;
      * 彻底删除资源（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "resource", description = "彻底删除资源")
+    @OperationLog(action = "delete", targetType = "resource", description = "彻底删除资源", targetName = "#id")
     public Result<String> permanentDeleteResource(@PathVariable Long id) {
         ValidationUtil.validateId(id, "资源ID");
         try {
@@ -162,7 +161,7 @@ import java.util.List;
      * 批量彻底删除资源（物理删除）
      */
     @PostMapping("/batch/permanent")
-    @OperationLog(action = "delete", targetType = "resource", description = "批量彻底删除资源")
+    @OperationLog(action = "delete", targetType = "resource", description = "批量彻底删除资源", targetName = "#ids")
     public Result<String> batchPermanentDeleteResources(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "资源ID列表");
         try {

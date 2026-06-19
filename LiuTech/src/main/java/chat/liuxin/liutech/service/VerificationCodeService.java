@@ -25,7 +25,7 @@ import java.util.Random;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class VerificationCodeService {
 
     /** 验证码有效期（分钟） */
     private static final int CODE_EXPIRE_MINUTES = 5;

@@ -37,7 +37,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<CommentsMapper, Comments> {
+public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
     private final CommentsMapper commentsMapper;
 

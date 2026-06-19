@@ -14,7 +14,6 @@ import chat.liuxin.liutech.resp.FileUploadResp;
 import chat.liuxin.liutech.service.FileUploadService;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 文件上传控制器
@@ -25,12 +24,13 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @RestController
 @RequestMapping("/upload")
-@RequiredArgsConstructor
- {
+public class FileUploadController {
 
-    private final FileUploadService fileUploadService;
+    @Autowired
+    private FileUploadService fileUploadService;
 
-    private final UserUtils userUtils;
+    @Autowired
+    private UserUtils userUtils;
 
 
 

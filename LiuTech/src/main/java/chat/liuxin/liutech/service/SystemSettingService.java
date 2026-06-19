@@ -21,7 +21,7 @@ import chat.liuxin.liutech.model.SystemSetting;
  */
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<SystemSettingMapper, SystemSetting> {
+public class SystemSettingService extends ServiceImpl<SystemSettingMapper, SystemSetting> {
 
     private final SystemSettingMapper systemSettingMapper;
 

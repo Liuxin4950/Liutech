@@ -33,7 +33,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class UserManagementService {
 
     private final UserMapper userMapper;
 
@@ -57,7 +57,7 @@ import java.util.List;
         Users currentUser = getCurrentUserEntity();
 
         // 2. 转换为响应对象（脱敏）
-        return convertToUserResl(currentUser);
+        return toUserResp(currentUser);
     }
 
     /**

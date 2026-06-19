@@ -1,8 +1,5 @@
 package chat.liuxin.liutech.controller.admin;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,15 +20,10 @@ import chat.liuxin.liutech.model.dto.TtsSpeechResponseDTO;
 import chat.liuxin.liutech.model.dto.TtsStatusDTO;
 import chat.liuxin.liutech.service.TtsConfigService;
 import chat.liuxin.liutech.service.TtsSpeechService;
+import chat.liuxin.liutech.service.TtsStatusService;
+import chat.liuxin.liutech.service.TtsVoiceCatalogService;
 import jakarta.validation.Valid;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -40,17 +32,19 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/tts")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class TtsAdminController extends BaseAdminController {
 
-    private final TtsConfigService ttsConfigService;
+    @Autowired
+    private TtsConfigService ttsConfigService;
 
-    private final TtsSpeechService ttsSpeechService;
+    @Autowired
+    private TtsStatusService ttsStatusService;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofMillis(1000))
-            .build();
+    @Autowired
+    private TtsVoiceCatalogService ttsVoiceCatalogService;
+
+    @Autowired
+    private TtsSpeechService ttsSpeechService;
 
     @GetMapping("/config")
     public Result<TtsConfigDTO> getConfig() {
@@ -62,7 +56,7 @@ import java.util.List;
     public Result<String> updateConfig(@RequestBody TtsConfigDTO config) {
         try {
             ttsConfigService.updateConfig(config);
-            ttsSpeechService.clearStatusCache();
+            ttsStatusService.clearCache();
             return Result.success("更新成功");
         } catch (Exception e) {
             return handleException(e, "更新语音推理配置");
@@ -71,14 +65,14 @@ import java.util.List;
 
     @GetMapping("/status")
     public Result<TtsStatusDTO> status() {
-        return Result.success(ttsSpeechService.getStatus());
+        return Result.success(ttsStatusService.getStatus());
     }
 
     @GetMapping("/voices")
     public Result<List<String>> voices(@RequestParam(required = false) String baseUrl) {
         TtsConfigDTO config = ttsConfigService.getConfig();
         String effectiveBaseUrl = baseUrl != null && !baseUrl.isBlank() ? baseUrl : config.getBaseUrl();
-        return Result.success(listVoiceModels(effectiveBaseUrl));
+        return Result.success(ttsVoiceCatalogService.listVoiceModels(effectiveBaseUrl));
     }
 
     @GetMapping("/siliconflow/voices")
@@ -94,7 +88,7 @@ import java.util.List;
             @RequestParam("customName") String customName,
             @RequestParam("text") String text) {
         SiliconFlowVoiceDTO voice = ttsSpeechService.uploadSiliconFlowVoice(file, model, customName, text);
-        ttsSpeechService.clearStatusCache();
+        ttsStatusService.clearCache();
         return Result.success(voice);
     }
 
@@ -102,49 +96,5 @@ import java.util.List;
     @OperationLog(action = "test", targetType = "tts", description = "测试语音合成")
     public Result<TtsSpeechResponseDTO> testSpeech(@Valid @RequestBody TtsSpeechRequestDTO request) {
         return Result.success(ttsSpeechService.synthesize(request.getText()));
-    }
-
-    /**
-     * 从 GPT-SoVITS 服务获取可用语音模型列表（原 TtsVoiceCatalogService 内联）
-     */
-    private List<String> listVoiceModels(String baseUrl) {
-        String normalizedBaseUrl = normalizeBaseUrl(baseUrl);
-        if (normalizedBaseUrl == null) {
-            return List.of();
-        }
-        try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(normalizedBaseUrl + "/models/v4"))
-                    .timeout(Duration.ofMillis(1500))
-                    .GET()
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                return List.of();
-            }
-            JsonNode root = objectMapper.readTree(response.body());
-            JsonNode models = root.get("models");
-            if (models == null || !models.isObject()) {
-                return List.of();
-            }
-            List<String> result = new ArrayList<>();
-            Iterator<String> fields = models.fieldNames();
-            while (fields.hasNext()) {
-                result.add(fields.next());
-            }
-            result.sort(String::compareTo);
-            return result;
-        } catch (Exception ignore) {
-            return List.of();
-        }
-    }
-
-    private String normalizeBaseUrl(String raw) {
-        if (raw == null) return null;
-        String s = raw.trim();
-        if (s.isEmpty()) return null;
-        while (s.endsWith("/")) {
-            s = s.substring(0, s.length() - 1);
-        }
-        return s.isEmpty() ? null : s;
     }
 }

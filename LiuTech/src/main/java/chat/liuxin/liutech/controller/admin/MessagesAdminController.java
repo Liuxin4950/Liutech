@@ -16,7 +16,6 @@ import chat.liuxin.liutech.service.MessagesService;
 import chat.liuxin.liutech.utils.UserUtils;
 import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 管理端留言控制器
@@ -26,12 +25,13 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/admin/messages")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class MessagesAdminController extends BaseAdminController {
 
-    private final MessagesService messagesService;
+    @Autowired
+    private MessagesService messagesService;
 
-    private final UserUtils userUtils;
+    @Autowired
+    private UserUtils userUtils;
 
     /**
      * 分页查询留言列表
@@ -69,7 +69,7 @@ import lombok.RequiredArgsConstructor;
      * 审核留言（通过/拒绝）
      */
     @PutMapping("/{id}/review")
-    @OperationLog(action = "review", targetType = "message", description = "审核留言")
+    @OperationLog(action = "review", targetType = "message", description = "审核留言", targetName = "#id")
     public Result<String> reviewMessage(
             @PathVariable Long id,
             @RequestBody ReviewRequest reviewRequest) {
@@ -88,7 +88,7 @@ import lombok.RequiredArgsConstructor;
      * 回复留言
      */
     @PutMapping("/{id}/reply")
-    @OperationLog(action = "reply", targetType = "message", description = "回复留言")
+    @OperationLog(action = "reply", targetType = "message", description = "回复留言", targetName = "#id")
     public Result<String> replyMessage(
             @PathVariable Long id,
             @RequestBody ReplyRequest replyRequest) {
@@ -107,7 +107,7 @@ import lombok.RequiredArgsConstructor;
      * 删除留言（软删除）
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "message", description = "删除留言")
+    @OperationLog(action = "delete", targetType = "message", description = "删除留言", targetName = "#id")
     public Result<String> deleteMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
         try {
@@ -137,7 +137,7 @@ import lombok.RequiredArgsConstructor;
      * 恢复已删除的留言
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "message", description = "恢复留言")
+    @OperationLog(action = "restore", targetType = "message", description = "恢复留言", targetName = "#id")
     public Result<String> restoreMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
         try {
@@ -152,7 +152,7 @@ import lombok.RequiredArgsConstructor;
      * 彻底删除留言（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "message", description = "彻底删除留言")
+    @OperationLog(action = "delete", targetType = "message", description = "彻底删除留言", targetName = "#id")
     public Result<String> permanentDeleteMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
         try {

@@ -24,7 +24,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<CommentsMapper, Comments> {
+public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> {
 
     private final CommentsMapper commentsMapper;
 

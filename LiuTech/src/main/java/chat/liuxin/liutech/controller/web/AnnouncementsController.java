@@ -7,7 +7,6 @@ import java.util.Map;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,10 +37,10 @@ import chat.liuxin.liutech.service.AnnouncementsService;
  */
 @RestController
 @RequestMapping("/announcements")
-@RequiredArgsConstructor
- {
+public class AnnouncementsController {
 
-    private final AnnouncementsService announcementsService;
+    @Autowired
+    private AnnouncementsService announcementsService;
 
     /**
      * 分页查询有效公告（前台用户）

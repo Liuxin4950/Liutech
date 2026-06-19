@@ -26,7 +26,7 @@ class AiChatServiceImplTest {
     private MemoryService memoryService;
     private AiMetrics aiMetrics;
     private AiModelConfigService aiModelConfigService;
-    private PromptService promptService;
+    private ChatServiceHelper chatServiceHelper;
     private AiModelPolicy aiModelPolicy;
     private TtsSegmenter ttsSegmenter;
     private StreamingChatService streamingChatService;
@@ -39,7 +39,7 @@ class AiChatServiceImplTest {
         memoryService = mock(MemoryService.class);
         aiMetrics = mock(AiMetrics.class);
         aiModelConfigService = mock(AiModelConfigService.class);
-        promptService = mock(PromptService.class);
+        chatServiceHelper = mock(ChatServiceHelper.class);
         streamingChatService = mock(StreamingChatService.class);
         AiChatProperties aiChatProperties = new AiChatProperties();
         aiChatProperties.setDefaultModel("fallback-model");
@@ -48,7 +48,7 @@ class AiChatServiceImplTest {
 
         service = new AiChatServiceImpl(
                 siliconFlowChatClient, memoryService, aiMetrics,
-                promptService, aiModelPolicy, streamingChatService
+                chatServiceHelper, aiModelPolicy, streamingChatService
         );
 
         resolveModelNameMethod = AiChatServiceImpl.class.getDeclaredMethod("resolveModelName", ChatRequest.class);

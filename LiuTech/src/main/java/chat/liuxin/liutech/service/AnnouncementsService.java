@@ -56,7 +56,7 @@ import chat.liuxin.liutech.resp.AnnouncementResp;
  */
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<AnnouncementsMapper, Announcements> {
+public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Announcements> {
 
     private final AnnouncementsMapper announcementsMapper;
 

@@ -38,7 +38,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class ResourceDownloadService {
 
     private final ResourcesMapper resourcesMapper;
 

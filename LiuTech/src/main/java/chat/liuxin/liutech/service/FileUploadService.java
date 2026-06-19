@@ -32,7 +32,7 @@ import java.math.BigDecimal;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class FileUploadService {
 
     private static final int DOWNLOAD_TYPE_FREE = 0;
     private static final int DOWNLOAD_TYPE_POINTS = 1;

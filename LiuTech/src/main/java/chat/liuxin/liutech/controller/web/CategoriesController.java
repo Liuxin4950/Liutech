@@ -18,7 +18,6 @@ import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.CategoryResp;
 import chat.liuxin.liutech.service.CategoriesService;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 分类控制器
@@ -29,10 +28,10 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @RestController
 @RequestMapping("/categories")
-@RequiredArgsConstructor
- {
+public class CategoriesController {
 
-    private final CategoriesService categoriesService;
+    @Autowired
+    private CategoriesService categoriesService;
 
     /**
      * 查询所有分类（包含文章数量）

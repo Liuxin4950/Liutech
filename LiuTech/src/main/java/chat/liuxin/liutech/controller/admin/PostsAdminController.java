@@ -29,7 +29,7 @@ import java.util.List;
 @RequestMapping("/admin/posts")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
- extends BaseAdminController {
+public class PostsAdminController extends BaseAdminController {
 
     private final PostsService postsService;
 

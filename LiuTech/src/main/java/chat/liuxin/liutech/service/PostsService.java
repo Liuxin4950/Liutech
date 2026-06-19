@@ -54,7 +54,7 @@ import chat.liuxin.liutech.utils.FileUtil;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<PostsMapper, Posts> {
+public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     private static final String PUBLIC_SITE_BASE_URL = "https://liuxin.chat";
 

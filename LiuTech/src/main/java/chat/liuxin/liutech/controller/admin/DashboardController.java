@@ -3,7 +3,6 @@ package chat.liuxin.liutech.controller.admin;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.DashboardResp;
 import chat.liuxin.liutech.service.DashboardService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,10 +16,10 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/admin/dashboard")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class DashboardController extends BaseAdminController {
 
-    private final DashboardService dashboardService;
+    @Autowired
+    private DashboardService dashboardService;
 
     /**
      * 获取仪表盘统计数据

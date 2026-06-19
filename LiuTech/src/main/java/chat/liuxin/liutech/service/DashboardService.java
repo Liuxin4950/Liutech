@@ -26,7 +26,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class DashboardService {
 
     private final PostsMapper postsMapper;
 

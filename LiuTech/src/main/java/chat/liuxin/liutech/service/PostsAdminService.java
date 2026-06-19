@@ -46,7 +46,7 @@ import chat.liuxin.liutech.utils.FileUtil;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<PostsMapper, Posts> {
+public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
     private final PostsMapper postsMapper;
 

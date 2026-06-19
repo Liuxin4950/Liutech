@@ -35,7 +35,7 @@ class PromptServiceTest {
 
         AiChatProperties aiChatProperties = new AiChatProperties();
         aiChatProperties.getSecurity().setPromptGuardEnabled(true);
-        aiChatProperties.getAgent().setPersonaName("看板娘");
+        aiChatProperties.getPersona().setName("看板娘");
         aiChatProperties.setChatHistoryLimit(8);
         promptService = new PromptService(aiPromptConfig, blogApiClient, aiChatProperties);
     }

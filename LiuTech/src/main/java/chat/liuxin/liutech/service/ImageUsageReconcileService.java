@@ -25,7 +25,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- {
+public class ImageUsageReconcileService {
 
     private final ImagesMapper imagesMapper;
 

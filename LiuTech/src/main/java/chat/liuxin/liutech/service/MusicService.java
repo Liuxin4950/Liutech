@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<MusicMapper, Music> {
+public class MusicService extends ServiceImpl<MusicMapper, Music> {
 
     private final MusicMapper musicMapper;
 

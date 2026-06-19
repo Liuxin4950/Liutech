@@ -9,7 +9,6 @@ import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.service.UserManagementService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,10 +22,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/users")
 @PreAuthorize("hasRole('ADMIN')")
-@RequiredArgsConstructor
- extends BaseAdminController {
+public class UsersAdminController extends BaseAdminController {
 
-    private final UserManagementService userManagementService;
+    @Autowired
+    private UserManagementService userManagementService;
 
     /**
      * 分页查询用户列表
@@ -75,7 +74,7 @@ import java.util.List;
      * 创建用户
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "user", description = "创建用户")
+    @OperationLog(action = "create", targetType = "user", description = "创建用户: #user.username", targetName = "#user.username")
     public Result<String> createUser(@RequestBody Users user) {
         ValidationUtil.validateNotNull(user, "用户信息");
         ValidationUtil.validateUsername(user.getUsername());
@@ -93,7 +92,7 @@ import java.util.List;
      * 更新用户信息
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "user", description = "更新用户信息")
+    @OperationLog(action = "update", targetType = "user", description = "更新用户信息: #user.username", targetName = "#user.username")
     public Result<String> updateUser(@PathVariable Long id, @RequestBody Users user) {
         ValidationUtil.validateId(id, "用户ID");
         ValidationUtil.validateNotNull(user, "用户信息");
@@ -113,7 +112,7 @@ import java.util.List;
      * 删除用户
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "user", description = "删除用户")
+    @OperationLog(action = "delete", targetType = "user", description = "删除用户", targetName = "#id")
     public Result<String> deleteUser(@PathVariable Long id) {
         ValidationUtil.validateId(id, "用户ID");
         try {
@@ -143,7 +142,7 @@ import java.util.List;
      * 启用/禁用用户
      */
     @PutMapping("/{id}/status")
-    @OperationLog(action = "disable", targetType = "user", description = "更新用户状态")
+    @OperationLog(action = "disable", targetType = "user", description = "#enabled ? '启用用户' : '禁用用户'", targetName = "#id")
     public Result<String> updateUserStatus(@PathVariable Long id, @RequestParam Boolean enabled) {
         ValidationUtil.validateId(id, "用户ID");
         ValidationUtil.validateNotNull(enabled, "用户状态");
@@ -162,7 +161,7 @@ import java.util.List;
      * 批量启用/禁用用户
      */
     @PutMapping("/batch/status")
-    @OperationLog(action = "disable", targetType = "user", description = "批量更新用户状态")
+    @OperationLog(action = "disable", targetType = "user", description = "#enabled ? '批量启用用户' : '批量禁用用户'")
     public Result<String> batchUpdateUserStatus(@RequestBody List<Long> ids, @RequestParam Boolean enabled) {
         ValidationUtil.validateNotEmpty(ids, "用户ID列表");
         ValidationUtil.validateNotNull(enabled, "用户状态");
@@ -180,7 +179,7 @@ import java.util.List;
      * 恢复已删除的用户
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "user", description = "恢复用户")
+    @OperationLog(action = "restore", targetType = "user", description = "恢复用户", targetName = "#id")
     public Result<String> restoreUser(@PathVariable Long id) {
         ValidationUtil.validateId(id, "用户ID");
 
@@ -214,7 +213,7 @@ import java.util.List;
      * 彻底删除用户（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "user", description = "彻底删除用户")
+    @OperationLog(action = "delete", targetType = "user", description = "彻底删除用户", targetName = "#id")
     public Result<String> permanentDeleteUser(@PathVariable Long id) {
         ValidationUtil.validateId(id, "用户ID");
         try {

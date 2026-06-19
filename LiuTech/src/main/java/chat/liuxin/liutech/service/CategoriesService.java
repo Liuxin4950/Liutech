@@ -28,7 +28,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
- extends ServiceImpl<CategoriesMapper, Categories> {
+public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories> {
 
     private final CategoriesMapper categoriesMapper;
 
