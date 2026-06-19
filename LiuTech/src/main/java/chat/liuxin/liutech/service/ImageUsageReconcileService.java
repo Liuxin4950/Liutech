@@ -39,7 +39,7 @@ public class ImageUsageReconcileService {
 
     private final FileUtil fileUtil;
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ImageUsageReconcileResp reconcileUsageCount() {
         int resetRows = valueOrZero(imagesMapper.resetUsageCount());
 

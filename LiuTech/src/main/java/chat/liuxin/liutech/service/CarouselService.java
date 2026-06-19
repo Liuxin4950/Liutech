@@ -106,7 +106,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param carousel 轮播图数据
      * @return 轮播图ID
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Long createCarousel(Carousel carousel) {
         validateCarouselData(carousel);
 
@@ -133,7 +133,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param carousel 轮播图数据
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateCarousel(Carousel carousel) {
         validateCarouselId(carousel.getId());
         validateCarouselData(carousel);
@@ -159,7 +159,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean deleteCarousel(Long id) {
         validateCarouselId(id);
         Carousel carousel = carouselMapper.selectByIdWithDeleted(id);
@@ -178,7 +178,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param ids 轮播图ID列表
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean batchDeleteCarousels(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
@@ -199,7 +199,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param status 新状态
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateCarouselStatus(Long id, Integer status) {
         validateCarouselId(id);
         validateCarouselStatus(status);
@@ -217,7 +217,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param status 新状态
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean batchUpdateCarouselStatus(List<Long> ids, Integer status) {
         if (ids == null || ids.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");
@@ -236,7 +236,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param sortOrder 新排序
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateCarouselSort(Long id, Integer sortOrder) {
         validateCarouselId(id);
         validateCarouselExistsAndNotDeleted(id);
@@ -252,7 +252,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean restoreCarousel(Long id) {
         validateCarouselId(id);
 
@@ -363,7 +363,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeleteCarousel(Long id) {
         validateCarouselId(id);
 
@@ -389,7 +389,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * @param ids 轮播图ID列表
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeleteCarousels(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图ID列表不能为空");

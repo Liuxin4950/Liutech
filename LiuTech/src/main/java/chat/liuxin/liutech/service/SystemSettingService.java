@@ -38,7 +38,7 @@ public class SystemSettingService extends ServiceImpl<SystemSettingMapper, Syste
         return "true".equals(s) || "1".equals(s) || "yes".equals(s);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void upsert(String key, String value, String description) {
         SystemSetting existing = systemSettingMapper.selectByKey(key);
         if (existing == null) {

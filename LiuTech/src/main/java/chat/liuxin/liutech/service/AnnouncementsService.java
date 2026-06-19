@@ -104,7 +104,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param req 公告请求数据
      * @return 公告ID
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public Long createAnnouncement(AnnouncementReq req) {
         validateAnnouncementReq(req);
@@ -118,7 +118,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param req 公告请求数据
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean updateAnnouncement(AnnouncementReq req) {
         validateAnnouncementId(req.getId());
@@ -135,7 +135,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param id 公告ID
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean deleteAnnouncement(Long id) {
         validateAnnouncementId(id);
@@ -170,7 +170,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param ids 公告ID列表
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean batchDeleteAnnouncements(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
@@ -195,7 +195,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param status 新状态
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean updateAnnouncementStatus(Long id, Integer status) {
         validateAnnouncementId(id);
@@ -214,7 +214,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param status 新状态
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean batchUpdateAnnouncementStatus(List<Long> ids, Integer status) {
         if (ids == null || ids.isEmpty()) {
@@ -238,7 +238,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param id 公告ID
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean restoreAnnouncement(Long id) {
         validateAnnouncementId(id);
@@ -262,7 +262,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param id 公告ID
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean permanentDeleteAnnouncement(Long id) {
         validateAnnouncementId(id);
@@ -281,7 +281,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param ids 公告ID列表
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean batchPermanentDeleteAnnouncements(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
@@ -298,7 +298,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param isTop 是否置顶(0否,1是)
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean toggleAnnouncementTop(Long id, Integer isTop) {
         validateAnnouncementId(id);
@@ -319,7 +319,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param isTop 是否置顶(0否,1是)
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public boolean batchToggleAnnouncementTop(List<Long> ids, Integer isTop) {
         if (ids == null || ids.isEmpty()) {

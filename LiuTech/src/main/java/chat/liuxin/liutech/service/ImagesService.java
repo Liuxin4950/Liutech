@@ -42,7 +42,7 @@ public class ImagesService {
      * @return 图片信息
      * @throws IOException IO异常
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ImageUploadResult uploadImage(MultipartFile file, Long uploaderId, String subPath) throws IOException {
         String fileHash = fileUtil.calculateFileHash(file);
         log.debug("计算文件哈希: {}", fileHash);

@@ -108,7 +108,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @param vocalAudio 人声音频
      * @return 音乐ID
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Long uploadMusic(String title, String artist, String coverUrl,
                            MultipartFile fullAudio, MultipartFile vocalAudio) {
         // 验证参数
@@ -163,7 +163,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @param status 状态
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateMusic(Long id, String title, String artist, String coverUrl, Integer sortOrder, Integer status) {
         Music music = musicMapper.selectById(id);
         if (music == null) {
@@ -199,7 +199,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @param id 音乐ID
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean deleteMusic(Long id) {
         Music music = musicMapper.selectById(id);
         if (music == null) {
@@ -227,7 +227,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @param ids 音乐ID列表
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean batchDelete(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return true;
@@ -270,7 +270,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
      * @param ids 排序后的ID列表
      * @return 是否成功
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateSortOrder(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return true;

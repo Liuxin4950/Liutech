@@ -165,7 +165,7 @@ public class FileUploadService {
      * @param pointsNeeded 所需积分
      * @return 上传结果
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public FileUploadResp uploadResource(MultipartFile file, Long userId, String description, String draftKey, String type, Integer downloadType, Integer pointsNeeded) {
         log.info("开始上传资源 - 用户ID: {}, 文件名: {}, 大小: {} bytes, 描述: {}, 草稿键: {}, 类型: {}",
                 userId, file.getOriginalFilename(), file.getSize(), description, draftKey, type);
@@ -368,7 +368,7 @@ public class FileUploadService {
      * @param pointsNeeded 所需积分
      * @return 上传结果
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public FileUploadResp createExternalLinkResource(String name, String description, String externalLink, String purchasedNote,
                                                        Long userId, String draftKey, String type, Integer downloadType, Integer pointsNeeded) {
         log.info("创建外部链接资源 - 用户ID: {}, 名称: {}, 链接: {}, 草稿键: {}, 类型: {}",
@@ -436,7 +436,7 @@ public class FileUploadService {
     }
 
     // 更新资源元信息（下载类型、所需积分）
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateResourceMeta(Long resourceId, Long userId, Integer downloadType, Integer pointsNeeded) {
         log.info("更新资源元信息 - 用户ID: {}, 资源ID: {}, downloadType: {}, pointsNeeded: {}", userId, resourceId, downloadType, pointsNeeded);
 
@@ -488,7 +488,7 @@ public class FileUploadService {
      * @param userId 用户ID
      * @param purchasedNote 购买后说明
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updatePurchasedNote(Long resourceId, Long userId, String purchasedNote) {
         log.info("更新购买后说明 - 用户ID: {}, 资源ID: {}", userId, resourceId);
 
@@ -516,7 +516,7 @@ public class FileUploadService {
      * @param resourceId 资源ID
      * @param userId 用户ID
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void deleteAttachment(Long resourceId, Long userId) {
         log.info("删除附件 - 用户ID: {}, 资源ID: {}", userId, resourceId);
 

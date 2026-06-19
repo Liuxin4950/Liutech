@@ -70,7 +70,7 @@ public class SystemSettingsAdminService {
     /**
      * 更新单个设置值（不存在则创建）
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void updateByKey(String key, String value, String description) {
         SystemSetting existing = systemSettingMapper.selectByKey(key);
         if (existing == null) {
@@ -96,7 +96,7 @@ public class SystemSettingsAdminService {
      *
      * @param settings 每个元素包含 key、value，可选 description
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void batchUpdate(List<Map<String, String>> settings) {
         for (Map<String, String> item : settings) {
             String key = item.get("key");

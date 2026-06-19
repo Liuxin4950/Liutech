@@ -300,7 +300,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 彻底删除文章（物理删除）
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeletePost(Long id) {
         if (id == null) {
             throw new IllegalArgumentException("文章ID不能为空");
@@ -341,7 +341,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
     /**
      * 批量彻底删除文章（物理删除）
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeletePosts(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new IllegalArgumentException("文章ID列表不能为空");

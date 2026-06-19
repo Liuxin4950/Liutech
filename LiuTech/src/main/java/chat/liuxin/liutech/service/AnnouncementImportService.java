@@ -58,7 +58,7 @@ public class AnnouncementImportService {
     /**
      * 从Excel导入公告
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "announcements", allEntries = true)
     public Map<String, Object> importFromExcel(MultipartFile file) {
         List<String> errors = new ArrayList<>();
