@@ -71,7 +71,7 @@
                 <div class="post-info flex-1">
                   <h4 class="post-title text-base font-medium hover:text-primary transition">{{ post.title }}</h4>
                   <div class="post-meta flex flex-ac gap-12 mt-4 text-xs text-subtle">
-                    <span>{{ post.category.name }}</span>
+                    <span>{{ post.category?.name }}</span>
                     <span v-if="post.tags && post.tags.length > 0">
                       {{ post.tags.map(tag => tag.name).join(', ') }}
                     </span>
