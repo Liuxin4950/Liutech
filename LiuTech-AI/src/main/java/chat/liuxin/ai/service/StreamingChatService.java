@@ -10,7 +10,6 @@ import chat.liuxin.ai.infra.security.AiModelPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
@@ -42,7 +41,7 @@ public class StreamingChatService {
 
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
-    private final PromptService promptService;
+    private final ChatServiceHelper chatServiceHelper;
     private final TtsClient ttsClient;
     private final TtsSegmenter ttsSegmenter;
     private final AvatarCueService avatarCueService;
@@ -81,12 +80,12 @@ public class StreamingChatService {
         CompletableFuture.runAsync(() -> {
             Long convId = conversationId;
             if (!guestMode && convId == null) {
-                convId = memoryService.createConversation(userIdStr, generateTitle(input));
+                convId = memoryService.createConversation(userIdStr, chatServiceHelper.generateTitle(input));
             }
             final Long finalConvId = convId;
 
             try {
-                List<Message> messages = prepareMessages(request, userIdStr, finalConvId, guestMode);
+                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, finalConvId, guestMode);
                 if (!guestMode && finalConvId != null) {
                     memoryService.saveUserMessage(userIdStr, finalConvId, input, modelName, null);
                 }
@@ -117,12 +116,12 @@ public class StreamingChatService {
                             }
                         },
                         errorMsg -> {
-                            saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
+                            chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
                         });
 
             } catch (Exception e) {
                 log.error("流式聊天处理失败，用户ID: {}, 会话ID: {}", userIdStr, finalConvId, e);
-                saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
+                chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
                 sseHelper.safeSendError(emitter, finalConvId, e.getMessage());
                 emitter.completeWithError(e);
             }
@@ -156,7 +155,7 @@ public class StreamingChatService {
 
         CompletableFuture.runAsync(() -> {
             try {
-                List<Message> messages = prepareMessages(request, userIdStr, conversationId, guestMode);
+                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode);
 
                 sseHelper.sendSseEvent(emitter, "start", sseHelper.eventPayload(
                         "conversationId", conversationId, "model", modelName, "mode", "writing"));
@@ -350,27 +349,4 @@ public class StreamingChatService {
         futures.add(task);
     }
 
-    // ==================== 内部工具 ====================
-
-    private List<Message> prepareMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode) {
-        List<Message> messages = promptService.assemble(request, userId, conversationId, guestMode, memoryService);
-        messages.add(new UserMessage(request.getMessage() != null ? request.getMessage() : ""));
-        return messages;
-    }
-
-    private String generateTitle(String firstMessage) {
-        if (firstMessage == null || firstMessage.trim().isEmpty()) return "新会话";
-        String trimmed = firstMessage.trim();
-        return trimmed.length() > 10 ? trimmed.substring(0, 10) + "..." : trimmed;
-    }
-
-    private void saveErrorIfNeeded(boolean guestMode, String userId, Long conversationId, String modelName) {
-        if (!guestMode && conversationId != null) {
-            try {
-                memoryService.saveAssistantMessage(userId, conversationId, null, modelName, 3, null);
-            } catch (Exception e) {
-                log.warn("记录错误消息失败: {}", e.getMessage());
-            }
-        }
-    }
 }

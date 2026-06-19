@@ -6,14 +6,13 @@ import chat.liuxin.ai.dto.ChatResponse;
 import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import chat.liuxin.ai.service.AiChatService;
+import chat.liuxin.ai.service.ChatServiceHelper;
 import chat.liuxin.ai.service.MemoryService;
-import chat.liuxin.ai.service.PromptService;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
 import chat.liuxin.ai.service.StreamingChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -34,7 +33,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final AiMetrics aiMetrics;
-    private final PromptService promptService;
+    private final ChatServiceHelper chatServiceHelper;
     private final AiModelPolicy aiModelPolicy;
     private final StreamingChatService streamingChatService;
 
@@ -49,11 +48,11 @@ public class AiChatServiceImpl implements AiChatService {
         Long conversationId = guestMode ? null : request.getConversationId();
 
         try {
-            List<Message> messages = prepareMessages(request, userIdStr, conversationId, guestMode);
+            List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode);
             String input = request.getMessage();
 
             if (!guestMode && conversationId == null) {
-                conversationId = memoryService.createConversation(userIdStr, generateTitle(input));
+                conversationId = memoryService.createConversation(userIdStr, chatServiceHelper.generateTitle(input));
             }
             if (!guestMode) {
                 memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
@@ -78,7 +77,7 @@ public class AiChatServiceImpl implements AiChatService {
             long cost = System.currentTimeMillis() - begin;
             aiMetrics.recordFailure(modelName, cost, e.getClass().getSimpleName());
             log.error("AI普通聊天失败", e);
-            saveErrorIfNeeded(guestMode, userIdStr, conversationId, modelName);
+            chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, conversationId, modelName);
             throw classifyException(e);
         }
     }
@@ -92,7 +91,7 @@ public class AiChatServiceImpl implements AiChatService {
         Long conversationId = guestMode ? null : request.getConversationId();
 
         try {
-            List<Message> messages = prepareMessages(request, userIdStr, conversationId, guestMode);
+            List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode);
             AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
             logParameterApplication(modelName, params);
             String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING);
@@ -131,12 +130,6 @@ public class AiChatServiceImpl implements AiChatService {
 
     // ==================== 内部工具 ====================
 
-    private List<Message> prepareMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode) {
-        List<Message> messages = promptService.assemble(request, userId, conversationId, guestMode, memoryService);
-        messages.add(new UserMessage(request.getMessage() != null ? request.getMessage() : ""));
-        return messages;
-    }
-
     private ChatResponse buildSuccessResponse(String aiOutput, String modelName, long cost, Long conversationId, boolean guestMode) {
         return ChatResponse.builder()
                 .success(true).message(aiOutput).model(modelName)
@@ -164,24 +157,8 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
-    private String generateTitle(String firstMessage) {
-        if (firstMessage == null || firstMessage.trim().isEmpty()) return "新会话";
-        String trimmed = firstMessage.trim();
-        return trimmed.length() > 10 ? trimmed.substring(0, 10) + "..." : trimmed;
-    }
-
     private int estimateTokens(String text) {
         return text != null ? text.length() / 4 : 0;
-    }
-
-    private void saveErrorIfNeeded(boolean guestMode, String userId, Long conversationId, String modelName) {
-        if (!guestMode && conversationId != null) {
-            try {
-                memoryService.saveAssistantMessage(userId, conversationId, null, modelName, 3, null);
-            } catch (Exception e) {
-                log.warn("记录错误消息失败: {}", e.getMessage());
-            }
-        }
     }
 
     private AIServiceException classifyException(Exception e) {
