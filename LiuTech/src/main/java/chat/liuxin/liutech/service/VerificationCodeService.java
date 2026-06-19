@@ -12,9 +12,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Random;
 
 /**
  * 验证码管理服务
@@ -135,8 +135,8 @@ public class VerificationCodeService {
      * 生成6位数字验证码
      */
     private String generateCode() {
-        Random random = new Random();
-        int code = random.nextInt(900000) + 100000; // 100000-999999
+        SecureRandom secureRandom = new SecureRandom();
+        int code = secureRandom.nextInt(900000) + 100000; // 100000-999999
         return String.valueOf(code);
     }
 
