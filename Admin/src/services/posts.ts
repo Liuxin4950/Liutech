@@ -159,6 +159,7 @@ export class PostsService {
 
   /**
    * 批量更新文章状态
+   * 后端 PostsAdminController 使用 @RequestParam 接收 status，ids 通过 @RequestBody 接收
    */
   static async batchUpdatePostStatus(ids: number[], status: string): Promise<ApiResponse<string>> {
     return put<string>(`${this.BASE_URL}/batch/status?status=${status}`, ids)
