@@ -62,7 +62,7 @@ export class ImageUploadService {
    * @returns Promise<string> 返回图片URL
    */
   static async uploadTinyMCEImage(
-    blobInfo: any,
+    blobInfo: { blob(): Blob; filename(): string },
     _progress: (percent: number) => void
   ): Promise<string> {
     const formData = new FormData()
