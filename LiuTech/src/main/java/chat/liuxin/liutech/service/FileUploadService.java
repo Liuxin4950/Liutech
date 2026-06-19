@@ -14,6 +14,7 @@ import chat.liuxin.liutech.resp.FileUploadResp;
 import chat.liuxin.liutech.resp.ImageUploadResult;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,28 +31,23 @@ import java.math.BigDecimal;
  */
 @Slf4j
 @Service
-public class FileUploadService {
+@RequiredArgsConstructor
+ {
 
     private static final int DOWNLOAD_TYPE_FREE = 0;
     private static final int DOWNLOAD_TYPE_POINTS = 1;
 
-    @Autowired
-    private FileUtil fileUtil;
+    private final FileUtil fileUtil;
 
-    @Autowired
-    private FileUploadConfig fileUploadConfig;
+    private final FileUploadConfig fileUploadConfig;
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private ResourcesMapper resourcesMapper;
+    private final ResourcesMapper resourcesMapper;
 
-    @Autowired
-    private PostAttachmentsMapper postAttachmentsMapper;
+    private final PostAttachmentsMapper postAttachmentsMapper;
 
-    @Autowired
-    private ImagesService imagesService;
+    private final ImagesService imagesService;
 
     /**
      * 上传图片文件（用于TinyMCE编辑器）

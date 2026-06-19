@@ -23,6 +23,7 @@ import chat.liuxin.liutech.model.Carousel;
 import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.resp.CarouselResp;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 轮播图服务类
@@ -36,16 +37,14 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
+@RequiredArgsConstructor
+ extends ServiceImpl<CarouselMapper, Carousel> {
 
-    @Autowired
-    private CarouselMapper carouselMapper;
+    private final CarouselMapper carouselMapper;
 
-    @Autowired
-    private ImagesMapper imagesMapper;
+    private final ImagesMapper imagesMapper;
 
-    @Autowired
-    private ImagesService imagesService;
+    private final ImagesService imagesService;
 
     /**
      * 获取启用的轮播图列表（前台展示）

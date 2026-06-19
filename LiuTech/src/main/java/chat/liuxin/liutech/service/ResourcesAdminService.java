@@ -21,6 +21,7 @@ import chat.liuxin.liutech.resp.ResourceResp;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 资源管理服务（管理端）
@@ -29,13 +30,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resources> {
+@RequiredArgsConstructor
+ extends ServiceImpl<ResourcesMapper, Resources> {
 
-    @Autowired
-    private ResourcesMapper resourcesMapper;
+    private final ResourcesMapper resourcesMapper;
 
-    @Autowired
-    private ResourceDownloadsMapper resourceDownloadsMapper;
+    private final ResourceDownloadsMapper resourceDownloadsMapper;
 
     /**
      * 获取资源列表（管理端）

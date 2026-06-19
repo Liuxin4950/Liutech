@@ -19,6 +19,7 @@ import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Music;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 音乐服务类
@@ -26,19 +27,16 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-public class MusicService extends ServiceImpl<MusicMapper, Music> {
+@RequiredArgsConstructor
+ extends ServiceImpl<MusicMapper, Music> {
 
-    @Autowired
-    private MusicMapper musicMapper;
+    private final MusicMapper musicMapper;
 
-    @Autowired
-    private FileUtil fileUtil;
+    private final FileUtil fileUtil;
 
-    @Autowired
-    private FileUploadConfig fileUploadConfig;
+    private final FileUploadConfig fileUploadConfig;
 
-    @Autowired
-    private ImagesService imagesService;
+    private final ImagesService imagesService;
 
     /**
      * 获取启用的音乐列表

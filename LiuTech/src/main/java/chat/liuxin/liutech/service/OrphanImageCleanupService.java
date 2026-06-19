@@ -17,6 +17,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.model.Images;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 孤立图片清理服务
@@ -25,7 +26,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-public class OrphanImageCleanupService {
+@RequiredArgsConstructor
+ {
 
     /**
      * 图片上传基础路径
@@ -36,8 +38,7 @@ public class OrphanImageCleanupService {
     @Value("${orphan.image.cleanup.ttl-hours:24}")
     private long cleanupTtlHours;
 
-    @Autowired
-    private ImagesMapper imagesMapper;
+    private final ImagesMapper imagesMapper;
 
     @Scheduled(cron = "${orphan.image.cleanup.cron:0 0 3 * * ?}", zone = "${orphan.image.cleanup.zone:Asia/Shanghai}")
     public void cleanup() {

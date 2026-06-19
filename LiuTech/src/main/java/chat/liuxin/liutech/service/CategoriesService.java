@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -26,28 +27,22 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories> {
+@RequiredArgsConstructor
+ extends ServiceImpl<CategoriesMapper, Categories> {
 
-    @Autowired
-    private CategoriesMapper categoriesMapper;
+    private final CategoriesMapper categoriesMapper;
 
-    @Autowired
-    private PostsMapper postsMapper;
+    private final PostsMapper postsMapper;
 
-    @Autowired
-    private PostFavoritesMapper postFavoritesMapper;
+    private final PostFavoritesMapper postFavoritesMapper;
 
-    @Autowired
-    private PostLikesMapper postLikesMapper;
+    private final PostLikesMapper postLikesMapper;
 
-    @Autowired
-    private CommentsMapper commentsMapper;
+    private final CommentsMapper commentsMapper;
 
-    @Autowired
-    private PostTagsMapper postTagsMapper;
+    private final PostTagsMapper postTagsMapper;
 
-    @Autowired
-    private chat.liuxin.liutech.mapper.PostAttachmentsMapper postAttachmentsMapper;
+    private final chat.liuxin.liutech.mapper.PostAttachmentsMapper postAttachmentsMapper;
 
     /**
      * 查询所有分类（包含文章数量）

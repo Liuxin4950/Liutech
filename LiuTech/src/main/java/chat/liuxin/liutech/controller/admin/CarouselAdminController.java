@@ -6,6 +6,7 @@ import java.util.Objects;
 import jakarta.validation.Valid;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,10 +37,10 @@ import chat.liuxin.liutech.service.CarouselService;
 @RestController
 @RequestMapping("/admin/carousels")
 @PreAuthorize("hasRole('ADMIN')")
-public class CarouselAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private CarouselService carouselService;
+    private final CarouselService carouselService;
 
     /**
      * 分页查询轮播图列表

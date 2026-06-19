@@ -9,6 +9,7 @@ import chat.liuxin.liutech.service.CommentsAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -25,10 +26,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/comments")
 @PreAuthorize("hasRole('ADMIN')")
-public class CommentsAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private CommentsAdminService commentsAdminService;
+    private final CommentsAdminService commentsAdminService;
 
     /**
      * 分页查询评论列表

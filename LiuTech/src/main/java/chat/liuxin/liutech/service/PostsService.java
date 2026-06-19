@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -52,33 +53,26 @@ import chat.liuxin.liutech.utils.FileUtil;
  */
 @Slf4j
 @Service
-public class PostsService extends ServiceImpl<PostsMapper, Posts> {
+@RequiredArgsConstructor
+ extends ServiceImpl<PostsMapper, Posts> {
 
     private static final String PUBLIC_SITE_BASE_URL = "https://liuxin.chat";
 
-    @Autowired
-    private PostsMapper postsMapper;
+    private final PostsMapper postsMapper;
 
-    @Autowired
-    private PostTagsMapper postTagsMapper;
+    private final PostTagsMapper postTagsMapper;
 
-    @Autowired
-    private PostLikesMapper postLikesMapper;
+    private final PostLikesMapper postLikesMapper;
 
-    @Autowired
-    private PostFavoritesMapper postFavoritesMapper;
+    private final PostFavoritesMapper postFavoritesMapper;
 
-    @Autowired
-    private PostAttachmentsMapper postAttachmentsMapper;
+    private final PostAttachmentsMapper postAttachmentsMapper;
 
-    @Autowired
-    private ResourceDownloadService resourceDownloadService;
+    private final ResourceDownloadService resourceDownloadService;
 
-    @Autowired
-    private FileUtil fileUtil;
+    private final FileUtil fileUtil;
 
-    @Autowired
-    private ImagesService imagesService;
+    private final ImagesService imagesService;
 
     /**
      * 分页查询文章列表（公开接口）

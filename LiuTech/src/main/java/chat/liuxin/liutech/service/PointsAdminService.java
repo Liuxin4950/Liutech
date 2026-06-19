@@ -12,6 +12,7 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PointsTransactionResp;
 import chat.liuxin.liutech.resp.UserCheckinResp;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,18 +36,16 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-public class PointsAdminService {
+@RequiredArgsConstructor
+ {
 
     private static final int MAX_OPTIMISTIC_LOCK_RETRIES = 3;
 
-    @Autowired
-    private PointsTransactionMapper pointsTransactionMapper;
+    private final PointsTransactionMapper pointsTransactionMapper;
 
-    @Autowired
-    private UserCheckinMapper userCheckinMapper;
+    private final UserCheckinMapper userCheckinMapper;
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
     /**
      * 分页查询积分流水（关联用户名）

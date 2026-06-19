@@ -13,6 +13,7 @@ import chat.liuxin.liutech.service.PostsAdminService;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -27,16 +28,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/posts")
 @PreAuthorize("hasRole('ADMIN')")
-public class PostsAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private PostsService postsService;
+    private final PostsService postsService;
 
-    @Autowired
-    private PostsAdminService postsAdminService;
+    private final PostsAdminService postsAdminService;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
     /**
      * 分页查询文章列表

@@ -22,6 +22,7 @@ import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.model.ResourceDownloads;
 import chat.liuxin.liutech.model.Resources;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 资源下载服务（安全加固版）
@@ -36,16 +37,14 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-public class ResourceDownloadService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private ResourcesMapper resourcesMapper;
+    private final ResourcesMapper resourcesMapper;
 
-    @Autowired
-    private ResourceDownloadsMapper resourceDownloadsMapper;
+    private final ResourceDownloadsMapper resourceDownloadsMapper;
 
-    @Autowired
-    private PointsService pointsService;
+    private final PointsService pointsService;
 
     @Value("${file.upload.base-path:${file.upload-dir}}")
     private String uploadDir;

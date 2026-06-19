@@ -2,6 +2,7 @@ package chat.liuxin.liutech.controller.admin;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,13 +40,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/tts")
 @PreAuthorize("hasRole('ADMIN')")
-public class TtsAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private TtsConfigService ttsConfigService;
+    private final TtsConfigService ttsConfigService;
 
-    @Autowired
-    private TtsSpeechService ttsSpeechService;
+    private final TtsSpeechService ttsSpeechService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newBuilder()

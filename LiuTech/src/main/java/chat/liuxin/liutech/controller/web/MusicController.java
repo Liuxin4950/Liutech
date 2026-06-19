@@ -11,6 +11,7 @@ import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Music;
 import chat.liuxin.liutech.service.MusicService;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 音乐控制器（用户端接口）
@@ -18,10 +19,10 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @RestController
-public class MusicController {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private MusicService musicService;
+    private final MusicService musicService;
 
     /**
      * 获取启用的音乐列表（所有用户可访问）

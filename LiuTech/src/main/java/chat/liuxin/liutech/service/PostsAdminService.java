@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -44,34 +45,26 @@ import chat.liuxin.liutech.utils.FileUtil;
  */
 @Slf4j
 @Service
-public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
+@RequiredArgsConstructor
+ extends ServiceImpl<PostsMapper, Posts> {
 
-    @Autowired
-    private PostsMapper postsMapper;
+    private final PostsMapper postsMapper;
 
-    @Autowired
-    private PostTagsMapper postTagsMapper;
+    private final PostTagsMapper postTagsMapper;
 
-    @Autowired
-    private PostLikesMapper postLikesMapper;
+    private final PostLikesMapper postLikesMapper;
 
-    @Autowired
-    private PostFavoritesMapper postFavoritesMapper;
+    private final PostFavoritesMapper postFavoritesMapper;
 
-    @Autowired
-    private PostAttachmentsMapper postAttachmentsMapper;
+    private final PostAttachmentsMapper postAttachmentsMapper;
 
-    @Autowired
-    private CommentsMapper commentsMapper;
+    private final CommentsMapper commentsMapper;
 
-    @Autowired
-    private FileUtil fileUtil;
+    private final FileUtil fileUtil;
 
-    @Autowired
-    private ImagesService imagesService;
+    private final ImagesService imagesService;
 
-    @Autowired
-    private PostsService postsService;
+    private final PostsService postsService;
 
     /**
      * 管理端分页查询文章列表

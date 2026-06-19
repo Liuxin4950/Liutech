@@ -14,16 +14,17 @@ import chat.liuxin.liutech.mapper.AdminLogsMapper;
 import chat.liuxin.liutech.model.AdminLogs;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 操作日志服务
  */
 @Slf4j
 @Service
-public class LogService extends ServiceImpl<AdminLogsMapper, AdminLogs> {
+@RequiredArgsConstructor
+ extends ServiceImpl<AdminLogsMapper, AdminLogs> {
 
-    @Autowired
-    private AdminLogsMapper adminLogsMapper;
+    private final AdminLogsMapper adminLogsMapper;
 
     /**
      * 保存日志

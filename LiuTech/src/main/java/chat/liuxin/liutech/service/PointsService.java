@@ -12,6 +12,7 @@ import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.PointsTransaction;
 import chat.liuxin.liutech.model.Users;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 积分服务类 - 统一管理积分变动
@@ -26,13 +27,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-public class PointsService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private PointsTransactionMapper pointsTransactionMapper;
+    private final PointsTransactionMapper pointsTransactionMapper;
 
     /**
      * 交易类型常量

@@ -16,6 +16,7 @@ import chat.liuxin.liutech.service.MessagesService;
 import chat.liuxin.liutech.utils.UserUtils;
 import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 管理端留言控制器
@@ -25,13 +26,12 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/admin/messages")
 @PreAuthorize("hasRole('ADMIN')")
-public class MessagesAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private MessagesService messagesService;
+    private final MessagesService messagesService;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
     /**
      * 分页查询留言列表

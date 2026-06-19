@@ -11,6 +11,7 @@ import chat.liuxin.liutech.resp.ImageUsageReconcileResp;
 import chat.liuxin.liutech.utils.FileUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,25 +24,20 @@ import java.util.Map;
 
 @Slf4j
 @Service
-public class ImageUsageReconcileService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private ImagesMapper imagesMapper;
+    private final ImagesMapper imagesMapper;
 
-    @Autowired
-    private PostsMapper postsMapper;
+    private final PostsMapper postsMapper;
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private CarouselMapper carouselMapper;
+    private final CarouselMapper carouselMapper;
 
-    @Autowired
-    private MusicMapper musicMapper;
+    private final MusicMapper musicMapper;
 
-    @Autowired
-    private FileUtil fileUtil;
+    private final FileUtil fileUtil;
 
     @Transactional
     public ImageUsageReconcileResp reconcileUsageCount() {

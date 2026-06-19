@@ -19,6 +19,7 @@ import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 标签控制器
@@ -29,10 +30,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/tags")
-public class TagsController {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private TagsService tagsService;
+    private final TagsService tagsService;
 
     /**
      * 查询所有标签（包含文章数量）

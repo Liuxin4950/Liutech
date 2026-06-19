@@ -14,6 +14,7 @@ import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.service.ResourceDownloadService;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 资源下载控制器
@@ -24,13 +25,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/resource")
-public class ResourceDownloadController {
+@RequiredArgsConstructor
+ {
     
-    @Autowired
-    private ResourceDownloadService resourceDownloadService;
+    private final ResourceDownloadService resourceDownloadService;
     
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
     
     /**
      * 购买资源（扣减积分）

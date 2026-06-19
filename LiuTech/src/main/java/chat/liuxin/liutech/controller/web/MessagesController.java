@@ -18,6 +18,7 @@ import chat.liuxin.liutech.req.CreateMessageReq;
 import chat.liuxin.liutech.resp.MessageResp;
 import chat.liuxin.liutech.service.MessagesService;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 留言控制器（公开访问，无需登录）
@@ -25,10 +26,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/messages")
-public class MessagesController {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private MessagesService messagesService;
+    private final MessagesService messagesService;
 
     /**
      * 获取已审核的公开留言列表

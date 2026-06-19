@@ -3,6 +3,7 @@ package chat.liuxin.liutech.service;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -19,10 +20,10 @@ import jakarta.mail.internet.MimeMessage;
  */
 @Slf4j
 @Service
-public class EmailService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private JavaMailSender mailSender;
+    private final JavaMailSender mailSender;
 
     @Value("${spring.mail.from}")
     private String fromAddress;

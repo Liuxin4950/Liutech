@@ -10,6 +10,7 @@ import chat.liuxin.liutech.resp.UserCheckinResp;
 import chat.liuxin.liutech.service.PointsAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,10 +31,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/points")
 @PreAuthorize("hasRole('ADMIN')")
-public class PointsAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private PointsAdminService pointsAdminService;
+    private final PointsAdminService pointsAdminService;
 
     /**
      * 分页查询积分流水

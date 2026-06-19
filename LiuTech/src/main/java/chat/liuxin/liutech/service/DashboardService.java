@@ -8,6 +8,7 @@ import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.resp.DashboardResp;
 import chat.liuxin.liutech.resp.DashboardResp.*;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,22 +25,18 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class DashboardService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private PostsMapper postsMapper;
+    private final PostsMapper postsMapper;
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private CategoriesMapper categoriesMapper;
+    private final CategoriesMapper categoriesMapper;
 
-    @Autowired
-    private TagsMapper tagsMapper;
+    private final TagsMapper tagsMapper;
 
-    @Autowired
-    private CommentsMapper commentsMapper;
+    private final CommentsMapper commentsMapper;
 
     /**
      * 获取仪表盘全部统计数据

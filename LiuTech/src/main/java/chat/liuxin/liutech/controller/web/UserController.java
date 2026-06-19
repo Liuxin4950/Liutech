@@ -27,6 +27,7 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,7 +43,8 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/user")
-public class UserController {
+@RequiredArgsConstructor
+ {
 
     // 依赖说明：
     // - 应用服务：UserAuthService（认证流程：注册/登录/改密）、UserProfileService（资料与统计）、UserManagementService（用户管理）
@@ -52,26 +54,19 @@ public class UserController {
     // - JwtAuthenticationFilter 在每次请求中解析JWT并注入 Authentication，供 UserUtils 与 @PreAuthorize 使用
     // - 管理员接口建议使用 /admin/users 控制器（已加 @PreAuthorize('hasRole('ADMIN')')），本控制器的管理类接口默认仅需认证
 
-    @Autowired
-    private UserAuthService userAuthService;
+    private final UserAuthService userAuthService;
 
-    @Autowired
-    private UserProfileService userProfileService;
+    private final UserProfileService userProfileService;
 
-    @Autowired
-    private UserManagementService userManagementService;
+    private final UserManagementService userManagementService;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
-    @Autowired
-    private VerificationCodeService verificationCodeService;
+    private final VerificationCodeService verificationCodeService;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
 
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
+    private final BCryptPasswordEncoder passwordEncoder;
     /**
      * 用户注册接口
      * 创建新用户账户，包括用户名唯一性检查、邮箱唯一性检查、密码加密等

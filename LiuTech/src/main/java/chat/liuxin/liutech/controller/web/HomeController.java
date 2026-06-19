@@ -20,6 +20,7 @@ import chat.liuxin.liutech.service.CommentsService;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.service.TagsService;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 首页控制器
@@ -30,19 +31,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/")
-public class HomeController {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private PostsService postsService;
+    private final PostsService postsService;
 
-    @Autowired
-    private CategoriesService categoriesService;
+    private final CategoriesService categoriesService;
 
-    @Autowired
-    private TagsService tagsService;
+    private final TagsService tagsService;
 
-    @Autowired
-    private CommentsService commentsService;
+    private final CommentsService commentsService;
 
     /**
      * 首页欢迎信息

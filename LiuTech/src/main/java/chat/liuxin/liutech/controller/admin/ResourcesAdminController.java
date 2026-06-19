@@ -10,6 +10,7 @@ import chat.liuxin.liutech.service.ResourcesAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,10 +27,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/resources")
 @PreAuthorize("hasRole('ADMIN')")
-public class ResourcesAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private ResourcesAdminService resourcesAdminService;
+    private final ResourcesAdminService resourcesAdminService;
 
     /**
      * 分页查询资源列表

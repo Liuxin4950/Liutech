@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.controller.web;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -30,10 +31,10 @@ import java.util.concurrent.TimeUnit;
  */
 @RestController
 @RequestMapping("/tts")
-public class TtsController {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private TtsSpeechService ttsSpeechService;
+    private final TtsSpeechService ttsSpeechService;
 
     @Value("${tts.proxy.internal-token:${TTS_PROXY_INTERNAL_TOKEN:}}")
     private String internalToken;

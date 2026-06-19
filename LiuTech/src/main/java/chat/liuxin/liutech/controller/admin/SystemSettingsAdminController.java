@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,10 +31,10 @@ import chat.liuxin.liutech.service.SystemSettingsAdminService;
 @RestController
 @RequestMapping("/admin/settings")
 @PreAuthorize("hasRole('ADMIN')")
-public class SystemSettingsAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private SystemSettingsAdminService settingsAdminService;
+    private final SystemSettingsAdminService settingsAdminService;
 
     /**
      * 获取所有系统设置

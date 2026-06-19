@@ -26,6 +26,7 @@ import chat.liuxin.liutech.req.CreateCommentReq;
 import chat.liuxin.liutech.resp.CommentResp;
 import chat.liuxin.liutech.resp.PageResp;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 /**
  * 评论服务类
  * 提供评论的增删改查、树形结构构建、统计等核心业务功能
@@ -35,13 +36,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
+@RequiredArgsConstructor
+ extends ServiceImpl<CommentsMapper, Comments> {
 
-    @Autowired
-    private CommentsMapper commentsMapper;
+    private final CommentsMapper commentsMapper;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
     /**
      * 分页查询文章评论

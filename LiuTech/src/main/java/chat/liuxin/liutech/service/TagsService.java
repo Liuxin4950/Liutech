@@ -12,6 +12,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -30,13 +31,12 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class TagsService extends ServiceImpl<TagsMapper, Tags> {
+@RequiredArgsConstructor
+ extends ServiceImpl<TagsMapper, Tags> {
 
-    @Autowired
-    private TagsMapper tagsMapper;
+    private final TagsMapper tagsMapper;
 
-    @Autowired
-    private PostTagsMapper postTagsMapper;
+    private final PostTagsMapper postTagsMapper;
 
     /**
      * 查询所有标签（包含文章数量）

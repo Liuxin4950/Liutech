@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,10 +26,10 @@ import chat.liuxin.liutech.model.SystemSetting;
  * site.* / comment.* / upload.* 等已移除，改为硬编码或由 Spring 配置控制。
  */
 @Service
-public class SystemSettingsAdminService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private SystemSettingMapper systemSettingMapper;
+    private final SystemSettingMapper systemSettingMapper;
 
     /** 预定义设置项：key -> [默认值, 描述, 分组] */
     private static final Map<String, String[]> PREDEFINED_SETTINGS = new LinkedHashMap<>();

@@ -24,6 +24,7 @@ import chat.liuxin.liutech.resp.CommentResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.CommentsService;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 评论控制器
@@ -34,13 +35,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/comments")
-public class CommentsController {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private CommentsService commentsService;
+    private final CommentsService commentsService;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
     /**
      * 分页查询文章评论

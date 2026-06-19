@@ -7,6 +7,7 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,10 +21,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/tags")
 @PreAuthorize("hasRole('ADMIN')")
-public class TagsAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private TagsService tagsService;
+    private final TagsService tagsService;
 
     /**
      * 分页查询标签列表

@@ -17,6 +17,7 @@ import chat.liuxin.liutech.service.ImageUsageReconcileService;
 import chat.liuxin.liutech.service.ImagesAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 管理端图片控制器
@@ -28,13 +29,12 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/admin/images")
 @PreAuthorize("hasRole('ADMIN')")
-public class ImagesAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private ImageUsageReconcileService imageUsageReconcileService;
+    private final ImageUsageReconcileService imageUsageReconcileService;
 
-    @Autowired
-    private ImagesAdminService imagesAdminService;
+    private final ImagesAdminService imagesAdminService;
 
     /**
      * 图片引用对账

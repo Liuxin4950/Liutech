@@ -12,6 +12,7 @@ import chat.liuxin.liutech.resp.LoginResp;
 import chat.liuxin.liutech.utils.JwtUtil;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
@@ -34,22 +35,18 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Service
-public class UserAuthService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    private final JwtUtil jwtUtil;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
+    private final BCryptPasswordEncoder passwordEncoder;
 
-    @Autowired
-    private VerificationCodeService verificationCodeService;
+    private final VerificationCodeService verificationCodeService;
 
     // ========== 登录暴力破解防护 ==========
     /** 最大允许连续失败次数 */

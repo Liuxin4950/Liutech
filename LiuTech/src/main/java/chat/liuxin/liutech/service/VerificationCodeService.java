@@ -5,6 +5,7 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.VerificationCodeMapper;
 import chat.liuxin.liutech.model.VerificationCode;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.transaction.annotation.Propagation;
@@ -23,7 +24,8 @@ import java.util.Random;
  */
 @Slf4j
 @Service
-public class VerificationCodeService {
+@RequiredArgsConstructor
+ {
 
     /** 验证码有效期（分钟） */
     private static final int CODE_EXPIRE_MINUTES = 5;
@@ -34,11 +36,9 @@ public class VerificationCodeService {
     /** 最大错误尝试次数，超过则作废验证码 */
     private static final int MAX_ATTEMPT_COUNT = 5;
 
-    @Autowired
-    private VerificationCodeMapper verificationCodeMapper;
+    private final VerificationCodeMapper verificationCodeMapper;
 
-    @Autowired
-    private EmailService emailService;
+    private final EmailService emailService;
 
     @Autowired
     @Lazy

@@ -21,6 +21,7 @@ import chat.liuxin.liutech.model.Music;
 import chat.liuxin.liutech.service.MusicService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 管理端音乐控制器
@@ -30,10 +31,10 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/admin/music")
 @PreAuthorize("hasRole('ADMIN')")
-public class MusicAdminController extends BaseAdminController {
+@RequiredArgsConstructor
+ extends BaseAdminController {
 
-    @Autowired
-    private MusicService musicService;
+    private final MusicService musicService;
 
     /**
      * 获取音乐列表（支持状态和关键词筛选）

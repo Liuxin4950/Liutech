@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.service;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -9,7 +10,8 @@ import chat.liuxin.liutech.model.dto.TtsConfigDTO;
  * TTS 配置服务（从 system_settings 读写）
  */
 @Service
-public class TtsConfigService {
+@RequiredArgsConstructor
+ {
 
     public static final String KEY_ENABLED = "tts.enabled";
     public static final String KEY_BASE_URL = "tts.baseUrl";
@@ -29,8 +31,7 @@ public class TtsConfigService {
     public static final int DEFAULT_SAMPLE_RATE = 44100;
     public static final double DEFAULT_SPEED = 1.0;
 
-    @Autowired
-    private SystemSettingService systemSettingService;
+    private final SystemSettingService systemSettingService;
 
     public TtsConfigDTO getConfig() {
         TtsConfigDTO dto = new TtsConfigDTO();

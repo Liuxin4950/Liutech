@@ -5,6 +5,7 @@ import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.utils.FileUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -22,16 +23,14 @@ import chat.liuxin.liutech.resp.ImageUploadResult;
  */
 @Slf4j
 @Service
-public class ImagesService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private ImagesMapper imagesMapper;
+    private final ImagesMapper imagesMapper;
 
-    @Autowired
-    private FileUtil fileUtil;
+    private final FileUtil fileUtil;
 
-    @Autowired
-    private ImageCompressService imageCompressService;
+    private final ImageCompressService imageCompressService;
 
     /**
      * 上传图片（带去重）

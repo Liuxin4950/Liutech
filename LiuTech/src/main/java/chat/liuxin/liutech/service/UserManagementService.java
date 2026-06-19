@@ -9,6 +9,7 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.utils.UserUtils;
 import org.springframework.beans.BeanUtils;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,16 +32,14 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class UserManagementService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     /**
      * 获取当前用户信息

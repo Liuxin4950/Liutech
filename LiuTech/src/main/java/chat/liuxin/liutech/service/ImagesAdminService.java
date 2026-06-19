@@ -17,6 +17,7 @@ import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 图片管理服务（Admin）
@@ -26,13 +27,12 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
+@RequiredArgsConstructor
+ extends ServiceImpl<ImagesMapper, Images> {
 
-    @Autowired
-    private ImagesMapper imagesMapper;
+    private final ImagesMapper imagesMapper;
 
-    @Autowired
-    private FileUtil fileUtil;
+    private final FileUtil fileUtil;
 
     /**
      * 分页查询图片列表（管理端）

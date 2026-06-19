@@ -8,6 +8,7 @@ import chat.liuxin.liutech.resp.PageResp;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,10 +23,10 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> {
+@RequiredArgsConstructor
+ extends ServiceImpl<CommentsMapper, Comments> {
 
-    @Autowired
-    private CommentsMapper commentsMapper;
+    private final CommentsMapper commentsMapper;
 
     /**
      * 分页查询评论列表（管理端）

@@ -16,6 +16,7 @@ import chat.liuxin.liutech.resp.UserStatsResp;
 import chat.liuxin.liutech.resp.ProfileResp;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -36,31 +37,24 @@ import java.util.List;
  */
 @Slf4j
 @Service
-public class UserProfileService {
+@RequiredArgsConstructor
+ {
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
-    @Autowired
-    private CommentsMapper commentsMapper;
+    private final CommentsMapper commentsMapper;
 
-    @Autowired
-    private PostsMapper postsMapper;
+    private final PostsMapper postsMapper;
 
-    @Autowired
-    private PostFavoritesMapper postFavoritesMapper;
+    private final PostFavoritesMapper postFavoritesMapper;
 
-    @Autowired
-    private ImagesMapper imagesMapper;
+    private final ImagesMapper imagesMapper;
 
-    @Autowired
-    private ImagesService imagesService;
+    private final ImagesService imagesService;
 
-    @Autowired
-    private SystemSettingMapper systemSettingMapper;
+    private final SystemSettingMapper systemSettingMapper;
 
     /**
      * 更新当前用户个人资料

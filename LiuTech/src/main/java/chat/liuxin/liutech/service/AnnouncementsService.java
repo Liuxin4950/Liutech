@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -54,10 +55,10 @@ import chat.liuxin.liutech.resp.AnnouncementResp;
  * @version 2.0 - 重构优化版本
  */
 @Service
-public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Announcements> {
+@RequiredArgsConstructor
+ extends ServiceImpl<AnnouncementsMapper, Announcements> {
 
-    @Autowired
-    private AnnouncementsMapper announcementsMapper;
+    private final AnnouncementsMapper announcementsMapper;
 
     /**
      * 获取有效公告（分页）
