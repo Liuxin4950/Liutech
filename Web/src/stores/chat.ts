@@ -303,6 +303,7 @@ export const useChatStore = defineStore('chat', () => {
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(CONVERSATION_ID_KEY)
     localStorage.removeItem(MODE_KEY)
+    localStorage.removeItem(TTS_ENABLED_KEY)
     sessionStorage.removeItem(GUEST_STORAGE_KEY)
     sessionStorage.removeItem(GUEST_MODE_KEY)
     sessionStorage.removeItem(GUEST_TTS_ENABLED_KEY)
