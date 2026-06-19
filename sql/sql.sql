@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS posts (
   INDEX idx_category_status (category_id, status),
   INDEX idx_author_status (author_id, status),
   INDEX idx_deleted_at (deleted_at),
+  INDEX idx_status_deleted_created (status, deleted_at, created_at),
   FOREIGN KEY (category_id) REFERENCES categories(id),
   FOREIGN KEY (author_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章表';
@@ -231,6 +232,7 @@ CREATE TABLE IF NOT EXISTS points_transactions (
   INDEX idx_transaction_type (transaction_type),
   INDEX idx_created_at (created_at),
   INDEX idx_source (source_type, source_id),
+  INDEX idx_user_created (user_id, created_at),
   FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分流水表';
 
