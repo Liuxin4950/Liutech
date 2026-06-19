@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useErrorHandler } from '../composables/useErrorHandler'
 import type { RegisterRequest } from '../services/user'
+import { sendEmailLoginCode } from '../services/user'
 import Icon from '../components/Icon.vue'
 
 const router = useRouter()
@@ -22,7 +23,7 @@ const registerForm = reactive({ username: '', email: '', code: '', nickname: '' 
 
 const errors = reactive({ username: '', email: '', password: '', code: '', confirmPassword: '' })
 
-const showPassword = reactive({ login: false, register: false, confirm: false })
+const showPassword = reactive({ login: false })
 
 const toggleMode = () => { isLogin.value = !isLogin.value; clearError() }
 
@@ -94,8 +95,6 @@ const startRegisterCountdown = () => {
 }
 
 // 邮箱登录相关方法
-import { sendEmailLoginCode } from '../services/user'
-
 const handleSendEmailCode = async () => {
   emailLoginErrors.email = ''
   if (!emailLoginForm.email.trim()) { emailLoginErrors.email = '请输入邮箱地址'; return }
@@ -105,7 +104,10 @@ const handleSendEmailCode = async () => {
 }
 
 const handleEmailLogin = async () => {
+  emailLoginErrors.email = ''
   emailLoginErrors.code = ''
+  if (!emailLoginForm.email.trim()) { emailLoginErrors.email = '请输入邮箱地址'; return }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLoginForm.email)) { emailLoginErrors.email = '请输入有效的邮箱地址'; return }
   if (!emailLoginForm.code.trim()) { emailLoginErrors.code = '请输入验证码'; return }
   const result = await handleFormSubmit(async () => await userStore.emailLogin(emailLoginForm.email, emailLoginForm.code))
   if (result) { showSuccessToast('登录成功！'); setTimeout(() => router.push((router.currentRoute.value.query.redirect as string) || '/'), 600) }
