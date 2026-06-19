@@ -100,8 +100,7 @@ const openEdit = async (record: Carousel) => {
     } else {
       message.error(res.message || '获取轮播图详情失败')
     }
-  } catch (e) {
-    console.error('获取轮播图详情异常:', e)
+  } catch {
     message.warning('获取轮播图详情失败，请稍后重试')
   }
 }
