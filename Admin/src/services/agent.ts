@@ -30,7 +30,7 @@ const CONTRACT_VERSION = 1
 /**
  * SSE Envelope 根结构。
  */
-interface SseEnvelope<T = any> {
+interface SseEnvelope<T = unknown> {
   contractVersion: number
   event: string
   taskId: number
@@ -52,6 +52,11 @@ export interface AgentStreamHandlers {
   onFieldUpdate?: (payload: FieldUpdatePayload) => void
   onError?: (message: string, code?: string) => void
   onComplete?: (payload: AgentCompletePayload) => void
+}
+
+function isSseEnvelope(value: unknown): value is SseEnvelope {
+  return typeof value === 'object' && value !== null
+    && 'contractVersion' in value && (value as SseEnvelope).contractVersion === CONTRACT_VERSION
 }
 
 export class AgentService {
@@ -119,7 +124,7 @@ export class AgentService {
     }
 
     if (!dataLines.length) return
-    let payload: any
+    let payload: unknown
     try {
       payload = JSON.parse(dataLines.join('\n'))
     } catch {
@@ -127,10 +132,9 @@ export class AgentService {
     }
 
     // 检查是否为新版 envelope 格式
-    if (payload && payload.contractVersion === CONTRACT_VERSION) {
-      const envelope = payload as SseEnvelope
-      eventType = envelope.event
-      payload = envelope.payload
+    if (isSseEnvelope(payload)) {
+      eventType = payload.event
+      payload = payload.payload
     }
 
     // 根据 eventType 分发到对应 handler
