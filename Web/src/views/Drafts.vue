@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
-import { CategoryService, type Category } from '../services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatRelativeTime } from '@/utils/utils'
 import { handleImageError } from '@/composables/useImageFallback'
@@ -14,7 +13,6 @@ const { handleAsync,showToastSuccess,showToastError,confirm } = useErrorHandler(
 
 // 响应式数据
 const drafts = ref<PostListItem[]>([])
-const categories = ref<Category[]>([])
 const loading = ref(false)
 const error = ref('')
 const searchKeyword = ref('')
@@ -61,13 +59,6 @@ const loadDrafts = async () => {
   })
 }
 
-const loadCategories = async () => {
-  try {
-    categories.value = await CategoryService.getCategories()
-  } catch {
-    // 加载分类失败时静默处理，不影响主流程
-  }
-}
 // 跳转到标签页面
 const goToTag = (tagId: number) => {
   router.push(`/tags/${tagId}`)
@@ -132,11 +123,8 @@ const changePage = (page: number) => {
 }
 
 // 生命周期
-onMounted(async () => {
-  await Promise.all([
-    loadDrafts(),
-    loadCategories()
-  ])
+onMounted(() => {
+  loadDrafts()
 })
 </script>
 
