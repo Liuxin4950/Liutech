@@ -34,6 +34,7 @@ class AiChatServiceImplTest {
     private SensitiveLogSanitizer sensitiveLogSanitizer;
     private TtsSegmenter ttsSegmenter;
     private AvatarCueService avatarCueService;
+    private StreamingChatService streamingChatService;
     private AiChatServiceImpl service;
     private Method resolveModelNameMethod;
 
@@ -45,6 +46,7 @@ class AiChatServiceImplTest {
         aiModelConfigService = mock(AiModelConfigService.class);
         ttsClient = mock(TtsClient.class);
         promptAssembler = mock(PromptAssembler.class);
+        streamingChatService = mock(StreamingChatService.class);
         aiModelPolicy = new AiModelPolicy(aiModelConfigService);
         sensitiveLogSanitizer = new SensitiveLogSanitizer();
         ttsSegmenter = new TtsSegmenter();
@@ -54,10 +56,9 @@ class AiChatServiceImplTest {
         setField(aiModelPolicy, "maxTokensCeiling", 4096);
 
         service = new AiChatServiceImpl(
-                siliconFlowChatClient, memoryService, aiMetrics, ttsClient,
-                promptAssembler, aiModelPolicy, sensitiveLogSanitizer, ttsSegmenter, avatarCueService
+                siliconFlowChatClient, memoryService, aiMetrics,
+                promptAssembler, aiModelPolicy, streamingChatService
         );
-        setField(service, "defaultModel", "fallback-model");
 
         resolveModelNameMethod = AiChatServiceImpl.class.getDeclaredMethod("resolveModelName", ChatRequest.class);
         resolveModelNameMethod.setAccessible(true);
