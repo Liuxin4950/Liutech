@@ -33,21 +33,6 @@ export interface SettingUpdateItem {
 export class SettingsService {
   private static readonly BASE_URL = '/admin/settings'
 
-  /** 获取所有设置 */
-  static async listAll(): Promise<ApiResponse<SystemSetting[]>> {
-    return get<SystemSetting[]>(this.BASE_URL)
-  }
-
-  /** 根据 key 获取单个设置 */
-  static async getByKey(key: string): Promise<ApiResponse<SystemSetting>> {
-    return get<SystemSetting>(`${this.BASE_URL}/${key}`)
-  }
-
-  /** 更新单个设置 */
-  static async updateByKey(key: string, value: string, description?: string): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${key}`, { value, description })
-  }
-
   /** 批量更新设置 */
   static async batchUpdate(settings: SettingUpdateItem[]): Promise<ApiResponse<boolean>> {
     return post<boolean>(`${this.BASE_URL}/batch`, settings)

@@ -88,15 +88,6 @@ const aiModelsService = {
   getModelList: (): Promise<ModelConfig[]> =>
     aiApi.get('/admin/models/list'),
 
-  getEnabledModels: (): Promise<ModelConfig[]> =>
-    aiApi.get('/admin/models/enabled'),
-
-  getDefaultModel: (): Promise<ModelConfig> =>
-    aiApi.get('/admin/models/default'),
-
-  getModelById: (id: number): Promise<ModelConfig> =>
-    aiApi.get(`/admin/models/${id}`),
-
   addModel: (data: ModelConfigRequest): Promise<ModelConfig> =>
     aiApi.post('/admin/models', data),
 
@@ -111,9 +102,6 @@ const aiModelsService = {
 
   toggleEnabled: (id: number, enabled: boolean): Promise<void> =>
     aiApi.put(`/admin/models/${id}/toggle`, null, { params: { enabled } }),
-
-  getTodayModelUsage: (): Promise<ModelUsageStats[]> =>
-    aiApi.get('/admin/models/usage/today'),
 }
 
 export default aiModelsService

@@ -99,13 +99,6 @@ export class CarouselService {
   }
 
   /**
-   * 批量更新轮播图状态
-   */
-  static async batchUpdateCarouselStatus(ids: number[], status: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.ADMIN_BASE_URL}/batch/status`, { ids, status })
-  }
-
-  /**
    * 更新轮播图排序
    */
   static async updateCarouselSort(id: number, sortOrder: number): Promise<ApiResponse<boolean>> {

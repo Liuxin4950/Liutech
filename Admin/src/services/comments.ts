@@ -56,13 +56,6 @@ export class CommentsService {
   }
 
   /**
-   * 根据ID查询评论详情
-   */
-  static async getCommentById(id: number): Promise<ApiResponse<Comment>> {
-    return get<Comment>(`${this.BASE_URL}/${id}`)
-  }
-
-  /**
    * 软删除评论
    */
   static async deleteComment(id: number): Promise<ApiResponse<string>> {

@@ -73,13 +73,6 @@ export class ResourcesService {
   }
 
   /**
-   * 根据ID查询资源详情
-   */
-  static async getResourceById(id: number): Promise<ApiResponse<Resource>> {
-    return get<Resource>(`${this.BASE_URL}/${id}`)
-  }
-
-  /**
    * 创建资源
    */
   static async createResource(resource: Resource): Promise<ApiResponse<string>> {
@@ -126,13 +119,6 @@ export class ResourcesService {
    */
   static async batchPermanentDeleteResources(ids: number[]): Promise<ApiResponse<string>> {
     return post<string>(`${this.BASE_URL}/batch/permanent`, ids)
-  }
-
-  /**
-   * 分页查询下载记录
-   */
-  static async getDownloadLogs(params: DownloadLogListParams = {}): Promise<ApiResponse<PageResult<DownloadLog>>> {
-    return get<PageResult<DownloadLog>>(`${this.BASE_URL}/downloads`, params)
   }
 }
 

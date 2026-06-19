@@ -75,13 +75,6 @@ export class PointsService {
   }
 
   /**
-   * 查询某用户的积分流水
-   */
-  static async getTransactionsByUser(userId: number, page: number = 1, size: number = 10): Promise<ApiResponse<PageResult<PointsTransaction>>> {
-    return get<PageResult<PointsTransaction>>(`${this.BASE_URL}/transactions/user/${userId}`, { page, size })
-  }
-
-  /**
    * 管理员手动调整积分
    */
   static async adjustPoints(data: PointsAdjustRequest): Promise<ApiResponse<string>> {
@@ -93,13 +86,6 @@ export class PointsService {
    */
   static async getCheckinList(params: CheckinListParams = {}): Promise<ApiResponse<PageResult<UserCheckin>>> {
     return get<PageResult<UserCheckin>>(`${this.BASE_URL}/checkins`, params)
-  }
-
-  /**
-   * 查询某用户的签到记录
-   */
-  static async getCheckinsByUser(userId: number, page: number = 1, size: number = 10): Promise<ApiResponse<PageResult<UserCheckin>>> {
-    return get<PageResult<UserCheckin>>(`${this.BASE_URL}/checkins/user/${userId}`, { page, size })
   }
 
   /**

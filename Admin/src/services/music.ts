@@ -50,13 +50,6 @@ const musicService = {
   },
 
   /**
-   * 获取音乐详情
-   */
-  getMusicById: (id: number) => {
-    return get<Music>(`/admin/music/${id}`)
-  },
-
-  /**
    * 上传音乐
    */
   uploadMusic: (params: UploadMusicParams) => {

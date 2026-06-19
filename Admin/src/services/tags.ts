@@ -42,13 +42,6 @@ export class TagsService {
   }
 
   /**
-   * 根据ID查询标签详情
-   */
-  static async getTagById(id: number): Promise<ApiResponse<Tag>> {
-    return get<Tag>(`${this.BASE_URL}/${id}`)
-  }
-
-  /**
    * 创建标签
    */
   static async createTag(tag: Tag): Promise<ApiResponse<string>> {

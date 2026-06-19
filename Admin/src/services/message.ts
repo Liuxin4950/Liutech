@@ -55,13 +55,6 @@ export class MessagesService {
   }
 
   /**
-   * 根据ID查询留言详情
-   */
-  static async getMessageById(id: number): Promise<ApiResponse<Message>> {
-    return get<Message>(`${this.BASE_URL}/${id}`)
-  }
-
-  /**
    * 审核留言（通过/拒绝）
    */
   static async reviewMessage(id: number, status: number): Promise<ApiResponse<string>> {

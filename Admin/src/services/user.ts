@@ -99,13 +99,6 @@ export class UserService {
   }
 
   /**
-   * 根据ID查询用户详情（管理端）
-   */
-  static async getUserById(id: number): Promise<ApiResponse<User>> {
-    return get<User>(`${this.ADMIN_BASE_URL}/${id}`)
-  }
-
-  /**
    * 创建用户（管理端）
    */
   static async createUser(user: User): Promise<ApiResponse<string>> {
@@ -168,13 +161,6 @@ export class UserService {
     return del<string>(`${this.ADMIN_BASE_URL}/${id}/permanent`)
   }
 
-  /**
-   * 批量彻底删除用户（管理端）
-   */
-  static async batchPermanentDeleteUsers(ids: number[]): Promise<ApiResponse<string>> {
-    return post<string>(`${this.ADMIN_BASE_URL}/batch/permanent`, ids)
-  }
-
 }
 
 // 导出便捷方法
@@ -184,7 +170,6 @@ export const {
   getCurrentUser,
   updateProfile,
   getUserList,
-  getUserById,
   createUser,
   updateUser,
   deleteUser,
@@ -193,8 +178,7 @@ export const {
   batchUpdateUserStatus,
   restoreUser,
   batchRestoreUsers,
-  permanentDeleteUser,
-  batchPermanentDeleteUsers
+  permanentDeleteUser
 } = UserService
 
 export default UserService

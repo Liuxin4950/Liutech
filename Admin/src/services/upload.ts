@@ -128,32 +128,6 @@ export class ImageUploadService {
     })
   }
 
-  /**
-   * 文档上传方法
-   * @param file 文档文件
-   * @param description 文件描述（可选）
-   * @returns 上传结果
-   */
-  static async uploadDocument(file: File, description?: string): Promise<any> {
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      if (description) {
-        formData.append('description', description)
-      }
-
-      const response = await post('/upload/document', formData, {
-        headers: {
-          'Content-Type': undefined
-        }
-      })
-
-      return response
-    } catch (error) {
-      console.error('文档上传失败:', error)
-      throw new Error('文档上传失败，请重试')
-    }
-  }
 }
 
 export default ImageUploadService

@@ -42,13 +42,6 @@ export class CategoriesService {
   }
 
   /**
-   * 根据ID查询分类详情
-   */
-  static async getCategoryById(id: number): Promise<ApiResponse<Category>> {
-    return get<Category>(`${this.BASE_URL}/${id}`)
-  }
-
-  /**
    * 创建分类
    */
   static async createCategory(category: Category): Promise<ApiResponse<string>> {

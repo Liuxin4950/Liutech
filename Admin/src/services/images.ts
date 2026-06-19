@@ -60,13 +60,6 @@ export class ImagesService {
   }
 
   /**
-   * 根据ID查询图片详情
-   */
-  static async getImageById(id: number): Promise<ApiResponse<Image>> {
-    return get<Image>(`${this.BASE_URL}/${id}`)
-  }
-
-  /**
    * 软删除图片
    */
   static async deleteImage(id: number): Promise<ApiResponse<any>> {
