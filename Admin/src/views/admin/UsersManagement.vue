@@ -282,7 +282,9 @@ const handleBatchDisable = async () => {
       <template #extra>
         <a-space>
           <a-button type="primary" @click="openCreate">新建用户</a-button>
-          <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">批量删除</a-button>
+          <a-popconfirm title="确定批量删除选中的用户吗？" @confirm="handleBatchDelete(selectedRowKeys)">
+            <a-button danger :disabled="selectedRowKeys.length === 0">批量删除</a-button>
+          </a-popconfirm>
           <a-button :disabled="selectedRowKeys.length === 0" @click="handleBatchRestore">批量恢复</a-button>
           <a-dropdown>
             <template #overlay>
