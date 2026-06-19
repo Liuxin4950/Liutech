@@ -1,32 +1,19 @@
 import axios from 'axios'
 import type { AxiosInstance } from 'axios'
-import Swal from 'sweetalert2'
+import { message } from 'ant-design-vue'
 import router from '../router'
 
-type DataAxiosInstance = Omit<
-  AxiosInstance,
-  'request' | 'get' | 'delete' | 'head' | 'options' | 'post' | 'put' | 'patch'
-> & {
-  request<T = any>(config: unknown): Promise<T>
-  get<T = any>(url: string, config?: unknown): Promise<T>
-  delete<T = any>(url: string, config?: unknown): Promise<T>
-  head<T = any>(url: string, config?: unknown): Promise<T>
-  options<T = any>(url: string, config?: unknown): Promise<T>
-  post<T = any>(url: string, data?: unknown, config?: unknown): Promise<T>
-  put<T = any>(url: string, data?: unknown, config?: unknown): Promise<T>
-  patch<T = any>(url: string, data?: unknown, config?: unknown): Promise<T>
-}
-
-// 创建 AI 服务专用的 axios 实例（独立 baseURL，指向 AI 服务 8081 端口）
-const aiApi = axios.create({
+// AI 服务 axios 实例（独立 baseURL，指向 AI 服务）
+// 开发环境：http://127.0.0.1:8081，生产环境通过 Nginx 的 /ai/ 代理
+const aiApi: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_AI_BASE_URL || 'http://127.0.0.1:8081',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }
-}) as DataAxiosInstance
+})
 
-// 请求拦截器 - 添加 token
+// 请求拦截器 —— 添加 token（与主 api.ts 一致）
 aiApi.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
@@ -35,36 +22,26 @@ aiApi.interceptors.request.use(
     }
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
-// 响应拦截器（只负责路由跳转，不弹窗）
+// 响应拦截器 —— 路由跳转 + 统一解包
 aiApi.interceptors.response.use(
-  (response) => {
-    return response.data
-  },
+  (response) => response.data,
   (error) => {
-    // 拦截器只负责路由跳转，不弹窗（弹窗由调用方处理）
-
-    // 401 跳转登录页
     if (error.response?.status === 401) {
-      Swal.close() // 清除所有已弹出的弹窗
+      message.destroy()
       localStorage.removeItem('token')
       if (router.currentRoute.value.path !== '/login') {
         router.push('/login')
       }
     }
-
-    // 403 跳转权限不足页面
     if (error.response?.status === 403) {
-      Swal.close() // 清除所有已弹出的弹窗
+      message.destroy()
       if (router.currentRoute.value.path !== '/403') {
         router.push('/403')
       }
     }
-
     return Promise.reject(error)
   }
 )
@@ -108,77 +85,35 @@ export interface ModelUsageStats {
 }
 
 const aiModelsService = {
-  /**
-   * 获取所有模型配置列表
-   */
-  getModelList: (): Promise<ModelConfig[]> => {
-    return aiApi.get<ModelConfig[]>('/admin/models/list')
-  },
+  getModelList: (): Promise<ModelConfig[]> =>
+    aiApi.get('/admin/models/list'),
 
-  /**
-   * 获取所有启用的模型
-   */
-  getEnabledModels: (): Promise<ModelConfig[]> => {
-    return aiApi.get<ModelConfig[]>('/admin/models/enabled')
-  },
+  getEnabledModels: (): Promise<ModelConfig[]> =>
+    aiApi.get('/admin/models/enabled'),
 
-  /**
-   * 获取默认模型
-   */
-  getDefaultModel: (): Promise<ModelConfig> => {
-    return aiApi.get<ModelConfig>('/admin/models/default')
-  },
+  getDefaultModel: (): Promise<ModelConfig> =>
+    aiApi.get('/admin/models/default'),
 
-  /**
-   * 根据ID获取模型配置
-   */
-  getModelById: (id: number): Promise<ModelConfig> => {
-    return aiApi.get<ModelConfig>(`/admin/models/${id}`)
-  },
+  getModelById: (id: number): Promise<ModelConfig> =>
+    aiApi.get(`/admin/models/${id}`),
 
-  /**
-   * 添加新模型配置
-   */
-  addModel: (data: ModelConfigRequest): Promise<ModelConfig> => {
-    return aiApi.post<ModelConfig>('/admin/models', data)
-  },
+  addModel: (data: ModelConfigRequest): Promise<ModelConfig> =>
+    aiApi.post('/admin/models', data),
 
-  /**
-   * 更新模型配置
-   */
-  updateModel: (id: number, data: ModelConfigRequest): Promise<ModelConfig> => {
-    return aiApi.put<ModelConfig>(`/admin/models/${id}`, data)
-  },
+  updateModel: (id: number, data: ModelConfigRequest): Promise<ModelConfig> =>
+    aiApi.put(`/admin/models/${id}`, data),
 
-  /**
-   * 删除模型配置
-   */
-  deleteModel: (id: number): Promise<void> => {
-    return aiApi.delete<void>(`/admin/models/${id}`)
-  },
+  deleteModel: (id: number): Promise<void> =>
+    aiApi.delete(`/admin/models/${id}`),
 
-  /**
-   * 设置默认模型
-   */
-  setDefaultModel: (id: number): Promise<void> => {
-    return aiApi.put<void>(`/admin/models/${id}/default`)
-  },
+  setDefaultModel: (id: number): Promise<void> =>
+    aiApi.put(`/admin/models/${id}/default`),
 
-  /**
-   * 切换模型启用状态
-   */
-  toggleEnabled: (id: number, enabled: boolean): Promise<void> => {
-    return aiApi.put<void>(`/admin/models/${id}/toggle`, null, {
-      params: { enabled }
-    })
-  },
+  toggleEnabled: (id: number, enabled: boolean): Promise<void> =>
+    aiApi.put(`/admin/models/${id}/toggle`, null, { params: { enabled } }),
 
-  /**
-   * 获取今天模型使用统计
-   */
-  getTodayModelUsage: (): Promise<ModelUsageStats[]> => {
-    return aiApi.get<ModelUsageStats[]>('/admin/models/usage/today')
-  }
+  getTodayModelUsage: (): Promise<ModelUsageStats[]> =>
+    aiApi.get('/admin/models/usage/today'),
 }
 
 export default aiModelsService
