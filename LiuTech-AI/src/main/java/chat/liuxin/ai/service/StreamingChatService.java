@@ -201,11 +201,6 @@ public class StreamingChatService {
         ttsExecutorRef.set(ttsExecutor);
         List<CompletableFuture<Void>> ttsFutures = Collections.synchronizedList(new ArrayList<>());
 
-        emitter.onCompletion(() -> {
-            emitterClosed.set(true);
-            sseHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
-        });
-
         flux.subscribe(
                 // ---- onNext ----
                 chunk -> {
