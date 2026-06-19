@@ -447,7 +447,7 @@ const handleStatusChange = async (id: number, status: number) => {
         </a-form-item>
         <a-form-item label="状态">
           <a-select v-model:value="editForm.status">
-            <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+            <a-select-option v-for="opt in statusOptions.filter(o => o.value !== undefined)" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </a-select-option>
           </a-select>
