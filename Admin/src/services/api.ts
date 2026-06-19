@@ -11,9 +11,7 @@ export interface ApiResponse<T = any> {
 }
 
 // 请求配置接口
-export interface RequestConfig extends AxiosRequestConfig {
-  skipErrorHandler?: boolean // 是否跳过统一错误处理
-}
+export interface RequestConfig extends AxiosRequestConfig {}
 
 // 动态获取后端URL（优先使用环境变量）
 const getBackendURL = (): string => {
@@ -50,7 +48,6 @@ instance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
-    console.log('API 请求:', config.method?.toUpperCase(), config.url, config.params || '', config.data || '')
     return config
   },
   (error) => {
