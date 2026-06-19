@@ -51,7 +51,7 @@ const validatePassword = () => {
   let valid = true
   if (!form.code.trim()) { errors.code = '请输入验证码'; valid = false }
   if (!form.newPassword) { errors.newPassword = '请输入新密码'; valid = false }
-  else if (form.newPassword.length < 6) { errors.newPassword = '密码至少6位'; valid = false }
+  else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(form.newPassword)) { errors.newPassword = '密码至少8位且包含字母和数字'; valid = false }
   if (form.newPassword !== form.confirmPassword) { errors.confirmPassword = '两次输入的密码不一致'; valid = false }
   return valid
 }
@@ -155,6 +155,18 @@ const handleResendCode = async () => {
           <!-- 步骤2：验证码 + 新密码 -->
           <form v-else @submit.prevent="handleResetPassword" class="login-form">
             <div class="form-group">
+              <label>邮箱地址</label>
+              <div class="input-wrapper">
+                <Icon name="mail" size="18" class="input-icon" />
+                <input :value="form.email" type="email" disabled class="disabled-input" />
+              </div>
+            </div>
+
+            <button type="button" class="back-btn" @click="step = 1">
+              <Icon name="arrow_back" size="14" /> 返回修改邮箱
+            </button>
+
+            <div class="form-group">
               <label>验证码</label>
               <div class="input-wrapper">
                 <Icon name="key" size="18" class="input-icon" />
@@ -170,7 +182,7 @@ const handleResendCode = async () => {
               <label>新密码</label>
               <div class="input-wrapper">
                 <Icon name="lock" size="18" class="input-icon" />
-                <input v-model="form.newPassword" :type="showPassword.new ? 'text' : 'password'" placeholder="至少6位" :class="{ error: errors.newPassword }" />
+                <input v-model="form.newPassword" :type="showPassword.new ? 'text' : 'password'" placeholder="至少8位，包含字母和数字" :class="{ error: errors.newPassword }" />
                 <button type="button" class="toggle-password" @click="showPassword.new = !showPassword.new">
                   <Icon :name="showPassword.new ? 'visibility_off' : 'visibility'" size="18" />
                 </button>
@@ -333,6 +345,25 @@ const handleResendCode = async () => {
   align-items: center;
   justify-content: center;
   &:hover { color: var(--text-main); }
+}
+
+.disabled-input {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 16px;
+  &:hover { text-decoration: underline; }
 }
 
 .resend-btn {
