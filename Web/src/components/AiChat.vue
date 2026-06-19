@@ -3,37 +3,12 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore, type ChatMode } from '@/stores/chat'
 import { AiStream } from '@/services/ai'
-import { ConversationService, type Conversation } from '@/services/conversation'
 import AiChatBody from './AiChatBody.vue'
 import AiChatHeader from './AiChatHeader.vue'
 import AiChatInput from './AiChatInput.vue'
 import Icon from './Icon.vue'
-import { showConfirm, showWarning } from '@/utils/errorHandler'
-import { isLoggedIn } from '@/utils/auth'
-
-interface SpeechRecognitionLike {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onstart: ((event: Event) => void) | null
-  onend: ((event: Event) => void) | null
-  onerror: ((event: any) => void) | null
-  onresult: ((event: any) => void) | null
-  start(): void
-  stop(): void
-  abort(): void
-}
-
-interface SpeechRecognitionConstructor {
-  new (): SpeechRecognitionLike
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor
-    webkitSpeechRecognition?: SpeechRecognitionConstructor
-  }
-}
+import { useConversationManager } from '@/composables/useConversationManager'
+import { useVoiceRecognition } from '@/composables/useVoiceRecognition'
 
 const props = defineProps<{
   expanded?: boolean
@@ -52,18 +27,36 @@ const chatStore = useChatStore()
 
 const chatInput = ref('')
 const bodyRef = ref<InstanceType<typeof AiChatBody> | null>(null)
-const conversations = ref<Conversation[]>([])
-const isLoadingHistory = ref(false)
-const showHistorySidebar = ref(false)
-const isAuthenticated = ref(isLoggedIn())
-const editingConversationId = ref<number | null>(null)
-const editingTitle = ref('')
 
-const voiceSupported = ref(false)
-const voiceListening = ref(false)
-const voiceInterimText = ref('')
-const voiceError = ref('')
-const recognition = ref<SpeechRecognitionLike | null>(null)
+// 会话管理（侧边栏：列表、加载、删除、重命名）
+const {
+  conversations,
+  isLoadingHistory,
+  showHistorySidebar,
+  isAuthenticated,
+  editingConversationId,
+  editingTitle,
+  syncAuthState,
+  toggleHistorySidebar,
+  deleteConversation,
+  startEditTitle,
+  saveTitle,
+  cancelEditTitle,
+  formatConversationTime,
+  loadConversation: _loadConversation,
+} = useConversationManager(chatStore)
+
+// 语音识别
+const {
+  voiceSupported,
+  voiceListening,
+  voiceInterimText,
+  voiceError,
+  initVoiceRecognition,
+  startVoiceRecognition,
+  stopVoiceRecognition,
+  cleanupVoiceRecognition,
+} = useVoiceRecognition(chatInput)
 
 const messages = computed(() => chatStore.messages)
 const isLoading = computed(() => chatStore.isLoading)
@@ -92,10 +85,6 @@ const ttsToggleTitle = computed(() => {
   }
   return ttsStatusText.value || '语音不可用'
 })
-
-const syncAuthState = () => {
-  isAuthenticated.value = isLoggedIn()
-}
 
 const toggleTts = () => {
   if (isTtsToggleDisabled.value) return
@@ -126,8 +115,7 @@ const primeMediaOnce = () => {
     const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined
     if (Ctx) {
       const ctx = new Ctx()
-      ctx.resume().catch(() => {
-      })
+      ctx.resume().catch(() => {})
       const gain = ctx.createGain()
       gain.gain.value = 0
       const osc = ctx.createOscillator()
@@ -135,21 +123,15 @@ const primeMediaOnce = () => {
       gain.connect(ctx.destination)
       osc.start()
       osc.stop(ctx.currentTime + 0.01)
-      window.setTimeout(() => {
-        ctx.close().catch(() => {
-        })
-      }, 50)
+      window.setTimeout(() => { ctx.close().catch(() => {}) }, 50)
     }
-  } catch {
-  }
+  } catch {}
 
   try {
     const audio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=')
     audio.volume = 0
-    audio.play().catch(() => {
-    })
-  } catch {
-  }
+    audio.play().catch(() => {})
+  } catch {}
 }
 
 const scrollToBottom = async () => {
@@ -170,211 +152,9 @@ const clearHistory = async () => {
   await chatStore.clearHistory()
 }
 
-const loadConversations = async () => {
-  if (!isAuthenticated.value || isLoadingHistory.value) return
-
-  try {
-    isLoadingHistory.value = true
-    conversations.value = await ConversationService.list('general', 1, 50)
-  } catch {
-    // 加载会话历史失败时静默处理
-  } finally {
-    isLoadingHistory.value = false
-  }
-}
-
-const toggleHistorySidebar = () => {
-  syncAuthState()
-  if (!isAuthenticated.value) {
-    showWarning('登录后可查看与保存历史记录', '游客体验模式')
-    return
-  }
-  showHistorySidebar.value = !showHistorySidebar.value
-  if (showHistorySidebar.value && conversations.value.length === 0) {
-    loadConversations()
-  }
-}
-
-const loadConversation = async (conversationId: number) => {
-  try {
-    isLoadingHistory.value = true
-    const historyMessages = await ConversationService.messages(conversationId, 1, 100)
-
-    chatStore.clearHistory()
-    chatStore.conversationId = conversationId
-
-    historyMessages.forEach(msg => {
-      if (msg.role === 'user') {
-        chatStore.addUserMessage(msg.content, msg.id)
-      } else if (msg.role === 'assistant') {
-        const aiMessage = chatStore.addAiMessage(msg.content, msg.id)
-        aiMessage.isStreaming = false
-      }
-    })
-
-    showHistorySidebar.value = false
-    await scrollToBottom()
-  } catch {
-    // 加载会话失败时静默处理
-  } finally {
-    isLoadingHistory.value = false
-  }
-}
-
-const deleteConversation = async (conversationId: number, event: Event) => {
-  event.stopPropagation()
-  const ok = await showConfirm('确定要删除这个会话吗？', '确认删除')
-  if (!ok) return
-
-  try {
-    await ConversationService.remove(conversationId)
-    conversations.value = conversations.value.filter(conv => conv.id !== conversationId)
-    if (chatStore.conversationId === conversationId) {
-      chatStore.clearHistory()
-    }
-  } catch {
-    // 删除会话失败时静默处理
-  }
-}
-
-const startEditTitle = (conversationId: number, currentTitle: string) => {
-  editingConversationId.value = conversationId
-  editingTitle.value = currentTitle || `会话 ${conversationId}`
-  nextTick(() => {
-    const input = document.querySelector('.title-edit-input') as HTMLInputElement | null
-    input?.focus()
-    input?.select()
-  })
-}
-
-const saveTitle = async (conversationId: number) => {
-  if (!editingTitle.value.trim()) {
-    cancelEditTitle()
-    return
-  }
-
-  try {
-    await ConversationService.rename(conversationId, editingTitle.value.trim())
-    const conversation = conversations.value.find(c => c.id === conversationId)
-    if (conversation) {
-      conversation.title = editingTitle.value.trim()
-    }
-  } catch {
-    // 重命名失败时静默处理
-  } finally {
-    cancelEditTitle()
-  }
-}
-
-const cancelEditTitle = () => {
-  editingConversationId.value = null
-  editingTitle.value = ''
-}
-
-const formatConversationTime = (dateString?: string) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-  if (days === 0) {
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-  }
-  if (days === 1) {
-    return '昨天'
-  }
-  if (days < 7) {
-    return `${days}天前`
-  }
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-}
-
-const mapSpeechError = (code?: string) => {
-  switch (code) {
-    case 'not-allowed':
-    case 'service-not-allowed':
-      return '语音识别权限被拒绝，请允许浏览器使用麦克风。'
-    case 'audio-capture':
-      return '未检测到可用麦克风，请检查设备后重试。'
-    case 'network':
-      return '语音识别网络异常，请稍后重试。'
-    case 'no-speech':
-      return '没有识别到语音，请再说一次。'
-    default:
-      return '语音识别暂时不可用，请改用文字输入。'
-  }
-}
-
-const initVoiceRecognition = () => {
-  if (typeof window === 'undefined') return
-  const RecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition
-  if (!RecognitionCtor) {
-    voiceSupported.value = false
-    return
-  }
-
-  voiceSupported.value = true
-  const speechRecognition = new RecognitionCtor()
-  speechRecognition.continuous = true
-  speechRecognition.interimResults = true
-  speechRecognition.lang = 'zh-CN'
-
-  speechRecognition.onstart = () => {
-    voiceListening.value = true
-    voiceError.value = ''
-  }
-
-  speechRecognition.onresult = (event: any) => {
-    let finalText = ''
-    let interimText = ''
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      const transcript = event.results[i][0]?.transcript || ''
-      if (event.results[i].isFinal) {
-        finalText += transcript
-      } else {
-        interimText += transcript
-      }
-    }
-
-    if (finalText.trim()) {
-      chatInput.value = [chatInput.value.trim(), finalText.trim()].filter(Boolean).join(chatInput.value.trim() ? '\n' : '')
-    }
-    voiceInterimText.value = interimText.trim()
-  }
-
-  speechRecognition.onerror = (event: any) => {
-    voiceError.value = mapSpeechError(event?.error)
-    voiceListening.value = false
-    voiceInterimText.value = ''
-  }
-
-  speechRecognition.onend = () => {
-    voiceListening.value = false
-    voiceInterimText.value = ''
-  }
-
-  recognition.value = speechRecognition
-}
-
-const startVoiceRecognition = () => {
-  if (!voiceSupported.value || voiceListening.value || !recognition.value) return
-  voiceError.value = ''
-  voiceInterimText.value = ''
-  try {
-    recognition.value.start()
-  } catch (error) {
-    voiceError.value = '语音识别启动失败，请稍后重试。'
-  }
-}
-
-const stopVoiceRecognition = () => {
-  if (!voiceListening.value || !recognition.value) return
-  try {
-    recognition.value.stop()
-  } catch {
-  }
-}
+// 加载会话历史消息（模板中 @click 调用）
+const loadConversation = (conversationId: number) =>
+  _loadConversation(conversationId, scrollToBottom)
 
 const sendMessage = async () => {
   if (!chatInput.value.trim() || isLoading.value) return
@@ -456,8 +236,7 @@ onUnmounted(() => {
   window.removeEventListener('focus', syncAuthState)
   window.removeEventListener('storage', syncAuthState)
   window.removeEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
-  stopVoiceRecognition()
-  recognition.value?.abort()
+  cleanupVoiceRecognition()
   AiStream.cancel()
 })
 
