@@ -11,7 +11,7 @@ const CONTRACT_VERSION = 1
 /**
  * SSE Envelope 根结构。
  */
-interface SseEnvelope<T = any> {
+interface SseEnvelope<T = unknown> {
   contractVersion: number
   event: string
   taskId: number

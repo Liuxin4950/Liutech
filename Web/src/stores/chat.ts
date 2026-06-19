@@ -198,9 +198,9 @@ export const useChatStore = defineStore('chat', () => {
       const stored = storage.getItem(storageKey)
       if (stored) {
         const data = JSON.parse(stored)
-        messages.value = data.messages?.map((msg: any) => ({
+        messages.value = data.messages?.map((msg: Record<string, unknown>) => ({
           ...msg,
-          timestamp: new Date(msg.timestamp)
+          timestamp: new Date(msg.timestamp as string)
         })) || []
 
         // 确保按时间戳升序排列（保护措施，防止顺序错乱）
@@ -377,7 +377,7 @@ export const useChatStore = defineStore('chat', () => {
     message.agentPlanSteps = steps
   }
 
-  const attachAgentStart = (messageId: number, payload: any) => {
+  const attachAgentStart = (messageId: number, payload: { intent?: string; role?: string }) => {
     const message = messages.value.find(msg => msg.id === messageId)
     if (!message || !payload) return
     message.agentIntent = payload.intent
@@ -385,7 +385,7 @@ export const useChatStore = defineStore('chat', () => {
     message.showAgentTrace = false
   }
 
-  const upsertToolEvent = (messageId: number, payload: any, status: AgentToolEvent['status']) => {
+  const upsertToolEvent = (messageId: number, payload: { toolName: string; displayName?: string; inputSummary?: string; success?: boolean; durationMs?: number; resultSummary?: string; errorMessage?: string }, status: AgentToolEvent['status']) => {
     const message = messages.value.find(msg => msg.id === messageId)
     if (!message || !payload?.toolName) return
     const next: AgentToolEvent = {
@@ -409,7 +409,7 @@ export const useChatStore = defineStore('chat', () => {
     message.isThinking = false
   }
 
-  const attachConfirmation = (messageId: number, payload: any) => {
+  const attachConfirmation = (messageId: number, payload: { actionId: number; actionType: string; title: string; description: string; riskLevel?: string }) => {
     const message = messages.value.find(msg => msg.id === messageId)
     if (!message || !payload) return
     message.confirmation = {
@@ -713,8 +713,12 @@ export const useChatStore = defineStore('chat', () => {
   /**
    * 处理错误
    */
-  const handleError = (error: any) => {
+  const handleError = (error: unknown) => {
     console.error('发送消息失败:', error)
+
+    const errObj = (typeof error === 'object' && error !== null) ? error as Record<string, unknown> : null
+    const errMsg = (error instanceof Error) ? error.message : (errObj?.message as string | undefined)
+    const errStatus = errObj?.status as number | undefined
 
     let errorMsg = '发送消息失败'
     let detail = ''
@@ -722,23 +726,22 @@ export const useChatStore = defineStore('chat', () => {
     if (error instanceof StreamError) {
       errorMsg = error.message || '流式连接失败'
       detail = error.code ? `错误码: ${error.code}` : ''
-    } else if (error.status === 429) {
+    } else if (errStatus === 429) {
       errorMsg = '请求过于频繁，请稍后再试'
       detail = 'AI服务有访问频率限制，请等待几秒后重试'
-    } else if (error.status === 500) {
+    } else if (errStatus === 500) {
       errorMsg = '服务器内部错误，请稍后重试'
       detail = 'AI服务暂时出现问题，我们正在处理中'
-    } else if (error.status === 503) {
+    } else if (errStatus === 503) {
       errorMsg = '服务暂时不可用，请稍后重试'
       detail = 'AI服务正在维护中，请稍后再试'
-    } else if (error.message) {
-      // 尝试解析后端返回的错误信息
+    } else if (errMsg) {
       try {
-        const parsed = JSON.parse(error.message)
+        const parsed = JSON.parse(errMsg)
         errorMsg = parsed.message || errorMsg
         detail = parsed.detail || ''
       } catch {
-        errorMsg = error.message
+        errorMsg = errMsg
       }
     }
 

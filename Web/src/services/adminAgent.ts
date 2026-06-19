@@ -74,7 +74,7 @@ export interface AdminAgentHandlers {
   onError?: (message: string) => void
 }
 
-interface SseEnvelope<T = any> {
+interface SseEnvelope<T = unknown> {
   contractVersion: number
   event: string
   payload: T
@@ -133,12 +133,13 @@ export class AdminAgentService {
       if (line.startsWith('data:')) dataLines.push(line.substring(5).trim())
     }
     if (!dataLines.length) return
-    let payload: any
+    let raw: unknown
     try {
-      payload = JSON.parse(dataLines.join('\n'))
+      raw = JSON.parse(dataLines.join('\n'))
     } catch {
       return
     }
+    let payload = raw as Record<string, unknown> | null
     if (payload?.contractVersion === CONTRACT_VERSION) {
       const envelope = payload as SseEnvelope
       eventType = envelope.event
