@@ -137,19 +137,14 @@ export class UserService {
    * @returns Promise<LoginResponse>
    */
   static async login(data: LoginRequest): Promise<LoginResponse> {
-    try {
-      const response = await post<LoginResponse>('/user/login', data)
-      
-      // 保存 token 到本地存储
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token)
-      }
-      
-      return response.data
-    } catch (error) {
-      console.error('登录失败', error)
-      throw error
+    const response = await post<LoginResponse>('/user/login', data)
+
+    // 保存 token 到本地存储
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token)
     }
+
+    return response.data
   }
 
   /**
@@ -158,13 +153,8 @@ export class UserService {
    * @returns Promise<UserInfo>
    */
   static async register(data: RegisterRequest): Promise<UserInfo> {
-    try {
-      const response = await post<UserInfo>('/user/register', data)
-      return response.data
-    } catch (error) {
-      console.error('注册失败', error)
-      throw error
-    }
+    const response = await post<UserInfo>('/user/register', data)
+    return response.data
   }
 
   /**
@@ -172,14 +162,9 @@ export class UserService {
    * @returns Promise<UserInfo>
    */
   static async getCurrentUser(): Promise<UserInfo> {
-    try {
-      // 添加时间戳防止缓存
-      const response = await get<UserInfo>('/user/current', { _t: Date.now() })
-      return response.data
-    } catch (error) {
-      console.error('获取用户信息失败', error)
-      throw error
-    }
+    // 添加时间戳防止缓存
+    const response = await get<UserInfo>('/user/current', { _t: Date.now() })
+    return response.data
   }
 
   /**
@@ -188,12 +173,7 @@ export class UserService {
    * @returns Promise<void>
    */
   static async changePassword(data: ChangePasswordRequest): Promise<void> {
-    try {
-      await put<null>('/user/password', data)
-    } catch (error) {
-      console.error('修改密码失败', error)
-      throw error
-    }
+    await put<null>('/user/password', data)
   }
 
   /**
@@ -202,13 +182,8 @@ export class UserService {
    * @returns Promise<UserInfo>
    */
   static async updateProfile(data: UpdateProfileRequest): Promise<UserInfo> {
-    try {
-      const response = await put<UserInfo>('/user/profile', data)
-      return response.data
-    } catch (error) {
-      console.error('更新个人资料失败', error)
-      throw error
-    }
+    const response = await put<UserInfo>('/user/profile', data)
+    return response.data
   }
 
   /**
@@ -242,13 +217,8 @@ export class UserService {
    * @returns Promise<UserStats>
    */
   static async getUserStats(): Promise<UserStats> {
-    try {
-      const response = await get<UserStats>('/user/stats')
-      return response.data
-    } catch (error) {
-      console.error('获取用户统计信息失败', error)
-      throw error
-    }
+    const response = await get<UserStats>('/user/stats')
+    return response.data
   }
 
   /**
@@ -256,13 +226,8 @@ export class UserService {
    * @returns Promise<CheckinResponse>
    */
   static async checkin(): Promise<CheckinResponse> {
-    try {
-      const response = await post<CheckinResponse>('/user/checkin', {})
-      return response.data
-    } catch (error) {
-      console.error('签到失败', error)
-      throw error
-    }
+    const response = await post<CheckinResponse>('/user/checkin', {})
+    return response.data
   }
 
   /**
@@ -270,13 +235,8 @@ export class UserService {
    * @returns Promise<CheckinStatus>
    */
   static async getCheckinStatus(): Promise<CheckinStatus> {
-    try {
-      const response = await get<CheckinStatus>('/user/checkin/status')
-      return response.data
-    } catch (error) {
-      console.error('获取签到状态失败', error)
-      throw error
-    }
+    const response = await get<CheckinStatus>('/user/checkin/status')
+    return response.data
   }
 
   /**
@@ -284,13 +244,8 @@ export class UserService {
    * @returns Promise<ProfileInfo>
    */
   static async getProfile(): Promise<ProfileInfo> {
-    try {
-      const response = await get<ProfileInfo>('/user/profile')
-      return response.data
-    } catch (error) {
-      console.error('获取个人资料失败', error)
-      throw error
-    }
+    const response = await get<ProfileInfo>('/user/profile')
+    return response.data
   }
 
   /**
@@ -298,13 +253,8 @@ export class UserService {
    * @returns Promise<ProfileInfo>
    */
   static async getAuthorProfile(): Promise<ProfileInfo> {
-    try {
-      const response = await get<ProfileInfo>('/user/author/profile')
-      return response.data
-    } catch (error) {
-      console.error('获取网站作者资料失败', error)
-      throw error
-    }
+    const response = await get<ProfileInfo>('/user/author/profile')
+    return response.data
   }
 
   /**
@@ -339,16 +289,11 @@ export class UserService {
    * 邮箱登录 - 验证码校验
    */
   static async verifyEmailLogin(data: EmailLoginVerifyRequest): Promise<LoginResponse> {
-    try {
-      const response = await post<LoginResponse>('/user/login/email/verify', data)
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token)
-      }
-      return response.data
-    } catch (error) {
-      console.error('邮箱验证码登录失败', error)
-      throw error
+    const response = await post<LoginResponse>('/user/login/email/verify', data)
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token)
     }
+    return response.data
   }
 }
 
