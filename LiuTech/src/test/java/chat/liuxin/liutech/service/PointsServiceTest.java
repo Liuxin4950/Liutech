@@ -127,6 +127,36 @@ class PointsServiceTest {
     }
 
     @Test
+    void addPoints_shouldThrowWhenAmountIsNegative() {
+        assertThrows(IllegalArgumentException.class,
+                () -> pointsService.addPoints(1L, BigDecimal.valueOf(-5), "test", "test", null, "test"));
+    }
+
+    @Test
+    void addPoints_shouldHandleNullPointsGracefully() {
+        Users user = createUser(1L, null, 0);
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.addPointsWithVersion(eq(1L), eq(BigDecimal.TEN), eq(0), eq(1))).thenReturn(1);
+
+        assertDoesNotThrow(() ->
+                pointsService.addPoints(1L, BigDecimal.TEN, "test", "test", null, "test"));
+
+        ArgumentCaptor<PointsTransaction> captor = ArgumentCaptor.forClass(PointsTransaction.class);
+        verify(pointsTransactionMapper).insert(captor.capture());
+        assertEquals(0, BigDecimal.TEN.compareTo(captor.getValue().getBalanceAfter()));
+    }
+
+    @Test
+    void addPoints_shouldHandleNullVersionGracefully() {
+        Users user = createUser(1L, BigDecimal.valueOf(50), null);
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.addPointsWithVersion(eq(1L), eq(BigDecimal.TEN), eq(0), eq(1))).thenReturn(1);
+
+        assertDoesNotThrow(() ->
+                pointsService.addPoints(1L, BigDecimal.TEN, "test", "test", null, "test"));
+    }
+
+    @Test
     void addPoints_shouldThrowWhenUserNotFound() {
         when(userMapper.selectById(999L)).thenReturn(null);
 
@@ -138,13 +168,27 @@ class PointsServiceTest {
     void addPoints_shouldRetryOnOptimisticLockConflict() {
         Users user = createUser(1L, BigDecimal.valueOf(50), 0);
         when(userMapper.selectById(1L)).thenReturn(user);
-        // 第一次冲突，第二次成功
-        when(userMapper.addPointsWithVersion(eq(1L), any(), eq(0), eq(1))).thenReturn(0);
-        when(userMapper.addPointsWithVersion(eq(1L), any(), eq(0), eq(1))).thenReturn(1);
+        // 第一次冲突，第二次成功（链式调用）
+        when(userMapper.addPointsWithVersion(eq(1L), any(), eq(0), eq(1)))
+                .thenReturn(0)
+                .thenReturn(1);
 
-        // 不抛异常即为成功
         assertDoesNotThrow(() ->
                 pointsService.addPoints(1L, BigDecimal.TEN, "test", "test", null, "test"));
+
+        // 验证调用了2次
+        verify(userMapper, times(2)).addPointsWithVersion(eq(1L), any(), eq(0), eq(1));
+    }
+
+    @Test
+    void addPoints_shouldThrowAfterAllRetriesExhausted() {
+        Users user = createUser(1L, BigDecimal.valueOf(50), 0);
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.addPointsWithVersion(eq(1L), any(), eq(0), eq(1))).thenReturn(0);
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> pointsService.addPoints(1L, BigDecimal.TEN, "test", "test", null, "test"));
+        assertTrue(ex.getMessage().contains("系统繁忙"));
     }
 
     // ========== refundPoints 测试 ==========

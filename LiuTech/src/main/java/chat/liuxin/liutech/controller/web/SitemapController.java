@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.TimeZone;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,7 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 public class SitemapController {
 
-    private static final String BASE_URL = "https://liuxin.chat";
+    @Value("${server.base.url:https://www.liuxin.chat}")
+    private String baseUrl;
 
     @Autowired
     private PostsService postsService;
@@ -74,7 +76,7 @@ public class SitemapController {
 
     private void appendUrl(StringBuilder sitemap, String path, Date lastModified, String changeFreq, String priority) {
         sitemap.append("  <url>\n");
-        sitemap.append("    <loc>").append(BASE_URL).append(path).append("</loc>\n");
+        sitemap.append("    <loc>").append(baseUrl).append(path).append("</loc>\n");
         if (lastModified != null) {
             sitemap.append("    <lastmod>").append(formatDate(lastModified)).append("</lastmod>\n");
         }

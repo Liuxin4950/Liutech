@@ -1,4 +1,4 @@
-import { get, post, put } from './api'
+import { get, post, put, del } from './api'
 
 /**
  * 模型配置接口
@@ -57,7 +57,7 @@ const aiModelsService = {
   },
 
   deleteModel: async (id: number): Promise<void> => {
-    await put<void>(`${BASE_URL}/${id}`)
+    await del<void>(`${BASE_URL}/${id}`)
   },
 
   setDefaultModel: async (id: number): Promise<void> => {
