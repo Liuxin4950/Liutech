@@ -20,7 +20,6 @@ import chat.liuxin.liutech.model.dto.TtsPublicStatusDTO;
 import chat.liuxin.liutech.model.dto.TtsSpeechRequestDTO;
 import chat.liuxin.liutech.model.dto.TtsSpeechResponseDTO;
 import chat.liuxin.liutech.service.TtsSpeechService;
-import chat.liuxin.liutech.service.TtsStatusService;
 import jakarta.validation.Valid;
 
 import java.nio.file.Path;
@@ -28,17 +27,10 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * TTS（语音推理）公共接口
- *
- * 说明：
- * - 前端和 AI 服务用它判断“语音功能是否可用”
- * - 公共状态只返回最小字段，完整配置和诊断信息走 /admin/tts/**
  */
 @RestController
 @RequestMapping("/tts")
 public class TtsController {
-
-    @Autowired
-    private TtsStatusService ttsStatusService;
 
     @Autowired
     private TtsSpeechService ttsSpeechService;
@@ -48,7 +40,7 @@ public class TtsController {
 
     @GetMapping("/status")
     public Result<TtsPublicStatusDTO> status() {
-        return Result.success(TtsPublicStatusDTO.from(ttsStatusService.getStatus()));
+        return Result.success(TtsPublicStatusDTO.from(ttsSpeechService.getStatus()));
     }
 
     @PostMapping("/speech")

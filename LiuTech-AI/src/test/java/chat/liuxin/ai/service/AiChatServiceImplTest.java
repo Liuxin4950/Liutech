@@ -4,6 +4,7 @@ import chat.liuxin.ai.common.client.TtsClient;
 import chat.liuxin.ai.common.monitor.AiMetrics;
 import chat.liuxin.ai.common.tts.AvatarCueService;
 import chat.liuxin.ai.infra.config.AvatarCueProperties;
+import chat.liuxin.ai.infra.config.TtsSegmenterProperties;
 import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.ModelConfigDTO;
@@ -50,7 +51,7 @@ class AiChatServiceImplTest {
         streamingChatService = mock(StreamingChatService.class);
         aiModelPolicy = new AiModelPolicy(aiModelConfigService);
         sensitiveLogSanitizer = new SensitiveLogSanitizer();
-        ttsSegmenter = new TtsSegmenter();
+        ttsSegmenter = new TtsSegmenter(new TtsSegmenterProperties());
         avatarCueService = new AvatarCueService(new AvatarCueProperties());
         setField(aiModelPolicy, "configuredDefaultModel", "fallback-model");
         setField(aiModelPolicy, "strictWhitelist", true);

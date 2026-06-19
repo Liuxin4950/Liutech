@@ -1,5 +1,7 @@
 package chat.liuxin.ai.common.tts;
 
+import chat.liuxin.ai.infra.config.TtsSegmenterProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -7,15 +9,14 @@ import java.util.List;
 
 /**
  * TTS 文本切分器。
+ *
+ * <p>切分阈值从 {@link TtsSegmenterProperties} 配置加载，支持运行时调整。
  */
 @Component
+@RequiredArgsConstructor
 public class TtsSegmenter {
 
-    private static final int FIRST_SEGMENT_MIN_LEN = 20;
-    private static final int FIRST_SEGMENT_HARD_CUT_LEN = 40;
-    private static final int FOLLOW_SEGMENT_MIN_LEN = 60;
-    private static final int FOLLOW_SEGMENT_SOFT_PUNCT_LEN = 80;
-    private static final int FOLLOW_SEGMENT_HARD_CUT_LEN = 100;
+    private final TtsSegmenterProperties properties;
 
     public List<String> splitAll(String text) {
         List<String> result = new ArrayList<>();
@@ -45,8 +46,12 @@ public class TtsSegmenter {
 
         while (true) {
             int len = buffer.length();
-            final int minSendLen = firstSegmentSent ? FOLLOW_SEGMENT_MIN_LEN : FIRST_SEGMENT_MIN_LEN;
-            final int hardCutLen = firstSegmentSent ? FOLLOW_SEGMENT_HARD_CUT_LEN : FIRST_SEGMENT_HARD_CUT_LEN;
+            final int minSendLen = firstSegmentSent
+                    ? properties.getFollowSegmentMinLen()
+                    : properties.getFirstSegmentMinLen();
+            final int hardCutLen = firstSegmentSent
+                    ? properties.getFollowSegmentHardCutLen()
+                    : properties.getFirstSegmentHardCutLen();
             final boolean allowSoftPunctuation = !firstSegmentSent;
 
             if (len < minSendLen) break;
@@ -68,7 +73,7 @@ public class TtsSegmenter {
                 cut = lastStrongPuncBeforeLimit;
             } else if (!firstSegmentSent && lastSoftPuncBeforeLimit >= minSendLen) {
                 cut = lastSoftPuncBeforeLimit;
-            } else if (firstSegmentSent && lastSoftPuncBeforeLimit >= FOLLOW_SEGMENT_SOFT_PUNCT_LEN) {
+            } else if (firstSegmentSent && lastSoftPuncBeforeLimit >= properties.getFollowSegmentSoftPunctLen()) {
                 cut = lastSoftPuncBeforeLimit;
             } else if (len >= hardCutLen) {
                 cut = hardCutLen;

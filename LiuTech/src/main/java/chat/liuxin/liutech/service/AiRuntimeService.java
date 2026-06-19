@@ -13,15 +13,11 @@ import java.time.Duration;
 
 /**
  * AI 运行时聚合服务
- *
- * 说明：
- * - 为前台与管理端提供一个统一的 AI/TTS 状态快照
- * - 个人博客场景下，优先简化前端心智，而不是让前端自己拼状态
  */
 @Service
 public class AiRuntimeService {
 
-    private final TtsStatusService ttsStatusService;
+    private final TtsSpeechService ttsSpeechService;
 
     @Value("${ai.service.url:${AI_SERVICE_URL:http://127.0.0.1:8081}}")
     private String aiServiceUrl;
@@ -30,13 +26,13 @@ public class AiRuntimeService {
             .connectTimeout(Duration.ofMillis(1000))
             .build();
 
-    public AiRuntimeService(TtsStatusService ttsStatusService) {
-        this.ttsStatusService = ttsStatusService;
+    public AiRuntimeService(TtsSpeechService ttsSpeechService) {
+        this.ttsSpeechService = ttsSpeechService;
     }
 
     public AiRuntimeDTO getRuntime() {
         AiRuntimeDTO dto = new AiRuntimeDTO();
-        dto.setTts(TtsPublicStatusDTO.from(ttsStatusService.getStatus()));
+        dto.setTts(TtsPublicStatusDTO.from(ttsSpeechService.getStatus()));
 
         try {
             String normalizedBaseUrl = normalizeBaseUrl(aiServiceUrl);

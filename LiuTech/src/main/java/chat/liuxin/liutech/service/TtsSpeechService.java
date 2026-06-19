@@ -2,20 +2,24 @@ package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.config.FileUploadConfig;
 import chat.liuxin.liutech.model.dto.SiliconFlowVoiceDTO;
 import chat.liuxin.liutech.model.dto.TtsConfigDTO;
 import chat.liuxin.liutech.model.dto.TtsSpeechResponseDTO;
+import chat.liuxin.liutech.model.dto.TtsStatusDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -30,16 +34,24 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 /**
- * 统一 TTS 推理、缓存和 SiliconFlow 音色管理。
+ * 统一 TTS 推理、缓存、状态探测和 SiliconFlow 音色管理。
+ *
+ * 合并自：TtsCacheManager、TtsStatusService、SiliconFlowKeyResolver
  */
 @Slf4j
 @Service
@@ -47,8 +59,8 @@ import java.util.UUID;
 public class TtsSpeechService {
 
     private final TtsConfigService ttsConfigService;
-    private final TtsCacheManager cacheManager;
-    private final SiliconFlowKeyResolver siliconFlowKeyResolver;
+    private final FileUploadConfig fileUploadConfig;
+    private final Environment environment;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
@@ -58,8 +70,35 @@ public class TtsSpeechService {
             .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
+    // ---- SiliconFlow 配置 ----
     @Value("${siliconflow.base-url:https://api.siliconflow.cn}")
     private String siliconFlowBaseUrl;
+
+    // ---- 缓存配置 ----
+    @Value("${tts.cache.max-age-hours:${TTS_CACHE_MAX_AGE_HOURS:24}}")
+    private long maxAgeHours;
+    @Value("${tts.cache.max-bytes:${TTS_CACHE_MAX_BYTES:536870912}}")
+    private long maxBytes;
+    @Value("${tts.cache.cleanup-interval-ms:${TTS_CACHE_CLEANUP_INTERVAL_MS:3600000}}")
+    private long cleanupIntervalMs;
+
+    // ---- 缓存节流 ----
+    private final AtomicLong lastCleanupAt = new AtomicLong(0L);
+
+    // ---- 状态缓存 ----
+    private static final long STATUS_CACHE_TTL_MS = 5000L;
+    private final AtomicReference<TtsStatusDTO> statusCache = new AtomicReference<>();
+    private final HttpClient statusHttpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(800))
+            .build();
+
+    // ---- SiliconFlow Key 缓存 ----
+    private static final String SOURCE_TTS = "SILICONFLOW_TTS_API_KEY";
+    private static final String SOURCE_COMPAT = "SILICONFLOW_API_KEY";
+    private static final String SOURCE_AI = "SPRING_AI_OPENAI_API_KEY";
+    private volatile Map<String, String> dotenvCache;
+
+    // ==================== TTS 合成 ====================
 
     public TtsSpeechResponseDTO synthesize(String text) {
         String normalizedText = normalizeText(text);
@@ -82,8 +121,8 @@ public class TtsSpeechService {
         if (fileName == null || !fileName.matches("[a-f0-9\\-]{36}\\.(mp3|wav|opus|pcm)")) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音频文件不存在");
         }
-        Path path = cacheManager.cacheDir().resolve(fileName).normalize();
-        if (!path.startsWith(cacheManager.cacheDir()) || !Files.exists(path) || !Files.isRegularFile(path)) {
+        Path path = cacheDir().resolve(fileName).normalize();
+        if (!path.startsWith(cacheDir()) || !Files.exists(path) || !Files.isRegularFile(path)) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "音频文件不存在");
         }
         return path;
@@ -98,8 +137,10 @@ public class TtsSpeechService {
         return MediaType.APPLICATION_OCTET_STREAM;
     }
 
+    // ==================== SiliconFlow 音色管理 ====================
+
     public SiliconFlowVoiceDTO uploadSiliconFlowVoice(MultipartFile file, String model, String customName, String text) {
-        if (!hasSiliconFlowApiKey()) {
+        if (!hasTtsApiKey()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "未配置 SiliconFlow API Key");
         }
         if (file == null || file.isEmpty()) {
@@ -159,7 +200,7 @@ public class TtsSpeechService {
     }
 
     public List<SiliconFlowVoiceDTO> listSiliconFlowVoices() {
-        if (!hasSiliconFlowApiKey()) {
+        if (!hasTtsApiKey()) {
             return List.of();
         }
         try {
@@ -188,6 +229,180 @@ public class TtsSpeechService {
             return List.of();
         }
     }
+
+    // ==================== 状态探测 ====================
+
+    public TtsStatusDTO getStatus() {
+        TtsStatusDTO hit = statusCache.get();
+        if (hit != null && (System.currentTimeMillis() - hit.getCheckedAt()) <= STATUS_CACHE_TTL_MS) {
+            return hit;
+        }
+
+        TtsConfigDTO cfg = ttsConfigService.getConfig();
+        TtsStatusDTO status = new TtsStatusDTO();
+        status.setEnabled(cfg.getEnabled() != null && cfg.getEnabled());
+        status.setBaseUrl(cfg.getBaseUrl());
+        status.setVoiceModel(cfg.getVoiceModel());
+        status.setProvider(cfg.getProvider());
+        status.setSiliconFlowModel(cfg.getSiliconFlowModel());
+        status.setSiliconFlowVoiceUri(cfg.getSiliconFlowVoiceUri());
+        status.setResponseFormat(cfg.getResponseFormat());
+        status.setSampleRate(cfg.getSampleRate());
+        status.setSpeed(cfg.getSpeed());
+        status.setSiliconFlowApiKeyConfigured(hasTtsApiKey());
+        status.setSiliconFlowApiKeySource(resolveTtsApiKeySource());
+        status.setCheckedAt(System.currentTimeMillis());
+
+        if (!status.isEnabled()) {
+            status.setOnline(false);
+            status.setMessage("语音功能已关闭");
+            statusCache.set(status);
+            return status;
+        }
+
+        if (TtsConfigService.PROVIDER_SILICONFLOW.equals(status.getProvider())) {
+            if (!hasTtsApiKey()) {
+                status.setOnline(false);
+                status.setMessage("未配置 SiliconFlow API Key");
+                statusCache.set(status);
+                return status;
+            }
+            if (status.getSiliconFlowVoiceUri() == null || status.getSiliconFlowVoiceUri().isBlank()) {
+                status.setOnline(false);
+                status.setMessage("未配置 SiliconFlow 自定义音色 URI");
+                statusCache.set(status);
+                return status;
+            }
+            status.setOnline(true);
+            status.setMessage("SiliconFlow 已配置");
+            statusCache.set(status);
+            return status;
+        }
+
+        if (status.getBaseUrl() == null || status.getBaseUrl().isBlank()) {
+            status.setOnline(false);
+            status.setMessage("未配置语音推理服务地址");
+            statusCache.set(status);
+            return status;
+        }
+
+        try {
+            URI uri = URI.create(status.getBaseUrl() + "/infer_single");
+            HttpRequest req = HttpRequest.newBuilder(uri)
+                    .timeout(Duration.ofMillis(1200))
+                    .GET()
+                    .build();
+            HttpResponse<Void> resp = statusHttpClient.send(req, HttpResponse.BodyHandlers.discarding());
+            status.setOnline(true);
+            status.setMessage("在线（HTTP " + resp.statusCode() + "）");
+        } catch (Exception e) {
+            status.setOnline(false);
+            status.setMessage("离线：" + e.getClass().getSimpleName());
+        }
+
+        statusCache.set(status);
+        return status;
+    }
+
+    public void clearStatusCache() {
+        statusCache.set(null);
+    }
+
+    // ==================== 缓存管理 ====================
+
+    public Path cacheDir() {
+        return Path.of(fileUploadConfig.getBasePath(), "tts-cache").toAbsolutePath().normalize();
+    }
+
+    void cleanupIfDue() {
+        long now = System.currentTimeMillis();
+        long previous = lastCleanupAt.get();
+        long interval = Math.max(1000L, cleanupIntervalMs);
+        if ((now - previous) < interval) {
+            return;
+        }
+        if (lastCleanupAt.compareAndSet(previous, now)) {
+            cleanup();
+        }
+    }
+
+    @Scheduled(fixedDelayString = "${tts.cache.cleanup-interval-ms:${TTS_CACHE_CLEANUP_INTERVAL_MS:3600000}}")
+    public void cleanup() {
+        Path dir = cacheDir();
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+
+        Instant cutoff = Instant.now().minus(Duration.ofHours(Math.max(1L, maxAgeHours)));
+        List<AudioCacheFile> activeFiles = new ArrayList<>();
+        AtomicLong totalBytes = new AtomicLong(0L);
+        AtomicLong deletedCount = new AtomicLong(0L);
+
+        try (Stream<Path> paths = Files.list(dir)) {
+            paths.filter(this::isManagedCacheFile)
+                    .forEach(path -> collectOrDeleteExpired(path, cutoff, activeFiles, totalBytes, deletedCount));
+        } catch (IOException e) {
+            log.warn("扫描 TTS 缓存目录失败: {}", e.getMessage());
+            return;
+        }
+
+        long capacity = Math.max(0L, maxBytes);
+        if (capacity > 0 && totalBytes.get() > capacity) {
+            activeFiles.sort(Comparator.comparing(AudioCacheFile::modifiedAt));
+            for (AudioCacheFile file : activeFiles) {
+                if (totalBytes.get() <= capacity) {
+                    break;
+                }
+                if (deleteCacheFile(file.path())) {
+                    totalBytes.addAndGet(-file.size());
+                    deletedCount.incrementAndGet();
+                }
+            }
+        }
+
+        long deleted = deletedCount.get();
+        if (deleted > 0) {
+            log.info("TTS 缓存清理完成: deleted={}, remainingBytes={}", deleted, totalBytes.get());
+        }
+    }
+
+    // ==================== SiliconFlow Key 解析 ====================
+
+    public String resolveTtsApiKey() {
+        return firstNonBlank(
+                property("siliconflow.tts-api-key"),
+                property("SILICONFLOW_TTS_API_KEY"),
+                System.getenv(SOURCE_TTS),
+                dotenv(SOURCE_TTS),
+                property("siliconflow.api-key"),
+                property("SILICONFLOW_API_KEY"),
+                System.getenv(SOURCE_COMPAT),
+                dotenv(SOURCE_COMPAT),
+                property("spring.ai.openai.api-key"),
+                property("SPRING_AI_OPENAI_API_KEY"),
+                System.getenv(SOURCE_AI),
+                dotenv(SOURCE_AI)
+        );
+    }
+
+    public boolean hasTtsApiKey() {
+        return resolveTtsApiKey() != null;
+    }
+
+    public String resolveTtsApiKeySource() {
+        if (hasAny("siliconflow.tts-api-key", "SILICONFLOW_TTS_API_KEY", SOURCE_TTS)) {
+            return SOURCE_TTS;
+        }
+        if (hasAny("siliconflow.api-key", "SILICONFLOW_API_KEY", SOURCE_COMPAT)) {
+            return SOURCE_COMPAT;
+        }
+        if (hasAny("spring.ai.openai.api-key", "SPRING_AI_OPENAI_API_KEY", SOURCE_AI)) {
+            return SOURCE_AI + " fallback";
+        }
+        return null;
+    }
+
+    // ==================== 内部方法：合成 ====================
 
     private TtsSpeechResponseDTO synthesizeWithGptSovits(TtsConfigDTO config, String text) {
         String baseUrl = normalizeBaseUrl(config.getBaseUrl());
@@ -254,7 +469,7 @@ public class TtsSpeechService {
     }
 
     private TtsSpeechResponseDTO synthesizeWithSiliconFlow(TtsConfigDTO config, String text) {
-        if (!hasSiliconFlowApiKey()) {
+        if (!hasTtsApiKey()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "未配置 SiliconFlow API Key");
         }
         String voiceUri = normalizeText(config.getSiliconFlowVoiceUri());
@@ -279,7 +494,7 @@ public class TtsSpeechService {
 
             HttpRequest request = HttpRequest.newBuilder(URI.create(siliconFlowUrl("/v1/audio/speech")))
                     .timeout(Duration.ofSeconds(120))
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + siliconFlowApiKey())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + resolveTtsApiKey())
                     .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody, java.nio.charset.StandardCharsets.UTF_8))
                     .build();
@@ -344,15 +559,145 @@ public class TtsSpeechService {
         }
         String ext = normalizeFormat(format);
         String fileName = UUID.randomUUID() + "." + ext;
-        Files.createDirectories(cacheManager.cacheDir());
-        Files.write(cacheManager.cacheDir().resolve(fileName), audio);
-        cacheManager.cleanupIfDue();
+        Files.createDirectories(cacheDir());
+        Files.write(cacheDir().resolve(fileName), audio);
+        cleanupIfDue();
         return "/tts/audio/" + fileName;
     }
 
+    // ==================== 内部方法：缓存清理 ====================
+
+    private void collectOrDeleteExpired(
+            Path path, Instant cutoff,
+            List<AudioCacheFile> activeFiles, AtomicLong totalBytes, AtomicLong deletedCount) {
+        try {
+            FileTime modifiedAt = Files.getLastModifiedTime(path);
+            long size = Files.size(path);
+            if (modifiedAt.toInstant().isBefore(cutoff)) {
+                if (deleteCacheFile(path)) {
+                    deletedCount.incrementAndGet();
+                }
+                return;
+            }
+            activeFiles.add(new AudioCacheFile(path, size, modifiedAt));
+            totalBytes.addAndGet(size);
+        } catch (IOException e) {
+            log.debug("跳过不可读 TTS 缓存文件 {}: {}", path.getFileName(), e.getMessage());
+        }
+    }
+
+    private boolean isManagedCacheFile(Path path) {
+        if (path == null || !Files.isRegularFile(path)) {
+            return false;
+        }
+        String fileName = path.getFileName() == null ? "" : path.getFileName().toString();
+        return fileName.matches("[a-f0-9\\-]{36}\\.(mp3|wav|opus|pcm)");
+    }
+
+    private boolean deleteCacheFile(Path path) {
+        try {
+            return Files.deleteIfExists(path);
+        } catch (IOException e) {
+            log.debug("删除 TTS 缓存文件失败 {}: {}", path.getFileName(), e.getMessage());
+            return false;
+        }
+    }
+
+    private record AudioCacheFile(Path path, long size, FileTime modifiedAt) {
+    }
+
+    // ==================== 内部方法：SiliconFlow Key ====================
+
+    private boolean hasAny(String propertyName, String envPropertyName, String dotenvName) {
+        return firstNonBlank(
+                property(propertyName),
+                property(envPropertyName),
+                System.getenv(dotenvName),
+                dotenv(dotenvName)
+        ) != null;
+    }
+
+    private String property(String name) {
+        return normalize(environment.getProperty(name));
+    }
+
+    private String dotenv(String name) {
+        return dotenv().get(name);
+    }
+
+    private Map<String, String> dotenv() {
+        Map<String, String> hit = dotenvCache;
+        if (hit != null) {
+            return hit;
+        }
+        Map<String, String> loaded = new HashMap<>();
+        Path current = Path.of("").toAbsolutePath().normalize();
+        for (int i = 0; i < 6 && current != null; i++) {
+            Path envFile = current.resolve(".env");
+            if (Files.isRegularFile(envFile)) {
+                loaded.putAll(readDotenv(envFile));
+                break;
+            }
+            current = current.getParent();
+        }
+        dotenvCache = loaded;
+        return loaded;
+    }
+
+    private Map<String, String> readDotenv(Path envFile) {
+        Map<String, String> values = new HashMap<>();
+        try {
+            List<String> lines = Files.readAllLines(envFile);
+            for (String line : lines) {
+                String trimmed = line == null ? "" : line.trim();
+                if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+                    continue;
+                }
+                if (trimmed.startsWith("export ")) {
+                    trimmed = trimmed.substring("export ".length()).trim();
+                }
+                int idx = trimmed.indexOf('=');
+                if (idx <= 0) {
+                    continue;
+                }
+                String key = trimmed.substring(0, idx).trim();
+                String normalized = normalize(unquote(trimmed.substring(idx + 1).trim()));
+                if (normalized != null) {
+                    values.put(key, normalized);
+                }
+            }
+        } catch (IOException e) {
+            log.debug("Failed to read .env file", e);
+        }
+        return values;
+    }
+
+    private String unquote(String value) {
+        if (value.length() >= 2) {
+            boolean doubleQuoted = value.startsWith("\"") && value.endsWith("\"");
+            boolean singleQuoted = value.startsWith("'") && value.endsWith("'");
+            if (doubleQuoted || singleQuoted) {
+                return value.substring(1, value.length() - 1);
+            }
+        }
+        return value;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            String normalized = normalize(value);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
+    }
+
+    // ==================== 内部方法：通用 ====================
+
     private HttpHeaders siliconFlowHeaders() {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(siliconFlowApiKey());
+        headers.setBearerAuth(resolveTtsApiKey());
         return headers;
     }
 
@@ -452,6 +797,12 @@ public class TtsSpeechService {
         return s.isEmpty() ? null : s;
     }
 
+    private String normalize(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     private String defaultText(String raw, String defaultValue) {
         String normalized = normalizeText(raw);
         return normalized == null ? defaultValue : normalized;
@@ -480,18 +831,6 @@ public class TtsSpeechService {
             return value;
         }
         return 44100;
-    }
-
-    private boolean hasSiliconFlowApiKey() {
-        return siliconFlowKeyResolver.hasTtsApiKey();
-    }
-
-    private String siliconFlowApiKey() {
-        String apiKey = siliconFlowKeyResolver.resolveTtsApiKey();
-        if (apiKey == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "未配置 SiliconFlow TTS API Key");
-        }
-        return apiKey;
     }
 
     private String sanitizeFileName(String name) {
