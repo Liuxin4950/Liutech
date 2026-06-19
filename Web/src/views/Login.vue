@@ -20,6 +20,7 @@ const emailLoginErrors = reactive({ email: '', code: '' })
 const emailCountdown = ref(0)
 let emailTimer: ReturnType<typeof setInterval> | null = null
 const registerForm = reactive({ username: '', email: '', code: '', password: '', nickname: '' })
+const isSending = ref(false)
 
 const errors = reactive({ username: '', email: '', password: '', code: '', confirmPassword: '' })
 
@@ -49,7 +50,7 @@ const validateForm = () => {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) { errors.email = '请输入有效的邮箱地址'; isValid = false }
     if (!registerForm.code.trim()) { errors.code = '请输入验证码'; isValid = false }
     if (!registerForm.password) { errors.password = '请输入密码'; isValid = false }
-    else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(registerForm.password)) { errors.password = '密码至少8位且包含字母和数字'; isValid = false }
+    else if (registerForm.password.length < 6) { errors.password = '密码至少6位'; isValid = false }
   }
   return isValid
 }
@@ -85,9 +86,14 @@ const handleSendRegisterCode = async () => {
   errors.email = ''
   if (!registerForm.email.trim()) { errors.email = '请输入邮箱地址'; return }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) { errors.email = '请输入有效的邮箱地址'; return }
-  const { sendRegisterCode } = await import('../services/user')
-  const result = await handleFormSubmit(async () => await sendRegisterCode(registerForm.email))
-  if (result) { showSuccessToast('验证码已发送到您的邮箱'); startRegisterCountdown() }
+  isSending.value = true
+  try {
+    const { sendRegisterCode } = await import('../services/user')
+    const result = await handleFormSubmit(async () => await sendRegisterCode(registerForm.email))
+    if (result) { showSuccessToast('验证码已发送到您的邮箱'); startRegisterCountdown() }
+  } finally {
+    isSending.value = false
+  }
 }
 
 const startRegisterCountdown = () => {
@@ -101,8 +107,13 @@ const handleSendEmailCode = async () => {
   emailLoginErrors.email = ''
   if (!emailLoginForm.email.trim()) { emailLoginErrors.email = '请输入邮箱地址'; return }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLoginForm.email)) { emailLoginErrors.email = '请输入有效的邮箱地址'; return }
-  const result = await handleFormSubmit(async () => await sendEmailLoginCode(emailLoginForm.email))
-  if (result) { showSuccessToast('验证码已发送到您的邮箱'); startEmailCountdown() }
+  isSending.value = true
+  try {
+    const result = await handleFormSubmit(async () => await sendEmailLoginCode(emailLoginForm.email))
+    if (result) { showSuccessToast('验证码已发送到您的邮箱'); startEmailCountdown() }
+  } finally {
+    isSending.value = false
+  }
 }
 
 const handleEmailLogin = async () => {
@@ -182,8 +193,8 @@ const startEmailCountdown = () => {
                 <div class="input-wrapper">
                   <Icon name="mail" size="18" class="input-icon" />
                   <input v-model="registerForm.email" type="email" placeholder="请输入邮箱地址" :class="{ error: errors.email }" />
-                  <button type="button" class="resend-btn" :disabled="registerCountdown > 0" @click="handleSendRegisterCode">
-                    {{ registerCountdown > 0 ? `${registerCountdown}s` : '获取验证码' }}
+                  <button type="button" class="resend-btn" :disabled="registerCountdown > 0 || isSending" @click="handleSendRegisterCode">
+                    {{ registerCountdown > 0 ? `${registerCountdown}s` : (isSending ? '发送中...' : '获取验证码') }}
                   </button>
                 </div>
                 <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
@@ -206,7 +217,7 @@ const startEmailCountdown = () => {
                 <label>密码</label>
                 <div class="input-wrapper">
                   <Icon name="lock" size="18" class="input-icon" />
-                  <input v-model="registerForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="至少8位，包含字母和数字" :class="{ error: errors.password }" />
+                  <input v-model="registerForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="至少6位" :class="{ error: errors.password }" />
                   <button type="button" class="toggle-password" @click="showPassword.login = !showPassword.login">
                     <Icon :name="showPassword.login ? 'visibility_off' : 'visibility'" size="18" />
                   </button>
@@ -265,8 +276,8 @@ const startEmailCountdown = () => {
               <div class="input-wrapper">
                 <Icon name="key" size="18" class="input-icon" />
                 <input v-model="emailLoginForm.code" type="text" placeholder="请输入6位验证码" maxlength="6" :class="{ error: emailLoginErrors.code }" />
-                <button type="button" class="resend-btn" :disabled="emailCountdown > 0" @click="handleSendEmailCode">
-                  {{ emailCountdown > 0 ? `${emailCountdown}s` : '获取验证码' }}
+                <button type="button" class="resend-btn" :disabled="emailCountdown > 0 || isSending" @click="handleSendEmailCode">
+                  {{ emailCountdown > 0 ? `${emailCountdown}s` : (isSending ? '发送中...' : '获取验证码') }}
                 </button>
               </div>
               <span v-if="emailLoginErrors.code" class="error-message">{{ emailLoginErrors.code }}</span>

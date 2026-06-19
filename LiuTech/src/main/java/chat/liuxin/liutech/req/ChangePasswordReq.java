@@ -1,7 +1,7 @@
 package chat.liuxin.liutech.req;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -22,10 +22,10 @@ public class ChangePasswordReq {
 
     /**
      * 新密码
-     * 长度要求：至少8位，包含字母和数字
+     * 长度要求：至少6位
      */
     @NotBlank(message = "新密码不能为空")
-    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$", message = "密码至少8位且包含字母和数字")
+    @Size(min = 6, message = "密码至少6位")
     private String newPassword;
 
     /**
