@@ -6,6 +6,7 @@ import chat.liuxin.liutech.model.UserCheckin;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.CheckinResp;
 import chat.liuxin.liutech.resp.CheckinStatusResp;
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -103,6 +104,8 @@ public class CheckinService {
             log.info("用户{}签到成功，获得{}积分，连续签到{}天", userId, pointsEarned, consecutiveDays);
             return Result.success("签到成功", response);
 
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("用户{}签到失败", userId, e);
             return Result.fail(ErrorCode.SYSTEM_ERROR, "签到失败，请稍后重试");
