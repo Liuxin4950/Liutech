@@ -2,134 +2,298 @@ package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.entity.AiChatMessage;
 import chat.liuxin.ai.entity.AiConversation;
+import chat.liuxin.ai.mapper.AiChatMessageMapper;
+import chat.liuxin.ai.mapper.AiConversationMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
- * 记忆服务接口
- * 作者：刘鑫
- * 时间：2025-12-01
- * 重构说明：适配新的数据库表结构，简化设计，优化性能
+ * 记忆服务。
  *
- * 存储模型：
- * - 会话（AiConversation）与消息（AiChatMessage）为一对多关系，通过 conversation_id 关联。
- * - 简化设计，移除了冗余字段，保留核心功能。
- * - 删除会话时通过外键约束自动删除消息。
- *
- * 排序与分页约定：
- * - 用户全局历史：按 created_at 与 id 倒序分页返回；近期拼接上下文时再反转为升序。
- * - 会话内消息：按 seq_no 倒序分页；最近 N 条再反转为升序用于提示词构造。
+ * <p>管理聊天会话与消息的持久化，包括会话 CRUD、消息保存与查询、历史清理。
  */
-public interface MemoryService {
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class MemoryService {
+
+    private final AiChatMessageMapper messageMapper;
+    private final AiConversationMapper conversationMapper;
 
     /**
-     * 查询某用户最近 N 条消息（升序返回，便于直接拼接历史）
-     * @param userId 用户ID
-     * @param limit  返回条数（>0）
-     * @return 从旧到新的消息列表；当 limit<=0 时返回空列表
+     * 按用户 ID 查询最近 N 条消息（最终返回升序），用于提示词上下文拼接。
      */
-    List<AiChatMessage> listRecentMessages(String userId, int limit);
+    public List<AiChatMessage> listRecentMessages(String userId, int limit) {
+        if (limit <= 0) return Collections.emptyList();
+        return messageMapper.selectRecentMessagesByUserId(userId, limit);
+    }
 
     /**
-     * 分页查询某用户的聊天历史记录（按创建时间与ID倒序）
-     * @param userId 用户ID
-     * @param page   页码（>=1）
-     * @param size   每页大小（>0）
-     * @return 倒序的消息列表；参数非法时返回空列表
+     * 分页查询某用户的聊天历史记录（按 created_at 与 id 倒序）。
      */
-    List<AiChatMessage> listHistoryMessages(String userId, int page, int size);
+    public List<AiChatMessage> listHistoryMessages(String userId, int page, int size) {
+        if (page < 1 || size <= 0) return Collections.emptyList();
+        int offset = (page - 1) * size;
+        return messageMapper.selectHistoryMessagesByUserId(userId, offset, size);
+    }
 
-    /**
-     * 查询某用户的聊天历史记录总数
-     * @param userId 用户ID
-     * @return 记录总数
-     */
-    long countHistoryMessages(String userId);
+    /** 查询某用户的聊天历史记录总数 */
+    public long countHistoryMessages(String userId) {
+        return messageMapper.countMessagesByUserId(userId);
+    }
 
-    /**
-     * 保存一条用户消息（role=user，status 固定为 1）
-     * 重构说明：移除了metadata字段，简化存储
-     * @param userId         用户ID
-     * @param conversationId 会话ID
-     * @param content        文本内容
-     * @param model          模型名称
-     */
-    void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson);
+    /** 保存一条用户消息（role=user，status 固定 1） */
+    @Transactional(rollbackFor = Exception.class)
+    public void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson) {
+        Integer maxSeqNo = getMaxSeqNo(conversationId);
 
-    /**
-     * 保存一条 AI 消息（role=assistant）
-     * 状态约定：status=1 表示完成；status=3 表示API异常（content 可为空）
-     * 重构说明：移除了metadata字段，简化存储
-     * @param userId         用户ID
-     * @param conversationId 会话ID
-     * @param content        AI输出文本（错误时可为空）
-     * @param model          模型名称
-     * @param status         1=完成；0=流式中断；2=内容审核拒绝；3=API异常
-     */
-    void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson);
+        AiChatMessage m = new AiChatMessage();
+        m.setUserId(userId);
+        m.setConversationId(conversationId);
+        m.setRole("user");
+        m.setContent(content);
+        m.setModel(model);
+        m.setStatus(1);
+        m.setSeqNo(maxSeqNo + 1);
+        m.setCreatedAt(LocalDateTime.now());
+        messageMapper.insert(m);
+    }
 
-    /**
-     * 轻量清理：仅保留该用户最后 N 条记录（例如 10 条）
-     * @param userId     用户ID
-     * @param retainLastN 保留数量（>0）
-     */
-    void cleanupByRetainLastN(String userId, int retainLastN);
+    /** 保存一条 AI 消息（role=assistant；status=1完成/3异常） */
+    @Transactional(rollbackFor = Exception.class)
+    public void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson) {
+        Integer maxSeqNo = getMaxSeqNo(conversationId);
 
-    /**
-     * 清空用户所有聊天记忆（物理删除）
-     * @param userId 用户ID
-     */
-    void clearAllMemory(String userId);
+        AiChatMessage m = new AiChatMessage();
+        m.setUserId(userId);
+        m.setConversationId(conversationId);
+        m.setRole("assistant");
+        m.setContent(content);
+        m.setModel(model);
+        m.setStatus(status);
+        m.setSeqNo(maxSeqNo + 1);
+        m.setCreatedAt(LocalDateTime.now());
+        messageMapper.insert(m);
+    }
 
-    /**
-     * 创建会话
-     * 重构说明：移除了type和metadata字段，简化创建逻辑
-     * @param userId       用户ID
-     * @param title        会话标题
-     * @return 新建会话ID
-     */
-    Long createConversation(String userId, String title);
+    private Integer getMaxSeqNo(Long conversationId) {
+        AiChatMessage lastMessage = messageMapper.selectOne(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getConversationId, conversationId)
+                .select(AiChatMessage::getSeqNo)
+                .orderByDesc(AiChatMessage::getSeqNo)
+                .last("LIMIT 1")
+        );
+        return lastMessage != null ? lastMessage.getSeqNo() : 0;
+    }
 
-    /**
-     * 列出用户的会话
-     * @param userId 用户ID
-     * @param type   类型筛选（可空）
-     * @param page   页码
-     * @param size   每页大小
-     */
-    List<AiConversation> listConversations(String userId, String type, int page, int size);
+    @Transactional(rollbackFor = Exception.class)
+    public void cleanupByRetainLastN(String userId, int retainLastN) {
+        if (retainLastN <= 0) return;
 
-    /** 获取会话详情 */
-    AiConversation getConversation(Long conversationId);
+        int safeRetainLastN = Math.max(0, Math.min(retainLastN, 1000));
 
-    /** 获取当前用户拥有的会话，不存在或越权时抛出异常 */
-    AiConversation getConversationOwnedByUser(String userId, Long conversationId);
+        List<AiChatMessage> boundaryMessages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .in(AiChatMessage::getConversationId,
+                    conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
+                            .eq(AiConversation::getUserId, userId)
+                            .select(AiConversation::getId))
+                    .stream().map(AiConversation::getId).toList())
+                .orderByDesc(AiChatMessage::getCreatedAt)
+                .orderByDesc(AiChatMessage::getId)
+                .last(false, "LIMIT " + safeRetainLastN + ", 1")
+        );
 
-    /**
-     * 分页列出会话内的消息（倒序）
-     */
-    List<AiChatMessage> listMessagesByConversation(String userId, Long conversationId, int page, int size);
+        if (boundaryMessages == null || boundaryMessages.isEmpty()) {
+            return;
+        }
 
-    /**
-     * 列出会话内最近 N 条消息（返回升序，便于拼接上下文）
-     */
-    List<AiChatMessage> listLastMessagesByConversation(String userId, Long conversationId, int limit);
-    
-    /**
-     * 获取会话内最近 N 条消息并转换为 Spring AI Message 列表（返回升序，便于直接用于AI调用）
-     * @param conversationId 会话ID
-     * @param limit 限制条数
-     * @return Spring AI Message 列表
-     */
-    List<Message> listLastMessagesAsPromptMessages(String userId, Long conversationId, int limit);
+        LocalDateTime boundary = boundaryMessages.get(0).getCreatedAt();
+
+        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
+                .eq(AiConversation::getUserId, userId)
+                .select(AiConversation::getId))
+                .stream().map(AiConversation::getId).toList();
+
+        int deleted = 0;
+        if (!conversationIds.isEmpty()) {
+            deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+                    .in(AiChatMessage::getConversationId, conversationIds)
+                    .lt(AiChatMessage::getCreatedAt, boundary)
+            );
+        }
+
+        if (deleted > 0) {
+            log.info("记忆清理：userId={}, 删除{}条，保留最近{}条", userId, deleted, retainLastN);
+        }
+    }
+
+    /** 清空用户所有聊天记忆（物理删除） */
+    @Transactional(rollbackFor = Exception.class)
+    public void clearAllMemory(String userId) {
+        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
+                .eq(AiConversation::getUserId, userId)
+                .select(AiConversation::getId))
+                .stream().map(AiConversation::getId).toList();
+
+        int deleted = 0;
+        if (!conversationIds.isEmpty()) {
+            deleted = messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+                    .in(AiChatMessage::getConversationId, conversationIds)
+            );
+        }
+
+        conversationMapper.delete(new LambdaQueryWrapper<AiConversation>()
+                .eq(AiConversation::getUserId, userId)
+        );
+
+        log.info("清空用户记忆：userId={}, 删除{}条记录", userId, deleted);
+    }
+
+    /** 创建会话 */
+    @Transactional(rollbackFor = Exception.class)
+    public Long createConversation(String userId, String title) {
+        AiConversation c = new AiConversation();
+        LocalDateTime time = LocalDateTime.now();
+        c.setUserId(userId);
+        c.setTitle(title);
+        c.setStatus(0);
+        c.setMessageCount(0);
+        c.setCreatedAt(time);
+        c.setUpdatedAt(time);
+        conversationMapper.insert(c);
+        return c.getId();
+    }
+
+    /** 查询用户会话列表（排除已归档的会话） */
+    public List<AiConversation> listConversations(String userId, String type, int page, int size) {
+        int offset = Math.max(0, (page - 1) * size);
+        int safeOffset = Math.max(0, offset);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        var qw = new LambdaQueryWrapper<AiConversation>()
+                .select(AiConversation::getId,
+                        AiConversation::getUserId,
+                        AiConversation::getTitle,
+                        AiConversation::getCreatedAt,
+                        AiConversation::getUpdatedAt,
+                        AiConversation::getStatus,
+                        AiConversation::getMessageCount,
+                        AiConversation::getLastMessageAt)
+                .eq(AiConversation::getUserId, userId)
+                .ne(AiConversation::getStatus, 9)
+                .orderByDesc(AiConversation::getUpdatedAt)
+                .orderByDesc(AiConversation::getId)
+                .last(false, "LIMIT " + safeOffset + ", " + safeSize);
+        return conversationMapper.selectList(qw);
+    }
+
+    public AiConversation getConversation(Long conversationId) {
+        return conversationMapper.selectById(conversationId);
+    }
+
+    public AiConversation getConversationOwnedByUser(String userId, Long conversationId) {
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在或已删除");
+        }
+        if (userId == null || !userId.equals(conversation.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限访问该会话");
+        }
+        return conversation;
+    }
+
+    /** 分页列出会话内的消息（升序） */
+    public List<AiChatMessage> listMessagesByConversation(String userId, Long conversationId, int page, int size) {
+        getConversationOwnedByUser(userId, conversationId);
+        int offset = Math.max(0, (page - 1) * size);
+        int safeOffset = Math.max(0, offset);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .select(AiChatMessage::getId,
+                        AiChatMessage::getRole,
+                        AiChatMessage::getContent,
+                        AiChatMessage::getCreatedAt,
+                        AiChatMessage::getSeqNo)
+                .eq(AiChatMessage::getConversationId, conversationId)
+                .orderByAsc(AiChatMessage::getSeqNo)
+                .orderByAsc(AiChatMessage::getId)
+                .last(false, "LIMIT " + safeOffset + ", " + safeSize)
+        );
+    }
+
+    /** 列出会话内最近 N 条消息（返回升序） */
+    public List<AiChatMessage> listLastMessagesByConversation(String userId, Long conversationId, int limit) {
+        if (limit <= 0) return Collections.emptyList();
+        getConversationOwnedByUser(userId, conversationId);
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        List<AiChatMessage> messages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getConversationId, conversationId)
+                .orderByDesc(AiChatMessage::getSeqNo)
+                .orderByDesc(AiChatMessage::getId)
+                .last(false, "LIMIT " + safeLimit)
+        );
+        Collections.reverse(messages);
+        return messages;
+    }
+
+    /** 获取会话内最近 N 条消息并转换为 Spring AI Message 列表（返回升序） */
+    public List<Message> listLastMessagesAsPromptMessages(String userId, Long conversationId, int limit) {
+        if (limit <= 0) return new ArrayList<>();
+
+        List<AiChatMessage> messages = listLastMessagesByConversation(userId, conversationId, limit);
+
+        return messages.stream().map(m -> {
+            String role = Optional.ofNullable(m.getRole()).orElse("user");
+            String content = Optional.ofNullable(m.getContent()).orElse("");
+            switch (role) {
+                case "system": return new SystemMessage(content);
+                case "assistant": return new AssistantMessage(content);
+                case "user":
+                default: return new UserMessage(content);
+            }
+        }).collect(Collectors.toList());
+    }
 
     /** 重命名会话标题 */
-    void renameConversation(Long conversationId, String title);
+    @Transactional(rollbackFor = Exception.class)
+    public void renameConversation(Long conversationId, String title) {
+        var c = conversationMapper.selectById(conversationId);
+        if (c != null) {
+            c.setTitle(title);
+            c.setUpdatedAt(LocalDateTime.now());
+            conversationMapper.updateById(c);
+        }
+    }
 
-    /** 归档会话（设置 status=9） */
-    void archiveConversation(Long conversationId);
+    /** 归档会话（软删除：设置 status=9） */
+    @Transactional(rollbackFor = Exception.class)
+    public void archiveConversation(Long conversationId) {
+        var c = conversationMapper.selectById(conversationId);
+        if (c != null) {
+            c.setStatus(9);
+            c.setUpdatedAt(LocalDateTime.now());
+            conversationMapper.updateById(c);
+        }
+    }
 
     /** 删除会话（通过外键约束自动删除消息） */
-    void deleteConversation(Long conversationId);
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteConversation(Long conversationId) {
+        conversationMapper.deleteById(conversationId);
+    }
 }
