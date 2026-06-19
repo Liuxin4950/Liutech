@@ -25,7 +25,7 @@ const errors = reactive({ username: '', email: '', password: '', code: '', confi
 
 const showPassword = reactive({ login: false })
 
-const toggleMode = () => { isLogin.value = !isLogin.value; clearError() }
+const toggleMode = () => { isLogin.value = !isLogin.value; clearErrors(); Object.assign(emailLoginErrors, { email: '', code: '' }); clearError(); loginMode.value = 'password' }
 
 const clearForms = () => {
   Object.assign(loginForm, { username: '', password: '' })
@@ -149,8 +149,8 @@ const startEmailCountdown = () => {
 
           <!-- 切换标签 -->
           <div class="mode-tabs">
-            <button class="mode-tab" :class="{ active: isLogin }" @click="isLogin = true">登录</button>
-            <button class="mode-tab" :class="{ active: !isLogin }" @click="isLogin = false">注册</button>
+            <button class="mode-tab" :class="{ active: isLogin }" @click="isLogin || toggleMode()">登录</button>
+            <button class="mode-tab" :class="{ active: !isLogin }" @click="!isLogin || toggleMode()">注册</button>
             <div class="tab-indicator" :class="{ 'tab-indicator-right': !isLogin }"></div>
           </div>
 
@@ -280,8 +280,8 @@ const startEmailCountdown = () => {
           </form>
 
           <div class="card-footer">
-            <p v-if="isLogin">还没有账户？<button type="button" @click="isLogin = false" class="link-btn">立即注册</button></p>
-            <p v-else>已有账户？<button type="button" @click="isLogin = true" class="link-btn">立即登录</button></p>
+            <p v-if="isLogin">还没有账户？<button type="button" @click="toggleMode()" class="link-btn">立即注册</button></p>
+            <p v-else>已有账户？<button type="button" @click="toggleMode()" class="link-btn">立即登录</button></p>
           </div>
         </div>
       </div>
