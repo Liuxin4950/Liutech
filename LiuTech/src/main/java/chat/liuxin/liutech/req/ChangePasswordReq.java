@@ -1,33 +1,33 @@
 package chat.liuxin.liutech.req;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 /**
  * 修改密码请求类
  * 用于用户修改密码时的参数验证
- * 
+ *
  * @author liuxin
  */
 @Data
 public class ChangePasswordReq {
-    
+
     /**
      * 原密码
      * 用于验证用户身份，确保是本人操作
      */
     @NotBlank(message = "原密码不能为空")
     private String oldPassword;
-    
+
     /**
      * 新密码
-     * 长度要求：6-20位
+     * 长度要求：至少8位，包含字母和数字
      */
     @NotBlank(message = "新密码不能为空")
-    @Size(min = 6, max = 20, message = "新密码长度必须在6-20位之间")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$", message = "密码至少8位且包含字母和数字")
     private String newPassword;
-    
+
     /**
      * 确认新密码
      * 必须与新密码一致
