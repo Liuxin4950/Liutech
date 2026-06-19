@@ -206,14 +206,14 @@ onMounted(() => {
   .comment-section {
     margin-top: 24px;
   }
-}
 
-.comment-title {
-  font-size: 1.3rem;
-}
+  .comment-title {
+    font-size: 1.3rem;
+  }
 
-.comment-form-container {
-  margin-bottom: 24px;
+  .comment-form-container {
+    margin-bottom: 24px;
+  }
 }
 
 </style>
