@@ -48,9 +48,8 @@ import { useHead } from '@vueuse/head'
 import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
-import { formatDate } from '@/utils/utils'
 import type { ProfileInfo} from '@/services/user'
-import { getProfile,getAuthorProfile } from '@/services/user'
+import { getAuthorProfile } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -59,7 +58,6 @@ import AnnouncementCard from '@/components/AnnouncementCard.vue'
 import CategoriesCard from '@/components/CategoriesCard.vue'
 import HotTags from '@/components/HotTags.vue'
 import RecommendedPosts from '@/components/RecommendedPosts.vue'
-import Pagination from '@/components/Pagination.vue'
 import ArticleList from '@/components/ArticleList.vue'
 import SearchBox from '@/components/SearchBox.vue'
 
@@ -114,10 +112,6 @@ const tagsLoading = computed(() => tagStore.isHotTagsLoading)
 // 跳转到文章详情
 const goToPost = (postId: number) => {
   router.push(`/post/${postId}?from=home`)
-}
-// 跳转到分类详情
-const goToCategory = (categoryId: number) => {
-    router.push(`/category-detail/${categoryId}`)
 }
 
 // 跳转到标签页面
@@ -217,26 +211,27 @@ const loadProfile = async () => {
     }
   })
 }
+// 设置首页 SEO Meta 信息
+useHead({
+  title: 'LiuTech - 个人技术博客',
+  meta: [
+    { name: 'description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。包含 Spring Boot、Vue.js、Java、JavaScript 等技术栈的深度文章。' },
+    { name: 'keywords', content: 'LiuTech, 技术博客, 全栈开发, Spring Boot, Vue.js, Java, JavaScript, AI, 编程, 软件开发' },
+    { property: 'og:title', content: 'LiuTech - 个人技术博客' },
+    { property: 'og:description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。' },
+    { property: 'og:url', content: 'https://liuxin.chat/' },
+    { property: 'og:image', content: 'https://liuxin.chat/og-image.svg' },
+    { property: 'twitter:title', content: 'LiuTech - 个人技术博客' },
+    { property: 'twitter:description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。' },
+    { property: 'twitter:image', content: 'https://liuxin.chat/og-image.svg' }
+  ],
+  link: [
+    { rel: 'canonical', href: 'https://liuxin.chat/' }
+  ]
+})
+
 // 组件挂载时加载数据
 onMounted(() => {
-  // 设置首页 SEO Meta 信息
-  useHead({
-    title: 'LiuTech - 个人技术博客',
-    meta: [
-      { name: 'description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。包含 Spring Boot、Vue.js、Java、JavaScript 等技术栈的深度文章。' },
-      { name: 'keywords', content: 'LiuTech, 技术博客, 全栈开发, Spring Boot, Vue.js, Java, JavaScript, AI, 编程, 软件开发' },
-      { property: 'og:title', content: 'LiuTech - 个人技术博客' },
-      { property: 'og:description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。' },
-      { property: 'og:url', content: 'https://liuxin.chat/' },
-      { property: 'og:image', content: 'https://liuxin.chat/og-image.svg' },
-      { property: 'twitter:title', content: 'LiuTech - 个人技术博客' },
-      { property: 'twitter:description', content: 'LiuTech 个人技术博客，分享编程技术、全栈开发、AI 应用和软件工程实践经验。' },
-      { property: 'twitter:image', content: 'https://liuxin.chat/og-image.svg' }
-    ],
-    link: [
-      { rel: 'canonical', href: 'https://liuxin.chat/' }
-    ]
-  })
   Promise.all([
     loadAllPosts(), // 加载全部文章
     loadCategories(), // 加载分类
