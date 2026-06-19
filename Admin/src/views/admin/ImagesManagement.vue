@@ -47,16 +47,20 @@ const {
 
 // 自定义删除（支持额外警告信息）
 const handleDelete = async (id: number) => {
-  const res = await ImagesService.deleteImage(id)
-  if (res.code === 200) {
-    if (res.data?.warning) {
-      message.warning(res.data.warning)
+  try {
+    const res = await ImagesService.deleteImage(id)
+    if (res.code === 200) {
+      if (res.data?.warning) {
+        message.warning(res.data.warning)
+      } else {
+        message.success('删除成功')
+      }
+      loadImages()
     } else {
-      message.success('删除成功')
+      message.error(res.message || '删除失败')
     }
-    loadImages()
-  } else {
-    message.error(res.message || '删除失败')
+  } catch {
+    message.error('删除失败，请检查网络')
   }
 }
 
@@ -65,17 +69,21 @@ const handleBatchDelete = async () => {
     message.warning('请选择要删除的图片')
     return
   }
-  const res = await ImagesService.batchDeleteImages(selectedRowKeys.value)
-  if (res.code === 200) {
-    if (res.data?.warning) {
-      message.warning(res.data.warning)
+  try {
+    const res = await ImagesService.batchDeleteImages(selectedRowKeys.value)
+    if (res.code === 200) {
+      if (res.data?.warning) {
+        message.warning(res.data.warning)
+      } else {
+        message.success('批量删除成功')
+      }
+      selectedRowKeys.value = []
+      loadImages()
     } else {
-      message.success('批量删除成功')
+      message.error(res.message || '批量删除失败')
     }
-    selectedRowKeys.value = []
-    loadImages()
-  } else {
-    message.error(res.message || '批量删除失败')
+  } catch {
+    message.error('批量删除失败，请检查网络')
   }
 }
 
