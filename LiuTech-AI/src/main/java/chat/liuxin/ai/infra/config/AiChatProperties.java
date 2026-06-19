@@ -28,6 +28,7 @@ public class AiChatProperties {
 
     private final Security security = new Security();
     private final Agent agent = new Agent();
+    private final Persona persona = new Persona();
 
     @Data
     public static class Security {
@@ -43,7 +44,11 @@ public class AiChatProperties {
 
     @Data
     public static class Agent {
+    }
+
+    @Data
+    public static class Persona {
         /** 看板娘角色名称 */
-        private String personaName = "看板娘";
+        private String name = "看板娘";
     }
 }
