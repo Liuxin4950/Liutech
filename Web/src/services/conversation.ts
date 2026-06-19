@@ -19,19 +19,18 @@ interface ChatMessageItem {
 export const ConversationService = {
   async list(type?: string, page: number = 1, size: number = 20): Promise<Conversation[]> {
     const res = await get<Conversation[]>('/conversations', {type, page, size}, {serviceType: ServiceType.AI})
-    return res as unknown as Conversation[]
+    return res.data
   },
   async create(type: string = 'general', title?: string): Promise<number> {
-    const res = await post('/conversations', null as any, {params: {type, title}, serviceType: ServiceType.AI} as any)
-    const obj: any = res
-    return obj?.conversationId || 0
+    const res = await post<{ conversationId?: number }>('/conversations', null as any, {params: {type, title}, serviceType: ServiceType.AI} as any)
+    return res.data?.conversationId || 0
   },
   async messages(id: number, page: number = 1, size: number = 50): Promise<ChatMessageItem[]> {
     const res = await get<ChatMessageItem[]>(`/conversations/${id}/messages`, {
       page,
       size
     }, {serviceType: ServiceType.AI})
-    return res as unknown as ChatMessageItem[]
+    return res.data
   },
   async rename(id: number, title: string): Promise<void> {
     await put(`/conversations/${id}/rename`, null as any, {params: {title}, serviceType: ServiceType.AI} as any)

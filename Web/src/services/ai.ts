@@ -88,7 +88,7 @@ export class Ai {
         const response = await post<AiChatResponse>(endpoint, requestBody, {
             serviceType: ServiceType.AI
         })
-        return response as unknown as AiChatResponse
+        return response.data
     }
 }
 

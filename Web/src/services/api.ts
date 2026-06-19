@@ -85,11 +85,13 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
           err.isBusiness = true
           throw err
         }
-        // AI 成功响应直接透传
+        // 将 AI 响应包装为标准 ApiResponse 格式，保持类型一致性
+        response.data = { code: 200, message: data.message || 'ok', data }
         return response
       }
 
-      // 未知结构，直接透传，交由调用方处理
+      // 未知结构（含 AI 服务数组响应），包装为标准格式
+      response.data = { code: 200, message: 'ok', data }
       return response
     },
     (error) => {
