@@ -125,8 +125,8 @@ export class PostsService {
   /**
    * 创建文章
    */
-  static async createPost(postData: Post): Promise<ApiResponse<string>> {
-    return post<string>(this.BASE_URL, postData as any)
+  static async createPost(postData: Post): Promise<ApiResponse<Post>> {
+    return post<Post>(this.BASE_URL, postData as any)
   }
 
   /**
