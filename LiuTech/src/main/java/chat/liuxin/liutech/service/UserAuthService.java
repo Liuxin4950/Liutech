@@ -129,8 +129,7 @@ public class UserAuthService {
         Users user = new Users();
         user.setUsername(registerReq.getUsername());
         user.setEmail(registerReq.getEmail());
-        // 注册时不设密码，用随机哈希占位，用户后续通过忘记密码设置真实密码
-        user.setPasswordHash(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        user.setPasswordHash(passwordEncoder.encode(registerReq.getPassword()));
         user.setRole("user"); // 默认角色为普通用户
         user.setStatus(1); // 默认激活状态
         user.setPoints(BigDecimal.ZERO); // 初始积分为0

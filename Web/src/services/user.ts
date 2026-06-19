@@ -34,6 +34,7 @@ export interface RegisterRequest {
   username: string
   email: string
   code: string
+  password: string
   nickname?: string
 }
 

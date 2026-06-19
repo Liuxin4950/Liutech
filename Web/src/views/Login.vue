@@ -19,7 +19,7 @@ const emailLoginForm = reactive({ email: '', code: '' })
 const emailLoginErrors = reactive({ email: '', code: '' })
 const emailCountdown = ref(0)
 let emailTimer: ReturnType<typeof setInterval> | null = null
-const registerForm = reactive({ username: '', email: '', code: '', nickname: '' })
+const registerForm = reactive({ username: '', email: '', code: '', password: '', nickname: '' })
 
 const errors = reactive({ username: '', email: '', password: '', code: '', confirmPassword: '' })
 
@@ -29,7 +29,7 @@ const toggleMode = () => { isLogin.value = !isLogin.value; clearError() }
 
 const clearForms = () => {
   Object.assign(loginForm, { username: '', password: '' })
-  Object.assign(registerForm, { username: '', email: '', code: '', nickname: '' })
+  Object.assign(registerForm, { username: '', email: '', code: '', password: '', nickname: '' })
 }
 
 const clearErrors = () => {
@@ -48,6 +48,8 @@ const validateForm = () => {
     if (!registerForm.email.trim()) { errors.email = '请输入邮箱地址'; isValid = false }
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) { errors.email = '请输入有效的邮箱地址'; isValid = false }
     if (!registerForm.code.trim()) { errors.code = '请输入验证码'; isValid = false }
+    if (!registerForm.password) { errors.password = '请输入密码'; isValid = false }
+    else if (!/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/.test(registerForm.password)) { errors.password = '密码至少8位且包含字母和数字'; isValid = false }
   }
   return isValid
 }
@@ -61,7 +63,7 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   if (!validateForm()) return
   const result = await handleFormSubmit(async () => {
-    const data: RegisterRequest = { username: registerForm.username, email: registerForm.email, code: registerForm.code, nickname: registerForm.nickname || undefined }
+    const data: RegisterRequest = { username: registerForm.username, email: registerForm.email, code: registerForm.code, password: registerForm.password, nickname: registerForm.nickname || undefined }
     return await userStore.register(data)
   })
   if (result) { showSuccess('注册成功！请登录您的账户'); isLogin.value = true; clearForms() }
@@ -196,6 +198,20 @@ const startEmailCountdown = () => {
                   <input v-model="registerForm.code" type="text" placeholder="请输入6位验证码" maxlength="6" :class="{ error: errors.code }" />
                 </div>
                 <span v-if="errors.code" class="error-message">{{ errors.code }}</span>
+              </div>
+            </transition>
+
+            <transition name="slide-fade">
+              <div v-if="!isLogin" class="form-group">
+                <label>密码</label>
+                <div class="input-wrapper">
+                  <Icon name="lock" size="18" class="input-icon" />
+                  <input v-model="registerForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="至少8位，包含字母和数字" :class="{ error: errors.password }" />
+                  <button type="button" class="toggle-password" @click="showPassword.login = !showPassword.login">
+                    <Icon :name="showPassword.login ? 'visibility_off' : 'visibility'" size="18" />
+                  </button>
+                </div>
+                <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
               </div>
             </transition>
 

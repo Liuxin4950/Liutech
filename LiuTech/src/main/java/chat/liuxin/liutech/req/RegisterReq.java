@@ -2,12 +2,13 @@ package chat.liuxin.liutech.req;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
  * 注册请求
- * 注册只需用户名 + 邮箱 + 验证码，密码后续通过忘记密码设置
+ * 用户注册时直接设置密码
  */
 @Data
 public class RegisterReq {
@@ -22,6 +23,10 @@ public class RegisterReq {
     @NotBlank(message = "验证码不能为空")
     @Size(min = 4, max = 6, message = "验证码长度为4-6位")
     private String code;
+
+    @NotBlank(message = "密码不能为空")
+    @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,}$", message = "密码至少8位且包含字母和数字")
+    private String password;
 
     private String nickname;
 }
