@@ -10,5 +10,3 @@ export type { UseCrudActionsOptions } from './useCrudActions'
 
 export { useModalForm } from './useModalForm'
 export type { UseModalFormOptions } from './useModalForm'
-
-export { useErrorHandler } from './useErrorHandler'

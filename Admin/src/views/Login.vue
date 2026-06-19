@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { ref, reactive, h } from 'vue'
+import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { useErrorHandler } from '../composables/useErrorHandler'
 import { message } from 'ant-design-vue'
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
 const router = useRouter()
 const userStore = useUserStore()
-const { handleFormSubmit, showSuccess, clearError,showSuccessToast } = useErrorHandler()
 
 // 表单状态 - 管理端只需要登录功能
 
@@ -24,15 +22,6 @@ const errors = reactive({
   username: '',
   password: ''
 })
-
-
-
-/**
- * 清空表单
- */
-const clearForms = () => {
-  Object.assign(loginForm, { username: '', password: '' })
-}
 
 
 
@@ -72,13 +61,9 @@ const validateForm = () => {
 const handleLogin = async () => {
   if (!validateForm()) return
 
-  const result = await handleFormSubmit(async () => {
-    return await userStore.login(loginForm.username, loginForm.password)
-  })
-
-  if (result) {
+  const success = await userStore.login(loginForm.username, loginForm.password)
+  if (success) {
     message.success('登录成功！')
-    // 获取重定向路径，如果没有则跳转到首页
     const redirect = router.currentRoute.value.query.redirect as string || '/'
     router.push(redirect)
   }
