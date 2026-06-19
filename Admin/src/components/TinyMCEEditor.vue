@@ -50,7 +50,6 @@ import 'tinymce/plugins/directionality' // 文字方向
 import 'tinymce/plugins/quickbars' // 快速工具栏
 // 导入表情符号数据库
 import 'tinymce/plugins/emoticons/js/emojis'
-console.log('TinyMCEEditor组件正在加载...')
 // 定义组件属性
 interface Props {
   modelValue?: string
@@ -702,16 +701,9 @@ const editorConfig = computed(() => ({
     { title: '基础表格', value: 'table table-bordered' },
     { title: '条纹表格', value: 'table table-striped' }
   ],
-  // 初始化回调，用于调试
+  // 初始化回调
   init_instance_callback: (editor: any) => {
-    console.log('TinyMCE编辑器初始化完成:', editor.id)
-    console.log('编辑器模式:', editor.readonly ? '只读' : '可编辑')
-    console.log('当前主题:', theme.current.value)
     applyEditorTheme(editor)
-    // Ctrl+S 保存快捷键
-    editor.shortcuts.add('ctrl+s', '保存内容', function () {
-      console.log('保存内容...')
-    })
   }
 }))
 
