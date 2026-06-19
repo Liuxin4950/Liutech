@@ -37,7 +37,6 @@ public class OperationLogAspect {
 
     @Around("@annotation(operationLog)")
     public Object around(ProceedingJoinPoint point, OperationLog operationLog) throws Throwable {
-        long startTime = System.currentTimeMillis();
         boolean success = true;
         String errorMessage = null;
 
