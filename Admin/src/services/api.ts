@@ -1,8 +1,7 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
-import Swal from 'sweetalert2'
+import { message } from 'ant-design-vue'
 import router from '../router'
-import { showErrorToast } from '../utils/errorHandler'
 
 // API 响应接口
 export interface ApiResponse<T = any> {
@@ -72,7 +71,7 @@ instance.interceptors.response.use(
       const err: any = new Error(data.message || '请求失败')
       err.isBusiness = true
       err.response = response
-      showErrorToast(data.message || '请求失败')
+      message.error(data.message || '请求失败')
       throw err
     }
     
@@ -85,7 +84,7 @@ instance.interceptors.response.use(
 
     // 特殊处理401错误，需要跳转登录页
     if (error.response?.status === 401) {
-      Swal.close() // 清除所有已弹出的弹窗
+      message.destroy()
       localStorage.removeItem('token')
       if (router.currentRoute.value.path !== '/login') {
         router.push('/login')
@@ -94,7 +93,7 @@ instance.interceptors.response.use(
 
     // 特殊处理403错误，跳转权限不足页面
     if (error.response?.status === 403) {
-      Swal.close() // 清除所有已弹出的弹窗
+      message.destroy()
       if (router.currentRoute.value.path !== '/403') {
         router.push('/403')
       }

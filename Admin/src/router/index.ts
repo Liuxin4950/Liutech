@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import Swal from 'sweetalert2'
+import { message } from 'ant-design-vue'
 import { useTagsStore } from '@/stores/tabs'
 import { useUserStore } from '@/stores/user'
 
@@ -132,10 +132,6 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'tts',
-        redirect: '/ai-settings'
-      },
-      {
         path: 'images',
         name: 'images-management',
         component: () => import('../views/admin/ImagesManagement.vue'),
@@ -224,8 +220,8 @@ const router = createRouter({
  * 设置页面标题和权限检查
  */
 router.beforeEach(async (to, from, next) => {
-  // 路由切换时清除所有弹窗，防止残留
-  Swal.close()
+  // 路由切换时清除残留的 message 提示
+  message.destroy()
 
   // 设置页面标题
   document.title = `${to.meta.title || '博客'} - MyBlog`
