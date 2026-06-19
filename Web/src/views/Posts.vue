@@ -74,8 +74,6 @@ import type { PostListItem, PostQueryParams } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
-import { formatDate } from '@/utils/utils'
-import Pagination from '@/components/Pagination.vue'
 import ArticleList from '@/components/ArticleList.vue'
 import Icon from '@/components/Icon.vue'
 
