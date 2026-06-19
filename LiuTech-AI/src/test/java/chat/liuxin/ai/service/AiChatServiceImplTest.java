@@ -1,21 +1,16 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.common.client.TtsClient;
 import chat.liuxin.ai.common.monitor.AiMetrics;
-import chat.liuxin.ai.common.tts.AvatarCueService;
 import chat.liuxin.ai.infra.config.AiChatProperties;
-import chat.liuxin.ai.infra.config.AvatarCueProperties;
 import chat.liuxin.ai.infra.config.TtsSegmenterProperties;
 import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
-import chat.liuxin.ai.infra.security.SensitiveLogSanitizer;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
@@ -31,12 +26,9 @@ class AiChatServiceImplTest {
     private MemoryService memoryService;
     private AiMetrics aiMetrics;
     private AiModelConfigService aiModelConfigService;
-    private TtsClient ttsClient;
     private PromptService promptService;
     private AiModelPolicy aiModelPolicy;
-    private SensitiveLogSanitizer sensitiveLogSanitizer;
     private TtsSegmenter ttsSegmenter;
-    private AvatarCueService avatarCueService;
     private StreamingChatService streamingChatService;
     private AiChatServiceImpl service;
     private Method resolveModelNameMethod;
@@ -47,15 +39,12 @@ class AiChatServiceImplTest {
         memoryService = mock(MemoryService.class);
         aiMetrics = mock(AiMetrics.class);
         aiModelConfigService = mock(AiModelConfigService.class);
-        ttsClient = mock(TtsClient.class);
         promptService = mock(PromptService.class);
         streamingChatService = mock(StreamingChatService.class);
         AiChatProperties aiChatProperties = new AiChatProperties();
         aiChatProperties.setDefaultModel("fallback-model");
         aiModelPolicy = new AiModelPolicy(aiModelConfigService, aiChatProperties);
-        sensitiveLogSanitizer = new SensitiveLogSanitizer();
         ttsSegmenter = new TtsSegmenter(new TtsSegmenterProperties());
-        avatarCueService = new AvatarCueService(new AvatarCueProperties());
 
         service = new AiChatServiceImpl(
                 siliconFlowChatClient, memoryService, aiMetrics,
@@ -64,10 +53,6 @@ class AiChatServiceImplTest {
 
         resolveModelNameMethod = AiChatServiceImpl.class.getDeclaredMethod("resolveModelName", ChatRequest.class);
         resolveModelNameMethod.setAccessible(true);
-    }
-
-    private List<String> extractSegments(String content) {
-        return ttsSegmenter.extractSegments(new StringBuilder(content), true);
     }
 
     private List<String> extractSegments(String content, boolean firstSegmentSent) {
@@ -80,12 +65,6 @@ class AiChatServiceImplTest {
 
     private String resolveModelName(ChatRequest request) throws Exception {
         return (String) resolveModelNameMethod.invoke(service, request);
-    }
-
-    private void setField(Object target, String fieldName, Object value) throws Exception {
-        Field field = target.getClass().getDeclaredField(fieldName);
-        field.setAccessible(true);
-        field.set(target, value);
     }
 
     @Test
