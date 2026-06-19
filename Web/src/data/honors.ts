@@ -35,9 +35,9 @@ export const honorCategories: Array<{ label: string; value: HonorCategory }> = [
 export const honors: HonorItem[] = [
   {
     id: 'software-testing-first-place',
-    title: '职业技能大赛重庆市选拔赛软件测试项目',
+    title: '中华人民共和国第三届职业技能大赛重庆市选拔赛软件测试（世）项目',
     level: '第一名',
-    year: '2026',
+    year: '2025',
     category: 'test',
     image: softwareTestingFirstPlace
   },
@@ -51,41 +51,41 @@ export const honors: HonorItem[] = [
   },
   {
     id: 'wechat-miniapp-first-prize',
-    title: '微信小程序开发赛项',
+    title: '重庆市专项职业能力技能大赛微信小程序开发赛项',
     level: '一等奖',
-    year: '2026',
+    year: '2025',
     category: 'miniapp',
     image: wechatMiniappFirstPrize
   },
   {
     id: 'lowcode-nvwa-first-prize',
-    title: '低代码女娲杯',
+    title: '第十四届全国大学生计算机应用能力与数字素养大赛（久其女娲杯低代码编程赛项）',
     level: '一等奖',
-    year: '2025',
+    year: '2023',
     category: 'lowcode',
     image: lowcodeNvwaFirstPrize
   },
   {
     id: 'mobile-app-second-prize',
-    title: '移动应用开发',
+    title: '重庆市职业院校技能大赛高职组移动应用设计与开发',
     level: '二等奖',
-    year: '2025',
+    year: '2024',
     category: 'dev',
     image: mobileAppSecondPrize
   },
   {
     id: 'c-programming-engineer-cert',
-    title: 'C 语言程序设计工程师证书',
+    title: 'C语言程序设计工程师证书',
     level: '工程师证书',
-    year: '2025',
+    year: '2024',
     category: 'cert',
     image: cProgrammingEngineerCert
   },
   {
     id: 'app-software-third-prize',
-    title: '应用软件开发',
+    title: '重庆市职业院校技能大赛高职组应用软件系统开发',
     level: '三等奖',
-    year: '2025',
+    year: '2024',
     category: 'dev',
     image: appSoftwareThirdPrize
   },
@@ -99,9 +99,9 @@ export const honors: HonorItem[] = [
   },
   {
     id: 'text-app-excellence-award',
-    title: '文本应用开发',
+    title: '蓝桥杯全国总决赛Web应用开发职业院校组',
     level: '优秀奖',
-    year: '2026',
+    year: '2025',
     category: 'dev',
     image: textAppExcellenceAward
   },
