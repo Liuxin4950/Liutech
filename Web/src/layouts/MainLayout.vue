@@ -22,9 +22,6 @@ const showLoader = ref(false)
 const router = useRouter()
 const route = useRoute()
 
-// 滚动位置状态
-const scrollY = ref(0)
-
 let timer: number | null = null
 // 检查是否为首次访问（页面刷新或首次打开）
 const isFirstLoad = ref(true)
@@ -232,11 +229,6 @@ const handleExternalChatOpen = (event: Event) => {
   }
 }
 
-// 滚动监听函数
-const handleScroll = () => {
-  scrollY.value = window.scrollY
-}
-
 const handleSpotlightClick = () => {
   showModel.value = true
 }
@@ -257,9 +249,6 @@ onMounted(() => {
   window.addEventListener('pointerdown', onceUnlock, { passive: true })
   window.addEventListener('keydown', onceUnlock, { passive: true })
   window.addEventListener('touchstart', onceUnlock, { passive: true })
-  
-  // 添加滚动监听
-  window.addEventListener('scroll', handleScroll, { passive: true })
   window.addEventListener('ai-chat-open', handleExternalChatOpen)
   window.addEventListener('keydown', handleGlobalKeydown)
   if (timer) { window.clearTimeout(timer) }
@@ -301,8 +290,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  // 移除滚动监听
-  window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('ai-chat-open', handleExternalChatOpen)
   window.removeEventListener('keydown', handleGlobalKeydown)
 })
@@ -431,7 +418,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
 <template>
   <div class="main-layout">
-    <TheHeader class="header" :scroll-y="scrollY" @open-search="searchModalRef?.open()" />
+    <TheHeader class="header" @open-search="searchModalRef?.open()" />
     <main class="main-content">
       <Banner class="banner" />
       <Breadcrumb />

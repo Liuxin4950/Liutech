@@ -9,11 +9,6 @@ import menuIconLight from '@/assets/image/icon/menu.png'
 import menuIconDark from '@/assets/image/icon/menu_dark.png'
 import logoUrl from '@/assets/image/logo/logo.png'
 
-// 接收滚动位置
-const props = defineProps<{
-  scrollY?: number
-}>()
-
 const emit = defineEmits(['open-search'])
 
 const router = useRouter()
