@@ -11,6 +11,10 @@ export const useUserStore = defineStore('user', () => {
   // 状态
   const userInfo = ref<UserInfo | null>(null)
   const isLoading = ref(false)
+  const lastFetchTime = ref<number>(0)
+
+  // 缓存时间（5分钟）
+  const CACHE_DURATION = 5 * 60 * 1000
 
   // 计算属性
   const isLoggedIn = computed(() => {
@@ -97,16 +101,23 @@ export const useUserStore = defineStore('user', () => {
 
   /**
    * 获取用户信息
+   * @param forceRefresh 是否强制刷新（忽略缓存）
    */
-  const fetchUserInfo = async () => {
+  const fetchUserInfo = async (forceRefresh = false) => {
     if (!UserService.isLoggedIn()) {
       userInfo.value = null
+      return
+    }
+
+    // 如果数据还在缓存期内且不强制刷新，跳过请求
+    if (!forceRefresh && userInfo.value && Date.now() - lastFetchTime.value < CACHE_DURATION) {
       return
     }
 
     try {
       const userData = await UserService.getCurrentUser()
       userInfo.value = userData
+      lastFetchTime.value = Date.now()
     } catch (error: any) {
       console.error('获取用户信息失败:', error)
       // 401错误静默处理（token无效或过期）
