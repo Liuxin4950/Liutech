@@ -14,6 +14,7 @@ import LoginModal from '../components/LoginModal.vue'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
 import Icon from '@/components/Icon.vue'
+import { usePrismHighlighter } from '@/composables/usePrismHighlighter'
 
 // DOMPurify 安全配置：禁止危险标签和事件属性
 const sanitizeConfig = {
@@ -21,101 +22,8 @@ const sanitizeConfig = {
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit']
 }
 
-// 动态加载Prism.js和Prism.css用于代码高亮
-const addCopyButtons = () => {
-  document.querySelectorAll('.markdown-content pre').forEach(pre => {
-    if (pre.querySelector('.copy-btn')) return
-    const btn = document.createElement('button')
-    btn.className = 'copy-btn'
-    btn.textContent = '复制'
-    btn.addEventListener('click', () => {
-      const code = pre.querySelector('code')
-      const text = code?.textContent || ''
-      const textarea = document.createElement('textarea')
-      textarea.value = text
-      textarea.style.cssText = 'position:fixed;left:-9999px;opacity:0'
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-      btn.textContent = '已复制'
-      setTimeout(() => { btn.textContent = '复制' }, 1500)
-    })
-    ;(pre as HTMLElement).style.position = 'relative'
-    pre.appendChild(btn)
-  })
-}
-
-let prismLinkEl: HTMLLinkElement | null = null
-let prismScriptEl: HTMLScriptElement | null = null
-const prismLangScripts: HTMLScriptElement[] = []
-
-const loadPrism = () => {
-  // 防止重复注入
-  if (prismScriptEl || (window as any).Prism) {
-    if ((window as any).Prism) {
-      (window as any).Prism.highlightAll()
-      addCopyButtons()
-    }
-    return
-  }
-
-  // 直接加载完整版Prism
-  const link = document.createElement('link')
-  prismLinkEl = link
-  link.rel = 'stylesheet'
-  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css'
-  document.head.appendChild(link)
-
-  const script = document.createElement('script')
-  prismScriptEl = script
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js'
-  script.onload = () => {
-    // 自动检测页面中有什么语言，只加载需要的
-    setTimeout(() => {
-      const codeBlocks = document.querySelectorAll('pre code[class*="language-"]')
-      const languages = new Set<string>()
-      
-      codeBlocks.forEach(block => {
-        const match = block.className.match(/language-(\w+)/)
-        if (match) {
-          languages.add(match[1])
-        }
-      })
-      
-      // 加载需要的语言
-      let loadedCount = 0
-      const totalLanguages = languages.size
-      
-      if (totalLanguages === 0) {
-        // 没有特殊语言，直接高亮
-        if ((window as any).Prism) {
-          (window as any).Prism.highlightAll()
-          addCopyButtons()
-        }
-        return
-      }
-      
-      languages.forEach(lang => {
-        const langScript = document.createElement('script')
-        langScript.src = `https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-${lang}.min.js`
-        langScript.onload = () => {
-          loadedCount++
-          if (loadedCount === totalLanguages) {
-            // 所有语言加载完成，执行高亮
-            if ((window as any).Prism) {
-              (window as any).Prism.highlightAll()
-              addCopyButtons()
-            }
-          }
-        }
-        document.head.appendChild(langScript)
-        prismLangScripts.push(langScript)
-      })
-    }, 100)
-  }
-  document.head.appendChild(script)
-}
+// Prism.js 代码高亮（拆分到 composables/usePrismHighlighter.ts）
+const { loadPrism, highlightAll, cleanup: cleanupPrism } = usePrismHighlighter()
 
 const route = useRoute()
 const router = useRouter()
@@ -233,10 +141,7 @@ const renderedContent = computed(() => DOMPurify.sanitize(post.value?.content ||
 // 监听内容变化，触发代码高亮
 watch(() => renderedContent.value, () => {
   nextTick(() => {
-    if ((window as any).Prism) {
-      (window as any).Prism.highlightAll()
-      addCopyButtons()
-    }
+    highlightAll()
   })
 }, { flush: 'post' })
 
@@ -481,18 +386,7 @@ onMounted(() => {
 // 组件卸载时清理事件监听器和注入的 Prism.js 资源
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
-  if (prismLinkEl?.parentNode) {
-    prismLinkEl.parentNode.removeChild(prismLinkEl)
-    prismLinkEl = null
-  }
-  if (prismScriptEl?.parentNode) {
-    prismScriptEl.parentNode.removeChild(prismScriptEl)
-    prismScriptEl = null
-  }
-  prismLangScripts.forEach(el => {
-    if (el.parentNode) el.parentNode.removeChild(el)
-  })
-  prismLangScripts.length = 0
+  cleanupPrism()
 })
 
 const interactionStore = usePostInteractionStore()
