@@ -664,17 +664,6 @@
 
     <!-- 分页查询文章列表（返回PostListResl）- 已上移至文件底部，保持逻辑清晰 -->
 
-    <!-- 嵌套查询：根据文章ID获取标签信息（用于PostListReslMap.tags） -->
-    <select id="selectTagInfosByPostId" resultType="chat.liuxin.liutech.resp.PostListResp$TagInfo">
-        SELECT
-            t.id AS id,
-            t.name AS name
-        FROM tags t
-        INNER JOIN post_tags pt ON t.id = pt.tag_id
-        WHERE pt.post_id = #{postId}
-        ORDER BY t.name
-    </select>
-
     <!-- 批量查询多篇文章的标签（避免 N+1） -->
     <select id="selectTagsByPostIds" resultType="hashmap">
         SELECT
