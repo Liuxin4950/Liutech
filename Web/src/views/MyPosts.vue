@@ -55,7 +55,7 @@
       <!-- 文章列表 -->
       <div v-else class="posts-list">
         <div v-for="post in filteredPosts" :key="post.id" class="post-card bg-card">
-          <img v-if="post.thumbnail" class="fit" :src="post.coverImage" alt="" loading="lazy" @error="handleImageError">
+          <img v-if="post.thumbnail" class="fit" :src="post.thumbnail" alt="" loading="lazy" @error="handleImageError">
           <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="" loading="lazy" @error="handleImageError">
           <img v-else class="fit" src="@/assets/image/err.png" alt="" loading="lazy">
           
