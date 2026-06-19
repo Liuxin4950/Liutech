@@ -43,18 +43,6 @@ public class TagsAdminController extends BaseAdminController {
     }
 
     /**
-     * 分页查询标签列表（兼容/list路径）
-     */
-    @GetMapping("/list")
-    public Result<PageResp<TagResp>> getTagListCompat(
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String name,
-            @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        return getTagList(page, size, name, includeDeleted);
-    }
-
-    /**
      * 根据ID查询标签详情
      */
     @GetMapping("/{id}")
