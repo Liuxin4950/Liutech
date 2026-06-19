@@ -159,6 +159,7 @@ export class AnnouncementsService {
 
   /**
    * 导出公告数据为Excel
+   * 使用 fetch 而非 axios，因为需要处理 blob 响应类型
    */
   static async exportAnnouncements(params: AnnouncementListParams = {}): Promise<Blob> {
     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_BASE_URL}/export`, {
@@ -177,6 +178,7 @@ export class AnnouncementsService {
 
   /**
    * 导入公告数据从Excel
+   * 使用 fetch 而非 axios，因为需要处理 FormData 上传
    */
   static async importAnnouncements(file: File): Promise<ApiResponse<{ success: number; failed: number; errors?: string[] }>> {
     const formData = new FormData()
