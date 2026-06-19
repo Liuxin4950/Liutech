@@ -114,6 +114,20 @@ export class ImagesService {
   static async cleanupOrphanImages(): Promise<ApiResponse<number>> {
     return post<number>(`${this.BASE_URL}/cleanup-orphans`)
   }
+
+  /**
+   * 图片引用对账（重置 usage_count 并重新统计）
+   */
+  static async reconcileUsage(): Promise<ApiResponse<ImageUsageReconcileResult>> {
+    return post<ImageUsageReconcileResult>(`${this.BASE_URL}/reconcile-usage`)
+  }
+}
+
+export interface ImageUsageReconcileResult {
+  resetRows: number
+  referencedPaths: number
+  updatedImages: number
+  missingImages: number
 }
 
 export default ImagesService
