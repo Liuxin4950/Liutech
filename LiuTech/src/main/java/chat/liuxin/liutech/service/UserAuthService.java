@@ -193,6 +193,8 @@ public class UserAuthService {
         UserResp userResp = new UserResp();
         if (user != null) {
             BeanUtils.copyProperties(user, userResp);
+            // 显式清除敏感字段，防止通过反射/日志泄露
+            userResp.setPasswordHash(null);
         }
         return userResp;
     }
