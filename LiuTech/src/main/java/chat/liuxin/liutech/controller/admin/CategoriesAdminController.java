@@ -63,7 +63,7 @@ public class CategoriesAdminController extends BaseAdminController {
      * 创建分类
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "category", description = "创建分类: #category.name", targetName = "#category.name")
+    @OperationLog(action = "create", targetType = "category", description = "创建分类")
     public Result<String> createCategory(@RequestBody CategoryResp category) {
         ValidationUtil.validateNotNull(category, "分类信息");
         try {
@@ -78,7 +78,7 @@ public class CategoriesAdminController extends BaseAdminController {
      * 更新分类
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "category", description = "更新分类: #category.name", targetName = "#category.name")
+    @OperationLog(action = "update", targetType = "category", description = "更新分类")
     public Result<String> updateCategory(@PathVariable Long id, @RequestBody CategoryResp category) {
         ValidationUtil.validateId(id, "分类ID");
         ValidationUtil.validateNotNull(category, "分类信息");
@@ -95,7 +95,7 @@ public class CategoriesAdminController extends BaseAdminController {
      * 删除分类
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "category", description = "删除分类", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "category", description = "删除分类")
     public Result<String> deleteCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -125,7 +125,7 @@ public class CategoriesAdminController extends BaseAdminController {
      * 恢复已删除的分类
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "category", description = "恢复分类", targetName = "#id")
+    @OperationLog(action = "restore", targetType = "category", description = "恢复分类")
     public Result<String> restoreCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -140,7 +140,7 @@ public class CategoriesAdminController extends BaseAdminController {
      * 彻底删除分类（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "category", description = "彻底删除分类", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "category", description = "彻底删除分类")
     public Result<String> permanentDeleteCategory(@PathVariable Long id) {
         ValidationUtil.validateId(id, "分类ID");
         try {
@@ -155,7 +155,7 @@ public class CategoriesAdminController extends BaseAdminController {
      * 批量彻底删除分类（物理删除）
      */
     @PostMapping("/batch/permanent")
-    @OperationLog(action = "delete", targetType = "category", description = "批量彻底删除分类", targetName = "#ids")
+    @OperationLog(action = "delete", targetType = "category", description = "批量彻底删除分类")
     public Result<String> batchPermanentDeleteCategories(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "分类ID列表");
         try {

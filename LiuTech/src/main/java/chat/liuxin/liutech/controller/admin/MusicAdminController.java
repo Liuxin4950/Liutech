@@ -54,7 +54,7 @@ public class MusicAdminController extends BaseAdminController {
      * 上传音乐
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "music", description = "上传音乐: #title", targetName = "#title")
+    @OperationLog(action = "create", targetType = "music", description = "上传音乐")
     public Result<Long> uploadMusic(
             @RequestParam String title,
             @RequestParam(required = false) String artist,
@@ -77,7 +77,7 @@ public class MusicAdminController extends BaseAdminController {
      * 更新音乐信息
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "music", description = "更新音乐: #id", targetName = "#id")
+    @OperationLog(action = "update", targetType = "music", description = "更新音乐")
     public Result<String> updateMusic(
             @PathVariable Long id,
             @RequestParam(required = false) String title,
@@ -99,7 +99,7 @@ public class MusicAdminController extends BaseAdminController {
      * 删除音乐（硬删除 + 清理文件）
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "music", description = "删除音乐", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "music", description = "删除音乐")
     public Result<String> deleteMusic(@PathVariable Long id) {
         ValidationUtil.validateId(id, "音乐ID");
 

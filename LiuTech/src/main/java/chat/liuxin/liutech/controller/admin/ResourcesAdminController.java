@@ -69,7 +69,7 @@ public class ResourcesAdminController extends BaseAdminController {
      * 创建资源
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "resource", description = "创建资源: #resource.name", targetName = "#resource.name")
+    @OperationLog(action = "create", targetType = "resource", description = "创建资源")
     public Result<String> createResource(@RequestBody ResourceResp resource) {
         ValidationUtil.validateNotNull(resource, "资源信息");
         try {
@@ -84,7 +84,7 @@ public class ResourcesAdminController extends BaseAdminController {
      * 更新资源
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "resource", description = "更新资源: #resource.name", targetName = "#resource.name")
+    @OperationLog(action = "update", targetType = "resource", description = "更新资源")
     public Result<String> updateResource(@PathVariable Long id, @RequestBody ResourceResp resource) {
         ValidationUtil.validateId(id, "资源ID");
         ValidationUtil.validateNotNull(resource, "资源信息");
@@ -101,7 +101,7 @@ public class ResourcesAdminController extends BaseAdminController {
      * 删除资源（软删除）
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "resource", description = "删除资源", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "resource", description = "删除资源")
     public Result<String> deleteResource(@PathVariable Long id) {
         ValidationUtil.validateId(id, "资源ID");
         try {
@@ -131,7 +131,7 @@ public class ResourcesAdminController extends BaseAdminController {
      * 恢复已删除的资源
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "resource", description = "恢复资源", targetName = "#id")
+    @OperationLog(action = "restore", targetType = "resource", description = "恢复资源")
     public Result<String> restoreResource(@PathVariable Long id) {
         ValidationUtil.validateId(id, "资源ID");
         try {
@@ -146,7 +146,7 @@ public class ResourcesAdminController extends BaseAdminController {
      * 彻底删除资源（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "resource", description = "彻底删除资源", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "resource", description = "彻底删除资源")
     public Result<String> permanentDeleteResource(@PathVariable Long id) {
         ValidationUtil.validateId(id, "资源ID");
         try {
@@ -161,7 +161,7 @@ public class ResourcesAdminController extends BaseAdminController {
      * 批量彻底删除资源（物理删除）
      */
     @PostMapping("/batch/permanent")
-    @OperationLog(action = "delete", targetType = "resource", description = "批量彻底删除资源", targetName = "#ids")
+    @OperationLog(action = "delete", targetType = "resource", description = "批量彻底删除资源")
     public Result<String> batchPermanentDeleteResources(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "资源ID列表");
         try {

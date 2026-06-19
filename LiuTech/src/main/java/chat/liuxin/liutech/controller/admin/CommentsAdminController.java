@@ -68,7 +68,7 @@ public class CommentsAdminController extends BaseAdminController {
      * 软删除评论
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "comment", description = "软删除评论", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "comment", description = "软删除评论")
     public Result<String> deleteComment(@PathVariable Long id) {
         ValidationUtil.validateId(id, "评论ID");
         try {
@@ -98,7 +98,7 @@ public class CommentsAdminController extends BaseAdminController {
      * 恢复已删除的评论
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "comment", description = "恢复评论", targetName = "#id")
+    @OperationLog(action = "restore", targetType = "comment", description = "恢复评论")
     public Result<String> restoreComment(@PathVariable Long id) {
         ValidationUtil.validateId(id, "评论ID");
         try {
@@ -113,7 +113,7 @@ public class CommentsAdminController extends BaseAdminController {
      * 彻底删除评论（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "comment", description = "彻底删除评论", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "comment", description = "彻底删除评论")
     public Result<String> permanentDeleteComment(@PathVariable Long id) {
         ValidationUtil.validateId(id, "评论ID");
         try {

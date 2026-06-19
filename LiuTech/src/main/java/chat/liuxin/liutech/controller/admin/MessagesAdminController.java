@@ -69,7 +69,7 @@ public class MessagesAdminController extends BaseAdminController {
      * 审核留言（通过/拒绝）
      */
     @PutMapping("/{id}/review")
-    @OperationLog(action = "review", targetType = "message", description = "审核留言", targetName = "#id")
+    @OperationLog(action = "review", targetType = "message", description = "审核留言")
     public Result<String> reviewMessage(
             @PathVariable Long id,
             @RequestBody ReviewRequest reviewRequest) {
@@ -88,7 +88,7 @@ public class MessagesAdminController extends BaseAdminController {
      * 回复留言
      */
     @PutMapping("/{id}/reply")
-    @OperationLog(action = "reply", targetType = "message", description = "回复留言", targetName = "#id")
+    @OperationLog(action = "reply", targetType = "message", description = "回复留言")
     public Result<String> replyMessage(
             @PathVariable Long id,
             @RequestBody ReplyRequest replyRequest) {
@@ -107,7 +107,7 @@ public class MessagesAdminController extends BaseAdminController {
      * 删除留言（软删除）
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "message", description = "删除留言", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "message", description = "删除留言")
     public Result<String> deleteMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
         try {
@@ -137,7 +137,7 @@ public class MessagesAdminController extends BaseAdminController {
      * 恢复已删除的留言
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "message", description = "恢复留言", targetName = "#id")
+    @OperationLog(action = "restore", targetType = "message", description = "恢复留言")
     public Result<String> restoreMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
         try {
@@ -152,7 +152,7 @@ public class MessagesAdminController extends BaseAdminController {
      * 彻底删除留言（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "message", description = "彻底删除留言", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "message", description = "彻底删除留言")
     public Result<String> permanentDeleteMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
         try {

@@ -71,7 +71,7 @@ public class PostsAdminController extends BaseAdminController {
      * 创建文章
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "post", description = "创建文章: #req.title", targetName = "#req.title")
+    @OperationLog(action = "create", targetType = "post", description = "创建文章")
     public Result<PostCreateResp> createPost(@Valid @RequestBody PostCreateReq req) {
         try {
             // 获取当前管理员用户ID
@@ -91,7 +91,7 @@ public class PostsAdminController extends BaseAdminController {
      * 更新文章
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "post", description = "更新文章", targetName = "#req.title")
+    @OperationLog(action = "update", targetType = "post", description = "更新文章")
     public Result<String> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req) {
         try {
             // 获取当前管理员用户ID
@@ -112,7 +112,7 @@ public class PostsAdminController extends BaseAdminController {
      * 删除文章
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "post", description = "删除文章", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "post", description = "删除文章")
     public Result<String> deletePost(@PathVariable Long id) {
         try {
             Long operatorId = userUtils.getCurrentUserId();
@@ -144,7 +144,7 @@ public class PostsAdminController extends BaseAdminController {
      * 更新文章状态
      */
     @PutMapping("/{id}/status")
-    @OperationLog(action = "update", targetType = "post", description = "更新文章状态: #status", targetName = "#id")
+    @OperationLog(action = "update", targetType = "post", description = "更新文章状态")
     public Result<String> updatePostStatus(@PathVariable Long id, @RequestParam String status) {
         try {
             Long currentUserId = userUtils.getCurrentUserId();
@@ -162,7 +162,7 @@ public class PostsAdminController extends BaseAdminController {
      * 批量更新文章状态
      */
     @PutMapping("/batch/status")
-    @OperationLog(action = "update", targetType = "post", description = "批量更新文章状态: #status")
+    @OperationLog(action = "update", targetType = "post", description = "批量更新文章状态")
     public Result<String> batchUpdatePostStatus(@RequestBody List<Long> ids, @RequestParam String status) {
         try {
             boolean success = postsService.batchUpdateStatus(ids, status);
@@ -176,7 +176,7 @@ public class PostsAdminController extends BaseAdminController {
      * 发布文章
      */
     @PutMapping("/{id}/publish")
-    @OperationLog(action = "publish", targetType = "post", description = "发布文章", targetName = "#id")
+    @OperationLog(action = "publish", targetType = "post", description = "发布文章")
     public Result<String> publishPost(@PathVariable Long id) {
         try {
             Long currentUserId = userUtils.getCurrentUserId();
@@ -194,7 +194,7 @@ public class PostsAdminController extends BaseAdminController {
      * 下线文章
      */
     @PutMapping("/{id}/offline")
-    @OperationLog(action = "offline", targetType = "post", description = "下线文章", targetName = "#id")
+    @OperationLog(action = "offline", targetType = "post", description = "下线文章")
     public Result<String> offlinePost(@PathVariable Long id) {
         try {
             Long currentUserId = userUtils.getCurrentUserId();
@@ -212,7 +212,7 @@ public class PostsAdminController extends BaseAdminController {
      * 恢复已删除的文章
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "post", description = "恢复文章", targetName = "#id")
+    @OperationLog(action = "restore", targetType = "post", description = "恢复文章")
     public Result<String> restorePost(@PathVariable Long id) {
         try {
             boolean success = postsService.restorePost(id);
@@ -240,7 +240,7 @@ public class PostsAdminController extends BaseAdminController {
      * 彻底删除文章（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "post", description = "彻底删除文章", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "post", description = "彻底删除文章")
     public Result<String> permanentDeletePost(@PathVariable Long id) {
         try {
             boolean success = postsService.permanentDeletePost(id);

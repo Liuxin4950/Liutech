@@ -85,7 +85,7 @@ public class ImagesAdminController extends BaseAdminController {
      * 软删除图片
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "image", description = "软删除图片", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "image", description = "软删除图片")
     public Result<Map<String, Object>> softDeleteImage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "图片ID");
         try {
@@ -115,7 +115,7 @@ public class ImagesAdminController extends BaseAdminController {
      * 恢复已删除的图片
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "image", description = "恢复图片", targetName = "#id")
+    @OperationLog(action = "restore", targetType = "image", description = "恢复图片")
     public Result<String> restoreImage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "图片ID");
         try {
@@ -130,7 +130,7 @@ public class ImagesAdminController extends BaseAdminController {
      * 物理删除图片（同时删除文件系统中的文件）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "image", description = "彻底删除图片", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "image", description = "彻底删除图片")
     public Result<String> permanentDeleteImage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "图片ID");
         try {

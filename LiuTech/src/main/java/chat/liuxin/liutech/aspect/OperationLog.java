@@ -17,7 +17,7 @@ public @interface OperationLog {
 
     /**
      * 操作类型
-     * 如：登录、创建、更新、删除、恢复、发布、下线等
+     * 如：login、create、update、delete、restore、publish、offline等
      */
     String action();
 
@@ -28,26 +28,12 @@ public @interface OperationLog {
     String targetType();
 
     /**
-     * 操作描述
-     * 支持SpEL表达式，如："'创建用户: ' + #username"
+     * 操作描述（纯文本）
      */
     String description() default "";
 
     /**
-     * 是否记录参数
-     * 默认为true
-     */
-    boolean logParams() default true;
-
-    /**
-     * 是否记录结果
-     * 默认为true
-     */
-    boolean logResult() default true;
-
-    /**
-     * 目标名称的SpEL表达式
-     * 如："#user.username" 或 "#post.title"
+     * 目标名称（纯文本标识，如文章标题、用户ID等）
      */
     String targetName() default "";
 }

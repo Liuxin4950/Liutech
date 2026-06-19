@@ -71,7 +71,7 @@ public class TagsAdminController extends BaseAdminController {
      * 创建标签
      */
     @PostMapping
-    @OperationLog(action = "create", targetType = "tag", description = "创建标签: #tag.name", targetName = "#tag.name")
+    @OperationLog(action = "create", targetType = "tag", description = "创建标签")
     public Result<String> createTag(@RequestBody TagResp tag) {
         try {
             boolean success = tagsService.save(tag);
@@ -85,7 +85,7 @@ public class TagsAdminController extends BaseAdminController {
      * 更新标签
      */
     @PutMapping("/{id}")
-    @OperationLog(action = "update", targetType = "tag", description = "更新标签: #tag.name", targetName = "#tag.name")
+    @OperationLog(action = "update", targetType = "tag", description = "更新标签")
     public Result<String> updateTag(@PathVariable Long id, @RequestBody TagResp tag) {
         try {
             tag.setId(id);
@@ -100,7 +100,7 @@ public class TagsAdminController extends BaseAdminController {
      * 删除标签
      */
     @DeleteMapping("/{id}")
-    @OperationLog(action = "delete", targetType = "tag", description = "删除标签", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "tag", description = "删除标签")
     public Result<String> deleteTag(@PathVariable Long id) {
         try {
             List<Long> ids = List.of(id);
@@ -129,7 +129,7 @@ public class TagsAdminController extends BaseAdminController {
      * 恢复已删除的标签
      */
     @PutMapping("/{id}/restore")
-    @OperationLog(action = "restore", targetType = "tag", description = "恢复标签", targetName = "#id")
+    @OperationLog(action = "restore", targetType = "tag", description = "恢复标签")
     public Result<String> restoreTag(@PathVariable Long id) {
         try {
             boolean success = tagsService.restoreTag(id);
@@ -143,7 +143,7 @@ public class TagsAdminController extends BaseAdminController {
      * 彻底删除标签（物理删除）
      */
     @DeleteMapping("/{id}/permanent")
-    @OperationLog(action = "delete", targetType = "tag", description = "彻底删除标签", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "tag", description = "彻底删除标签")
     public Result<String> permanentDeleteTag(@PathVariable Long id) {
         try {
             boolean success = tagsService.permanentDeleteTag(id);

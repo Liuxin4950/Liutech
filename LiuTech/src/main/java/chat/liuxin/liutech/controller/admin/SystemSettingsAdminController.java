@@ -68,7 +68,7 @@ public class SystemSettingsAdminController extends BaseAdminController {
      *
      * 请求体: { "value": "新值", "description": "可选新描述" }
      */
-    @OperationLog(action = "update", targetType = "system_setting", description = "更新系统设置", targetName = "#key")
+    @OperationLog(action = "update", targetType = "system_setting", description = "更新系统设置")
     @PutMapping("/{key}")
     public Result<Boolean> updateByKey(
             @PathVariable String key,

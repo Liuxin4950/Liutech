@@ -103,7 +103,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @param req 轮播图请求数据
      * @return 是否成功
      */
-    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图", targetName = "#id")
+    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图")
     @PutMapping("/{id}")
     public Result<Boolean> updateCarousel(
             @PathVariable Long id,
@@ -125,7 +125,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @OperationLog(action = "delete", targetType = "carousel", description = "删除轮播图", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "carousel", description = "删除轮播图")
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteCarousel(@PathVariable Long id) {
         try {
@@ -141,7 +141,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @param ids 轮播图ID列表
      * @return 是否成功
      */
-    @OperationLog(action = "delete", targetType = "carousel", description = "批量删除轮播图", targetName = "#ids")
+    @OperationLog(action = "delete", targetType = "carousel", description = "批量删除轮播图")
     @PostMapping("/batch")
     public Result<Boolean> batchDeleteCarousels(@RequestBody List<Long> ids) {
         try {
@@ -158,7 +158,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @param request 状态更新请求
      * @return 是否成功
      */
-    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图状态", targetName = "#id")
+    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图状态")
     @PutMapping("/{id}/status")
     public Result<Boolean> updateCarouselStatus(
             @PathVariable Long id,
@@ -195,7 +195,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @OperationLog(action = "restore", targetType = "carousel", description = "恢复轮播图", targetName = "#id")
+    @OperationLog(action = "restore", targetType = "carousel", description = "恢复轮播图")
     @PutMapping("/{id}/restore")
     public Result<Boolean> restoreCarousel(@PathVariable Long id) {
         try {
@@ -211,7 +211,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @param id 轮播图ID
      * @return 是否成功
      */
-    @OperationLog(action = "delete", targetType = "carousel", description = "彻底删除轮播图", targetName = "#id")
+    @OperationLog(action = "delete", targetType = "carousel", description = "彻底删除轮播图")
     @DeleteMapping("/{id}/permanent")
     public Result<Boolean> permanentDeleteCarousel(@PathVariable Long id) {
         try {
@@ -227,7 +227,7 @@ public class CarouselAdminController extends BaseAdminController {
      * @param ids 轮播图ID列表
      * @return 是否成功
      */
-    @OperationLog(action = "delete", targetType = "carousel", description = "批量彻底删除轮播图", targetName = "#ids")
+    @OperationLog(action = "delete", targetType = "carousel", description = "批量彻底删除轮播图")
     @PostMapping("/batch/permanent")
     public Result<Boolean> batchPermanentDeleteCarousels(@RequestBody List<Long> ids) {
         try {
