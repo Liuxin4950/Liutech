@@ -9,6 +9,7 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.resp.PostCreateResp;
 import chat.liuxin.liutech.resp.PostDetailResp;
+import chat.liuxin.liutech.service.PostsAdminService;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
 
@@ -32,6 +33,9 @@ public class PostsAdminController extends BaseAdminController {
     private PostsService postsService;
 
     @Autowired
+    private PostsAdminService postsAdminService;
+
+    @Autowired
     private UserUtils userUtils;
 
     /**
@@ -47,7 +51,7 @@ public class PostsAdminController extends BaseAdminController {
             @RequestParam(required = false) Long authorId,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
         try {
-            PageResp<PostListResp> result = postsService.getPostListForAdmin(page, size, title, categoryId, status, authorId, includeDeleted);
+            PageResp<PostListResp> result = postsAdminService.getPostListForAdmin(page, size, title, categoryId, status, authorId, includeDeleted);
             return Result.success(result);
         } catch (Exception e) {
             return handleException(e, "查询文章列表");
@@ -60,7 +64,7 @@ public class PostsAdminController extends BaseAdminController {
     @GetMapping("/{id}")
     public Result<PostDetailResp> getPostById(@PathVariable Long id) {
         try {
-            PostDetailResp post = postsService.getPostDetailForAdmin(id);
+            PostDetailResp post = postsAdminService.getPostDetailForAdmin(id);
             return checkResourceExists(post, ErrorCode.ARTICLE_NOT_FOUND);
         } catch (Exception e) {
             return handleException(e, "查询文章详情");
@@ -74,12 +78,10 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "create", targetType = "post", description = "创建文章")
     public Result<PostCreateResp> createPost(@Valid @RequestBody PostCreateReq req) {
         try {
-            // 获取当前管理员用户ID
             Long currentUserId = userUtils.getCurrentUserId();
             if (currentUserId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
-
             PostCreateResp result = postsService.createPost(req, currentUserId);
             return Result.success("文章创建成功", result);
         } catch (Exception e) {
@@ -94,12 +96,10 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "update", targetType = "post", description = "更新文章")
     public Result<String> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req) {
         try {
-            // 获取当前管理员用户ID
             Long currentUserId = userUtils.getCurrentUserId();
             if (currentUserId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
-
             req.setId(id);
             boolean success = postsService.updatePost(req, currentUserId);
             return handleOperationResult(success, "文章更新成功", "文章更新");
@@ -119,7 +119,7 @@ public class PostsAdminController extends BaseAdminController {
             if (operatorId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
-            boolean success = postsService.deletePostForAdmin(id, operatorId);
+            boolean success = postsAdminService.deletePostForAdmin(id, operatorId);
             return handleOperationResult(success, "文章删除成功", "文章删除");
         } catch (Exception e) {
             return handleException(e, "文章删除");
@@ -133,7 +133,7 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "delete", targetType = "post", description = "批量删除文章")
     public Result<String> batchDeletePosts(@RequestBody List<Long> ids) {
         try {
-            boolean success = postsService.removeByIds(ids);
+            boolean success = postsAdminService.removeByIds(ids);
             return handleOperationResult(success, "批量删除文章成功", "批量删除文章");
         } catch (Exception e) {
             return handleException(e, "批量删除文章");
@@ -151,7 +151,7 @@ public class PostsAdminController extends BaseAdminController {
             if (currentUserId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
-            boolean success = postsService.updatePostStatusForAdmin(id, status, currentUserId);
+            boolean success = postsAdminService.updatePostStatusForAdmin(id, status, currentUserId);
             return handleOperationResult(success, "文章状态更新成功", "文章状态更新");
         } catch (Exception e) {
             return handleException(e, "文章状态更新");
@@ -165,7 +165,7 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "update", targetType = "post", description = "批量更新文章状态")
     public Result<String> batchUpdatePostStatus(@RequestBody List<Long> ids, @RequestParam String status) {
         try {
-            boolean success = postsService.batchUpdateStatus(ids, status);
+            boolean success = postsAdminService.batchUpdateStatus(ids, status);
             return handleOperationResult(success, "批量更新文章状态成功", "批量更新文章状态");
         } catch (Exception e) {
             return handleException(e, "批量更新文章状态");
@@ -183,7 +183,7 @@ public class PostsAdminController extends BaseAdminController {
             if (currentUserId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
-            boolean success = postsService.updatePostStatusForAdmin(id, "published", currentUserId);
+            boolean success = postsAdminService.updatePostStatusForAdmin(id, "published", currentUserId);
             return handleOperationResult(success, "文章发布成功", "文章发布");
         } catch (Exception e) {
             return handleException(e, "文章发布");
@@ -201,7 +201,7 @@ public class PostsAdminController extends BaseAdminController {
             if (currentUserId == null) {
                 return Result.fail(ErrorCode.UNAUTHORIZED, "用户未认证");
             }
-            boolean success = postsService.updatePostStatusForAdmin(id, "draft", currentUserId);
+            boolean success = postsAdminService.updatePostStatusForAdmin(id, "draft", currentUserId);
             return handleOperationResult(success, "文章下线成功", "文章下线");
         } catch (Exception e) {
             return handleException(e, "文章下线");
@@ -215,7 +215,7 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "restore", targetType = "post", description = "恢复文章")
     public Result<String> restorePost(@PathVariable Long id) {
         try {
-            boolean success = postsService.restorePost(id);
+            boolean success = postsAdminService.restorePost(id);
             return handleOperationResult(success, "文章恢复成功", "文章恢复");
         } catch (Exception e) {
             return handleException(e, "文章恢复");
@@ -229,7 +229,7 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "restore", targetType = "post", description = "批量恢复文章")
     public Result<String> batchRestorePosts(@RequestBody List<Long> ids) {
         try {
-            boolean success = postsService.batchRestorePosts(ids);
+            boolean success = postsAdminService.batchRestorePosts(ids);
             return handleOperationResult(success, "批量恢复文章成功", "批量恢复文章");
         } catch (Exception e) {
             return handleException(e, "批量恢复文章");
@@ -243,7 +243,7 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "delete", targetType = "post", description = "彻底删除文章")
     public Result<String> permanentDeletePost(@PathVariable Long id) {
         try {
-            boolean success = postsService.permanentDeletePost(id);
+            boolean success = postsAdminService.permanentDeletePost(id);
             return handleOperationResult(success, "文章彻底删除成功", "文章彻底删除");
         } catch (Exception e) {
             return handleException(e, "文章彻底删除");
@@ -257,7 +257,7 @@ public class PostsAdminController extends BaseAdminController {
     @OperationLog(action = "delete", targetType = "post", description = "批量彻底删除文章")
     public Result<String> batchPermanentDeletePosts(@RequestBody List<Long> ids) {
         try {
-            boolean success = postsService.batchPermanentDeletePosts(ids);
+            boolean success = postsAdminService.batchPermanentDeletePosts(ids);
             return handleOperationResult(success, "批量彻底删除文章成功", "批量彻底删除文章");
         } catch (Exception e) {
             return handleException(e, "批量彻底删除文章");
