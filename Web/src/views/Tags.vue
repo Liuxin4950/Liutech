@@ -101,7 +101,6 @@ import Icon from '@/components/Icon.vue'
 const tagStore = useTagStore()
 const searchKeyword = ref('')
 const searchResults = ref<Tag[]>([])
-const isSearching = ref(false)
 
 // 响应式数据
 const tags = computed(() => tagStore.tags || [])
@@ -139,13 +138,10 @@ watch(searchKeyword, (newVal) => {
   }
 
   searchTimer = window.setTimeout(async () => {
-    isSearching.value = true
     try {
       searchResults.value = await tagStore.searchTagsByAPI(newVal.trim())
     } catch {
       // 搜索标签失败时静默处理
-    } finally {
-      isSearching.value = false
     }
   }, 300)
 })
