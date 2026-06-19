@@ -440,7 +440,6 @@ const loadDashboardStats = async () => {
       message.error(res.message || '加载统计数据失败')
     }
   } catch (error) {
-    console.error('加载统计数据失败:', error)
     message.error('加载统计数据失败')
   } finally {
     loading.value = false

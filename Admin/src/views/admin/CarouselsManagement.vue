@@ -145,7 +145,6 @@ const handleSubmit = async () => {
       }
     }
   } catch (e) {
-    console.error('提交表单异常:', e)
   } finally {
     confirmLoading.value = false
   }
@@ -182,7 +181,6 @@ const handleStatusChange = async (id: number, status: number) => {
       message.warning(res?.message || '状态更新失败')
     }
   } catch (e) {
-    console.error('更新轮播图状态异常:', e)
     message.warning('状态更新失败，请稍后重试')
   }
 }
@@ -212,7 +210,6 @@ const handleSortChange = async (id: number, direction: 'up' | 'down') => {
     }
     loadCarousels()
   } catch (e) {
-    console.error('更新排序异常:', e)
     message.warning('排序更新失败，请稍后重试')
     loadCarousels()
   }

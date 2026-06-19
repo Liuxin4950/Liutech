@@ -20,7 +20,6 @@ const loadStats = async () => {
     const response = await PointsService.getPointsStats()
     if (response.code === 200) stats.value = response.data
   } catch (error) {
-    console.error('加载积分统计失败:', error)
   } finally {
     statsLoading.value = false
   }
