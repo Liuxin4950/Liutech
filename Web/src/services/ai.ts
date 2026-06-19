@@ -1,4 +1,8 @@
 import {del, get, post, ServiceType} from './api'
+import type { AiChatRequest } from './ai-types'
+
+// 重新导出共享类型，保持向后兼容
+export type { AiChatRequest } from './ai-types'
 
 /**
  * AI模型配置接口
@@ -14,40 +18,6 @@ export interface AiModelConfig {
   temperature?: number
   description?: string
   sortOrder?: number
-}
-
-/**
- * AI聊天请求接口
- */
-export interface AiChatRequest {
-  message: string
-  /** 前端上下文，便于后端提示词决策，例如 { page: 'post-detail', articleId: 123 } */
-  context?: Record<string, any>
-  conversationId?: number
-  tempMessages?: Array<{
-    role: 'user' | 'assistant' | 'system'
-    content: string
-  }>
-  /** 回复模式：normal 一次性完整返回，stream SSE 实时返回 */
-  mode?: 'normal' | 'stream'
-  /** 使用的模型，默认为空 */
-  model?: string
-  /** 温度参数，控制回复的随机性 */
-  temperature?: number
-  /** 最大token数 */
-  maxTokens?: number
-  /**
-   * 聊天类型
-   * - 'chat': 看板娘聊天（注册 BlogMcpTools，可搜索/推荐文章）
-   * - 'writing': 写作助手（注册 WritingTools，可调用分类/标签工具）
-   */
-  chatType?: 'chat' | 'writing'
-  /**
-   * 是否启用语音推理（由前端开关决定）
-   * - true：后端会尝试把流式文本分段并触发 TTS，额外推送 audio 事件
-   * - false：只返回文本，不做 TTS 推理
-   */
-  ttsEnabled?: boolean
 }
 
 export interface AiChatResponse {
