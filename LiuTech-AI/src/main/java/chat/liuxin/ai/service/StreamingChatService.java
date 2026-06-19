@@ -45,7 +45,6 @@ public class StreamingChatService {
     private final TtsClient ttsClient;
     private final TtsSegmenter ttsSegmenter;
     private final AvatarCueService avatarCueService;
-    private final SseEmitterHelper sseHelper;
     private final AiChatProperties aiChatProperties;
 
     // ==================== 公开接口 ====================
@@ -67,13 +66,13 @@ public class StreamingChatService {
 
         emitter.onCompletion(() -> {
             emitterClosed.set(true);
-            sseHelper.shutdown(heartbeatRef.getAndSet(null), true);
-            sseHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+            SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
+            SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
         });
         emitter.onTimeout(() -> {
             emitterClosed.set(true);
-            sseHelper.shutdown(heartbeatRef.getAndSet(null), true);
-            sseHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+            SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
+            SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
             emitter.complete();
         });
 
@@ -90,7 +89,7 @@ public class StreamingChatService {
                     memoryService.saveUserMessage(userIdStr, finalConvId, input, modelName, null);
                 }
 
-                sseHelper.sendSseEvent(emitter, "start", sseHelper.eventPayload(
+                SseEmitterHelper.sendSseEvent(emitter, "start", SseEmitterHelper.eventPayload(
                         "conversationId", finalConvId, "model", modelName, "mode", guestMode ? "guest" : "user"));
 
                 ScheduledExecutorService hb = Executors.newSingleThreadScheduledExecutor();
@@ -98,7 +97,7 @@ public class StreamingChatService {
                 hb.scheduleAtFixedRate(() -> {
                     if (emitterClosed.get()) return;
                     try {
-                        sseHelper.sendSseEvent(emitter, "heartbeat", sseHelper.eventPayload(
+                        SseEmitterHelper.sendSseEvent(emitter, "heartbeat", SseEmitterHelper.eventPayload(
                                 "conversationId", finalConvId, "timestamp", System.currentTimeMillis()));
                     } catch (Exception e) {
                         log.debug("心跳发送失败: {}", e.getMessage());
@@ -122,7 +121,7 @@ public class StreamingChatService {
             } catch (Exception e) {
                 log.error("流式聊天处理失败，用户ID: {}, 会话ID: {}", userIdStr, finalConvId, e);
                 chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
-                sseHelper.safeSendError(emitter, finalConvId, e.getMessage());
+                SseEmitterHelper.safeSendError(emitter, finalConvId, e.getMessage());
                 emitter.completeWithError(e);
             }
         });
@@ -145,11 +144,11 @@ public class StreamingChatService {
 
         emitter.onCompletion(() -> {
             emitterClosed.set(true);
-            sseHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+            SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
         });
         emitter.onTimeout(() -> {
             emitterClosed.set(true);
-            sseHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+            SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
             emitter.complete();
         });
 
@@ -157,7 +156,7 @@ public class StreamingChatService {
             try {
                 List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode);
 
-                sseHelper.sendSseEvent(emitter, "start", sseHelper.eventPayload(
+                SseEmitterHelper.sendSseEvent(emitter, "start", SseEmitterHelper.eventPayload(
                         "conversationId", conversationId, "model", modelName, "mode", "writing"));
 
                 Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING);
@@ -168,7 +167,7 @@ public class StreamingChatService {
 
             } catch (Exception e) {
                 log.error("写作助手流式处理失败，用户ID: {}, 会话ID: {}", userIdStr, conversationId, e);
-                sseHelper.safeSendError(emitter, conversationId, e.getMessage());
+                SseEmitterHelper.safeSendError(emitter, conversationId, e.getMessage());
                 emitter.completeWithError(e);
             }
         });
@@ -216,7 +215,7 @@ public class StreamingChatService {
                             }
                         }
 
-                        sseHelper.sendSseEvent(emitter, "data", sseHelper.eventPayload(
+                        SseEmitterHelper.sendSseEvent(emitter, "data", SseEmitterHelper.eventPayload(
                                 "content", chunk, "conversationId", conversationId));
                     } catch (java.io.IOException e) {
                         log.error("发送SSE事件失败", e);
@@ -228,9 +227,9 @@ public class StreamingChatService {
                     log.error("流式响应错误，用户ID: {}, 会话ID: {}", userIdStr, conversationId, error);
                     String error_msg = error != null ? error.getMessage() : "未知错误";
                     onError.accept(error_msg);
-                    sseHelper.safeSendError(emitter, conversationId, error_msg);
+                    SseEmitterHelper.safeSendError(emitter, conversationId, error_msg);
                     emitterClosed.set(true);
-                    sseHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+                    SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
                     emitter.completeWithError(error != null ? error : new RuntimeException("流式响应发生未知错误"));
                 },
                 // ---- onComplete ----
@@ -258,7 +257,7 @@ public class StreamingChatService {
                             }
                         }
 
-                        sseHelper.sendSseEvent(emitter, "complete", sseHelper.eventPayload(
+                        SseEmitterHelper.sendSseEvent(emitter, "complete", SseEmitterHelper.eventPayload(
                                 "conversationId", conversationId,
                                 "responseLength", fullResponse.length(),
                                 "mode", guestMode ? "guest" : "user",
@@ -276,26 +275,26 @@ public class StreamingChatService {
                                     log.warn("等待TTS完成异常: {}", e.getMessage());
                                 }
                                 try {
-                                    sseHelper.sendSseEvent(emitter, "audio-complete", sseHelper.eventPayload(
+                                    SseEmitterHelper.sendSseEvent(emitter, "audio-complete", SseEmitterHelper.eventPayload(
                                             "conversationId", conversationId,
                                             "timedOut", timedOut,
                                             "segments", seq.get()));
                                 } catch (Exception ignore) {
                                 }
                                 emitterClosed.set(true);
-                                sseHelper.shutdown(ttsExecutorRef.getAndSet(null), false);
+                                SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), false);
                                 emitter.complete();
                             });
                             return;
                         }
 
                         emitterClosed.set(true);
-                        sseHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+                        SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
                         emitter.complete();
                     } catch (Exception e) {
                         log.error("完成流式响应时发生错误", e);
                         emitterClosed.set(true);
-                        sseHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+                        SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
                         emitter.completeWithError(e);
                     }
                 }
@@ -307,7 +306,7 @@ public class StreamingChatService {
     private void sendAvatarCue(SseEmitter emitter, int seq, Long conversationId, String text) {
         try {
             AvatarCuePayload cue = avatarCueService.fromText(seq, conversationId, text);
-            sseHelper.sendSseEvent(emitter, "avatar-cue", sseHelper.eventPayload(
+            SseEmitterHelper.sendSseEvent(emitter, "avatar-cue", SseEmitterHelper.eventPayload(
                     "seq", seq,
                     "conversationId", conversationId,
                     "expression", cue.getExpression(),
@@ -332,15 +331,15 @@ public class StreamingChatService {
             try {
                 String audioUrl = ttsClient.inferSingleAudioUrl(segment);
                 if (audioUrl == null || audioUrl.isBlank()) {
-                    sseHelper.sendSseEvent(emitter, "audio-skip", sseHelper.eventPayload(
+                    SseEmitterHelper.sendSseEvent(emitter, "audio-skip", SseEmitterHelper.eventPayload(
                             "seq", seq, "text", segment, "reason", "empty-audio-url", "conversationId", conversationId));
                     return;
                 }
-                sseHelper.sendSseEvent(emitter, "audio", sseHelper.eventPayload(
+                SseEmitterHelper.sendSseEvent(emitter, "audio", SseEmitterHelper.eventPayload(
                         "seq", seq, "text", segment, "audioUrl", audioUrl, "conversationId", conversationId));
             } catch (Exception e) {
                 try {
-                    sseHelper.sendSseEvent(emitter, "audio-skip", sseHelper.eventPayload(
+                    SseEmitterHelper.sendSseEvent(emitter, "audio-skip", SseEmitterHelper.eventPayload(
                             "seq", seq, "text", segment, "reason", e.getClass().getSimpleName(), "conversationId", conversationId));
                 } catch (Exception ignore) {
                 }
