@@ -40,7 +40,7 @@
       <ArticleList
         :posts="posts"
         :loading="postsLoading"
-        :error="''"
+        :error="error"
         :pagination="pagination"
         @post-click="goToPost"
         @page-change="changePage"
@@ -49,7 +49,7 @@
     </div>
 
     <!-- 空状态 -->
-    <div v-if="error || (!loading && posts.length === 0)" class="empty-text flex flex-col flex-ac text-sm">
+    <div v-if="error || (!postsLoading && posts.length === 0)" class="empty-text flex flex-col flex-ac text-sm">
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
       <h3 class="font-semibold mb-12">{{ error ? '页面未找到' : '暂无相关文章' }}</h3>
       <p class="mb-20">{{ error || '该标签下还没有发布任何文章' }}</p>
