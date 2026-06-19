@@ -667,7 +667,7 @@ const editorConfig = computed(() => ({
   content_style: getContentStyle(theme.current.value === 'dark'),
   placeholder: props.placeholder,
   promotion: false,
-  skin: 'oxide',
+  skin: theme.current.value === 'dark' ? 'oxide-dark' : 'oxide',
   content_css: false,
   directionality: 'ltr',
   element_format: 'html',
