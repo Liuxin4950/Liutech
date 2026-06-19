@@ -1,5 +1,4 @@
-import { post } from './api'
-import { getServiceBaseURL, ServiceType } from '../config/services'
+import { post, getAxiosInstance } from './api'
 
 /**
  * 图片上传响应接口
@@ -62,49 +61,22 @@ export class ImageUploadService {
    * @param progress 进度回调函数
    * @returns Promise<string> 返回图片URL
    */
-  static uploadTinyMCEImage(
-    blobInfo: any, 
+  static async uploadTinyMCEImage(
+    blobInfo: any,
     _progress: (percent: number) => void
   ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      try {
-        const formData = new FormData()
-        formData.append('file', blobInfo.blob(), blobInfo.filename())
-        
-        // 获取token
-        const token = localStorage.getItem('token')
-        
-        fetch(`${getServiceBaseURL(ServiceType.MAIN)}/upload/tinymce/image`, {
-          method: 'POST',
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: formData
-        })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-          }
-          return response.json()
-        })
-        .then(data => {
-          // 后端返回格式: { "location": "http://localhost:8080/uploads/images/xxx.jpg" }
-          if (data.location) {
-            resolve(data.location)
-          } else if (data.error) {
-            reject('上传失败：' + data.error)
-          } else {
-            reject('上传失败：服务器未返回图片地址')
-          }
-        })
-        .catch(error => {
-          console.error('TinyMCE图片上传失败:', error)
-          reject('上传失败：' + error.message)
-        })
-      } catch (error) {
-        reject('图片处理失败：' + error)
-      }
-    })
+    const formData = new FormData()
+    formData.append('file', blobInfo.blob(), blobInfo.filename())
+
+    const { data } = await getAxiosInstance().post('/upload/tinymce/image', formData)
+
+    if (data.location) {
+      return data.location
+    }
+    if (data.error) {
+      throw new Error('上传失败：' + data.error)
+    }
+    throw new Error('上传失败：服务器未返回图片地址')
   }
 
   /**
