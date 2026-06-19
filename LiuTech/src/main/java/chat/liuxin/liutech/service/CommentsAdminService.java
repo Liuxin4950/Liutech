@@ -39,10 +39,8 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      * @param includeDeleted 是否包含已删除评论
      * @return 分页结果
      */
-    public PageResp<Comments> getCommentListForAdmin(Integer page, Integer size, Long postId,
-                                                      Long userId, String status, Boolean includeDeleted) {
+    public PageResp<Comments> getCommentListForAdmin(Integer page, Integer size, Long postId,Long userId, String status, Boolean includeDeleted) {
         Integer offset = (page - 1) * size;
-
         List<Comments> commentList = commentsMapper.selectCommentsForAdmin(offset, size, postId, userId, status, includeDeleted);
         Integer total = commentsMapper.countCommentsForAdmin(postId, userId, status, includeDeleted);
 
