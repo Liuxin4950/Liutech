@@ -20,9 +20,7 @@ export const useCategoryStore = defineStore('category', () => {
     return categories.value.filter(category => category.postCount && category.postCount > 0)
   })
 
-  const getCategoryById = computed(() => {
-    return (id: number) => categories.value.find(category => category.id === id)
-  })
+  const getCategoryById = (id: number) => categories.value.find(category => category.id === id)
 
   const isDataStale = computed(() => {
     return Date.now() - lastFetchTime.value > CACHE_DURATION
@@ -60,7 +58,7 @@ export const useCategoryStore = defineStore('category', () => {
    */
   const fetchCategoryById = async (id: number) => {
     // 先从本地缓存查找
-    const localCategory = getCategoryById.value(id)
+    const localCategory = getCategoryById(id)
     if (localCategory) {
       return localCategory
     }
