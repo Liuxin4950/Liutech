@@ -56,9 +56,25 @@ export async function getActionTypes(): Promise<ApiResponse<string[]>> {
   return get<string[]>(`${ADMIN_LOGS_URL}/actions`)
 }
 
+/**
+ * 获取操作类型统计（操作类型及数量）
+ */
+export async function getActionStats(): Promise<ApiResponse<Array<Record<string, any>>>> {
+  return get<Array<Record<string, any>>>(`${ADMIN_LOGS_URL}/action-stats`)
+}
+
+/**
+ * 获取目标类型列表
+ */
+export async function getTargetTypes(): Promise<ApiResponse<string[]>> {
+  return get<string[]>(`${ADMIN_LOGS_URL}/target-types`)
+}
+
 // 导出默认对象（兼容导入方式）
 export default {
   getLogList,
   getLogById,
-  getActionTypes
+  getActionTypes,
+  getActionStats,
+  getTargetTypes
 }
