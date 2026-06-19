@@ -50,6 +50,7 @@
 import { ref, computed } from 'vue'
 import { CommentService, type Comment, type CreateCommentRequest } from '@/services/comment'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { useUserStore } from '@/stores/user'
 
 // Props
 interface Props {
@@ -69,15 +70,14 @@ const emit = defineEmits<Emits>()
 
 // Composables
 const { handleAsync } = useErrorHandler()
+const userStore = useUserStore()
 
 // 响应式数据
 const content = ref('')
 const submitting = ref(false)
 
 // 计算属性
-const isLoggedIn = computed(() => {
-  return !!localStorage.getItem('token')
-})
+const isLoggedIn = computed(() => userStore.isLoggedIn)
 
 const canSubmit = computed(() => {
   return isLoggedIn.value && 
@@ -262,30 +262,30 @@ const submitComment = async () => {
   .comment-form {
     padding: 16px;
   }
-}
 
-.form-header {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-}
+  .form-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
 
-.cancel-btn {
-  align-self: flex-end;
-}
+  .cancel-btn {
+    align-self: flex-end;
+  }
 
-.form-actions {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 12px;
-}
+  .form-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
 
-.login-tip {
-  text-align: center;
-}
+  .login-tip {
+    text-align: center;
+  }
 
-.submit-btn {
-  width: 100%;
+  .submit-btn {
+    width: 100%;
+  }
 }
 
 </style>
