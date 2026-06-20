@@ -82,7 +82,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { Comment } from '@/services/comment'
-import { formatRelativeTime } from '@shared/utils'
+import { formatRelativeTime } from '@/utils/utils'
 import { handleImageError, errImg } from '@/composables/useImageFallback'
 import CommentForm from './CommentForm.vue'
 import Icon from './Icon.vue'

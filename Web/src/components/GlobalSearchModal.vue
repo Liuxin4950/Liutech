@@ -56,7 +56,7 @@ import { ref, nextTick, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Icon from './Icon.vue'
 import { PostService, type PostListItem } from '@/services/post'
-import { formatDate } from '@shared/utils'
+import { formatDate } from '@/utils/utils'
 
 const router = useRouter()
 

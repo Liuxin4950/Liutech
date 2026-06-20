@@ -87,7 +87,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { UserService, type CheckinStatus, type CheckinResponse } from '@/services/user'
-import { formatDateTime } from '@shared/utils'
+import { formatDateTime } from '@/utils/utils'
 import { showError } from '@/utils/errorHandler'
 import Icon from './Icon.vue'
 
