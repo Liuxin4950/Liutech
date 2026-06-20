@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatDate } from '@/utils/utils'
+import { formatDate } from '@shared/utils'
 
 // 定义props
 interface Author {

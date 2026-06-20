@@ -198,8 +198,9 @@ describe('Login', () => {
       await emailTab.trigger('click')
       await wrapper.vm.$nextTick()
 
-      // Fill in the email login form
-      const emailForm = wrapper.findAll('.login-form')[1]
+      // When in email mode, the password form is hidden and email form is shown
+      // There is only 1 .login-form visible (the email form)
+      const emailForm = wrapper.find('.login-form')
       const emailInput = emailForm.find('input[type="email"]')
       await emailInput.setValue('notanemail')
 
@@ -216,7 +217,7 @@ describe('Login', () => {
       await emailTab.trigger('click')
       await wrapper.vm.$nextTick()
 
-      const emailForm = wrapper.findAll('.login-form')[1]
+      const emailForm = wrapper.find('.login-form')
       const inputs = emailForm.findAll('input')
       await inputs[0].setValue('test@example.com')  // valid email
       await inputs[1].setValue('')  // empty code

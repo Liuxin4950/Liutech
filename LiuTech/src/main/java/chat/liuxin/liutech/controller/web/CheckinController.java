@@ -34,16 +34,11 @@ public class CheckinController {
     @PostMapping("/checkin")
     @OperationLog(action = "checkin", targetType = "user", description = "用户签到")
     public Result<CheckinResp> checkin() {
-        try {
-            Long userId = userUtils.getCurrentUserId();
-            if (userId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-            return checkinService.checkin(userId);
-        } catch (Exception e) {
-            log.error("签到接口异常", e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR);
+        Long userId = userUtils.getCurrentUserId();
+        if (userId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
         }
+        return Result.success(checkinService.checkin(userId));
     }
 
     /**
@@ -53,15 +48,10 @@ public class CheckinController {
      */
     @GetMapping("/checkin/status")
     public Result<CheckinStatusResp> getCheckinStatus() {
-        try {
-            Long userId = userUtils.getCurrentUserId();
-            if (userId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-            return checkinService.getCheckinStatus(userId);
-        } catch (Exception e) {
-            log.error("获取签到状态接口异常", e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR);
+        Long userId = userUtils.getCurrentUserId();
+        if (userId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
         }
+        return Result.success(checkinService.getCheckinStatus(userId));
     }
 }

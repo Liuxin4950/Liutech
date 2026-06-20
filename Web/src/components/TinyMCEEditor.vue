@@ -16,7 +16,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue'
 import Editor from '@tinymce/tinymce-vue'
-import theme from '@/utils/theme'
+import theme from '../utils/theme'
 import { ImageUploadService } from '@/services/utils'
 import { getContentStyle } from '@/styles/tinymce-content'
 // 导入TinyMCE核心

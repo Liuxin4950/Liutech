@@ -7,7 +7,7 @@ import App from './App.vue'
 // 引入路由
 import router from './router'
 // 引入主题切换
-import theme from './utils/theme.ts'
+import theme from './utils/theme'
 // 引入Ant Design Vue
 import Antd from 'ant-design-vue'
 import 'ant-design-vue/dist/reset.css'

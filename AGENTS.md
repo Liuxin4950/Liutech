@@ -8,16 +8,16 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Codex 流程文件
 
-Codex 流程规则由 `.codex/` 目录承载（与 Claude Code 的 `.claude/` 镜像），按变更级别判断走哪个 skill：
+Codex 流程规则由 `.claude/` 目录承载（与 Claude Code 共用），按变更级别判断走哪个 skill：
 
 ```text
-.codex/project-adapter.md                    # 项目适配器：模块、目录、验证命令、高风险定义
-.codex/rules/ai-development-workflow.md      # 入口规则，定义变更分级
-.codex/skills/prd-workflow                   # 业务需求共创 → 实现方案 → 合并 PRD
-.codex/skills/delivery-workflow              # 编码交付 + 验证 + 写记录
+.claude/project-adapter.md                    # 项目适配器：模块、目录、验证命令、高风险定义
+.claude/rules/ai-development-workflow.md      # 入口规则，定义变更分级
+.claude/skills/prd-workflow                   # 业务需求共创 → 实现方案 → 合并 PRD
+.claude/skills/delivery-workflow              # 编码交付 + 验证 + 写记录
 ```
 
-进入任一 skill 前先读 `.codex/project-adapter.md`。
+进入任一 skill 前先读 `.claude/project-adapter.md`。
 
 ## 关键约束
 

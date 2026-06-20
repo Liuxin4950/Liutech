@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import theme from '../utils/theme.ts'
+import theme from '../utils/theme'
 import { useUserStore } from '../stores/user'
 import {
   UserOutlined,

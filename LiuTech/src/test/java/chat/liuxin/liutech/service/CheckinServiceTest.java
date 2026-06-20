@@ -4,10 +4,9 @@ import chat.liuxin.liutech.mapper.UserCheckinMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.UserCheckin;
 import chat.liuxin.liutech.model.Users;
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.resp.CheckinResp;
 import chat.liuxin.liutech.resp.CheckinStatusResp;
-import chat.liuxin.liutech.common.Result;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -68,10 +67,8 @@ class CheckinServiceTest {
         updatedUser.setPoints(BigDecimal.valueOf(51));
         when(userMapper.selectById(USER_ID)).thenReturn(updatedUser);
 
-        Result<CheckinResp> result = checkinService.checkin(USER_ID);
+        CheckinResp resp = checkinService.checkin(USER_ID);
 
-        assertTrue(result.isSuccess());
-        CheckinResp resp = result.getData();
         assertEquals(0, BigDecimal.ONE.compareTo(resp.getPointsEarned()));
         assertEquals(1, resp.getConsecutiveDays());
         assertEquals(LocalDate.now(), resp.getCheckinDate());
@@ -86,10 +83,8 @@ class CheckinServiceTest {
         UserCheckin existingCheckin = new UserCheckin();
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(existingCheckin);
 
-        Result<CheckinResp> result = checkinService.checkin(USER_ID);
-
-        assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("已签到"));
+        BusinessException ex = assertThrows(BusinessException.class, () -> checkinService.checkin(USER_ID));
+        assertTrue(ex.getMessage().contains("已签到"));
         verify(pointsService, never()).addPoints(any(), any(), any(), any(), any(), any());
     }
 
@@ -113,12 +108,11 @@ class CheckinServiceTest {
         updatedUser.setPoints(BigDecimal.valueOf(52));
         when(userMapper.selectById(USER_ID)).thenReturn(updatedUser);
 
-        Result<CheckinResp> result = checkinService.checkin(USER_ID);
+        CheckinResp resp = checkinService.checkin(USER_ID);
 
-        assertTrue(result.isSuccess());
         // 7 consecutive days = base 1 + bonus 1 = 2
-        assertEquals(0, BigDecimal.valueOf(2).compareTo(result.getData().getPointsEarned()));
-        assertEquals(7, result.getData().getConsecutiveDays());
+        assertEquals(0, BigDecimal.valueOf(2).compareTo(resp.getPointsEarned()));
+        assertEquals(7, resp.getConsecutiveDays());
     }
 
     @Test
@@ -141,12 +135,11 @@ class CheckinServiceTest {
         updatedUser.setPoints(BigDecimal.valueOf(56));
         when(userMapper.selectById(USER_ID)).thenReturn(updatedUser);
 
-        Result<CheckinResp> result = checkinService.checkin(USER_ID);
+        CheckinResp resp = checkinService.checkin(USER_ID);
 
-        assertTrue(result.isSuccess());
         // 30 consecutive days = base 1 + bonus 5 = 6
-        assertEquals(0, BigDecimal.valueOf(6).compareTo(result.getData().getPointsEarned()));
-        assertEquals(30, result.getData().getConsecutiveDays());
+        assertEquals(0, BigDecimal.valueOf(6).compareTo(resp.getPointsEarned()));
+        assertEquals(30, resp.getConsecutiveDays());
     }
 
     @Test
@@ -167,12 +160,11 @@ class CheckinServiceTest {
         updatedUser.setPoints(BigDecimal.valueOf(51));
         when(userMapper.selectById(USER_ID)).thenReturn(updatedUser);
 
-        Result<CheckinResp> result = checkinService.checkin(USER_ID);
+        CheckinResp resp = checkinService.checkin(USER_ID);
 
-        assertTrue(result.isSuccess());
         // Gap detected, reset to 1
-        assertEquals(1, result.getData().getConsecutiveDays());
-        assertEquals(0, BigDecimal.ONE.compareTo(result.getData().getPointsEarned()));
+        assertEquals(1, resp.getConsecutiveDays());
+        assertEquals(0, BigDecimal.ONE.compareTo(resp.getPointsEarned()));
     }
 
     @Test
@@ -185,10 +177,8 @@ class CheckinServiceTest {
                 .addPoints(any(), any(), any(), any(), isNull(), any());
 
         // The method should propagate the exception (wrapped in RuntimeException) which triggers rollback
-        Result<CheckinResp> result = checkinService.checkin(USER_ID);
-
-        // Since the outer catch converts to Result.fail, the transaction should rollback
-        assertFalse(result.isSuccess());
+        // The service now throws BusinessException, which triggers rollback
+        assertThrows(BusinessException.class, () -> checkinService.checkin(USER_ID));
     }
 
     // ========== getCheckinStatus 测试 ==========
@@ -202,12 +192,11 @@ class CheckinServiceTest {
         when(userCheckinMapper.findLastCheckinByUserId(USER_ID)).thenReturn(todayCheckin);
         when(userCheckinMapper.countByUserId(USER_ID)).thenReturn(10);
 
-        Result<CheckinStatusResp> result = checkinService.getCheckinStatus(USER_ID);
+        CheckinStatusResp resp = checkinService.getCheckinStatus(USER_ID);
 
-        assertTrue(result.isSuccess());
-        assertTrue(result.getData().getHasCheckedInToday());
-        assertEquals(5, result.getData().getConsecutiveDays());
-        assertEquals(10, result.getData().getTotalCheckins());
+        assertTrue(resp.getHasCheckedInToday());
+        assertEquals(5, resp.getConsecutiveDays());
+        assertEquals(10, resp.getTotalCheckins());
     }
 
     @Test
@@ -216,11 +205,10 @@ class CheckinServiceTest {
         when(userCheckinMapper.findLastCheckinByUserId(USER_ID)).thenReturn(null);
         when(userCheckinMapper.countByUserId(USER_ID)).thenReturn(0);
 
-        Result<CheckinStatusResp> result = checkinService.getCheckinStatus(USER_ID);
+        CheckinStatusResp resp = checkinService.getCheckinStatus(USER_ID);
 
-        assertTrue(result.isSuccess());
-        assertFalse(result.getData().getHasCheckedInToday());
-        assertEquals(0, result.getData().getConsecutiveDays());
+        assertFalse(resp.getHasCheckedInToday());
+        assertEquals(0, resp.getConsecutiveDays());
     }
 
     @Test
@@ -229,9 +217,8 @@ class CheckinServiceTest {
         when(userCheckinMapper.findLastCheckinByUserId(USER_ID)).thenReturn(null);
         when(userCheckinMapper.countByUserId(USER_ID)).thenReturn(null);
 
-        Result<CheckinStatusResp> result = checkinService.getCheckinStatus(USER_ID);
+        CheckinStatusResp resp = checkinService.getCheckinStatus(USER_ID);
 
-        assertTrue(result.isSuccess());
-        assertEquals(0, result.getData().getTotalCheckins());
+        assertEquals(0, resp.getTotalCheckins());
     }
 }

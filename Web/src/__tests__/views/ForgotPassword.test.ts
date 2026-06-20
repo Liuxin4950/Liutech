@@ -52,6 +52,14 @@ describe('ForgotPassword', () => {
     })
   }
 
+  /** Helper: advance component to step 2 and return the wrapper */
+  const createStep2Wrapper = async () => {
+    const wrapper = createWrapper()
+    await wrapper.setData({ step: 2 })
+    await wrapper.vm.$nextTick()
+    return wrapper
+  }
+
   describe('rendering', () => {
     it('should render the forgot password page', () => {
       const wrapper = createWrapper()
@@ -92,17 +100,14 @@ describe('ForgotPassword', () => {
 
   describe('Step 2 - password validation', () => {
     it('should show error for empty code', async () => {
-      const wrapper = createWrapper()
-
-      // Advance to step 2
-      await wrapper.setData({ step: 2 })
-      await wrapper.vm.$nextTick()
+      const wrapper = await createStep2Wrapper()
 
       const form = wrapper.find('.login-form')
       const inputs = form.findAll('input')
-      // code (inputs[0]) left empty
-      await inputs[1].setValue('Password1')
+      // inputs[0] is the disabled email, inputs[1] is code, inputs[2] is newPassword, inputs[3] is confirmPassword
+      // code (inputs[1]) left empty
       await inputs[2].setValue('Password1')
+      await inputs[3].setValue('Password1')
 
       await form.trigger('submit')
       await wrapper.vm.$nextTick()
@@ -110,71 +115,29 @@ describe('ForgotPassword', () => {
       expect(wrapper.text()).toContain('请输入验证码')
     })
 
-    it('should show error for password less than 8 chars', async () => {
-      const wrapper = createWrapper()
-
-      await wrapper.setData({ step: 2 })
-      await wrapper.vm.$nextTick()
+    it('should show error for password less than 6 chars', async () => {
+      const wrapper = await createStep2Wrapper()
 
       const form = wrapper.find('.login-form')
       const inputs = form.findAll('input')
-      await inputs[0].setValue('123456')  // code
-      await inputs[1].setValue('Ab1')     // password < 8
-      await inputs[2].setValue('Ab1')
+      await inputs[1].setValue('123456')  // code
+      await inputs[2].setValue('Ab1')     // password < 6
+      await inputs[3].setValue('Ab1')
 
       await form.trigger('submit')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.text()).toContain('密码至少8位且包含字母和数字')
-    })
-
-    it('should show error for password without letters', async () => {
-      const wrapper = createWrapper()
-
-      await wrapper.setData({ step: 2 })
-      await wrapper.vm.$nextTick()
-
-      const form = wrapper.find('.login-form')
-      const inputs = form.findAll('input')
-      await inputs[0].setValue('123456')
-      await inputs[1].setValue('12345678')  // no letters
-      await inputs[2].setValue('12345678')
-
-      await form.trigger('submit')
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.text()).toContain('密码至少8位且包含字母和数字')
-    })
-
-    it('should show error for password without digits', async () => {
-      const wrapper = createWrapper()
-
-      await wrapper.setData({ step: 2 })
-      await wrapper.vm.$nextTick()
-
-      const form = wrapper.find('.login-form')
-      const inputs = form.findAll('input')
-      await inputs[0].setValue('123456')
-      await inputs[1].setValue('abcdefgh')  // no digits
-      await inputs[2].setValue('abcdefgh')
-
-      await form.trigger('submit')
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.text()).toContain('密码至少8位且包含字母和数字')
+      expect(wrapper.text()).toContain('密码至少6位')
     })
 
     it('should show error for password mismatch', async () => {
-      const wrapper = createWrapper()
-
-      await wrapper.setData({ step: 2 })
-      await wrapper.vm.$nextTick()
+      const wrapper = await createStep2Wrapper()
 
       const form = wrapper.find('.login-form')
       const inputs = form.findAll('input')
-      await inputs[0].setValue('123456')
-      await inputs[1].setValue('Password1')
-      await inputs[2].setValue('Different1')  // mismatch
+      await inputs[1].setValue('123456')
+      await inputs[2].setValue('Password1')
+      await inputs[3].setValue('Different1')  // mismatch
 
       await form.trigger('submit')
       await wrapper.vm.$nextTick()

@@ -9,7 +9,7 @@ import App from './App.vue'
 // 引入路由
 import router from './router'
 // 引入主题切换
-import theme from './utils/theme.ts'
+import theme from './utils/theme'
 // 引入状态管理
 import { useUserStore } from './stores/user'
 import { useCategoryStore } from './stores/category'

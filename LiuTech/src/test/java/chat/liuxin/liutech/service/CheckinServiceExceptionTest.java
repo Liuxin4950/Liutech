@@ -2,9 +2,9 @@ package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.mapper.UserCheckinMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.model.UserCheckin;
 import chat.liuxin.liutech.model.Users;
-import chat.liuxin.liutech.resp.CheckinResp;
-import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.common.BusinessException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -46,11 +46,9 @@ class CheckinServiceExceptionTest {
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(null);
         when(userMapper.selectById(USER_ID)).thenReturn(null);
 
-        Result<CheckinResp> result = checkinService.checkin(USER_ID);
-
-        assertFalse(result.isSuccess());
-        assertTrue(result.getMessage().contains("用户不存在"));
-        verify(userCheckinMapper, never()).insert(any());
+        BusinessException ex = assertThrows(BusinessException.class, () -> checkinService.checkin(USER_ID));
+        assertTrue(ex.getMessage().contains("用户不存在"));
+        verify(userCheckinMapper, never()).insert(any(UserCheckin.class));
         verify(pointsService, never()).addPoints(any(), any(), any(), any(), any(), any());
     }
 
@@ -67,10 +65,8 @@ class CheckinServiceExceptionTest {
         doThrow(new RuntimeException("积分服务异常")).when(pointsService)
                 .addPoints(any(), any(), any(), any(), isNull(), any());
 
-        Result<CheckinResp> result = checkinService.checkin(USER_ID);
-
-        assertFalse(result.isSuccess());
-        // insert 被调用了，但积分失败导致回滚，返回失败结果
-        verify(userCheckinMapper).insert(any());
+        BusinessException ex = assertThrows(BusinessException.class, () -> checkinService.checkin(USER_ID));
+        // insert 被调用了，但积分失败导致回滚，抛出异常
+        verify(userCheckinMapper).insert(any(UserCheckin.class));
     }
 }
