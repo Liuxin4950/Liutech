@@ -1057,45 +1057,6 @@ onMounted(async () => {
 }
 
 
-
-/* 预览标签样式 - 与详情页同步 */
-.preview-post-header .tags-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0;
-}
-
-.preview-post-header .tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--bg-soft);
-  border: 1px solid transparent;
-  color: var(--text-subtle);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.preview-post-header .tag::before {
-  content: '#';
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
-.preview-post-header .tag:hover {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.preview-post-header .tag:hover::before {
-  color: white;
-}
-
 /* 预览摘要样式 */
 .preview-summary {
   margin-bottom: 0;

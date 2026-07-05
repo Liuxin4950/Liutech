@@ -833,39 +833,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 
-/* 标签云样式优化 */
-.tags-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0;
-}
 
-.tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--bg-soft);
-  border: 1px solid transparent;
-  color: var(--text-subtle);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &::before {
-    content: '#';
-    color: var(--color-primary);
-    font-weight: 700;
-  }
-
-  &:hover {
-    border-color: rgba(var(--color-primary-rgb), 0.22);
-    color: var(--color-primary);
-    background: rgba(var(--color-primary-rgb), 0.08);
-  }
-}
 
 
 
@@ -1464,19 +1432,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
   .category-badge {
     font-size: 11px;
-  }
-
-  // 标签云 - 移动端适配
-  .tags-cloud {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 0;
-  }
-
-  .tag {
-    font-size: 12px;
-    padding: 4px 10px;
   }
 
   // 附件列表 - 移动端适配

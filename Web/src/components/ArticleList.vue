@@ -39,7 +39,7 @@
 
         <div class="flex flex-col flex-sb flex-1 relative article-content ">
           <span v-if="post.category" class="article-category" @click.stop="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
-          <div class="flex-1 flex flex-col gap-12">
+          <div class="flex-1 flex flex-col gap-12 article-content-box">
             <h3 class="font-semibold text-primary text-xl post-title">{{ post.title }}</h3>
             <p v-if="post.summary" class="text-subtle text-sm post-summary">
               {{ post.summary }}
@@ -146,6 +146,9 @@ function handleCategoryClick(categoryId: number) {
 
   .article-content{
     width: 100%;
+  }
+  .article-content-box{
+    justify-content: space-around;
   }
 
   .article-category {

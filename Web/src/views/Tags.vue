@@ -182,14 +182,14 @@ onMounted(async () => {
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
+/* 标签页有独立 Icon，隐藏全局 .tag 的 # 前缀 */
+.tag::before {
+  content: none;
+}
+
 .flex.flex-wrap.gap-12 {
   @include respond(sm) {
     gap: 8px;
-    
-    .tag {
-      font-size: 12px;
-      padding: 6px 10px;
-    }
   }
 }
 

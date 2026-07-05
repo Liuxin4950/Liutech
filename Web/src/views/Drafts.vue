@@ -297,9 +297,7 @@ onMounted(() => {
 
 .draft-meta { display: flex; gap: 20px; flex-wrap: wrap; }
 .draft-date, .draft-words, .draft-category { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--text-main); opacity: 0.7; }
-.tags-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
-.tag { padding: 4px 10px; background-color: var(--bg-soft); color: var(--text-subtle); border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.3s; }
-.tag:hover { background-color: var(--color-primary); color: white; }
+
 
 .draft-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .action-btn { width: 36px; height: 36px; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; font-size: 14px; }

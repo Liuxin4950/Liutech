@@ -51,36 +51,13 @@ const handleTagClick = (tagId: number) => {
 <style scoped>
 /* 标签云组件外层容器 */
 .tags-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px; /* 增大标签之间的间距，更贴近截图效果 */
   justify-content: flex-start; /* 让标签从左往右排列 */
 }
 
-/* 单个标签样式 */
-.tag {
-  background: var(--bg-tag, #f3f4f6); /* 兜底颜色，防止变量未定义 */
-  color: var(--text-title, #333); /* 兜底颜色 */
-  padding: 6px 10px; /* 调整内边距，让标签更饱满 */
-  border-radius: 16px; /* 增大圆角，更柔和 */
-  font-size: 0.8rem; /* 调整字体大小 */
-  font-weight: 400; /* 调整字体粗细，贴近截图清淡风格 */
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid var(--border-soft, #e5e7eb); /* 兜底颜色 */
-  display: inline-flex;
-  align-items: center;
-}
-
-.tag:hover {
-  background: var(--bg-tag-hover, #e5e7eb); /* 兜底颜色 */
-  color: white;
-}
-
 .tag small {
-  opacity: 0.7; /* 调整透明度，让数字更柔和 */
-  margin-left: 6px; /* 增大与标签文字的间距 */
-  font-size: 0.75rem; /* 调整小文字大小 */
+  opacity: 0.7;
+  margin-left: 6px;
+  font-size: 0.75rem;
 }
 
 /* 标题样式（可根据实际全局样式调整，这里做基础设置） */

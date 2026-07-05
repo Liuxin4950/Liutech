@@ -105,29 +105,37 @@ const menuItems = [
   }
 ]
 
-// 从 menuItems 派生路径 → 菜单 key 映射（按路径长度降序，保证最长匹配优先）
-const pathEntries = menuItems
-  .flatMap(item => item.children || [item])
-  .filter(item => item.path !== '/')
-  .map(item => ({ path: item.path, key: item.key }))
-  .sort((a, b) => b.path.length - a.path.length)
-
-// 路径 → 所属 submenu group key
-const groupEntries = menuItems
-  .filter(group => group.children)
-  .flatMap(group => group.children!.map(child => ({ path: child.path, groupKey: group.key })))
-  .sort((a, b) => b.path.length - a.path.length)
-
 const getSelectedKey = (): string[] => {
   const path = route.path
   if (path === '/' || path === '/dashboard') return ['dashboard']
-  return [pathEntries.find(e => path.startsWith(e.path))?.key ?? 'dashboard']
+  if (path.startsWith('/posts')) return ['posts']
+  if (path.startsWith('/categories')) return ['categories']
+  if (path.startsWith('/tags')) return ['tags']
+  if (path.startsWith('/comments')) return ['comments']
+  if (path.startsWith('/users')) return ['users']
+  if (path.startsWith('/points')) return ['points']
+  if (path.startsWith('/announcements')) return ['announcements']
+  if (path.startsWith('/carousels')) return ['carousels']
+  if (path.startsWith('/messages')) return ['messages']
+  if (path.startsWith('/images')) return ['images']
+  if (path.startsWith('/resources')) return ['resources']
+  if (path.startsWith('/music')) return ['music']
+  if (path.startsWith('/ai-models')) return ['ai-models']
+  if (path.startsWith('/ai-settings')) return ['ai-settings']
+  if (path.startsWith('/logs')) return ['logs']
+  if (path.startsWith('/settings')) return ['settings']
+  return ['dashboard']
 }
 
 const getOpenKeys = (): string[] => {
   const path = route.path
-  const match = groupEntries.find(e => path.startsWith(e.path))
-  return match ? [match.groupKey] : []
+  if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/tags') || path.startsWith('/comments')) return ['content']
+  if (path.startsWith('/users') || path.startsWith('/points')) return ['user-management']
+  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages')) return ['operations']
+  if (path.startsWith('/images') || path.startsWith('/resources') || path.startsWith('/music')) return ['media']
+  if (path.startsWith('/ai-models') || path.startsWith('/ai-settings')) return ['ai-center']
+  if (path.startsWith('/logs') || path.startsWith('/settings')) return ['system']
+  return []
 }
 
 // 菜单状态
