@@ -5,9 +5,6 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-server:
-  base-url: http://backend:8080
-
 blog:
   api:
     url: ${BLOG_API_URL:http://backend:8080}

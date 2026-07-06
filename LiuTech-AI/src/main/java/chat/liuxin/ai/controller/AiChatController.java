@@ -47,7 +47,8 @@ public class AiChatController {
     private final AuthUtils authUtils;
 
     /**
-     * 测试服务是否可用
+     * 探活接口，返回当前认证的用户 ID（未登录返回 null）。
+     * 前端用来快速判断 AI 服务通不通、token 是否被 AI 服务认可。
      */
     @GetMapping("/status")
     public String testStatus() {
@@ -57,10 +58,12 @@ public class AiChatController {
     }
 
     /**
-     * AI聊天接口 - 普通模式
-     * 请求体：ChatRequest（包含 message、model、conversationId、context 等）
-     * 返回体：ChatResponse（包含 success、message、conversationId、historyCount 等）
-     * 持久化副作用：保存 user 与 assistant 消息；必要时创建会话。
+     * 看板娘同步聊天：一次性返回完整回复（非流式）。
+     *
+     * 匿名放行（SecurityConfig 里 /ai/chat 是 permitAll），登录用户走会话持久化，
+     * 匿名用户走 guest 模式（不落库，靠 tempMessages 传递上下文）。
+     *
+     * 副作用：登录时会创建/更新会话并保存 user + assistant 两条消息。
      */
     @PostMapping("/chat")
     public ChatResponse chat(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
@@ -71,16 +74,12 @@ public class AiChatController {
     }
 
     /**
-     * AI聊天接口 - 流式模式
-     * 请求体：ChatRequest（包含 message、model、conversationId、context 等）
-     * 返回体：SseEmitter（推送事件流：start -> data -> complete|error）
-     * 持久化副作用：保存 user 消息；在 complete 或 error 时保存 assistant 消息；必要时创建会话。
-     * 
-     * SSE事件格式：
-     * - start: {conversationId, model} - 流开始
-     * - data: {content, conversationId} - 数据块
-     * - complete: {conversationId, responseLength} - 流完成
-     * - error: {conversationId, error} - 流错误
+     * 看板娘流式聊天：SSE 推送。
+     *
+     * 事件序列：start → data* → avatar-cue* → audio*|audio-skip* → article-results? → complete → audio-complete?
+     * 出错时发 error 事件后关闭连接。ttsEnabled=true 时才有 audio* 事件。
+     *
+     * 副作用同 {@link #chat}，另外流式中断时会把 partial 内容以 status=3 保存。
      */
     @PostMapping("/chat/stream")
     public SseEmitter streamChat(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
@@ -91,8 +90,10 @@ public class AiChatController {
     }
 
     /**
-     * AI写作助手接口 - 普通模式
-     * 使用 WritingTools，AI 可以调用分类/标签工具
+     * 写作助手同步：管理员专属（SecurityConfig 里限定 hasRole('ADMIN')）。
+     *
+     * 走 WRITING 模式，注册 WritingTools（分类/标签工具），不落库。
+     * 底层客户端会以流式收集方式规避长响应下的 RestClient 超时。
      */
     @PostMapping("/writing")
     public ChatResponse writing(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
@@ -102,9 +103,7 @@ public class AiChatController {
         return aiChatService.processWriting(request, userId);
     }
 
-    /**
-     * AI写作助手接口 - 流式模式
-     */
+    /** 写作助手流式版：管理员专属。事件序列同 /chat/stream 但没有会话持久化。 */
     @PostMapping("/writing/stream")
     public SseEmitter writingStream(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
@@ -113,15 +112,12 @@ public class AiChatController {
         return aiChatService.processWritingStream(request, userId);
     }
 
-    
 
-
-    
 
     /**
-     * 获取聊天历史记录接口 - 分页查询（用户维度，倒序）
-     * 参数：page（>=1）、size（<=100）
-     * 返回：ChatHistoryResponse（列表与总数）
+     * 分页获取当前用户的历史消息（跨会话，倒序）。
+     * 供个人中心的"聊天记录"页面使用；游客未认证时返回错误响应。
+     * size 上限 100，防止一次拉太多。
      */
     @GetMapping("/chat/history")
     public ChatHistoryResponse getChatHistory(
@@ -153,8 +149,11 @@ public class AiChatController {
         }
     }
 
-    
-    /** 清空用户聊天记忆接口（仅删除消息表，不影响会话表） */
+
+    /**
+     * 清空当前用户的所有聊天历史（物理删除消息 + 删除会话）。
+     * 前端"清空聊天"按钮的目标端点。删除后无法恢复。
+     */
     @DeleteMapping("/chat/memory")
     public ChatResponse clearChatMemory() {
         try {
@@ -178,20 +177,10 @@ public class AiChatController {
     }
 
 
-
-
-
-
-
-
-
-
-
     /**
-     * 从JWT认证上下文中获取当前用户ID
-     * @return 用户ID，如果未认证则返回null
+     * 打上遗留路由标记，供 nginx/日志识别老聊天路径。
+     * 目前所有 /ai/* 都会打，后续如引入 v2 版本可用来区分。
      */
-
     private void markLegacyRoute(HttpServletResponse response) {
         if (response != null) {
             response.setHeader(LEGACY_ROUTE_HEADER, LEGACY_CHAT_ROUTE);

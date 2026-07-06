@@ -54,6 +54,13 @@
         </svg>
       </button>
 
+      <!-- 音乐播放器：折叠成圆形融入按钮列，点击展开并播放（驱动 Live2D 口型） -->
+      <MusicCapsule
+        ref="musicCapsuleRef"
+        @play="(audio) => emit('music-play', audio)"
+        @pause="() => emit('music-pause')"
+      />
+
       <!-- 纳西妲看板娘入口（需要登录）第一期 -->
       <!-- 改为普通用户也可以使用，但是没有记忆功能  v-if="userStore.isLoggedIn" -->
       <button
@@ -73,12 +80,28 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import MusicCapsule from '@/components/MusicCapsule.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
-const emit = defineEmits(['ai-chat-active', 'auth-required'])
+const emit = defineEmits<{
+  (e: 'ai-chat-active'): void
+  (e: 'auth-required', action: () => void, message?: string): void
+  (e: 'music-play', audio: HTMLAudioElement): void
+  (e: 'music-pause'): void
+}>()
+
+const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null)
+
+// 供 MainLayout 在 TTS 播放前挂起音乐、结束后恢复
+defineExpose({
+  isMusicPlaying: () => !!musicCapsuleRef.value?.isPlaying?.(),
+  pauseMusic: () => musicCapsuleRef.value?.pauseMusic?.(),
+  resumeMusic: () => musicCapsuleRef.value?.resumeMusic?.()
+})
 
 // 平滑滚动到顶部
 const scrollToTop = () => {
@@ -159,7 +182,8 @@ const goAiChat = () => {
 }
 .bottom-nav {
   z-index: 1000;
-
+  // 让子元素的展开面板/播放列表能溢出到左侧和上方显示
+  overflow: visible;
 }
 
 .fab {

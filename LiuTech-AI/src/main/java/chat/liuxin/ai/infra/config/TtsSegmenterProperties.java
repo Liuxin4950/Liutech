@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 /**
  * TTS 文本切分器配置。
  *
- * <p>将 TtsSegmenter 中硬编码的切分阈值提取为可配置项。
+ * 将 TtsSegmenter 中硬编码的切分阈值提取为可配置项。
  */
 @Data
 @Component

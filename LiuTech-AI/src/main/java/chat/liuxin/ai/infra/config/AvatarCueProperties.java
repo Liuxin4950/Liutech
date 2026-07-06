@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * Live2D 表情提示配置。
  *
- * <p>将 AvatarCueService 中硬编码的情绪关键词提取为可配置项。
+ * 将 AvatarCueService 中硬编码的情绪关键词提取为可配置项。
  */
 @Data
 @Component

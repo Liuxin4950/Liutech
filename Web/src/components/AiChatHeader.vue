@@ -125,7 +125,7 @@ onUnmounted(() => {
         :title="ttsToggleTitle"
         @click="emit('toggleTts')"
       >
-        <Icon name="music" :size="toolbarIconSize" />
+        <Icon :name="ttsEnabled && ttsAvailable ? 'volume' : 'volumeOff'" :size="toolbarIconSize" />
       </button>
 
       <button
@@ -152,7 +152,7 @@ onUnmounted(() => {
       </button>
 
       <button class="icon-action-btn expand-btn" :class="{ active: !!expanded }" @click="emit('expand')" :title="expandToggleTitle()">
-        <Icon name="layout" :size="toolbarIconSize" />
+        <Icon :name="expanded ? 'minimize' : 'maximize'" :size="toolbarIconSize" />
       </button>
 
       <button v-if="expanded" class="icon-action-btn close-btn" @click="emit('close')" title="关闭聊天窗口">
@@ -195,7 +195,7 @@ onUnmounted(() => {
 
         <div v-show="showMoreMenu" class="more-dropdown">
           <button class="more-option" @click="emit('toggleTts'); showMoreMenu = false" :disabled="!ttsAvailable">
-            <Icon name="music" :size="14" />
+            <Icon :name="ttsEnabled && ttsAvailable ? 'volume' : 'volumeOff'" :size="14" />
             <span>{{ ttsEnabled ? '关闭语音' : '开启语音' }}</span>
           </button>
           <button v-if="showHistoryButton" class="more-option" @click="emit('toggleHistory'); showMoreMenu = false">
@@ -211,7 +211,7 @@ onUnmounted(() => {
             <span>清空聊天</span>
           </button>
           <button class="more-option" @click="emit('expand'); showMoreMenu = false">
-            <Icon name="layout" :size="14" />
+            <Icon name="minimize" :size="14" />
             <span>退出大窗</span>
           </button>
           <button class="more-option danger" @click="emit('close'); showMoreMenu = false">

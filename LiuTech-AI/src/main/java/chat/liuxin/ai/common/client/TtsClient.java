@@ -1,16 +1,19 @@
 package chat.liuxin.ai.common.client;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -51,14 +54,18 @@ public class TtsClient {
      */
     private static final long CACHE_TTL_MS = 5000L;
 
-    public TtsClient() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(30000);
+    public TtsClient(@Qualifier("aiHttpClient") HttpClient aiHttpClient) {
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(aiHttpClient);
+        factory.setReadTimeout(Duration.ofSeconds(30));
         this.restTemplate = new RestTemplate(factory);
         this.objectMapper = new ObjectMapper();
     }
 
+    /**
+     * 读取应用配置里的并发上限,重建信号量。
+     *
+     * 默认 1 是为了保护 GPT-SoVITS 单卡推理资源,配置更高时按实际能力放开。
+     */
     @PostConstruct
     void initConcurrencyLimit() {
         int permits = Math.max(1, proxyConcurrency);
@@ -67,12 +74,11 @@ public class TtsClient {
     }
 
     /**
-     * 从主服务获取 TTS 配置与在线状态（带短期缓存）
+     * 从主服务 /tts/status 获取 TTS 全局开关、在线状态、当前引擎等信息。
      *
-     * 返回内容包含：
-     * - enabled：管理端全局开关
-     * - online：主服务探测结果
-     * - provider：当前主服务代理的 TTS 引擎
+     * 结果按 CACHE_TTL_MS 短期缓存。因为一次流式回复会切多段并多次触发推理,
+     * 每段都请求 /tts/status 会造成不必要的 HTTP 抖动;短缓存兼顾"动态生效"和成本。
+     * 请求失败时返回 enabled=false / online=false,message 为异常类型简名,调用方视为不可用。
      */
     public TtsStatus getStatus() {
         long now = System.currentTimeMillis();
@@ -108,11 +114,12 @@ public class TtsClient {
     }
 
     /**
-     * 通过主后端代理生成单段音频，并返回前端可播放的同源音频地址。
+     * 通过主后端代理生成单段 TTS 音频,返回前端可直接播放的音频地址。
      *
-     * 关键点：
-     * - AI 服务不直连 GPT-SoVITS 或 SiliconFlow
-     * - 音频必须由主后端缓存为 /tts/audio/** 后再给前端播放
+     * AI 服务不直连 GPT-SoVITS / SiliconFlow,由主后端 /tts/speech 代理推理并把结果缓存为 /tts/audio/**。
+     * 请求头带 X-TTS-Internal-Token 走跨服务内部校验(值来自 TTS_PROXY_INTERNAL_TOKEN)。
+     * 用信号量限制并发(默认 1),保护笔记本推理资源。
+     * 返回 null 表示 TTS 未启用/未在线/推理失败,调用方应发 audio-skip 事件让前端跳过该段。
      */
     public String inferSingleAudioUrl(String text) {
         if (text == null || text.isBlank()) return null;
@@ -158,6 +165,11 @@ public class TtsClient {
         return null;
     }
 
+    /**
+     * 归一化主后端返回的音频地址:
+     * 完整 URL 原样返回,以 / 开头的绝对路径保持不变,相对路径补前导 /,空串返回 null。
+     * 保证前端拿到的是可直接放入 audio.src 的路径。
+     */
     private String normalizeBackendAudioUrl(String audioUrl) {
         if (audioUrl == null) return null;
         String u = audioUrl.trim();
@@ -171,6 +183,9 @@ public class TtsClient {
         return "/" + u;
     }
 
+    /**
+     * 去掉配置里 backend URL 尾部多余的 /,拼接时避免出现 //。
+     */
     private String normalizeBaseUrl(String raw) {
         if (raw == null) return null;
         String s = raw.trim();

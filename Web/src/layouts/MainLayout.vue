@@ -41,7 +41,11 @@ let modelToggleTimeout: ReturnType<typeof setTimeout> | null = null;
 const chatStore = useChatStore()
 const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
 const aiChatRef = ref<InstanceType<typeof AiChat> | null>(null)
+const bottomNavRef = ref<InstanceType<typeof BottomNavigation> | null>(null)
 const searchModalRef = ref<InstanceType<typeof GlobalSearchModal> | null>(null)
+
+// TTS 播放期间是否需要在结束后恢复音乐
+let shouldResumeMusicAfterSpeech = false
 
 // 新用户引导
 const { initOnboarding } = useOnboarding()
@@ -52,6 +56,13 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     e.preventDefault()
     searchModalRef.value?.open()
   }
+}
+
+// TTS 播放期间是否需要在结束后恢复音乐；resumeMusicAfterSpeechIfNeeded 由 useTtsPlayer/播放循环调用
+const resumeMusicAfterSpeechIfNeeded = () => {
+  if (!shouldResumeMusicAfterSpeech) return
+  shouldResumeMusicAfterSpeech = false
+  bottomNavRef.value?.resumeMusic?.()
 }
 
 // TTS 播放器（内联，仅本组件使用）
@@ -77,7 +88,7 @@ function useTtsPlayer() {
     try { currentTtsAudio?.pause() } catch {}
     currentTtsAudio = null
     isTtsPlaying = false
-    live2dRef.value?.resumeMusicAfterSpeechIfNeeded?.()
+    resumeMusicAfterSpeechIfNeeded()
   }
 
   function waitOnce(audio: HTMLAudioElement, event: string, timeoutMs: number): Promise<boolean> {
@@ -170,7 +181,7 @@ function useTtsPlayer() {
       if (token === playbackToken) {
         isTtsPlaying = false
         live2dRef.value?.applyAvatarCue?.({ expression: 'neutral' })
-        live2dRef.value?.resumeMusicAfterSpeechIfNeeded?.()
+        resumeMusicAfterSpeechIfNeeded()
       }
     }
   }
@@ -211,10 +222,31 @@ function useTtsPlayer() {
     } catch {}
   }
 
-  return { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio }
+  return { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio, isTtsPlaying: () => isTtsPlaying }
 }
 
-const { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio } = useTtsPlayer()
+const { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio, isTtsPlaying } = useTtsPlayer()
+
+// 音乐事件桥接：BottomNavigation 里的 MusicCapsule -> Live2d 口型同步
+const handleMusicPlay = (audio: HTMLAudioElement) => {
+  // lipSync 是单实例，TTS 和音乐共用。TTS 正在播时不启动音乐口型，避免抢占 TTS 嘴型。
+  // 音乐本身仍正常播放，只是口型暂不驱动；TTS 结束后若恢复音乐会再次触发本函数。
+  if (isTtsPlaying()) return
+  live2dRef.value?.startMusicLipSync?.(audio)
+}
+
+const handleMusicPause = () => {
+  live2dRef.value?.stopMusicLipSync?.()
+}
+
+// Live2d 触发 TTS 播放前：暂停音乐，标记为「TTS 结束后恢复」
+const handleSpeakStart = () => {
+  const nav = bottomNavRef.value
+  if (nav?.isMusicPlaying?.()) {
+    shouldResumeMusicAfterSpeech = true
+    nav.pauseMusic?.()
+  }
+}
 
 const handleExternalChatOpen = (event: Event) => {
   showModel.value = true
@@ -429,6 +461,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
             ref="live2dRef"
             @click="handleModelClick"
             @wheel="handleModelWheel"
+            @speak-start="handleSpeakStart"
             class="live2d"
             :class="{ 'centered': isExpanded, 'is-hidden': !showModel }"
             :interactive="true"
@@ -447,7 +480,13 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       </div>
     </main>
     <TheFooter />
-    <BottomNavigation @ai-chat-active="handleModelStatusChange" @auth-required="handleAuthRequired"></BottomNavigation>
+    <BottomNavigation
+      ref="bottomNavRef"
+      @ai-chat-active="handleModelStatusChange"
+      @auth-required="handleAuthRequired"
+      @music-play="handleMusicPlay"
+      @music-pause="handleMusicPause"
+    ></BottomNavigation>
     <GlobalPageLoader :show="showLoader" />
 
     <!-- 登录弹窗 -->
@@ -590,6 +629,8 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   position: absolute;
   right: 100%;
   bottom: 0;
+  /* compact 模式下确保在 Live2d(z-index:30)之上，避免看板娘遮挡 header 开关按钮 */
+  z-index: 40;
   transition-property: width, height, right, bottom, opacity;
   transition-duration: 0.4s;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -606,6 +647,9 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   height: 100%;
   right: 0;
   bottom: 0;
+  /* 展开时让 Live2d(z-index:30)显示在聊天窗之上（看板娘可见），
+     Live2d 居中在底部，不会遮挡顶部 header 按钮 */
+  z-index: 20;
 }
 
 /* Live2d居中样式 */

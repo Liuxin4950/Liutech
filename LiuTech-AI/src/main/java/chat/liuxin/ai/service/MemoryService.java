@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 /**
  * 记忆服务。
  *
- * <p>管理聊天会话与消息的持久化，包括会话 CRUD、消息保存与查询、历史清理。
+ * 管理聊天会话与消息的持久化，包括会话 CRUD、消息保存与查询、历史清理。
  */
 @Slf4j
 @Service
@@ -37,7 +37,7 @@ public class MemoryService {
     private final AiConversationMapper conversationMapper;
 
     /**
-     * 按用户 ID 查询最近 N 条消息（最终返回升序），用于提示词上下文拼接。
+     * 查用户最近 N 条消息用于跨会话记忆拼接,数据库层按倒序取后由 mapper 返回升序,可直接喂给 prompt。
      */
     public List<AiChatMessage> listRecentMessages(String userId, int limit) {
         if (limit <= 0) return Collections.emptyList();
@@ -45,7 +45,7 @@ public class MemoryService {
     }
 
     /**
-     * 分页查询某用户的聊天历史记录（按 created_at 与 id 倒序）。
+     * 分页查用户所有历史消息(倒序),供管理后台/个人中心的消息记录列表使用。
      */
     public List<AiChatMessage> listHistoryMessages(String userId, int page, int size) {
         if (page < 1 || size <= 0) return Collections.emptyList();
@@ -53,12 +53,16 @@ public class MemoryService {
         return messageMapper.selectHistoryMessagesByUserId(userId, offset, size);
     }
 
-    /** 查询某用户的聊天历史记录总数 */
+    /** 与 {@link #listHistoryMessages} 配对的总数查询,用于分页控件。 */
     public long countHistoryMessages(String userId) {
         return messageMapper.countMessagesByUserId(userId);
     }
 
-    /** 保存一条用户消息（role=user，status 固定 1） */
+    /**
+     * 落库一条用户消息。
+     *
+     * seqNo 取自会话内当前最大值 +1(保序);同时触发 {@link #touchConversation} 刷新会话统计字段。
+     */
     @Transactional(rollbackFor = Exception.class)
     public void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson) {
         Integer maxSeqNo = getMaxSeqNo(conversationId);
@@ -73,9 +77,15 @@ public class MemoryService {
         m.setSeqNo(maxSeqNo + 1);
         m.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(m);
+        touchConversation(conversationId);
     }
 
-    /** 保存一条 AI 消息（role=assistant；status=1完成/3异常） */
+    /**
+     * 落库一条 AI 回复。
+     *
+     * status:1=正常完成,3=异常(流式中断时会传 partial 文本或 null 占位)。
+     * 同样按 seqNo 保序并刷新会话统计。
+     */
     @Transactional(rollbackFor = Exception.class)
     public void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson) {
         Integer maxSeqNo = getMaxSeqNo(conversationId);
@@ -90,8 +100,26 @@ public class MemoryService {
         m.setSeqNo(maxSeqNo + 1);
         m.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(m);
+        touchConversation(conversationId);
     }
 
+    /**
+     * 每插入一条消息后调,累加会话 messageCount、刷新 lastMessageAt / updatedAt。
+     * 会话不存在(如访客虚拟会话或已被删)时静默跳过。
+     */
+    private void touchConversation(Long conversationId) {
+        if (conversationId == null) return;
+        AiConversation c = conversationMapper.selectById(conversationId);
+        if (c == null) return;
+        c.setMessageCount((c.getMessageCount() == null ? 0 : c.getMessageCount()) + 1);
+        c.setLastMessageAt(LocalDateTime.now());
+        c.setUpdatedAt(LocalDateTime.now());
+        conversationMapper.updateById(c);
+    }
+
+    /**
+     * 取会话内当前最大 seqNo,新消息插入时用于生成下一个序号。空会话返回 0。
+     */
     private Integer getMaxSeqNo(Long conversationId) {
         AiChatMessage lastMessage = messageMapper.selectOne(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getConversationId, conversationId)
@@ -102,7 +130,9 @@ public class MemoryService {
         return lastMessage != null ? lastMessage.getSeqNo() : 0;
     }
 
-    /** 清空用户所有聊天记忆（物理删除） */
+    /**
+     * 物理删除用户名下所有会话及其消息(不可恢复)。用户主动"清空记忆"入口。
+     */
     @Transactional(rollbackFor = Exception.class)
     public void clearAllMemory(String userId) {
         List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
@@ -124,7 +154,9 @@ public class MemoryService {
         log.info("清空用户记忆：userId={}, 删除{}条记录", userId, deleted);
     }
 
-    /** 创建会话 */
+    /**
+     * 建新会话并返回主键 id。看板娘/写作助手在首条消息前没有 conversationId 时会调这里补建。
+     */
     @Transactional(rollbackFor = Exception.class)
     public Long createConversation(String userId, String title) {
         AiConversation c = new AiConversation();
@@ -139,7 +171,9 @@ public class MemoryService {
         return c.getId();
     }
 
-    /** 查询用户会话列表（排除已归档的会话） */
+    /**
+     * 会话列表分页查询,排除已归档(status=9),按更新时间倒序,size 上限 100 防滥用。
+     */
     public List<AiConversation> listConversations(String userId, String type, int page, int size) {
         int offset = Math.max(0, (page - 1) * size);
         int safeOffset = Math.max(0, offset);
@@ -161,10 +195,16 @@ public class MemoryService {
         return conversationMapper.selectList(qw);
     }
 
+    /** 按主键查会话,不做权限校验,内部/管理场景使用。 */
     public AiConversation getConversation(Long conversationId) {
         return conversationMapper.selectById(conversationId);
     }
 
+    /**
+     * 查会话并校验属主。
+     *
+     * 会话不存在抛 404,归属他人或匿名访问抛 403。所有面向前端的会话读写都应经过这里,防越权。
+     */
     public AiConversation getConversationOwnedByUser(String userId, Long conversationId) {
         AiConversation conversation = conversationMapper.selectById(conversationId);
         if (conversation == null) {
@@ -176,7 +216,9 @@ public class MemoryService {
         return conversation;
     }
 
-    /** 分页列出会话内的消息（升序） */
+    /**
+     * 分页取指定会话内的消息,按 seqNo 升序还原对话时序。会先做属主校验。
+     */
     public List<AiChatMessage> listMessagesByConversation(String userId, Long conversationId, int page, int size) {
         getConversationOwnedByUser(userId, conversationId);
         int offset = Math.max(0, (page - 1) * size);
@@ -195,7 +237,9 @@ public class MemoryService {
         );
     }
 
-    /** 列出会话内最近 N 条消息（返回升序） */
+    /**
+     * 取会话末尾 N 条(数据库倒序取后反转成升序),用于恢复对话状态或提示词上下文。
+     */
     public List<AiChatMessage> listLastMessagesByConversation(String userId, Long conversationId, int limit) {
         if (limit <= 0) return Collections.emptyList();
         getConversationOwnedByUser(userId, conversationId);
@@ -210,7 +254,10 @@ public class MemoryService {
         return messages;
     }
 
-    /** 获取会话内最近 N 条消息并转换为 Spring AI Message 列表（返回升序） */
+    /**
+     * 拉最近 N 条并转成 Spring AI 的 {@link Message} 类型(按 role 映射为 System/Assistant/User),
+     * 供 {@link PromptService} 拼装提示词直接使用。
+     */
     public List<Message> listLastMessagesAsPromptMessages(String userId, Long conversationId, int limit) {
         if (limit <= 0) return new ArrayList<>();
 
@@ -228,7 +275,7 @@ public class MemoryService {
         }).collect(Collectors.toList());
     }
 
-    /** 重命名会话标题 */
+    /** 重命名会话标题;会话不存在时静默跳过。调用方应先做属主校验。 */
     @Transactional(rollbackFor = Exception.class)
     public void renameConversation(Long conversationId, String title) {
         var c = conversationMapper.selectById(conversationId);
@@ -239,7 +286,7 @@ public class MemoryService {
         }
     }
 
-    /** 归档会话（软删除：设置 status=9） */
+    /** 软删除会话:置 status=9,列表查询会自动过滤,消息数据保留。 */
     @Transactional(rollbackFor = Exception.class)
     public void archiveConversation(Long conversationId) {
         var c = conversationMapper.selectById(conversationId);
@@ -250,9 +297,14 @@ public class MemoryService {
         }
     }
 
-    /** 删除会话（通过外键约束自动删除消息） */
+    /**
+     * 物理删除会话及其全部消息,先删消息再删会话避免孤儿数据。
+     * 调用方需先做属主校验。
+     */
     @Transactional(rollbackFor = Exception.class)
     public void deleteConversation(Long conversationId) {
+        messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getConversationId, conversationId));
         conversationMapper.deleteById(conversationId);
     }
 }

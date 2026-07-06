@@ -21,7 +21,7 @@ const skillGroups = [
     accent: 'frontend',
     skills: [
       { name: 'Vue 3', icon: 'vue' },
-      { name: 'TypeScript', icon: 'code' },
+      { name: 'TypeScript', icon: 'typescript' },
       { name: 'Vite', icon: 'zap' },
       { name: 'SCSS', icon: 'layers' },
       { name: 'Ant Design', icon: 'grid' },
@@ -37,7 +37,7 @@ const skillGroups = [
       { name: 'Java', icon: 'coffee' },
       { name: 'MyBatis', icon: 'database' },
       { name: 'MySQL', icon: 'database' },
-      { name: 'Docker', icon: 'package' },
+      { name: 'Docker', icon: 'docker' },
       { name: 'Nginx', icon: 'server' },
     ]
   },
@@ -51,7 +51,7 @@ const skillGroups = [
       { name: 'Prompt Engineering', icon: 'lightbulb' },
       { name: 'SSE 流式', icon: 'zap' },
       { name: 'Git', icon: 'gitBranch' },
-      { name: 'Live2D', icon: 'game' },
+      { name: 'Live2D', icon: 'live2d' },
     ]
   },
 ]

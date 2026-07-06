@@ -22,7 +22,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * AI 聊天服务实现（同步 + 流式委托）。
  *
- * <p>同步方法（processChat / processWriting）直接在此实现；
+ * 同步方法（processChat / processWriting）直接在此实现；
  * 流式方法委托给 {@link StreamingChatService}。
  */
 @Slf4j
@@ -39,6 +39,14 @@ public class AiChatServiceImpl implements AiChatService {
 
     // ==================== 同步接口 ====================
 
+    /**
+     * 看板娘同步聊天完整流程。
+     *
+     * 组装消息(系统提示 + 博客上下文 + 历史)、若登录则先落库用户消息并按需新建会话,
+     * 再调用 {@link SiliconFlowChatClient#chat} 拿到完整回复并落库 assistant 消息。
+     * 全程通过 {@link AiMetrics} 记录成功/失败埋点;异常统一走 {@link #classifyException} 转成
+     * {@link AIServiceException} 子类,同时落一条 status=3 的错误占位消息。
+     */
     @Override
     public ChatResponse processChat(ChatRequest request, Long userId) {
         long begin = System.currentTimeMillis();
@@ -82,6 +90,13 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
+    /**
+     * 写作助手同步调用。
+     *
+     * 走 WRITING 模式,注册 WritingTools;不落库消息(草稿由前端管理)。
+     * 底层客户端会以流式收集方式规避长响应下的 RestClient 超时。
+     * 失败时不抛异常,直接返回 success=false 的响应,让前端展示错误文案。
+     */
     @Override
     public ChatResponse processWriting(ChatRequest request, Long userId) {
         long begin = System.currentTimeMillis();
@@ -112,6 +127,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     // ==================== 流式接口（委托） ====================
 
+    /** 看板娘流式:解析模型/参数后委托 {@link StreamingChatService} 处理 SSE 生命周期。 */
     @Override
     public SseEmitter processStreamChat(ChatRequest request, Long userId) {
         String modelName = resolveModelName(request);
@@ -120,6 +136,7 @@ public class AiChatServiceImpl implements AiChatService {
         return streamingChatService.processStreamChat(request, userId, modelName, params);
     }
 
+    /** 写作助手流式:同样委托,但走 WRITING 分支,不持久化消息。 */
     @Override
     public SseEmitter processWritingStream(ChatRequest request, Long userId) {
         String modelName = resolveModelName(request);
@@ -130,6 +147,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     // ==================== 内部工具 ====================
 
+    /** 组装成功响应,访客模式屏蔽 conversationId 并把 mode 标记为 guest。 */
     private ChatResponse buildSuccessResponse(String aiOutput, String modelName, long cost, Long conversationId, boolean guestMode) {
         return ChatResponse.builder()
                 .success(true).message(aiOutput).model(modelName)
@@ -138,14 +156,17 @@ public class AiChatServiceImpl implements AiChatService {
                 .mode(guestMode ? "guest" : "user").build();
     }
 
+    /** 按请求 + 策略解析出实际使用的模型名(考虑默认模型、白名单等)。 */
     private String resolveModelName(ChatRequest request) {
         return aiModelPolicy.resolveModelName(request);
     }
 
+    /** 解析 temperature / maxTokens,来源可能是请求参数、模型默认值或全局默认。 */
     private AiModelPolicy.ModelParameters getModelParameters(ChatRequest request, String modelName) {
         return aiModelPolicy.resolveParameters(request, modelName);
     }
 
+    /** 记录本次实际生效的模型参数,便于排查前端传参和策略生效情况。 */
     private void logParameterApplication(String modelName, AiModelPolicy.ModelParameters params) {
         if (params.temperature() != null || params.maxTokens() != null) {
             log.info("AI模型参数 - 模型: {}, 来源: {}, temperature: {}, maxTokens: {}",
@@ -157,10 +178,21 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
+    /** 粗略按字符数/4 估算 token 数,仅用于监控埋点,非计费用。 */
     private int estimateTokens(String text) {
         return text != null ? text.length() / 4 : 0;
     }
 
+    /**
+     * 把底层异常映射为 {@link AIServiceException} 的语义子类,便于上层统一处理和前端提示。
+     *
+     * 分类规则:
+     * - 连接类(ConnectException / SocketTimeoutException / UnknownHostException / ResourceAccessException) → ConnectionException
+     * - HTTP 状态错误 → RequestException
+     * - JSON/文本解析失败 → ModelException
+     * - 超时或消息含 "timeout" → TimeoutException
+     * - 其余兜底为通用 AIServiceException
+     */
     private AIServiceException classifyException(Exception e) {
         Throwable root = e.getCause() != null ? e.getCause() : e;
         if (root instanceof java.net.ConnectException || root instanceof java.net.SocketTimeoutException

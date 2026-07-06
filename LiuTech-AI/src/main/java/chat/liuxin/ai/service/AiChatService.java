@@ -14,39 +14,30 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public interface AiChatService {
 
     /**
-     * 1) 普通聊天：一次性返回完整AI回复
-     * @param request 聊天请求
-     * @param userId 用户ID（从JWT解析获得）
-     * @return 聊天响应对象
+     * 看板娘同步聊天：阻塞直到拿到完整 AI 回复,登录态会持久化用户和 AI 消息。
+     *
+     * userId 为空表示访客模式,不入库、不写会话。
+     * 未传 conversationId 且登录时会自动新建一条会话。
      */
     ChatResponse processChat(ChatRequest request, Long userId);
 
     /**
-     * 2) 流式聊天：通过SSE推送AI回复流
-     * 
-     * 业务流程：
-     * 1. 创建SseEmitter并设置超时和完成/错误处理
-     * 2. 异步处理聊天请求，避免阻塞主线程
-     * 3. 发送开始事件，标识流开始
-     * 4. 逐块发送AI响应数据
-     * 5. 发送完成事件，标识流结束
-     * 6. 在完成或错误时保存完整消息到数据库
-     * 
-     * @param request 聊天请求
-     * @param userId 用户ID（从JWT解析获得）
-     * @return SseEmitter对象，用于推送流式响应
+     * 看板娘流式聊天,通过 SSE 推送分片、TTS 音频段和 Live2D 表情提示。
+     *
+     * 委托给 {@link StreamingChatService},内部异步执行,立即返回 emitter。
+     * 完成/错误时会异步保存 assistant 消息(异常保留 partial 文本,status=3)。
      */
     SseEmitter processStreamChat(ChatRequest request, Long userId);
 
     /**
-     * 写作助手：一次性返回完整AI回复
-     * 使用 WritingTools，AI 可以调用分类/标签工具
+     * 写作助手同步调用,注册 WritingTools(分类/标签/草稿工具)。
+     *
+     * 与看板娘聊天的区别:不持久化消息、系统提示词一致,底层用流式收集回退避免长响应超时。
      */
     ChatResponse processWriting(ChatRequest request, Long userId);
 
     /**
-     * 写作助手：流式返回
-     * 使用 WritingTools
+     * 写作助手流式调用,SSE 输出但不落库,同样注册 WritingTools。
      */
     SseEmitter processWritingStream(ChatRequest request, Long userId);
 }

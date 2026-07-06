@@ -1,10 +1,6 @@
 <template>
     <div class="container" :class="{ passive: !props.interactive }">
-        <!-- 音乐播放胶囊 -->
-        <MusicCapsule ref="musicCapsuleRef" @play="onMusicPlay" @pause="onMusicPause" />
-        <!-- 音乐播放胶囊 -->
         <canvas @click="triggerRandomExpression" id="canvas"></canvas>
-
     </div>
 </template>
 
@@ -16,8 +12,7 @@
  * 修改时间: 2025-09-24 19:33:22 +08:00
  * 功能: 纯净的Live2D模型展示，支持基本交互和拖拽，优化资源管理
  */
-import { onMounted, onBeforeUnmount, watch, ref } from 'vue';
-import MusicCapsule from './MusicCapsule.vue';
+import { onMounted, onBeforeUnmount, watch } from 'vue';
 
 // --- useLipSync (内联，仅本组件使用) ---
 
@@ -171,7 +166,7 @@ const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partial<LipSy
   return { config, start, stop, speak, updateConfig, destroy }
 }
 
-const emit = defineEmits(['click'])
+const emit = defineEmits(['click', 'speak-start'])
 
 const props = withDefaults(defineProps<{
     interactive?: boolean
@@ -265,9 +260,7 @@ let dragOffset = { x: 0, y: 0 };
 let resizeHandler: (() => void) | null = null;
 let windowMouseMoveHandler: ((event: MouseEvent) => void) | null = null
 
-// 音乐胶囊引用
-const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null);
-let shouldResumeMusicAfterSpeech = false
+// 音乐口型同步的 suspend 标记由 MainLayout 通过 speakAudioUrl/Element 的调用来触发挂起
 
 const applyInteractionMode = () => {
     if (model) {
@@ -325,33 +318,15 @@ const lipSync = useLipSync(setMouthOpen, {
     curve: 0.75
 })
 
-// 音乐播放事件处理
-function onMusicPlay(audio: HTMLAudioElement) {
+// 音乐播放事件处理：由 MainLayout 在收到 BottomNavigation 的音乐事件后调用
+function startMusicLipSync(audio: HTMLAudioElement) {
     if (!audio) return
     if (!model) return
-    shouldResumeMusicAfterSpeech = false
     lipSync.start(audio)
 }
 
-// 音乐暂停事件处理
-function onMusicPause() {
+function stopMusicLipSync() {
     lipSync.stop()
-}
-
-const suspendMusicForSpeech = () => {
-    const capsule = musicCapsuleRef.value
-    if (!capsule?.isPlaying?.()) return
-    shouldResumeMusicAfterSpeech = true
-    capsule.pauseMusic()
-}
-
-const resumeMusicAfterSpeechIfNeeded = async () => {
-    if (!shouldResumeMusicAfterSpeech) return
-    shouldResumeMusicAfterSpeech = false
-    try {
-        await musicCapsuleRef.value?.resumeMusic?.()
-    } catch {
-    }
 }
 
 /**
@@ -363,7 +338,7 @@ const resumeMusicAfterSpeechIfNeeded = async () => {
  */
 const speakAudioUrl = async (url: string) => {
     if (!model) return null
-    suspendMusicForSpeech()
+    emit('speak-start')
     return lipSync.speak({ url, play: true, volume: 1, crossOrigin: 'anonymous' })
 }
 
@@ -377,7 +352,7 @@ const speakAudioUrl = async (url: string) => {
 const speakAudioElement = async (audio: HTMLAudioElement) => {
     if (!model) return null
     if (!audio) return null
-    suspendMusicForSpeech()
+    emit('speak-start')
     try {
         audio.preload = 'auto'
         audio.crossOrigin = 'anonymous'
@@ -471,7 +446,8 @@ defineExpose({
     speakAudioUrl,
     speakAudioElement,
     applyAvatarCue,
-    resumeMusicAfterSpeechIfNeeded,
+    startMusicLipSync,
+    stopMusicLipSync,
     lipSyncConfig: lipSync.config,
     setLipSyncConfig: lipSync.updateConfig,
     refresh() {
@@ -669,10 +645,8 @@ const cleanup = () => {
     // 重置初始化状态
     isInitialized = false;
 
-    // 1. 停止音乐胶囊播放
-    if (musicCapsuleRef.value) {
-        musicCapsuleRef.value.stopMusic();
-    }
+    // 1. 停止口型同步（音乐播放器现在挂在 BottomNavigation 上，由其自身生命周期负责停止）
+    lipSync.stop()
 
     // 2. 重置 Live2D 状态（嘴型、表情）
     try {

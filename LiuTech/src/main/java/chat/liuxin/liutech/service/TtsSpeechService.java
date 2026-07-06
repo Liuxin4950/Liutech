@@ -51,7 +51,9 @@ import java.util.stream.Stream;
 /**
  * 统一 TTS 推理、缓存、状态探测和 SiliconFlow 音色管理。
  *
- * 合并自：TtsCacheManager、TtsStatusService、SiliconFlowKeyResolver
+ * 已合并原 TtsCacheManager（缓存清理）、TtsStatusService（状态探测）、
+ * SiliconFlowKeyResolver（Key 解析）的全部逻辑到此服务。
+ * TtsStatusService 保留为薄委托，供 Controller 无需改动地调用。
  */
 @Slf4j
 @Service

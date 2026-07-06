@@ -14,12 +14,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
+/**
+ * 请求追踪过滤器：为每个请求分配 traceId 并写入 MDC 与响应头。
+ *
+ * traceId 优先取请求头 X-Request-Id（网关/前端可传入），否则自动生成 16 位随机 ID。
+ * 写入 MDC 后 logback pattern 就能在日志里输出 traceId，跨服务串起请求链路。
+ * 同时把 traceId 回写到响应头，方便前端在开发者工具里对上号。
+ */
 @Slf4j
 @Component
 public class RequestTraceFilter extends OncePerRequestFilter {
 
     private static final String TRACE_ID_KEY = "traceId";
 
+    /**
+     * 每次请求生成/继承 traceId、写入 MDC 和响应头、记录请求开始与结束日志（含耗时）。
+     * finally 中一定要 remove MDC，避免线程复用导致 traceId 串号。
+     */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
@@ -43,10 +54,15 @@ public class RequestTraceFilter extends OncePerRequestFilter {
         }
     }
 
+    /** 生成一个 16 位随机 traceId（去掉 UUID 中的短横线并截断） */
     private String generateTraceId() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
     }
 
+    /**
+     * 清洗外部传入的 traceId：只保留字母数字，最长 32 位，空串则重新生成。
+     * 防止上游注入非法字符污染日志或响应头。
+     */
     private String sanitize(String id) {
         String normalized = id.replaceAll("[^a-zA-Z0-9]", "");
         if (normalized.length() == 0) {

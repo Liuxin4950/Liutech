@@ -202,7 +202,7 @@ const handlePostClick = (postId: number) => {
 
 
 watch(
-  () => messages.value.map(msg => `${msg.id}:${msg.content.length}:${msg.isStreaming ? 1 : 0}:${msg.isThinking ? 1 : 0}:${msg.agentPlanSteps?.length || 0}:${msg.agentToolEvents?.length || 0}:${msg.articleResults?.length || 0}`).join('|'),
+  () => messages.value.map(msg => `${msg.id}:${msg.content.length}:${msg.isStreaming ? 1 : 0}:${msg.isThinking ? 1 : 0}:${msg.articleResults?.length || 0}`).join('|'),
   async () => {
     await scrollToBottom()
   }

@@ -56,6 +56,8 @@ const icons: Record<string, string> = {
   music: '<path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>', // 音乐
   mic: '<path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line>', // 麦克风
   micOff: '<path d="M9 9v2a3 3 0 0 0 5.12 2.12"></path><path d="M15 6.34V5a3 3 0 0 0-5.78-1.2"></path><path d="M17 16.95A7 7 0 0 1 5 11v-1"></path><path d="M19 11v1a7 7 0 0 1-.85 3.36"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line><line x1="2" y1="2" x2="22" y2="22"></line>', // 麦克风关闭
+  volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>', // 音量/语音
+  volumeOff: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line>', // 静音
 
   // ── 评分与奖励 ──
   star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>', // 星星（空心描边）
@@ -65,6 +67,7 @@ const icons: Record<string, string> = {
   github: '<path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>', // GitHub
   mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline>', // 邮件
   globe: '<circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>', // 地球/网站
+  rss: '<path d="M4 11a9 9 0 0 1 9 9"></path><path d="M4 4a16 16 0 0 1 16 16"></path><circle cx="5" cy="19" r="1"></circle>', // RSS
   'heart-filled': '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="currentColor"></path>', // 爱心（实心填充）
   times: '<line x1="18" y1="5" x2="6" y2="17"></line><line x1="6" y1="5" x2="18" y2="17"></line>', // 叉号（倾斜×）
 
@@ -75,13 +78,13 @@ const icons: Record<string, string> = {
   // ── 技术与系统 ──
   bot: '<circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line>', // 机器人/AI
   database: '<rect x="2" y="2" width="8" height="8" rx="1"></rect><path d="M6 14v3"></path><path d="M18 14v3"></path><path d="M6 18h12"></path><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="18" r="2"></circle>', // 数据库
-  cog: '<rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M12 6V4"></path><path d="M22 18a8 8 0 0 1-8 8h-2a8 8 0 0 1-8-8"></path><circle cx="14" cy="14" r="4"></circle>', // 齿轮/系统
+  cog: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>', // 齿轮/系统
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>', // 盾牌/安全
   building: '<path d="M2 20h20"></path><path d="M5 16l3-8 2 8 4-12"></path>', // 建筑/机构
   atom: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>', // 原子/科学
 
   // ── 布局与视图 ──
-  layout: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>', // 布局
+  layout: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="8" x2="21" y2="8"></line><line x1="8" y1="8" x2="8" y2="21"></line>', // 布局（页头+侧边栏）
   square: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line>', // 方块/网格
 
   // ── 生活 ──
@@ -100,10 +103,10 @@ const icons: Record<string, string> = {
 
   // ── 学习与思维 ──
   brain: '<path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44A2.5 2.5 0 0 1 4.5 17.5a2.5 2.5 0 0 1-.44-4.96A2.5 2.5 0 0 1 2 12a10 10 0 0 1 18-6"></path><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5"></path>', // 大脑/思考
-  layers: '<path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path><path d="M10 8l6 4-6 4V8z"></path>', // 图层/播放
+  layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>', // 图层/堆叠
 
   // ── 方向与箭头 ──
-  'arrow-right': '<path d="M20 6 9 17 4 12"></path>', // 箭头右（对勾形状）
+  'arrow-right': '<line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>', // 箭头右
   external: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>', // 外部链接
   download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>', // 下载
 
@@ -112,8 +115,10 @@ const icons: Record<string, string> = {
   zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>', // 闪电/能量
 
   // ── 技术框架 ──
-  vue: '<path d="M2 2h6.2v14.74H12l4.8 6.26v-3h-6.2V2H2z"></path><path d="M17.2 7.6l-5.2 9 5.2 9v-4.5h7.6V12h-7.6V7.6z"></path>', // Vue.js
-  spring: '<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>', // Spring
+  vue: '<path d="M12 2L2 22h20L12 2z"></path><path d="M12 9l-5 10h10L12 9z"></path>', // Vue.js
+  spring: '<path d="M12 2C7.5 2 4 5.5 4 10c0 3.5 2 6.5 5 8l-1 4 4-1c1.3.5 2.7.8 4 .8 4.5 0 8-3.5 8-8S16.5 2 12 2z"></path><path d="M12 6c-2.5 0-4.5 2-4.5 4.5S9.5 15 12 15"></path>', // Spring
+  typescript: '<rect x="2" y="2" width="20" height="20" rx="3"></rect><path d="M7 7h4M9 7v10"></path><path d="M16 7c2 0 3 1 3 2.5S17.5 12 15.5 12s-1.5 1.5-1.5 2.5 1.5 2.5 3.5 2.5"></path>', // TypeScript
+  docker: '<rect x="4" y="10" width="2" height="2"></rect><rect x="8" y="10" width="2" height="2"></rect><rect x="12" y="10" width="2" height="2"></rect><rect x="4" y="14" width="2" height="2"></rect><rect x="8" y="14" width="2" height="2"></rect><rect x="12" y="14" width="2" height="2"></rect><rect x="16" y="14" width="2" height="2"></rect><path d="M22 15.5c0 3-2.5 5-5 5H5c-2 0-3.5-1.5-3.5-3.5S3.5 13.5 5.5 13.5c.5 0 1 .1 1.5.3C8.5 8.5 12.5 5 17 5c4 0 7 3 7 7v3.5z"></path>', // Docker
 
   // ── 通讯与分享 ──
   send: '<line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>', // 发送
@@ -129,6 +134,8 @@ const icons: Record<string, string> = {
   wave: '<path d="M2 12c5.333-8 10.667 8 16 0s10.667-8 16 0"></path>', // 波浪
   repeat: '<path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>', // 循环/重播
   cloud: '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>', // 云
+  smile: '<circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line>', // 微笑
+  frown: '<circle cx="12" cy="12" r="10"></circle><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line>', // 难过
   server: '<rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line>', // 服务器
   folderOpen: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="9" y1="2" x2="9" y2="22"></line>', // 打开的文件夹
   chevronRight: '<path d="M9 18l6-6-6-6"></path>', // 右箭头
@@ -166,6 +173,7 @@ const icons: Record<string, string> = {
   badge: '<path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12a10 10 0 0 1 10-10z"></path><path d="M8.5 8.5l7 7-7 7M15.5 8.5l-7 7 7 7"></path><circle cx="12" cy="12" r="3"></circle>', // 徽章
   film: '<rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line>', // 胶卷/视频
   running: '<circle cx="13" cy="4" r="2"></circle><path d="M7 21l3-4 2 1 3-5-4-2-2 3-3-1"></path><path d="M15 10l4-2"></path>', // 跑步
+  live2d: '<circle cx="12" cy="9" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line>', // 看板娘/虚拟角色
 
   // ── 中国社交平台 ──
   wechat: '<path d="M17 10c0 2.8-2.2 5-5 5-.3 0-.7 0-1-.1l-2.5 1.4.5-2.1c-.9-.7-1.5-1.8-1.5-3.2 0-2.8 2.2-5 5-5s4.5 2.2 4.5 5z" fill="currentColor"></path><path d="M8.5 9c-.6 0-1 .4-1 1s.4 1 1 1 1-.4 1-1-.4-1-1-1zm4 0c-.6 0-1 .4-1 1s.4 1 1 1 1-.4 1-1-.4-1-1-1z"></path><path d="M21.5 15c0 2.2-1.8 4-4 4-.2 0-.5 0-.7-.1l-2 1.1.4-1.7c-.7-.6-1.2-1.4-1.2-2.3 0-2.2 1.8-4 4-4s3.5 1.8 3.5 4z" fill="currentColor"></path>', // 微信
@@ -240,7 +248,7 @@ const icons: Record<string, string> = {
   // ── 状态 & 反馈 ──
   thumbsUp: '<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>',
   thumbsDown: '<path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>',
-  award: '<circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></circle>',
+  award: '<circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>', // 奖章
 
   // ── 工具 ──
   terminal: '<polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line>',

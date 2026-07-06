@@ -139,12 +139,6 @@
         </dependency>
 
         
-        <!-- OWASP Java HTML Sanitizer - 安全的 HTML 清理库，替代正则清理 -->
-        <dependency>
-            <groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
-            <artifactId>owasp-java-html-sanitizer</artifactId>
-            <version>20240325.1</version>
-        </dependency>
 <!-- Allure测试报告 -->
         <dependency>
             <groupId>io.qameta.allure</groupId>

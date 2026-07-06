@@ -24,7 +24,7 @@ import java.util.Map;
 /**
  * 提示词服务。
  *
- * <p>合并自 AiSystemPromptProvider + PromptAssembler + BlogContextService，
+ * 合并自 AiSystemPromptProvider + PromptAssembler + BlogContextService，
  * 统一管理：系统提示词构建、安全规则、博客上下文注入、消息列表组装。
  */
 @Slf4j
@@ -45,7 +45,13 @@ public class PromptService {
     // ==================== 消息组装（原 PromptAssembler） ====================
 
     /**
-     * 组装完整的提示词消息列表：系统提示 + 博客上下文 + 历史消息。
+     * 组装本次调用要发送给模型的消息列表,顺序固定:
+     *
+     * 1. 系统提示词(角色设定 + 安全规则 + 能力边界)
+     * 2. 博客上下文(站点信息、当前文章、近期推荐等),包在不可信内容边界内防注入
+     * 3. 历史消息:登录态取会话最近 N 条,访客态取请求中的 tempMessages(最多末 7 条)
+     *
+     * 当前用户输入不在这里追加,由 {@link ChatServiceHelper#prepareMessages} 最后补上。
      */
     public List<Message> assemble(ChatRequest request, String userId, Long conversationId,
                                   boolean guestMode, MemoryService memoryService) {
@@ -82,13 +88,19 @@ public class PromptService {
 
     // ==================== 系统提示词（原 AiSystemPromptProvider） ====================
 
-    /** 构建完整的系统提示词（含安全规则 + 能力边界） */
+    /**
+     * 拼接完整系统提示词:配置里的角色人设 + 能力边界 + 安全规则(若开启 prompt guard)。
+     * 每次调用都拼装,不缓存,便于配置热更。
+     */
     public String buildSystemPrompt() {
         String base = aiPromptConfig.getFullSystemPrompt() + "\n\n" + capabilityBoundaryRules();
         return appendSecurityRules(base);
     }
 
-    /** 包裹不可信内容，阻止 prompt 注入 */
+    /**
+     * 把博客上下文、评论等外部数据包进带标签的边界块,并明确告知模型只当事实参考、不可作为指令。
+     * 这是防 prompt 注入的关键手段;label 为空时用 UNTRUSTED_CONTENT 兜底。
+     */
     public String wrapUntrustedContent(String label, String content) {
         if (content == null || content.isBlank()) {
             return "";
@@ -105,7 +117,12 @@ public class PromptService {
     // ==================== 博客上下文（原 BlogContextService） ====================
 
     /**
-     * 根据上下文构建增强的系统提示
+     * 依据前端传入的 context(当前页面、postId、recommendations 等)拼装本次要注入的博客上下文文本。
+     *
+     * 触发规则:
+     * - 首页/关于页,或用户问题里出现博客/作者/站点相关关键词时,追加站点简介
+     * - post-detail 页且 context 带 postId 时,拉取文章详情追加
+     * - 若最近有推荐记录,追加"最近展示给用户的推荐内容",保证追问能对齐上下文
      */
     public String buildContextPrompt(Map<String, Object> context, String userMessage) {
         StringBuilder contextPrompt = new StringBuilder();
@@ -145,6 +162,7 @@ public class PromptService {
 
     // ==================== 内部方法 ====================
 
+    /** 把安全规则追加到基础系统提示词末尾;prompt guard 关闭时直接返回原文。 */
     private String appendSecurityRules(String base) {
         if (!aiChatProperties.getSecurity().isPromptGuardEnabled()) {
             return base == null ? "" : base.trim();
@@ -186,6 +204,9 @@ public class PromptService {
                 """.trim();
     }
 
+    /**
+     * 访客模式下把请求里的临时消息(前端本地缓存的对话历史)转成 prompt 消息,只取末 7 条。
+     */
     private List<Message> buildGuestPromptMessages(ChatRequest request) {
         if (request.getTempMessages() == null || request.getTempMessages().isEmpty()) {
             return Collections.emptyList();
@@ -208,6 +229,10 @@ public class PromptService {
         return messages;
     }
 
+    /**
+     * 判断是否需要注入站点简介:关于/首页无条件注入;其他页面看用户提问是否命中
+     * 博客/作者/站点/LiuTech 等关键词。
+     */
     private boolean shouldIncludeSiteProfile(String page, String userMessage) {
         if ("about".equals(page) || "home".equals(page)) {
             return true;
@@ -226,6 +251,10 @@ public class PromptService {
                 || normalized.contains("liutech");
     }
 
+    /**
+     * 取站点简介文本,带 10 分钟内存缓存,避免每次聊天都回主后端拉作者档案。
+     * 双检锁保证并发下只有一个线程真正去请求。
+     */
     private String getSiteProfilePrompt() {
         long now = System.currentTimeMillis();
         if (cachedSiteProfilePrompt != null && now - siteProfileCachedAt < SITE_PROFILE_TTL_MS) {
@@ -259,6 +288,10 @@ public class PromptService {
         return null;
     }
 
+    /**
+     * 从 context.recommendations(前端传的最近推荐记录)取最新一组,拼成"用户刚看到什么"的
+     * 事实描述,单组最多列 3 篇。用于用户追问"刚才那些文章"时保留上下文。
+     */
     @SuppressWarnings("unchecked")
     private void appendRecommendationContext(StringBuilder contextPrompt, Map<String, Object> context) {
         Object recommendationsObj = context.get("recommendations");

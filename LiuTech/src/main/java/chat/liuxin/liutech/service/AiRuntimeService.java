@@ -19,7 +19,7 @@ public class AiRuntimeService {
 
     private final TtsSpeechService ttsSpeechService;
 
-    @Value("${ai.service.url:${AI_SERVICE_URL:http://127.0.0.1:8081}}")
+    @Value("${ai.service.url:${AI_SERVICE_URL:http://ai:8081}}")
     private String aiServiceUrl;
 
     private final HttpClient httpClient = HttpClient.newBuilder()

@@ -46,9 +46,7 @@ public class AiModelConfigService {
     private final AiChatMessageMapper chatMessageMapper;
 
     /**
-     * 获取所有模型配置列表
-     *
-     * @return 模型配置列表
+     * 拉全部模型配置(启用+禁用),供管理后台管理页展示。
      */
     public List<ModelConfigDTO> getAllModels() {
         log.debug("获取所有模型配置列表");
@@ -59,9 +57,7 @@ public class AiModelConfigService {
     }
 
     /**
-     * 获取所有启用的模型
-     *
-     * @return 启用的模型列表
+     * 只拉启用中的模型,前台模型下拉框和默认模型解析都用这个入口。
      */
     public List<ModelConfigDTO> getEnabledModels() {
         log.debug("获取所有启用的模型");
@@ -72,9 +68,7 @@ public class AiModelConfigService {
     }
 
     /**
-     * 获取默认模型
-     *
-     * @return 默认模型，可能为空
+     * 拿当前默认模型;数据库无默认时返回 Optional.empty,由上层决定兜底策略。
      */
     public Optional<ModelConfigDTO> getDefaultModel() {
         log.debug("获取默认模型");
@@ -83,10 +77,7 @@ public class AiModelConfigService {
     }
 
     /**
-     * 根据模型名称获取配置
-     *
-     * @param modelName 模型名称
-     * @return 模型配置，不存在时返回 Optional.empty()
+     * 按模型名精确查配置,主要给参数策略解析用(拿 temperature/maxTokens 默认值等)。
      */
     public Optional<ModelConfigDTO> getModelByName(String modelName) {
         log.debug("根据模型名称获取配置，模型名称: {}", modelName);
@@ -98,10 +89,7 @@ public class AiModelConfigService {
     }
 
     /**
-     * 根据ID获取模型配置
-     *
-     * @param id 模型ID
-     * @return 模型配置
+     * 按主键查模型;不存在直接抛 RuntimeException(管理后台单条编辑场景使用)。
      */
     public ModelConfigDTO getModelById(Long id) {
         log.debug("根据ID获取模型配置，ID: {}", id);
@@ -114,10 +102,8 @@ public class AiModelConfigService {
     }
 
     /**
-     * 添加新模型配置
-     *
-     * @param request 模型配置请求
-     * @return 创建的模型配置
+     * 新增模型配置。isDefault 强制置 false,防止绕过 {@link #setDefaultModel} 出现多默认。
+     * 模型名冲突时抛异常。
      */
     public ModelConfigDTO addModel(ModelConfigRequest request) {
         log.info("添加新模型配置，模型名称: {}", request.getModelName());
@@ -149,11 +135,8 @@ public class AiModelConfigService {
     }
 
     /**
-     * 更新模型配置
-     *
-     * @param id      模型ID
-     * @param request 模型配置请求
-     * @return 更新后的模型配置
+     * 全量更新模型配置。isDefault 不在这里改,须走 {@link #setDefaultModel}。
+     * 改名时若与其他记录冲突抛异常。
      */
     public ModelConfigDTO updateModel(Long id, ModelConfigRequest request) {
         log.info("更新模型配置，ID: {}, 模型名称: {}", id, request.getModelName());
@@ -190,9 +173,7 @@ public class AiModelConfigService {
     }
 
     /**
-     * 删除模型配置
-     *
-     * @param id 模型ID
+     * 物理删除模型配置。默认模型受保护,必须先把默认切走再删。
      */
     public void deleteModel(Long id) {
         log.info("删除模型配置，ID: {}", id);
@@ -214,10 +195,8 @@ public class AiModelConfigService {
     }
 
     /**
-     * 设置默认模型
-     * 先取消所有模型的默认状态，然后设置指定模型为默认
-     *
-     * @param id 模型ID
+     * 切换默认模型。事务内先清掉所有 isDefault 再置本条,保证全表唯一默认;
+     * 目标模型必须处于启用状态,否则抛异常。
      */
     @Transactional
     public void setDefaultModel(Long id) {
@@ -244,10 +223,7 @@ public class AiModelConfigService {
     }
 
     /**
-     * 切换模型启用状态
-     *
-     * @param id       模型ID
-     * @param enabled  是否启用
+     * 启用或禁用模型。禁用默认模型受保护,必须先把默认切走。
      */
     public void toggleEnabled(Long id, boolean enabled) {
         log.info("切换模型启用状态，ID: {}, 启用: {}", id, enabled);
@@ -270,9 +246,7 @@ public class AiModelConfigService {
     }
 
     /**
-     * 获取今天模型使用统计
-     *
-     * @return 模型使用统计列表
+     * 从聊天消息表按模型分组统计当日调用次数,供管理后台仪表盘展示。
      */
     public List<ModelUsageStats> getTodayModelUsage() {
         log.debug("获取今天模型使用统计");
@@ -289,12 +263,7 @@ public class AiModelConfigService {
         return stats;
     }
 
-    /**
-     * 将实体转换为 DTO
-     *
-     * @param entity 实体对象
-     * @return DTO 对象
-     */
+    /** 实体转 DTO,字段一对一映射。 */
     private ModelConfigDTO toDTO(AiModelConfig entity) {
         ModelConfigDTO dto = new ModelConfigDTO();
         dto.setId(entity.getId());

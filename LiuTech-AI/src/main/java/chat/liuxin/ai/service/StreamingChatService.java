@@ -5,6 +5,7 @@ import chat.liuxin.ai.common.tts.AvatarCueService;
 import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.AvatarCuePayload;
 import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.dto.PostSummaryDTO;
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import lombok.RequiredArgsConstructor;
@@ -16,23 +17,25 @@ import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 流式聊天服务。
  *
- * <p>从 AiChatServiceImpl 中抽取，专门处理 SSE 流式响应，包含：
- * <ul>
- *   <li>看板聊天流式（processStreamChat）</li>
- *   <li>写作助手流式（processWritingStream）</li>
- *   <li>TTS 语音合成编排</li>
- *   <li>Live2D 表情提示（AvatarCue）</li>
- *   <li>SSE 心跳保活</li>
- * </ul>
+ * 从 AiChatServiceImpl 中抽取，专门处理 SSE 流式响应，包含：
+ * - 看板聊天流式（processStreamChat）
+ * - 写作助手流式（processWritingStream）
+ * - TTS 语音合成编排
+ * - Live2D 表情提示（AvatarCue）
+ * - SSE 心跳保活
  */
 @Slf4j
 @Service
@@ -50,7 +53,16 @@ public class StreamingChatService {
     // ==================== 公开接口 ====================
 
     /**
-     * 看板聊天流式：SSE 返回 + 消息持久化 + TTS + AvatarCue
+     * 看板娘流式聊天入口。
+     *
+     * 立刻返回 {@link SseEmitter},真正逻辑跑在 {@link CompletableFuture#runAsync} 上,避免占用 Servlet 线程。
+     *
+     * 生命周期:
+     * - 先注册 onCompletion / onTimeout,确保心跳线程和 TTS 线程池一定被关闭。
+     * - 异步任务里:登录且无会话时先建会话 → 落库用户消息 → 发送 start 事件 →
+     *   起 15s 心跳定时任务 → 订阅底层 flux 并处理数据/TTS/AvatarCue。
+     * - 完成回调里落库完整 assistant 消息(status=1);错误回调里落库 partial 文本(status=3)
+     *   并写一条错误占位,再向前端发 error 事件。
      */
     public SseEmitter processStreamChat(ChatRequest request, Long userId, String modelName,
                                         AiModelPolicy.ModelParameters params) {
@@ -114,7 +126,10 @@ public class StreamingChatService {
                                 memoryService.saveAssistantMessage(userIdStr, finalConvId, fullResponse, modelName, 1, null);
                             }
                         },
-                        errorMsg -> {
+                        (partial, errorMsg) -> {
+                            if (!guestMode && finalConvId != null && partial != null && !partial.isBlank()) {
+                                memoryService.saveAssistantMessage(userIdStr, finalConvId, partial, modelName, 3, null);
+                            }
                             chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
                         });
 
@@ -130,7 +145,10 @@ public class StreamingChatService {
     }
 
     /**
-     * 写作助手流式：SSE 返回 + TTS + AvatarCue（不持久化消息）
+     * 写作助手流式入口。
+     *
+     * 与看板娘流式的区别:走 WRITING 模式(注册 WritingTools)、不落库、无心跳线程。
+     * 其他 SSE 生命周期、TTS 编排、AvatarCue 逻辑与 {@link #processStreamChat} 共用。
      */
     public SseEmitter processWritingStream(ChatRequest request, Long userId, String modelName,
                                            AiModelPolicy.ModelParameters params) {
@@ -163,7 +181,7 @@ public class StreamingChatService {
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, conversationId, ttsEnabled, emitterClosed, ttsExecutorRef,
-                        guestMode, userIdStr, modelName, fullResponse -> {}, errorMsg -> {});
+                        guestMode, userIdStr, modelName, fullResponse -> {}, (partial, errorMsg) -> {});
 
             } catch (Exception e) {
                 log.error("写作助手流式处理失败，用户ID: {}, 会话ID: {}", userIdStr, conversationId, e);
@@ -177,6 +195,20 @@ public class StreamingChatService {
 
     // ==================== 流式订阅核心（TTS + AvatarCue + SSE） ====================
 
+    /**
+     * 订阅底层 flux 并统一处理三种事件:数据分片、错误、完成。
+     *
+     * onNext: 把 chunk 累加到全量文本和分段缓冲区,由 {@link TtsSegmenter} 切出可播报段落;
+     * 每个段落分配自增 seq,先发 avatar-cue 事件保证表情提示时序,再按需异步跑 TTS;
+     * 原始 chunk 通过 data 事件透传给前端。
+     *
+     * onError: 触发 onError 回调(用于持久化 partial 文本)、发 error 事件、强制关线程池、completeWithError。
+     *
+     * onComplete: 触发 onComplete 回调(用于落库完整 assistant 消息)、flush 剩余文本、
+     * 从全量文本抽取 [标题](/post/ID) 生成 article-results、发 complete 事件;
+     * 若开启 TTS,再异步等所有 TTS 任务完成后发 audio-complete,最后 emitter.complete()。
+     * TTS 等待有超时保护(至少 30s 或配置的 sseTimeout),超时也照常收尾。
+     */
     private void subscribeStream(
             SseEmitter emitter,
             Flux<String> flux,
@@ -188,7 +220,7 @@ public class StreamingChatService {
             String userIdStr,
             String modelName,
             java.util.function.Consumer<String> onComplete,
-            java.util.function.Consumer<String> onError
+            java.util.function.BiConsumer<String, String> onError
     ) {
         AtomicReference<StringBuilder> fullResponseRef = new AtomicReference<>(new StringBuilder());
         StringBuilder textBuffer = new StringBuilder();
@@ -226,7 +258,7 @@ public class StreamingChatService {
                 error -> {
                     log.error("流式响应错误，用户ID: {}, 会话ID: {}", userIdStr, conversationId, error);
                     String error_msg = error != null ? error.getMessage() : "未知错误";
-                    onError.accept(error_msg);
+                    onError.accept(fullResponseRef.get().toString(), error_msg);
                     SseEmitterHelper.safeSendError(emitter, conversationId, error_msg);
                     emitterClosed.set(true);
                     SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
@@ -257,6 +289,9 @@ public class StreamingChatService {
                             }
                         }
 
+                        SseEmitterHelper.sendSseEvent(emitter, "article-results", SseEmitterHelper.eventPayload(
+                                "items", extractArticleResults(fullResponse),
+                                "reason", "我找到这些文章，可以直接点开阅读。"));
                         SseEmitterHelper.sendSseEvent(emitter, "complete", SseEmitterHelper.eventPayload(
                                 "conversationId", conversationId,
                                 "responseLength", fullResponse.length(),
@@ -303,6 +338,9 @@ public class StreamingChatService {
 
     // ==================== TTS / AvatarCue ====================
 
+    /**
+     * 为一段文本生成 Live2D 表情动作提示并通过 SSE 推给前端,失败仅记 debug 日志不打断主流程。
+     */
     private void sendAvatarCue(SseEmitter emitter, int seq, Long conversationId, String text) {
         try {
             AvatarCuePayload cue = avatarCueService.fromText(seq, conversationId, text);
@@ -319,6 +357,40 @@ public class StreamingChatService {
         }
     }
 
+    /** 匹配 [标题](/post/ID) 格式的文章引用链接 */
+    private static final Pattern POST_LINK_PATTERN =
+            Pattern.compile("\\[([^\\]]+)\\]\\(/post/(\\d+)\\)");
+
+    /** 从 AI 回复里解析 [标题](/post/ID) 链接，去重后返回最多 8 篇供前端展示推荐卡片 */
+    private List<PostSummaryDTO> extractArticleResults(String text) {
+        if (text == null || text.isBlank()) return Collections.emptyList();
+        Map<Long, String> unique = new LinkedHashMap<>();
+        Matcher m = POST_LINK_PATTERN.matcher(text);
+        while (m.find()) {
+            try {
+                Long id = Long.parseLong(m.group(2));
+                unique.putIfAbsent(id, m.group(1));
+            } catch (NumberFormatException ignore) {
+            }
+        }
+        if (unique.isEmpty()) return Collections.emptyList();
+        List<PostSummaryDTO> result = new ArrayList<>();
+        for (Map.Entry<Long, String> entry : unique.entrySet()) {
+            PostSummaryDTO dto = new PostSummaryDTO();
+            dto.setId(entry.getKey());
+            dto.setTitle(entry.getValue());
+            result.add(dto);
+            if (result.size() >= 8) break;
+        }
+        return result;
+    }
+
+    /**
+     * 提交一段文本到 TTS 线程池,合成完成后通过 audio 事件带 seq/audioUrl 推给前端。
+     *
+     * seq 与 avatar-cue、data 事件共享,前端按序号对齐播放。
+     * 空文本或不可播报文本(纯符号等)直接跳过;合成失败或返回空 URL 时发 audio-skip 事件,不影响主流程。
+     */
     private void enqueueTtsTask(
             SseEmitter emitter, ExecutorService executor,
             List<CompletableFuture<Void>> futures,

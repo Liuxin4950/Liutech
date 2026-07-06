@@ -46,19 +46,3 @@ resilience4j:
         eventConsumerBufferSize: 100
         # 记录所有事件
         registerHealthIndicator: true
-
-  # 重试配置
-  retry:
-    instances:
-      aiService:
-        # 最大重试次数：3次
-        maxAttempts: 3
-        # 等待策略：固定延迟
-        waitDuration: 1s
-        # 指数退避策略（可选）
-        # waitDuration: 100ms
-        # maxRetryAttempts: 3
-        # retryExceptions:
-        #   - java.io.IOException
-        # ignoreExceptions:
-        #   - IllegalArgumentException

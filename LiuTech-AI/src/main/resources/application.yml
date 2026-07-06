@@ -33,9 +33,6 @@ spring:
         options:
           model: "zai-org/GLM-4.6"
           temperature: 0.6
-    # 默认模型配置
-    model:
-      default: "zai-org/GLM-4.6"
     # 提示词配置
     prompt:
       system-role: |
@@ -80,12 +77,10 @@ spring:
         - 不要返回JSON代码块或工具调用格式
       behavior-guidelines: "你必须保持纳西妲/站内看板娘的第一人称视角，对用户自称不要带 AI，回答自然、简洁、可信，不要退化成站外旁观式说明文口吻。"
       json-output-instruction: ""
-    # 聊天配置
-    chat:
-      history-limit: 14
-    # SSE配置
-    sse:
-      timeout: 300000  # SSE超时时间（毫秒），5分钟（需大于AI重试链最大耗时：30s×3+2s=92s）
+    # 聊天配置（平铺 key 匹配 AiChatProperties.chatHistoryLimit）
+    chat-history-limit: 14
+    # SSE配置（平铺 key 匹配 AiChatProperties.sseTimeout）
+    sse-timeout: 300000  # SSE超时时间（毫秒），5分钟（需大于AI重试链最大耗时：30s×3+2s=92s）
     agent:
       tool-cache-ttl-ms: 60000
       max-article-results: 8
@@ -97,11 +92,9 @@ spring:
       name: "纳西妲"
       title-suffix: "生成"
     security:
-      prompt-guard:
-        enabled: true
-      model-policy:
-        strict-whitelist: true
-        max-tokens-ceiling: 4096
+      prompt-guard-enabled: true
+      model-policy-strict-whitelist: true
+      model-policy-max-tokens-ceiling: 4096
       rate-limit:
         enabled: true
         window-seconds: 60

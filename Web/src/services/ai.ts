@@ -26,15 +26,7 @@ export interface AiChatResponse {
   authenticated?: boolean
   admin?: boolean
   capabilities?: string[]
-  intent?: string
-  plan?: AgentPlanStep[]
   articleResults?: ArticleResultsPayload
-}
-
-export interface AgentPlanStep {
-    key: string
-    title: string
-    status: string
 }
 
 /**

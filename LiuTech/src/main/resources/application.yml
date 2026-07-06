@@ -79,9 +79,10 @@ server:
   port: 8080
 
 # AI 服务地址（主后端用于聚合运行时状态）
+# Docker 内默认使用服务名 ai:8081；本地开发由 application-dev.yml 覆盖为 127.0.0.1:8081
 ai:
   service:
-    url: ${AI_SERVICE_URL:http://127.0.0.1:8081}
+    url: ${AI_SERVICE_URL:http://ai:8081}
 
 # 文件上传配置
 file:

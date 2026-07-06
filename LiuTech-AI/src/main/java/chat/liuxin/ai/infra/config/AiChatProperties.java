@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 /**
  * AI 聊天服务配置。
  *
- * <p>合并自 AiModelPolicy / PromptService / StreamingChatService 中的 @Value 注入。
+ * 合并自 AiModelPolicy / PromptService / StreamingChatService 中的 @Value 注入。
  */
 @Data
 @Component

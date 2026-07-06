@@ -68,13 +68,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 .build();
     }
 
+    /**
+     * 每个请求的过滤入口：提取 token 并验证；异常时静默继续，不阻断请求。
+     *
+     * 认证/授权决定由后续 Spring Security 授权层做出。这样公开端点带无效 token
+     * 也能正常访问，认证端点由 authenticationEntryPoint 统一返回 401 JSON。
+     */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
             log.info("处理请求: {} {}", request.getMethod(), request.getRequestURI());
-            
+
             String token = extractTokenFromRequest(request);
             if (token != null) {
                 processValidToken(token, request, response);
@@ -84,12 +90,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         filterChain.doFilter(request, response);
     }
-    
-    /**
-     * 从请求中提取JWT token
-     * @param request HTTP请求
-     * @return JWT token字符串，如果不存在则返回null
-     */
+
+    /** 从 Authorization: Bearer xxx 头里提取 token；缺失或格式不对返回 null */
     private String extractTokenFromRequest(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
@@ -100,28 +102,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
     /**
      * 处理有效的JWT token
-     * @param token JWT token
-     * @param request HTTP请求
-     * @param response HTTP响应
+     *
+     * 设计要点：
+     * - 无效 token 静默跳过（不在此处 flush 401），由 Spring Security 授权层决定：
+     *   公开端点 permitAll 放行，认证端点由 authenticationEntryPoint 返回 401。
+     *   避免公开端点带无效 token 时响应被双写损坏。
+     * - 用户状态校验结果短期缓存，避免每请求都跨服务 HTTP 调用主后端。
      */
-
-    /**
-     * 发送 401 未认证响应（JSON 格式）。
-     * 当 JWT token 无效或过期时使用，替代静默降级为匿名。
-     */
-    private void sendUnauthorized(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json;charset=UTF-8");
-        // 使用 ObjectMapper 序列化，避免 message 中的特殊字符导致 JSON 注入
-        String json = objectMapper.writeValueAsString(
-                java.util.Map.of("success", false, "message", message, "code", 401));
-        response.getWriter().write(json);
-        response.getWriter().flush();
-    }
     private void processValidToken(String token, HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (!jwtUtil.validateToken(token)) {
-            log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
-            sendUnauthorized(response, "无效或过期的JWT token");
+            log.debug("无效的JWT token，请求路径: {}", request.getRequestURI());
             return;
         }
 
@@ -129,17 +119,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Long userId = jwtUtil.getUserIdFromToken(token);
 
         if (username != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            CurrentUser currentUser = loadCurrentUserFromBlogApi(token);
+            CurrentUser currentUser = loadCurrentUserFromBlogApi(token, userId);
             if (currentUser == null || !userId.equals(currentUser.userId()) || !username.equals(currentUser.username())) {
                 log.warn("AI服务JWT用户状态校验失败，用户ID: {}, 请求路径: {}", userId, request.getRequestURI());
-                sendUnauthorized(response, "用户账号状态异常，请重新登录");
+                // 不在此处 flush 401，交由授权层处理，避免公开端点响应损坏
                 return;
             }
             setAuthenticationContext(currentUser.username(), currentUser.userId(), currentUser.role(), request, response);
         }
     }
 
-    private CurrentUser loadCurrentUserFromBlogApi(String token) {
+    /** 用户状态缓存 TTL（毫秒）：封禁等状态变更最多延迟此时间生效 */
+    private static final long USER_STATUS_CACHE_TTL_MS = 60_000L;
+    private final java.util.concurrent.ConcurrentHashMap<Long, CachedUser> userStatusCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record CachedUser(CurrentUser user, long cachedAt) {}
+
+    /** 带缓存的用户状态查询：命中且未过期直接返回，否则跨服务拉取并缓存 */
+    private CurrentUser loadCurrentUserFromBlogApi(String token, Long userId) {
+        CachedUser cached = userStatusCache.get(userId);
+        if (cached != null && System.currentTimeMillis() - cached.cachedAt() < USER_STATUS_CACHE_TTL_MS) {
+            return cached.user();
+        }
+        CurrentUser current = fetchCurrentUserFromBlogApi(token);
+        if (current != null) {
+            userStatusCache.put(userId, new CachedUser(current, System.currentTimeMillis()));
+        }
+        return current;
+    }
+
+    /** 实际发起对主后端 /user/current 的 HTTP 调用，解析 JSON 响应到 CurrentUser；任何异常返回 null */
+    private CurrentUser fetchCurrentUserFromBlogApi(String token) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(token);
@@ -170,12 +180,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     
     /**
-     * 设置Spring Security认证上下文
-     * @param username 用户名
-     * @param userId 用户ID
-     * @param role 用户角色 (user/admin)
-     * @param request HTTP请求
-     * @param response HTTP响应
+     * 组装 Spring Security 认证上下文并挂到 SecurityContextHolder。
+     *
+     * 用户 ID 通过 authToken.details 传递给业务层（{@link chat.liuxin.ai.common.utils.AuthUtils#getCurrentUserId()} 读取）。
+     * 额外通过 RequestAttributeSecurityContextRepository 把上下文存到请求属性，
+     * 解决 SSE 流式响应完成后 SecurityContextHolder 已清空的问题。
      */
     private void setAuthenticationContext(String username, Long userId, String role, HttpServletRequest request, HttpServletResponse response) {
         Collection<GrantedAuthority> authorities = buildUserAuthorities(role);
@@ -201,9 +210,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     
     /**
-     * 构建用户权限集合
-     * @param role 用户角色 (user/admin)
-     * @return 权限集合
+     * 按角色映射到 Spring Security 权限：所有认证用户都有 ROLE_USER；
+     * 角色为 admin 时额外授予 ROLE_ADMIN（供 @PreAuthorize("hasRole('ADMIN')") 使用）。
      */
     private Collection<GrantedAuthority> buildUserAuthorities(String role) {
         Collection<GrantedAuthority> authorities = new ArrayList<>();

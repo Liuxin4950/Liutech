@@ -443,6 +443,21 @@ CREATE TABLE IF NOT EXISTS messages (
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='访客留言表';
 
+-- 验证码表（用于忘记密码、邮箱验证码登录等场景，属于主后端库 liutech）
+CREATE TABLE IF NOT EXISTS verification_codes (
+  id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  email VARCHAR(320) NOT NULL COMMENT '邮箱地址',
+  code VARCHAR(10) NOT NULL COMMENT '验证码',
+  type VARCHAR(30) NOT NULL COMMENT '类型：REGISTER/FORGOT_PASSWORD/EMAIL_LOGIN',
+  used TINYINT NOT NULL DEFAULT 0 COMMENT '是否已使用(0未使用,1已使用)',
+  attempt_count INT NOT NULL DEFAULT 0 COMMENT '错误尝试次数',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  expires_at TIMESTAMP NOT NULL COMMENT '过期时间',
+  PRIMARY KEY (id),
+  KEY idx_email_type_used_exp (email, type, used, expires_at),
+  KEY idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='验证码表';
+
 -- 重新开启外键检查
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -532,20 +547,3 @@ ON DUPLICATE KEY UPDATE
   max_tokens = VALUES(max_tokens),
   temperature = VALUES(temperature),
   description = VALUES(description);
-
-
-
--- ==================== 验证码表 ====================
-CREATE TABLE IF NOT EXISTS verification_codes (
-  id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  email VARCHAR(320) NOT NULL COMMENT '邮箱地址',
-  code VARCHAR(10) NOT NULL COMMENT '验证码',
-  type VARCHAR(30) NOT NULL COMMENT '类型：REGISTER/FORGOT_PASSWORD/EMAIL_LOGIN',
-  used TINYINT NOT NULL DEFAULT 0 COMMENT '是否已使用(0未使用,1已使用)',
-  attempt_count INT NOT NULL DEFAULT 0 COMMENT '错误尝试次数',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  expires_at TIMESTAMP NOT NULL COMMENT '过期时间',
-  PRIMARY KEY (id),
-  KEY idx_email_type_used_exp (email, type, used, expires_at),
-  KEY idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='验证码表';

@@ -18,7 +18,6 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.http.HttpMethod;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
@@ -48,11 +47,20 @@ public class SecurityConfig {
             new RequestAttributeSecurityContextRepository();
 
     /**
-     * 配置安全过滤器链
+     * 构建 Spring Security 过滤器链。
      *
-     * @param http HttpSecurity对象
-     * @return SecurityFilterChain
-     * @throws Exception 异常
+     * 关键决策：
+     * - CSRF 关闭（REST API + JWT 不需要）
+     * - Session 无状态（STATELESS，每次请求都从 JWT 重新认证）
+     * - 用 RequestAttributeSecurityContextRepository 存上下文，解决 SSE 完成后
+     *   SecurityContextHolder 被清空导致 authenticationEntryPoint 二次触发的坑
+     * - 未认证/权限不足统一返回 JSON（{success,message,code}），前端便于处理
+     * - SSE 请求响应已提交时跳过异常写入，避免破坏 event-stream 格式
+     *
+     * 端点分级：
+     * - 公开：/ai/models/**、/ai/status、/ai/chat、/ai/chat/stream、/health、/actuator/**、/static/**
+     * - 管理员：/ai/writing、/ai/writing/stream、/admin/**、/ai/admin/**
+     * - 其他：需要有效 JWT
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -105,7 +113,8 @@ public class SecurityConfig {
                 .requestMatchers("/ai/models/**").permitAll()
                 .requestMatchers("/ai/status").permitAll()
                 .requestMatchers("/ai/chat", "/ai/chat/stream").permitAll()
-                .requestMatchers("/ai/writing", "/ai/writing/stream").permitAll()
+                // 写作助手是博主/管理员功能，配置层直接限制管理员，避免依赖业务层补判
+                .requestMatchers("/ai/writing", "/ai/writing/stream").hasRole("ADMIN")
 
                 // 管理员API：模型管理（必须是管理员）
                 .requestMatchers("/admin/**", "/ai/admin/**").hasRole("ADMIN")
@@ -126,10 +135,8 @@ public class SecurityConfig {
     }
     
     /**
-     * 判断是否为SSE请求
-     * 
-     * @param request HTTP请求
-     * @return 是否为SSE请求
+     * 判断是否 SSE 请求：Accept 头含 text/event-stream 且 URI 含 /stream。
+     * 用途：SSE 响应已开始流式输出后，异常处理器就不能再写 JSON，否则破坏 event-stream 格式。
      */
     private boolean isSseRequest(HttpServletRequest request) {
         String acceptHeader = request.getHeader("Accept");
@@ -179,13 +186,5 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
 
         return source;
-    }
-
-    /**
-     * 密码加密器Bean
-     */
-    @Bean
-    public BCryptPasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 }

@@ -30,12 +30,11 @@ public class AiMetrics {
     }
 
     /**
-     * 记录AI请求
+     * 记录一次 AI 调用的全量指标：请求计数、响应时长、Token 用量、失败计数。
      *
-     * @param model AI模型名称
-     * @param success 是否成功
-     * @param responseTime 响应时间（毫秒）
-     * @param tokenCount Token消耗量
+     * 每次调用都会为对应模型累加 ai_requests_total 计数,并把耗时写入
+     * ai_response_duration_seconds Timer。tokenCount 大于 0 时写入用量直方图。
+     * success 为 false 时额外累加 ai_errors_total,方便 Grafana 计算错误率。
      */
     public void recordAiRequest(String model, boolean success, long responseTime, int tokenCount) {
         // 记录请求次数
@@ -74,44 +73,15 @@ public class AiMetrics {
     }
 
     /**
-     * 增加并发请求计数
-     */
-    public void incrementConcurrentRequests() {
-        Counter.builder("ai_concurrent_requests")
-                .description("AI服务并发请求量-增加")
-                .tag("action", "increment")
-                .register(meterRegistry)
-                .increment();
-    }
-
-    /**
-     * 减少并发请求计数
-     */
-    public void decrementConcurrentRequests() {
-        Counter.builder("ai_concurrent_requests")
-                .description("AI服务并发请求量-减少")
-                .tag("action", "decrement")
-                .register(meterRegistry)
-                .increment();
-    }
-
-    /**
-     * 记录AI请求成功
-     *
-     * @param model AI模型名称
-     * @param responseTime 响应时间（毫秒）
-     * @param tokenCount Token消耗量
+     * 成功路径的快捷入口,内部委托 {@link #recordAiRequest} 并将 success 置为 true。
      */
     public void recordSuccess(String model, long responseTime, int tokenCount) {
         recordAiRequest(model, true, responseTime, tokenCount);
     }
 
     /**
-     * 记录AI请求失败
-     *
-     * @param model AI模型名称
-     * @param responseTime 响应时间（毫秒）
-     * @param errorType 错误类型
+     * 失败路径的快捷入口,与 {@link #recordAiRequest} 相比多带一个 error_type 标签,
+     * 便于按异常类型(如 timeout、rate_limit、upstream_error)拆分错误面板。
      */
     public void recordFailure(String model, long responseTime, String errorType) {
         Counter.builder("ai_requests_total")
@@ -137,19 +107,4 @@ public class AiMetrics {
                 .increment();
     }
 
-    /**
-     * 记录自定义指标
-     *
-     * @param name 指标名称
-     * @param value 指标值
-     * @param tagKey 标签键
-     * @param tagValue 标签值
-     */
-    public void recordCustomMetric(String name, double value, String tagKey, String tagValue) {
-        Counter customCounter = Counter.builder(name)
-                .description("自定义指标")
-                .tag(tagKey, tagValue)
-                .register(meterRegistry);
-        customCounter.increment(value);
-    }
 }

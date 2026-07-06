@@ -1,13 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
-import { Ai, type AgentPlanStep, type AiChatRequest, type PostSummaryDTO } from '@/services/ai'
+import { Ai, type AiChatRequest, type PostSummaryDTO } from '@/services/ai'
 import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
 import { AiStream, StreamError } from '@/services/aiStream'
 import { isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
 import { useUserStore } from '@/stores/user'
 import { useChatTts } from '@/composables/chatTts'
-import { useChatAgent } from '@/composables/chatAgent'
 
 /**
  * 聊天消息接口
@@ -25,31 +24,6 @@ export interface ChatMessage {
   modelName?: string // 使用的模型名称
   articleResults?: PostSummaryDTO[]
   articleResultReason?: string
-  agentIntent?: string
-  agentRole?: string
-  agentPlanSteps?: AgentPlanStep[]
-  agentToolEvents?: AgentToolEvent[]
-  confirmation?: AgentConfirmation
-  showAgentTrace?: boolean
-}
-
-export interface AgentToolEvent {
-  toolName: string
-  displayName: string
-  inputSummary?: string
-  success?: boolean
-  durationMs?: number
-  resultSummary?: string
-  errorMessage?: string
-  status: 'running' | 'success' | 'failed'
-}
-
-export interface AgentConfirmation {
-  actionId: number
-  actionType: string
-  title: string
-  description: string
-  riskLevel?: string
 }
 
 export interface TtsAudioItem {
@@ -154,7 +128,6 @@ export const useChatStore = defineStore('chat', () => {
   const GUEST_TTS_ENABLED_KEY = 'liutech-chat-tts-enabled-guest'
 
   const isGuestSession = () => !isLoggedIn()
-  const canUseAdminAgent = () => isLoggedIn() && userStore.isAdmin === true
   const ensureUserRoleLoaded = async () => {
     if (isLoggedIn() && !userStore.userInfo) {
       await userStore.fetchUserInfo()
@@ -198,7 +171,11 @@ export const useChatStore = defineStore('chat', () => {
         const data = JSON.parse(stored)
         messages.value = data.messages?.map((msg: Record<string, unknown>) => ({
           ...msg,
-          timestamp: new Date(msg.timestamp as string)
+          timestamp: new Date(msg.timestamp as string),
+          // 清除流式/思考状态：流式中刷新保存的消息可能带 isStreaming=true，
+          // 若不清，下次新流式的 updateStreamingMessage 会按 isStreaming 找到这条历史消息并覆盖内容
+          isStreaming: false,
+          isThinking: false
         })) || []
 
         // 确保按时间戳升序排列（保护措施，防止顺序错乱）
@@ -320,9 +297,6 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // Agent 事件辅助函数（拆分到 composables/chatAgent.ts）
-  const { attachAgentPlan, attachAgentStart, upsertToolEvent, attachConfirmation } = useChatAgent(messages)
-
   /**
    * 完成流式消息
    */
@@ -331,7 +305,6 @@ export const useChatStore = defineStore('chat', () => {
     if (streamingMsg) {
       streamingMsg.isStreaming = false
       streamingMsg.isThinking = false
-      streamingMsg.showAgentTrace = false
       // Clear rendered cache since streaming is complete
       streamingMsg.renderedContent = undefined
     }
@@ -424,7 +397,6 @@ export const useChatStore = defineStore('chat', () => {
 
     // 创建空的AI消息用于流式更新
     const aiMessage = addAiMessage('', undefined, { isStreaming: true, isThinking: true })
-    aiMessage.showAgentTrace = false
 
     try {
       await AiStream.streamChat(
@@ -437,13 +409,12 @@ export const useChatStore = defineStore('chat', () => {
           updateStreamingMessage(chunk)
         },
         // onEvent - SSE 事件分发
-        // 处理的事件类型：agent-start, article-results, agent-plan, tool-start,
-        //   tool-result, confirmation-required, avatar-cue, audio, audio-skip
+        // 处理的事件类型：start, article-results, avatar-cue, audio, audio-skip, audio-complete
         (eventType: string, payload: any) => {
-          // agent-start: 仅管理员可见，展示任务启动信息
-          if (eventType === 'agent-start') {
-            if (canUseAdminAgent()) {
-              attachAgentStart(aiMessage.id, payload)
+          // start: 首事件携带 conversationId，立即更新 store（避免后续请求用旧 id 或 null）
+          if (eventType === 'start') {
+            if (payload?.conversationId && !conversationId.value) {
+              conversationId.value = payload.conversationId
             }
             return
           }
@@ -452,31 +423,6 @@ export const useChatStore = defineStore('chat', () => {
             aiMessage.articleResultReason = payload.reason || '我找到这些文章，可以直接点开阅读。'
             aiMessage.isThinking = false
             aiMessage.renderedContent = undefined
-            return
-          }
-          if (eventType === 'agent-plan') {
-            if (canUseAdminAgent() && aiMessage.showAgentTrace) {
-              attachAgentPlan(aiMessage.id, payload?.steps || [])
-              aiMessage.isThinking = false
-            }
-            return
-          }
-          if (eventType === 'tool-start') {
-            if (canUseAdminAgent() && aiMessage.showAgentTrace) {
-              upsertToolEvent(aiMessage.id, payload, 'running')
-            }
-            return
-          }
-          if (eventType === 'tool-result') {
-            if (canUseAdminAgent() && aiMessage.showAgentTrace) {
-              upsertToolEvent(aiMessage.id, payload, payload?.success === false ? 'failed' : 'success')
-            }
-            return
-          }
-          if (eventType === 'confirmation-required') {
-            if (canUseAdminAgent() && aiMessage.showAgentTrace) {
-              attachConfirmation(aiMessage.id, payload)
-            }
             return
           }
           // avatar-cue: 表情提示到达，说明 AI 已开始输出，结束"思考"状态
@@ -574,7 +520,6 @@ export const useChatStore = defineStore('chat', () => {
    */
   const sendNormalMessage = async (request: AiChatRequest) => {
     const pendingAiMessage = addAiMessage('', undefined, { isThinking: true })
-    pendingAiMessage.showAgentTrace = false
 
     try {
       const response = await Ai.chat(request)
@@ -588,16 +533,6 @@ export const useChatStore = defineStore('chat', () => {
         pendingAiMessage.articleResultReason = response.articleResults.reason || '我找到这些文章，可以直接点开阅读。'
         pendingAiMessage.renderedContent = undefined
       }
-      if (canUseAdminAgent() && response.plan?.length) {
-        pendingAiMessage.agentPlanSteps = response.plan
-      }
-      if (canUseAdminAgent() && response.intent) {
-        pendingAiMessage.agentIntent = response.intent
-      }
-      if (canUseAdminAgent() && response.role) {
-        pendingAiMessage.agentRole = response.role
-      }
-
       // 更新会话ID
       if (!isGuestSession() && response.conversationId && !conversationId.value) {
         conversationId.value = response.conversationId

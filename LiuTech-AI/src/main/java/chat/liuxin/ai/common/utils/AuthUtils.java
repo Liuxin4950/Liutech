@@ -17,9 +17,10 @@ import org.springframework.stereotype.Component;
 public class AuthUtils {
 
     /**
-     * 获取当前已认证用户的 ID。
+     * 读取当前请求线程绑定的用户 ID。
      *
-     * @return 用户 ID，未认证或匿名时返回 null
+     * JwtAuthenticationFilter 会在鉴权时把 userId 放到 Authentication.details,
+     * 这里做类型安全的拆箱,未认证或 details 不是 Long 时返回 null。
      */
     public Long getCurrentUserId() {
         Authentication auth = getAuthentication();
@@ -31,10 +32,9 @@ public class AuthUtils {
     }
 
     /**
-     * 获取当前已认证用户的 ID（字符串形式）。
-     * 用于需要 String 类型 userId 的场景（如 MemoryService）。
+     * 与 {@link #getCurrentUserId} 相同,但返回字符串形式。
      *
-     * @return 用户 ID 字符串，未认证时返回 null
+     * 记忆库 MemoryService 等第三方组件要求 userId 为 String,专门提供该便捷方法避免各处重复 toString。
      */
     public String getCurrentUserIdStr() {
         Long id = getCurrentUserId();
@@ -42,9 +42,9 @@ public class AuthUtils {
     }
 
     /**
-     * 获取当前已认证用户的用户名。
+     * 读取当前用户的用户名(Authentication.principal)。
      *
-     * @return 用户名，未认证或匿名时返回 null
+     * 匿名访问 (anonymousUser) 或 principal 类型异常时返回 null。
      */
     public String getCurrentUsername() {
         Authentication auth = getAuthentication();
@@ -56,7 +56,7 @@ public class AuthUtils {
     }
 
     /**
-     * 判断当前用户是否具有 ADMIN 角色。
+     * 判断当前用户是否具备 ROLE_ADMIN,用于管理端接口的细粒度权限拦截。
      */
     public boolean isAdmin() {
         Authentication auth = getAuthentication();
@@ -69,9 +69,8 @@ public class AuthUtils {
     }
 
     /**
-     * 解析当前用户角色标识。
-     *
-     * @return "admin" / "user" / "guest"
+     * 把 Spring Security 的权限集合折叠为业务侧使用的三态字符串:
+     * "admin" / "user" / "guest",便于在提示词、日志中直接引用。
      */
     public String resolveRole() {
         Authentication auth = getAuthentication();
