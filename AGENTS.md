@@ -6,18 +6,9 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 本项目是全栈博客平台（LiuTech），文档和注释主要使用中文编写。前后端分离 + Spring Boot 微服务，部署在 Docker Compose 上。
 
-## Codex 流程文件
+## 工作约定
 
-Codex 流程规则由 `.claude/` 目录承载（与 Claude Code 共用），按变更级别判断走哪个 skill：
-
-```text
-.claude/project-adapter.md                    # 项目适配器：模块、目录、验证命令、高风险定义
-.claude/rules/ai-development-workflow.md      # 入口规则，定义变更分级
-.claude/skills/prd-workflow                   # 业务需求共创 → 实现方案 → 合并 PRD
-.claude/skills/delivery-workflow              # 编码交付 + 验证 + 写记录
-```
-
-进入任一 skill 前先读 `.claude/project-adapter.md`。
+工作流靠判断力 + `.claude/rules/style.md` 沟通风格，不设强制流程文档。详细约定、命令、跨服务约束、高风险提醒见 `CLAUDE.md`。
 
 ## 关键约束
 
@@ -30,9 +21,9 @@ Codex 流程规则由 `.claude/` 目录承载（与 Claude Code 共用），按�
 
 ## 其它资源
 
-- `CLAUDE.md` — 项目结构、命令、跨服务约束（Claude Code 视角，但内容与本文件互参）
+- `CLAUDE.md` — 项目结构、命令、跨服务约束、工作约定
 - `README.md` — 产品向介绍
 - `LiuTech/API文档.md` — API 参考
-- `doc/PRD/` — 合并的 PRD 文档
-- `doc/记录/` — 开发记录与架构文档
+- `doc/PRD/` — 历史 PRD 归档
+- `doc/记录/` — 当前架构与历史归档（`archive/`）
 - `doc/记录/当前架构.md` — 当前生效的总体架构

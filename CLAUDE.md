@@ -25,7 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🛠️ 常用命令
 
-按影响范围选择，不要机械全跑。完整验证集见 `.claude/project-adapter.md`。
+按影响范围选择，不要机械全跑。
 
 ```bash
 # 后端单服务
@@ -59,48 +59,20 @@ docker exec -it liutech-mysql mysql -u root -p
 - **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`。
 - **环境变量**从根目录 `.env` 注入；`.env.example` 是模板，生产替换为强密钥。
 
-## 🤖 AI 工作流契约
+## 🤖 工作约定
 
-本项目使用**轻量规则 + 专用 skill**，核心文件：
+工作流靠判断力 + [`.claude/rules/style.md`](.claude/rules/style.md) 沟通风格，不设强制流程文档。复杂功能先口头确认方案再动手，做完按规范提交。
 
-```text
-.claude/rules/deep-research.md              # 深度研究准则（核心行为）
-.claude/rules/ai-development-workflow.md    # 入口规则，定义变更分级
-.claude/rules/style.md                      # 沟通与代码风格
-.claude/project-adapter.md                  # 项目适配器：模块/目录/验证命令/高风险定义
-.claude/skills/prd-workflow                 # 业务需求共创 + 实现方案生成（合并 PRD）
-.claude/skills/delivery-workflow            # 编码交付 + 验证 + 架构更新
-.claude/skills/delivery-workflow/references/excellent-code-index.md  # 项目内优秀范式索引
+**高风险领域**（认证授权、积分支付、数据库结构、上传下载、AI/SSE/TTS、Nginx/Docker/部署、跨服务调用）改动要特别谨慎：先读相关代码和 [当前架构.md](doc/记录/当前架构.md)，确认影响范围再动手，不猜测。
+
+**Commit message 规范**（过程产物的「为什么」「怎么验证」由 commit 承担，不单独写开发记录文件）：
+
 ```
+<type>(<scope>): <subject>
 
-**触发任一 workflow skill 后，先读 `.claude/project-adapter.md`。**
-
-- 日常交流、概念解释、头脑风暴 → **不**主动加载 PRD/架构/规则。
-- 用户说"生成/审查 PRD / 先设计方案 / 实现前规划" → `prd-workflow`。
-- 用户说"帮我实现 / 开始开发 / 修复 bug / 重构 / 安全整改 / 性能优化 / 写开发记录 / 更新项目架构" → `delivery-workflow`。
-
-**变更分级（来自 `ai-development-workflow.md`）：**
-
-- **极小修**（仅文案/注释/格式，无行为变化）：可不写开发记录，但回复需说明"无行为影响"。
-- **小修 / Bug 修复**：可跳过 PRD，但必须写开发记录。
-- **普通功能**（满足下方豁免条件时）：可直接进入 `delivery-workflow`，只写开发记录。
-- **普通功能**（不满足豁免条件时）：PRD（业务需求 + 实现方案）→ 开发 → 验证 → 写记录。
-- **重大 / 高风险**：完整走完 PRD → 开发 → 验证 → 写记录 → 更新 `doc/记录/`。高风险领域包括：认证授权、积分/支付/下载权限、数据库结构、上传下载、AI/SSE/TTS、Nginx、Docker、CI/CD、跨服务调用。**无论大小一律按重大处理。**
-
-**普通功能豁免 PRD 的条件**（全部满足才可豁免）：改动 < 约 200 行；不跨服务；不触及高风险领域；不引入/修改接口协议；不新增库表或迁移脚本。
-
-**过程文件命名**：同一功能在 4 类目录下用**完全一致**的 `功能名_YYYY-MM-DD.md`。
-
-## 📁 文档目录
-
-```text
-doc/PRD/功能名_YYYY-MM-DD.md          # 业务需求 + 实现方案合并文档
-doc/记录/开发-功能名_YYYY-MM-DD.md    # 实际改了什么、为什么、怎么验证
-doc/记录/架构-功能名_YYYY-MM-DD.md    # 单次架构变化
-doc/记录/当前架构.md                   # 长期有效的总体架构，定期汇总
+为什么: <动机或根因>
+验证: <命令或方式>
 ```
-
-写 PRD / 开发记录前先读对应 skill 下的模板（`requirement-prd-template.md`、`implementation-prd-template.md`、`development-record-template.md`）。
 
 ## 🔗 重要资源指针
 
@@ -108,5 +80,3 @@ doc/记录/当前架构.md                   # 长期有效的总体架构，定
 - `LiuTech/API文档.md` — 后端 API 完整参考
 - `快速部署指南.md` — 生产环境部署步骤
 - `doc/记录/当前架构.md` — 当前生效的总体架构
-- `.claude/project-adapter.md` — 验证命令、高风险定义、模块表
-- `.claude/skills/delivery-workflow/references/excellent-code-index.md` — 优秀代码范式索引

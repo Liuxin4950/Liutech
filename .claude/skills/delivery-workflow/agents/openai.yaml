@@ -1,4 +1,0 @@
-interface:
-  display_name: "交付工作流"
-  short_description: "按已确认 PRD 开发、验证并沉淀记录"
-  default_prompt: "使用交付工作流。先读取项目适配文件并判断变更级别；普通功能读取已确认 PRD，小修可直接定位问题；开发后写开发记录，并在有架构影响时更新项目架构。"
