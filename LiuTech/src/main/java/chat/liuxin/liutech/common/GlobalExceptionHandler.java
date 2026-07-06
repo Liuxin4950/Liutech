@@ -5,6 +5,8 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.*;
@@ -239,6 +241,24 @@ public class GlobalExceptionHandler {
         Result<Void> result = Result.fail(ErrorCode.DATABASE_ERROR);
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+    }
+
+    // ========== 权限异常处理 ==========
+
+    /**
+     * 处理 Spring Security 授权拒绝异常。
+     *
+     * 来源:@PreAuthorize 校验失败时抛出 AuthorizationDeniedException;
+     * 老 API 或某些 filter 场景抛 AccessDeniedException。
+     *
+     * 之前这类异常会掉到最后的 Exception 兜底,返 500 + "系统异常,请联系管理员",
+     * 让前端以为是服务端 bug。这里明确映射为 403,给出正确提示。
+     */
+    @ExceptionHandler({AuthorizationDeniedException.class, AccessDeniedException.class})
+    public ResponseEntity<Result<Void>> handleAuthorizationDeniedException(Exception e) {
+        log.warn("权限不足: {}", e.getMessage());
+        Result<Void> result = Result.fail(ErrorCode.FORBIDDEN, "权限不足，拒绝访问");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(result);
     }
 
     // ========== 兜底异常处理 ==========

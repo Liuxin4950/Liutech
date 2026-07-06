@@ -13,12 +13,7 @@ import type {
   WritingDraftPayload,
   FieldUpdatePayload,
 } from '../types/agent'
-
-const normalizeAiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_AI_BASE_URL as string | undefined
-  const raw = envUrl && envUrl.trim().length > 0 ? envUrl.trim() : 'http://127.0.0.1:8081'
-  return raw.endsWith('/ai') ? raw : `${raw.replace(/\/$/, '')}/ai`
-}
+import { getAiBaseUrl } from './aiClient'
 
 const getToken = () => localStorage.getItem('token')
 
@@ -62,7 +57,7 @@ function isSseEnvelope(value: unknown): value is SseEnvelope {
 export class AgentService {
   static async stream(request: AgentChatRequest, handlers: AgentStreamHandlers) {
     const token = getToken()
-    const response = await fetch(`${normalizeAiBaseUrl()}/writing/stream`, {
+    const response = await fetch(`${getAiBaseUrl()}/writing/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
