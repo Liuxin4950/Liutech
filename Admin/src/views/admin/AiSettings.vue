@@ -128,29 +128,54 @@ const refresh = async () => {
   if (loading.value) return
   loading.value = true
   try {
-    const [runtimeData, ttsConfig, ttsRuntimeStatus, models] = await Promise.all([
+    // 用 allSettled:单个 API 失败(如 AI 服务离线时 getModelList 500)不阻塞其他,
+    // 每项失败单独提示,不覆盖 form 里已有的值 —— 避免"整个表单被回滚到初始值,用户以为开关不生效"
+    const [runtimeResult, ttsConfigResult, ttsStatusResult, modelsResult] = await Promise.allSettled([
       getAiRuntime(),
       getTtsConfig(),
       getTtsStatus(),
       aiModelsService.getModelList()
     ])
 
-    runtime.value = runtimeData
-    ttsStatus.value = ttsRuntimeStatus
-    modelOptions.value = models
+    if (runtimeResult.status === 'fulfilled') {
+      runtime.value = runtimeResult.value
+    } else {
+      console.warn('加载 AI 运行时状态失败', runtimeResult.reason)
+    }
 
-    const currentDefaultModel = models.find(item => item.isDefault) || null
-    form.value = {
-      enabled: ttsConfig.enabled,
-      baseUrl: ttsConfig.baseUrl || '',
-      voiceModel: ttsConfig.voiceModel || '',
-      provider: ttsConfig.provider || 'GPT_SOVITS',
-      siliconFlowModel: ttsConfig.siliconFlowModel || 'FunAudioLLM/CosyVoice2-0.5B',
-      siliconFlowVoiceUri: ttsConfig.siliconFlowVoiceUri || '',
-      responseFormat: ttsConfig.responseFormat || 'mp3',
-      sampleRate: ttsConfig.sampleRate || 44100,
-      speed: ttsConfig.speed || 1,
-      defaultModelId: currentDefaultModel?.id || null
+    if (ttsStatusResult.status === 'fulfilled') {
+      ttsStatus.value = ttsStatusResult.value
+    } else {
+      console.warn('加载 TTS 状态失败', ttsStatusResult.reason)
+    }
+
+    if (modelsResult.status === 'fulfilled') {
+      modelOptions.value = modelsResult.value
+    } else {
+      console.warn('加载模型列表失败(AI 服务可能未启动)', modelsResult.reason)
+      message.warning('模型列表加载失败,请确认 AI 服务已启动')
+    }
+
+    if (ttsConfigResult.status === 'fulfilled') {
+      const ttsConfig = ttsConfigResult.value
+      const currentDefaultModel = modelsResult.status === 'fulfilled'
+        ? modelsResult.value.find(item => item.isDefault) || null
+        : null
+      form.value = {
+        enabled: ttsConfig.enabled,
+        baseUrl: ttsConfig.baseUrl || '',
+        voiceModel: ttsConfig.voiceModel || '',
+        provider: ttsConfig.provider || 'GPT_SOVITS',
+        siliconFlowModel: ttsConfig.siliconFlowModel || 'FunAudioLLM/CosyVoice2-0.5B',
+        siliconFlowVoiceUri: ttsConfig.siliconFlowVoiceUri || '',
+        responseFormat: ttsConfig.responseFormat || 'mp3',
+        sampleRate: ttsConfig.sampleRate || 44100,
+        speed: ttsConfig.speed || 1,
+        defaultModelId: currentDefaultModel?.id || null
+      }
+    } else {
+      console.error('加载 TTS 配置失败', ttsConfigResult.reason)
+      message.error('TTS 配置加载失败,页面表单可能不同步')
     }
 
     await Promise.all([refreshVoices(), refreshSiliconFlowVoices()])
@@ -264,10 +289,10 @@ onMounted(() => {
             <div class="stat-icon bg-blue">
               <ApiOutlined />
             </div>
-            <div>
+            <div class="stat-text">
               <div class="stat-label">AI 服务</div>
-              <div class="stat-value">{{ runtime?.aiOnline ? '在线' : '离线' }}</div>
-              <div class="stat-sub">{{ runtime?.aiMessage || '未检测' }}</div>
+              <div class="stat-value" :title="runtime?.aiOnline ? '在线' : '离线'">{{ runtime?.aiOnline ? '在线' : '离线' }}</div>
+              <div class="stat-sub" :title="runtime?.aiMessage || '未检测'">{{ runtime?.aiMessage || '未检测' }}</div>
             </div>
           </div>
         </a-card>
@@ -278,10 +303,10 @@ onMounted(() => {
             <div class="stat-icon bg-green">
               <RobotOutlined />
             </div>
-            <div>
+            <div class="stat-text">
               <div class="stat-label">默认模型</div>
-              <div class="stat-value compact">{{ runtime?.defaultModel || '未设置' }}</div>
-              <div class="stat-sub">已启用 {{ enabledModelCount }} 个模型</div>
+              <div class="stat-value compact" :title="runtime?.defaultModel || '未设置'">{{ runtime?.defaultModel || '未设置' }}</div>
+              <div class="stat-sub" :title="`已启用 ${enabledModelCount} 个模型`">已启用 {{ enabledModelCount }} 个模型</div>
             </div>
           </div>
         </a-card>
@@ -292,10 +317,10 @@ onMounted(() => {
             <div class="stat-icon bg-orange">
               <SoundOutlined />
             </div>
-            <div>
+            <div class="stat-text">
               <div class="stat-label">TTS 状态</div>
-              <div class="stat-value">{{ ttsStatus?.online ? '在线' : '离线' }}</div>
-              <div class="stat-sub">{{ currentStatusText }}</div>
+              <div class="stat-value" :title="ttsStatus?.online ? '在线' : '离线'">{{ ttsStatus?.online ? '在线' : '离线' }}</div>
+              <div class="stat-sub" :title="currentStatusText">{{ currentStatusText }}</div>
             </div>
           </div>
         </a-card>
@@ -306,10 +331,10 @@ onMounted(() => {
             <div class="stat-icon bg-purple">
               <CheckCircleOutlined />
             </div>
-            <div>
+            <div class="stat-text">
               <div class="stat-label">当前语音</div>
-              <div class="stat-value compact">{{ currentVoiceText }}</div>
-              <div class="stat-sub">{{ currentVoiceSub }}</div>
+              <div class="stat-value compact" :title="currentVoiceText">{{ currentVoiceText }}</div>
+              <div class="stat-sub" :title="currentVoiceSub">{{ currentVoiceSub }}</div>
             </div>
           </div>
         </a-card>
@@ -523,59 +548,81 @@ onMounted(() => {
 <style scoped>
 .stat-card,
 .settings-card {
-  border-radius: 12px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  border-radius: var(--lt-radius-lg);
+  box-shadow: var(--lt-shadow-xs);
+}
+
+.stat-card {
+  height: 100%;
+}
+.stat-card :deep(.ant-card-body) {
+  height: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .stat-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--lt-space-md);
+  min-width: 0;
 }
 
 .stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: var(--lt-size-stat-icon);
+  height: var(--lt-size-stat-icon);
+  border-radius: var(--lt-radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: var(--lt-font-size-xl);
+  flex-shrink: 0;
 }
 
-.bg-blue { background: var(--color-info-bg, #eff6ff); color: var(--color-info, #2563eb); }
-.bg-green { background: var(--color-success-bg, #f0fdf4); color: var(--color-success, #16a34a); }
-.bg-orange { background: var(--color-warning-bg, #fff7ed); color: var(--color-warning, #ea580c); }
-.bg-purple { background: var(--color-primary-bg, #faf5ff); color: var(--color-primary, #9333ea); }
+.stat-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.bg-blue { background: var(--lt-color-info-bg); color: var(--lt-color-info); }
+.bg-green { background: var(--lt-color-success-bg); color: var(--lt-color-success); }
+.bg-orange { background: var(--lt-color-warning-bg); color: var(--lt-color-warning); }
+.bg-purple { background: var(--lt-color-purple-bg); color: var(--lt-color-purple); }
 
 .stat-label {
-  color: var(--text-secondary);
-  font-size: 13px;
-  margin-bottom: 4px;
+  color: var(--lt-color-text-secondary);
+  font-size: var(--lt-font-size-sm);
+  margin-bottom: var(--lt-space-xs);
 }
 
 .stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-main);
-  line-height: 1.2;
+  font-size: var(--lt-font-size-xl);
+  font-weight: var(--lt-font-weight-bold);
+  color: var(--lt-color-text);
+  line-height: var(--lt-line-height-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-value.compact {
-  font-size: 14px;
+  font-size: var(--lt-font-size-base);
 }
 
 .stat-sub {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  margin-top: 4px;
+  color: var(--lt-color-text-tertiary);
+  font-size: var(--lt-font-size-xs);
+  margin-top: var(--lt-space-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .section-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
+  font-size: var(--lt-font-size-base);
+  font-weight: var(--lt-font-weight-bold);
+  color: var(--lt-color-text-secondary);
+  margin-bottom: var(--lt-space-md);
 }
 
 .full-width {
@@ -587,8 +634,8 @@ onMounted(() => {
 }
 
 .upload-file-name {
-  color: var(--text-secondary);
-  font-size: 13px;
+  color: var(--lt-color-text-secondary);
+  font-size: var(--lt-font-size-sm);
 }
 </style>
 

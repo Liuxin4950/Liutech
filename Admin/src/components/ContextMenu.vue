@@ -161,12 +161,12 @@ onUnmounted(() => {
 <style scoped>
 .context-menu {
   position: fixed;
-  z-index: 9999;
-  background: var(--bg-card);
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  box-shadow: var(--shadow-lg);
-  padding: 4px 0;
+  z-index: var(--lt-z-dropdown);
+  background: var(--lt-color-bg-elevated);
+  border: 1px solid var(--lt-color-border-secondary);
+  border-radius: var(--lt-radius-lg);
+  box-shadow: var(--lt-shadow-md);
+  padding: var(--lt-space-xs) 0;
   min-width: 140px;
   user-select: none;
 }
@@ -180,38 +180,37 @@ onUnmounted(() => {
 .context-menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: var(--lt-space-sm);
+  padding: var(--lt-space-sm) var(--lt-space-lg);
   cursor: pointer;
-  transition: all 0.15s ease;
-  color: var(--text-main);
-  font-size: 14px;
+  transition: var(--lt-motion-hover);
+  color: var(--lt-color-text);
+  font-size: var(--lt-font-size-base);
 }
 
 .context-menu-item:hover {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
+  background: var(--lt-color-primary-bg);
+  color: var(--lt-color-primary);
 }
 
 .context-menu-item.disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
 .context-menu-item.disabled:hover {
   background: transparent;
-  color: var(--text-main);
+  color: var(--lt-color-text);
 }
 
 .context-menu-item.danger:hover {
-  background: var(--color-error-bg);
-  color: var(--color-error);
+  background: var(--lt-color-error-bg);
+  color: var(--lt-color-error);
 }
 
-/* 动画效果 */
 .context-menu-enter-active,
 .context-menu-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity var(--lt-duration-fast) var(--lt-ease-in-out),
+              transform var(--lt-duration-fast) var(--lt-ease-in-out);
 }
 
 .context-menu-enter-from,

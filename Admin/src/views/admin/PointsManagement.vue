@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useTablePage, useModalForm } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
 import PointsService from '../../services/points'
 import { UserService } from '../../services/user'
 import type { TransactionListParams, CheckinListParams, PointsStats } from '../../services/points'
@@ -62,6 +64,9 @@ const txColumns = [
   { title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 }
 ]
 
+const txColumnPrefsCtrl = useTableColumnPrefs('points-transactions', txColumns, { alwaysVisible: ["action"] })
+const txPrefColumns = txColumnPrefsCtrl.prefColumns
+
 const {
   loading: txLoading, dataSource: txDataSource, searchParams: txSearchParams,
   pagination: txPagination, load: loadTransactions, handleSearch: handleTxSearch,
@@ -82,6 +87,9 @@ const checkinColumns = [
   { title: '连续签到天数', dataIndex: 'consecutiveDays', key: 'consecutiveDays', width: 120 },
   { title: '签到时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 }
 ]
+
+const checkinColumnPrefsCtrl = useTableColumnPrefs('points-checkins', checkinColumns, { alwaysVisible: ["action"] })
+const checkinPrefColumns = checkinColumnPrefsCtrl.prefColumns
 
 const {
   loading: checkinLoading, dataSource: checkinDataSource, searchParams: checkinSearchParams,
@@ -204,35 +212,35 @@ onMounted(() => {
 
 <template>
   <div class="p-24">
-    <!-- 统计卡片 -->
-    <a-row :gutter="16" class="mb-16">
-      <a-col :span="8">
-        <a-card :bordered="false" :loading="statsLoading">
+    <!-- 统计卡片：响应式栅格，窄屏堆叠 -->
+    <a-row :gutter="[12, 12]" class="mb-16">
+      <a-col :xs="24" :sm="24" :md="8">
+        <a-card :bordered="false" :loading="statsLoading" class="stat-card">
           <a-statistic
             title="总发放积分"
             :value="stats.totalIssued"
             :precision="2"
-            :value-style="{ color: 'var(--color-success)' }"
+            :value-style="{ color: 'var(--lt-color-success)' }"
           />
         </a-card>
       </a-col>
-      <a-col :span="8">
-        <a-card :bordered="false" :loading="statsLoading">
+      <a-col :xs="24" :sm="24" :md="8">
+        <a-card :bordered="false" :loading="statsLoading" class="stat-card">
           <a-statistic
             title="总消耗积分"
             :value="stats.totalConsumed"
             :precision="2"
-            :value-style="{ color: 'var(--color-error)' }"
+            :value-style="{ color: 'var(--lt-color-error)' }"
           />
         </a-card>
       </a-col>
-      <a-col :span="8">
-        <a-card :bordered="false" :loading="statsLoading">
+      <a-col :xs="24" :sm="24" :md="8">
+        <a-card :bordered="false" :loading="statsLoading" class="stat-card">
           <a-statistic
             title="总用户积分余额"
             :value="stats.totalBalance"
             :precision="2"
-            :value-style="{ color: 'var(--color-info)' }"
+            :value-style="{ color: 'var(--lt-color-primary)' }"
           />
         </a-card>
       </a-col>
@@ -244,8 +252,8 @@ onMounted(() => {
         <!-- 积分流水 Tab -->
         <a-tab-pane key="transactions" tab="积分流水">
           <a-form layout="horizontal" :model="txSearchParams" class="mb-16">
-            <a-row :gutter="24">
-              <a-col :span="4">
+            <a-row :gutter="[16, 12]" align="bottom">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
                 <a-form-item label="用户" class="mb-0">
                   <a-select
                     v-model:value="txSearchParams.userId"
@@ -260,7 +268,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :span="4">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
                 <a-form-item label="交易类型" class="mb-0">
                   <a-select
                     v-model:value="txSearchParams.transactionType"
@@ -277,7 +285,7 @@ onMounted(() => {
                   </a-select>
                 </a-form-item>
               </a-col>
-              <a-col :span="6">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
                 <a-form-item label="开始时间" class="mb-0">
                   <a-date-picker
                     v-model:value="txSearchParams.startTime"
@@ -289,7 +297,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :span="6">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
                 <a-form-item label="结束时间" class="mb-0">
                   <a-date-picker
                     v-model:value="txSearchParams.endTime"
@@ -301,7 +309,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :span="4" class="text-right mt-16">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
                 <a-space>
                   <a-button type="primary" @click="handleTxSearch">搜索</a-button>
                   <a-button @click="handleTxReset">重置</a-button>
@@ -311,11 +319,14 @@ onMounted(() => {
           </a-form>
 
           <div class="mb-16">
-            <a-button type="primary" @click="openAdjustModal">手动调整积分</a-button>
+            <a-space>
+              <TableColumnSettings :ctrl="txColumnPrefsCtrl" />
+              <a-button type="primary" @click="openAdjustModal">手动调整积分</a-button>
+            </a-space>
           </div>
 
           <a-table
-            :columns="txColumns"
+            :columns="txPrefColumns"
             :data-source="txDataSource"
             :loading="txLoading"
             :pagination="txPagination"
@@ -332,7 +343,7 @@ onMounted(() => {
                 {{ sourceTypeMap[record.sourceType] || record.sourceType || '-' }}
               </template>
               <template v-else-if="column.key === 'amount'">
-                <span :style="{ color: record.amount >= 0 ? 'var(--color-success)' : 'var(--color-error)', fontWeight: 600 }">
+                <span :style="{ color: record.amount >= 0 ? 'var(--color-success)' : 'var(--color-error)', fontWeight: 'var(--lt-font-weight-semibold)' }">
                   {{ record.amount >= 0 ? '+' : '' }}{{ record.amount }}
                 </span>
               </template>
@@ -346,8 +357,8 @@ onMounted(() => {
         <!-- 签到记录 Tab -->
         <a-tab-pane key="checkins" tab="签到记录">
           <a-form layout="horizontal" :model="checkinSearchParams" class="mb-16">
-            <a-row :gutter="24">
-              <a-col :span="4">
+            <a-row :gutter="[16, 12]" align="bottom">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
                 <a-form-item label="用户" class="mb-0">
                   <a-select
                     v-model:value="checkinSearchParams.userId"
@@ -362,7 +373,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :span="6">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
                 <a-form-item label="开始日期" class="mb-0">
                   <a-date-picker
                     v-model:value="checkinSearchParams.startDate"
@@ -373,7 +384,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :span="6">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
                 <a-form-item label="结束日期" class="mb-0">
                   <a-date-picker
                     v-model:value="checkinSearchParams.endDate"
@@ -384,7 +395,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :span="8" class="text-right mt-16">
+              <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
                 <a-space>
                   <a-button type="primary" @click="handleCheckinSearch">搜索</a-button>
                   <a-button @click="handleCheckinReset">重置</a-button>
@@ -393,8 +404,14 @@ onMounted(() => {
             </a-row>
           </a-form>
 
+          <div class="mb-16">
+            <a-space>
+              <TableColumnSettings :ctrl="checkinColumnPrefsCtrl" />
+            </a-space>
+          </div>
+
           <a-table
-            :columns="checkinColumns"
+            :columns="checkinPrefColumns"
             :data-source="checkinDataSource"
             :loading="checkinLoading"
             :pagination="checkinPagination"
@@ -403,7 +420,7 @@ onMounted(() => {
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'pointsEarned'">
-                <span style="color: var(--color-success); font-weight: 600">+{{ record.pointsEarned }}</span>
+                <span style="color: var(--color-success); font-weight: var(--lt-font-weight-semibold)">+{{ record.pointsEarned }}</span>
               </template>
               <template v-else-if="column.key === 'consecutiveDays'">
                 <a-tag :color="record.consecutiveDays >= 7 ? 'gold' : record.consecutiveDays >= 3 ? 'blue' : 'default'">
@@ -464,13 +481,42 @@ onMounted(() => {
 
 <style scoped>
 .mt-16 {
-  margin-top: 16px;
+  margin-top: var(--lt-space-md);
 }
 
 .form-tip {
-  font-size: 12px;
-  color: var(--text-tertiary, #999);
-  margin-top: 4px;
+  font-size: var(--lt-font-size-xs);
+  color: var(--lt-color-text-tertiary);
+  margin-top: var(--lt-space-xs);
+}
+
+/* 统计卡：与 Home 页 KPI 卡片风格一致 */
+.stat-card {
+  transition: box-shadow var(--lt-duration-base) var(--lt-ease-in-out),
+              transform var(--lt-duration-base) var(--lt-ease-in-out);
+}
+.stat-card:hover {
+  box-shadow: var(--lt-shadow-md);
+  transform: translateY(-1px);
+}
+.stat-card :deep(.ant-statistic-title) {
+  color: var(--lt-color-text-tertiary);
+  font-size: var(--lt-font-size-sm);
+}
+.stat-card :deep(.ant-statistic-content) {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--lt-font-weight-semibold);
+}
+
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+@media (max-width: 991px) {
+  .search-actions {
+    justify-content: flex-start;
+  }
 }
 </style>
 

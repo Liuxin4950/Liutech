@@ -142,6 +142,18 @@ button {
   text-align: right;
 }
 
+/* 管理页搜索区按钮列：桌面端右对齐，窄屏（<992px）左对齐避免贴边 */
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+@media (max-width: 991px) {
+  .search-actions {
+    justify-content: flex-start;
+  }
+}
+
 .no-underline {
   text-decoration: none;
 }
@@ -240,27 +252,30 @@ button {
 
 /* 内边距 */
 .p-4 {
-  padding: 4px;
+  padding: var(--lt-space-xs);
 }
 
 .p-8 {
-  padding: 8px;
+  padding: var(--lt-space-sm);
 }
 
 .p-12 {
-  padding: 12px;
+  padding: var(--lt-space-md);
 }
 
 .p-16 {
-  padding: 16px;
+  padding: var(--lt-space-lg);
 }
 
 .p-20 {
-  padding: 20px;
+  padding: var(--lt-space-lg);
 }
 
 .p-24 {
-  padding: 24px;
+  /* 页面顶层容器不再叠加 padding：MainLayout 已提供 --lt-space-page-x/y。
+     保留 0 值仅为了兼容大量页面里 <div class="p-24">，
+     实际间距由 layout 层承担。 */
+  padding: 0;
 }
 
 .px-20 {
@@ -296,39 +311,39 @@ button {
 }
 
 .mb-4 {
-  margin-bottom: 4px;
+  margin-bottom: var(--lt-space-xs);
 }
 
 .mb-8 {
-  margin-bottom: 8px;
+  margin-bottom: var(--lt-space-sm);
 }
 
 .mb-12 {
-  margin-bottom: 12px;
+  margin-bottom: var(--lt-space-md);
 }
 
 .mb-16 {
-  margin-bottom: 16px;
+  margin-bottom: var(--lt-space-lg);
 }
 
 .mb-20 {
-  margin-bottom: 20px;
+  margin-bottom: var(--lt-space-lg);
 }
 
 .mt-4 {
-  margin-top: 4px;
+  margin-top: var(--lt-space-xs);
 }
 
 .mt-8 {
-  margin-top: 8px;
+  margin-top: var(--lt-space-sm);
 }
 
 .mt-12 {
-  margin-top: 12px;
+  margin-top: var(--lt-space-md);
 }
 
 .mt-24 {
-  margin-top: 24px;
+  margin-top: var(--lt-space-lg);
 }
 
 .mx-auto {

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { SearchOutlined, ReloadOutlined, FileTextOutlined, ClockCircleOutlined, GlobalOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
 import { useTablePage } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 import LogService, { type LogItem, type LogListParams } from '../../services/log'
 import { formatDateTime } from '../../utils/utils'
 
@@ -65,6 +69,15 @@ const columns = [
   { title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 140 },
   { title: '状态', dataIndex: 'status', key: 'status', width: 80 }
 ]
+
+const columnPrefsCtrl = useTableColumnPrefs('logs', columns)
+const prefColumns = columnPrefsCtrl.prefColumns
+
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'logs',
+})
 </script>
 
 <template>
@@ -72,13 +85,13 @@ const columns = [
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="24">
-          <a-col :span="5">
+        <a-row :gutter="[16, 12]" align="bottom">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="操作人" class="mb-0">
               <a-input v-model:value="searchParams.operator" placeholder="输入操作人" allow-clear />
             </a-form-item>
           </a-col>
-          <a-col :span="5">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="操作类型" class="mb-0">
               <a-select v-model:value="searchParams.action" placeholder="全部" allow-clear>
                 <a-select-option v-for="option in actionOptions" :key="option.value" :value="option.value">
@@ -87,17 +100,17 @@ const columns = [
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="5">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="开始" class="mb-0">
               <a-date-picker v-model:value="searchParams.startTime" value-format="YYYY-MM-DD" placeholder="开始时间" style="width: 100%" />
             </a-form-item>
           </a-col>
-          <a-col :span="5">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="结束" class="mb-0">
               <a-date-picker v-model:value="searchParams.endTime" value-format="YYYY-MM-DD" placeholder="结束时间" style="width: 100%" />
             </a-form-item>
           </a-col>
-          <a-col :span="4" class="text-right">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
             <a-space>
               <a-button type="primary" @click="handleSearch">
                 <template #icon><SearchOutlined /></template>
@@ -117,6 +130,8 @@ const columns = [
       </template>
       <template #extra>
         <a-space>
+          <TableExportButton :ctrl="exportCtrl" />
+          <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <span class="text-secondary text-sm mr-4">共 {{ pagination.total }} 条记录</span>
           <a-button type="primary" @click="load" :loading="loading">
             <template #icon><ReloadOutlined /></template>
@@ -125,7 +140,7 @@ const columns = [
         </a-space>
       </template>
       <a-table
-        :columns="columns"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
@@ -183,17 +198,17 @@ const columns = [
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--lt-font-size-sm);
 }
 
 .time-icon {
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: var(--lt-font-size-xs);
 }
 
 .target-text {
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: var(--lt-font-weight-medium);
 }
 
 .description-text {
@@ -210,19 +225,19 @@ const columns = [
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-family: 'SF Mono', 'Consolas', monospace;
-  font-size: 12px;
+  font-family: var(--lt-font-family-mono);
+  font-size: var(--lt-font-size-xs);
 }
 
 .ip-icon {
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: var(--lt-font-size-xs);
 }
 
 .status-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--lt-space-xs);
 }
 
 :deep(.ant-table) {
@@ -232,13 +247,13 @@ const columns = [
 :deep(.ant-table-thead > tr > th) {
   background: var(--bg-main);
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: var(--lt-font-weight-medium);
   border-bottom: 1px solid var(--border-light);
 }
 
 :deep(.ant-table-tbody > tr > td) {
   border-bottom: 1px solid var(--border-light);
-  padding: 14px 16px;
+  padding: 14px var(--lt-space-lg);
 }
 
 :deep(.ant-table-tbody > tr:hover > td) {
@@ -253,7 +268,18 @@ const columns = [
 
   :deep(.ant-form-inline .ant-form-item) {
     margin-right: 0;
-    margin-bottom: 12px;
+    margin-bottom: var(--lt-space-md);
+  }
+}
+
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+@media (max-width: 991px) {
+  .search-actions {
+    justify-content: flex-start;
   }
 }
 </style>

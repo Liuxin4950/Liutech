@@ -13,6 +13,10 @@ import ImagesService from '../../services/images'
 import type { Image, ImageListParams } from '../../services/images'
 import { formatDateTime } from '../../utils/utils'
 import { useTablePage, useCrudActions } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 
 // ============== 表格页面 ==============
 const {
@@ -175,6 +179,15 @@ const columns = [
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
   { title: '操作', key: 'action', width: 150, fixed: 'right' as const }
 ]
+
+const columnPrefsCtrl = useTableColumnPrefs('images', columns, { alwaysVisible: ["action"] })
+const prefColumns = columnPrefsCtrl.prefColumns
+
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'images',
+})
 </script>
 
 <template>
@@ -182,18 +195,18 @@ const columns = [
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="24">
-          <a-col :span="6">
+        <a-row :gutter="[16, 12]" align="bottom">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="文件名" class="mb-0">
               <a-input v-model:value="searchParams.fileName" placeholder="请输入文件名" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
-          <a-col :span="5">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="MIME类型" class="mb-0">
               <a-input v-model:value="searchParams.mimeType" placeholder="如 image/png" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
-          <a-col :span="13" class="text-right">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
             <a-space>
               <a-tooltip title="显示已删除">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
@@ -223,6 +236,8 @@ const columns = [
       </template>
       <template #extra>
         <a-space>
+          <TableExportButton :ctrl="exportCtrl" />
+          <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
             <template #icon><DeleteOutlined /></template>批量删除
           </a-button>
@@ -241,7 +256,7 @@ const columns = [
       </template>
 
       <a-table
-        :columns="columns"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
@@ -407,7 +422,7 @@ export default { name: 'ImagesManagement' }
 
 <style scoped>
 .mb-16 {
-  margin-bottom: 16px;
+  margin-bottom: var(--lt-space-md);
 }
 
 .file-name-cell {
@@ -419,7 +434,7 @@ export default { name: 'ImagesManagement' }
 .file-name-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--lt-space-2xs);
   min-width: 0;
 }
 
@@ -428,12 +443,12 @@ export default { name: 'ImagesManagement' }
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 180px;
-  font-size: 13px;
+  font-size: var(--lt-font-size-sm);
 }
 
 
 .image-thumbnail {
-  border-radius: 4px;
+  border-radius: var(--lt-radius-sm);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -454,8 +469,19 @@ export default { name: 'ImagesManagement' }
 }
 
 .orphan-actions {
-  margin-top: 16px;
+  margin-top: var(--lt-space-md);
   text-align: right;
+}
+
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+@media (max-width: 991px) {
+  .search-actions {
+    justify-content: flex-start;
+  }
 }
 </style>
 

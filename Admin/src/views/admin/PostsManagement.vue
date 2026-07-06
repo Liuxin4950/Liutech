@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined } from '@ant-design/icons-vue'
 import DOMPurify from 'dompurify'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import { useTableExport } from '@/composables/useTableExport'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import TableExportButton from '@/components/TableExportButton.vue'
 import PostsService from '../../services/posts'
 import CategoriesService from '../../services/categories'
 import TagsService from '../../services/tags'
@@ -43,7 +47,7 @@ const {
 // ============== 弹窗表单 ==============
 const {
   modalVisible, modalTitle, isEdit, editingId, confirmLoading,
-  formRef, formModel, handleOk, handleCancel
+  formRef, formModel, draftSavedAt, handleOk, handleCancel
 } = useModalForm<Post>({
   createFn: (data) => PostsService.createPost(data as Post),
   updateFn: (id, data) => PostsService.updatePost(id, data as Post),
@@ -57,6 +61,11 @@ const {
     tagIds: [],
     status: 'draft'
   }),
+  // 草稿自动保存：新建/编辑时防抖 800ms 写 localStorage，防刷新丢失
+  draft: {
+    key: 'posts',
+    isDirty: (f) => !!(f.title || f.content || f.summary || f.coverImage),
+  },
   onCreateSuccess: () => { pagination.current = 1; load() },
   onUpdateSuccess: load,
   entityName: '文章'
@@ -75,6 +84,29 @@ const columns = [
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
   { title: '操作', key: 'action', width: 200, fixed: 'right' as const }
 ]
+
+// 列偏好：用户可自定义显示/顺序，持久化到 localStorage
+const columnPrefsCtrl = useTableColumnPrefs('posts', columns, { alwaysVisible: ['title', 'action'] })
+const prefColumns = columnPrefsCtrl.prefColumns
+
+// 导出：跟随列偏好，只导当前页
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'posts',
+})
+
+/** 格式化草稿保存时间：显示"X 秒/分钟前" */
+function formatDraftTime(ts: number): string {
+  const diff = Math.max(0, Date.now() - ts)
+  const s = Math.floor(diff / 1000)
+  if (s < 5) return '刚刚'
+  if (s < 60) return `${s} 秒前`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m} 分钟前`
+  const h = Math.floor(m / 60)
+  return `${h} 小时前`
+}
 
 const categoryOptions = ref<{ label: string; value: number }[]>([])
 const tagOptions = ref<{ label: string; value: number }[]>([])
@@ -466,30 +498,30 @@ onMounted(async () => {
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="24">
-          <a-col :span="6">
+        <a-row :gutter="[16, 12]" align="bottom">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="标题" name="title" class="mb-0">
-              <a-input v-model:value="searchParams.title" placeholder="请输入标题" allow-clear />
+              <a-input v-model:value="searchParams.title" placeholder="请输入标题" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
-          <a-col :span="6">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="分类" name="categoryId" class="mb-0">
               <a-select v-model:value="searchParams.categoryId" placeholder="请选择分类" allow-clear>
                 <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="状态" name="status" class="mb-0">
               <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
                 <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6" class="text-right">
+          <a-col :xs="24" :sm="12" :lg="24" :xl="6" class="search-actions">
             <a-space>
-               <a-tooltip title="显示已删除的文章">
-                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+              <a-tooltip title="显示已删除的文章">
+                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
               </a-tooltip>
               <a-button type="primary" @click="handleSearch">
                 <template #icon><SearchOutlined /></template>
@@ -499,7 +531,6 @@ onMounted(async () => {
                 <template #icon><ReloadOutlined /></template>
                 重置
               </a-button>
-             
             </a-space>
           </a-col>
         </a-row>
@@ -513,6 +544,8 @@ onMounted(async () => {
       </template>
       <template #extra>
          <a-space>
+            <TableExportButton :ctrl="exportCtrl" />
+            <TableColumnSettings :ctrl="columnPrefsCtrl" />
             <a-button type="primary" @click="openCreate">
               <template #icon><PlusOutlined /></template>
               新建文章
@@ -544,7 +577,7 @@ onMounted(async () => {
       </template>
 
       <a-table
-        :columns="columns"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
@@ -610,7 +643,15 @@ onMounted(async () => {
     </a-card>
 
     <!-- 新建/编辑 弹窗 -->
-    <a-modal v-model:open="modalVisible" :title="modalTitle" :width="1280" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
+    <a-modal v-model:open="modalVisible" :width="1280" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
+      <template #title>
+        <div class="modal-title-with-draft">
+          <span>{{ modalTitle }}</span>
+          <span v-if="draftSavedAt" class="draft-hint">
+            <CloudUploadOutlined /> 草稿已保存 {{ formatDraftTime(draftSavedAt) }}
+          </span>
+        </div>
+      </template>
       <div class="editor-agent-layout">
       <div class="editor-form-pane">
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
@@ -806,7 +847,7 @@ onMounted(async () => {
 /* 移除旧的样式，使用 utility classes */
 .editor-agent-layout {
   display: flex;
-  gap: 16px;
+  gap: var(--lt-space-lg);
   align-items: flex-start;
 }
 
@@ -823,7 +864,7 @@ onMounted(async () => {
   position: relative;
   display: inline-block;
   border: 1px solid var(--border-base);
-  border-radius: 6px;
+  border-radius: var(--lt-radius-md);
   overflow: hidden;
 }
 
@@ -836,18 +877,18 @@ onMounted(async () => {
 
 .image-actions {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 4px;
-  padding: 4px;
+  top: var(--lt-space-sm);
+  right: var(--lt-space-sm);
+  background: var(--lt-color-bg-mask);
+  border-radius: var(--lt-radius-sm);
+  padding: var(--lt-space-xs);
 }
 
 .image-actions .ant-btn {
-  color: white;
+  color: var(--lt-color-text-inverse);
   border: none;
   background: transparent;
-  padding: 4px 8px;
+  padding: var(--lt-space-xs) var(--lt-space-sm);
   height: auto;
 }
 
@@ -859,78 +900,105 @@ onMounted(async () => {
   width: 200px;
   height: 120px;
   border: 2px dashed var(--border-base);
-  border-radius: 6px;
+  border-radius: var(--lt-radius-md);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s;
-  color: var(--text-tertiary);
+  transition: all var(--lt-duration-slow, 0.3s);
+  color: var(--lt-color-text-tertiary);
 }
 
 .upload-placeholder:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: var(--lt-color-primary);
+  color: var(--lt-color-primary);
 }
 
 .upload-text {
-  margin-top: 8px;
-  font-size: 14px;
+  margin-top: var(--lt-space-sm);
+  font-size: var(--lt-font-size-base);
 }
 
 .field-wrapper {
-  transition: background-color 0.3s ease;
-  border-radius: 6px;
-  padding: 2px 4px;
-  margin: -2px -4px;
+  transition: background-color var(--lt-duration-slow, 0.3s) ease;
+  border-radius: var(--lt-radius-md);
+  padding: var(--lt-space-2xs) var(--lt-space-xs);
+  margin: calc(var(--lt-space-2xs) * -1) calc(var(--lt-space-xs) * -1);
 }
 
 .field-wrapper.field-highlight {
-  background-color: #e6f7ff;
+  background-color: var(--lt-color-primary-bg);
   animation: field-flash 1.5s ease-out;
 }
 
 @keyframes field-flash {
-  0% { background-color: #bae7ff; }
+  0% { background-color: var(--lt-color-primary-bg-hover); }
   100% { background-color: transparent; }
 }
 
 .undo-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--lt-space-sm);
   flex-wrap: wrap;
-  padding: 10px 16px;
-  background: #fffbe6;
-  border-top: 1px solid #ffe58f;
-  margin: 0 -24px -12px;
-  border-radius: 0 0 8px 8px;
+  padding: 10px var(--lt-space-lg);
+  background: var(--lt-color-warning-bg);
+  border-top: 1px solid var(--lt-color-warning-border);
+  margin: 0 calc(var(--lt-space-xl) * -1) calc(var(--lt-space-md) * -1);
+  border-radius: 0 0 var(--lt-radius-lg) var(--lt-radius-lg);
 }
 
 .undo-bar-label {
-  font-size: 13px;
-  color: #d46b08;
-  font-weight: 500;
+  font-size: var(--lt-font-size-sm);
+  color: var(--lt-color-warning);
+  font-weight: var(--lt-font-weight-medium);
   white-space: nowrap;
 }
 
 .ai-taxonomy-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--lt-space-sm);
   flex-wrap: wrap;
-  padding: 10px 16px;
-  background: #f6ffed;
-  border-top: 1px solid #b7eb8f;
-  margin: 0 -24px;
+  padding: 10px var(--lt-space-lg);
+  background: var(--lt-color-success-bg);
+  border-top: 1px solid var(--lt-color-success-border);
+  margin: 0 calc(var(--lt-space-xl) * -1);
 }
 
 .ai-taxonomy-label {
-  font-size: 13px;
-  color: #389e0d;
-  font-weight: 500;
+  font-size: var(--lt-font-size-sm);
+  color: var(--lt-color-success);
+  font-weight: var(--lt-font-weight-medium);
   white-space: nowrap;
+}
+
+/* 搜索区按钮组：右对齐，窄屏时自然换行 */
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+@media (max-width: 991px) {
+  .search-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* 弹窗标题栏内的草稿状态提示 */
+.modal-title-with-draft {
+  display: flex;
+  align-items: center;
+  gap: var(--lt-space-md);
+}
+.draft-hint {
+  font-size: var(--lt-font-size-xs);
+  color: var(--lt-color-success);
+  font-weight: var(--lt-font-weight-regular);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lt-space-xs);
 }
 </style>
 

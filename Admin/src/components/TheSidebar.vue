@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, ref, watch, type Ref } from 'vue'
+import { inject, ref, watch, computed, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   DashboardOutlined,
@@ -8,8 +8,6 @@ import {
   TagsOutlined,
   TeamOutlined,
   NotificationOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   HistoryOutlined,
   SettingOutlined,
   PictureOutlined,
@@ -24,86 +22,65 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons-vue'
 import logoUrl from '@/assets/image/logo/logo.png'
+import { useI18n } from '@/i18n'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 
 // 从父组件注入折叠状态
 const collapsed = inject<Ref<boolean>>('sidebarCollapsed')!
 
-// 菜单配置 - 支持二级折叠
-const menuItems = [
+// 菜单配置：label 用 i18n key，展示时由模板 t() 翻译
+const menuItems = computed(() => [
+  { key: 'dashboard', icon: DashboardOutlined, label: t('menu.dashboard'), path: '/' },
   {
-    key: 'dashboard',
-    icon: DashboardOutlined,
-    label: '仪表盘',
-    path: '/'
-  },
-  // 内容管理分组
-  {
-    key: 'content',
-    icon: FileTextOutlined,
-    label: '内容管理',
+    key: 'content', icon: FileTextOutlined, label: t('menu.content'),
     children: [
-      { key: 'posts', icon: FileTextOutlined, label: '文章管理', path: '/posts' },
-      { key: 'categories', icon: FolderOutlined, label: '分类管理', path: '/categories' },
-      { key: 'tags', icon: TagsOutlined, label: '标签管理', path: '/tags' },
-      { key: 'comments', icon: CommentOutlined, label: '评论管理', path: '/comments' }
-    ]
+      { key: 'posts', icon: FileTextOutlined, label: t('menu.posts'), path: '/posts' },
+      { key: 'categories', icon: FolderOutlined, label: t('menu.categories'), path: '/categories' },
+      { key: 'tags', icon: TagsOutlined, label: t('menu.tags'), path: '/tags' },
+      { key: 'comments', icon: CommentOutlined, label: t('menu.comments'), path: '/comments' },
+    ],
   },
-  // 用户与积分管理
   {
-    key: 'user-management',
-    icon: TeamOutlined,
-    label: '用户管理',
+    key: 'user-management', icon: TeamOutlined, label: t('menu.userManagement'),
     children: [
-      { key: 'users', icon: TeamOutlined, label: '用户管理', path: '/users' },
-      { key: 'points', icon: DollarOutlined, label: '积分管理', path: '/points' }
-    ]
+      { key: 'users', icon: TeamOutlined, label: t('menu.users'), path: '/users' },
+      { key: 'points', icon: DollarOutlined, label: t('menu.points'), path: '/points' },
+    ],
   },
-  // 运营管理分组
   {
-    key: 'operations',
-    icon: FundOutlined,
-    label: '运营管理',
+    key: 'operations', icon: FundOutlined, label: t('menu.operations'),
     children: [
-      { key: 'announcements', icon: NotificationOutlined, label: '公告管理', path: '/announcements' },
-      { key: 'carousels', icon: PictureOutlined, label: '轮播图管理', path: '/carousels' },
-      { key: 'messages', icon: MessageOutlined, label: '留言管理', path: '/messages' }
-    ]
+      { key: 'announcements', icon: NotificationOutlined, label: t('menu.announcements'), path: '/announcements' },
+      { key: 'carousels', icon: PictureOutlined, label: t('menu.carousels'), path: '/carousels' },
+      { key: 'messages', icon: MessageOutlined, label: t('menu.messages'), path: '/messages' },
+    ],
   },
-  // 媒体资源分组
   {
-    key: 'media',
-    icon: CloudServerOutlined,
-    label: '媒体资源',
+    key: 'media', icon: CloudServerOutlined, label: t('menu.media'),
     children: [
-      { key: 'images', icon: PictureOutlined, label: '图片管理', path: '/images' },
-      { key: 'resources', icon: CloudDownloadOutlined, label: '资源管理', path: '/resources' },
-      { key: 'music', icon: CloudOutlined, label: 'AI音乐管理', path: '/music' }
-    ]
+      { key: 'images', icon: PictureOutlined, label: t('menu.images'), path: '/images' },
+      { key: 'resources', icon: CloudDownloadOutlined, label: t('menu.resources'), path: '/resources' },
+      { key: 'music', icon: CloudOutlined, label: t('menu.music'), path: '/music' },
+    ],
   },
-  // AI 中心分组
   {
-    key: 'ai-center',
-    icon: ThunderboltOutlined,
-    label: 'AI 中心',
+    key: 'ai-center', icon: ThunderboltOutlined, label: t('menu.aiCenter'),
     children: [
-      { key: 'ai-models', icon: RobotOutlined, label: 'AI模型管理', path: '/ai-models' },
-      { key: 'ai-settings', icon: SettingOutlined, label: 'AI设置', path: '/ai-settings' }
-    ]
+      { key: 'ai-models', icon: RobotOutlined, label: t('menu.aiModels'), path: '/ai-models' },
+      { key: 'ai-settings', icon: SettingOutlined, label: t('menu.aiSettings'), path: '/ai-settings' },
+    ],
   },
-  // 系统管理分组
   {
-    key: 'system',
-    icon: SettingOutlined,
-    label: '系统管理',
+    key: 'system', icon: SettingOutlined, label: t('menu.system'),
     children: [
-      { key: 'logs', icon: HistoryOutlined, label: '操作日志', path: '/logs' },
-      { key: 'settings', icon: SettingOutlined, label: '系统设置', path: '/settings' }
-    ]
-  }
-]
+      { key: 'logs', icon: HistoryOutlined, label: t('menu.logs'), path: '/logs' },
+      { key: 'settings', icon: SettingOutlined, label: t('menu.systemSettings'), path: '/settings' },
+    ],
+  },
+])
 
 const getSelectedKey = (): string[] => {
   const path = route.path
@@ -162,7 +139,7 @@ const handleOpenChange = (keys: string[]) => {
 }
 
 // 递归查找菜单项
-const findMenuItem = (key: string, items = menuItems): any => {
+const findMenuItem = (key: string, items: any[] = menuItems.value): any => {
   for (const item of items) {
     if (item.key === key) return item
     if (item.children) {
@@ -172,11 +149,6 @@ const findMenuItem = (key: string, items = menuItems): any => {
   }
   return null
 }
-
-// 切换折叠状态
-const toggleCollapsed = () => {
-  collapsed.value = !collapsed.value
-}
 </script>
 
 <template>
@@ -185,13 +157,7 @@ const toggleCollapsed = () => {
       <img :src="logoUrl" alt="LiuTech 管理后台" class="logo-mark" />
       <h2 v-show="!collapsed">LiuTech 管理后台</h2>
     </div>
-    <!-- 折叠按钮 -->
-    <div class="collapse-trigger" @click="toggleCollapsed">
-      <MenuUnfoldOutlined v-if="collapsed" />
-      <MenuFoldOutlined v-else />
-    </div>
 
-    <!-- 菜单 -->
     <a-menu
       v-model:selectedKeys="menuSelectedKeys"
       v-model:openKeys="menuOpenKeys"
@@ -204,7 +170,6 @@ const toggleCollapsed = () => {
       @openChange="handleOpenChange"
     >
       <template v-for="item in menuItems" :key="item.key">
-        <!-- 有子菜单的用 SubMenu -->
         <a-sub-menu v-if="item.children" :key="item.key">
           <template #icon><component :is="item.icon" /></template>
           <template #title>{{ item.label }}</template>
@@ -213,7 +178,6 @@ const toggleCollapsed = () => {
             <span>{{ child.label }}</span>
           </a-menu-item>
         </a-sub-menu>
-        <!-- 没有子菜单的用 MenuItem -->
         <a-menu-item v-if="!item.children" :key="item.key">
           <template #icon><component :is="item.icon" /></template>
           <span>{{ item.label }}</span>
@@ -228,19 +192,22 @@ const toggleCollapsed = () => {
   height: 100%;
   display: flex;
   flex-direction: column;
+  background: var(--lt-color-bg-container);
+  border-right: 1px solid var(--lt-color-border-secondary);
 }
+
 .logo {
   width: 100%;
-  height: 63px;
-  padding: 0 16px;
+  height: var(--lt-size-header);
+  padding: 0 var(--lt-space-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--lt-space-sm);
   cursor: pointer;
   overflow: hidden;
-  border-bottom: 1px solid var(--border-light);
-  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--lt-color-border-secondary);
+  transition: var(--lt-motion-hover);
 }
 
 .logo.collapsed {
@@ -249,81 +216,32 @@ const toggleCollapsed = () => {
 }
 
 .logo-mark {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   flex: 0 0 auto;
-  border-radius: 8px;
+  border-radius: var(--lt-radius-md);
 }
 
 .logo h2 {
   margin: 0;
-  color: var(--color-primary);
-  font-size: 18px;
-  font-weight: 600;
+  color: var(--lt-color-primary);
+  font-size: var(--lt-font-size-lg);
+  font-weight: var(--lt-font-weight-semibold);
   white-space: nowrap;
   line-height: 1;
 }
-.collapse-trigger {
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-main);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.3s;
-  border-bottom: 1px solid var(--border-light);
-}
 
-.collapse-trigger:hover {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-}
+.collapse-trigger { display: none; }
 
 .sidebar-menu {
   flex: 1;
   border-right: 0;
-  padding:0 5px 0 0;
-}
-
-/* 深色模式覆盖 */
-.sidebar-menu :deep(.ant-menu) {
+  padding: var(--lt-space-sm) var(--lt-space-xs) 0 0;
   background: transparent;
 }
 
-.sidebar-menu :deep(.ant-menu-item) {
-  color: var(--text-secondary);
-  margin: 4px 8px;
-  border-radius: 6px;
-}
-
-.sidebar-menu :deep(.ant-menu-item:hover) {
-  color: var(--color-primary);
-  background: var(--color-primary-bg);
-}
-
-.sidebar-menu :deep(.ant-menu-item-selected) {
-  color: var(--color-primary) !important;
-  background: var(--color-primary-bg) !important;
-}
-
-.sidebar-menu :deep(.ant-menu-submenu-title) {
-  color: var(--text-secondary);
-  margin: 4px 8px;
-  border-radius: 6px;
-}
-
-.sidebar-menu :deep(.ant-menu-submenu-title:hover) {
-  color: var(--color-primary);
-  background: var(--color-primary-bg);
-}
-
-.sidebar-menu :deep(.ant-menu-submenu-open > .ant-menu-submenu-title) {
-  color: var(--color-primary);
-}
-
-/* 子菜单样式 */
+.sidebar-menu :deep(.ant-menu),
 .sidebar-menu :deep(.ant-menu-sub) {
   background: transparent !important;
 }

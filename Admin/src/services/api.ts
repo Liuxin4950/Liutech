@@ -60,7 +60,7 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response: AxiosResponse<ApiResponse>) => {
     const { data } = response
-    
+
     // 检查业务状态码
     if (data.code !== 200) {
       console.error('API 业务错误:', data.message)
@@ -71,7 +71,7 @@ instance.interceptors.response.use(
       message.error(data.message || '请求失败')
       throw err
     }
-    
+
     return response
   },
   (error) => {

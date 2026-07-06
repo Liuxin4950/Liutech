@@ -1,25 +1,28 @@
 <script setup lang="ts">
-import { ref, provide, onMounted } from 'vue'
+import { ref, provide, onMounted, watch } from 'vue'
 import TheHeader from '@/components/TheHeader.vue'
 import TheFooter from '@/components/TheFooter.vue'
 import TheSidebar from '@/components/TheSidebar.vue'
 import TagsView from '@/components/TagsView.vue'
-import Breadcrumb from '@/components/Breadcrumb.vue'
 import { useTagsStore } from '@/stores/tabs'
+import { useSettingsStore } from '@/stores/settings'
 import { useRouter } from 'vue-router'
 
-// 侧边栏折叠状态
-const collapsed = ref(false)
+const settings = useSettingsStore()
 
-// 提供给子组件使用
+// 侧边栏折叠状态：初始值取自 settings（用户偏好），
+// 后续变化同步回 settings 以持久化。
+const collapsed = ref(settings.sidebarCollapsed)
 provide('sidebarCollapsed', collapsed)
 
-// 标签页状态管理
+watch(collapsed, (v) => { settings.setSidebarCollapsed(v) })
+watch(() => settings.sidebarCollapsed, (v) => {
+  if (v !== collapsed.value) collapsed.value = v
+})
+
 const tagsStore = useTagsStore()
 
-// 页面加载时初始化固定标签
 onMounted(() => {
-  // 获取路由配置中的固定标签
   const router = useRouter()
   const routes = router.options.routes
   tagsStore.addAffixTags([...routes])
@@ -27,114 +30,79 @@ onMounted(() => {
 </script>
 
 <template>
-  <a-layout class="main-layout">
+  <a-layout class="lt-shell">
+    <!-- 侧边栏 -->
+    <a-layout-sider
+      class="lt-shell__sider"
+      :collapsed="collapsed"
+      :collapsed-width="56"
+      :width="220"
+      :trigger="null"
+      :bordered="false"
+    >
+      <TheSidebar />
+    </a-layout-sider>
 
+    <!-- 主区：Header（内含面包屑）+ TagsView + 内容 + Footer 纵向堆叠 -->
+    <a-layout class="lt-shell__main">
+      <TheHeader />
+      <TagsView />
 
-    <!-- 主内容区域 -->
-    <a-layout class="content-layout">
-      <!-- 侧边栏容器 - 固定不滚动 -->
-      <div class="sidebar-container">
-        <a-layout-sider
-          class="sidebar"
-          :width="collapsed ? 80 : 200"
-          :collapsed="collapsed"
-          theme="light"
-        >
-          <TheSidebar />
-        </a-layout-sider>
-      </div>
-      <a-layout-content class="main-content">
-        <!-- 顶部导航栏 -->
-        <a-layout-header class="header">
-          <TheHeader />
-           <TagsView />
-          <Breadcrumb />
-        </a-layout-header>
-
-
-        <div class="content-wrapper">
-          <!-- 使用 KeepAlive 缓存页面组件 -->
-          <router-view v-slot="{ Component }">
-            <KeepAlive :include="tagsStore.cachedViews">
-              <transition name="fade" mode="out-in">
-                <component :is="Component" />
-              </transition>
-            </KeepAlive>
-          </router-view>
-        </div>
-        <TheFooter />
+      <a-layout-content class="lt-shell__content">
+        <router-view v-slot="{ Component }">
+          <KeepAlive :include="tagsStore.cachedViews">
+            <transition name="lt-fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </KeepAlive>
+        </router-view>
       </a-layout-content>
+
+      <TheFooter />
     </a-layout>
   </a-layout>
 </template>
 
 <style scoped>
-.main-layout {
+.lt-shell {
   height: 100vh;
   overflow: hidden;
+  background: var(--lt-color-bg-layout);
+}
+
+.lt-shell__sider {
+  background: var(--lt-color-bg-container);
+  border-right: 1px solid var(--lt-color-border-secondary);
+  height: 100vh;
+  overflow-y: auto;
+  z-index: var(--lt-z-sidebar);
+}
+
+.lt-shell__main {
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--lt-color-bg-layout);
 }
 
-.header {
-  padding: 0;
-  height: 64px;
-  line-height: 64px;
-  background: var(--bg-card);
-  flex-shrink: 0;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-
-}
-
-.content-layout {
+.lt-shell__content {
   flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: row;
-}
-
-/* 侧边栏容器 */
-.sidebar-container {
-  height: 100%;
   overflow-y: auto;
-  background: var(--bg-card);
-  flex-shrink: 0;
-  /* box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1); */
-  z-index: 99;
+  background: var(--lt-color-bg-layout);
+  /* 页面级 padding，让所有子页面自动获得呼吸空间 */
+  padding: var(--lt-space-page-y) var(--lt-space-page-x);
 }
 
-.sidebar {
-  background: var(--bg-card);
-  min-height: 100%;
+.lt-fade-enter-active,
+.lt-fade-leave-active {
+  transition: var(--lt-motion-fade);
 }
-
-.main-content {
-  flex: 1;
-  height: 100%;
-  overflow-y: auto;
-  background: var(--bg-main);
-  display: flex;
-  flex-direction: column;
-}
-
-.content-wrapper {
-  /* padding: 16px 24px 24px; */
-  padding-top: 80px;
-  /* 让内容区域撑满剩余空间，但由内容决定高度 */
-  flex: 1; 
-}
-
-/* 页面切换动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
+.lt-fade-enter-from,
+.lt-fade-leave-to {
   opacity: 0;
+}
+
+.lt-shell__sider :deep(.ant-layout-sider-children) {
+  height: 100%;
 }
 </style>

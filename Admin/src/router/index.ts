@@ -193,6 +193,15 @@ const routes: RouteRecordRaw[] = [
       title: '权限不足',
       section: 'forbidden'
     }
+  },{
+    // 404 兜底：所有未匹配路由跳这里
+    path: '/:pathMatch(.*)*',
+    name: 'not-found',
+    component: () => import('../views/404.vue'),
+    meta: {
+      title: '页面不存在',
+      section: 'not-found'
+    }
   }
 ]
 
@@ -226,7 +235,7 @@ router.beforeEach(async (to, from, next) => {
   // 设置页面标题
   document.title = `${to.meta.title || '博客'} - MyBlog`
 
-  const publicRouteNames = new Set(['login', 'forbidden'])
+  const publicRouteNames = new Set(['login', 'forbidden', 'not-found'])
   const isPublicRoute = publicRouteNames.has(to.name as string)
 
   // 管理后台除登录和 403 外都需要管理员身份
@@ -261,8 +270,8 @@ router.beforeEach(async (to, from, next) => {
  * 添加标签页
  */
 router.afterEach((to) => {
-  // 跳过登录页和 403 页
-  if (to.name === 'login' || to.name === 'forbidden') {
+  // 跳过登录页 / 403 / 404 页（不加入 tags）
+  if (to.name === 'login' || to.name === 'forbidden' || to.name === 'not-found') {
     return
   }
 

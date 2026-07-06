@@ -1,0 +1,311 @@
+/* ==========================================================================
+   LiuTech Admin · Design Tokens
+   --------------------------------------------------------------------------
+   本文件是全站样式的唯一真源（single source of truth）。
+   所有页面、组件、图表、antd 主题覆盖都应通过 --lt-* 变量消费。
+
+   命名约定：--lt-<category>-<name>[-<variant>]
+     category: color | space | size | radius | shadow | font | line-height |
+               duration | ease | motion | z
+     name:     brand-6 | text | text-secondary | bg-layout | bg-container ...
+     variant:  hover | active | disabled | bg | border
+
+   暗色主题只重写 color 类变量，其余保持不变。
+   浅色 → :root；暗色 → [data-lt-theme='dark']（兼容旧 .dark class）。
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ===== 品牌色阶（Ant Design Blue） ===== */
+  --lt-color-brand-1: #e6f4ff;
+  --lt-color-brand-2: #bae0ff;
+  --lt-color-brand-3: #91caff;
+  --lt-color-brand-4: #69b1ff;
+  --lt-color-brand-5: #4096ff;
+  --lt-color-brand-6: #1677ff;
+  --lt-color-brand-7: #0958d9;
+  --lt-color-brand-8: #003eb3;
+  --lt-color-brand-9: #002c8c;
+  --lt-color-brand-10: #001d66;
+
+  --lt-color-primary: var(--lt-color-brand-6);
+  --lt-color-primary-hover: var(--lt-color-brand-5);
+  --lt-color-primary-active: var(--lt-color-brand-7);
+  --lt-color-primary-border: var(--lt-color-brand-3);
+  --lt-color-primary-bg: var(--lt-color-brand-1);
+  --lt-color-primary-bg-hover: var(--lt-color-brand-2);
+
+  /* 主色 bg 拆语义：hover / selected / highlight 分离，避免一变量三职 */
+  --lt-color-hover-bg: rgba(0, 0, 0, 0.03);
+  --lt-color-selected-bg: var(--lt-color-brand-1);
+  --lt-color-highlight-bg: var(--lt-color-brand-1);
+
+  /* ===== 中性色阶 ===== */
+  --lt-color-neutral-1: #ffffff;
+  --lt-color-neutral-2: #fafafa;
+  --lt-color-neutral-3: #f5f5f5;
+  --lt-color-neutral-4: #f0f0f0;
+  --lt-color-neutral-5: #d9d9d9;
+  --lt-color-neutral-6: #bfbfbf;
+  --lt-color-neutral-7: #8c8c8c;
+  --lt-color-neutral-8: #595959;
+  --lt-color-neutral-9: #434343;
+  --lt-color-neutral-10: #262626;
+  --lt-color-neutral-11: #1f1f1f;
+  --lt-color-neutral-12: #141414;
+
+  /* ===== 语义色 ===== */
+  --lt-color-success: #52c41a;
+  --lt-color-success-hover: #73d13d;
+  --lt-color-success-bg: #f6ffed;
+  --lt-color-success-border: #b7eb8f;
+
+  --lt-color-warning: #faad14;
+  --lt-color-warning-hover: #ffc53d;
+  --lt-color-warning-bg: #fffbe6;
+  --lt-color-warning-border: #ffe58f;
+
+  --lt-color-error: #ff4d4f;
+  --lt-color-error-hover: #ff7875;
+  --lt-color-error-bg: #fff2f0;
+  --lt-color-error-border: #ffccc7;
+
+  --lt-color-info: #1677ff;
+  --lt-color-info-bg: #e6f4ff;
+  --lt-color-info-border: #91caff;
+
+  --lt-color-processing: #722ed1;
+  --lt-color-processing-bg: #f9f0ff;
+  --lt-color-processing-border: #d3adf7;
+
+  /* 扩展 preset：LtStatusTag / LtSemanticTag 会用到 */
+  --lt-color-gold: #d48806;
+  --lt-color-gold-bg: #fffbe6;
+  --lt-color-gold-border: #ffe58f;
+
+  --lt-color-purple: #722ed1;
+  --lt-color-purple-bg: #f9f0ff;
+  --lt-color-purple-border: #d3adf7;
+
+  --lt-color-cyan: #13c2c2;
+  --lt-color-cyan-bg: #e6fffb;
+  --lt-color-cyan-border: #87e8de;
+
+  --lt-color-magenta: #eb2f96;
+  --lt-color-magenta-bg: #fff0f6;
+  --lt-color-magenta-border: #ffadd2;
+
+  /* ===== 表面/文本/边框 ===== */
+  --lt-color-bg-layout: #f5f7fa;
+  --lt-color-bg-page: #f5f7fa;
+  --lt-color-bg-container: #ffffff;
+  --lt-color-bg-elevated: #ffffff;
+  --lt-color-bg-spotlight: #fafafa;
+  --lt-color-bg-mask: rgba(0, 0, 0, 0.45);
+
+  --lt-color-text: rgba(0, 0, 0, 0.88);
+  --lt-color-text-secondary: rgba(0, 0, 0, 0.65);
+  --lt-color-text-tertiary: rgba(0, 0, 0, 0.45);
+  --lt-color-text-quaternary: rgba(0, 0, 0, 0.25);
+  --lt-color-text-disabled: rgba(0, 0, 0, 0.25);
+  --lt-color-text-inverse: #ffffff;
+  --lt-color-text-link: var(--lt-color-primary);
+  --lt-color-text-link-hover: var(--lt-color-primary-hover);
+
+  --lt-color-border: #d9d9d9;
+  --lt-color-border-secondary: #f0f0f0;
+  --lt-color-border-strong: #bfbfbf;
+  --lt-color-split: rgba(5, 5, 5, 0.06);
+
+  /* ===== 图表色板（ECharts / registerTheme） ===== */
+  --lt-color-chart-1: #1677ff;
+  --lt-color-chart-2: #52c41a;
+  --lt-color-chart-3: #faad14;
+  --lt-color-chart-4: #722ed1;
+  --lt-color-chart-5: #13c2c2;
+  --lt-color-chart-6: #eb2f96;
+  --lt-color-chart-7: #fa541c;
+  --lt-color-chart-8: #2f54eb;
+
+  /* ===== 代码/富文本 ===== */
+  --lt-color-code-bg: #f6f8fa;
+  --lt-color-code-border: #e1e4e8;
+  --lt-color-code-text: #d4380d;
+
+  /* ===== 间距（8px 网格 + 4px 微调） ===== */
+  --lt-space-none: 0;
+  --lt-space-2xs: 2px;
+  --lt-space-xs: 4px;
+  --lt-space-sm: 8px;
+  --lt-space-md: 12px;
+  --lt-space-lg: 16px;
+  --lt-space-xl: 24px;
+  --lt-space-2xl: 32px;
+  --lt-space-3xl: 48px;
+  --lt-space-4xl: 64px;
+
+  --lt-space-page-x: 16px;
+  --lt-space-page-y: 16px;
+  --lt-space-card-gap: 12px;
+  --lt-space-form-gap: 24px;
+  --lt-space-inline-sm: 8px;
+  --lt-space-inline-md: 12px;
+
+  /* ===== 固定尺寸（shell 高度阶梯） ===== */
+  --lt-size-header: 56px;
+  --lt-size-breadcrumb: 36px;
+  --lt-size-tags-view: 40px;
+  --lt-size-sidebar: 220px;
+  --lt-size-sidebar-collapsed: 56px;
+  --lt-size-control: 32px;
+  --lt-size-control-sm: 24px;
+  --lt-size-control-lg: 40px;
+  --lt-size-stat-icon: 44px;
+  --lt-size-thumbnail-w: 200px;
+  --lt-size-thumbnail-h: 120px;
+
+  /* ===== 圆角 ===== */
+  --lt-radius-none: 0;
+  --lt-radius-xs: 2px;
+  --lt-radius-sm: 4px;
+  --lt-radius-md: 6px;
+  --lt-radius-lg: 8px;
+  --lt-radius-xl: 12px;
+  --lt-radius-pill: 9999px;
+  --lt-radius-circle: 50%;
+  --lt-radius-control: var(--lt-radius-md);
+  --lt-radius-card: var(--lt-radius-lg);
+  --lt-radius-tag: var(--lt-radius-sm);
+
+  /* ===== 阴影 ===== */
+  --lt-shadow-none: none;
+  --lt-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  --lt-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 6px -1px rgba(0, 0, 0, 0.02);
+  --lt-shadow-md: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12);
+  --lt-shadow-lg: 0 9px 28px 8px rgba(0, 0, 0, 0.05), 0 6px 16px 0 rgba(0, 0, 0, 0.08);
+  --lt-shadow-card: var(--lt-shadow-xs);
+  --lt-shadow-card-hover: var(--lt-shadow-md);
+  --lt-shadow-dropdown: var(--lt-shadow-md);
+  --lt-shadow-header: 0 1px 4px rgba(0, 21, 41, 0.08);
+
+  /* ===== 字号/字体 ===== */
+  --lt-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+  --lt-font-family-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --lt-font-size-xs: 12px;
+  --lt-font-size-sm: 13px;
+  --lt-font-size-base: 14px;
+  --lt-font-size-md: 16px;
+  --lt-font-size-lg: 18px;
+  --lt-font-size-xl: 20px;
+  --lt-font-size-2xl: 24px;
+  --lt-font-size-3xl: 30px;
+  --lt-font-size-4xl: 38px;
+
+  --lt-font-weight-regular: 400;
+  --lt-font-weight-medium: 500;
+  --lt-font-weight-semibold: 600;
+  --lt-font-weight-bold: 700;
+
+  --lt-line-height-tight: 1.2;
+  --lt-line-height-snug: 1.4;
+  --lt-line-height-base: 1.5715;
+  --lt-line-height-relaxed: 1.6;
+  --lt-line-height-loose: 1.8;
+
+  /* ===== 动效 ===== */
+  --lt-duration-fast: 0.1s;
+  --lt-duration-base: 0.2s;
+  --lt-duration-slow: 0.3s;
+  --lt-ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --lt-ease-in: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  --lt-ease-out: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --lt-motion-hover: all var(--lt-duration-base) var(--lt-ease-in-out);
+  --lt-motion-fade: opacity var(--lt-duration-base) var(--lt-ease-in-out);
+
+  /* ===== 断点（可用于 CSS 层级，不是媒体查询变量） ===== */
+  --lt-bp-xs: 480px;
+  --lt-bp-sm: 576px;
+  --lt-bp-md: 768px;
+  --lt-bp-lg: 992px;
+  --lt-bp-xl: 1200px;
+  --lt-bp-2xl: 1600px;
+
+  /* ===== z-index 层级 ===== */
+  --lt-z-base: 0;
+  --lt-z-sticky: 1020;
+  --lt-z-sidebar: 1020;
+  --lt-z-header: 1030;
+  --lt-z-popover: 1030;
+  --lt-z-dropdown: 1050;
+  --lt-z-modal-mask: 1000;
+  --lt-z-modal: 1000;
+  --lt-z-message: 1010;
+  --lt-z-notification: 1010;
+  --lt-z-tooltip: 1070;
+
+  /* ===== focus/outline ===== */
+  --lt-outline-focus: 2px solid var(--lt-color-brand-5);
+  --lt-outline-focus-offset: 2px;
+}
+
+/* ========== 暗色主题：仅重写 color 类变量 ========== */
+[data-lt-theme='dark'],
+.dark {
+  color-scheme: dark;
+
+  --lt-color-hover-bg: rgba(255, 255, 255, 0.06);
+  --lt-color-selected-bg: rgba(22, 119, 255, 0.2);
+  --lt-color-highlight-bg: rgba(22, 119, 255, 0.15);
+
+  --lt-color-primary-bg: rgba(22, 119, 255, 0.15);
+  --lt-color-primary-bg-hover: rgba(22, 119, 255, 0.25);
+
+  --lt-color-success-bg: rgba(82, 196, 26, 0.12);
+  --lt-color-warning-bg: rgba(250, 173, 20, 0.12);
+  --lt-color-error-bg: rgba(255, 77, 79, 0.12);
+  --lt-color-info-bg: rgba(22, 119, 255, 0.12);
+  --lt-color-processing-bg: rgba(114, 46, 209, 0.12);
+  --lt-color-gold-bg: rgba(212, 136, 6, 0.12);
+  --lt-color-purple-bg: rgba(114, 46, 209, 0.12);
+  --lt-color-cyan-bg: rgba(19, 194, 194, 0.12);
+  --lt-color-magenta-bg: rgba(235, 47, 150, 0.12);
+
+  --lt-color-bg-layout: #141414;
+  --lt-color-bg-page: #141414;
+  --lt-color-bg-container: #1f1f1f;
+  --lt-color-bg-elevated: #262626;
+  --lt-color-bg-spotlight: #262626;
+  --lt-color-bg-mask: rgba(0, 0, 0, 0.65);
+
+  --lt-color-text: rgba(255, 255, 255, 0.88);
+  --lt-color-text-secondary: rgba(255, 255, 255, 0.65);
+  --lt-color-text-tertiary: rgba(255, 255, 255, 0.45);
+  --lt-color-text-quaternary: rgba(255, 255, 255, 0.25);
+  --lt-color-text-disabled: rgba(255, 255, 255, 0.25);
+
+  --lt-color-border: #424242;
+  --lt-color-border-secondary: #303030;
+  --lt-color-border-strong: #595959;
+  --lt-color-split: rgba(253, 253, 253, 0.08);
+
+  --lt-color-code-bg: #1f1f1f;
+  --lt-color-code-border: #303030;
+  --lt-color-code-text: #ff9c6e;
+
+  --lt-shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.24);
+  --lt-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.24), 0 1px 6px -1px rgba(0, 0, 0, 0.16);
+  --lt-shadow-md: 0 6px 16px 0 rgba(0, 0, 0, 0.32), 0 3px 6px -4px rgba(0, 0, 0, 0.4);
+  --lt-shadow-lg: 0 9px 28px 8px rgba(0, 0, 0, 0.24), 0 6px 16px 0 rgba(0, 0, 0, 0.32);
+  --lt-shadow-header: 0 1px 4px rgba(0, 0, 0, 0.32);
+}
+
+/* ========== reduced motion 降级 ========== */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --lt-duration-fast: 0s;
+    --lt-duration-base: 0s;
+    --lt-duration-slow: 0s;
+  }
+}

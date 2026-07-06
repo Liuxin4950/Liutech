@@ -240,9 +240,9 @@ onMounted(() => {
 
 <style scoped>
 .page-header-card {
-  margin-bottom: 16px;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  margin-bottom: var(--lt-space-md);
+  border-radius: var(--lt-radius-xl);
+  box-shadow: var(--lt-shadow-xs);
 }
 
 .page-header {
@@ -254,36 +254,36 @@ onMounted(() => {
 .page-header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--lt-space-sm);
 }
 
 .page-header-icon {
   font-size: 28px;
-  color: var(--color-primary);
+  color: var(--lt-color-primary);
 }
 
 .page-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #111827;
+  font-size: var(--lt-font-size-lg);
+  font-weight: var(--lt-font-weight-semibold);
+  color: var(--lt-color-text);
 }
 
 .page-desc {
-  margin: 2px 0 0;
-  font-size: 13px;
-  color: #6b7280;
+  margin: var(--lt-space-2xs) 0 0;
+  font-size: var(--lt-font-size-sm);
+  color: var(--lt-color-text-tertiary);
 }
 
 .settings-group-card {
-  margin-bottom: 16px;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  margin-bottom: var(--lt-space-md);
+  border-radius: var(--lt-radius-xl);
+  box-shadow: var(--lt-shadow-xs);
 }
 
 .field-desc {
-  color: #9ca3af;
-  font-size: 12px;
-  margin-top: 4px;
+  color: var(--lt-color-text-tertiary);
+  font-size: var(--lt-font-size-xs);
+  margin-top: var(--lt-space-xs);
 }
 </style>

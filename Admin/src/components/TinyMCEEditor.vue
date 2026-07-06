@@ -870,76 +870,7 @@ watch(() => theme.current.value, (mode) => {
   background: var(--color-primary-bg, #e6f4ff);
 }
 
-/* 暗色主题适配 */
-.dark :deep(.tox) {
-  border-color: #3C4653 !important;
-  background: #202124 !important;
-  color: #E8EAED !important;
-}
-
-.dark :deep(.tox .tox-editor-header),
-.dark :deep(.tox .tox-toolbar-overlord),
-.dark :deep(.tox .tox-toolbar),
-.dark :deep(.tox .tox-toolbar__primary) {
-  background: #202124 !important;
-  color: #E8EAED !important;
-}
-
-.dark :deep(.tox .tox-toolbar) {
-  border-bottom-color: #3C4653 !important;
-}
-
-.dark :deep(.tox-edit-area) {
-  background: #202124 !important;
-}
-
-.dark :deep(.tox-statusbar) {
-  background: #202124 !important;
-  border-top-color: #3C4653 !important;
-  color: #CBD5E1 !important;
-}
-
-.dark :deep(.tox-statusbar__path-item),
-.dark :deep(.tox-statusbar__wordcount),
-.dark :deep(.tox-statusbar a) {
-  color: #CBD5E1 !important;
-}
-
-.dark :deep(.tox-toolbar__group) {
-  border-color: #3C4653 !important;
-}
-
-.dark :deep(.tox .tox-tbtn),
-.dark :deep(.tox .tox-split-button),
-.dark :deep(.tox .tox-listboxfield .tox-listbox--select),
-.dark :deep(.tox .tox-textfield) {
-  background: #2D2F30 !important;
-  border-color: #3C4653 !important;
-  color: #E8EAED !important;
-}
-
-.dark :deep(.tox .tox-tbtn:hover),
-.dark :deep(.tox .tox-split-button:hover) {
-  background: #3C4043 !important;
-  color: #FFFFFF !important;
-}
-
-.dark :deep(.tox-tbtn--enabled) {
-  background: var(--color-primary-bg, #111b26);
-  color: #ffffff;
-}
-
-.dark :deep(.tox-menubar) {
-  background: var(--bg-card, #141414);
-  border-bottom-color: var(--border-base, #424242);
-}
-
-.dark :deep(.tox-collection__item) {
-  background: var(--bg-card, #141414);
-  color: var(--text-main, #ffffff);
-}
-
-.dark :deep(.tox-collection__item:hover) {
-  background: var(--color-primary-bg, #111b26);
-}
+/* 暗色主题：Toolbar / 弹层 / 菜单 的样式规则集中在
+   src/assets/styles/tinymce-dark.css（全局作用域，需覆盖 Teleport 出的 DOM）。
+   这里保留内容区（iframe body）的 --lt 变量补充，其余靠全局层。 */
 </style>

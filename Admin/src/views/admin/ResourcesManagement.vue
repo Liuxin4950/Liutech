@@ -5,6 +5,10 @@ import ResourcesService from '../../services/resources'
 import type { Resource } from '../../services/resources'
 import { formatDateTime } from '../../utils/utils'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 
 const resourceTypeOptions = [
   { label: '文件', value: 'file' },
@@ -113,6 +117,15 @@ const columns = [
   { title: '操作', key: 'action', width: 200, fixed: 'right' as const }
 ]
 
+const columnPrefsCtrl = useTableColumnPrefs('resources', columns, { alwaysVisible: ["action"] })
+const prefColumns = columnPrefsCtrl.prefColumns
+
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'resources',
+})
+
 const getResourceTypeColor = (type?: string) => {
   switch (type) {
     case 'file': return 'blue'
@@ -152,27 +165,27 @@ const handleBatchPermanentDeleteAction = () => {
   <div class="p-24">
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="24">
-          <a-col :span="5">
+        <a-row :gutter="[16, 12]" align="bottom">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="名称" class="mb-0">
               <a-input v-model:value="searchParams.name" placeholder="请输入资源名称" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
-          <a-col :span="4">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="资源类型" class="mb-0">
               <a-select v-model:value="searchParams.resourceType" placeholder="全部" allow-clear>
                 <a-select-option v-for="opt in resourceTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="4">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="下载类型" class="mb-0">
               <a-select v-model:value="searchParams.downloadType" placeholder="全部" allow-clear>
                 <a-select-option v-for="opt in downloadTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="11" class="text-right">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
             <a-space>
               <a-tooltip title="显示已删除">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
@@ -195,6 +208,8 @@ const handleBatchPermanentDeleteAction = () => {
       <template #title><span>资源列表</span></template>
       <template #extra>
         <a-space>
+          <TableExportButton :ctrl="exportCtrl" />
+          <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <a-button type="primary" @click="openCreate">
             <template #icon><PlusOutlined /></template>新建资源
           </a-button>
@@ -213,7 +228,7 @@ const handleBatchPermanentDeleteAction = () => {
         </a-space>
       </template>
       <a-table
-        :columns="columns"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"

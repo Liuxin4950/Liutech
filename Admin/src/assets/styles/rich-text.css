@@ -1,0 +1,130 @@
+/* ==========================================================================
+   LiuTech Admin · Rich Text Namespace
+   --------------------------------------------------------------------------
+   TinyMCE 输出的富文本内容统一挂在 `.lt-rich-text` 命名空间下渲染。
+   页面预览、公告详情、消息回复引用等场景使用同一份样式。
+   ========================================================================== */
+
+.lt-rich-text {
+  font-family: var(--lt-font-family);
+  font-size: var(--lt-font-size-base);
+  line-height: var(--lt-line-height-relaxed);
+  color: var(--lt-color-text);
+  word-wrap: break-word;
+}
+
+.lt-rich-text > *:first-child { margin-top: 0; }
+.lt-rich-text > *:last-child { margin-bottom: 0; }
+
+.lt-rich-text h1,
+.lt-rich-text h2,
+.lt-rich-text h3,
+.lt-rich-text h4,
+.lt-rich-text h5,
+.lt-rich-text h6 {
+  color: var(--lt-color-text);
+  font-weight: var(--lt-font-weight-semibold);
+  line-height: var(--lt-line-height-snug);
+  margin: var(--lt-space-xl) 0 var(--lt-space-md);
+}
+.lt-rich-text h1 { font-size: var(--lt-font-size-2xl); }
+.lt-rich-text h2 { font-size: var(--lt-font-size-xl); }
+.lt-rich-text h3 { font-size: var(--lt-font-size-lg); }
+.lt-rich-text h4 { font-size: var(--lt-font-size-md); }
+.lt-rich-text h5,
+.lt-rich-text h6 { font-size: var(--lt-font-size-base); }
+
+.lt-rich-text p {
+  margin: 0 0 var(--lt-space-md);
+}
+
+.lt-rich-text a {
+  color: var(--lt-color-text-link);
+  text-decoration: none;
+  transition: color var(--lt-duration-fast) var(--lt-ease-in-out);
+}
+.lt-rich-text a:hover {
+  color: var(--lt-color-text-link-hover);
+  text-decoration: underline;
+}
+
+.lt-rich-text strong { font-weight: var(--lt-font-weight-semibold); color: var(--lt-color-text); }
+.lt-rich-text em { font-style: italic; }
+
+.lt-rich-text ul,
+.lt-rich-text ol {
+  margin: 0 0 var(--lt-space-md);
+  padding-left: var(--lt-space-xl);
+}
+.lt-rich-text li { margin-bottom: var(--lt-space-xs); }
+.lt-rich-text li > ul,
+.lt-rich-text li > ol { margin-top: var(--lt-space-xs); margin-bottom: 0; }
+
+.lt-rich-text blockquote {
+  margin: var(--lt-space-md) 0;
+  padding: var(--lt-space-md) var(--lt-space-lg);
+  border-left: 4px solid var(--lt-color-primary);
+  background: var(--lt-color-primary-bg);
+  border-radius: var(--lt-radius-sm);
+  color: var(--lt-color-text-secondary);
+}
+.lt-rich-text blockquote > *:last-child { margin-bottom: 0; }
+
+.lt-rich-text code {
+  padding: 2px 6px;
+  font-family: var(--lt-font-family-mono);
+  font-size: 0.9em;
+  color: var(--lt-color-code-text);
+  background: var(--lt-color-code-bg);
+  border: 1px solid var(--lt-color-code-border);
+  border-radius: var(--lt-radius-sm);
+}
+
+.lt-rich-text pre {
+  margin: 0 0 var(--lt-space-md);
+  padding: var(--lt-space-md) var(--lt-space-lg);
+  font-family: var(--lt-font-family-mono);
+  font-size: var(--lt-font-size-sm);
+  line-height: var(--lt-line-height-relaxed);
+  background: var(--lt-color-code-bg);
+  border: 1px solid var(--lt-color-code-border);
+  border-radius: var(--lt-radius-md);
+  overflow-x: auto;
+}
+.lt-rich-text pre code {
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: inherit;
+}
+
+.lt-rich-text hr {
+  border: none;
+  border-top: 1px solid var(--lt-color-border-secondary);
+  margin: var(--lt-space-xl) 0;
+}
+
+.lt-rich-text img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--lt-radius-md);
+  margin: var(--lt-space-sm) 0;
+}
+
+.lt-rich-text table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 var(--lt-space-md);
+  font-size: var(--lt-font-size-sm);
+}
+.lt-rich-text table th,
+.lt-rich-text table td {
+  padding: var(--lt-space-sm) var(--lt-space-md);
+  border: 1px solid var(--lt-color-border-secondary);
+  text-align: left;
+}
+.lt-rich-text table th {
+  background: var(--lt-color-neutral-2);
+  font-weight: var(--lt-font-weight-semibold);
+  color: var(--lt-color-text);
+}

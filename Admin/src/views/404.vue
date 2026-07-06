@@ -1,29 +1,28 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { HomeOutlined, LoginOutlined } from '@ant-design/icons-vue'
+import { HomeOutlined, RollbackOutlined } from '@ant-design/icons-vue'
 
 const router = useRouter()
 
 const goHome = () => router.push('/')
-const goLogin = () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('userInfo')
-  router.push('/login')
+const goBack = () => {
+  if (window.history.length > 1) router.back()
+  else router.push('/')
 }
 </script>
 
 <template>
   <div class="lt-error-page">
-    <a-result status="403" title="403" sub-title="抱歉，你没有权限访问此页面">
+    <a-result status="404" title="404" sub-title="抱歉，你访问的页面不存在">
       <template #extra>
         <a-space>
           <a-button type="primary" @click="goHome">
             <template #icon><HomeOutlined /></template>
             返回首页
           </a-button>
-          <a-button @click="goLogin">
-            <template #icon><LoginOutlined /></template>
-            重新登录
+          <a-button @click="goBack">
+            <template #icon><RollbackOutlined /></template>
+            返回上页
           </a-button>
         </a-space>
       </template>

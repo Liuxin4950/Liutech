@@ -6,6 +6,10 @@ import MessagesService from '../../services/message'
 import type { Message } from '../../services/message'
 import { formatDateTime } from '../../utils/utils'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 
 interface ReplyFormData {
   reply: string
@@ -97,6 +101,15 @@ const columns = [
   { title: '操作', key: 'action', width: 280, fixed: 'right' as const }
 ]
 
+const columnPrefsCtrl = useTableColumnPrefs('messages', columns, { alwaysVisible: ["action"] })
+const prefColumns = columnPrefsCtrl.prefColumns
+
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'messages',
+})
+
 const statusOptions = [
   { label: '全部', value: -1 },
   { label: '待审核', value: 0 },
@@ -176,20 +189,20 @@ const handleBatchReject = async () => {
   <div class="p-24">
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="24">
-          <a-col :span="5">
+        <a-row :gutter="[16, 12]" align="bottom">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="昵称" class="mb-0">
               <a-input v-model:value="searchParams.nickname" placeholder="请输入昵称" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
-          <a-col :span="5">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="状态" class="mb-0">
               <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
                 <a-select-option v-for="option in statusOptions" :key="option.label" :value="option.value">{{ option.label }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="14" class="text-right">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
             <a-space>
               <a-tooltip title="显示已删除">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
@@ -212,6 +225,8 @@ const handleBatchReject = async () => {
       <template #title><span>留言列表</span></template>
       <template #extra>
         <a-space>
+          <TableExportButton :ctrl="exportCtrl" />
+          <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <a-button v-if="!searchParams.includeDeleted" type="primary" :disabled="selectedRowKeys.length === 0" @click="handleBatchApprove">
             <template #icon><CheckOutlined /></template>批量通过
           </a-button>
@@ -233,7 +248,7 @@ const handleBatchReject = async () => {
         </a-space>
       </template>
       <a-table
-        :columns="columns"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
@@ -253,7 +268,7 @@ const handleBatchReject = async () => {
             <a-tag v-else-if="record.status === 2" color="red">已拒绝</a-tag>
           </template>
           <template v-else-if="column.key === 'reply'">
-            <span v-if="record.reply" style="color: var(--color-success); font-size: 12px;">{{ record.reply }}</span>
+            <span v-if="record.reply" style="color: var(--color-success); font-size: var(--lt-font-size-xs);">{{ record.reply }}</span>
             <span v-else style="color: var(--text-disabled);">-</span>
           </template>
           <template v-else-if="column.key === 'createdAt'">
@@ -311,7 +326,7 @@ const handleBatchReject = async () => {
         <a-descriptions-item label="昵称">{{ detailRecord.nickname }}</a-descriptions-item>
         <a-descriptions-item label="邮箱">{{ detailRecord.email }}</a-descriptions-item>
         <a-descriptions-item label="留言内容">
-          <div style="white-space: pre-wrap; word-break: break-word; line-height: 1.6;">{{ detailRecord.content }}</div>
+          <div style="white-space: pre-wrap; word-break: break-word; line-height: var(--lt-line-height-relaxed);">{{ detailRecord.content }}</div>
         </a-descriptions-item>
         <a-descriptions-item label="状态">
           <a-tag v-if="detailRecord.status === 0" color="orange">待审核</a-tag>
@@ -319,7 +334,7 @@ const handleBatchReject = async () => {
           <a-tag v-else-if="detailRecord.status === 2" color="red">已拒绝</a-tag>
         </a-descriptions-item>
         <a-descriptions-item v-if="detailRecord.reply" label="博主回复">
-          <div style="white-space: pre-wrap; word-break: break-word; line-height: 1.6; background: var(--color-success-bg, #f6ffed); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--color-success);">{{ detailRecord.reply }}</div>
+          <div style="white-space: pre-wrap; word-break: break-word; line-height: var(--lt-line-height-relaxed); background: var(--lt-color-success-bg); padding: var(--lt-space-sm) var(--lt-space-md); border-radius: var(--lt-radius-sm); border-left: 3px solid var(--lt-color-success);">{{ detailRecord.reply }}</div>
         </a-descriptions-item>
         <a-descriptions-item label="留言时间">{{ formatDateTime(detailRecord.createdAt) }}</a-descriptions-item>
       </a-descriptions>

@@ -1,38 +1,45 @@
-import { ref } from 'vue'
+import { computed, type ComputedRef } from 'vue'
+import { useSettingsStore } from '@/stores/settings'
 
 /**
- * 主题管理模块
- * 提供主题切换、初始化和状态管理功能
+ * 主题管理 shim
+ * --------------------------------------------------------------------------
+ * 保留旧 `theme.current.value / toggle() / init()` API，兼容 App.vue /
+ * TheHeader.vue / TinyMCEEditor.vue 等历史引用。
+ * 内部转发到 pinia settingsStore（真实主题状态在这里）。
+ *
+ * 迁移完成后可删除本文件，直接使用 useSettingsStore()。
  */
 
-// 使用Vue的响应式ref创建主题状态
-const current = ref('light')
+let _store: ReturnType<typeof useSettingsStore> | null = null
+let _current: ComputedRef<'light' | 'dark'> | null = null
+
+function getStore() {
+  if (!_store) _store = useSettingsStore()
+  return _store
+}
 
 const theme = {
-  // 当前主题状态（响应式）
-  current,
+  /** 当前生效主题（'light' | 'dark'）的响应式引用，兼容 `.value` 读取 */
+  get current(): ComputedRef<'light' | 'dark'> {
+    if (!_current) {
+      _current = computed(() => (getStore().isDark ? 'dark' : 'light'))
+    }
+    return _current
+  },
 
-  /**
-   * 切换主题
-   * 在浅色和深色主题之间切换，并保存到本地存储
-   */
-  toggle: function() {
-    current.value = current.value === 'light' ? 'dark' : 'light';
-    // 将主题类名应用到根元素，实现主题样式切换
-    document.documentElement.className = current.value;
-    // 将当前主题保存到localStorage，实现主题持久化存储
-    localStorage.setItem('theme', current.value);
+  /** 浅色/深色之间切换 */
+  toggle() {
+    getStore().toggleThemeMode()
   },
 
   /**
-   * 初始化主题
-   * 从本地存储读取主题设置，如果没有则默认为浅色主题
+   * 初始化：settingsStore 构造时自动读取 localStorage 并应用。
+   * 必须在 `app.use(pinia)` 之后调用。
    */
-  init: function() {
-    const saved = localStorage.getItem('theme') || 'light';
-    current.value = saved;
-    document.documentElement.className = saved;
-  }
-};
+  init() {
+    getStore()
+  },
+}
 
-export default theme;
+export default theme

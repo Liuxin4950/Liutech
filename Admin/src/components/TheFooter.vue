@@ -1,49 +1,42 @@
 <script setup lang="ts">
-// 获取当前年份
+import { useI18n } from '@/i18n'
+const { t } = useI18n()
 const currentYear = new Date().getFullYear()
 </script>
 
 <template>
   <footer class="admin-footer">
-    <div class="footer-links">
-      <a href="#" target="_blank">LiuTech 官网</a>
-      <a href="#" target="_blank">文档中心</a>
-      <a href="#" target="_blank">关于我们</a>
-    </div>
-    <div class="copyright">
-      Copyright &copy; {{ currentYear }} LiuTech Experience Technology Department
-    </div>
+    <span>© {{ currentYear }} LiuTech</span>
+    <span class="admin-footer__sep">·</span>
+    <a href="https://github.com" target="_blank" rel="noopener">{{ t('footer.website') }}</a>
+    <a href="https://github.com" target="_blank" rel="noopener">{{ t('footer.docs') }}</a>
+    <a href="https://github.com" target="_blank" rel="noopener">{{ t('footer.about') }}</a>
   </footer>
 </template>
 
 <style scoped>
 .admin-footer {
-  padding: 24px 16px;
-  text-align: center;
-  color: rgba(0, 0, 0, 0.45);
-  font-size: 14px;
-  background: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lt-space-md);
+  padding: var(--lt-space-sm) var(--lt-space-page-x);
+  color: var(--lt-color-text-tertiary);
+  font-size: var(--lt-font-size-xs);
+  background: transparent;
+  line-height: 1;
 }
 
-.footer-links {
-  margin-bottom: 8px;
+.admin-footer__sep {
+  color: var(--lt-color-text-quaternary);
 }
 
-.footer-links a {
-  color: rgba(0, 0, 0, 0.45);
-  margin-right: 40px;
-  transition: all 0.3s;
+.admin-footer a {
+  color: var(--lt-color-text-tertiary);
+  transition: color var(--lt-duration-base) var(--lt-ease-in-out);
 }
 
-.footer-links a:last-child {
-  margin-right: 0;
-}
-
-.footer-links a:hover {
-  color: rgba(0, 0, 0, 0.65);
-}
-
-.copyright {
-  color: rgba(0, 0, 0, 0.45);
+.admin-footer a:hover {
+  color: var(--lt-color-primary);
 }
 </style>

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 import CategoriesService from '../../services/categories'
 import type { Category, CategoryListParams } from '../../services/categories'
 import { formatDateTime } from '../../utils/utils'
@@ -57,6 +61,15 @@ const columns = [
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
   { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
 ]
+
+const columnPrefsCtrl = useTableColumnPrefs('categories', columns, { alwaysVisible: ["action"] })
+const prefColumns = columnPrefsCtrl.prefColumns
+
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'categories',
+})
 </script>
 
 <template>
@@ -64,13 +77,13 @@ const columns = [
     <!-- 搜索卡片 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="24">
-          <a-col :span="6">
+        <a-row :gutter="[16, 12]" align="bottom">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="名称" class="mb-0">
               <a-input v-model:value="searchParams.name" placeholder="请输入分类名称" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
-          <a-col :span="18" class="text-right">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
             <a-space>
               <a-tooltip title="显示已删除">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
@@ -94,6 +107,8 @@ const columns = [
       <template #title><span>分类列表</span></template>
       <template #extra>
         <a-space>
+          <TableExportButton :ctrl="exportCtrl" />
+          <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <a-button type="primary" @click="openCreate">
             <template #icon><PlusOutlined /></template>新建分类
           </a-button>
@@ -112,7 +127,7 @@ const columns = [
         </a-space>
       </template>
       <a-table
-        :columns="columns"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"

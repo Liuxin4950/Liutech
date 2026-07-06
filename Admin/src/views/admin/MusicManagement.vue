@@ -12,6 +12,10 @@ import {
   ReloadOutlined
 } from '@ant-design/icons-vue'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 import type { Music } from '../../services/music'
 import musicService from '../../services/music'
 import { formatDateTime } from '../../utils/utils'
@@ -37,6 +41,21 @@ const statusOptions = [
   { label: '禁用', value: 0 }
 ]
 
+// ============== 表格列 ==============
+const columns = [
+  { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
+  { title: '封面', dataIndex: 'coverUrl', key: 'cover', width: 80 },
+  { title: '歌曲名', dataIndex: 'title', key: 'title', width: 200 },
+  { title: '艺术家', dataIndex: 'artist', key: 'artist', width: 150 },
+  { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 120 },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
+  { title: '操作', key: 'action', width: 200, fixed: 'right' as const }
+]
+
+const columnPrefsCtrl = useTableColumnPrefs('music', columns, { alwaysVisible: ["action"] })
+const prefColumns = columnPrefsCtrl.prefColumns
+
 // ============== 表格页面 ==============
 const {
   loading, dataSource, selectedRowKeys, searchParams, pagination,
@@ -52,6 +71,12 @@ const {
   },
   defaultSearchParams: { status: undefined, keyword: '' },
   loadErrorMessage: '加载音乐列表失败'
+})
+
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'music',
 })
 
 // ============== CRUD 操作 ==============
@@ -249,20 +274,20 @@ const handleStatusChange = async (id: number, status: number) => {
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="24">
-          <a-col :span="6">
+        <a-row :gutter="[16, 12]" align="bottom">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="状态" class="mb-0">
               <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear @change="handleSearch">
                 <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="关键词" class="mb-0">
               <a-input v-model:value="searchParams.keyword" placeholder="搜索歌曲名/艺术家" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
-          <a-col :span="12" class="text-right">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
             <a-space>
               <a-button type="primary" @click="handleSearch">
                 <template #icon><SearchOutlined /></template>
@@ -285,6 +310,8 @@ const handleStatusChange = async (id: number, status: number) => {
       </template>
       <template #extra>
         <a-space>
+          <TableExportButton :ctrl="exportCtrl" />
+          <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <a-button type="primary" @click="uploadModalVisible = true">
             <PlusOutlined /> 上传音乐
           </a-button>
@@ -300,16 +327,7 @@ const handleStatusChange = async (id: number, status: number) => {
       </template>
 
       <a-table
-        :columns="[
-          { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-          { title: '封面', dataIndex: 'coverUrl', key: 'cover', width: 80 },
-          { title: '歌曲名', dataIndex: 'title', key: 'title', width: 200 },
-          { title: '艺术家', dataIndex: 'artist', key: 'artist', width: 150 },
-          { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder', width: 120 },
-          { title: '状态', dataIndex: 'status', key: 'status', width: 80 },
-          { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-          { title: '操作', key: 'action', width: 200, fixed: 'right' }
-        ]"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :scroll="{ x: 1000 }"
@@ -328,7 +346,7 @@ const handleStatusChange = async (id: number, status: number) => {
 
           <template v-else-if="column.key === 'title'">
             <a-tooltip :title="record.title">
-              <span style="font-weight: 500">{{ record.title }}</span>
+              <span style="font-weight: var(--lt-font-weight-medium)">{{ record.title }}</span>
             </a-tooltip>
           </template>
 
@@ -461,15 +479,26 @@ const handleStatusChange = async (id: number, status: number) => {
 .cover-preview {
   width: 100px;
   height: 100px;
-  border-radius: 8px;
+  border-radius: var(--lt-radius-lg);
   overflow: hidden;
-  border: 1px dashed var(--border-base);
+  border: 1px dashed var(--lt-color-border);
 }
 
 .cover-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+@media (max-width: 991px) {
+  .search-actions {
+    justify-content: flex-start;
+  }
 }
 </style>
 

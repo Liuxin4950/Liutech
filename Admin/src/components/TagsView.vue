@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTagsStore, type TagView } from '@/stores/tabs'
-import { CloseOutlined, ReloadOutlined, ColumnWidthOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { ColumnWidthOutlined } from '@ant-design/icons-vue'
 import ContextMenu from './ContextMenu.vue'
 
 const route = useRoute()
@@ -161,9 +161,9 @@ onMounted(() => {
   display: flex;
   align-items: center;
   width: 100%;
-  height: 40px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-light);
+  height: var(--lt-size-tags-view);
+  background: var(--lt-color-bg-container);
+  border-bottom: 1px solid var(--lt-color-border-secondary);
   overflow: hidden;
 }
 
@@ -171,75 +171,72 @@ onMounted(() => {
   flex: 1;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 4px 12px;
+  padding: var(--lt-space-xs) var(--lt-space-md);
 }
 
 .tags-view-list {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--lt-space-sm);
 }
 
-/* 标签样式 */
 .tag-view {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--lt-space-xs);
   height: 28px;
-  padding: 0 10px;
-  font-size: 13px;
+  padding: 0 var(--lt-space-md);
+  font-size: var(--lt-font-size-sm);
   line-height: 28px;
-  border-radius: 4px;
+  border-radius: var(--lt-radius-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: var(--bg-tag);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-light);
+  transition: var(--lt-motion-hover);
+  background: var(--lt-color-bg-spotlight) !important;
+  color: var(--lt-color-text-secondary);
+  border: 1px solid var(--lt-color-border-secondary) !important;
 }
 
 .tag-view:hover {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-  border-color: var(--color-primary-bg);
+  background: var(--lt-color-primary-bg) !important;
+  color: var(--lt-color-primary);
+  border-color: var(--lt-color-primary-bg) !important;
 }
 
 .tag-view.active {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--lt-color-primary-bg) !important;
+  color: var(--lt-color-primary);
+  border-color: var(--lt-color-primary) !important;
 }
 
 .tag-view.affix {
-  background: var(--bg-hover);
+  background: var(--lt-color-bg-container) !important;
 }
 
 .tag-icon {
-  font-size: 12px;
+  font-size: var(--lt-font-size-xs);
 }
 
-/* 关闭按钮样式 */
 .tag-view :deep(.ant-tag-close-icon) {
-  margin-left: 4px;
+  margin-left: var(--lt-space-xs);
   width: 14px;
   height: 14px;
   line-height: 14px;
-  border-radius: 50%;
+  border-radius: var(--lt-radius-circle);
   text-align: center;
-  transition: all 0.2s;
+  transition: var(--lt-motion-hover);
 }
 
 .tag-view :deep(.ant-tag-close-icon:hover) {
-  background: rgba(0, 0, 0, 0.1);
+  background: var(--lt-color-hover-bg);
 }
 
 .tag-view.active :deep(.ant-tag-close-icon:hover) {
-  background: rgba(22, 119, 255, 0.2);
+  background: var(--lt-color-primary-bg-hover);
 }
 
-/* 动画效果 */
 .tag-list-enter-active,
 .tag-list-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--lt-duration-slow) var(--lt-ease-in-out);
 }
 
 .tag-list-enter-from,
@@ -249,24 +246,20 @@ onMounted(() => {
 }
 
 .tag-list-move {
-  transition: transform 0.3s ease;
+  transition: transform var(--lt-duration-slow) var(--lt-ease-in-out);
 }
 
-/* 滚动条样式 */
 .tags-view-wrapper::-webkit-scrollbar {
   height: 4px;
 }
-
 .tags-view-wrapper::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .tags-view-wrapper::-webkit-scrollbar-thumb {
-  background: var(--border-base);
-  border-radius: 2px;
+  background: var(--lt-color-border);
+  border-radius: var(--lt-radius-xs);
 }
-
 .tags-view-wrapper::-webkit-scrollbar-thumb:hover {
-  background: var(--border-heavy);
+  background: var(--lt-color-border-strong);
 }
 </style>

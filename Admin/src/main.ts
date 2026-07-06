@@ -1,8 +1,11 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+import './assets/styles/tokens.css'
 import './assets/styles/theme.css'
 import './assets/styles/styles.css'
+import './assets/styles/rich-text.css'
+import './assets/styles/tinymce-dark.css'
 import App from './App.vue'
 // 引入路由
 import router from './router'
@@ -15,9 +18,6 @@ import 'ant-design-vue/dist/reset.css'
 import { useUserStore } from './stores/user'
 // 引入全局错误处理
 import { initGlobalErrorHandler, configureVueErrorHandler } from './utils/globalErrorHandler'
-
-//初始化浅色主题
-theme.init()
 
 // 初始化全局错误处理
 initGlobalErrorHandler()
@@ -37,6 +37,9 @@ app.use(pinia)
 app.use(router)
 // 使用Ant Design Vue
 app.use(Antd)
+
+// 初始化主题（依赖 pinia，必须放在 app.use(pinia) 之后）
+theme.init()
 
 // 初始化用户状态
 const userStore = useUserStore()

@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined } from '@ant-design/icons-vue'
 import DOMPurify from 'dompurify'
 import dayjs, { Dayjs } from 'dayjs'
 import AnnouncementsService from '../../services/announcements'
@@ -9,6 +9,10 @@ import type { AnnouncementListParams, Announcement, AnnouncementListItem } from 
 import { formatDateTime, formatRelativeTime } from '../../utils/utils'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 
 // ============== 表格页面 ==============
 const {
@@ -46,7 +50,7 @@ const {
 // ============== 弹窗表单 ==============
 const {
   modalVisible, modalTitle, isEdit, editingId, confirmLoading,
-  formRef, formModel, openCreate, handleCancel
+  formRef, formModel, draftSavedAt, openCreate, handleCancel
 } = useModalForm<Announcement>({
   createFn: (data) => AnnouncementsService.createAnnouncement(data as any),
   updateFn: (id, data) => AnnouncementsService.updateAnnouncement(id, data as unknown as Partial<Announcement>),
@@ -60,6 +64,11 @@ const {
     startTime: undefined,
     endTime: undefined
   }),
+  // 草稿自动保存：TinyMCE 编辑防丢失
+  draft: {
+    key: 'announcements',
+    isDirty: (f) => !!(f.title || f.content),
+  },
   onCreateSuccess: () => { pagination.current = 1; loadAnnouncements() },
   onUpdateSuccess: loadAnnouncements,
   entityName: '公告'
@@ -338,6 +347,26 @@ const columns = [
   { title: '操作', key: 'action', width: 320, fixed: 'right' }
 ]
 
+const columnPrefsCtrl = useTableColumnPrefs('announcements', columns, { alwaysVisible: ["action"] })
+const prefColumns = columnPrefsCtrl.prefColumns
+
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'announcements',
+})
+
+/** 草稿时间格式化 */
+function formatDraftTime(ts: number): string {
+  const diff = Math.max(0, Date.now() - ts)
+  const s = Math.floor(diff / 1000)
+  if (s < 5) return '刚刚'
+  if (s < 60) return `${s} 秒前`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m} 分钟前`
+  return `${Math.floor(m / 60)} 小时前`
+}
+
 const getTypeName = (type: number) => {
   const typeMap: Record<number, string> = { 1: '系统', 2: '活动', 3: '维护', 4: '其他' }
   return typeMap[type] || '未知'
@@ -374,8 +403,8 @@ const stripHtml = (html: string) => {
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="24">
-          <a-col :span="6">
+        <a-row :gutter="[16, 12]" align="bottom">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="关键词" class="mb-0">
               <a-input
                 v-model:value="searchParams.keyword"
@@ -385,21 +414,21 @@ const stripHtml = (html: string) => {
               />
             </a-form-item>
           </a-col>
-          <a-col :span="6">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="类型" class="mb-0">
               <a-select v-model:value="searchParams.type" placeholder="请选择类型" allow-clear>
                 <a-select-option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="状态" class="mb-0">
               <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
                 <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
               </a-select>
             </a-form-item>
           </a-col>
-          <a-col :span="6" class="text-right">
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
             <a-space>
                <a-tooltip title="显示已删除">
                   <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
@@ -419,12 +448,16 @@ const stripHtml = (html: string) => {
       </template>
       <template #extra>
          <a-space>
+            <TableExportButton :ctrl="exportCtrl" />
+            <TableColumnSettings :ctrl="columnPrefsCtrl" />
             <a-button type="primary" @click="openCreate">
               <PlusOutlined /> 新建公告
             </a-button>
-            <a-button :disabled="!exportImportEnabled" @click="handleExport">
-              <DownloadOutlined /> 导出Excel
-            </a-button>
+            <a-tooltip title="导出全部公告（服务端 Excel，含所有分页）">
+              <a-button :disabled="!exportImportEnabled" @click="handleExport">
+                <DownloadOutlined /> 导出全部
+              </a-button>
+            </a-tooltip>
             <a-button :disabled="!exportImportEnabled" @click="uploadVisible = true">
               <UploadOutlined /> 导入Excel
             </a-button>
@@ -460,7 +493,7 @@ const stripHtml = (html: string) => {
          </a-space>
       </template>
       <a-table
-        :columns="columns"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
@@ -587,13 +620,20 @@ const stripHtml = (html: string) => {
     <!-- 新建/编辑弹窗 -->
     <a-modal
       v-model:open="modalVisible"
-      :title="modalTitle"
       :confirm-loading="confirmLoading"
       :width="800"
       destroy-on-close
       @ok="handleSubmit"
       @cancel="handleCancel"
     >
+      <template #title>
+        <div class="modal-title-with-draft">
+          <span>{{ modalTitle }}</span>
+          <span v-if="draftSavedAt" class="draft-hint">
+            <CloudUploadOutlined /> 草稿已保存 {{ formatDraftTime(draftSavedAt) }}
+          </span>
+        </div>
+      </template>
       <a-form
         ref="formRef"
         :model="formModel"
@@ -759,18 +799,18 @@ const stripHtml = (html: string) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: var(--lt-space-sm);
 }
 
 .title-text {
   flex: 1;
-  font-weight: 500;
+  font-weight: var(--lt-font-weight-medium);
   color: var(--text-main);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
-  margin-right: 8px;
+  margin-right: var(--lt-space-sm);
 }
 
 .title-text:hover {
@@ -779,18 +819,18 @@ const stripHtml = (html: string) => {
 
 .title-badges {
   display: flex;
-  gap: 4px;
+  gap: var(--lt-space-xs);
   flex-shrink: 0;
 }
 
 .title-summary {
-  margin-top: 4px;
+  margin-top: var(--lt-space-xs);
 }
 
 .summary-text {
-  font-size: 12px;
+  font-size: var(--lt-font-size-xs);
   color: var(--text-tertiary);
-  line-height: 1.4;
+  line-height: var(--lt-line-height-snug);
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -808,113 +848,113 @@ const stripHtml = (html: string) => {
 }
 
 .relative-time {
-  font-size: 13px;
+  font-size: var(--lt-font-size-sm);
   color: var(--text-main);
-  font-weight: 500;
+  font-weight: var(--lt-font-weight-medium);
 }
 
 .absolute-time {
-  font-size: 12px;
+  font-size: var(--lt-font-size-xs);
   color: var(--text-tertiary);
-  margin-top: 2px;
+  margin-top: var(--lt-space-2xs);
 }
 
 /* 预览弹窗样式 */
 .announcement-preview .preview-header {
   border-bottom: 1px solid var(--border-light);
-  padding-bottom: 16px;
+  padding-bottom: var(--lt-space-lg);
   margin-bottom: 20px;
 }
 
 .announcement-preview .preview-header .preview-title {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--lt-font-size-xl);
+  font-weight: var(--lt-font-weight-semibold);
   color: var(--text-main);
-  margin-bottom: 12px;
-  line-height: 1.4;
+  margin-bottom: var(--lt-space-md);
+  line-height: var(--lt-line-height-snug);
 }
 
 .announcement-preview .preview-header .preview-meta .preview-time {
   color: var(--text-tertiary);
-  font-size: 14px;
+  font-size: var(--lt-font-size-base);
 }
 
 .announcement-preview .preview-content {
   min-height: 200px;
-  line-height: 1.6;
+  line-height: var(--lt-line-height-relaxed);
   color: var(--text-main);
-  font-size: 14px;
+  font-size: var(--lt-font-size-base);
   margin-bottom: 20px;
 }
 
-.announcement-preview .preview-content :deep(h1) { font-size: 24px; font-weight: 600; margin: 20px 0 16px 0; }
-.announcement-preview .preview-content :deep(h2) { font-size: 20px; font-weight: 600; margin: 16px 0 12px 0; }
-.announcement-preview .preview-content :deep(h3) { font-size: 18px; font-weight: 600; margin: 14px 0 10px 0; }
-.announcement-preview .preview-content :deep(p) { margin: 8px 0; line-height: 1.6; }
-.announcement-preview .preview-content :deep(ul), .announcement-preview .preview-content :deep(ol) { margin: 8px 0; padding-left: 20px; }
-.announcement-preview .preview-content :deep(li) { margin: 4px 0; }
+.announcement-preview .preview-content :deep(h1) { font-size: var(--lt-font-size-2xl); font-weight: var(--lt-font-weight-semibold); margin: 20px 0 var(--lt-space-lg) 0; }
+.announcement-preview .preview-content :deep(h2) { font-size: var(--lt-font-size-xl); font-weight: var(--lt-font-weight-semibold); margin: var(--lt-space-lg) 0 var(--lt-space-md) 0; }
+.announcement-preview .preview-content :deep(h3) { font-size: var(--lt-font-size-lg); font-weight: var(--lt-font-weight-semibold); margin: 14px 0 10px 0; }
+.announcement-preview .preview-content :deep(p) { margin: var(--lt-space-sm) 0; line-height: var(--lt-line-height-relaxed); }
+.announcement-preview .preview-content :deep(ul), .announcement-preview .preview-content :deep(ol) { margin: var(--lt-space-sm) 0; padding-left: 20px; }
+.announcement-preview .preview-content :deep(li) { margin: var(--lt-space-xs) 0; }
 .announcement-preview .preview-content :deep(blockquote) {
   border-left: 4px solid var(--color-primary);
-  margin: 16px 0;
-  padding: 8px 16px;
+  margin: var(--lt-space-lg) 0;
+  padding: var(--lt-space-sm) var(--lt-space-lg);
   background: var(--color-primary-bg);
   color: var(--text-main);
 }
 .announcement-preview .preview-content :deep(code) {
   background: var(--bg-hover);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
+  padding: var(--lt-space-2xs) 6px;
+  border-radius: var(--lt-radius-sm);
+  font-family: var(--lt-font-family-mono);
   color: var(--color-error);
 }
 .announcement-preview .preview-content :deep(pre) {
   background: var(--bg-hover);
   border: 1px solid var(--border-light);
-  border-radius: 4px;
-  padding: 12px;
+  border-radius: var(--lt-radius-sm);
+  padding: var(--lt-space-md);
   overflow-x: auto;
-  margin: 16px 0;
+  margin: var(--lt-space-lg) 0;
 }
 .announcement-preview .preview-content :deep(img) {
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
-  margin: 8px 0;
+  border-radius: var(--lt-radius-lg);
+  margin: var(--lt-space-sm) 0;
 }
 .announcement-preview .preview-content :deep(table) {
   width: 100%;
   border-collapse: collapse;
-  margin: 16px 0;
+  margin: var(--lt-space-lg) 0;
 }
 .announcement-preview .preview-content :deep(th), .announcement-preview .preview-content :deep(td) {
   border: 1px solid var(--border-light);
-  padding: 8px 12px;
+  padding: var(--lt-space-sm) var(--lt-space-md);
   text-align: left;
 }
 .announcement-preview .preview-content :deep(th) {
   background: var(--bg-hover);
-  font-weight: 600;
+  font-weight: var(--lt-font-weight-semibold);
 }
 
 .announcement-preview .preview-footer {
   border-top: 1px solid var(--border-light);
-  padding-top: 16px;
+  padding-top: var(--lt-space-lg);
   color: var(--text-tertiary);
-  font-size: 14px;
+  font-size: var(--lt-font-size-base);
 }
 
 /* 导入弹窗样式 */
 .upload-tips {
-  margin-top: 16px;
-  padding: 12px;
+  margin-top: var(--lt-space-lg);
+  padding: var(--lt-space-md);
   background: var(--color-primary-bg);
   border: 1px solid var(--color-primary-hover);
-  border-radius: 6px;
+  border-radius: var(--lt-radius-md);
 }
 
 .upload-tips p {
-  margin: 4px 0;
-  font-size: 13px;
+  margin: var(--lt-space-xs) 0;
+  font-size: var(--lt-font-size-sm);
   color: var(--text-secondary);
 }
 
@@ -924,6 +964,32 @@ const stripHtml = (html: string) => {
 
 .upload-tips p:last-child {
   margin-bottom: 0;
+}
+
+/* 弹窗标题栏内的草稿状态提示 */
+.modal-title-with-draft {
+  display: flex;
+  align-items: center;
+  gap: var(--lt-space-md);
+}
+.draft-hint {
+  font-size: var(--lt-font-size-xs);
+  color: var(--lt-color-success);
+  font-weight: var(--lt-font-weight-regular);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lt-space-xs);
+}
+
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+@media (max-width: 991px) {
+  .search-actions {
+    justify-content: flex-start;
+  }
 }
 </style>
 

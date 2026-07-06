@@ -280,51 +280,51 @@ const removeModel = (record: ModelConfig) => {
 
 <style scoped>
 .models-card {
-  border-radius: 12px;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  border-radius: var(--lt-radius-xl);
+  box-shadow: var(--lt-shadow-xs);
 }
 
 .title-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--lt-space-xs);
 }
 
 .title-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
+  gap: var(--lt-space-sm);
+  font-weight: var(--lt-font-weight-bold);
 }
 
 .title-sub {
-  font-size: 12px;
+  font-size: var(--lt-font-size-xs);
   color: var(--text-secondary);
 }
 
 .model-main {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--lt-space-xs);
 }
 
 .model-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
+  gap: var(--lt-space-sm);
+  font-weight: var(--lt-font-weight-semibold);
   color: var(--text-main);
 }
 
 .model-name {
-  font-size: 12px;
+  font-size: var(--lt-font-size-xs);
   color: var(--text-secondary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--lt-font-family-mono);
 }
 
 .model-desc,
 .param-text {
-  font-size: 12px;
+  font-size: var(--lt-font-size-xs);
   color: var(--text-secondary);
 }
 
@@ -332,8 +332,8 @@ const removeModel = (record: ModelConfig) => {
   width: 100%;
 }
 
-.text-gold { color: var(--color-warning); }
-.text-red { color: var(--color-error); }
-.text-green { color: var(--color-success); }
-.text-blue { color: var(--color-primary); }
+.text-gold { color: var(--lt-color-gold); }
+.text-red { color: var(--lt-color-error); }
+.text-green { color: var(--lt-color-success); }
+.text-blue { color: var(--lt-color-primary); }
 </style>
