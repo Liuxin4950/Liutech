@@ -554,30 +554,34 @@ POST   /api/tags              # 创建标签
 <details>
 <summary>🚀 快速部署步骤</summary>
 
+国内服务器无法从 DockerHub 拉取镜像，采用**本地离线打包**方式：本地构建镜像 → 导出 tar → 上传服务器 → 容器编排。
+
 ```bash
-# 1️⃣ 本地构建项目
+# 1️⃣ 本地构建 5 个业务镜像
 .\快速打包文件.bat
 
-# 2️⃣ 导出 5 个业务镜像（可选，不导出 MySQL）
-# .\镜像导出脚本.bat
+# 2️⃣ 导出业务镜像为 tar（必需，不导出 MySQL）
+.\镜像导出脚本.bat
 
-# 3️⃣ 上传文件到服务器
-# - docker-compose.yml
-# - sql/ 目录
+# 3️⃣ 上传到服务器 /opt/liutech/
+# - docker-images/*.tar → images/
+# - sql/sql.sql → sql/
+# - nginx/ → nginx/
 # - 服务器部署脚本.sh
-# - docker-images/ 下的业务镜像文件（如果需要）
 
-# 4️⃣ 服务器执行
+# 4️⃣ 服务器执行部署
 cd /opt/liutech
 chmod +x 服务器部署脚本.sh
 ./服务器部署脚本.sh
 
 # 5️⃣ 验证部署
-docker-compose ps
+docker compose ps
 curl http://localhost:80
 ```
 
-业务镜像更新时只重建 `backend ai web admin nginx`；不要执行 `docker compose down -v`，不要删除 `mysql_data` 数据卷。MySQL 镜像和数据卷由服务器环境维护，不随业务镜像包覆盖。
+首次部署还需确保服务器具备 `mysql:8.0` 镜像（本地 `docker save` 后上传，或配置国内镜像加速器）。业务镜像更新时只重建 `backend ai web admin nginx`；**不要**执行 `docker compose down -v`，**不要**删除 `mysql_data` 数据卷。
+
+> 海外服务器或有 DockerHub 代理时，也可用 GitHub Actions 自动构建推送 + 服务器 `docker pull` 的方式，详见 [快速部署指南](./快速部署指南.md)。
 
 </details>
 
