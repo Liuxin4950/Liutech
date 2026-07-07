@@ -57,7 +57,9 @@ public final class SecurityWhitelist {
             "/author/profile",
             "/tts/status",
             "/sitemap.xml",
-            "/runtime/ai"
+            "/runtime/ai",
+            // 健康检查端点：供 docker compose healthcheck 探针访问，无需登录
+            "/actuator/health"
     );
 
     /**
