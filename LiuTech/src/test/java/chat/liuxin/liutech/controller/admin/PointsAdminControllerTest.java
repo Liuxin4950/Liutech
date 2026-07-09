@@ -60,13 +60,12 @@ class PointsAdminControllerTest {
     }
 
     @Test
-    void getTransactionList_shouldHandleException() {
+    void getTransactionList_shouldPropagateException() {
         when(pointsAdminService.getTransactionList(anyInt(), anyInt(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("db error"));
 
-        Result<PageResp<PointsTransactionResp>> result = controller.getTransactionList(1, 10, null, null, null, null);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getTransactionList(1, 10, null, null, null, null));
     }
 
     // ========== getTransactionsByUser ==========
@@ -116,16 +115,15 @@ class PointsAdminControllerTest {
     }
 
     @Test
-    void adjustPoints_shouldHandleException() {
+    void adjustPoints_shouldPropagateException() {
         doThrow(new RuntimeException("insufficient balance")).when(pointsAdminService)
                 .adjustPoints(anyLong(), any(), any());
 
         Map<String, Object> request = new HashMap<>();
         request.put("userId", 1);
         request.put("amount", 100);
-        Result<String> result = controller.adjustPoints(request);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.adjustPoints(request));
     }
 
     // ========== getCheckinList ==========
@@ -184,11 +182,10 @@ class PointsAdminControllerTest {
     }
 
     @Test
-    void getPointsStats_shouldHandleException() {
+    void getPointsStats_shouldPropagateException() {
         when(pointsAdminService.getPointsStats()).thenThrow(new RuntimeException("error"));
 
-        Result<Map<String, BigDecimal>> result = controller.getPointsStats();
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getPointsStats());
     }
 }
