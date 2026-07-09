@@ -4,6 +4,7 @@ import chat.liuxin.ai.common.client.TtsClient;
 import chat.liuxin.ai.common.tts.AvatarCueService;
 import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.AvatarCuePayload;
+import chat.liuxin.ai.dto.FieldUpdatePayload;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.PostSummaryDTO;
 import chat.liuxin.ai.infra.config.AiChatProperties;
@@ -120,7 +121,7 @@ public class StreamingChatService {
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, finalConvId, ttsEnabled, emitterClosed, ttsExecutorRef,
-                        guestMode, userIdStr, modelName,
+                        guestMode, userIdStr, modelName, false, null,
                         fullResponse -> {
                             if (!guestMode && finalConvId != null) {
                                 memoryService.saveAssistantMessage(userIdStr, finalConvId, fullResponse, modelName, 1, null);
@@ -181,7 +182,8 @@ public class StreamingChatService {
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, conversationId, ttsEnabled, emitterClosed, ttsExecutorRef,
-                        guestMode, userIdStr, modelName, fullResponse -> {}, (partial, errorMsg) -> {});
+                        guestMode, userIdStr, modelName, true, new FieldUpdateParser(),
+                        fullResponse -> {}, (partial, errorMsg) -> {});
 
             } catch (Exception e) {
                 log.error("写作助手流式处理失败，用户ID: {}, 会话ID: {}", userIdStr, conversationId, e);
@@ -219,6 +221,8 @@ public class StreamingChatService {
             boolean guestMode,
             String userIdStr,
             String modelName,
+            boolean writingMode,
+            FieldUpdateParser parser,
             java.util.function.Consumer<String> onComplete,
             java.util.function.BiConsumer<String, String> onError
     ) {
@@ -235,6 +239,11 @@ public class StreamingChatService {
                 // ---- onNext ----
                 chunk -> {
                     try {
+                        if (writingMode && parser != null) {
+                            handleWritingChunk(emitter, parser, chunk, fullResponseRef, textBuffer, seq,
+                                    ttsEnabled, ttsExecutor, ttsFutures, conversationId);
+                            return;
+                        }
                         fullResponseRef.get().append(chunk);
                         textBuffer.append(chunk);
 
@@ -267,6 +276,15 @@ public class StreamingChatService {
                 // ---- onComplete ----
                 () -> {
                     try {
+                        if (writingMode && parser != null) {
+                            String rest = parser.flush();
+                            if (rest != null && !rest.isEmpty()) {
+                                fullResponseRef.get().append(rest);
+                                textBuffer.append(rest);
+                                SseEmitterHelper.sendSseEvent(emitter, "data", SseEmitterHelper.eventPayload(
+                                        "content", rest, "conversationId", conversationId));
+                            }
+                        }
                         String fullResponse = fullResponseRef.get().toString();
                         onComplete.accept(fullResponse);
 
@@ -418,6 +436,50 @@ public class StreamingChatService {
             }
         }, executor);
         futures.add(task);
+    }
+
+    /**
+     * 写作模式 chunk 处理：用 FieldUpdateParser 解析 chunk，标记外文本走 data/TTS/AvatarCue，
+     * 标记内 JSON 解析为 FieldUpdatePayload 后发 field-update 事件。
+     */
+    private void handleWritingChunk(SseEmitter emitter, FieldUpdateParser parser, String chunk,
+                                    AtomicReference<StringBuilder> fullResponseRef, StringBuilder textBuffer,
+                                    AtomicInteger seq, boolean ttsEnabled, ExecutorService ttsExecutor,
+                                    List<CompletableFuture<Void>> ttsFutures, Long conversationId) throws java.io.IOException {
+        FieldUpdateParser.ParseResult pr = parser.feed(chunk);
+        for (String dataText : pr.dataTexts()) {
+            if (dataText.isEmpty()) continue;
+            fullResponseRef.get().append(dataText);
+            textBuffer.append(dataText);
+            List<String> segments = ttsSegmenter.extractSegments(textBuffer, seq.get() > 0);
+            for (String seg : segments) {
+                int currentSeq = seq.incrementAndGet();
+                sendAvatarCue(emitter, currentSeq, conversationId, seg);
+                if (ttsEnabled) {
+                    enqueueTtsTask(emitter, ttsExecutor, ttsFutures, currentSeq, conversationId, seg);
+                }
+            }
+            SseEmitterHelper.sendSseEvent(emitter, "data", SseEmitterHelper.eventPayload(
+                    "content", dataText, "conversationId", conversationId));
+        }
+        for (FieldUpdatePayload fu : pr.fieldUpdates()) {
+            SseEmitterHelper.sendSseEvent(emitter, "field-update", toPayloadMap(fu));
+        }
+    }
+
+    /** FieldUpdatePayload 转为 SSE 事件 payload Map（只含非 null 字段，对齐前端 FieldUpdatePayload）。 */
+    private Map<String, Object> toPayloadMap(FieldUpdatePayload fu) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        if (fu.getTitle() != null) map.put("title", fu.getTitle());
+        if (fu.getSummary() != null) map.put("summary", fu.getSummary());
+        if (fu.getContentHtml() != null) map.put("contentHtml", fu.getContentHtml());
+        if (fu.getCategoryId() != null) map.put("categoryId", fu.getCategoryId());
+        if (fu.getCategoryName() != null) map.put("categoryName", fu.getCategoryName());
+        if (fu.getTagIds() != null) map.put("tagIds", fu.getTagIds());
+        if (fu.getTagNames() != null) map.put("tagNames", fu.getTagNames());
+        if (fu.getSuggestedCategoryName() != null) map.put("suggestedCategoryName", fu.getSuggestedCategoryName());
+        if (fu.getSuggestedTagNames() != null) map.put("suggestedTagNames", fu.getSuggestedTagNames());
+        return map;
     }
 
 }
