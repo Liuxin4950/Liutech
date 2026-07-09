@@ -55,11 +55,10 @@ class DashboardControllerTest {
     }
 
     @Test
-    void getDashboardStats_shouldHandleException() {
+    void getDashboardStats_shouldPropagateException() {
         when(dashboardService.getDashboardStats()).thenThrow(new RuntimeException("db error"));
 
-        Result<DashboardResp> result = controller.getDashboardStats();
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getDashboardStats());
     }
 }

@@ -28,11 +28,6 @@ public class DashboardController extends BaseAdminController {
      */
     @GetMapping("/stats")
     public Result<DashboardResp> getDashboardStats() {
-        try {
-            DashboardResp resp = dashboardService.getDashboardStats();
-            return Result.success(resp);
-        } catch (Exception e) {
-            return handleException(e, "获取仪表盘统计数据");
-        }
+        return Result.success(dashboardService.getDashboardStats());
     }
 }
