@@ -240,6 +240,10 @@ const send = async (text?: string) => {
           answer.value += chunk
           progressTo('html', 'running')
         },
+        // 以下 SSE 事件 handler 部分后端尚未实现（截至 2026-07-09）：
+        // - onPlan/onToolStart/onToolResult/onConfirmation: 写作步骤追踪/工具展示/确认流程，后端暂未发送
+        // - onWritingDraft/onFieldUpdate: 草稿/字段更新，后端写作分支 field-update 实施后启用
+        // 当前 admin 写作以 onData 文本流为主：AI 已能读取 draft 草稿并给出修改建议文本。
         onPlan: (steps) => {
           normalizePlan(steps)
         },
