@@ -83,13 +83,12 @@ class LogsControllerTest {
     }
 
     @Test
-    void getLogList_shouldHandleException() {
+    void getLogList_shouldPropagateException() {
         when(logService.getLogList(anyInt(), anyInt(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("db error"));
 
-        Result<PageResp<LogResp>> result = controller.getLogList(1, 10, null, null, null, null, null, null);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getLogList(1, 10, null, null, null, null, null, null));
     }
 
     // ========== getLogById ==========
@@ -136,12 +135,11 @@ class LogsControllerTest {
     }
 
     @Test
-    void getActionStats_shouldHandleException() {
+    void getActionStats_shouldPropagateException() {
         when(logService.countByAction()).thenThrow(new RuntimeException("error"));
 
-        Result<List<Map<String, Object>>> result = controller.getActionStats();
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getActionStats());
     }
 
     // ========== getActionTypes ==========
