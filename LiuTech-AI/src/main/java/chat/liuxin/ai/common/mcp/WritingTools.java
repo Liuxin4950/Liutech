@@ -2,8 +2,10 @@ package chat.liuxin.ai.common.mcp;
 
 import chat.liuxin.ai.common.client.BlogApiClient;
 import chat.liuxin.ai.dto.CategoryDTO;
+import chat.liuxin.ai.dto.PostDetailDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -12,7 +14,8 @@ import java.util.List;
  * 写作专用 MCP 工具。
  *
  * 使用公开 API 获取分类和标签，不需要管理员 token。
- * AI 在写作流程中通过这些工具实时获取博客分类/标签数据并自主选择。
+ * AI 在写作流程中通过这些工具实时获取博客分类/标签数据并自主选择，
+ * 也可按 ID 读取文章完整内容用于润色/改写/续写。
  */
 @Slf4j
 @Component
@@ -45,5 +48,17 @@ public class WritingTools {
         log.debug("写作工具调用: listTags");
         // 复用公开 API: GET /tags
         return blogApiClient.getAllTags();
+    }
+
+    /**
+     * 写作流程中给 AI 使用:按文章ID读取完整文章内容。
+     *
+     * 用于润色/改写/续写当前编辑的文章，或参考其他文章。
+     * 复用 {@link BlogApiClient#getPostDetail(Long)}。
+     */
+    @Tool(description = "根据文章ID获取文章完整内容（标题、正文、摘要、分类、标签），用于读取当前编辑的文章或参考其他文章。")
+    public PostDetailDTO getArticleDetail(@ToolParam(description = "文章ID") Long postId) {
+        log.debug("写作工具调用: getArticleDetail, postId={}", postId);
+        return blogApiClient.getPostDetail(postId);
     }
 }

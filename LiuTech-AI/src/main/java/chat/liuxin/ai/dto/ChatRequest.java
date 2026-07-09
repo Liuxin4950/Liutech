@@ -80,6 +80,13 @@ public class ChatRequest {
      */
     private Boolean ttsEnabled;
 
+    /**
+     * 管理员文章草稿快照（可选，仅写作助手使用）。
+     * 编辑文章时由前端随请求发送，让 AI 能读取当前正在编辑的内容。
+     */
+    @Valid
+    private AdminArticleDraftSnapshot draft;
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
