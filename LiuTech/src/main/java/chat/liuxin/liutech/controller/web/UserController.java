@@ -21,8 +21,6 @@ import chat.liuxin.liutech.service.UserProfileService;
 import chat.liuxin.liutech.service.UserManagementService;
 import chat.liuxin.liutech.service.VerificationCodeService;
 import chat.liuxin.liutech.utils.UserUtils;
-import chat.liuxin.liutech.utils.JwtUtil;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.util.List;
 
 import jakarta.validation.Valid;
