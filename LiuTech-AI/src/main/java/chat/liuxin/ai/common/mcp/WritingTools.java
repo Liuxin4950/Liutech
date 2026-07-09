@@ -19,7 +19,13 @@ import java.util.List;
  */
 @Slf4j
 @Component
-public class WritingTools {
+public class WritingTools implements ToolGroup {
+
+    /** 仅管理员可用（写作助手工具） */
+    @Override
+    public java.util.Set<String> allowedRoles() {
+        return java.util.Set.of("ADMIN");
+    }
 
     private final BlogApiClient blogApiClient;
 

@@ -27,7 +27,13 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class BlogMcpTools {
+public class BlogMcpTools implements ToolGroup {
+
+    /** 所有人可用（游客/用户/管理员） */
+    @Override
+    public java.util.Set<String> allowedRoles() {
+        return java.util.Set.of("ADMIN", "USER", "GUEST");
+    }
 
     private final BlogApiClient blogApiClient;
 
