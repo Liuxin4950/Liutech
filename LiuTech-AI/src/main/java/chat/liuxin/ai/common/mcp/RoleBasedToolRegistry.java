@@ -36,7 +36,7 @@ public class RoleBasedToolRegistry {
      * @return 该角色允许调用的工具组对象列表（用于注册到 ChatClient）
      */
     public List<Object> getToolsForRole(String role) {
-        String effectiveRole = role == null ? "GUEST" : role;
+        String effectiveRole = (role == null ? "guest" : role).toUpperCase();
         List<Object> tools = new ArrayList<>();
         for (ToolGroup group : allToolGroups) {
             Set<String> allowed = group.allowedRoles();

@@ -2,9 +2,7 @@ package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
-import chat.liuxin.ai.common.mcp.BlogMcpTools;
 import chat.liuxin.ai.common.mcp.RoleBasedToolRegistry;
-import chat.liuxin.ai.common.mcp.WritingTools;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +36,6 @@ public class SiliconFlowChatClient {
     public enum ChatMode { CHAT, WRITING }
 
     private final ChatClient chatClient;
-    private final BlogMcpTools blogMcpTools;
-    private final WritingTools writingTools;
     private final AiChatProperties aiChatProperties;
     private final RoleBasedToolRegistry roleBasedToolRegistry;
 
@@ -137,12 +133,6 @@ public class SiliconFlowChatClient {
     }
 
     // ==================== 内部方法 ====================
-
-    /** 按模式推断角色，再用 RoleBasedToolRegistry 按角色过滤工具（防御纵深：即使未来新增 ToolGroup 也自动按角色隔离）。 */
-    private List<Object> resolveTools(ChatMode mode) {
-        String role = (mode == ChatMode.WRITING) ? "ADMIN" : "USER";
-        return roleBasedToolRegistry.getToolsForRole(role);
-    }
 
     /**
      * 按角色分派工具（防御纵深：与 SecurityConfig URL 层共同隔离 admin/user 工具）。
