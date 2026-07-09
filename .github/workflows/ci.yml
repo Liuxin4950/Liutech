@@ -1,0 +1,48 @@
+name: CI
+
+# 触发条件：PR 到 main，或 push 到 main / refactor 分支
+# 与 deploy.yml 分工：CI 跑测试和构建（质量门禁），deploy 只负责打包镜像部署
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, refactor/**]
+
+jobs:
+  backend-test:
+    name: 后端单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 配置 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+      - name: LiuTech 单元测试
+        run: mvn -f LiuTech/pom.xml test
+      - name: LiuTech-AI 单元测试
+        run: mvn -f LiuTech-AI/pom.xml test
+
+  frontend-build:
+    name: 前端构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 配置 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Web/package-lock.json
+      - name: 构建前端 Web
+        working-directory: ./Web
+        run: |
+          npm ci
+          npm run build
+      - name: 构建前端 Admin
+        working-directory: ./Admin
+        run: |
+          npm ci
+          npm run build
