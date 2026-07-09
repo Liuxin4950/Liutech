@@ -3,6 +3,7 @@ package chat.liuxin.ai.service;
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.common.mcp.BlogMcpTools;
+import chat.liuxin.ai.common.mcp.RoleBasedToolRegistry;
 import chat.liuxin.ai.common.mcp.WritingTools;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
@@ -40,6 +41,7 @@ public class SiliconFlowChatClient {
     private final BlogMcpTools blogMcpTools;
     private final WritingTools writingTools;
     private final AiChatProperties aiChatProperties;
+    private final RoleBasedToolRegistry roleBasedToolRegistry;
 
     // ==================== 核心方法 ====================
 
@@ -136,9 +138,17 @@ public class SiliconFlowChatClient {
 
     // ==================== 内部方法 ====================
 
-    /** 按模式分派要注册的工具:WRITING 给写作助手工具,其余给博客 MCP 工具。 */
+    /** 按模式分派要注册的工具:WRITING 给写作助手工具（仅 ADMIN），其余给博客 MCP 工具（全角色）。 */
     private Object resolveTools(ChatMode mode) {
         return mode == ChatMode.WRITING ? writingTools : blogMcpTools;
+    }
+
+    /**
+     * 按角色分派工具（防御纵深：与 SecurityConfig URL 层共同隔离 admin/user 工具）。
+     * admin 角色可用 WritingTools，user/guest 仅 BlogMcpTools。
+     */
+    public List<Object> resolveToolsByRole(String role) {
+        return roleBasedToolRegistry.getToolsForRole(role);
     }
 
     /** 请求未指定模型时回退到配置里的默认模型。 */
