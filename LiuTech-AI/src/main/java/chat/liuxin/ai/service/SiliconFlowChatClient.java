@@ -67,7 +67,7 @@ public class SiliconFlowChatClient {
         String model = resolveModel(modelName);
         List<Message> safeMsgs = safeMessages(messages);
         OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
-        Object tools = resolveTools(mode);
+        Object[] tools = resolveTools(mode).toArray();
         try {
             log.debug("调用AI模型: {}, 模式: {}, 消息数: {}", model, mode, safeMsgs.size());
             if (mode == ChatMode.WRITING) {
@@ -108,7 +108,7 @@ public class SiliconFlowChatClient {
         String model = resolveModel(modelName);
         List<Message> safeMsgs = safeMessages(messages);
         OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
-        Object tools = resolveTools(mode);
+        Object[] tools = resolveTools(mode).toArray();
         try {
             log.debug("调用AI模型(流式): {}, 模式: {}, 消息数: {}", model, mode, safeMsgs.size());
             return chatClient.prompt().messages(safeMsgs).options(options)
@@ -138,9 +138,10 @@ public class SiliconFlowChatClient {
 
     // ==================== 内部方法 ====================
 
-    /** 按模式分派要注册的工具:WRITING 给写作助手工具（仅 ADMIN），其余给博客 MCP 工具（全角色）。 */
-    private Object resolveTools(ChatMode mode) {
-        return mode == ChatMode.WRITING ? writingTools : blogMcpTools;
+    /** 按模式推断角色，再用 RoleBasedToolRegistry 按角色过滤工具（防御纵深：即使未来新增 ToolGroup 也自动按角色隔离）。 */
+    private List<Object> resolveTools(ChatMode mode) {
+        String role = (mode == ChatMode.WRITING) ? "ADMIN" : "USER";
+        return roleBasedToolRegistry.getToolsForRole(role);
     }
 
     /**
