@@ -55,13 +55,12 @@ class CommentsAdminControllerTest {
     }
 
     @Test
-    void getCommentList_shouldHandleException() {
+    void getCommentList_shouldPropagateException() {
         when(commentsAdminService.getCommentListForAdmin(anyInt(), anyInt(), any(), any(), any(), anyBoolean()))
                 .thenThrow(new RuntimeException("db error"));
 
-        Result<PageResp<Comments>> result = controller.getCommentList(1, 10, null, null, null, false);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getCommentList(1, 10, null, null, null, false));
     }
 
     // ========== getCommentById ==========
