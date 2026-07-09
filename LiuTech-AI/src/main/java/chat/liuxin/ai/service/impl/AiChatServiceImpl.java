@@ -48,7 +48,7 @@ public class AiChatServiceImpl implements AiChatService {
      * {@link AIServiceException} 子类,同时落一条 status=3 的错误占位消息。
      */
     @Override
-    public ChatResponse processChat(ChatRequest request, Long userId) {
+    public ChatResponse processChat(ChatRequest request, Long userId, String role) {
         long begin = System.currentTimeMillis();
         boolean guestMode = userId == null;
         String userIdStr = userId != null ? userId.toString() : null;
@@ -68,7 +68,7 @@ public class AiChatServiceImpl implements AiChatService {
 
             AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
             logParameterApplication(modelName, params);
-            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens());
+            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), role);
 
             if (!guestMode) {
                 memoryService.saveAssistantMessage(userIdStr, conversationId, aiOutput, modelName, 1, null);
@@ -98,7 +98,7 @@ public class AiChatServiceImpl implements AiChatService {
      * 失败时不抛异常,直接返回 success=false 的响应,让前端展示错误文案。
      */
     @Override
-    public ChatResponse processWriting(ChatRequest request, Long userId) {
+    public ChatResponse processWriting(ChatRequest request, Long userId, String role) {
         long begin = System.currentTimeMillis();
         boolean guestMode = userId == null;
         String userIdStr = userId != null ? userId.toString() : null;
@@ -109,7 +109,7 @@ public class AiChatServiceImpl implements AiChatService {
             List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode);
             AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
             logParameterApplication(modelName, params);
-            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING);
+            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role);
 
             long cost = System.currentTimeMillis() - begin;
             aiMetrics.recordSuccess(modelName, cost, estimateTokens(aiOutput));
@@ -129,20 +129,20 @@ public class AiChatServiceImpl implements AiChatService {
 
     /** 看板娘流式:解析模型/参数后委托 {@link StreamingChatService} 处理 SSE 生命周期。 */
     @Override
-    public SseEmitter processStreamChat(ChatRequest request, Long userId) {
+    public SseEmitter processStreamChat(ChatRequest request, Long userId, String role) {
         String modelName = resolveModelName(request);
         AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
         logParameterApplication(modelName, params);
-        return streamingChatService.processStreamChat(request, userId, modelName, params);
+        return streamingChatService.processStreamChat(request, userId, modelName, params, role);
     }
 
     /** 写作助手流式:同样委托,但走 WRITING 分支,不持久化消息。 */
     @Override
-    public SseEmitter processWritingStream(ChatRequest request, Long userId) {
+    public SseEmitter processWritingStream(ChatRequest request, Long userId, String role) {
         String modelName = resolveModelName(request);
         AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
         logParameterApplication(modelName, params);
-        return streamingChatService.processWritingStream(request, userId, modelName, params);
+        return streamingChatService.processWritingStream(request, userId, modelName, params, role);
     }
 
     // ==================== 内部工具 ====================

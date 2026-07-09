@@ -46,8 +46,8 @@ public class SiliconFlowChatClient {
     // ==================== 核心方法 ====================
 
     /** CHAT 模式的便捷重载,等价于显式传 {@link ChatMode#CHAT}。 */
-    public String chat(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
-        return chat(messages, modelName, temperature, maxTokens, ChatMode.CHAT);
+    public String chat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, String role) {
+        return chat(messages, modelName, temperature, maxTokens, ChatMode.CHAT, role);
     }
 
     /**
@@ -63,13 +63,13 @@ public class SiliconFlowChatClient {
     @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
     @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChat")
     @RateLimiter(name = "aiService")
-    public String chat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode) {
+    public String chat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, String role) {
         String model = resolveModel(modelName);
         List<Message> safeMsgs = safeMessages(messages);
         OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
-        Object[] tools = resolveTools(mode).toArray();
+        Object[] tools = resolveToolsByRole(role).toArray();
         try {
-            log.debug("调用AI模型: {}, 模式: {}, 消息数: {}", model, mode, safeMsgs.size());
+            log.debug("调用AI模型: {}, 模式: {}, 角色: {}, 消息数: {}", model, mode, role, safeMsgs.size());
             if (mode == ChatMode.WRITING) {
                 // 写作模式：内部流式收集，避免 RestClient 超时
                 String response = chatClient.prompt().messages(safeMsgs).options(options)
@@ -91,8 +91,8 @@ public class SiliconFlowChatClient {
     }
 
     /** CHAT 模式的便捷重载。 */
-    public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens) {
-        return streamChat(messages, modelName, temperature, maxTokens, ChatMode.CHAT);
+    public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, String role) {
+        return streamChat(messages, modelName, temperature, maxTokens, ChatMode.CHAT, role);
     }
 
     /**
@@ -104,13 +104,13 @@ public class SiliconFlowChatClient {
     @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
     @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackStreamChat")
     @RateLimiter(name = "aiService")
-    public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode) {
+    public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, String role) {
         String model = resolveModel(modelName);
         List<Message> safeMsgs = safeMessages(messages);
         OpenAiChatOptions options = buildOptions(model, temperature, maxTokens);
-        Object[] tools = resolveTools(mode).toArray();
+        Object[] tools = resolveToolsByRole(role).toArray();
         try {
-            log.debug("调用AI模型(流式): {}, 模式: {}, 消息数: {}", model, mode, safeMsgs.size());
+            log.debug("调用AI模型(流式): {}, 模式: {}, 角色: {}, 消息数: {}", model, mode, role, safeMsgs.size());
             return chatClient.prompt().messages(safeMsgs).options(options)
                     .tools(tools).stream().content();
         } catch (Exception e) {
@@ -125,13 +125,13 @@ public class SiliconFlowChatClient {
      * 同步调用熔断兜底。Resilience4j 通过反射按签名匹配调用,末尾必须多一个 Exception 参数。
      * 返回固定的降级文案,让前端能显示"AI 繁忙"而不是抛 5xx。
      */
-    public String fallbackChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, Exception exception) {
+    public String fallbackChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, String role, Exception exception) {
         log.warn("AI服务熔断, 模型: {}, 模式: {}, 异常: {}", modelName, mode, exception.getMessage());
         return "抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage();
     }
 
     /** 流式调用熔断兜底,返回只发一条降级文案的 Flux。 */
-    public Flux<String> fallbackStreamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, Exception exception) {
+    public Flux<String> fallbackStreamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, String role, Exception exception) {
         log.warn("AI服务流式熔断, 模型: {}, 模式: {}, 异常: {}", modelName, mode, exception.getMessage());
         return Flux.just("抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage());
     }

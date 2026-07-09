@@ -66,7 +66,7 @@ public class StreamingChatService {
      *   并写一条错误占位,再向前端发 error 事件。
      */
     public SseEmitter processStreamChat(ChatRequest request, Long userId, String modelName,
-                                        AiModelPolicy.ModelParameters params) {
+                                        AiModelPolicy.ModelParameters params, String role) {
         boolean guestMode = userId == null;
         String userIdStr = userId != null ? userId.toString() : null;
         Long conversationId = guestMode ? null : request.getConversationId();
@@ -117,7 +117,7 @@ public class StreamingChatService {
                     }
                 }, 15, 15, TimeUnit.SECONDS);
 
-                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens());
+                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), role);
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, finalConvId, ttsEnabled, emitterClosed, ttsExecutorRef,
@@ -152,7 +152,7 @@ public class StreamingChatService {
      * 其他 SSE 生命周期、TTS 编排、AvatarCue 逻辑与 {@link #processStreamChat} 共用。
      */
     public SseEmitter processWritingStream(ChatRequest request, Long userId, String modelName,
-                                           AiModelPolicy.ModelParameters params) {
+                                           AiModelPolicy.ModelParameters params, String role) {
         boolean guestMode = userId == null;
         String userIdStr = userId != null ? userId.toString() : null;
         Long conversationId = guestMode ? null : request.getConversationId();
@@ -178,7 +178,7 @@ public class StreamingChatService {
                 SseEmitterHelper.sendSseEvent(emitter, "start", SseEmitterHelper.eventPayload(
                         "conversationId", conversationId, "model", modelName, "mode", "writing"));
 
-                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING);
+                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role);
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, conversationId, ttsEnabled, emitterClosed, ttsExecutorRef,
