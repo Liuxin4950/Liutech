@@ -66,12 +66,6 @@ public class UserController {
 
     @Autowired
     private VerificationCodeService verificationCodeService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
     /**
      * 用户注册接口
      * 创建新用户账户，包括用户名唯一性检查、邮箱唯一性检查、密码加密等
