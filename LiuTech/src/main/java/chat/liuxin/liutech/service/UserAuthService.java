@@ -7,6 +7,8 @@ import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.LoginReq;
 import chat.liuxin.liutech.req.RegisterReq;
 import chat.liuxin.liutech.req.ChangePasswordReq;
+import chat.liuxin.liutech.req.ResetPasswordReq;
+import chat.liuxin.liutech.req.EmailLoginVerifyReq;
 import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.resp.LoginResp;
 import chat.liuxin.liutech.utils.JwtUtil;
@@ -400,6 +402,46 @@ public class UserAuthService {
                 changePasswordReq.getOldPassword(), changePasswordReq.getNewPassword());
 
         log.info("用户 {} 密码修改成功", currentUser.getUsername());
+    }
+
+    /**
+     * 忘记密码-重置密码：校验验证码后设置新密码。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void resetPassword(ResetPasswordReq req) {
+        log.info("开始重置密码流程，邮箱: {}", req.getEmail());
+        chat.liuxin.liutech.model.VerificationCode vc =
+                verificationCodeService.verifyCode(req.getEmail(), "FORGOT_PASSWORD", req.getCode());
+        List<Users> users = userMapper.findByEmail(req.getEmail());
+        if (users == null || users.isEmpty()) {
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
+        }
+        Users user = users.get(0);
+        user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
+        user.setUpdatedAt(new Date());
+        userMapper.updateById(user);
+        verificationCodeService.markUsed(vc.getId());
+    }
+
+    /**
+     * 邮箱验证码登录：校验验证码后返回 JWT。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public LoginResp verifyEmailLogin(EmailLoginVerifyReq req) {
+        log.info("开始邮箱验证码登录流程，邮箱: {}", req.getEmail());
+        chat.liuxin.liutech.model.VerificationCode vc =
+                verificationCodeService.verifyCode(req.getEmail(), "EMAIL_LOGIN", req.getCode());
+        List<Users> users = userMapper.findByEmail(req.getEmail());
+        if (users == null || users.isEmpty()) {
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
+        }
+        Users user = users.get(0);
+        if (user.getStatus() != 1) {
+            throw new BusinessException(ErrorCode.ACCOUNT_DISABLED);
+        }
+        verificationCodeService.markUsed(vc.getId());
+        updateLastLoginTime(user);
+        return generateLoginResponse(user);
     }
 
     /**
