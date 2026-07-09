@@ -54,13 +54,9 @@ public class TtsAdminController extends BaseAdminController {
     @PutMapping("/config")
     @OperationLog(action = "update", targetType = "tts", description = "更新语音推理配置")
     public Result<String> updateConfig(@RequestBody TtsConfigDTO config) {
-        try {
-            ttsConfigService.updateConfig(config);
-            ttsStatusService.clearCache();
-            return Result.success("更新成功");
-        } catch (Exception e) {
-            return handleException(e, "更新语音推理配置");
-        }
+        ttsConfigService.updateConfig(config);
+        ttsStatusService.clearCache();
+        return Result.success("更新成功");
     }
 
     @GetMapping("/status")
