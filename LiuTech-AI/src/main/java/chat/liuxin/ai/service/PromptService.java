@@ -90,7 +90,8 @@ public class PromptService {
             }
         }
 
-        if (guestMode) {
+        // 写作模式或访客模式用 tempMessages（前端传历史，不落库，支持多轮对话）
+        if (guestMode || writingMode) {
             messages.addAll(buildGuestPromptMessages(request));
             return messages;
         }

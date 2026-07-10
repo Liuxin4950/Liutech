@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AdminAgentService, type AdminArticleDraftSnapshot, type AgentPlanStep, type ToolEventPayload, type WritingDraftPayload, type FieldUpdatePayload } from '@/services/adminAgent'
+import { AdminAgentService, type AdminArticleDraftSnapshot, type AgentPlanStep, type ToolEventPayload, type WritingDraftPayload, type FieldUpdatePayload, type TempMessage } from '@/services/adminAgent'
 
 const props = defineProps<{
   draft: AdminArticleDraftSnapshot
@@ -65,6 +65,7 @@ const emit = defineEmits<{
 const prompt = ref('')
 const loading = ref(false)
 const answer = ref('')
+const history = ref<TempMessage[]>([])
 const error = ref('')
 type StepStatus = 'pending' | 'running' | 'completed' | 'waiting' | 'failed'
 type AssistantStep = AgentPlanStep & { status: StepStatus }
@@ -283,6 +284,7 @@ const send = async (text?: string) => {
     await AdminAgentService.stream({
       message: content,
       draft: props.draft,
+      tempMessages: history.value,
       context: {
         page: 'admin-post-editor',
         source: 'web-create-post',
@@ -349,6 +351,10 @@ const send = async (text?: string) => {
     if (runningStep) setStepStatus(runningStep.key, 'failed')
   } finally {
     loading.value = false
+    if (content && answer.value) {
+      history.value.push({ role: 'user', content })
+      history.value.push({ role: 'assistant', content: answer.value })
+    }
   }
 }
 </script>
