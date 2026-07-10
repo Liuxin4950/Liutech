@@ -229,6 +229,7 @@ public class StreamingChatService {
         AtomicReference<StringBuilder> fullResponseRef = new AtomicReference<>(new StringBuilder());
         StringBuilder textBuffer = new StringBuilder();
         AtomicInteger seq = new AtomicInteger(0);
+        AtomicBoolean fieldUpdateSent = new AtomicBoolean(false);
 
         int poolSize = Math.max(1, aiChatProperties.getTtsStreamConcurrency());
         ExecutorService ttsExecutor = Executors.newFixedThreadPool(poolSize);
@@ -241,7 +242,7 @@ public class StreamingChatService {
                     try {
                         if (writingMode && parser != null) {
                             handleWritingChunk(emitter, parser, chunk, fullResponseRef, textBuffer, seq,
-                                    ttsEnabled, ttsExecutor, ttsFutures, conversationId);
+                                    ttsEnabled, ttsExecutor, ttsFutures, conversationId, fieldUpdateSent);
                             return;
                         }
                         fullResponseRef.get().append(chunk);
@@ -287,6 +288,14 @@ public class StreamingChatService {
                         }
                         String fullResponse = fullResponseRef.get().toString();
                         onComplete.accept(fullResponse);
+
+                        // 兜底：写作模式整轮没发过 field-update 时，把全文作为 contentHtml 发一次，
+                        // 保证即使 AI 没按 ---field-update--- 格式输出，内容也能写入编辑器
+                        if (writingMode && !fieldUpdateSent.get() && fullResponse != null && !fullResponse.isBlank()) {
+                            Map<String, Object> fallback = new LinkedHashMap<>();
+                            fallback.put("contentHtml", fullResponse);
+                            SseEmitterHelper.sendSseEvent(emitter, "field-update", fallback);
+                        }
 
                         // flush 剩余文本
                         List<String> tailSegments = ttsSegmenter.extractSegments(textBuffer, seq.get() > 0);
@@ -445,7 +454,8 @@ public class StreamingChatService {
     private void handleWritingChunk(SseEmitter emitter, FieldUpdateParser parser, String chunk,
                                     AtomicReference<StringBuilder> fullResponseRef, StringBuilder textBuffer,
                                     AtomicInteger seq, boolean ttsEnabled, ExecutorService ttsExecutor,
-                                    List<CompletableFuture<Void>> ttsFutures, Long conversationId) throws java.io.IOException {
+                                    List<CompletableFuture<Void>> ttsFutures, Long conversationId,
+                                    AtomicBoolean fieldUpdateSent) throws java.io.IOException {
         FieldUpdateParser.ParseResult pr = parser.feed(chunk);
         for (String dataText : pr.dataTexts()) {
             if (dataText.isEmpty()) continue;
@@ -464,6 +474,7 @@ public class StreamingChatService {
         }
         for (FieldUpdatePayload fu : pr.fieldUpdates()) {
             SseEmitterHelper.sendSseEvent(emitter, "field-update", toPayloadMap(fu));
+            fieldUpdateSent.set(true);
         }
     }
 
