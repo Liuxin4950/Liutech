@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
-import jakarta.servlet.http.HttpServletRequest;
 
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
@@ -33,10 +32,12 @@ import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 文章控制器
- * 提供文章相关的REST API接口，包括文章列表查询、详情查看、搜索等功能
+ * 文章控制器（用户前台）
+ * 提供文章列表、详情、搜索、点赞收藏、草稿箱等公开/登录接口。
+ * 管理员写操作（创建/更新/删除/发布）保留在此供 Web 端使用，后台管理走 /admin/posts。
+ * 异常由 GlobalExceptionHandler 统一兜底，方法内不再 try-catch。
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @RestController
@@ -52,19 +53,7 @@ public class PostsController {
     @Autowired
     private UserUtils userUtils;
 
-
-    /**
-     * 分页查询文章列表
-     * 支持按分类、标签、关键词搜索，支持排序
-     *
-     * @param page 页码（从1开始）
-     * @param size 每页大小
-     * @param categoryId 分类ID（可选）
-     * @param tagId 标签ID（可选）
-     * @param keyword 搜索关键词（可选）
-     * @param sort 排序方式（latest: 最新, hot: 热门）
-     * @return 分页文章列表
-     */
+    /** 分页查询文章列表（公开，仅已发布） */
     @GetMapping
     public Result<PageResp<PostListResp>> getPostList(
             @RequestParam(defaultValue = "1") Integer page,
@@ -72,16 +61,8 @@ public class PostsController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long tagId,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "latest") String sort,
-            HttpServletRequest request) {
-
-        log.info("查询文章列表 - 页码: {}, 大小: {}, 分类: {}, 标签: {}, 关键词: {}, 排序: {}",
-                page, size, categoryId, tagId, keyword, sort);
-
-        // 获取当前用户ID（如果已登录）
+            @RequestParam(defaultValue = "latest") String sort) {
         Long currentUserId = userUtils.getCurrentUserId();
-        log.debug("当前用户ID: {}", currentUserId);
-
         PostQueryReq req = new PostQueryReq();
         req.setPage(page);
         req.setSize(size);
@@ -89,432 +70,165 @@ public class PostsController {
         req.setTagId(tagId);
         req.setKeyword(keyword);
         req.setSort(sort);
-        req.setStatus("published"); // 公开接口只显示已发布的文章
-
-        PageResp<PostListResp> result = postsService.getPostList(req, currentUserId);
-        log.info("查询文章列表成功 - 总数: {}, 当前页: {}", result.getTotal(), result.getCurrent());
-
-        return Result.success("查询成功", result);
+        req.setStatus("published");
+        return Result.success("查询成功", postsService.getPostList(req, currentUserId));
     }
 
-    /**
-     * 根据ID查询文章详情
-     *
-     * @param id 文章ID
-     * @return 文章详情
-     */
+    /** 根据ID查询文章详情（公开） */
     @GetMapping("/{id}")
-    public Result<PostDetailResp> getPostDetail(@PathVariable Long id, HttpServletRequest request) {
-        log.info("查询文章详情 - ID: {}", id);
-
-        // 获取当前用户ID（可能为null）
+    public Result<PostDetailResp> getPostDetail(@PathVariable Long id) {
         Long currentUserId = userUtils.getCurrentUserId();
-
         PostDetailResp post = postsService.getPostDetail(id, currentUserId);
         if (post == null) {
-            log.warn("文章不存在 - ID: {}", id);
             return Result.fail(ErrorCode.ARTICLE_NOT_FOUND);
         }
-
-        log.info("查询文章详情成功 - 标题: {}", post.getTitle());
         return Result.success("查询成功", post);
     }
 
-    /**
-     * 切换文章点赞状态
-     *
-     * @param id 文章ID
-     * @param request HTTP请求对象
-     * @return 操作结果
-     */
+    /** 切换文章点赞状态（需登录） */
     @PostMapping("/{id}/like")
-    public Result<String> toggleLike(@PathVariable Long id, HttpServletRequest request) {
-        log.info("切换文章点赞状态 - ID: {}", id);
-
-        // 获取当前用户ID
+    public Result<String> toggleLike(@PathVariable Long id) {
         Long currentUserId = userUtils.getCurrentUserId();
         if (currentUserId == null) {
-            log.warn("用户未登录，无法点赞文章 - ID: {}", id);
             return Result.fail(ErrorCode.UNAUTHORIZED);
         }
-
-        try {
-            boolean isLiked = postInteractionService.toggleLike(id, currentUserId);
-            String message = isLiked ? "点赞成功" : "取消点赞成功";
-            String action = isLiked ? "liked" : "unliked";
-
-            log.info("切换文章点赞状态成功 - ID: {}, 用户ID: {}, 状态: {}", id, currentUserId, action);
-            return Result.success(message, action);
-        } catch (Exception e) {
-            log.error("切换文章点赞状态失败 - ID: {}, 用户ID: {}", id, currentUserId, e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR);
-        }
+        boolean isLiked = postInteractionService.toggleLike(id, currentUserId);
+        return Result.success(isLiked ? "点赞成功" : "取消点赞成功", isLiked ? "liked" : "unliked");
     }
 
-    /**
-     * 切换文章收藏状态
-     *
-     * @param id 文章ID
-     * @param request HTTP请求对象
-     * @return 操作结果
-     */
+    /** 切换文章收藏状态（需登录） */
     @PostMapping("/{id}/favorite")
-    public Result<String> toggleFavorite(@PathVariable Long id, HttpServletRequest request) {
-        log.info("切换文章收藏状态 - ID: {}", id);
-
-        // 获取当前用户ID
+    public Result<String> toggleFavorite(@PathVariable Long id) {
         Long currentUserId = userUtils.getCurrentUserId();
         if (currentUserId == null) {
-            log.warn("用户未登录，无法收藏文章 - ID: {}", id);
             return Result.fail(ErrorCode.UNAUTHORIZED);
         }
-
-        try {
-            boolean isFavorited = postInteractionService.toggleFavorite(id, currentUserId);
-            String message = isFavorited ? "收藏成功" : "取消收藏成功";
-            String action = isFavorited ? "favorited" : "unfavorited";
-
-            log.info("切换文章收藏状态成功 - ID: {}, 用户ID: {}, 状态: {}", id, currentUserId, action);
-            return Result.success(message, action);
-        } catch (Exception e) {
-            log.error("切换文章收藏状态失败 - ID: {}, 用户ID: {}", id, currentUserId, e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR);
-        }
+        boolean isFavorited = postInteractionService.toggleFavorite(id, currentUserId);
+        return Result.success(isFavorited ? "收藏成功" : "取消收藏成功", isFavorited ? "favorited" : "unfavorited");
     }
 
-    /**
-     * 查询热门文章
-     * 根据评论数量排序
-     *
-     * @param limit 限制数量，默认10
-     * @return 热门文章列表
-     */
+    /** 查询热门文章（公开） */
     @GetMapping("/hot")
-    public Result<List<PostListResp>> getHotPosts(
-            @RequestParam(defaultValue = "10") Integer limit) {
-
-        log.info("查询热门文章 - 限制数量: {}", limit);
-
-        List<PostListResp> posts = postsService.getHotPosts(limit);
-        log.info("查询热门文章成功 - 数量: {}", posts.size());
-
-        return Result.success("查询成功", posts);
+    public Result<List<PostListResp>> getHotPosts(@RequestParam(defaultValue = "10") Integer limit) {
+        return Result.success("查询成功", postsService.getHotPosts(limit));
     }
 
-    /**
-     * 查询最新文章
-     * 按创建时间倒序排列
-     *
-     * @param limit 限制数量，默认10
-     * @return 最新文章列表
-     */
+    /** 查询最新文章（公开） */
     @GetMapping("/latest")
-    public Result<List<PostListResp>> getLatestPosts(
-            @RequestParam(defaultValue = "10") Integer limit) {
-
-        log.info("查询最新文章 - 限制数量: {}", limit);
-
-        List<PostListResp> posts = postsService.getLatestPosts(limit);
-        log.info("查询最新文章成功 - 数量: {}", posts.size());
-
-        return Result.success("查询成功", posts);
+    public Result<List<PostListResp>> getLatestPosts(@RequestParam(defaultValue = "10") Integer limit) {
+        return Result.success("查询成功", postsService.getLatestPosts(limit));
     }
 
-    /**
-     * 搜索文章
-     * 根据关键词在标题、内容、摘要中搜索
-     *
-     * @param keyword 搜索关键词
-     * @param page 页码（从1开始）
-     * @param size 每页大小
-     * @return 搜索结果
-     */
+    /** 搜索文章（公开，仅已发布） */
     @GetMapping("/search")
     public Result<PageResp<PostListResp>> searchPosts(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size) {
-
-        log.info("搜索文章 - 关键词: {}, 页码: {}, 大小: {}", keyword, page, size);
-
         PostQueryReq req = new PostQueryReq();
         req.setPage(page);
         req.setSize(size);
         req.setKeyword(keyword);
-        req.setStatus("published"); // 搜索时只显示已发布的文章
-
-        PageResp<PostListResp> result = postsService.getPostList(req);
-        log.info("搜索文章成功 - 关键词: {}, 总数: {}", keyword, result.getTotal());
-
-        return Result.success("搜索成功", result);
+        req.setStatus("published");
+        return Result.success("搜索成功", postsService.getPostList(req));
     }
 
-    /**
-     * 创建文章
-     * 需要用户登录，文章作者为当前登录用户
-     *
-     * @param req 创建请求
-     * @param request HTTP请求对象
-     * @return 创建成功的文章信息
-     */
+    /** 创建文章（管理员） */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "create", targetType = "post", description = "创建文章")
-    public Result<PostCreateResp> createPost(@Valid @RequestBody PostCreateReq req, HttpServletRequest request) {
-        try {
-            // 从请求中获取当前用户ID（这里需要根据实际的认证机制获取）
-            // 假设通过JWT或Session获取用户ID
-            Long authorId = userUtils.getCurrentUserId();
-            if (authorId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            PostCreateResp result = postsService.createPost(req, authorId);
-            return Result.success(result);
-        } catch (Exception e) {
-            log.error("创建文章失败", e);
-            return Result.fail(ErrorCode.OPERATION_ERROR, "创建文章失败: " + e.getMessage());
-        }
+    public Result<PostCreateResp> createPost(@Valid @RequestBody PostCreateReq req) {
+        return Result.success(postsService.createPost(req, userUtils.getCurrentUserId()));
     }
 
-    /**
-     * 更新文章
-     * 只有文章作者可以更新自己的文章
-     *
-     * @param id 文章ID
-     * @param req 更新请求
-     * @param request HTTP请求对象
-     * @return 更新结果
-     */
+    /** 更新文章（管理员） */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "update", targetType = "post", description = "更新文章")
-    public Result<Boolean> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req, HttpServletRequest request) {
-        try {
-            // 获取当前用户ID
-            Long authorId = userUtils.getCurrentUserId();
-            if (authorId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            // 将文章ID设置到请求对象中
-            req.setId(id);
-            boolean success = postsService.updatePost(req, authorId);
-            return Result.success(success);
-        } catch (Exception e) {
-            log.error("更新文章失败", e);
-            return Result.fail(ErrorCode.OPERATION_ERROR, "更新文章失败: " + e.getMessage());
-        }
+    public Result<Boolean> updatePost(@PathVariable Long id, @Valid @RequestBody PostUpdateReq req) {
+        req.setId(id);
+        return Result.success(postsService.updatePost(req, userUtils.getCurrentUserId()));
     }
 
-    /**
-     * 删除文章
-     * 只有文章作者可以删除自己的文章
-     *
-     * @param id 文章ID
-     * @param request HTTP请求对象
-     * @return 删除结果
-     */
+    /** 删除文章（管理员） */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "delete", targetType = "post", description = "删除文章")
-    public Result<Boolean> deletePost(@PathVariable Long id, HttpServletRequest request) {
-        try {
-            // 获取当前用户ID
-            Long authorId = userUtils.getCurrentUserId();
-            if (authorId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            boolean success = postsService.deletePost(id, authorId);
-            return Result.success(success);
-        } catch (Exception e) {
-            log.error("删除文章失败", e);
-            return Result.fail(ErrorCode.OPERATION_ERROR, "删除文章失败: " + e.getMessage());
-        }
+    public Result<Boolean> deletePost(@PathVariable Long id) {
+        return Result.success(postsService.deletePost(id, userUtils.getCurrentUserId()));
     }
 
-    /**
-     * 发布文章
-     * 将草稿状态的文章发布
-     *
-     * @param id 文章ID
-     * @param request HTTP请求对象
-     * @return 发布结果
-     */
+    /** 发布文章（管理员） */
     @PutMapping("/{id}/publish")
     @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "publish", targetType = "post", description = "发布文章")
-    public Result<Boolean> publishPost(@PathVariable Long id, HttpServletRequest request) {
-        try {
-            // 获取当前用户ID
-            Long authorId = userUtils.getCurrentUserId();
-            if (authorId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            boolean success = postsService.publishPost(id, authorId);
-            return Result.success(success);
-        } catch (Exception e) {
-            log.error("发布文章失败", e);
-            return Result.fail(ErrorCode.OPERATION_ERROR, "发布文章失败: " + e.getMessage());
-        }
+    public Result<Boolean> publishPost(@PathVariable Long id) {
+        return Result.success(postsService.publishPost(id, userUtils.getCurrentUserId()));
     }
 
-    /**
-     * 取消发布文章
-     * 将已发布的文章转为草稿状态
-     *
-     * @param id 文章ID
-     * @param request HTTP请求对象
-     * @return 操作结果
-     */
+    /** 取消发布文章（管理员） */
     @PutMapping("/{id}/unpublish")
     @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "offline", targetType = "post", description = "下线文章")
-    public Result<Boolean> unpublishPost(@PathVariable Long id, HttpServletRequest request) {
-        try {
-            // 获取当前用户ID
-            Long authorId = userUtils.getCurrentUserId();
-            if (authorId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            boolean success = postsService.unpublishPost(id, authorId);
-            return Result.success(success);
-        } catch (Exception e) {
-            log.error("取消发布文章失败", e);
-            return Result.fail(ErrorCode.OPERATION_ERROR, "取消发布文章失败: " + e.getMessage());
-        }
+    public Result<Boolean> unpublishPost(@PathVariable Long id) {
+        return Result.success(postsService.unpublishPost(id, userUtils.getCurrentUserId()));
     }
 
-    /**
-     * 获取当前用户的草稿箱
-     * 查询当前登录用户的所有草稿文章
-     *
-     * @param page 页码（从1开始）
-     * @param size 每页大小
-     * @param keyword 搜索关键词（可选）
-     * @param request HTTP请求对象
-     * @return 草稿文章列表
-     */
+    /** 获取当前用户的草稿箱（需登录） */
     @GetMapping("/drafts")
     public Result<PageResp<PostListResp>> getDrafts(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String keyword,
-            HttpServletRequest request) {
-
-        try {
-            // 获取当前用户ID
-            Long authorId = userUtils.getCurrentUserId();
-            if (authorId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            log.info("查询草稿箱 - 用户ID: {}, 页码: {}, 大小: {}, 关键词: {}",
-                    authorId, page, size, keyword);
-
-            PostQueryReq req = new PostQueryReq();
-            req.setPage(page);
-            req.setSize(size);
-            req.setKeyword(keyword);
-            req.setStatus("draft"); // 只查询草稿状态的文章
-            req.setAuthorId(authorId); // 只查询当前用户的文章
-            req.setSort("latest"); // 按最新时间排序
-
-            PageResp<PostListResp> result = postsService.getPostList(req);
-            log.info("查询草稿箱成功 - 用户ID: {}, 总数: {}", authorId, result.getTotal());
-
-            return Result.success("查询成功", result);
-        } catch (Exception e) {
-            log.error("查询草稿箱失败", e);
-            return Result.fail(ErrorCode.OPERATION_ERROR, "查询草稿箱失败: " + e.getMessage());
+            @RequestParam(required = false) String keyword) {
+        Long authorId = userUtils.getCurrentUserId();
+        if (authorId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
         }
+        PostQueryReq req = new PostQueryReq();
+        req.setPage(page);
+        req.setSize(size);
+        req.setKeyword(keyword);
+        req.setStatus("draft");
+        req.setAuthorId(authorId);
+        req.setSort("latest");
+        return Result.success("查询成功", postsService.getPostList(req));
     }
 
-    /**
-     * 获取当前用户的已发布文章
-     * 查询当前登录用户的所有已发布文章
-     *
-     * @param page 页码（从1开始）
-     * @param size 每页大小
-     * @param keyword 搜索关键词（可选）
-     * @param request HTTP请求对象
-     * @return 用户已发布文章列表
-     */
+    /** 获取当前用户的已发布文章（需登录） */
     @GetMapping("/my")
     public Result<PageResp<PostListResp>> getMyPosts(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String keyword,
-            HttpServletRequest request) {
-
-        try {
-            // 获取当前用户ID
-            Long authorId = userUtils.getCurrentUserId();
-            if (authorId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            log.info("查询我的已发布文章 - 用户ID: {}, 页码: {}, 大小: {}, 关键词: {}",
-                    authorId, page, size, keyword);
-
-            PostQueryReq req = new PostQueryReq();
-            req.setPage(page);
-            req.setSize(size);
-            req.setKeyword(keyword);
-            req.setStatus("published"); // 只查询已发布状态的文章
-            req.setAuthorId(authorId); // 只查询当前用户的文章
-            req.setSort("latest"); // 按最新时间排序
-
-            PageResp<PostListResp> result = postsService.getPostList(req, authorId);
-            log.info("查询我的已发布文章成功 - 用户ID: {}, 总数: {}", authorId, result.getTotal());
-
-            return Result.success("查询成功", result);
-        } catch (Exception e) {
-            log.error("查询我的已发布文章失败", e);
-            return Result.fail(ErrorCode.OPERATION_ERROR, "查询我的已发布文章失败: " + e.getMessage());
+            @RequestParam(required = false) String keyword) {
+        Long authorId = userUtils.getCurrentUserId();
+        if (authorId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
         }
+        PostQueryReq req = new PostQueryReq();
+        req.setPage(page);
+        req.setSize(size);
+        req.setKeyword(keyword);
+        req.setStatus("published");
+        req.setAuthorId(authorId);
+        req.setSort("latest");
+        return Result.success("查询成功", postsService.getPostList(req, authorId));
     }
 
-
-    /**
-     * 获取当前用户的收藏文章
-     * @author 刘鑫
-     * @date 2025-09-26T00:20:02+08:00
-     */
+    /** 获取当前用户的收藏文章（需登录） */
     @GetMapping("/favorites")
     public Result<PageResp<PostListResp>> getFavoritePosts(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String keyword,
-            HttpServletRequest request) {
-
-        try {
-            // 获取当前用户ID
-            Long userId = userUtils.getCurrentUserId();
-            if (userId == null) {
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            log.info("查询用户收藏文章 - 用户ID: {}, 页码: {}, 大小: {}, 关键词: {}",
-                    userId, page, size, keyword);
-
-            PostQueryReq req = new PostQueryReq();
-            req.setPage(page);
-            req.setSize(size);
-            req.setKeyword(keyword);
-            req.setSort("latest"); // 按最新收藏时间排序
-
-            PageResp<PostListResp> result = postInteractionService.getFavoritePosts(req, userId);
-            log.info("查询用户收藏文章成功 - 用户ID: {}, 总数: {}", userId, result.getTotal());
-
-            return Result.success("查询成功", result);
-        } catch (Exception e) {
-            log.error("查询用户收藏文章失败", e);
-            return Result.fail(ErrorCode.OPERATION_ERROR, "查询用户收藏文章失败: " + e.getMessage());
+            @RequestParam(required = false) String keyword) {
+        Long userId = userUtils.getCurrentUserId();
+        if (userId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
         }
+        PostQueryReq req = new PostQueryReq();
+        req.setPage(page);
+        req.setSize(size);
+        req.setKeyword(keyword);
+        req.setSort("latest");
+        return Result.success("查询成功", postInteractionService.getFavoritePosts(req, userId));
     }
-
 }

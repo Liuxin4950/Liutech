@@ -10,7 +10,6 @@ import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
@@ -26,7 +25,6 @@ class PostsControllerTest {
     private PostsService postsService;
     private PostInteractionService postInteractionService;
     private UserUtils userUtils;
-    private MockHttpServletRequest request;
 
     @BeforeEach
     void setUp() {
@@ -34,7 +32,6 @@ class PostsControllerTest {
         postsService = mock(PostsService.class);
         postInteractionService = mock(PostInteractionService.class);
         userUtils = mock(UserUtils.class);
-        request = new MockHttpServletRequest();
 
         ReflectionTestUtils.setField(controller, "postsService", postsService);
         ReflectionTestUtils.setField(controller, "postInteractionService", postInteractionService);
@@ -49,7 +46,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(null);
         when(postsService.getPostList(any(), isNull())).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getPostList(1, 10, null, null, null, "latest", request);
+        Result<PageResp<PostListResp>> result = controller.getPostList(1, 10, null, null, null, "latest");
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertNotNull(result.getData());
@@ -62,7 +59,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postsService.getPostList(any(), eq(1L))).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getPostList(2, 5, 10L, 3L, "test", "hot", request);
+        Result<PageResp<PostListResp>> result = controller.getPostList(2, 5, 10L, 3L, "test", "hot");
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         verify(postsService).getPostList(argThat(req ->
@@ -85,7 +82,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(null);
         when(postsService.getPostDetail(1L, null)).thenReturn(detail);
 
-        Result<PostDetailResp> result = controller.getPostDetail(1L, request);
+        Result<PostDetailResp> result = controller.getPostDetail(1L);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertEquals("Test Post", result.getData().getTitle());
@@ -96,7 +93,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(null);
         when(postsService.getPostDetail(999L, null)).thenReturn(null);
 
-        Result<PostDetailResp> result = controller.getPostDetail(999L, request);
+        Result<PostDetailResp> result = controller.getPostDetail(999L);
 
         assertEquals(ErrorCode.ARTICLE_NOT_FOUND.getCode(), result.getCode());
         assertNull(result.getData());
@@ -187,7 +184,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postInteractionService.toggleLike(1L, 1L)).thenReturn(true);
 
-        Result<String> result = controller.toggleLike(1L, request);
+        Result<String> result = controller.toggleLike(1L);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertEquals("liked", result.getData());
@@ -198,7 +195,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postInteractionService.toggleLike(1L, 1L)).thenReturn(false);
 
-        Result<String> result = controller.toggleLike(1L, request);
+        Result<String> result = controller.toggleLike(1L);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertEquals("unliked", result.getData());
@@ -208,19 +205,18 @@ class PostsControllerTest {
     void toggleLike_shouldFailWhenNotLoggedIn() {
         when(userUtils.getCurrentUserId()).thenReturn(null);
 
-        Result<String> result = controller.toggleLike(1L, request);
+        Result<String> result = controller.toggleLike(1L);
 
         assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
     }
 
     @Test
-    void toggleLike_shouldFailWhenServiceThrows() {
+    void toggleLike_shouldPropagateExceptionWhenServiceThrows() {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postInteractionService.toggleLike(1L, 1L)).thenThrow(new RuntimeException("error"));
 
-        Result<String> result = controller.toggleLike(1L, request);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底为 SYSTEM_ERROR
+        assertThrows(RuntimeException.class, () -> controller.toggleLike(1L));
     }
 
     // ========== toggleFavorite ==========
@@ -230,7 +226,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postInteractionService.toggleFavorite(1L, 1L)).thenReturn(true);
 
-        Result<String> result = controller.toggleFavorite(1L, request);
+        Result<String> result = controller.toggleFavorite(1L);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertEquals("favorited", result.getData());
@@ -240,7 +236,7 @@ class PostsControllerTest {
     void toggleFavorite_shouldFailWhenNotLoggedIn() {
         when(userUtils.getCurrentUserId()).thenReturn(null);
 
-        Result<String> result = controller.toggleFavorite(1L, request);
+        Result<String> result = controller.toggleFavorite(1L);
 
         assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
     }
@@ -253,7 +249,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postsService.getPostList(any())).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getDrafts(1, 10, null, request);
+        Result<PageResp<PostListResp>> result = controller.getDrafts(1, 10, null);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         verify(postsService).getPostList(argThat(req ->
@@ -266,7 +262,7 @@ class PostsControllerTest {
     void getDrafts_shouldFailWhenNotLoggedIn() {
         when(userUtils.getCurrentUserId()).thenReturn(null);
 
-        Result<PageResp<PostListResp>> result = controller.getDrafts(1, 10, null, request);
+        Result<PageResp<PostListResp>> result = controller.getDrafts(1, 10, null);
 
         assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
     }
@@ -279,7 +275,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postsService.getPostList(any(), eq(1L))).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getMyPosts(1, 10, null, request);
+        Result<PageResp<PostListResp>> result = controller.getMyPosts(1, 10, null);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
     }
@@ -288,7 +284,7 @@ class PostsControllerTest {
     void getMyPosts_shouldFailWhenNotLoggedIn() {
         when(userUtils.getCurrentUserId()).thenReturn(null);
 
-        Result<PageResp<PostListResp>> result = controller.getMyPosts(1, 10, null, request);
+        Result<PageResp<PostListResp>> result = controller.getMyPosts(1, 10, null);
 
         assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
     }
@@ -301,7 +297,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postInteractionService.getFavoritePosts(any(), eq(1L))).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getFavoritePosts(1, 10, null, request);
+        Result<PageResp<PostListResp>> result = controller.getFavoritePosts(1, 10, null);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
     }
@@ -310,7 +306,7 @@ class PostsControllerTest {
     void getFavoritePosts_shouldFailWhenNotLoggedIn() {
         when(userUtils.getCurrentUserId()).thenReturn(null);
 
-        Result<PageResp<PostListResp>> result = controller.getFavoritePosts(1, 10, null, request);
+        Result<PageResp<PostListResp>> result = controller.getFavoritePosts(1, 10, null);
 
         assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
     }

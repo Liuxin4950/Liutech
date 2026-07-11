@@ -31,7 +31,6 @@
             <div class="empty-text flex flex-col flex-ac text-sm">
               <!-- <div class="empty-icon">💔</div> -->
               <p>{{ searchKeyword ? '没有找到相关的收藏文章' : '您还没有收藏任何文章' }}</p>
-              <img src="@/assets/image/扑到.png" alt="" class="fit-err">
               <router-link to="/" class="link-btn">去首页看看</router-link>
             </div>
           </template>

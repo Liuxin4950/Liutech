@@ -55,13 +55,12 @@ class TagsAdminControllerTest {
     }
 
     @Test
-    void getTagList_shouldHandleException() {
+    void getTagList_shouldPropagateException() {
         when(tagsService.getTagListForAdmin(anyInt(), anyInt(), any(), anyBoolean()))
                 .thenThrow(new RuntimeException("db error"));
 
-        Result<PageResp<TagResp>> result = controller.getTagList(1, 10, null, false);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getTagList(1, 10, null, false));
     }
 
     // ========== getTagById ==========
@@ -112,13 +111,12 @@ class TagsAdminControllerTest {
     }
 
     @Test
-    void createTag_shouldHandleException() {
+    void createTag_shouldPropagateException() {
         TagResp tag = new TagResp();
         when(tagsService.save(any())).thenThrow(new RuntimeException("error"));
 
-        Result<String> result = controller.createTag(tag);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.createTag(tag));
     }
 
     // ========== updateTag ==========

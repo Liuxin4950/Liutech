@@ -18,8 +18,7 @@ import chat.liuxin.liutech.utils.ValidationUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 管理端留言控制器
- * 需要管理员权限才能访问
+ * 管理端留言控制器（类级 @PreAuthorize 保证认证，异常由 GlobalExceptionHandler 统一兜底）
  */
 @Slf4j
 @RestController
@@ -33,9 +32,7 @@ public class MessagesAdminController extends BaseAdminController {
     @Autowired
     private UserUtils userUtils;
 
-    /**
-     * 分页查询留言列表
-     */
+    /** 分页查询留言列表 */
     @GetMapping
     public Result<IPage<Messages>> getMessagesList(
             @RequestParam(defaultValue = "1") Integer page,
@@ -43,174 +40,89 @@ public class MessagesAdminController extends BaseAdminController {
             @RequestParam(required = false) String nickname,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        try {
-            IPage<Messages> result = messagesService.getMessagesForAdmin(page, size, nickname, status, includeDeleted);
-            return Result.success(result);
-        } catch (Exception e) {
-            return handleException(e, "查询留言列表");
-        }
+        return Result.success(messagesService.getMessagesForAdmin(page, size, nickname, status, includeDeleted));
     }
 
-    /**
-     * 根据ID查询留言详情
-     */
+    /** 根据ID查询留言详情 */
     @GetMapping("/{id}")
     public Result<Messages> getMessageById(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
-        try {
-            Messages message = messagesService.getById(id);
-            return checkResourceExists(message, ErrorCode.NOT_FOUND);
-        } catch (Exception e) {
-            return handleException(e, "查询留言详情");
-        }
+        return checkResourceExists(messagesService.getById(id), ErrorCode.NOT_FOUND);
     }
 
-    /**
-     * 审核留言（通过/拒绝）
-     */
+    /** 审核留言（通过/拒绝） */
     @PutMapping("/{id}/review")
     @OperationLog(action = "review", targetType = "message", description = "审核留言", targetName = "#id")
-    public Result<String> reviewMessage(
-            @PathVariable Long id,
-            @RequestBody ReviewRequest reviewRequest) {
+    public Result<String> reviewMessage(@PathVariable Long id, @RequestBody ReviewRequest reviewRequest) {
         ValidationUtil.validateId(id, "留言ID");
         ValidationUtil.validateNotNull(reviewRequest, "审核信息");
-        try {
-            Long adminId = userUtils.getCurrentUserId();
-            boolean success = messagesService.reviewMessage(id, reviewRequest.getStatus(), adminId);
-            return handleOperationResult(success, "审核成功", "留言审核");
-        } catch (Exception e) {
-            return handleException(e, "留言审核");
-        }
+        Long adminId = userUtils.getCurrentUserId();
+        return handleOperationResult(messagesService.reviewMessage(id, reviewRequest.getStatus(), adminId), "审核成功", "留言审核");
     }
 
-    /**
-     * 回复留言
-     */
+    /** 回复留言 */
     @PutMapping("/{id}/reply")
     @OperationLog(action = "reply", targetType = "message", description = "回复留言", targetName = "#id")
-    public Result<String> replyMessage(
-            @PathVariable Long id,
-            @RequestBody ReplyRequest replyRequest) {
+    public Result<String> replyMessage(@PathVariable Long id, @RequestBody ReplyRequest replyRequest) {
         ValidationUtil.validateId(id, "留言ID");
         ValidationUtil.validateNotNull(replyRequest, "回复信息");
-        try {
-            Long adminId = userUtils.getCurrentUserId();
-            boolean success = messagesService.replyMessage(id, replyRequest.getReply(), adminId);
-            return handleOperationResult(success, "回复成功", "留言回复");
-        } catch (Exception e) {
-            return handleException(e, "留言回复");
-        }
+        Long adminId = userUtils.getCurrentUserId();
+        return handleOperationResult(messagesService.replyMessage(id, replyRequest.getReply(), adminId), "回复成功", "留言回复");
     }
 
-    /**
-     * 删除留言（软删除）
-     */
+    /** 删除留言（软删除） */
     @DeleteMapping("/{id}")
     @OperationLog(action = "delete", targetType = "message", description = "删除留言", targetName = "#id")
     public Result<String> deleteMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
-        try {
-            boolean success = messagesService.deleteMessage(id);
-            return handleOperationResult(success, "删除成功", "留言删除");
-        } catch (Exception e) {
-            return handleException(e, "留言删除");
-        }
+        return handleOperationResult(messagesService.deleteMessage(id), "删除成功", "留言删除");
     }
 
-    /**
-     * 批量删除留言（软删除）
-     */
+    /** 批量删除留言（软删除） */
     @PostMapping("/batch")
     @OperationLog(action = "delete", targetType = "message", description = "批量删除留言")
     public Result<String> batchDeleteMessages(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "留言ID列表");
-        try {
-            boolean success = messagesService.batchDeleteMessages(ids);
-            return handleOperationResult(success, "批量删除成功", "批量删除留言");
-        } catch (Exception e) {
-            return handleException(e, "批量删除留言");
-        }
+        return handleOperationResult(messagesService.batchDeleteMessages(ids), "批量删除成功", "批量删除留言");
     }
 
-    /**
-     * 恢复已删除的留言
-     */
+    /** 恢复已删除的留言 */
     @PutMapping("/{id}/restore")
     @OperationLog(action = "restore", targetType = "message", description = "恢复留言", targetName = "#id")
     public Result<String> restoreMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
-        try {
-            boolean success = messagesService.restoreMessage(id);
-            return handleOperationResult(success, "恢复成功", "留言恢复");
-        } catch (Exception e) {
-            return handleException(e, "留言恢复");
-        }
+        return handleOperationResult(messagesService.restoreMessage(id), "恢复成功", "留言恢复");
     }
 
-    /**
-     * 彻底删除留言（物理删除）
-     */
+    /** 彻底删除留言（物理删除） */
     @DeleteMapping("/{id}/permanent")
     @OperationLog(action = "delete", targetType = "message", description = "彻底删除留言", targetName = "#id")
     public Result<String> permanentDeleteMessage(@PathVariable Long id) {
         ValidationUtil.validateId(id, "留言ID");
-        try {
-            boolean success = messagesService.permanentDeleteMessage(id);
-            return handleOperationResult(success, "彻底删除成功", "留言彻底删除");
-        } catch (Exception e) {
-            return handleException(e, "留言彻底删除");
-        }
+        return handleOperationResult(messagesService.permanentDeleteMessage(id), "彻底删除成功", "留言彻底删除");
     }
 
-    /**
-     * 批量彻底删除留言（物理删除）
-     */
+    /** 批量彻底删除留言（物理删除） */
     @PostMapping("/batch/permanent")
     @OperationLog(action = "delete", targetType = "message", description = "批量彻底删除留言")
     public Result<String> batchPermanentDeleteMessages(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "留言ID列表");
-        try {
-            boolean success = messagesService.batchPermanentDeleteMessages(ids);
-            return handleOperationResult(success, "批量彻底删除成功", "批量彻底删除留言");
-        } catch (Exception e) {
-            return handleException(e, "批量彻底删除留言");
-        }
+        return handleOperationResult(messagesService.batchPermanentDeleteMessages(ids), "批量彻底删除成功", "批量彻底删除留言");
     }
 
-    /**
-     * 审核请求
-     */
+    /** 审核请求 */
     public static class ReviewRequest {
-        /**
-         * 状态：1-通过，2-拒绝
-         */
+        /** 状态：1-通过，2-拒绝 */
         private Integer status;
-
-        public Integer getStatus() {
-            return status;
-        }
-
-        public void setStatus(Integer status) {
-            this.status = status;
-        }
+        public Integer getStatus() { return status; }
+        public void setStatus(Integer status) { this.status = status; }
     }
 
-    /**
-     * 回复请求
-     */
+    /** 回复请求 */
     public static class ReplyRequest {
-        /**
-         * 回复内容
-         */
+        /** 回复内容 */
         private String reply;
-
-        public String getReply() {
-            return reply;
-        }
-
-        public void setReply(String reply) {
-            this.reply = reply;
-        }
+        public String getReply() { return reply; }
+        public void setReply(String reply) { this.reply = reply; }
     }
 }

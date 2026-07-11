@@ -58,7 +58,7 @@ public class SecurityConfig {
      * - SSE 请求响应已提交时跳过异常写入，避免破坏 event-stream 格式
      *
      * 端点分级：
-     * - 公开：/ai/models/**、/ai/status、/ai/chat、/ai/chat/stream、/health、/actuator/**、/static/**
+     * - 公开：/ai/models/**、/ai/status、/ai/chat、/ai/chat/stream、/health、/actuator/health、/static/**
      * - 管理员：/ai/writing、/ai/writing/stream、/admin/**、/ai/admin/**
      * - 其他：需要有效 JWT
      */
@@ -120,7 +120,7 @@ public class SecurityConfig {
                 .requestMatchers("/admin/**", "/ai/admin/**").hasRole("ADMIN")
 
                 // 健康检查接口可以公开访问 - 无需Token认证
-                .requestMatchers("/health", "/actuator/**").permitAll()
+                .requestMatchers("/health", "/actuator/health").permitAll()
 
                 // 静态资源文件可以公开访问 - 无需Token认证
                 .requestMatchers("/static/**").permitAll()

@@ -26,6 +26,7 @@ const emit = defineEmits<{
 
 const prompt = ref('')
 const answer = ref('')
+const showFullAnswer = ref(false)
 const loading = ref(false)
 type StepStatus = 'pending' | 'running' | 'completed' | 'waiting' | 'failed'
 type AssistantStep = AgentPlanStep & { status: StepStatus }
@@ -42,6 +43,27 @@ type FieldScope = {
 }
 const activeFieldScope = ref<FieldScope>({ fields: ['title', 'summary', 'content', 'category', 'tags'], appendTags: false })
 
+// 处理回答显示：长HTML正文只显示提示，不显示原始源码
+const displayAnswer = computed(() => {
+  if (!answer.value) return ''
+  if (answer.value.length < 200) return answer.value
+  const editorHasContent = props.draft.content && props.draft.content.trim().length > 0
+  const textHasHtml = answer.value.includes('<p') || answer.value.includes('<h') || answer.value.includes('<pre')
+  if (textHasHtml && editorHasContent) {
+    const firstTag = answer.value.indexOf('<')
+    if (firstTag > 10) {
+      return answer.value.substring(0, firstTag).trim() + '\n\n✓ 正文已写入编辑器，可直接在富文本框查看编辑'
+    }
+    return '✓ 正文已写入编辑器，可直接在富文本框查看编辑'
+  }
+  return answer.value
+})
+
+const canExpandAnswer = computed(() => displayAnswer.value.length > 80)
+const answerPreviewText = computed(() => {
+  if (showFullAnswer.value || !canExpandAnswer.value) return displayAnswer.value
+  return displayAnswer.value.substring(0, 80) + '...'
+})
 const canSend = computed(() => prompt.value.trim().length > 0 && !loading.value)
 const showProcessCard = computed(() => loading.value)
 const reachedPlan = computed(() => {
@@ -214,7 +236,7 @@ const send = async (text?: string) => {
   const content = (text || prompt.value).trim()
   if (!content || loading.value) return
   loading.value = true
-  answer.value = ''
+  answer.value = ''; showFullAnswer.value = false
   plan.value = []
   articles.value = []
   confirmation.value = null
@@ -240,6 +262,10 @@ const send = async (text?: string) => {
           answer.value += chunk
           progressTo('html', 'running')
         },
+        // 以下 SSE 事件 handler 部分后端尚未实现（截至 2026-07-09）：
+        // - onPlan/onToolStart/onToolResult/onConfirmation: 写作步骤追踪/工具展示/确认流程，后端暂未发送
+        // - onWritingDraft/onFieldUpdate: 草稿/字段更新，后端写作分支 field-update 实施后启用
+        // 当前 admin 写作以 onData 文本流为主：AI 已能读取 draft 草稿并给出修改建议文本。
         onPlan: (steps) => {
           normalizePlan(steps)
         },
@@ -349,8 +375,10 @@ const applyPreview = () => {
     <a-textarea
       v-model:value="prompt"
       :rows="4"
-      placeholder="告诉我你想怎么处理这篇文章..."
+      placeholder="告诉我你想怎么处理这篇文章...（Enter发送，Shift+Enter换行）"
       :disabled="loading"
+      @keydown.enter.exact.prevent="send()"
+      @keydown.shift.enter="() => {}"
     />
     <a-button type="primary" block class="send-button" :disabled="!canSend" :loading="loading" @click="send()">
       <template #icon><SendOutlined /></template>
@@ -383,9 +411,19 @@ const applyPreview = () => {
       </div>
     </div>
 
-    <div v-if="answer" class="agent-section">
-      <div class="section-title">回复</div>
-      <div class="answer-box">{{ answer }}</div>
+    <!-- AI回复区域 -->
+    <div v-if="displayAnswer" class="agent-section answer-container">
+      <div class="answer-header">
+        <span class="answer-title">回复</span>
+        <button v-if="canExpandAnswer" type="button" class="expand-btn" @click="showFullAnswer = !showFullAnswer">
+          {{ showFullAnswer ? '收起' : '展开' }}
+        </button>
+      </div>
+      <div 
+        class="answer-box"
+        :class="{ collapsed: canExpandAnswer && !showFullAnswer }"
+        @click="canExpandAnswer && !showFullAnswer && (showFullAnswer = true)"
+      >{{ answerPreviewText }}</div>
     </div>
 
     <div v-if="articles.length" class="agent-section">
@@ -426,7 +464,7 @@ const applyPreview = () => {
   flex-direction: column;
   gap: 12px;
   max-height: 72vh;
-  overflow-y: auto;
+  overflow-y: auto !important;
 }
 
 .agent-header h3 {
@@ -489,7 +527,7 @@ const applyPreview = () => {
 
 .process-title strong {
   max-width: 56%;
-  overflow: hidden;
+  overflow: hidden !important;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #1677ff;
@@ -498,7 +536,7 @@ const applyPreview = () => {
 
 .process-bar {
   height: 6px;
-  overflow: hidden;
+  overflow: hidden !important;
   border-radius: 999px;
   background: #f0f0f0;
 }
@@ -531,7 +569,7 @@ const applyPreview = () => {
 .trace-row span:nth-child(2),
 .trace-row em {
   min-width: 0;
-  overflow: hidden;
+  overflow: hidden !important;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -571,7 +609,95 @@ const applyPreview = () => {
   border-top: 1px dashed #f0f0f0;
 }
 
+.answer-container {
+  margin-top: 4px;
+}
+.answer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.answer-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+}
+.expand-btn {
+  border: 1px solid #1677ff;
+  background: #e6f4ff;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: #1677ff;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+.expand-btn:hover {
+  background: #1677ff;
+  color: white;
+}
 .answer-box {
+  margin-top: 0;
+}
+.answer-box.collapsed {
+  -webkit-line-clamp: 3;
+}
+.answer-box {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #595959;
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.answer-box.collapsed {
+  max-height: 88px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+.answer-box:not(.collapsed) {
+  max-height: 360px;
+  overflow-y: auto;
+}
+.answer-box:not(.collapsed)::-webkit-scrollbar {
+  width: 4px;
+}
+.answer-box:not(.collapsed)::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 2px;
+}
+
+.answer-box:not(.collapsed) {
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  cursor: default;
+}
+
+.answer-box.collapsed::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: linear-gradient(transparent, #fafafa);
+  pointer-events: none;
+}
+
+.expand-btn {
+  font-size: 12px;
+  color: #1677ff;
+  cursor: pointer;
   white-space: pre-wrap;
   background: #fafafa;
   border: 1px solid #f0f0f0;

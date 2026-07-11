@@ -77,6 +77,6 @@ docker exec -it liutech-mysql mysql -u root -p
 ## 🔗 重要资源指针
 
 - `README.md` — 完整功能介绍、特性列表、部署流程（产品向）
-- `LiuTech/API文档.md` — 后端 API 完整参考
+- `LiuTech/src/main/java/chat/liuxin/liutech/controller/` — 后端 API 完整参考
 - `快速部署指南.md` — 生产环境部署步骤
 - `doc/记录/当前架构.md` — 当前生效的总体架构

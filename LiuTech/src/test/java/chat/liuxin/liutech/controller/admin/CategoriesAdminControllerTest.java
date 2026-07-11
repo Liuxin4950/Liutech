@@ -56,13 +56,12 @@ class CategoriesAdminControllerTest {
     }
 
     @Test
-    void getCategoryList_shouldHandleException() {
+    void getCategoryList_shouldPropagateException() {
         when(categoriesService.getCategoryListForAdmin(anyInt(), anyInt(), any(), anyBoolean()))
                 .thenThrow(new RuntimeException("db error"));
 
-        Result<PageResp<CategoryResp>> result = controller.getCategoryList(1, 10, null, false);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getCategoryList(1, 10, null, false));
     }
 
     // ========== getCategoryById ==========

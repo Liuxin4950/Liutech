@@ -38,7 +38,9 @@
       @post-click="goToPost"
       @page-change="changePage"
       @retry="loadPosts"
-    />
+    >
+      <template #empty><span></span></template>
+    </ArticleList>
   </div>
 </template>
 

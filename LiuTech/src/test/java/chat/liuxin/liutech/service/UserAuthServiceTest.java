@@ -1,6 +1,10 @@
 package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.model.VerificationCode;
+import chat.liuxin.liutech.req.ResetPasswordReq;
+import chat.liuxin.liutech.req.EmailLoginVerifyReq;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.LoginReq;
@@ -15,6 +19,7 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -178,6 +183,123 @@ class UserAuthServiceTest {
         user.setCreatedAt(new Date());
         user.setUpdatedAt(new Date());
         return user;
+    }
+
+    // ========== resetPassword 测试 ==========
+
+    @Test
+    void resetPassword_成功重置密码并加密保存() {
+        ResetPasswordReq req = new ResetPasswordReq();
+        req.setEmail("test@qq.com");
+        req.setCode("123456");
+        req.setNewPassword("newPass123");
+
+        VerificationCode vc = new VerificationCode();
+        vc.setId(1L);
+        when(verificationCodeService.verifyCode("test@qq.com", "FORGOT_PASSWORD", "123456")).thenReturn(vc);
+        when(userMapper.findByEmail("test@qq.com")).thenReturn(List.of(createUser("testuser", "oldHash")));
+
+        authService.resetPassword(req);
+
+        verify(userMapper).updateById(argThat((Users u) -> u.getPasswordHash() != null && u.getPasswordHash().startsWith("$2a$")));
+        verify(verificationCodeService).markUsed(1L);
+    }
+
+    @Test
+    void resetPassword_用户不存在抛LOGIN_FAILED() {
+        ResetPasswordReq req = new ResetPasswordReq();
+        req.setEmail("nobody@qq.com");
+        req.setCode("123456");
+        req.setNewPassword("newPass123");
+
+        VerificationCode vc = new VerificationCode();
+        vc.setId(1L);
+        when(verificationCodeService.verifyCode("nobody@qq.com", "FORGOT_PASSWORD", "123456")).thenReturn(vc);
+        when(userMapper.findByEmail("nobody@qq.com")).thenReturn(Collections.emptyList());
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> authService.resetPassword(req));
+        assertEquals(ErrorCode.LOGIN_FAILED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void resetPassword_验证码错误抛异常且不更新用户() {
+        ResetPasswordReq req = new ResetPasswordReq();
+        req.setEmail("test@qq.com");
+        req.setCode("wrong");
+        req.setNewPassword("newPass123");
+
+        when(verificationCodeService.verifyCode("test@qq.com", "FORGOT_PASSWORD", "wrong"))
+                .thenThrow(new BusinessException(ErrorCode.PARAMS_ERROR));
+
+        assertThrows(BusinessException.class, () -> authService.resetPassword(req));
+        verify(userMapper, never()).updateById(any(Users.class));
+    }
+
+    // ========== verifyEmailLogin 测试 ==========
+
+    @Test
+    void verifyEmailLogin_成功登录返回token() {
+        EmailLoginVerifyReq req = new EmailLoginVerifyReq();
+        req.setEmail("test@qq.com");
+        req.setCode("123456");
+
+        VerificationCode vc = new VerificationCode();
+        vc.setId(1L);
+        when(verificationCodeService.verifyCode("test@qq.com", "EMAIL_LOGIN", "123456")).thenReturn(vc);
+        Users user = createUser("testuser", "hash");
+        user.setStatus(1);
+        when(userMapper.findByEmail("test@qq.com")).thenReturn(List.of(user));
+        when(jwtUtil.generateToken(eq(1L), eq("testuser"), anyString(), eq("hash"))).thenReturn("mock-token");
+
+        LoginResp resp = authService.verifyEmailLogin(req);
+
+        assertEquals("mock-token", resp.getToken());
+        verify(verificationCodeService).markUsed(1L);
+    }
+
+    @Test
+    void verifyEmailLogin_用户不存在抛LOGIN_FAILED() {
+        EmailLoginVerifyReq req = new EmailLoginVerifyReq();
+        req.setEmail("nobody@qq.com");
+        req.setCode("123456");
+
+        VerificationCode vc = new VerificationCode();
+        vc.setId(1L);
+        when(verificationCodeService.verifyCode("nobody@qq.com", "EMAIL_LOGIN", "123456")).thenReturn(vc);
+        when(userMapper.findByEmail("nobody@qq.com")).thenReturn(Collections.emptyList());
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> authService.verifyEmailLogin(req));
+        assertEquals(ErrorCode.LOGIN_FAILED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void verifyEmailLogin_账号禁用抛ACCOUNT_DISABLED() {
+        EmailLoginVerifyReq req = new EmailLoginVerifyReq();
+        req.setEmail("test@qq.com");
+        req.setCode("123456");
+
+        VerificationCode vc = new VerificationCode();
+        vc.setId(1L);
+        when(verificationCodeService.verifyCode("test@qq.com", "EMAIL_LOGIN", "123456")).thenReturn(vc);
+        Users user = createUser("testuser", "hash");
+        user.setStatus(0);
+        when(userMapper.findByEmail("test@qq.com")).thenReturn(List.of(user));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> authService.verifyEmailLogin(req));
+        assertEquals(ErrorCode.ACCOUNT_DISABLED.getCode(), ex.getCode());
+    }
+
+    @Test
+    void verifyEmailLogin_验证码错误抛异常且不生成token() {
+        EmailLoginVerifyReq req = new EmailLoginVerifyReq();
+        req.setEmail("test@qq.com");
+        req.setCode("wrong");
+
+        when(verificationCodeService.verifyCode("test@qq.com", "EMAIL_LOGIN", "wrong"))
+                .thenThrow(new BusinessException(ErrorCode.PARAMS_ERROR));
+
+        assertThrows(BusinessException.class, () -> authService.verifyEmailLogin(req));
+        verify(jwtUtil, never()).generateToken(anyLong(), anyString(), anyString(), anyString());
     }
 
     @SuppressWarnings("unchecked")

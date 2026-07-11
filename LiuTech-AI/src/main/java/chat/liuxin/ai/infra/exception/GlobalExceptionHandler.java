@@ -68,9 +68,20 @@ public class GlobalExceptionHandler {
 
     /** 兜底：任何未处理的异常都归为 500，堆栈只写日志不返回前端，避免泄漏内部实现 */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex, jakarta.servlet.http.HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response) {
+        // SSE 请求异常由 StreamingChatService.onError 处理（发 error 事件），这里跳过避免破坏 event-stream 格式
+        if (response.isCommitted() || isSseRequest(request)) {
+            log.warn("SSE请求异常，已跳过JSON写入: {}", ex.getMessage());
+            return null;
+        }
         log.error("系统异常: {}", ex.getMessage(), ex);
         return createErrorResponse("系统错误，请联系管理员", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    /** SSE 请求（Accept: text/event-stream）的异常由流式服务自己处理，不走 JSON 异常响应 */
+    private boolean isSseRequest(jakarta.servlet.http.HttpServletRequest request) {
+        String accept = request.getHeader("Accept");
+        return accept != null && accept.contains("text/event-stream");
     }
 
     /** 统一构造错误响应体格式：{success:false, message, code} */

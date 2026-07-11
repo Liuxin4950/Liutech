@@ -51,7 +51,7 @@ class PromptServiceTest {
         when(aiPromptConfig.getFullSystemPrompt()).thenReturn("BASE_SYSTEM");
         when(blogApiClient.getAuthorProfile()).thenReturn(new AuthorProfileDTO());
 
-        List<Message> messages = promptService.assemble(request, null, null, true, memoryService);
+        List<Message> messages = promptService.assemble(request, null, null, true, false, memoryService);
 
         assertEquals(2, messages.size());
         assertInstanceOf(SystemMessage.class, messages.get(0));
@@ -73,7 +73,7 @@ class PromptServiceTest {
         when(aiPromptConfig.getFullSystemPrompt()).thenReturn("BASE_SYSTEM");
         when(blogApiClient.getAuthorProfile()).thenReturn(new AuthorProfileDTO());
 
-        List<Message> messages = promptService.assemble(request, null, null, true, memoryService);
+        List<Message> messages = promptService.assemble(request, null, null, true, false, memoryService);
 
         assertEquals(3, messages.size());
         assertInstanceOf(SystemMessage.class, messages.get(0));
@@ -184,3 +184,4 @@ class PromptServiceTest {
         assertTrue(prompt.contains("文章正文"));
     }
 }
+

@@ -88,13 +88,12 @@ class TtsAdminControllerTest {
     }
 
     @Test
-    void updateConfig_shouldHandleException() {
+    void updateConfig_shouldPropagateException() {
         TtsConfigDTO config = new TtsConfigDTO();
         doThrow(new RuntimeException("config error")).when(ttsConfigService).updateConfig(any());
 
-        Result<String> result = controller.updateConfig(config);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.updateConfig(config));
     }
 
     // ========== status ==========

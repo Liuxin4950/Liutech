@@ -70,7 +70,7 @@ public class AiChatController {
         markLegacyRoute(response);
         Long userId = authUtils.getCurrentUserId();
         log.info("接受到了普通模式的请求，用户ID: {}", userId);
-        return aiChatService.processChat(request, userId);
+        return aiChatService.processChat(request, userId, authUtils.resolveRole());
     }
 
     /**
@@ -86,7 +86,7 @@ public class AiChatController {
         markLegacyRoute(response);
         Long userId = authUtils.getCurrentUserId();
         log.info("接受到了流式模式的请求，用户ID: {}", userId);
-        return aiChatService.processStreamChat(request, userId);
+        return aiChatService.processStreamChat(request, userId, authUtils.resolveRole());
     }
 
     /**
@@ -100,7 +100,7 @@ public class AiChatController {
         markLegacyRoute(response);
         Long userId = authUtils.getCurrentUserId();
         log.info("接受到了写作助手请求，用户ID: {}", userId);
-        return aiChatService.processWriting(request, userId);
+        return aiChatService.processWriting(request, userId, authUtils.resolveRole());
     }
 
     /** 写作助手流式版：管理员专属。事件序列同 /chat/stream 但没有会话持久化。 */
@@ -109,7 +109,7 @@ public class AiChatController {
         markLegacyRoute(response);
         Long userId = authUtils.getCurrentUserId();
         log.info("接受到了写作助手流式请求，用户ID: {}", userId);
-        return aiChatService.processWritingStream(request, userId);
+        return aiChatService.processWritingStream(request, userId, authUtils.resolveRole());
     }
 
 

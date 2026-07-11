@@ -1,0 +1,18 @@
+# 开发环境覆盖配置：自动被 `docker compose up` 合并加载，暴露内部服务端口便于本地调试。
+# 生产环境不上传此文件，docker compose 只用 docker-compose.yml，仅 nginx 暴露 80/443/81。
+services:
+  mysql:
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+  backend:
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+  ai:
+    ports:
+      - "${AI_PORT:-8081}:8081"
+  web:
+    ports:
+      - "${WEB_PORT:-3000}:80"
+  admin:
+    ports:
+      - "${ADMIN_PORT:-3001}:80"

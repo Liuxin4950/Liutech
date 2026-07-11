@@ -14,8 +14,8 @@
     <div v-else-if="posts.length === 0" class="empty-text flex flex-col flex-ac text-sm" style="text-align:center">
       <slot name="empty">
         <p>暂无文章</p>
+<img src="@/assets/image/扑到.png" alt="" class="fit-err">
       </slot>
-      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
     </div>
 
     <!-- 文章列表 -->

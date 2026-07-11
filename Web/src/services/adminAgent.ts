@@ -56,11 +56,17 @@ export interface FieldUpdatePayload {
   suggestedTagNames?: string[]
 }
 
+export interface TempMessage {
+  role: string
+  content: string
+}
+
 export interface AdminAgentRequest {
   message: string
   conversationId?: number
   context?: Record<string, unknown>
   draft?: AdminArticleDraftSnapshot
+  tempMessages?: TempMessage[]
 }
 
 export interface AdminAgentHandlers {

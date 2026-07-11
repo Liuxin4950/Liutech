@@ -61,13 +61,12 @@ class MessagesAdminControllerTest {
     }
 
     @Test
-    void getMessagesList_shouldHandleException() {
+    void getMessagesList_shouldPropagateException() {
         when(messagesService.getMessagesForAdmin(anyInt(), anyInt(), any(), any(), anyBoolean()))
                 .thenThrow(new RuntimeException("db error"));
 
-        Result<IPage<Messages>> result = controller.getMessagesList(1, 10, null, null, false);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getMessagesList(1, 10, null, null, false));
     }
 
     // ========== getMessageById ==========
@@ -125,16 +124,15 @@ class MessagesAdminControllerTest {
     }
 
     @Test
-    void reviewMessage_shouldHandleException() {
+    void reviewMessage_shouldPropagateException() {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(messagesService.reviewMessage(anyLong(), anyInt(), anyLong()))
                 .thenThrow(new RuntimeException("error"));
 
         MessagesAdminController.ReviewRequest req = new MessagesAdminController.ReviewRequest();
         req.setStatus(1);
-        Result<String> result = controller.reviewMessage(1L, req);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.reviewMessage(1L, req));
     }
 
     // ========== replyMessage ==========

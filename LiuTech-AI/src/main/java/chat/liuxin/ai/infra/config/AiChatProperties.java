@@ -39,7 +39,7 @@ public class AiChatProperties {
         private boolean modelPolicyStrictWhitelist = true;
 
         /** 模型策略：maxTokens 上限 */
-        private int modelPolicyMaxTokensCeiling = 4096;
+        private int modelPolicyMaxTokensCeiling = 65536;
     }
 
     @Data

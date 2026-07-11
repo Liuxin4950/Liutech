@@ -8,11 +8,13 @@ services:
       # 通过 .env 注入密码，避免把真实默认值写入仓库
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       MYSQL_DATABASE: liutech
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      # 应用专用账户密码（最小权限，默认回退到 DB_PASSWORD，生产建议单独设置）
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-${DB_PASSWORD}}
+      DB_AI_APP_PASSWORD: ${DB_AI_APP_PASSWORD:-${DB_PASSWORD}}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./sql/sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./sql/sql.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - ./sql/20-create-app-users.sh:/docker-entrypoint-initdb.d/20-create-app-users.sh:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:?DB_PASSWORD is required}"]
@@ -26,13 +28,11 @@ services:
     image: liutech-backend:latest
     container_name: liutech-backend
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT:-8080}:8080"
     environment:
-      # 数据库配置 - 生产环境从环境变量读取
+      # 数据库配置 - 生产环境从环境变量读取（非 root 最小权限账户）
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - SPRING_DATASOURCE_USERNAME=liutech_app
+      - SPRING_DATASOURCE_PASSWORD=${DB_APP_PASSWORD:-${DB_PASSWORD}}
       # JWT签名密钥 - 生产环境必须配置强密钥
       - JWT_SECRET=${JWT_SECRET}
       # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 /liuxin/uploads 到此路径
@@ -83,14 +83,12 @@ services:
     image: liutech-ai:latest
     container_name: liutech-ai
     restart: unless-stopped
-    ports:
-      - "${AI_PORT:-8081}:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
-      # 数据库配置 - 生产环境从环境变量读取
+      # 数据库配置 - 生产环境从环境变量读取（非 root 最小权限账户）
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - SPRING_DATASOURCE_USERNAME=liutech_ai_app
+      - SPRING_DATASOURCE_PASSWORD=${DB_AI_APP_PASSWORD:-${DB_PASSWORD}}
       # AI服务API密钥 - 生产环境必须配置
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - BLOG_API_URL=http://backend:8080
@@ -123,8 +121,6 @@ services:
     image: liutech-web:latest
     container_name: liutech-web
     restart: unless-stopped
-    ports:
-      - "${WEB_PORT:-3000}:80"
     depends_on:
       - backend
 
@@ -133,8 +129,6 @@ services:
     image: liutech-admin:latest
     container_name: liutech-admin
     restart: unless-stopped
-    ports:
-      - "${ADMIN_PORT:-3001}:80"
     depends_on:
       - backend
 

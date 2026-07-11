@@ -22,9 +22,7 @@ import chat.liuxin.liutech.model.SystemSetting;
 import chat.liuxin.liutech.service.SystemSettingsAdminService;
 
 /**
- * 系统设置管理控制器（管理端）
- *
- * 提供系统配置的 CRUD 和分组查询接口，仅管理员可访问。
+ * 系统设置管理控制器（管理端，类级 @PreAuthorize 保证认证，异常由 GlobalExceptionHandler 统一兜底）
  */
 @Slf4j
 @RestController
@@ -35,81 +33,41 @@ public class SystemSettingsAdminController extends BaseAdminController {
     @Autowired
     private SystemSettingsAdminService settingsAdminService;
 
-    /**
-     * 获取所有系统设置
-     */
+    /** 获取所有系统设置 */
     @GetMapping
     public Result<List<SystemSetting>> listAll() {
-        try {
-            return Result.success(settingsAdminService.listAll());
-        } catch (Exception e) {
-            return handleException(e, "查询系统设置");
-        }
+        return Result.success(settingsAdminService.listAll());
     }
 
-    /**
-     * 根据 key 获取单个设置
-     */
+    /** 根据 key 获取单个设置 */
     @GetMapping("/{key}")
     public Result<SystemSetting> getByKey(@PathVariable String key) {
-        try {
-            SystemSetting setting = settingsAdminService.getByKey(key);
-            if (setting == null) {
-                return Result.fail(ErrorCode.NOT_FOUND, "设置项不存在: " + key);
-            }
-            return Result.success(setting);
-        } catch (Exception e) {
-            return handleException(e, "查询系统设置");
+        SystemSetting setting = settingsAdminService.getByKey(key);
+        if (setting == null) {
+            return Result.fail(ErrorCode.NOT_FOUND, "设置项不存在: " + key);
         }
+        return Result.success(setting);
     }
 
-    /**
-     * 更新单个设置
-     *
-     * 请求体: { "value": "新值", "description": "可选新描述" }
-     */
+    /** 更新单个设置（请求体: { "value": "新值", "description": "可选" }） */
     @OperationLog(action = "update", targetType = "system_setting", description = "更新系统设置", targetName = "#key")
     @PutMapping("/{key}")
-    public Result<Boolean> updateByKey(
-            @PathVariable String key,
-            @RequestBody Map<String, String> body) {
-        try {
-            String value = body.get("value");
-            String description = body.get("description");
-            settingsAdminService.updateByKey(key, value, description);
-            return Result.success(true);
-        } catch (Exception e) {
-            return handleException(e, "更新系统设置");
-        }
+    public Result<Boolean> updateByKey(@PathVariable String key, @RequestBody Map<String, String> body) {
+        settingsAdminService.updateByKey(key, body.get("value"), body.get("description"));
+        return Result.success(true);
     }
 
-    /**
-     * 批量更新设置
-     *
-     * 请求体: [ { "key": "site.name", "value": "新名称", "description": "可选" }, ... ]
-     */
+    /** 批量更新设置 */
     @OperationLog(action = "update", targetType = "system_setting", description = "批量更新系统设置")
     @PostMapping("/batch")
     public Result<Boolean> batchUpdate(@RequestBody List<Map<String, String>> settings) {
-        try {
-            settingsAdminService.batchUpdate(settings);
-            return Result.success(true);
-        } catch (Exception e) {
-            return handleException(e, "批量更新系统设置");
-        }
+        settingsAdminService.batchUpdate(settings);
+        return Result.success(true);
     }
 
-    /**
-     * 按分组获取设置（用于前端分组展示）
-     *
-     * 返回: { "site": [...], "comment": [...], ... }
-     */
+    /** 按分组获取设置（用于前端分组展示） */
     @GetMapping("/grouped")
     public Result<Map<String, List<SystemSetting>>> getGrouped() {
-        try {
-            return Result.success(settingsAdminService.getGroupedSettings());
-        } catch (Exception e) {
-            return handleException(e, "查询系统设置分组");
-        }
+        return Result.success(settingsAdminService.getGroupedSettings());
     }
 }

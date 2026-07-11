@@ -20,6 +20,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * PostsAdminController 单元测试。
+ *
+ * 说明：类级 @PreAuthorize("hasRole('ADMIN')") 已保证认证，未认证请求在到达 Controller 前被
+ * Spring Security 拦截（403）。因此本单元测试不覆盖"未认证"场景，那应由 @WebMvcTest 集成测试验证。
+ * 异常处理由 GlobalExceptionHandler 统一兜底，service 抛异常时 Controller 直接传播，用 assertThrows 验证。
+ */
 class PostsAdminControllerTest {
 
     private PostsAdminController controller;
@@ -62,13 +69,12 @@ class PostsAdminControllerTest {
     }
 
     @Test
-    void getPostList_shouldHandleException() {
+    void getPostList_shouldPropagateException() {
         when(postsAdminService.getPostListForAdmin(anyInt(), anyInt(), any(), any(), any(), any(), anyBoolean()))
                 .thenThrow(new RuntimeException("db error"));
 
-        Result<PageResp<PostListResp>> result = controller.getPostList(1, 10, null, null, null, null, false);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.getPostList(1, 10, null, null, null, null, false));
     }
 
     // ========== getPostById ==========
@@ -111,24 +117,13 @@ class PostsAdminControllerTest {
     }
 
     @Test
-    void createPost_shouldFailWhenNotAuthenticated() {
-        PostCreateReq req = new PostCreateReq();
-        when(userUtils.getCurrentUserId()).thenReturn(null);
-
-        Result<PostCreateResp> result = controller.createPost(req);
-
-        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
-    }
-
-    @Test
-    void createPost_shouldHandleException() {
+    void createPost_shouldPropagateException() {
         PostCreateReq req = new PostCreateReq();
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postsService.createPost(any(), eq(1L))).thenThrow(new RuntimeException("error"));
 
-        Result<PostCreateResp> result = controller.createPost(req);
-
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
+        assertThrows(RuntimeException.class, () -> controller.createPost(req));
     }
 
     // ========== updatePost ==========
@@ -142,16 +137,6 @@ class PostsAdminControllerTest {
         Result<String> result = controller.updatePost(1L, req);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
-    }
-
-    @Test
-    void updatePost_shouldFailWhenNotAuthenticated() {
-        PostUpdateReq req = new PostUpdateReq();
-        when(userUtils.getCurrentUserId()).thenReturn(null);
-
-        Result<String> result = controller.updatePost(1L, req);
-
-        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
     }
 
     @Test
@@ -175,15 +160,6 @@ class PostsAdminControllerTest {
         Result<String> result = controller.deletePost(1L);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
-    }
-
-    @Test
-    void deletePost_shouldFailWhenNotAuthenticated() {
-        when(userUtils.getCurrentUserId()).thenReturn(null);
-
-        Result<String> result = controller.deletePost(1L);
-
-        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
     }
 
     // ========== batchDeletePosts ==========
@@ -218,15 +194,6 @@ class PostsAdminControllerTest {
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
     }
 
-    @Test
-    void updatePostStatus_shouldFailWhenNotAuthenticated() {
-        when(userUtils.getCurrentUserId()).thenReturn(null);
-
-        Result<String> result = controller.updatePostStatus(1L, "published");
-
-        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
-    }
-
     // ========== batchUpdatePostStatus ==========
 
     @Test
@@ -259,15 +226,6 @@ class PostsAdminControllerTest {
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
     }
 
-    @Test
-    void publishPost_shouldFailWhenNotAuthenticated() {
-        when(userUtils.getCurrentUserId()).thenReturn(null);
-
-        Result<String> result = controller.publishPost(1L);
-
-        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
-    }
-
     // ========== offlinePost ==========
 
     @Test
@@ -278,15 +236,6 @@ class PostsAdminControllerTest {
         Result<String> result = controller.offlinePost(1L);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
-    }
-
-    @Test
-    void offlinePost_shouldFailWhenNotAuthenticated() {
-        when(userUtils.getCurrentUserId()).thenReturn(null);
-
-        Result<String> result = controller.offlinePost(1L);
-
-        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
     }
 
     // ========== restorePost ==========

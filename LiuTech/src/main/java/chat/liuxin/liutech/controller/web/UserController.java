@@ -21,8 +21,6 @@ import chat.liuxin.liutech.service.UserProfileService;
 import chat.liuxin.liutech.service.UserManagementService;
 import chat.liuxin.liutech.service.VerificationCodeService;
 import chat.liuxin.liutech.utils.UserUtils;
-import chat.liuxin.liutech.utils.JwtUtil;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.util.List;
 
 import jakarta.validation.Valid;
@@ -66,12 +64,6 @@ public class UserController {
 
     @Autowired
     private VerificationCodeService verificationCodeService;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
     /**
      * 用户注册接口
      * 创建新用户账户，包括用户名唯一性检查、邮箱唯一性检查、密码加密等
@@ -334,21 +326,7 @@ public class UserController {
      */
     @PostMapping("/reset-password")
     public Result<String> resetPassword(@Valid @RequestBody ResetPasswordReq req) {
-        log.info("收到重置密码请求，邮箱: {}", req.getEmail());
-        // 校验验证码
-        chat.liuxin.liutech.model.VerificationCode vc =
-            verificationCodeService.verifyCode(req.getEmail(), "FORGOT_PASSWORD", req.getCode());
-        // 查找用户并更新密码
-        List<Users> users = userManagementService.findUsersByEmail(req.getEmail());
-        if (users == null || users.isEmpty()) {
-            throw new BusinessException(ErrorCode.LOGIN_FAILED);
-        }
-        Users user = users.get(0);
-        user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
-        user.setUpdatedAt(new java.util.Date());
-        userManagementService.updateUser(user);
-        // 业务成功后标记验证码已使用
-        verificationCodeService.markUsed(vc.getId());
+        userAuthService.resetPassword(req);
         return Result.success("密码重置成功，请使用新密码登录");
     }
 
@@ -375,29 +353,7 @@ public class UserController {
      */
     @PostMapping("/login/email/verify")
     public Result<LoginResp> verifyEmailLogin(@Valid @RequestBody EmailLoginVerifyReq req) {
-        log.info("收到邮箱验证码登录请求，邮箱: {}", req.getEmail());
-        // 校验验证码
-        chat.liuxin.liutech.model.VerificationCode vc =
-            verificationCodeService.verifyCode(req.getEmail(), "EMAIL_LOGIN", req.getCode());
-        // 查找用户
-        List<Users> users = userManagementService.findUsersByEmail(req.getEmail());
-        if (users == null || users.isEmpty()) {
-            throw new BusinessException(ErrorCode.LOGIN_FAILED);
-        }
-        Users user = users.get(0);
-        if (user.getStatus() != 1) {
-            throw new BusinessException(ErrorCode.ACCOUNT_DISABLED);
-        }
-        // 生成JWT token
-        String role = user.getRole() != null ? user.getRole() : "user";
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), role, user.getPasswordHash());
-        // 更新最后登录时间
-        user.setLastLoginAt(new java.util.Date());
-        user.setUpdatedAt(new java.util.Date());
-        userManagementService.updateUser(user);
-        // 业务成功后标记验证码已使用
-        verificationCodeService.markUsed(vc.getId());
-        return Result.success("登录成功", new LoginResp(token));
+        return Result.success("登录成功", userAuthService.verifyEmailLogin(req));
     }
 
 
