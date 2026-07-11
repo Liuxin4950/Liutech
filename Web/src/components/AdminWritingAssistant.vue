@@ -8,12 +8,12 @@
     </div>
 
     <div class="quick-actions">
-      <button v-for="item in quickPrompts" :key="item" type="button" :disabled="loading" @click="send(item)">
-        {{ item }}
+      <button v-for="item in quickPrompts" :key="item.label" type="button" :disabled="loading" @click="send(item.message)">
+        {{ item.label }}
       </button>
     </div>
 
-    <textarea v-model="prompt" :disabled="loading" placeholder="告诉纳西妲你想写什么..." rows="4"></textarea>
+    <textarea v-model="prompt" :disabled="loading" placeholder="告诉纳西妲你想写什么...（Enter发送，Shift+Enter换行）" rows="4" @keydown.enter.exact.prevent="send()" @keydown.shift.enter="() => {}"></textarea>
     <button type="button" class="send-btn" :disabled="!canSend" @click="send()">
       {{ loading ? '生成中...' : '发送给纳西妲' }}
     </button>
@@ -41,9 +41,19 @@
     </section>
 
     <p v-if="applyNotice" class="assistant-success">{{ applyNotice }}</p>
-
-    <section v-if="answer" class="assistant-section answer">
-      {{ answer }}
+    <!-- AI回复区域 -->
+    <section v-if="displayAnswer" class="assistant-section answer-container">
+      <div class="answer-header">
+        <span class="answer-title">纳西妲</span>
+        <button v-if="canExpand" type="button" class="expand-btn" @click="showFullAnswer = !showFullAnswer">
+          {{ showFullAnswer ? "收起" : "展开" }}
+        </button>
+      </div>
+      <div 
+        class="answer-content"
+        :class="{ collapsed: canExpand && !showFullAnswer }"
+        @click="canExpand && !showFullAnswer && (showFullAnswer = true)"
+      >{{ previewText }}</div>
     </section>
 
     <p v-if="error" class="assistant-error">{{ error }}</p>
@@ -65,6 +75,7 @@ const emit = defineEmits<{
 const prompt = ref('')
 const loading = ref(false)
 const answer = ref('')
+const showFullAnswer = ref(false)
 const history = ref<TempMessage[]>([])
 const error = ref('')
 type StepStatus = 'pending' | 'running' | 'completed' | 'waiting' | 'failed'
@@ -81,14 +92,37 @@ type FieldScope = {
 }
 const activeFieldScope = ref<FieldScope>({ fields: ['title', 'summary', 'content', 'category', 'tags'], appendTags: false })
 
-const quickPrompts = [
-  '帮我写一篇技术博客',
-  '整理成富文本 HTML',
-  '补 SEO 标题和摘要',
-  '续写下一节',
-  '发布前检查'
+const quickPrompts: Array<{label: string, message: string}> = [
+  { label: '写完整文章', message: '根据当前主题（或草稿）写一篇完整的技术博客，一次性输出 HTML 正文并设置标题、摘要、分类、标签' },
+  { label: '润色正文', message: '润色当前正文，保持原意和结构，改善语言表达和排版' },
+  { label: '补摘要', message: '根据正文生成一段 80-150 字的摘要' },
+  { label: '改标题', message: '根据正文内容生成 3 个备选标题，选最合适的一个写入标题字段' },
+  { label: '选分类标签', message: '为当前文章挑选最合适的分类和 3-5 个标签' },
+  { label: '续写下一节', message: '基于当前正文的最后部分，续写下一节内容' },
+  { label: '发布前检查', message: '检查正文是否存在明显问题：错别字、未闭合标签、过长段落、缺失摘要' },
 ]
 
+// 处理回答显示：长HTML正文只显示提示，不显示原始源码
+const displayAnswer = computed(() => {
+  if (!answer.value) return ''
+  if (answer.value.length < 200) return answer.value
+  const editorHasContent = props.draft.content && props.draft.content.trim().length > 0
+  const textHasHtml = answer.value.includes('<p') || answer.value.includes('<h') || answer.value.includes('<pre')
+  if (textHasHtml && editorHasContent) {
+    const firstTag = answer.value.indexOf('<')
+    if (firstTag > 10) {
+      return answer.value.substring(0, firstTag).trim() + '\n\n✓ 正文已写入编辑器，可直接在富文本框查看编辑'
+    }
+    return '✓ 正文已写入编辑器，可直接在富文本框查看编辑'
+  }
+  return answer.value
+})
+
+const canExpand = computed(() => displayAnswer.value.length > 80)
+const previewText = computed(() => {
+  if (showFullAnswer.value || !canExpand.value) return displayAnswer.value
+  return displayAnswer.value.substring(0, 80) + '...'
+})
 const canSend = computed(() => prompt.value.trim().length > 0 && !loading.value)
 
 const fallbackPlan: AgentPlanStep[] = [
@@ -273,7 +307,7 @@ const send = async (text?: string) => {
   const content = (text || prompt.value).trim()
   if (!content || loading.value) return
   loading.value = true
-  answer.value = ''
+  answer.value = ''; showFullAnswer.value = false
   error.value = ''
   plan.value = []
   toolEvents.value = []
@@ -560,6 +594,57 @@ textarea:focus {
   font-size: 13px;
   color: var(--text-subtle);
 }
+.answer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.answer-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.expand-btn {
+  border: 1px solid var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--color-primary);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+.expand-btn:hover {
+  background: var(--color-primary);
+  color: white;
+}
+.answer-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-subtle);
+  background: var(--bg-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.answer-content.collapsed {
+  max-height: 88px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+.answer-content:not(.collapsed) {
+  max-height: 360px;
+  overflow-y: auto;
+}
 
 .assistant-error {
   color: var(--color-error);
@@ -575,3 +660,5 @@ textarea:focus {
   font-size: 13px;
 }
 </style>
+
+

@@ -28,8 +28,8 @@ public class ChatServiceHelper {
      * 由 {@link PromptService#assemble} 产出系统提示 + 博客上下文 + 历史记录,
      * 最后追加当前用户输入(即使为空也补一条空 UserMessage,防止 Spring AI 报错)。
      */
-    public List<Message> prepareMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode) {
-        List<Message> messages = promptService.assemble(request, userId, conversationId, guestMode, memoryService);
+    public List<Message> prepareMessages(ChatRequest request, String userId, Long conversationId, boolean guestMode, boolean writingMode) {
+        List<Message> messages = promptService.assemble(request, userId, conversationId, guestMode, writingMode, memoryService);
         messages.add(new UserMessage(request.getMessage() != null ? request.getMessage() : ""));
         return messages;
     }

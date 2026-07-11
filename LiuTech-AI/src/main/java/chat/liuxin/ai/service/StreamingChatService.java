@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -97,7 +98,7 @@ public class StreamingChatService {
             final Long finalConvId = convId;
 
             try {
-                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, finalConvId, guestMode);
+                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, finalConvId, guestMode, false);
                 if (!guestMode && finalConvId != null) {
                     memoryService.saveUserMessage(userIdStr, finalConvId, input, modelName, null);
                 }
@@ -121,7 +122,7 @@ public class StreamingChatService {
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, finalConvId, ttsEnabled, emitterClosed, ttsExecutorRef,
-                        guestMode, userIdStr, modelName, false, null,
+                        guestMode, userIdStr, modelName, false, null, null,
                         fullResponse -> {
                             if (!guestMode && finalConvId != null) {
                                 memoryService.saveAssistantMessage(userIdStr, finalConvId, fullResponse, modelName, 1, null);
@@ -173,16 +174,30 @@ public class StreamingChatService {
 
         CompletableFuture.runAsync(() -> {
             try {
-                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode);
+                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true);
 
                 SseEmitterHelper.sendSseEvent(emitter, "start", SseEmitterHelper.eventPayload(
                         "conversationId", conversationId, "model", modelName, "mode", "writing"));
 
-                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role);
+                FieldUpdateCollector collector = new FieldUpdateCollector();
+                java.util.Map<String, Object> toolContext = new java.util.HashMap<>();
+                toolContext.put(FieldUpdateCollector.CONTEXT_KEY, collector);
+
+
+                // 工具事件回调：工具 start/success/error 实时转成 SSE tool-start/tool-result 事件推给前端
+                WritingToolEventSink toolEventSink = new WritingToolEventSink((eventName, payload) -> {
+                    try {
+                        SseEmitterHelper.sendSseEvent(emitter, eventName, payload);
+                    } catch (Exception e) {
+                        log.debug("发送工具事件SSE失败: {}", e.getMessage());
+                    }
+                });
+                toolContext.put(WritingToolEventSink.CONTEXT_KEY, toolEventSink);
+                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role, toolContext);
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, conversationId, ttsEnabled, emitterClosed, ttsExecutorRef,
-                        guestMode, userIdStr, modelName, true, new FieldUpdateParser(),
+                        guestMode, userIdStr, modelName, true, new FieldUpdateParser(), collector,
                         fullResponse -> {}, (partial, errorMsg) -> {});
 
             } catch (Exception e) {
@@ -223,6 +238,7 @@ public class StreamingChatService {
             String modelName,
             boolean writingMode,
             FieldUpdateParser parser,
+            FieldUpdateCollector collector,
             java.util.function.Consumer<String> onComplete,
             java.util.function.BiConsumer<String, String> onError
     ) {
@@ -230,6 +246,21 @@ public class StreamingChatService {
         StringBuilder textBuffer = new StringBuilder();
         AtomicInteger seq = new AtomicInteger(0);
         AtomicBoolean fieldUpdateSent = new AtomicBoolean(false);
+        AtomicInteger lastContentUpdateLength = new AtomicInteger(0);
+        AtomicLong lastContentUpdateTime = new AtomicLong(System.currentTimeMillis());
+
+        // 写作模式：collector 实时监听，AI 每次调 applyArticleUpdate 立即发 SSE field-update 事件
+        // 不等 onComplete，避免用户看到长时等待；collector 由 processWritingStream 注入
+        if (writingMode && collector != null) {
+            collector.addListener(payload -> {
+                try {
+                    SseEmitterHelper.sendSseEvent(emitter, "field-update", toPayloadMap(payload));
+                    fieldUpdateSent.set(true);
+                } catch (Exception e) {
+                    log.warn("实时发送field-update事件失败: {}", e.getMessage());
+                }
+            });
+        }
 
         int poolSize = Math.max(1, aiChatProperties.getTtsStreamConcurrency());
         ExecutorService ttsExecutor = Executors.newFixedThreadPool(poolSize);
@@ -242,7 +273,8 @@ public class StreamingChatService {
                     try {
                         if (writingMode && parser != null) {
                             handleWritingChunk(emitter, parser, chunk, fullResponseRef, textBuffer, seq,
-                                    ttsEnabled, ttsExecutor, ttsFutures, conversationId, fieldUpdateSent);
+                                    ttsEnabled, ttsExecutor, ttsFutures, conversationId, fieldUpdateSent,
+                                    lastContentUpdateLength, lastContentUpdateTime);
                             return;
                         }
                         fullResponseRef.get().append(chunk);
@@ -289,12 +321,19 @@ public class StreamingChatService {
                         String fullResponse = fullResponseRef.get().toString();
                         onComplete.accept(fullResponse);
 
-                        // 兜底：写作模式整轮没发过 field-update 时，把全文作为 contentHtml 发一次，
-                        // 保证即使 AI 没按 ---field-update--- 格式输出，内容也能写入编辑器
-                        if (writingMode && !fieldUpdateSent.get() && fullResponse != null && !fullResponse.isBlank()) {
-                            Map<String, Object> fallback = new LinkedHashMap<>();
-                            fallback.put("contentHtml", fullResponse);
-                            SseEmitterHelper.sendSseEvent(emitter, "field-update", fallback);
+
+                        // 正文回写：AI 自然输出的 HTML 文本（fullResponse）作为 contentHtml 写入编辑器。
+                        // AI 通过 applyArticleUpdate 工具实时回写了 title/summary/category/tagIds，
+                        // 正文因为是流文本不通过工具传（避免 tool arguments 长文本阻塞流式体验）。
+                        // 若整轮连工具都没调过且文本像文章，也走这条路径作为兜底。
+                        if (writingMode && looksLikeArticleContent(fullResponse)) {
+                            Map<String, Object> contentUpdate = new LinkedHashMap<>();
+                            String finalHtml = extractHtmlBody(fullResponse);
+                            if (finalHtml != null && finalHtml.length() >= 200
+                                    && (finalHtml.contains("<p") || finalHtml.contains("<h") || finalHtml.contains("<pre"))) {
+                                contentUpdate.put("contentHtml", finalHtml);
+                                SseEmitterHelper.sendSseEvent(emitter, "field-update", contentUpdate);
+                            }
                         }
 
                         // flush 剩余文本
@@ -455,7 +494,9 @@ public class StreamingChatService {
                                     AtomicReference<StringBuilder> fullResponseRef, StringBuilder textBuffer,
                                     AtomicInteger seq, boolean ttsEnabled, ExecutorService ttsExecutor,
                                     List<CompletableFuture<Void>> ttsFutures, Long conversationId,
-                                    AtomicBoolean fieldUpdateSent) throws java.io.IOException {
+                                    AtomicBoolean fieldUpdateSent,
+                                    AtomicInteger lastContentUpdateLength,
+                                    AtomicLong lastContentUpdateTime) throws java.io.IOException {
         FieldUpdateParser.ParseResult pr = parser.feed(chunk);
         for (String dataText : pr.dataTexts()) {
             if (dataText.isEmpty()) continue;
@@ -476,6 +517,56 @@ public class StreamingChatService {
             SseEmitterHelper.sendSseEvent(emitter, "field-update", toPayloadMap(fu));
             fieldUpdateSent.set(true);
         }
+        // 正文增量流式更新：严格校验后才发送
+        String fullText = fullResponseRef.get().toString();
+        int currentLength = fullText.length();
+        long now = System.currentTimeMillis();
+        if (currentLength - lastContentUpdateLength.get() >= 300 && now - lastContentUpdateTime.get() >= 800) {
+            String htmlBody = extractHtmlBody(fullText);
+            boolean hasValidHtml = htmlBody != null && htmlBody.length() >= 200
+                    && (htmlBody.contains("<p") || htmlBody.contains("<h") || htmlBody.contains("<pre") || htmlBody.contains("<ul"))
+                    && htmlBody.contains(">");
+            if (hasValidHtml && htmlBody.length() > lastContentUpdateLength.get()) {
+                Map<String, Object> contentUpdate = new LinkedHashMap<>();
+                contentUpdate.put("contentHtml", htmlBody);
+                SseEmitterHelper.sendSseEvent(emitter, "field-update", contentUpdate);
+                lastContentUpdateLength.set(currentLength);
+                lastContentUpdateTime.set(now);
+                fieldUpdateSent.set(true);
+            }
+        }
+    }
+
+/** 判断 AI 全文回复是否看起来像文章内容（用于兜底写入），避免把纯对话废话塞进编辑器。 */
+    private boolean looksLikeArticleContent(String text) {
+        if (text == null || text.isBlank()) return false;
+        String trimmed = text.trim();
+        if (trimmed.length() < 200) return false;
+        // 含 HTML 标签 或 含代码块/分段结构，视作文章内容
+        return trimmed.contains("<p") || trimmed.contains("<h") || trimmed.contains("<pre")
+                || trimmed.contains("```") || (trimmed.contains("\n\n") && trimmed.length() > 400);
+    }
+
+    /**
+     * 提取AI回复中的HTML正文部分，去掉前后自然语言说明。
+     * 例如："好的，文章如下：<p>xxx</p> 请查收" → "<p>xxx</p>"
+     */
+    private String extractHtmlBody(String text) {
+        if (text == null || text.isBlank()) return text;
+        String trimmed = text.trim();
+        int firstLt = trimmed.indexOf('<');
+        int lastGt = trimmed.lastIndexOf('>');
+        int lastLtAfterGt = trimmed.lastIndexOf('<');
+        if (lastLtAfterGt > lastGt) {
+            lastGt = trimmed.lastIndexOf('>', lastLtAfterGt - 1);
+        }
+        if (firstLt != -1 && lastGt != -1 && lastGt > firstLt) {
+            String htmlPart = trimmed.substring(firstLt, lastGt + 1).trim();
+            if (htmlPart.length() >= 100) {
+                return htmlPart;
+            }
+        }
+        return trimmed;
     }
 
     /** FieldUpdatePayload 转为 SSE 事件 payload Map（只含非 null 字段，对齐前端 FieldUpdatePayload）。 */
@@ -494,3 +585,7 @@ public class StreamingChatService {
     }
 
 }
+
+
+
+

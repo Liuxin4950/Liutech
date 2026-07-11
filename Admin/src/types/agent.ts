@@ -26,11 +26,17 @@ export interface WritingDraftPayload {
   htmlSafe?: boolean
 }
 
+export interface TempMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface AgentChatRequest {
   message: string
   conversationId?: number
   context?: Record<string, unknown>
   draft?: AdminArticleDraftSnapshot
+  tempMessages?: TempMessage[]
 }
 
 export interface AgentPlanStep {
@@ -130,3 +136,4 @@ export interface FieldUpdatePayload {
 export interface DataPayload {
   content: string
 }
+
