@@ -65,7 +65,7 @@ LiuTech 是一个基于 Vue 3 + Spring Boot 3 的全栈博客系统，采用前�
 graph TB
     U[用户] --> NX[Nginx 反向代理]
     NX -->|HTTPS 443 / '| WEB[Web 前台<br/>web:80]
-    NX -->|HTTP 81| ADMIN[Admin 后台<br/>admin:80]
+    NX -->|HTTPS 81| ADMIN[Admin 后台<br/>admin:80]
     NX -->|/api/ 剥离前缀| BE[主后端<br/>backend:8080]
     NX -->|/ai/ SSE 流式| AI[AI 服务<br/>ai:8081]
     BE --> DB[(MySQL liutech<br/>mysql:3306)]
@@ -75,7 +75,7 @@ graph TB
     BE --> FILES[文件存储<br/>/app/uploads]
 ```
 
-容器内通过服务名通信：`backend:8080`、`ai:8081`、`mysql:3306`、`web:80`、`admin:80`。Nginx 对外暴露：`80`（强制跳转 `443`）、`443`（主站 HTTPS）、`81`（管理后台）。
+容器内通过服务名通信：`backend:8080`、`ai:8081`、`mysql:3306`、`web:80`、`admin:80`。Nginx 对外暴露：`80`（强制跳转 `443`）、`443`（主站 HTTPS）、`81`（管理后台 HTTPS，复用主站点证书）。backend/ai/web/admin/mysql 不映射宿主机端口（端口收敛，走 Docker 内网）。
 
 ---
 
@@ -261,7 +261,7 @@ Liutech/
 - **HTTPS 443**：证书 `/etc/nginx/ssl/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`，仅 TLS 1.2/1.3
 - `/` → Web 前台（`web:80`）；`/api/` → 主后端（剥离 `/api` 前缀）；`/uploads/` → 主后端（长缓存）
 - `/ai/` → AI 服务，**SSE 必需**：`proxy_buffering off`、`proxy_request_buffering off`、`proxy_read_timeout 3600s`，且**不强制 `Accept: text/event-stream` 头**（否则破坏 JSON 响应，引发 406）
-- **管理后台**独立 `server`，监听 **81 端口** → `admin:80`（不是路径代理）
+- **管理后台**独立 `server`，监听 **81 端口 SSL** → `admin:80`（不是路径代理）
 - 生产证书位置：`/opt/liutech/nginx/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`
 
 ---
