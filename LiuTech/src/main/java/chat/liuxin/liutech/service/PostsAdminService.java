@@ -71,7 +71,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
     @Transactional(readOnly = true)
     public PageResp<PostListResp> getPostListForAdmin(int page, int size, String title, Long categoryId, String status,
                                                       Long authorId, Boolean includeDeleted) {
-        log.info("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}, 包含已删除: {}",
+        log.debug("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}, 包含已删除: {}",
                 page, size, title, categoryId, status, authorId, includeDeleted);
 
         try {
@@ -81,7 +81,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
             IPage<PostListResp> result = postsMapper.selectPostListForAdmin(pageObj, categoryId, keyword, status,
                     authorId, includeDeleted);
 
-            log.info("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
+            log.debug("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
 
             postsService.fillTags(result.getRecords());
             result.getRecords().forEach(postsService::normalizePostListUrls);
@@ -130,7 +130,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean updatePostStatusForAdmin(Long id, String status, Long operatorId) {
-        log.info("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
+        log.debug("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
 
         try {
             Posts existPost = this.getById(id);
@@ -145,7 +145,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                     .set(Posts::getUpdatedBy, operatorId);
 
             boolean result = this.update(updateWrapper);
-            log.info("管理端文章状态更新{} - 文章ID: {}", result ? "成功" : "失败", id);
+            log.debug("管理端文章状态更新{} - 文章ID: {}", result ? "成功" : "失败", id);
             return result;
 
         } catch (Exception e) {
@@ -160,7 +160,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean deletePostForAdmin(Long id, Long operatorId) {
-        log.info("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
+        log.debug("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
 
         try {
             Posts existPost = this.getById(id);
@@ -182,7 +182,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
             int result = postsMapper.deleteById(id, new Date(), operatorId);
             boolean success = result > 0;
-            log.info("管理端文章删除{} - 文章ID: {}", success ? "成功" : "失败", id);
+            log.debug("管理端文章删除{} - 文章ID: {}", success ? "成功" : "失败", id);
             return success;
 
         } catch (Exception e) {
@@ -197,7 +197,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
-        log.info("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
+        log.debug("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -210,7 +210,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                     .set(Posts::getUpdatedAt, new Date());
 
             boolean result = this.update(updateWrapper);
-            log.info("管理端批量更新文章状态{} - 影响文章数: {}", result ? "成功" : "失败", ids.size());
+            log.debug("管理端批量更新文章状态{} - 影响文章数: {}", result ? "成功" : "失败", ids.size());
             return result;
 
         } catch (Exception e) {
@@ -249,7 +249,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                     .set(Posts::getDeletedAt, new Date());
 
             int result = postsMapper.update(null, postsUpdateWrapper);
-            log.info("管理端批量删除文章{} - 影响文章数: {}", result > 0 ? "成功" : "失败", ids.size());
+            log.debug("管理端批量删除文章{} - 影响文章数: {}", result > 0 ? "成功" : "失败", ids.size());
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除文章失败: {}", e.getMessage(), e);
@@ -268,7 +268,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 return false;
             }
             int result = postsMapper.restorePostById(id);
-            log.info("恢复文章ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            log.debug("恢复文章ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
             log.error("恢复文章失败: {}", e.getMessage(), e);
@@ -288,7 +288,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 return false;
             }
             int result = postsMapper.restorePostsByIds(ids);
-            log.info("批量恢复文章ID列表: {}, 成功数量: {}", ids, result);
+            log.debug("批量恢复文章ID列表: {}, 成功数量: {}", ids, result);
             return result > 0;
         } catch (Exception e) {
             log.error("批量恢复文章失败: {}", e.getMessage(), e);
@@ -329,7 +329,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 imagesService.decrementImageUsageCountByUrl(url);
             }
 
-            log.info("彻底删除文章成功，文章ID: {}", id);
+            log.debug("彻底删除文章成功，文章ID: {}", id);
             return true;
         } catch (Exception e) {
             log.error("彻底删除文章失败，文章ID: {}, 错误: {}", id, e.getMessage(), e);
@@ -368,7 +368,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 imagesService.decrementImageUsageCountByUrl(url);
             }
 
-            log.info("批量彻底删除文章成功，文章ID: {}", ids);
+            log.debug("批量彻底删除文章成功，文章ID: {}", ids);
             return true;
         } catch (Exception e) {
             log.error("批量彻底删除文章失败，文章ID: {}, 错误: {}", ids, e.getMessage(), e);

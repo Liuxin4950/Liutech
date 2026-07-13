@@ -284,7 +284,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
             // 使用原生SQL恢复标签，绕过MyBatis-Plus的逻辑删除限制
             int result = tagsMapper.restoreTagById(id);
 
-            log.info("恢复标签ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            log.debug("恢复标签ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
             log.error("恢复标签失败: {}", e.getMessage(), e);
@@ -304,7 +304,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
     public boolean permanentDeleteTag(Long id) {
-        log.info("彻底删除标签 - 标签ID: {}", id);
+        log.debug("彻底删除标签 - 标签ID: {}", id);
 
         try {
             if (id == null) {
@@ -315,12 +315,12 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
             LambdaQueryWrapper<PostTags> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(PostTags::getTagId, id);
             int relationResult = postTagsMapper.delete(queryWrapper);
-            log.info("彻底删除标签关联关系数量: {}", relationResult);
+            log.debug("彻底删除标签关联关系数量: {}", relationResult);
 
             // 物理删除标签（使用XML中的deleteBatchIds以确保物理删除）
             int result = tagsMapper.deleteBatchIds(java.util.Collections.singletonList(id));
             boolean success = result > 0;
-            log.info("彻底删除标签{} - 标签ID: {}", success ? "成功" : "失败", id);
+            log.debug("彻底删除标签{} - 标签ID: {}", success ? "成功" : "失败", id);
             return success;
 
         } catch (Exception e) {
@@ -341,7 +341,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
     public boolean batchPermanentDeleteTags(List<Long> ids) {
-        log.info("批量彻底删除标签 - 标签数量: {}", ids.size());
+        log.debug("批量彻底删除标签 - 标签数量: {}", ids.size());
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -352,12 +352,12 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
             LambdaQueryWrapper<PostTags> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.in(PostTags::getTagId, ids);
             int relationResult = postTagsMapper.delete(queryWrapper);
-            log.info("批量彻底删除标签关联关系数量: {}", relationResult);
+            log.debug("批量彻底删除标签关联关系数量: {}", relationResult);
 
             // 物理删除标签
             int result = tagsMapper.deleteBatchIds(ids);
             boolean success = result > 0;
-            log.info("批量彻底删除标签{} - 影响标签数: {}", success ? "成功" : "失败", ids.size());
+            log.debug("批量彻底删除标签{} - 影响标签数: {}", success ? "成功" : "失败", ids.size());
             return success;
 
         } catch (Exception e) {

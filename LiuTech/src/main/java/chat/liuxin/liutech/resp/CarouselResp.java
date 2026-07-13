@@ -7,7 +7,7 @@ import lombok.Data;
 /**
  * 轮播图响应数据
  * 控制返回给前端的字段
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 public class CarouselResp {

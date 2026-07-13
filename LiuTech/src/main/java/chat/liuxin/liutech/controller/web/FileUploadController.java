@@ -1,6 +1,5 @@
 package chat.liuxin.liutech.controller.web;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -32,8 +31,6 @@ public class FileUploadController {
     @Autowired
     private UserUtils userUtils;
 
-
-
     /**
      * 上传图片（用于TinyMCE编辑器）
      *
@@ -48,7 +45,6 @@ public class FileUploadController {
             HttpServletRequest request) {
 
         Long userId = userUtils.getCurrentUserId();
-        log.info("接收到图片上传请求 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename());
 
         FileUploadResp result = fileUploadService.uploadImage(file, userId);
         return Result.success(result);
@@ -70,8 +66,6 @@ public class FileUploadController {
             HttpServletRequest request) {
 
         Long userId = userUtils.getCurrentUserId();
-        log.info("接收到文档上传请求 - 用户ID: {}, 文件名: {}, 描述: {}",
-                userId, file.getOriginalFilename(), description);
 
         FileUploadResp result = fileUploadService.uploadDocument(file, userId, description);
         return Result.success(result);
@@ -101,8 +95,6 @@ public class FileUploadController {
             HttpServletRequest request) {
 
         Long userId = userUtils.getCurrentUserId();
-        log.info("接收到资源上传请求 - 用户ID: {}, 文件名: {}, 描述: {}, 草稿键: {}, 类型: {}, 下载类型: {}, 所需积分: {}",
-                userId, file.getOriginalFilename(), description, draftKey, type, downloadType, pointsNeeded);
 
         FileUploadResp result = fileUploadService.uploadResource(file, userId, description, draftKey, type, downloadType, pointsNeeded);
         return Result.success(result);
@@ -120,7 +112,6 @@ public class FileUploadController {
             HttpServletRequest request) {
 
         Long userId = userUtils.getCurrentUserId();
-        log.info("查询草稿附件 - 用户ID: {}, 草稿键: {}", userId, draftKey);
 
         var result = fileUploadService.getDraftAttachments(draftKey, userId);
         return Result.success(result);
@@ -138,7 +129,6 @@ public class FileUploadController {
             HttpServletRequest request) {
 
         Long userId = userUtils.getCurrentUserId();
-        log.info("查询文章附件 - 用户ID: {}, 文章ID: {}", userId, postId);
 
         var result = fileUploadService.getPostAttachments(postId, userId);
         return Result.success(result);
@@ -158,7 +148,6 @@ public class FileUploadController {
             HttpServletRequest request) {
 
         Long userId = userUtils.getCurrentUserId();
-        log.info("删除附件 - 用户ID: {}, 资源ID: {}", userId, resourceId);
 
         fileUploadService.deleteAttachment(resourceId, userId);
         return Result.success("附件删除成功");
@@ -178,7 +167,6 @@ public class FileUploadController {
             HttpServletRequest request) {
 
         Long userId = userUtils.getCurrentUserId();
-        log.info("接收到TinyMCE图片上传请求 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename());
 
         try {
             FileUploadResp result = fileUploadService.uploadImage(file, userId);
@@ -243,7 +231,6 @@ public class FileUploadController {
             @RequestParam(value = "pointsNeeded", required = false, defaultValue = "0") Integer pointsNeeded,
             HttpServletRequest request) {
         Long userId = userUtils.getCurrentUserId();
-        log.info("更新附件元信息 - 用户ID: {}, 资源ID: {}, downloadType: {}, pointsNeeded: {}", userId, resourceId, downloadType, pointsNeeded);
         fileUploadService.updateResourceMeta(resourceId, userId, downloadType, pointsNeeded);
         return Result.success("附件设置已更新");
     }
@@ -276,8 +263,6 @@ public class FileUploadController {
             HttpServletRequest request) {
 
         Long userId = userUtils.getCurrentUserId();
-        log.info("接收到外部链接资源创建请求 - 用户ID: {}, 名称: {}, 链接: {}, 草稿键: {}, 类型: {}, 下载类型: {}, 所需积分: {}",
-                userId, name, externalLink, draftKey, type, downloadType, pointsNeeded);
 
         FileUploadResp result = fileUploadService.createExternalLinkResource(
             name, description, externalLink, purchasedNote, userId, draftKey, type, downloadType, pointsNeeded
@@ -300,7 +285,6 @@ public class FileUploadController {
             @RequestParam("purchasedNote") String purchasedNote,
             HttpServletRequest request) {
         Long userId = userUtils.getCurrentUserId();
-        log.info("更新购买后说明 - 用户ID: {}, 资源ID: {}, 说明: {}", userId, resourceId, purchasedNote);
         fileUploadService.updatePurchasedNote(resourceId, userId, purchasedNote);
         return Result.success("购买说明已更新");
     }

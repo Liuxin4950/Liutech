@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
  * 评论控制器
  * 提供评论相关的REST API接口
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @RestController
@@ -56,10 +56,7 @@ public class CommentsController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer size) {
 
-        log.info("查询文章评论 - 文章ID: {}, 页码: {}, 大小: {}", postId, page, size);
-
         PageResp<CommentResp> result = commentsService.getCommentsByPostId(postId, page, size);
-        log.info("查询文章评论成功 - 文章ID: {}, 总数: {}", postId, result.getTotal());
 
         return Result.success("查询成功", result);
     }
@@ -73,10 +70,8 @@ public class CommentsController {
      */
     @GetMapping("/post/{postId}/tree")
     public Result<List<CommentResp>> getTreeCommentsByPostId(@PathVariable Long postId) {
-        log.info("查询文章树形评论 - 文章ID: {}", postId);
 
         List<CommentResp> comments = commentsService.getTopLevelCommentsByPostId(postId);
-        log.info("查询文章树形评论成功 - 文章ID: {}, 顶级评论数: {}", postId, comments.size());
 
         return Result.success("查询成功", comments);
     }
@@ -89,10 +84,8 @@ public class CommentsController {
      */
     @GetMapping("/post/{postId}/count")
     public Result<Integer> getCommentCountByPostId(@PathVariable Long postId) {
-        log.info("统计文章评论数量 - 文章ID: {}", postId);
 
         Integer count = commentsService.countCommentsByPostId(postId);
-        log.info("统计文章评论数量成功 - 文章ID: {}, 数量: {}", postId, count);
 
         return Result.success("查询成功", count);
     }
@@ -105,10 +98,8 @@ public class CommentsController {
      */
     @GetMapping("/{parentId}/children")
     public Result<List<Comments>> getChildComments(@PathVariable Long parentId) {
-        log.info("查询子评论 - 父评论ID: {}", parentId);
 
         List<Comments> children = commentsService.getChildCommentsByParentId(parentId);
-        log.info("查询子评论成功 - 父评论ID: {}, 数量: {}", parentId, children.size());
 
         return Result.success("查询成功", children);
     }
@@ -123,10 +114,7 @@ public class CommentsController {
     public Result<List<Comments>> getLatestComments(
             @RequestParam(defaultValue = "10") Integer limit) {
 
-        log.info("查询最新评论 - 限制数量: {}", limit);
-
         List<Comments> comments = commentsService.getLatestComments(limit);
-        log.info("查询最新评论成功 - 数量: {}", comments.size());
 
         return Result.success("查询成功", comments);
     }
@@ -139,7 +127,6 @@ public class CommentsController {
      */
     @GetMapping("/{id}")
     public Result<Comments> getCommentById(@PathVariable Long id) {
-        log.info("查询评论详情 - ID: {}", id);
 
         Comments comment = commentsService.getById(id);
         if (comment == null) {
@@ -147,7 +134,6 @@ public class CommentsController {
             return Result.fail(ErrorCode.NOT_FOUND, "评论不存在");
         }
 
-        log.info("查询评论详情成功 - ID: {}", id);
         return Result.success("查询成功", comment);
     }
 
@@ -160,7 +146,6 @@ public class CommentsController {
     @PostMapping
     @OperationLog(action = "create", targetType = "comment", description = "发表评论")
     public Result<CommentResp> createComment(@Valid @RequestBody CreateCommentReq createCommentReq) {
-        log.info("创建评论 - 请求: {}", createCommentReq);
 
         try {
             // 方法级认证确认：确保用户已登录
@@ -171,7 +156,6 @@ public class CommentsController {
             }
 
             CommentResp comment = commentsService.createComment(createCommentReq);
-            log.info("创建评论成功 - ID: {}", comment.getId());
             return Result.success("创建成功", comment);
         } catch (Exception e) {
             log.error("创建评论失败", e);

@@ -14,7 +14,7 @@ import chat.liuxin.liutech.model.Carousel;
 
 /**
  * 轮播图Mapper接口
- * @author liuxin
+ * @author 刘鑫
  */
 @Mapper
 public interface CarouselMapper extends BaseMapper<Carousel> {

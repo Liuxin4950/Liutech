@@ -42,7 +42,6 @@ public class ResourceDownloadController {
     @OperationLog(action = "purchase", targetType = "resource", description = "购买资源")
     public Result<String> purchaseResource(@PathVariable Long resourceId) {
         Long userId = userUtils.getCurrentUserId();
-        log.info("用户 {} 尝试购买资源 {}", userId, resourceId);
         
         try {
             resourceDownloadService.purchaseResource(userId, resourceId);
@@ -62,7 +61,6 @@ public class ResourceDownloadController {
     @GetMapping("/download/{resourceId}")
     public ResponseEntity<Resource> downloadResource(@PathVariable Long resourceId) {
         Long userId = userUtils.getCurrentUserId();
-        log.info("用户 {} 尝试下载资源 {}", userId, resourceId);
         
         try {
             return resourceDownloadService.downloadResource(userId, resourceId);

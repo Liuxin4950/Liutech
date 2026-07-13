@@ -49,7 +49,7 @@ public class ImagesService {
         // 2. 查询是否已存在相同哈希的图片
         Images existingImage = imagesMapper.selectByHash(fileHash);
         if (existingImage != null) {
-            log.info("发现重复图片，哈希: {}，已有记录ID: {}", fileHash, existingImage.getId());
+            log.debug("发现重复图片，哈希: {}，已有记录ID: {}", fileHash, existingImage.getId());
             return new ImageUploadResult(existingImage, true);
         }
 
@@ -61,7 +61,7 @@ public class ImagesService {
             // 压缩成功，保存压缩版
             relativePath = fileUtil.saveFile(compressedBytes, subPath, file.getOriginalFilename());
             fileSize = compressedBytes.length;
-            log.info("图片已压缩: {}KB -> {}KB", file.getSize() / 1024, fileSize / 1024);
+            log.debug("图片已压缩: {}KB -> {}KB", file.getSize() / 1024, fileSize / 1024);
         } else {
             // 无需压缩（GIF、小图片等），原样保存
             relativePath = fileUtil.saveFile(file, subPath);
@@ -94,7 +94,7 @@ public class ImagesService {
         }
 
         imagesMapper.insert(newImage);
-        log.info("新图片保存成功，ID: {}，路径: {}", newImage.getId(), relativePath);
+        log.debug("新图片保存成功，ID: {}，路径: {}", newImage.getId(), relativePath);
 
         return new ImageUploadResult(newImage, false);
     }

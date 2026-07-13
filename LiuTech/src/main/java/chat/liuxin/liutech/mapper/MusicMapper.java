@@ -9,7 +9,7 @@ import chat.liuxin.liutech.model.Music;
 
 /**
  * 音乐Mapper接口
- * @author liuxin
+ * @author 刘鑫
  */
 @Mapper
 public interface MusicMapper extends BaseMapper<Music> {

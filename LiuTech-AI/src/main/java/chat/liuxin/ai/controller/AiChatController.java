@@ -53,7 +53,6 @@ public class AiChatController {
     @GetMapping("/status")
     public String testStatus() {
         Long userId = authUtils.getCurrentUserId();
-        log.info("测试服务是否可用，用户ID: {}", userId);
         return "服务可用，用户ID: " + userId;
     }
 
@@ -69,7 +68,6 @@ public class AiChatController {
     public ChatResponse chat(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
         Long userId = authUtils.getCurrentUserId();
-        log.info("接受到了普通模式的请求，用户ID: {}", userId);
         return aiChatService.processChat(request, userId, authUtils.resolveRole());
     }
 
@@ -85,7 +83,6 @@ public class AiChatController {
     public SseEmitter streamChat(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
         Long userId = authUtils.getCurrentUserId();
-        log.info("接受到了流式模式的请求，用户ID: {}", userId);
         return aiChatService.processStreamChat(request, userId, authUtils.resolveRole());
     }
 
@@ -99,7 +96,6 @@ public class AiChatController {
     public ChatResponse writing(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
         Long userId = authUtils.getCurrentUserId();
-        log.info("接受到了写作助手请求，用户ID: {}", userId);
         return aiChatService.processWriting(request, userId, authUtils.resolveRole());
     }
 
@@ -108,11 +104,8 @@ public class AiChatController {
     public SseEmitter writingStream(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);
         Long userId = authUtils.getCurrentUserId();
-        log.info("接受到了写作助手流式请求，用户ID: {}", userId);
         return aiChatService.processWritingStream(request, userId, authUtils.resolveRole());
     }
-
-
 
     /**
      * 分页获取当前用户的历史消息（跨会话，倒序）。
@@ -130,7 +123,6 @@ public class AiChatController {
             }
 
             String userIdStr = userId.toString();
-            log.info("获取聊天历史记录，用户ID: {}, 页码: {}, 每页大小: {}", userIdStr, page, size);
 
             // 参数校验
             if (page < 1) page = 1;
@@ -149,7 +141,6 @@ public class AiChatController {
         }
     }
 
-
     /**
      * 清空当前用户的所有聊天历史（物理删除消息 + 删除会话）。
      * 前端"清空聊天"按钮的目标端点。删除后无法恢复。
@@ -163,7 +154,6 @@ public class AiChatController {
             }
 
             String userIdStr = userId.toString();
-            log.info("清空用户聊天记忆，用户ID: {}", userIdStr);
 
             // 调用记忆服务清空用户所有记忆
             memoryService.clearAllMemory(userIdStr);
@@ -175,7 +165,6 @@ public class AiChatController {
             return ChatResponse.error("清空聊天记忆失败: " + e.getMessage());
         }
     }
-
 
     /**
      * 打上遗留路由标记，供 nginx/日志识别老聊天路径。

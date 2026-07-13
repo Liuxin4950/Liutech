@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * 音乐服务类
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @Service
@@ -143,7 +143,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
             musicMapper.insert(music);
             incrementCoverReference(music.getCoverUrl());
 
-            log.info("音乐上传成功 - ID: {}, 标题: {}", music.getId(), title);
+            log.debug("音乐上传成功 - ID: {}, 标题: {}", music.getId(), title);
             return music.getId();
 
         } catch (Exception e) {
@@ -214,7 +214,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         // 物理删除
         int rows = musicMapper.deleteById(id);
         if (rows > 0) {
-            log.info("音乐已物理删除 - ID: {}, 标题: {}", id, music.getTitle());
+            log.debug("音乐已物理删除 - ID: {}, 标题: {}", id, music.getTitle());
             return true;
         } else {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除失败");
@@ -241,7 +241,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
                 deleteMusicFiles(music);
                 // 删除记录
                 musicMapper.deleteById(id);
-                log.info("音乐已物理删除 - ID: {}, 标题: {}", id, music.getTitle());
+                log.debug("音乐已物理删除 - ID: {}, 标题: {}", id, music.getTitle());
             }
         }
         return true;

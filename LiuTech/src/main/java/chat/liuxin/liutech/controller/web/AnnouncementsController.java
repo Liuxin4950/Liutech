@@ -34,7 +34,7 @@ import chat.liuxin.liutech.service.AnnouncementsService;
 
 /**
  * 公告控制器
- * @author liuxin
+ * @author 刘鑫
  */
 @RestController
 @RequestMapping("/announcements")

@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  * 分类控制器
  * 提供文章分类相关的REST API接口
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @RestController
@@ -40,10 +40,8 @@ public class CategoriesController {
      */
     @GetMapping
     public Result<List<CategoryResp>> getAllCategories() {
-        log.info("查询所有分类");
 
         List<CategoryResp> categories = categoriesService.getAllCategoriesWithPostCount();
-        log.info("查询分类成功 - 数量: {}", categories.size());
 
         return Result.success("查询成功", categories);
     }
@@ -56,7 +54,6 @@ public class CategoriesController {
      */
     @GetMapping("/{id}")
     public Result<CategoryResp> getCategoryById(@PathVariable Long id) {
-        log.info("查询分类详情 - ID: {}", id);
 
         try {
             CategoryResp category = categoriesService.getById(id);
@@ -65,7 +62,6 @@ public class CategoriesController {
                 return Result.fail(ErrorCode.CATEGORY_NOT_FOUND);
             }
 
-            log.info("查询分类详情成功 - 名称: {}", category.getName());
             return Result.success("查询成功", category);
         } catch (BusinessException e) {
             return Result.fail(e.getCode(), e.getMessage());

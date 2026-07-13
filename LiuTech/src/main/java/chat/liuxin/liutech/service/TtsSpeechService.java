@@ -364,7 +364,7 @@ public class TtsSpeechService {
 
         long deleted = deletedCount.get();
         if (deleted > 0) {
-            log.info("TTS 缓存清理完成: deleted={}, remainingBytes={}", deleted, totalBytes.get());
+            log.debug("TTS 缓存清理完成: deleted={}, remainingBytes={}", deleted, totalBytes.get());
         }
     }
 

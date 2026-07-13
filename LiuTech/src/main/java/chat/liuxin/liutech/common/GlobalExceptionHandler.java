@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
  * 8. DataAccessException - 数据库异常
  * 9. Exception - 其他未知异常
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @RestControllerAdvice

@@ -11,7 +11,7 @@ import lombok.Data;
  * 公告Excel导入导出数据模型
  * 使用EasyExcel注解定义Excel列映射
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 public class AnnouncementExcelData {

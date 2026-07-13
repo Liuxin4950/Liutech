@@ -10,7 +10,7 @@ import lombok.Data;
 
 /**
  * 公告请求数据
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 public class AnnouncementReq {

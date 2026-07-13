@@ -56,7 +56,6 @@ public class AiModelAdminController {
      */
     @GetMapping("/list")
     public List<ModelConfigDTO> getAllModels() {
-        log.info("管理员获取所有模型配置列表");
         return modelConfigService.getAllModels();
     }
 
@@ -67,7 +66,6 @@ public class AiModelAdminController {
      */
     @GetMapping("/enabled")
     public List<ModelConfigDTO> getEnabledModels() {
-        log.info("管理员获取所有启用的模型");
         return modelConfigService.getEnabledModels();
     }
 
@@ -78,7 +76,6 @@ public class AiModelAdminController {
      */
     @GetMapping("/default")
     public Optional<ModelConfigDTO> getDefaultModel() {
-        log.info("管理员获取默认模型");
         return modelConfigService.getDefaultModel();
     }
 
@@ -90,7 +87,6 @@ public class AiModelAdminController {
      */
     @GetMapping("/{id}")
     public ModelConfigDTO getModelById(@PathVariable Long id) {
-        log.info("管理员获取模型配置，ID: {}", id);
         return modelConfigService.getModelById(id);
     }
 
@@ -102,7 +98,6 @@ public class AiModelAdminController {
      */
     @PostMapping
     public ModelConfigDTO addModel(@Valid @RequestBody ModelConfigRequest request) {
-        log.info("管理员添加新模型，模型名称: {}", request.getModelName());
         return modelConfigService.addModel(request);
     }
 
@@ -117,7 +112,6 @@ public class AiModelAdminController {
     public ModelConfigDTO updateModel(
             @PathVariable Long id,
             @Valid @RequestBody ModelConfigRequest request) {
-        log.info("管理员更新模型，ID: {}, 模型名称: {}", id, request.getModelName());
         return modelConfigService.updateModel(id, request);
     }
 
@@ -128,7 +122,6 @@ public class AiModelAdminController {
      */
     @DeleteMapping("/{id}")
     public void deleteModel(@PathVariable Long id) {
-        log.info("管理员删除模型，ID: {}", id);
         modelConfigService.deleteModel(id);
     }
 
@@ -140,7 +133,6 @@ public class AiModelAdminController {
      */
     @PutMapping("/{id}/default")
     public void setDefaultModel(@PathVariable Long id) {
-        log.info("管理员设置默认模型，ID: {}", id);
         modelConfigService.setDefaultModel(id);
     }
 
@@ -154,7 +146,6 @@ public class AiModelAdminController {
     public void toggleEnabled(
             @PathVariable Long id,
             @RequestParam boolean enabled) {
-        log.info("管理员切换模型启用状态，ID: {}, 启用: {}", id, enabled);
         modelConfigService.toggleEnabled(id, enabled);
     }
 
@@ -165,7 +156,6 @@ public class AiModelAdminController {
      */
     @GetMapping("/usage/today")
     public List<ModelUsageStats> getTodayModelUsage() {
-        log.info("管理员获取今日模型使用统计");
         return modelConfigService.getTodayModelUsage();
     }
 }

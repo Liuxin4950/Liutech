@@ -8,7 +8,7 @@ import lombok.Data;
  * 更新用户资料请求参数
  * 用于用户更新自己的个人信息
  * 
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 public class UpdateProfileReq {

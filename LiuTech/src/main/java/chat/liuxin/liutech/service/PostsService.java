@@ -47,7 +47,7 @@ import chat.liuxin.liutech.utils.FileUtil;
  * 文章服务类
  * 提供文章的增删改查、点赞收藏、统计等核心业务功能
  *
- * @author 刘鑫
+ * @author LiuTech
  * @date 2025-08-30
  */
 @Slf4j
@@ -393,7 +393,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 绑定草稿附件到文章
         if (req != null && StringUtils.hasText(req.getDraftKey())) {
             int bindCount = postAttachmentsMapper.bindDraftToPost(req.getDraftKey(), post.getId());
-            log.info("绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
+            log.debug("绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
                     post.getId(), req.getDraftKey(), bindCount);
         }
 
@@ -454,7 +454,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 绑定草稿附件到文章（编辑模式下上传的新附件）
         if (org.springframework.util.StringUtils.hasText(req.getDraftKey())) {
             int bindCount = postAttachmentsMapper.bindDraftToPost(req.getDraftKey(), req.getId());
-            log.info("编辑时绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
+            log.debug("编辑时绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
                     req.getId(), req.getDraftKey(), bindCount);
         }
 
@@ -490,7 +490,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
         if (org.springframework.util.StringUtils.hasText(req.getDraftKey())) {
             int bindCount = postAttachmentsMapper.bindDraftToPost(req.getDraftKey(), req.getId());
-            log.info("编辑时绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
+            log.debug("编辑时绑定草稿附件到文章 - 文章ID: {}, 草稿键: {}, 绑定数量: {}",
                     req.getId(), req.getDraftKey(), bindCount);
         }
 
@@ -816,7 +816,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 只返回状态为 "published" 的文章
      *
      * @return 已发布文章列表
-     * @author LiuTech
+     * @author 刘鑫
      * @date 2025-01-18
      */
     @Transactional(readOnly = true)

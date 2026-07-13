@@ -204,7 +204,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
                     .set(Posts::getDeletedAt, new Date());
 
             int postsResult = postsMapper.update(null, postsUpdateWrapper);
-            log.info("删除分类时，软删除关联文章数量: {}", postsResult);
+            log.debug("删除分类时，软删除关联文章数量: {}", postsResult);
 
             // 然后软删除分类
             LambdaUpdateWrapper<Categories> updateWrapper = new LambdaUpdateWrapper<>();
@@ -212,7 +212,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
                     .set(Categories::getDeletedAt, new Date());
 
             int result = categoriesMapper.update(null, updateWrapper);
-            log.info("软删除分类数量: {}", result);
+            log.debug("软删除分类数量: {}", result);
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除分类失败: {}", e.getMessage(), e);
@@ -240,7 +240,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
             // 使用原生SQL恢复分类，绕过MyBatis-Plus的逻辑删除限制
             int result = categoriesMapper.restoreCategoryById(id);
 
-            log.info("恢复分类ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            log.debug("恢复分类ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
             log.error("恢复分类失败: {}", e.getMessage(), e);
@@ -260,7 +260,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "categories", allEntries = true)
     public boolean permanentDeleteCategory(Long id) {
-        log.info("彻底删除分类 - 分类ID: {}", id);
+        log.debug("彻底删除分类 - 分类ID: {}", id);
 
         try {
             if (id == null) {
@@ -281,13 +281,13 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
 
                 // 物理删除该分类下的所有文章
                 postsMapper.permanentDeleteByIds(postIds);
-                log.info("彻底删除分类关联文章数量: {}", postIds.size());
+                log.debug("彻底删除分类关联文章数量: {}", postIds.size());
             }
 
             // 物理删除分类
             int result = categoriesMapper.deleteBatchIds(Collections.singletonList(id));
             boolean success = result > 0;
-            log.info("彻底删除分类{} - 分类ID: {}", success ? "成功" : "失败", id);
+            log.debug("彻底删除分类{} - 分类ID: {}", success ? "成功" : "失败", id);
             return success;
 
         } catch (Exception e) {
@@ -308,7 +308,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "categories", allEntries = true)
     public boolean batchPermanentDeleteCategories(List<Long> ids) {
-        log.info("批量彻底删除分类 - 分类数量: {}", ids.size());
+        log.debug("批量彻底删除分类 - 分类数量: {}", ids.size());
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -329,13 +329,13 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
 
                 // 物理删除这些分类下的所有文章
                 postsMapper.permanentDeleteByIds(postIds);
-                log.info("批量彻底删除分类关联文章数量: {}", postIds.size());
+                log.debug("批量彻底删除分类关联文章数量: {}", postIds.size());
             }
 
             // 物理删除分类
             int result = categoriesMapper.deleteBatchIds(ids);
             boolean success = result > 0;
-            log.info("批量彻底删除分类{} - 影响分类数: {}", success ? "成功" : "失败", ids.size());
+            log.debug("批量彻底删除分类{} - 影响分类数: {}", success ? "成功" : "失败", ids.size());
             return success;
 
         } catch (Exception e) {

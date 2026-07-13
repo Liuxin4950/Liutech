@@ -7,7 +7,7 @@ import java.util.Date;
 /**
  * 用户统计信息响应类
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 public class UserStatsResp {

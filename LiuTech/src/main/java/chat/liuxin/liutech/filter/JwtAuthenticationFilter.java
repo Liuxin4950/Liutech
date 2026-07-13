@@ -52,7 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String method = request.getMethod();
             // 跳过公开接口，不进行JWT验证
             if (shouldSkipAuthentication(requestURI, method)) {
-                log.info("跳过JWT验证的公开接口: {} {}", method, requestURI);
+                log.debug("跳过JWT验证的公开接口: {} {}", method, requestURI);
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -132,7 +132,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 注入到安全上下文，授权注解将基于此判断权限
         SecurityContextHolder.getContext().setAuthentication(authToken);
         // 记录认证成功日志，包含用户名与角色
-        log.info("JWT认证成功，用户: {}, 角色: {}, 请求路径: {}", username, authorities, request.getRequestURI());
+        log.debug("JWT认证成功，用户: {}, 角色: {}, 请求路径: {}", username, authorities, request.getRequestURI());
     }
 
     /**

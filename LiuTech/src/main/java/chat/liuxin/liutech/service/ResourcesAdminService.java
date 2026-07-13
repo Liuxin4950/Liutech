@@ -139,7 +139,7 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
                     .set(Resources::getDeletedAt, new Date());
 
             int result = resourcesMapper.update(null, updateWrapper);
-            log.info("软删除资源数量: {}", result);
+            log.debug("软删除资源数量: {}", result);
             return result > 0;
         } catch (Exception e) {
             log.error("批量删除资源失败: {}", e.getMessage(), e);
@@ -161,7 +161,7 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
             }
 
             int result = resourcesMapper.restoreResourceById(id);
-            log.info("恢复资源ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            log.debug("恢复资源ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
             log.error("恢复资源失败: {}", e.getMessage(), e);
@@ -178,7 +178,7 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeleteResource(Long id) {
-        log.info("彻底删除资源 - 资源ID: {}", id);
+        log.debug("彻底删除资源 - 资源ID: {}", id);
 
         try {
             if (id == null) {
@@ -189,12 +189,12 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
             LambdaUpdateWrapper<ResourceDownloads> downloadWrapper = new LambdaUpdateWrapper<>();
             downloadWrapper.eq(ResourceDownloads::getResourceId, id);
             int downloadResult = resourceDownloadsMapper.delete(downloadWrapper);
-            log.info("彻底删除资源时，删除关联下载记录数量: {}", downloadResult);
+            log.debug("彻底删除资源时，删除关联下载记录数量: {}", downloadResult);
 
             // 物理删除资源
             int result = resourcesMapper.permanentDeleteByIds(Collections.singletonList(id));
             boolean success = result > 0;
-            log.info("彻底删除资源{} - 资源ID: {}", success ? "成功" : "失败", id);
+            log.debug("彻底删除资源{} - 资源ID: {}", success ? "成功" : "失败", id);
             return success;
         } catch (Exception e) {
             log.error("彻底删除资源失败 - 资源ID: {}, 错误: {}", id, e.getMessage(), e);
@@ -211,7 +211,7 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeleteResources(List<Long> ids) {
-        log.info("批量彻底删除资源 - 资源数量: {}", ids.size());
+        log.debug("批量彻底删除资源 - 资源数量: {}", ids.size());
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -222,12 +222,12 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
             LambdaUpdateWrapper<ResourceDownloads> downloadWrapper = new LambdaUpdateWrapper<>();
             downloadWrapper.in(ResourceDownloads::getResourceId, ids);
             int downloadResult = resourceDownloadsMapper.delete(downloadWrapper);
-            log.info("批量彻底删除资源时，删除关联下载记录数量: {}", downloadResult);
+            log.debug("批量彻底删除资源时，删除关联下载记录数量: {}", downloadResult);
 
             // 物理删除资源
             int result = resourcesMapper.permanentDeleteByIds(ids);
             boolean success = result > 0;
-            log.info("批量彻底删除资源{} - 影响资源数: {}", success ? "成功" : "失败", ids.size());
+            log.debug("批量彻底删除资源{} - 影响资源数: {}", success ? "成功" : "失败", ids.size());
             return success;
         } catch (Exception e) {
             log.error("批量彻底删除资源失败 - 错误: {}", e.getMessage(), e);

@@ -89,7 +89,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
                     .set(Comments::getDeletedAt, new Date());
 
             int result = commentsMapper.update(null, updateWrapper);
-            log.info("软删除评论ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            log.debug("软删除评论ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
             log.error("软删除评论失败: {}", e.getMessage(), e);
@@ -116,7 +116,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
                     .set(Comments::getDeletedAt, new Date());
 
             int result = commentsMapper.update(null, updateWrapper);
-            log.info("批量软删除评论数量: {}", result);
+            log.debug("批量软删除评论数量: {}", result);
             return result > 0;
         } catch (Exception e) {
             log.error("批量软删除评论失败: {}", e.getMessage(), e);
@@ -138,7 +138,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             }
 
             int result = commentsMapper.restoreCommentById(id);
-            log.info("恢复评论ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+            log.debug("恢复评论ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
             log.error("恢复评论失败: {}", e.getMessage(), e);
@@ -155,7 +155,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeleteComment(Long id) {
-        log.info("彻底删除评论 - 评论ID: {}", id);
+        log.debug("彻底删除评论 - 评论ID: {}", id);
 
         try {
             if (id == null) {
@@ -166,13 +166,13 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             List<Long> descendantIds = commentsMapper.selectAllDescendantIds(List.of(id));
             if (descendantIds != null && !descendantIds.isEmpty()) {
                 commentsMapper.permanentDeleteByIds(descendantIds);
-                log.info("彻底删除评论的子孙评论数量: {}", descendantIds.size());
+                log.debug("彻底删除评论的子孙评论数量: {}", descendantIds.size());
             }
 
             // 删除自身
             int result = commentsMapper.deleteById(id);
             boolean success = result > 0;
-            log.info("彻底删除评论{} - 评论ID: {}", success ? "成功" : "失败", id);
+            log.debug("彻底删除评论{} - 评论ID: {}", success ? "成功" : "失败", id);
             return success;
         } catch (Exception e) {
             log.error("彻底删除评论失败 - 评论ID: {}, 错误: {}", id, e.getMessage(), e);
@@ -189,7 +189,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeleteComments(List<Long> ids) {
-        log.info("批量彻底删除评论 - 评论数量: {}", ids.size());
+        log.debug("批量彻底删除评论 - 评论数量: {}", ids.size());
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -200,13 +200,13 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             List<Long> descendantIds = commentsMapper.selectAllDescendantIds(ids);
             if (descendantIds != null && !descendantIds.isEmpty()) {
                 commentsMapper.permanentDeleteByIds(descendantIds);
-                log.info("批量彻底删除评论的子孙评论数量: {}", descendantIds.size());
+                log.debug("批量彻底删除评论的子孙评论数量: {}", descendantIds.size());
             }
 
             // 批量删除自身
             int result = commentsMapper.permanentDeleteByIds(ids);
             boolean success = result > 0;
-            log.info("批量彻底删除评论{} - 影响评论数: {}", success ? "成功" : "失败", ids.size());
+            log.debug("批量彻底删除评论{} - 影响评论数: {}", success ? "成功" : "失败", ids.size());
             return success;
         } catch (Exception e) {
             log.error("批量彻底删除评论失败 - 错误: {}", e.getMessage(), e);

@@ -57,7 +57,7 @@ public class FileUploadService {
      * @return 上传结果
      */
     public FileUploadResp uploadImage(MultipartFile file, Long userId) {
-        log.info("开始上传图片 - 用户ID: {}, 文件名: {}, 大小: {} bytes",
+        log.debug("开始上传图片 - 用户ID: {}, 文件名: {}, 大小: {} bytes",
                 userId, file.getOriginalFilename(), file.getSize());
 
         // 验证用户是否存在
@@ -83,7 +83,7 @@ public class FileUploadService {
             result.setImageId(image.getId());
             result.setIsDuplicate(uploadResult.isDuplicate());
 
-            log.info("图片上传成功 - 用户ID: {}, 图片ID: {}, 是否重复: {}, 访问URL: {}",
+            log.debug("图片上传成功 - 用户ID: {}, 图片ID: {}, 是否重复: {}, 访问URL: {}",
                     userId, image.getId(), result.getIsDuplicate(), image.getFileUrl());
 
             return result;
@@ -103,7 +103,7 @@ public class FileUploadService {
      * @return 上传结果
      */
     public FileUploadResp uploadDocument(MultipartFile file, Long userId, String description) {
-        log.info("开始上传文档 - 用户ID: {}, 文件名: {}, 大小: {} bytes, 描述: {}",
+        log.debug("开始上传文档 - 用户ID: {}, 文件名: {}, 大小: {} bytes, 描述: {}",
                 userId, file.getOriginalFilename(), file.getSize(), description);
 
         // 验证用户是否存在
@@ -129,7 +129,7 @@ public class FileUploadService {
             result.setExtension(fileUtil.getFileExtension(file.getOriginalFilename()));
             result.setUploadTime(System.currentTimeMillis());
 
-            log.info("文档上传成功 - 用户ID: {}, 文件路径: {}, 访问URL: {}",
+            log.debug("文档上传成功 - 用户ID: {}, 文件路径: {}, 访问URL: {}",
                     userId, relativePath, fileUrl);
 
             return result;
@@ -166,7 +166,7 @@ public class FileUploadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public FileUploadResp uploadResource(MultipartFile file, Long userId, String description, String draftKey, String type, Integer downloadType, Integer pointsNeeded) {
-        log.info("开始上传资源 - 用户ID: {}, 文件名: {}, 大小: {} bytes, 描述: {}, 草稿键: {}, 类型: {}",
+        log.debug("开始上传资源 - 用户ID: {}, 文件名: {}, 大小: {} bytes, 描述: {}, 草稿键: {}, 类型: {}",
                 userId, file.getOriginalFilename(), file.getSize(), description, draftKey, type);
 
         // 验证用户是否存在
@@ -207,7 +207,7 @@ public class FileUploadService {
                 postAttachmentsMapper.insert(attachment);
                 attachmentId = attachment.getId();
 
-                log.info("创建草稿附件关联 - 草稿键: {}, 资源ID: {}, 附件ID: {}, 类型: {}",
+                log.debug("创建草稿附件关联 - 草稿键: {}, 资源ID: {}, 附件ID: {}, 类型: {}",
                         draftKey, resourceId, attachmentId, type);
             }
 
@@ -223,7 +223,7 @@ public class FileUploadService {
             result.setResourceId(resourceId);
             result.setAttachmentId(attachmentId);
 
-            log.info("资源上传成功 - 用户ID: {}, 文件路径: {}, 访问URL: {}, 资源ID: {}, 附件ID: {}",
+            log.debug("资源上传成功 - 用户ID: {}, 文件路径: {}, 访问URL: {}, 资源ID: {}, 附件ID: {}",
                     userId, relativePath, fileUrl, resourceId, attachmentId);
 
             return result;
@@ -327,7 +327,7 @@ public class FileUploadService {
      * @return 附件列表
      */
     public java.util.List<java.util.Map<String, Object>> getDraftAttachments(String draftKey, Long userId) {
-        log.info("查询草稿附件 - 用户ID: {}, 草稿键: {}", userId, draftKey);
+        log.debug("查询草稿附件 - 用户ID: {}, 草稿键: {}", userId, draftKey);
 
         // 验证用户
         validateUser(userId);
@@ -344,7 +344,7 @@ public class FileUploadService {
      * @return 附件列表
      */
     public java.util.List<java.util.Map<String, Object>> getPostAttachments(Long postId, Long userId) {
-        log.info("查询文章附件 - 用户ID: {}, 文章ID: {}", userId, postId);
+        log.debug("查询文章附件 - 用户ID: {}, 文章ID: {}", userId, postId);
 
         // 验证用户
         validateUser(userId);
@@ -370,7 +370,7 @@ public class FileUploadService {
     @Transactional(rollbackFor = Exception.class)
     public FileUploadResp createExternalLinkResource(String name, String description, String externalLink, String purchasedNote,
                                                        Long userId, String draftKey, String type, Integer downloadType, Integer pointsNeeded) {
-        log.info("创建外部链接资源 - 用户ID: {}, 名称: {}, 链接: {}, 草稿键: {}, 类型: {}",
+        log.debug("创建外部链接资源 - 用户ID: {}, 名称: {}, 链接: {}, 草稿键: {}, 类型: {}",
                 userId, name, externalLink, draftKey, type);
 
         // 验证用户是否存在
@@ -413,7 +413,7 @@ public class FileUploadService {
             postAttachmentsMapper.insert(attachment);
             attachmentId = attachment.getId();
 
-            log.info("创建草稿附件关联 - 草稿键: {}, 资源ID: {}, 附件ID: {}, 类型: {}",
+            log.debug("创建草稿附件关联 - 草稿键: {}, 资源ID: {}, 附件ID: {}, 类型: {}",
                     draftKey, resourceId, attachmentId, type);
         }
 
@@ -429,7 +429,7 @@ public class FileUploadService {
         result.setResourceId(resourceId);
         result.setAttachmentId(attachmentId);
 
-        log.info("外部链接资源创建成功 - 用户ID: {}, 资源ID: {}, 附件ID: {}", userId, resourceId, attachmentId);
+        log.debug("外部链接资源创建成功 - 用户ID: {}, 资源ID: {}, 附件ID: {}", userId, resourceId, attachmentId);
 
         return result;
     }
@@ -437,7 +437,7 @@ public class FileUploadService {
     // 更新资源元信息（下载类型、所需积分）
     @Transactional(rollbackFor = Exception.class)
     public void updateResourceMeta(Long resourceId, Long userId, Integer downloadType, Integer pointsNeeded) {
-        log.info("更新资源元信息 - 用户ID: {}, 资源ID: {}, downloadType: {}, pointsNeeded: {}", userId, resourceId, downloadType, pointsNeeded);
+        log.debug("更新资源元信息 - 用户ID: {}, 资源ID: {}, downloadType: {}, pointsNeeded: {}", userId, resourceId, downloadType, pointsNeeded);
 
         // 校验用户
         validateUser(userId);
@@ -489,7 +489,7 @@ public class FileUploadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void updatePurchasedNote(Long resourceId, Long userId, String purchasedNote) {
-        log.info("更新购买后说明 - 用户ID: {}, 资源ID: {}", userId, resourceId);
+        log.debug("更新购买后说明 - 用户ID: {}, 资源ID: {}", userId, resourceId);
 
         // 校验用户
         validateUser(userId);
@@ -517,7 +517,7 @@ public class FileUploadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void deleteAttachment(Long resourceId, Long userId) {
-        log.info("删除附件 - 用户ID: {}, 资源ID: {}", userId, resourceId);
+        log.debug("删除附件 - 用户ID: {}, 资源ID: {}", userId, resourceId);
 
         // 验证用户
         validateUser(userId);
@@ -551,7 +551,7 @@ public class FileUploadService {
             // 删除附件关联记录
             postAttachmentsMapper.deleteByResourceId(resourceId);
 
-            log.info("附件删除成功 - 用户ID: {}, 资源ID: {}", userId, resourceId);
+            log.debug("附件删除成功 - 用户ID: {}, 资源ID: {}", userId, resourceId);
 
         } catch (Exception e) {
             log.error("删除附件失败 - 用户ID: {}, 资源ID: {}", userId, resourceId, e);

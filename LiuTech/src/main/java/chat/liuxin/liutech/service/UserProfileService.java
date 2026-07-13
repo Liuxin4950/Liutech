@@ -66,7 +66,7 @@ public class UserProfileService {
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = "userStats", key = "#root.target.getCurrentUserId()")
     public UserResp updateProfile(UpdateProfileReq updateProfileReq) {
-        log.info("开始更新用户个人资料");
+        log.debug("开始更新用户个人资料");
 
         // 1. 获取当前用户信息
         Users currentUser = userUtils.getCurrentUser();
@@ -119,7 +119,7 @@ public class UserProfileService {
         // 5. 保存到数据库
         try {
             userMapper.updateById(currentUser);
-            log.info("用户 {} 个人资料更新成功", currentUser.getUsername());
+            log.debug("用户 {} 个人资料更新成功", currentUser.getUsername());
         } catch (Exception e) {
             log.error("个人资料更新失败，用户: {}, 错误: {}", currentUser.getUsername(), e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "个人资料更新失败");
@@ -143,7 +143,7 @@ public class UserProfileService {
     @Transactional(readOnly = true)
     @Cacheable(value = "userStats", key = "#root.target.getCurrentUserId()", unless = "#result == null")
     public UserStatsResp getCurrentUserStats() {
-        log.info("开始获取当前用户统计信息");
+        log.debug("开始获取当前用户统计信息");
 
         // 1. 获取当前用户信息
         Users currentUser = userUtils.getCurrentUser();
@@ -184,7 +184,7 @@ public class UserProfileService {
             Date lastPostAt = postsMapper.getLastPostTimeByUserId(currentUser.getId());
             stats.setLastPostAt(lastPostAt);
 
-            log.info("用户 {} 统计信息获取成功 - 评论: {}, 文章: {}, 草稿: {}",
+            log.debug("用户 {} 统计信息获取成功 - 评论: {}, 文章: {}, 草稿: {}",
                     currentUser.getUsername(), commentCount, postCount, draftCount);
 
         } catch (Exception e) {
@@ -244,7 +244,7 @@ public class UserProfileService {
                     Long totalViews = postsMapper.countViewsByUserId(currentUser.getId());
                     stats.setViews(totalViews != null ? totalViews : 0L);
 
-                    log.info("用户 {} 个人资料获取成功 - 评论: {}, 文章: {}",
+                    log.debug("用户 {} 个人资料获取成功 - 评论: {}, 文章: {}",
                             currentUser.getUsername(), commentCount, postCount);
 
                 } catch (Exception e) {

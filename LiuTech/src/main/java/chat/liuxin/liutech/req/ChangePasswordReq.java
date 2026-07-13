@@ -8,7 +8,7 @@ import lombok.Data;
  * 修改密码请求类
  * 用于用户修改密码时的参数验证
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 public class ChangePasswordReq {

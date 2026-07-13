@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
  * - announcements: 10 分钟
  * - userStats: 10 分钟
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Configuration
 @EnableCaching

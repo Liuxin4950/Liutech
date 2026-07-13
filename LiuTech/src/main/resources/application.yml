@@ -101,7 +101,7 @@ jwt:
   # 本地开发也应通过环境变量或启动参数注入，避免默认密钥入库
   # 生成强密钥命令：openssl rand -base64 64
   secret: ${JWT_SECRET}
-  expiration: 604800000  # 7天，单位：毫秒
+  expiration: 2592000000  # 30天，单位：毫秒
   header: Authorization
   prefix: Bearer
 

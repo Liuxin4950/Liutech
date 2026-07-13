@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 音乐控制器（用户端接口）
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @RestController

@@ -13,7 +13,7 @@ import lombok.Getter;
  * 
  * 注意：BusinessException会被GlobalExceptionHandler捕获并统一处理
  * 
- * @author liuxin
+ * @author 刘鑫
  */
 @Getter
 public class BusinessException extends RuntimeException {

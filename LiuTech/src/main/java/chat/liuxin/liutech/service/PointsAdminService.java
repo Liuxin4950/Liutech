@@ -59,7 +59,7 @@ public class PointsAdminService {
      */
     public PageResp<PointsTransactionResp> getTransactionList(int page, int size, Long userId,
                                                               String transactionType, Date startTime, Date endTime) {
-        log.info("查询积分流水 - 页码: {}, 每页: {}, 用户ID: {}, 交易类型: {}, 时间范围: {} ~ {}",
+        log.debug("查询积分流水 - 页码: {}, 每页: {}, 用户ID: {}, 交易类型: {}, 时间范围: {} ~ {}",
                 page, size, userId, transactionType, startTime, endTime);
 
         Long total = pointsTransactionMapper.countTransactionsForAdmin(userId, transactionType, startTime, endTime);
@@ -80,7 +80,7 @@ public class PointsAdminService {
      * @return 分页积分流水列表
      */
     public PageResp<PointsTransaction> getTransactionsByUserId(Long userId, int page, int size) {
-        log.info("查询用户积分流水 - 用户ID: {}, 页码: {}, 每页: {}", userId, page, size);
+        log.debug("查询用户积分流水 - 用户ID: {}, 页码: {}, 每页: {}", userId, page, size);
 
         LambdaQueryWrapper<PointsTransaction> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PointsTransaction::getUserId, userId)
@@ -183,7 +183,7 @@ public class PointsAdminService {
      */
     public PageResp<UserCheckinResp> getCheckinList(int page, int size, Long userId,
                                                     LocalDate startDate, LocalDate endDate) {
-        log.info("查询签到记录 - 页码: {}, 每页: {}, 用户ID: {}, 日期范围: {} ~ {}",
+        log.debug("查询签到记录 - 页码: {}, 每页: {}, 用户ID: {}, 日期范围: {} ~ {}",
                 page, size, userId, startDate, endDate);
 
         Long total = userCheckinMapper.countCheckinsForAdmin(userId, startDate, endDate);
@@ -204,7 +204,7 @@ public class PointsAdminService {
      * @return 分页签到记录列表
      */
     public PageResp<UserCheckin> getCheckinsByUserId(Long userId, int page, int size) {
-        log.info("查询用户签到记录 - 用户ID: {}, 页码: {}, 每页: {}", userId, page, size);
+        log.debug("查询用户签到记录 - 用户ID: {}, 页码: {}, 每页: {}", userId, page, size);
 
         LambdaQueryWrapper<UserCheckin> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserCheckin::getUserId, userId)
@@ -227,7 +227,7 @@ public class PointsAdminService {
      * @return 统计数据 Map
      */
     public Map<String, BigDecimal> getPointsStats() {
-        log.info("查询积分统计信息");
+        log.debug("查询积分统计信息");
 
         Map<String, BigDecimal> stats = new HashMap<>();
 

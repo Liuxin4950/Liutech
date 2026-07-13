@@ -206,7 +206,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      */
     @Transactional(rollbackFor = Exception.class)
     public CommentResp createComment(CreateCommentReq createCommentReq) {
-        log.info("开始创建评论，请求参数: {}", createCommentReq);
+        log.debug("开始创建评论，请求参数: {}", createCommentReq);
 
         // 获取并验证当前用户
         Users currentUser = validateCurrentUser();
@@ -233,7 +233,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
             log.error("获取当前用户失败");
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        log.info("获取到当前用户: {}", currentUser.getUsername());
+        log.debug("获取到当前用户: {}", currentUser.getUsername());
         return currentUser;
     }
 

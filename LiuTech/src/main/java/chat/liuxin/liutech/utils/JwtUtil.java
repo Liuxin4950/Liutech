@@ -17,7 +17,7 @@ import java.util.Map;
  * JWT工具类
  * 用于生成、解析和验证JWT token
  * 
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @Component

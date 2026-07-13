@@ -13,7 +13,7 @@ import chat.liuxin.liutech.service.CarouselService;
 
 /**
  * 轮播图控制器（前台用户）
- * @author liuxin
+ * @author 刘鑫
  */
 @RestController
 @RequestMapping("/carousels")

@@ -99,7 +99,7 @@ public class CheckinService {
                 .setConsecutiveDays(consecutiveDays)
                 .setCheckinDate(today);
 
-        log.info("用户{}签到成功，获得{}积分，连续签到{}天", userId, pointsEarned, consecutiveDays);
+        log.debug("用户{}签到成功，获得{}积分，连续签到{}天", userId, pointsEarned, consecutiveDays);
         return response;
     }
 

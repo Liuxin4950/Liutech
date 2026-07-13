@@ -50,7 +50,7 @@ public class UserManagementService {
      */
     @Transactional(readOnly = true)
     public UserResp getCurrentUser() {
-        log.info("开始获取当前用户信息");
+        log.debug("开始获取当前用户信息");
 
         // 1. 获取当前用户
         Users currentUser = getCurrentUserEntity();
@@ -103,7 +103,7 @@ public class UserManagementService {
      */
     @Transactional(readOnly = true)
     public Object getUsersByCondition(Long id, String username) {
-        log.info("根据条件查询用户 - ID: {}, 用户名: {}", id, username);
+        log.debug("根据条件查询用户 - ID: {}, 用户名: {}", id, username);
 
         try {
             if (id != null) {
@@ -169,7 +169,7 @@ public class UserManagementService {
     @Transactional(readOnly = true)
     public PageResp<UserResp> getUserListForAdmin(Integer page, Integer size, String username,
                                                   String email, String role, Integer status, Boolean includeDeleted) {
-        log.info("管理端查询用户列表 - 页码: {}, 每页: {}, 用户名: {}, 邮箱: {}, 角色: {}, 状态: {}, 包含已删除: {}",
+        log.debug("管理端查询用户列表 - 页码: {}, 每页: {}, 用户名: {}, 邮箱: {}, 角色: {}, 状态: {}, 包含已删除: {}",
                 page, size, username, email, role, status, includeDeleted);
 
         try {
@@ -230,7 +230,7 @@ public class UserManagementService {
         pageResult.setHasNext((long) page < pageResult.getPages());
         pageResult.setHasPrevious((long) page > 1);
 
-        log.info("管理端用户列表查询成功 - 总数: {}, 当前页数据: {}", total, users.size());
+        log.debug("管理端用户列表查询成功 - 总数: {}, 当前页数据: {}", total, users.size());
         return pageResult;
     }
 
@@ -246,7 +246,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean saveUser(Users user) {
-        log.info("管理端创建用户，用户名: {}", user.getUsername());
+        log.debug("管理端创建用户，用户名: {}", user.getUsername());
 
         try {
             // 1. 预处理用户数据
@@ -260,11 +260,11 @@ public class UserManagementService {
                 // 3. 清理缓存，确保用户信息立即生效
                 if (StringUtils.hasText(user.getUsername())) {
                     userUtils.clearUserCache(user.getUsername());
-                    log.info("已清理新用户 {} 的缓存", user.getUsername());
+                    log.debug("已清理新用户 {} 的缓存", user.getUsername());
                 }
             }
 
-            log.info("用户创建{} - 用户名: {}, ID: {}", success ? "成功" : "失败", user.getUsername(), user.getId());
+            log.debug("用户创建{} - 用户名: {}, ID: {}", success ? "成功" : "失败", user.getUsername(), user.getId());
             return success;
 
         } catch (Exception e) {
@@ -311,7 +311,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean updateUserById(Users user) {
-        log.info("管理端更新用户，用户ID: {}, 用户名: {}", user.getId(), user.getUsername());
+        log.debug("管理端更新用户，用户ID: {}, 用户名: {}", user.getId(), user.getUsername());
 
         try {
             // 1. 预处理用户数据
@@ -325,11 +325,11 @@ public class UserManagementService {
                 // 3. 清理缓存，确保权限等信息立即生效
                 if (StringUtils.hasText(user.getUsername())) {
                     userUtils.clearUserCache(user.getUsername());
-                    log.info("已清理用户 {} 的缓存", user.getUsername());
+                    log.debug("已清理用户 {} 的缓存", user.getUsername());
                 }
             }
 
-            log.info("用户更新{} - 用户ID: {}", success ? "成功" : "失败", user.getId());
+            log.debug("用户更新{} - 用户ID: {}", success ? "成功" : "失败", user.getId());
             return success;
 
         } catch (Exception e) {
@@ -363,7 +363,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean removeUserById(Long id) {
-        log.info("管理端删除用户，用户ID: {}", id);
+        log.debug("管理端删除用户，用户ID: {}", id);
 
         try {
             if (id == null) {
@@ -380,7 +380,7 @@ public class UserManagementService {
             int result = userMapper.update(null, updateWrapper);
             boolean success = result > 0;
 
-            log.info("用户删除{} - 用户ID: {}", success ? "成功" : "失败", id);
+            log.debug("用户删除{} - 用户ID: {}", success ? "成功" : "失败", id);
             return success;
 
         } catch (Exception e) {
@@ -401,7 +401,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean removeUsersByIds(List<Long> ids) {
-        log.info("管理端批量删除用户，用户ID列表: {}", ids);
+        log.debug("管理端批量删除用户，用户ID列表: {}", ids);
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -418,7 +418,7 @@ public class UserManagementService {
             int result = userMapper.update(null, updateWrapper);
             boolean success = result > 0;
 
-            log.info("批量删除用户{} - 删除数量: {}", success ? "成功" : "失败", result);
+            log.debug("批量删除用户{} - 删除数量: {}", success ? "成功" : "失败", result);
             return success;
 
         } catch (Exception e) {
@@ -520,7 +520,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean restoreUser(Long id) {
-        log.info("恢复用户，用户ID: {}", id);
+        log.debug("恢复用户，用户ID: {}", id);
 
         try {
             if (id == null) {
@@ -537,11 +537,11 @@ public class UserManagementService {
                 Users user = userMapper.selectById(id);
                 if (user != null && StringUtils.hasText(user.getUsername())) {
                     userUtils.clearUserCache(user.getUsername());
-                    log.info("已清理恢复用户 {} 的缓存", user.getUsername());
+                    log.debug("已清理恢复用户 {} 的缓存", user.getUsername());
                 }
             }
 
-            log.info("用户恢复{} - 用户ID: {}", success ? "成功" : "失败", id);
+            log.debug("用户恢复{} - 用户ID: {}", success ? "成功" : "失败", id);
             return success;
 
         } catch (Exception e) {
@@ -560,7 +560,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean restoreUsers(List<Long> ids) {
-        log.info("批量恢复用户，用户ID列表: {}", ids);
+        log.debug("批量恢复用户，用户ID列表: {}", ids);
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -572,7 +572,7 @@ public class UserManagementService {
             int result = userMapper.restoreUsersByIds(ids, currentUserId);
             boolean success = result > 0;
 
-            log.info("批量恢复用户{} - 恢复数量: {}", success ? "成功" : "失败", result);
+            log.debug("批量恢复用户{} - 恢复数量: {}", success ? "成功" : "失败", result);
             return success;
 
         } catch (Exception e) {
@@ -592,7 +592,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchUpdateUserStatus(List<Long> ids, Boolean enabled) {
-        log.info("批量更新用户状态，用户ID列表: {}, 启用: {}", ids, enabled);
+        log.debug("批量更新用户状态，用户ID列表: {}, 启用: {}", ids, enabled);
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -623,11 +623,11 @@ public class UserManagementService {
                             userUtils.clearUserCache(u.getUsername());
                         }
                     });
-                    log.info("已清理 {} 个用户的缓存", users.size());
+                    log.debug("已清理 {} 个用户的缓存", users.size());
                 }
             }
 
-            log.info("批量更新用户状态{} - 更新数量: {}", success ? "成功" : "失败", result);
+            log.debug("批量更新用户状态{} - 更新数量: {}", success ? "成功" : "失败", result);
             return success;
 
         } catch (Exception e) {
@@ -647,7 +647,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeleteUser(Long id) {
-        log.info("彻底删除用户 - 用户ID: {}", id);
+        log.debug("彻底删除用户 - 用户ID: {}", id);
 
         try {
             if (id == null) {
@@ -659,14 +659,14 @@ public class UserManagementService {
             Users user = userMapper.selectById(id);
             if (user != null && StringUtils.hasText(user.getUsername())) {
                 userUtils.clearUserCache(user.getUsername());
-                log.info("已清理彻底删除用户 {} 的缓存", user.getUsername());
+                log.debug("已清理彻底删除用户 {} 的缓存", user.getUsername());
             }
 
             // 物理删除
             int result = userMapper.deleteById(id);
             boolean success = result > 0;
 
-            log.info("彻底删除用户{} - 用户ID: {}", success ? "成功" : "失败", id);
+            log.debug("彻底删除用户{} - 用户ID: {}", success ? "成功" : "失败", id);
             return success;
 
         } catch (Exception e) {
@@ -684,7 +684,7 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeleteUsers(List<Long> ids) {
-        log.info("批量彻底删除用户 - 用户ID列表: {}", ids);
+        log.debug("批量彻底删除用户 - 用户ID列表: {}", ids);
 
         try {
             if (ids == null || ids.isEmpty()) {
@@ -702,14 +702,14 @@ public class UserManagementService {
                         userUtils.clearUserCache(u.getUsername());
                     }
                 });
-                log.info("已清理 {} 个用户的缓存", users.size());
+                log.debug("已清理 {} 个用户的缓存", users.size());
             }
 
             // 批量物理删除
             int result = userMapper.deleteBatchIds(ids);
             boolean success = result > 0;
 
-            log.info("批量彻底删除用户{} - 影响用户数: {}", success ? "成功" : "失败", ids.size());
+            log.debug("批量彻底删除用户{} - 影响用户数: {}", success ? "成功" : "失败", ids.size());
             return success;
 
         } catch (Exception e) {

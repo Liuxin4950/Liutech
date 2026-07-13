@@ -74,6 +74,18 @@ docker exec -it liutech-mysql mysql -u root -p
 验证: <命令或方式>
 ```
 
+## 📝 日志规范
+
+- **安全审计**（登录/注册/改密/验证码/邮箱登录/重置密码）：`log.info`，不可降级或删除。web 端用户操作无 @OperationLog，log 是唯一审计手段。
+- **资产变动**（积分扣减/增加、资源购买消费）：`log.info`。
+- **数据删除/不可逆操作**（彻底删除、定时清理、清空记忆）：`log.info` 记执行结果。
+- **AI 端管理操作**（AiModel 增删改）：`log.info`（AI 端无 AOP，日志是唯一审计）。
+- **管理端 CRUD**（admin controller 有 @OperationLog 的写操作）：Service 层可 `log.debug`，AOP 兜底审计。
+- **高频读**（首页/列表/查询/sitemap）：`log.debug` 或不打。
+- **请求链路/认证**（每请求触发）：`log.debug`；慢请求（>1s）`log.warn`。
+- **异常**：业务异常 `log.warn` / 系统异常 `log.error`，不可删除。
+- **级别配置**：生产 `root: INFO`；不要把业务包整体开 `DEBUG`（Spring AI 的 DEBUG 会打 prompt 明文，IO 开销大）。
+
 ## 🔗 重要资源指针
 
 - `README.md` — 完整功能介绍、特性列表、部署流程（产品向）

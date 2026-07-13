@@ -16,7 +16,7 @@ import chat.liuxin.liutech.model.Announcements;
 
 /**
  * 公告Mapper接口
- * @author liuxin
+ * @author 刘鑫
  */
 @Mapper
 public interface AnnouncementsMapper extends BaseMapper<Announcements> {

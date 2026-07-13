@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
  * 验证码表
  * 用于忘记密码、邮箱验证码登录等场景
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 @EqualsAndHashCode(callSuper = true)

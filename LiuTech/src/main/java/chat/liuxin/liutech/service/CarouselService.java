@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
  * 2. 状态管理和排序
  * 3. 软删除支持
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @Service

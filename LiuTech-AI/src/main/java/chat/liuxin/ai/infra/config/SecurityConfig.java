@@ -30,9 +30,10 @@ import java.util.Map;
  *
  * 作者：刘鑫
  * 说明：
- * 1) AI服务主要提供聊天接口，需要JWT认证
- * 2) 统一配置认证/鉴权失败时的JSON返回
- * 3) 配置CORS支持前端跨域访问
+ * 1) /ai/chat、/ai/chat/stream 公开（permitAll），登录用户走会话持久化，游客走临时模式
+ * 2) /ai/writing、/ai/writing/stream 需管理员角色（hasRole('ADMIN')）
+ * 3) 统一配置认证/鉴权失败时的JSON返回
+ * 4) 配置CORS支持前端跨域访问
  */
 @Configuration
 @EnableWebSecurity

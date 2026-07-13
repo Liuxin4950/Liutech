@@ -35,7 +35,6 @@ public class MessagesController {
      */
     @GetMapping("/public")
     public Result<List<MessageResp>> getPublicMessages() {
-        log.info("查询公开留言列表");
         List<MessageResp> messages = messagesService.getApprovedMessages();
         return Result.success("查询成功", messages);
     }
@@ -46,7 +45,6 @@ public class MessagesController {
     @PostMapping
     @OperationLog(action = "create", targetType = "message", description = "提交留言")
     public Result<MessageResp> createMessage(@Valid @RequestBody CreateMessageReq req) {
-        log.info("收到留言提交请求");
         try {
             MessageResp message = messagesService.createMessage(req);
             return Result.success("留言提交成功，等待管理员审核", message);

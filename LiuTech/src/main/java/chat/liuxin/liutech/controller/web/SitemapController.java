@@ -37,7 +37,6 @@ public class SitemapController {
 
     @GetMapping(value = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
     public String generateSitemap() {
-        log.info("Generating sitemap.xml");
 
         StringBuilder sitemap = new StringBuilder();
         sitemap.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -66,11 +65,6 @@ public class SitemapController {
 
         sitemap.append("</urlset>");
 
-        log.info(
-                "Sitemap generated with {} posts, {} categories, {} tags",
-                publishedPosts.size(),
-                categories.size(),
-                tags.size());
         return sitemap.toString();
     }
 

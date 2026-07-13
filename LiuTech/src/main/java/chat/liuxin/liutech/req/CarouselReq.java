@@ -7,7 +7,7 @@ import lombok.Data;
 
 /**
  * 轮播图请求数据
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 public class CarouselReq {

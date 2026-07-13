@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
  * 标签控制器
  * 提供文章标签相关的REST API接口
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @RestController
@@ -41,10 +41,8 @@ public class TagsController {
      */
     @GetMapping
     public Result<List<TagResp>> getAllTags() {
-        log.info("查询所有标签");
 
         List<TagResp> tags = tagsService.getAllTagsWithPostCount();
-        log.info("查询标签成功 - 数量: {}", tags.size());
 
         return Result.success("查询成功", tags);
     }
@@ -57,7 +55,6 @@ public class TagsController {
      */
     @GetMapping("/{id}")
     public Result<TagResp> getTagById(@PathVariable Long id) {
-        log.info("查询标签详情 - ID: {}", id);
 
         TagResp tag = tagsService.getTagByIdWithPostCount(id);
         if (tag == null) {
@@ -65,7 +62,6 @@ public class TagsController {
             return Result.fail(ErrorCode.TAG_NOT_FOUND);
         }
 
-        log.info("查询标签详情成功 - 名称: {}, 文章数量: {}", tag.getName(), tag.getPostCount());
         return Result.success("查询成功", tag);
     }
 
@@ -80,10 +76,7 @@ public class TagsController {
     public Result<List<TagResp>> getHotTags(
             @RequestParam(defaultValue = "20") Integer limit) {
 
-        log.info("查询热门标签 - 限制数量: {}", limit);
-
         List<TagResp> tags = tagsService.getHotTags(limit);
-        log.info("查询热门标签成功 - 数量: {}", tags.size());
 
         return Result.success("查询成功", tags);
     }
@@ -96,10 +89,8 @@ public class TagsController {
      */
     @GetMapping("/post/{postId}")
     public Result<List<TagResp>> getTagsByPostId(@PathVariable Long postId) {
-        log.info("查询文章标签 - 文章ID: {}", postId);
 
         List<TagResp> tags = tagsService.getTagsByPostId(postId);
-        log.info("查询文章标签成功 - 文章ID: {}, 标签数量: {}", postId, tags.size());
 
         return Result.success("查询成功", tags);
     }
@@ -112,11 +103,9 @@ public class TagsController {
      */
     @GetMapping("/search")
     public Result<List<TagResp>> searchTagsByName(@RequestParam String name) {
-        log.info("搜索标签 - 关键词: {}", name);
 
         try {
             List<TagResp> tags = tagsService.getTagsByName(name);
-            log.info("搜索标签成功 - 关键词: {}, 结果数量: {}", name, tags.size());
             return Result.success("查询成功", tags);
         } catch (BusinessException e) {
             return Result.fail(e.getCode(), e.getMessage());

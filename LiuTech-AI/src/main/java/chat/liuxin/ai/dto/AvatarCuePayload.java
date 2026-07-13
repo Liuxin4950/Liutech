@@ -6,7 +6,7 @@ import lombok.Data;
 /**
  * Live2D 表情/动作提示事件。
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 @Builder

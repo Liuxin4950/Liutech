@@ -33,9 +33,9 @@ public class LogService extends ServiceImpl<AdminLogsMapper, AdminLogs> {
      */
     public boolean saveLog(AdminLogs adminLog) {
         try {
-            log.info("保存操作日志: action={}, operator={}, targetName={}", adminLog.getAction(), adminLog.getOperator(), adminLog.getTargetName());
+            log.debug("保存操作日志: action={}, operator={}, targetName={}", adminLog.getAction(), adminLog.getOperator(), adminLog.getTargetName());
             boolean result = this.save(adminLog);
-            log.info("操作日志保存结果: {}", result);
+            log.debug("操作日志保存结果: {}", result);
             return result;
         } catch (Exception e) {
             log.error("保存操作日志失败", e);

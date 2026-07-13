@@ -79,7 +79,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
-            log.info("处理请求: {} {}", request.getMethod(), request.getRequestURI());
+            log.debug("处理请求: {} {}", request.getMethod(), request.getRequestURI());
 
             String token = extractTokenFromRequest(request);
             if (token != null) {
@@ -196,7 +196,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 设置用户详情（将用户ID存储在details中，供控制器使用）
         authToken.setDetails(userId);
 
-        log.info("认证对象创建完成，认证状态: {}", authToken.isAuthenticated());
+        log.debug("认证对象创建完成，认证状态: {}", authToken.isAuthenticated());
 
         // 设置到Spring Security上下文
         SecurityContext context = SecurityContextHolder.createEmptyContext();
@@ -206,7 +206,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 将安全上下文保存到请求属性中，解决SSE流完成后认证上下文丢失问题
         securityContextRepository.saveContext(context, request, response);
 
-        log.info("JWT认证成功，用户: {}, 角色: {}, 用户ID: {}", username, authorities, userId);
+        log.debug("JWT认证成功，用户: {}, 角色: {}, 用户ID: {}", username, authorities, userId);
     }
     
     /**

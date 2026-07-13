@@ -42,13 +42,11 @@ public class AiModelController {
      */
     @GetMapping("/default")
     public String getDefaultModel() {
-        log.info("用户前端获取默认模型");
         Optional<ModelConfigDTO> defaultModel = modelConfigService.getDefaultModel();
         if (defaultModel.isEmpty()) {
             log.warn("未设置默认模型，返回系统默认模型: zai-org/GLM-4.6");
             return "zai-org/GLM-4.6";
         }
-        log.info("返回默认模型: {}", defaultModel.get().getModelName());
         return defaultModel.get().getModelName();
     }
 
@@ -62,9 +60,7 @@ public class AiModelController {
      */
     @GetMapping("/enabled")
     public List<ModelConfigDTO> getEnabledModels() {
-        log.info("用户前端获取启用的模型列表");
         List<ModelConfigDTO> enabledModels = modelConfigService.getEnabledModels();
-        log.info("返回{}个启用的模型", enabledModels.size());
         return enabledModels;
     }
 }

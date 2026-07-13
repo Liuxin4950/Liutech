@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
  * 登录响应结果类
  * 只返回JWT token字符串，客户端使用时需要在Authorization头中添加"Bearer "前缀
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 @NoArgsConstructor

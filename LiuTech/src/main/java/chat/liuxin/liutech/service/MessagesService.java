@@ -52,7 +52,7 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
      */
     @Transactional(rollbackFor = Exception.class)
     public MessageResp createMessage(CreateMessageReq req) {
-        log.info("收到留言请求: nickname={}, email={}", req.getNickname(), req.getEmail());
+        log.debug("收到留言请求: nickname={}, email={}", req.getNickname(), req.getEmail());
 
         // 验证邮箱格式
         if (!EMAIL_PATTERN.matcher(req.getEmail()).matches()) {
@@ -76,7 +76,7 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "留言提交失败");
         }
 
-        log.info("留言提交成功: id={}", message.getId());
+        log.debug("留言提交成功: id={}", message.getId());
         return convertToResp(message);
     }
 

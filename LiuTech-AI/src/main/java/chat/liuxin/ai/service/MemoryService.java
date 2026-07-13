@@ -151,7 +151,7 @@ public class MemoryService {
                 .eq(AiConversation::getUserId, userId)
         );
 
-        log.info("清空用户记忆：userId={}, 删除{}条记录", userId, deleted);
+        log.debug("清空用户记忆：userId={}, 删除{}条记录", userId, deleted);
     }
 
     /**

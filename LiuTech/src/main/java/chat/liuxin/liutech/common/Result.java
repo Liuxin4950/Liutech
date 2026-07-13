@@ -20,7 +20,7 @@ import lombok.NoArgsConstructor;
  * 3. 带自定义消息的失败响应：Result.fail(ErrorCode.PARAMS_ERROR, "用户名格式错误")
  *
  * @param <T> 响应数据的类型
- * @author liuxin
+ * @author 刘鑫
  */
 @Data
 @NoArgsConstructor

@@ -100,7 +100,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "软删除图片失败");
         }
 
-        log.info("软删除图片 - ID: {}, 文件名: {}", id, image.getFileName());
+        log.debug("软删除图片 - ID: {}, 文件名: {}", id, image.getFileName());
         return result;
     }
 
@@ -136,7 +136,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
             result.put("warning", "有 " + warningCount + " 张图片正在被文章引用，删除后文章中的图片将无法显示");
         }
 
-        log.info("批量软删除图片 - 数量: {}", ids.size());
+        log.debug("批量软删除图片 - 数量: {}", ids.size());
         return result;
     }
 
@@ -153,7 +153,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
         }
 
         int result = imagesMapper.restoreImageById(id);
-        log.info("恢复图片ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
+        log.debug("恢复图片ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
         return result > 0;
     }
 
@@ -177,7 +177,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
         int result = imagesMapper.permanentDeleteById(id);
         boolean success = result > 0;
 
-        log.info("物理删除图片{} - ID: {}, 文件名: {}", success ? "成功" : "失败", id, image.getFileName());
+        log.debug("物理删除图片{} - ID: {}, 文件名: {}", success ? "成功" : "失败", id, image.getFileName());
         return success;
     }
 
@@ -205,7 +205,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
         int result = imagesMapper.batchPermanentDelete(ids);
         boolean success = result > 0;
 
-        log.info("批量物理删除图片{} - 影响数量: {}", success ? "成功" : "失败", ids.size());
+        log.debug("批量物理删除图片{} - 影响数量: {}", success ? "成功" : "失败", ids.size());
         return success;
     }
 
@@ -237,7 +237,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
         List<Long> ids = orphans.stream().map(Images::getId).toList();
         int result = imagesMapper.batchPermanentDelete(ids);
 
-        log.info("清理孤立图片 - 数量: {}", result);
+        log.debug("清理孤立图片 - 数量: {}", result);
         return result;
     }
 

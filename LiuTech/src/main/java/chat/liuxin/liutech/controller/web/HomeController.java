@@ -25,7 +25,7 @@ import lombok.extern.slf4j.Slf4j;
  * 首页控制器
  * 提供博客首页相关的数据聚合接口
  *
- * @author liuxin
+ * @author 刘鑫
  */
 @Slf4j
 @RestController
@@ -51,7 +51,6 @@ public class HomeController {
      */
     @GetMapping
     public Result<String> home() {
-        log.info("访问首页");
         return Result.success("欢迎访问刘鑫的技术博客！", "欢迎访问刘鑫的技术博客！");
     }
 
@@ -63,7 +62,6 @@ public class HomeController {
      */
     @GetMapping("/dashboard")
     public Result<Map<String, Object>> getDashboardData() {
-        log.info("获取首页数据聚合");
 
         Map<String, Object> data = new HashMap<>();
 
@@ -88,9 +86,6 @@ public class HomeController {
             List<Comments> latestComments = commentsService.getLatestComments(5);
             data.put("latestComments", latestComments);
 
-            log.info("首页数据聚合成功 - 最新文章: {}, 热门文章: {}, 分类: {}, 热门标签: {}, 最新评论: {}",
-                    latestPosts.size(), hotPosts.size(), categories.size(), hotTags.size(), latestComments.size());
-
             return Result.success("获取成功", data);
 
         } catch (Exception e) {
@@ -106,7 +101,6 @@ public class HomeController {
      */
     @GetMapping("/stats")
     public Result<Map<String, Object>> getStats() {
-        log.info("获取网站统计信息");
 
         Map<String, Object> stats = new HashMap<>();
 
@@ -126,9 +120,6 @@ public class HomeController {
             // 评论总数
             long commentCount = commentsService.count();
             stats.put("commentCount", commentCount);
-
-            log.info("网站统计信息 - 文章: {}, 分类: {}, 标签: {}, 评论: {}",
-                    postCount, categoryCount, tagCount, commentCount);
 
             return Result.success("获取成功", stats);
 

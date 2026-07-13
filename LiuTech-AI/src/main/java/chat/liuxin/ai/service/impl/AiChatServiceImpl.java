@@ -184,12 +184,12 @@ public class AiChatServiceImpl implements AiChatService {
     /** 记录本次实际生效的模型参数,便于排查前端传参和策略生效情况。 */
     private void logParameterApplication(String modelName, AiModelPolicy.ModelParameters params) {
         if (params.temperature() != null || params.maxTokens() != null) {
-            log.info("AI模型参数 - 模型: {}, 来源: {}, temperature: {}, maxTokens: {}",
+            log.debug("AI模型参数 - 模型: {}, 来源: {}, temperature: {}, maxTokens: {}",
                     modelName, params.source(),
                     params.temperature() != null ? String.format("%.2f", params.temperature()) : "未设置",
                     params.maxTokens() != null ? params.maxTokens() : "未设置");
         } else {
-            log.info("AI模型参数 - 模型: {}, 来源: {}, 使用默认参数", modelName, params.source());
+            log.debug("AI模型参数 - 模型: {}, 来源: {}, 使用默认参数", modelName, params.source());
         }
     }
 

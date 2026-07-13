@@ -95,7 +95,7 @@ public class ImageUsageReconcileService {
             }
         }
 
-        log.info("图片 usage_count 对账完成：resetRows={}, referencedPaths={}, updatedImages={}, missingImages={}",
+        log.debug("图片 usage_count 对账完成：resetRows={}, referencedPaths={}, updatedImages={}, missingImages={}",
                 resetRows, countsByPath.size(), updatedImages, missingImages);
 
         return new ImageUsageReconcileResp(resetRows, countsByPath.size(), updatedImages, missingImages);
