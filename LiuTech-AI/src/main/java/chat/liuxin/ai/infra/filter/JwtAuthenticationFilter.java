@@ -1,8 +1,8 @@
 package chat.liuxin.ai.infra.filter;
 
 import chat.liuxin.ai.common.utils.JwtUtil;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,7 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -59,13 +59,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             new RequestAttributeSecurityContextRepository();
 
     public JwtAuthenticationFilter(
-            RestTemplateBuilder restTemplateBuilder,
-            @Value("${spring.ai.security.auth-connect-timeout-ms:3000}") long connectTimeoutMs,
-            @Value("${spring.ai.security.auth-read-timeout-ms:5000}") long readTimeoutMs) {
-        this.restTemplate = restTemplateBuilder
-                .connectTimeout(Duration.ofMillis(connectTimeoutMs))
-                .readTimeout(Duration.ofMillis(readTimeoutMs))
-                .build();
+            @Value("") long connectTimeoutMs,
+            @Value("") long readTimeoutMs) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout((int) connectTimeoutMs);
+        factory.setReadTimeout((int) readTimeoutMs);
+        this.restTemplate = new RestTemplate(factory);
     }
 
     /**

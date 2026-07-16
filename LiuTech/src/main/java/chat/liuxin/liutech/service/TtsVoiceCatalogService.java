@@ -1,7 +1,7 @@
 package chat.liuxin.liutech.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -52,10 +52,7 @@ public class TtsVoiceCatalogService {
             }
 
             List<String> result = new ArrayList<>();
-            Iterator<String> fields = models.fieldNames();
-            while (fields.hasNext()) {
-                result.add(fields.next());
-            }
+            result.addAll(models.propertyNames());
             result.sort(String::compareTo);
             return result;
         } catch (Exception ignore) {

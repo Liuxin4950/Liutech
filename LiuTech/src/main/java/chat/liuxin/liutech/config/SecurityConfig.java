@@ -4,7 +4,7 @@ import chat.liuxin.liutech.filter.JwtAuthenticationFilter;
 import chat.liuxin.liutech.filter.RequestTraceFilter;
 import chat.liuxin.liutech.common.ErrorCode; // 新增：统一错误码
 import chat.liuxin.liutech.common.Result;    // 新增：统一响应体
-import com.fasterxml.jackson.databind.ObjectMapper; // 新增：用于将对象写为JSON
+import tools.jackson.databind.ObjectMapper; // 新增：用于将对象写为JSON
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

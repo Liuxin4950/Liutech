@@ -78,14 +78,14 @@ public class SiliconFlowChatClient {
             log.debug("调用AI模型: {}, 模式: {}, 角色: {}, 消息数: {}", model, mode, role, safeMsgs.size());
             if (mode == ChatMode.WRITING) {
                 // 写作模式：内部流式收集，避免 RestClient 超时
-                String response = chatClient.prompt().messages(safeMsgs).options(options)
+                String response = chatClient.prompt().messages(safeMsgs).options(options.mutate())
                         .tools(tools).toolContext(resolveToolContext(toolContext))
                         .stream().content()
                         .collectList().map(parts -> String.join("", parts)).block();
                 return requireNonEmpty(response, model);
             } else {
                 // 聊天模式：直接调用
-                String response = chatClient.prompt().messages(safeMsgs).options(options)
+                String response = chatClient.prompt().messages(safeMsgs).options(options.mutate())
                         .tools(tools).toolContext(resolveToolContext(toolContext))
                         .call().content();
                 return requireNonEmpty(response, model);
@@ -126,7 +126,7 @@ public class SiliconFlowChatClient {
         Object[] tools = resolveToolsByRole(role).toArray();
         try {
             log.debug("调用AI模型(流式): {}, 模式: {}, 角色: {}, 消息数: {}", model, mode, role, safeMsgs.size());
-            return chatClient.prompt().messages(safeMsgs).options(options)
+            return chatClient.prompt().messages(safeMsgs).options(options.mutate())
                     .tools(tools).toolContext(resolveToolContext(toolContext))
                     .stream().content();
         } catch (Exception e) {

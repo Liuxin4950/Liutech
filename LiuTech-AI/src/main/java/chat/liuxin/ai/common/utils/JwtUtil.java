@@ -37,11 +37,11 @@ public class JwtUtil {
 
     private Claims getClaimsFromToken(String token) {
         try {
-            return Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
+            return Jwts.parser()
+                    .verifyWith(getSigningKey())
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (ExpiredJwtException e) {
             log.warn("JWT token已过期: {}", e.getMessage());
             return null;

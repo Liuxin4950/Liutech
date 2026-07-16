@@ -1,7 +1,7 @@
 package chat.liuxin.ai.infra.config;
 
 import chat.liuxin.ai.infra.filter.JwtAuthenticationFilter;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

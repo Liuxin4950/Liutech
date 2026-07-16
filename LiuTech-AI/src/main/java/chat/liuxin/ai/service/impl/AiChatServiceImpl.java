@@ -220,7 +220,7 @@ public class AiChatServiceImpl implements AiChatService {
         if (root instanceof org.springframework.web.client.ResourceAccessException) {
             return new AIServiceException.ConnectionException("AI服务网络访问失败: " + root.getMessage());
         }
-        if (root instanceof com.fasterxml.jackson.core.JsonParseException || root instanceof java.text.ParseException) {
+        if (root instanceof tools.jackson.core.exc.StreamReadException || root instanceof java.text.ParseException) {
             return new AIServiceException.ModelException("AI服务响应解析失败: " + root.getMessage());
         }
         if (root instanceof TimeoutException || (e.getMessage() != null && e.getMessage().toLowerCase().contains("timeout"))) {

@@ -13,14 +13,15 @@
     </parent>
 
     <artifactId>liutech-ai</artifactId>
-    <version>0.0.1-</version>
+    <version>0.0.1</version>
     <name>LiuTech AI Service</name>
     <description>LiuTech博客系统AI微服务</description>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <spring-ai.version>1.1.4</spring-ai.version>
+        <!-- Spring AI 2.0.0 GA（配套 Spring Boot 4.1.0） -->
+        <spring-ai.version>2.0.0</spring-ai.version>
     </properties>
 
     <dependencies>
@@ -35,6 +36,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- Jackson - JSON 序列化/反序列化（Boot 4 从 starter-web 中移出，需显式引入） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jackson</artifactId>
+        </dependency>
 
         <!-- Spring Boot Test -->
         <dependency>
@@ -43,7 +49,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- 移除 Ollama Starter，避免与 OpenAI ChatModel 并存导致冲突 -->
         <!-- Spring AI OpenAI Starter（用于兼容硅基流动OpenAI接口） -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
@@ -70,18 +75,22 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- MyBatis-Plus -->
+        <!-- MyBatis-Plus（Spring Boot 4 专用 starter） -->
         <dependency>
             <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
         </dependency>
+
         <!-- AOP -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
         </dependency>
-
-        <!-- 移除 JPA 以避免不必要的 Hibernate 初始化（AI 服务使用 MyBatis-Plus） -->
+        <!-- Spring Retry - 用于 @Retryable 重试机制 -->
+        <dependency>
+            <groupId>org.springframework.retry</groupId>
+            <artifactId>spring-retry</artifactId>
+        </dependency>
 
         <!-- Spring Security -->
         <dependency>
@@ -93,18 +102,15 @@
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
-            <version>0.11.5</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
-            <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
 
@@ -112,7 +118,6 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.2.0</version>
         </dependency>
 
         <!-- Micrometer Prometheus - 监控指标 -->
@@ -125,21 +130,17 @@
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot3</artifactId>
-            <version>2.1.0</version>
         </dependency>
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-circuitbreaker</artifactId>
-            <version>2.1.0</version>
         </dependency>
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-ratelimiter</artifactId>
-            <version>2.1.0</version>
         </dependency>
 
-        
-<!-- Allure测试报告 -->
+        <!-- Allure测试报告 -->
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-junit5</artifactId>
@@ -160,7 +161,7 @@
         </dependencies>
     </dependencyManagement>
 
-    <!-- Spring AI 仓库 -->
+    <!-- Spring AI 仓库（2.0.0 GA 已在 Maven Central，但保留 milestone 以防需要快照依赖） -->
     <repositories>
         <repository>
             <id>spring-milestones</id>
@@ -169,14 +170,6 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-        </repository>
-        <repository>
-            <id>spring-snapshots</id>
-            <name>Spring Snapshots</name>
-            <url>https://repo.spring.io/snapshot</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
         </repository>
     </repositories>
 
@@ -197,3 +190,5 @@
         </plugins>
     </build>
 </project>
+
+
