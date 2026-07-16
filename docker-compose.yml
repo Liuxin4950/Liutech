@@ -53,9 +53,10 @@ services:
       # 静态资源路径（可选，用于直接返回文件）
       - SPRING_WEB_RESOURCES_STATIC_LOCATIONS=file:/app/uploads
     volumes:
-      # 将宿主机 /liuxin/uploads 目录挂载到容器 /app/uploads
-      # 这样文件会持久化到宿主机 /liuxin/uploads 目录
-      - /liuxin/uploads:/app/uploads
+      # 文件上传持久化：本地默认 ./uploads，生产在 .env 配 UPLOADS_PATH=/liuxin/uploads
+      - ${UPLOADS_PATH:-./uploads}:/app/uploads
+      # 日志持久化：本地默认 ./logs，生产在 .env 配 LOGS_PATH
+      - ${LOGS_PATH:-./logs}:/app/logs
     depends_on:
       mysql:
         condition: service_healthy
@@ -97,6 +98,9 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    volumes:
+      # 日志持久化：本地默认 ./logs，生产在 .env 配 LOGS_PATH
+      - ${LOGS_PATH:-./logs}:/app/logs
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8081/actuator/health"]
       interval: 30s
@@ -138,8 +142,8 @@ services:
       - "${NGINX_HTTPS:-443}:443"
       - "81:81"
     volumes:
-      # 挂载服务器上的 SSL 证书目录
-      - /opt/liutech/nginx:/etc/nginx/ssl:ro
+      # SSL 证书目录：本地默认 ./nginx/certs，生产在 .env 配 NGINX_SSL_PATH=/opt/liutech/nginx
+      - ${NGINX_SSL_PATH:-./nginx/certs}:/etc/nginx/ssl:ro
     depends_on:
       - backend
       - web

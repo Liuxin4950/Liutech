@@ -108,6 +108,7 @@ Web/node_modules/
 LiuTech/logs/
 LiuTech-AI/logs/
 nginx/logs/
+nginx/certs/
 LiuTech-AI/allure-results/
 .gstack/
 .mcp.json
