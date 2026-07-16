@@ -59,8 +59,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             new RequestAttributeSecurityContextRepository();
 
     public JwtAuthenticationFilter(
-            @Value("") long connectTimeoutMs,
-            @Value("") long readTimeoutMs) {
+            @Value("${spring.ai.security.auth-connect-timeout-ms:3000}") long connectTimeoutMs,
+            @Value("${spring.ai.security.auth-read-timeout-ms:5000}") long readTimeoutMs) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout((int) connectTimeoutMs);
         factory.setReadTimeout((int) readTimeoutMs);

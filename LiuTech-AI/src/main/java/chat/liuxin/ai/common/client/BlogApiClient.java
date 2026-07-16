@@ -43,8 +43,8 @@ public class BlogApiClient {
     private String blogApiUrl;
 
     public BlogApiClient(ObjectMapper objectMapper,
-                         @Value("") long connectTimeoutMs,
-                         @Value("") long readTimeoutMs) {
+                         @Value("${spring.ai.agent.blog-connect-timeout-ms:3000}") long connectTimeoutMs,
+                         @Value("${spring.ai.agent.blog-read-timeout-ms:8000}") long readTimeoutMs) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout((int) connectTimeoutMs);
         factory.setReadTimeout((int) readTimeoutMs);
