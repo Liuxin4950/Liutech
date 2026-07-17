@@ -27,7 +27,6 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -159,103 +158,6 @@ public class UserController {
         UserResp userResp = userProfileService.updateProfile(updateProfileReq);
         log.info("个人资料更新成功");
         return Result.success("个人资料更新成功", userResp);
-    }
-
-    /**
-     * 获取用户信息
-     * GET /user - 获取所有用户列表
-     * GET /user/{id} - 根据ID获取单个用户
-     * GET /user?username=xxx - 根据用户名查询用户
-     *
-     * @param id 用户ID（可选）
-     * @param username 用户名（可选，支持模糊查询）
-     * @return 用户信息或用户列表
-     */
-    @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<?> getUsers(
-            @RequestParam(required = false) Long id,
-            @RequestParam(required = false) String username) {
-        log.info("收到获取用户信息请求，ID: {}, 用户名: {}", id, username);
-        Object result = userManagementService.getUsersByCondition(id, username);
-        log.info("获取用户信息成功");
-        return Result.success(result);
-    }
-
-    /**
-     * 根据ID获取单个用户
-     * GET /user/{id}
-     *
-     * @param id 用户ID
-     * @return 用户信息
-     */
-    @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<UserResp> getUserById(
-            @PathVariable Long id) {
-        log.info("根据ID获取用户信息，ID: {}", id);
-        Users user = userManagementService.findUserById(id);
-        if (user == null) {
-            return Result.fail(ErrorCode.USER_NOT_FOUND, "用户不存在");
-        }
-        UserResp userResp = new UserResp();
-        BeanUtils.copyProperties(user, userResp);
-        userResp.setPasswordHash(null);
-        return Result.success(userResp);
-    }
-
-    /**
-     * 创建新用户
-     * POST /user - 管理员接口，直接添加用户到系统中
-     *
-     * @param user 用户信息
-     * @return 操作结果
-     */
-    @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    @OperationLog(action = "create", targetType = "user", description = "创建用户")
-    public Result<String> createUser(@Valid @RequestBody Users user) {
-        // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验
-        log.info("管理员创建用户: {}", user.getUsername());
-        userManagementService.addUser(user);
-        return Result.success("用户创建成功");
-    }
-
-    /**
-     * 更新用户信息
-     * PUT /user/{id} - 根据ID更新用户信息
-     *
-     * @param id 用户ID
-     * @param user 更新的用户信息
-     * @return 操作结果
-     */
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<String> updateUser(
-            @PathVariable Long id,
-            @Valid @RequestBody Users user) {
-        // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验
-        log.info("更新用户信息，ID: {}, 用户名: {}", id, user.getUsername());
-        user.setId(id); // 确保ID一致
-        userManagementService.updateUser(user);
-        return Result.success("用户信息更新成功");
-    }
-
-    /**
-     * 删除用户
-     * DELETE /user/{id} - 根据用户ID删除用户
-     *
-     * @param id 用户ID
-     * @return 操作结果
-     */
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public Result<String> deleteUser(
-            @PathVariable Long id) {
-        // 安全：建议改用 /admin/users 控制器（具备管理员校验）；此接口在当前配置下仅需认证，无角色校验
-        log.info("删除用户，ID: {}", id);
-        userManagementService.removeUserById(id);
-        return Result.success("用户删除成功");
     }
 
     /**

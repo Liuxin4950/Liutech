@@ -11,7 +11,7 @@ export interface Announcement {
   type: number
   priority: number
   status: number
-  startTime?: string|Dayjs 
+  startTime?: string|Dayjs
   endTime?: string|Dayjs
   isTop: number
   viewCount?: number
@@ -50,104 +50,103 @@ export interface AnnouncementListParams {
 
 /**
  * 公告管理服务
- * 对应后端 AnnouncementsController 的管理端接口
- * 
+ * 对应后端 AnnouncementsAdminController（/admin/announcements）的管理端接口
+ *
  * @author 刘鑫
  * @date 2025-09-02
  */
 export class AnnouncementsService {
-  private static readonly BASE_URL = '/announcements'
-  private static readonly ADMIN_BASE_URL = '/announcements/admin'
+  private static readonly ADMIN_URL = '/admin/announcements'
 
   /**
    * 分页查询公告列表（管理端）
    */
   static async getAnnouncementList(params: AnnouncementListParams = {}): Promise<ApiResponse<PageResult<AnnouncementListItem>>> {
-    return get<PageResult<AnnouncementListItem>>(`${this.ADMIN_BASE_URL}/list`, params)
+    return get<PageResult<AnnouncementListItem>>(this.ADMIN_URL, params)
   }
 
   /**
    * 根据ID查询公告详情
    */
   static async getAnnouncementById(id: number): Promise<ApiResponse<AnnouncementListItem>> {
-    return get<AnnouncementListItem>(`${this.ADMIN_BASE_URL}/${id}`)
+    return get<AnnouncementListItem>(`${this.ADMIN_URL}/${id}`)
   }
 
   /**
    * 创建公告
    */
   static async createAnnouncement(data: Omit<Announcement, 'id' | 'createdAt' | 'updatedAt' | 'viewCount'>): Promise<ApiResponse<number>> {
-    return post<number>(this.BASE_URL, data)
+    return post<number>(this.ADMIN_URL, data)
   }
 
   /**
    * 更新公告
    */
   static async updateAnnouncement(id: number, data: Partial<Announcement>): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${id}`, data)
+    return put<boolean>(`${this.ADMIN_URL}/${id}`, data)
   }
 
   /**
    * 删除公告
    */
   static async deleteAnnouncement(id: number): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.BASE_URL}/${id}`)
+    return del<boolean>(`${this.ADMIN_URL}/${id}`)
   }
 
   /**
    * 批量删除公告
    */
   static async batchDeleteAnnouncements(ids: number[]): Promise<ApiResponse<boolean>> {
-    return post<boolean>(`${this.BASE_URL}/batch`, ids)
+    return post<boolean>(`${this.ADMIN_URL}/batch`, ids)
   }
 
   /**
    * 彻底删除公告（物理删除，不可恢复）
    */
   static async permanentDeleteAnnouncement(id: number): Promise<ApiResponse<boolean>> {
-    return del<boolean>(`${this.BASE_URL}/${id}/permanent`)
+    return del<boolean>(`${this.ADMIN_URL}/${id}/permanent`)
   }
 
   /**
    * 批量彻底删除公告（物理删除，不可恢复）
    */
   static async batchPermanentDeleteAnnouncements(ids: number[]): Promise<ApiResponse<boolean>> {
-    return post<boolean>(`${this.BASE_URL}/batch/permanent`, ids)
+    return post<boolean>(`${this.ADMIN_URL}/batch/permanent`, ids)
   }
 
   /**
    * 更新公告状态
    */
   static async updateAnnouncementStatus(id: number, status: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${id}/status`, { status })
+    return put<boolean>(`${this.ADMIN_URL}/${id}/status`, { status })
   }
 
   /**
    * 批量更新公告状态
    */
   static async batchUpdateAnnouncementStatus(ids: number[], status: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/batch/status`, { ids, status })
+    return put<boolean>(`${this.ADMIN_URL}/batch/status`, { ids, status })
   }
 
   /**
    * 恢复已删除的公告
    */
   static async restoreAnnouncement(id: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${id}/restore`)
+    return put<boolean>(`${this.ADMIN_URL}/${id}/restore`)
   }
 
   /**
    * 置顶/取消置顶公告
    */
   static async toggleAnnouncementTop(id: number, isTop: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/${id}/top`, { isTop })
+    return put<boolean>(`${this.ADMIN_URL}/${id}/top`, { isTop })
   }
 
   /**
    * 批量置顶/取消置顶公告
    */
   static async batchToggleAnnouncementTop(ids: number[], isTop: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.BASE_URL}/batch/top`, { ids, isTop })
+    return put<boolean>(`${this.ADMIN_URL}/batch/top`, { ids, isTop })
   }
 
   /**
@@ -155,7 +154,7 @@ export class AnnouncementsService {
    * 使用 fetch 而非 axios，因为需要处理 blob 响应类型
    */
   static async exportAnnouncements(params: AnnouncementListParams = {}): Promise<Blob> {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_BASE_URL}/export`, {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_URL}/export`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -176,15 +175,15 @@ export class AnnouncementsService {
   static async importAnnouncements(file: File): Promise<ApiResponse<{ success: number; failed: number; errors?: string[] }>> {
     const formData = new FormData()
     formData.append('file', file)
-    
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_BASE_URL}/import`, {
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_URL}/import`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       },
       body: formData
     })
-    
+
     if (!response.ok) {
       throw new Error('导入失败')
     }

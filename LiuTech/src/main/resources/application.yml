@@ -3,6 +3,10 @@ spring:
     active: dev
   application:
     name: LiuTech
+  # 全局 Jackson 日期格式：req 反序列化 + resp 序列化统一 "yyyy-MM-dd HH:mm:ss"，时区 GMT+8
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
   main:
     allow-circular-references: true
     banner-mode: off

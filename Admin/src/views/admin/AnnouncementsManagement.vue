@@ -110,7 +110,7 @@ const handleSubmit = async () => {
 
     const formatTime = (time: string | Dayjs | undefined): string | undefined => {
       if (!time) return undefined
-      return typeof time === 'string' ? time : time.format('YYYY-MM-DD HH:mm:ss')
+      return dayjs(time).format('YYYY-MM-DD HH:mm:ss')
     }
 
     const submitData: Partial<Announcement> = {

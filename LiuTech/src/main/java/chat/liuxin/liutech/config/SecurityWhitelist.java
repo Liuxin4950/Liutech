@@ -31,7 +31,6 @@ public final class SecurityWhitelist {
     /**
      * GET 方法公开的路径前缀
      * 注意：/posts/** 下的 /posts/my、/posts/drafts、/posts/favorites 需认证，已列入 AUTHENTICATED_PATHS
-     * 注意：/announcements/admin/** 需认证，已列入 AUTHENTICATED_PREFIXES
      */
     public static final List<String> PUBLIC_GET_PREFIXES = List.of(
             "/posts/",
@@ -97,15 +96,6 @@ public final class SecurityWhitelist {
             "/posts/favorites"
     );
 
-    /**
-     * 虽然路径前缀在 PUBLIC_GET_PREFIXES 中匹配，但需要认证的动态子前缀。
-     * 例如 /announcements/admin/list、/announcements/admin/123 都是 admin 才能访问,
-     * 不能因为父前缀 /announcements/ 公开就跳过 JWT。
-     */
-    public static final List<String> AUTHENTICATED_PREFIXES = List.of(
-            "/announcements/admin/"
-    );
-
     // ==================== 匹配工具方法 ====================
 
     /**
@@ -124,13 +114,6 @@ public final class SecurityWhitelist {
         // 需认证的精确路径，不跳过
         if (AUTHENTICATED_PATHS.contains(uri)) {
             return false;
-        }
-
-        // 需认证的动态子前缀（如 /announcements/admin/**），不跳过
-        for (String prefix : AUTHENTICATED_PREFIXES) {
-            if (uri.startsWith(prefix)) {
-                return false;
-            }
         }
 
         // 完全公开路径

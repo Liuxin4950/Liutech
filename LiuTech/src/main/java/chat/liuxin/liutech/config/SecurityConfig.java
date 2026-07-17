@@ -126,7 +126,6 @@ public class SecurityConfig {
 
                 // 管理后台
                 authz.requestMatchers("/admin/**").hasRole("ADMIN");
-                authz.requestMatchers("/announcements/admin/**").hasRole("ADMIN");
 
                 // 上传需认证
                 authz.requestMatchers(HttpMethod.POST, "/upload/**").authenticated();
