@@ -190,31 +190,17 @@
           <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">文章标签</div>
             <div class="sidebar-content">
-              <div v-if="selectedTags.length > 0" class="selected-tags tags-cloud mb-12">
-                <span v-for="tag in selectedTags" :key="tag.id" class="tag">
-                  {{ tag.name }}
-                  <button type="button" @click="removeTag(tag.id)" class="tag-remove">
-                    ×
-                  </button>
-                </span>
-              </div>
-              <div class="flex gap-8 w-full">
-                <select v-model="selectedTagId" @change="addTag" class="field-select" style="flex: 1;">
-                  <option value="">选择标签</option>
-                  <option v-for="tag in availableTags" :key="tag.id" :value="tag.id">
-                    {{ tag.name }}
-                  </option>
-                </select>
-                <button 
-                  type="button" 
-                  @click="showCreateTagDialog" 
-                  class="btn-secondary flex-shrink-0" 
-                  title="创建新标签"
-                  style="padding: 8px 12px; min-width: auto;"
-                >
-                  <Icon name="plus" size="14" />
-                </button>
-              </div>
+              <SearchableSelect
+                :options="tags.map(t => ({ label: t.name, value: t.id }))"
+                :model-value="selectedTagIds"
+                multiple
+                placeholder="请选择标签"
+                search-placeholder="搜索标签..."
+                creatable
+                create-label="新建标签"
+                @update:model-value="onTagIdsChange"
+                @create="showCreateTagDialog"
+              />
             </div>
           </div>
           <!-- 图片 -->
@@ -267,27 +253,16 @@
           <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">文章分类</div>
             <div class="sidebar-content">
-              <div class="flex gap-8 w-full">
-                <select v-model="form.categoryId" class="field-select" required style="flex: 1;">
-                  <option value="">请选择分类</option>
-                  <option
-                    v-for="category in categories"
-                    :key="category.id"
-                    :value="category.id"
-                  >
-                    {{ category.name }}
-                  </option>
-                </select>
-                <button 
-                  type="button" 
-                  @click="showCreateCategoryDialog" 
-                  class="btn-secondary flex-shrink-0" 
-                  title="创建新分类"
-                  style="padding: 8px 12px; min-width: auto;"
-                >
-                  <Icon name="plus" size="14" />
-                </button>
-              </div>
+              <SearchableSelect
+                :options="categoryOptions"
+                :model-value="form.categoryId"
+                placeholder="请选择分类"
+                search-placeholder="搜索分类..."
+                creatable
+                create-label="新建分类"
+                @update:model-value="val => form.categoryId = String(val)"
+                @create="showCreateCategoryDialog"
+              />
             </div>
           </div>
 
@@ -295,21 +270,18 @@
           <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">文章系列</div>
             <div class="sidebar-content">
-              <div class="flex gap-8 w-full">
-                <select v-model="form.seriesId" class="field-select" style="flex: 1;">
-                  <option value="">不属于系列</option>
-                  <option v-for="s in seriesList" :key="s.id" :value="s.id">{{ s.name }}</option>
-                </select>
-                <input
-                  type="number"
-                  v-model.number="form.seriesSort"
-                  min="0"
-                  class="field-input"
-                  placeholder="序号"
-                  title="系列内序号（越小越靠前）"
-                  style="width: 80px;"
-                />
-              </div>
+              <SearchableSelect
+                :options="seriesOptions"
+                :model-value="form.seriesId"
+                placeholder="不属于任何系列"
+                search-placeholder="搜索系列..."
+                creatable
+                create-label="新建系列"
+                clearable
+                @update:model-value="val => form.seriesId = val ? String(val) : ''"
+                @create="showCreateSeriesDialog"
+              />
+              <p v-if="form.seriesId" style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0;">新文章自动排到该系列末尾，顺序可在「系列管理」拖拽调整</p>
             </div>
           </div>
 
@@ -502,11 +474,38 @@
       </div>
     </div>
   </div>
+
+  <!-- 创建系列对话框 -->
+  <div v-if="showCreateSeriesDialogVisible" class="modal-overlay" @click="showCreateSeriesDialogVisible = false">
+    <div class="modal-content" @click.stop>
+      <div class="modal-header">
+        <h3>创建新系列</h3>
+        <button @click="showCreateSeriesDialogVisible = false" class="close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>系列名称 *</label>
+          <input v-model="newSeriesName" type="text" placeholder="请输入系列名称" maxlength="50" @keyup.enter="createSeries">
+        </div>
+        <div class="form-group">
+          <label>系列描述</label>
+          <textarea v-model="newSeriesDescription" placeholder="请输入系列描述（可选）" maxlength="200" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button @click="showCreateSeriesDialogVisible = false" class="btn btn-secondary">取消</button>
+        <button @click="createSeries" :disabled="creatingSeries" class="btn btn-primary">
+          {{ creatingSeries ? '创建中...' : '创建' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
+import SearchableSelect from '@/components/SearchableSelect.vue'
 import Icon from '@/components/Icon.vue'
 import AdminWritingAssistant from '@/components/AdminWritingAssistant.vue'
 import { handleImageError } from '@/composables/useImageFallback'
@@ -520,8 +519,9 @@ const {
   renderedPreviewContent,
   attachments, uploadingAttachment, attachmentType,
   externalLinkForm, showExternalLinkForm,
-  showCreateCategoryDialogVisible, showCreateTagDialogVisible,
-  creatingCategory, creatingTag, newCategoryName, newCategoryDescription, newTagName,
+  showCreateCategoryDialogVisible, showCreateTagDialogVisible, showCreateSeriesDialogVisible,
+  creatingCategory, creatingTag, creatingSeries, newCategoryName, newCategoryDescription,
+  newTagName, newSeriesName, newSeriesDescription,
   aiSuggestedCategoryName, aiSuggestedTagNames, creatingAiSuggestion,
   hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
   undoStack, fieldLabels,
@@ -534,13 +534,22 @@ const {
   createExternalLinkResource, removeAttachment,
   onDownloadTypeChange, handlePointsInput, onPointsNeededInput,
   formatFileSize,
-  showCreateCategoryDialog, showCreateTagDialog,
-  createCategory, createTag,
+  showCreateCategoryDialog, showCreateTagDialog, showCreateSeriesDialog,
+  createCategory, createTag, createSeries,
   createAiSuggestedCategory, createAiSuggestedTag,
   createAllAiSuggestedTags, createAllAiSuggestedTaxonomy,
   saveDraft, previewPost, closePreview, handleSubmit, goBack,
   loadPostData, checkEditMode
 } = usePostEditor()
+
+// value 统一为 string，与 form.categoryId/seriesId（string）保持一致，避免 === 比较失败回退显示 id
+const categoryOptions = computed(() => categories.value.map(c => ({ label: c.name, value: String(c.id) })))
+const seriesOptions = computed(() => seriesList.value.map(s => ({ label: s.name, value: String(s.id) })))
+const selectedTagIds = computed<(string | number)[]>(() => selectedTags.value.map(t => t.id))
+const onTagIdsChange = (ids: string | number | (string | number)[]) => {
+  const arr = Array.isArray(ids) ? ids : []
+  selectedTags.value = arr.map(id => tags.value.find(t => t.id === id)!).filter(Boolean)
+}
 
 onMounted(async () => {
   checkEditMode()

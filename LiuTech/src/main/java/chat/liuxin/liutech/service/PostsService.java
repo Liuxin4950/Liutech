@@ -296,11 +296,18 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 单独用 UpdateWrapper 显式 set，绕过 MyBatis-Plus 默认不更新 null 字段的策略，
      * 使 seriesId 传 null 时能把文章移出系列。
      */
-    private void updateSeriesAssignment(Long postId, Long seriesId, Integer seriesSort) {
+    private void updateSeriesAssignment(Long postId, Long oldSeriesId, Long newSeriesId) {
         LambdaUpdateWrapper<Posts> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(Posts::getId, postId)
-                .set(Posts::getSeriesId, seriesId)
-                .set(Posts::getSeriesSort, seriesSort != null ? seriesSort : 0);
+        wrapper.eq(Posts::getId, postId).set(Posts::getSeriesId, newSeriesId);
+        if (newSeriesId == null) {
+            // 移出系列，序号归零
+            wrapper.set(Posts::getSeriesSort, 0);
+        } else if (!newSeriesId.equals(oldSeriesId)) {
+            // 换系列：自动追加到新系列末尾
+            Integer maxSort = postsMapper.selectMaxSeriesSort(newSeriesId);
+            wrapper.set(Posts::getSeriesSort, maxSort == null ? 0 : maxSort + 1);
+        }
+        // 系列不变：不动 seriesSort，保持原顺序
         this.update(wrapper);
     }
 
@@ -410,7 +417,11 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (post.getLikeCount() == null) {
             post.setLikeCount(0);
         }
-        if (post.getSeriesSort() == null) {
+        if (post.getSeriesId() != null) {
+            // 新建文章自动追加到系列末尾
+            Integer maxSort = postsMapper.selectMaxSeriesSort(post.getSeriesId());
+            post.setSeriesSort(maxSort == null ? 0 : maxSort + 1);
+        } else if (post.getSeriesSort() == null) {
             post.setSeriesSort(0);
         }
 
@@ -483,8 +494,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章更新失败");
         }
 
-        // 系列归属与排序单独更新（允许 seriesId 置空以移出系列）
-        updateSeriesAssignment(req.getId(), req.getSeriesId(), req.getSeriesSort());
+        // 系列归属单独更新（自动管理序号：换系列追加末尾，不变保持原顺序）
+        updateSeriesAssignment(req.getId(), existPost.getSeriesId(), req.getSeriesId());
 
         syncImageReferences(oldImageUrls, newImageUrls);
 
@@ -525,7 +536,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章更新失败");
         }
 
-        updateSeriesAssignment(req.getId(), req.getSeriesId(), req.getSeriesSort());
+        updateSeriesAssignment(req.getId(), existPost.getSeriesId(), req.getSeriesId());
 
         syncImageReferences(oldImageUrls, newImageUrls);
         updatePostTags(req.getId(), req.getTagIds());

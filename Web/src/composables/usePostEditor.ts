@@ -111,11 +111,15 @@ export function usePostEditor() {
   // 创建分类/标签对话框
   const showCreateCategoryDialogVisible = ref(false)
   const showCreateTagDialogVisible = ref(false)
+  const showCreateSeriesDialogVisible = ref(false)
   const creatingCategory = ref(false)
   const creatingTag = ref(false)
+  const creatingSeries = ref(false)
   const newCategoryName = ref('')
   const newCategoryDescription = ref('')
   const newTagName = ref('')
+  const newSeriesName = ref('')
+  const newSeriesDescription = ref('')
   const aiSuggestedCategoryName = ref('')
   const aiSuggestedTagNames = ref<string[]>([])
   const creatingAiSuggestion = ref('')
@@ -541,6 +545,38 @@ export function usePostEditor() {
     newTagName.value = ''
   }
 
+  const showCreateSeriesDialog = () => {
+    showCreateSeriesDialogVisible.value = true
+    newSeriesName.value = ''
+    newSeriesDescription.value = ''
+  }
+
+  const createSeries = async () => {
+    if (!newSeriesName.value.trim()) {
+      Swal.fire('提示', '请输入系列名称', 'warning')
+      return
+    }
+    await handleAsync(async () => {
+      creatingSeries.value = true
+      await SeriesService.createSeries({
+        name: newSeriesName.value.trim(),
+        description: newSeriesDescription.value.trim() || undefined
+      })
+      await loadSeries()
+      const found = seriesList.value.find(s => sameName(s.name, newSeriesName.value.trim()))
+      if (found) form.value.seriesId = String(found.id)
+      Swal.fire('成功', '系列创建成功！', 'success')
+    }, {
+      onError: (err) => { Swal.fire('错误', `创建系列失败: ${err.message || '请重试'}`, 'error') },
+      onFinally: () => {
+        creatingSeries.value = false
+        newSeriesName.value = ''
+        newSeriesDescription.value = ''
+        showCreateSeriesDialogVisible.value = false
+      }
+    })
+  }
+
   const createCategory = async () => {
     if (!newCategoryName.value.trim()) {
       Swal.fire('提示', '请输入分类名称', 'warning')
@@ -839,8 +875,9 @@ export function usePostEditor() {
     renderedPreviewContent,
     attachments, uploadingAttachment, attachmentType,
     externalLinkForm, showExternalLinkForm,
-    showCreateCategoryDialogVisible, showCreateTagDialogVisible,
-    creatingCategory, creatingTag, newCategoryName, newCategoryDescription, newTagName,
+    showCreateCategoryDialogVisible, showCreateTagDialogVisible, showCreateSeriesDialogVisible,
+    creatingCategory, creatingTag, creatingSeries, newCategoryName, newCategoryDescription,
+    newTagName, newSeriesName, newSeriesDescription,
     aiSuggestedCategoryName, aiSuggestedTagNames, creatingAiSuggestion,
     hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
     undoStack, fieldLabels,
@@ -853,8 +890,8 @@ export function usePostEditor() {
     switchAttachmentType, createExternalLinkResource, removeAttachment,
     onDownloadTypeChange, onPointsNeededChange, handlePointsInput, onPointsNeededInput,
     flushAttachmentMetaUpdates, formatFileSize,
-    showCreateCategoryDialog, showCreateTagDialog,
-    createCategory, createTag,
+    showCreateCategoryDialog, showCreateTagDialog, showCreateSeriesDialog,
+    createCategory, createTag, createSeries,
     createAiSuggestedCategory, createAiSuggestedTag,
     createAllAiSuggestedTags, createAllAiSuggestedTaxonomy,
     saveDraft, previewPost, closePreview, handleSubmit, submitPost, goBack,

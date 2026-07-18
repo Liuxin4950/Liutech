@@ -889,4 +889,9 @@
         WHERE id = #{postId} AND series_id = #{seriesId}
     </update>
 
+    <!-- 查询系列内最大排序值（自动追加末尾用） -->
+    <select id="selectMaxSeriesSort" resultType="java.lang.Integer">
+        SELECT MAX(series_sort) FROM posts WHERE series_id = #{seriesId} AND deleted_at IS NULL
+    </select>
+
 </mapper>

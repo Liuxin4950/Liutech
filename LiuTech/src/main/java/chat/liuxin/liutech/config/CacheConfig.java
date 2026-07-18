@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
  * - postList / hotPosts / latestPosts: 5 分钟（文章内容变更频繁）
  * - hotTags / allTags: 10 分钟
  * - categories: 15 分钟（分类很少变动）
+ * - postSeries: 15 分钟（系列很少变动）
  * - announcements: 10 分钟
  * - userStats: 10 分钟
  *
@@ -41,6 +42,8 @@ public class CacheConfig {
                 buildCache("allTags", 10, 10),
                 // 分类 — 15 分钟，变动极少
                 buildCache("categories", 15, 50),
+                // 系列 - 15 分钟，变动少
+                buildCache("postSeries", 15, 50),
                 // 公告 — 10 分钟
                 buildCache("announcements", 10, 50),
                 // 用户统计 — 10 分钟

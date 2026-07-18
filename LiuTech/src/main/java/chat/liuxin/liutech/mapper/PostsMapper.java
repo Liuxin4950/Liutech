@@ -409,4 +409,12 @@ public interface PostsMapper extends BaseMapper<Posts> {
                          @Param("seriesSort") Integer seriesSort,
                          @Param("updatedBy") Long updatedBy);
 
+    /**
+     * 查询系列内最大排序值（新建/换系列时自动追加末尾用）
+     *
+     * @param seriesId 系列ID
+     * @return 最大 series_sort，系列无文章时返回 null
+     */
+    Integer selectMaxSeriesSort(@Param("seriesId") Long seriesId);
+
 }

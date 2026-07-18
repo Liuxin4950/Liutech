@@ -1,4 +1,4 @@
-import { get } from './api'
+import { get, post } from './api'
 
 // 文章系列接口类型定义
 export interface PostSeries {
@@ -29,6 +29,14 @@ export class SeriesService {
    */
   static async getSeriesById(id: number): Promise<PostSeries> {
     const response = await get(`/series/${id}`)
+    return response.data
+  }
+
+  /**
+   * 创建新系列（管理员）
+   */
+  static async createSeries(data: { name: string; description?: string; coverImage?: string }): Promise<PostSeries> {
+    const response = await post('/series', data)
     return response.data
   }
 }

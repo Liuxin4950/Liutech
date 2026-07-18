@@ -143,11 +143,20 @@ const loadCategoriesAndTags = async () => {
 
 const createCategoryVisible = ref(false)
 const createTagVisible = ref(false)
+const createSeriesVisible = ref(false)
 const creatingCategory = ref(false)
 const creatingTag = ref(false)
+const creatingSeries = ref(false)
 const newCategoryName = ref('')
 const newCategoryDescription = ref('')
 const newTagName = ref('')
+const newSeriesName = ref('')
+const newSeriesDescription = ref('')
+
+const filterOption = (input: string, option: any) => {
+  const label = option?.label ?? ''
+  return String(label).toLowerCase().includes(input.toLowerCase())
+}
 
 const openCreateCategory = () => {
   newCategoryName.value = ''
@@ -158,6 +167,32 @@ const openCreateCategory = () => {
 const openCreateTag = () => {
   newTagName.value = ''
   createTagVisible.value = true
+}
+
+const openCreateSeries = () => {
+  newSeriesName.value = ''
+  newSeriesDescription.value = ''
+  createSeriesVisible.value = true
+}
+
+const createSeries = async () => {
+  const name = newSeriesName.value.trim()
+  if (!name) { message.warning('请输入系列名称'); return }
+  try {
+    creatingSeries.value = true
+    const res = await PostSeriesService.createSeries({ name, description: newSeriesDescription.value.trim() } as any)
+    if (res.code === 200) {
+      await loadCategoriesAndTags()
+      const created = seriesOptions.value.find(item => item.label === name)
+      if (created) formModel.value.seriesId = created.value
+      createSeriesVisible.value = false
+      message.success('系列已创建并选中')
+    } else {
+      message.error(res.message || '创建系列失败')
+    }
+  } finally {
+    creatingSeries.value = false
+  }
 }
 
 const createCategory = async () => {
@@ -740,39 +775,55 @@ onMounted(async () => {
         </div>
         <div :class="['field-wrapper', { 'field-highlight': highlightedFields.categoryId }]">
         <a-form-item name="categoryId" label="分类" required>
-          <a-input-group compact>
-            <a-select v-model:value="formModel.categoryId" placeholder="请选择分类" style="width: calc(100% - 40px)">
-              <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-            </a-select>
-            <a-tooltip title="新增分类">
-              <a-button @click="openCreateCategory">
-                <template #icon><PlusOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </a-input-group>
+          <a-select
+            v-model:value="formModel.categoryId"
+            placeholder="请选择分类"
+            show-search
+            :filter-option="filterOption"
+          >
+            <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
+            <template #dropdownRender="menuNode">
+              <component :is="menuNode" />
+              <a-divider style="margin: 4px 0" />
+              <div class="dropdown-create-btn" @click="openCreateCategory"><PlusOutlined /> 新建分类</div>
+            </template>
+          </a-select>
         </a-form-item>
         </div>
         <div :class="['field-wrapper', { 'field-highlight': highlightedFields.tagIds }]">
         <a-form-item name="tagIds" label="标签">
-          <a-input-group compact>
-            <a-select v-model:value="formModel.tagIds" mode="multiple" placeholder="请选择标签" style="width: calc(100% - 40px)">
-              <a-select-option v-for="opt in tagOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-            </a-select>
-            <a-tooltip title="新增标签">
-              <a-button @click="openCreateTag">
-                <template #icon><PlusOutlined /></template>
-              </a-button>
-            </a-tooltip>
-          </a-input-group>
+          <a-select
+            v-model:value="formModel.tagIds"
+            mode="multiple"
+            placeholder="请选择标签"
+            show-search
+            :filter-option="filterOption"
+          >
+            <a-select-option v-for="opt in tagOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
+            <template #dropdownRender="menuNode">
+              <component :is="menuNode" />
+              <a-divider style="margin: 4px 0" />
+              <div class="dropdown-create-btn" @click="openCreateTag"><PlusOutlined /> 新建标签</div>
+            </template>
+          </a-select>
         </a-form-item>
         </div>
         <a-form-item name="seriesId" label="系列">
-          <a-input-group compact>
-            <a-select v-model:value="formModel.seriesId" placeholder="不属于任何系列" allow-clear style="width: calc(100% - 120px)">
-              <a-select-option v-for="opt in seriesOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-            </a-select>
-            <a-input-number v-model:value="formModel.seriesSort" :min="0" placeholder="序号" style="width: 120px" />
-          </a-input-group>
+          <a-select
+            v-model:value="formModel.seriesId"
+            placeholder="不属于任何系列"
+            allow-clear
+            show-search
+            :filter-option="filterOption"
+          >
+            <a-select-option v-for="opt in seriesOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
+            <template #dropdownRender="menuNode">
+              <component :is="menuNode" />
+              <a-divider style="margin: 4px 0" />
+              <div class="dropdown-create-btn" @click="openCreateSeries"><PlusOutlined /> 新建系列</div>
+            </template>
+          </a-select>
+          <div v-if="formModel.seriesId" style="font-size: 12px; color: var(--lt-color-text-tertiary); margin-top: 4px;">换系列自动排到末尾，顺序可在「系列管理」拖拽调整</div>
         </a-form-item>
         <a-form-item name="status" label="状态">
           <a-radio-group v-model:value="formModel.status">
@@ -858,6 +909,17 @@ onMounted(async () => {
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <a-modal v-model:open="createSeriesVisible" title="新增系列" :confirm-loading="creatingSeries" destroy-on-close @ok="createSeries" @cancel="createSeriesVisible = false">
+      <a-form layout="vertical">
+        <a-form-item label="系列名称" required>
+          <a-input v-model:value="newSeriesName" placeholder="请输入系列名称" maxlength="50" @press-enter="createSeries" />
+        </a-form-item>
+        <a-form-item label="系列描述">
+          <a-textarea v-model:value="newSeriesDescription" placeholder="可选" :rows="3" maxlength="200" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -867,6 +929,19 @@ onMounted(async () => {
   display: flex;
   gap: var(--lt-space-lg);
   align-items: flex-start;
+}
+
+.dropdown-create-btn {
+  padding: 6px 12px;
+  cursor: pointer;
+  color: var(--lt-color-primary);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dropdown-create-btn:hover {
+  background: rgba(var(--lt-color-primary-rgb, 0, 123, 255), 0.06);
 }
 
 .editor-form-pane {

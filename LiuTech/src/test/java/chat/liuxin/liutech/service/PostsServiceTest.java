@@ -382,11 +382,12 @@ class PostsServiceTest {
     // ========== 系列相关 ==========
 
     @Test
-    void createPost_shouldSetSeriesFieldsWhenProvided() {
+    void createPost_shouldAutoAppendSeriesSortToTail() {
         PostCreateReq req = createDefaultCreateReq();
         req.setSeriesId(5L);
-        req.setSeriesSort(3);
+        req.setSeriesSort(99); // 前端传入应被忽略，由后端自动计算
         when(fileUtil.extractImageUrls(anyString())).thenReturn(Collections.emptyList());
+        when(postsMapper.selectMaxSeriesSort(5L)).thenReturn(2);
         when(postsMapper.insert(any(Posts.class))).thenAnswer(invocation -> {
             Posts post = invocation.getArgument(0);
             post.setId(POST_ID);
@@ -400,14 +401,13 @@ class PostsServiceTest {
 
         verify(postsMapper).insert(captor.capture());
         assertEquals(5L, captor.getValue().getSeriesId());
-        assertEquals(3, captor.getValue().getSeriesSort());
+        assertEquals(3, captor.getValue().getSeriesSort()); // max(2)+1
     }
 
     @Test
-    void createPost_shouldDefaultSeriesSortToZeroWhenNull() {
+    void createPost_shouldSetSeriesSortZeroWhenNoSeries() {
         PostCreateReq req = createDefaultCreateReq();
-        req.setSeriesId(5L);
-        req.setSeriesSort(null);
+        req.setSeriesId(null);
         when(fileUtil.extractImageUrls(anyString())).thenReturn(Collections.emptyList());
         when(postsMapper.insert(any(Posts.class))).thenAnswer(invocation -> {
             Posts post = invocation.getArgument(0);
