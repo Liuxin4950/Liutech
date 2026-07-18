@@ -273,6 +273,7 @@ const openEdit = async (record: PostListItem) => {
     if (res.code === 200) {
       const postDetail = res.data
       formModel.value = {
+        id: postDetail.id,
         title: postDetail.title,
         content: postDetail.content || '',
         summary: postDetail.summary || '',
