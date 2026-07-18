@@ -92,11 +92,6 @@
             <result property="username" column="author_username"/>
             <result property="avatarUrl" column="author_avatar_url"/>
         </association>
-        <!-- 标签信息 -->
-        <collection property="tags" ofType="chat.liuxin.liutech.resp.PostDetailResp$TagInfo">
-            <id property="id" column="tag_id"/>
-            <result property="name" column="tag_name"/>
-        </collection>
         <!-- 系列信息 -->
         <association property="series" javaType="chat.liuxin.liutech.resp.PostDetailResp$SeriesInfo">
             <id property="id" column="series_id"/>
@@ -106,6 +101,11 @@
             <result property="sort" column="series_sort"/>
             <result property="totalCount" column="series_total_count"/>
         </association>
+        <!-- 标签信息 -->
+        <collection property="tags" ofType="chat.liuxin.liutech.resp.PostDetailResp$TagInfo">
+            <id property="id" column="tag_id"/>
+            <result property="name" column="tag_name"/>
+        </collection>
     </resultMap>
 
     <!-- 基础查询SQL片段 -->
