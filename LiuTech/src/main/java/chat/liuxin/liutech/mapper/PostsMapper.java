@@ -405,6 +405,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @return 影响行数
      */
     int updateSeriesSort(@Param("postId") Long postId,
+                         @Param("seriesId") Long seriesId,
                          @Param("seriesSort") Integer seriesSort,
                          @Param("updatedBy") Long updatedBy);
 

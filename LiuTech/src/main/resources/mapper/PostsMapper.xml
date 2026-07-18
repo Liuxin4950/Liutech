@@ -880,13 +880,13 @@
         ORDER BY p.series_sort ASC, p.created_at ASC
     </select>
 
-    <!-- 更新系列内单篇文章排序（拖拽排序用） -->
+    <!-- 更新系列内单篇文章排序（拖拽排序用，限定 series_id 防越权） -->
     <update id="updateSeriesSort">
         UPDATE posts
         SET series_sort = #{seriesSort},
             updated_by = #{updatedBy},
             updated_at = NOW()
-        WHERE id = #{postId}
+        WHERE id = #{postId} AND series_id = #{seriesId}
     </update>
 
 </mapper>

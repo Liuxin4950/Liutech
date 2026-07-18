@@ -20,6 +20,7 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.PostSeriesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.model.PostSeries;
+import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostSeriesResp;
 import lombok.RequiredArgsConstructor;
@@ -128,6 +129,13 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
         if (ids == null || ids.isEmpty()) {
             return false;
         }
+        // 解除关联文章的系列归属（文章保留，仅移出系列），避免 series_id 残留指向已软删除系列
+        LambdaUpdateWrapper<Posts> postsUpdate = new LambdaUpdateWrapper<>();
+        postsUpdate.in(Posts::getSeriesId, ids)
+                .isNull(Posts::getDeletedAt)
+                .set(Posts::getSeriesId, null);
+        postsMapper.update(null, postsUpdate);
+
         LambdaUpdateWrapper<PostSeries> wrapper = new LambdaUpdateWrapper<>();
         wrapper.in(PostSeries::getId, ids).set(PostSeries::getDeletedAt, new Date());
         return postSeriesMapper.update(null, wrapper) > 0;
@@ -169,19 +177,20 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
     /**
      * 拖拽排序：批量更新系列内文章排序
      *
+     * @param seriesId   系列ID（仅更新该系列内文章，防越权）
      * @param items      每项包含 postId 与 seriesSort
      * @param operatorId 操作人ID
      */
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "postSeries", "postList", "hotPosts", "latestPosts" }, allEntries = true)
-    public boolean batchUpdateSeriesSort(List<Map<String, Object>> items, Long operatorId) {
+    public boolean batchUpdateSeriesSort(Long seriesId, List<Map<String, Object>> items, Long operatorId) {
         if (items == null || items.isEmpty()) {
             return false;
         }
         for (Map<String, Object> item : items) {
             Long postId = ((Number) item.get("postId")).longValue();
             Integer sort = item.get("seriesSort") != null ? ((Number) item.get("seriesSort")).intValue() : 0;
-            postsMapper.updateSeriesSort(postId, sort, operatorId);
+            postsMapper.updateSeriesSort(postId, seriesId, sort, operatorId);
         }
         return true;
     }

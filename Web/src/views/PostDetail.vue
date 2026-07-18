@@ -803,6 +803,9 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 .catalog-item {
   display: flex;

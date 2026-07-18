@@ -124,7 +124,7 @@ public class PostSeriesAdminController extends BaseAdminController {
     public Result<String> updatePostsOrder(@PathVariable Long id, @RequestBody List<Map<String, Object>> items) {
         ValidationUtil.validateId(id, "系列ID");
         return handleOperationResult(
-                postSeriesService.batchUpdateSeriesSort(items, userUtils.getCurrentUserId()),
+                postSeriesService.batchUpdateSeriesSort(id, items, userUtils.getCurrentUserId()),
                 "系列文章排序更新成功", "系列文章排序更新");
     }
 }

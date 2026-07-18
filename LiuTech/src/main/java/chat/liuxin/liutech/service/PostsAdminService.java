@@ -128,7 +128,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 管理端更新文章状态（无权限检查）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
     public boolean updatePostStatusForAdmin(Long id, String status, Long operatorId) {
         log.debug("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
 
@@ -158,7 +158,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 管理端删除文章（软删除，无权限检查）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
     public boolean deletePostForAdmin(Long id, Long operatorId) {
         log.debug("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
 
@@ -195,7 +195,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 管理端批量更新文章状态
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
         log.debug("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
 
@@ -223,7 +223,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 批量删除文章（管理端）- 软删除
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -261,7 +261,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 恢复已删除的文章
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
     public boolean restorePost(Long id) {
         try {
             if (id == null) {
@@ -280,7 +280,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 批量恢复已删除的文章
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
     public boolean batchRestorePosts(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -300,6 +300,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 彻底删除文章（物理删除）
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
     public boolean permanentDeletePost(Long id) {
         if (id == null) {
             throw new IllegalArgumentException("文章ID不能为空");
@@ -341,6 +342,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 批量彻底删除文章（物理删除）
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
     public boolean batchPermanentDeletePosts(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new IllegalArgumentException("文章ID列表不能为空");
