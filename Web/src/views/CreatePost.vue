@@ -277,8 +277,7 @@
                 search-placeholder="搜索系列..."
                 creatable
                 create-label="新建系列"
-                clearable
-                @update:model-value="val => form.seriesId = val ? String(val) : ''"
+                @update:model-value="val => form.seriesId = String(val)"
                 @create="showCreateSeriesDialog"
               />
               <p v-if="form.seriesId" style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0;">新文章自动排到该系列末尾，顺序可在「系列管理」拖拽调整</p>
@@ -544,7 +543,11 @@ const {
 
 // value 统一为 string，与 form.categoryId/seriesId（string）保持一致，避免 === 比较失败回退显示 id
 const categoryOptions = computed(() => categories.value.map(c => ({ label: c.name, value: String(c.id) })))
-const seriesOptions = computed(() => seriesList.value.map(s => ({ label: s.name, value: String(s.id) })))
+// 系列首项为"不属于任何系列"，省去清空按钮
+const seriesOptions = computed(() => [
+  { label: '不属于任何系列', value: '' },
+  ...seriesList.value.map(s => ({ label: s.name, value: String(s.id) }))
+])
 const selectedTagIds = computed<(string | number)[]>(() => selectedTags.value.map(t => t.id))
 const onTagIdsChange = (ids: string | number | (string | number)[]) => {
   const arr = Array.isArray(ids) ? ids : []

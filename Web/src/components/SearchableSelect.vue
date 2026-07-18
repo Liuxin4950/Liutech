@@ -15,14 +15,12 @@ const props = withDefaults(defineProps<{
   searchPlaceholder?: string
   creatable?: boolean
   createLabel?: string
-  clearable?: boolean
 }>(), {
   multiple: false,
   placeholder: '请选择',
   searchPlaceholder: '搜索...',
   creatable: false,
   createLabel: '新建',
-  clearable: false,
 })
 
 const emit = defineEmits<{
@@ -119,12 +117,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       </div>
       <span v-else-if="selectedLabels.length" class="ss-single">{{ selectedLabels[0] }}</span>
       <span v-else class="ss-placeholder">{{ placeholder }}</span>
-      <span
-        v-if="clearable && !multiple && selectedLabels.length"
-        class="ss-clear"
-        title="清除"
-        @click.stop="remove(selectedValues[0])"
-      >×</span>
       <Icon name="chevronDown" size="14" class="ss-arrow" :class="{ open }" />
     </div>
 
@@ -219,14 +211,6 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   flex: 1;
   color: var(--text-muted);
   font-size: 14px;
-}
-
-.ss-clear {
-  color: var(--text-muted);
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 2px;
-  &:hover { color: var(--text-main); }
 }
 
 .ss-arrow {
