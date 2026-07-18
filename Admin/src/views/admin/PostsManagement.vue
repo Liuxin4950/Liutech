@@ -158,9 +158,6 @@ const filterOption = (input: string, option: any) => {
   return String(label).toLowerCase().includes(input.toLowerCase())
 }
 
-// 函数组件：渲染 a-select dropdownRender 传入的菜单 VNode（component :is 对 VNode 不可靠）
-const VNodes = (props: { vnodes: any }) => props.vnodes
-
 const openCreateCategory = () => {
   newCategoryName.value = ''
   newCategoryDescription.value = ''
@@ -778,54 +775,63 @@ onMounted(async () => {
         </div>
         <div :class="['field-wrapper', { 'field-highlight': highlightedFields.categoryId }]">
         <a-form-item name="categoryId" label="分类" required>
-          <a-select
-            v-model:value="formModel.categoryId"
-            placeholder="请选择分类"
-            show-search
-            :filter-option="filterOption"
-          >
-            <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
-            <template #dropdownRender="menuNode">
-              <VNodes :vnodes="menuNode" />
-              <a-divider style="margin: 4px 0" />
-              <div class="dropdown-create-btn" @click="openCreateCategory"><PlusOutlined /> 新建分类</div>
-            </template>
-          </a-select>
+          <a-input-group compact>
+            <a-select
+              v-model:value="formModel.categoryId"
+              placeholder="请选择分类"
+              show-search
+              :filter-option="filterOption"
+              style="width: calc(100% - 40px)"
+            >
+              <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
+            </a-select>
+            <a-tooltip title="新增分类">
+              <a-button @click="openCreateCategory">
+                <template #icon><PlusOutlined /></template>
+              </a-button>
+            </a-tooltip>
+          </a-input-group>
         </a-form-item>
         </div>
         <div :class="['field-wrapper', { 'field-highlight': highlightedFields.tagIds }]">
         <a-form-item name="tagIds" label="标签">
-          <a-select
-            v-model:value="formModel.tagIds"
-            mode="multiple"
-            placeholder="请选择标签"
-            show-search
-            :filter-option="filterOption"
-          >
-            <a-select-option v-for="opt in tagOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
-            <template #dropdownRender="menuNode">
-              <VNodes :vnodes="menuNode" />
-              <a-divider style="margin: 4px 0" />
-              <div class="dropdown-create-btn" @click="openCreateTag"><PlusOutlined /> 新建标签</div>
-            </template>
-          </a-select>
+          <a-input-group compact>
+            <a-select
+              v-model:value="formModel.tagIds"
+              mode="multiple"
+              placeholder="请选择标签"
+              show-search
+              :filter-option="filterOption"
+              style="width: calc(100% - 40px)"
+            >
+              <a-select-option v-for="opt in tagOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
+            </a-select>
+            <a-tooltip title="新增标签">
+              <a-button @click="openCreateTag">
+                <template #icon><PlusOutlined /></template>
+              </a-button>
+            </a-tooltip>
+          </a-input-group>
         </a-form-item>
         </div>
         <a-form-item name="seriesId" label="系列">
-          <a-select
-            v-model:value="formModel.seriesId"
-            placeholder="不属于任何系列"
-            allow-clear
-            show-search
-            :filter-option="filterOption"
-          >
-            <a-select-option v-for="opt in seriesOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
-            <template #dropdownRender="menuNode">
-              <VNodes :vnodes="menuNode" />
-              <a-divider style="margin: 4px 0" />
-              <div class="dropdown-create-btn" @click="openCreateSeries"><PlusOutlined /> 新建系列</div>
-            </template>
-          </a-select>
+          <a-input-group compact>
+            <a-select
+              v-model:value="formModel.seriesId"
+              placeholder="不属于任何系列"
+              allow-clear
+              show-search
+              :filter-option="filterOption"
+              style="width: calc(100% - 40px)"
+            >
+              <a-select-option v-for="opt in seriesOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
+            </a-select>
+            <a-tooltip title="新增系列">
+              <a-button @click="openCreateSeries">
+                <template #icon><PlusOutlined /></template>
+              </a-button>
+            </a-tooltip>
+          </a-input-group>
           <div v-if="formModel.seriesId" style="font-size: 12px; color: var(--lt-color-text-tertiary); margin-top: 4px;">换系列自动排到末尾，顺序可在「系列管理」拖拽调整</div>
         </a-form-item>
         <a-form-item name="status" label="状态">
