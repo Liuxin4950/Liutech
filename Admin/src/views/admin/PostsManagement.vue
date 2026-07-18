@@ -158,6 +158,9 @@ const filterOption = (input: string, option: any) => {
   return String(label).toLowerCase().includes(input.toLowerCase())
 }
 
+// 函数组件：渲染 a-select dropdownRender 传入的菜单 VNode（component :is 对 VNode 不可靠）
+const VNodes = (props: { vnodes: any }) => props.vnodes
+
 const openCreateCategory = () => {
   newCategoryName.value = ''
   newCategoryDescription.value = ''
@@ -783,7 +786,7 @@ onMounted(async () => {
           >
             <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
             <template #dropdownRender="menuNode">
-              <component :is="menuNode" />
+              <VNodes :vnodes="menuNode" />
               <a-divider style="margin: 4px 0" />
               <div class="dropdown-create-btn" @click="openCreateCategory"><PlusOutlined /> 新建分类</div>
             </template>
@@ -801,7 +804,7 @@ onMounted(async () => {
           >
             <a-select-option v-for="opt in tagOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
             <template #dropdownRender="menuNode">
-              <component :is="menuNode" />
+              <VNodes :vnodes="menuNode" />
               <a-divider style="margin: 4px 0" />
               <div class="dropdown-create-btn" @click="openCreateTag"><PlusOutlined /> 新建标签</div>
             </template>
@@ -818,7 +821,7 @@ onMounted(async () => {
           >
             <a-select-option v-for="opt in seriesOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
             <template #dropdownRender="menuNode">
-              <component :is="menuNode" />
+              <VNodes :vnodes="menuNode" />
               <a-divider style="margin: 4px 0" />
               <div class="dropdown-create-btn" @click="openCreateSeries"><PlusOutlined /> 新建系列</div>
             </template>
