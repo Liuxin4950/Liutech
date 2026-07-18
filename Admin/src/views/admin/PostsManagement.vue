@@ -136,14 +136,7 @@ const loadCategoriesAndTags = async () => {
     if (seriesList.code === 200) {
       seriesOptions.value = seriesList.data.records.map((s: any) => ({ label: s.name, value: s.id }))
     }
-    // 临时诊断：确认选项数据是否加载成功
-    console.log('[PostsManagement] options loaded', {
-      catsCode: cats.code, catsCount: cats.data?.records?.length,
-      tagsCode: tags.code, tagsCount: tags.data?.records?.length,
-      seriesCode: seriesList.code, seriesCount: seriesList.data?.records?.length
-    })
   } catch (e) {
-    console.error('[PostsManagement] loadCategoriesAndTags failed', e)
     message.error('加载分类或标签失败')
   }
 }

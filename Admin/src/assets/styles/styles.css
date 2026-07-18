@@ -5,12 +5,6 @@
   font-family: "DDFont";
 }
 
-/* 弹窗 z-index 需高于侧边栏(1020)/头部(1030)，避免被遮挡 */
-.ant-modal-wrap,
-.ant-modal-mask {
-  z-index: 1080 !important;
-}
-
 a {
   text-decoration: none;
   color: inherit;

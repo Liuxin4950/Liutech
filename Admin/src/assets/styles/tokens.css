@@ -235,7 +235,7 @@
   /* ===== z-index 层级 ===== */
   --lt-z-base: 0;
   --lt-z-sticky: 1020;
-  --lt-z-sidebar: 1020;
+  --lt-z-sidebar: 900;
   --lt-z-header: 1030;
   --lt-z-popover: 1030;
   --lt-z-dropdown: 1050;
