@@ -495,51 +495,44 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       </article>
 
       <!-- 系列导航 -->
-      <section v-if="post.series && post.seriesCatalog && post.seriesCatalog.length > 0" class="series-nav-section">
-        <div class="series-nav-header">
-          <div class="series-nav-title">
-            <Icon name="book" size="16" />
-            <span class="series-nav-label">系列：</span>
-            <router-link :to="`/series-detail/${post.series.id}`" class="series-name-link">{{ post.series.name }}</router-link>
-          </div>
-          <span class="series-progress">第 {{ currentSeriesIndex + 1 }} / {{ post.seriesCatalog.length }} 篇</span>
-        </div>
-        <div class="series-nav-actions">
-          <button v-if="prevSeriesPost" class="series-nav-btn" @click="goToSeriesPost(prevSeriesPost.id)">
+      <section v-if="post.series && post.seriesCatalog && post.seriesCatalog.length > 0" class="series-card">
+        <header class="series-card-head">
+          <span class="series-card-label">系列</span>
+          <router-link :to="`/series-detail/${post.series.id}`" class="series-card-name">{{ post.series.name }}</router-link>
+          <span class="series-card-progress">{{ currentSeriesIndex + 1 }} / {{ post.seriesCatalog.length }}</span>
+        </header>
+        <ol class="series-toc">
+          <li v-for="(item, idx) in post.seriesCatalog" :key="item.id" :class="{ current: item.current }">
+            <router-link :to="`/post/${item.id}`" class="series-toc-link">
+              <span class="series-toc-num">{{ String(idx + 1).padStart(2, '0') }}</span>
+              <span class="series-toc-title">{{ item.title }}</span>
+            </router-link>
+          </li>
+        </ol>
+        <nav class="series-prev-next">
+          <router-link v-if="prevSeriesPost" :to="`/post/${prevSeriesPost.id}`" class="series-prev">
             <Icon name="chevronLeft" size="14" />
-            <span class="series-nav-text">
-              <span class="series-nav-sub">上一篇</span>
-              <span class="series-nav-post-title">{{ prevSeriesPost.title }}</span>
+            <span class="series-pn-text">
+              <span class="series-pn-label">上一篇</span>
+              <span class="series-pn-title">{{ prevSeriesPost.title }}</span>
             </span>
-          </button>
-          <span v-else class="series-nav-btn disabled">
-            <Icon name="chevronLeft" size="14" />
-            <span class="series-nav-text"><span class="series-nav-sub">已是第一篇</span></span>
-          </span>
-          <button v-if="nextSeriesPost" class="series-nav-btn" @click="goToSeriesPost(nextSeriesPost.id)">
-            <span class="series-nav-text">
-              <span class="series-nav-sub">下一篇</span>
-              <span class="series-nav-post-title">{{ nextSeriesPost.title }}</span>
-            </span>
-            <Icon name="chevronRight" size="14" />
-          </button>
-          <span v-else class="series-nav-btn disabled">
-            <span class="series-nav-text"><span class="series-nav-sub">已是最后一篇</span></span>
-            <Icon name="chevronRight" size="14" />
-          </span>
-        </div>
-        <div class="series-catalog">
-          <router-link
-            v-for="(item, idx) in post.seriesCatalog"
-            :key="item.id"
-            :to="`/post/${item.id}`"
-            class="catalog-item"
-            :class="{ current: item.current }"
-          >
-            <span class="catalog-sort">{{ idx + 1 }}</span>
-            <span class="catalog-title">{{ item.title }}</span>
           </router-link>
-        </div>
+          <span v-else class="series-prev is-disabled">
+            <Icon name="chevronLeft" size="14" />
+            <span class="series-pn-text"><span class="series-pn-label">已是第一篇</span></span>
+          </span>
+          <router-link v-if="nextSeriesPost" :to="`/post/${nextSeriesPost.id}`" class="series-next">
+            <span class="series-pn-text">
+              <span class="series-pn-label">下一篇</span>
+              <span class="series-pn-title">{{ nextSeriesPost.title }}</span>
+            </span>
+            <Icon name="chevronRight" size="14" />
+          </router-link>
+          <span v-else class="series-next is-disabled">
+            <span class="series-pn-text"><span class="series-pn-label">已是最后一篇</span></span>
+            <Icon name="chevronRight" size="14" />
+          </span>
+        </nav>
       </section>
 
       <!-- 附件列表 -->
@@ -714,134 +707,127 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 @use "@/assets/styles/tokens" as *;
 
 /* 系列导航 */
-.series-nav-section {
-  margin: 28px 0;
-  padding: 20px;
-  background: var(--surface-glass-muted);
-  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.06));
-  border-radius: 12px;
-}
-.series-nav-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px dashed var(--color-border, rgba(0, 0, 0, 0.08));
-}
-.series-nav-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-.series-nav-label { color: var(--text-muted); font-weight: 400; }
-.series-name-link {
-  color: var(--color-primary);
-  text-decoration: none;
-  &:hover { text-decoration: underline; }
-}
-.series-progress {
-  font-size: 12px;
-  color: #fff;
-  background: var(--color-primary);
-  padding: 3px 10px;
-  border-radius: 10px;
-  flex-shrink: 0;
-}
-.series-nav-actions {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.series-nav-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+.series-card {
+  margin: 32px 0;
+  padding: 18px 20px 14px;
   background: var(--bg-card, #fff);
-  border: 1px solid var(--color-border, #eee);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: var(--text-main);
-  text-align: left;
-  font-family: inherit;
-  .series-nav-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-  }
-  .series-nav-sub { font-size: 12px; color: var(--text-muted); }
-  .series-nav-post-title {
-    font-size: 13px;
-    color: var(--color-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  &:hover {
-    border-color: var(--color-primary);
-    background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.04);
-  }
-  &.disabled {
-    cursor: default;
-    opacity: 0.5;
-    &:hover { border-color: var(--color-border, #eee); background: var(--bg-card, #fff); }
-  }
-  &:last-child {
-    flex-direction: row-reverse;
-    text-align: right;
-  }
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 10px;
 }
-.series-catalog {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 8px;
-  max-height: 280px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.catalog-item {
+.series-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding-bottom: 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--color-border, #f0f0f0);
+}
+.series-card-label {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+.series-card-name {
+  color: var(--text-main);
+  font-weight: 600;
+  text-decoration: none;
+  &:hover { color: var(--color-primary); }
+}
+.series-card-progress {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.series-toc {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.series-toc li { margin: 0; }
+.series-toc-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
+  margin: 0 -10px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.5;
+  transition: background 0.15s, color 0.15s;
+  &:hover {
+    background: var(--surface-glass-muted, rgba(0, 0, 0, 0.03));
+    color: var(--color-primary);
+  }
+}
+.series-toc-num {
+  flex-shrink: 0;
+  width: 28px;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.series-toc-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.series-toc li.current .series-toc-link {
+  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.08);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+.series-toc li.current .series-toc-num {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.series-prev-next {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--color-border, #f0f0f0);
+}
+.series-prev,
+.series-next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 6px;
   text-decoration: none;
   color: var(--text-main);
   font-size: 13px;
-  background: var(--bg-card, #fff);
-  border: 1px solid transparent;
-  transition: all 0.15s;
-  &:hover {
-    background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.06);
-    color: var(--color-primary);
-  }
-  &.current {
-    background: var(--color-primary);
-    color: #fff;
-    .catalog-sort { background: rgba(255, 255, 255, 0.25); color: #fff; }
+  min-width: 0;
+  transition: background 0.15s;
+  &:hover { background: var(--surface-glass-muted, rgba(0, 0, 0, 0.03)); }
+  &.is-disabled {
+    color: var(--text-muted);
+    pointer-events: none;
   }
 }
-.catalog-sort {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--surface-glass-muted);
-  color: var(--text-muted);
+.series-next {
+  justify-content: flex-end;
+  text-align: right;
+}
+.series-pn-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.series-pn-label {
   font-size: 11px;
-  flex-shrink: 0;
+  color: var(--text-muted);
 }
-.catalog-title {
+.series-pn-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
