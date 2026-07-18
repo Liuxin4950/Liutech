@@ -48,9 +48,9 @@ class PostsAdminControllerTest {
     @Test
     void getPostList_shouldReturnPageResult() {
         PageResp<PostListResp> pageResp = new PageResp<>(Collections.emptyList(), 0L, 1L, 10L);
-        when(postsAdminService.getPostListForAdmin(1, 10, null, null, null, null, false)).thenReturn(pageResp);
+        when(postsAdminService.getPostListForAdmin(1, 10, null, null, null, null, null, false)).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getPostList(1, 10, null, null, null, null, false);
+        Result<PageResp<PostListResp>> result = controller.getPostList(1, 10, null, null, null, null, null, false);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertNotNull(result.getData());
@@ -60,21 +60,21 @@ class PostsAdminControllerTest {
     @Test
     void getPostList_shouldPassFilterParams() {
         PageResp<PostListResp> pageResp = new PageResp<>(Collections.emptyList(), 5L, 1L, 10L);
-        when(postsAdminService.getPostListForAdmin(2, 5, "test", 10L, "published", 1L, true)).thenReturn(pageResp);
+        when(postsAdminService.getPostListForAdmin(2, 5, "test", 10L, "published", 1L, null, true)).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getPostList(2, 5, "test", 10L, "published", 1L, true);
+        Result<PageResp<PostListResp>> result = controller.getPostList(2, 5, "test", 10L, "published", 1L, null, true);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
-        verify(postsAdminService).getPostListForAdmin(2, 5, "test", 10L, "published", 1L, true);
+        verify(postsAdminService).getPostListForAdmin(2, 5, "test", 10L, "published", 1L, null, true);
     }
 
     @Test
     void getPostList_shouldPropagateException() {
-        when(postsAdminService.getPostListForAdmin(anyInt(), anyInt(), any(), any(), any(), any(), anyBoolean()))
+        when(postsAdminService.getPostListForAdmin(anyInt(), anyInt(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenThrow(new RuntimeException("db error"));
 
         // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
-        assertThrows(RuntimeException.class, () -> controller.getPostList(1, 10, null, null, null, null, false));
+        assertThrows(RuntimeException.class, () -> controller.getPostList(1, 10, null, null, null, null, null, false));
     }
 
     // ========== getPostById ==========

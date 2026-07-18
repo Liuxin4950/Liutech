@@ -46,7 +46,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(null);
         when(postsService.getPostList(any(), isNull())).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getPostList(1, 10, null, null, null, "latest");
+        Result<PageResp<PostListResp>> result = controller.getPostList(1, 10, null, null, null, null, "latest");
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertNotNull(result.getData());
@@ -59,7 +59,7 @@ class PostsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(postsService.getPostList(any(), eq(1L))).thenReturn(pageResp);
 
-        Result<PageResp<PostListResp>> result = controller.getPostList(2, 5, 10L, 3L, "test", "hot");
+        Result<PageResp<PostListResp>> result = controller.getPostList(2, 5, 10L, 3L, null, "test", "hot");
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         verify(postsService).getPostList(argThat(req ->
@@ -67,6 +67,7 @@ class PostsControllerTest {
                         && req.getSize() == 5
                         && req.getCategoryId().equals(10L)
                         && req.getTagId().equals(3L)
+                        && req.getSeriesId() == null
                         && "test".equals(req.getKeyword())
                         && "hot".equals(req.getSort())
                         && "published".equals(req.getStatus())

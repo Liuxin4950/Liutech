@@ -88,7 +88,7 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
         }
         LambdaQueryWrapper<PostSeries> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostSeries::getName, name.trim());
-        return super.getOne(wrapper);
+        return postSeriesMapper.selectOne(wrapper);
     }
 
     /**

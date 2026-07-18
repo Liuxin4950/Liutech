@@ -97,17 +97,17 @@ class PostsAdminServiceTest {
         pageObj.setRecords(Arrays.asList(resp1, resp2));
         pageObj.setTotal(2);
 
-        when(postsMapper.selectPostListForAdmin(any(Page.class), isNull(), isNull(), isNull(), isNull(), isNull()))
+        when(postsMapper.selectPostListForAdmin(any(Page.class), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(pageObj);
 
-        PageResp<PostListResp> result = postsAdminService.getPostListForAdmin(1, 10, null, null, null, null, null);
+        PageResp<PostListResp> result = postsAdminService.getPostListForAdmin(1, 10, null, null, null, null, null, null);
 
         assertNotNull(result);
         assertEquals(2, result.getRecords().size());
         assertEquals(2L, result.getTotal());
         assertEquals("Post A", result.getRecords().get(0).getTitle());
 
-        verify(postsMapper).selectPostListForAdmin(any(Page.class), isNull(), isNull(), isNull(), isNull(), isNull());
+        verify(postsMapper).selectPostListForAdmin(any(Page.class), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
         verify(postsService).fillTags(anyList());
         verify(postsService, times(2)).normalizePostListUrls(any(PostListResp.class));
     }
@@ -118,10 +118,10 @@ class PostsAdminServiceTest {
         pageObj.setRecords(Collections.emptyList());
         pageObj.setTotal(0);
 
-        when(postsMapper.selectPostListForAdmin(any(Page.class), isNull(), isNull(), isNull(), isNull(), isNull()))
+        when(postsMapper.selectPostListForAdmin(any(Page.class), isNull(), isNull(), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(pageObj);
 
-        PageResp<PostListResp> result = postsAdminService.getPostListForAdmin(1, 10, null, null, null, null, null);
+        PageResp<PostListResp> result = postsAdminService.getPostListForAdmin(1, 10, null, null, null, null, null, null);
 
         assertNotNull(result);
         assertTrue(result.getRecords().isEmpty());

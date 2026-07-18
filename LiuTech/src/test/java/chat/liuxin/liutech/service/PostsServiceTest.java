@@ -21,6 +21,7 @@ import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -188,7 +189,7 @@ class PostsServiceTest {
         when(mockPage.getSize()).thenReturn(10L);
 
         when(postsMapper.selectPostListResl(any(Page.class), isNull(), isNull(), isNull(),
-                isNull(), isNull(), isNull())).thenReturn(mockPage);
+                isNull(), isNull(), isNull(), isNull())).thenReturn(mockPage);
 
         // fillTags 调用 selectTagsByPostIds
         Map<String, Object> tagRow = new HashMap<>();
@@ -204,7 +205,7 @@ class PostsServiceTest {
         assertEquals(POST_ID, result.getRecords().get(0).getId());
         assertEquals(1L, result.getTotal());
         verify(postsMapper).selectPostListResl(any(Page.class), isNull(), isNull(), isNull(),
-                isNull(), isNull(), isNull());
+                isNull(), isNull(), isNull(), isNull());
         verify(postsMapper).selectTagsByPostIds(anyList());
     }
 
@@ -222,7 +223,7 @@ class PostsServiceTest {
         when(mockPage.getSize()).thenReturn(10L);
 
         when(postsMapper.selectPostListResl(any(Page.class), isNull(), isNull(), isNull(),
-                isNull(), isNull(), isNull())).thenReturn(mockPage);
+                isNull(), isNull(), isNull(), isNull())).thenReturn(mockPage);
 
         PageResp<PostListResp> result = postsService.getPostList(req);
 
@@ -376,5 +377,90 @@ class PostsServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postsService.deletePost(POST_ID, OTHER_USER_ID));
         assertEquals(1103, ex.getCode());
+    }
+
+    // ========== 系列相关 ==========
+
+    @Test
+    void createPost_shouldSetSeriesFieldsWhenProvided() {
+        PostCreateReq req = createDefaultCreateReq();
+        req.setSeriesId(5L);
+        req.setSeriesSort(3);
+        when(fileUtil.extractImageUrls(anyString())).thenReturn(Collections.emptyList());
+        when(postsMapper.insert(any(Posts.class))).thenAnswer(invocation -> {
+            Posts post = invocation.getArgument(0);
+            post.setId(POST_ID);
+            return 1;
+        });
+        when(postTagsMapper.batchInsert(anyList())).thenReturn(2);
+        when(postAttachmentsMapper.bindDraftToPost("draft-key-123", POST_ID)).thenReturn(1);
+
+        ArgumentCaptor<Posts> captor = ArgumentCaptor.forClass(Posts.class);
+        postsService.createPost(req, AUTHOR_ID);
+
+        verify(postsMapper).insert(captor.capture());
+        assertEquals(5L, captor.getValue().getSeriesId());
+        assertEquals(3, captor.getValue().getSeriesSort());
+    }
+
+    @Test
+    void createPost_shouldDefaultSeriesSortToZeroWhenNull() {
+        PostCreateReq req = createDefaultCreateReq();
+        req.setSeriesId(5L);
+        req.setSeriesSort(null);
+        when(fileUtil.extractImageUrls(anyString())).thenReturn(Collections.emptyList());
+        when(postsMapper.insert(any(Posts.class))).thenAnswer(invocation -> {
+            Posts post = invocation.getArgument(0);
+            post.setId(POST_ID);
+            return 1;
+        });
+        when(postTagsMapper.batchInsert(anyList())).thenReturn(2);
+        when(postAttachmentsMapper.bindDraftToPost("draft-key-123", POST_ID)).thenReturn(1);
+
+        ArgumentCaptor<Posts> captor = ArgumentCaptor.forClass(Posts.class);
+        postsService.createPost(req, AUTHOR_ID);
+
+        verify(postsMapper).insert(captor.capture());
+        assertEquals(0, captor.getValue().getSeriesSort());
+    }
+
+    @Test
+    void getPostDetail_shouldFillSeriesCatalogWhenPostInSeries() {
+        PostDetailResp detail = createDefaultPostDetail();
+        PostDetailResp.SeriesInfo series = new PostDetailResp.SeriesInfo();
+        series.setId(7L);
+        series.setName("Spring");
+        detail.setSeries(series);
+        when(postsMapper.selectPostDetailResl(POST_ID, null)).thenReturn(detail);
+        when(postAttachmentsMapper.selectPostAttachmentsPublic(POST_ID)).thenReturn(Collections.emptyList());
+        when(postsMapper.update(isNull(), any())).thenReturn(1);
+
+        Posts catalogPost = new Posts();
+        catalogPost.setId(POST_ID);
+        catalogPost.setTitle("测试文章");
+        catalogPost.setSeriesSort(0);
+        when(postsMapper.selectSeriesPostCatalog(7L)).thenReturn(List.of(catalogPost));
+
+        PostDetailResp result = postsService.getPostDetail(POST_ID);
+
+        assertNotNull(result.getSeriesCatalog());
+        assertEquals(1, result.getSeriesCatalog().size());
+        assertEquals(POST_ID, result.getSeriesCatalog().get(0).getId());
+        assertTrue(result.getSeriesCatalog().get(0).getCurrent());
+        verify(postsMapper).selectSeriesPostCatalog(7L);
+    }
+
+    @Test
+    void getPostDetail_shouldSkipSeriesCatalogWhenNoSeries() {
+        PostDetailResp detail = createDefaultPostDetail();
+        detail.setSeries(null);
+        when(postsMapper.selectPostDetailResl(POST_ID, null)).thenReturn(detail);
+        when(postAttachmentsMapper.selectPostAttachmentsPublic(POST_ID)).thenReturn(Collections.emptyList());
+        when(postsMapper.update(isNull(), any())).thenReturn(1);
+
+        PostDetailResp result = postsService.getPostDetail(POST_ID);
+
+        assertNull(result.getSeriesCatalog());
+        verify(postsMapper, never()).selectSeriesPostCatalog(any());
     }
 }
