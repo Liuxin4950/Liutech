@@ -31,6 +31,16 @@ public class PostDetailResp extends Posts {
     private List<TagInfo> tags;
 
     /**
+     * 所属系列信息
+     */
+    private SeriesInfo series;
+
+    /**
+     * 系列目录（同系列下的文章列表，按 series_sort 升序，当前篇标记 current=true）
+     */
+    private List<SeriesCatalogItem> seriesCatalog;
+
+    /**
      * 评论数量
      */
     private Integer commentCount;
@@ -68,6 +78,33 @@ public class PostDetailResp extends Posts {
     public static class TagInfo {
         private Long id;
         private String name;
+    }
+
+    /**
+     * 所属系列信息
+     */
+    @Data
+    public static class SeriesInfo {
+        private Long id;
+        private String name;
+        private String description;
+        private String coverImage;
+        /** 当前文章在系列内的排序 */
+        private Integer sort;
+        /** 系列内文章总数 */
+        private Integer totalCount;
+    }
+
+    /**
+     * 系列目录项（详情页系列导航用）
+     */
+    @Data
+    public static class SeriesCatalogItem {
+        private Long id;
+        private String title;
+        private Integer sort;
+        /** 是否为当前文章 */
+        private Boolean current;
     }
 
     /**

@@ -13,6 +13,8 @@ export interface Post {
   categoryId?: number
   authorId?: number
   tagIds?: number[]
+  seriesId?: number | null
+  seriesSort?: number
   status: 'draft' | 'published' | 'archived'
   createdAt?: string
   updatedAt?: string
@@ -36,6 +38,11 @@ export interface PostListItem {
     id: number
     name: string
   }>
+  series?: {
+    id: number
+    name: string
+    sort?: number
+  } | null
   commentCount?: number
   coverImage?: string
   thumbnail?: string
@@ -58,6 +65,8 @@ export interface PostDetail {
   coverImage?: string
   thumbnail?: string
   categoryId?: number
+  seriesId?: number | null
+  seriesSort?: number
   category?: {
     id: number
     name: string
@@ -70,6 +79,20 @@ export interface PostDetail {
   tags?: Array<{
     id: number
     name: string
+  }>
+  series?: {
+    id: number
+    name: string
+    description?: string
+    coverImage?: string
+    sort?: number
+    totalCount?: number
+  } | null
+  seriesCatalog?: Array<{
+    id: number
+    title: string
+    sort: number
+    current: boolean
   }>
   viewCount?: number
   likeCount?: number
@@ -89,6 +112,7 @@ export interface PostListParams {
   categoryId?: number
   status?: string
   authorId?: number
+  seriesId?: number
   includeDeleted?: boolean
 }
 

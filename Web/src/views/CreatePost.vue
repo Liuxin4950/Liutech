@@ -293,6 +293,27 @@
 
 
           <div class="sidebar-item flex-col gap-8">
+            <div class="sidebar-title">文章系列</div>
+            <div class="sidebar-content">
+              <div class="flex gap-8 w-full">
+                <select v-model="form.seriesId" class="field-select" style="flex: 1;">
+                  <option value="">不属于系列</option>
+                  <option v-for="s in seriesList" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+                <input
+                  type="number"
+                  v-model.number="form.seriesSort"
+                  min="0"
+                  class="field-input"
+                  placeholder="序号"
+                  title="系列内序号（越小越靠前）"
+                  style="width: 80px;"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">发布状态</div>
             <div class="sidebar-content">
               <select v-model="form.status" class="field-select w-full">
@@ -494,7 +515,7 @@ import { usePostEditor } from '@/composables/usePostEditor'
 
 const {
   form, draftKey, generateDraftKey,
-  categories, tags, selectedTags, selectedTagId, availableTags,
+  categories, tags, seriesList, selectedTags, selectedTagId, availableTags,
   saving, showPreview, isEditMode, editingPostId, loading,
   renderedPreviewContent,
   attachments, uploadingAttachment, attachmentType,
@@ -505,7 +526,7 @@ const {
   hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
   undoStack, fieldLabels,
   handleFieldUpdate, undoField, getCategoryName,
-  loadCategories, loadTags, addTag, removeTag,
+  loadCategories, loadSeries, loadTags, addTag, removeTag,
   coverImageInput, thumbnailInput, attachmentInput,
   triggerCoverImageUpload, triggerThumbnailUpload,
   handleCoverImageUpload, handleThumbnailUpload,
@@ -524,7 +545,7 @@ const {
 onMounted(async () => {
   checkEditMode()
   draftKey.value = generateDraftKey()
-  await Promise.all([loadCategories(), loadTags()])
+  await Promise.all([loadCategories(), loadTags(), loadSeries()])
   if (isEditMode.value && editingPostId.value) {
     await loadPostData(editingPostId.value)
   }

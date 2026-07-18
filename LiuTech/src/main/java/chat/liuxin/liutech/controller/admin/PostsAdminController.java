@@ -44,8 +44,9 @@ public class PostsAdminController extends BaseAdminController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long authorId,
+            @RequestParam(required = false) Long seriesId,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        return Result.success(postsAdminService.getPostListForAdmin(page, size, title, categoryId, status, authorId, includeDeleted));
+        return Result.success(postsAdminService.getPostListForAdmin(page, size, title, categoryId, status, authorId, seriesId, includeDeleted));
     }
 
     /** 根据ID查询文章详情 */

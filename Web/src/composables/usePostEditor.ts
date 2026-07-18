@@ -6,6 +6,7 @@ import { PostService, type PostDetail } from '@/services/post'
 import type { Tag } from '@/services/tag'
 import { CategoryService, type CreateCategoryRequest } from '@/services/category'
 import { TagService, type CreateTagRequest } from '@/services/tag'
+import { SeriesService, type PostSeries } from '@/services/series'
 import { ImageUploadService } from '@/services/utils'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -44,6 +45,8 @@ export function usePostEditor() {
     content: '',
     summary: '',
     categoryId: '',
+    seriesId: '',
+    seriesSort: 0,
     status: 'published' as 'draft' | 'published',
     coverImage: '',
     thumbnail: '',
@@ -66,8 +69,18 @@ export function usePostEditor() {
 
   const categories = computed(() => categoryStore.categories)
   const tags = computed(() => tagStore.tags)
+  const seriesList = ref<PostSeries[]>([])
   const selectedTags = ref<Tag[]>([])
   const selectedTagId = ref('')
+
+  const loadSeries = async () => {
+    try {
+      const data = await SeriesService.getSeriesList()
+      seriesList.value = data || []
+    } catch {
+      seriesList.value = []
+    }
+  }
 
   // 状态
   const saving = ref(false)
@@ -707,6 +720,8 @@ export function usePostEditor() {
           content: form.value.content,
           summary: form.value.summary?.trim() || '',
           categoryId: Number(form.value.categoryId),
+          seriesId: form.value.seriesId ? Number(form.value.seriesId) : null,
+          seriesSort: form.value.seriesSort ?? 0,
           status: form.value.status,
           tagIds: selectedTags.value.map(tag => tag.id),
           coverImage: form.value.coverImage || '',
@@ -720,6 +735,8 @@ export function usePostEditor() {
           content: form.value.content,
           summary: form.value.summary?.trim() || '',
           categoryId: Number(form.value.categoryId),
+          seriesId: form.value.seriesId ? Number(form.value.seriesId) : null,
+          seriesSort: form.value.seriesSort ?? 0,
           status: form.value.status,
           tagIds: selectedTags.value.map(tag => tag.id),
           coverImage: form.value.coverImage || '',
@@ -765,6 +782,8 @@ export function usePostEditor() {
         content: postData.content,
         summary: postData.summary || '',
         categoryId: postData.category.id.toString(),
+        seriesId: postData.series?.id ? String(postData.series.id) : '',
+        seriesSort: postData.series?.sort ?? 0,
         status: postData.status === 'draft' ? 'draft' : 'published',
         coverImage: postData.coverImage || '',
         thumbnail: postData.thumbnail || '',
@@ -815,7 +834,7 @@ export function usePostEditor() {
 
   return {
     form, draftKey, generateDraftKey,
-    categories, tags, selectedTags, selectedTagId, availableTags,
+    categories, tags, seriesList, selectedTags, selectedTagId, availableTags,
     saving, showPreview, isEditMode, editingPostId, loading,
     renderedPreviewContent,
     attachments, uploadingAttachment, attachmentType,
@@ -826,7 +845,7 @@ export function usePostEditor() {
     hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
     undoStack, fieldLabels,
     handleFieldUpdate, undoField, getCategoryName,
-    loadCategories, loadTags, addTag, removeTag,
+    loadCategories, loadSeries, loadTags, addTag, removeTag,
     coverImageInput, thumbnailInput, attachmentInput,
     triggerCoverImageUpload, triggerThumbnailUpload,
     handleCoverImageUpload, handleThumbnailUpload, uploadImage,

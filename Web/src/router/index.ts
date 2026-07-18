@@ -90,6 +90,24 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'series',
+        name: 'series-list',
+        component: () => import('../views/Series.vue'),
+        meta: {
+          title: '系列',
+          section: 'series'
+        }
+      },
+      {
+        path: 'series-detail/:id',
+        name: 'series-detail',
+        component: () => import('../views/SeriesDetail.vue'),
+        meta: {
+          title: '系列详情',
+          section: 'series'
+        }
+      },
+      {
         path: 'tags',
         name: 'tags',
         component: () => import('../views/Tags.vue'),

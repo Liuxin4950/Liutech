@@ -75,7 +75,7 @@ public class DashboardService {
      * 获取基础统计数据
      */
     private BasicStats getBasicStats() {
-        Integer totalPostsCount = postsMapper.countPostsForAdmin(null, null, null, null, false);
+        Integer totalPostsCount = postsMapper.countPostsForAdmin(null, null, null, null, null, false);
         Integer publishedPostsCount = postsMapper.countPublishedPosts();
         Long totalUsersCount = userMapper.countTotalUsers();
         Long totalCategoriesCount = categoriesMapper.selectCount(null);
@@ -111,7 +111,7 @@ public class DashboardService {
         List<StatusDistribution> distribution = new ArrayList<>();
 
         Integer publishedCount = postsMapper.countPublishedPosts();
-        Integer draftCount = postsMapper.countPostsForAdmin(null, null, "draft", null, false);
+        Integer draftCount = postsMapper.countPostsForAdmin(null, null, "draft", null, null, false);
 
         long published = publishedCount != null ? publishedCount.longValue() : 0L;
         long draft = draftCount != null ? draftCount.longValue() : 0L;

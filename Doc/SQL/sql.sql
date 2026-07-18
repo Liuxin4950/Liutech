@@ -79,6 +79,19 @@ CREATE TABLE IF NOT EXISTS tags (
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签表';
 
+CREATE TABLE IF NOT EXISTS post_series (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '系列ID',
+  name VARCHAR(150) NOT NULL UNIQUE COMMENT '系列名',
+  description VARCHAR(500) DEFAULT NULL COMMENT '系列描述',
+  cover_image VARCHAR(512) DEFAULT NULL COMMENT '系列封面图URL',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  created_by BIGINT DEFAULT NULL COMMENT '创建人ID',
+  updated_by BIGINT DEFAULT NULL COMMENT '更新人ID',
+  deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
+  INDEX idx_deleted_at (deleted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章系列表';
+
 CREATE TABLE IF NOT EXISTS posts (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '文章ID',
   title VARCHAR(255) NOT NULL COMMENT '文章标题',
@@ -88,6 +101,8 @@ CREATE TABLE IF NOT EXISTS posts (
   thumbnail VARCHAR(512) DEFAULT NULL COMMENT '缩略图URL',
   category_id BIGINT NOT NULL COMMENT '分类ID',
   author_id BIGINT NOT NULL COMMENT '作者ID',
+  series_id BIGINT DEFAULT NULL COMMENT '所属系列ID',
+  series_sort INT NOT NULL DEFAULT 0 COMMENT '系列内排序(升序,值越小越靠前)',
   status VARCHAR(20) NOT NULL DEFAULT 'draft' COMMENT '文章状态(draft草稿,published已发布,archived已归档)',
   view_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '浏览次数',
   like_count INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点赞数',
@@ -102,10 +117,12 @@ CREATE TABLE IF NOT EXISTS posts (
   INDEX idx_status (status),
   INDEX idx_category_status (category_id, status),
   INDEX idx_author_status (author_id, status),
+  INDEX idx_series (series_id, series_sort),
   INDEX idx_deleted_at (deleted_at),
   INDEX idx_status_deleted_created (status, deleted_at, created_at),
   FOREIGN KEY (category_id) REFERENCES categories(id),
-  FOREIGN KEY (author_id) REFERENCES users(id)
+  FOREIGN KEY (author_id) REFERENCES users(id),
+  FOREIGN KEY (series_id) REFERENCES post_series(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章表';
 
 CREATE TABLE IF NOT EXISTS post_tags (

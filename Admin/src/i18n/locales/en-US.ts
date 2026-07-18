@@ -89,6 +89,7 @@ export default {
     content: 'Content',
     posts: 'Posts',
     categories: 'Categories',
+    series: 'Series',
     tags: 'Tags',
     comments: 'Comments',
     userManagement: 'Users',

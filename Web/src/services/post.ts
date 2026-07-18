@@ -19,6 +19,24 @@ interface TagInfo {
   name: string
 }
 
+// 文章系列信息接口
+interface SeriesInfo {
+  id: number
+  name: string
+  description?: string
+  coverImage?: string
+  sort?: number
+  totalCount?: number
+}
+
+// 系列目录项（文章详情页系列导航用）
+interface SeriesCatalogItem {
+  id: number
+  title: string
+  sort: number
+  current: boolean
+}
+
 // 文章列表项接口
 export interface PostListItem {
   id: number
@@ -27,6 +45,7 @@ export interface PostListItem {
   category: CategoryInfo
   author: AuthorInfo
   tags?: TagInfo[]
+  series?: SeriesInfo | null
   commentCount: number
   coverImage?: string
   thumbnail?: string
@@ -43,6 +62,8 @@ export interface PostListItem {
 // 文章详情接口
 export interface PostDetail extends PostListItem {
   content: string
+  // 系列目录（同系列文章导航）
+  seriesCatalog?: SeriesCatalogItem[]
   // 文章附件列表（公开查询，不限上传者）
   attachments?: PostAttachment[]
 }
@@ -64,6 +85,7 @@ export interface PostQueryParams {
   size?: number
   categoryId?: number
   tagId?: number
+  seriesId?: number
   keyword?: string
   sortBy?: 'latest' | 'popular'
   status?: 'draft' | 'published'
@@ -78,6 +100,8 @@ interface CreatePostRequest {
   categoryId: number
   status: 'draft' | 'published'
   tagIds?: number[]
+  seriesId?: number | null
+  seriesSort?: number
   coverImage?: string
   thumbnail?: string
   viewCount?: number
@@ -102,6 +126,8 @@ interface UpdatePostRequest {
   categoryId?: number
   status?: 'draft' | 'published'
   tagIds?: number[]
+  seriesId?: number | null
+  seriesSort?: number
   coverImage?: string
   thumbnail?: string
   viewCount?: number

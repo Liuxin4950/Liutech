@@ -42,6 +42,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'series',
+        name: 'series-management',
+        component: () => import('../views/admin/SeriesManagement.vue'),
+        meta: {
+          title: '系列管理',
+          section: 'series'
+        }
+      },
+      {
         path: 'tags',
         name: 'tags-management',
         component: () => import('../views/admin/TagsManagement.vue'),

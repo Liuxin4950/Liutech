@@ -329,6 +329,23 @@ const handleTagClick = (tagId: number) => {
   router.push(`/tags/${tagId}`)
 }
 
+// ============== 系列导航 ==============
+const currentSeriesIndex = computed(() => {
+  if (!post.value?.seriesCatalog) return -1
+  return post.value.seriesCatalog.findIndex(item => item.current)
+})
+const prevSeriesPost = computed(() => {
+  if (!post.value?.seriesCatalog || currentSeriesIndex.value <= 0) return null
+  return post.value.seriesCatalog[currentSeriesIndex.value - 1]
+})
+const nextSeriesPost = computed(() => {
+  if (!post.value?.seriesCatalog || currentSeriesIndex.value < 0) return null
+  return post.value.seriesCatalog[currentSeriesIndex.value + 1] || null
+})
+const goToSeriesPost = (id: number) => {
+  router.push(`/post/${id}?from=series&seriesId=${post.value?.series?.id || ''}`)
+}
+
 const summarizeWithAi = () => {
   if (!post.value) return
 
@@ -476,6 +493,54 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       <article class="post-article">
         <div class="markdown-content" v-html="renderedContent"></div>
       </article>
+
+      <!-- 系列导航 -->
+      <section v-if="post.series && post.seriesCatalog && post.seriesCatalog.length > 0" class="series-nav-section">
+        <div class="series-nav-header">
+          <div class="series-nav-title">
+            <Icon name="book" size="16" />
+            <span class="series-nav-label">系列：</span>
+            <router-link :to="`/series-detail/${post.series.id}`" class="series-name-link">{{ post.series.name }}</router-link>
+          </div>
+          <span class="series-progress">第 {{ currentSeriesIndex + 1 }} / {{ post.seriesCatalog.length }} 篇</span>
+        </div>
+        <div class="series-nav-actions">
+          <button v-if="prevSeriesPost" class="series-nav-btn" @click="goToSeriesPost(prevSeriesPost.id)">
+            <Icon name="chevronLeft" size="14" />
+            <span class="series-nav-text">
+              <span class="series-nav-sub">上一篇</span>
+              <span class="series-nav-post-title">{{ prevSeriesPost.title }}</span>
+            </span>
+          </button>
+          <span v-else class="series-nav-btn disabled">
+            <Icon name="chevronLeft" size="14" />
+            <span class="series-nav-text"><span class="series-nav-sub">已是第一篇</span></span>
+          </span>
+          <button v-if="nextSeriesPost" class="series-nav-btn" @click="goToSeriesPost(nextSeriesPost.id)">
+            <span class="series-nav-text">
+              <span class="series-nav-sub">下一篇</span>
+              <span class="series-nav-post-title">{{ nextSeriesPost.title }}</span>
+            </span>
+            <Icon name="chevronRight" size="14" />
+          </button>
+          <span v-else class="series-nav-btn disabled">
+            <span class="series-nav-text"><span class="series-nav-sub">已是最后一篇</span></span>
+            <Icon name="chevronRight" size="14" />
+          </span>
+        </div>
+        <div class="series-catalog">
+          <router-link
+            v-for="(item, idx) in post.seriesCatalog"
+            :key="item.id"
+            :to="`/post/${item.id}`"
+            class="catalog-item"
+            :class="{ current: item.current }"
+          >
+            <span class="catalog-sort">{{ idx + 1 }}</span>
+            <span class="catalog-title">{{ item.title }}</span>
+          </router-link>
+        </div>
+      </section>
 
       <!-- 附件列表 -->
       <section v-if="post.attachments && post.attachments.length" class="attachment-section">
@@ -647,6 +712,137 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+
+/* 系列导航 */
+.series-nav-section {
+  margin: 28px 0;
+  padding: 20px;
+  background: var(--surface-glass-muted);
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.06));
+  border-radius: 12px;
+}
+.series-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--color-border, rgba(0, 0, 0, 0.08));
+}
+.series-nav-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+.series-nav-label { color: var(--text-muted); font-weight: 400; }
+.series-name-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+.series-progress {
+  font-size: 12px;
+  color: #fff;
+  background: var(--color-primary);
+  padding: 3px 10px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.series-nav-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.series-nav-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--color-border, #eee);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-main);
+  text-align: left;
+  font-family: inherit;
+  .series-nav-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  .series-nav-sub { font-size: 12px; color: var(--text-muted); }
+  .series-nav-post-title {
+    font-size: 13px;
+    color: var(--color-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &:hover {
+    border-color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.04);
+  }
+  &.disabled {
+    cursor: default;
+    opacity: 0.5;
+    &:hover { border-color: var(--color-border, #eee); background: var(--bg-card, #fff); }
+  }
+  &:last-child {
+    flex-direction: row-reverse;
+    text-align: right;
+  }
+}
+.series-catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.catalog-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text-main);
+  font-size: 13px;
+  background: var(--bg-card, #fff);
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  &:hover {
+    background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.06);
+    color: var(--color-primary);
+  }
+  &.current {
+    background: var(--color-primary);
+    color: #fff;
+    .catalog-sort { background: rgba(255, 255, 255, 0.25); color: #fff; }
+  }
+}
+.catalog-sort {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface-glass-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.catalog-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .post-detail {
   position: relative;
   margin: 0 auto;

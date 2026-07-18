@@ -35,6 +35,7 @@ public final class SecurityWhitelist {
     public static final List<String> PUBLIC_GET_PREFIXES = List.of(
             "/posts/",
             "/categories/",
+            "/series/",
             "/tags/",
             "/comments/",
             "/messages/",

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.PostSeriesMapper">
+
+    <!-- 查询所有系列（包含已发布文章数量） -->
+    <select id="selectSeriesWithPostCount" resultType="chat.liuxin.liutech.resp.PostSeriesResp">
+        SELECT
+            s.id,
+            s.name,
+            s.description,
+            s.cover_image,
+            s.created_at,
+            s.updated_at,
+            COUNT(p.id) as post_count
+        FROM post_series s
+        LEFT JOIN posts p ON s.id = p.series_id AND p.deleted_at IS NULL AND p.status = 'published'
+        WHERE s.deleted_at IS NULL
+        GROUP BY s.id, s.name, s.description, s.cover_image, s.created_at, s.updated_at
+        ORDER BY s.created_at DESC
+    </select>
+
+    <!-- 管理端分页查询系列列表 -->
+    <select id="selectSeriesForAdmin" resultType="chat.liuxin.liutech.resp.PostSeriesResp">
+        SELECT
+            s.id,
+            s.name,
+            s.description,
+            s.cover_image,
+            s.created_at,
+            s.updated_at,
+            s.deleted_at,
+            u.username as creator_username,
+            COUNT(p.id) as post_count
+        FROM post_series s
+        LEFT JOIN users u ON s.created_by = u.id
+        LEFT JOIN posts p ON s.id = p.series_id AND p.deleted_at IS NULL
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">
+                s.deleted_at IS NULL
+            </if>
+            <if test="name != null and name != ''">
+                AND s.name LIKE CONCAT('%', #{name}, '%')
+            </if>
+        </where>
+        GROUP BY s.id, s.name, s.description, s.cover_image, s.created_at, s.updated_at, s.deleted_at, u.username
+        ORDER BY s.created_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 管理端查询系列总数 -->
+    <select id="countSeriesForAdmin" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT s.id)
+        FROM post_series s
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">
+                s.deleted_at IS NULL
+            </if>
+            <if test="name != null and name != ''">
+                AND s.name LIKE CONCAT('%', #{name}, '%')
+            </if>
+        </where>
+    </select>
+
+    <!-- 根据ID查询系列详情（含已发布文章数） -->
+    <select id="selectSeriesDetailById" resultType="chat.liuxin.liutech.resp.PostSeriesResp">
+        SELECT
+            s.id,
+            s.name,
+            s.description,
+            s.cover_image,
+            s.created_at,
+            s.updated_at,
+            (SELECT COUNT(*) FROM posts p WHERE p.series_id = s.id AND p.deleted_at IS NULL AND p.status = 'published') as post_count
+        FROM post_series s
+        WHERE s.id = #{id} AND s.deleted_at IS NULL
+    </select>
+
+    <!-- 恢复已删除的系列 -->
+    <update id="restoreSeriesById">
+        UPDATE post_series
+        SET deleted_at = NULL, updated_at = NOW()
+        WHERE id = #{id} AND deleted_at IS NOT NULL
+    </update>
+
+    <!-- 根据ID列表物理删除系列 -->
+    <delete id="deleteBatchIds">
+        DELETE FROM post_series
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

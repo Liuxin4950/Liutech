@@ -100,7 +100,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "postList", key = "#req.page + ':' + #req.size + ':' + #req.categoryId + ':' + #req.tagId + ':' + #req.keyword + ':' + #req.status + ':' + #req.authorId + ':' + #userId", unless = "#result == null")
+    @Cacheable(value = "postList", key = "#req.page + ':' + #req.size + ':' + #req.categoryId + ':' + #req.tagId + ':' + #req.keyword + ':' + #req.status + ':' + #req.authorId + ':' + #req.seriesId + ':' + #userId", unless = "#result == null")
     public PageResp<PostListResp> getPostList(PostQueryReq req, Long userId) {
         // 创建分页对象
         Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
@@ -110,7 +110,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
         // 执行分页查询，直接返回PostListResl
         IPage<PostListResp> result = postsMapper.selectPostListResl(page, req.getCategoryId(), req.getTagId(), keyword,
-                req.getStatus(), req.getAuthorId(), userId);
+                req.getStatus(), req.getAuthorId(), req.getSeriesId(), userId);
 
         // 批量加载标签（替代N+1嵌套查询）
         fillTags(result.getRecords());
@@ -205,6 +205,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             postDetail.setViewCount(postDetail.getViewCount() + 1);
         }
 
+        fillSeriesCatalog(postDetail);
         normalizePostDetailUrls(postDetail);
         return postDetail;
     }
@@ -268,6 +269,39 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         posts.forEach(post -> post.setTags(
                 tagMap.getOrDefault(post.getId(), List.of())
         ));
+    }
+
+    /**
+     * 填充系列目录（文章详情页系列导航用）
+     * 仅当文章属于某系列时，查询同系列已发布文章并标记当前篇。
+     */
+    void fillSeriesCatalog(PostDetailResp postDetail) {
+        if (postDetail == null || postDetail.getSeries() == null || postDetail.getSeries().getId() == null) {
+            return;
+        }
+        List<Posts> catalog = postsMapper.selectSeriesPostCatalog(postDetail.getSeries().getId());
+        List<PostDetailResp.SeriesCatalogItem> items = catalog.stream().map(p -> {
+            PostDetailResp.SeriesCatalogItem item = new PostDetailResp.SeriesCatalogItem();
+            item.setId(p.getId());
+            item.setTitle(p.getTitle());
+            item.setSort(p.getSeriesSort());
+            item.setCurrent(p.getId().equals(postDetail.getId()));
+            return item;
+        }).collect(Collectors.toList());
+        postDetail.setSeriesCatalog(items);
+    }
+
+    /**
+     * 更新文章的系列归属与排序
+     * 单独用 UpdateWrapper 显式 set，绕过 MyBatis-Plus 默认不更新 null 字段的策略，
+     * 使 seriesId 传 null 时能把文章移出系列。
+     */
+    private void updateSeriesAssignment(Long postId, Long seriesId, Integer seriesSort) {
+        LambdaUpdateWrapper<Posts> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(Posts::getId, postId)
+                .set(Posts::getSeriesId, seriesId)
+                .set(Posts::getSeriesSort, seriesSort != null ? seriesSort : 0);
+        this.update(wrapper);
     }
 
     void normalizePostListUrls(PostListResp post) {
@@ -376,6 +410,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (post.getLikeCount() == null) {
             post.setLikeCount(0);
         }
+        if (post.getSeriesSort() == null) {
+            post.setSeriesSort(0);
+        }
 
         // 保存文章
         boolean saved = this.save(post);
@@ -446,6 +483,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章更新失败");
         }
 
+        // 系列归属与排序单独更新（允许 seriesId 置空以移出系列）
+        updateSeriesAssignment(req.getId(), req.getSeriesId(), req.getSeriesSort());
+
         syncImageReferences(oldImageUrls, newImageUrls);
 
         // 更新标签关联
@@ -484,6 +524,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         if (!updated) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章更新失败");
         }
+
+        updateSeriesAssignment(req.getId(), req.getSeriesId(), req.getSeriesSort());
 
         syncImageReferences(oldImageUrls, newImageUrls);
         updatePostTags(req.getId(), req.getTagIds());

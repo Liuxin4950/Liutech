@@ -68,6 +68,16 @@ public class Posts extends BaseEntity {
      */
     private Integer favoriteCount;
 
+    /**
+     * 所属系列ID
+     */
+    private Long seriesId;
+
+    /**
+     * 系列内排序（升序，值越小越靠前）
+     */
+    private Integer seriesSort;
+
     // // 关联查询字段
     // /**
     //  * 分类信息

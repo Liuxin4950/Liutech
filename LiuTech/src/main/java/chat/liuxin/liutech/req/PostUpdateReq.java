@@ -50,6 +50,16 @@ public class PostUpdateReq {
     private List<Long> tagIds;
 
     /**
+     * 所属系列ID（可选，null 表示不属于任何系列）
+     */
+    private Long seriesId;
+
+    /**
+     * 系列内排序（升序，值越小越靠前，默认0）
+     */
+    private Integer seriesSort;
+
+    /**
      * 文章状态（draft: 草稿, published: 已发布）
      */
     private String status;

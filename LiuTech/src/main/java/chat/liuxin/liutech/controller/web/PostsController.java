@@ -60,6 +60,7 @@ public class PostsController {
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) Long tagId,
+            @RequestParam(required = false) Long seriesId,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "latest") String sort) {
         Long currentUserId = userUtils.getCurrentUserId();
@@ -68,6 +69,7 @@ public class PostsController {
         req.setSize(size);
         req.setCategoryId(categoryId);
         req.setTagId(tagId);
+        req.setSeriesId(seriesId);
         req.setKeyword(keyword);
         req.setSort(sort);
         req.setStatus("published");

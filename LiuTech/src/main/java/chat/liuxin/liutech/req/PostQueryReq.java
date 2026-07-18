@@ -28,6 +28,11 @@ public class PostQueryReq {
     private Long tagId;
 
     /**
+     * 系列ID（用于查询指定系列下的文章）
+     */
+    private Long seriesId;
+
+    /**
      * 搜索关键词
      */
     private String keyword;

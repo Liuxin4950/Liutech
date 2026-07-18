@@ -5,6 +5,7 @@ import {
   DashboardOutlined,
   FileTextOutlined,
   FolderOutlined,
+  ReadOutlined,
   TagsOutlined,
   TeamOutlined,
   NotificationOutlined,
@@ -39,6 +40,7 @@ const menuItems = computed(() => [
     children: [
       { key: 'posts', icon: FileTextOutlined, label: t('menu.posts'), path: '/posts' },
       { key: 'categories', icon: FolderOutlined, label: t('menu.categories'), path: '/categories' },
+      { key: 'series', icon: ReadOutlined, label: t('menu.series'), path: '/series' },
       { key: 'tags', icon: TagsOutlined, label: t('menu.tags'), path: '/tags' },
       { key: 'comments', icon: CommentOutlined, label: t('menu.comments'), path: '/comments' },
     ],
@@ -87,6 +89,7 @@ const getSelectedKey = (): string[] => {
   if (path === '/' || path === '/dashboard') return ['dashboard']
   if (path.startsWith('/posts')) return ['posts']
   if (path.startsWith('/categories')) return ['categories']
+  if (path.startsWith('/series')) return ['series']
   if (path.startsWith('/tags')) return ['tags']
   if (path.startsWith('/comments')) return ['comments']
   if (path.startsWith('/users')) return ['users']
@@ -106,7 +109,7 @@ const getSelectedKey = (): string[] => {
 
 const getOpenKeys = (): string[] => {
   const path = route.path
-  if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/tags') || path.startsWith('/comments')) return ['content']
+  if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/series') || path.startsWith('/tags') || path.startsWith('/comments')) return ['content']
   if (path.startsWith('/users') || path.startsWith('/points')) return ['user-management']
   if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages')) return ['operations']
   if (path.startsWith('/images') || path.startsWith('/resources') || path.startsWith('/music')) return ['media']

@@ -11,6 +11,7 @@ import TableExportButton from '@/components/TableExportButton.vue'
 import PostsService from '../../services/posts'
 import CategoriesService from '../../services/categories'
 import TagsService from '../../services/tags'
+import PostSeriesService from '../../services/series'
 import type { PostListParams, Post, PostListItem } from '../../services/posts'
 import { formatDateTime } from '../../utils/utils'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
@@ -59,6 +60,8 @@ const {
     thumbnail: '',
     categoryId: undefined,
     tagIds: [],
+    seriesId: null,
+    seriesSort: 0,
     status: 'draft'
   }),
   // 草稿自动保存：新建/编辑时防抖 800ms 写 localStorage，防刷新丢失
@@ -110,6 +113,7 @@ function formatDraftTime(ts: number): string {
 
 const categoryOptions = ref<{ label: string; value: number }[]>([])
 const tagOptions = ref<{ label: string; value: number }[]>([])
+const seriesOptions = ref<{ label: string; value: number }[]>([])
 const statusOptions = [
   { label: '草稿', value: 'draft' },
   { label: '已发布', value: 'published' }
@@ -118,15 +122,19 @@ const statusOptions = [
 // ============== 分类/标签管理 ==============
 const loadCategoriesAndTags = async () => {
   try {
-    const [cats, tags] = await Promise.all([
+    const [cats, tags, seriesList] = await Promise.all([
       CategoriesService.getCategoryList({ page: 1, size: 1000 }),
-      TagsService.getTagList({ page: 1, size: 1000 })
+      TagsService.getTagList({ page: 1, size: 1000 }),
+      PostSeriesService.getSeriesList({ page: 1, size: 1000 })
     ])
     if (cats.code === 200) {
       categoryOptions.value = cats.data.records.map((c: any) => ({ label: c.name, value: c.id }))
     }
     if (tags.code === 200) {
       tagOptions.value = tags.data.records.map((t: any) => ({ label: t.name, value: t.id }))
+    }
+    if (seriesList.code === 200) {
+      seriesOptions.value = seriesList.data.records.map((s: any) => ({ label: s.name, value: s.id }))
     }
   } catch (e) {
     message.error('加载分类或标签失败')
@@ -237,6 +245,8 @@ const openEdit = async (record: PostListItem) => {
         thumbnail: postDetail.thumbnail || '',
         categoryId: postDetail.categoryId,
         tagIds: postDetail.tags?.map(tag => tag.id) || [],
+        seriesId: postDetail.seriesId ?? null,
+        seriesSort: postDetail.seriesSort ?? 0,
         status: postDetail.status === 'published' ? 'published' : 'draft'
       }
       modalVisible.value = true
@@ -756,6 +766,14 @@ onMounted(async () => {
           </a-input-group>
         </a-form-item>
         </div>
+        <a-form-item name="seriesId" label="系列">
+          <a-input-group compact>
+            <a-select v-model:value="formModel.seriesId" placeholder="不属于任何系列" allow-clear style="width: calc(100% - 120px)">
+              <a-select-option v-for="opt in seriesOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+            </a-select>
+            <a-input-number v-model:value="formModel.seriesSort" :min="0" placeholder="序号" style="width: 120px" />
+          </a-input-group>
+        </a-form-item>
         <a-form-item name="status" label="状态">
           <a-radio-group v-model:value="formModel.status">
             <a-radio value="draft">草稿</a-radio>

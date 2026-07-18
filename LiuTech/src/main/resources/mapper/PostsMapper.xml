@@ -51,6 +51,12 @@
             <result property="username" column="author_username"/>
             <result property="avatarUrl" column="author_avatar_url"/>
         </association>
+        <!-- 系列信息 -->
+        <association property="series" javaType="chat.liuxin.liutech.resp.PostListResp$SeriesInfo">
+            <id property="id" column="series_id"/>
+            <result property="name" column="series_name"/>
+            <result property="sort" column="series_sort"/>
+        </association>
         <!-- 标签信息由Java侧批量加载（避免N+1查询） -->
     </resultMap>
 
@@ -63,6 +69,8 @@
         <result property="coverImage" column="cover_image"/>
         <result property="thumbnail" column="thumbnail"/>
         <result property="categoryId" column="category_id"/>
+        <result property="seriesId" column="series_id"/>
+        <result property="seriesSort" column="series_sort"/>
         <result property="status" column="status"/>
         <result property="viewCount" column="view_count"/>
         <result property="likeCount" column="like_count"/>
@@ -89,6 +97,15 @@
             <id property="id" column="tag_id"/>
             <result property="name" column="tag_name"/>
         </collection>
+        <!-- 系列信息 -->
+        <association property="series" javaType="chat.liuxin.liutech.resp.PostDetailResp$SeriesInfo">
+            <id property="id" column="series_id"/>
+            <result property="name" column="series_name"/>
+            <result property="description" column="series_description"/>
+            <result property="coverImage" column="series_cover_image"/>
+            <result property="sort" column="series_sort"/>
+            <result property="totalCount" column="series_total_count"/>
+        </association>
     </resultMap>
 
     <!-- 基础查询SQL片段 -->
@@ -330,6 +347,8 @@
             p.thumbnail,
             p.category_id,
             p.author_id,
+            p.series_id,
+            p.series_sort,
             p.status,
             p.view_count,
             p.like_count,
@@ -338,6 +357,7 @@
             p.updated_at,
             c.id as cat_id,
             c.name as cat_name,
+            s.name as series_name,
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
@@ -352,6 +372,7 @@
             </if>
         FROM posts p
         LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
         LEFT JOIN users u ON p.author_id = u.id
         <if test="userId != null">
             LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
@@ -372,6 +393,8 @@
             p.thumbnail,
             p.category_id,
             p.author_id,
+            p.series_id,
+            p.series_sort,
             p.status,
             p.view_count,
             p.like_count,
@@ -380,6 +403,7 @@
             p.updated_at,
             c.id as cat_id,
             c.name as cat_name,
+            s.name as series_name,
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
@@ -394,6 +418,7 @@
             </if>
         FROM posts p
         LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
         LEFT JOIN users u ON p.author_id = u.id
         <if test="userId != null">
             LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
@@ -408,6 +433,9 @@
         </if>
         <if test="categoryId != null">
             AND p.category_id = #{categoryId}
+        </if>
+        <if test="seriesId != null">
+            AND p.series_id = #{seriesId}
         </if>
         <if test="tagId != null">
             AND EXISTS (SELECT 1 FROM post_tags pt2 WHERE pt2.post_id = p.id AND pt2.tag_id = #{tagId})
@@ -445,6 +473,8 @@
             p.thumbnail,
             p.category_id,
             p.author_id,
+            p.series_id,
+            p.series_sort,
             p.status,
             p.view_count,
             p.like_count,
@@ -454,6 +484,10 @@
             c.id as category_info_id,
             c.name as category_name,
             c.description as category_description,
+            s.name as series_name,
+            s.description as series_description,
+            s.cover_image as series_cover_image,
+            (SELECT COUNT(*) FROM posts p2 WHERE p2.series_id = p.series_id AND p2.deleted_at IS NULL AND p2.status = 'published') as series_total_count,
             u.id as author_info_id,
             u.username as author_username,
             u.email as author_email,
@@ -472,6 +506,7 @@
             </if>
         FROM posts p
         LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
         LEFT JOIN users u ON p.author_id = u.id
         LEFT JOIN post_tags pt ON p.id = pt.post_id
         LEFT JOIN tags t ON pt.tag_id = t.id
@@ -492,6 +527,8 @@
             p.thumbnail,
             p.category_id,
             p.author_id,
+            p.series_id,
+            p.series_sort,
             p.status,
             p.view_count,
             p.like_count,
@@ -500,6 +537,7 @@
             p.updated_at,
             c.id as cat_id,
             c.name as cat_name,
+            s.name as series_name,
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
@@ -514,6 +552,7 @@
             </if>
         FROM posts p
         LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
         LEFT JOIN users u ON p.author_id = u.id
         <if test="userId != null">
             LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
@@ -527,7 +566,7 @@
 
     <!-- 查询当前用户的收藏文章列表（返回PostListResl） -->
     <select id="selectFavoritePostList" resultMap="PostListReslMap">
-        SELECT 
+        SELECT
             p.id,
             p.title,
             p.summary,
@@ -536,6 +575,8 @@
             p.view_count,
             p.like_count,
             p.favorite_count,
+            p.series_id,
+            p.series_sort,
             (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
             p.status,
             p.created_at,
@@ -544,6 +585,8 @@
             -- 分类信息
             c.id as cat_id,
             c.name as cat_name,
+            -- 系列信息
+            s.name as series_name,
             -- 作者信息
             u.id as author_user_id,
             u.username as author_username,
@@ -554,12 +597,13 @@
         FROM posts p
         INNER JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1 AND pf.deleted_at IS NULL
         LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
         LEFT JOIN users u ON p.author_id = u.id
         LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1 AND pl.deleted_at IS NULL
-        WHERE p.status = 'published' 
+        WHERE p.status = 'published'
         AND p.deleted_at IS NULL
         <if test="keyword != null and keyword != ''">
-            AND (p.title LIKE CONCAT('%', #{keyword}, '%') 
+            AND (p.title LIKE CONCAT('%', #{keyword}, '%')
                  OR p.summary LIKE CONCAT('%', #{keyword}, '%'))
         </if>
         ORDER BY pf.created_at DESC
@@ -689,6 +733,8 @@
             p.thumbnail,
             p.category_id,
             p.author_id,
+            p.series_id,
+            p.series_sort,
             p.status,
             p.view_count,
             p.like_count,
@@ -698,6 +744,7 @@
             p.deleted_at,
             c.id as cat_id,
             c.name as cat_name,
+            s.name as series_name,
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
@@ -706,6 +753,7 @@
             0 as favorite_status
         FROM posts p
         LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
         LEFT JOIN users u ON p.author_id = u.id
         <where>
             <if test="includeDeleted == null or includeDeleted == false">
@@ -719,6 +767,9 @@
             </if>
             <if test="categoryId != null">
                 AND p.category_id = #{categoryId}
+            </if>
+            <if test="seriesId != null">
+                AND p.series_id = #{seriesId}
             </if>
             <if test="keyword != null and keyword != ''">
                 AND p.title LIKE CONCAT('%', #{keyword}, '%')
@@ -743,6 +794,9 @@
             </if>
             <if test="categoryId != null">
                 AND p.category_id = #{categoryId}
+            </if>
+            <if test="seriesId != null">
+                AND p.series_id = #{seriesId}
             </if>
             <if test="keyword != null and keyword != ''">
                 AND p.title LIKE CONCAT('%', #{keyword}, '%')
@@ -811,5 +865,28 @@
         WHERE DATE(p.created_at) = DATE(#{date})
         AND p.deleted_at IS NULL
     </select>
+
+    <!-- 查询系列下的文章目录（已发布，按 series_sort 升序） -->
+    <select id="selectSeriesPostCatalog" resultType="chat.liuxin.liutech.model.Posts">
+        SELECT
+            p.id,
+            p.title,
+            p.series_sort,
+            p.created_at
+        FROM posts p
+        WHERE p.series_id = #{seriesId}
+          AND p.deleted_at IS NULL
+          AND p.status = 'published'
+        ORDER BY p.series_sort ASC, p.created_at ASC
+    </select>
+
+    <!-- 更新系列内单篇文章排序（拖拽排序用） -->
+    <update id="updateSeriesSort">
+        UPDATE posts
+        SET series_sort = #{seriesSort},
+            updated_by = #{updatedBy},
+            updated_at = NOW()
+        WHERE id = #{postId}
+    </update>
 
 </mapper>

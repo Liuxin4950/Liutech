@@ -94,6 +94,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
             @Param("keyword") String keyword,
             @Param("status") String status,
             @Param("authorId") Long authorId,
+            @Param("seriesId") Long seriesId,
             @Param("userId") Long userId);
 
     /**
@@ -130,6 +131,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
             @Param("keyword") String keyword,
             @Param("status") String status,
             @Param("authorId") Long authorId,
+            @Param("seriesId") Long seriesId,
             @Param("includeDeleted") Boolean includeDeleted);
 
     /**
@@ -259,6 +261,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
             @Param("keyword") String keyword,
             @Param("status") String status,
             @Param("authorId") Long authorId,
+            @Param("seriesId") Long seriesId,
             @Param("includeDeleted") Boolean includeDeleted);
 
     /**
@@ -383,5 +386,26 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @return 每行包含 postId, id, name
      */
     List<Map<String, Object>> selectTagsByPostIds(@Param("postIds") List<Long> postIds);
+
+    /**
+     * 查询系列下的文章目录（仅已发布，按 series_sort 升序）
+     * 用于文章详情页系列导航与系列详情页目录展示。
+     *
+     * @param seriesId 系列ID
+     * @return 文章列表（id, title, series_sort, created_at）
+     */
+    List<Posts> selectSeriesPostCatalog(@Param("seriesId") Long seriesId);
+
+    /**
+     * 批量更新系列内文章排序（拖拽排序用）
+     *
+     * @param postId     文章ID
+     * @param seriesSort 新排序值
+     * @param updatedBy  操作人ID
+     * @return 影响行数
+     */
+    int updateSeriesSort(@Param("postId") Long postId,
+                         @Param("seriesSort") Integer seriesSort,
+                         @Param("updatedBy") Long updatedBy);
 
 }

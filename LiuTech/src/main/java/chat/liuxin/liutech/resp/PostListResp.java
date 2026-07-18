@@ -35,6 +35,9 @@ public class PostListResp {
     /** 标签列表 */
     private List<TagInfo> tags;
 
+    /** 所属系列信息 */
+    private SeriesInfo series;
+
     /** 评论数量 */
     private Integer commentCount;
 
@@ -64,5 +67,13 @@ public class PostListResp {
     public static class TagInfo {
         private Long id;
         private String name;
+    }
+
+    @Data
+    public static class SeriesInfo {
+        private Long id;
+        private String name;
+        /** 当前文章在系列内的排序 */
+        private Integer sort;
     }
 }

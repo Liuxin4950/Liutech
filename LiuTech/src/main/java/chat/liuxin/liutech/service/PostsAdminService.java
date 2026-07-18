@@ -70,16 +70,16 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(readOnly = true)
     public PageResp<PostListResp> getPostListForAdmin(int page, int size, String title, Long categoryId, String status,
-                                                      Long authorId, Boolean includeDeleted) {
-        log.debug("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}, 包含已删除: {}",
-                page, size, title, categoryId, status, authorId, includeDeleted);
+                                                      Long authorId, Long seriesId, Boolean includeDeleted) {
+        log.debug("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}, 系列: {}, 包含已删除: {}",
+                page, size, title, categoryId, status, authorId, seriesId, includeDeleted);
 
         try {
             Page<PostListResp> pageObj = new Page<>(page, size);
             String keyword = StringUtils.hasText(title) ? title.trim() : null;
 
             IPage<PostListResp> result = postsMapper.selectPostListForAdmin(pageObj, categoryId, keyword, status,
-                    authorId, includeDeleted);
+                    authorId, seriesId, includeDeleted);
 
             log.debug("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
 
