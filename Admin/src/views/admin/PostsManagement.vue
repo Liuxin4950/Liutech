@@ -781,10 +781,9 @@ onMounted(async () => {
               placeholder="请选择分类"
               show-search
               :filter-option="filterOption"
+              :options="categoryOptions"
               style="width: calc(100% - 40px)"
-            >
-              <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
-            </a-select>
+            />
             <a-tooltip title="新增分类">
               <a-button @click="openCreateCategory">
                 <template #icon><PlusOutlined /></template>
@@ -802,10 +801,9 @@ onMounted(async () => {
               placeholder="请选择标签"
               show-search
               :filter-option="filterOption"
+              :options="tagOptions"
               style="width: calc(100% - 40px)"
-            >
-              <a-select-option v-for="opt in tagOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
-            </a-select>
+            />
             <a-tooltip title="新增标签">
               <a-button @click="openCreateTag">
                 <template #icon><PlusOutlined /></template>
@@ -822,10 +820,9 @@ onMounted(async () => {
               allow-clear
               show-search
               :filter-option="filterOption"
+              :options="seriesOptions"
               style="width: calc(100% - 40px)"
-            >
-              <a-select-option v-for="opt in seriesOptions" :key="opt.value" :value="opt.value" :label="opt.label">{{ opt.label }}</a-select-option>
-            </a-select>
+            />
             <a-tooltip title="新增系列">
               <a-button @click="openCreateSeries">
                 <template #icon><PlusOutlined /></template>
