@@ -35,7 +35,7 @@
           >
             <Icon :name="getTagIcon(tag.name)" size="14" />
             <span class="text-sm font-medium">{{ tag.name }}</span>
-            <span class="text-xs text-muted">({{ tag.postCount }})</span>
+            <span class="text-xs text-muted">({{ tag.postCount || 0 }})</span>
           </router-link>
         </div>
       </div>
@@ -84,7 +84,7 @@
           >
             <Icon :name="getTagIcon(tag.name)" size="14" />
             <span class="">{{ tag.name }}</span>
-            <span class="text-muted">({{ tag.postCount }})</span>
+            <span class="text-muted">({{ tag.postCount || 0 }})</span>
           </router-link>
         </div>
       </div>

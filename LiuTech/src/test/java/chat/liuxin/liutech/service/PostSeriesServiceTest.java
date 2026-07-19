@@ -5,6 +5,7 @@ import chat.liuxin.liutech.mapper.PostSeriesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.model.PostSeries;
 import chat.liuxin.liutech.model.Posts;
+import chat.liuxin.liutech.req.SeriesSortItemReq;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostSeriesResp;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
@@ -221,10 +222,10 @@ class PostSeriesServiceTest {
 
     @Test
     void batchUpdateSeriesSort_shouldPassSeriesIdToUpdate() {
-        List<Map<String, Object>> items = new ArrayList<>();
-        Map<String, Object> item = new HashMap<>();
-        item.put("postId", 100L);
-        item.put("seriesSort", 2);
+        List<SeriesSortItemReq> items = new ArrayList<>();
+        SeriesSortItemReq item = new SeriesSortItemReq();
+        item.setPostId(100L);
+        item.setSeriesSort(2);
         items.add(item);
 
         when(postsMapper.updateSeriesSort(eq(100L), eq(1L), eq(2), eq(10L))).thenReturn(1);
@@ -237,9 +238,9 @@ class PostSeriesServiceTest {
 
     @Test
     void batchUpdateSeriesSort_shouldDefaultSortToZeroWhenNull() {
-        List<Map<String, Object>> items = new ArrayList<>();
-        Map<String, Object> item = new HashMap<>();
-        item.put("postId", 100L);
+        List<SeriesSortItemReq> items = new ArrayList<>();
+        SeriesSortItemReq item = new SeriesSortItemReq();
+        item.setPostId(100L);
         items.add(item);
 
         when(postsMapper.updateSeriesSort(eq(100L), eq(1L), eq(0), eq(10L))).thenReturn(1);

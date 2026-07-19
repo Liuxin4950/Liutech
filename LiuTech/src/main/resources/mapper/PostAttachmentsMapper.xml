@@ -69,7 +69,7 @@
     </select>
 
     <!-- 查询文章附件详细信息（公开，不限制上传者，供前台详情展示） -->
-    <select id="selectPostAttachmentsPublic" resultType="java.util.Map">
+    <select id="selectPostAttachmentsPublic" resultType="chat.liuxin.liutech.vo.PostAttachmentVO">
         SELECT
             pa.id as attachmentId,
             pa.resource_id as resourceId,

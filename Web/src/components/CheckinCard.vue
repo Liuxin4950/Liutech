@@ -31,7 +31,7 @@
           </div>
           <div class="stat-item" v-if="checkinStatus.lastCheckinDate">
             <Icon name="clock" size="14" />
-            <span>{{ formatDate(checkinStatus.lastCheckinDate) }}</span>
+            <span>{{ formatDateTime(checkinStatus.lastCheckinDate) }}</span>
           </div>
         </div>
       </div>
@@ -99,10 +99,6 @@ const lastCheckinResult = ref<CheckinResponse | null>(null)
 const emit = defineEmits<{
   checkinSuccess: [result: CheckinResponse]
 }>()
-
-const formatDate = (dateStr: string) => {
-  return formatDateTime(dateStr)
-}
 
 const fetchCheckinStatus = async () => {
   try {

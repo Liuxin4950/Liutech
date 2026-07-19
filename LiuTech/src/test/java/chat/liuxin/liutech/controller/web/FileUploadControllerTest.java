@@ -9,7 +9,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -24,13 +23,10 @@ class FileUploadControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new FileUploadController();
         fileUploadService = mock(FileUploadService.class);
         userUtils = mock(UserUtils.class);
         request = new MockHttpServletRequest();
-
-        ReflectionTestUtils.setField(controller, "fileUploadService", fileUploadService);
-        ReflectionTestUtils.setField(controller, "userUtils", userUtils);
+        controller = new FileUploadController(fileUploadService, userUtils);
     }
 
     // ========== uploadImage ==========

@@ -2,13 +2,13 @@ package chat.liuxin.liutech.controller.admin;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.req.SeriesSortItemReq;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostSeriesResp;
 import chat.liuxin.liutech.service.PostSeriesService;
 import chat.liuxin.liutech.utils.UserUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,11 +34,9 @@ class PostSeriesAdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new PostSeriesAdminController();
         postSeriesService = mock(PostSeriesService.class);
         userUtils = mock(UserUtils.class);
-        ReflectionTestUtils.setField(controller, "postSeriesService", postSeriesService);
-        ReflectionTestUtils.setField(controller, "userUtils", userUtils);
+        controller = new PostSeriesAdminController(postSeriesService, userUtils);
     }
 
     @Test
@@ -119,10 +117,10 @@ class PostSeriesAdminControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(10L);
         when(postSeriesService.batchUpdateSeriesSort(eq(1L), anyList(), eq(10L))).thenReturn(true);
 
-        List<Map<String, Object>> items = new ArrayList<>();
-        Map<String, Object> item = new HashMap<>();
-        item.put("postId", 100L);
-        item.put("seriesSort", 0);
+        List<SeriesSortItemReq> items = new ArrayList<>();
+        SeriesSortItemReq item = new SeriesSortItemReq();
+        item.setPostId(100L);
+        item.setSeriesSort(0);
         items.add(item);
 
         Result<String> result = controller.updatePostsOrder(1L, items);

@@ -15,6 +15,7 @@ import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
 import Icon from '@/components/Icon.vue'
 import { usePrismHighlighter } from '@/composables/usePrismHighlighter'
+import { parsePostId, buildPostPath } from '@/utils/postPath'
 
 // DOMPurify 安全配置：禁止危险标签和事件属性
 const sanitizeConfig = {
@@ -49,7 +50,7 @@ useHead(() => {
   if (!p) {
     return { title: '加载中... - LiuTech' }
   }
-  const postUrl = `${PUBLIC_SITE_URL}/post/${p.id}`
+  const postUrl = `${PUBLIC_SITE_URL}${buildPostPath(p.id, p.title)}`
   const imageUrl = normalizePublicUrl(p.coverImage) || `${PUBLIC_SITE_URL}/og-image.svg`
   return {
     title: `${p.title} - LiuTech`,
@@ -156,8 +157,8 @@ const handleClickOutside = (event: Event) => {
 
 // 加载文章详情
 const loadPostDetail = async () => {
-  const postId = Number(route.params.id)
-  if (!postId) {
+  const postId = parsePostId(route.params.id)
+  if (!postId || Number.isNaN(postId)) {
     error.value = '无效的文章ID'
     return
   }
@@ -170,6 +171,14 @@ const loadPostDetail = async () => {
 
     const postData = await PostService.getPostDetail(postId)
     post.value = postData
+
+    // 把地址栏从 /post/{id} 补全为 /post/{id}-{slug}
+    // 用 history.replaceState 直接改 URL，不触发 Vue Router 导航，避免重复加载与系列导航死循环
+    const targetPath = buildPostPath(postId, postData.title)
+    if (route.path !== targetPath) {
+      const search = window.location.search || ''
+      window.history.replaceState(window.history.state, '', targetPath + search)
+    }
 
     // 动态更新页面标题与面包屑末项
     if (postData && route.meta) {
@@ -477,7 +486,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
             </div>
             <div class="meta-stat">
               <Icon name="message" size="14" />
-              {{ post.commentCount }}
+              {{ post.commentCount || 0 }}
             </div>
           </div>
         </div>

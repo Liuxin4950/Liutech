@@ -9,7 +9,6 @@ import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.service.UserManagementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,10 +24,8 @@ class UsersAdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new UsersAdminController();
         userManagementService = mock(UserManagementService.class);
-
-        ReflectionTestUtils.setField(controller, "userManagementService", userManagementService);
+        controller = new UsersAdminController(userManagementService);
     }
 
     // ========== getUserList ==========

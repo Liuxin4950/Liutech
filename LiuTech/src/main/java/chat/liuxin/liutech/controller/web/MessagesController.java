@@ -1,8 +1,8 @@
 package chat.liuxin.liutech.controller.web;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,10 +25,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/messages")
+@RequiredArgsConstructor
 public class MessagesController {
 
-    @Autowired
-    private MessagesService messagesService;
+    private final MessagesService messagesService;
 
     /**
      * 获取已审核的公开留言列表

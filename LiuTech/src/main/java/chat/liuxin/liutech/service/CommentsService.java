@@ -57,7 +57,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
         IPage<Comments> result = commentsMapper.selectCommentsByPostId(pageParam, postId);
 
         List<CommentResp> commentResps = result.getRecords().stream()
-                .map(this::convertToCommentResl)
+                .map(this::convertToCommentResp)
                 .collect(Collectors.toList());
 
         return new PageResp<>(commentResps, result.getTotal(), result.getCurrent(), result.getSize());
@@ -107,7 +107,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @return 包含所有子孙评论的响应对象
      */
     private CommentResp buildTreeFromMap(Comments comment, Map<Long, List<Comments>> childrenByParentId) {
-        CommentResp commentResp = convertToCommentResl(comment);
+        CommentResp commentResp = convertToCommentResp(comment);
 
         List<Comments> children = childrenByParentId.get(comment.getId());
         if (children != null && !children.isEmpty()) {
@@ -220,7 +220,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
         // 设置用户信息并转换为响应对象
         comment.setUser(currentUser);
-        return convertToCommentResl(comment);
+        return convertToCommentResp(comment);
     }
 
     /**
@@ -300,7 +300,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
     }
 
     /**
-     * 将Comments实体转换为CommentResl响应对象
+     * 将Comments实体转换为CommentResp响应对象
      * 将评论实体转换为响应对象，包含用户信息和子评论
      *
      * @param comment 评论实体
@@ -308,7 +308,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    private CommentResp convertToCommentResl(Comments comment) {
+    private CommentResp convertToCommentResp(Comments comment) {
         CommentResp commentResp = new CommentResp();
         commentResp.setId(comment.getId());
         commentResp.setPostId(comment.getPostId());
@@ -327,10 +327,10 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
         // 转换子评论
         if (comment.getChildren() != null) {
-            List<CommentResp> childrenResl = comment.getChildren().stream()
-                    .map(this::convertToCommentResl)
+            List<CommentResp> childrenResp = comment.getChildren().stream()
+                    .map(this::convertToCommentResp)
                     .collect(Collectors.toList());
-            commentResp.setChildren(childrenResl);
+            commentResp.setChildren(childrenResp);
         }
 
         return commentResp;

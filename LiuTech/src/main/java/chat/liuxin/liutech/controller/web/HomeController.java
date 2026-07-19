@@ -1,10 +1,10 @@
 package chat.liuxin.liutech.controller.web;
 
+import lombok.RequiredArgsConstructor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,19 +30,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/")
+@RequiredArgsConstructor
 public class HomeController {
 
-    @Autowired
-    private PostsService postsService;
+    private final PostsService postsService;
 
-    @Autowired
-    private CategoriesService categoriesService;
+    private final CategoriesService categoriesService;
 
-    @Autowired
-    private TagsService tagsService;
+    private final TagsService tagsService;
 
-    @Autowired
-    private CommentsService commentsService;
+    private final CommentsService commentsService;
 
     /**
      * 首页欢迎信息

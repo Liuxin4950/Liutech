@@ -1,8 +1,8 @@
 package chat.liuxin.liutech.controller.web;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 
 import chat.liuxin.liutech.utils.UserUtils;
@@ -34,13 +34,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/comments")
+@RequiredArgsConstructor
 public class CommentsController {
 
-    @Autowired
-    private CommentsService commentsService;
+    private final CommentsService commentsService;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
     /**
      * 分页查询文章评论

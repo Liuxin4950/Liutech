@@ -22,7 +22,6 @@ export interface ServiceConfig {
 
 // 环境配置
 const isDevelopment = import.meta.env.DEV
-const isProduction = import.meta.env.PROD
 
 // 获取后端服务地址（优先使用环境变量）
 const getBackendURL = (): string => {
@@ -30,10 +29,16 @@ const getBackendURL = (): string => {
   if (envUrl && envUrl.trim().length > 0) {
     return envUrl
   }
-  if (isDevelopment) {
-    return 'http://127.0.0.1:8080'
+  return isDevelopment ? 'http://127.0.0.1:8080' : '/api'
+}
+
+// 获取 AI 服务地址（优先使用环境变量）
+const getAiBaseURL = (): string => {
+  const envUrl = import.meta.env.VITE_AI_BASE_URL as string | undefined
+  if (envUrl && envUrl.trim().length > 0) {
+    return envUrl
   }
-  return '/api'
+  return isDevelopment ? 'http://127.0.0.1:8081/ai' : '/ai'
 }
 
 // 服务配置映射
@@ -44,11 +49,7 @@ export const SERVICE_CONFIG: Record<ServiceType, ServiceConfig> = {
     name: '主服务'
   },
   [ServiceType.AI]: {
-      baseURL: (() => {
-          const envUrl = import.meta.env.VITE_AI_BASE_URL as string | undefined
-          if (envUrl && envUrl.trim().length > 0) return envUrl
-          return isDevelopment ? 'http://127.0.0.1:8081/ai' : '/ai'
-      })(),
+    baseURL: getAiBaseURL(),
     timeout: 60000, // AI服务可能需要更长的超时时间
     name: 'AI服务'
   }

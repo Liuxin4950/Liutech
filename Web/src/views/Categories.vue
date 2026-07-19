@@ -101,7 +101,7 @@
                         @click="goToCategory(category.id)">
                         <Icon :name="getCategoryIcon(category.name)" size="14" />
                         <span class="text-sm font-medium">{{ category.name }}</span>
-                        <span class="text-xs text-muted">({{ category.postCount }})</span>
+                        <span class="text-xs text-muted">({{ category.postCount || 0 }})</span>
                     </div>
                 </div>
             </div>

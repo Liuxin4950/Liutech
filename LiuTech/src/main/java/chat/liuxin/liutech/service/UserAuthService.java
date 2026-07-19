@@ -87,7 +87,7 @@ public class UserAuthService {
         verificationCodeService.markUsed(vc.getId());
 
         // 6. 转换为响应对象
-        return convertToUserResl(user);
+        return convertToUserResp(user);
     }
 
     /**
@@ -189,7 +189,7 @@ public class UserAuthService {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    private UserResp convertToUserResl(Users user) {
+    private UserResp convertToUserResp(Users user) {
         UserResp userResp = new UserResp();
         if (user != null) {
             BeanUtils.copyProperties(user, userResp);

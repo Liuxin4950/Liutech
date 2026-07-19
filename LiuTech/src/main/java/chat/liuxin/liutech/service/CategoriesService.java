@@ -41,7 +41,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
 
     private final PostTagsMapper postTagsMapper;
 
-    private final chat.liuxin.liutech.mapper.PostAttachmentsMapper postAttachmentsMapper;
+    private final PostAttachmentsMapper postAttachmentsMapper;
 
     /**
      * 查询所有分类（包含文章数量）

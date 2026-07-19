@@ -31,12 +31,18 @@ export function usePrismHighlighter() {
     })
   }
 
+  /** 若 Prism 已加载则高亮全部代码块并加复制按钮 */
+  const highlightAll = () => {
+    const prism = (window as any).Prism
+    if (prism) {
+      prism.highlightAll()
+      addCopyButtons()
+    }
+  }
+
   const loadPrism = () => {
     if (prismScriptEl || (window as any).Prism) {
-      if ((window as any).Prism) {
-        (window as any).Prism.highlightAll()
-        addCopyButtons()
-      }
+      highlightAll()
       return
     }
 
@@ -65,10 +71,7 @@ export function usePrismHighlighter() {
         const totalLanguages = languages.size
 
         if (totalLanguages === 0) {
-          if ((window as any).Prism) {
-            (window as any).Prism.highlightAll()
-            addCopyButtons()
-          }
+          highlightAll()
           return
         }
 
@@ -78,10 +81,7 @@ export function usePrismHighlighter() {
           langScript.onload = () => {
             loadedCount++
             if (loadedCount === totalLanguages) {
-              if ((window as any).Prism) {
-                (window as any).Prism.highlightAll()
-                addCopyButtons()
-              }
+              highlightAll()
             }
           }
           document.head.appendChild(langScript)
@@ -90,13 +90,6 @@ export function usePrismHighlighter() {
       }, 100)
     }
     document.head.appendChild(script)
-  }
-
-  const highlightAll = () => {
-    if ((window as any).Prism) {
-      (window as any).Prism.highlightAll()
-      addCopyButtons()
-    }
   }
 
   const cleanup = () => {

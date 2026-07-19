@@ -18,6 +18,13 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.text.ParseException;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
+import tools.jackson.core.exc.StreamReadException;
 
 /**
  * AI 聊天服务实现（同步 + 流式委托）。
@@ -32,6 +39,8 @@ public class AiChatServiceImpl implements AiChatService {
     /** 写作模式专用参数：低温度保证稳定输出，高 maxTokens 避免正文被截断 */
     private static final double WRITING_TEMPERATURE = 0.3;
     private static final int WRITING_MAX_TOKENS = 8192; // 兜底值，管理端配置更高时优先用配置
+    /** token 估算系数：约 4 个字符 ≈ 1 token */
+    private static final int CHARS_PER_TOKEN_ESTIMATE = 4;
 
 
     private final SiliconFlowChatClient siliconFlowChatClient;
@@ -75,7 +84,7 @@ public class AiChatServiceImpl implements AiChatService {
             String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), role);
 
             if (!guestMode) {
-                memoryService.saveAssistantMessage(userIdStr, conversationId, aiOutput, modelName, 1, null);
+                memoryService.saveAssistantMessage(userIdStr, conversationId, aiOutput, modelName, MemoryService.MESSAGE_STATUS_NORMAL, null);
             }
 
             long cost = System.currentTimeMillis() - begin;
@@ -173,7 +182,7 @@ public class AiChatServiceImpl implements AiChatService {
      */
     private AiModelPolicy.ModelParameters writingParameters(AiModelPolicy.ModelParameters base) {
         Double temperature = base.temperature() != null ? base.temperature() : WRITING_TEMPERATURE;
-        Integer maxTokens = base.maxTokens() != null ? Math.max(base.maxTokens(), 8192) : WRITING_MAX_TOKENS;
+        Integer maxTokens = base.maxTokens() != null ? Math.max(base.maxTokens(), WRITING_MAX_TOKENS) : WRITING_MAX_TOKENS;
         return new AiModelPolicy.ModelParameters(temperature, maxTokens, base.source() + "+writing-fallback");
     }
     /** 解析 temperature / maxTokens,来源可能是请求参数、模型默认值或全局默认。 */
@@ -195,7 +204,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     /** 粗略按字符数/4 估算 token 数,仅用于监控埋点,非计费用。 */
     private int estimateTokens(String text) {
-        return text != null ? text.length() / 4 : 0;
+        return text != null ? text.length() / CHARS_PER_TOKEN_ESTIMATE : 0;
     }
 
     /**
@@ -210,17 +219,17 @@ public class AiChatServiceImpl implements AiChatService {
      */
     private AIServiceException classifyException(Exception e) {
         Throwable root = e.getCause() != null ? e.getCause() : e;
-        if (root instanceof java.net.ConnectException || root instanceof java.net.SocketTimeoutException
-                || root instanceof java.net.UnknownHostException) {
+        if (root instanceof ConnectException || root instanceof SocketTimeoutException
+                || root instanceof UnknownHostException) {
             return new AIServiceException.ConnectionException("AI服务连接失败: " + root.getMessage());
         }
-        if (root instanceof org.springframework.web.client.HttpStatusCodeException httpEx) {
+        if (root instanceof HttpStatusCodeException httpEx) {
             return new AIServiceException.RequestException("AI服务HTTP错误 " + httpEx.getStatusCode() + ": " + httpEx.getMessage());
         }
-        if (root instanceof org.springframework.web.client.ResourceAccessException) {
+        if (root instanceof ResourceAccessException) {
             return new AIServiceException.ConnectionException("AI服务网络访问失败: " + root.getMessage());
         }
-        if (root instanceof tools.jackson.core.exc.StreamReadException || root instanceof java.text.ParseException) {
+        if (root instanceof StreamReadException || root instanceof ParseException) {
             return new AIServiceException.ModelException("AI服务响应解析失败: " + root.getMessage());
         }
         if (root instanceof TimeoutException || (e.getMessage() != null && e.getMessage().toLowerCase().contains("timeout"))) {

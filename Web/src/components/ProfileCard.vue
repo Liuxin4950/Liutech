@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { getUserStats } from '@/services/user.ts'
+import { getUserStats } from '@/services/user'
 import { handleImageError } from '@/composables/useImageFallback'
 
 // 定义props

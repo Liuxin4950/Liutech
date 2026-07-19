@@ -1,8 +1,8 @@
 package chat.liuxin.liutech.controller.web;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,10 +17,10 @@ import chat.liuxin.liutech.service.CarouselService;
  */
 @RestController
 @RequestMapping("/carousels")
+@RequiredArgsConstructor
 public class CarouselController {
 
-    @Autowired
-    private CarouselService carouselService;
+    private final CarouselService carouselService;
 
     /**
      * 获取启用的轮播图列表（前台用户）

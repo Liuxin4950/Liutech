@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
@@ -43,6 +44,22 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 @RequiredArgsConstructor
 public class StreamingChatService {
+
+    // ========== 流式内容回写阈值 ==========
+    /** HTML 片段最小长度，低于此不作为正文回写 */
+    private static final int MIN_HTML_LENGTH = 200;
+    /** 文章正文最小长度，超过才视为完整文章 */
+    private static final int MIN_ARTICLE_LENGTH = 400;
+    /** HTML 片段最小长度（extractHtmlBody 内分段判断） */
+    private static final int MIN_HTML_PART_LENGTH = 100;
+    /** content-update 事件触发的文本增量阈值 */
+    private static final int CONTENT_UPDATE_LENGTH_THRESHOLD = 300;
+    /** content-update 事件触发的最小时间间隔（毫秒） */
+    private static final long CONTENT_UPDATE_INTERVAL_MS = 800;
+    /** 心跳首次延迟（秒） */
+    private static final long HEARTBEAT_INITIAL_DELAY_SEC = 15;
+    /** 心跳发送间隔（秒） */
+    private static final long HEARTBEAT_INTERVAL_SEC = 15;
 
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
@@ -116,7 +133,7 @@ public class StreamingChatService {
                     } catch (Exception e) {
                         log.debug("心跳发送失败: {}", e.getMessage());
                     }
-                }, 15, 15, TimeUnit.SECONDS);
+                }, HEARTBEAT_INITIAL_DELAY_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS);
 
                 Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), role);
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
@@ -125,12 +142,12 @@ public class StreamingChatService {
                         guestMode, userIdStr, modelName, false, null, null,
                         fullResponse -> {
                             if (!guestMode && finalConvId != null) {
-                                memoryService.saveAssistantMessage(userIdStr, finalConvId, fullResponse, modelName, 1, null);
+                                memoryService.saveAssistantMessage(userIdStr, finalConvId, fullResponse, modelName, MemoryService.MESSAGE_STATUS_NORMAL, null);
                             }
                         },
                         (partial, errorMsg) -> {
                             if (!guestMode && finalConvId != null && partial != null && !partial.isBlank()) {
-                                memoryService.saveAssistantMessage(userIdStr, finalConvId, partial, modelName, 3, null);
+                                memoryService.saveAssistantMessage(userIdStr, finalConvId, partial, modelName, MemoryService.MESSAGE_STATUS_ERROR, null);
                             }
                             chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
                         });
@@ -180,7 +197,7 @@ public class StreamingChatService {
                         "conversationId", conversationId, "model", modelName, "mode", "writing"));
 
                 FieldUpdateCollector collector = new FieldUpdateCollector();
-                java.util.Map<String, Object> toolContext = new java.util.HashMap<>();
+                Map<String, Object> toolContext = new HashMap<>();
                 toolContext.put(FieldUpdateCollector.CONTEXT_KEY, collector);
 
 
@@ -299,9 +316,9 @@ public class StreamingChatService {
                 // ---- onError ----
                 error -> {
                     log.error("流式响应错误，用户ID: {}, 会话ID: {}", userIdStr, conversationId, error);
-                    String error_msg = error != null ? error.getMessage() : "未知错误";
-                    onError.accept(fullResponseRef.get().toString(), error_msg);
-                    SseEmitterHelper.safeSendError(emitter, conversationId, error_msg);
+                    String errorMsg = error != null ? error.getMessage() : "未知错误";
+                    onError.accept(fullResponseRef.get().toString(), errorMsg);
+                    SseEmitterHelper.safeSendError(emitter, conversationId, errorMsg);
                     emitterClosed.set(true);
                     SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
                     emitter.completeWithError(error != null ? error : new RuntimeException("流式响应发生未知错误"));
@@ -329,7 +346,7 @@ public class StreamingChatService {
                         if (writingMode && looksLikeArticleContent(fullResponse)) {
                             Map<String, Object> contentUpdate = new LinkedHashMap<>();
                             String finalHtml = extractHtmlBody(fullResponse);
-                            if (finalHtml != null && finalHtml.length() >= 200
+                            if (finalHtml != null && finalHtml.length() >= MIN_HTML_LENGTH
                                     && (finalHtml.contains("<p") || finalHtml.contains("<h") || finalHtml.contains("<pre"))) {
                                 contentUpdate.put("contentHtml", finalHtml);
                                 SseEmitterHelper.sendSseEvent(emitter, "field-update", contentUpdate);
@@ -521,9 +538,9 @@ public class StreamingChatService {
         String fullText = fullResponseRef.get().toString();
         int currentLength = fullText.length();
         long now = System.currentTimeMillis();
-        if (currentLength - lastContentUpdateLength.get() >= 300 && now - lastContentUpdateTime.get() >= 800) {
+        if (currentLength - lastContentUpdateLength.get() >= CONTENT_UPDATE_LENGTH_THRESHOLD && now - lastContentUpdateTime.get() >= CONTENT_UPDATE_INTERVAL_MS) {
             String htmlBody = extractHtmlBody(fullText);
-            boolean hasValidHtml = htmlBody != null && htmlBody.length() >= 200
+            boolean hasValidHtml = htmlBody != null && htmlBody.length() >= MIN_HTML_LENGTH
                     && (htmlBody.contains("<p") || htmlBody.contains("<h") || htmlBody.contains("<pre") || htmlBody.contains("<ul"))
                     && htmlBody.contains(">");
             if (hasValidHtml && htmlBody.length() > lastContentUpdateLength.get()) {
@@ -541,10 +558,10 @@ public class StreamingChatService {
     private boolean looksLikeArticleContent(String text) {
         if (text == null || text.isBlank()) return false;
         String trimmed = text.trim();
-        if (trimmed.length() < 200) return false;
+        if (trimmed.length() < MIN_HTML_LENGTH) return false;
         // 含 HTML 标签 或 含代码块/分段结构，视作文章内容
         return trimmed.contains("<p") || trimmed.contains("<h") || trimmed.contains("<pre")
-                || trimmed.contains("```") || (trimmed.contains("\n\n") && trimmed.length() > 400);
+                || trimmed.contains("```") || (trimmed.contains("\n\n") && trimmed.length() > MIN_ARTICLE_LENGTH);
     }
 
     /**
@@ -554,15 +571,16 @@ public class StreamingChatService {
     private String extractHtmlBody(String text) {
         if (text == null || text.isBlank()) return text;
         String trimmed = text.trim();
-        int firstLt = trimmed.indexOf('<');
-        int lastGt = trimmed.lastIndexOf('>');
-        int lastLtAfterGt = trimmed.lastIndexOf('<');
+        int firstLt = trimmed.indexOf('<');           // 第一个 '<'（HTML 起始）
+        int lastGt = trimmed.lastIndexOf('>');        // 最后一个 '>'（HTML 结束）
+        int lastLtAfterGt = trimmed.lastIndexOf('<'); // 最后一个 '<'（可能落在 lastGt 之后，表示尾部有未闭合标签）
+        // 若最后一个 '<' 在最后一个 '>' 之后，说明尾部有杂散 '<'，回退到它之前最近的 '>'
         if (lastLtAfterGt > lastGt) {
             lastGt = trimmed.lastIndexOf('>', lastLtAfterGt - 1);
         }
         if (firstLt != -1 && lastGt != -1 && lastGt > firstLt) {
             String htmlPart = trimmed.substring(firstLt, lastGt + 1).trim();
-            if (htmlPart.length() >= 100) {
+            if (htmlPart.length() >= MIN_HTML_PART_LENGTH) {
                 return htmlPart;
             }
         }

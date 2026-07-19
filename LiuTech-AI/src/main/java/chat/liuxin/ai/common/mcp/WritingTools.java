@@ -3,6 +3,7 @@ package chat.liuxin.ai.common.mcp;
 import chat.liuxin.ai.common.client.BlogApiClient;
 import chat.liuxin.ai.dto.CategoryDTO;
 import chat.liuxin.ai.dto.PostDetailDTO;
+import chat.liuxin.ai.dto.TagDTO;
 import chat.liuxin.ai.dto.FieldUpdatePayload;
 import chat.liuxin.ai.service.FieldUpdateCollector;
 import chat.liuxin.ai.service.WritingToolEventSink;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -33,8 +35,8 @@ public class WritingTools implements ToolGroup {
 
     /** 仅管理员可用（写作助手工具） */
     @Override
-    public java.util.Set<String> allowedRoles() {
-        return java.util.Set.of("ADMIN");
+    public Set<String> allowedRoles() {
+        return Set.of("ADMIN");
     }
 
     private final BlogApiClient blogApiClient;
@@ -50,18 +52,12 @@ public class WritingTools implements ToolGroup {
      */
     @Tool(description = "获取博客所有分类列表（含ID和名称），用于为文章选择最合适的分类。返回分类ID、名称和描述。")
     public List<CategoryDTO> listCategories(ToolContext toolContext) {
-        WritingToolEventSink sink = resolveSink(toolContext);
-        if (sink != null) sink.fireStart("admin.listCategories", "读取分类列表", null);
-        try {
-            log.debug("写作工具调用: listCategories");
-            List<CategoryDTO> result = blogApiClient.getAllCategories();
-            if (sink != null) sink.fireSuccess("admin.listCategories", "读取分类列表",
-                    result == null ? "0 个分类" : result.size() + " 个分类");
-            return result;
-        } catch (Exception e) {
-            if (sink != null) sink.fireError("admin.listCategories", "读取分类列表", e.getMessage());
-            throw e;
-        }
+        return wrapToolCall(toolContext, "admin.listCategories", "读取分类列表", null,
+                () -> {
+                    log.debug("写作工具调用: listCategories");
+                    return blogApiClient.getAllCategories();
+                },
+                r -> r == null ? "0 个分类" : r.size() + " 个分类");
     }
 
     /**
@@ -70,19 +66,13 @@ public class WritingTools implements ToolGroup {
      * 复用主后端公开的 GET /tags 接口,返回结构与前端标签选择器一致。
      */
     @Tool(description = "获取博客所有标签列表（含ID和名称），用于为文章选择最合适的标签（1-6个）。返回标签ID和名称。")
-    public List<Object> listTags(ToolContext toolContext) {
-        WritingToolEventSink sink = resolveSink(toolContext);
-        if (sink != null) sink.fireStart("admin.listTags", "读取标签列表", null);
-        try {
-            log.debug("写作工具调用: listTags");
-            List<Object> result = blogApiClient.getAllTags();
-            if (sink != null) sink.fireSuccess("admin.listTags", "读取标签列表",
-                    result == null ? "0 个标签" : result.size() + " 个标签");
-            return result;
-        } catch (Exception e) {
-            if (sink != null) sink.fireError("admin.listTags", "读取标签列表", e.getMessage());
-            throw e;
-        }
+    public List<TagDTO> listTags(ToolContext toolContext) {
+        return wrapToolCall(toolContext, "admin.listTags", "读取标签列表", null,
+                () -> {
+                    log.debug("写作工具调用: listTags");
+                    return blogApiClient.getAllTags();
+                },
+                r -> r == null ? "0 个标签" : r.size() + " 个标签");
     }
 
     /**
@@ -93,16 +83,29 @@ public class WritingTools implements ToolGroup {
      */
     @Tool(description = "根据文章ID获取文章完整内容（标题、正文、摘要、分类、标签），用于读取当前编辑的文章或参考其他文章。")
     public PostDetailDTO getArticleDetail(@ToolParam(description = "文章ID") Long postId, ToolContext toolContext) {
+        return wrapToolCall(toolContext, "public.getArticleDetail", "读取文章详情", "postId=" + postId,
+                () -> {
+                    log.debug("写作工具调用: getArticleDetail, postId={}", postId);
+                    return blogApiClient.getPostDetail(postId);
+                },
+                r -> r == null ? "未找到" : "已读取: " + (r.getTitle() == null ? "" : r.getTitle()));
+    }
+
+    /**
+     * 工具调用统一模板：发 fireStart，执行 action，发 fireSuccess/fireError。
+     * 消除只读工具的 try/catch + fire 样板代码。
+     */
+    private <T> T wrapToolCall(ToolContext toolContext, String toolName, String displayName,
+                                String inputSummary, java.util.function.Supplier<T> action,
+                                java.util.function.Function<T, String> successSummary) {
         WritingToolEventSink sink = resolveSink(toolContext);
-        if (sink != null) sink.fireStart("public.getArticleDetail", "读取文章详情", "postId=" + postId);
+        if (sink != null) sink.fireStart(toolName, displayName, inputSummary);
         try {
-            log.debug("写作工具调用: getArticleDetail, postId={}", postId);
-            PostDetailDTO result = blogApiClient.getPostDetail(postId);
-            if (sink != null) sink.fireSuccess("public.getArticleDetail", "读取文章详情",
-                    result == null ? "未找到" : "已读取: " + (result.getTitle() == null ? "" : result.getTitle()));
+            T result = action.get();
+            if (sink != null) sink.fireSuccess(toolName, displayName, successSummary.apply(result));
             return result;
         } catch (Exception e) {
-            if (sink != null) sink.fireError("public.getArticleDetail", "读取文章详情", e.getMessage());
+            if (sink != null) sink.fireError(toolName, displayName, e.getMessage());
             throw e;
         }
     }

@@ -15,6 +15,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.resp.PostDetailResp;
+import chat.liuxin.liutech.vo.PostTagRowVO;
 
 /**
  * 文章Mapper接口
@@ -77,7 +78,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
     Posts selectPostWithDetails(@Param("id") Long id, @Param("userId") Long userId);
 
     /**
-     * 分页查询文章列表（返回PostListResl）
+     * 分页查询文章列表（返回PostListResp）
      * 
      * @param page       分页参数
      * @param categoryId 分类ID（可选）
@@ -88,7 +89,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param userId     当前用户ID（用于查询点赞收藏状态）
      * @return 文章列表
      */
-    IPage<PostListResp> selectPostListResl(Page<PostListResp> page,
+    IPage<PostListResp> selectPostListResp(Page<PostListResp> page,
             @Param("categoryId") Long categoryId,
             @Param("tagId") Long tagId,
             @Param("keyword") String keyword,
@@ -98,25 +99,25 @@ public interface PostsMapper extends BaseMapper<Posts> {
             @Param("userId") Long userId);
 
     /**
-     * 查询文章详情（返回PostDetailResl）
+     * 查询文章详情（返回PostDetailResp）
      * 
      * @param id     文章ID
      * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
      * @return 文章详情
      */
-    PostDetailResp selectPostDetailResl(@Param("id") Long id, @Param("userId") Long userId);
+    PostDetailResp selectPostDetailResp(@Param("id") Long id, @Param("userId") Long userId);
 
     /**
-     * 查询热门文章列表（返回PostListResl）
+     * 查询热门文章列表（返回PostListResp）
      * 
      * @param limit  限制数量
      * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
      * @return 热门文章列表
      */
-    List<PostListResp> selectHotPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
+    List<PostListResp> selectHotPostListResp(@Param("limit") Integer limit, @Param("userId") Long userId);
 
     /**
-     * 管理端分页查询文章列表（返回PostListResl）
+     * 管理端分页查询文章列表（返回PostListResp）
      * 
      * @param page           分页参数
      * @param categoryId     分类ID（可选）
@@ -135,13 +136,13 @@ public interface PostsMapper extends BaseMapper<Posts> {
             @Param("includeDeleted") Boolean includeDeleted);
 
     /**
-     * 查询最新文章列表（返回PostListResl）
+     * 查询最新文章列表（返回PostListResp）
      * 
      * @param limit  限制数量
      * @param userId 当前用户ID（用于查询点赞收藏状态，可为null）
      * @return 最新文章列表
      */
-    List<PostListResp> selectLatestPostListResl(@Param("limit") Integer limit, @Param("userId") Long userId);
+    List<PostListResp> selectLatestPostListResp(@Param("limit") Integer limit, @Param("userId") Long userId);
 
     /**
      * 查询热门文章（根据评论数排序）
@@ -385,7 +386,7 @@ public interface PostsMapper extends BaseMapper<Posts> {
      * @param postIds 文章ID列表
      * @return 每行包含 postId, id, name
      */
-    List<Map<String, Object>> selectTagsByPostIds(@Param("postIds") List<Long> postIds);
+    List<PostTagRowVO> selectTagsByPostIds(@Param("postIds") List<Long> postIds);
 
     /**
      * 查询系列下的文章目录（仅已发布，按 series_sort 升序）

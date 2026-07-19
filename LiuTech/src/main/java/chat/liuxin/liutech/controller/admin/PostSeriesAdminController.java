@@ -1,9 +1,9 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +19,7 @@ import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.req.SeriesSortItemReq;
 import chat.liuxin.liutech.resp.PostSeriesResp;
 import chat.liuxin.liutech.service.PostSeriesService;
 import chat.liuxin.liutech.utils.UserUtils;
@@ -35,13 +36,12 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/admin/series")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class PostSeriesAdminController extends BaseAdminController {
 
-    @Autowired
-    private PostSeriesService postSeriesService;
+    private final PostSeriesService postSeriesService;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
     /** 分页查询系列列表 */
     @GetMapping
@@ -121,7 +121,7 @@ public class PostSeriesAdminController extends BaseAdminController {
     /** 拖拽排序：批量更新系列内文章排序 */
     @PutMapping("/{id}/posts-order")
     @OperationLog(action = "update", targetType = "series", description = "更新系列文章排序")
-    public Result<String> updatePostsOrder(@PathVariable Long id, @RequestBody List<Map<String, Object>> items) {
+    public Result<String> updatePostsOrder(@PathVariable Long id, @RequestBody List<SeriesSortItemReq> items) {
         ValidationUtil.validateId(id, "系列ID");
         return handleOperationResult(
                 postSeriesService.batchUpdateSeriesSort(id, items, userUtils.getCurrentUserId()),

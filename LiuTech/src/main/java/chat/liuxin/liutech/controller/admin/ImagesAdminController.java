@@ -1,9 +1,9 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,13 +27,12 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/admin/images")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class ImagesAdminController extends BaseAdminController {
 
-    @Autowired
-    private ImageUsageReconcileService imageUsageReconcileService;
+    private final ImageUsageReconcileService imageUsageReconcileService;
 
-    @Autowired
-    private ImagesAdminService imagesAdminService;
+    private final ImagesAdminService imagesAdminService;
 
     /** 图片引用对账 */
     @PostMapping("/reconcile-usage")

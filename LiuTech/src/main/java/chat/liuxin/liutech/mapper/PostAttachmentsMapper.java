@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 import chat.liuxin.liutech.model.PostAttachments;
+import chat.liuxin.liutech.vo.PostAttachmentVO;
 
 /**
  * 文章附件表 Mapper 接口
@@ -60,7 +61,7 @@ public interface PostAttachmentsMapper extends BaseMapper<PostAttachments> {
      * @param postId 文章ID
      * @return 附件详细信息列表
      */
-    List<java.util.Map<String, Object>> selectPostAttachmentsPublic(@Param("postId") Long postId);
+    List<PostAttachmentVO> selectPostAttachmentsPublic(@Param("postId") Long postId);
     
     /**
      * 根据资源ID删除附件关联记录

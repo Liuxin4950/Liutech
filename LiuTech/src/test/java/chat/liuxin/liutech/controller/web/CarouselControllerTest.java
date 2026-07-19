@@ -6,7 +6,6 @@ import chat.liuxin.liutech.resp.CarouselResp;
 import chat.liuxin.liutech.service.CarouselService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,9 +20,8 @@ class CarouselControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new CarouselController();
         carouselService = mock(CarouselService.class);
-        ReflectionTestUtils.setField(controller, "carouselService", carouselService);
+        controller = new CarouselController(carouselService);
     }
 
     // ========== getActiveCarousels ==========

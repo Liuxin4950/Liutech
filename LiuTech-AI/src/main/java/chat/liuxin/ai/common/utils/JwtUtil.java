@@ -27,7 +27,9 @@ public class JwtUtil {
 
     public Long getUserIdFromToken(String token) {
         Claims claims = getClaimsFromToken(token);
-        return claims != null ? ((Number) claims.get("userId")).longValue() : null;
+        if (claims == null) return null;
+        Object userId = claims.get("userId");
+        return userId instanceof Number ? ((Number) userId).longValue() : null;
     }
 
     public String getUsernameFromToken(String token) {
@@ -42,20 +44,9 @@ public class JwtUtil {
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-        } catch (ExpiredJwtException e) {
-            log.warn("JWT token已过期: {}", e.getMessage());
-            return null;
-        } catch (UnsupportedJwtException e) {
-            log.warn("不支持的JWT token: {}", e.getMessage());
-            return null;
-        } catch (MalformedJwtException e) {
-            log.warn("JWT token格式错误: {}", e.getMessage());
-            return null;
-        } catch (SecurityException e) {
-            log.warn("JWT token签名验证失败: {}", e.getMessage());
-            return null;
-        } catch (IllegalArgumentException e) {
-            log.warn("JWT token参数错误: {}", e.getMessage());
+        } catch (JwtException | SecurityException | IllegalArgumentException e) {
+            // 过期/格式错误/签名失败/参数错误统一处理，调用方只需感知 token 无效
+            log.warn("JWT token无效: {}", e.getMessage());
             return null;
         }
     }

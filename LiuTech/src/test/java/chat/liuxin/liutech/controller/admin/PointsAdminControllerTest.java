@@ -5,13 +5,13 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.PointsTransaction;
 import chat.liuxin.liutech.model.UserCheckin;
+import chat.liuxin.liutech.req.PointsAdjustReq;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PointsTransactionResp;
 import chat.liuxin.liutech.resp.UserCheckinResp;
 import chat.liuxin.liutech.service.PointsAdminService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -29,10 +29,8 @@ class PointsAdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new PointsAdminController();
         pointsAdminService = mock(PointsAdminService.class);
-
-        ReflectionTestUtils.setField(controller, "pointsAdminService", pointsAdminService);
+        controller = new PointsAdminController(pointsAdminService);
     }
 
     // ========== getTransactionList ==========
@@ -91,10 +89,10 @@ class PointsAdminControllerTest {
     void adjustPoints_shouldReturnSuccess() {
         doNothing().when(pointsAdminService).adjustPoints(1L, new BigDecimal("100"), "奖励");
 
-        Map<String, Object> request = new HashMap<>();
-        request.put("userId", 1);
-        request.put("amount", 100);
-        request.put("description", "奖励");
+        PointsAdjustReq request = new PointsAdjustReq();
+        request.setUserId(1L);
+        request.setAmount(new BigDecimal("100"));
+        request.setDescription("奖励");
         Result<String> result = controller.adjustPoints(request);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
@@ -105,10 +103,10 @@ class PointsAdminControllerTest {
     void adjustPoints_shouldHandleNegativeAmount() {
         doNothing().when(pointsAdminService).adjustPoints(1L, new BigDecimal("-50"), "扣减");
 
-        Map<String, Object> request = new HashMap<>();
-        request.put("userId", 1);
-        request.put("amount", -50);
-        request.put("description", "扣减");
+        PointsAdjustReq request = new PointsAdjustReq();
+        request.setUserId(1L);
+        request.setAmount(new BigDecimal("-50"));
+        request.setDescription("扣减");
         Result<String> result = controller.adjustPoints(request);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
@@ -119,9 +117,9 @@ class PointsAdminControllerTest {
         doThrow(new RuntimeException("insufficient balance")).when(pointsAdminService)
                 .adjustPoints(anyLong(), any(), any());
 
-        Map<String, Object> request = new HashMap<>();
-        request.put("userId", 1);
-        request.put("amount", 100);
+        PointsAdjustReq request = new PointsAdjustReq();
+        request.setUserId(1L);
+        request.setAmount(new BigDecimal("100"));
         // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
         assertThrows(RuntimeException.class, () -> controller.adjustPoints(request));
     }

@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -22,12 +21,9 @@ class ResourceDownloadControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new ResourceDownloadController();
         resourceDownloadService = mock(ResourceDownloadService.class);
         userUtils = mock(UserUtils.class);
-
-        ReflectionTestUtils.setField(controller, "resourceDownloadService", resourceDownloadService);
-        ReflectionTestUtils.setField(controller, "userUtils", userUtils);
+        controller = new ResourceDownloadController(resourceDownloadService, userUtils);
     }
 
     // ========== purchaseResource ==========

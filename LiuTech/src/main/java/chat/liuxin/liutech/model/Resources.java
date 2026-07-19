@@ -17,6 +17,12 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = true)
 @TableName("resources")
 public class Resources extends BaseEntity {
+
+    /** 下载类型：免费 */
+    public static final int DOWNLOAD_TYPE_FREE = 0;
+    /** 下载类型：积分下载 */
+    public static final int DOWNLOAD_TYPE_PAID = 1;
+
     /**
      * 资源名称
      */

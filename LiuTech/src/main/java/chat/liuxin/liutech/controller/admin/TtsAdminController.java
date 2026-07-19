@@ -1,6 +1,6 @@
 package chat.liuxin.liutech.controller.admin;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,19 +32,16 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/tts")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class TtsAdminController extends BaseAdminController {
 
-    @Autowired
-    private TtsConfigService ttsConfigService;
+    private final TtsConfigService ttsConfigService;
 
-    @Autowired
-    private TtsStatusService ttsStatusService;
+    private final TtsStatusService ttsStatusService;
 
-    @Autowired
-    private TtsVoiceCatalogService ttsVoiceCatalogService;
+    private final TtsVoiceCatalogService ttsVoiceCatalogService;
 
-    @Autowired
-    private TtsSpeechService ttsSpeechService;
+    private final TtsSpeechService ttsSpeechService;
 
     @GetMapping("/config")
     public Result<TtsConfigDTO> getConfig() {

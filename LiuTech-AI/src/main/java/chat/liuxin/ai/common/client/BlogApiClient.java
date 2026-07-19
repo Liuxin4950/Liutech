@@ -4,6 +4,7 @@ import chat.liuxin.ai.dto.CategoryDTO;
 import chat.liuxin.ai.dto.AuthorProfileDTO;
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
+import chat.liuxin.ai.dto.TagDTO;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,9 @@ public class BlogApiClient {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
+    /** 工具调用未传 limit 时的默认返回数 */
+    private static final int DEFAULT_TOOL_LIMIT = 5;
+
     /**
      * 博客API地址
      * Docker环境使用容器名: http://backend:8080
@@ -52,6 +56,15 @@ public class BlogApiClient {
         this.objectMapper = objectMapper;
     }
 
+    /** 从标准响应 {code, data} 中提取 data 节点；code 非 200 或无 data 返回 null */
+    private JsonNode extractData(JsonNode root) {
+        if (root == null) return null;
+        if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            return root.get("data");
+        }
+        return null;
+    }
+
     /**
      * 调用主后端 GET /posts/{id},拉取一篇文章的完整内容(正文、标签、分类、作者、计数)。
      *
@@ -67,7 +80,7 @@ public class BlogApiClient {
             String response = restTemplate.getForObject(url, String.class);
             JsonNode root = objectMapper.readTree(response);
 
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 return parsePostDetail(data);
             }
@@ -88,7 +101,7 @@ public class BlogApiClient {
      */
     public List<PostSummaryDTO> searchPosts(String keyword, Integer limit) {
         try {
-            int size = limit != null ? limit : 5;
+            int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
             String url = UriComponentsBuilder.fromUriString(blogApiUrl)
                     .path("/posts/search")
                     .queryParam("keyword", keyword == null ? "" : keyword)
@@ -102,7 +115,7 @@ public class BlogApiClient {
             JsonNode root = objectMapper.readTree(response);
 
             List<PostSummaryDTO> results = new ArrayList<>();
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 JsonNode records = data.has("records") ? data.get("records") : data;
 
@@ -128,7 +141,7 @@ public class BlogApiClient {
      */
     public List<PostSummaryDTO> getPostsByCategory(Long categoryId, Integer limit) {
         try {
-            int size = limit != null ? limit : 5;
+            int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
             String url = blogApiUrl + "/posts?categoryId=" + categoryId + "&size=" + size + "&sort=latest";
             log.debug("调用博客API获取分类文章: {}", url);
 
@@ -136,7 +149,7 @@ public class BlogApiClient {
             JsonNode root = objectMapper.readTree(response);
 
             List<PostSummaryDTO> results = new ArrayList<>();
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 JsonNode records = data.has("records") ? data.get("records") : data;
 
@@ -162,7 +175,7 @@ public class BlogApiClient {
      */
     public List<PostSummaryDTO> getLatestPosts(Integer limit) {
         try {
-            int size = limit != null ? limit : 5;
+            int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
             String url = blogApiUrl + "/posts/latest?limit=" + size;
             log.debug("调用博客API获取最新文章: {}", url);
 
@@ -170,7 +183,7 @@ public class BlogApiClient {
             JsonNode root = objectMapper.readTree(response);
 
             List<PostSummaryDTO> results = new ArrayList<>();
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 if (data.isArray()) {
                     for (JsonNode record : data) {
@@ -194,7 +207,7 @@ public class BlogApiClient {
      */
     public List<PostSummaryDTO> getHotPosts(Integer limit) {
         try {
-            int size = limit != null ? limit : 5;
+            int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
             String url = blogApiUrl + "/posts/hot?limit=" + size;
             log.debug("调用博客API获取热门文章: {}", url);
 
@@ -202,7 +215,7 @@ public class BlogApiClient {
             JsonNode root = objectMapper.readTree(response);
 
             List<PostSummaryDTO> results = new ArrayList<>();
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 if (data.isArray()) {
                     for (JsonNode record : data) {
@@ -233,7 +246,7 @@ public class BlogApiClient {
             JsonNode root = objectMapper.readTree(response);
 
             List<CategoryDTO> results = new ArrayList<>();
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 if (data.isArray()) {
                     for (JsonNode record : data) {
@@ -251,11 +264,9 @@ public class BlogApiClient {
     }
 
     /**
-     * 调用主后端 GET /tags 拉取所有标签,返回 List of Map(id, name)。
-     *
-     * 因为写作工具只需要 id + name,不引入额外 TagDTO,直接用 Map 组装避免过度设计。
+     * 调用主后端 GET /tags 拉取所有标签,返回 TagDTO 列表(id, name)。
      */
-    public List<Object> getAllTags() {
+    public List<TagDTO> getAllTags() {
         try {
             String url = blogApiUrl + "/tags";
             log.debug("调用博客API获取所有标签: {}", url);
@@ -263,15 +274,18 @@ public class BlogApiClient {
             String response = restTemplate.getForObject(url, String.class);
             JsonNode root = objectMapper.readTree(response);
 
-            List<Object> results = new ArrayList<>();
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            List<TagDTO> results = new ArrayList<>();
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 if (data.isArray()) {
                     for (JsonNode record : data) {
-                        Long id = record.has("id") ? record.get("id").asLong() : null;
+                        Long id = getLongOrNull(record, "id");
                         String name = getTextValue(record, "name");
                         if (id != null && name != null) {
-                            results.add(Map.of("id", id, "name", name));
+                            TagDTO tag = new TagDTO();
+                            tag.setId(id);
+                            tag.setName(name);
+                            results.add(tag);
                         }
                     }
                 }
@@ -298,7 +312,7 @@ public class BlogApiClient {
             String response = restTemplate.getForObject(url, String.class);
             JsonNode root = objectMapper.readTree(response);
 
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 return parseAuthorProfile(root.get("data"));
             }
 
@@ -317,13 +331,13 @@ public class BlogApiClient {
      */
     private PostDetailDTO parsePostDetail(JsonNode data) {
         PostDetailDTO dto = new PostDetailDTO();
-        dto.setId(data.has("id") ? data.get("id").asLong() : null);
+        dto.setId(getLongOrNull(data, "id"));
         dto.setTitle(getTextValue(data, "title"));
         dto.setContent(getTextValue(data, "content"));
         dto.setSummary(getTextValue(data, "summary"));
-        dto.setViewCount(data.has("viewCount") ? data.get("viewCount").asInt() : 0);
-        dto.setLikeCount(data.has("likeCount") ? data.get("likeCount").asInt() : 0);
-        dto.setCommentCount(data.has("commentCount") ? data.get("commentCount").asInt() : 0);
+        dto.setViewCount(getIntOrDefault(data, "viewCount", 0));
+        dto.setLikeCount(getIntOrDefault(data, "likeCount", 0));
+        dto.setCommentCount(getIntOrDefault(data, "commentCount", 0));
         dto.setCreatedAt(getTextValue(data, "createdAt"));
 
         // 解析分类
@@ -358,7 +372,7 @@ public class BlogApiClient {
      */
     private PostSummaryDTO parsePostSummary(JsonNode data) {
         PostSummaryDTO dto = new PostSummaryDTO();
-        dto.setId(data.has("id") ? data.get("id").asLong() : null);
+        dto.setId(getLongOrNull(data, "id"));
         dto.setTitle(getTextValue(data, "title"));
         dto.setSummary(getTextValue(data, "summary"));
         dto.setStatus(firstNonBlank(getTextValue(data, "status"), "published"));
@@ -366,8 +380,8 @@ public class BlogApiClient {
             dto.setUrl("/post/" + dto.getId());
             dto.setAdminUrl("/admin/posts?postId=" + dto.getId());
         }
-        dto.setViewCount(data.has("viewCount") ? data.get("viewCount").asInt() : 0);
-        dto.setLikeCount(data.has("likeCount") ? data.get("likeCount").asInt() : 0);
+        dto.setViewCount(getIntOrDefault(data, "viewCount", 0));
+        dto.setLikeCount(getIntOrDefault(data, "likeCount", 0));
         dto.setCreatedAt(getTextValue(data, "createdAt"));
 
         // 解析分类
@@ -405,15 +419,25 @@ public class BlogApiClient {
         return null;
     }
 
+    /** 空安全地读取 Long 字段，缺失时返回 null */
+    private Long getLongOrNull(JsonNode node, String field) {
+        return node != null && node.has(field) ? node.get(field).asLong() : null;
+    }
+
+    /** 空安全地读取 int 字段，缺失时返回默认值 */
+    private int getIntOrDefault(JsonNode node, String field, int defaultValue) {
+        return node != null && node.has(field) ? node.get(field).asInt() : defaultValue;
+    }
+
     /**
      * 把分类节点映射为 {@link CategoryDTO}。
      */
     private CategoryDTO parseCategory(JsonNode data) {
         CategoryDTO dto = new CategoryDTO();
-        dto.setId(data.has("id") ? data.get("id").asLong() : null);
+        dto.setId(getLongOrNull(data, "id"));
         dto.setName(getTextValue(data, "name"));
         dto.setDescription(getTextValue(data, "description"));
-        dto.setPostCount(data.has("postCount") ? data.get("postCount").asInt() : 0);
+        dto.setPostCount(getIntOrDefault(data, "postCount", 0));
         return dto;
     }
 

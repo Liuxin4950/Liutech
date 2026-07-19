@@ -26,6 +26,12 @@ import java.util.UUID;
 public class RequestTraceFilter extends OncePerRequestFilter {
 
     private static final String TRACE_ID_KEY = "traceId";
+    /** 慢请求阈值（毫秒），超过则 warn 级别日志 */
+    private static final long SLOW_REQUEST_THRESHOLD_MS = 1000;
+    /** 自动生成的 traceId 长度 */
+    private static final int TRACE_ID_LENGTH = 16;
+    /** 外部传入 traceId 的最大允许长度 */
+    private static final int MAX_TRACE_ID_LENGTH = 32;
 
     /**
      * 每次请求生成/继承 traceId、写入 MDC 和响应头、记录请求开始与结束日志（含耗时）。
@@ -49,7 +55,7 @@ public class RequestTraceFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } finally {
             long cost = System.currentTimeMillis() - start;
-            if (cost > 1000) {
+            if (cost > SLOW_REQUEST_THRESHOLD_MS) {
                 log.warn("慢请求: {} {} [traceId={}] - 用时: {} ms", request.getMethod(), request.getRequestURI(), traceId, cost);
             } else {
                 log.debug("请求结束: {} {} [traceId={}] - 用时: {} ms", request.getMethod(), request.getRequestURI(), traceId, cost);
@@ -60,7 +66,7 @@ public class RequestTraceFilter extends OncePerRequestFilter {
 
     /** 生成一个 16 位随机 traceId（去掉 UUID 中的短横线并截断） */
     private String generateTraceId() {
-        return UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        return UUID.randomUUID().toString().replace("-", "").substring(0, TRACE_ID_LENGTH);
     }
 
     /**
@@ -72,6 +78,6 @@ public class RequestTraceFilter extends OncePerRequestFilter {
         if (normalized.length() == 0) {
             return generateTraceId();
         }
-        return normalized.length() > 32 ? normalized.substring(0, 32) : normalized;
+        return normalized.length() > MAX_TRACE_ID_LENGTH ? normalized.substring(0, MAX_TRACE_ID_LENGTH) : normalized;
     }
 }

@@ -7,7 +7,6 @@ import chat.liuxin.liutech.resp.MessageResp;
 import chat.liuxin.liutech.service.MessagesService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -22,9 +21,8 @@ class MessagesControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new MessagesController();
         messagesService = mock(MessagesService.class);
-        ReflectionTestUtils.setField(controller, "messagesService", messagesService);
+        controller = new MessagesController(messagesService);
     }
 
     // ========== getPublicMessages ==========

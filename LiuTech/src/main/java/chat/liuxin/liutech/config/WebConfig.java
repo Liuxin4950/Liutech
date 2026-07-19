@@ -1,6 +1,6 @@
 package chat.liuxin.liutech.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -13,10 +13,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * @date 2025-08-07
  */
 @Configuration
+@RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
-    
-    @Autowired
-    private FileUploadConfig fileUploadConfig;
+
+    private final FileUploadConfig fileUploadConfig;
     
     /**
      * 配置静态资源映射

@@ -4,8 +4,10 @@ import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.dto.ModelConfigRequest;
 import chat.liuxin.ai.dto.ModelUsageStats;
 import chat.liuxin.ai.entity.AiModelConfig;
+import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.mapper.AiChatMessageMapper;
 import chat.liuxin.ai.mapper.AiModelConfigMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -82,7 +85,7 @@ public class AiModelConfigService {
     public Optional<ModelConfigDTO> getModelByName(String modelName) {
         log.debug("根据模型名称获取配置，模型名称: {}", modelName);
         AiModelConfig config = modelConfigMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiModelConfig>()
+                new LambdaQueryWrapper<AiModelConfig>()
                         .eq(AiModelConfig::getModelName, modelName)
         );
         return Optional.ofNullable(config).map(this::toDTO);
@@ -96,7 +99,7 @@ public class AiModelConfigService {
         AiModelConfig config = modelConfigMapper.selectById(id);
         if (config == null) {
             log.warn("模型配置不存在，ID: {}", id);
-            throw new RuntimeException("模型配置不存在");
+            throw new AIServiceException.RequestException("模型配置不存在");
         }
         return toDTO(config);
     }
@@ -110,12 +113,12 @@ public class AiModelConfigService {
 
         // 检查模型名称是否已存在
         AiModelConfig existing = modelConfigMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiModelConfig>()
+                new LambdaQueryWrapper<AiModelConfig>()
                         .eq(AiModelConfig::getModelName, request.getModelName())
         );
         if (existing != null) {
             log.warn("模型名称已存在: {}", request.getModelName());
-            throw new RuntimeException("模型名称已存在");
+            throw new AIServiceException.RequestException("模型名称已存在");
         }
 
         AiModelConfig config = new AiModelConfig();
@@ -124,7 +127,7 @@ public class AiModelConfigService {
         config.setProvider(request.getProvider());
         config.setIsEnabled(request.getIsEnabled());
         config.setIsDefault(false);
-        config.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+        config.setSortOrder(Objects.requireNonNullElse(request.getSortOrder(), 0));
         config.setMaxTokens(request.getMaxTokens());
         config.setTemperature(request.getTemperature());
         config.setDescription(request.getDescription());
@@ -144,25 +147,25 @@ public class AiModelConfigService {
         AiModelConfig config = modelConfigMapper.selectById(id);
         if (config == null) {
             log.warn("模型配置不存在，ID: {}", id);
-            throw new RuntimeException("模型配置不存在");
+            throw new AIServiceException.RequestException("模型配置不存在");
         }
 
         // 检查模型名称是否与其他模型冲突
         AiModelConfig existing = modelConfigMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<AiModelConfig>()
+                new LambdaQueryWrapper<AiModelConfig>()
                         .eq(AiModelConfig::getModelName, request.getModelName())
                         .ne(AiModelConfig::getId, id)
         );
         if (existing != null) {
             log.warn("模型名称已被其他模型使用: {}", request.getModelName());
-            throw new RuntimeException("模型名称已被其他模型使用");
+            throw new AIServiceException.RequestException("模型名称已被其他模型使用");
         }
 
         config.setModelName(request.getModelName());
         config.setDisplayName(request.getDisplayName());
         config.setProvider(request.getProvider());
         config.setIsEnabled(request.getIsEnabled());
-        config.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
+        config.setSortOrder(Objects.requireNonNullElse(request.getSortOrder(), 0));
         config.setMaxTokens(request.getMaxTokens());
         config.setTemperature(request.getTemperature());
         config.setDescription(request.getDescription());
@@ -181,13 +184,13 @@ public class AiModelConfigService {
         AiModelConfig config = modelConfigMapper.selectById(id);
         if (config == null) {
             log.warn("模型配置不存在，ID: {}", id);
-            throw new RuntimeException("模型配置不存在");
+            throw new AIServiceException.RequestException("模型配置不存在");
         }
 
         // 不允许删除默认模型
         if (Boolean.TRUE.equals(config.getIsDefault())) {
             log.warn("不能删除默认模型，ID: {}", id);
-            throw new RuntimeException("不能删除默认模型，请先设置其他模型为默认");
+            throw new AIServiceException.RequestException("不能删除默认模型，请先设置其他模型为默认");
         }
 
         modelConfigMapper.deleteById(id);
@@ -198,20 +201,20 @@ public class AiModelConfigService {
      * 切换默认模型。事务内先清掉所有 isDefault 再置本条,保证全表唯一默认;
      * 目标模型必须处于启用状态,否则抛异常。
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void setDefaultModel(Long id) {
         log.info("设置默认模型，ID: {}", id);
 
         AiModelConfig config = modelConfigMapper.selectById(id);
         if (config == null) {
             log.warn("模型配置不存在，ID: {}", id);
-            throw new RuntimeException("模型配置不存在");
+            throw new AIServiceException.RequestException("模型配置不存在");
         }
 
         // 确保模型是启用的
         if (!Boolean.TRUE.equals(config.getIsEnabled())) {
             log.warn("不能将禁用的模型设置为默认，ID: {}", id);
-            throw new RuntimeException("不能将禁用的模型设置为默认");
+            throw new AIServiceException.RequestException("不能将禁用的模型设置为默认");
         }
 
         // 取消所有模型的默认状态
@@ -231,13 +234,13 @@ public class AiModelConfigService {
         AiModelConfig config = modelConfigMapper.selectById(id);
         if (config == null) {
             log.warn("模型配置不存在，ID: {}", id);
-            throw new RuntimeException("模型配置不存在");
+            throw new AIServiceException.RequestException("模型配置不存在");
         }
 
         // 禁用默认模型时需要检查
         if (!enabled && Boolean.TRUE.equals(config.getIsDefault())) {
             log.warn("不能禁用默认模型，ID: {}", id);
-            throw new RuntimeException("不能禁用默认模型，请先设置其他模型为默认");
+            throw new AIServiceException.RequestException("不能禁用默认模型，请先设置其他模型为默认");
         }
 
         config.setIsEnabled(enabled);
@@ -250,15 +253,7 @@ public class AiModelConfigService {
      */
     public List<ModelUsageStats> getTodayModelUsage() {
         log.debug("获取今天模型使用统计");
-
-        List<Map<String, Object>> results = chatMessageMapper.selectTodayModelUsage();
-        List<ModelUsageStats> stats = results.stream()
-                .map(row -> ModelUsageStats.builder()
-                        .model((String) row.get("model"))
-                        .usageCount(((Number) row.get("usageCount")).longValue())
-                        .build())
-                .collect(Collectors.toList());
-
+        List<ModelUsageStats> stats = chatMessageMapper.selectTodayModelUsage();
         log.info("今日模型使用统计查询完成，模型数量: {}", stats.size());
         return stats;
     }

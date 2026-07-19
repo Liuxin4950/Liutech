@@ -1,6 +1,6 @@
 package chat.liuxin.liutech.controller.web;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,13 +24,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/resource")
+@RequiredArgsConstructor
 public class ResourceDownloadController {
     
-    @Autowired
-    private ResourceDownloadService resourceDownloadService;
+    private final ResourceDownloadService resourceDownloadService;
     
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
     
     /**
      * 购买资源（扣减积分）

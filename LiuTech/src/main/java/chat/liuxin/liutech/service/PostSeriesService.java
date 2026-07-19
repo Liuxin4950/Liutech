@@ -21,6 +21,7 @@ import chat.liuxin.liutech.mapper.PostSeriesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.model.PostSeries;
 import chat.liuxin.liutech.model.Posts;
+import chat.liuxin.liutech.req.SeriesSortItemReq;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostSeriesResp;
 import lombok.RequiredArgsConstructor;
@@ -183,14 +184,13 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
      */
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "postSeries", "postList", "hotPosts", "latestPosts" }, allEntries = true)
-    public boolean batchUpdateSeriesSort(Long seriesId, List<Map<String, Object>> items, Long operatorId) {
+    public boolean batchUpdateSeriesSort(Long seriesId, List<SeriesSortItemReq> items, Long operatorId) {
         if (items == null || items.isEmpty()) {
             return false;
         }
-        for (Map<String, Object> item : items) {
-            Long postId = ((Number) item.get("postId")).longValue();
-            Integer sort = item.get("seriesSort") != null ? ((Number) item.get("seriesSort")).intValue() : 0;
-            postsMapper.updateSeriesSort(postId, seriesId, sort, operatorId);
+        for (SeriesSortItemReq item : items) {
+            Integer sort = item.getSeriesSort() != null ? item.getSeriesSort() : 0;
+            postsMapper.updateSeriesSort(item.getPostId(), seriesId, sort, operatorId);
         }
         return true;
     }

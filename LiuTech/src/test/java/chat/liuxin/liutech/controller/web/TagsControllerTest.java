@@ -6,7 +6,6 @@ import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,9 +20,8 @@ class TagsControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new TagsController();
         tagsService = mock(TagsService.class);
-        ReflectionTestUtils.setField(controller, "tagsService", tagsService);
+        controller = new TagsController(tagsService);
     }
 
     // ========== getAllTags ==========

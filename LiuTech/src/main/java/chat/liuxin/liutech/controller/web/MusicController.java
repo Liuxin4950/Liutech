@@ -1,8 +1,8 @@
 package chat.liuxin.liutech.controller.web;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,10 +18,10 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 public class MusicController {
 
-    @Autowired
-    private MusicService musicService;
+    private final MusicService musicService;
 
     /**
      * 获取启用的音乐列表（所有用户可访问）

@@ -4,25 +4,16 @@
  */
 import Swal from 'sweetalert2'
 
-// 获取当前主题背景色
-const getBgColor = () => {
-  return getComputedStyle(document.documentElement).getPropertyValue('--bg-soft').trim() || '#F8F9FA'
-}
-const getTextColor = () => {
-  return getComputedStyle(document.documentElement).getPropertyValue('--text-main').trim() || '#3C4043'
-}
-const getPrimaryColor = () => {
-  return getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#2d90cd'
-}
-const getSuccessColor = () => {
-  return getComputedStyle(document.documentElement).getPropertyValue('--color-success').trim() || '#34A853'
-}
-const getErrorColor = () => {
-  return getComputedStyle(document.documentElement).getPropertyValue('--color-error').trim() || '#EA4335'
-}
-const getWarningColor = () => {
-  return getComputedStyle(document.documentElement).getPropertyValue('--color-warning').trim() || '#FBBC04'
-}
+/** 读取 CSS 变量，缺失时回退到默认色 */
+const getCssVar = (name: string, fallback: string) =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+
+const getBgColor = () => getCssVar('--bg-soft', '#F8F9FA')
+const getTextColor = () => getCssVar('--text-main', '#3C4043')
+const getPrimaryColor = () => getCssVar('--color-primary', '#2d90cd')
+const getSuccessColor = () => getCssVar('--color-success', '#34A853')
+const getErrorColor = () => getCssVar('--color-error', '#EA4335')
+const getWarningColor = () => getCssVar('--color-warning', '#FBBC04')
 
 /**
  * 显示错误消息

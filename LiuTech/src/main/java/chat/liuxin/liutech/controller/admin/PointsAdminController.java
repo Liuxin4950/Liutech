@@ -1,16 +1,17 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.PointsTransaction;
 import chat.liuxin.liutech.model.UserCheckin;
+import chat.liuxin.liutech.req.PointsAdjustReq;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PointsTransactionResp;
 import chat.liuxin.liutech.resp.UserCheckinResp;
 import chat.liuxin.liutech.service.PointsAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -29,10 +30,10 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/points")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class PointsAdminController extends BaseAdminController {
 
-    @Autowired
-    private PointsAdminService pointsAdminService;
+    private final PointsAdminService pointsAdminService;
 
     /** 分页查询积分流水（支持按用户/类型/时间筛选） */
     @GetMapping("/transactions")
@@ -63,13 +64,10 @@ public class PointsAdminController extends BaseAdminController {
     /** 管理员手动调整积分（正数增加，负数扣减） */
     @PostMapping("/adjust")
     @OperationLog(action = "update", targetType = "points", description = "管理员手动调整积分")
-    public Result<String> adjustPoints(@RequestBody Map<String, Object> request) {
-        Long userId = request.get("userId") != null ? Long.valueOf(request.get("userId").toString()) : null;
-        BigDecimal amount = request.get("amount") != null ? new BigDecimal(request.get("amount").toString()) : null;
-        String description = request.get("description") != null ? request.get("description").toString() : null;
-        ValidationUtil.validateId(userId, "用户ID");
-        ValidationUtil.validateNotNull(amount, "调整金额");
-        pointsAdminService.adjustPoints(userId, amount, description);
+    public Result<String> adjustPoints(@RequestBody PointsAdjustReq request) {
+        ValidationUtil.validateId(request.getUserId(), "用户ID");
+        ValidationUtil.validateNotNull(request.getAmount(), "调整金额");
+        pointsAdminService.adjustPoints(request.getUserId(), request.getAmount(), request.getDescription());
         return Result.success("积分调整成功");
     }
 

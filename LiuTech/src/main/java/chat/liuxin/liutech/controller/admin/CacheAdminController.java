@@ -1,7 +1,7 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import chat.liuxin.liutech.common.Result;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,10 +19,10 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/admin/cache")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class CacheAdminController extends BaseAdminController {
 
-    @Autowired
-    private CacheManager cacheManager;
+    private final CacheManager cacheManager;
 
     /**
      * 清除所有缓存

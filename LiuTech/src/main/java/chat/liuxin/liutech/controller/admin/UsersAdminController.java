@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
@@ -9,7 +10,6 @@ import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.service.UserManagementService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,10 +21,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/users")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class UsersAdminController extends BaseAdminController {
 
-    @Autowired
-    private UserManagementService userManagementService;
+    private final UserManagementService userManagementService;
 
     /** 分页查询用户列表 */
     @GetMapping

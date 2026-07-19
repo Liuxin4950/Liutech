@@ -91,7 +91,7 @@
               </span>
               <span class="post-comments">
                 <Icon name="message" size="14" class="meta-icon" />
-                {{ post.commentCount }} 评论
+                {{ post.commentCount || 0 }} 评论
               </span>
             </div>
           </div>

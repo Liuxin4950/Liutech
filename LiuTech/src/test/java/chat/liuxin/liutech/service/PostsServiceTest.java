@@ -13,6 +13,7 @@ import chat.liuxin.liutech.resp.PostCreateResp;
 import chat.liuxin.liutech.resp.PostDetailResp;
 import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.utils.FileUtil;
+import chat.liuxin.liutech.vo.PostTagRowVO;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
@@ -188,14 +189,14 @@ class PostsServiceTest {
         when(mockPage.getCurrent()).thenReturn(1L);
         when(mockPage.getSize()).thenReturn(10L);
 
-        when(postsMapper.selectPostListResl(any(Page.class), isNull(), isNull(), isNull(),
+        when(postsMapper.selectPostListResp(any(Page.class), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull())).thenReturn(mockPage);
 
         // fillTags 调用 selectTagsByPostIds
-        Map<String, Object> tagRow = new HashMap<>();
-        tagRow.put("postId", POST_ID);
-        tagRow.put("id", 1L);
-        tagRow.put("name", "Java");
+        PostTagRowVO tagRow = new PostTagRowVO();
+        tagRow.setPostId(POST_ID);
+        tagRow.setId(1L);
+        tagRow.setName("Java");
         when(postsMapper.selectTagsByPostIds(anyList())).thenReturn(List.of(tagRow));
 
         PageResp<PostListResp> result = postsService.getPostList(req);
@@ -204,7 +205,7 @@ class PostsServiceTest {
         assertEquals(1, result.getRecords().size());
         assertEquals(POST_ID, result.getRecords().get(0).getId());
         assertEquals(1L, result.getTotal());
-        verify(postsMapper).selectPostListResl(any(Page.class), isNull(), isNull(), isNull(),
+        verify(postsMapper).selectPostListResp(any(Page.class), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull());
         verify(postsMapper).selectTagsByPostIds(anyList());
     }
@@ -222,7 +223,7 @@ class PostsServiceTest {
         when(mockPage.getCurrent()).thenReturn(1L);
         when(mockPage.getSize()).thenReturn(10L);
 
-        when(postsMapper.selectPostListResl(any(Page.class), isNull(), isNull(), isNull(),
+        when(postsMapper.selectPostListResp(any(Page.class), isNull(), isNull(), isNull(),
                 isNull(), isNull(), isNull(), isNull())).thenReturn(mockPage);
 
         PageResp<PostListResp> result = postsService.getPostList(req);
@@ -237,7 +238,7 @@ class PostsServiceTest {
     @Test
     void getPostDetail_shouldReturnDetailAndIncrementViewCount() {
         PostDetailResp detail = createDefaultPostDetail();
-        when(postsMapper.selectPostDetailResl(POST_ID, null)).thenReturn(detail);
+        when(postsMapper.selectPostDetailResp(POST_ID, null)).thenReturn(detail);
         when(postAttachmentsMapper.selectPostAttachmentsPublic(POST_ID)).thenReturn(Collections.emptyList());
         when(postsMapper.update(isNull(), any())).thenReturn(1);
 
@@ -246,18 +247,18 @@ class PostsServiceTest {
         assertNotNull(result);
         assertEquals(POST_ID, result.getId());
         assertEquals(101, result.getViewCount());
-        verify(postsMapper).selectPostDetailResl(POST_ID, null);
+        verify(postsMapper).selectPostDetailResp(POST_ID, null);
         verify(postsMapper).update(isNull(), any());
     }
 
     @Test
     void getPostDetail_shouldReturnNullWhenNotFound() {
-        when(postsMapper.selectPostDetailResl(POST_ID, null)).thenReturn(null);
+        when(postsMapper.selectPostDetailResp(POST_ID, null)).thenReturn(null);
 
         PostDetailResp result = postsService.getPostDetail(POST_ID);
 
         assertNull(result);
-        verify(postsMapper).selectPostDetailResl(POST_ID, null);
+        verify(postsMapper).selectPostDetailResp(POST_ID, null);
         verify(postsMapper, never()).update(any(), any());
     }
 
@@ -431,7 +432,7 @@ class PostsServiceTest {
         series.setId(7L);
         series.setName("Spring");
         detail.setSeries(series);
-        when(postsMapper.selectPostDetailResl(POST_ID, null)).thenReturn(detail);
+        when(postsMapper.selectPostDetailResp(POST_ID, null)).thenReturn(detail);
         when(postAttachmentsMapper.selectPostAttachmentsPublic(POST_ID)).thenReturn(Collections.emptyList());
         when(postsMapper.update(isNull(), any())).thenReturn(1);
 
@@ -454,7 +455,7 @@ class PostsServiceTest {
     void getPostDetail_shouldSkipSeriesCatalogWhenNoSeries() {
         PostDetailResp detail = createDefaultPostDetail();
         detail.setSeries(null);
-        when(postsMapper.selectPostDetailResl(POST_ID, null)).thenReturn(detail);
+        when(postsMapper.selectPostDetailResp(POST_ID, null)).thenReturn(detail);
         when(postAttachmentsMapper.selectPostAttachmentsPublic(POST_ID)).thenReturn(Collections.emptyList());
         when(postsMapper.update(isNull(), any())).thenReturn(1);
 

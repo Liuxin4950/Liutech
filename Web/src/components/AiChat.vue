@@ -9,6 +9,7 @@ import AiChatInput from './AiChatInput.vue'
 import Icon from './Icon.vue'
 import { useConversationManager } from '@/composables/useConversationManager'
 import { useVoiceRecognition } from '@/composables/useVoiceRecognition'
+import { parsePostId } from '@/utils/postPath'
 
 const props = defineProps<{
   expanded?: boolean
@@ -101,7 +102,7 @@ const cleanedMessages = computed(() => {
 const buildChatContext = (): Record<string, any> => {
   const ctx: Record<string, any> = { page: route.name || '' }
   if (route.name === 'post-detail' && route.params.id) {
-    const n = Number(route.params.id)
+    const n = parsePostId(route.params.id)
     if (Number.isFinite(n)) ctx.postId = n
   }
   return ctx

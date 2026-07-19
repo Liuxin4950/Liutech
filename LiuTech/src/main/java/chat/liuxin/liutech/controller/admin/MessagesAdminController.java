@@ -1,8 +1,8 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,13 +24,12 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/admin/messages")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class MessagesAdminController extends BaseAdminController {
 
-    @Autowired
-    private MessagesService messagesService;
+    private final MessagesService messagesService;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
     /** 分页查询留言列表 */
     @GetMapping

@@ -12,6 +12,7 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 博客工具类
@@ -31,11 +32,14 @@ public class BlogMcpTools implements ToolGroup {
 
     /** 所有人可用（游客/用户/管理员） */
     @Override
-    public java.util.Set<String> allowedRoles() {
-        return java.util.Set.of("ADMIN", "USER", "GUEST");
+    public Set<String> allowedRoles() {
+        return Set.of("ADMIN", "USER", "GUEST");
     }
 
     private final BlogApiClient blogApiClient;
+
+    /** 工具调用未传 limit 时的默认返回数 */
+    private static final int DEFAULT_TOOL_LIMIT = 5;
 
     /**
      * AI 会在用户说"找文章 / 推荐一篇讲 XX 的 / 相关文章有哪些"时调用。
@@ -65,7 +69,7 @@ public class BlogMcpTools implements ToolGroup {
             @ToolParam(description = "返回数量，建议 1 到 8") Integer limit
     ) {
         log.debug("工具调用: getPostsByCategory, categoryId={}, limit={}", categoryId, limit);
-        int size = limit != null ? limit : 5;
+        int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
         List<PostSummaryDTO> results = blogApiClient.getPostsByCategory(categoryId, size);
         log.debug("分类文章结果: {} 篇", results.size());
         return results;
@@ -77,7 +81,7 @@ public class BlogMcpTools implements ToolGroup {
     @Tool(description = "获取博客最新发布的文章列表，适合用户要求看看最近更新了什么时调用。推荐文章时必须使用 [标题](/post/ID) 格式引用")
     public List<PostSummaryDTO> getLatestPosts(@ToolParam(description = "返回数量，建议 1 到 8") Integer limit) {
         log.debug("工具调用: getLatestPosts, limit={}", limit);
-        int size = limit != null ? limit : 5;
+        int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
         List<PostSummaryDTO> results = blogApiClient.getLatestPosts(size);
         log.debug("最新文章结果: {} 篇", results.size());
         return results;
@@ -89,7 +93,7 @@ public class BlogMcpTools implements ToolGroup {
     @Tool(description = "获取博客热门文章列表，适合用户要求看热门内容时调用。推荐文章时必须使用 [标题](/post/ID) 格式引用")
     public List<PostSummaryDTO> getHotPosts(@ToolParam(description = "返回数量，建议 1 到 8") Integer limit) {
         log.debug("工具调用: getHotPosts, limit={}", limit);
-        int size = limit != null ? limit : 5;
+        int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
         List<PostSummaryDTO> results = blogApiClient.getHotPosts(size);
         log.debug("热门文章结果: {} 篇", results.size());
         return results;

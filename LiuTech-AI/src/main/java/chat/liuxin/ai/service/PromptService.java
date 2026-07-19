@@ -6,6 +6,7 @@ import chat.liuxin.ai.dto.AuthorProfileDTO;
 import chat.liuxin.ai.dto.CategoryDTO;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.PostDetailDTO;
+import chat.liuxin.ai.dto.TagDTO;
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.config.AiPromptConfig;
 import lombok.RequiredArgsConstructor;
@@ -160,9 +161,6 @@ public class PromptService {
         return appendSecurityRules(base);
     }
 
-    /**
-     * 把文章草稿快照拼装为 AI 可读的文本。
-     */
     /**
      * 按前端传的 requestedFields 裁剪草稿上下文，只塞本次操作需要的字段，省 token。
      * 例如只改标题时不塞 6000 字正文；全字段写新文章时塞全部。
@@ -327,7 +325,6 @@ public class PromptService {
                 continue;
             }
             String content = tempMessage.getContent();
-            if (content == null || content.isBlank()) continue;
             String role = tempMessage.getRole() == null ? "user" : tempMessage.getRole().trim().toLowerCase(Locale.ROOT);
             switch (role) {
                 case "assistant" -> messages.add(new AssistantMessage(content));
@@ -360,10 +357,6 @@ public class PromptService {
     }
 
     /**
-     * 取站点简介文本,带 10 分钟内存缓存,避免每次聊天都回主后端拉作者档案。
-     * 双检锁保证并发下只有一个线程真正去请求。
-     */
-    /**
      * 取分类/标签快照文本,10 分钟缓存,避免每次写作请求都回主后端拉分类/标签。
      * 格式:分类 ID→name 列表 + 标签 ID→name 列表,AI 直接从中选 ID 传给 applyArticleUpdate。
      */
@@ -389,14 +382,12 @@ public class PromptService {
                         sb.append("\n");
                     }
                 }
-                List<?> tags = blogApiClient.getAllTags();
+                List<TagDTO> tags = blogApiClient.getAllTags();
                 if (tags != null && !tags.isEmpty()) {
                     sb.append("\n【标签列表（id→name）】\n");
-                    for (Object t : tags) {
-                        if (t instanceof Map<?, ?> m) {
-                            Object id = m.get("id");
-                            Object name = m.get("name");
-                            if (id != null && name != null) sb.append(id).append(" → ").append(name).append("\n");
+                    for (TagDTO t : tags) {
+                        if (t.getId() != null && t.getName() != null) {
+                            sb.append(t.getId()).append(" -> ").append(t.getName()).append("\n");
                         }
                     }
                 }
@@ -411,6 +402,11 @@ public class PromptService {
             }
         }
     }
+
+    /**
+     * 取站点简介文本,带 10 分钟内存缓存,避免每次聊天都回主后端拉作者档案。
+     * 双检锁保证并发下只有一个线程真正去请求。
+     */
     private String getSiteProfilePrompt() {
         long now = System.currentTimeMillis();
         if (cachedSiteProfilePrompt != null && now - siteProfileCachedAt < SITE_PROFILE_TTL_MS) {

@@ -6,7 +6,6 @@ import chat.liuxin.liutech.resp.PostSeriesResp;
 import chat.liuxin.liutech.service.PostSeriesService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -26,9 +25,8 @@ class PostSeriesControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new PostSeriesController();
         postSeriesService = mock(PostSeriesService.class);
-        ReflectionTestUtils.setField(controller, "postSeriesService", postSeriesService);
+        controller = new PostSeriesController(postSeriesService);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.controller.web;
 
+import lombok.RequiredArgsConstructor;
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.common.BusinessException;
@@ -26,7 +27,6 @@ import java.util.List;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -39,6 +39,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequestMapping("/user")
+@RequiredArgsConstructor
 public class UserController {
 
     // 依赖说明：
@@ -49,20 +50,15 @@ public class UserController {
     // - JwtAuthenticationFilter 在每次请求中解析JWT并注入 Authentication，供 UserUtils 与 @PreAuthorize 使用
     // - 管理员接口建议使用 /admin/users 控制器（已加 @PreAuthorize('hasRole('ADMIN')')），本控制器的管理类接口默认仅需认证
 
-    @Autowired
-    private UserAuthService userAuthService;
+    private final UserAuthService userAuthService;
 
-    @Autowired
-    private UserProfileService userProfileService;
+    private final UserProfileService userProfileService;
 
-    @Autowired
-    private UserManagementService userManagementService;
+    private final UserManagementService userManagementService;
 
-    @Autowired
-    private UserUtils userUtils;
+    private final UserUtils userUtils;
 
-    @Autowired
-    private VerificationCodeService verificationCodeService;
+    private final VerificationCodeService verificationCodeService;
     /**
      * 用户注册接口
      * 创建新用户账户，包括用户名唯一性检查、邮箱唯一性检查、密码加密等

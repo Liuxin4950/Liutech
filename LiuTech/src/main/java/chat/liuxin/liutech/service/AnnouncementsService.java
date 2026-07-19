@@ -58,7 +58,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
     public IPage<AnnouncementResp> getValidAnnouncements(long current, long size) {
         Page<Announcements> page = new Page<>(current, size);
         IPage<Announcements> announcementPage = announcementsMapper.selectValidAnnouncements(page);
-        return announcementPage.convert(this::convertToResl);
+        return announcementPage.convert(this::convertToResp);
     }
 
     /**
@@ -96,7 +96,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         validateAnnouncementId(id);
         Announcements announcement = getValidAnnouncementById(id);
         incrementViewCount(announcement);
-        return convertToResl(announcement);
+        return convertToResp(announcement);
     }
 
     /**
@@ -162,7 +162,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         Page<Announcements> page = new Page<>(current, size);
         QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, keyword, includeDeleted);
         IPage<Announcements> announcementPage = this.page(page, queryWrapper);
-        return announcementPage.convert(this::convertToResl);
+        return announcementPage.convert(this::convertToResp);
     }
 
     /**
@@ -355,7 +355,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @return 公告响应列表
      */
     private List<AnnouncementResp> convertAnnouncementsList(List<Announcements> announcements) {
-        return announcements.stream().map(this::convertToResl).collect(Collectors.toList());
+        return announcements.stream().map(this::convertToResp).collect(Collectors.toList());
     }
 
     /**
@@ -396,7 +396,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         if (announcement == null || announcement.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
         }
-        return convertToResl(announcement);
+        return convertToResp(announcement);
     }
 
     /**
@@ -562,7 +562,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @param announcement 公告实体
      * @return 公告响应数据
      */
-    private AnnouncementResp convertToResl(Announcements announcement) {
+    private AnnouncementResp convertToResp(Announcements announcement) {
         AnnouncementResp resl = new AnnouncementResp();
         if (announcement != null) {
             BeanUtils.copyProperties(announcement, resl);

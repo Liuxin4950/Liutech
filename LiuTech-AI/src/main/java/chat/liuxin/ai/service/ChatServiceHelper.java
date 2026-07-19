@@ -50,7 +50,7 @@ public class ChatServiceHelper {
     public void saveErrorIfNeeded(boolean guestMode, String userId, Long conversationId, String modelName) {
         if (!guestMode && conversationId != null) {
             try {
-                memoryService.saveAssistantMessage(userId, conversationId, null, modelName, 3, null);
+                memoryService.saveAssistantMessage(userId, conversationId, null, modelName, MemoryService.MESSAGE_STATUS_ERROR, null);
             } catch (Exception e) {
                 log.warn("记录错误消息失败: {}", e.getMessage());
             }

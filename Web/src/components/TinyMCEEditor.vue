@@ -289,15 +289,6 @@ const editorConfig = computed(() => ({
   indent: false,
   keep_styles: false,
   paste_webkit_styles: 'none',
-  // 高级功能配置 - 保存相关功能暂时禁用
-  // autosave_interval: '30s',
-  // autosave_prefix: 'tinymce-autosave-{path}{query}-{id}-',
-  // autosave_restore_when_empty: true,
-  // autosave_retention: '1440m',
-  // save_enablewhendirty: true,
-  // save_onsavecallback: function () {
-  //   console.log('内容已保存')
-  // },
   // 编辑器尺寸和布局
   min_height: 300,
   max_height: 800,

@@ -1,5 +1,6 @@
 package chat.liuxin.ai.infra.config;
 
+import chat.liuxin.ai.common.utils.WebUtils;
 import chat.liuxin.ai.infra.filter.JwtAuthenticationFilter;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,9 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
+    private ObjectMapper objectMapper;
     
     // 使用RequestAttributeSecurityContextRepository解决SSE流完成后认证上下文丢失问题
     private final SecurityContextRepository securityContextRepository = 
@@ -77,7 +81,7 @@ public class SecurityConfig {
                 // 未认证（如未携带/携带无效Token）
                 .authenticationEntryPoint((request, response, authException) -> {
                     // 对于SSE请求，如果响应已经提交，则不处理认证异常
-                    if (isSseRequest(request) && response.isCommitted()) {
+                    if (WebUtils.isSseRequest(request) && response.isCommitted()) {
                         return;
                     }
                     response.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -86,12 +90,12 @@ public class SecurityConfig {
                     body.put("success", false);
                     body.put("message", "未登录或Token已失效");
                     body.put("code", 401);
-                    new ObjectMapper().writeValue(response.getWriter(), body);
+                    objectMapper.writeValue(response.getWriter(), body);
                 })
                 // 已认证但权限不足
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     // 对于SSE请求，如果响应已经提交，则不处理权限拒绝异常
-                    if (isSseRequest(request) && response.isCommitted()) {
+                    if (WebUtils.isSseRequest(request) && response.isCommitted()) {
                         return;
                     }
                     response.setStatus(HttpStatus.FORBIDDEN.value());
@@ -100,7 +104,7 @@ public class SecurityConfig {
                     body.put("success", false);
                     body.put("message", "权限不足，拒绝访问");
                     body.put("code", 403);
-                    new ObjectMapper().writeValue(response.getWriter(), body);
+                    objectMapper.writeValue(response.getWriter(), body);
                 })
             )
             // 设置会话管理为无状态（JWT不需要session）
@@ -133,17 +137,6 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
-    }
-    
-    /**
-     * 判断是否 SSE 请求：Accept 头含 text/event-stream 且 URI 含 /stream。
-     * 用途：SSE 响应已开始流式输出后，异常处理器就不能再写 JSON，否则破坏 event-stream 格式。
-     */
-    private boolean isSseRequest(HttpServletRequest request) {
-        String acceptHeader = request.getHeader("Accept");
-        String uri = request.getRequestURI();
-        return acceptHeader != null && acceptHeader.contains("text/event-stream") && 
-               uri != null && uri.contains("/stream");
     }
 
     /**

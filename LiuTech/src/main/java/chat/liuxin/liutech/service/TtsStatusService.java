@@ -1,6 +1,6 @@
 package chat.liuxin.liutech.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import chat.liuxin.liutech.model.dto.TtsStatusDTO;
@@ -12,10 +12,10 @@ import chat.liuxin.liutech.model.dto.TtsStatusDTO;
  * 供 TtsController / TtsAdminController 调用，避免改动 Controller。
  */
 @Service
+@RequiredArgsConstructor
 public class TtsStatusService {
 
-    @Autowired
-    private TtsSpeechService ttsSpeechService;
+    private final TtsSpeechService ttsSpeechService;
 
     public TtsStatusDTO getStatus() {
         return ttsSpeechService.getStatus();

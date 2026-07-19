@@ -1,9 +1,9 @@
 package chat.liuxin.liutech.utils;
 
 import chat.liuxin.liutech.config.FileUploadConfig;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,10 +32,10 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class FileUtil {
 
-    @Autowired
-    private FileUploadConfig fileUploadConfig;
+    private final FileUploadConfig fileUploadConfig;
 
     /** 图片URL提取正则：匹配 <img src="URL">，支持属性换行和多种格式 */
     private static final Pattern IMG_SRC_PATTERN = Pattern.compile(

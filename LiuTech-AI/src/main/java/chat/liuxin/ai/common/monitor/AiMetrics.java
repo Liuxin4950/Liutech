@@ -6,6 +6,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * AI服务监控指标
  * 收集和记录AI服务的关键性能指标
@@ -37,22 +39,29 @@ public class AiMetrics {
      * success 为 false 时额外累加 ai_errors_total,方便 Grafana 计算错误率。
      */
     public void recordAiRequest(String model, boolean success, long responseTime, int tokenCount) {
-        // 记录请求次数
-        Counter.builder("ai_requests_total")
+        doRecord(model, success, null, responseTime, tokenCount);
+    }
+
+    /**
+     * 统一记录指标：请求计数、响应时长、Token 用量、错误计数。
+     * errorType 非 null 时额外打 error_type 标签，便于按异常类型拆分错误面板。
+     */
+    private void doRecord(String model, boolean success, String errorType, long responseTime, int tokenCount) {
+        Counter.Builder requestCounter = Counter.builder("ai_requests_total")
                 .description("AI服务请求总数")
                 .tag("model", model)
-                .tag("status", success ? "success" : "failure")
-                .register(meterRegistry)
-                .increment();
+                .tag("status", success ? "success" : "failure");
+        if (errorType != null) {
+            requestCounter.tag("error_type", errorType);
+        }
+        requestCounter.register(meterRegistry).increment();
 
-        // 记录响应时间
         Timer.builder("ai_response_duration_seconds")
                 .description("AI服务响应时间")
                 .tag("model", model)
                 .register(meterRegistry)
-                .record(responseTime, java.util.concurrent.TimeUnit.MILLISECONDS);
+                .record(responseTime, TimeUnit.MILLISECONDS);
 
-        // 记录Token消耗
         if (tokenCount > 0) {
             DistributionSummary.builder("ai_token_usage")
                     .description("AI模型Token消耗量")
@@ -61,14 +70,15 @@ public class AiMetrics {
                     .record(tokenCount);
         }
 
-        // 记录错误
         if (!success) {
-            Counter.builder("ai_errors_total")
+            Counter.Builder errorCounter = Counter.builder("ai_errors_total")
                     .description("AI服务错误总数")
                     .tag("model", model)
-                    .tag("status", "failure")
-                    .register(meterRegistry)
-                    .increment();
+                    .tag("status", "failure");
+            if (errorType != null) {
+                errorCounter.tag("error_type", errorType);
+            }
+            errorCounter.register(meterRegistry).increment();
         }
     }
 
@@ -84,27 +94,7 @@ public class AiMetrics {
      * 便于按异常类型(如 timeout、rate_limit、upstream_error)拆分错误面板。
      */
     public void recordFailure(String model, long responseTime, String errorType) {
-        Counter.builder("ai_requests_total")
-                .description("AI服务请求总数")
-                .tag("model", model)
-                .tag("status", "failure")
-                .tag("error_type", errorType)
-                .register(meterRegistry)
-                .increment();
-
-        Timer.builder("ai_response_duration_seconds")
-                .description("AI服务响应时间")
-                .tag("model", model)
-                .register(meterRegistry)
-                .record(responseTime, java.util.concurrent.TimeUnit.MILLISECONDS);
-
-        Counter.builder("ai_errors_total")
-                .description("AI服务错误总数")
-                .tag("model", model)
-                .tag("status", "failure")
-                .tag("error_type", errorType)
-                .register(meterRegistry)
-                .increment();
+        doRecord(model, false, errorType, responseTime, 0);
     }
 
 }

@@ -32,6 +32,9 @@ public class AiModelController {
 
     private final AiModelConfigService modelConfigService;
 
+    /** 未设置默认模型时的兜底模型 */
+    private static final String FALLBACK_DEFAULT_MODEL = "zai-org/GLM-4.6";
+
     /**
      * 获取默认模型
      *
@@ -44,8 +47,8 @@ public class AiModelController {
     public String getDefaultModel() {
         Optional<ModelConfigDTO> defaultModel = modelConfigService.getDefaultModel();
         if (defaultModel.isEmpty()) {
-            log.warn("未设置默认模型，返回系统默认模型: zai-org/GLM-4.6");
-            return "zai-org/GLM-4.6";
+            log.warn("未设置默认模型，返回系统默认模型: {}", FALLBACK_DEFAULT_MODEL);
+            return FALLBACK_DEFAULT_MODEL;
         }
         return defaultModel.get().getModelName();
     }

@@ -33,6 +33,9 @@ public class CheckinService {
     private final UserMapper userMapper;
     private final PointsService pointsService;
 
+    /** 计算连续签到天数时回溯查询的最近签到记录数上限 */
+    private static final int RECENT_CHECKINS_LIMIT = 100;
+
     /**
      * 用户签到
      *
@@ -151,7 +154,7 @@ public class CheckinService {
      * @return 连续签到天数
      */
     private int calculateConsecutiveDays(Long userId, LocalDate currentDate) {
-        List<UserCheckin> recentCheckins = userCheckinMapper.findRecentCheckins(userId, 100);
+        List<UserCheckin> recentCheckins = userCheckinMapper.findRecentCheckins(userId, RECENT_CHECKINS_LIMIT);
 
         if (recentCheckins.isEmpty()) {
             return 1; // 首次签到

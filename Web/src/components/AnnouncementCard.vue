@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify'
 import { useAnnouncementStore } from '../stores/announcement'
 import type { Announcement } from '../services/announcement'
 import Icon from './Icon.vue'
+import { formatDate, formatDateTime } from '@/utils/utils'
 
 // 使用公告 store
 const announcementStore = useAnnouncementStore()
@@ -23,17 +24,6 @@ const announcements = computed(() => announcementStore.latestAnnouncements)
 
 const sanitizeAnnouncementContent = (content?: string) => {
   return DOMPurify.sanitize(content || '')
-}
-
-// 格式化日期
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
 }
 
 // 显示公告详情
@@ -57,20 +47,6 @@ const getPriorityClass = (priority: number) => {
     4: 'badge-red'
   }
   return classMap[priority] || 'badge-gray'
-}
-
-// 格式化日期时间
-const formatDateTime = (dateStr?: string) => {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
 }
 
 // 获取最新公告

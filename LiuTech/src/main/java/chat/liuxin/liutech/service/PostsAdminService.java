@@ -28,6 +28,7 @@ import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.PostTags;
 import chat.liuxin.liutech.model.PostLikes;
 import chat.liuxin.liutech.model.PostFavorites;
+import chat.liuxin.liutech.vo.PostAttachmentVO;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostDetailResp;
 import chat.liuxin.liutech.resp.PostListResp;
@@ -98,25 +99,24 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(readOnly = true)
     public PostDetailResp getPostDetailForAdmin(Long id) {
-        PostDetailResp postDetail = postsMapper.selectPostDetailResl(id, null);
+        PostDetailResp postDetail = postsMapper.selectPostDetailResp(id, null);
         if (postDetail == null) {
             return null;
         }
-        List<java.util.Map<String, Object>> list = postAttachmentsMapper.selectPostAttachmentsPublic(id);
-        if (list != null && !list.isEmpty()) {
-            List<PostDetailResp.AttachmentInfo> attachments = list.stream().map(map -> {
-                PostDetailResp.AttachmentInfo a = new PostDetailResp.AttachmentInfo();
-                Object v;
-                v = map.get("attachmentId"); if (v != null) a.setAttachmentId(((Number) v).longValue());
-                v = map.get("resourceId"); if (v != null) a.setResourceId(((Number) v).longValue());
-                v = map.get("fileName"); if (v != null) a.setFileName(String.valueOf(v));
-                v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
-                v = map.get("pointsNeeded"); if (v != null) a.setPointsNeeded(((Number) v).intValue());
-                v = map.get("createdTime"); if (v instanceof java.util.Date) a.setCreatedTime((java.util.Date) v);
-                v = map.get("externalLink"); if (v != null) a.setExternalLink(String.valueOf(v));
-                v = map.get("resourceType"); if (v != null) a.setResourceType(String.valueOf(v));
-                v = map.get("purchasedNote"); if (v != null) a.setPurchasedNote(String.valueOf(v));
-                return a;
+        List<PostAttachmentVO> attachmentVOs = postAttachmentsMapper.selectPostAttachmentsPublic(id);
+        if (attachmentVOs != null && !attachmentVOs.isEmpty()) {
+            List<PostDetailResp.AttachmentInfo> attachments = attachmentVOs.stream().map(vo -> {
+                PostDetailResp.AttachmentInfo info = new PostDetailResp.AttachmentInfo();
+                info.setAttachmentId(vo.getAttachmentId());
+                info.setResourceId(vo.getResourceId());
+                info.setFileName(vo.getFileName());
+                info.setFileUrl(vo.getFileUrl());
+                info.setPointsNeeded(vo.getPointsNeeded());
+                info.setCreatedTime(vo.getCreatedTime());
+                info.setExternalLink(vo.getExternalLink());
+                info.setResourceType(vo.getResourceType());
+                info.setPurchasedNote(vo.getPurchasedNote());
+                return info;
             }).collect(Collectors.toList());
             postDetail.setAttachments(attachments);
         }

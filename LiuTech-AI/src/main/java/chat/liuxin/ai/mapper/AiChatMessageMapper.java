@@ -1,5 +1,6 @@
 package chat.liuxin.ai.mapper;
 
+import chat.liuxin.ai.dto.ModelUsageStats;
 import chat.liuxin.ai.entity.AiChatMessage;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
@@ -64,12 +65,12 @@ public interface AiChatMessageMapper extends BaseMapper<AiChatMessage> {
     long countMessagesByUserId(@Param("userId") String userId);
     
     /**
-     * 清理用户旧消息，保留最近N条（避免N+1查询）
-     * 使用JOIN查询，一次数据库操作完成清理
-     * 
+     * 统计用户待清理的旧消息数（保留最近 N 条，统计之外的旧消息条数）
+     * 实际删除由调用方按此数量执行，本方法只做计数
+     *
      * @param userId 用户ID
      * @param retainLastN 保留条数
-     * @return 删除的记录数
+     * @return 待清理的旧消息数
      */
     @Select("SELECT COUNT(*) FROM ai_chat_message m " +
             "INNER JOIN ai_conversation c ON m.conversation_id = c.id " +
@@ -95,5 +96,5 @@ public interface AiChatMessageMapper extends BaseMapper<AiChatMessage> {
             "AND model IS NOT NULL " +
             "GROUP BY model " +
             "ORDER BY usageCount DESC")
-    List<Map<String, Object>> selectTodayModelUsage();
+    List<ModelUsageStats> selectTodayModelUsage();
 }

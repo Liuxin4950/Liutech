@@ -48,6 +48,9 @@ public class PointsService {
     public static final String SOURCE_ADMIN_MANUAL = "admin_manual";
     public static final String SOURCE_SYSTEM_REWARD = "system_reward";
 
+    /** 乐观锁冲突时的最大重试次数 */
+    private static final int MAX_RETRY_COUNT = 3;
+
     /**
      * 扣减用户积分（原子操作，防止并发问题）
      *
@@ -136,7 +139,7 @@ public class PointsService {
         // 2. 使用乐观锁更新积分（重试机制，防止并发竞态）
         boolean updated = false;
         BigDecimal newPoints = BigDecimal.ZERO;
-        for (int i = 0; i < 3; i++) {
+        for (int attempt = 0; attempt < MAX_RETRY_COUNT; attempt++) {
             user = userMapper.selectById(userId);
             BigDecimal currentPoints = user.getPoints() != null ? user.getPoints() : BigDecimal.ZERO;
             Integer currentVersion = user.getVersion() != null ? user.getVersion() : 0;
@@ -148,7 +151,7 @@ public class PointsService {
                 updated = true;
                 break;
             }
-            log.warn("用户{}积分增加乐观锁冲突，重试第{}次", userId, i + 1);
+            log.warn("用户{}积分增加乐观锁冲突，重试第{}次", userId, attempt + 1);
         }
 
         if (!updated) {

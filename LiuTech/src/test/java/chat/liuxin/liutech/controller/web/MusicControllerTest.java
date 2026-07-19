@@ -6,7 +6,6 @@ import chat.liuxin.liutech.model.Music;
 import chat.liuxin.liutech.service.MusicService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,9 +20,8 @@ class MusicControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new MusicController();
         musicService = mock(MusicService.class);
-        ReflectionTestUtils.setField(controller, "musicService", musicService);
+        controller = new MusicController(musicService);
     }
 
     // ========== getMusicList ==========

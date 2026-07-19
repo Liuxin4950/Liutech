@@ -1,8 +1,8 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,10 +29,10 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/admin/music")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class MusicAdminController extends BaseAdminController {
 
-    @Autowired
-    private MusicService musicService;
+    private final MusicService musicService;
 
     /** 获取音乐列表（支持状态和关键词筛选） */
     @GetMapping("/list")

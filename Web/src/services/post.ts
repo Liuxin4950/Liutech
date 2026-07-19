@@ -154,7 +154,7 @@ interface AttachmentUploadResponse {
   fileSize: number
 }
 
-// 文章详情返回中的附件信息（与后端 PostDetailResl.AttachmentInfo 对应）
+// 文章详情返回中的附件信息（与后端 PostDetailResp.AttachmentInfo 对应）
 interface PostAttachment {
   attachmentId: number
   resourceId: number

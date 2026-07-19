@@ -8,7 +8,6 @@ import chat.liuxin.liutech.service.CommentsService;
 import chat.liuxin.liutech.utils.UserUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,11 +23,9 @@ class CommentsControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new CommentsController();
         commentsService = mock(CommentsService.class);
         userUtils = mock(UserUtils.class);
-        ReflectionTestUtils.setField(controller, "commentsService", commentsService);
-        ReflectionTestUtils.setField(controller, "userUtils", userUtils);
+        controller = new CommentsController(commentsService, userUtils);
     }
 
     // ========== getTreeCommentsByPostId ==========

@@ -9,7 +9,6 @@ import chat.liuxin.liutech.service.LogService;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.*;
 
@@ -24,10 +23,8 @@ class LogsControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new LogsController();
         logService = mock(LogService.class);
-
-        ReflectionTestUtils.setField(controller, "logService", logService);
+        controller = new LogsController(logService);
     }
 
     // ========== getLogList ==========

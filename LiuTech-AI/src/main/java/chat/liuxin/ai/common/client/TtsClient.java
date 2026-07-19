@@ -61,6 +61,15 @@ public class TtsClient {
         this.objectMapper = new ObjectMapper();
     }
 
+    /** 从标准响应 {code, data} 中提取 data 节点；code 非 200 或无 data 返回 null */
+    private JsonNode extractData(JsonNode root) {
+        if (root == null) return null;
+        if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            return root.get("data");
+        }
+        return null;
+    }
+
     /**
      * 读取应用配置里的并发上限,重建信号量。
      *
@@ -95,7 +104,7 @@ public class TtsClient {
             String url = normalizeBaseUrl(backendApiUrl) + "/tts/status";
             String response = restTemplate.getForObject(url, String.class);
             JsonNode root = objectMapper.readTree(response);
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 status.setEnabled(data.has("enabled") && data.get("enabled").asBoolean(false));
                 status.setOnline(data.has("online") && data.get("online").asBoolean(false));
@@ -149,7 +158,7 @@ public class TtsClient {
                     String.class);
 
             JsonNode root = objectMapper.readTree(response.getBody());
-            if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
+            if (extractData(root) != null) {
                 JsonNode data = root.get("data");
                 String audioUrl = data.has("audioUrl") && !data.get("audioUrl").isNull() ? data.get("audioUrl").asText() : null;
                 return normalizeBackendAudioUrl(audioUrl);

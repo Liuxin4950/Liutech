@@ -1,12 +1,12 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 
 import jakarta.validation.Valid;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,10 +34,10 @@ import chat.liuxin.liutech.service.CarouselService;
 @RestController
 @RequestMapping("/admin/carousels")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class CarouselAdminController extends BaseAdminController {
 
-    @Autowired
-    private CarouselService carouselService;
+    private final CarouselService carouselService;
 
     /** 分页查询轮播图列表 */
     @GetMapping

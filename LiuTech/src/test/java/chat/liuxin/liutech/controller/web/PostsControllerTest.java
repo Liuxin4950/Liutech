@@ -10,7 +10,6 @@ import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -28,14 +27,10 @@ class PostsControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new PostsController();
         postsService = mock(PostsService.class);
         postInteractionService = mock(PostInteractionService.class);
         userUtils = mock(UserUtils.class);
-
-        ReflectionTestUtils.setField(controller, "postsService", postsService);
-        ReflectionTestUtils.setField(controller, "postInteractionService", postInteractionService);
-        ReflectionTestUtils.setField(controller, "userUtils", userUtils);
+        controller = new PostsController(postsService, postInteractionService, userUtils);
     }
 
     // ========== getPostList ==========

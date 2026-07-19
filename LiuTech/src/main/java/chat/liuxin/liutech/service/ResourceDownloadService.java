@@ -69,7 +69,7 @@ public class ResourceDownloadService {
         }
 
         // 2. 检查是否为免费资源
-        if (resource.getDownloadType() == 0) {
+        if (resource.getDownloadType() == Resources.DOWNLOAD_TYPE_FREE) {
             throw new RuntimeException("该资源为免费资源，无需购买");
         }
 
@@ -176,7 +176,7 @@ public class ResourceDownloadService {
 
     private boolean isPaidResource(Resources resource) {
         Integer downloadType = resource.getDownloadType();
-        return (downloadType != null && downloadType != 0)
+        return (downloadType != null && downloadType != Resources.DOWNLOAD_TYPE_FREE)
                 || (resource.getPointsNeeded() != null && resource.getPointsNeeded().compareTo(BigDecimal.ZERO) > 0);
     }
 

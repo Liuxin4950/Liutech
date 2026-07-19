@@ -57,7 +57,7 @@
             <div class="post-stats">
               <span class="flex flex-ac gap-4"><Icon name="eye" size="14" /> {{ post.viewCount || 0 }}</span>
               <span class="flex flex-ac gap-4"><Icon name="heart" size="14" /> {{ post.likeCount || 0 }}</span>
-              <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount }}</span>
+              <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount || 0 }}</span>
               <span class="post-date">{{ formatDate(post.createdAt) }}</span>
             </div>
           </div>

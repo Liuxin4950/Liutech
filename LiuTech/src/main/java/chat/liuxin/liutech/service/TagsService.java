@@ -62,15 +62,10 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     }
 
     /**
-     * 获取热门标签（按文章数量排序）
+     * 获取热门标签（按文章数量排序），结果按 limit 缓存（@Cacheable hotTags）
+     *
      * @param limit 限制数量
      * @return 热门标签列表
-     */
-    /**
-     * Spring Cache 注解：缓存热点标签列表
-     * value = "hotTags" 指定缓存名
-     * key = "#limit" 以方法参数 limit 作为缓存键
-     * unless = "#result == null || #result.isEmpty()" 当返回值为 null 或空列表时不缓存
      */
     @Transactional(readOnly = true)
     @Cacheable(value = "hotTags", key = "#limit", unless = "#result == null || #result.isEmpty()")
@@ -144,7 +139,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     }
 
     /**
-     * 根据ID查询标签详情（返回TagResl）
+     * 根据ID查询标签详情（返回TagResp）
      * @param id 标签ID
      * @return 标签详情
      */
@@ -188,7 +183,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     }
 
     /**
-     * 保存标签（接受TagResl参数）
+     * 保存标签（接受TagResp参数）
      * 创建新标签，自动设置创建时间和更新时间
      *
      * @param tagResp 标签信息，必须包含标签名称
@@ -211,7 +206,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     }
 
     /**
-     * 根据ID更新标签（接受TagResl参数）
+     * 根据ID更新标签（接受TagResp参数）
      * 更新标签信息，自动设置更新时间
      *
      * @param tagResp 标签信息，必须包含有效的ID

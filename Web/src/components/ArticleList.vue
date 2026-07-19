@@ -14,7 +14,7 @@
     <div v-else-if="posts.length === 0" class="empty-text flex flex-col flex-ac text-sm" style="text-align:center">
       <slot name="empty">
         <p>暂无文章</p>
-<img src="@/assets/image/扑到.png" alt="" class="fit-err">
+        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
       </slot>
     </div>
 
@@ -66,7 +66,7 @@
             <div class="meta-stats flex gap-12 text-sm text-subtle">
               <span class="flex flex-ac gap-4"><Icon name="eye" size="14" /> {{ post.viewCount || 0 }}</span>
               <span class="flex flex-ac gap-4"><Icon name="heart" size="14" /> {{ post.likeCount || 0 }}</span>
-              <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount }}</span>
+              <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount || 0 }}</span>
               <span>{{ formatDate(post.createdAt) }}</span>
             </div>
           </div>

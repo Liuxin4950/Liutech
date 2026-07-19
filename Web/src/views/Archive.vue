@@ -75,7 +75,7 @@
                     <span v-if="post.tags && post.tags.length > 0">
                       {{ post.tags.map(tag => tag.name).join(', ') }}
                     </span>
-                    <span>{{ post.viewCount }} 次阅读</span>
+                    <span>{{ post.viewCount || 0 }} 次阅读</span>
                   </div>
                 </div>
               </div>

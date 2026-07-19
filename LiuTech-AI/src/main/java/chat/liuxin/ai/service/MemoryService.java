@@ -36,6 +36,16 @@ public class MemoryService {
     private final AiChatMessageMapper messageMapper;
     private final AiConversationMapper conversationMapper;
 
+    // ========== 消息与会话状态常量 ==========
+    /** 消息状态：正常完成 */
+    public static final int MESSAGE_STATUS_NORMAL = 1;
+    /** 消息状态：异常（流式中断） */
+    public static final int MESSAGE_STATUS_ERROR = 3;
+    /** 会话状态：正常 */
+    public static final int CONVERSATION_STATUS_ACTIVE = 0;
+    /** 会话状态：已归档（软删除） */
+    public static final int CONVERSATION_STATUS_ARCHIVED = 9;
+
     /**
      * 查用户最近 N 条消息用于跨会话记忆拼接,数据库层按倒序取后由 mapper 返回升序,可直接喂给 prompt。
      */
@@ -73,7 +83,7 @@ public class MemoryService {
         m.setRole("user");
         m.setContent(content);
         m.setModel(model);
-        m.setStatus(1);
+        m.setStatus(MESSAGE_STATUS_NORMAL);
         m.setSeqNo(maxSeqNo + 1);
         m.setCreatedAt(LocalDateTime.now());
         messageMapper.insert(m);
@@ -163,7 +173,7 @@ public class MemoryService {
         LocalDateTime time = LocalDateTime.now();
         c.setUserId(userId);
         c.setTitle(title);
-        c.setStatus(0);
+        c.setStatus(CONVERSATION_STATUS_ACTIVE);
         c.setMessageCount(0);
         c.setCreatedAt(time);
         c.setUpdatedAt(time);
@@ -176,7 +186,6 @@ public class MemoryService {
      */
     public List<AiConversation> listConversations(String userId, String type, int page, int size) {
         int offset = Math.max(0, (page - 1) * size);
-        int safeOffset = Math.max(0, offset);
         int safeSize = Math.max(1, Math.min(size, 100));
         var qw = new LambdaQueryWrapper<AiConversation>()
                 .select(AiConversation::getId,
@@ -188,10 +197,10 @@ public class MemoryService {
                         AiConversation::getMessageCount,
                         AiConversation::getLastMessageAt)
                 .eq(AiConversation::getUserId, userId)
-                .ne(AiConversation::getStatus, 9)
+                .ne(AiConversation::getStatus, CONVERSATION_STATUS_ARCHIVED)
                 .orderByDesc(AiConversation::getUpdatedAt)
                 .orderByDesc(AiConversation::getId)
-                .last(false, "LIMIT " + safeOffset + ", " + safeSize);
+                .last(false, "LIMIT " + offset + ", " + safeSize);
         return conversationMapper.selectList(qw);
     }
 
@@ -222,7 +231,6 @@ public class MemoryService {
     public List<AiChatMessage> listMessagesByConversation(String userId, Long conversationId, int page, int size) {
         getConversationOwnedByUser(userId, conversationId);
         int offset = Math.max(0, (page - 1) * size);
-        int safeOffset = Math.max(0, offset);
         int safeSize = Math.max(1, Math.min(size, 100));
         return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .select(AiChatMessage::getId,
@@ -233,7 +241,7 @@ public class MemoryService {
                 .eq(AiChatMessage::getConversationId, conversationId)
                 .orderByAsc(AiChatMessage::getSeqNo)
                 .orderByAsc(AiChatMessage::getId)
-                .last(false, "LIMIT " + safeOffset + ", " + safeSize)
+                .last(false, "LIMIT " + offset + ", " + safeSize)
         );
     }
 
@@ -291,7 +299,7 @@ public class MemoryService {
     public void archiveConversation(Long conversationId) {
         var c = conversationMapper.selectById(conversationId);
         if (c != null) {
-            c.setStatus(9);
+            c.setStatus(CONVERSATION_STATUS_ARCHIVED);
             c.setUpdatedAt(LocalDateTime.now());
             conversationMapper.updateById(c);
         }

@@ -10,7 +10,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 
@@ -26,12 +25,9 @@ class MessagesAdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new MessagesAdminController();
         messagesService = mock(MessagesService.class);
         userUtils = mock(UserUtils.class);
-
-        ReflectionTestUtils.setField(controller, "messagesService", messagesService);
-        ReflectionTestUtils.setField(controller, "userUtils", userUtils);
+        controller = new MessagesAdminController(messagesService, userUtils);
     }
 
     // ========== getMessagesList ==========

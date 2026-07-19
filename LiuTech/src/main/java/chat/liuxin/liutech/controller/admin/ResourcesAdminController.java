@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
@@ -10,7 +11,6 @@ import chat.liuxin.liutech.service.ResourcesAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,10 +25,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/admin/resources")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class ResourcesAdminController extends BaseAdminController {
 
-    @Autowired
-    private ResourcesAdminService resourcesAdminService;
+    private final ResourcesAdminService resourcesAdminService;
 
     /** 分页查询资源列表 */
     @GetMapping

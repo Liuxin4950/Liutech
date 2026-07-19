@@ -13,7 +13,6 @@ import chat.liuxin.liutech.service.TtsStatusService;
 import chat.liuxin.liutech.service.TtsVoiceCatalogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -31,16 +30,11 @@ class TtsAdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new TtsAdminController();
         ttsConfigService = mock(TtsConfigService.class);
         ttsStatusService = mock(TtsStatusService.class);
         ttsVoiceCatalogService = mock(TtsVoiceCatalogService.class);
         ttsSpeechService = mock(TtsSpeechService.class);
-
-        ReflectionTestUtils.setField(controller, "ttsConfigService", ttsConfigService);
-        ReflectionTestUtils.setField(controller, "ttsStatusService", ttsStatusService);
-        ReflectionTestUtils.setField(controller, "ttsVoiceCatalogService", ttsVoiceCatalogService);
-        ReflectionTestUtils.setField(controller, "ttsSpeechService", ttsSpeechService);
+        controller = new TtsAdminController(ttsConfigService, ttsStatusService, ttsVoiceCatalogService, ttsSpeechService);
     }
 
     // ========== getConfig ==========

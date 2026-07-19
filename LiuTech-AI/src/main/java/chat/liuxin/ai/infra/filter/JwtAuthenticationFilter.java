@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * JWT认证过滤器
@@ -130,7 +131,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /** 用户状态缓存 TTL（毫秒）：封禁等状态变更最多延迟此时间生效 */
     private static final long USER_STATUS_CACHE_TTL_MS = 60_000L;
-    private final java.util.concurrent.ConcurrentHashMap<Long, CachedUser> userStatusCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, CachedUser> userStatusCache = new ConcurrentHashMap<>();
 
     private record CachedUser(CurrentUser user, long cachedAt) {}
 

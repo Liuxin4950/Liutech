@@ -33,9 +33,6 @@ import java.math.BigDecimal;
 @RequiredArgsConstructor
 public class FileUploadService {
 
-    private static final int DOWNLOAD_TYPE_FREE = 0;
-    private static final int DOWNLOAD_TYPE_POINTS = 1;
-
     private final FileUtil fileUtil;
 
     private final FileUploadConfig fileUploadConfig;
@@ -464,16 +461,16 @@ public class FileUploadService {
 
     private int normalizeDownloadType(Integer downloadType) {
         if (downloadType == null) {
-            return DOWNLOAD_TYPE_FREE;
+            return Resources.DOWNLOAD_TYPE_FREE;
         }
-        if (downloadType != DOWNLOAD_TYPE_FREE && downloadType != DOWNLOAD_TYPE_POINTS) {
+        if (downloadType != Resources.DOWNLOAD_TYPE_FREE && downloadType != Resources.DOWNLOAD_TYPE_PAID) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "下载类型参数错误");
         }
         return downloadType;
     }
 
     private BigDecimal normalizePointsNeeded(int downloadType, Integer pointsNeeded) {
-        if (downloadType == DOWNLOAD_TYPE_FREE) {
+        if (downloadType == Resources.DOWNLOAD_TYPE_FREE) {
             return BigDecimal.ZERO;
         }
         int normalizedPoints = pointsNeeded == null ? 1 : Math.max(1, pointsNeeded);

@@ -77,41 +77,4 @@ public class Posts extends BaseEntity {
      * 系列内排序（升序，值越小越靠前）
      */
     private Integer seriesSort;
-
-    // // 关联查询字段
-    // /**
-    //  * 分类信息
-    //  */
-    // @TableField(exist = false)
-    // private Categories category;
-
-    // /**
-    //  * 作者信息
-    //  */
-    // @TableField(exist = false)
-    // private Users author;
-
-    // /**
-    //  * 标签列表
-    //  */
-    // @TableField(exist = false)
-    // private List<Tags> tags;
-
-    // /**
-    //  * 评论数（非数据库字段）
-    //  */
-    // @TableField(exist = false)
-    // private Integer commentCount;
-    
-    // /**
-    //  * 用户点赞状态（非数据库字段）
-    //  */
-    // @TableField(exist = false)
-    // private Integer likeStatus;
-    
-    // /**
-    //  * 用户收藏状态（非数据库字段）
-    //  */
-    // @TableField(exist = false)
-    // private Integer favoriteStatus;
 }

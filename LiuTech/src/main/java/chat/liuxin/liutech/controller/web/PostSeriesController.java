@@ -1,8 +1,8 @@
 package chat.liuxin.liutech.controller.web;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,10 +27,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/series")
+@RequiredArgsConstructor
 public class PostSeriesController {
 
-    @Autowired
-    private PostSeriesService postSeriesService;
+    private final PostSeriesService postSeriesService;
 
     /** 查询所有系列（含已发布文章数，公开） */
     @GetMapping

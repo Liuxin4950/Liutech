@@ -137,69 +137,51 @@ public class DashboardService {
     }
 
     /**
-     * 获取最近N天的文章发布趋势
+     * 构建最近N天的趋势数据（按天归零后统计计数）
+     *
+     * @param days        统计天数
+     * @param countByDate 按日期查询计数的函数
      */
-    private List<TrendData> getPostTrend(int days) {
+    private List<TrendData> buildTrend(int days, java.util.function.Function<Date, Integer> countByDate) {
         List<TrendData> trend = new ArrayList<>();
         Calendar calendar = Calendar.getInstance();
 
         for (int i = days - 1; i >= 0; i--) {
             calendar.setTimeInMillis(System.currentTimeMillis());
             calendar.add(Calendar.DAY_OF_YEAR, -i);
+            // 归零到当天 00:00:00.000，保证按自然日统计
             calendar.set(Calendar.HOUR_OF_DAY, 0);
             calendar.set(Calendar.MINUTE, 0);
             calendar.set(Calendar.SECOND, 0);
             calendar.set(Calendar.MILLISECOND, 0);
             Date date = calendar.getTime();
 
+            // Calendar 月份从 0 开始，格式化时 +1
             String dateStr = String.format("%04d-%02d-%02d",
                     calendar.get(Calendar.YEAR),
                     calendar.get(Calendar.MONTH) + 1,
                     calendar.get(Calendar.DAY_OF_MONTH));
 
-            Integer count = postsMapper.countPostsByDate(date);
-            long postCount = count != null ? count.longValue() : 0L;
+            Integer count = countByDate.apply(date);
+            long value = count != null ? count.longValue() : 0L;
 
             trend.add(TrendData.builder()
                     .date(dateStr)
-                    .count(postCount)
+                    .count(value)
                     .build());
         }
 
         return trend;
     }
 
-    /**
-     * 获取最近N天的用户注册趋势
-     */
+    /** 最近N天的文章发布趋势 */
+    private List<TrendData> getPostTrend(int days) {
+        return buildTrend(days, postsMapper::countPostsByDate);
+    }
+
+    /** 最近N天的用户注册趋势 */
     private List<TrendData> getUserTrend(int days) {
-        List<TrendData> trend = new ArrayList<>();
-        Calendar calendar = Calendar.getInstance();
-
-        for (int i = days - 1; i >= 0; i--) {
-            calendar.setTimeInMillis(System.currentTimeMillis());
-            calendar.add(Calendar.DAY_OF_YEAR, -i);
-            calendar.set(Calendar.HOUR_OF_DAY, 0);
-            calendar.set(Calendar.MINUTE, 0);
-            calendar.set(Calendar.SECOND, 0);
-            calendar.set(Calendar.MILLISECOND, 0);
-            Date date = calendar.getTime();
-
-            String dateStr = String.format("%04d-%02d-%02d",
-                    calendar.get(Calendar.YEAR),
-                    calendar.get(Calendar.MONTH) + 1,
-                    calendar.get(Calendar.DAY_OF_MONTH));
-
-            Integer count = userMapper.countUsersByDate(date);
-            long userCount = count != null ? count.longValue() : 0L;
-
-            trend.add(TrendData.builder()
-                    .date(dateStr)
-                    .count(userCount)
-                    .build());
-        }
-
-        return trend;
+        return buildTrend(days, userMapper::countUsersByDate);
     }
 
     /**
@@ -208,7 +190,7 @@ public class DashboardService {
     private List<PostRank> getTopPosts(int limit) {
         List<PostRank> topPosts = new ArrayList<>();
 
-        var hotPosts = postsMapper.selectHotPostListResl(limit, null);
+        var hotPosts = postsMapper.selectHotPostListResp(limit, null);
         if (hotPosts != null) {
             int rank = 1;
             for (var post : hotPosts) {

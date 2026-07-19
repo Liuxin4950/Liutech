@@ -29,6 +29,9 @@ import chat.liuxin.liutech.mapper.PostLikesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
 import chat.liuxin.liutech.model.Posts;
+import chat.liuxin.liutech.model.Resources;
+import chat.liuxin.liutech.vo.PostAttachmentVO;
+import chat.liuxin.liutech.vo.PostTagRowVO;
 import chat.liuxin.liutech.model.PostTags;
 import chat.liuxin.liutech.model.PostLikes;
 import chat.liuxin.liutech.model.PostFavorites;
@@ -108,8 +111,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 处理搜索关键词
         String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
 
-        // 执行分页查询，直接返回PostListResl
-        IPage<PostListResp> result = postsMapper.selectPostListResl(page, req.getCategoryId(), req.getTagId(), keyword,
+        // 执行分页查询，直接返回PostListResp
+        IPage<PostListResp> result = postsMapper.selectPostListResp(page, req.getCategoryId(), req.getTagId(), keyword,
                 req.getStatus(), req.getAuthorId(), req.getSeriesId(), userId);
 
         // 批量加载标签（替代N+1嵌套查询）
@@ -146,7 +149,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(rollbackFor = Exception.class)
     public PostDetailResp getPostDetail(Long id, Long userId) {
-        PostDetailResp postDetail = postsMapper.selectPostDetailResl(id, userId);
+        PostDetailResp postDetail = postsMapper.selectPostDetailResp(id, userId);
         if (postDetail == null) {
             return null;
         }
@@ -156,38 +159,32 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         }
 
         // 附件列表（公开，不限制上传者）
-        List<java.util.Map<String, Object>> list = postAttachmentsMapper.selectPostAttachmentsPublic(id);
-        if (list != null && !list.isEmpty()) {
-            List<PostDetailResp.AttachmentInfo> attachments = list.stream().map(map -> {
-                PostDetailResp.AttachmentInfo a = new PostDetailResp.AttachmentInfo();
-                Object v;
-                v = map.get("attachmentId"); if (v != null) a.setAttachmentId(((Number) v).longValue());
-                v = map.get("resourceId"); if (v != null) a.setResourceId(((Number) v).longValue());
-                v = map.get("fileName"); if (v != null) a.setFileName(String.valueOf(v));
-                v = map.get("pointsNeeded"); if (v != null) a.setPointsNeeded(((Number) v).intValue());
-                v = map.get("createdTime"); if (v instanceof java.util.Date) a.setCreatedTime((java.util.Date) v);
-                v = map.get("resourceType"); if (v != null) a.setResourceType(String.valueOf(v));
-                v = map.get("downloadType");
-                Integer downloadType = v != null ? ((Number) v).intValue() : null;
+        List<PostAttachmentVO> attachmentVOs = postAttachmentsMapper.selectPostAttachmentsPublic(id);
+        if (attachmentVOs != null && !attachmentVOs.isEmpty()) {
+            List<PostDetailResp.AttachmentInfo> attachments = attachmentVOs.stream().map(vo -> {
+                PostDetailResp.AttachmentInfo info = new PostDetailResp.AttachmentInfo();
+                info.setAttachmentId(vo.getAttachmentId());
+                info.setResourceId(vo.getResourceId());
+                info.setFileName(vo.getFileName());
+                info.setPointsNeeded(vo.getPointsNeeded());
+                info.setCreatedTime(vo.getCreatedTime());
+                info.setResourceType(vo.getResourceType());
 
-                // 根据下载类型、积分需求和购买状态控制付费资源敏感字段可见性
-                Long resourceId = a.getResourceId();
-                Integer pointsNeeded = a.getPointsNeeded();
-                boolean paidResource = (downloadType != null && downloadType == 1)
-                        || (pointsNeeded != null && pointsNeeded > 0);
+                // 付费资源敏感字段（fileUrl/externalLink/purchasedNote）仅对已购买用户可见
+                boolean paidResource = (vo.getDownloadType() != null && vo.getDownloadType() == Resources.DOWNLOAD_TYPE_PAID)
+                        || (vo.getPointsNeeded() != null && vo.getPointsNeeded() > 0);
                 boolean purchased = !paidResource;
-                if (paidResource && userId != null && resourceId != null) {
-                    purchased = resourceDownloadService.hasUserPurchased(userId, resourceId);
+                if (paidResource && userId != null && vo.getResourceId() != null) {
+                    purchased = resourceDownloadService.hasUserPurchased(userId, vo.getResourceId());
                 }
-                a.setPurchased(purchased);
+                info.setPurchased(purchased);
 
                 if (purchased) {
-                    v = map.get("fileUrl"); if (v != null) a.setFileUrl(String.valueOf(v));
-                    v = map.get("externalLink"); if (v != null) a.setExternalLink(String.valueOf(v));
-                    v = map.get("purchasedNote"); if (v != null) a.setPurchasedNote(String.valueOf(v));
+                    info.setFileUrl(vo.getFileUrl());
+                    info.setExternalLink(vo.getExternalLink());
+                    info.setPurchasedNote(vo.getPurchasedNote());
                 }
-
-                return a;
+                return info;
             }).collect(Collectors.toList());
             postDetail.setAttachments(attachments);
         }
@@ -240,7 +237,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(readOnly = true)
     public List<PostListResp> getHotPosts(Integer limit, Long userId) {
-        List<PostListResp> posts = postsMapper.selectHotPostListResl(limit, userId);
+        List<PostListResp> posts = postsMapper.selectHotPostListResp(limit, userId);
         fillTags(posts);
         posts.forEach(this::normalizePostListUrls);
         return posts;
@@ -252,15 +249,15 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     void fillTags(List<PostListResp> posts) {
         if (posts == null || posts.isEmpty()) return;
         List<Long> postIds = posts.stream().map(PostListResp::getId).toList();
-        List<Map<String, Object>> tagRows = postsMapper.selectTagsByPostIds(postIds);
+        List<PostTagRowVO> tagRows = postsMapper.selectTagsByPostIds(postIds);
         Map<Long, List<PostListResp.TagInfo>> tagMap = tagRows.stream()
                 .collect(Collectors.groupingBy(
-                        row -> ((Number) row.get("postId")).longValue(),
+                        PostTagRowVO::getPostId,
                         Collectors.mapping(
                                 row -> {
                                     PostListResp.TagInfo tag = new PostListResp.TagInfo();
-                                    tag.setId(((Number) row.get("id")).longValue());
-                                    tag.setName((String) row.get("name"));
+                                    tag.setId(row.getId());
+                                    tag.setName(row.getName());
                                     return tag;
                                 },
                                 Collectors.toList()
@@ -379,7 +376,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(readOnly = true)
     public List<PostListResp> getLatestPosts(Integer limit, Long userId) {
-        List<PostListResp> posts = postsMapper.selectLatestPostListResl(limit, userId);
+        List<PostListResp> posts = postsMapper.selectLatestPostListResp(limit, userId);
         fillTags(posts);
         posts.forEach(this::normalizePostListUrls);
         return posts;

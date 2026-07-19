@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import theme from '../utils/theme.ts'
+import theme from '../utils/theme'
 import { useUserStore } from '../stores/user'
 import { handleImageError } from '@/composables/useImageFallback'
 import Icon from './Icon.vue'
@@ -22,7 +22,7 @@ const isUserMenuOpen = ref(false)
 const navItems = [
   { label: '首页', path: '/', section: 'home', icon: 'home' },
   { label: '分类', path: '/categories', section: 'categories', icon: 'folder' },
-  { label: '系列', path: '/series', section: 'series', icon: 'book' },
+  // { label: '系列', path: '/series', section: 'series', icon: 'book' },
   { label: '标签', path: '/tags', section: 'tags', icon: 'tag' },
   { label: '归档', path: '/archive', section: 'archive', icon: 'archive' },
   { label: '关于我', path: '/about', section: 'about', icon: 'user' }

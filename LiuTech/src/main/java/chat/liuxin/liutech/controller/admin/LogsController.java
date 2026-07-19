@@ -1,12 +1,12 @@
 package chat.liuxin.liutech.controller.admin;
 
+import lombok.RequiredArgsConstructor;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.AdminLogs;
 import chat.liuxin.liutech.resp.LogResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.LogService;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/admin/logs")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class LogsController extends BaseAdminController {
 
-    @Autowired
-    private LogService logService;
+    private final LogService logService;
 
     /** 分页查询操作日志列表 */
     @GetMapping

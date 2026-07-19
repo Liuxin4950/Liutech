@@ -8,7 +8,6 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -23,9 +22,8 @@ class AnnouncementsControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new AnnouncementsController();
         announcementsService = mock(AnnouncementsService.class);
-        ReflectionTestUtils.setField(controller, "announcementsService", announcementsService);
+        controller = new AnnouncementsController(announcementsService);
     }
 
     // ========== getValidAnnouncements ==========

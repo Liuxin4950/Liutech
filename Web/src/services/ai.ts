@@ -1,4 +1,4 @@
-import {post, ServiceType} from './api'
+import { post, ServiceType } from './api'
 import type { AiChatRequest } from './ai-types'
 
 // 重新导出共享类型，保持向后兼容

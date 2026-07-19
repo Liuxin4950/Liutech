@@ -2,14 +2,14 @@ package chat.liuxin.liutech.config;
 
 import chat.liuxin.liutech.filter.JwtAuthenticationFilter;
 import chat.liuxin.liutech.filter.RequestTraceFilter;
-import chat.liuxin.liutech.common.ErrorCode; // 新增：统一错误码
-import chat.liuxin.liutech.common.Result;    // 新增：统一响应体
-import tools.jackson.databind.ObjectMapper; // 新增：用于将对象写为JSON
+import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.common.Result;   
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus; // 新增：HTTP状态码
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity; // 新增：开启方法级权限注解
+import org.springframework.http.HttpStatus;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -19,8 +19,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // 新增：密码加密器Bean
-import org.springframework.http.HttpMethod; // 新增：显式允许预检请求
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.http.HttpMethod;
 
 import java.util.Arrays;
 
@@ -35,7 +35,7 @@ import java.util.Arrays;
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // 新增：启用方法级安全控制（如 @PreAuthorize）
+@EnableMethodSecurity
 public class SecurityConfig {
 
     // 依赖说明：
@@ -183,7 +183,7 @@ public class SecurityConfig {
         return source;
     }
 
-    // 新增：统一提供BCryptPasswordEncoder Bean，避免在各处手动new，便于后续替换算法或集中配置
+   
     // 作者：刘鑫，时间：2025-08-26（Asia/Shanghai）
     @Bean
     public BCryptPasswordEncoder passwordEncoder() {

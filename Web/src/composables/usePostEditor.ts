@@ -15,6 +15,9 @@ import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useMarkdown } from '@/composables/useMarkdown'
 import Swal from 'sweetalert2'
 
+/** 判断值非 undefined 且非 null（用于可选字段更新前的守卫） */
+const isPresent = (value: unknown): boolean => value !== undefined && value !== null
+
 export interface AttachmentItem {
   id: string
   name: string
@@ -56,11 +59,11 @@ export function usePostEditor() {
 
   const draftKey = ref('')
   const generateDraftKey = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0
-      const v = c === 'x' ? r : (r & 0x3 | 0x8)
-      return v.toString(16)
-    })
+    // 优先用原生 UUID v4；非安全上下文（http 非 localhost）回退到时间戳+随机串
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
   }
 
   // Pinia stores
@@ -201,19 +204,19 @@ export function usePostEditor() {
 
   const handleFieldUpdate = (payload: FieldUpdatePayload) => {
     const nextUndoStack: Array<{ field: string, oldValue: any }> = []
-    if (payload.title !== undefined && payload.title !== null) {
+    if (isPresent(payload.title)) {
       nextUndoStack.push({ field: 'title', oldValue: form.value.title })
       form.value.title = payload.title
     }
-    if (payload.summary !== undefined && payload.summary !== null) {
+    if (isPresent(payload.summary)) {
       nextUndoStack.push({ field: 'summary', oldValue: form.value.summary })
       form.value.summary = payload.summary
     }
-    if (payload.contentHtml !== undefined && payload.contentHtml !== null) {
+    if (isPresent(payload.contentHtml)) {
       nextUndoStack.push({ field: 'content', oldValue: form.value.content })
       form.value.content = DOMPurify.sanitize(payload.contentHtml)
     }
-    if (payload.categoryId !== undefined && payload.categoryId !== null) {
+    if (isPresent(payload.categoryId)) {
       nextUndoStack.push({ field: 'categoryId', oldValue: form.value.categoryId })
       form.value.categoryId = String(payload.categoryId)
     }

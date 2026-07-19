@@ -8,7 +8,6 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.CategoriesService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,10 +23,8 @@ class CategoriesAdminControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new CategoriesAdminController();
         categoriesService = mock(CategoriesService.class);
-
-        ReflectionTestUtils.setField(controller, "categoriesService", categoriesService);
+        controller = new CategoriesAdminController(categoriesService);
     }
 
     // ========== getCategoryList ==========

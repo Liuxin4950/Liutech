@@ -135,6 +135,16 @@ const extractHeadings = () => {
     }
   })
 
+  // 动态归一化级别：以文章中实际出现的最小标题级别作为顶级（level 1），
+  // 避免没有 h1 的文章在目录顶部留出过多空白缩进
+  const minLevel = extractedHeadings.reduce((min, h) => Math.min(min, h.level), 6)
+  if (minLevel > 1) {
+    const offset = minLevel - 1
+    extractedHeadings.forEach(h => {
+      h.level = h.level - offset
+    })
+  }
+
   headings.value = extractedHeadings
 }
 
@@ -270,18 +280,21 @@ defineExpose({
   right: 20px;
   width: 260px;
   max-height: calc(100vh - 200px);
+  // fallback + 毛玻璃半透明
   background: var(--bg-card);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
   border: 1px solid var(--border-light);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: var(--shadow-md);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: width 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
 
   &:not(.visible) {
     width: 44px;
-    height: auto;
     border-radius: 12px;
 
     .toc-header {
@@ -289,18 +302,11 @@ defineExpose({
       justify-content: center;
       border-bottom: none;
 
-      h4 {
-        display: none;
-      }
-
-      .toggle-btn {
-        transform: rotate(-90deg);
-      }
+      h4 { display: none; }
     }
 
-    .toc-nav {
-      display: none;
-    }
+    .toc-nav { display: none; }
+    .toggle-btn { transform: rotate(-90deg); }
   }
 }
 
@@ -308,18 +314,19 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 16px 12px;
-  background: var(--bg-card);
+  padding: 14px 14px 12px;
+  background: transparent;
   border-bottom: 1px solid var(--border-light);
   cursor: pointer;
   user-select: none;
+  flex-shrink: 0;
 
   h4 {
     margin: 0;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--text-title);
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
   }
 
@@ -327,99 +334,111 @@ defineExpose({
     background: none;
     border: none;
     cursor: pointer;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     border-radius: 6px;
     color: var(--text-muted);
-    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background 0.2s ease, color 0.2s ease;
 
     &:hover {
       background: var(--bg-hover);
       color: var(--text-main);
     }
 
-    svg {
-      transition: transform 0.2s ease;
-    }
+    svg { transition: transform 0.2s ease; }
   }
 }
 
 .toc-nav {
-  max-height: calc(100vh - 240px);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 6px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-soft) transparent;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-soft);
+    border-radius: 2px;
+
+    &:hover { background: var(--text-muted); }
+  }
 }
 
 .toc-list {
   list-style: none;
   margin: 0;
-  padding: 0 8px;
+  padding: 0 6px;
 }
 
 .toc-item {
-  margin: 1px 0;
+  margin: 0;
   position: relative;
 
-  &.active {
-    .toc-link {
-      color: var(--color-primary);
-      font-weight: 500;
-    }
+  // 左侧激活指示条：scaleY 从中心展开
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: var(--color-primary);
+    border-radius: 0 2px 2px 0;
+    transform: scaleY(0);
+    transform-origin: center;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
   }
 
-  &.toc-level-1 .toc-link { padding-left: 16px; font-weight: 600; }
-  &.toc-level-2 .toc-link { padding-left: 16px; }
-  &.toc-level-3 .toc-link { padding-left: 28px; font-size: 12px; }
-  &.toc-level-4 .toc-link,
-  &.toc-level-5 .toc-link,
-  &.toc-level-6 .toc-link {
-    padding-left: 40px;
-    font-size: 11px;
+  &.active::before {
+    transform: scaleY(1);
   }
 }
 
 .toc-link {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  display: block;
+  padding: 6px 12px;
   color: var(--text-subtle);
   text-decoration: none;
   font-size: 13px;
-  line-height: 1.4;
-  border-radius: 8px;
-  transition: color 0.15s ease;
-
-  &::before {
-    content: "";
-    flex-shrink: 0;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--border-soft);
-    transition: background 0.15s ease;
-  }
+  line-height: 1.5;
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   &:hover {
-    color: var(--color-primary);
-
-    &::before {
-      background: var(--color-primary);
-    }
+    color: var(--text-main);
+    background: var(--bg-hover);
   }
 }
 
-// 激活状态
-.toc-item.active .toc-link::before {
-  background: var(--color-primary);
+// 缩进与层级字号
+.toc-level-1 .toc-link { padding-left: 18px; font-weight: 600; color: var(--text-main); }
+.toc-level-2 .toc-link { padding-left: 30px; }
+.toc-level-3 .toc-link { padding-left: 42px; font-size: 12px; }
+.toc-level-4 .toc-link,
+.toc-level-5 .toc-link,
+.toc-level-6 .toc-link {
+  padding-left: 54px;
+  font-size: 11px;
 }
 
-// 响应式样式
+// 激活文字
+.toc-item.active .toc-link {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+// 响应式
 @include respond(lg) {
   .table-of-contents {
     width: 220px;
@@ -429,7 +448,6 @@ defineExpose({
 
 @include respond(md) {
   .table-of-contents {
-    position: fixed;
     top: auto;
     bottom: 20px;
     right: 20px;
@@ -438,10 +456,8 @@ defineExpose({
     max-height: 50vh;
   }
 
-  .toc-header {
-    &:hover {
-      background: var(--bg-hover);
-    }
+  .toc-header:hover {
+    background: var(--bg-hover);
   }
 }
 
