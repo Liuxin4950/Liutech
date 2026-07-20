@@ -16,7 +16,8 @@ import { useMarkdown } from '@/composables/useMarkdown'
 import Swal from 'sweetalert2'
 
 /** 判断值非 undefined 且非 null（用于可选字段更新前的守卫） */
-const isPresent = (value: unknown): boolean => value !== undefined && value !== null
+const isPresent = <T>(value: T | undefined | null): value is T =>
+  value !== undefined && value !== null
 
 export interface AttachmentItem {
   id: string
