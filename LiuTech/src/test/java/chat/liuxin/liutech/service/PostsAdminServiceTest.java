@@ -1,7 +1,5 @@
 package chat.liuxin.liutech.service;
 
-import chat.liuxin.liutech.common.BusinessException;
-import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.*;
 import chat.liuxin.liutech.model.PostFavorites;
 import chat.liuxin.liutech.model.PostLikes;
@@ -109,7 +107,6 @@ class PostsAdminServiceTest {
 
         verify(postsMapper).selectPostListForAdmin(any(Page.class), isNull(), isNull(), isNull(), isNull(), isNull(), isNull());
         verify(postsService).fillTags(anyList());
-        verify(postsService, times(2)).normalizePostListUrls(any(PostListResp.class));
     }
 
     @Test
@@ -128,7 +125,6 @@ class PostsAdminServiceTest {
         assertEquals(0L, result.getTotal());
 
         verify(postsService).fillTags(anyList());
-        verify(postsService, never()).normalizePostListUrls(any());
     }
 
     // ========== deletePostForAdmin 测试 ==========

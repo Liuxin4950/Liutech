@@ -19,7 +19,7 @@ const emailLoginForm = reactive({ email: '', code: '' })
 const emailLoginErrors = reactive({ email: '', code: '' })
 const emailCountdown = ref(0)
 let emailTimer: ReturnType<typeof setInterval> | null = null
-const registerForm = reactive({ username: '', email: '', code: '', password: '', nickname: '' })
+const registerForm = reactive({ email: '', code: '', password: '' })
 const isSending = ref(false)
 
 const errors = reactive({ username: '', email: '', password: '', code: '', confirmPassword: '' })
@@ -30,7 +30,7 @@ const toggleMode = () => { isLogin.value = !isLogin.value; clearErrors(); Object
 
 const clearForms = () => {
   Object.assign(loginForm, { username: '', password: '' })
-  Object.assign(registerForm, { username: '', email: '', code: '', password: '', nickname: '' })
+  Object.assign(registerForm, { email: '', code: '', password: '' })
 }
 
 const clearErrors = () => {
@@ -41,11 +41,9 @@ const validateForm = () => {
   clearErrors()
   let isValid = true
   if (isLogin.value) {
-    if (!loginForm.username.trim()) { errors.username = '请输入用户名'; isValid = false }
+    if (!loginForm.username.trim()) { errors.username = '请输入用户名或邮箱'; isValid = false }
     if (!loginForm.password) { errors.password = '请输入密码'; isValid = false }
   } else {
-    if (!registerForm.username.trim()) { errors.username = '请输入用户名'; isValid = false }
-    else if (registerForm.username.length < 3 || registerForm.username.length > 20) { errors.username = '用户名长度应为3-20位字符'; isValid = false }
     if (!registerForm.email.trim()) { errors.email = '请输入邮箱地址'; isValid = false }
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) { errors.email = '请输入有效的邮箱地址'; isValid = false }
     if (!registerForm.code.trim()) { errors.code = '请输入验证码'; isValid = false }
@@ -53,6 +51,16 @@ const validateForm = () => {
     else if (registerForm.password.length < 6) { errors.password = '密码至少6位'; isValid = false }
   }
   return isValid
+}
+
+/** 生成随机用户名：user_ + 6位小写字母数字，满足后端 3-20 位约束 */
+const generateRandomUsername = () => {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  let suffix = ''
+  for (let i = 0; i < 6; i++) {
+    suffix += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return `user_${suffix}`
 }
 
 const handleLogin = async () => {
@@ -64,10 +72,20 @@ const handleLogin = async () => {
 const handleRegister = async () => {
   if (!validateForm()) return
   const result = await handleFormSubmit(async () => {
-    const data: RegisterRequest = { username: registerForm.username, email: registerForm.email, code: registerForm.code, password: registerForm.password, nickname: registerForm.nickname || undefined }
+    const data: RegisterRequest = {
+      username: generateRandomUsername(),
+      email: registerForm.email,
+      code: registerForm.code,
+      password: registerForm.password
+    }
     return await userStore.register(data)
   })
-  if (result) { showSuccess('注册成功！请登录您的账户'); isLogin.value = true; clearForms() }
+  if (result) {
+    showSuccess('注册成功！请使用邮箱登录')
+    isLogin.value = true
+    loginMode.value = 'email'
+    clearForms()
+  }
 }
 
 const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
@@ -177,81 +195,75 @@ const startEmailCountdown = () => {
 
           <!-- 表单 -->
           <form v-if="loginMode === 'password' || !isLogin" @submit.prevent="handleSubmit" class="login-form">
-            <div class="form-group">
-              <label>用户名</label>
-              <div class="input-wrapper">
-                <Icon name="user" size="18" class="input-icon" />
-                <input v-if="isLogin" v-model="loginForm.username" type="text" placeholder="请输入用户名" :class="{ error: errors.username }" />
-                <input v-else v-model="registerForm.username" type="text" placeholder="请输入用户名" :class="{ error: errors.username }" />
+            <div class="form-block-wrapper">
+            <transition name="slide-fade">
+              <!-- 登录块 -->
+              <div v-if="isLogin" key="login" class="form-block">
+                <div class="form-group">
+                  <label>用户名 / 邮箱</label>
+                  <div class="input-wrapper">
+                    <Icon name="user" size="18" class="input-icon" />
+                    <input v-model="loginForm.username" type="text" placeholder="请输入用户名或邮箱" :class="{ error: errors.username }" />
+                  </div>
+                  <span v-if="errors.username" class="error-message">{{ errors.username }}</span>
+                </div>
+
+                <div class="form-group">
+                  <label>密码</label>
+                  <div class="input-wrapper">
+                    <Icon name="lock" size="18" class="input-icon" />
+                    <input v-model="loginForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="请输入密码" :class="{ error: errors.password }" />
+                    <button type="button" class="toggle-password" @click="showPassword.login = !showPassword.login">
+                      <Icon :name="showPassword.login ? 'visibility_off' : 'visibility'" size="18" />
+                    </button>
+                  </div>
+                  <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
+                </div>
+
+                <div class="forgot-password">
+                  <router-link to="/forgot-password" class="link-btn-sm">忘记密码？</router-link>
+                </div>
               </div>
-              <span v-if="errors.username" class="error-message">{{ errors.username }}</span>
+
+              <!-- 注册块 -->
+              <div v-else key="register" class="form-block">
+                <div class="form-group">
+                  <label>邮箱地址</label>
+                  <div class="input-wrapper">
+                    <Icon name="mail" size="18" class="input-icon" />
+                    <input v-model="registerForm.email" type="email" placeholder="请输入邮箱地址" :class="{ error: errors.email }" />
+                    <button type="button" class="resend-btn" :disabled="registerCountdown > 0 || isSending" @click="handleSendRegisterCode">
+                      {{ registerCountdown > 0 ? `${registerCountdown}s` : (isSending ? '发送中...' : '获取验证码') }}
+                    </button>
+                  </div>
+                  <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
+                </div>
+
+                <div class="form-group">
+                  <label>验证码</label>
+                  <div class="input-wrapper">
+                    <Icon name="key" size="18" class="input-icon" />
+                    <input v-model="registerForm.code" type="text" placeholder="请输入6位验证码" maxlength="6" :class="{ error: errors.code }" />
+                  </div>
+                  <span v-if="errors.code" class="error-message">{{ errors.code }}</span>
+                </div>
+
+                <div class="form-group">
+                  <label>密码</label>
+                  <div class="input-wrapper">
+                    <Icon name="lock" size="18" class="input-icon" />
+                    <input v-model="registerForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="至少6位" :class="{ error: errors.password }" />
+                    <button type="button" class="toggle-password" @click="showPassword.login = !showPassword.login">
+                      <Icon :name="showPassword.login ? 'visibility_off' : 'visibility'" size="18" />
+                    </button>
+                  </div>
+                  <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
+                </div>
+
+                <p class="register-tip">用户名将自动生成，注册后可使用邮箱登录</p>
+              </div>
+            </transition>
             </div>
-
-            <transition name="slide-fade">
-              <div v-if="!isLogin" class="form-group">
-                <label>邮箱地址</label>
-                <div class="input-wrapper">
-                  <Icon name="mail" size="18" class="input-icon" />
-                  <input v-model="registerForm.email" type="email" placeholder="请输入邮箱地址" :class="{ error: errors.email }" />
-                  <button type="button" class="resend-btn" :disabled="registerCountdown > 0 || isSending" @click="handleSendRegisterCode">
-                    {{ registerCountdown > 0 ? `${registerCountdown}s` : (isSending ? '发送中...' : '获取验证码') }}
-                  </button>
-                </div>
-                <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
-              </div>
-            </transition>
-
-            <transition name="slide-fade">
-              <div v-if="!isLogin" class="form-group">
-                <label>验证码</label>
-                <div class="input-wrapper">
-                  <Icon name="key" size="18" class="input-icon" />
-                  <input v-model="registerForm.code" type="text" placeholder="请输入6位验证码" maxlength="6" :class="{ error: errors.code }" />
-                </div>
-                <span v-if="errors.code" class="error-message">{{ errors.code }}</span>
-              </div>
-            </transition>
-
-            <transition name="slide-fade">
-              <div v-if="!isLogin" class="form-group">
-                <label>密码</label>
-                <div class="input-wrapper">
-                  <Icon name="lock" size="18" class="input-icon" />
-                  <input v-model="registerForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="至少6位" :class="{ error: errors.password }" />
-                  <button type="button" class="toggle-password" @click="showPassword.login = !showPassword.login">
-                    <Icon :name="showPassword.login ? 'visibility_off' : 'visibility'" size="18" />
-                  </button>
-                </div>
-                <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
-              </div>
-            </transition>
-
-            <transition name="slide-fade">
-              <div v-if="!isLogin" class="form-group">
-                <label>昵称 (可选)</label>
-                <div class="input-wrapper">
-                  <Icon name="user" size="18" class="input-icon" />
-                  <input v-model="registerForm.nickname" type="text" placeholder="注册后可在个人资料修改" />
-                </div>
-              </div>
-            </transition>
-
-            <div v-if="isLogin" class="form-group">
-              <label>密码</label>
-              <div class="input-wrapper">
-                <Icon name="lock" size="18" class="input-icon" />
-                <input v-model="loginForm.password" :type="showPassword.login ? 'text' : 'password'" placeholder="请输入密码" :class="{ error: errors.password }" />
-                <button type="button" class="toggle-password" @click="showPassword.login = !showPassword.login">
-                  <Icon :name="showPassword.login ? 'visibility_off' : 'visibility'" size="18" />
-                </button>
-              </div>
-              <span v-if="errors.password" class="error-message">{{ errors.password }}</span>
-            </div>
-            <div v-if="isLogin" class="forgot-password">
-              <router-link to="/forgot-password" class="link-btn-sm">忘记密码？</router-link>
-            </div>
-
-
 
             <button type="submit" class="submit-btn" :disabled="userStore.isLoading">
               <span v-if="userStore.isLoading" class="loading-spinner"></span>
@@ -580,7 +592,8 @@ const startEmailCountdown = () => {
 // 提交按钮
 .submit-btn {
   width: 100%;
-  padding: 14px;
+  min-height: 48px;
+  padding: 12px 14px;
   margin-top: 8px;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
@@ -589,22 +602,32 @@ const startEmailCountdown = () => {
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: box-shadow 0.3s ease, filter 0.2s ease, opacity 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.4); }
-  &:disabled { opacity: 0.7; cursor: not-allowed; }
+  &:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.4); filter: brightness(1.05); }
+  &:active:not(:disabled) { filter: brightness(0.97); }
+  &:disabled { opacity: 0.75; cursor: not-allowed; }
 }
 
 .loading-spinner {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top: 2px solid currentColor;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.register-tip {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: -4px 0 8px;
+  padding-left: 4px;
+  line-height: 1.5;
 }
 
 // 底部链接
@@ -699,10 +722,27 @@ const startEmailCountdown = () => {
   margin: 0;
 }
 
-// 过渡动画
-.slide-fade-enter-active { transition: all 0.3s ease-out; }
-.slide-fade-leave-active { transition: all 0.2s cubic-bezier(1, 0.5, 0.8, 1); }
-.slide-fade-enter-from, .slide-fade-leave-to { transform: translateY(-10px); opacity: 0; }
+// 过渡动画：新旧块同时过渡，旧块绝对定位在下层快速淡出，新块在上层淡入，不覆盖
+.form-block-wrapper {
+  position: relative;
+}
+
+.form-block {
+  position: relative;
+  z-index: 1;
+}
+
+.slide-fade-enter-active { transition: opacity 0.25s ease-out; }
+.slide-fade-leave-active {
+  transition: opacity 0.15s ease-in;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+}
+.slide-fade-enter-from { opacity: 0; }
+.slide-fade-leave-to { opacity: 0; }
 
 // ============================================
 // 响应式 - 移动端上下堆叠

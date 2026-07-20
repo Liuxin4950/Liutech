@@ -12,6 +12,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
+    proxy: {
+      // 图片等静态资源走相对路径 /uploads/...，开发环境代理到后端
+      '/uploads': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
   }
 })

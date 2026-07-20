@@ -110,6 +110,53 @@ class UserAuthServiceTest {
         assertThrows(BusinessException.class, () -> authService.login(req));
     }
 
+    @Test
+    void login_shouldSucceedWithEmail() {
+        // 邮箱密码登录：输入含 @，应走 findByEmail 分支
+        String rawPassword = "correctPassword";
+        String encodedPassword = passwordEncoder.encode(rawPassword);
+        Users user = createUser("testuser", encodedPassword);
+        when(userMapper.findByEmail("test@qq.com")).thenReturn(Collections.singletonList(user));
+        when(jwtUtil.generateToken(anyLong(), anyString(), anyString(), anyString())).thenReturn("jwt-token");
+
+        LoginReq req = new LoginReq();
+        req.setUsername("test@qq.com");
+        req.setPassword(rawPassword);
+
+        LoginResp resp = authService.login(req);
+
+        assertNotNull(resp);
+        assertEquals("jwt-token", resp.getToken());
+        // 确保走的是邮箱查询而非用户名查询
+        verify(userMapper, never()).findByUserName(anyString());
+    }
+
+    @Test
+    void login_邮箱登录失败锁定后用户名登录也锁定() {
+        // 验证锁定 key 用真实用户名：邮箱登录失败锁定后，换用户名登录不应绕过锁定
+        String encodedPassword = passwordEncoder.encode("correct");
+        Users user = createUser("victim", encodedPassword);
+        when(userMapper.findByEmail("victim@qq.com")).thenReturn(Collections.singletonList(user));
+        when(userMapper.findByUserName("victim")).thenReturn(Collections.singletonList(user));
+
+        LoginReq emailWrongReq = new LoginReq();
+        emailWrongReq.setUsername("victim@qq.com");
+        emailWrongReq.setPassword("wrong");
+
+        // 邮箱登录连续失败 5 次
+        for (int i = 0; i < 5; i++) {
+            assertThrows(BusinessException.class, () -> authService.login(emailWrongReq));
+        }
+
+        // 换用户名 + 正确密码登录，仍应被锁定
+        LoginReq usernameCorrectReq = new LoginReq();
+        usernameCorrectReq.setUsername("victim");
+        usernameCorrectReq.setPassword("correct");
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> authService.login(usernameCorrectReq));
+        assertTrue(ex.getMessage().contains("锁定"));
+    }
+
     // ========== 暴力破解防护测试 ==========
 
     @Test

@@ -55,6 +55,7 @@ docker exec -it liutech-mysql mysql -u root -p
 - **AI 服务 → 主后端** URL：在 Docker 内是 `http://backend:8080`（`BLOG_API_URL`），本地开发用 `http://localhost:8080`。
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证。
 - **文件上传**：容器内 `/app/uploads` 绑定到宿主机 `/liuxin/uploads`；**不要**用 `docker compose down -v`，会清空 `mysql_data` 卷。
+- **图片 URL 策略**：后端 `FileUtil.generateFileUrl` 返回**相对路径** `/uploads/...`，不拼 `serverBaseUrl`；开发环境 vite proxy 转发 `/uploads` -> 8080，生产 nginx 已配反代。数据库存相对路径，环境无关。**不要**为"开发环境图片显示不了"去改 `.env` 的 `SERVER_BASE_URL`。详见 [当前架构.md](doc/记录/当前架构.md)。
 - **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`，会破坏 JSON 响应（406）。
 - **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`。
 - **环境变量**从根目录 `.env` 注入；`.env.example` 是模板，生产替换为强密钥。

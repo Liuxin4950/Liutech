@@ -72,7 +72,8 @@ public class FileUploadService {
             FileUploadResp result = new FileUploadResp();
             result.setFileName(image.getFileName());
             result.setFilePath(image.getFilePath());
-            result.setFileUrl(image.getFileUrl());
+            // 用 filePath 重新生成 URL，确保返回相对路径（重复图片的旧记录可能存的是完整 URL）
+            result.setFileUrl(fileUtil.generateFileUrl(image.getFilePath()));
             result.setFileSize(image.getFileSize());
             result.setFileType("image");
             result.setExtension(image.getExtension());
@@ -533,13 +534,10 @@ public class FileUploadService {
         try {
             // 删除物理文件
             if (resource.getFileUrl() != null) {
-                String fileUrl = resource.getFileUrl();
-                String prefix = fileUploadConfig.getServerBaseUrl() + fileUploadConfig.getUrlPrefix() + "/";
-                String relativePath = fileUrl;
-                if (fileUrl.startsWith(prefix)) {
-                    relativePath = fileUrl.substring(prefix.length());
+                String relativePath = fileUtil.extractRelativePath(resource.getFileUrl());
+                if (relativePath != null) {
+                    fileUtil.deleteFile(relativePath);
                 }
-                fileUtil.deleteFile(relativePath);
             }
 
             // 删除数据库记录

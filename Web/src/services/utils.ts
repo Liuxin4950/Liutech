@@ -16,11 +16,29 @@ interface ImageUploadResponse {
  */
 export class ImageUploadService {
   /**
-   * 通用图片上传方法
+   * 通用图片上传方法（仅管理员可用，用于文章封面/TinyMCE 等）
    * @param file 图片文件
    * @returns 上传结果
    */
   static async uploadImage(file: File): Promise<ImageUploadResponse> {
+    return ImageUploadService.uploadTo('/upload/image', file)
+  }
+
+  /**
+   * 头像上传方法（普通登录用户可用）
+   * @param file 图片文件
+   * @returns 上传结果
+   */
+  static async uploadAvatar(file: File): Promise<ImageUploadResponse> {
+    return ImageUploadService.uploadTo('/upload/avatar', file)
+  }
+
+  /**
+   * 图片上传内部实现：校验 + FormData 提交到指定端点
+   * @param endpoint 上传端点
+   * @param file 图片文件
+   */
+  private static async uploadTo(endpoint: string, file: File): Promise<ImageUploadResponse> {
     // 验证文件类型
     if (!file.type.startsWith('image/')) {
       throw new Error('请选择图片文件')
@@ -35,16 +53,16 @@ export class ImageUploadService {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await post('/upload/image', formData, {
+      const response = await post(endpoint, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
       })
 
       return response.data
-    } catch (error) {
+    } catch (error: any) {
       console.error('图片上传失败:', error)
-      throw new Error('图片上传失败，请重试')
+      throw new Error(error?.message || '图片上传失败，请重试')
     }
   }
 

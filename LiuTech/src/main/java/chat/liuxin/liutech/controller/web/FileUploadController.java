@@ -31,6 +31,27 @@ public class FileUploadController {
     private final UserUtils userUtils;
 
     /**
+     * 上传头像（普通用户可用）
+     * 复用图片去重与压缩逻辑，仅返回 URL 给前端写入 profile
+     *
+     * @param file 图片文件
+     * @return 上传结果
+     */
+    @PostMapping("/avatar")
+    @OperationLog(action = "upload", targetType = "avatar", description = "上传头像")
+    public Result<FileUploadResp> uploadAvatar(
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest request) {
+
+        Long userId = userUtils.getCurrentUserId();
+        log.info("用户上传头像 - 用户ID: {}, 文件名: {}, 大小: {} bytes",
+                userId, file.getOriginalFilename(), file.getSize());
+
+        FileUploadResp result = fileUploadService.uploadImage(file, userId);
+        return Result.success(result);
+    }
+
+    /**
      * 上传图片（用于TinyMCE编辑器）
      *
      * @param file 图片文件

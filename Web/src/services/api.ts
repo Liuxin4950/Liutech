@@ -97,19 +97,24 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
     (error) => {
       console.error(`${serviceType.toUpperCase()} API 请求失败`, error)
 
+      const status = error.response?.status
+      const bizMessage = error.response?.data?.message
+
       // 特殊处理401错误：清除所有弹窗、token，跳转登录页
-      if (error.response?.status === 401) {
+      if (status === 401) {
         Swal.close()
         localStorage.removeItem('token')
         const currentRoute = router.currentRoute.value
         if (currentRoute.name !== 'login') {
           router.push({ name: 'login', query: { redirect: currentRoute.fullPath } }).catch(() => undefined)
         }
-      }
-
-      // 特殊处理403错误：清除弹窗
-      if (error.response?.status === 403) {
+      } else if (status === 403) {
+        // 特殊处理403错误：清除弹窗
         Swal.close()
+      } else if (bizMessage) {
+        // 业务错误（4xx）：提示后端返回的具体 message，并标记业务错误避免调用方重复弹窗
+        showErrorToast(bizMessage)
+        error.isBusiness = true
       }
 
       // 重新抛出错误，由调用方决定是否弹窗

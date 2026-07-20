@@ -48,6 +48,7 @@ import chat.liuxin.liutech.utils.FileUtil;
 @RequiredArgsConstructor
 public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
+    
     private final PostsMapper postsMapper;
 
     private final PostTagsMapper postTagsMapper;
@@ -85,7 +86,6 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
             log.debug("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
 
             postsService.fillTags(result.getRecords());
-            result.getRecords().forEach(postsService::normalizePostListUrls);
             return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
 
         } catch (Exception e) {
@@ -120,7 +120,6 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
             }).collect(Collectors.toList());
             postDetail.setAttachments(attachments);
         }
-        postsService.normalizePostDetailUrls(postDetail);
         return postDetail;
     }
 

@@ -186,8 +186,11 @@ public class FileUtil {
      * @return 完整的访问URL
      */
     public String generateFileUrl(String relativePath) {
-        // 返回完整的URL，TinyMCE需要完整URL才能正确获取图片尺寸
-        return fileUploadConfig.getServerBaseUrl() + fileUploadConfig.getUrlPrefix() + "/" + relativePath;
+        // 返回相对路径（如 /uploads/images/2026/01/xxx.png），由前端反向代理统一转发：
+        // - 开发环境：vite proxy /uploads -> http://localhost:8080
+        // - 生产环境：nginx location /uploads/ -> backend
+        // 数据库存储与环境无关，避免开发/生产域名不一致导致图片加载失败
+        return fileUploadConfig.getUrlPrefix() + "/" + relativePath;
     }
     
     /**

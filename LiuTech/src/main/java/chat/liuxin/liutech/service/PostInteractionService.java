@@ -111,7 +111,6 @@ public class PostInteractionService {
         IPage<PostListResp> result = postsMapper.selectFavoritePostList(page, userId, keyword);
 
         postsService.fillTags(result.getRecords());
-        result.getRecords().forEach(postsService::normalizePostListUrls);
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 }

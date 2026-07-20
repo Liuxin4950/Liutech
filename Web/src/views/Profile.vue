@@ -7,7 +7,7 @@
         <div class="avatar-section">
           <div class="avatar-container">
             <img :src="userInfo?.avatarUrl || errImg" :alt="userInfo?.username" class="user-avatar" @error="handleImageError" />
-            <button class="avatar-edit" @click="showEditForm = true" title="编辑资料">
+            <button class="avatar-edit" @click="openEditForm" title="编辑资料">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
               </svg>
@@ -114,25 +114,90 @@
           <button class="close-btn" @click="closeModal">×</button>
         </div>
         <form @submit.prevent="handleSubmit" class="edit-form">
+          <!-- 头像 -->
+          <div class="form-group avatar-form-group">
+            <label>头像</label>
+            <div class="avatar-upload-row">
+              <div
+                class="avatar-dropzone"
+                :class="{ 'is-dragover': avatarDragOver, 'is-uploading': avatarUploading }"
+                @click="triggerAvatarUpload"
+                @drop="handleAvatarDrop"
+                @dragover="handleAvatarDragOver"
+                @dragleave="handleAvatarDragLeave"
+                :title="avatarUploading ? '上传中...' : '点击或拖拽图片到此处'"
+              >
+                <img
+                  v-if="formData.avatarUrl"
+                  :src="formData.avatarUrl"
+                  class="avatar-preview"
+                  @error="handleImageError"
+                  alt="头像"
+                />
+                <div v-else class="avatar-placeholder">
+                  <Icon name="user" size="32" />
+                </div>
+                <div v-if="avatarUploading" class="avatar-loading">
+                  <span class="spinner"></span>
+                </div>
+                <div v-else class="avatar-overlay-hint">
+                  <Icon name="camera" size="16" />
+                  <span>更换</span>
+                </div>
+              </div>
+              <div class="avatar-actions">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  :disabled="avatarUploading"
+                  @click="triggerAvatarUpload"
+                >
+                  {{ avatarUploading ? '上传中...' : '上传图片' }}
+                </button>
+                <button
+                  type="button"
+                  class="avatar-mode-toggle"
+                  @click="avatarMode = avatarMode === 'upload' ? 'url' : 'upload'"
+                >
+                  {{ avatarMode === 'upload' ? '使用外链' : '使用上传' }}
+                </button>
+                <small class="avatar-hint">支持 PNG / JPG / GIF / WEBP，不超过 5MB</small>
+              </div>
+            </div>
+            <input
+              ref="avatarInput"
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              class="hidden-input"
+              @change="handleAvatarChange"
+            />
+            <div v-if="avatarMode === 'url'" class="avatar-url-input">
+              <input
+                type="url"
+                v-model="formData.avatarUrl"
+                class="form-input"
+                placeholder="粘贴图片链接 https://..."
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>用户名</label>
+            <input type="text" :value="userInfo?.username || '暂无数据'" class="form-input" disabled />
+          </div>
+
           <div class="form-group">
             <label>邮箱 *</label>
-            <input type="email" v-model="formData.email" required class="form-input" />
+            <input type="email" v-model="formData.email" required class="form-input" :placeholder="formData.email ? '' : '暂无数据'" />
           </div>
           <div class="form-group">
             <label>昵称</label>
-            <input type="text" v-model="formData.nickname" class="form-input" maxlength="50" />
+            <input type="text" v-model="formData.nickname" class="form-input" maxlength="50" :placeholder="formData.nickname ? '' : '暂无数据'" />
           </div>
           <div class="form-group">
             <label>个人简介</label>
-            <textarea v-model="formData.bio" class="form-textarea" rows="3" maxlength="500"></textarea>
+            <textarea v-model="formData.bio" class="form-textarea" rows="3" maxlength="500" :placeholder="formData.bio ? '' : '暂无数据'"></textarea>
             <small class="form-hint">{{ (formData.bio || '').length }}/500</small>
-          </div>
-          <div class="form-group">
-            <label>头像</label>
-            <div class="avatar-preview-section">
-              <img :src="formData.avatarUrl || errImg" class="avatar-preview" @error="handleImageError" />
-              <input type="url" v-model="formData.avatarUrl" class="form-input flex-1" placeholder="头像链接" />
-            </div>
           </div>
           <div class="form-actions">
             <button type="button" @click="resetForm" class="btn btn-secondary">重置</button>
@@ -151,6 +216,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse, type CheckinStatus } from '../services/user'
+import { ImageUploadService } from '../services/utils'
 import { showSuccess, showError } from '../utils/errorHandler'
 import { formatRelativeTime } from '../utils/utils'
 import { handleImageError, errImg } from '@/composables/useImageFallback'
@@ -170,6 +236,12 @@ const formData = reactive<UpdateProfileRequest>({
   bio: '',
   avatarUrl: ''
 })
+
+// 头像上传相关状态
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarUploading = ref(false)
+const avatarDragOver = ref(false)
+const avatarMode = ref<'upload' | 'url'>('upload')
 
 const userInfo = computed(() => userStore.userInfo)
 
@@ -290,8 +362,78 @@ const initForm = () => {
   }
 }
 
-const resetForm = () => initForm()
+const openEditForm = async () => {
+  // 每次打开都强制拉取最新用户信息，避免 persist 缓存导致表单数据过期
+  try {
+    await userStore.fetchUserInfo(true)
+  } catch {
+    // 拉取失败时用现有 userInfo 兜底，不阻塞打开
+  }
+  initForm()
+  showEditForm.value = true
+}
+
+const resetForm = () => {
+  initForm()
+  avatarMode.value = 'upload'
+  avatarDragOver.value = false
+}
+
 const closeModal = () => { showEditForm.value = false; resetForm() }
+
+// 头像上传：校验 + 提交
+const validateAvatarFile = (file: File): string | null => {
+  if (!file.type.startsWith('image/')) return '请选择图片文件'
+  if (!/^image\/(png|jpe?g|gif|webp)$/i.test(file.type)) return '仅支持 PNG / JPG / GIF / WEBP 格式'
+  if (file.size > 5 * 1024 * 1024) return '图片大小不能超过 5MB'
+  return null
+}
+
+const uploadAvatar = async (file: File) => {
+  const err = validateAvatarFile(file)
+  if (err) {
+    showError(err)
+    return
+  }
+  avatarUploading.value = true
+  try {
+    const result = await ImageUploadService.uploadAvatar(file)
+    formData.avatarUrl = result.fileUrl
+    showSuccess('头像上传成功')
+  } catch (error: any) {
+    showError(error?.message || '头像上传失败')
+  } finally {
+    avatarUploading.value = false
+  }
+}
+
+const triggerAvatarUpload = () => {
+  if (avatarUploading.value) return
+  avatarInput.value?.click()
+}
+
+const handleAvatarChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) await uploadAvatar(file)
+  target.value = ''
+}
+
+const handleAvatarDrop = async (event: DragEvent) => {
+  avatarDragOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (file) await uploadAvatar(file)
+}
+
+const handleAvatarDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  if (avatarUploading.value) return
+  avatarDragOver.value = true
+}
+
+const handleAvatarDragLeave = () => {
+  avatarDragOver.value = false
+}
 
 const handleSubmit = async () => {
   if (!formData.email) return
@@ -301,8 +443,11 @@ const handleSubmit = async () => {
     userStore.updateUserInfo(updatedUser)
     showSuccess('更新成功')
     closeModal()
-  } catch (error) {
-    showError('更新失败')
+  } catch (error: any) {
+    // 业务错误（如邮箱被占用）已在拦截器 Toast 提示具体原因，这里不重复弹模态框
+    if (!error?.isBusiness) {
+      showError('更新失败')
+    }
   } finally {
     isLoading.value = false
   }
@@ -754,17 +899,145 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-.avatar-preview-section {
+.avatar-form-group {
+  margin-bottom: 20px;
+}
+
+.avatar-upload-row {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 16px;
+}
+
+.avatar-dropzone {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: pointer;
+  overflow: hidden;
+  border: 2px dashed var(--border-base);
+  background: var(--bg-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+
+  &:hover {
+    border-color: var(--color-primary);
+    transform: scale(1.02);
+  }
+
+  &.is-dragover {
+    border-color: var(--color-primary);
+    background: var(--bg-hover);
+    transform: scale(1.04);
+  }
+
+  &.is-uploading {
+    cursor: wait;
+    border-style: solid;
+    border-color: var(--color-primary);
+  }
 }
 
 .avatar-preview {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-placeholder {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: avatar-spin 0.7s linear infinite;
+}
+
+@keyframes avatar-spin {
+  to { transform: rotate(360deg); }
+}
+
+.avatar-overlay-hint {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: 50%;
+
+  .avatar-dropzone:hover & {
+    opacity: 1;
+  }
+}
+
+.avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.avatar-mode-toggle {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: fit-content;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.avatar-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.hidden-input {
+  display: none;
+}
+
+.avatar-url-input {
+  margin-top: 10px;
+}
+
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  width: fit-content;
 }
 
 .form-actions {

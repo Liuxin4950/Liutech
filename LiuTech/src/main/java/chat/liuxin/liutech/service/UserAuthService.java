@@ -209,39 +209,42 @@ public class UserAuthService {
      */
     @Transactional(rollbackFor = Exception.class)
     public LoginResp login(LoginReq loginReq) {
-        log.info("用户登录尝试，用户名: {}", loginReq.getUsername());
+        log.info("用户登录尝试，账号: {}", loginReq.getUsername());
 
         // 依赖说明：查询与密码校验依赖 UserMapper/BCrypt；生成token依赖 JwtUtil
         // 授权说明：后续请求由 JwtAuthenticationFilter 解析 token 并注入 Authentication
 
-        // 0. 检查账户是否因暴力破解被锁定
-        checkAccountLocked(loginReq.getUsername());
-
-        // 1. 查询并验证用户（存在且状态为启用）
+        // 1. 查询并验证用户（支持用户名或邮箱登录）
         Users user = validateUserForLogin(loginReq);
 
-        // 2. 验证密码（BCrypt匹配）
+        // 锁定 key 统一用真实用户名，避免用户名/邮箱切换绕过暴力破解锁定
+        String lockKey = user.getUsername();
+
+        // 2. 检查账户是否因暴力破解被锁定
+        checkAccountLocked(lockKey);
+
+        // 3. 验证密码（BCrypt匹配）
         try {
             validatePassword(loginReq.getPassword(), user);
         } catch (BusinessException e) {
             // 密码错误，记录失败次数
-            recordLoginFailure(loginReq.getUsername());
+            recordLoginFailure(lockKey);
             throw e;
         }
 
-        // 3. 登录成功，清除失败计数
-        clearLoginFailures(loginReq.getUsername());
+        // 4. 登录成功，清除失败计数
+        clearLoginFailures(lockKey);
 
-        // 4. 更新最后登录时间（尽力而为，失败不影响登录）
+        // 5. 更新最后登录时间（尽力而为，失败不影响登录）
         updateLastLoginTime(user);
 
-        // 5. 生成并返回JWT token（claims: userId/username/passwordHash）
+        // 6. 生成并返回JWT token（claims: userId/username/passwordHash）
         return generateLoginResponse(user);
     }
 
     /**
      * 验证用户登录信息
-     * 检查用户是否存在以及账户状态是否正常
+     * 支持用户名或邮箱登录：输入含 @ 视为邮箱查询，否则按用户名查询
      *
      * @param loginReq 登录请求参数
      * @return 验证通过的用户对象
@@ -250,15 +253,19 @@ public class UserAuthService {
      * @date 2025-01-30
      */
     private Users validateUserForLogin(LoginReq loginReq) {
-        List<Users> users = userMapper.findByUserName(loginReq.getUsername());
+        String account = loginReq.getUsername();
+        List<Users> users = account != null && account.contains("@")
+                ? userMapper.findByEmail(account)
+                : userMapper.findByUserName(account);
+
         if (users == null || users.isEmpty()) {
-            log.warn("登录失败，用户不存在: {}", loginReq.getUsername());
+            log.warn("登录失败，用户不存在: {}", account);
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
 
         Users user = users.get(0);
         if (user.getStatus() != 1) {
-            log.warn("登录失败，账户已被禁用: {}", loginReq.getUsername());
+            log.warn("登录失败，账户已被禁用: {}", account);
             throw new BusinessException(ErrorCode.ACCOUNT_DISABLED);
         }
 
