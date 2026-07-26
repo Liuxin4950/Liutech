@@ -29,18 +29,7 @@ public class ChatRequest {
     @Size(max = 2000, message = "消息内容长度不能超过2000个字符")
     private String message;
     
-    /**
-     * 聊天模式（可选）
-     * normal: 普通模式（默认）
-     * stream: 流式模式
-     */
-    private String mode = "normal";
     
-    /**
-     * 模型名称（可选）
-     * 如果不指定，使用系统默认模型
-     */
-    private String model;
     
     /**
      * 温度参数（可选）

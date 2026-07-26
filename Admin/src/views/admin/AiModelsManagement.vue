@@ -253,10 +253,10 @@ const removeModel = (record: ModelConfig) => {
     >
       <a-form ref="formRef" :model="formModel" :rules="formRules" layout="vertical">
         <a-form-item label="显示名称" name="displayName">
-          <a-input v-model:value="formModel.displayName" placeholder="例如：GLM-4.6" />
+          <a-input v-model:value="formModel.displayName" placeholder="例如：DeepSeek-V3.2" />
         </a-form-item>
         <a-form-item label="模型名称" name="modelName">
-          <a-input v-model:value="formModel.modelName" :disabled="isEdit" placeholder="例如：zai-org/GLM-4.6" />
+          <a-input v-model:value="formModel.modelName" :disabled="isEdit" placeholder="例如：deepseek-ai/DeepSeek-V3.2" />
         </a-form-item>
         <a-form-item label="最大 Token">
           <a-input-number v-model:value="formModel.maxTokens" :min="0" :step="1024" class="full-width" />

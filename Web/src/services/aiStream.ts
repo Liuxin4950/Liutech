@@ -177,7 +177,6 @@ export class AiStream {
         },
         body: JSON.stringify({
           ...requestBody,
-          mode: 'stream',
           // 重连时携带 conversationId 和 lastSeq，供后端去重/续传
           ...(currentConversationId ? { conversationId: currentConversationId } : {}),
           ...(lastSeq !== undefined ? { lastSeq } : {})

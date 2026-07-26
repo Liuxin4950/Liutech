@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class AiChatProperties {
 
     /** 默认模型名称 */
-    private String defaultModel = "zai-org/GLM-4.6";
+    private String defaultModel = "deepseek-ai/DeepSeek-V3.2";
 
     /** SSE 超时时间（毫秒） */
     private long sseTimeout = 120000;
@@ -34,9 +34,6 @@ public class AiChatProperties {
     public static class Security {
         /** 安全提示词守卫开关 */
         private boolean promptGuardEnabled = true;
-
-        /** 模型策略：严格白名单模式 */
-        private boolean modelPolicyStrictWhitelist = true;
 
         /** 模型策略：maxTokens 上限 */
         private int modelPolicyMaxTokensCeiling = 65536;

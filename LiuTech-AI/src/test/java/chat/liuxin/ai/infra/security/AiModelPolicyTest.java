@@ -7,8 +7,6 @@ import chat.liuxin.ai.service.AiModelConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,25 +28,20 @@ class AiModelPolicyTest {
     }
 
     @Test
-    void shouldFallbackToDefaultWhenNoWhitelistConfigured() {
-        when(modelConfigService.getDefaultModel()).thenReturn(Optional.empty());
-        when(modelConfigService.getEnabledModels()).thenReturn(Collections.emptyList());
-        when(modelConfigService.getModelByName("unknown-model")).thenReturn(Optional.empty());
+    void shouldReturnDbDefaultModelWhenConfigured() {
+        ModelConfigDTO defaultConfig = new ModelConfigDTO();
+        defaultConfig.setModelName("db-default");
+        defaultConfig.setIsEnabled(true);
+        when(modelConfigService.getDefaultModel()).thenReturn(Optional.of(defaultConfig));
 
-        assertEquals("fallback-model", policy.resolveModelName("unknown-model"));
+        assertEquals("db-default", policy.resolveModelName(new ChatRequest()));
     }
 
     @Test
-    void shouldAllowEnabledRequestedModel() {
-        ModelConfigDTO config = new ModelConfigDTO();
-        config.setModelName("allowed-model");
-        config.setIsEnabled(true);
-
+    void shouldFallbackToYmlDefaultWhenNoDbDefault() {
         when(modelConfigService.getDefaultModel()).thenReturn(Optional.empty());
-        when(modelConfigService.getEnabledModels()).thenReturn(List.of(config));
-        when(modelConfigService.getModelByName("allowed-model")).thenReturn(Optional.of(config));
 
-        assertEquals("allowed-model", policy.resolveModelName("allowed-model"));
+        assertEquals("fallback-model", policy.resolveModelName(new ChatRequest()));
     }
 
     @Test

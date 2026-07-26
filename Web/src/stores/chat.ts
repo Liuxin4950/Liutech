@@ -85,7 +85,7 @@ export const useChatStore = defineStore('chat', () => {
   const ttsCancelCounter = ref(0)
   const mode = ref<ChatMode>('stream')
   const errorMessage = ref('')
-  const defaultModel = ref<string>('zai-org/GLM-4.6')  // 默认模型
+  const defaultModel = ref<string>('deepseek-ai/DeepSeek-V3.2')  // 默认模型
   const isModelLoading = ref(false)  // 模型加载状态
   const currentModelInfo = ref<ModelInfo | null>(null)  // 当前模型信息
 
@@ -343,9 +343,8 @@ export const useChatStore = defineStore('chat', () => {
    * 发送消息
    * @param content 消息内容
    * @param context 上下文信息
-   * @param model 模型名称（可选，不传则使用默认模型）
    */
-  const sendMessage = async (content: string, context?: Record<string, any>, model?: string) => {
+  const sendMessage = async (content: string, context?: Record<string, any>) => {
     if (!content.trim() || isLoading.value) return
 
     await ensureUserRoleLoaded()
@@ -365,7 +364,6 @@ export const useChatStore = defineStore('chat', () => {
       const request: AiChatRequest = {
         message: content.trim(),
         context,
-        model: model || defaultModel.value,  // 使用传入的模型或默认模型
         ...(isGuestSession()
           ? { tempMessages: guestTempMessages }
           : { ...(conversationId.value && { conversationId: conversationId.value }) })
@@ -662,7 +660,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * 格式化模型名称用于显示
-   * 将 "zai-org/GLM-4.6" 转换为 "GLM-4.6"
+   * 将 "deepseek-ai/DeepSeek-V3.2" 转换为 "DeepSeek-V3.2"
    */
   const formatModelName = (modelName: string): string => {
     // 如果包含斜杠，取斜杠后的部分

@@ -15,10 +15,6 @@ export interface AiChatRequest {
     role: 'user' | 'assistant' | 'system'
     content: string
   }>
-  /** 回复模式：normal 一次性完整返回，stream SSE 实时返回 */
-  mode?: 'normal' | 'stream'
-  /** 使用的模型，默认为空 */
-  model?: string
   /** 温度参数，控制回复的随机性 */
   temperature?: number
   /** 最大token数 */

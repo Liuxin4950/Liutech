@@ -68,32 +68,23 @@ class AiChatServiceImplTest {
     }
 
     @Test
-    void shouldFallbackToDefaultModelWhenRequestedModelNotEnabled() throws Exception {
+    void shouldReturnDbDefaultModel() throws Exception {
         ChatRequest request = new ChatRequest();
-        request.setModel("blocked-model");
 
         ModelConfigDTO defaultConfig = new ModelConfigDTO();
         defaultConfig.setModelName("allowed-default");
         defaultConfig.setIsEnabled(true);
 
-        ModelConfigDTO disabledConfig = new ModelConfigDTO();
-        disabledConfig.setModelName("blocked-model");
-        disabledConfig.setIsEnabled(false);
-
         when(aiModelConfigService.getDefaultModel()).thenReturn(Optional.of(defaultConfig));
-        when(aiModelConfigService.getEnabledModels()).thenReturn(List.of(defaultConfig));
-        when(aiModelConfigService.getModelByName("blocked-model")).thenReturn(Optional.of(disabledConfig));
 
         assertEquals("allowed-default", resolveModelName(request));
     }
 
     @Test
-    void shouldFallbackToConfiguredDefaultWhenNoWhitelistConfigured() throws Exception {
+    void shouldFallbackToYmlDefaultWhenNoDbDefault() throws Exception {
         ChatRequest request = new ChatRequest();
-        request.setModel("legacy-direct-model");
 
         when(aiModelConfigService.getDefaultModel()).thenReturn(Optional.empty());
-        when(aiModelConfigService.getEnabledModels()).thenReturn(Collections.emptyList());
 
         assertEquals("fallback-model", resolveModelName(request));
     }

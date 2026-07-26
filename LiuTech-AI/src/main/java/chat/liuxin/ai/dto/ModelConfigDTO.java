@@ -19,12 +19,12 @@ public class ModelConfigDTO {
     private Long id;
 
     /**
-     * 模型名称（如 zai-org/GLM-4.6）
+     * 模型名称（如 deepseek-ai/DeepSeek-V3.2）
      */
     private String modelName;
 
     /**
-     * 显示名称（如 GLM-4.6）
+     * 显示名称（如 DeepSeek-V3.2）
      */
     private String displayName;
 

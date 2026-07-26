@@ -33,13 +33,13 @@ public class AiModelController {
     private final AiModelConfigService modelConfigService;
 
     /** 未设置默认模型时的兜底模型 */
-    private static final String FALLBACK_DEFAULT_MODEL = "zai-org/GLM-4.6";
+    private static final String FALLBACK_DEFAULT_MODEL = "deepseek-ai/DeepSeek-V3.2";
 
     /**
      * 获取默认模型
      *
      * 业务说明：返回管理员设置的默认模型名称，供用户前端使用
-     * 如果未设置默认模型，返回系统默认模型 "zai-org/GLM-4.6"
+     * 如果未设置默认模型，返回系统默认模型 "deepseek-ai/DeepSeek-V3.2"
      *
      * @return 默认模型的模型名称
      */
