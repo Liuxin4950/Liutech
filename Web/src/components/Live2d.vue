@@ -140,11 +140,12 @@ const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partial<LipSy
   }
 
   const speak = async (options: SpeakOptions) => {
-    const el = new Audio(options.url)
+    const el = new Audio()
     el.preload = 'auto'
     el.crossOrigin = options.crossOrigin ?? 'anonymous'
     el.volume = options.volume ?? 1
-    try { await start(el) } catch {}
+    el.src = options.url
+    try { await start(el) } catch (e) { console.warn('[lipSync] speak start failed:', e) }
     return el
   }
 
@@ -355,12 +356,12 @@ const speakAudioElement = async (audio: HTMLAudioElement) => {
     emit('speak-start')
     try {
         audio.preload = 'auto'
-        audio.crossOrigin = 'anonymous'
     } catch {
     }
     try {
         await lipSync.start(audio)
-    } catch {
+    } catch (e) {
+        console.warn('[lipSync] speakAudioElement start failed:', e)
     }
     return audio
 }

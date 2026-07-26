@@ -48,9 +48,10 @@ export function useChatTts(state: {
     if (enriched.status === 'ready' && enriched.audioUrl) {
       try {
         enriched.audioUrl = resolveTtsAudioUrl(enriched.audioUrl)
-        const pre = new Audio(enriched.audioUrl)
+        const pre = new Audio()
         pre.preload = 'auto'
         pre.crossOrigin = 'anonymous'
+        pre.src = enriched.audioUrl
         pre.load()
         enriched.audioEl = pre
       } catch {
