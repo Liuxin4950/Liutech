@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="content">
     <!-- 页面标题 -->
     <div class="page-header">
@@ -402,7 +402,7 @@
 
           <!-- 文章内容 -->
           <article class="">
-            <div class="markdown-content" v-html="renderedPreviewContent"></div>
+            <div ref="previewContentRef" class="markdown-content" v-html="renderedPreviewContent"></div>
           </article>
         </div>
       </div>
@@ -502,7 +502,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref, watch, nextTick } from 'vue'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import Icon from '@/components/Icon.vue'
@@ -510,6 +510,7 @@ import AdminWritingAssistant from '@/components/AdminWritingAssistant.vue'
 import { handleImageError } from '@/composables/useImageFallback'
 import { formatDate } from '@/utils/utils'
 import { usePostEditor } from '@/composables/usePostEditor'
+import { highlightCodeBlocks } from '@/composables/useRichContent'
 
 const {
   form, draftKey, generateDraftKey,
@@ -541,6 +542,12 @@ const {
   loadPostData, checkEditMode
 } = usePostEditor()
 
+// 预览内容容器引用，用于代码高亮
+const previewContentRef = ref<HTMLElement | null>(null)
+// 预览打开后高亮代码块，保证预览效果与发布后一致
+watch(showPreview, (open) => {
+  if (open) nextTick(() => highlightCodeBlocks(previewContentRef.value))
+})
 // value 统一为 string，与 form.categoryId/seriesId（string）保持一致，避免 === 比较失败回退显示 id
 const categoryOptions = computed(() => categories.value.map(c => ({ label: c.name, value: String(c.id) })))
 // 系列首项为"不属于任何系列"，省去清空按钮

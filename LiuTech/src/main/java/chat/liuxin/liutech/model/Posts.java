@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.model;
+﻿package chat.liuxin.liutech.model;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 
@@ -19,7 +19,7 @@ public class Posts extends BaseEntity {
     private String title;
 
     /**
-     * 文章内容（Markdown）
+     * 文章内容（HTML，TinyMCE 富文本输出）
      */
     private String content;
 

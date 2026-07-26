@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.req;
+﻿package chat.liuxin.liutech.req;
 
 import java.util.List;
 
@@ -21,7 +21,7 @@ public class PostCreateReq {
     private String title;
 
     /**
-     * 文章内容（Markdown）
+     * 文章内容（HTML，TinyMCE 富文本输出）
      */
     @NotBlank(message = "文章内容不能为空")
     private String content;

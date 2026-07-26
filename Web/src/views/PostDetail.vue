@@ -1,8 +1,7 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
-import DOMPurify from 'dompurify'
 import { PostService } from '@/services/post'
 import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
@@ -14,17 +13,11 @@ import LoginModal from '../components/LoginModal.vue'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
 import Icon from '@/components/Icon.vue'
-import { usePrismHighlighter } from '@/composables/usePrismHighlighter'
+import { sanitizePostHtml, highlightCodeBlocks } from '@/composables/useRichContent'
 import { parsePostId, buildPostPath } from '@/utils/postPath'
 
-// DOMPurify 安全配置：禁止危险标签和事件属性
-const sanitizeConfig = {
-  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'button'],
-  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit']
-}
-
-// Prism.js 代码高亮（拆分到 composables/usePrismHighlighter.ts）
-const { loadPrism, highlightAll, cleanup: cleanupPrism } = usePrismHighlighter()
+// 文章正文内容容器引用，用于代码高亮
+const contentRef = ref<HTMLElement | null>(null)
 
 const route = useRoute()
 const router = useRouter()
@@ -137,12 +130,12 @@ const linkAttachments = computed(() => {
 })
 
 // 计算属性：渲染富文本内容
-const renderedContent = computed(() => DOMPurify.sanitize(post.value?.content || '', sanitizeConfig))
+const renderedContent = computed(() => sanitizePostHtml(post.value?.content || ''))
 
 // 监听内容变化，触发代码高亮
 watch(() => renderedContent.value, () => {
   nextTick(() => {
-    highlightAll()
+    highlightCodeBlocks(contentRef.value)
   })
 }, { flush: 'post' })
 
@@ -403,16 +396,13 @@ watch(() => route.params.id, () => {
 // 组件挂载时加载数据
 onMounted(() => {
   loadPostDetail()
-  // 加载Prism.js用于代码高亮
-  loadPrism()
   // 添加点击外部区域关闭分享选项的事件监听
   document.addEventListener('click', handleClickOutside)
 })
 
-// 组件卸载时清理事件监听器和注入的 Prism.js 资源
+// 组件卸载时清理事件监听器
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
-  cleanupPrism()
 })
 
 const interactionStore = usePostInteractionStore()
@@ -500,7 +490,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     
       <!-- 文章内容 -->
       <article class="post-article">
-        <div class="markdown-content" v-html="renderedContent"></div>
+        <div ref="contentRef" class="markdown-content" v-html="renderedContent"></div>
       </article>
 
       <!-- 系列导航 -->
@@ -1125,7 +1115,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   color: var(--text-main);
 }
 
-/* 代码样式 - 简化版，让Prism处理高亮 */
+/* 代码样式 - 由 hljs 处理高亮，语法色来自全局 markdown.css 的 .hljs-* */
 .markdown-content :deep(code) {
   background-color: var(--bg-element);
   color: var(--text-main);
@@ -1133,13 +1123,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   border-radius: 4px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.9em;
-}
-
-/* 移除Prism token的所有样式，只保留纯文本 */
-.markdown-content :deep(.token) {
-  background: none !important;
-  text-shadow:none !important;
-  color: inherit !important;
 }
 
 .markdown-content :deep(pre) {
@@ -1163,37 +1146,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   font-size: inherit;
   color: inherit !important;
   white-space: pre;
-}
-
-.markdown-content :deep(pre code *) {
-  color: inherit !important;
-}
-
-/* 代码块复制按钮 */
-.markdown-content :deep(.copy-btn) {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 4px 12px;
-  font-size: 12px;
-  color: var(--text-subtle);
-  background: var(--bg-hover);
- border: 1px solid var(--border-light);
-  border-radius: 6px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s;
-  z-index: 1;
-}
-
-.markdown-content :deep(pre:hover .copy-btn) {
-  opacity: 1;
-}
-
-.markdown-content :deep(.copy-btn:hover) {
-  background: var(--bg-active);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
 }
 
 /* 表格样式 */

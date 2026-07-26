@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+﻿import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import DOMPurify from 'dompurify'
 import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '@/services/adminAgent'
@@ -12,7 +12,7 @@ import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
 import { useUserStore } from '@/stores/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { useMarkdown } from '@/composables/useMarkdown'
+import { sanitizePostHtml } from '@/composables/useRichContent'
 import Swal from 'sweetalert2'
 
 /** 判断值非 undefined 且非 null（用于可选字段更新前的守卫） */
@@ -40,7 +40,6 @@ export function usePostEditor() {
   const router = useRouter()
   const route = useRoute()
   const { handleAsync } = useErrorHandler()
-  const { processMarkdown } = useMarkdown()
   const userStore = useUserStore()
 
   // 表单数据
@@ -95,7 +94,7 @@ export function usePostEditor() {
 
   const renderedPreviewContent = computed(() => {
     if (!form.value.content) return ''
-    return processMarkdown(form.value.content)
+    return sanitizePostHtml(form.value.content)
   })
 
   // 附件
