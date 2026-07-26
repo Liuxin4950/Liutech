@@ -49,7 +49,7 @@ const honors: HonorItem[] = [
     id: 'web-app-first-prize',
     title: 'Web 应用开发',
     level: '一等奖',
-    year: '2026',
+    year: '2025',
     category: 'dev',
     image: webAppFirstPrize
   },
@@ -81,7 +81,7 @@ const honors: HonorItem[] = [
     id: 'c-programming-engineer-cert',
     title: 'C语言程序设计工程师证书',
     level: '工程师证书',
-    year: '2024',
+    year: '2023',
     category: 'cert',
     image: cProgrammingEngineerCert
   },
