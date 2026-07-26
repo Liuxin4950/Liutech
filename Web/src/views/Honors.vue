@@ -2,7 +2,138 @@
 import { computed, ref } from 'vue'
 import Icon from '@/components/Icon.vue'
 import { handleImageError } from '@/composables/useImageFallback'
-import { honorCategories, honors, type HonorCategory, type HonorItem } from '@/data/honors'
+import softwareTestingFirstPlace from '@/assets/image/honors/职业技能大赛重庆市选拔赛软件测试项目-第一名.jpg'
+import webAppFirstPrize from '@/assets/image/honors/Web应用开发-一等奖.jpg'
+import wechatMiniappFirstPrize from '@/assets/image/honors/微信小程序开发赛项-一等奖.jpg'
+import lowcodeNvwaFirstPrize from '@/assets/image/honors/低代码女娲杯-一等奖.jpg'
+import mobileAppSecondPrize from '@/assets/image/honors/移动应用开发-二等奖.jpg'
+import appSoftwareThirdPrize from '@/assets/image/honors/应用软件开发-三等奖.jpg'
+import appSoftwareBronzeAward from '@/assets/image/honors/应用软件开发-铜奖.jpg'
+import textAppExcellenceAward from '@/assets/image/honors/文本应用开发-优秀奖.jpg'
+import cProgrammingEngineerCert from '@/assets/image/honors/C语言程序设计工程师证书.jpg'
+
+import webFrontendSecondPrize from '@/assets/image/honors/中职技能大赛Web前端开发-二等奖.jpg'
+import mobileAppNationalSecondPrize from '@/assets/image/honors/全国职业院校技能大赛移动应用与开发-二等奖.jpg'
+import bricsDataVizThirdPrize from '@/assets/image/honors/金砖国家技能大赛数据分析与可视化-三等奖.jpg'
+
+type HonorCategory = 'all' | 'dev' | 'test' | 'miniapp' | 'lowcode' | 'cert'
+
+interface HonorItem {
+  id: string
+  title: string
+  level: string
+  year: string
+  category: Exclude<HonorCategory, 'all'>
+  image: string
+}
+
+const honorCategories: Array<{ label: string; value: HonorCategory }> = [
+  { label: '全部', value: 'all' },
+  { label: '软件开发', value: 'dev' },
+  { label: '软件测试', value: 'test' },
+  { label: '小程序', value: 'miniapp' },
+  { label: '低代码', value: 'lowcode' },
+  { label: '技术认证', value: 'cert' }
+]
+
+const honors: HonorItem[] = [
+  {
+    id: 'software-testing-first-place',
+    title: '中华人民共和国第三届职业技能大赛重庆市选拔赛软件测试（世）项目',
+    level: '第一名',
+    year: '2025',
+    category: 'test',
+    image: softwareTestingFirstPlace
+  },
+  {
+    id: 'web-app-first-prize',
+    title: 'Web 应用开发',
+    level: '一等奖',
+    year: '2026',
+    category: 'dev',
+    image: webAppFirstPrize
+  },
+  {
+    id: 'wechat-miniapp-first-prize',
+    title: '重庆市专项职业能力技能大赛微信小程序开发赛项',
+    level: '一等奖',
+    year: '2025',
+    category: 'miniapp',
+    image: wechatMiniappFirstPrize
+  },
+  {
+    id: 'lowcode-nvwa-first-prize',
+    title: '第十四届全国大学生计算机应用能力与数字素养大赛（久其女娲杯低代码编程赛项）',
+    level: '一等奖',
+    year: '2023',
+    category: 'lowcode',
+    image: lowcodeNvwaFirstPrize
+  },
+  {
+    id: 'mobile-app-second-prize',
+    title: '重庆市职业院校技能大赛高职组移动应用设计与开发',
+    level: '二等奖',
+    year: '2024',
+    category: 'dev',
+    image: mobileAppSecondPrize
+  },
+  {
+    id: 'c-programming-engineer-cert',
+    title: 'C语言程序设计工程师证书',
+    level: '工程师证书',
+    year: '2024',
+    category: 'cert',
+    image: cProgrammingEngineerCert
+  },
+  {
+    id: 'app-software-third-prize',
+    title: '重庆市职业院校技能大赛高职组应用软件系统开发',
+    level: '三等奖',
+    year: '2024',
+    category: 'dev',
+    image: appSoftwareThirdPrize
+  },
+  {
+    id: 'app-software-bronze-award',
+    title: '应用软件开发',
+    level: '铜奖',
+    year: '2025',
+    category: 'dev',
+    image: appSoftwareBronzeAward
+  },
+  {
+    id: 'text-app-excellence-award',
+    title: '蓝桥杯全国总决赛Web应用开发职业院校组',
+    level: '优秀奖',
+    year: '2025',
+    category: 'dev',
+    image: textAppExcellenceAward
+  },
+  {
+    id: 'web-frontend-second-prize',
+    title: '重庆市第十三届中职技能大赛 Web 前端开发',
+    level: '二等奖',
+    year: '2021',
+    category: 'dev',
+    image: webFrontendSecondPrize
+  },
+  {
+    id: 'mobile-app-national-second-prize',
+    title: '全国职业院校技能大赛中职组 移动应用与开发',
+    level: '团体二等奖',
+    year: '2023',
+    category: 'dev',
+    image: mobileAppNationalSecondPrize
+  },
+  {
+    id: 'brics-data-viz-third-prize',
+    title: '一带一路暨金砖国家技能发展与技术创新大赛 数据分析与可视化',
+    level: '团体三等奖',
+    year: '2021',
+    category: 'dev',
+    image: bricsDataVizThirdPrize
+  }
+]
 
 const activeCategory = ref<HonorCategory>('all')
 const selectedHonor = ref<HonorItem | null>(null)
