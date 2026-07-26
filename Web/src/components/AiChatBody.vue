@@ -3,6 +3,7 @@ import { nextTick, ref } from 'vue'
 import type { ChatMessage } from '@/stores/chat'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import Icon from './Icon.vue'
+import { useNestedLenis } from '@/composables/useLenis'
 
 type DisplayMessage = ChatMessage & {
   displayContent: string
@@ -25,6 +26,9 @@ const emit = defineEmits<{
 }>()
 
 const chatContainer = ref<HTMLElement | null>(null)
+
+// 聊天消息列表嵌套 Lenis：与页面一致的平滑惯性；外层 window Lenis 由 data-lenis-prevent 跳过
+useNestedLenis(chatContainer)
 
 const scrollToBottom = async () => {
   await nextTick()
@@ -53,7 +57,7 @@ defineExpose({
       <button class="error-close" @click="emit('clearError')"><Icon name="close" /></button>
     </div>
 
-    <div ref="chatContainer" class="chat-messages">
+    <div ref="chatContainer" class="chat-messages" data-lenis-prevent>
       <div v-if="!hasMessages" class="empty-state text-sm">
         <p>你好！我是纳西妲，有什么我可以帮助你的吗？</p>
       </div>

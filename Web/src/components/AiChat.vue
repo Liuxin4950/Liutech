@@ -10,6 +10,10 @@ import Icon from './Icon.vue'
 import { useConversationManager } from '@/composables/useConversationManager'
 import { useVoiceRecognition } from '@/composables/useVoiceRecognition'
 import { parsePostId } from '@/utils/postPath'
+import { useNestedLenis } from '@/composables/useLenis'
+
+const historyContentRef = ref<HTMLElement | null>(null)
+useNestedLenis(historyContentRef)
 
 const props = defineProps<{
   expanded?: boolean
@@ -256,7 +260,7 @@ defineExpose({
           <button class="close-sidebar" @click="toggleHistorySidebar"><Icon name="close" /></button>
         </div>
 
-        <div class="history-content">
+        <div ref="historyContentRef" class="history-content" data-lenis-prevent>
           <div v-if="isLoadingHistory" class="history-loading text-sm">
             <div class="loading-spinner"></div>
             <span>加载中...</span>

@@ -17,7 +17,7 @@
             />
           </div>
 
-          <div class="search-body">
+          <div ref="searchBodyRef" class="search-body" data-lenis-prevent>
             <div v-if="isSearching" class="search-status">搜索中...</div>
             <div v-else-if="searchError" class="search-status error">{{ searchError }}</div>
             <div v-else-if="keyword.trim() && !isSearching && results.length === 0" class="search-status">
@@ -57,8 +57,12 @@ import { useRouter } from 'vue-router'
 import Icon from './Icon.vue'
 import { PostService, type PostListItem } from '@/services/post'
 import { formatDate } from '@/utils/utils'
+import { useNestedLenis } from '@/composables/useLenis'
 
 const router = useRouter()
+
+const searchBodyRef = ref<HTMLElement | null>(null)
+useNestedLenis(searchBodyRef)
 
 const visible = ref(false)
 const keyword = ref('')
