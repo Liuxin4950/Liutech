@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import Swal from 'sweetalert2'
 import { useUserStore } from '@/stores/user'
+import { getLenis } from '@/composables/useLenis'
 
 /**
  * 路由配置
@@ -209,11 +210,20 @@ const router = createRouter({
   linkExactActiveClass: 'router-link-exact-active',
   // 滚动行为配置 - 每次路由跳转都回到页面顶部
   scrollBehavior(to, from, savedPosition) {
+    const lenis = getLenis()
     // 如果有保存的滚动位置（浏览器前进后退），则恢复到该位置
     if (savedPosition) {
+      if (lenis) {
+        lenis.scrollTo(savedPosition.top, { immediate: true })
+        return false
+      }
       return savedPosition
     }
-    // 否则滚动到页面顶部
+    // 否则滚动到页面顶部（Lenis 接管时用其平滑滚动）
+    if (lenis) {
+      lenis.scrollTo(0)
+      return false
+    }
     return { top: 0, behavior: 'smooth' }
   }
 })

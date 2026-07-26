@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
@@ -17,6 +17,7 @@ import { useChatStore } from '@/stores/chat'
 import { getServiceBaseURL, ServiceType } from '@/config/services'
 import { useOnboarding } from '@/composables/useOnboarding'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
+import { initLenis, destroyLenis } from '@/composables/useLenis'
 
 const showLoader = ref(false)
 const router = useRouter()
@@ -266,6 +267,8 @@ const handleSpotlightClick = () => {
 }
 
 onMounted(() => {
+  initLenis()
+
   // 初始化新用户引导
   setTimeout(() => initOnboarding(), 2000)
 
@@ -322,6 +325,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  destroyLenis()
   window.removeEventListener('ai-chat-open', handleExternalChatOpen)
   window.removeEventListener('keydown', handleGlobalKeydown)
 })
@@ -629,8 +633,10 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   position: absolute;
   right: 100%;
   bottom: 0;
-  /* compact 模式下确保在 Live2d(z-index:30)之上，避免看板娘遮挡 header 开关按钮 */
-  z-index: 40;
+  /* compact 模式不设 z-index：避免 .ai-chat 形成层叠上下文把 header/body/input 三层
+     一起抬到 Live2d(30) 之上。不设 z-index 时三层各自 z-index（header/input 40、body 20）
+     与 Live2d(30) 在 .ai-content 内同级比较：header/input 在模型之上可点击，
+     body 在模型之下让看板娘浮在内容前。 */
   transition-property: width, height, right, bottom, opacity;
   transition-duration: 0.4s;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
