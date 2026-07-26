@@ -1,75 +1,95 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import Icon from '../components/Icon.vue'
-import { handleImageError } from '@/composables/useImageFallback'
-import MessageModal from '@/components/MessageModal.vue'
-import moonImg from '@/assets/image/moon.png'
-import aboutHonorsImg from '@/assets/image/about/about-honors-collage.png'
+import { ref } from "vue"
+import Icon from "../components/Icon.vue"
+import { handleImageError } from "@/composables/useImageFallback"
+import MessageModal from "@/components/MessageModal.vue"
+import moonImg from "@/assets/image/moon.png"
+import aboutHonorsImg from "@/assets/image/about/about-honors-collage.png"
 
 const messageModalVisible = ref(false)
 
 const links = [
-  { icon: 'github', label: 'GitHub', value: 'Liuxin4950', href: 'https://github.com/Liuxin4950' },
-  { icon: 'mail', label: '邮箱', value: 'liuxin4950@gmail.com', href: 'mailto:liuxin4950@gmail.com' }
+  { icon: "github", label: "GitHub", value: "Liuxin4950", href: "https://github.com/Liuxin4950" },
+  { icon: "mail", label: "邮箱", value: "liuxin4950@gmail.com", href: "mailto:liuxin4950@gmail.com" }
 ]
 
-// 技术栈数据
+// 技术栈：前端 / 后端 / 工程化 / AI 四类
 const skillGroups = [
   {
-    category: '前端开发',
-    icon: 'layout',
-    accent: 'frontend',
+    category: "前端开发",
+    icon: "layout",
+    accent: "frontend",
     skills: [
-      { name: 'Vue 3', icon: 'vue' },
-      { name: 'TypeScript', icon: 'typescript' },
-      { name: 'Vite', icon: 'zap' },
-      { name: 'SCSS', icon: 'layers' },
-      { name: 'Ant Design', icon: 'grid' },
-      { name: 'TailwindCSS', icon: 'wind' },
+      { name: "Vue 3", icon: "vue" },
+      { name: "TypeScript", icon: "typescript" },
+      { name: "Vite", icon: "zap" },
+      { name: "SCSS", icon: "layers" },
+      { name: "Ant Design", icon: "grid" },
+      { name: "uni-app", icon: "smartphone" },
     ]
   },
   {
-    category: '后端与运维',
-    icon: 'server',
-    accent: 'backend',
+    category: "后端开发",
+    icon: "server",
+    accent: "backend",
     skills: [
-      { name: 'Spring Boot', icon: 'spring' },
-      { name: 'Java', icon: 'coffee' },
-      { name: 'MyBatis', icon: 'database' },
-      { name: 'MySQL', icon: 'database' },
-      { name: 'Docker', icon: 'docker' },
-      { name: 'Nginx', icon: 'server' },
+      { name: "Spring Boot", icon: "spring" },
+      { name: "Java", icon: "coffee" },
+      { name: "MyBatis-Plus", icon: "database" },
+      { name: "MySQL", icon: "database" },
+      { name: "Redis", icon: "database" },
+      { name: "Spring Security", icon: "shield" },
     ]
   },
   {
-    category: 'AI & 工具',
-    icon: 'bot',
-    accent: 'ai',
+    category: "工程化",
+    icon: "wrench",
+    accent: "devops",
     skills: [
-      { name: 'Spring AI', icon: 'spring' },
-      { name: '大模型 API', icon: 'brain' },
-      { name: 'Prompt Engineering', icon: 'lightbulb' },
-      { name: 'SSE 流式', icon: 'zap' },
-      { name: 'Git', icon: 'gitBranch' },
-      { name: 'Live2D', icon: 'live2d' },
+      { name: "Docker", icon: "docker" },
+      { name: "Compose", icon: "package" },
+      { name: "Nginx", icon: "server" },
+      { name: "Linux", icon: "terminal" },
+      { name: "Actions", icon: "gitBranch" },
+      { name: "CI/CD", icon: "refresh" },
+    ]
+  },
+  {
+    category: "AI 探索",
+    icon: "bot",
+    accent: "ai",
+    skills: [
+      { name: "Spring AI", icon: "spring" },
+      { name: "大模型 API", icon: "brain" },
+      { name: "Prompt 工程", icon: "lightbulb" },
+      { name: "MCP", icon: "cpu" },
+      { name: "SSE 流式", icon: "zap" },
+      { name: "Live2D", icon: "live2d" },
     ]
   },
 ]
 
-// 项目经历数据
+// 技术理念
+const philosophy = [
+  { icon: "check", title: "代码不是目的", desc: "优秀的开发者不是写最多代码的人，而是能用合适的技术真正解决问题的人。" },
+  { icon: "book", title: "保持学习", desc: "技术更新很快，用阅读源码、动手实践、记录博客的方式输出倒逼输入。" },
+  { icon: "brain", title: "AI 是第二大脑", desc: "让 AI 成为开发者的能力延伸，融入开发流程，而不只是简单的聊天工具。" },
+]
+
+// 项目经历：文案聚焦“为什么做 + 学到什么”
 const projects = [
   {
-    name: 'LiuTech 博客',
-    description: '全栈个人博客平台，前后端分离架构，支持文章管理、评论互动、AI 聊天助手、Live2D 看板娘等功能。',
-    tags: ['Vue 3', 'Spring Boot', 'MySQL', 'Docker'],
-    icon: 'home',
-    link: '/'
+    name: "LiuTech 博客",
+    description: "全栈个人博客平台。从第一版写死配置、本地推理的混乱方案，到如今 Spring Boot 微服务 + Vue 3 + Docker Compose 的工程化架构。一次 Docker 误操作导致数据丢失后，深入学习了数据持久化与备份--也让我明白，真正的工程是保证系统可靠运行。",
+    tags: ["Vue 3", "Spring Boot", "MySQL", "Docker"],
+    icon: "home",
+    link: "/"
   },
   {
-    name: 'LiuTech-AI',
-    description: '独立 AI 微服务，基于 Spring AI 接入 DeepSeek-V3.2 大模型，支持多轮对话、工具调用、SSE 流式响应和 TTS 语音合成。',
-    tags: ['Spring AI', 'DeepSeek-V3.2', 'SSE', 'TTS'],
-    icon: 'bot',
+    name: "LiuTech-AI",
+    description: "独立 AI 微服务，基于 Spring AI 接入 DeepSeek-V3.2，支持多轮对话、SSE 流式响应、TTS 语音合成与 Live2D 口型同步。看板娘从“不会说话”到“开口交流”的完整实践。",
+    tags: ["Spring AI", "DeepSeek-V3.2", "SSE", "TTS"],
+    icon: "bot",
     link: null
   },
 ]
@@ -77,10 +97,6 @@ const projects = [
 const openMessageModal = () => {
   messageModalVisible.value = true
 }
-
-
-
-
 </script>
 
 <template>
@@ -126,15 +142,16 @@ const openMessageModal = () => {
     <main class="about-main">
       <section class="about-intro">
         <h2>关于我</h2>
-        <p>
-          我的名字叫刘鑫。正在成为一名全栈工程师，我在高一的时候接触了web前端开发，开始进行各种技能大赛，在比赛过程中自学大部分前端的知识，在上大学后发现单纯的前端无法满足我的需求，
-          我完整实现一个动态页面所以我开始学习后端开发，目前还在学校学习呢，这个博客是我在大二下学期写的，目的是实践整合我学到的前端和后端知识，并实现右下角的那个看板娘。
+        <p class="intro-lead">
+          我叫刘鑫，软件工程专业的学生，正在成为一名全栈开发工程师。用代码记录时间与成长，用技术创造快乐与价值。
         </p>
         <p>
-          我喜欢折腾新技术，也享受把一个东西创造出来的感觉，我的第一个博客是我上课写的，当时在学习java后端，边学边做这个live2d看板娘和博客基本功能，一直在搞ollama本地的GPT-SoVITS的本地推理，想着能不能实现一个可以和读者交流的看板娘，
-          因为我发现当时的看板娘是live2d他们都不会主动说话，也不会博客内容和读者互动，又因为当时比较资金有限，所以我以本地推理为主，没有使用ollama的云推理。实现的博客也是乱七八糟的， 功能配置什么的
-          都是写死在代码文件里的，本地推理在服务器上又不靠谱，博客的文本编辑器就是单纯的markdown编辑器，没有其他的功能。也没有用富文本，页面的布局和配色和主题完全没有统一， 乱七八糟的我自己看着都头疼。
-          为了复活我的看板娘，所以我重新写了这个博客。使用了工程化的架构，并积极的使用vebicoding来优化代码提供思路，各种折腾设计，最后才实现了本博客。
+          最初接触编程只是出于好奇，把它和传说中黑客的网络技术搞混了，但是在学习的过程中却渐渐发现：相比刷短视频、我更喜欢用学习到的知识来实现一些有价值的东西。
+          这些年，我从一个只能写出静态页面的初学者，成长为能独立打通前后端开发、数据库设计、容器化部署与自动化交付的开发者--这个博客就是我为整合所学、
+          并亲手实现一个能和读者交流的 Live2D 看板娘而搭建的。
+        </p>
+        <p>
+          如今我把重心放在 AI 与软件工程的结合上：用大模型让看板娘开口交流，用 AI 辅助开发提效。我相信，真正的软件工程不只是写代码，更是保证系统可靠地运行、持续地创造价值。
         </p>
       </section>
 
@@ -184,7 +201,7 @@ const openMessageModal = () => {
             </div>
           </article>
         </div>
-      </section>
+      </section>  
 
       <section class="honors-spotlight">
         <div class="honors-art">
@@ -196,6 +213,22 @@ const openMessageModal = () => {
           <router-link to="/honors" class="text-link">
             查看全部荣誉 <Icon name="chevronRight" size="15" />
           </router-link>
+        </div>
+      </section>
+
+      <!-- 技术理念 -->
+      <section class="philosophy-section">
+        <h2>技术理念</h2>
+        <div class="philosophy-grid">
+          <div v-for="item in philosophy" :key="item.title" class="philosophy-card">
+            <div class="philosophy-icon">
+              <Icon :name="item.icon" size="18" />
+            </div>
+            <div class="philosophy-body">
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.desc }}</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -426,15 +459,24 @@ const openMessageModal = () => {
   padding: 34px;
 
   h2 {
-    margin: 0 0 12px;
+    margin: 0 0 16px;
     color: var(--text-title);
     font-size: clamp(1.45rem, 3vw, 1.9rem);
     line-height: 1.25;
   }
 
+  .intro-lead {
+    margin: 0 0 18px;
+    padding-left: 14px;
+    border-left: 3px solid var(--color-primary);
+    font-size: 1.08rem;
+    font-weight: 600;
+    color: var(--text-title);
+    line-height: 1.7;
+  }
+
   p {
-    max-width: 760px;
-    margin: 0 0 10px;
+    margin: 0 0 12px;
     color: var(--text-secondary);
     line-height: 1.9;
 
@@ -450,9 +492,10 @@ const openMessageModal = () => {
   overflow: hidden;
 }
 
-/* ── 技术栈 ── */
+/* ── 通用区块容器：技术栈 / 项目 / 理念 ── */
 .tech-stack-section,
-.projects-section {
+.projects-section,
+.philosophy-section {
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background: var(--bg-card);
@@ -467,21 +510,21 @@ const openMessageModal = () => {
   }
 }
 
+/* ── 技术栈 ── */
 .skill-groups {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
 }
 
 .skill-group {
   border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 18px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 
   &:hover {
     border-color: var(--color-primary);
-    box-shadow: 0 2px 12px rgba(var(--color-primary-rgb, 53, 80, 113), 0.08);
   }
 }
 
@@ -496,6 +539,7 @@ const openMessageModal = () => {
 
   .skill-group--frontend & { color: #4f8c81; }
   .skill-group--backend & { color: #355071; }
+  .skill-group--devops & { color: #d77a55; }
   .skill-group--ai & { color: #9b59b6; }
 }
 
@@ -516,10 +560,9 @@ const openMessageModal = () => {
   color: var(--text-secondary);
   background: var(--bg-soft);
   border: 1px solid var(--border-light);
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, border-color 0.2s ease;
 
   &:hover {
-    background: var(--bg-hover);
     color: var(--text-title);
     border-color: var(--color-primary);
   }
@@ -538,11 +581,10 @@ const openMessageModal = () => {
   padding: 20px;
   border: 1px solid var(--border-light);
   border-radius: 8px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 
   &:hover {
     border-color: var(--color-primary);
-    box-shadow: 0 2px 12px rgba(var(--color-primary-rgb, 53, 80, 113), 0.08);
   }
 }
 
@@ -603,6 +645,58 @@ const openMessageModal = () => {
   color: var(--text-muted);
   background: var(--bg-soft);
   border: 1px solid var(--border-light);
+}
+
+/* ── 技术理念：左对齐横向条目，克制动效 ── */
+.philosophy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.philosophy-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 20px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  transition: border-color 0.2s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+  }
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--text-title);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+}
+
+.philosophy-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--bg-soft);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.philosophy-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .honors-art {
@@ -764,7 +858,7 @@ const openMessageModal = () => {
   }
 
   .skill-groups {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .project-grid {
@@ -843,11 +937,20 @@ const openMessageModal = () => {
   .honors-copy,
   .contact-section,
   .tech-stack-section,
-  .projects-section {
+  .projects-section,
+  .philosophy-section {
     padding: 24px;
   }
 
-.honors-art {
+  .skill-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .philosophy-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .honors-art {
     min-height: 210px;
   }
 
