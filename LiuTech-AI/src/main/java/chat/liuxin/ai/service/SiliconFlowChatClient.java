@@ -4,7 +4,6 @@ import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.common.mcp.RoleBasedToolRegistry;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -66,9 +65,8 @@ public class SiliconFlowChatClient {
      * 熔断打开时走 {@link #fallbackChat} 返回降级文案。
      * 空响应会直接抛 AIServiceException,便于上层记录失败。
      */
-    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    @Retryable(retryFor = {Exception.class}, maxAttempts = 2, backoff = @Backoff(delay = 1000))
     @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChat")
-    @RateLimiter(name = "aiService")
     public String chat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, String role, Map<String, Object> toolContext) {
         String model = resolveModel(modelName);
         List<Message> safeMsgs = safeMessages(messages);
@@ -116,9 +114,8 @@ public class SiliconFlowChatClient {
      * 熔断打开走 {@link #fallbackStreamChat}。
      * 注意重试注解在流订阅前的方法调用阶段生效;订阅后的流内异常需上层处理。
      */
-    @Retryable(retryFor = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+    @Retryable(retryFor = {Exception.class}, maxAttempts = 2, backoff = @Backoff(delay = 1000))
     @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackStreamChat")
-    @RateLimiter(name = "aiService")
     public Flux<String> streamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, String role, Map<String, Object> toolContext) {
         String model = resolveModel(modelName);
         List<Message> safeMsgs = safeMessages(messages);

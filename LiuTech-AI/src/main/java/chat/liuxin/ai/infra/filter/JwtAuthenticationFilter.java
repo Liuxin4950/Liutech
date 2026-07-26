@@ -33,6 +33,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * JWT认证过滤器
@@ -132,20 +133,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /** 用户状态缓存 TTL（毫秒）：封禁等状态变更最多延迟此时间生效 */
     private static final long USER_STATUS_CACHE_TTL_MS = 60_000L;
     private final ConcurrentHashMap<Long, CachedUser> userStatusCache = new ConcurrentHashMap<>();
+    /** 上次缓存清理时间，惰性清理用 */
+    private final AtomicLong lastCleanupMillis = new AtomicLong(0L);
 
     private record CachedUser(CurrentUser user, long cachedAt) {}
 
     /** 带缓存的用户状态查询：命中且未过期直接返回，否则跨服务拉取并缓存 */
     private CurrentUser loadCurrentUserFromBlogApi(String token, Long userId) {
+        long now = System.currentTimeMillis();
+        cleanupExpiredCacheEntries(now);
         CachedUser cached = userStatusCache.get(userId);
-        if (cached != null && System.currentTimeMillis() - cached.cachedAt() < USER_STATUS_CACHE_TTL_MS) {
+        if (cached != null && now - cached.cachedAt() < USER_STATUS_CACHE_TTL_MS) {
             return cached.user();
         }
         CurrentUser current = fetchCurrentUserFromBlogApi(token);
         if (current != null) {
-            userStatusCache.put(userId, new CachedUser(current, System.currentTimeMillis()));
+            userStatusCache.put(userId, new CachedUser(current, now));
         }
         return current;
+    }
+
+    /** 惰性清理过期缓存条目，CAS 保证单线程执行，避免长期不活跃用户条目无限堆积 */
+    private void cleanupExpiredCacheEntries(long now) {
+        long previous = lastCleanupMillis.get();
+        if (now - previous < USER_STATUS_CACHE_TTL_MS || !lastCleanupMillis.compareAndSet(previous, now)) {
+            return;
+        }
+        userStatusCache.entrySet().removeIf(e -> now - e.getValue().cachedAt() >= USER_STATUS_CACHE_TTL_MS);
     }
 
     /** 实际发起对主后端 /user/current 的 HTTP 调用，解析 JSON 响应到 CurrentUser；任何异常返回 null */

@@ -15,6 +15,8 @@ import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,6 +71,39 @@ public class StreamingChatService {
     private final AvatarCueService avatarCueService;
     private final AiChatProperties aiChatProperties;
 
+    /** 流式任务线程池大小：个人博客并发有限，固定 16 足够，避免 commonPool 饥饿 */
+    private static final int STREAM_POOL_SIZE = 16;
+
+    /** SSE 流式任务专用线程池，避免长阻塞任务占用 ForkJoinPool.commonPool 影响其他并行计算 */
+    private ExecutorService streamExecutor;
+
+    // ==================== 线程池生命周期 ====================
+
+    /** 初始化流式线程池 */
+    @PostConstruct
+    void initStreamExecutor() {
+        streamExecutor = Executors.newFixedThreadPool(STREAM_POOL_SIZE);
+    }
+
+    /** 优雅关闭流式线程池 */
+    @PreDestroy
+    void shutdownStreamExecutor() {
+        streamExecutor.shutdown();
+        try {
+            if (!streamExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                streamExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            streamExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** 在流式线程池上执行任务，避免占用 ForkJoinPool.commonPool */
+    private void runOnStreamPool(Runnable task) {
+        CompletableFuture.runAsync(task, streamExecutor);
+    }
+
     // ==================== 公开接口 ====================
 
     /**
@@ -107,7 +142,7 @@ public class StreamingChatService {
             emitter.complete();
         });
 
-        CompletableFuture.runAsync(() -> {
+        runOnStreamPool(() -> {
             Long convId = conversationId;
             if (!guestMode && convId == null) {
                 convId = memoryService.createConversation(userIdStr, chatServiceHelper.generateTitle(input));
@@ -189,7 +224,7 @@ public class StreamingChatService {
             emitter.complete();
         });
 
-        CompletableFuture.runAsync(() -> {
+        runOnStreamPool(() -> {
             try {
                 List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true);
 
@@ -382,7 +417,7 @@ public class StreamingChatService {
                                 "ttsEnabled", ttsEnabled));
 
                         if (ttsEnabled && !ttsFutures.isEmpty()) {
-                            CompletableFuture.runAsync(() -> {
+                            runOnStreamPool(() -> {
                                 boolean timedOut = false;
                                 try {
                                     CompletableFuture.allOf(ttsFutures.toArray(new CompletableFuture[0]))

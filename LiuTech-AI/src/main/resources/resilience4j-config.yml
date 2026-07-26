@@ -18,7 +18,7 @@ resilience4j:
         # 熔断器打开状态持续时间：30秒
         waitDurationInOpenState: 30s
         # 慢调用阈值：60%
-        slowCallRateThreshold: 60
+        slowCallRateThreshold: 100
         # 慢调用持续时间阈值：2秒
         slowCallDurationThreshold: 2s
         # 事件缓冲区大小：10
