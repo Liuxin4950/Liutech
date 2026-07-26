@@ -1,4 +1,4 @@
-﻿package chat.liuxin.liutech.req;
+package chat.liuxin.liutech.req;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-﻿package chat.liuxin.liutech.model;
+package chat.liuxin.liutech.model;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 
