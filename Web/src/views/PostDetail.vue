@@ -697,7 +697,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       </div>
       <!-- 评论模块 -->
       <div class="">
-        <CommentSection :post-id="Number(route.params.id)" />
+        <CommentSection :post-id="parsePostId(route.params.id)" />
       </div>
       </div>
     </div>

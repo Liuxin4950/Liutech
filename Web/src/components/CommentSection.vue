@@ -170,6 +170,9 @@ onMounted(() => {
   text-align: center;
   padding: 40px 20px;
   color: var(--text-main);
+}
+
+.loading, .error {
   opacity: 0.7;
 }
 
