@@ -1,7 +1,7 @@
 package chat.liuxin.liutech.controller.web;
 
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.model.dto.AiRuntimeDTO;
+import chat.liuxin.liutech.resp.AiRuntimeResp;
 import chat.liuxin.liutech.service.AiRuntimeService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,7 +25,7 @@ public class AiRuntimeController {
     }
 
     @GetMapping("/ai")
-    public Result<AiRuntimeDTO> runtime() {
+    public Result<AiRuntimeResp> runtime() {
         return Result.success(aiRuntimeService.getRuntime());
     }
 }

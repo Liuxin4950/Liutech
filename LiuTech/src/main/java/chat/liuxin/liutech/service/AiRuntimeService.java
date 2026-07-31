@@ -1,8 +1,8 @@
 package chat.liuxin.liutech.service;
 
-import chat.liuxin.liutech.model.dto.AiRuntimeDTO;
-import chat.liuxin.liutech.model.dto.TtsPublicStatusDTO;
 import org.springframework.beans.factory.annotation.Value;
+import chat.liuxin.liutech.resp.AiRuntimeResp;
+import chat.liuxin.liutech.resp.TtsPublicStatusResp;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -30,9 +30,9 @@ public class AiRuntimeService {
         this.ttsSpeechService = ttsSpeechService;
     }
 
-    public AiRuntimeDTO getRuntime() {
-        AiRuntimeDTO dto = new AiRuntimeDTO();
-        dto.setTts(TtsPublicStatusDTO.from(ttsSpeechService.getStatus()));
+    public AiRuntimeResp getRuntime() {
+        AiRuntimeResp dto = new AiRuntimeResp();
+        dto.setTts(TtsPublicStatusResp.from(ttsSpeechService.getStatus()));
 
         try {
             String normalizedBaseUrl = normalizeBaseUrl(aiServiceUrl);

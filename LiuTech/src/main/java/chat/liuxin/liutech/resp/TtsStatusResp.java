@@ -1,12 +1,12 @@
-package chat.liuxin.liutech.model.dto;
+package chat.liuxin.liutech.resp;
 
 import lombok.Data;
 
 /**
- * TTS（语音推理）在线状态 DTO
+ * TTS（语音推理）在线状态（管理端响应）
  */
 @Data
-public class TtsStatusDTO {
+public class TtsStatusResp {
 
     /**
      * 管理端全局开关

@@ -1,16 +1,16 @@
-package chat.liuxin.liutech.model.dto;
+package chat.liuxin.liutech.resp;
 
 import lombok.Data;
 
 /**
- * AI 运行时状态 DTO
+ * AI 运行时状态（前台/管理端响应）
  *
  * 用途：
  * - 给前台和管理端一个统一的“当前 AI/TTS 能力快照”
  * - 避免前端分别请求默认模型、TTS 状态，再自己拼装判断逻辑
  */
 @Data
-public class AiRuntimeDTO {
+public class AiRuntimeResp {
 
     /**
      * AI 服务是否可用
@@ -30,5 +30,5 @@ public class AiRuntimeDTO {
     /**
      * TTS 公共运行时状态
      */
-    private TtsPublicStatusDTO tts;
+    private TtsPublicStatusResp tts;
 }

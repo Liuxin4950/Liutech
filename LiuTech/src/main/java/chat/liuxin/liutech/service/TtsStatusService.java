@@ -2,8 +2,8 @@ package chat.liuxin.liutech.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.resp.TtsStatusResp;
 
-import chat.liuxin.liutech.model.dto.TtsStatusDTO;
 
 /**
  * TTS 服务在线探测（薄委托）
@@ -17,7 +17,7 @@ public class TtsStatusService {
 
     private final TtsSpeechService ttsSpeechService;
 
-    public TtsStatusDTO getStatus() {
+    public TtsStatusResp getStatus() {
         return ttsSpeechService.getStatus();
     }
 

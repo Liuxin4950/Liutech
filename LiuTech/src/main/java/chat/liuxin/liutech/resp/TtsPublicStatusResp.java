@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.model.dto;
+package chat.liuxin.liutech.resp;
 
 import lombok.Data;
 
@@ -9,7 +9,7 @@ import lombok.Data;
  * 模型名称、云端音色 URI 或 API Key 来源。
  */
 @Data
-public class TtsPublicStatusDTO {
+public class TtsPublicStatusResp {
 
     private boolean enabled;
     private boolean online;
@@ -17,8 +17,8 @@ public class TtsPublicStatusDTO {
     private long checkedAt;
     private String message;
 
-    public static TtsPublicStatusDTO from(TtsStatusDTO status) {
-        TtsPublicStatusDTO dto = new TtsPublicStatusDTO();
+    public static TtsPublicStatusResp from(TtsStatusResp status) {
+        TtsPublicStatusResp dto = new TtsPublicStatusResp();
         if (status == null) {
             dto.setEnabled(false);
             dto.setOnline(false);

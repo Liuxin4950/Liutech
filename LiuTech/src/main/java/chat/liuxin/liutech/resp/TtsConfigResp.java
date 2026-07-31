@@ -1,12 +1,12 @@
-package chat.liuxin.liutech.model.dto;
+package chat.liuxin.liutech.resp;
 
 import lombok.Data;
 
 /**
- * TTS（语音推理）配置 DTO
+ * TTS 配置快照（管理端读取 / 服务内部使用）
  */
 @Data
-public class TtsConfigDTO {
+public class TtsConfigResp {
 
     /**
      * 是否启用语音功能（全局开关）

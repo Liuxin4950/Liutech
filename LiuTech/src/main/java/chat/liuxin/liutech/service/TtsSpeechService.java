@@ -3,10 +3,10 @@ package chat.liuxin.liutech.service;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.config.FileUploadConfig;
-import chat.liuxin.liutech.model.dto.SiliconFlowVoiceDTO;
-import chat.liuxin.liutech.model.dto.TtsConfigDTO;
-import chat.liuxin.liutech.model.dto.TtsSpeechResponseDTO;
-import chat.liuxin.liutech.model.dto.TtsStatusDTO;
+import chat.liuxin.liutech.resp.SiliconFlowVoiceResp;
+import chat.liuxin.liutech.resp.TtsConfigResp;
+import chat.liuxin.liutech.resp.TtsSpeechResp;
+import chat.liuxin.liutech.resp.TtsStatusResp;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -89,7 +89,7 @@ public class TtsSpeechService {
 
     // ---- 状态缓存 ----
     private static final long STATUS_CACHE_TTL_MS = 5000L;
-    private final AtomicReference<TtsStatusDTO> statusCache = new AtomicReference<>();
+    private final AtomicReference<TtsStatusResp> statusCache = new AtomicReference<>();
     private final HttpClient statusHttpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(800))
             .build();
@@ -102,13 +102,13 @@ public class TtsSpeechService {
 
     // ==================== TTS 合成 ====================
 
-    public TtsSpeechResponseDTO synthesize(String text) {
+    public TtsSpeechResp synthesize(String text) {
         String normalizedText = normalizeText(text);
         if (normalizedText == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "语音文本不能为空");
         }
 
-        TtsConfigDTO config = ttsConfigService.getConfig();
+        TtsConfigResp config = ttsConfigService.getConfig();
         if (!Boolean.TRUE.equals(config.getEnabled())) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "语音功能已关闭");
         }
@@ -141,7 +141,7 @@ public class TtsSpeechService {
 
     // ==================== SiliconFlow 音色管理 ====================
 
-    public SiliconFlowVoiceDTO uploadSiliconFlowVoice(MultipartFile file, String model, String customName, String text) {
+    public SiliconFlowVoiceResp uploadSiliconFlowVoice(MultipartFile file, String model, String customName, String text) {
         if (!hasTtsApiKey()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "未配置 SiliconFlow API Key");
         }
@@ -185,7 +185,7 @@ public class TtsSpeechService {
                 throw new BusinessException(ErrorCode.NETWORK_ERROR, "SiliconFlow 未返回音色 URI");
             }
             ttsConfigService.updateSiliconFlowVoiceUri(uri);
-            return SiliconFlowVoiceDTO.builder()
+            return SiliconFlowVoiceResp.builder()
                     .model(normalizedModel)
                     .customName(normalizedName)
                     .text(normalizedText)
@@ -201,7 +201,7 @@ public class TtsSpeechService {
         }
     }
 
-    public List<SiliconFlowVoiceDTO> listSiliconFlowVoices() {
+    public List<SiliconFlowVoiceResp> listSiliconFlowVoices() {
         if (!hasTtsApiKey()) {
             return List.of();
         }
@@ -216,9 +216,9 @@ public class TtsSpeechService {
             if (results == null || !results.isArray()) {
                 return List.of();
             }
-            List<SiliconFlowVoiceDTO> voices = new ArrayList<>();
+            List<SiliconFlowVoiceResp> voices = new ArrayList<>();
             for (JsonNode item : results) {
-                voices.add(SiliconFlowVoiceDTO.builder()
+                voices.add(SiliconFlowVoiceResp.builder()
                         .model(textValue(item, "model"))
                         .customName(textValue(item, "customName"))
                         .text(textValue(item, "text"))
@@ -234,14 +234,14 @@ public class TtsSpeechService {
 
     // ==================== 状态探测 ====================
 
-    public TtsStatusDTO getStatus() {
-        TtsStatusDTO hit = statusCache.get();
+    public TtsStatusResp getStatus() {
+        TtsStatusResp hit = statusCache.get();
         if (hit != null && (System.currentTimeMillis() - hit.getCheckedAt()) <= STATUS_CACHE_TTL_MS) {
             return hit;
         }
 
-        TtsConfigDTO cfg = ttsConfigService.getConfig();
-        TtsStatusDTO status = new TtsStatusDTO();
+        TtsConfigResp cfg = ttsConfigService.getConfig();
+        TtsStatusResp status = new TtsStatusResp();
         status.setEnabled(cfg.getEnabled() != null && cfg.getEnabled());
         status.setBaseUrl(cfg.getBaseUrl());
         status.setVoiceModel(cfg.getVoiceModel());
@@ -406,7 +406,7 @@ public class TtsSpeechService {
 
     // ==================== 内部方法：合成 ====================
 
-    private TtsSpeechResponseDTO synthesizeWithGptSovits(TtsConfigDTO config, String text) {
+    private TtsSpeechResp synthesizeWithGptSovits(TtsConfigResp config, String text) {
         String baseUrl = normalizeBaseUrl(config.getBaseUrl());
         if (baseUrl == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "未配置 GPT-SoVITS 服务地址");
@@ -457,7 +457,7 @@ public class TtsSpeechService {
             }
             byte[] audio = downloadAudio(normalizeAudioUrl(audioUrl, baseUrl), baseUrl);
             String cachedUrl = saveAudio(audio, "wav");
-            return TtsSpeechResponseDTO.builder()
+            return TtsSpeechResp.builder()
                     .audioUrl(cachedUrl)
                     .provider(TtsConfigService.PROVIDER_GPT_SOVITS)
                     .format("wav")
@@ -470,7 +470,7 @@ public class TtsSpeechService {
         }
     }
 
-    private TtsSpeechResponseDTO synthesizeWithSiliconFlow(TtsConfigDTO config, String text) {
+    private TtsSpeechResp synthesizeWithSiliconFlow(TtsConfigResp config, String text) {
         if (!hasTtsApiKey()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "未配置 SiliconFlow API Key");
         }
@@ -506,7 +506,7 @@ public class TtsSpeechService {
             }
 
             String cachedUrl = saveAudio(response.body(), format);
-            return TtsSpeechResponseDTO.builder()
+            return TtsSpeechResp.builder()
                     .audioUrl(cachedUrl)
                     .provider(TtsConfigService.PROVIDER_SILICONFLOW)
                     .format(format)

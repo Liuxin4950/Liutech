@@ -16,9 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.model.dto.TtsPublicStatusDTO;
-import chat.liuxin.liutech.model.dto.TtsSpeechRequestDTO;
-import chat.liuxin.liutech.model.dto.TtsSpeechResponseDTO;
+import chat.liuxin.liutech.req.TtsSpeechReq;
+import chat.liuxin.liutech.resp.TtsPublicStatusResp;
+import chat.liuxin.liutech.resp.TtsSpeechResp;
 import chat.liuxin.liutech.service.TtsSpeechService;
 import chat.liuxin.liutech.service.TtsStatusService;
 import jakarta.validation.Valid;
@@ -46,13 +46,13 @@ public class TtsController {
     private String internalToken;
 
     @GetMapping("/status")
-    public Result<TtsPublicStatusDTO> status() {
-        return Result.success(TtsPublicStatusDTO.from(ttsStatusService.getStatus()));
+    public Result<TtsPublicStatusResp> status() {
+        return Result.success(TtsPublicStatusResp.from(ttsStatusService.getStatus()));
     }
 
     @PostMapping("/speech")
-    public Result<TtsSpeechResponseDTO> speech(
-            @Valid @RequestBody TtsSpeechRequestDTO request,
+    public Result<TtsSpeechResp> speech(
+            @Valid @RequestBody TtsSpeechReq request,
             @RequestHeader(value = "X-TTS-Internal-Token", required = false) String token) {
         assertInternalToken(token);
         return Result.success(ttsSpeechService.synthesize(request.getText()));

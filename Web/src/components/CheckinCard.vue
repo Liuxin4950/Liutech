@@ -68,6 +68,11 @@
         </div>
       </div>
     </div>
+    <!-- 实现类似与github风格的签到表格，方块空格那种 -->
+    <div class="">
+
+
+    </div>
 
     <!-- 签到成功提示 -->
     <Transition name="success">

@@ -2,8 +2,9 @@ package chat.liuxin.liutech.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.req.TtsConfigReq;
+import chat.liuxin.liutech.resp.TtsConfigResp;
 
-import chat.liuxin.liutech.model.dto.TtsConfigDTO;
 
 /**
  * TTS 配置服务（从 system_settings 读写）
@@ -32,8 +33,8 @@ public class TtsConfigService {
 
     private final SystemSettingService systemSettingService;
 
-    public TtsConfigDTO getConfig() {
-        TtsConfigDTO dto = new TtsConfigDTO();
+    public TtsConfigResp getConfig() {
+        TtsConfigResp dto = new TtsConfigResp();
         dto.setEnabled(systemSettingService.getBoolean(KEY_ENABLED, true));
         dto.setBaseUrl(normalizeBaseUrl(systemSettingService.getValue(KEY_BASE_URL)));
         dto.setVoiceModel(normalizeText(systemSettingService.getValue(KEY_VOICE_MODEL)));
@@ -46,7 +47,7 @@ public class TtsConfigService {
         return dto;
     }
 
-    public void updateConfig(TtsConfigDTO config) {
+    public void updateConfig(TtsConfigReq config) {
         boolean enabled = config != null && Boolean.TRUE.equals(config.getEnabled());
         String baseUrl = config == null ? null : normalizeBaseUrl(config.getBaseUrl());
         String voiceModel = config == null ? null : normalizeText(config.getVoiceModel());

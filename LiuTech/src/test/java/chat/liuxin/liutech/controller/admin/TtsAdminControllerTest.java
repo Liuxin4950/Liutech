@@ -2,11 +2,12 @@ package chat.liuxin.liutech.controller.admin;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
-import chat.liuxin.liutech.model.dto.SiliconFlowVoiceDTO;
-import chat.liuxin.liutech.model.dto.TtsConfigDTO;
-import chat.liuxin.liutech.model.dto.TtsSpeechRequestDTO;
-import chat.liuxin.liutech.model.dto.TtsSpeechResponseDTO;
-import chat.liuxin.liutech.model.dto.TtsStatusDTO;
+import chat.liuxin.liutech.req.TtsConfigReq;
+import chat.liuxin.liutech.req.TtsSpeechReq;
+import chat.liuxin.liutech.resp.SiliconFlowVoiceResp;
+import chat.liuxin.liutech.resp.TtsConfigResp;
+import chat.liuxin.liutech.resp.TtsSpeechResp;
+import chat.liuxin.liutech.resp.TtsStatusResp;
 import chat.liuxin.liutech.service.TtsConfigService;
 import chat.liuxin.liutech.service.TtsSpeechService;
 import chat.liuxin.liutech.service.TtsStatusService;
@@ -41,13 +42,13 @@ class TtsAdminControllerTest {
 
     @Test
     void getConfig_shouldReturnConfig() {
-        TtsConfigDTO config = new TtsConfigDTO();
+        TtsConfigResp config = new TtsConfigResp();
         config.setEnabled(true);
         config.setBaseUrl("http://tts.local");
         config.setProvider("GPT_SOVITS");
         when(ttsConfigService.getConfig()).thenReturn(config);
 
-        Result<TtsConfigDTO> result = controller.getConfig();
+        Result<TtsConfigResp> result = controller.getConfig();
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertTrue(result.getData().getEnabled());
@@ -56,11 +57,11 @@ class TtsAdminControllerTest {
 
     @Test
     void getConfig_shouldReturnDisabledConfig() {
-        TtsConfigDTO config = new TtsConfigDTO();
+        TtsConfigResp config = new TtsConfigResp();
         config.setEnabled(false);
         when(ttsConfigService.getConfig()).thenReturn(config);
 
-        Result<TtsConfigDTO> result = controller.getConfig();
+        Result<TtsConfigResp> result = controller.getConfig();
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertFalse(result.getData().getEnabled());
@@ -70,7 +71,7 @@ class TtsAdminControllerTest {
 
     @Test
     void updateConfig_shouldReturnSuccess() {
-        TtsConfigDTO config = new TtsConfigDTO();
+        TtsConfigReq config = new TtsConfigReq();
         config.setEnabled(true);
 
         Result<String> result = controller.updateConfig(config);
@@ -83,7 +84,7 @@ class TtsAdminControllerTest {
 
     @Test
     void updateConfig_shouldPropagateException() {
-        TtsConfigDTO config = new TtsConfigDTO();
+        TtsConfigReq config = new TtsConfigReq();
         doThrow(new RuntimeException("config error")).when(ttsConfigService).updateConfig(any());
 
         // 瘦身后 Controller 不再 try-catch，异常直接抛出由 GlobalExceptionHandler 统一兜底
@@ -94,12 +95,12 @@ class TtsAdminControllerTest {
 
     @Test
     void status_shouldReturnStatus() {
-        TtsStatusDTO statusDto = new TtsStatusDTO();
+        TtsStatusResp statusDto = new TtsStatusResp();
         statusDto.setEnabled(true);
         statusDto.setOnline(true);
         when(ttsStatusService.getStatus()).thenReturn(statusDto);
 
-        Result<TtsStatusDTO> result = controller.status();
+        Result<TtsStatusResp> result = controller.status();
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertTrue(result.getData().isEnabled());
@@ -108,12 +109,12 @@ class TtsAdminControllerTest {
 
     @Test
     void status_shouldReturnOfflineStatus() {
-        TtsStatusDTO statusDto = new TtsStatusDTO();
+        TtsStatusResp statusDto = new TtsStatusResp();
         statusDto.setEnabled(true);
         statusDto.setOnline(false);
         when(ttsStatusService.getStatus()).thenReturn(statusDto);
 
-        Result<TtsStatusDTO> result = controller.status();
+        Result<TtsStatusResp> result = controller.status();
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertFalse(result.getData().isOnline());
@@ -123,7 +124,7 @@ class TtsAdminControllerTest {
 
     @Test
     void voices_shouldReturnVoiceList() {
-        TtsConfigDTO config = new TtsConfigDTO();
+        TtsConfigResp config = new TtsConfigResp();
         config.setBaseUrl("http://tts.local");
         when(ttsConfigService.getConfig()).thenReturn(config);
         when(ttsVoiceCatalogService.listVoiceModels("http://tts.local")).thenReturn(List.of("voice1", "voice2"));
@@ -136,7 +137,7 @@ class TtsAdminControllerTest {
 
     @Test
     void voices_shouldUseProvidedBaseUrl() {
-        TtsConfigDTO config = new TtsConfigDTO();
+        TtsConfigResp config = new TtsConfigResp();
         config.setBaseUrl("http://default.local");
         when(ttsConfigService.getConfig()).thenReturn(config);
         when(ttsVoiceCatalogService.listVoiceModels("http://custom.local")).thenReturn(List.of("voice1"));
@@ -151,13 +152,13 @@ class TtsAdminControllerTest {
 
     @Test
     void siliconFlowVoices_shouldReturnVoiceList() {
-        SiliconFlowVoiceDTO voice = SiliconFlowVoiceDTO.builder()
+        SiliconFlowVoiceResp voice = SiliconFlowVoiceResp.builder()
                 .model("test-model")
                 .customName("Test Voice")
                 .build();
         when(ttsSpeechService.listSiliconFlowVoices()).thenReturn(List.of(voice));
 
-        Result<List<SiliconFlowVoiceDTO>> result = controller.siliconFlowVoices();
+        Result<List<SiliconFlowVoiceResp>> result = controller.siliconFlowVoices();
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertEquals(1, result.getData().size());
@@ -168,7 +169,7 @@ class TtsAdminControllerTest {
     void siliconFlowVoices_shouldReturnEmptyList() {
         when(ttsSpeechService.listSiliconFlowVoices()).thenReturn(List.of());
 
-        Result<List<SiliconFlowVoiceDTO>> result = controller.siliconFlowVoices();
+        Result<List<SiliconFlowVoiceResp>> result = controller.siliconFlowVoices();
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertTrue(result.getData().isEmpty());
@@ -178,16 +179,16 @@ class TtsAdminControllerTest {
 
     @Test
     void testSpeech_shouldReturnAudioUrl() {
-        TtsSpeechResponseDTO response = TtsSpeechResponseDTO.builder()
+        TtsSpeechResp response = TtsSpeechResp.builder()
                 .audioUrl("http://tts.local/audio.wav")
                 .provider("GPT_SOVITS")
                 .format("wav")
                 .build();
         when(ttsSpeechService.synthesize("Hello")).thenReturn(response);
 
-        TtsSpeechRequestDTO request = new TtsSpeechRequestDTO();
+        TtsSpeechReq request = new TtsSpeechReq();
         request.setText("Hello");
-        Result<TtsSpeechResponseDTO> result = controller.testSpeech(request);
+        Result<TtsSpeechResp> result = controller.testSpeech(request);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertEquals("http://tts.local/audio.wav", result.getData().getAudioUrl());
@@ -197,7 +198,7 @@ class TtsAdminControllerTest {
     void testSpeech_shouldHandleException() {
         when(ttsSpeechService.synthesize(anyString())).thenThrow(new RuntimeException("tts error"));
 
-        TtsSpeechRequestDTO request = new TtsSpeechRequestDTO();
+        TtsSpeechReq request = new TtsSpeechReq();
         request.setText("Hello");
         // testSpeech does not have try-catch, so exception propagates
         assertThrows(RuntimeException.class, () -> controller.testSpeech(request));

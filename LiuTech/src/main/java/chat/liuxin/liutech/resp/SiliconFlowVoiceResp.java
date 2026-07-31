@@ -1,4 +1,4 @@
-package chat.liuxin.liutech.model.dto;
+package chat.liuxin.liutech.resp;
 
 import lombok.Builder;
 import lombok.Data;
@@ -8,7 +8,7 @@ import lombok.Data;
  */
 @Data
 @Builder
-public class SiliconFlowVoiceDTO {
+public class SiliconFlowVoiceResp {
     private String model;
     private String customName;
     private String text;
