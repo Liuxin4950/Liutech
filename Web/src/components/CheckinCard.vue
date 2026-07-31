@@ -83,7 +83,8 @@
           </button>
           <div class="calendar-month-wrap">
             <span class="calendar-month-text">{{ calendarYear }}年{{ calendarMonth }}月</span>
-            <span class="calendar-sub">{{ isCurrentMonth ? '本月签到日历' : '签到记录' }}</span>
+            <span v-if="isCurrentMonth" class="calendar-sub">本月签到日历</span>
+            <button v-else class="calendar-sub back-today-btn" @click="goCurrentMonth">回到本月</button>
           </div>
           <button
             v-if="canGoNext"
@@ -225,7 +226,6 @@ const checkinMonths = ref<Set<string>>(new Set())
 const legendItems = [
   { level: 1, label: '+1' },
   { level: 2, label: '+2' },
-  { level: 3, label: '+3~5' },
   { level: 4, label: '+6' }
 ]
 
@@ -351,6 +351,11 @@ const goNextMonth = () => {
     if (v > current && v < target) target = v
   }
   fetchCheckinCalendar(Math.floor(target / 100), target % 100)
+}
+
+/** 回到本月 */
+const goCurrentMonth = () => {
+  fetchCheckinCalendar(nowYear, nowMonth)
 }
 
 /** 本月已签天数 */
@@ -670,6 +675,15 @@ defineExpose({ fetchCheckinStatus })
   font-size: 12px;
   font-weight: 400;
   color: var(--text-muted);
+}
+
+.back-today-btn {
+  color: var(--color-primary);
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .month-nav-btn {

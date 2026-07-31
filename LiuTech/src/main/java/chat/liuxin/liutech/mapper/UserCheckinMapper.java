@@ -42,6 +42,7 @@ public interface UserCheckinMapper extends BaseMapper<UserCheckin> {
      */
     @Select("SELECT * FROM user_checkins WHERE user_id = #{userId} AND checkin_date BETWEEN #{startDate} AND #{endDate} ORDER BY checkin_date ASC")
     List<UserCheckin> findByUserIdAndDateRange(@Param("userId") Long userId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
     /**
      * 查询用户最近的签到记录
      *
@@ -69,6 +70,7 @@ public interface UserCheckinMapper extends BaseMapper<UserCheckin> {
      */
     @Select("SELECT DISTINCT YEAR(checkin_date) AS year, MONTH(checkin_date) AS month FROM user_checkins WHERE user_id = #{userId} ORDER BY year DESC, month DESC")
     List<CheckinMonthResp> selectCheckinMonths(@Param("userId") Long userId);
+
     /**
      * 查询用户最后一次签到记录
      *
