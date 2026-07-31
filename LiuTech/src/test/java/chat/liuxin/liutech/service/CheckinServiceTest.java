@@ -5,6 +5,8 @@ import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.UserCheckin;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.resp.CheckinCalendarItemResp;
+import chat.liuxin.liutech.resp.CheckinMonthResp;
 import chat.liuxin.liutech.resp.CheckinResp;
 import chat.liuxin.liutech.resp.CheckinStatusResp;
 import org.junit.jupiter.api.Test;
@@ -220,5 +222,103 @@ class CheckinServiceTest {
         CheckinStatusResp resp = checkinService.getCheckinStatus(USER_ID);
 
         assertEquals(0, resp.getTotalCheckins());
+    }
+
+    // ========== getCheckinCalendar 测试 ==========
+
+    @Test
+    void getCheckinCalendar_shouldReturnRecordsForCurrentMonthWhenParamsNull() {
+        LocalDate now = LocalDate.now();
+        LocalDate startDate = now.withDayOfMonth(1);
+        LocalDate endDate = now.withDayOfMonth(now.lengthOfMonth());
+
+        UserCheckin c1 = new UserCheckin();
+        c1.setCheckinDate(now.withDayOfMonth(3));
+        c1.setPointsEarned(BigDecimal.valueOf(2));
+        UserCheckin c2 = new UserCheckin();
+        c2.setCheckinDate(now.withDayOfMonth(10));
+        c2.setPointsEarned(BigDecimal.ONE);
+        when(userCheckinMapper.findByUserIdAndDateRange(eq(USER_ID), eq(startDate), eq(endDate)))
+                .thenReturn(List.of(c1, c2));
+
+        List<CheckinCalendarItemResp> resp = checkinService.getCheckinCalendar(USER_ID, null, null);
+
+        assertEquals(2, resp.size());
+        assertEquals(c1.getCheckinDate(), resp.get(0).getDate());
+        assertEquals(0, c1.getPointsEarned().compareTo(resp.get(0).getPointsEarned()));
+        assertEquals(c2.getCheckinDate(), resp.get(1).getDate());
+        assertEquals(0, c2.getPointsEarned().compareTo(resp.get(1).getPointsEarned()));
+        verify(userCheckinMapper).findByUserIdAndDateRange(eq(USER_ID), eq(startDate), eq(endDate));
+    }
+
+    @Test
+    void getCheckinCalendar_shouldReturnRecordsForSpecifiedMonth() {
+        LocalDate startDate = LocalDate.of(2026, 2, 1);
+        LocalDate endDate = LocalDate.of(2026, 2, 28);
+
+        UserCheckin c1 = new UserCheckin();
+        c1.setCheckinDate(LocalDate.of(2026, 2, 14));
+        c1.setPointsEarned(BigDecimal.valueOf(2));
+        when(userCheckinMapper.findByUserIdAndDateRange(eq(USER_ID), eq(startDate), eq(endDate)))
+                .thenReturn(List.of(c1));
+
+        List<CheckinCalendarItemResp> resp = checkinService.getCheckinCalendar(USER_ID, 2026, 2);
+
+        assertEquals(1, resp.size());
+        assertEquals(LocalDate.of(2026, 2, 14), resp.get(0).getDate());
+        assertEquals(0, BigDecimal.valueOf(2).compareTo(resp.get(0).getPointsEarned()));
+    }
+
+    @Test
+    void getCheckinCalendar_shouldReturnEmptyListWhenNoRecords() {
+        LocalDate now = LocalDate.now();
+        LocalDate startDate = now.withDayOfMonth(1);
+        LocalDate endDate = now.withDayOfMonth(now.lengthOfMonth());
+        when(userCheckinMapper.findByUserIdAndDateRange(eq(USER_ID), eq(startDate), eq(endDate)))
+                .thenReturn(Collections.emptyList());
+
+        List<CheckinCalendarItemResp> resp = checkinService.getCheckinCalendar(USER_ID, null, null);
+
+        assertTrue(resp.isEmpty());
+    }
+
+    @Test
+    void getCheckinCalendar_shouldRejectInvalidMonth() {
+        assertThrows(BusinessException.class, () -> checkinService.getCheckinCalendar(USER_ID, 2026, 13));
+        assertThrows(BusinessException.class, () -> checkinService.getCheckinCalendar(USER_ID, 2026, 0));
+        verify(userCheckinMapper, never()).findByUserIdAndDateRange(any(), any(), any());
+    }
+
+    @Test
+    void getCheckinCalendar_shouldRejectInvalidYear() {
+        assertThrows(BusinessException.class, () -> checkinService.getCheckinCalendar(USER_ID, 0, 6));
+        verify(userCheckinMapper, never()).findByUserIdAndDateRange(any(), any(), any());
+    }
+
+    // ========== getCheckinMonths 测试 ==========
+
+    @Test
+    void getCheckinMonths_shouldReturnMonthsInDescOrder() {
+        CheckinMonthResp july = new CheckinMonthResp().setYear(2026).setMonth(7);
+        CheckinMonthResp june = new CheckinMonthResp().setYear(2026).setMonth(6);
+        when(userCheckinMapper.selectCheckinMonths(USER_ID)).thenReturn(List.of(july, june));
+
+        List<CheckinMonthResp> resp = checkinService.getCheckinMonths(USER_ID);
+
+        assertEquals(2, resp.size());
+        assertEquals(2026, resp.get(0).getYear());
+        assertEquals(7, resp.get(0).getMonth());
+        assertEquals(2026, resp.get(1).getYear());
+        assertEquals(6, resp.get(1).getMonth());
+        verify(userCheckinMapper).selectCheckinMonths(USER_ID);
+    }
+
+    @Test
+    void getCheckinMonths_shouldReturnEmptyListWhenNoRecords() {
+        when(userCheckinMapper.selectCheckinMonths(USER_ID)).thenReturn(Collections.emptyList());
+
+        List<CheckinMonthResp> resp = checkinService.getCheckinMonths(USER_ID);
+
+        assertTrue(resp.isEmpty());
     }
 }

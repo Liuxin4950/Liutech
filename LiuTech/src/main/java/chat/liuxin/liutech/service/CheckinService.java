@@ -4,6 +4,8 @@ import chat.liuxin.liutech.mapper.UserCheckinMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.UserCheckin;
 import chat.liuxin.liutech.model.Users;
+import chat.liuxin.liutech.resp.CheckinCalendarItemResp;
+import chat.liuxin.liutech.resp.CheckinMonthResp;
 import chat.liuxin.liutech.resp.CheckinResp;
 import chat.liuxin.liutech.resp.CheckinStatusResp;
 import chat.liuxin.liutech.common.BusinessException;
@@ -144,6 +146,48 @@ public class CheckinService {
                 .setConsecutiveDays(consecutiveDays)
                 .setLastCheckinDate(lastCheckinDate)
                 .setTotalCheckins(totalCheckins != null ? totalCheckins : 0);
+    }
+
+    /**
+     * 获取指定月份的签到日历数据（当月哪些天签到过，以及当天获得的积分）
+     *
+     * @param userId 用户ID
+     * @param year   年份，为空默认当前年
+     * @param month  月份，为空默认当前月
+     * @return 该月签到记录列表（按日期升序）
+     */
+    public List<CheckinCalendarItemResp> getCheckinCalendar(Long userId, Integer year, Integer month) {
+        LocalDate now = LocalDate.now();
+        int targetYear = year != null ? year : now.getYear();
+        int targetMonth = month != null ? month : now.getMonthValue();
+
+        if (targetYear < 1) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "年份参数不合法");
+        }
+        if (targetMonth < 1 || targetMonth > 12) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "月份参数不合法");
+        }
+
+        LocalDate startDate = LocalDate.of(targetYear, targetMonth, 1);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+
+        List<UserCheckin> checkins = userCheckinMapper.findByUserIdAndDateRange(userId, startDate, endDate);
+
+        return checkins.stream()
+                .map(c -> new CheckinCalendarItemResp()
+                        .setDate(c.getCheckinDate())
+                        .setPointsEarned(c.getPointsEarned()))
+                .toList();
+    }
+
+    /**
+     * 获取用户有过签到记录的所有月份（按日期倒序）
+     *
+     * @param userId 用户ID
+     * @return 签到月份列表
+     */
+    public List<CheckinMonthResp> getCheckinMonths(Long userId) {
+        return userCheckinMapper.selectCheckinMonths(userId);
     }
 
     /**

@@ -3,6 +3,7 @@ package chat.liuxin.liutech.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 import chat.liuxin.liutech.model.UserCheckin;
+import chat.liuxin.liutech.resp.CheckinMonthResp;
 import chat.liuxin.liutech.resp.UserCheckinResp;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -32,6 +33,16 @@ public interface UserCheckinMapper extends BaseMapper<UserCheckin> {
     UserCheckin findByUserIdAndDate(@Param("userId") Long userId, @Param("date") LocalDate date);
 
     /**
+     * 查询用户指定日期范围内的签到记录（含起止日期）
+     *
+     * @param userId    用户ID
+     * @param startDate 开始日期（含）
+     * @param endDate   结束日期（含）
+     * @return 签到记录列表（按日期升序）
+     */
+    @Select("SELECT * FROM user_checkins WHERE user_id = #{userId} AND checkin_date BETWEEN #{startDate} AND #{endDate} ORDER BY checkin_date ASC")
+    List<UserCheckin> findByUserIdAndDateRange(@Param("userId") Long userId, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+    /**
      * 查询用户最近的签到记录
      *
      * @param userId 用户ID
@@ -50,6 +61,14 @@ public interface UserCheckinMapper extends BaseMapper<UserCheckin> {
     @Select("SELECT COUNT(*) FROM user_checkins WHERE user_id = #{userId}")
     Integer countByUserId(@Param("userId") Long userId);
 
+    /**
+     * 查询用户有过签到记录的所有月份（按日期倒序）
+     *
+     * @param userId 用户ID
+     * @return 签到月份列表
+     */
+    @Select("SELECT DISTINCT YEAR(checkin_date) AS year, MONTH(checkin_date) AS month FROM user_checkins WHERE user_id = #{userId} ORDER BY year DESC, month DESC")
+    List<CheckinMonthResp> selectCheckinMonths(@Param("userId") Long userId);
     /**
      * 查询用户最后一次签到记录
      *

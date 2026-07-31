@@ -122,6 +122,17 @@ export interface CheckinStatus {
   totalCheckins: number
 }
 
+// 签到日历条目接口
+export interface CheckinCalendarItem {
+  date: string
+  pointsEarned: number
+}
+
+// 签到月份接口（用户有过签到记录的月份）
+export interface CheckinMonthItem {
+  year: number
+  month: number
+}
 // 登录响应数据接口
 interface LoginResponse {
   token: string
@@ -236,6 +247,29 @@ export class UserService {
    */
   static async getCheckinStatus(): Promise<CheckinStatus> {
     const response = await get<CheckinStatus>('/user/checkin/status')
+    return response.data
+  }
+
+  /**
+   * 获取签到月历（某月签到记录及当天积分）
+   * @param year 年份，可选，默认当前年
+   * @param month 月份，可选，默认当前月
+   * @returns Promise<CheckinCalendarItem[]>
+   */
+  static async getCheckinCalendar(year?: number, month?: number): Promise<CheckinCalendarItem[]> {
+    const params: Record<string, number> = {}
+    if (year) params.year = year
+    if (month) params.month = month
+    const response = await get<CheckinCalendarItem[]>('/user/checkin/calendar', params)
+    return response.data
+  }
+
+  /**
+   * 获取用户有过签到记录的月份列表（用于日历月份切换）
+   * @returns Promise<CheckinMonthItem[]>
+   */
+  static async getCheckinMonths(): Promise<CheckinMonthItem[]> {
+    const response = await get<CheckinMonthItem[]>('/user/checkin/months')
     return response.data
   }
 
