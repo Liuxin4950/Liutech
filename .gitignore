@@ -100,7 +100,8 @@ logs/
 **/Thumbs.db
 
 # 我的文档
-/Docs
+/Docs/*
+!/Docs/架构/
 
 # 项目子模块明确忽略（双保险）
 LiuTech/target/

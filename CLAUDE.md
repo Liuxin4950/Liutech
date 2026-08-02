@@ -66,6 +66,8 @@ docker exec -it liutech-mysql mysql -u root -p
 
 **高风险领域**（认证授权、积分支付、数据库结构、上传下载、AI/SSE/TTS、Nginx/Docker/部署、跨服务调用）改动要特别谨慎：先读相关代码和 [当前架构.md](doc/记录/当前架构.md)，确认影响范围再动手，不猜测。
 
+**架构文档**：新增或大改功能模块时，在 `Docs/架构/<模块>/` 下补充文档并更新 `Docs/架构/README.md` 索引；每个模块以「总览.md」为入口，单一领域文档不超过 500 行。
+
 **Commit message 规范**（过程产物的「为什么」「怎么验证」由 commit 承担，不单独写开发记录文件）：
 
 ```
@@ -93,3 +95,4 @@ docker exec -it liutech-mysql mysql -u root -p
 - `LiuTech/src/main/java/chat/liuxin/liutech/controller/` — 后端 API 完整参考
 - `快速部署指南.md` — 生产环境部署步骤
 - `doc/记录/当前架构.md` — 当前生效的总体架构
+- `Docs/架构/README.md` — 模块化架构文档索引，接手某模块前先读对应目录的「总览.md」
