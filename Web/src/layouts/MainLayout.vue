@@ -14,8 +14,8 @@ import LoginModal from '@/components/LoginModal.vue'
 import GlobalSearchModal from '@/components/GlobalSearchModal.vue'
 import { requireAuth } from '@/utils/auth'
 import { useChatStore } from '@/stores/chat'
-import { getServiceBaseURL, ServiceType } from '@/config/services'
 import { useOnboarding } from '@/composables/useOnboarding'
+import { useTtsPlayer } from '@/composables/useTtsPlayer'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
 import { initLenis, destroyLenis } from '@/composables/useLenis'
 
@@ -27,26 +27,15 @@ let timer: number | null = null
 // 检查是否为首次访问（页面刷新或首次打开）
 const isFirstLoad = ref(true)
 
-// 显示模型和聊天
-const showModel = ref(false)
-const showChat = ref(false)
-const isExpanded = ref(false)
-
 // 登录弹窗控制
 const showLoginModal = ref(false)
 const loginMessage = ref('')
-
-// 防抖处理，避免频繁点击
-let modelToggleTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const chatStore = useChatStore()
 const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
 const aiChatRef = ref<InstanceType<typeof AiChat> | null>(null)
 const bottomNavRef = ref<InstanceType<typeof BottomNavigation> | null>(null)
 const searchModalRef = ref<InstanceType<typeof GlobalSearchModal> | null>(null)
-
-// TTS 播放期间是否需要在结束后恢复音乐
-let shouldResumeMusicAfterSpeech = false
 
 // 新用户引导
 const { initOnboarding } = useOnboarding()
@@ -59,211 +48,16 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
   }
 }
 
-// TTS 播放期间是否需要在结束后恢复音乐；resumeMusicAfterSpeechIfNeeded 由 useTtsPlayer/播放循环调用
-const resumeMusicAfterSpeechIfNeeded = () => {
-  if (!shouldResumeMusicAfterSpeech) return
-  shouldResumeMusicAfterSpeech = false
-  bottomNavRef.value?.resumeMusic?.()
-}
-
-// TTS 播放器（内联，仅本组件使用）
-function useTtsPlayer() {
-  let isTtsPlaying = false
-  let playbackToken = 0
-  let currentTtsAudio: HTMLAudioElement | null = null
-  let isApplyingAvatarCue = false
-  let audioUnlocked = false
-
-  function resolveTtsPlayUrl(audioUrl?: string): string {
-    if (!audioUrl) return ''
-    if (audioUrl.startsWith('/')) {
-      const base = getServiceBaseURL(ServiceType.MAIN).replace(/\/$/, '')
-      if (base.startsWith('/') && audioUrl.startsWith(`${base}/`)) return audioUrl
-      return `${base}${audioUrl}`
-    }
-    return audioUrl
-  }
-
-  function stopTtsPlayback() {
-    playbackToken++
-    try { currentTtsAudio?.pause() } catch {}
-    currentTtsAudio = null
-    isTtsPlaying = false
-    resumeMusicAfterSpeechIfNeeded()
-  }
-
-  function waitOnce(audio: HTMLAudioElement, event: string, timeoutMs: number): Promise<boolean> {
-    return new Promise((resolve) => {
-      let done = false
-      const timer = window.setTimeout(() => {
-        if (done) return
-        done = true
-        resolve(false)
-      }, timeoutMs)
-      audio.addEventListener(event, () => {
-        if (done) return
-        done = true
-        window.clearTimeout(timer)
-        resolve(true)
-      }, { once: true })
-    })
-  }
-
-  const delay = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms))
-
-  async function playNextTts() {
-    if (isTtsPlaying) return
-    if (chatStore.ttsEnabled !== true || chatStore.ttsAvailable !== true) return
-    if (!live2dRef.value) return
-
-    const token = playbackToken
-    isTtsPlaying = true
-
-    try {
-      while (token === playbackToken) {
-        if (chatStore.ttsEnabled !== true || chatStore.ttsAvailable !== true) break
-        if (!live2dRef.value) break
-
-        const next = chatStore.shiftTtsAudioQueue()
-        if (!next) break
-
-        if (next.cue && next.cue.expression !== 'neutral') {
-          live2dRef.value.applyAvatarCue?.({ ...next.cue, skipResetTimer: true })
-        }
-
-        if (next.status === 'skipped') {
-          console.warn(`[TTS][skip] seq=${next.seq} reason=${next.reason ?? 'unknown'}`)
-          continue
-        }
-
-        const playUrl = resolveTtsPlayUrl(next.audioUrl)
-        if (!playUrl) continue
-
-        let audio = next.audioEl
-          ? await live2dRef.value.speakAudioElement(next.audioEl)
-          : await live2dRef.value.speakAudioUrl(playUrl)
-        if (!audio) continue
-        currentTtsAudio = audio
-
-        let started = false
-        for (let attempt = 0; attempt < 6 && token === playbackToken; attempt++) {
-          try {
-            await audio.play()
-            started = true
-            break
-          } catch (e: any) {
-            if (e?.name === 'NotAllowedError') break
-            try { audio.pause() } catch {}
-            currentTtsAudio = null
-            await delay(250 + attempt * 200)
-            if (!live2dRef.value) break
-            const retryAudio = await live2dRef.value.speakAudioUrl(playUrl)
-            if (!retryAudio) break
-            audio = retryAudio
-            currentTtsAudio = audio
-          }
-        }
-
-        if (!started) {
-          try { currentTtsAudio?.pause() } catch {}
-          currentTtsAudio = null
-          continue
-        }
-
-        await Promise.race([
-          waitOnce(audio, 'ended', 60000),
-          waitOnce(audio, 'error', 60000),
-          waitOnce(audio, 'pause', 60000)
-        ])
-
-        currentTtsAudio = null
-      }
-    } finally {
-      if (token === playbackToken) {
-        isTtsPlaying = false
-        live2dRef.value?.applyAvatarCue?.({ expression: 'neutral' })
-        resumeMusicAfterSpeechIfNeeded()
-      }
-    }
-  }
-
-  async function applyNextAvatarCues() {
-    if (isApplyingAvatarCue) return
-    if (isTtsPlaying || chatStore.ttsAwaitingAudio || chatStore.ttsPendingCount > 0) return
-    if (!live2dRef.value || !showModel.value) return
-    isApplyingAvatarCue = true
-    try {
-      while (live2dRef.value && showModel.value) {
-        const next = chatStore.shiftAvatarCueQueue()
-        if (!next) break
-        live2dRef.value.applyAvatarCue?.(next)
-        await delay(120)
-      }
-    } finally {
-      isApplyingAvatarCue = false
-    }
-  }
-
-  async function unlockAudio() {
-    if (audioUnlocked) return
-    audioUnlocked = true
-    try {
-      const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined
-      if (!Ctx) return
-      const ctx = new Ctx()
-      const gain = ctx.createGain()
-      gain.gain.value = 0
-      const osc = ctx.createOscillator()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      try { await ctx.resume() } catch {}
-      osc.start()
-      osc.stop(ctx.currentTime + 0.01)
-      window.setTimeout(() => { ctx.close().catch(() => {}) }, 50)
-    } catch {}
-  }
-
-  return { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio, isTtsPlaying: () => isTtsPlaying }
-}
-
-const { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio, isTtsPlaying } = useTtsPlayer()
-
-// 音乐事件桥接：BottomNavigation 里的 MusicCapsule -> Live2d 口型同步
-const handleMusicPlay = (audio: HTMLAudioElement) => {
-  // lipSync 是单实例，TTS 和音乐共用。TTS 正在播时不启动音乐口型，避免抢占 TTS 嘴型。
-  // 音乐本身仍正常播放，只是口型暂不驱动；TTS 结束后若恢复音乐会再次触发本函数。
-  if (isTtsPlaying()) return
-  live2dRef.value?.startMusicLipSync?.(audio)
-}
-
-const handleMusicPause = () => {
-  live2dRef.value?.stopMusicLipSync?.()
-}
-
-// Live2d 触发 TTS 播放前：暂停音乐，标记为「TTS 结束后恢复」
-const handleSpeakStart = () => {
-  const nav = bottomNavRef.value
-  if (nav?.isMusicPlaying?.()) {
-    shouldResumeMusicAfterSpeech = true
-    nav.pauseMusic?.()
-  }
-}
+// TTS 播放器 + Avatar Cue 调度 + 音乐桥接（集中在 useTtsPlayer composable）
+const { unlockAudio, handleMusicPlay, handleMusicPause, handleSpeakStart } = useTtsPlayer({ chatStore, live2dRef, bottomNavRef })
 
 const handleExternalChatOpen = (event: Event) => {
-  showModel.value = true
-  showChat.value = true
-  isExpanded.value = true
-
   const detail = (event as CustomEvent<Record<string, any>>).detail
-  if (detail?.prompt) {
-    window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('ai-chat-apply-prompt', { detail }))
-    }, 0)
-  }
+  chatStore.openChatExternal(detail)
 }
 
 const handleSpotlightClick = () => {
-  showModel.value = true
+  chatStore.showModel = true
 }
 
 onMounted(() => {
@@ -332,111 +126,24 @@ onUnmounted(() => {
 
 // TTS 生命周期：这些 watcher 将 chatStore 的响应式状态变化桥接到 useTtsPlayer 的命令式 API
 
-// TTS 开关/可用性/队列变化：禁用时停止播放并清队列，启用且有待播音频时开始播放
-watch(
-  () => [chatStore.ttsEnabled, chatStore.ttsAvailable, chatStore.ttsPendingCount],
-  () => {
-    if (chatStore.ttsEnabled !== true || chatStore.ttsAvailable !== true) {
-      stopTtsPlayback()
-      chatStore.clearTtsAudioQueue()
-      return
-    }
-    playNextTts()
-  }
-)
-
 // AI 开始思考时，给 Live2D 应用"思考"表情（半眼+手势变化）
 watch(
   () => chatStore.aiThinking,
   (thinking) => {
-    if (thinking && live2dRef.value && showModel.value) {
+    if (thinking && live2dRef.value && chatStore.showModel) {
       live2dRef.value.applyAvatarCue?.({ expression: 'thinking', durationMs: 8000 })
     }
   }
 )
 
-// 新消息发送时（ttsCancelCounter 递增），停止当前 TTS 播放，避免旧音频和新回复重叠
-watch(
-  () => chatStore.ttsCancelCounter,
-  () => {
-    stopTtsPlayback()
-  }
-)
-
-// TTS 关闭时，独立的 avatar-cue 仍可驱动表情变化
-watch(
-  () => chatStore.avatarCuePendingCount,
-  () => {
-    applyNextAvatarCues()
-  }
-)
-
-// Live2D 模型显示/隐藏时，同步控制 TTS 播放状态
-// setTimeout(0) 延迟到下一个 tick，确保 showModel 的 DOM 更新完成后再执行
-watch(
-  () => showModel.value,
-  (visible) => {
-    if (!visible) {
-      stopTtsPlayback()
-      return
-    }
-    setTimeout(() => {
-      playNextTts()
-      applyNextAvatarCues()
-      live2dRef.value?.refresh?.()
-    }, 0)
-  }
-)
-
-const toggleChat = () => {
-  showChat.value = !showChat.value
-  if (!showChat.value) {
-    // 关闭聊天框时，重置展开状态
-    isExpanded.value = false
-    showModel.value = true
-  }
-}
-
 const handleModelClick = () => {
-  if (isExpanded.value) return
-  toggleChat()
-}
-
-// 处理聊天框展开
-const handleExpandChat = () => {
-  if (isExpanded.value) {
-    showModel.value = true
-  }
-  isExpanded.value = !isExpanded.value
-}
-
-const handleCloseChat = () => {
-  showChat.value = false
-  isExpanded.value = false
-  showModel.value = true
-}
-
-const handleToggleModelVisibility = () => {
-  if (!isExpanded.value) return
-  showModel.value = !showModel.value
+  chatStore.toggleChat()
 }
 
 const handleModelWheel = (event: WheelEvent) => {
-  if (!isExpanded.value) return
+  if (!chatStore.isExpanded) return
   event.preventDefault()
   aiChatRef.value?.scrollBodyBy?.(event.deltaY)
-}
-
-const handleModelStatusChange = () => {
-  if (modelToggleTimeout) {
-    clearTimeout(modelToggleTimeout);
-  }
-
-  // 设置防抖延迟
-  modelToggleTimeout = setTimeout(() => {
-    showModel.value = !showModel.value
-    modelToggleTimeout = null;
-  }, 300); // 300ms防抖延迟
 }
 
 // 显示登录弹窗
@@ -459,7 +166,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       <Banner class="banner" />
       <Breadcrumb />
       <router-view />
-      <div v-if="showModel || showChat" class="ai-content" :class="{ 'expanded': isExpanded }">
+      <div v-if="chatStore.showModel || chatStore.showChat" class="ai-content" :class="{ 'expanded': chatStore.isExpanded }">
         <div class="ai-box">
           <Live2d
             ref="live2dRef"
@@ -467,18 +174,14 @@ const handleAuthRequired = (action: () => void, message?: string) => {
             @wheel="handleModelWheel"
             @speak-start="handleSpeakStart"
             class="live2d"
-            :class="{ 'centered': isExpanded, 'is-hidden': !showModel }"
+            :class="{ 'centered': chatStore.isExpanded, 'is-hidden': !chatStore.showModel }"
             :interactive="true"
+            :visible="chatStore.showModel"
           ></Live2d>
           <AiChat
-            v-show="showChat"
+            v-show="chatStore.showChat"
             ref="aiChatRef"
             class="ai-chat"
-            :expanded="isExpanded"
-            :model-visible="showModel"
-            @expand="handleExpandChat"
-            @close="handleCloseChat"
-            @toggle-model-visibility="handleToggleModelVisibility"
           ></AiChat>
         </div>
       </div>
@@ -486,7 +189,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
     <TheFooter />
     <BottomNavigation
       ref="bottomNavRef"
-      @ai-chat-active="handleModelStatusChange"
+      @ai-chat-active="() => chatStore.toggleModel()"
       @auth-required="handleAuthRequired"
       @music-play="handleMusicPlay"
       @music-pause="handleMusicPause"

@@ -78,6 +78,10 @@ export const useChatStore = defineStore('chat', () => {
   // ===== 状态 =====
   const messages = ref<ChatMessage[]>([])
   const conversationId = ref<number | null>(null)
+  // 看板娘显示状态（模型/聊天框/展开）
+  const showModel = ref(false)
+  const showChat = ref(false)
+  const isExpanded = ref(false)
   const isLoading = ref(false)
   const isStreaming = ref(false)
   const aiThinking = ref(false)
@@ -625,6 +629,62 @@ export const useChatStore = defineStore('chat', () => {
     getStorage().setItem(isGuestSession() ? GUEST_MODE_KEY : MODE_KEY, newMode)
   }
 
+  // ===== 看板娘显示控制 =====
+  // BottomNavigation 入口防抖定时器
+  let modelToggleTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** 点击 Live2d 模型：展开态忽略，否则切换聊天框开关 */
+  const toggleChat = () => {
+    if (isExpanded.value) return
+    showChat.value = !showChat.value
+    if (!showChat.value) {
+      isExpanded.value = false
+      showModel.value = true
+    }
+  }
+
+  /** 切换展开/折叠大窗 */
+  const expandChat = () => {
+    if (isExpanded.value) {
+      showModel.value = true
+    }
+    isExpanded.value = !isExpanded.value
+  }
+
+  /** 关闭聊天框，重置为初始态 */
+  const closeChat = () => {
+    showChat.value = false
+    isExpanded.value = false
+    showModel.value = true
+  }
+
+  /** 展开/折叠模型显示（仅展开态有效） */
+  const toggleModelVisibility = () => {
+    if (!isExpanded.value) return
+    showModel.value = !showModel.value
+  }
+
+  /** 底部导航入口：防抖 toggle 模型显示 */
+  const toggleModel = () => {
+    if (modelToggleTimer) clearTimeout(modelToggleTimer)
+    modelToggleTimer = setTimeout(() => {
+      showModel.value = !showModel.value
+      modelToggleTimer = null
+    }, 300)
+  }
+
+  /** 外部唤起（如文章页"问 AI"）：打开并展开聊天框，可选带入 prompt */
+  const openChatExternal = (detail?: { prompt?: string; autoSend?: boolean }) => {
+    showModel.value = true
+    showChat.value = true
+    isExpanded.value = true
+    if (detail?.prompt) {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('ai-chat-apply-prompt', { detail }))
+      }, 0)
+    }
+  }
+
   /**
    * 加载 AI 运行时状态
    * - 默认模型
@@ -676,12 +736,12 @@ export const useChatStore = defineStore('chat', () => {
 
   // ===== 监听器 =====
   // 监听消息变化，自动保存（使用防抖）
+  // 不用 deep：流式时每 chunk 都会深度遍历整个 messages，改为监听关键字段签名
   watch(
-    () => messages.value,
+    () => messages.value.map(msg => `${msg.id}:${msg.content.length}:${msg.isStreaming ? 1 : 0}:${msg.isThinking ? 1 : 0}:${msg.articleResults?.length || 0}`).join('|'),
     () => {
       debouncedSave()
-    },
-    { deep: true }
+    }
   )
 
   // 监听会话ID变化，自动保存
@@ -708,6 +768,9 @@ export const useChatStore = defineStore('chat', () => {
     // 状态
     messages,
     conversationId,
+    showModel,
+    showChat,
+    isExpanded,
     isLoading,
     isStreaming,
     aiThinking,
@@ -732,6 +795,12 @@ export const useChatStore = defineStore('chat', () => {
     sendMessage,
     clearHistory,
     setMode,
+    toggleChat,
+    expandChat,
+    closeChat,
+    toggleModelVisibility,
+    toggleModel,
+    openChatExternal,
     setTtsEnabled,
     setTtsAvailable,
     enqueueTtsAudio,

@@ -15,20 +15,13 @@ import { useNestedLenis } from '@/composables/useLenis'
 const historyContentRef = ref<HTMLElement | null>(null)
 useNestedLenis(historyContentRef)
 
-const props = defineProps<{
-  expanded?: boolean
-  modelVisible?: boolean
-}>()
-
-const emit = defineEmits<{
-  expand: []
-  close: []
-  toggleModelVisibility: []
-}>()
-
 const route = useRoute()
 const router = useRouter()
 const chatStore = useChatStore()
+
+// 显示状态统一来自 chatStore，避免 props/emit 中转
+const expanded = computed(() => chatStore.isExpanded)
+const modelVisible = computed(() => chatStore.showModel)
 
 const chatInput = ref('')
 const bodyRef = ref<InstanceType<typeof AiChatBody> | null>(null)
@@ -73,7 +66,7 @@ const mode = computed(() => chatStore.mode)
 const hasMessages = computed(() => chatStore.hasMessages)
 const errorMessage = computed(() => chatStore.errorMessage)
 const isGuestMode = computed(() => !isAuthenticated.value)
-const isCompact = computed(() => !props.expanded)
+const isCompact = computed(() => !expanded.value)
 const guestBannerText = computed(() => isCompact.value
   ? '游客体验中，聊天记录不会保存'
   : '当前为游客体验模式，聊天记录不会保存。登录后可保存历史会话。'
@@ -183,16 +176,16 @@ const applyPrompt = (prompt: string) => {
 }
 
 const handleExpandChat = () => {
-  emit('expand')
+  chatStore.expandChat()
 }
 
 const handleCloseChat = () => {
   stopVoiceRecognition()
-  emit('close')
+  chatStore.closeChat()
 }
 
 const handleToggleModelVisibility = () => {
-  emit('toggleModelVisibility')
+  chatStore.toggleModelVisibility()
 }
 
 const handleOpenChatEvent = async (event: Event) => {

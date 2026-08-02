@@ -172,9 +172,11 @@ const emit = defineEmits(['click', 'speak-start'])
 const props = withDefaults(defineProps<{
     interactive?: boolean
     followPointer?: boolean
+    visible?: boolean
 }>(), {
     interactive: true,
-    followPointer: true
+    followPointer: true,
+    visible: true
 })
 
 // 声明全局变量类型
@@ -619,6 +621,11 @@ const initLive2D = () => {
         resolution: window.devicePixelRatio || 1
     });
 
+    // 模型不可见时停止 ticker，避免 PIXI 空转耗 CPU/GPU
+    if (!props.visible) {
+        app.ticker.stop()
+    }
+
     // 加载Live2D模型
     Live2DModelClass.from(cubism4Model).then((live2dModel: any) => {
         model = live2dModel;
@@ -786,6 +793,17 @@ onBeforeUnmount(() => {
 watch(() => [props.interactive, props.followPointer], () => {
     applyInteractionMode()
     updatePointerTracking()
+})
+
+// 模型可见性变化：不可见时停 ticker 省资源，可见时恢复并刷新尺寸
+watch(() => props.visible, (visible) => {
+    if (!app?.ticker) return
+    if (visible) {
+        app.ticker.start()
+        refreshRenderer()
+    } else {
+        app.ticker.stop()
+    }
 })
 
 
