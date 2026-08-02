@@ -9,7 +9,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { hljs } from '@/utils/highlightLanguages'
 import { useMarkdown } from '@/composables/useMarkdown'
@@ -51,22 +51,51 @@ const appendStreamingCaret = (html: string) => {
   return container.innerHTML
 }
 
-const renderedContent = computed(() => {
-  if (!props.content) return ''
-  const html = processMarkdown(props.content, props.isStreaming)
-  return props.isStreaming ? appendStreamingCaret(html) : html
-})
+// 流式渲染节流：每帧最多解析一次 markdown，避免每个 chunk 都全量 marked.parse + DOMPurify
+const renderedContent = ref('')
+let rafId: number | null = null
 
-// Watch for rendered content changes to re-highlight code blocks
+const render = () => {
+  if (!props.content) {
+    renderedContent.value = ''
+    return
+  }
+  const html = processMarkdown(props.content, props.isStreaming)
+  renderedContent.value = props.isStreaming ? appendStreamingCaret(html) : html
+}
+
+watch(() => props.content, () => {
+  if (!props.isStreaming) {
+    render()
+    return
+  }
+  if (rafId !== null) return
+  rafId = requestAnimationFrame(() => {
+    rafId = null
+    render()
+  })
+}, { immediate: true })
+
+// 渲染结果变化时高亮代码块
 watch(renderedContent, async () => {
   await nextTick()
   highlightCodeBlocks()
 }, { immediate: true })
 
+// 流式结束：立即渲染最终内容（非流式路径，不补全标记）并移除光标
 watch(() => props.isStreaming, async (streaming) => {
   if (streaming) return
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId)
+    rafId = null
+  }
+  render()
   await nextTick()
   contentRef.value?.querySelectorAll('.streaming-caret').forEach((node) => node.remove())
+})
+
+onUnmounted(() => {
+  if (rafId !== null) cancelAnimationFrame(rafId)
 })
 
 const onContentClick = (e: MouseEvent) => {
