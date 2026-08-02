@@ -315,7 +315,6 @@ defineExpose({
           <AiChatHeader
             :expanded="expanded"
             :mode="mode"
-            :is-guest-mode="isGuestMode"
             :tts-enabled="chatStore.ttsEnabled"
             :tts-available="chatStore.ttsAvailable"
             :tts-toggle-title="ttsToggleTitle"

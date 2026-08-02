@@ -259,6 +259,12 @@ let dragOffset = { x: 0, y: 0 };
 
 // 窗口大小调整处理器
 let resizeHandler: (() => void) | null = null;
+let resizeObserver: ResizeObserver | null = null
+let resizeTimer: ReturnType<typeof setTimeout> | null = null
+let resizeTriggerCount = 0
+let lastDpr = 0
+let lastWidth = 0
+let lastHeight = 0
 let windowMouseMoveHandler: ((event: MouseEvent) => void) | null = null
 
 // 音乐口型同步的 suspend 标记由 MainLayout 通过 speakAudioUrl/Element 的调用来触发挂起
@@ -537,6 +543,50 @@ onMounted(() => {
     })
 });
 
+// 刷新渲染器尺寸与模型位置（处理窗口/容器/分辨率变化）
+const refreshRenderer = () => {
+    const canvas = document.getElementById('canvas') as HTMLCanvasElement | null
+    if (!canvas) return
+    const container = canvas.parentElement
+    const rawWidth = container?.clientWidth ?? 0
+    const rawHeight = container?.clientHeight ?? 0
+    const currentDpr = window.devicePixelRatio || 1
+    const currentWidth = rawWidth || 400
+    const currentHeight = rawHeight || 400
+
+    // DPR 和尺寸都没变，跳过无意义的刷新
+    if (currentDpr === lastDpr && currentWidth === lastWidth && currentHeight === lastHeight) {
+        resizeTriggerCount = 0
+        return
+    }
+    lastDpr = currentDpr
+    lastWidth = currentWidth
+    lastHeight = currentHeight
+
+    console.log(`[Live2D] refresh ${currentWidth}x${currentHeight} @${currentDpr} (合并 ${resizeTriggerCount} 次触发)`)
+    resizeTriggerCount = 0
+
+    if (app && app.renderer) {
+        // 同步设备像素比（拖到高 DPI 显示器、浏览器缩放时避免模糊）
+        try { app.renderer.resolution = currentDpr } catch (e) { console.warn('[Live2D] setResolution failed', e) }
+        try { app.renderer.resize(currentWidth, currentHeight) } catch (e) { console.warn('[Live2D] resize failed', e) }
+    }
+    if (model) {
+        model.x = currentWidth / 2
+        model.y = currentHeight / 2
+    }
+}
+
+// 防抖：避免展开/折叠 transition 期间频繁刷新
+const debouncedRefresh = () => {
+    resizeTriggerCount++
+    if (resizeTimer) clearTimeout(resizeTimer)
+    resizeTimer = setTimeout(() => {
+        resizeTimer = null
+        refreshRenderer()
+    }, 150)
+}
+
 // 等待全局脚本加载完成
 const initLive2D = () => {
     if (!window.PIXI) {
@@ -615,27 +665,19 @@ const initLive2D = () => {
         // Live2D模型加载失败时静默处理
     });
 
-    // 窗口大小调整
-    resizeHandler = () => {
-        const canvas = document.getElementById('canvas') as HTMLCanvasElement;
-        const container = canvas.parentElement;
-        const currentWidth = container?.clientWidth || 400;
-        const currentHeight = container?.clientHeight || 400;
+    // 窗口大小/分辨率变化：防抖刷新
+    resizeHandler = debouncedRefresh
+    window.addEventListener('resize', resizeHandler)
 
-        if (app && app.renderer) {
-            app.renderer.resize(currentWidth, currentHeight);
-        }
-        if (model) {
-            model.x = currentWidth / 2;
-            model.y = currentHeight / 2;
-        }
-    };
-
-    window.addEventListener('resize', resizeHandler);
-
-    if (resizeHandler) {
-        resizeHandler();
+    // 容器尺寸变化（展开/折叠等）：ResizeObserver 监听，弥补 window resize 无法覆盖的场景
+    const canvasEl = document.getElementById('canvas') as HTMLCanvasElement | null
+    const containerEl = canvasEl?.parentElement
+    if (containerEl && typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(debouncedRefresh)
+        resizeObserver.observe(containerEl)
     }
+
+    debouncedRefresh()
 
     applyInteractionMode()
     updatePointerTracking()
@@ -663,6 +705,14 @@ const cleanup = () => {
     if (resizeHandler) {
         window.removeEventListener('resize', resizeHandler);
         resizeHandler = null;
+    }
+    if (resizeObserver) {
+        resizeObserver.disconnect()
+        resizeObserver = null
+    }
+    if (resizeTimer) {
+        clearTimeout(resizeTimer)
+        resizeTimer = null
     }
     if (windowMouseMoveHandler) {
         window.removeEventListener('mousemove', windowMouseMoveHandler)

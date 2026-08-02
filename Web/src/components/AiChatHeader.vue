@@ -7,7 +7,6 @@ import { BREAKPOINT_MD } from '@/utils/breakpoints'
 const props = defineProps<{
   expanded?: boolean
   mode: ChatMode
-  isGuestMode: boolean
   ttsEnabled: boolean
   ttsAvailable: boolean
   ttsToggleTitle: string
@@ -32,12 +31,9 @@ const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < BREAKPO
 const toolbarIconSize = 15
 
 const modeLabel = computed(() => props.mode === 'stream' ? '实时响应' : '完整响应')
-const sessionLabel = computed(() => props.isGuestMode ? '游客体验' : '已登录')
 const modeToggleTitle = () => `当前：${modeLabel.value}，点击切换回复方式`
 const expandToggleTitle = () => props.expanded ? '退出大窗模式' : '进入大窗模式'
 const modelToggleTitle = () => props.modelVisible ? '隐藏模型' : '显示模型'
-const identityTitle = computed(() => `纳西妲 · ${modeLabel.value} · ${sessionLabel.value}`)
-const guestBadgeTitle = computed(() => props.isGuestMode ? '当前为游客体验模式' : '当前为已登录模式')
 
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement
@@ -78,21 +74,6 @@ onUnmounted(() => {
 
 <template>
   <div class="chat-header" :class="{ compact: !expanded }">
-    <div class="header-left">
-      <div class="assistant-identity" :title="identityTitle">
-        <div class="assistant-avatar" :class="mode">
-          <Icon name="bot" :size="18" />
-          <span class="assistant-mode-dot" :class="mode"></span>
-          <span v-if="isGuestMode" class="assistant-guest-badge" :title="guestBadgeTitle">
-            <Icon name="user" :size="10" />
-          </span>
-        </div>
-        <div v-if="expanded" class="assistant-meta">
-          <h3>纳西妲</h3>
-        </div>
-      </div>
-    </div>
-
     <div class="header-right">
       <!-- Desktop or compact: show all buttons -->
       <template v-if="!isMobile || !expanded">
@@ -155,7 +136,7 @@ onUnmounted(() => {
         <Icon :name="expanded ? 'minimize' : 'maximize'" :size="toolbarIconSize" />
       </button>
 
-      <button v-if="expanded" class="icon-action-btn close-btn" @click="emit('close')" title="关闭聊天窗口">
+      <button class="icon-action-btn close-btn" @click="emit('close')" title="关闭聊天窗口">
         <Icon name="close" :size="toolbarIconSize" />
       </button>
       </template>
@@ -210,16 +191,16 @@ onUnmounted(() => {
             <Icon name="trash2" :size="14" />
             <span>清空聊天</span>
           </button>
-          <button class="more-option" @click="emit('expand'); showMoreMenu = false">
-            <Icon name="minimize" :size="14" />
-            <span>退出大窗</span>
-          </button>
-          <button class="more-option danger" @click="emit('close'); showMoreMenu = false">
-            <Icon name="close" :size="14" />
-            <span>关闭聊天</span>
-          </button>
         </div>
       </div>
+
+      <button class="icon-action-btn expand-btn" :class="{ active: !!expanded }" @click="emit('expand')" :title="expandToggleTitle()">
+        <Icon :name="expanded ? 'minimize' : 'maximize'" :size="toolbarIconSize" />
+      </button>
+
+      <button class="icon-action-btn close-btn" @click="emit('close')" title="关闭聊天窗口">
+        <Icon name="close" :size="toolbarIconSize" />
+      </button>
       </template>
     </div>
   </div>
@@ -253,113 +234,12 @@ onUnmounted(() => {
   box-shadow: none;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  flex: 1;
-}
-
 .header-right {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-left: auto;
   flex-shrink: 0;
-}
-
-.assistant-identity {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.assistant-avatar {
-  width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: var(--bg-soft);
-  border: 1px solid var(--border-light);
-  color: var(--color-primary);
-  position: relative;
-  flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.chat-header.compact .assistant-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: transparent;
-  border: none;
-}
-
-.chat-header.compact .assistant-avatar .assistant-mode-dot {
-  width: 7px;
-  height: 7px;
-  right: 2px;
-  bottom: 2px;
-  border-width: 1.5px;
-}
-
-.chat-header.compact .assistant-avatar .assistant-guest-badge {
-  width: 14px;
-  height: 14px;
-  top: -3px;
-  left: -3px;
-}
-
-.assistant-avatar.stream {
-  color: var(--color-success);
-}
-
-.assistant-meta {
-  min-width: 0;
-}
-
-.assistant-meta h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-title);
-}
-
-.assistant-mode-dot {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  border: 2px solid var(--bg-card);
-  background: var(--color-primary);
-}
-
-.assistant-mode-dot.stream {
-  background: var(--color-success);
-}
-
-.assistant-mode-dot.normal {
-  background: var(--color-primary);
-}
-
-.assistant-guest-badge {
-  position: absolute;
-  top: -4px;
-  left: -4px;
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: var(--bg-warning);
-  color: var(--color-warning);
-  border: 1px solid var(--border-light);
 }
 
 .icon-action-btn {
@@ -532,15 +412,6 @@ onUnmounted(() => {
   .chat-header:not(.compact) {
     padding: 10px 12px;
     gap: 8px;
-  }
-
-  .chat-header:not(.compact) .assistant-meta h3 {
-    font-size: 14px;
-  }
-
-  .chat-header:not(.compact) .assistant-avatar {
-    width: 30px;
-    height: 30px;
   }
 
   .chat-header:not(.compact) .header-right {
