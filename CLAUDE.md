@@ -96,3 +96,26 @@ docker exec -it liutech-mysql mysql -u root -p
 - `快速部署指南.md` — 生产环境部署步骤
 - `doc/记录/当前架构.md` — 当前生效的总体架构
 - `Docs/架构/README.md` — 模块化架构文档索引，接手某模块前先读对应目录的「总览.md」
+
+## 🧠 GBrain 持久知识库
+
+本机已配置 gbrain（本地 PGLite + Ollama bge-m3 embedding），Liutech 代码已索引，支持语义搜索。
+
+**配置：**
+- Mode: local-stdio（`gbrain serve` 作为 MCP，user scope 注册）
+- Engine: pglite（单进程嵌入式，单写者）
+- Embedding: `ollama:bge-m3`（1024 维，本地 Ollama，无 API 成本）
+- Code source: `gstack-code-liutech-1ab86efa`（542 pages，7116 chunks，100% embedded，2026-08-02 首次同步）
+- 排除目录：`Web/public/tinymce/**`、`Web/public/live2d/**`、`Admin/public/tinymce/**`（第三方 vendored，不索引）
+- Repo policy: read-write
+- 配置文件：`~/.gbrain/config.json`（mode 0600，含 database_path/embedding_model）
+
+**搜索指导：**
+- 语义/符号不明确时优先 gbrain：`gbrain search "<词>"`、`gbrain query "<问题>"`
+- 已知精确串/正则/多行/文件 glob：仍用 Grep
+- 当前目录已 attach 到 `gstack-code-liutech-1ab86efa`（`.gbrain-source` 已 gitignore），CLI 命令默认用此 source
+- 增量同步在 gstack skill 启动时自动跑；强制刷新 `/sync-gbrain`，全量重建 `/sync-gbrain --full`
+
+**⚠️ PGLite 单写者约束（重要）：** CLI 命令（`gbrain sync`/`import`/`doctor`/`sources`）与 `gbrain serve`（MCP）不能同时打开数据库。若 CLI 报 "already open through gbrain serve" 或 doctor 报 broken-config，先停 serve（`taskkill //F //PID <bun.exe PID>`），跑完 CLI 再重连 MCP（重启 Claude Code 或 `/mcp`）。serve 进程退出后 PGLite 锁会自动回收。
+
+**已知限制：** 当前 schema pack 是 `gbrain-base-v2`，不抽取代码符号，`gbrain code-def`/`code-refs`/调用图无结果（语义搜索 `search`/`query` 正常）。需要符号查询要迁移到 code-aware pack（大迁移，未做）。
