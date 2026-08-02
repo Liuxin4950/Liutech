@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,7 +46,7 @@ class AiChatServiceImplTest {
         ttsSegmenter = new TtsSegmenter(new TtsSegmenterProperties());
 
         service = new AiChatServiceImpl(
-                siliconFlowChatClient, memoryService, aiMetrics,
+                aiChatProperties, siliconFlowChatClient, memoryService, aiMetrics,
                 chatServiceHelper, aiModelPolicy, streamingChatService
         );
 

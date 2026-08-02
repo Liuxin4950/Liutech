@@ -23,6 +23,9 @@ public class AiChatProperties {
     /** 聊天历史消息限制 */
     private int chatHistoryLimit = 14;
 
+    /** 写作模式最大 token 数（强制提到此值，DeepSeek-V3.2 最大输出 32K） */
+    private int writingMaxTokens = 32768;
+
     /** TTS 流式并发数 */
     private int ttsStreamConcurrency = 1;
 

@@ -4,6 +4,7 @@ import chat.liuxin.ai.common.monitor.AiMetrics;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.ChatResponse;
 import chat.liuxin.ai.infra.exception.AIServiceException;
+import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.ChatServiceHelper;
@@ -38,11 +39,11 @@ import tools.jackson.core.exc.StreamReadException;
 public class AiChatServiceImpl implements AiChatService {
     /** 写作模式专用参数：低温度保证稳定输出，高 maxTokens 避免正文被截断 */
     private static final double WRITING_TEMPERATURE = 0.3;
-    private static final int WRITING_MAX_TOKENS = 8192; // 兜底值，管理端配置更高时优先用配置
     /** token 估算系数：约 4 个字符 ≈ 1 token */
     private static final int CHARS_PER_TOKEN_ESTIMATE = 4;
 
 
+    private final AiChatProperties aiChatProperties;
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final AiMetrics aiMetrics;
@@ -175,14 +176,14 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     /**
-     * 写作模式参数处理：尊重管理端配置的模型参数，仅做最低保障兜底。
+     * 写作模式参数处理：maxTokens 强制提到模型最大输出，保证长正文不被截断。
      * - temperature: 用配置值，未配置时用0.3兜底（减少废话和空调用）
-     * - maxTokens: 用配置值，配置低于8192时自动提升到8192兜底（避免长正文被截断）
-     * 用户配置更高maxTokens（如16384/32768）时完全按配置生效，充分发挥模型能力。
+     * - maxTokens: 强制 writingMaxTokens（默认 32768 = DeepSeek-V3.2 最大输出 32K），管理端配置低于此值时被覆盖
      */
     private AiModelPolicy.ModelParameters writingParameters(AiModelPolicy.ModelParameters base) {
         Double temperature = base.temperature() != null ? base.temperature() : WRITING_TEMPERATURE;
-        Integer maxTokens = base.maxTokens() != null ? Math.max(base.maxTokens(), WRITING_MAX_TOKENS) : WRITING_MAX_TOKENS;
+        int writingMaxTokens = aiChatProperties.getWritingMaxTokens();
+        Integer maxTokens = base.maxTokens() != null ? Math.max(base.maxTokens(), writingMaxTokens) : writingMaxTokens;
         return new AiModelPolicy.ModelParameters(temperature, maxTokens, base.source() + "+writing-fallback");
     }
     /** 解析 temperature / maxTokens,来源可能是请求参数、模型默认值或全局默认。 */

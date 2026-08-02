@@ -79,6 +79,8 @@ spring:
       json-output-instruction: ""
     # 聊天配置（平铺 key 匹配 AiChatProperties.chatHistoryLimit）
     chat-history-limit: 14
+    # 写作模式最大 token 数（强制值，管理端配置低于此值被覆盖）
+    writing-max-tokens: 32768
     # SSE配置（平铺 key 匹配 AiChatProperties.sseTimeout）
     sse-timeout: 300000  # SSE超时时间（毫秒），5分钟（需大于AI重试链最大耗时：30s×3+2s=92s）
     agent:
@@ -93,7 +95,7 @@ spring:
       title-suffix: "生成"
     security:
       prompt-guard-enabled: true
-      model-policy-max-tokens-ceiling: 4096
+      model-policy-max-tokens-ceiling: 8192
       rate-limit:
         enabled: true
         window-seconds: 60
