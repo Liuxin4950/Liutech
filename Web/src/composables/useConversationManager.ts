@@ -19,6 +19,7 @@ export function useConversationManager(chatStore: ChatStore) {
   const isAuthenticated = ref(isLoggedIn())
   const editingConversationId = ref<number | null>(null)
   const editingTitle = ref('')
+  const menuOpenId = ref<number | null>(null)
 
   const syncAuthState = () => {
     isAuthenticated.value = isLoggedIn()
@@ -43,7 +44,7 @@ export function useConversationManager(chatStore: ChatStore) {
       return
     }
     showHistorySidebar.value = !showHistorySidebar.value
-    if (showHistorySidebar.value && conversations.value.length === 0) {
+    if (showHistorySidebar.value) {
       loadConversations()
     }
   }
@@ -124,6 +125,14 @@ export function useConversationManager(chatStore: ChatStore) {
     editingTitle.value = ''
   }
 
+  const toggleConversationMenu = (id: number) => {
+    menuOpenId.value = menuOpenId.value === id ? null : id
+  }
+
+  const closeConversationMenu = () => {
+    menuOpenId.value = null
+  }
+
   const formatConversationTime = (dateString?: string) => {
     if (!dateString) return ''
     const date = new Date(dateString)
@@ -146,6 +155,7 @@ export function useConversationManager(chatStore: ChatStore) {
     isAuthenticated,
     editingConversationId,
     editingTitle,
+    menuOpenId,
     syncAuthState,
     loadConversations,
     toggleHistorySidebar,
@@ -154,6 +164,8 @@ export function useConversationManager(chatStore: ChatStore) {
     startEditTitle,
     saveTitle,
     cancelEditTitle,
+    toggleConversationMenu,
+    closeConversationMenu,
     formatConversationTime,
   }
 }

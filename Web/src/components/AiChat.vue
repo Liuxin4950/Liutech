@@ -41,12 +41,15 @@ const {
   isAuthenticated,
   editingConversationId,
   editingTitle,
+  menuOpenId,
   syncAuthState,
   toggleHistorySidebar,
   deleteConversation,
   startEditTitle,
   saveTitle,
   cancelEditTitle,
+  toggleConversationMenu,
+  closeConversationMenu,
   formatConversationTime,
   loadConversation: _loadConversation,
 } = useConversationManager(chatStore)
@@ -205,6 +208,13 @@ const handlePostClick = (postId: number) => {
   router.push(`/post/${postId}`)
 }
 
+const handleMenuClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (!target.closest('.conversation-actions')) {
+    closeConversationMenu()
+  }
+}
+
 
 watch(
   () => messages.value.map(msg => `${msg.id}:${msg.content.length}:${msg.isStreaming ? 1 : 0}:${msg.isThinking ? 1 : 0}:${msg.articleResults?.length || 0}`).join('|'),
@@ -218,6 +228,7 @@ onMounted(async () => {
   window.addEventListener('focus', syncAuthState)
   window.addEventListener('storage', syncAuthState)
   window.addEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
+  document.addEventListener('click', handleMenuClickOutside)
   initVoiceRecognition()
 
   try {
@@ -241,6 +252,7 @@ onUnmounted(() => {
   window.removeEventListener('focus', syncAuthState)
   window.removeEventListener('storage', syncAuthState)
   window.removeEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
+  document.removeEventListener('click', handleMenuClickOutside)
   cleanupVoiceRecognition()
   AiStream.cancel()
 })
@@ -283,14 +295,14 @@ defineExpose({
                 <div class="conversation-title">
                   <span
                     v-if="editingConversationId !== conversation.id"
-                    @click.stop="startEditTitle(conversation.id, conversation.title || '')"
-                    class="editable-title"
+                    class="conversation-title-text"
                   >
                     {{ conversation.title || `会话 ${conversation.id}` }}
                   </span>
                   <input
                     v-else
                     v-model="editingTitle"
+                    @click.stop
                     @blur="saveTitle(conversation.id)"
                     @keyup.enter="saveTitle(conversation.id)"
                     @keyup.esc="cancelEditTitle()"
@@ -302,9 +314,21 @@ defineExpose({
                   <span class="conversation-time">{{ formatConversationTime(conversation.lastMessageAt) }}</span>
                 </div>
               </div>
-              <button class="delete-conversation" @click="deleteConversation(conversation.id, $event)" title="删除会话">
-                <Icon name="trash" />
-              </button>
+              <div class="conversation-actions">
+                <button class="more-btn" @click.stop="toggleConversationMenu(conversation.id)" title="更多操作">
+                  <Icon name="more" :size="16" />
+                </button>
+                <div v-show="menuOpenId === conversation.id" class="action-dropdown">
+                  <button class="action-option" @click.stop="startEditTitle(conversation.id, conversation.title || ''); closeConversationMenu()">
+                    <Icon name="edit" :size="14" />
+                    <span>重命名</span>
+                  </button>
+                  <button class="action-option danger" @click.stop="deleteConversation(conversation.id, $event); closeConversationMenu()">
+                    <Icon name="trash" :size="14" />
+                    <span>删除</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -619,16 +643,12 @@ defineExpose({
   text-overflow: ellipsis;
 }
 
-.editable-title {
-  cursor: text;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background-color 0.2s;
+.conversation-title-text {
   display: inline-block;
-}
-
-.editable-title:hover {
-  background-color: var(--bg-hover);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .title-edit-input {
@@ -665,26 +685,73 @@ defineExpose({
   margin-left: 8px;
 }
 
-.delete-conversation {
+.conversation-actions {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.more-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-subtle);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.more-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.action-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: 1000;
+  min-width: 120px;
+  padding: 4px;
+}
+
+.action-option {
+  width: 100%;
+  padding: 8px 10px;
   background: none;
   border: none;
-  font-size: 14px;
+  text-align: left;
   cursor: pointer;
-  color: var(--text-subtle);
-  padding: 4px;
-  border-radius: 4px;
-  opacity: 0;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--text-main);
+  border-radius: 6px;
 }
 
-.conversation-item:hover .delete-conversation {
-  opacity: 1;
+.action-option:hover {
+  background: var(--bg-hover);
 }
 
-.delete-conversation:hover {
-  background: var(--bg-error);
+.action-option.danger {
   color: var(--color-error);
+}
+
+.action-option.danger:hover {
+  background: var(--bg-error);
 }
 
 @keyframes spin {
