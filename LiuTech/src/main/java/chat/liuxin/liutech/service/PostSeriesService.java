@@ -42,6 +42,8 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
 
     private final PostsMapper postsMapper;
 
+    private final ImagesService imagesService;
+
     /**
      * 查询所有系列（含已发布文章数），web 端列表用
      */
@@ -104,7 +106,11 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
         series.setName(resp.getName());
         series.setDescription(resp.getDescription());
         series.setCoverImage(resp.getCoverImage());
-        return super.save(series);
+        boolean saved = super.save(series);
+        if (saved) {
+            incrementCoverReference(series.getCoverImage());
+        }
+        return saved;
     }
 
     /**
@@ -112,12 +118,23 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
      */
     @CacheEvict(value = "postSeries", allEntries = true)
     public boolean updateById(PostSeriesResp resp) {
+        PostSeries exist = postSeriesMapper.selectById(resp.getId());
+        if (exist == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "系列不存在");
+        }
+        String oldCover = exist.getCoverImage();
+        String newCover = resp.getCoverImage();
         PostSeries series = new PostSeries();
         series.setId(resp.getId());
         series.setName(resp.getName());
         series.setDescription(resp.getDescription());
-        series.setCoverImage(resp.getCoverImage());
-        return super.updateById(series);
+        series.setCoverImage(newCover);
+        boolean updated = super.updateById(series);
+        if (updated && newCover != null && !newCover.equals(oldCover)) {
+            decrementCoverReference(oldCover);
+            incrementCoverReference(newCover);
+        }
+        return updated;
     }
 
     /**
@@ -158,6 +175,11 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "postSeries", "postList", "hotPosts", "latestPosts" }, allEntries = true)
     public boolean permanentDeleteSeries(Long id) {
+        PostSeries series = postSeriesMapper.selectByIdWithDeleted(id);
+        // 仅未软删除的系列才扣减（软删除时未扣减，已靠对账移除引用）
+        if (series != null && series.getDeletedAt() == null) {
+            decrementCoverReference(series.getCoverImage());
+        }
         log.info("彻底删除系列 - 系列ID: {}", id);
         return postSeriesMapper.deleteBatchIds(Collections.singletonList(id)) > 0;
     }
@@ -170,6 +192,12 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
     public boolean batchPermanentDeleteSeries(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return false;
+        }
+        for (Long id : ids) {
+            PostSeries series = postSeriesMapper.selectByIdWithDeleted(id);
+            if (series != null && series.getDeletedAt() == null) {
+                decrementCoverReference(series.getCoverImage());
+            }
         }
         log.info("批量彻底删除系列 - 数量: {}", ids.size());
         return postSeriesMapper.deleteBatchIds(ids) > 0;
@@ -193,5 +221,25 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
             postsMapper.updateSeriesSort(item.getPostId(), seriesId, sort, operatorId);
         }
         return true;
+    }
+
+    /**
+     * 增加系列封面图片引用计数
+     */
+    private void incrementCoverReference(String coverUrl) {
+        if (!StringUtils.hasText(coverUrl)) {
+            return;
+        }
+        imagesService.incrementImageUsageCountByUrl(coverUrl, 1);
+    }
+
+    /**
+     * 减少系列封面图片引用计数
+     */
+    private void decrementCoverReference(String coverUrl) {
+        if (!StringUtils.hasText(coverUrl)) {
+            return;
+        }
+        imagesService.incrementImageUsageCountByUrl(coverUrl, -1);
     }
 }

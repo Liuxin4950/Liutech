@@ -353,7 +353,7 @@ public class UserProfileService {
      * @param imageUrl 图片URL
      */
     private void incrementImageReference(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty() || imageUrl.startsWith("/")) {
+        if (imageUrl == null || imageUrl.isEmpty()) {
             return;
         }
         try {
@@ -372,7 +372,7 @@ public class UserProfileService {
      * @param imageUrl 图片URL
      */
     private void decrementImageReference(String imageUrl) {
-        if (imageUrl == null || imageUrl.isEmpty() || imageUrl.startsWith("/")) {
+        if (imageUrl == null || imageUrl.isEmpty()) {
             return;
         }
         try {

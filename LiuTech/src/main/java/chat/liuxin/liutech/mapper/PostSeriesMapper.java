@@ -74,6 +74,15 @@ public interface PostSeriesMapper extends BaseMapper<PostSeries> {
     List<String> selectAllCoverUrls();
 
     /**
+     * 根据ID查询系列（包含已软删除的，绕过 @TableLogic，物理删除扣减引用用）
+     *
+     * @param id 系列ID
+     * @return 系列记录
+     */
+    @Select("SELECT * FROM post_series WHERE id = #{id}")
+    PostSeries selectByIdWithDeleted(@Param("id") Long id);
+
+    /**
      * 根据ID列表物理删除系列
      *
      * @param ids 系列ID列表
