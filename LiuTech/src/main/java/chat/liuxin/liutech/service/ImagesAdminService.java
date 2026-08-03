@@ -322,13 +322,15 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
             refs.add(new ImageReferenceResp("post_thumbnail", p.getId(), p.getTitle(), "文章缩略图"));
         }
 
-        // 文章正文（content 内的 <img src>）
+        // 文章正文（content 内的 <img src>，统计出现次数让明细对得上 usage_count）
         List<Posts> contentPosts = postsMapper.selectList(new LambdaQueryWrapper<Posts>()
-                .select(Posts::getId, Posts::getTitle)
+                .select(Posts::getId, Posts::getTitle, Posts::getContent)
                 .like(Posts::getContent, filePath)
                 .isNull(Posts::getDeletedAt));
         for (Posts p : contentPosts) {
-            refs.add(new ImageReferenceResp("post_content", p.getId(), p.getTitle(), "文章正文"));
+            int count = countOccurrences(p.getContent(), filePath);
+            String field = count > 1 ? "文章正文(" + count + " 次)" : "文章正文";
+            refs.add(new ImageReferenceResp("post_content", p.getId(), p.getTitle(), field));
         }
 
         // 用户头像
@@ -369,5 +371,21 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
 
         log.debug("查询图片引用来源 - 图片ID: {}, 引用数: {}", imageId, refs.size());
         return refs;
+    }
+
+    /**
+     * 统计 sub 在 content 中出现的次数（用于文章正文图片引用计数）
+     */
+    private int countOccurrences(String content, String sub) {
+        if (content == null || sub == null || sub.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        int idx = 0;
+        while ((idx = content.indexOf(sub, idx)) != -1) {
+            count++;
+            idx += sub.length();
+        }
+        return count;
     }
 }
