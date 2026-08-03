@@ -247,8 +247,14 @@ const exportCtrl = useTableExport({
             </a-form-item>
           </a-col>
           <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="MIME类型" class="mb-0">
-              <a-input v-model:value="searchParams.mimeType" placeholder="如 image/png" allow-clear @press-enter="handleSearch" />
+            <a-form-item label="类型" class="mb-0">
+              <a-select v-model:value="searchParams.mimeType" placeholder="全部类型" allow-clear @change="handleSearch">
+                <a-select-option value="image/png">PNG</a-select-option>
+                <a-select-option value="image/jpeg">JPEG</a-select-option>
+                <a-select-option value="image/gif">GIF</a-select-option>
+                <a-select-option value="image/webp">WEBP</a-select-option>
+                <a-select-option value="image/svg+xml">SVG</a-select-option>
+              </a-select>
             </a-form-item>
           </a-col>
           <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
@@ -264,14 +270,6 @@ const exportCtrl = useTableExport({
                 <template #icon><ReloadOutlined /></template>
                 重置
               </a-button>
-              <a-button @click="handleShowOrphans">
-                <template #icon><ClearOutlined /></template>
-                孤立图片清理
-              </a-button>
-              <a-button :loading="reconcileLoading" @click="handleReconcile">
-                <template #icon><SyncOutlined /></template>
-                引用对账
-              </a-button>
             </a-space>
           </a-col>
         </a-row>
@@ -285,6 +283,14 @@ const exportCtrl = useTableExport({
       </template>
       <template #extra>
         <a-space>
+          <a-button @click="handleShowOrphans">
+            <template #icon><ClearOutlined /></template>
+            孤立清理
+          </a-button>
+          <a-button :loading="reconcileLoading" @click="handleReconcile">
+            <template #icon><SyncOutlined /></template>
+            引用对账
+          </a-button>
           <TableExportButton :ctrl="exportCtrl" />
           <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
