@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
@@ -63,6 +64,14 @@ public interface PostSeriesMapper extends BaseMapper<PostSeries> {
      * @return 影响的行数
      */
     int restoreSeriesById(@Param("id") Long id);
+
+    /**
+     * 查询所有未删除系列的封面图URL（图片引用对账用）
+     *
+     * @return 封面图URL列表
+     */
+    @Select("SELECT cover_image FROM post_series WHERE cover_image IS NOT NULL AND cover_image != '' AND deleted_at IS NULL")
+    List<String> selectAllCoverUrls();
 
     /**
      * 根据ID列表物理删除系列

@@ -11,6 +11,7 @@ import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Images;
+import chat.liuxin.liutech.resp.ImageReferenceResp;
 import chat.liuxin.liutech.resp.ImageUsageReconcileResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.ImageUsageReconcileService;
@@ -57,6 +58,13 @@ public class ImagesAdminController extends BaseAdminController {
     public Result<Images> getImageById(@PathVariable Long id) {
         ValidationUtil.validateId(id, "图片ID");
         return checkResourceExists(imagesAdminService.getImageById(id), ErrorCode.NOT_FOUND);
+    }
+
+    /** 查询图片引用来源（反向溯源：被哪些文章/头像/轮播/音乐封面/系列封面引用） */
+    @GetMapping("/{id}/references")
+    public Result<List<ImageReferenceResp>> getImageReferences(@PathVariable Long id) {
+        ValidationUtil.validateId(id, "图片ID");
+        return Result.success(imagesAdminService.getReferences(id));
     }
 
     /** 软删除图片 */

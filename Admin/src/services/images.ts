@@ -107,6 +107,13 @@ export class ImagesService {
   static async reconcileUsage(): Promise<ApiResponse<ImageUsageReconcileResult>> {
     return post<ImageUsageReconcileResult>(`${this.BASE_URL}/reconcile-usage`)
   }
+
+  /**
+   * 查询图片引用来源（反向溯源：被哪些文章/头像/轮播等引用）
+   */
+  static async getReferences(id: number): Promise<ApiResponse<ImageReference[]>> {
+    return get<ImageReference[]>(`${this.BASE_URL}/${id}/references`)
+  }
 }
 
 export interface ImageUsageReconcileResult {
@@ -114,6 +121,13 @@ export interface ImageUsageReconcileResult {
   referencedPaths: number
   updatedImages: number
   missingImages: number
+}
+
+export interface ImageReference {
+  sourceType: string
+  sourceId: number
+  sourceTitle: string
+  sourceField: string
 }
 
 export default ImagesService

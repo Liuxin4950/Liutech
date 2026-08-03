@@ -7,10 +7,11 @@ import {
   DeleteOutlined,
   EyeOutlined,
   ClearOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  SyncOutlined
 } from '@ant-design/icons-vue'
 import ImagesService from '../../services/images'
-import type { Image, ImageListParams } from '../../services/images'
+import type { Image, ImageListParams, ImageReference } from '../../services/images'
 import { formatDateTime } from '../../utils/utils'
 import { useTablePage, useCrudActions } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
@@ -167,6 +168,50 @@ const handleCleanupOrphans = () => {
   })
 }
 
+// ============== 引用对账 ==============
+const reconcileLoading = ref(false)
+
+const handleReconcile = async () => {
+  reconcileLoading.value = true
+  try {
+    const res = await ImagesService.reconcileUsage()
+    if (res.code === 200) {
+      message.success(`对账完成：重置 ${res.data.resetRows} 条，更新 ${res.data.updatedImages} 条引用`)
+      loadImages()
+    } else {
+      message.error(res.message || '对账失败')
+    }
+  } catch {
+    message.error('对账失败')
+  } finally {
+    reconcileLoading.value = false
+  }
+}
+
+// ============== 图片引用溯源 ==============
+const referencesVisible = ref(false)
+const referencesList = ref<ImageReference[]>([])
+const referencesLoading = ref(false)
+const referencesImageName = ref('')
+
+const handleShowReferences = async (record: Image) => {
+  referencesImageName.value = record.fileName
+  referencesVisible.value = true
+  referencesLoading.value = true
+  try {
+    const res = await ImagesService.getReferences(record.id)
+    if (res.code === 200) {
+      referencesList.value = res.data
+    } else {
+      message.error(res.message || '查询引用来源失败')
+    }
+  } catch {
+    message.error('查询引用来源失败')
+  } finally {
+    referencesLoading.value = false
+  }
+}
+
 // ============== 表格列定义 ==============
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
@@ -222,6 +267,10 @@ const exportCtrl = useTableExport({
               <a-button @click="handleShowOrphans">
                 <template #icon><ClearOutlined /></template>
                 孤立图片清理
+              </a-button>
+              <a-button :loading="reconcileLoading" @click="handleReconcile">
+                <template #icon><SyncOutlined /></template>
+                引用对账
               </a-button>
             </a-space>
           </a-col>
@@ -296,11 +345,18 @@ const exportCtrl = useTableExport({
             {{ formatDimensions(record.width, record.height) }}
           </template>
 
-          <!-- 引用次数 -->
+          <!-- 引用次数（可点击查看引用来源） -->
           <template v-else-if="column.key === 'usageCount'">
-            <a-tag :color="record.usageCount > 0 ? 'blue' : 'default'">
-              {{ record.usageCount }}
-            </a-tag>
+            <a-button
+              v-if="record.usageCount > 0"
+              type="link"
+              size="small"
+              style="padding: 0"
+              @click="handleShowReferences(record)"
+            >
+              <a-tag color="blue" style="margin: 0">{{ record.usageCount }}</a-tag>
+            </a-button>
+            <a-tag v-else color="default">{{ record.usageCount }}</a-tag>
           </template>
 
           <!-- 创建时间 -->
@@ -412,6 +468,33 @@ const exportCtrl = useTableExport({
         </div>
       </div>
     </a-modal>
+
+    <!-- 图片引用来源抽屉 -->
+    <a-drawer
+      v-model:open="referencesVisible"
+      :title="`引用来源 - ${referencesImageName}`"
+      width="480"
+      destroy-on-close
+    >
+      <a-spin :spinning="referencesLoading">
+        <a-empty v-if="!referencesLoading && referencesList.length === 0" description="该图片暂无引用" />
+        <a-list v-else :data-source="referencesList" item-layout="horizontal">
+          <template #renderItem="{ item }">
+            <a-list-item>
+              <a-list-item-meta>
+                <template #title>
+                  <a-tag color="blue">{{ item.sourceField }}</a-tag>
+                  <span>{{ item.sourceTitle || '-' }}</span>
+                </template>
+                <template #description>
+                  来源ID: {{ item.sourceId }}
+                </template>
+              </a-list-item-meta>
+            </a-list-item>
+          </template>
+        </a-list>
+      </a-spin>
+    </a-drawer>
   </div>
 </template>
 

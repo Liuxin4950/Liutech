@@ -3,6 +3,7 @@ package chat.liuxin.liutech.service;
 import chat.liuxin.liutech.mapper.CarouselMapper;
 import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.mapper.MusicMapper;
+import chat.liuxin.liutech.mapper.PostSeriesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Images;
@@ -12,6 +13,7 @@ import chat.liuxin.liutech.utils.FileUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -36,8 +38,11 @@ public class ImageUsageReconcileService {
 
     private final MusicMapper musicMapper;
 
+    private final PostSeriesMapper postSeriesMapper;
+
     private final FileUtil fileUtil;
 
+    @Scheduled(cron = "${image.reconcile.cron:0 55 2 * * ?}", zone = "${image.reconcile.zone:Asia/Shanghai}")
     @Transactional(rollbackFor = Exception.class)
     public ImageUsageReconcileResp reconcileUsageCount() {
         int resetRows = valueOrZero(imagesMapper.resetUsageCount());
@@ -46,6 +51,7 @@ public class ImageUsageReconcileService {
         addUrls(countsByPath, userMapper.selectAllAvatarUrls());
         addUrls(countsByPath, musicMapper.selectAllCoverUrls());
         addUrls(countsByPath, carouselMapper.selectAllImageUrls());
+        addUrls(countsByPath, postSeriesMapper.selectAllCoverUrls());
 
         List<Posts> posts = postsMapper.selectAllPostsWithContent();
         for (Posts post : posts) {

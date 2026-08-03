@@ -34,7 +34,7 @@ public class OrphanImageCleanupService {
     @Value("${file.upload.base-path:${user.dir}/uploads}")
     private String uploadBasePath;
 
-    @Value("${orphan.image.cleanup.ttl-hours:24}")
+    @Value("${orphan.image.cleanup.ttl-hours:168}")
     private long cleanupTtlHours;
 
     private final ImagesMapper imagesMapper;

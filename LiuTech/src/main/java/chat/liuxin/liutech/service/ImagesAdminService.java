@@ -1,18 +1,32 @@
 package chat.liuxin.liutech.service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.mapper.CarouselMapper;
 import chat.liuxin.liutech.mapper.ImagesMapper;
+import chat.liuxin.liutech.mapper.MusicMapper;
+import chat.liuxin.liutech.mapper.PostSeriesMapper;
+import chat.liuxin.liutech.mapper.PostsMapper;
+import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.model.Carousel;
 import chat.liuxin.liutech.model.Images;
+import chat.liuxin.liutech.model.Music;
+import chat.liuxin.liutech.model.PostSeries;
+import chat.liuxin.liutech.model.Posts;
+import chat.liuxin.liutech.model.Users;
+import chat.liuxin.liutech.resp.ImageReferenceResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +46,16 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
     private final ImagesMapper imagesMapper;
 
     private final FileUtil fileUtil;
+
+    private final PostsMapper postsMapper;
+
+    private final UserMapper userMapper;
+
+    private final CarouselMapper carouselMapper;
+
+    private final MusicMapper musicMapper;
+
+    private final PostSeriesMapper postSeriesMapper;
 
     /**
      * 分页查询图片列表（管理端）
@@ -257,5 +281,93 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
         } catch (Exception e) {
             log.error("删除图片文件异常: {}", image.getFileUrl(), e);
         }
+    }
+
+    /**
+     * 查询图片的引用来源（反向溯源）
+     * 现查 posts/users/carousels/music/post_series 五张表，用 filePath 做 LIKE 匹配
+     * （兼容相对路径 /uploads/... 、完整 URL https://.../uploads/... 、历史数据三种存储格式）
+     *
+     * @param imageId 图片ID
+     * @return 引用来源列表
+     */
+    public List<ImageReferenceResp> getReferences(Long imageId) {
+        Images image = imagesMapper.selectById(imageId);
+        if (image == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "图片不存在");
+        }
+
+        String filePath = image.getFilePath();
+        if (!StringUtils.hasText(filePath)) {
+            return new ArrayList<>();
+        }
+
+        List<ImageReferenceResp> refs = new ArrayList<>();
+
+        // 文章封面
+        List<Posts> coverPosts = postsMapper.selectList(new LambdaQueryWrapper<Posts>()
+                .select(Posts::getId, Posts::getTitle)
+                .like(Posts::getCoverImage, filePath)
+                .isNull(Posts::getDeletedAt));
+        for (Posts p : coverPosts) {
+            refs.add(new ImageReferenceResp("post_cover", p.getId(), p.getTitle(), "文章封面"));
+        }
+
+        // 文章缩略图
+        List<Posts> thumbPosts = postsMapper.selectList(new LambdaQueryWrapper<Posts>()
+                .select(Posts::getId, Posts::getTitle)
+                .like(Posts::getThumbnail, filePath)
+                .isNull(Posts::getDeletedAt));
+        for (Posts p : thumbPosts) {
+            refs.add(new ImageReferenceResp("post_thumbnail", p.getId(), p.getTitle(), "文章缩略图"));
+        }
+
+        // 文章正文（content 内的 <img src>）
+        List<Posts> contentPosts = postsMapper.selectList(new LambdaQueryWrapper<Posts>()
+                .select(Posts::getId, Posts::getTitle)
+                .like(Posts::getContent, filePath)
+                .isNull(Posts::getDeletedAt));
+        for (Posts p : contentPosts) {
+            refs.add(new ImageReferenceResp("post_content", p.getId(), p.getTitle(), "文章正文"));
+        }
+
+        // 用户头像
+        List<Users> avatarUsers = userMapper.selectList(new LambdaQueryWrapper<Users>()
+                .select(Users::getId, Users::getUsername)
+                .like(Users::getAvatarUrl, filePath)
+                .isNull(Users::getDeletedAt));
+        for (Users u : avatarUsers) {
+            refs.add(new ImageReferenceResp("user_avatar", u.getId(), u.getUsername(), "用户头像"));
+        }
+
+        // 轮播图
+        List<Carousel> carousels = carouselMapper.selectList(new LambdaQueryWrapper<Carousel>()
+                .select(Carousel::getId, Carousel::getTitle)
+                .like(Carousel::getImageUrl, filePath)
+                .isNull(Carousel::getDeletedAt));
+        for (Carousel c : carousels) {
+            refs.add(new ImageReferenceResp("carousel", c.getId(), c.getTitle(), "轮播图"));
+        }
+
+        // 音乐封面
+        List<Music> musics = musicMapper.selectList(new LambdaQueryWrapper<Music>()
+                .select(Music::getId, Music::getTitle)
+                .like(Music::getCoverUrl, filePath)
+                .isNull(Music::getDeletedAt));
+        for (Music m : musics) {
+            refs.add(new ImageReferenceResp("music_cover", m.getId(), m.getTitle(), "音乐封面"));
+        }
+
+        // 系列封面
+        List<PostSeries> seriesList = postSeriesMapper.selectList(new LambdaQueryWrapper<PostSeries>()
+                .select(PostSeries::getId, PostSeries::getName)
+                .like(PostSeries::getCoverImage, filePath)
+                .isNull(PostSeries::getDeletedAt));
+        for (PostSeries s : seriesList) {
+            refs.add(new ImageReferenceResp("series_cover", s.getId(), s.getName(), "系列封面"));
+        }
+
+        log.debug("查询图片引用来源 - 图片ID: {}, 引用数: {}", imageId, refs.size());
+        return refs;
     }
 }
