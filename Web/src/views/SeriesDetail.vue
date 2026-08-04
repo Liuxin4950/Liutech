@@ -1,13 +1,13 @@
 <template>
   <div class="series-posts content">
     <!-- 系列头部 -->
-    <div v-if="series" class="card bg-soft mb-16">
+    <div v-if="series" class="card bg-card mb-16">
       <div v-if="series.coverImage" class="series-hero">
         <img :src="series.coverImage" :alt="series.name" />
       </div>
       <div class="page-title">
         <span class="title-badge"><Icon name="book" size="12" /> Series</span>
-        <h1 class="title-heading">{{ series.name }}</h1>
+        <h1 class="title-heading">{{ series.name }}<span class="title-highlight">系列</span></h1>
         <p v-if="series.description" class="title-desc">{{ series.description }}</p>
         <div class="title-meta">
           <span class="badge">共 {{ totalPosts }} 篇文章</span>

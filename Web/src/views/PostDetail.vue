@@ -462,7 +462,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
         <TableOfContents class="article-toc" :collapsed-below="1680" />
       </aside>
 
-      <div class="post-card card bg-soft">
+      <div class="post-card card">
       <!-- 文章元信息（标题已展示在顶部 Banner） -->
       <header class="post-header">
         <div class="post-meta-info">

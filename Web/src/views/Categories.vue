@@ -12,7 +12,21 @@
                 </div>
             </div>
         </div>
-
+        <!-- 热门分类 -->
+        <div v-if="popularCategories.length > 0" class="card bg-card shadow-sm mb-16">
+            <div class="flex flex-col gap-16">
+                <h4 class="card-title"><span class="card-badge"><Icon name="fire" size="12" /> Hot</span><span class="card-title-text">热门<span class="card-highlight">分类</span></span></h4>
+                <div class="flex-fw gap-12">
+                    <div v-for="category in popularCategories" :key="category.id"
+                        class="tag flex flex-ac gap-8 transition link"
+                        @click="goToCategory(category.id)">
+                        <Icon :name="getCategoryIcon(category.name)" size="14" />
+                        <span class="text-sm font-medium">{{ category.name }}</span>
+                        <span class="text-xs text-muted">({{ category.postCount || 0 }})</span>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- 分类网格 -->
         <div class="card shadow-sm mb-16">
             <!-- 搜索框 -->
@@ -84,23 +98,7 @@
             </div>
         </div>
 
-        <!-- 热门分类 -->
-        <div v-if="popularCategories.length > 0" class="card bg-card shadow-sm mb-16">
-            <div class="flex flex-col gap-16">
-                <h2 class="text-lg font-semibold text-primary mb-0 flex flex-ac gap-8">
-                    <Icon name="fire" size="20" /> 热门分类
-                </h2>
-                <div class="flex-fw gap-12">
-                    <div v-for="category in popularCategories" :key="category.id"
-                        class="tag flex flex-ac gap-8 transition link"
-                        @click="goToCategory(category.id)">
-                        <Icon :name="getCategoryIcon(category.name)" size="14" />
-                        <span class="text-sm font-medium">{{ category.name }}</span>
-                        <span class="text-xs text-muted">({{ category.postCount || 0 }})</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+        
     </div>
 </template>
 

@@ -166,7 +166,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   gap: 6px;
   min-height: 40px;
   padding: 6px 10px;
-  border: 1px solid var(--color-border, #d9d9d9);
+  border: 1px solid var(--border-base);
   border-radius: 6px;
   background: var(--bg-card, #fff);
   cursor: pointer;
@@ -227,7 +227,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   right: 0;
   z-index: 100;
   background: var(--bg-card, #fff);
-  border: 1px solid var(--color-border, #e0e0e0);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
   overflow: hidden;
@@ -238,7 +238,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--color-border, #f0f0f0);
+  border-bottom: 1px solid var(--border-light);
   .ss-search-icon { color: var(--text-muted); flex-shrink: 0; }
   input {
     flex: 1;
@@ -288,7 +288,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   align-items: center;
   gap: 6px;
   padding: 10px 12px;
-  border-top: 1px dashed var(--color-border, #e0e0e0);
+  border-top: 1px dashed var(--border-soft);
   color: var(--color-primary);
   font-size: 13px;
   cursor: pointer;

@@ -1,10 +1,10 @@
 <template>
   <div class="content">
     <!-- 标签头部 -->
-    <div v-if="tagInfo" class="tag-header card bg-soft p-20 rounded-lg mb-20">
+    <div v-if="tagInfo" class="card bg-card mb-16">
       <div class="page-title">
         <span class="title-badge"><Icon name="tag" size="12" /> Tag</span>
-        <h1 class="title-heading">{{ tagInfo.name }}</h1>
+        <h1 class="title-heading">{{ tagInfo.name }}<span class="title-highlight">标签</span></h1>
         <div class="title-meta">
           <span class="badge">{{ tagInfo.postCount || 0 }} 篇文章</span>
         </div>
