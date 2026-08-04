@@ -5,7 +5,7 @@
 
 ## Markdown 渲染
 
-[`MarkdownRenderer.vue`](../../../Web/src/components/MarkdownRenderer.vue) + [`useMarkdown.ts`](../../../Web/src/composables/useMarkdown.ts) 负责 markdown -> HTML。
+[`MarkdownRenderer.vue`](../../../../Web/src/components/MarkdownRenderer.vue) + [`useMarkdown.ts`](../../../../Web/src/composables/useMarkdown.ts) 负责 markdown -> HTML。
 
 ### 渲染流程
 
@@ -72,7 +72,7 @@ DOMPurify 配置白名单：
 
 ## 会话历史
 
-[`useConversationManager.ts`](../../../Web/src/composables/useConversationManager.ts) 管理会话列表，[`AiChat.vue`](../../../Web/src/components/AiChat.vue) 渲染侧边栏。
+[`useConversationManager.ts`](../../../../Web/src/composables/useConversationManager.ts) 管理会话列表，[`AiChat.vue`](../../../../Web/src/components/AiChat.vue) 渲染侧边栏。
 
 ### 侧边栏结构
 
@@ -115,7 +115,7 @@ loadConversation(id)
 
 ## 会话 API
 
-[`conversation.ts`](../../../Web/src/services/conversation.ts)，走 AI 服务（`ServiceType.AI`）：
+[`conversation.ts`](../../../../Web/src/services/conversation.ts)，走 AI 服务（`ServiceType.AI`）：
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |

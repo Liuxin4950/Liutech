@@ -79,13 +79,19 @@ export class ImageUploadService {
     const formData = new FormData()
     formData.append('file', blobInfo.blob(), blobInfo.filename())
 
-    const { data } = await getAxiosInstance().post('/upload/tinymce/image', formData)
+    const { data } = await getAxiosInstance().post('/upload/tinymce/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
 
-    if (data.location) {
-      return data.location
+    // 响应拦截器会把非标准响应包装为 {code, message, data}，location 可能位于 data 或 data.data
+    const wrapped = data as any
+    const location = wrapped?.data?.location ?? wrapped?.location
+    if (location) {
+      return location
     }
-    if (data.error) {
-      throw new Error('上传失败：' + data.error)
+    const errorMsg = wrapped?.data?.error ?? wrapped?.error
+    if (errorMsg) {
+      throw new Error('上传失败：' + errorMsg)
     }
     throw new Error('上传失败：服务器未返回图片地址')
   }

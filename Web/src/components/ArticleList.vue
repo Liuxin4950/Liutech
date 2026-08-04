@@ -29,7 +29,7 @@
         <!-- 缩略图 -->
         <div class="posts-img">
           <img
-            :src="post.coverImage || post.thumbnail || defaultPostImage"
+            :src="post.thumbnail || post.coverImage || defaultPostImage"
             :alt="post.title"
             class="fit"
             loading="lazy"

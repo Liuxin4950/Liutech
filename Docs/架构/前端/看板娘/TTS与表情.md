@@ -5,7 +5,7 @@
 
 ## 队列保序：useSequencedBuffer
 
-SSE 事件到达顺序不一定等于播放顺序（网络抖动、并发处理）。[`useSequencedBuffer.ts`](../../../Web/src/composables/useSequencedBuffer.ts) 用 seq 编号保证严格按序消费。
+SSE 事件到达顺序不一定等于播放顺序（网络抖动、并发处理）。[`useSequencedBuffer.ts`](../../../../Web/src/composables/useSequencedBuffer.ts) 用 seq 编号保证严格按序消费。
 
 ```
 buffer: Record<seq, item>   按 seq 索引存储
@@ -21,7 +21,7 @@ clear()          清空 + 重置 nextSeq=1
 
 ## 双队列：chatTts
 
-[`chatTts.ts`](../../../Web/src/composables/chatTts.ts) 管理两个独立队列：
+[`chatTts.ts`](../../../../Web/src/composables/chatTts.ts) 管理两个独立队列：
 
 | 队列 | 内容 | 消费方 |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ ttsAudioQueue.enqueue(enriched)
 
 ## 播放器：useTtsPlayer
 
-[`useTtsPlayer.ts`](../../../Web/src/composables/useTtsPlayer.ts) 是 TTS 播放的核心，接收 `chatStore + live2dRef + bottomNavRef`。
+[`useTtsPlayer.ts`](../../../../Web/src/composables/useTtsPlayer.ts) 是 TTS 播放的核心，接收 `chatStore + live2dRef + bottomNavRef`。
 
 ### playNextTts 播放循环
 

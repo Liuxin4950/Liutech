@@ -76,7 +76,7 @@ docker-compose logs -f backend               # 跟踪后端日志
 - **文件上传**：容器内 `/app/uploads` 绑定宿主机 `/liuxin/uploads`；**不要** `docker compose down -v`（清空 `mysql_data` 卷）。
 - **图片 URL 策略**：`FileUtil.generateFileUrl` 返回**相对路径** `/uploads/...`，不拼 `serverBaseUrl`；数据库存相对路径，环境无关。**不要**为"开发环境图片显示不了"改 `.env` 的 `SERVER_BASE_URL`。详见 [当前架构.md](Docs/记录/当前架构.md)。
 - **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`（破坏 JSON 响应 406）。
-- **域名拓扑**：主站 `liuxin.chat` 走腾讯云 CDN 回源 443；后台 `admin.liuxin.chat` A 记录直连源站绕开 CDN（443）。证书 SAN 含 `liuxin.chat`/`www.liuxin.chat` 但**不含 admin 子域名**，浏览器报名称不匹配需手动继续，故 admin 站**不发 HSTS**；81 端口为其备用入口。详见 [部署运维总览](Docs/架构/部署运维/总览.md)。
+- **域名拓扑**：主站 `liuxin.chat` 走腾讯云 CDN 回源 443；后台 `admin.liuxin.chat` A 记录直连源站绕开 CDN（443）。证书 SAN 含 `liuxin.chat`/`www.liuxin.chat` 但**不含 admin 子域名**，浏览器报名称不匹配需手动继续，故 admin 站**不发 HSTS**；81 端口为其备用入口。详见 [部署运维总览](Docs/架构/运维/部署运维/总览.md)。
 - **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`。
 - **nginx 配置烤进镜像**：`conf.d/*.conf` 是 `COPY` 进 nginx 镜像的，改 nginx 配置后**必须重新 build nginx 镜像并部署**，改宿主机文件不生效。
 - **CORS allowedOrigins 双服务同步**：新增前端访问域名时，`LiuTech` 与 `LiuTech-AI` 两个 `SecurityConfig.java` 的 `allowedOrigins` 必须同步添加，否则该域名跨域请求被拦。

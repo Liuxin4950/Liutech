@@ -21,14 +21,14 @@ export interface RequestConfig extends AxiosRequestConfig {
 const instances: Record<ServiceType, AxiosInstance> = {} as Record<ServiceType, AxiosInstance>
 
 // 初始化所有服务实例
+// 注意：不预设 Content-Type，让 axios 按 data 类型自动设置——
+// 普通对象自动 JSON.stringify + application/json，FormData 自动 multipart + boundary。
+// 曾因默认 application/json 覆盖 FormData 检测，导致 TinyMCE 粘贴图片上传 400。
 Object.values(ServiceType).forEach(serviceType => {
   const config = getServiceConfig(serviceType)
   instances[serviceType as keyof typeof instances] = axios.create({
     baseURL: config.baseURL,
-    timeout: config.timeout,
-    headers: {
-      'Content-Type': 'application/json'
-    }
+    timeout: config.timeout
   })
 })
 

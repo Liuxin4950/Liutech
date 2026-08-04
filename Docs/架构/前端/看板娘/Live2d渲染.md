@@ -5,7 +5,7 @@
 
 ## PIXI Application 生命周期
 
-[`Live2d.vue`](../../../Web/src/components/Live2d.vue) 在 `onMounted` 动态加载脚本后初始化：
+[`Live2d.vue`](../../../../Web/src/components/Live2d.vue) 在 `onMounted` 动态加载脚本后初始化：
 
 ```
 loadLive2DScripts()                    按序加载 4 个脚本（pixi/live2dcubismcore/live2d/cubism4）
