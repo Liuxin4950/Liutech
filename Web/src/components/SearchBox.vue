@@ -15,7 +15,7 @@
         class="search-btn"
         :disabled="!searchKeyword.trim() || isSearching"
       >
-        <span v-if="isSearching" class="loading-spinner"></span>
+        <span v-if="isSearching" class="spinner-sm"></span>
         <span v-else><Icon name="search" /></span>
       </button>
     </div>
@@ -51,7 +51,7 @@
             <p class="result-summary">{{ post.summary || '暂无摘要' }}</p>
             <div class="result-meta">
               <span class="result-category">{{ post.category.name }}</span>
-              <span class="result-date">{{ formatDate(post.createdAt) }}</span>
+              <span>{{ formatDate(post.createdAt) }}</span>
             </div>
           </article>
         </div>
@@ -191,23 +191,6 @@ const clearSearch = () => {
   width: 100%;
 }
 
-.search-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  font-size: 0.875rem;
-  background: var(--bg-soft);
-  color: var(--text-main);
-  transition: all 0.2s;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(107, 166, 197, 0.1);
-}
-
 .search-btn {
   padding: 8px 12px;
   background: var(--color-primary);
@@ -231,17 +214,14 @@ const clearSearch = () => {
   cursor: not-allowed;
 }
 
-.loading-spinner {
+/* 按钮内小号 spinner（区别于全局 40px 的 loading-spinner） */
+.spinner-sm {
   width: 14px;
   height: 14px;
   border: 2px solid transparent;
   border-top: 2px solid currentColor;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .search-results {

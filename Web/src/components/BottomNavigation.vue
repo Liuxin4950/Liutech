@@ -1,6 +1,6 @@
 <!-- 推荐使用 SVG 图标（示例） -->
 <template>
-  <div class="bottom-nav fixed bottom-0 right-0 p-12">
+  <div class="bottom-nav">
     <div class="flex flex-col gap-16 mb-16">
 
       <!-- 滚动控制按钮:顶部显示去底部,滚动后显示回顶部,并带进度能量环 -->
@@ -254,12 +254,11 @@ const goAiChat = throttle(() => {
 
 
 <style scoped lang="scss">
-.fit {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
 .bottom-nav {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  padding: 12px;
   z-index: 1000;
   // 让子元素的展开面板/播放列表能溢出到左侧和上方显示
   overflow: visible;

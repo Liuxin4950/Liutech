@@ -7,9 +7,9 @@
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
     </div>
     <div v-else class="categories-list list gap-8">
-      <div 
-        v-for="category in categories" 
-        :key="category.id" 
+      <div
+        v-for="category in categories"
+        :key="category.id"
         class="categories-item flex flex-sb flex-ac p-8 rounded link transition bg-soft"
         @click="handleCategoryClick(category.id)"
       >

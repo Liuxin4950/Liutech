@@ -396,7 +396,7 @@
           </header>
 
           <!-- 文章摘要 -->
-          <div v-if="form.summary" class="preview-summary bg-hover border-l-3 p-20">
+          <div v-if="form.summary" class="preview-summary p-20">
             <p class="text-muted">{{ form.summary }}</p>
           </div>
 
@@ -1097,9 +1097,11 @@ onMounted(async () => {
 }
 
 
-/* 预览摘要样式 */
+/* 预览摘要样式（原全局 .bg-hover/.border-l-3 移入） */
 .preview-summary {
   margin-bottom: 0;
+  background: var(--bg-hover);
+  border-left: 3px solid var(--color-primary);
 }
 
 .preview-summary p {
@@ -1530,6 +1532,7 @@ onMounted(async () => {
 .page-title {
   position: relative;
   display: flex;
+  flex-direction: row; /* 编辑器头部标题：横向排布（覆盖全局 .page-title 的纵向布局） */
   align-items: center;
   gap: 8px;
   padding-left: 14px;

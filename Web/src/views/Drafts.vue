@@ -130,9 +130,10 @@ onMounted(() => {
 
 <template>
   <div class="drafts-page">
-    <div class="page-header">
-      <h1 class="page-title"><Icon name="file" size="24" /> 草稿箱</h1>
-      <p class="page-description">管理您的草稿文章，继续编辑或发布</p>
+    <div class="page-title">
+      <span class="title-badge"><Icon name="file" size="12" /> Drafts</span>
+      <h1 class="title-heading">草稿<span class="title-highlight">箱</span></h1>
+      <p class="title-desc">管理您的草稿文章，继续编辑或发布</p>
     </div>
 
     <!-- 操作栏 -->
@@ -221,7 +222,7 @@ onMounted(() => {
     </div>
 
     <!-- 分页器 -->
-    <Pagination class="mt-24"
+    <Pagination
       v-if="!loading && filteredDrafts.length > 0"
       :current-page="currentPage"
       :total-pages="totalPages"
@@ -236,51 +237,7 @@ onMounted(() => {
 /***** 修改人：刘鑫；修改时间：2025-08-26；统一草稿页按钮颜色到“我的文章”风格 *****/
 .drafts-page { max-width: 1200px; margin: 0 auto; padding: 20px; }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.page-title {
-  font-size: 2.5rem;
-  color: var(--color-primary);
-  margin-bottom: 10px;
-}
-
-.page-description {
-  color: var(--text-main);
-  opacity: 0.8;
-  font-size: 1.1rem;
-}
-
 .actions-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 20px; }
-
-.search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    max-width: 400px;
-}
-
-
-
-
-
-.search-icon {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
-}
-
-.search-input {
-    flex: 1;
-    padding: 8px 36px 8px 12px;
-    min-width: 0;
-}
 
 .create-btn { display: flex; align-items: center; gap: 8px; padding: 12px 24px; background-color: var(--color-primary); color: white; border: none; border-radius: 25px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.3s; white-space: nowrap; }
 .create-btn:hover { background-color: var(--color-primary-dark); transform: translateY(-2px); }
@@ -308,7 +265,6 @@ onMounted(() => {
 .delete-btn { background: var(--bg-error, #ffebee); color: var(--color-error, #d32f2f); }
 .delete-btn:hover { background: var(--bg-error, #ffcdd2); }
 
-.retry-btn { padding: 10px 20px; background-color: var(--color-primary); color: white; border: none; border-radius: 20px; cursor: pointer; margin-top: 15px; }
 .loading-state,
 .error-state,
 .empty-state {

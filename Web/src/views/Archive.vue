@@ -1,14 +1,15 @@
 ﻿<template>
-  <div class="content max-w-1200 mx-auto p-20">
+  <div class="content">
     <!-- 页面标题 -->
-    <div class="text-center mb-20">
-      <h1 class="text-3xl font-bold mb-16">文章归档</h1>
-      <p class="text-base text-subtle">按时间浏览所有文章</p>
+    <div class="page-title is-center mb-20">
+      <span class="title-badge">Archive</span>
+      <h1 class="title-heading">文章<span class="title-highlight">归档</span></h1>
+      <p class="title-desc">按时间浏览所有文章</p>
     </div>
 
     <!-- 统计信息 -->
-    <div class=" card border rounded-lg text-center">
-      <div class="flex flex-jc gap-30">
+    <div class="stats-card card rounded-lg text-center">
+      <div class="stats-row flex flex-jc">
         <div class="stat-item">
           <div class="text-2xl font-bold text-primary">{{ totalPosts }}</div>
           <div class="text-sm text-subtle">篇文章</div>
@@ -25,20 +26,20 @@
     </div>
 
     <!-- 加载状态 -->
-    <div v-if="loading" class="text-center p-20 text-sm">
+    <div v-if="loading" class="loading text-center p-20 text-sm">
       <div class="loading-spinner"></div>
-      <p class="mt-12">正在加载归档数据...</p>
+      <p>正在加载归档数据...</p>
     </div>
 
     <!-- 错误状态 -->
-    <div v-else-if="error" class="text-center p-20 text-sm">
-      <p class="text-error mb-12">{{ error }}</p>
-      <button @click="loadArchiveData" class="btn btn-primary">重试</button>
+    <div v-else-if="error" class="error text-center p-20 text-sm">
+      <p class="mb-12">{{ error }}</p>
+      <button @click="loadArchiveData" class="btn-primary">重试</button>
     </div>
 
     <!-- 归档列表 -->
     <div v-else class="archive-list ">
-      <div v-for="yearData in groupedArchive" :key="yearData.year" class="year-group mb-30">
+      <div v-for="yearData in groupedArchive" :key="yearData.year" class="year-group">
         <!-- 年份标题 -->
         <div class="year-header flex flex-ac gap-12 mb-20">
           <h2 class="text-2xl font-bold">{{ yearData.year }}</h2>
@@ -53,24 +54,24 @@
                  @click="toggleMonth(yearData.year, monthData.month)">
               <h3 class="text-lg font-semibold">{{ monthData.monthName }}</h3>
               <span class="text-sm text-subtle">({{ monthData.posts.length }}篇)</span>
-              <span class="ml-auto" style="color: var(--text-muted)">
+              <span class="toggle" style="color: var(--text-muted)">
                 {{ expandedMonths[`${yearData.year}-${monthData.month}`] ? '▼' : '▶' }}
               </span>
             </div>
 
             <!-- 文章列表 -->
             <div v-show="expandedMonths[`${yearData.year}-${monthData.month}`]"
-                 class="posts-list ml-20  rounded-lg">
-              <div v-for="post in monthData.posts" :key="post.id" 
-                   class="post-item bg-card mb-16 flex flex-ac gap-12 p-12 border-l-2 hover:bg-hover transition cursor-pointer"
+                 class="posts-list rounded-lg">
+              <div v-for="post in monthData.posts" :key="post.id"
+                   class="post-item bg-card mb-16 flex flex-ac gap-12 transition cursor-pointer"
                    style="border-color: var(--border-light)"
                    @click="goToPost(post.id)">
-                <div class="post-date text-sm text-subtle w-60 flex-shrink-0">
+                <div class="post-date text-sm text-subtle">
                   {{ formatDate(post.createdAt, 'MM-dd') }}
                 </div>
                 <div class="post-info flex-1">
-                  <h4 class="post-title text-base font-medium hover:text-primary transition">{{ post.title }}</h4>
-                  <div class="post-meta flex flex-ac gap-12 mt-4 text-xs text-subtle">
+                  <h4 class="post-title text-base font-medium transition">{{ post.title }}</h4>
+                  <div class="post-meta flex flex-ac gap-12 text-xs text-subtle">
                     <span>{{ post.category?.name }}</span>
                     <span v-if="post.tags && post.tags.length > 0">
                       {{ post.tags.map(tag => tag.name).join(', ') }}
@@ -86,11 +87,11 @@
     </div>
 
     <!-- 空状态 -->
-    <div v-if="!loading && !error && archiveData.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
-      <h3 class="text-xl font-semibold mb-12">暂无文章</h3>
+    <div v-if="!loading && !error && archiveData.length === 0" class="archive-empty text-center p-20 flex flex-col flex-ac text-sm">
+      <h3 class="font-semibold mb-12">暂无文章</h3>
       <p class="text-base text-subtle mb-20">还没有发布任何文章</p>
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
-      <router-link to="/create" class="btn btn-primary">发布第一篇文章</router-link>
+      <router-link to="/create" class="btn-primary">发布第一篇文章</router-link>
     </div>
   </div>
 </template>
@@ -250,12 +251,30 @@ onMounted(() => {
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
-.post-item:hover {
+.post-item {
+  border-left: 2px solid var(--border-light);
+  padding: 12px;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  .post-date {
+    width: 60px;
+    flex-shrink: 0;
+  }
+}
+
+.post-title:hover {
   color: var(--color-primary);
 }
 
 .month-header:hover {
   color: var(--color-primary);
+}
+
+.month-header .toggle {
+  margin-left: auto;
 }
 
 .stat-item {
@@ -264,12 +283,34 @@ onMounted(() => {
   }
 }
 
-.flex.flex-jc.gap-30 {
+/* 统计卡片与行（原全局 .border/.gap-30 移入） */
+.stats-card {
+  border: 1px solid var(--border-base);
+}
+
+.stats-row {
+  gap: 30px;
+
   @include respond(md) {
     flex-direction: column;
     gap: 16px;
   }
 }
+
+/* 加载 / 错误 / 空状态（原全局 .mt-12/.text-error/.text-xl 移入） */
+.loading p {
+  margin-top: 12px;
+}
+
+.error p {
+  color: var(--color-error);
+}
+
+.archive-empty h3 {
+  font-size: 1.25rem;
+}
+
+
 
 .post-item {
   @include respond(md) {
@@ -286,8 +327,19 @@ onMounted(() => {
 }
 
 .posts-list {
+  margin-left: 20px;
+
   @include respond(md) {
     margin-left: 0;
   }
+}
+
+/* 年份分组与元信息（原全局 .mb-30/.mt-4 移入） */
+.year-group {
+  margin-bottom: 30px;
+}
+
+.post-meta {
+  margin-top: 4px;
 }
 </style>

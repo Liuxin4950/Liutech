@@ -1,19 +1,12 @@
 <template>
-  <div class="content max-w-1200 mx-auto p-20">
+  <div class="content">
     <!-- 标签头部 -->
     <div v-if="tagInfo" class="tag-header card bg-soft p-20 rounded-lg mb-20 text-center">
-      <div class="flex flex-col gap-16">
-        <div class="flex flex-col gap-12">
-          <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
-            <Icon name="tag" size="24" /> 标签云
-          </h1>
-          <p style="text-align: left;" class="text-muted text-base ">
-            探索不同主题的文章标签
-          </p>
-          <div class="flex flex-ac gap-8">
-            <span class="badge"> {{ tagInfo.name }}</span>
-            <span class="badge">{{ tagInfo.postCount || 0 }} 篇文章</span>
-          </div>
+      <div class="page-title is-center">
+        <span class="title-badge"><Icon name="tag" size="12" /> 标签</span>
+        <h1 class="title-heading">{{ tagInfo.name }}</h1>
+        <div class="title-meta flex-jc">
+          <span class="badge">{{ tagInfo.postCount || 0 }} 篇文章</span>
         </div>
       </div>
     </div>
@@ -27,9 +20,9 @@
     <!-- 文章列表部分 -->
     <div v-if="tagInfo" class="mb-20">
       <div class="flex flex-sb flex-ac mb-20 flex-fw gap-16">
-        <h2 class="section-title text-2xl font-bold m-0">相关文章</h2>
+        <h2 class="section-title text-2xl font-bold">相关文章</h2>
         <div class="flex flex-ac gap-12">
-          <select v-model="sortBy" @change="() => loadPosts()" class="sort-select p-8 border rounded text-sm">
+          <select v-model="sortBy" @change="() => loadPosts()" class="sort-select p-8 rounded text-sm">
             <option value="latest">最新发布</option>
             <option value="popular">最受欢迎</option>
           </select>
@@ -192,11 +185,13 @@ onMounted(() => {
 
 .section-title {
   color: var(--text-main);
+  margin: 0;
 }
 
 .sort-select {
   background: var(--bg-element);
   color: var(--text-main);
+  border: 1px solid var(--border-base);
   outline: none;
   border: 1px solid var(--border-base);
   border-radius: 4px;

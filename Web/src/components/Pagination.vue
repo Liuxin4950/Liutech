@@ -8,7 +8,7 @@
       class="pagination-btn text-sm font-medium p-8 rounded transition"
       :class="{ 
         'bg-primary text-on-primary hover:bg-primary-dark': currentPage > 1,
-        'bg-element text-subtle opacity-60 cursor-not-allowed': currentPage <= 1 
+        'bg-element text-subtle': currentPage <= 1 
       }"
     >
       <span v-if="showArrows"></span>
@@ -28,7 +28,7 @@
             'text-sm p-8 rounded transition',
             {
               'bg-primary text-on-primary': page === currentPage,
-              'bg-element text-subtle hover-lift hover:bg-hover': page !== currentPage && page !== -1,
+              'bg-element text-subtle hover-lift': page !== currentPage && page !== -1,
               'text-muted cursor-default bg-transparent': page === -1
             }
           ]"
@@ -48,9 +48,9 @@
       @click="goToPage(currentPage + 1)" 
       :disabled="currentPage >= totalPages"
       class="pagination-btn text-sm font-medium p-8 rounded transition"
-      :class="{ 
-        'bg-primary text-on-primary hover:bg-primary-dark': currentPage < totalPages,
-        'bg-element text-subtle opacity-60 cursor-not-allowed': currentPage >= totalPages 
+      :class="{
+        'bg-primary text-on-primary': currentPage < totalPages,
+        'bg-element text-subtle': currentPage >= totalPages
       }"
     >
       下一页
@@ -192,7 +192,8 @@ const goToPage = (page: number) => {
 
 <style lang="scss" scoped>
 @use "@/assets/styles/tokens" as *;
-.pagination-container{
+.pagination-container {
+  margin-top: 24px;
   width: 100%;
   align-items: center;
 
@@ -224,6 +225,11 @@ const goToPage = (page: number) => {
     width: 100%;
     min-width: auto;
   }
+}
+
+.pagination-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .pagination-btn:not(:disabled) {

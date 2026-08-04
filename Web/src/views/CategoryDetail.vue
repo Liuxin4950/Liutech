@@ -2,17 +2,12 @@
   <div class="category-posts content">
     <!-- 页面头部 -->
     <div v-if="category" class="card bg-soft mb-16">
-      <div class="flex flex-col gap-16">
-        <div class="flex flex-col gap-12">
-          <h1 class="text-xl font-semibold text-primary mb-0 flex flex-ac gap-8">
-            <Icon name="folder" size="20" /> {{ category.name }}
-          </h1>
-          <p v-if="category.description" class="text-subtle text-base mb-0">
-            {{ category.description }}
-          </p>
-          <div class="flex flex-ac gap-8">
-            <span class="badge">共 {{ totalPosts }} 篇文章</span>
-          </div>
+      <div class="page-title">
+        <span class="title-badge"><Icon name="folder" size="12" /> 分类</span>
+        <h1 class="title-heading">{{ category.name }}</h1>
+        <p v-if="category.description" class="title-desc">{{ category.description }}</p>
+        <div class="title-meta">
+          <span class="badge">共 {{ totalPosts }} 篇文章</span>
         </div>
       </div>
     </div>
@@ -161,7 +156,6 @@ onMounted(() => {
 
 <style scoped>
 .category-posts { padding: 20px; }
-.loading-text { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 
 .create-btn.outline {
   background: transparent;

@@ -146,21 +146,6 @@ defineEmits<{
   opacity: 0.7;
 }
 
-.retry-btn {
-  margin-top: 12px;
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-.retry-btn:hover {
-  background: var(--color-primary-dark);
-}
-
 /* 文章列表 */
 .posts-list {
   display: flex;

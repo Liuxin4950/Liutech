@@ -2,18 +2,13 @@
     <div class="categories-page content">
         <!-- 页面头部 -->
         <div class="card bg-card mb-16 shadow-sm">
-            <div class="flex flex-col gap-16">
-                <div class="flex flex-col gap-12">
-                    <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
-                        <Icon name="folder" size="24" /> 文章分类
-                    </h1>
-                    <p class="text-muted text-base mb-0">
-                        浏览不同主题的文章内容，找到你感兴趣的话题
-                    </p>
-                    <div class="flex flex-ac gap-8">
-                        <span class="badge">共 {{ categories.length }} 个分类</span>
-                        <span class="badge">{{ totalPosts }} 篇文章</span>
-                    </div>
+            <div class="page-title">
+                <span class="title-badge"><Icon name="folder" size="12" /> Categories</span>
+                <h1 class="title-heading">文章<span class="title-highlight">分类</span></h1>
+                <p class="title-desc">浏览不同主题的文章内容，找到你感兴趣的话题</p>
+                <div class="title-meta">
+                    <span class="badge">共 {{ categories.length }} 个分类</span>
+                    <span class="badge">{{ totalPosts }} 篇文章</span>
                 </div>
             </div>
         </div>
@@ -21,7 +16,7 @@
         <!-- 分类网格 -->
         <div class="card shadow-sm mb-16">
             <!-- 搜索框 -->
-            <div class="search-box">
+            <div class="search-box mb-16">
                 <Icon name="search" size="16" class="search-icon" />
                 <input v-model="searchKeyword" type="text" placeholder="搜索分类..." class="search-input" />
             </div>
@@ -31,32 +26,32 @@
             <div v-else-if="error" class="loading-text text-primary text-sm">
                 <p>{{ error }}</p>
                 <button @click="loadCategories"
-                    class="bg-primary text-sm font-medium p-8 rounded transition hover-lift mt-8">重试</button>
+                    class="bg-primary text-sm font-medium p-8 rounded transition mt-8">重试</button>
             </div>
 
             <div v-else-if="filteredCategories.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
-                <h3 class="text-base font-semibold mb-8">{{ searchKeyword ? '未找到相关分类' : '暂无分类' }}</h3>
+                <h3 class="text-base font-semibold">{{ searchKeyword ? '未找到相关分类' : '暂无分类' }}</h3>
                 <p class="text-muted text-sm mb-0">{{ searchKeyword ? '尝试使用其他关键词搜索' : '还没有创建任何分类' }}</p>
                 <img src="@/assets/image/扑到.png" alt="" class="fit-err">
             </div>
             
             <div v-else class="grid gap-20">
                 <div v-for="category in filteredCategories" :key="category.id"
-                    class="category-card bg-card card transition-all hover-lift cursor-pointer relative overflow-hidden"
+                    class="category-card bg-card card cursor-pointer relative"
                     @click="goToCategory(category.id)">
                     <!-- 装饰性背景渐变 -->
-                    <div class="category-bg absolute top-0 right-0 w-20 h-20 opacity-10 rounded-full"></div>
+                    <div class="category-bg"></div>
                     
-                    <div class="flex flex-col gap-16 relative z-10">
+                    <div class="flex flex-col gap-16 relative">
                         <!-- 分类图标和标题 -->
                         <div class="flex flex-ac gap-16">
-                            <div class="category-icon w-50 h-50 rounded-12 flex flex-ct text-white shadow-sm">
+                            <div class="category-icon flex flex-jc shadow-sm">
                                 <Icon :name="getCategoryIcon(category.name)" size="24" />
                             </div>
                             <div class="flex-1">
-                                <h3 class="text-lg font-bold text-primary mb-4 category-title">{{ category.name }}</h3>
+                                <h3 class="text-lg font-bold text-primary category-title">{{ category.name }}</h3>
                                 <div class="flex flex-ac gap-8">
-                                    <span class="badge bg-primary-light text-primary text-xs font-medium px-8 py-4 rounded-8">
+                                    <span class="badge text-primary text-xs font-medium">
                                         {{ category.postCount || 0 }} 篇文章
                                     </span>
                                 </div>
@@ -74,14 +69,14 @@
                         </div>
 
                         <!-- 底部信息栏 -->
-                        <div class="flex flex-sb  flex-ac pt-12 ">
-                            <div class="flex flex-ac gap-6 text-xs text-muted">
+                        <div class="flex flex-sb flex-ac">
+                            <div class="category-meta flex flex-ac text-xs text-muted">
                                 <Icon name="calendar" size="14" />
                                 <span>最近更新</span>
                             </div>
-                            <div class="category-arrow flex flex-ac gap-6 text-primary text-sm link">
+                            <div class="category-arrow flex flex-ac text-primary text-sm link">
                                 <span>查看文章</span>
-                                <Icon name="chevronRight" size="14" class="arrow-icon transition-all" />
+                                <Icon name="chevronRight" size="14" class="arrow-icon" />
                             </div>
                         </div>
                     </div>
@@ -97,7 +92,7 @@
                 </h2>
                 <div class="flex-fw gap-12">
                     <div v-for="category in popularCategories" :key="category.id"
-                        class="tag  flex flex-ac gap-8 px-12 py-8 rounded-8  transition link"
+                        class="tag flex flex-ac gap-8 transition link"
                         @click="goToCategory(category.id)">
                         <Icon :name="getCategoryIcon(category.name)" size="14" />
                         <span class="text-sm font-medium">{{ category.name }}</span>
@@ -210,33 +205,81 @@ onMounted(() => {
 .categories-page {
 }
 
-.search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    max-width: 400px;
-    margin-bottom: 16px;
-}
-
-.search-icon {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
-}
-
-.search-input {
-    flex: 1;
-    padding: 8px 36px 8px 12px;
-    min-width: 0;
-}
-
 /* 分类卡片样式 */
 .category-card {
     transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+/* 装饰性背景圆（原全局 .absolute/.top-0/.right-0/.rounded-full 移入） */
+.category-bg {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    opacity: 0.1;
+}
+
+/* 分类图标（原全局 .rounded-12/.text-white 移入） */
+.category-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    color: #fff;
+}
+
+/* 分类标题（原全局 .mb-4 移入） */
+.category-title {
+    margin-bottom: 4px;
+}
+
+/* 卡片内徽章（原全局 .bg-primary-light/.px-8/.py-4/.rounded-8 移入） */
+.category-card .badge {
+    background-color: var(--color-primary-light);
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+/* 热门标签（原全局 .px-12/.py-8/.rounded-8 移入） */
+.categories-page .tag {
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+/* 空状态标题（原全局 .mb-8 移入） */
+.text-center h3 {
+    margin-bottom: 8px;
+}
+
+/* 底部信息行（原全局 .gap-6/.pt-12 移入） */
+.category-meta,
+.category-arrow {
+    gap: 6px;
+}
+
+.category-card .flex-sb {
+    padding-top: 12px;
+}
+
+/* 暂无描述（原全局 .opacity-60/.italic 移入） */
+.category-description p:last-child {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+/* 装饰性背景圆 */
+.category-bg {
+    width: 20px;
+    height: 20px;
+    opacity: 0.1;
+}
+
+/* 分类图标 */
+.category-icon {
+    width: 50px;
+    height: 50px;
 }
 
 .category-card:hover {
@@ -296,10 +339,6 @@ onMounted(() => {
         height: 40px;
         font-size: 1rem;
     }
-    
-    .gap-20 {
-        gap: 16px;
-    }
 }
 </style>
 
@@ -309,9 +348,10 @@ onMounted(() => {
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  
+
   @include respond(md) {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
 

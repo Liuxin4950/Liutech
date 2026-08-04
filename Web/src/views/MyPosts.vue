@@ -1,8 +1,9 @@
 <template>
   <div class="content my-posts-page">
-    <div class="page-header">
-      <h1 class="page-title"><Icon name="book" size="24" /> 我的文章</h1>
-      <p class="page-description">管理您已发布的文章，编辑或删除</p>
+    <div class="page-title">
+      <span class="title-badge"><Icon name="book" size="12" /> My Posts</span>
+      <h1 class="title-heading">我的<span class="title-highlight">文章</span></h1>
+      <p class="title-desc">管理您已发布的文章，编辑或删除</p>
     </div>
 
     <!-- 操作栏 -->
@@ -63,7 +64,7 @@
             <h3 class="post-title text-primary" @click="viewPost(post.id)">
               {{ post.title }}
             </h3>
-            <p class="post-summary" v-if="post.summary">
+            <p class="post-summary text-base text-subtle" v-if="post.summary">
               {{ post.summary }}
             </p>
             <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
@@ -120,7 +121,7 @@
     </div>
 
     <!-- 分页 -->
-    <Pagination class="mt-24"
+    <Pagination
       v-if="!loading && filteredPosts.length > 0"
       :current-page="currentPage"
       :total-pages="totalPages"
@@ -283,23 +284,6 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.page-title {
-  font-size: 2.5rem;
-  color: var(--color-primary);
-  margin-bottom: 10px;
-}
-
-.page-description {
-  color: var(--text-main);
-  opacity: 0.8;
-  font-size: 1.1rem;
-}
-
 .actions-bar {
   display: flex;
   justify-content: space-between;
@@ -350,16 +334,6 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.retry-btn {
-  padding: 10px 20px;
-  background-color: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 20px;
-  cursor: pointer;
-  margin-top: 15px;
-}
-
 .posts-list {
   display: grid;
   gap: 20px;
@@ -407,16 +381,6 @@ onMounted(() => {
   color: var(--color-primary);
 }
 
-.post-summary {
-  color: var(--text-subtle);
-  font-size: 0.9rem;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-width: 0;
-}
 
 .post-meta {
   display: flex;
@@ -489,29 +453,6 @@ onMounted(() => {
 
 
 /* 响应式设计 */
-.search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    max-width: 400px;
-}
-
-.search-icon {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
-}
-
-.search-input {
-    flex: 1;
-    padding: 8px 36px 8px 12px;
-    min-width: 0;
-}
-
 @include respond(md) {
   .my-posts-page {
     padding: 15px;

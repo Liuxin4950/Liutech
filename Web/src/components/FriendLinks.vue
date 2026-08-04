@@ -6,7 +6,7 @@
           v-for="link in links"
           :key="link.id"
           :href="link.url"
-          class="flex flex-ac gap-8 p-8 rounded transition hover-bg link"
+          class="flex flex-ac gap-8 p-8 rounded transition link"
           target="_blank"
       >
         <Icon :name="link.iconName" size="18" />

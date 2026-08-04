@@ -1,7 +1,7 @@
 <template>
   <div class="content">
     <div class="home-layout">
-      <!-- 左侧边栏 -->
+      <!-- 左侧主内容区 -->
       <main class="main-content">
         <!-- 全部文章展示 -->
         <div class="posts-section">
@@ -16,7 +16,7 @@
           />
         </div>
       </main>
-      <!-- 右侧主内容区 -->
+      <!-- 右侧边栏 -->
       <aside class="sidebar">
         <!-- 搜索框 -->
         <SearchBox />
@@ -34,8 +34,12 @@
         <!-- 热门标签 -->
         <HotTags :tags="hotTags" :loading="tagsLoading" @tag-click="goToTag" />
 
-        <!-- 推荐文章 -->
-        <RecommendedPosts :posts="recommendedPosts" :loading="recommendedLoading" @post-click="goToPost" />
+        <!-- 推荐文章：优先用推荐接口，取不到时回退到最新文章 -->
+        <RecommendedPosts
+          :posts="recommendedPosts.length > 0 ? recommendedPosts : featuredPosts"
+          :loading="recommendedLoading && recommendedPosts.length === 0 && allPosts.length === 0"
+          @post-click="goToPost"
+        />
 
       </aside>
     </div>
@@ -53,6 +57,7 @@ import { getAuthorProfile } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
+import { useScrollReveal } from '@/composables/useScrollReveal'
 import ProfileCard from '@/components/ProfileCard.vue'
 import AnnouncementCard from '@/components/AnnouncementCard.vue'
 import CategoriesCard from '@/components/CategoriesCard.vue'
@@ -96,9 +101,7 @@ const profileInfo = ref<ProfileInfo>({
   }
 })
 
-
 const profileLoading = ref(false)
-// 公告相关数据已移至AnnouncementCard组件内部处理
 
 // 从store获取数据
 const categories = computed(() => categoryStore.categories.slice(0, 10))
@@ -106,8 +109,8 @@ const categoriesLoading = computed(() => categoryStore.isLoading)
 const hotTags = computed(() => tagStore.hotTags)
 const tagsLoading = computed(() => tagStore.isHotTagsLoading)
 
-// 注意：visiblePostsPages 计算属性已移除，现在使用 Pagination 组件内部处理
-
+// 精选推荐：取最新文章前3篇（保证首页有内容展示）
+const featuredPosts = computed(() => allPosts.value.slice(0, 3))
 
 // 跳转到文章详情
 const goToPost = (postId: number) => {
@@ -185,7 +188,6 @@ const loadRecommendedPosts = async () => {
   })
 }
 
-
 // 跳转到公告页面：滚动到侧边栏公告卡片区域
 const goToAnnouncements = () => {
   const el = document.querySelector('.announcement-card')
@@ -240,6 +242,8 @@ onMounted(() => {
     loadProfile() // 加载作者个人资料
   ])
 })
+
+useScrollReveal('.reveal')
 </script>
 
 <style scoped lang="scss">
@@ -249,60 +253,9 @@ onMounted(() => {
   opacity: 0.5;
 }
 
-.relative {
-  > .badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    opacity: 0;
-    transition: 0.5s;
-  }
-  &:hover .badge {
-    opacity: 1;
-  }
-}
-
-.posts-img {
-  width: 200px;
-  height: 150px;
-  background-color: var(--bg-card);
-  border-radius: $card-radius;
-  overflow: hidden;
-
-  .fit {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  @include respond(lg) {
-    width: 180px;
-    height: 135px;
-  }
-
-  @include respond(md) {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-  }
-}
-
-.banner {
-  height: 500px;
-
-  @include respond(md) {
-    height: 320px;
-  }
-
-  @include respond(sm) {
-    height: 220px;
-  }
-}
-
 .home-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: minmax(0, 1fr) 300px; /* minmax(0,1fr) 允许主列收缩，防止内容 min-content 撑破布局 */
   gap: $gap-lg;
   align-items: start;
 
@@ -321,6 +274,7 @@ onMounted(() => {
 /* 文章列表样式 */
 .posts-section {
   width: 100%;
+
   .list {
     width: 100%;
     article {
@@ -332,14 +286,6 @@ onMounted(() => {
       }
     }
   }
-}
-
-
-.loading-text,
-.empty-text {
-  text-align: center;
-  padding: 40px 20px;
-  color: var(--text-muted);
 }
 
 /* 右侧主内容区 */
@@ -364,48 +310,4 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
 }
-
-/* 欢迎横幅 */
-.welcome-banner {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #764ba2) 100%);
-  border-radius: $card-radius;
-  padding: 40px;
-  text-align: center;
-  color: white;
-
-  h1 {
-    font-size: 2.2rem;
-    margin: 0 0 12px 0;
-    font-weight: 700;
-
-    @include respond(md) {
-      font-size: 1.8rem;
-    }
-  }
-
-  p {
-    font-size: 1.1rem;
-    margin: 0;
-    opacity: 0.9;
-  }
-
-  @include respond(md) {
-    padding: 24px 20px;
-  }
-}
-
-.paging-tab {
-  button.text-muted {
-    color: white;
-  }
-}
-
-/* 额外移动端细节优化 */
-@include respond(sm) {
-  .loading-text,
-  .empty-text {
-    padding: 24px 12px;
-  }
-}
-
 </style>

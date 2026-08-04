@@ -2,18 +2,13 @@
   <div class="tags-page content">
     <!-- 页面头部 -->
     <div class="card bg-card mb-16">
-      <div class="flex flex-col gap-16">
-        <div class="flex flex-col gap-12">
-          <h1 class="text-2xl font-bold text-primary mb-0 flex flex-ac gap-8">
-            <Icon name="tag" size="20" /> 标签云
-          </h1>
-          <p class="text-muted text-base mb-0">
-            探索不同主题的文章标签
-          </p>
-          <div class="flex flex-ac gap-8">
-            <span class="badge">共 {{ tags.length }} 个标签</span>
-            <span class="badge">{{ totalPosts }} 篇文章</span>
-          </div>
+      <div class="page-title">
+        <span class="title-badge"><Icon name="tag" size="12" /> Tag Cloud</span>
+        <h1 class="title-heading">标签<span class="title-highlight">云</span></h1>
+        <p class="title-desc">探索不同主题的文章标签</p>
+        <div class="title-meta">
+          <span class="badge">共 {{ tags.length }} 个标签</span>
+          <span class="badge">{{ totalPosts }} 篇文章</span>
         </div>
       </div>
     </div>
@@ -31,7 +26,7 @@
             v-for="tag in popularTags"
             :key="tag.id"
             :to="`/tags/${tag.id}`"
-            class="tag flex flex-ac gap-8  px-12 py-8 rounded-8 transition link"
+            class="tag flex flex-ac gap-8 transition link"
           >
             <Icon :name="getTagIcon(tag.name)" size="14" />
             <span class="text-sm font-medium">{{ tag.name }}</span>
@@ -65,7 +60,7 @@
 
         <!-- 空状态 -->
         <div v-else-if="filteredTags.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
-          <h3 class="text-base font-semibold mb-8">
+          <h3 class="text-base font-semibold">
             {{ searchKeyword ? '未找到相关标签' : '暂无标签' }}
           </h3>
           <p class="text-muted text-sm mb-0">
@@ -80,7 +75,7 @@
             v-for="tag in filteredTags"
             :key="tag.id"
             :to="`/tags/${tag.id}`"
-            class="tag flex flex-ac gap-8 px-12 rounded-8 transition link"
+            class="tag flex flex-ac gap-8 transition link"
           >
             <Icon :name="getTagIcon(tag.name)" size="14" />
             <span class="">{{ tag.name }}</span>
@@ -182,9 +177,20 @@ onMounted(async () => {
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
+/* 标签页样式（原全局 .px-12/.py-8/.rounded-8 移入） */
+.tag {
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
 /* 标签页有独立 Icon，隐藏全局 .tag 的 # 前缀 */
 .tag::before {
   content: none;
+}
+
+/* 空状态标题（原全局 .mb-8 移入） */
+.text-center h3 {
+  margin-bottom: 8px;
 }
 
 .flex.flex-wrap.gap-12 {
@@ -202,29 +208,6 @@ onMounted(async () => {
       padding: 6px 10px;
     }
   }
-}
-
-.search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    max-width: 400px;
-}
-
-.search-icon {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
-}
-
-.search-input {
-    flex: 1;
-    padding: 8px 36px 8px 12px;
-    min-width: 0;
 }
 
 .search-box input {

@@ -561,7 +561,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
               <div class="item-action">
                 <template v-if="att.purchased">
                   <button
-                    class="btn-primary"
+                    class="btn-primary-sm"
                     :disabled="downloadingId === att.resourceId"
                     @click="handleDownload(att.resourceId, att.fileName)"
                   >
@@ -609,7 +609,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
               </div>
               <div class="item-action">
                 <template v-if="att.purchased && att.externalLink">
-                  <button class="btn-primary" @click="openExternalLink(att.externalLink)">
+                  <button class="btn-primary-sm" @click="openExternalLink(att.externalLink)">
                     <Icon name="external" size="14" />
                     访问
                   </button>
@@ -1797,7 +1797,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   flex-shrink: 0;
 }
 
-.btn-primary {
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.btn-primary-sm {
   display: inline-flex;
   align-items: center;
   gap: 6px;

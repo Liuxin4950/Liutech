@@ -1,6 +1,6 @@
 <template>
   <nav class="breadcrumb" v-if="breadcrumbItems.length > 0">
-    <div class="container content">
+    <div class="content">
       <ol class="breadcrumb-list">
         <li 
           v-for="(item, index) in breadcrumbItems" 

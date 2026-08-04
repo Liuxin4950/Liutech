@@ -3,9 +3,10 @@
       <main class="main-content">
         <!-- 收藏文章展示 -->
         <div class="posts-section">
-          <div class="section-header">
-            <h2 class="section-title">我的收藏</h2>
-            <p class="section-subtitle">这里是您收藏的所有文章</p>
+          <div class="page-title">
+            <span class="title-badge"><Icon name="favorite" size="12" /> Favorites</span>
+            <h1 class="title-heading">我的<span class="title-highlight">收藏</span></h1>
+            <p class="title-desc">这里是您收藏的所有文章</p>
           </div>
 
           <!-- 搜索框 -->
@@ -127,29 +128,6 @@ onMounted(async () => {
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
-.section-header {
-  margin-bottom: 24px;
-  text-align: center;
-}
-
-.section-title {
-  font-size: 2rem;
-  font-weight: bold;
-  color: var(--text-main);
-  margin-bottom: 8px;
-}
-
-.section-subtitle {
-  color: var(--text-subtle);
-  font-size: 1rem;
-}
-
-.empty-text {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-subtle);
-}
-
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 16px;
@@ -178,60 +156,12 @@ onMounted(async () => {
   background: var(--color-primary-dark);
 }
 
-.retry-btn {
-  margin-top: 12px;
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.retry-btn:hover {
-  background: var(--color-primary-dark);
-}
-
-.relative > .badge{
-  position: absolute;
-  top: 0;
-  right: 0;
-  opacity: 0;
-  transition: .5s;
-}
-.relative:hover .badge{
-  opacity: 1;
-}
 .posts-img {
   width: 200px;
   height: 150px;
   background-color: var(--bg-card);
   border-radius: 12px;
   overflow: hidden;
-}
-
-.search-box {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    max-width: 400px;
-}
-
-.search-icon {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
-}
-
-.search-input {
-    flex: 1;
-    padding: 8px 36px 8px 12px;
-    min-width: 0;
 }
 
 // 响应式样式

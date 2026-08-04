@@ -1,8 +1,11 @@
 <template>
   <div class="posts-page">
     <div class="flex flex-sb flex-ac mb-16">
-      <h1 class="text-lg font-semibold text-primary mb-0"><Icon name="book" size="20" /> 全部文章</h1>
-      <button class="bg-primary text-base font-medium p-12 rounded transition hover-lift" @click="router.push('/create')">
+      <div class="page-title mb-0">
+        <span class="title-badge"><Icon name="book" size="12" /> Posts</span>
+        <h1 class="title-heading">全部<span class="title-highlight">文章</span></h1>
+      </div>
+      <button class="btn-primary" @click="router.push('/create')">
         <Icon name="pen" size="16" /> 发布文章
       </button>
     </div>
@@ -11,7 +14,7 @@
     <div class="card bg-card flex flex-fw gap-16 flex-ac mb-16">
       <div class="flex flex-ac gap-8">
         <label class="font-medium text-muted">分类：</label>
-        <select v-model="filters.categoryId" @change="handleFilterChange" class="p-8 rounded border-t text-sm">
+        <select v-model="filters.categoryId" @change="handleFilterChange" class="p-8 rounded text-sm">
           <option value="">全部分类</option>
           <option v-for="category in categories" :key="category.id" :value="category.id">
             {{ category.name }}
@@ -222,12 +225,12 @@ onMounted(async () => {
   padding: 20px;
 }
 
-.relative > .badge{
-  position: absolute;
-  top: 0;
-  right: 0;
+/* 筛选下拉框（原全局 .border-t 移入） */
+select {
+  border: 1px solid var(--border-base);
+  background: var(--bg-element);
+  color: var(--text-main);
 }
-
 
 /* 响应式设计 */
 @include respond(md) {

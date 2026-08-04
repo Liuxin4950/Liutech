@@ -1,16 +1,39 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { ref, computed, onMounted } from "vue"
+import { useHead } from '@vueuse/head'
 import Icon from "../components/Icon.vue"
+import SectionTitle from "@/components/SectionTitle.vue"
 import { handleImageError } from "@/composables/useImageFallback"
+import { useScrollReveal } from "@/composables/useScrollReveal"
 import MessageModal from "@/components/MessageModal.vue"
 import moonImg from "@/assets/image/moon.png"
 import aboutHonorsImg from "@/assets/image/about/about-honors-collage.png"
+import { getAuthorProfile } from "@/services/user"
+import type { ProfileInfo } from "@/services/user"
 
 const messageModalVisible = ref(false)
+
+const profileInfo = ref<ProfileInfo>({
+  name: 'LiuTech',
+  title: '全栈工程师',
+  avatar: '/洛天依.png',
+  bio: '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。',
+  stats: {
+    posts: 0,
+    comments: 0,
+    views: 0
+  }
+})
 
 const links = [
   { icon: "github", label: "GitHub", value: "Liuxin4950", href: "https://github.com/Liuxin4950" },
   { icon: "mail", label: "邮箱", value: "liuxin4950@gmail.com", href: "mailto:liuxin4950@gmail.com" }
+]
+
+const stats = [
+  { icon: "fileText", label: "文章", value: computed(() => profileInfo.value.stats.posts || 0) },
+  { icon: "messageSquare", label: "评论", value: computed(() => profileInfo.value.stats.comments || 0) },
+  { icon: "eye", label: "访问", value: computed(() => profileInfo.value.stats.views || 0) }
 ]
 
 // 技术栈：前端 / 后端 / 工程化 / AI 四类
@@ -76,11 +99,11 @@ const philosophy = [
   { icon: "brain", title: "AI 是第二大脑", desc: "让 AI 成为开发者的能力延伸，融入开发流程，而不只是简单的聊天工具。" },
 ]
 
-// 项目经历：文案聚焦“为什么做 + 学到什么”
+// 项目经历
 const projects = [
   {
     name: "LiuTech 博客",
-    description: "全栈个人博客平台。从第一版写死配置、本地推理的混乱方案，到如今 Spring Boot 微服务 + Vue 3 + Docker Compose 的工程化架构。一次 Docker 误操作导致数据丢失后，深入学习了数据持久化与备份--也让我明白，真正的工程是保证系统可靠运行。",
+    description: "全栈个人博客平台。从第一版写死配置、本地推理的混乱方案，到如今 Spring Boot 微服务 + Vue 3 + Docker Compose 的工程化架构。一次 Docker 误操作导致数据丢失后，深入学习了数据持久化与备份——也让我明白，真正的工程是保证系统可靠运行。",
     tags: ["Vue 3", "Spring Boot", "MySQL", "Docker"],
     icon: "home",
     link: "/"
@@ -97,24 +120,47 @@ const projects = [
 const openMessageModal = () => {
   messageModalVisible.value = true
 }
+
+const loadProfile = async () => {
+  try {
+    const response = await getAuthorProfile()
+    if (response) profileInfo.value = response
+  } catch {
+    // 静默失败
+  }
+}
+
+useHead({
+  title: '关于我 - LiuTech',
+  meta: [
+    { name: 'description', content: '关于 LiuTech 作者刘鑫：全栈工程师、技术博主，专注于 Spring Boot、Vue 3、AI 应用与软件工程实践。' }
+  ]
+})
+
+onMounted(() => {
+  loadProfile()
+})
+
+useScrollReveal('.reveal')
 </script>
 
 <template>
-  <div class="about-page content">
-    <div class="hero-section">
+  <div class="about-page">
+    <!-- Hero -->
+    <section class="hero-section">
       <div class="hero-content">
-        <div class="avatar-wrapper">
+        <div class="avatar-wrapper reveal">
           <div class="user-avatar" :style="{ backgroundImage: `url(${moonImg})` }">
             <img src="@/assets/image/gif/坐下.gif" alt="刘鑫" class="liuyin" @error="handleImageError" />
           </div>
         </div>
-        <div class="hero-text">
+        <div class="hero-text reveal reveal-delay-1">
           <h1 class="username">
             <svg class="name-svg" viewBox="0 0 200 60">
               <defs>
                 <linearGradient id="about-name-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" style="stop-color:var(--color-primary);stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:var(--color-accent);stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:var(--color-secondary);stop-opacity:1" />
                 </linearGradient>
               </defs>
               <text x="50%" y="50%" dy=".35em" text-anchor="middle" class="name-base">
@@ -137,125 +183,139 @@ const openMessageModal = () => {
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <main class="about-main">
-      <section class="about-intro">
-        <h2>关于我</h2>
-        <p class="intro-lead">
-          我叫刘鑫，软件工程专业的学生，正在成为一名全栈开发工程师。用代码记录时间与成长，用技术创造快乐与价值。
-        </p>
-        <p>
-          最初接触编程只是出于好奇，把它和传说中黑客的网络技术搞混了，但是在学习的过程中却渐渐发现：相比刷短视频、我更喜欢用学习到的知识来实现一些有价值的东西。
-          这些年，我从一个只能写出静态页面的初学者，成长为能独立打通前后端开发、数据库设计、容器化部署与自动化交付的开发者--这个博客就是我为整合所学、
-          并亲手实现一个能和读者交流的 Live2D 看板娘而搭建的。
-        </p>
-        <p>
-          如今我把重心放在 AI 与软件工程的结合上：用大模型让看板娘开口交流，用 AI 辅助开发提效。我相信，真正的软件工程不只是写代码，更是保证系统可靠地运行、持续地创造价值。
-        </p>
-      </section>
+    <!-- 简介 + 数据 -->
+    <section class="about-intro section-card reveal">
+      <div class="intro-grid">
+        <div class="intro-copy">
+          <SectionTitle align="left" subtitle="About Me" title="关于" highlight="我" />
+          <p class="intro-lead">
+            我叫刘鑫，软件工程专业的学生，正在成为一名全栈开发工程师。用代码记录时间与成长，用技术创造快乐与价值。
+          </p>
+          <p>
+            最初接触编程只是出于好奇，把它和传说中黑客的网络技术搞混了，但是在学习的过程中却渐渐发现：相比刷短视频，我更喜欢用学习到的知识来实现一些有价值的东西。
+          </p>
+          <p>
+            这些年，我从一个只能写出静态页面的初学者，成长为能独立打通前后端开发、数据库设计、容器化部署与自动化交付的开发者——这个博客就是我为整合所学、并亲手实现一个能和读者交流的 Live2D 看板娘而搭建的。
+          </p>
+          <p>
+            如今我把重心放在 AI 与软件工程的结合上：用大模型让看板娘开口交流，用 AI 辅助开发提效。我相信，真正的软件工程不只是写代码，更是保证系统可靠地运行、持续地创造价值。
+          </p>
+        </div>
 
-      <!-- 技术栈 -->
-      <section class="tech-stack-section">
-        <h2>技术栈</h2>
-        <div class="skill-groups">
-          <div
-            v-for="group in skillGroups"
-            :key="group.category"
-            class="skill-group"
-            :class="`skill-group--${group.accent}`"
-          >
-            <div class="skill-group-header">
-              <Icon :name="group.icon" size="16" />
-              <span>{{ group.category }}</span>
-            </div>
-            <div class="skill-tags">
-              <span v-for="skill in group.skills" :key="skill.name" class="skill-tag">
-                <Icon :name="skill.icon" size="13" />
-                {{ skill.name }}
-              </span>
-            </div>
+        <div class="stats-grid">
+          <div v-for="stat in stats" :key="stat.label" class="stat-card">
+            <Icon :name="stat.icon" size="26" />
+            <div class="stat-value">{{ stat.value }}</div>
+            <div class="stat-name">{{ stat.label }}</div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- 项目经历 -->
-      <section class="projects-section">
-        <h2>项目经历</h2>
-        <div class="project-grid">
-          <article v-for="project in projects" :key="project.name" class="project-card">
-            <div class="project-icon">
-              <Icon :name="project.icon" size="22" />
-            </div>
-            <div class="project-info">
-              <h3>
-                {{ project.name }}
-                <a v-if="project.link" :href="project.link" class="project-link" title="访问项目">
-                  <Icon name="external" size="14" />
-                </a>
-              </h3>
-              <p>{{ project.description }}</p>
-              <div class="project-tags">
-                <span v-for="tag in project.tags" :key="tag" class="project-tag">{{ tag }}</span>
-              </div>
-            </div>
-          </article>
-        </div>
-      </section>  
-
-      <section class="honors-spotlight">
-        <div class="honors-art">
-          <img :src="aboutHonorsImg" alt="证书与奖杯插画" loading="lazy" @error="handleImageError">
-        </div>
-        <div class="honors-copy">
-          <h2>荣誉与证书</h2>
-          <p>全国职业院校技能大赛团体二等奖、重庆市选拔赛第一名、Web 应用开发一等奖、金砖国家技能大赛三等奖……持续积累中。</p>
-          <router-link to="/honors" class="text-link">
-            查看全部荣誉 <Icon name="chevronRight" size="15" />
-          </router-link>
-        </div>
-      </section>
-
-      <!-- 技术理念 -->
-      <section class="philosophy-section">
-        <h2>技术理念</h2>
-        <div class="philosophy-grid">
-          <div v-for="item in philosophy" :key="item.title" class="philosophy-card">
-            <div class="philosophy-icon">
-              <Icon :name="item.icon" size="18" />
-            </div>
-            <div class="philosophy-body">
-              <h3>{{ item.title }}</h3>
-              <p>{{ item.desc }}</p>
-            </div>
+    <!-- 技术栈 -->
+    <section class="tech-stack-section section-card reveal">
+      <SectionTitle subtitle="Tech Stack" title="技术" highlight="栈" />
+      <div class="skill-groups">
+        <div
+          v-for="group in skillGroups"
+          :key="group.category"
+          class="skill-group"
+          :class="`skill-group--${group.accent}`"
+        >
+          <div class="skill-group-header">
+            <Icon :name="group.icon" size="18" />
+            <span>{{ group.category }}</span>
+          </div>
+          <div class="skill-tags">
+            <span v-for="skill in group.skills" :key="skill.name" class="skill-tag">
+              <Icon :name="skill.icon" size="13" />
+              {{ skill.name }}
+            </span>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="contact-section">
-        <div>
-          <h2>联系我</h2>
-          <p>有文章内容、项目问题或技术交流，欢迎留言。</p>
+    <!-- 项目经历 -->
+    <section class="projects-section section-card reveal">
+      <SectionTitle subtitle="Projects" title="项目" highlight="经历" />
+      <div class="project-grid">
+        <article v-for="project in projects" :key="project.name" class="project-card">
+          <div class="project-icon">
+            <Icon :name="project.icon" size="24" />
+          </div>
+          <div class="project-info">
+            <h3>
+              {{ project.name }}
+              <a v-if="project.link" :href="project.link" class="project-link" title="访问项目">
+                <Icon name="external" size="14" />
+              </a>
+            </h3>
+            <p>{{ project.description }}</p>
+            <div class="project-tags">
+              <span v-for="tag in project.tags" :key="tag" class="project-tag">{{ tag }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 荣誉 -->
+    <section class="honors-spotlight reveal">
+      <div class="honors-art">
+        <img :src="aboutHonorsImg" alt="证书与奖杯插画" loading="lazy" @error="handleImageError">
+      </div>
+      <div class="honors-copy">
+        <SectionTitle align="left" subtitle="Honors" title="荣誉与" highlight="证书" />
+        <p>全国职业院校技能大赛团体二等奖、重庆市选拔赛第一名、Web 应用开发一等奖、金砖国家技能大赛三等奖……持续积累中。</p>
+        <router-link to="/honors" class="text-link">
+          查看全部荣誉 <Icon name="chevronRight" size="15" />
+        </router-link>
+      </div>
+    </section>
+
+    <!-- 技术理念 -->
+    <section class="philosophy-section section-card reveal">
+      <SectionTitle subtitle="Philosophy" title="技术" highlight="理念" />
+      <div class="philosophy-grid">
+        <div v-for="item in philosophy" :key="item.title" class="philosophy-card">
+          <div class="philosophy-icon">
+            <Icon :name="item.icon" size="20" />
+          </div>
+          <div class="philosophy-body">
+            <h3>{{ item.title }}</h3>
+            <p>{{ item.desc }}</p>
+          </div>
         </div>
-        <div class="contact-actions">
-          <button class="message-action" type="button" @click="openMessageModal">
-            <Icon name="edit" size="18" />
-            写留言
-          </button>
-          <a
-            v-for="link in links"
-            :key="link.label"
-            :href="link.href"
-            class="contact-link"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Icon :name="link.icon" size="17" />
-            <span>{{ link.value }}</span>
-          </a>
-        </div>
-      </section>
-    </main>
+      </div>
+    </section>
+
+    <!-- 联系我 -->
+    <section class="contact-section reveal">
+      <div>
+        <SectionTitle align="left" subtitle="Contact" title="联系" highlight="我" />
+        <p>有文章内容、项目问题或技术交流，欢迎留言。</p>
+      </div>
+      <div class="contact-actions">
+        <button class="btn-primary" type="button" @click="openMessageModal">
+          <Icon name="edit" size="18" />
+          写留言
+        </button>
+        <a
+          v-for="link in links"
+          :key="link.label"
+          :href="link.href"
+          class="contact-link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon :name="link.icon" size="17" />
+          <span>{{ link.value }}</span>
+        </a>
+      </div>
+    </section>
 
     <MessageModal v-model:visible="messageModalVisible" />
   </div>
@@ -270,7 +330,14 @@ const openMessageModal = () => {
   padding: 20px 20px 56px;
 }
 
-.message-action,
+.section-card {
+  border: 1px solid var(--border-base);
+  border-radius: $card-radius;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  padding: 34px;
+}
+
 .contact-link,
 .text-link {
   display: inline-flex;
@@ -278,25 +345,23 @@ const openMessageModal = () => {
   justify-content: center;
   gap: 8px;
   text-decoration: none;
-  font-weight: 800;
+  font-weight: 700;
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
-.message-action {
-  min-height: 44px;
-  border-radius: 8px;
-  padding: 0 18px;
-}
-
-// 顶部 Hero 保留博客原有识别点：全局 Banner 上的名字、月亮头像和社交入口。
+// Hero
 .hero-section {
   width: 100%;
-  position: absolute;
-  left: 0;
-  top: 50px;
+  position: relative;
   padding: 80px 20px 100px;
-  border-bottom: 1px solid var(--border-light);
-  z-index: 2;
+  margin-bottom: 24px;
+  border-radius: $card-radius;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(var(--color-primary-rgb), 0.12) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(var(--color-secondary-rgb), 0.12) 0%, transparent 40%),
+    var(--bg-section);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
 }
 
 .hero-content {
@@ -316,11 +381,11 @@ const openMessageModal = () => {
     width: 120px;
     height: 120px;
     border-radius: 50%;
-    border: 4px solid var(--bg-main);
+    border: 4px solid var(--bg-card);
     background-color: var(--bg-hover);
     background-size: cover;
     background-position: center;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
     object-fit: cover;
     transition: transform 0.3s ease;
     position: relative;
@@ -358,10 +423,9 @@ const openMessageModal = () => {
       }
 
       .name-base {
-        fill: #ffffff;
-        fill-opacity: 0.9;
+        fill: var(--text-title);
+        fill-opacity: 0.95;
         stroke: none;
-        filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.4));
       }
 
       .name-stroke {
@@ -378,38 +442,21 @@ const openMessageModal = () => {
   }
 
   @keyframes stroke-flow {
-    to {
-      stroke-dashoffset: 0;
-    }
+    to { stroke-dashoffset: 0; }
   }
 
   .user-bio {
     font-size: 1.1rem;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--text-subtle);
     margin-bottom: 8px;
     font-weight: 500;
   }
 
   .user-motto {
-    color: rgba(255, 255, 255, 0.65);
+    color: var(--text-muted);
     font-size: 0.95rem;
     font-style: italic;
     margin-bottom: 24px;
-  }
-
-  :root.dark & {
-    .name-base {
-      fill: #1a1a1a;
-      fill-opacity: 0.8;
-    }
-
-    .user-bio {
-      color: var(--text-main);
-    }
-
-    .user-motto {
-      color: var(--text-subtle);
-    }
   }
 }
 
@@ -440,43 +487,21 @@ const openMessageModal = () => {
   }
 }
 
-.about-main {
-  display: grid;
-  gap: 22px;
-  margin-top: 24px;
-}
-
-.about-intro,
-.honors-spotlight,
-.contact-section {
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
-}
-
+// 简介与数据
 .about-intro {
-  padding: 34px;
+  margin-bottom: 24px;
+}
 
-  h2 {
-    margin: 0 0 16px;
-    color: var(--text-title);
-    font-size: clamp(1.45rem, 3vw, 1.9rem);
-    line-height: 1.25;
-  }
+.intro-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+  gap: 48px;
+  align-items: start;
+}
 
-  .intro-lead {
-    margin: 0 0 18px;
-    padding-left: 14px;
-    border-left: 3px solid var(--color-primary);
-    font-size: 1.08rem;
-    font-weight: 600;
-    color: var(--text-title);
-    line-height: 1.7;
-  }
-
+.intro-copy {
   p {
-    margin: 0 0 12px;
+    margin: 0 0 14px;
     color: var(--text-secondary);
     line-height: 1.9;
 
@@ -486,31 +511,59 @@ const openMessageModal = () => {
   }
 }
 
-.honors-spotlight {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
-  overflow: hidden;
+.intro-lead {
+  margin: 0 0 18px;
+  padding-left: 14px;
+  border-left: 3px solid var(--color-primary);
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: var(--text-title);
+  line-height: 1.7;
 }
 
-/* ── 通用区块容器：技术栈 / 项目 / 理念 ── */
-.tech-stack-section,
-.projects-section,
-.philosophy-section {
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
-  padding: 34px;
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
 
-  h2 {
-    margin: 0 0 20px;
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  color: var(--color-primary);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 800;
     color: var(--text-title);
-    font-size: clamp(1.45rem, 3vw, 1.9rem);
-    line-height: 1.25;
+    line-height: 1;
+  }
+
+  .stat-name {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
   }
 }
 
-/* ── 技术栈 ── */
+// 技术栈
+.tech-stack-section {
+  margin-bottom: 24px;
+}
+
 .skill-groups {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -519,12 +572,15 @@ const openMessageModal = () => {
 
 .skill-group {
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 18px;
-  transition: border-color 0.2s ease;
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--bg-card);
 
   &:hover {
     border-color: var(--color-primary);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
   }
 }
 
@@ -532,8 +588,8 @@ const openMessageModal = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 14px;
-  font-weight: 600;
+  margin-bottom: 16px;
+  font-weight: 700;
   font-size: 0.95rem;
   color: var(--text-title);
 
@@ -568,7 +624,11 @@ const openMessageModal = () => {
   }
 }
 
-/* ── 项目经历 ── */
+// 项目经历
+.projects-section {
+  margin-bottom: 24px;
+}
+
 .project-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -578,10 +638,10 @@ const openMessageModal = () => {
 .project-card {
   display: flex;
   gap: 16px;
-  padding: 20px;
+  padding: 24px;
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  transition: border-color 0.2s ease;
+  border-radius: 12px;
+  transition: border-color 0.2s ease, transform 0.25s ease, box-shadow 0.25s ease;
 
   &:hover {
     border-color: var(--color-primary);
@@ -590,9 +650,9 @@ const openMessageModal = () => {
 
 .project-icon {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   background: var(--bg-soft);
   display: flex;
   align-items: center;
@@ -605,9 +665,9 @@ const openMessageModal = () => {
   min-width: 0;
 
   h3 {
-    margin: 0 0 6px;
-    font-size: 1rem;
-    font-weight: 600;
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
     color: var(--text-title);
     display: flex;
     align-items: center;
@@ -615,10 +675,10 @@ const openMessageModal = () => {
   }
 
   p {
-    margin: 0 0 10px;
+    margin: 0 0 12px;
     font-size: 0.88rem;
     color: var(--text-secondary);
-    line-height: 1.65;
+    line-height: 1.7;
   }
 }
 
@@ -638,65 +698,25 @@ const openMessageModal = () => {
 }
 
 .project-tag {
-  padding: 2px 9px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
   font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-muted);
-  background: var(--bg-soft);
-  border: 1px solid var(--border-light);
-}
-
-/* ── 技术理念：左对齐横向条目，克制动效 ── */
-.philosophy-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-
-.philosophy-card {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 20px;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  transition: border-color 0.2s ease;
-
-  &:hover {
-    border-color: var(--color-primary);
-  }
-
-  h3 {
-    margin: 0 0 6px;
-    font-size: 0.98rem;
-    font-weight: 600;
-    color: var(--text-title);
-  }
-
-  p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    line-height: 1.7;
-  }
-}
-
-.philosophy-icon {
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  background: var(--bg-soft);
+  font-weight: 600;
   color: var(--color-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: rgba(var(--color-primary-rgb), 0.08);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.16);
 }
 
-.philosophy-body {
-  flex: 1;
-  min-width: 0;
+// 荣誉
+.honors-spotlight {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+  gap: 0;
+  border-radius: $card-radius;
+  overflow: hidden;
+  border: 1px solid var(--border-base);
+  background: var(--bg-card);
+  margin-bottom: 24px;
 }
 
 .honors-art {
@@ -717,13 +737,6 @@ const openMessageModal = () => {
   flex-direction: column;
   justify-content: center;
 
-  h2 {
-    margin: 10px 0 14px;
-    color: var(--text-title);
-    font-size: clamp(1.45rem, 3vw, 2.1rem);
-    line-height: 1.3;
-  }
-
   p {
     margin: 0;
     color: var(--text-secondary);
@@ -734,29 +747,83 @@ const openMessageModal = () => {
 .text-link {
   width: fit-content;
   margin-top: 22px;
-  color: #4f8c81;
+  color: var(--color-primary);
 
   &:hover {
-    color: #d77a55;
+    color: var(--color-secondary);
     transform: translateX(3px);
   }
 }
 
+// 理念
+.philosophy-section {
+  margin-bottom: 24px;
+}
+
+.philosophy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.philosophy-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 24px;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  transition: border-color 0.2s ease, transform 0.25s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    border-color: var(--color-primary);
+  }
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-title);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+}
+
+.philosophy-icon {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.philosophy-body {
+  flex: 1;
+  min-width: 0;
+}
+
+// 联系我
 .contact-section {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 28px;
-  padding: 30px 34px;
-
-  h2 {
-    margin: 8px 0 8px;
-    color: var(--text-title);
-    font-size: 1.45rem;
-  }
+  padding: 34px;
+  border: 1px solid var(--border-base);
+  border-radius: $card-radius;
+  background: var(--bg-section);
 
   p {
-    margin: 0;
+    margin: 12px 0 0;
     color: var(--text-secondary);
     line-height: 1.75;
   }
@@ -770,29 +837,18 @@ const openMessageModal = () => {
   gap: 10px;
 }
 
-.message-action {
-  border: 0;
-  background: #355071;
-  color: #fff;
-  cursor: pointer;
-
-  &:hover {
-    transform: translateY(-2px);
-    background: #26344a;
-  }
-}
-
 .contact-link {
-  min-height: 40px;
-  border-radius: 8px;
+  min-height: 44px;
+  border-radius: 30px;
   border: 1px solid var(--border-base);
-  padding: 0 14px;
+  padding: 0 18px;
   color: var(--text-secondary);
-  background: var(--bg-hover);
+  background: var(--bg-card);
 
   &:hover {
-    color: #4f8c81;
-    border-color: #4f8c81;
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    transform: translateY(-2px);
   }
 }
 
@@ -801,60 +857,21 @@ const openMessageModal = () => {
     padding: 20px 16px 44px;
   }
 
+  .section-card {
+    padding: 24px;
+  }
+
   .hero-section {
-    top: 52px;
-    padding: 18px 14px 0;
-    border-bottom: 0;
+    padding: 60px 16px 80px;
   }
 
-  .avatar-wrapper {
-    margin-bottom: 8px;
-
-    .user-avatar {
-      width: 86px;
-      height: 86px;
-
-      .liuyin {
-        top: 15px;
-        left: -8px;
-        max-width: 78px;
-      }
-    }
+  .intro-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
   }
 
-  .hero-text {
-    .username {
-      height: 48px;
-      margin-bottom: 2px;
-
-      .name-svg {
-        max-width: 168px;
-
-        text {
-          font-size: 38px;
-        }
-      }
-    }
-
-    .user-bio {
-      font-size: 0.9rem;
-      margin-bottom: 3px;
-    }
-
-    .user-motto {
-      font-size: 0.76rem;
-      margin-bottom: 8px;
-      padding: 0 10px;
-    }
-  }
-
-  .social-links {
-    gap: 10px;
-
-    .social-item {
-      width: 34px;
-      height: 34px;
-    }
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .skill-groups {
@@ -870,6 +887,10 @@ const openMessageModal = () => {
     grid-template-columns: 1fr;
   }
 
+  .honors-art {
+    min-height: 240px;
+  }
+
   .contact-actions {
     justify-content: flex-start;
   }
@@ -881,65 +902,57 @@ const openMessageModal = () => {
   }
 
   .hero-section {
-    top: 50px;
-    padding-top: 14px;
+    padding: 40px 12px 60px;
   }
 
   .avatar-wrapper {
-    margin-bottom: 6px;
+    margin-bottom: 16px;
 
     .user-avatar {
-      width: 74px;
-      height: 74px;
+      width: 96px;
+      height: 96px;
 
       .liuyin {
-        top: 12px;
-        left: -7px;
-        max-width: 68px;
+        top: 15px;
+        left: -8px;
+        max-width: 78px;
       }
     }
   }
 
   .hero-text {
     .username {
-      height: 44px;
-      margin-bottom: 0;
+      height: 56px;
 
       .name-svg {
-        max-width: 150px;
+        max-width: 180px;
 
         text {
-          font-size: 36px;
+          font-size: 40px;
         }
       }
     }
 
     .user-bio {
-      font-size: 0.84rem;
-      margin-bottom: 2px;
+      font-size: 0.95rem;
     }
 
     .user-motto {
-      font-size: 0.72rem;
-      margin-bottom: 8px;
-      padding: 0 10px;
+      font-size: 0.8rem;
     }
   }
 
   .social-links {
+    gap: 10px;
+
     .social-item {
-      width: 32px;
-      height: 32px;
+      width: 38px;
+      height: 38px;
     }
   }
 
-  .about-intro,
-  .honors-copy,
-  .contact-section,
-  .tech-stack-section,
-  .projects-section,
-  .philosophy-section {
-    padding: 24px;
+  .stats-grid {
+    grid-template-columns: 1fr;
   }
 
   .skill-groups {
@@ -951,15 +964,17 @@ const openMessageModal = () => {
   }
 
   .honors-art {
-    min-height: 210px;
+    min-height: 200px;
   }
 
-  .contact-link {
-    width: 100%;
+  .contact-section {
+    padding: 24px;
   }
 
-  .message-action {
+  .contact-link,
+  .contact-actions .btn-primary {
     width: 100%;
+    justify-content: center;
   }
 }
 </style>

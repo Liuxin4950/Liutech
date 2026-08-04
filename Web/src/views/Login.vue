@@ -266,7 +266,7 @@ const startEmailCountdown = () => {
             </div>
 
             <button type="submit" class="submit-btn" :disabled="userStore.isLoading">
-              <span v-if="userStore.isLoading" class="loading-spinner"></span>
+              <span v-if="userStore.isLoading" class="spinner-sm"></span>
               <Icon v-else :name="isLogin ? 'login' : 'person_add'" size="18" />
               {{ userStore.isLoading ? '处理中...' : (isLogin ? '登 录' : '立即注册') }}
             </button>
@@ -296,7 +296,7 @@ const startEmailCountdown = () => {
             </div>
 
             <button type="submit" class="submit-btn" :disabled="userStore.isLoading">
-              <span v-if="userStore.isLoading" class="loading-spinner"></span>
+              <span v-if="userStore.isLoading" class="spinner-sm"></span>
               <Icon v-else name="login" size="18" />
               {{ userStore.isLoading ? '处理中...' : '登 录' }}
             </button>
@@ -612,7 +612,7 @@ const startEmailCountdown = () => {
   &:disabled { opacity: 0.75; cursor: not-allowed; }
 }
 
-.loading-spinner {
+.spinner-sm {
   width: 18px;
   height: 18px;
   border: 2px solid rgba(255, 255, 255, 0.3);

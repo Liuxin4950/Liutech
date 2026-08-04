@@ -15,6 +15,10 @@
     --color-primary-light: #F7F9FC; /* 辅助色：极淡灰蓝（样品风格） */
     --color-primary-dark: #3A4F9A;  /* 强调色：深主色，用于导航或按钮按下 */
 
+    /* 辅色：琥珀橙，用于强调高亮、标签、计数器 */
+    --color-secondary: #E07A5F;
+    --color-secondary-rgb: 224, 122, 95;
+
     /* 温暖点缀色（基于样品的淡雅粉灵感） */
     --color-accent: #F0B8C0;        /* 淡雅粉（温暖但不刺眼） */
 
@@ -22,6 +26,7 @@
     /* ----- 2. 背景色（简洁层次感） ----- */
     --bg-main: #fcfcfc;      /* 页面整体背景（纯白，样品风格） */
     --bg-soft: #F8F9FA;      /* 分区柔和背景（极淡灰调） */
+    --bg-section: #F0F4F8;   /* 全宽分区背景 */
     --bg-card: #ffffff;      /* 卡片背景（保持白底） */
     --bg-element: #F7F9FC;   /* 元素背景（输入框、次级背景） */
     --bg-hover: #F1F3F4;     /* 列表悬停色（更自然的灰色） */
@@ -93,6 +98,10 @@
     --color-primary-light: #2D3748; /* 辅助色：深色背景块 */
     --color-primary-dark: #1A202C; /* 强调色：深底色 */
 
+    /* 深色模式辅色：柔和琥珀 */
+    --color-secondary: #F2CC8F;
+    --color-secondary-rgb: 242, 204, 143;
+
     /* 深色模式点缀色：温暖琥珀 */
     --color-accent: #F8B4B4;
 
@@ -100,6 +109,7 @@
     /* ----- 2. 背景体系 (深色现代风格) ----- */
     --bg-main: #202124;      /* 页面整体背景（现代深灰） */
     --bg-soft: #2D2F30;      /* 分区柔和背景 */
+    --bg-section: #1A1C1E;   /* 全宽分区背景 */
     --bg-card: #2D2F30;      /* 卡片背景（现代感） */
     --bg-element: #3C4043;   /* 元素背景 */
     --bg-hover: #3C4043;     /* hover 背景 */
@@ -164,37 +174,17 @@
 }
 
 /* ===============================
-   工具类（保持不变）
+   工具类（仅保留实际使用过的）
    =============================== */
 
 /* 文本颜色 */
-.text-main { color: var(--text-main); }
 .text-subtle { color: var(--text-subtle); }
-.text-title { color: var(--text-title); }
+.text-muted { color: var(--text-muted); }
 .text-primary { color: var(--color-primary); }
-.text-accent { color: var(--color-accent); }
 .text-on-primary { color: var(--text-on-primary); }
 
 /* 背景颜色 */
-.bg-main { background-color: var(--bg-main); }
 .bg-soft { background-color: var(--bg-soft); }
 .bg-card { background-color: var(--bg-card); }
-.bg-hover { background-color: var(--bg-hover); }
+.bg-element { background-color: var(--bg-element); }
 .bg-primary { background-color: var(--color-primary); }
-.bg-accent { background-color: var(--color-accent); }
-
-/* 边框颜色 */
-.border-soft { border-color: var(--border-light); }
-.border-base { border-color: var(--border-base); }
-.border-strong { border-color: var(--border-strong); }
-
-/* 状态色 */
-.text-success { color: var(--color-success); }
-.text-warning { color: var(--color-warning); }
-.text-error { color: var(--color-error); }
-.text-info { color: var(--color-info); }
-
-.bg-success { background-color: var(--bg-success); }
-.bg-warning { background-color: var(--bg-warning); }
-.bg-error { background-color: var(--bg-error); }
-.bg-info { background-color: var(--bg-info); }

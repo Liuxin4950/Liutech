@@ -22,7 +22,7 @@
       </div>
       <div v-else-if="error" class="error text-sm">
         <p>{{ error }}</p>
-        <button @click="loadComments" class="retry-btn">重试</button>
+        <button @click="loadComments" class="tag-retry-btn">重试</button>
       </div>
       <div v-else-if="comments.length === 0" class="empty flex flex-col flex-ac text-sm">
         <p>暂无评论，快来发表第一条评论吧！</p>
@@ -186,7 +186,7 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.retry-btn {
+.tag-retry-btn {
   padding: 8px 16px;
   background: var(--bg-tag);
   color: white;
@@ -196,7 +196,7 @@ onMounted(() => {
   transition: background-color 0.3s;
 }
 
-.retry-btn:hover {
+.tag-retry-btn:hover {
   background: var(--bg-tag-hover);
 }
 

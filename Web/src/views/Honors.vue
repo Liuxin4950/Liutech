@@ -156,8 +156,11 @@ const closePreview = () => {
   <div class="content">
     <section class="honors-hero">
       <div class="hero-copy">
-        <h1>荣誉与证书</h1>
-        <p>软件开发、软件测试、小程序、低代码和技术认证相关证书。</p>
+        <div class="page-title">
+          <span class="title-badge">Honors</span>
+          <h1 class="title-heading">荣誉与<span class="title-highlight">证书</span></h1>
+          <p class="title-desc">软件开发、软件测试、小程序、低代码和技术认证相关证书。</p>
+        </div>
       </div>
     </section>
 
@@ -231,19 +234,6 @@ const closePreview = () => {
 .hero-copy {
   border-radius: 16px;
   padding: 34px;
-
-  h1 {
-    margin: 14px 0 12px;
-    color: var(--text-title);
-    font-size: 2rem;
-    line-height: 1.2;
-  }
-
-  p {
-    margin: 0;
-    color: var(--text-secondary);
-    line-height: 1.85;
-  }
 }
 
 .category-tabs {
@@ -437,10 +427,6 @@ const closePreview = () => {
 
   .hero-copy {
     padding: 24px;
-
-    h1 {
-      font-size: 1.55rem;
-    }
   }
 
   .preview-overlay {

@@ -267,7 +267,7 @@ defineExpose({
 
         <div ref="historyContentRef" class="history-content" data-lenis-prevent>
           <div v-if="isLoadingHistory" class="history-loading text-sm">
-            <div class="loading-spinner"></div>
+            <div class="spinner-sm"></div>
             <span>加载中...</span>
           </div>
 
@@ -577,7 +577,7 @@ defineExpose({
   gap: 12px;
 }
 
-.loading-spinner {
+.spinner-sm {
   width: 24px;
   height: 24px;
   border: 2px solid var(--border-light);
@@ -747,12 +747,4 @@ defineExpose({
   background: var(--bg-error);
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
 </style>

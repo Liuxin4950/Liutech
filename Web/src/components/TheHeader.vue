@@ -141,8 +141,8 @@ onUnmounted(() => {
 
 
 <template>
-  <header class="sticky top-0 z-100">
-    <div class="content px-20 flex-sb flex-ac">
+  <header>
+    <div class="content flex-sb flex-ac">
 
       <!-- LOGO -->
       <h2 class="logo link text-primary" @click="navigateTo('/')">
@@ -181,14 +181,14 @@ onUnmounted(() => {
             class="flex flex-ac gap-8 link rounded user-info-btn"
             @click.stop="toggleUserMenu"
           >
-            <div class="user-avatar rounded-full link flex-jc">
+            <div class="user-avatar link flex-jc">
               <img
                 v-if="userStore.avatar"
                 :src="userStore.avatar" :alt="userStore.username"
-                class="fit rounded-full"
+                class="fit"
                 @error="handleImageError"
               />
-              <div v-else class="text-main font-semibold text-sm">
+              <div v-else class="font-semibold text-sm">
                 {{ userStore.username?.charAt(0).toUpperCase() }}
               </div>
             </div>
@@ -204,7 +204,7 @@ onUnmounted(() => {
           <!-- 未登录 -->
           <button
             v-else
-            class="text-main flex flex-ac gap-8 transition rounded p-8 hover-lift login-btn"
+            class="flex flex-ac gap-8 transition rounded p-8 login-btn"
             @click="navigateTo('/login')"
             style="white-space: nowrap;"
           >
@@ -216,7 +216,7 @@ onUnmounted(() => {
           <Transition name="fade">
             <div
               v-show="isUserMenuOpen"
-              class="avatar-menu absolute transition"
+              class="avatar-menu transition"
               @click.stop
             >
               <ul class="list">
@@ -232,7 +232,7 @@ onUnmounted(() => {
                 <li @click="navigateTo('/favorites')" class="transition link">
                   <Icon name="favorite" size="16" />我的收藏
                 </li>
-                <li @click="handleLogout" class="transition link text-danger">
+                <li @click="handleLogout" class="transition link">
                   <Icon name="close" size="16" />退出登录
                 </li>
               </ul>
@@ -240,7 +240,7 @@ onUnmounted(() => {
           </Transition>
         </div>
 
-        <div class="divider mx-8"></div>
+        <div class="divider"></div>
 
         <!-- 主题按钮 -->
         <button @click="theme.toggle" class="link transition p-8 theme-btn" :title="theme.current.value === 'light' ? '切换到深色模式' : '切换到浅色模式'">
@@ -263,11 +263,11 @@ onUnmounted(() => {
       <div class="mobile-drawer" :class="{ open: isMenuOpen }" @click.stop>
         <ul class="list">
           <!-- 搜索 -->
-          <li @click="emit('open-search'); isMenuOpen = false" class="p-16 hover-bg transition border-b link">
+          <li @click="emit('open-search'); isMenuOpen = false" class="p-16 hover-bg transition link">
             <Icon name="search" size="18" />搜索文章
           </li>
           <!-- 主题切换 -->
-          <li @click="theme.toggle" class="p-16 hover-bg transition border-b link">
+          <li @click="theme.toggle" class="p-16 hover-bg transition link">
             <Icon :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="18" />
             {{ theme.current.value === 'light' ? '深色模式' : '浅色模式' }}
           </li>
@@ -275,25 +275,25 @@ onUnmounted(() => {
             v-for="item in navItems"
             :key="item.path"
             @click="navigateTo(item.path)"
-            class="p-16 hover-bg transition border-b link"
+            class="p-16 hover-bg transition link"
           >
             <Icon :name="item.icon" size="18" />
             {{ item.label }}
           </li>
 
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')" class="p-16 border-b link">
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/profile')" class="p-16 link">
             <Icon name="user" size="18" />个人资料
           </li>
-          <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="p-16 border-b link">
+          <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="p-16 link">
             <Icon name="edit" size="18" />我的文章
           </li>
-          <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="p-16 border-b link">
+          <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="p-16 link">
             <Icon name="file" size="18" />草稿子箱
           </li>
-          <li v-if="userStore.isLoggedIn" @click="navigateTo('/favorites')" class="p-16 border-b link">
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/favorites')" class="p-16 link">
             <Icon name="favorite" size="18" />我的收藏
           </li>
-          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 text-error border-b link">
+          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 link">
             <Icon name="close" size="18" />退出登录
           </li>
         </ul>
@@ -366,6 +366,9 @@ onUnmounted(() => {
 }
 
 header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   width: 100%;
   height: var(--header-height);
   /* Remove the whole header background to allow pills to stand out */
@@ -376,6 +379,7 @@ header {
 
 header>div {
   height: var(--header-height);
+  padding: 0 20px;
   /* 在移动端可能需要调整内容区域的边距 */
   @include respond(md) {
     padding: 0 10px;
@@ -419,6 +423,7 @@ header>div {
   height: 18px;
   background-color: var(--border-base);
   opacity: 0.5;
+  margin: 0 8px;
   
   @include respond(md) {
     margin: 0 4px !important;
@@ -440,12 +445,17 @@ header>div {
   width: 32px;
   height: 32px;
   border: 1px solid var(--border-base);
+  border-radius: 50%;
   flex-shrink: 0;
   
   @include respond(md) {
     width: 28px;
     height: 28px;
   }
+}
+
+.user-avatar img {
+  border-radius: 50%;
 }
 
 .user-info-text {
@@ -524,6 +534,7 @@ ol {
 }
 
 .avatar-menu {
+  position: absolute;
   padding: 8px;
   top: calc(100% + 8px); /* 动态计算：在整个右侧药丸正下方 8px 的位置 */
   right: 0; /* 与右侧药丸右边缘对齐 */
@@ -741,4 +752,7 @@ ol {
 
 
 
+.mobile-drawer li {
+  border-bottom: 1px solid var(--border-light);
+}
 </style>

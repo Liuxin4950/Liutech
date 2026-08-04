@@ -147,12 +147,4 @@ const goToLogin = () => {
   color: white;
 }
 
-.btn-primary {
-  background: var(--color-primary);
-  color: white;
-}
-
-.btn-primary:hover {
-  background:var(--color-info);
-}
 </style>

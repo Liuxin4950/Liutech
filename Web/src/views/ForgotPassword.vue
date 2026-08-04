@@ -146,7 +146,7 @@ const handleResendCode = async () => {
             </div>
 
             <button type="submit" class="submit-btn" :disabled="isLoading">
-              <span v-if="isLoading" class="loading-spinner"></span>
+              <span v-if="isLoading" class="spinner-sm"></span>
               <Icon v-else name="send" size="18" />
               {{ isLoading ? '发送中...' : '发送验证码' }}
             </button>
@@ -203,7 +203,7 @@ const handleResendCode = async () => {
             </div>
 
             <button type="submit" class="submit-btn" :disabled="isLoading">
-              <span v-if="isLoading" class="loading-spinner"></span>
+              <span v-if="isLoading" class="spinner-sm"></span>
               <Icon v-else name="lock" size="18" />
               {{ isLoading ? '重置中...' : '重置密码' }}
             </button>
@@ -391,7 +391,7 @@ const handleResendCode = async () => {
   padding-left: 4px;
 }
 
-.loading-spinner {
+.spinner-sm {
   width: 18px;
   height: 18px;
   border: 2px solid rgba(255,255,255,0.3);
@@ -399,8 +399,6 @@ const handleResendCode = async () => {
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-
 .submit-btn {
   width: 100%;
   padding: 14px;

@@ -40,7 +40,7 @@
         <div class="flex flex-col flex-sb flex-1 relative article-content ">
           <span v-if="post.category" class="article-category" @click.stop="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
           <div class="flex-1 flex flex-col gap-12 article-content-box">
-            <h3 class="font-semibold text-primary text-xl post-title">{{ post.title }}</h3>
+            <h3 class="font-semibold text-primary post-title">{{ post.title }}</h3>
             <p v-if="post.summary" class="text-subtle text-sm post-summary">
               {{ post.summary }}
             </p>
@@ -76,7 +76,7 @@
     </div>
 
     <!-- 分页器 -->
-    <Pagination class="mt-24"
+    <Pagination
       v-if="!loading && posts.length > 0"
       :current-page="pagination.current"
       :total-pages="pagination.pages"
@@ -146,12 +146,26 @@ function handleCategoryClick(categoryId: number) {
 
   .article-content{
     width: 100%;
+    min-width: 0; /* 允许文章内容区收缩，标题 nowrap 时触发省略号而不是撑破列 */
   }
   .article-content-box{
     justify-content: space-around;
   }
 
   .article-category {
+    /* 原全局 .article-category（badge 渐变 + 绝对定位）移入 */
+    background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    position: absolute;
+    top: 0;
+    right: 0;
+
     @include respond(md) {
       position: static;
       align-self: flex-start;
@@ -181,6 +195,7 @@ function handleCategoryClick(categoryId: number) {
 }
 
 .post-title{
+    font-size: 1.25rem;
     padding-right: 70px;
     white-space: nowrap;
     overflow: hidden;
@@ -202,20 +217,6 @@ function handleCategoryClick(categoryId: number) {
   @include respond(md) {
     padding-right: 0;
   }
-}
-
-.retry-btn {
-  margin-top: 12px;
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.retry-btn:hover {
-  background: var(--color-primary-dark);
 }
 
 .article-meta {

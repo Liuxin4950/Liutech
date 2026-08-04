@@ -41,12 +41,12 @@ const closeDetail = () => {
 // 获取优先级样式类
 const getPriorityClass = (priority: number) => {
   const classMap: Record<number, string> = {
-    1: 'badge-gray',
-    2: 'badge-blue',
-    3: 'badge-orange',
-    4: 'badge-red'
+    1: 'priority-gray',
+    2: 'priority-blue',
+    3: 'priority-orange',
+    4: 'priority-red'
   }
-  return classMap[priority] || 'badge-gray'
+  return classMap[priority] || 'priority-gray'
 }
 
 // 获取最新公告
@@ -124,11 +124,11 @@ onUnmounted(() => {
         <div class="flex flex-sb">
           <span class="text-sm font-medium">{{ formatDate(announcement.createdAt) }}</span>
           <div class="flex flex-sb gap-8">
-            <span v-if="announcement.isTop" class="badge badge-red">置顶</span>
-            <span class="badge badge-blue">{{ announcement.typeName }}</span>
+            <span v-if="announcement.isTop" class="priority-badge priority-red">置顶</span>
+            <span class="priority-badge priority-blue">{{ announcement.typeName }}</span>
           </div>
         </div>
-        <h5 class="text-lg font-medium mb-8">{{ announcement.title }}</h5>
+        <h5 class="text-lg font-medium announcement-title">{{ announcement.title }}</h5>
       </div>
     </div>
 
@@ -148,9 +148,9 @@ onUnmounted(() => {
             <h2 class="modal-title">{{ selectedAnnouncement.title }}</h2>
 
             <div class="modal-tags">
-              <span v-if="selectedAnnouncement.isTop" class="badge badge-red">置顶</span>
-              <span class="badge badge-blue">{{ selectedAnnouncement.typeName }}</span>
-              <span class="badge" :class="getPriorityClass(selectedAnnouncement.priority)">{{ selectedAnnouncement.priorityName }}</span>
+              <span v-if="selectedAnnouncement.isTop" class="priority-badge priority-red">置顶</span>
+              <span class="priority-badge priority-blue">{{ selectedAnnouncement.typeName }}</span>
+              <span class="priority-badge" :class="getPriorityClass(selectedAnnouncement.priority)">{{ selectedAnnouncement.priorityName }}</span>
             </div>
 
             <div class="modal-content-text" v-html="sanitizeAnnouncementContent(selectedAnnouncement.content)"></div>
@@ -282,7 +282,7 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
-.badge {
+.priority-badge {
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
@@ -293,22 +293,22 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.badge-red {
+.priority-red {
   background: rgba(239, 68, 68, 0.1);
   color: var(--color-error);
 }
 
-.badge-blue {
+.priority-blue {
   background: rgba(59, 130, 246, 0.1);
   color: var(--color-info);
 }
 
-.badge-orange {
+.priority-orange {
   background: rgba(249, 115, 22, 0.1);
   color: var(--color-warning);
 }
 
-.badge-gray {
+.priority-gray {
   background: rgba(107, 114, 128, 0.1);
   color: var(--text-muted);
 }
@@ -481,18 +481,6 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 
 /* 响应式设计 */
 @include respond(md) {
@@ -531,7 +519,7 @@ onUnmounted(() => {
     gap: 6px;
   }
 
-  .badge {
+  .priority-badge {
     font-size: 0.6875rem;
     padding: 3px 10px;
   }
@@ -558,5 +546,13 @@ onUnmounted(() => {
   .modal-body {
     padding: 16px;
   }
+}
+/* 公告列表项与标题（原全局 .list-item/.mb-8 移入） */
+.list-item {
+  padding: 8px 0;
+}
+
+.announcement-title {
+  margin-bottom: 8px;
 }
 </style>

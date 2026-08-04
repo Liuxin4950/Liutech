@@ -7,10 +7,10 @@
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
     </div>
     <div v-else class="list gap-12">
-      <div 
-        v-for="post in posts" 
-        :key="post.id" 
-        class="flex flex-col gap-8 p-12 rounded link transition bg-soft"
+      <div
+        v-for="post in posts"
+        :key="post.id"
+        class="recommended-item flex flex-col gap-8 rounded link transition bg-soft"
         @click="handlePostClick(post.id)"
       >
         <h5 class="text-base font-semibold text-primary mb-0">{{ post.title }}</h5>
@@ -59,5 +59,14 @@ const handlePostClick = (postId: number) => {
 
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+.recommended-item {
+  padding: 12px;
+  transition: transform 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    transform: translateX(4px);
+    background: var(--bg-hover);
+  }
+}
 </style>

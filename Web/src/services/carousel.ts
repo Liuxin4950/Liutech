@@ -8,6 +8,7 @@ export interface Carousel {
   title: string
   imageUrl: string
   linkUrl?: string
+  description?: string
   sortOrder: number
   status: number
   createdAt?: string

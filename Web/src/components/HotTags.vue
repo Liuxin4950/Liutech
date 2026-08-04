@@ -49,23 +49,10 @@ const handleTagClick = (tagId: number) => {
 </script>
 
 <style scoped>
-/* 标签云组件外层容器 */
-.tags-cloud {
-  justify-content: flex-start; /* 让标签从左往右排列 */
-}
-
 .tag small {
   opacity: 0.7;
   margin-left: 6px;
   font-size: 0.75rem;
-}
-
-/* 标题样式（可根据实际全局样式调整，这里做基础设置） */
-.card-title {
-  margin-bottom: 12px; /* 与标签区域拉开间距 */
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-title, #333); /* 兜底颜色 */
 }
 
 /* 加载中、暂无数据样式（可按需细化） */

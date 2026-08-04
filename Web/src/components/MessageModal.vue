@@ -46,7 +46,7 @@
           </div>
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" @click="close">取消</button>
-            <button type="submit" class="btn btn-primary" :disabled="submitting">
+            <button type="submit" class="btn-primary" :disabled="submitting">
               {{ submitting ? '提交中...' : '提交留言' }}
             </button>
           </div>

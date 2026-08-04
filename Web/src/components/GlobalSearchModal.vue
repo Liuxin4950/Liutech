@@ -4,13 +4,13 @@
       <div v-if="visible" class="search-overlay" @click.self="close">
         <div class="search-modal">
           <div class="search-header">
-            <Icon name="search" size="18" class="search-icon" />
+            <Icon name="search" size="18" class="modal-search-icon" />
             <input
               ref="inputRef"
               v-model="keyword"
               type="text"
               placeholder="搜索文章标题、内容或摘要..."
-              class="search-input"
+              class="modal-search-input"
               @input="handleInput"
               @keyup.enter="handleSearch"
               @keyup.esc="close"
@@ -160,12 +160,12 @@ defineExpose({ open, close })
   border-bottom: 1px solid var(--border-soft);
 }
 
-.search-icon {
+.modal-search-icon {
   color: var(--text-subtle);
   flex-shrink: 0;
 }
 
-.search-input {
+.modal-search-input {
   flex: 1;
   border: none;
   background: transparent;
@@ -174,7 +174,7 @@ defineExpose({ open, close })
   outline: none;
 }
 
-.search-input::placeholder {
+.modal-search-input::placeholder {
   color: var(--text-muted);
 }
 

@@ -5,12 +5,11 @@
       <div v-if="series.coverImage" class="series-hero">
         <img :src="series.coverImage" :alt="series.name" />
       </div>
-      <div class="flex flex-col gap-12">
-        <h1 class="text-xl font-semibold text-primary mb-0 flex flex-ac gap-8">
-          <Icon name="book" size="20" /> {{ series.name }}
-        </h1>
-        <p v-if="series.description" class="text-subtle text-base mb-0">{{ series.description }}</p>
-        <div class="flex flex-ac gap-8">
+      <div class="page-title">
+        <span class="title-badge"><Icon name="book" size="12" /> 系列</span>
+        <h1 class="title-heading">{{ series.name }}</h1>
+        <p v-if="series.description" class="title-desc">{{ series.description }}</p>
+        <div class="title-meta">
           <span class="badge">共 {{ totalPosts }} 篇文章</span>
         </div>
       </div>
@@ -131,7 +130,6 @@ onMounted(() => {
 @use "@/assets/styles/tokens" as *;
 
 .series-posts { padding: 20px; }
-.loading-text { text-align: center; padding: 40px 20px; color: var(--text-muted); }
 
 .series-hero {
   height: 200px;
