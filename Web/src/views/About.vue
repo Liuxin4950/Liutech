@@ -15,6 +15,7 @@ import type { ProfileInfo } from "@/services/user"
 
 const messageModalVisible = ref(false)
 
+//默认占用数据
 const profileInfo = ref<ProfileInfo>({
   name: 'LiuTech',
   title: '全栈工程师',
@@ -38,7 +39,7 @@ const stats = [
   { icon: "eye", label: "访问", value: computed(() => profileInfo.value.stats.views || 0) }
 ]
 
-// 技术栈：前端 / 后端 / 工程化 / AI 四类
+// 技术栈：前端 / 后端 / 工程化 / AI 四类（基于真实工作记录）
 const skillGroups = [
   {
     category: "前端开发",
@@ -48,9 +49,11 @@ const skillGroups = [
       { name: "Vue 3", icon: "vue" },
       { name: "TypeScript", icon: "typescript" },
       { name: "Vite", icon: "zap" },
+      { name: "uni-app", icon: "smartphone" },
+      { name: "Flutter", icon: "flutter" },
+      { name: "ECharts", icon: "barChart" },
       { name: "SCSS", icon: "layers" },
       { name: "Ant Design", icon: "grid" },
-      { name: "uni-app", icon: "smartphone" },
     ]
   },
   {
@@ -63,6 +66,7 @@ const skillGroups = [
       { name: "MyBatis-Plus", icon: "database" },
       { name: "MySQL", icon: "database" },
       { name: "Redis", icon: "database" },
+      { name: "ThinkPHP", icon: "thinkphp" },
       { name: "Spring Security", icon: "shield" },
     ]
   },
@@ -75,6 +79,7 @@ const skillGroups = [
       { name: "Compose", icon: "package" },
       { name: "Nginx", icon: "server" },
       { name: "Linux", icon: "terminal" },
+      { name: "微服务网关", icon: "building" },
       { name: "Actions", icon: "gitBranch" },
       { name: "CI/CD", icon: "refresh" },
     ]
@@ -84,38 +89,53 @@ const skillGroups = [
     icon: "bot",
     accent: "ai",
     skills: [
+      { name: "OpenClaw", icon: "bot" },
+      { name: "Ollama", icon: "brain" },
       { name: "Spring AI", icon: "spring" },
-      { name: "大模型 API", icon: "brain" },
+      { name: "大模型 API", icon: "cpu" },
       { name: "Prompt 工程", icon: "lightbulb" },
-      { name: "MCP", icon: "cpu" },
-      { name: "SSE 流式", icon: "zap" },
       { name: "Live2D", icon: "live2d" },
+      { name: "Claude Code", icon: "code" },
     ]
   },
 ]
 
 // 技术理念
 const philosophy = [
-  { icon: "check", title: "代码不是目的", desc: "优秀的开发者不是写最多代码的人，而是能用合适的技术真正解决问题的人。" },
-  { icon: "book", title: "保持学习", desc: "技术更新很快，用阅读源码、动手实践、记录博客的方式输出倒逼输入。" },
-  { icon: "brain", title: "AI 是第二大脑", desc: "让 AI 成为开发者的能力延伸，融入开发流程，而不只是简单的聊天工具。" },
+  { icon: "check", title: "代码不是目的", desc: "问题在真实业务里，代码只是落地的工具；工程的意义是让系统可靠地运行、持续地创造价值。" },
+  { icon: "book", title: "输出倒逼输入", desc: "技术更新很快，用写博客、记踩坑文档、动手实践的方式沉淀所学——写出来才算真正学会。" },
+  { icon: "users", title: "AI 是团队的生产力", desc: "不仅自己用 AI 提效，更要教团队正确使用、厘清 AI 的能力边界，让 AI 融入每个人的开发流程。" },
 ]
 
-// 项目经历
+// 项目经历（来自真实工作记录）
 const projects = [
   {
+    name: "名钓九洲",
+    description: "负责钓场小程序与管理后台的全栈开发：B2B 商城迁移（21 个页面精简至 13 个、分包压缩至 2M 以下）、团购/随到随钓子订单与退款审核体系、活动成绩排行榜与自动开杆定时任务、数据看板（20+ 页面 ECharts 可视化）、库存效期管理与导出、战队排名计算、微信 openid 登录重构。",
+    tags: ["uni-app", "Vue 3", "Spring Boot", "MySQL", "ECharts"],
+    icon: "building",
+    link: null
+  },
+  {
+    name: "亿家康健健康服务平台",
+    description: "药品商城小程序：实现商品详情、购物车、立即购买与订单售后全流程，对接订单商品客服与服务商交易流水，迁移阿里云短信服务，修复收藏、历史记录等页面功能。",
+    tags: ["小程序", "Vue", "Spring Boot", "阿里云"],
+    icon: "heart",
+    link: null
+  },
+  {
+    name: "AI 落地与团队赋能",
+    description: "把 AI 引入团队并沉淀为可复制的工作方式：指导成员正确使用 AI、厘清 AI 的能力边界（能做什么、不能做什么、如何校验结果），让 AI 提效成为团队共识；同时落地具体业务实践——代码审核智能体（每日检查提交）、药品宣传合规审核、跨设备浏览器自动化，验证 AI 在真实业务中的可行性。",
+    tags: ["AI 指导", "OpenClaw", "Claude Code", "业务实践"],
+    icon: "bot",
+    link: null
+  },
+  {
     name: "LiuTech 博客",
-    description: "全栈个人博客平台。从第一版写死配置、本地推理的混乱方案，到如今 Spring Boot 微服务 + Vue 3 + Docker Compose 的工程化架构。一次 Docker 误操作导致数据丢失后，深入学习了数据持久化与备份——也让我明白，真正的工程是保证系统可靠运行。",
+    description: "全栈个人博客平台：Spring Boot 微服务 + Vue 3 + Docker Compose 架构，含 AI 聊天、Live2D 看板娘、SSE 流式对话与 TTS 语音合成。",
     tags: ["Vue 3", "Spring Boot", "MySQL", "Docker"],
     icon: "home",
     link: "/"
-  },
-  {
-    name: "LiuTech-AI",
-    description: "独立 AI 微服务，基于 Spring AI 接入 DeepSeek-V3.2，支持多轮对话、SSE 流式响应、TTS 语音合成与 Live2D 口型同步。看板娘从“不会说话”到“开口交流”的完整实践。",
-    tags: ["Spring AI", "DeepSeek-V3.2", "SSE", "TTS"],
-    icon: "bot",
-    link: null
   },
 ]
 
@@ -159,75 +179,76 @@ bannerStore.setBanner({
   mode: 'hero'
 })
 
-useScrollReveal('.reveal')
+// 统一滚动显现（once: false 可重播）：全部区块共用一套机制，
+// 项目卡片动画由区块 is-visible 触发 CSS 交错升起（见样式），不再需要独立观察器
+useScrollReveal('.reveal', { once: false })
 </script>
 
 <template>
   <div class="about-page">
-    <!-- Hero -->
-    <section class="hero-section">
+    <!-- Hero + 关于我介绍（左右合并）：左头像签名区 / 右介绍文字 -->
+    <section class="hero-section reveal">
       <div class="hero-content">
-        <div class="avatar-wrapper reveal">
-          <div class="user-avatar" :style="{ backgroundImage: `url(${moonImg})` }">
-            <img src="@/assets/image/gif/坐下.gif" alt="刘鑫" class="liuyin" @error="handleImageError" />
+        <!-- 左：头像签名区 -->
+        <div class="hero-visual">
+          <div class="avatar-wrapper">
+            <div class="user-avatar" :style="{ backgroundImage: `url(${moonImg})` }">
+              <img src="@/assets/image/gif/坐下.gif" alt="刘鑫" class="liuyin" @error="handleImageError" />
+            </div>
+          </div>
+          <div class="hero-text">
+            <h1 class="username">
+              <svg class="name-svg" viewBox="0 0 200 60">
+                <defs>
+                  <linearGradient id="about-name-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:var(--color-primary);stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:var(--color-secondary);stop-opacity:1" />
+                  </linearGradient>
+                </defs>
+                <text x="50%" y="50%" dy=".35em" text-anchor="middle" class="name-base">
+                  刘鑫
+                </text>
+                <text x="50%" y="50%" dy=".35em" text-anchor="middle" class="name-stroke">
+                  刘鑫
+                </text>
+              </svg>
+            </h1>
+            <p class="user-bio">全栈工程师 & 技术博主</p>
+            <p class="user-motto">「代码改变世界，热爱成就未来」</p>
+            <div class="social-links">
+              <a href="https://github.com/Liuxin4950" class="social-item" title="GitHub" target="_blank" rel="noopener noreferrer">
+                <Icon name="github" size="20" />
+              </a>
+              <a href="/" class="social-item" title="liuxin.chat">
+                <Icon name="globe" size="20" />
+              </a>
+            </div>
           </div>
         </div>
-        <div class="hero-text reveal reveal-delay-1">
-          <h1 class="username">
-            <svg class="name-svg" viewBox="0 0 200 60">
-              <defs>
-                <linearGradient id="about-name-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" style="stop-color:var(--color-primary);stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:var(--color-secondary);stop-opacity:1" />
-                </linearGradient>
-              </defs>
-              <text x="50%" y="50%" dy=".35em" text-anchor="middle" class="name-base">
-                刘鑫
-              </text>
-              <text x="50%" y="50%" dy=".35em" text-anchor="middle" class="name-stroke">
-                刘鑫
-              </text>
-            </svg>
-          </h1>
-          <p class="user-bio">全栈工程师 & 技术博主</p>
-          <p class="user-motto">「代码改变世界，热爱成就未来」</p>
-          <div class="social-links">
-            <a href="https://github.com/Liuxin4950" class="social-item" title="GitHub" target="_blank" rel="noopener noreferrer">
-              <Icon name="github" size="20" />
-            </a>
-            <a href="/" class="social-item" title="liuxin.chat">
-              <Icon name="globe" size="20" />
-            </a>
-          </div>
+
+        <!-- 右：关于我的介绍 -->
+        <div class="hero-intro">
+          <SectionTitle align="left" subtitle="About Me" title="关于" highlight="我" />
+          <p class="intro-lead">
+            我叫刘鑫，软件工程专业的学生，正在努力成为一名全栈开发工程师。用代码记录时间与成长，用技术创造成果与价值。
+          </p>
+          <p>
+            最初接触编程只是出于好奇，把它和传说中黑客的网络技术搞混了，但是在学习的过程中却渐渐发现这不冲突——不论网络技术还是软件工程，都是计算机的一部分：相比刷短视频，我更喜欢用学习到的知识来实现一些我感兴趣的项目。
+          </p>
+          <p>
+            这些年，我从初学者，逐渐学习前后端开发、数据库设计、容器化和其他中间件——这个博客就是我为整合所学、并亲手实现一个能和读者交流的 Live2D 看板娘而搭建的。
+          </p>
         </div>
       </div>
     </section>
 
-    <!-- 简介 + 数据 -->
-    <section class="about-intro section-card reveal">
-      <div class="intro-grid">
-        <div class="intro-copy">
-          <SectionTitle align="left" subtitle="About Me" title="关于" highlight="我" />
-          <p class="intro-lead">
-            我叫刘鑫，软件工程专业的学生，正在成为一名全栈开发工程师。用代码记录时间与成长，用技术创造快乐与价值。
-          </p>
-          <p>
-            最初接触编程只是出于好奇，把它和传说中黑客的网络技术搞混了，但是在学习的过程中却渐渐发现：相比刷短视频，我更喜欢用学习到的知识来实现一些有价值的东西。
-          </p>
-          <p>
-            这些年，我从一个只能写出静态页面的初学者，成长为能独立打通前后端开发、数据库设计、容器化部署与自动化交付的开发者——这个博客就是我为整合所学、并亲手实现一个能和读者交流的 Live2D 看板娘而搭建的。
-          </p>
-          <p>
-            如今我把重心放在 AI 与软件工程的结合上：用大模型让看板娘开口交流，用 AI 辅助开发提效。我相信，真正的软件工程不只是写代码，更是保证系统可靠地运行、持续地创造价值。
-          </p>
-        </div>
-
-        <div class="stats-grid">
-          <div v-for="stat in stats" :key="stat.label" class="stat-card">
-            <Icon :name="stat.icon" size="26" />
-            <div class="stat-value">{{ stat.value }}</div>
-            <div class="stat-name">{{ stat.label }}</div>
-          </div>
+    <!-- 数据统计（独立一行） -->
+    <section class="stats-section section-card reveal">
+      <div class="stats-grid">
+        <div v-for="stat in stats" :key="stat.label" class="stat-card">
+          <Icon :name="stat.icon" size="26" />
+          <div class="stat-value">{{ stat.value }}</div>
+          <div class="stat-name">{{ stat.label }}</div>
         </div>
       </div>
     </section>
@@ -256,14 +277,11 @@ useScrollReveal('.reveal')
       </div>
     </section>
 
-    <!-- 项目经历 -->
+    <!-- 项目经历：照片墙错位布局，滚动到时卡片依次升起 -->
     <section class="projects-section section-card reveal">
       <SectionTitle subtitle="Projects" title="项目" highlight="经历" />
-      <div class="project-grid">
+      <div class="project-wall">
         <article v-for="project in projects" :key="project.name" class="project-card">
-          <div class="project-icon">
-            <Icon :name="project.icon" size="24" />
-          </div>
           <div class="project-info">
             <h3>
               {{ project.name }}
@@ -367,11 +385,11 @@ useScrollReveal('.reveal')
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
-// Hero
+// Hero（含介绍，左右合并；紧凑布局）
 .hero-section {
   width: 100%;
   position: relative;
-  padding: 80px 20px 100px;
+  padding: 40px 40px;
   margin-bottom: 24px;
   border-radius: $card-radius;
   background:
@@ -383,21 +401,50 @@ useScrollReveal('.reveal')
 }
 
 .hero-content {
-  max-width: 800px;
+  max-width: 1000px;
   margin: 0 auto;
-  text-align: center;
+  display: grid;
+  grid-template-columns: 3fr 7fr; /* 左 30% 头像签名 / 右 70% 介绍 */
+  align-items: center;
+  gap: 36px;
   position: relative;
   z-index: 1;
+
+  @include respond(md) {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+}
+
+/* 左：头像签名区（居中展示） */
+.hero-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* 右：关于我的介绍（紧凑行距） */
+.hero-intro {
+  p {
+    margin: 0 0 10px;
+    color: var(--text-subtle);
+    line-height: 1.7;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
 }
 
 .avatar-wrapper {
   display: flex;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 
   .user-avatar {
-    width: 120px;
-    height: 120px;
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
     border: 4px solid var(--bg-card);
     background-color: var(--bg-hover);
@@ -410,8 +457,8 @@ useScrollReveal('.reveal')
 
     .liuyin {
       position: absolute;
-      top: 20px;
-      left: -10px;
+      top: 16px;
+      left: -8px;
     }
 
     &:hover {
@@ -422,16 +469,16 @@ useScrollReveal('.reveal')
 
 .hero-text {
   .username {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 80px;
+    height: 64px;
 
     .name-svg {
       width: 100%;
       height: 100%;
-      max-width: 240px;
+      max-width: 200px;
       overflow: visible;
 
       text {
@@ -510,38 +557,20 @@ useScrollReveal('.reveal')
   margin-bottom: 24px;
 }
 
-.intro-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
-  gap: 48px;
-  align-items: start;
-}
-
-.intro-copy {
-  p {
-    margin: 0 0 14px;
-    color: var(--text-secondary);
-    line-height: 1.9;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-}
-
 .intro-lead {
-  margin: 0 0 18px;
+  margin: 0 0 14px;
   padding-left: 14px;
   border-left: 3px solid var(--color-primary);
-  font-size: 1.08rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--text-title);
-  line-height: 1.7;
+  line-height: 1.6;
 }
 
+/* 数据统计：独立一行横排 */
 .stats-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
@@ -631,7 +660,7 @@ useScrollReveal('.reveal')
   border-radius: 20px;
   font-size: 0.82rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   background: var(--bg-soft);
   border: 1px solid var(--border-light);
   transition: color 0.2s ease, border-color 0.2s ease;
@@ -647,36 +676,64 @@ useScrollReveal('.reveal')
   margin-bottom: 24px;
 }
 
-.project-grid {
+/* 项目经历：照片墙式错位布局（等宽两列 + 交错下沉，拼贴交织感） */
+.project-wall {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+/* 阶梯错落：右列整体下沉（卡2、卡4），两行均为左高右低 */
+.project-wall .project-card {
+  &:nth-child(2) {
+    margin-top: 56px;
+  }
+
+  &:nth-child(4) {
+    margin-top: 56px;
+  }
 }
 
 .project-card {
   display: flex;
-  gap: 16px;
-  padding: 24px;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px;
   border: 1px solid var(--border-light);
   border-radius: 12px;
-  transition: border-color 0.2s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  background: var(--bg-card);
+  transition: border-color 0.2s ease, box-shadow 0.25s ease;
 
   &:hover {
     border-color: var(--color-primary);
+    box-shadow: var(--shadow-md);
+  }
+
+  .project-info p {
+    line-height: 1.8;
+    color: var(--text-subtle);
   }
 }
 
-.project-icon {
-  flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: var(--bg-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary);
+/* 卡片升起动画：由项目区块的 reveal（is-visible）触发，依次交错（无独立 JS） */
+.projects-section .project-card {
+  opacity: 0;
+  transform: translateY(40px) scale(0.97);
+  transition:
+    opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:nth-child(2) { transition-delay: 0.1s; }
+  &:nth-child(3) { transition-delay: 0.2s; }
+  &:nth-child(4) { transition-delay: 0.3s; }
 }
+
+.projects-section.reveal.is-visible .project-card {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
 
 .project-info {
   flex: 1;
@@ -695,7 +752,7 @@ useScrollReveal('.reveal')
   p {
     margin: 0 0 12px;
     font-size: 0.88rem;
-    color: var(--text-secondary);
+    color: var(--text-subtle);
     line-height: 1.7;
   }
 }
@@ -757,7 +814,7 @@ useScrollReveal('.reveal')
 
   p {
     margin: 0;
-    color: var(--text-secondary);
+    color: var(--text-subtle);
     line-height: 1.85;
   }
 }
@@ -807,7 +864,7 @@ useScrollReveal('.reveal')
   p {
     margin: 0;
     font-size: 0.88rem;
-    color: var(--text-secondary);
+    color: var(--text-subtle);
     line-height: 1.7;
   }
 }
@@ -842,7 +899,7 @@ useScrollReveal('.reveal')
 
   p {
     margin: 12px 0 0;
-    color: var(--text-secondary);
+    color: var(--text-subtle);
     line-height: 1.75;
   }
 }
@@ -860,7 +917,7 @@ useScrollReveal('.reveal')
   border-radius: 30px;
   border: 1px solid var(--border-base);
   padding: 0 18px;
-  color: var(--text-secondary);
+  color: var(--text-subtle);
   background: var(--bg-card);
 
   &:hover {
@@ -880,24 +937,23 @@ useScrollReveal('.reveal')
   }
 
   .hero-section {
-    padding: 60px 16px 80px;
-  }
-
-  .intro-grid {
-    grid-template-columns: 1fr;
-    gap: 32px;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
+    padding: 48px 24px;
   }
 
   .skill-groups {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .project-grid {
+  /* 移动端：单列堆叠，取消错位下沉 */
+  .project-wall {
     grid-template-columns: 1fr;
+  }
+
+  .project-wall .project-card {
+    &:nth-child(2),
+    &:nth-child(4) {
+      margin-top: 0;
+    }
   }
 
   .honors-spotlight,
@@ -920,7 +976,7 @@ useScrollReveal('.reveal')
   }
 
   .hero-section {
-    padding: 40px 12px 60px;
+    padding: 36px 16px;
   }
 
   .avatar-wrapper {

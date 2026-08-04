@@ -18,6 +18,12 @@ const userStore = useUserStore()
 const isMenuOpen = ref(false)
 const isUserMenuOpen = ref(false)
 
+/** 页面是否下滑（>10px 触发 logo 收缩态） */
+const isScrolled = ref(false)
+const onScroll = () => {
+  isScrolled.value = window.scrollY > 10
+}
+
 /** 导航配置（避免重复写） */
 const navItems = [
   { label: '首页', path: '/', section: 'home', icon: 'home' },
@@ -131,11 +137,14 @@ watch(() => route.path, () => nextTick(updateSlider))
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('resize', updateSlider)
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
   nextTick(updateSlider)
 })
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('resize', updateSlider)
+  window.removeEventListener('scroll', onScroll)
 })
 </script>
 
@@ -145,9 +154,9 @@ onUnmounted(() => {
     <div class="content flex-sb flex-ac">
 
       <!-- LOGO -->
-      <h2 class="logo link text-primary" @click="navigateTo('/')">
+      <h2 class="logo link text-primary" :class="{ scrolled: isScrolled }" @click="navigateTo('/')">
         <img :src="logoUrl" alt="LiuTech" class="logo-mark" @error="handleImageError" />
-        <span>LiuTech</span>
+        <span class="logo-text">LiuTech</span>
       </h2>
 
       <!-- 桌面端导航 -->
@@ -266,11 +275,6 @@ onUnmounted(() => {
           <li @click="emit('open-search'); isMenuOpen = false" class="p-16 hover-bg transition link">
             <Icon name="search" size="18" />搜索文章
           </li>
-          <!-- 主题切换 -->
-          <li @click="theme.toggle" class="p-16 hover-bg transition link">
-            <Icon :name="theme.current.value === 'light' ? 'moon' : 'sun'" size="18" />
-            {{ theme.current.value === 'light' ? '深色模式' : '浅色模式' }}
-          </li>
           <li
             v-for="item in navItems"
             :key="item.path"
@@ -293,7 +297,7 @@ onUnmounted(() => {
           <li v-if="userStore.isLoggedIn" @click="navigateTo('/favorites')" class="p-16 link">
             <Icon name="favorite" size="18" />我的收藏
           </li>
-          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 link">
+          <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 link logout-item">
             <Icon name="close" size="18" />退出登录
           </li>
         </ul>
@@ -328,10 +332,6 @@ onUnmounted(() => {
   border: 1px solid var(--border-soft);
   margin-right: 12px;
 
-  @include respond(md) {
-    display: none;
-  }
-
   &:hover {
     background: var(--bg-hover);
     color: var(--text-main);
@@ -363,6 +363,32 @@ onUnmounted(() => {
   object-fit: contain;
   flex: 0 0 auto;
   border-radius: 8px;
+  transition: all 0.35s ease;
+}
+
+.logo-text {
+  transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+/* 下滑收缩态：文字滑向 logo 并隐藏，logo 变成与搜索框一致的毛玻璃圆钮 */
+.logo.scrolled {
+  .logo-text {
+    transform: translateX(-60px);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .logo-mark {
+    width: 45px;
+    height: 45px;
+    background: var(--surface-glass-muted);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-soft);
+    border-radius: 50%;
+    box-shadow: var(--shadow-sm);
+    padding: 7px;
+  }
 }
 
 header {
@@ -500,7 +526,7 @@ header>div {
   justify-content: center;
   border-radius: 50%;
   @include respond(md) {
-    display: none;
+    display: flex;
   }
 }
 
@@ -554,7 +580,7 @@ ol {
   }
 
   li {
-    padding: 10px 16px;
+    padding: 10px 12px; /* 与全局 .list-item 规范一致 */
     margin: 4px 0;
     border-radius: 12px;
     cursor: pointer;
@@ -577,7 +603,12 @@ ol {
   li:hover {
     background-color: var(--state-primary-bg);
     color: var(--color-primary);
-    padding-left: 20px;
+  }
+
+  /* 退出登录：hover 保持红色语义，不变蓝 */
+  li:last-child:hover {
+    color: var(--color-error);
+    background-color: rgba(239, 68, 68, 0.08);
   }
 }
 
@@ -702,11 +733,11 @@ ol {
   flex-direction: column;
   box-shadow: var(--shadow-lg);
   overflow-y: auto;
-  padding: 12px 8px; /* 调整内边距 */
-  
+  padding: 8px 4px; /* 容器内侧收紧，边缘留白由 li 自身承担 */
+
   li {
-    margin: 4px 8px; /* 减小菜单项间距 */
-    padding: 12px 16px;
+    margin: 2px 6px; /* 仅保留横向呼吸间距，不再叠加内边距 */
+    padding: 8px 12px; /* 与全局 .list-item 规范一致 */
     border-radius: 12px;
     transition: all 0.2s ease;
     font-weight: 500;
@@ -719,16 +750,25 @@ ol {
     box-shadow: none;
     gap: 8px;
   }
-  
+
   li:hover {
     background-color: rgba(var(--color-primary-rgb), 0.1);
     color: var(--color-primary);
-    padding-left: 20px; /* 轻微缩进反馈 */
   }
 
   li:active {
     transform: scale(0.98);
     background-color: var(--state-primary-bg-active);
+  }
+
+  /* 退出登录：红色语义，hover 保持红色 */
+  li.logout-item {
+    color: var(--color-error);
+  }
+
+  li.logout-item:hover {
+    color: var(--color-error);
+    background-color: rgba(239, 68, 68, 0.08);
   }
 }
 
@@ -748,11 +788,5 @@ ol {
   transform: scale(1);
   opacity: 1;
   pointer-events: auto;
-}
-
-
-
-.mobile-drawer li {
-  border-bottom: 1px solid var(--border-light);
 }
 </style>

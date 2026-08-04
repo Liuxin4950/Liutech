@@ -8,7 +8,6 @@
                     <div v-for="category in popularCategories" :key="category.id"
                         class="tag flex flex-ac gap-8 transition link"
                         @click="goToCategory(category.id)">
-                        <Icon :name="getCategoryIcon(category.name)" size="14" />
                         <span class="text-sm font-medium">{{ category.name }}</span>
                         <span class="text-xs text-muted">({{ category.postCount || 0 }})</span>
                     </div>
@@ -44,20 +43,11 @@
                     <!-- 装饰性背景渐变 -->
                     <div class="category-bg"></div>
                     
-                    <div class="flex flex-col gap-16 relative">
-                        <!-- 分类图标和标题 -->
-                        <div class="flex flex-ac gap-16">
-                            <div class="category-icon flex flex-jc shadow-sm">
-                                <Icon :name="getCategoryIcon(category.name)" size="24" />
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="text-lg font-bold text-primary category-title">{{ category.name }}</h3>
-                                <div class="flex flex-ac gap-8">
-                                    <span class="badge text-primary text-xs font-medium">
-                                        {{ category.postCount || 0 }} 篇文章
-                                    </span>
-                                </div>
-                            </div>
+                    <div class="flex flex-col gap-12 relative">
+                        <!-- 标题行：分类名 + 文章数徽章 -->
+                        <div class="flex flex-sb flex-ac">
+                            <h3 class="category-title">{{ category.name }}</h3>
+                            <span class="badge">{{ category.postCount || 0 }} 篇</span>
                         </div>
 
                         <!-- 分类描述 -->
@@ -70,16 +60,10 @@
                             </p>
                         </div>
 
-                        <!-- 底部信息栏 -->
-                        <div class="flex flex-sb flex-ac">
-                            <div class="category-meta flex flex-ac text-xs text-muted">
-                                <Icon name="calendar" size="14" />
-                                <span>最近更新</span>
-                            </div>
-                            <div class="category-arrow flex flex-ac text-primary text-sm link">
-                                <span>查看文章</span>
-                                <Icon name="chevronRight" size="14" class="arrow-icon" />
-                            </div>
+                        <!-- 查看入口 -->
+                        <div class="category-arrow flex flex-ac text-primary text-sm link">
+                            <span>查看文章</span>
+                            <Icon name="chevronRight" size="14" class="arrow-icon" />
                         </div>
                     </div>
                 </div>
@@ -92,7 +76,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { getCategoryIcon } from "@/utils/categoryIcons"
 import { useRouter } from 'vue-router'
 import { useCategoryStore } from '@/stores/category'
 import { useBannerStore } from '@/stores/banner'
@@ -200,25 +183,12 @@ watch([categories, totalPosts], () => {
     opacity: 0.1;
 }
 
-/* 分类图标：主题渐变块 + 白图标 */
-.category-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 12px;
-    color: #fff;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-}
-
-/* 分类标题（原全局 .mb-4 移入） */
+/* 分类标题：无图标后标题为卡片视觉主体，加大加深 */
 .category-title {
-    margin-bottom: 4px;
-}
-
-/* 卡片内徽章（原全局 .bg-primary-light/.px-8/.py-4/.rounded-8 移入） */
-.category-card .badge {
-    background-color: var(--color-primary-light);
-    padding: 4px 8px;
-    border-radius: 8px;
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-title);
 }
 
 /* 空状态标题（原全局 .mb-8 移入） */
@@ -226,10 +196,10 @@ watch([categories, totalPosts], () => {
     margin-bottom: 8px;
 }
 
-/* 底部信息行（原全局 .gap-6/.pt-12 移入） */
-.category-meta,
+/* 查看入口（右对齐） */
 .category-arrow {
     gap: 6px;
+    justify-content: flex-end;
 }
 
 .category-card .flex-sb {
@@ -240,19 +210,6 @@ watch([categories, totalPosts], () => {
 .category-description p:last-child {
     opacity: 0.6;
     font-style: italic;
-}
-
-/* 装饰性背景圆 */
-.category-bg {
-    width: 20px;
-    height: 20px;
-    opacity: 0.1;
-}
-
-/* 分类图标 */
-.category-icon {
-    width: 50px;
-    height: 50px;
 }
 
 .category-card:hover {

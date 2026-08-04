@@ -18,7 +18,7 @@
         </div>
       </div>
 
-      <!-- 文章列表 -->
+      <!-- 文章列表（空状态由页面级统一展示，隐藏组件默认空态，避免双份空状态叠加） -->
       <ArticleList
         :posts="posts"
         :loading="postsLoading"
@@ -27,7 +27,9 @@
         @post-click="goToPost"
         @page-change="changePage"
         @retry="loadPosts"
-      />
+      >
+        <template #empty><span></span></template>
+      </ArticleList>
     </div>
 
     <!-- 空状态 -->

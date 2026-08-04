@@ -210,6 +210,8 @@ const loadPostDetail = async () => {
   }, {
     onError: () => {
       error.value = '加载文章详情失败，请稍后重试'
+      // 文章不存在（草稿/已删除）时恢复默认轮播，避免残留 subheader 空页眉（onMounted 里无条件 setBanner 过）
+      bannerStore.resetBanner()
     },
     onFinally: () => {
       loading.value = false

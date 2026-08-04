@@ -176,14 +176,16 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     /**
-     * 写作模式参数处理：maxTokens 强制提到模型最大输出，保证长正文不被截断。
+     * 写作模式参数处理：maxTokens 在模型上限内尽量取大，保证长正文不被截断。
      * - temperature: 用配置值，未配置时用0.3兜底（减少废话和空调用）
-     * - maxTokens: 强制 writingMaxTokens（默认 32768 = DeepSeek-V3.2 最大输出 32K），管理端配置低于此值时被覆盖
+     * - maxTokens: 取「数据库配置的模型上限」与 writingMaxTokens（默认 32768）的较小值，
+     *   永不超出模型实际上限——曾因 R1 上限仅 8K 却强制 32K，被上游以 503/429 拒绝，
+     *   导致写作助手必现失败而看板娘正常（看板娘直接用数据库配置 8192）。
      */
     private AiModelPolicy.ModelParameters writingParameters(AiModelPolicy.ModelParameters base) {
         Double temperature = base.temperature() != null ? base.temperature() : WRITING_TEMPERATURE;
         int writingMaxTokens = aiChatProperties.getWritingMaxTokens();
-        Integer maxTokens = base.maxTokens() != null ? Math.max(base.maxTokens(), writingMaxTokens) : writingMaxTokens;
+        Integer maxTokens = base.maxTokens() != null ? Math.min(base.maxTokens(), writingMaxTokens) : writingMaxTokens;
         return new AiModelPolicy.ModelParameters(temperature, maxTokens, base.source() + "+writing-fallback");
     }
     /** 解析 temperature / maxTokens,来源可能是请求参数、模型默认值或全局默认。 */

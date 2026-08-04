@@ -27,9 +27,9 @@
       <div class="banner-content">
         <div class="banner-content-inner">
           <transition name="slide-text" mode="out-in">
-            <div v-if="index === currentIndex" :key="currentIndex" class="banner-text" :class="{ 'is-dark': !slide.imageUrl }">
+            <div v-if="index === currentIndex" :key="currentIndex" class="banner-text" :class="{ 'is-dark': !slide.imageUrl, 'is-fallback': isFallback }">
               <span v-if="slide.title" class="banner-title-badge">{{ badgeText }}</span>
-              <component :is="config.titleAs" class="banner-title">{{ slide.title || 'LiuTech' }}<span v-if="config.titleHighlight" class="title-highlight">{{ config.titleHighlight }}</span></component>
+              <component :is="config.titleAs" class="banner-title">{{ slide.title || '欢迎访问' }}<span v-if="bannerTitleHighlight" class="title-highlight">{{ bannerTitleHighlight }}</span></component>
               <p v-if="slide.description" class="banner-desc">{{ slide.description }}</p>
               <div v-if="slide.linkUrl" class="banner-actions">
                 <a :href="slide.linkUrl" target="_blank" rel="noopener noreferrer" class="btn-primary banner-btn">
@@ -97,8 +97,8 @@ const { config } = storeToRefs(bannerStore)
 
 /** 无轮播数据、无页面定制时的默认单张横幅（欢迎语） */
 const fallbackSlide: Carousel = {
-  title: '欢迎访问 LiuTech',
-  description: '全栈工程师的技术博客',
+  title: '欢迎访问 ',
+  description: '小鑫同学的技术博客',
   imageUrl: banner0,
   sortOrder: 0,
   status: 1
@@ -108,6 +108,19 @@ const fallbackSlide: Carousel = {
 const DEFAULT_BADGE_TEXT = 'Welcome'
 const badgeText = computed(() =>
   config.value.slides.length > 0 ? config.value.badgeText : DEFAULT_BADGE_TEXT
+)
+
+/** 默认欢迎语的标题高亮后缀（蓝色 LiuTech），页面定制态沿用各自 config.titleHighlight */
+const FALLBACK_TITLE_HIGHLIGHT = 'LiuTech'
+const bannerTitleHighlight = computed(() => {
+  if (config.value.slides.length > 0) return config.value.titleHighlight
+  // 仅纯默认态（无定制、无接口轮播）追加 LiuTech；接口轮播图用自身标题，不追加
+  return carousels.value.length === 0 ? FALLBACK_TITLE_HIGHLIGHT : ''
+})
+
+/** 是否为默认欢迎语（非定制、无轮播数据），用于区分欢迎语的蓝/橙配色 */
+const isFallback = computed(() =>
+  config.value.slides.length === 0 && carousels.value.length === 0
 )
 
 const carousels = ref<Carousel[]>([])
@@ -135,8 +148,8 @@ const isNext = (index: number) => {
   return index === (currentIndex.value === slides.value.length - 1 ? 0 : currentIndex.value + 1)
 }
 
-// 切换图片时重置加载状态，触发淡入
-watch(() => currentSlide.value.imageUrl, () => {
+// 切换图片时重置加载状态，触发淡入（subheader 占位期 slides 为空，currentSlide 可能为 undefined，需可选链）
+watch(() => currentSlide.value?.imageUrl, () => {
   loadedIndex.value = null
 })
 
@@ -318,6 +331,17 @@ onUnmounted(() => {
   /* 标题橙色高亮后缀词（两种底色下都保留组合语言） */
   .banner-title .title-highlight {
     color: var(--color-secondary);
+  }
+
+  /* 默认欢迎语（未定制且无轮播数据）：LiuTech 高亮蓝色，副标题橙色 */
+  &.is-fallback {
+    .title-highlight {
+      color: var(--color-primary);
+    }
+
+    .banner-desc {
+      color: var(--color-secondary);
+    }
   }
 
   /* 无图模式：文字深色，与浅色渐变底搭配（标题高亮橙色延续页面标题组合语言） */

@@ -201,7 +201,9 @@ public class StreamingChatService {
     /**
      * 写作助手流式入口。
      *
-     * 与看板娘流式的区别:走 WRITING 模式(注册 WritingTools)、不落库、无心跳线程。
+     * 与看板娘流式的区别:走 WRITING 模式(注册 WritingTools)、不落库。
+     * 心跳线程与看板娘一致（CDN 空闲超时会掐断长流，写作长文生成停顿久，
+     * 曾因无心跳导致 ERR_HTTP2_PROTOCOL_ERROR；heartbeat 事件前端已兼容）。
      * 其他 SSE 生命周期、TTS 编排、AvatarCue 逻辑与 {@link #processStreamChat} 共用。
      */
     public SseEmitter processWritingStream(ChatRequest request, Long userId, String modelName,
@@ -212,14 +214,17 @@ public class StreamingChatService {
 
         SseEmitter emitter = new SseEmitter(aiChatProperties.getSseTimeout());
         AtomicReference<ExecutorService> ttsExecutorRef = new AtomicReference<>();
+        AtomicReference<ScheduledExecutorService> heartbeatRef = new AtomicReference<>();
         AtomicBoolean emitterClosed = new AtomicBoolean(false);
 
         emitter.onCompletion(() -> {
             emitterClosed.set(true);
+            SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
             SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
         });
         emitter.onTimeout(() -> {
             emitterClosed.set(true);
+            SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
             SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
             emitter.complete();
         });
@@ -230,6 +235,18 @@ public class StreamingChatService {
 
                 SseEmitterHelper.sendSseEvent(emitter, "start", SseEmitterHelper.eventPayload(
                         "conversationId", conversationId, "model", modelName, "mode", "writing"));
+
+                ScheduledExecutorService hb = Executors.newSingleThreadScheduledExecutor();
+                heartbeatRef.set(hb);
+                hb.scheduleAtFixedRate(() -> {
+                    if (emitterClosed.get()) return;
+                    try {
+                        SseEmitterHelper.sendSseEvent(emitter, "heartbeat", SseEmitterHelper.eventPayload(
+                                "conversationId", conversationId, "timestamp", System.currentTimeMillis()));
+                    } catch (Exception e) {
+                        log.debug("心跳发送失败: {}", e.getMessage());
+                    }
+                }, HEARTBEAT_INITIAL_DELAY_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS);
 
                 FieldUpdateCollector collector = new FieldUpdateCollector();
                 Map<String, Object> toolContext = new HashMap<>();

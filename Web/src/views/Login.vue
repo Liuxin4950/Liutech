@@ -809,11 +809,35 @@ const startEmailCountdown = () => {
   .form-wrapper { padding: 24px; }
 }
 
+// 手机端：直接隐藏右侧品牌区，只保留表单主体，避免纵向溢出
+@include respond(md) {
+  .card-right { display: none; }
+  .card-left { order: 1; }
+  .card-container { border-radius: 12px; }
+
+  // 返回首页悬浮于页面顶部，宽度与卡片一致并水平居中，左缘与卡片左缘对齐
+  .back-home {
+    position: absolute;
+    top: 12px;
+    left: 0;
+    right: 0;
+    width: min(420px, calc(100vw - 40px));
+    margin: 0 auto;
+  }
+}
+
+// 小屏手机：进一步压缩表单间距
 @include respond(sm) {
-  .card-container { max-width: calc(100vw - 24px); }
-  .form-wrapper { padding: 20px; }
-  .card-header h2 { font-size: 1.3rem; }
-  .submit-btn { padding: 12px; }
+  .card-container { max-width: calc(100vw - 20px); }
+  .form-wrapper { padding: 16px; }
+  .card-header { margin-bottom: 16px; }
+  .mode-tabs { margin-bottom: 16px; }
+  .login-mode-tabs { margin-bottom: 12px; }
+  .form-group { margin-bottom: 12px; }
+  .forgot-password { margin-bottom: 12px; }
+  .card-footer { padding-top: 12px; }
+  .submit-btn { min-height: 44px; }
+  .back-home { width: min(420px, calc(100vw - 20px)); }
 }
 </style>
 

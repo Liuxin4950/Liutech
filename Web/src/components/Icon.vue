@@ -26,6 +26,7 @@ const icons: Record<string, string> = {
   eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>', // 查看/眼睛
   heart: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>', // 爱心（空心描边）
   message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>', // 评论气泡
+  messageSquare: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>', // 评论方块气泡
   trash: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>', // 删除
   upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>', // 上传
   check: '<polyline points="20 6 9 17 4 12"></polyline>', // 勾选
@@ -38,6 +39,7 @@ const icons: Record<string, string> = {
 
   // ── 用户 ──
   user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>', // 用户
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>', // 团队/多用户
 
   // ── 内容分类 ──
   fire: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0 1.1.2 2.2.5 3.3a9 9 0 0 0 .9-3.8c.3-.3.6-.6.9-.9v-.1Z"></path>', // 火焰/热门
@@ -119,6 +121,8 @@ const icons: Record<string, string> = {
   spring: '<path d="M12 2C7.5 2 4 5.5 4 10c0 3.5 2 6.5 5 8l-1 4 4-1c1.3.5 2.7.8 4 .8 4.5 0 8-3.5 8-8S16.5 2 12 2z"></path><path d="M12 6c-2.5 0-4.5 2-4.5 4.5S9.5 15 12 15"></path>', // Spring
   typescript: '<rect x="2" y="2" width="20" height="20" rx="3"></rect><path d="M7 7h4M9 7v10"></path><path d="M16 7c2 0 3 1 3 2.5S17.5 12 15.5 12s-1.5 1.5-1.5 2.5 1.5 2.5 3.5 2.5"></path>', // TypeScript
   docker: '<rect x="4" y="10" width="2" height="2"></rect><rect x="8" y="10" width="2" height="2"></rect><rect x="12" y="10" width="2" height="2"></rect><rect x="4" y="14" width="2" height="2"></rect><rect x="8" y="14" width="2" height="2"></rect><rect x="12" y="14" width="2" height="2"></rect><rect x="16" y="14" width="2" height="2"></rect><path d="M22 15.5c0 3-2.5 5-5 5H5c-2 0-3.5-1.5-3.5-3.5S3.5 13.5 5.5 13.5c.5 0 1 .1 1.5.3C8.5 8.5 12.5 5 17 5c4 0 7 3 7 7v3.5z"></path>', // Docker
+  flutter: '<path d="M13.8 2 5 10.8l3 3 8.8-8.8L13.8 2z"></path><path d="M17 5.8 10.8 12l3 3 6.2-6.2L17 5.8z"></path><path d="M19.8 8.6 15.4 13l3 3 4.4-4.4-3-3z"></path>', // Flutter
+  thinkphp: '<rect x="3.5" y="3.5" width="17" height="17" rx="2" transform="rotate(45 12 12)"></rect><path d="M9.5 15V9h5"></path><path d="M9.5 12h3"></path>', // ThinkPHP
 
   // ── 通讯与分享 ──
   send: '<line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>', // 发送

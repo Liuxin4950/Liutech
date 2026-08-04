@@ -313,9 +313,6 @@ onMounted(() => {
   transform: translateY(-2px);
 }
 
-.posts-container {
-  min-height: 400px;
-}
 
 .loading-state,
 .error-state,

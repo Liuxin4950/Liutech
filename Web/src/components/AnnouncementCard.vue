@@ -121,8 +121,8 @@ onUnmounted(() => {
         <span class="text-sm">加载中...</span>
       </div>
       <template v-else>
+        <!-- <img src="@/assets/image/扑到.png" alt="" class="fit-err"> -->
         <span class="text-sm">暂无公告</span>
-        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
       </template>
     </div>
     <div v-else class="list">

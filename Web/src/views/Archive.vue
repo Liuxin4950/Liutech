@@ -4,15 +4,15 @@
     <div class="stats-card card rounded-lg text-center">
       <div class="stats-row flex flex-jc">
         <div class="stat-item">
-          <div class="text-2xl font-bold text-primary">{{ totalPosts }}</div>
+          <div class="stat-num text-2xl font-bold">{{ totalPosts }}</div>
           <div class="text-sm text-subtle">篇文章</div>
         </div>
         <div class="stat-item">
-          <div class="text-2xl font-bold text-primary">{{ monthCount }}</div>
+          <div class="stat-num text-2xl font-bold">{{ monthCount }}</div>
           <div class="text-sm text-subtle">个月份</div>
         </div>
         <div class="stat-item">
-          <div class="text-2xl font-bold text-primary">{{ yearCount }}</div>
+          <div class="stat-num text-2xl font-bold">{{ yearCount }}</div>
           <div class="text-sm text-subtle">个年份</div>
         </div>
       </div>
@@ -31,39 +31,37 @@
     </div>
 
     <!-- 归档列表 -->
-    <div v-else class="archive-list ">
+    <div v-else class="archive-list">
       <div v-for="yearData in groupedArchive" :key="yearData.year" class="year-group">
         <!-- 年份标题 -->
         <div class="year-header flex flex-ac gap-12 mb-20">
-          <h2 class="text-2xl font-bold">{{ yearData.year }}</h2>
+          <h2 class="font-bold">{{ yearData.year }}</h2>
           <span class="text-sm text-subtle">({{ yearData.totalPosts }}篇文章)</span>
         </div>
 
         <!-- 月份列表 -->
         <div class="month-list">
           <div v-for="monthData in yearData.months" :key="monthData.month" class="month-group mb-20">
-            <!-- 月份标题 -->
-            <div class="month-header flex flex-ac gap-12 mb-12 cursor-pointer" 
+            <!-- 月份标题（展开态激活样式：主色 + 箭头旋转） -->
+            <div class="month-header flex flex-ac gap-12 mb-12 cursor-pointer"
+                 :class="{ active: expandedMonths[`${yearData.year}-${monthData.month}`] }"
                  @click="toggleMonth(yearData.year, monthData.month)">
               <h3 class="text-lg font-semibold">{{ monthData.monthName }}</h3>
               <span class="text-sm text-subtle">({{ monthData.posts.length }}篇)</span>
-              <span class="toggle" style="color: var(--text-muted)">
-                {{ expandedMonths[`${yearData.year}-${monthData.month}`] ? '▼' : '▶' }}
-              </span>
+              <span class="toggle">▶</span>
             </div>
 
             <!-- 文章列表 -->
             <div v-show="expandedMonths[`${yearData.year}-${monthData.month}`]"
                  class="posts-list rounded-lg">
               <div v-for="post in monthData.posts" :key="post.id"
-                   class="post-item bg-card mb-16 flex flex-ac gap-12 transition cursor-pointer"
-                   style="border-color: var(--border-light)"
+                   class="post-item flex flex-ac gap-12 transition cursor-pointer"
                    @click="goToPost(post.id)">
                 <div class="post-date text-sm text-subtle">
                   {{ formatDate(post.createdAt, 'MM-dd') }}
                 </div>
                 <div class="post-info flex-1">
-                  <h4 class="post-title text-base font-medium transition">{{ post.title }}</h4>
+                  <h4 class="post-title text-lg font-medium transition">{{ post.title }}</h4>
                   <div class="post-meta flex flex-ac gap-12 text-xs text-subtle">
                     <span>{{ post.category?.name }}</span>
                     <span v-if="post.tags && post.tags.length > 0">
@@ -261,10 +259,53 @@ bannerStore.setBanner({
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+.archive-list{
+  margin-top: 10px;
+}
 
+/* 统计数字：深色标题色（数据数字不用主色，对齐设计规范） */
+.stat-num {
+  color: var(--text-title);
+}
+
+/* 年份分组标题 */
+.year-header h2 {
+  font-size: 1.25rem;
+}
+
+/* 月份标题：hover 与展开态均为主色，箭头旋转表达开合 */
+.month-header {
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+
+  &.active {
+    color: var(--color-primary);
+
+    .toggle {
+      transform: rotate(90deg);
+    }
+  }
+
+  .toggle {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+  }
+}
+
+/* 文章条目：对齐全局 .list-item 规范（10px 12px / 8px 圆角 / 底部分隔线 / hover bg-hover） */
 .post-item {
-  border-left: 2px solid var(--border-light);
-  padding: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-bottom: 1px solid var(--border-light);
+
+  &:last-child {
+    border-bottom: none;
+  }
 
   &:hover {
     background: var(--bg-hover);
@@ -278,14 +319,6 @@ bannerStore.setBanner({
 
 .post-title:hover {
   color: var(--color-primary);
-}
-
-.month-header:hover {
-  color: var(--color-primary);
-}
-
-.month-header .toggle {
-  margin-left: auto;
 }
 
 .stat-item {

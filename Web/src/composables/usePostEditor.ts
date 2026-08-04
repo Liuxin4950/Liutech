@@ -789,7 +789,12 @@ export function usePostEditor() {
         ? (form.value.status === 'draft' ? '更新草稿' : '更新文章')
         : (form.value.status === 'draft' ? '保存草稿' : '发布文章')
       await Swal.fire('成功', `${actionText}成功！`, 'success')
-      router.push(`/post/${postId}?from=home`)
+      // 草稿对前台公开详情接口不可见，跳详情会报"文章不存在"；只有已发布文章才跳详情页
+      if (form.value.status === 'draft') {
+        router.push('/drafts')
+      } else {
+        router.push(`/post/${postId}?from=home`)
+      }
     }, {
       onError: () => {
         const actionText = isEditMode.value
