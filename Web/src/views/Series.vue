@@ -1,16 +1,5 @@
 <template>
   <div class="series-page content">
-    <!-- 页面头部 -->
-    <div class="card bg-card mb-16 shadow-sm">
-      <div class="page-title">
-        <span class="title-badge"><Icon name="book" size="12" /> Series</span>
-        <h1 class="title-heading">文章<span class="title-highlight">系列</span></h1>
-        <p class="title-desc">按系列浏览连载文章，从第一篇开始系统学习</p>
-        <div class="title-meta">
-          <span class="badge">共 {{ seriesList.length }} 个系列</span>
-        </div>
-      </div>
-    </div>
 
     <!-- 系列网格 -->
     <div class="card shadow-sm mb-16">
@@ -49,14 +38,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { SeriesService, type PostSeries } from '@/services/series'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
+const bannerStore = useBannerStore()
 
 const seriesList = ref<PostSeries[]>([])
 const loading = ref(false)
@@ -77,6 +69,24 @@ const loadSeries = async () => {
 const goToDetail = (id: number) => router.push(`/series-detail/${id}`)
 
 onMounted(loadSeries)
+
+// Banner 页眉：文章系列（系列列表页承担页面标题，移除原卡片标题）
+watch(seriesList, () => {
+  if (seriesList.value.length === 0) return
+  bannerStore.setBanner({
+    slides: [{
+      title: '文章',
+      description: `共 ${seriesList.value.length} 个系列 · 按系列浏览连载文章`,
+      imageUrl: bannerFallback,
+      sortOrder: 0,
+      status: 1
+    }],
+    badgeText: 'Series',
+    titleAs: 'h1',
+    titleHighlight: '系列',
+    mode: 'subheader'
+  })
+})
 </script>
 
 <style scoped lang="scss">

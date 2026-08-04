@@ -34,6 +34,16 @@ const loginMessage = ref('')
 
 const chatStore = useChatStore()
 const bannerStore = useBannerStore()
+
+// Banner 定制集中管理：定制页进入时自行 setBanner 覆盖，这里只在进入非定制页时恢复默认轮播。
+// 不用"页面卸载时 resetBanner"——路由切换时旧页面的 reset 可能晚于新页面的 set 执行，产生竞态。
+const CUSTOM_BANNER_PATHS = ['/post/', '/category-detail/', '/tags', '/series', '/categories', '/archive', '/about']
+watch(() => route.path, () => {
+  if (!CUSTOM_BANNER_PATHS.some(p => route.path.startsWith(p))) {
+    bannerStore.resetBanner()
+  }
+}, { immediate: true })
+
 const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
 const aiChatRef = ref<InstanceType<typeof AiChat> | null>(null)
 const bottomNavRef = ref<InstanceType<typeof BottomNavigation> | null>(null)
@@ -165,7 +175,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   <div class="main-layout">
     <TheHeader class="header" @open-search="searchModalRef?.open()" />
     <main class="main-content">
-      <Banner class="banner" :class="{ 'banner--compact': bannerStore.compact }" />
+      <Banner class="banner" :class="{ 'banner--subheader': bannerStore.config.mode === 'subheader' }" />
       <Breadcrumb />
       <router-view />
       <div v-if="chatStore.showModel || chatStore.showChat" class="ai-content" :class="{ 'expanded': chatStore.isExpanded }">
@@ -266,25 +276,23 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 }
 
 .banner {
-  min-height: 600px;
+  min-height: 500px;
   @include respond(md) {
     min-height: 400px;
-
   }
   @include respond(sm) {
-    min-height: 300px;
-
+    min-height: 320px;
   }
 }
 
-/* 紧凑模式（文章详情页）：页眉定位，更矮；min-height 与 Banner 内部 transition 配合产生高度过渡动画 */
-.banner--compact {
-  min-height: 340px;
+/* 内容页页眉（subheader）：矮页眉，min-height 与 Banner 内部 transition 配合产生高度过渡动画 */
+.banner--subheader {
+  min-height: 280px;
   @include respond(md) {
-    min-height: 280px;
+    min-height: 240px;
   }
   @include respond(sm) {
-    min-height: 240px;
+    min-height: 200px;
   }
 }
 

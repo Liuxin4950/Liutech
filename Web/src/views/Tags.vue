@@ -1,18 +1,5 @@
 <template>
   <div class="tags-page content">
-    <!-- 页面头部 -->
-    <div class="card bg-card mb-16">
-      <div class="page-title">
-        <span class="title-badge"><Icon name="tag" size="12" /> Tag Cloud</span>
-        <h1 class="title-heading">标签<span class="title-highlight">云</span></h1>
-        <p class="title-desc">探索不同主题的文章标签</p>
-        <div class="title-meta">
-          <span class="badge">共 {{ tags.length }} 个标签</span>
-          <span class="badge">{{ totalPosts }} 篇文章</span>
-        </div>
-      </div>
-    </div>
-
     <!-- 热门标签 -->
     <div v-if="popularTags.length > 0" class="card bg-card mb-16">
       <div class="flex flex-col gap-16">
@@ -84,10 +71,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useTagStore } from '@/stores/tag'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 import type { Tag } from '@/services/tag'
 import Icon from '@/components/Icon.vue'
 
 const tagStore = useTagStore()
+const bannerStore = useBannerStore()
 const searchKeyword = ref('')
 const searchResults = ref<Tag[]>([])
 
@@ -166,6 +156,25 @@ const getTagIcon = (tagName: string): string => {
 onMounted(async () => {
   await tagStore.initTags()
 })
+
+// Banner 页眉：标签云（一级页面，500px hero 大横幅承担页面标题）
+// immediate：store 持久化缓存命中时 tags 初始即有值、无变化，需立即定制
+watch([tags, totalPosts], () => {
+  if (tags.value.length === 0) return
+  bannerStore.setBanner({
+    slides: [{
+      title: '标签',
+      description: `共 ${tags.value.length} 个标签 · ${totalPosts.value} 篇文章`,
+      imageUrl: bannerFallback,
+      sortOrder: 0,
+      status: 1
+    }],
+    badgeText: 'Tag Cloud',
+    titleAs: 'h1',
+    titleHighlight: '云',
+    mode: 'hero'
+  })
+}, { immediate: true })
 </script>
 
 <style scoped lang="scss">

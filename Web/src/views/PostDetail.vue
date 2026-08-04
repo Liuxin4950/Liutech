@@ -43,14 +43,20 @@ const post = ref<PostDetail | null>(null)
 const bannerStore = useBannerStore()
 watch(() => post.value, (p) => {
   if (p) {
-    bannerStore.setBanner([{
-      title: p.title,
-      description: '', // 摘要不展示在 Banner，卡片头部已有
-      imageUrl: p.coverImage || bannerFallback, // 无封面时回退到默认品牌图
-      linkUrl: '',
-      sortOrder: 0,
-      status: 1
-    }], { badgeText: p.category?.name || '文章', titleAs: 'h1', compact: true })
+    bannerStore.setBanner({
+      slides: [{
+        title: p.title,
+        description: '', // 摘要不展示在 Banner，卡片头部已有
+        imageUrl: p.coverImage || bannerFallback, // 无封面时回退默认品牌图
+        linkUrl: '',
+        sortOrder: 0,
+        status: 1
+      }],
+      badgeText: p.category?.name || '文章',
+      titleAs: 'h1',
+      titleHighlight: '',
+      mode: 'subheader'
+    })
   }
 })
 
@@ -412,17 +418,22 @@ watch(() => route.params.id, () => {
 
 // 组件挂载时加载数据
 onMounted(() => {
-  // 立即进入紧凑 Banner 模式，避免加载期间高度（600px）与内容跳变；文章数据到达后 watch 再注入标题
-  bannerStore.setBanner([], { compact: true })
+  // 立即进入 subheader 页眉模式（空配置），避免加载期间高度（500px）与内容跳变；文章数据到达后 watch 再注入标题
+  bannerStore.setBanner({
+    slides: [],
+    badgeText: '',
+    titleAs: 'h1',
+    titleHighlight: '',
+    mode: 'subheader'
+  })
   loadPostDetail()
   // 添加点击外部区域关闭分享选项的事件监听
   document.addEventListener('click', handleClickOutside)
 })
 
-// 组件卸载时清理事件监听器，并恢复 Banner 默认轮播内容
+// 组件卸载时清理事件监听器（Banner 恢复由 MainLayout 路由监听统一处理，避免切换竞态）
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
-  bannerStore.resetBanner()
 })
 
 const interactionStore = usePostInteractionStore()

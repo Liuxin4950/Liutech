@@ -7,7 +7,8 @@
       class="banner-slide"
       :class="{ 'is-active': index === currentIndex, 'is-prev': isPrev(index), 'is-next': isNext(index) }"
     >
-      <div class="banner-image-wrapper">
+      <!-- 无图模式（内容页 subheader）：渐变底 + 光斑装饰，不渲染图片 -->
+      <div v-if="slide.imageUrl" class="banner-image-wrapper">
         <img
           class="banner-image"
           :class="{ 'is-loaded': loadedIndex === index }"
@@ -16,18 +17,19 @@
           loading="eager"
           fetchpriority="high"
           @load="onImageLoad(index)"
-          @error="handleImageError"
+          @error="handleBannerImageError"
         >
         <div class="banner-overlay"></div>
       </div>
+      <div v-else class="banner-decor"></div>
 
-      <!-- 文字内容层（文章详情页由 banner store 注入文章标题/分类） -->
+      <!-- 文字内容层（内容页由 banner store 注入页面标题/英文标签） -->
       <div class="banner-content">
         <div class="banner-content-inner">
           <transition name="slide-text" mode="out-in">
-            <div v-if="index === currentIndex" :key="currentIndex" class="banner-text">
-              <span v-if="slide.title" class="banner-title-badge">{{ bannerStore.badgeText }}</span>
-              <component :is="bannerStore.titleAs" class="banner-title">{{ slide.title || 'LiuTech' }}</component>
+            <div v-if="index === currentIndex" :key="currentIndex" class="banner-text" :class="{ 'is-dark': !slide.imageUrl }">
+              <span v-if="slide.title" class="banner-title-badge">{{ badgeText }}</span>
+              <component :is="config.titleAs" class="banner-title">{{ slide.title || 'LiuTech' }}<span v-if="config.titleHighlight" class="title-highlight">{{ config.titleHighlight }}</span></component>
               <p v-if="slide.description" class="banner-desc">{{ slide.description }}</p>
               <div v-if="slide.linkUrl" class="banner-actions">
                 <a :href="slide.linkUrl" target="_blank" rel="noopener noreferrer" class="btn-primary banner-btn">
@@ -84,32 +86,41 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import CarouselService, { type Carousel } from '@/services/carousel'
-import { handleImageError } from '@/composables/useImageFallback'
 import { useBannerStore } from '@/stores/banner'
 import banner0 from '@/assets/image/banner/banner0.png'
 
 const bannerStore = useBannerStore()
+// storeToRefs 保持响应性：直接解构 store 属性拿到的是对象快照，setBanner 后不会更新
+const { config } = storeToRefs(bannerStore)
 
-/** 无轮播数据、无页面定制时的默认单张横幅 */
+/** 无轮播数据、无页面定制时的默认单张横幅（欢迎语） */
 const fallbackSlide: Carousel = {
-  title: 'LiuTech',
+  title: '欢迎访问 LiuTech',
   description: '全栈工程师的技术博客',
   imageUrl: banner0,
   sortOrder: 0,
   status: 1
 }
 
+/** 默认展示态（页面未定制时的徽标与标签），属组件展示层，store 保持无状态 */
+const DEFAULT_BADGE_TEXT = 'Welcome'
+const badgeText = computed(() =>
+  config.value.slides.length > 0 ? config.value.badgeText : DEFAULT_BADGE_TEXT
+)
+
 const carousels = ref<Carousel[]>([])
 const currentIndex = ref(0)
 const loadedIndex = ref<number | null>(null)
 let autoPlayTimer: number | null = null
 
-// 数据优先级：页面定制（banner store）> 接口轮播 > 默认单张
+// 数据优先级：页面定制（banner store）> 接口轮播 > 默认单张（仅 hero 模式）
+// subheader 定制页数据未到时返回空列表：不显示 LiuTech 默认内容，只留渐变页眉背景
 const slides = computed<Carousel[]>(() => {
-  if (bannerStore.customSlides.length > 0) return bannerStore.customSlides
+  if (config.value.slides.length > 0) return config.value.slides
   if (carousels.value.length > 0) return carousels.value
-  return [fallbackSlide]
+  return config.value.mode === 'hero' ? [fallbackSlide] : []
 })
 
 const currentSlide = computed(() => slides.value[currentIndex.value])
@@ -132,6 +143,12 @@ watch(() => currentSlide.value.imageUrl, () => {
 const onImageLoad = (index: number) => {
   loadedIndex.value = index
   preloadNext()
+}
+
+// 图片加载失败回退默认品牌图（与无封面时一致）
+const handleBannerImageError = (e: Event) => {
+  const img = e.target as HTMLImageElement
+  if (img.src !== banner0) img.src = banner0
 }
 
 // 预加载下一张，减少切换时的等待
@@ -257,6 +274,16 @@ onUnmounted(() => {
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.45) 60%, rgba(0, 0, 0, 0.6) 100%);
 }
 
+/* 无图模式装饰层（subheader）：柔和渐变 + 径向光斑，替代图片承担视觉主体 */
+.banner-decor {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(640px 320px at 88% -10%, rgba(var(--color-primary-rgb), 0.14), transparent 70%),
+    radial-gradient(560px 300px at 8% 120%, rgba(224, 122, 95, 0.16), transparent 70%);
+}
+
 /* ===== 文字内容层 ===== */
 .banner-content {
   position: absolute;
@@ -287,6 +314,32 @@ onUnmounted(() => {
 .banner-text {
   max-width: 600px;
   color: #fff;
+
+  /* 标题橙色高亮后缀词（两种底色下都保留组合语言） */
+  .banner-title .title-highlight {
+    color: var(--color-secondary);
+  }
+
+  /* 无图模式：文字深色，与浅色渐变底搭配（标题高亮橙色延续页面标题组合语言） */
+  &.is-dark {
+    color: var(--text-title);
+
+    .banner-title-badge {
+      color: var(--color-primary);
+      background: rgba(var(--color-primary-rgb), 0.1);
+      border-color: rgba(var(--color-primary-rgb), 0.16);
+    }
+
+    .banner-title {
+      color: var(--text-title);
+      text-shadow: none;
+    }
+
+    .banner-desc {
+      color: var(--text-subtle);
+      text-shadow: none;
+    }
+  }
 }
 
 /* 徽标：参考 Gardyn subheader 的 crumb —— 白字 + 半透明白底药丸 */
@@ -402,15 +455,13 @@ onUnmounted(() => {
   }
 }
 
-/* ===== 波浪（装饰，衔接下方主题底色） ===== */
+/* ===== 波浪（装饰，衔接下方主题底色；hero 48px / subheader 40px） ===== */
 .waves {
   position: absolute;
   bottom: 0;
   z-index: 10;
   width: 100%;
-  height: 10vh;
-  min-height: 100px;
-  max-height: 150px;
+  height: 48px;
 }
 
 .wave-1 { fill: var(--bg-main); opacity: 0.7; }
@@ -427,37 +478,33 @@ onUnmounted(() => {
 .parallax > use:nth-child(3) { animation-delay: -4s; animation-duration: 13s; }
 .parallax > use:nth-child(4) { animation-delay: -5s; animation-duration: 20s; }
 
-/* ===== 紧凑模式（文章详情页）：更矮的页眉形态 =====
-   保留波浪作为与内容的衔接；文字集中在底部、波浪收敛、标题占满容器 */
-.banner-header.banner--compact {
-  min-height: 340px;
+/* ===== 内容页页眉（subheader）：矮、垂直居中左对齐，参考 Gardyn subheader =====
+   无图时渐变底 + 光斑装饰，标题带橙色高亮后缀；有图时图片 + 白字 */
+.banner-header.banner--subheader {
+  min-height: 280px;
+  background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg-element) 100%);
 
-  .banner-text { max-width: none; }
+  .banner-text { max-width: 720px; }
 
   .banner-content {
-    align-items: flex-end;
-    padding: 64px 0 88px;
+    align-items: center;
+    padding: 40px 0;
   }
 
   .banner-title {
     margin-bottom: 0;
-    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
   }
 
-  .waves {
-    height: 48px;
-    min-height: 48px;
-    max-height: 48px;
-  }
+  .waves { height: 40px; }
 
   @include respond(md) {
-    min-height: 280px;
-    .banner-content { padding: 48px 0 64px; }
+    min-height: 240px;
   }
 
   @include respond(sm) {
-    min-height: 240px;
-    .banner-content { padding: 40px 0 48px; }
+    min-height: 200px;
+    .banner-content { padding: 32px 0; }
   }
 }
 
@@ -469,20 +516,18 @@ onUnmounted(() => {
   .banner-nav.prev { left: 12px; }
   .banner-nav.next { right: 12px; }
 
-  .banner-dots { bottom: 70px; }
-
-  .waves { height: 40px; min-height: 40px; }
+  .banner-dots { bottom: 60px; }
 }
 
 @include respond(sm) {
   .banner-content {
-    align-items: flex-end;
-    padding: 40px 0 100px;
+    align-items: center;
+    padding: 32px 0;
   }
 
   .banner-title { margin-bottom: 10px; }
   .banner-desc { margin-bottom: 20px; }
-  .banner-dots { bottom: 60px; }
+  .banner-dots { bottom: 48px; }
 }
 
 @keyframes kenBurns {

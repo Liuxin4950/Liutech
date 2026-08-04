@@ -1,20 +1,5 @@
 <template>
   <div class="series-posts content">
-    <!-- 系列头部 -->
-    <div v-if="series" class="card bg-card mb-16">
-      <div v-if="series.coverImage" class="series-hero">
-        <img :src="series.coverImage" :alt="series.name" />
-      </div>
-      <div class="page-title">
-        <span class="title-badge"><Icon name="book" size="12" /> Series</span>
-        <h1 class="title-heading">{{ series.name }}<span class="title-highlight">系列</span></h1>
-        <p v-if="series.description" class="title-desc">{{ series.description }}</p>
-        <div class="title-meta">
-          <span class="badge">共 {{ totalPosts }} 篇文章</span>
-        </div>
-      </div>
-    </div>
-
     <!-- 空/错误状态 -->
     <div v-if="seriesError || (!loading && posts.length === 0)" class="empty-text flex flex-col flex-ac text-sm">
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
@@ -43,17 +28,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { PostService, type PostListItem } from '@/services/post'
 import { SeriesService, type PostSeries } from '@/services/series'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import Icon from '@/components/Icon.vue'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 import ArticleList from '@/components/ArticleList.vue'
 
 const router = useRouter()
 const route = useRoute()
 const { handleAsync } = useErrorHandler()
+const bannerStore = useBannerStore()
 
 const posts = ref<PostListItem[]>([])
 const series = ref<PostSeries | null>(null)
@@ -124,20 +111,31 @@ const goToPost = (postId: number) => {
 onMounted(() => {
   Promise.all([loadSeries(), loadPosts()])
 })
+
+// Banner 页眉：系列名 + 橙色"系列"高亮 + 英文徽标；有封面图时直接作页眉背景
+watch([series, totalPosts], () => {
+  if (!series.value) return
+  bannerStore.setBanner({
+    slides: [{
+      title: series.value.name,
+      description: series.value.description || (totalPosts.value ? `共 ${totalPosts.value} 篇文章` : ''),
+      imageUrl: series.value.coverImage || bannerFallback,
+      sortOrder: 0,
+      status: 1
+    }],
+    badgeText: 'Series',
+    titleAs: 'h1',
+    titleHighlight: '系列',
+    mode: 'subheader'
+  })
+})
+
 </script>
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
 .series-posts { padding: 20px; }
-
-.series-hero {
-  height: 200px;
-  overflow: hidden;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  img { width: 100%; height: 100%; object-fit: cover; }
-}
 
 .create-btn.outline {
   background: transparent;

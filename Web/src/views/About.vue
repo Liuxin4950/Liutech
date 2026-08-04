@@ -5,6 +5,8 @@ import Icon from "../components/Icon.vue"
 import SectionTitle from "@/components/SectionTitle.vue"
 import { handleImageError } from "@/composables/useImageFallback"
 import { useScrollReveal } from "@/composables/useScrollReveal"
+import { useBannerStore } from "@/stores/banner"
+import bannerFallback from "@/assets/image/banner/banner0.png"
 import MessageModal from "@/components/MessageModal.vue"
 import moonImg from "@/assets/image/moon.png"
 import aboutHonorsImg from "@/assets/image/about/about-honors-collage.png"
@@ -139,6 +141,22 @@ useHead({
 
 onMounted(() => {
   loadProfile()
+})
+
+// Banner 页眉：关于我（一级页面，500px hero 大横幅承担页面标题）
+const bannerStore = useBannerStore()
+bannerStore.setBanner({
+  slides: [{
+    title: '关于',
+    description: '全栈工程师 & 技术博主 · 专注 Spring Boot、Vue 3 与 AI 应用实践',
+    imageUrl: bannerFallback,
+    sortOrder: 0,
+    status: 1
+  }],
+  badgeText: 'About Me',
+  titleAs: 'h1',
+  titleHighlight: '我',
+  mode: 'hero'
 })
 
 useScrollReveal('.reveal')

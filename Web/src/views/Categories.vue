@@ -1,17 +1,5 @@
 <template>
     <div class="categories-page content">
-        <!-- 页面头部 -->
-        <div class="card bg-card mb-16 shadow-sm">
-            <div class="page-title">
-                <span class="title-badge"><Icon name="folder" size="12" /> Categories</span>
-                <h1 class="title-heading">文章<span class="title-highlight">分类</span></h1>
-                <p class="title-desc">浏览不同主题的文章内容，找到你感兴趣的话题</p>
-                <div class="title-meta">
-                    <span class="badge">共 {{ categories.length }} 个分类</span>
-                    <span class="badge">{{ totalPosts }} 篇文章</span>
-                </div>
-            </div>
-        </div>
         <!-- 热门分类 -->
         <div v-if="popularCategories.length > 0" class="card bg-card shadow-sm mb-16">
             <div class="flex flex-col gap-16">
@@ -103,16 +91,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { getCategoryIcon } from "@/utils/categoryIcons"
 import { useRouter } from 'vue-router'
 import { useCategoryStore } from '@/stores/category'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import type { Category } from '@/services/category'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
 const categoryStore = useCategoryStore()
+const bannerStore = useBannerStore()
 const { handleAsync } = useErrorHandler()
 
 // 响应式数据
@@ -169,12 +160,28 @@ const goToCategory = (categoryId: number) => {
 onMounted(() => {
     loadCategories()
 })
+
+// Banner 页眉：文章分类（一级页面，500px hero 大横幅承担页面标题）
+watch([categories, totalPosts], () => {
+    if (categories.value.length === 0) return
+    bannerStore.setBanner({
+        slides: [{
+            title: '文章',
+            description: `共 ${categories.value.length} 个分类 · ${totalPosts.value} 篇文章`,
+            imageUrl: bannerFallback,
+            sortOrder: 0,
+            status: 1
+        }],
+        badgeText: 'Categories',
+        titleAs: 'h1',
+        titleHighlight: '分类',
+        mode: 'hero'
+    })
+})
 </script>
 
-<style scoped>
-/* 分类页面样式优化 */
-.categories-page {
-}
+<style scoped lang="scss">
+@use "@/assets/styles/tokens" as *;
 
 /* 分类卡片样式 */
 .category-card {

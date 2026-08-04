@@ -1,17 +1,5 @@
 <template>
   <div class="category-posts content">
-    <!-- 页面头部 -->
-    <div v-if="category" class="card bg-card mb-16">
-      <div class="page-title">
-        <span class="title-badge"><Icon name="folder" size="12" /> Category</span>
-        <h1 class="title-heading">{{ category.name }}<span class="title-highlight">分类</span></h1>
-        <p v-if="category.description" class="title-desc">{{ category.description }}</p>
-        <div class="title-meta">
-          <span class="badge">共 {{ totalPosts }} 篇文章</span>
-        </div>
-      </div>
-    </div>
-
     <!-- 空/错误状态 -->
     <div v-if="categoryError || (!loading && posts.length === 0)" class="empty-text flex flex-col flex-ac text-sm">
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
@@ -40,19 +28,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { PostService, type PostListItem } from '@/services/post'
 import type { Category } from '@/services/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
-import Icon from '@/components/Icon.vue'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 import ArticleList from '@/components/ArticleList.vue'
 
 const router = useRouter()
 const route = useRoute()
 const { handleAsync } = useErrorHandler()
 const categoryStore = useCategoryStore()
+const bannerStore = useBannerStore()
 
 // 响应式数据
 const posts = ref<PostListItem[]>([])
@@ -144,6 +134,24 @@ const goToPost = (postId: number) => {
   if (name) query.set('categoryName', name)
   router.push(`/post/${postId}?${query.toString()}`)
 }
+
+// Banner 页眉：分类名 + 橙色"分类"高亮 + 英文徽标（分类详情页承担页面标题，移除原卡片标题）
+watch([category, totalPosts], () => {
+  if (!category.value) return
+  bannerStore.setBanner({
+    slides: [{
+      title: category.value.name,
+      description: category.value.description || (totalPosts.value ? `共 ${totalPosts.value} 篇文章` : ''),
+      imageUrl: bannerFallback,
+      sortOrder: 0,
+      status: 1
+    }],
+    badgeText: 'Category',
+    titleAs: 'h1',
+    titleHighlight: '分类',
+    mode: 'subheader'
+  })
+})
 
 // 组件挂载时加载数据
 onMounted(() => {

@@ -1,12 +1,5 @@
 ﻿<template>
   <div class="content">
-    <!-- 页面标题 -->
-    <div class="page-title is-center mb-20">
-      <span class="title-badge"><Icon name="archive" size="12" /> Archive</span>
-      <h1 class="title-heading">文章<span class="title-highlight">归档</span></h1>
-      <p class="title-desc">按时间浏览所有文章</p>
-    </div>
-
     <!-- 统计信息 -->
     <div class="stats-card card rounded-lg text-center">
       <div class="stats-row flex flex-jc">
@@ -101,6 +94,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { PostService, type PostListItem } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
@@ -245,6 +240,22 @@ const loadArchiveData = async () => {
 // 组件挂载时加载数据
 onMounted(() => {
   loadArchiveData()
+})
+
+// Banner 页眉：文章归档（一级页面，500px hero 大横幅承担页面标题）
+const bannerStore = useBannerStore()
+bannerStore.setBanner({
+  slides: [{
+    title: '文章',
+    description: '按时间浏览所有文章',
+    imageUrl: bannerFallback,
+    sortOrder: 0,
+    status: 1
+  }],
+  badgeText: 'Archive',
+  titleAs: 'h1',
+  titleHighlight: '归档',
+  mode: 'hero'
 })
 </script>
 

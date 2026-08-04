@@ -1,18 +1,7 @@
 <template>
   <div class="content">
-    <!-- 标签头部 -->
-    <div v-if="tagInfo" class="card bg-card mb-16">
-      <div class="page-title">
-        <span class="title-badge"><Icon name="tag" size="12" /> Tag</span>
-        <h1 class="title-heading">{{ tagInfo.name }}<span class="title-highlight">标签</span></h1>
-        <div class="title-meta">
-          <span class="badge">{{ tagInfo.postCount || 0 }} 篇文章</span>
-        </div>
-      </div>
-    </div>
-
     <!-- 加载状态 -->
-    <div v-else-if="loading" class="text-center p-20 text-sm">
+    <div v-if="loading && !tagInfo" class="text-center p-20 text-sm">
       <div class="loading-spinner"></div>
       <p class="loading-text">正在加载标签信息...</p>
     </div>
@@ -55,18 +44,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { TagService, type Tag } from '@/services/tag'
 import { PostService, type PostListItem, type PageResponse } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 import ArticleList from '@/components/ArticleList.vue'
-import Icon from '@/components/Icon.vue'
 
 // 路由相关
 const route = useRoute()
 const router = useRouter()
 const { showBusinessError } = useErrorHandler()
+const bannerStore = useBannerStore()
 
 // 响应式数据
 const tagInfo = ref<Tag | null>(null)
@@ -173,15 +164,29 @@ const goToPost = (postId: number) => {
 onMounted(() => {
   loadTagInfo()
 })
+
+// Banner 页眉：标签名 + 橙色"标签"高亮 + 英文徽标（标签详情页承担页面标题，移除原卡片标题）
+watch(tagInfo, () => {
+  if (!tagInfo.value) return
+  bannerStore.setBanner({
+    slides: [{
+      title: tagInfo.value.name,
+      description: `${tagInfo.value.postCount || 0} 篇文章`,
+      imageUrl: bannerFallback,
+      sortOrder: 0,
+      status: 1
+    }],
+    badgeText: 'Tag',
+    titleAs: 'h1',
+    titleHighlight: '标签',
+    mode: 'subheader'
+  })
+})
+
 </script>
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
-
-.tag-header {
-  // background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  color: var(--text-main);
-}
 
 .section-title {
   color: var(--text-main);
