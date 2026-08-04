@@ -1,6 +1,33 @@
 @use "./tokens" as *;
 
 /* =================================
+   📐 设计语言（全站统一规范，新增/修改样式先对照这里）
+   ---------------------------------
+   [色彩]（令牌定义在 theme.css）
+   - primary 蓝：链接 / 按钮 / 强调图标 / 分类角标 / hover 填充
+   - secondary 琥珀橙：页面标题高亮词（title-highlight）/ 卡片标题图标与短条
+   - 标题一律 --text-title 深色；数据数字深色，不用主色；次级信息 muted/subtle
+
+   [形状]
+   - 卡片 12px 圆角；条目/图标块 8px；输入框 6px
+   - 胶囊：标签 20px；badge/面包屑/分类角标 30px
+   - 内容文本：条目标题 0.9rem / 标签 0.875rem / 次级信息 0.75rem
+
+   [标题体系]
+   - 页面级 .page-title：title-badge（primary 药丸）+ title-heading（深色）
+     + title-highlight（secondary 高亮词）
+   - 卡片级 .card-title：card-badge（primary 蓝色药丸，英文标签）+ card-title-text
+     （中文标题文本，关键词 card-highlight 橙色高亮）—— 页面标题组合设计的卡片级应用
+
+   [列表条目] .list-item：10px 12px padding / 8px 圆角 / 底部分隔线
+   （末项无）/ hover bg-hover
+
+   [间距] 8px 基数；卡片间 gap-lg(20px)；标题与内容 12px
+
+   [反馈] hover 背景 bg-hover；强调 hover 变 primary 填充
+   ================================= */
+
+/* =================================
    字体
    ================================= */
 @font-face {
@@ -60,8 +87,17 @@ input {
 .content {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding:10px 20px;
   box-sizing: border-box;
+
+  /* 移动端收紧水平边距 */
+  @include respond(md) {
+    padding: 16px;
+  }
+
+  @include respond(sm) {
+    padding: 12px;
+  }
 }
 
 /* =================================
@@ -74,7 +110,6 @@ input {
 .flex-jc { display: flex; justify-content: center; align-items: center; }
 .flex-fw { display: flex; flex-wrap: wrap; row-gap: 12px; }
 .flex-1 { flex: 1; }
-
 .text-center { text-align: center; }
 
 /* =================================
@@ -136,16 +171,18 @@ input {
 /* =================================
    通用标签 / 徽章
    ================================= */
+/* 统计徽章：灰底药丸（用于标题 meta 的统计数据等低调信息） */
 .badge {
-  background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
   font-weight: 600;
-  cursor: pointer;
+  color: var(--text-subtle);
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
 }
 
 .tag {
@@ -155,7 +192,7 @@ input {
   background: var(--bg-soft);
   color: var(--text-subtle);
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 0.875rem;
   transition: all 0.2s ease;
   cursor: pointer;
   border: 1px solid transparent;
@@ -194,11 +231,40 @@ input {
   }
 }
 
+/* 卡片标题：蓝色药丸标签（card-badge）+ 标题文本 —— 页面标题 title-badge 的组合设计的卡片级应用 */
 .card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 30px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.1);
+
+  .icon {
+    color: var(--color-primary);
+  }
+}
+
+.card-title-text {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-main);
-  padding-bottom: 8px;
+
+  .card-highlight {
+    color: var(--color-secondary);
+  }
 }
 
 /* =================================
@@ -207,6 +273,23 @@ input {
 .list {
   display: flex;
   flex-direction: column;
+}
+
+/* 列表条目（侧栏 widget 列表统一规格，参考 Gardyn de-bloglist-type-1 分隔线风格） */
+.list-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 /* =================================

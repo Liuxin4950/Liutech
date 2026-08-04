@@ -40,7 +40,7 @@
         <div class="flex flex-col flex-sb flex-1 relative article-content ">
           <span v-if="post.category" class="article-category" @click.stop="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
           <div class="flex-1 flex flex-col gap-12 article-content-box">
-            <h3 class="font-semibold text-primary post-title">{{ post.title }}</h3>
+            <h3 class="font-semibold post-title">{{ post.title }}</h3>
             <p v-if="post.summary" class="text-subtle text-sm post-summary">
               {{ post.summary }}
             </p>
@@ -153,18 +153,26 @@ function handleCategoryClick(categoryId: number) {
   }
 
   .article-category {
-    /* 原全局 .article-category（badge 渐变 + 绝对定位）移入 */
-    background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.875rem;
+    /* 分类角标：主题色药丸（与全局 tag / title-badge 语言统一） */
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 12px;
+    border-radius: 30px;
+    font-size: 0.75rem;
     font-weight: 600;
+    color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb), 0.1);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.16);
+    cursor: pointer;
+    transition: all 0.2s ease;
     position: absolute;
     top: 0;
     right: 0;
+
+    &:hover {
+      background: var(--color-primary);
+      color: #fff;
+    }
 
     @include respond(md) {
       position: static;
@@ -195,6 +203,7 @@ function handleCategoryClick(categoryId: number) {
 }
 
 .post-title{
+    color: var(--text-title);
     font-size: 1.25rem;
     padding-right: 70px;
     white-space: nowrap;

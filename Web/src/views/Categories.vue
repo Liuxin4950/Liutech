@@ -106,6 +106,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { getCategoryIcon } from "@/utils/categoryIcons"
 import { useRouter } from 'vue-router'
 import { useCategoryStore } from '@/stores/category'
 import { useErrorHandler } from '@/composables/useErrorHandler'
@@ -142,34 +143,6 @@ const popularCategories = computed(() => {
         .sort((a, b) => (b.postCount || 0) - (a.postCount || 0))
         .slice(0, 6)
 })
-
-// 获取分类图标
-const getCategoryIcon = (categoryName: string): string => {
-    const iconMap: Record<string, string> = {
-        '技术': 'code',
-        '前端': 'layout',
-        '后端': 'cog',
-        '数据库': 'database',
-        '算法': 'square',
-        '生活': 'layers',
-        '随笔': 'pen',
-        '教程': 'book',
-        '工具': 'wrench',
-        '框架': 'building',
-        'Vue': 'layers',
-        'React': 'atom',
-        'JavaScript': 'square',
-        'TypeScript': 'square',
-        'Java': 'coffee',
-        'Python': 'python',
-        'Node.js': 'square',
-        '移动开发': 'smartphone',
-        '人工智能': 'bot',
-        '机器学习': 'brain'
-    }
-
-    return iconMap[categoryName] || 'folder'
-}
 
 // 加载分类列表
 const loadCategories = async () => {
@@ -222,12 +195,13 @@ onMounted(() => {
     opacity: 0.1;
 }
 
-/* 分类图标（原全局 .rounded-12/.text-white 移入） */
+/* 分类图标：主题渐变块 + 白图标 */
 .category-icon {
     width: 50px;
     height: 50px;
     border-radius: 12px;
     color: #fff;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
 }
 
 /* 分类标题（原全局 .mb-4 移入） */
@@ -239,12 +213,6 @@ onMounted(() => {
 .category-card .badge {
     background-color: var(--color-primary-light);
     padding: 4px 8px;
-    border-radius: 8px;
-}
-
-/* 热门标签（原全局 .px-12/.py-8/.rounded-8 移入） */
-.categories-page .tag {
-    padding: 8px 12px;
     border-radius: 8px;
 }
 

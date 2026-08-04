@@ -8,7 +8,8 @@
         </svg>
       </button>
     </div>
-    <nav class="toc-nav" v-show="isVisible">
+    <!-- :key 强制重建：折叠（display:none）时初始化的嵌套 Lenis 尺寸为 0，展开后需重建才能滚动 -->
+    <nav ref="tocNavRef" class="toc-nav" v-show="isVisible" :key="isVisible ? 'open' : 'closed'" data-lenis-prevent>
       <ul class="toc-list">
         <li 
           v-for="heading in headings" 
@@ -30,6 +31,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useNestedLenis, getLenis } from '@/composables/useLenis'
 
 const props = withDefaults(defineProps<{
   collapsedBelow?: number
@@ -43,6 +45,8 @@ interface Heading {
   level: number
   element: HTMLElement
 }
+
+const tocNavRef = ref<HTMLElement | null>(null)
 
 const headings = ref<Heading[]>([])
 const activeId = ref<string>('')
@@ -158,7 +162,21 @@ const scrollToHeading = (id: string) => {
     const elementPosition = element.getBoundingClientRect().top + window.pageYOffset
     const offsetPosition = elementPosition - SCROLL_OFFSET
 
-    smoothScrollTo(offsetPosition)
+    // 优先用 Lenis 的 scrollTo：与主实例协调、内置缓动曲线；未启用 Lenis 时回退自写动画
+    const lenis = getLenis()
+    if (lenis) {
+      isScrolling.value = true
+      lenis.scrollTo(offsetPosition, {
+        duration: 0.8,
+        easing: (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+        onComplete: () => {
+          isScrolling.value = false
+          handleScroll()
+        }
+      })
+    } else {
+      smoothScrollTo(offsetPosition)
+    }
     activeId.value = id
   }
 }
@@ -243,6 +261,8 @@ const delayedExtractHeadings = () => {
 }
 
 let contentObserver: MutationObserver | null = null
+
+useNestedLenis(tocNavRef)
 
 onMounted(() => {
   syncResponsiveVisibility()

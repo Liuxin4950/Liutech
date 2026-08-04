@@ -157,7 +157,7 @@ const closePreview = () => {
     <section class="honors-hero">
       <div class="hero-copy">
         <div class="page-title">
-          <span class="title-badge">Honors</span>
+          <span class="title-badge"><Icon name="award" size="12" /> Honors</span>
           <h1 class="title-heading">荣誉与<span class="title-highlight">证书</span></h1>
           <p class="title-desc">软件开发、软件测试、小程序、低代码和技术认证相关证书。</p>
         </div>

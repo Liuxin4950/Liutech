@@ -1,19 +1,20 @@
 <template>
   <div class="card bg-card">
-    <h4 class="card-title">文章分类</h4>
+    <h4 class="card-title"><span class="card-badge"><Icon name="folder" size="12" /> Categories</span><span class="card-title-text">文章<span class="card-highlight">分类</span></span></h4>
     <div v-if="loading" class="loading-text text-sm">加载中...</div>
     <div v-else-if="categories.length === 0" class="empty-text flex flex-col flex-ac text-sm">
       <p>暂无分类</p>
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
     </div>
-    <div v-else class="categories-list list gap-8">
+    <div v-else class="categories-list list">
       <div
         v-for="category in categories"
         :key="category.id"
-        class="categories-item flex flex-sb flex-ac p-8 rounded link transition bg-soft"
+        class="list-item flex flex-ac gap-12 link transition"
         @click="handleCategoryClick(category.id)"
       >
-        <span class="font-medium">{{ category.name }}</span>
+        <span class="category-icon"><Icon :name="getCategoryIcon(category.name)" size="16" /></span>
+        <span class="text-lg font-medium flex-1">{{ category.name }}</span>
         <span class="categories-count">{{ category.postCount || 0 }}</span>
       </div>
     </div>
@@ -21,7 +22,9 @@
 </template>
 
 <script setup lang="ts">
+import { getCategoryIcon } from '@/utils/categoryIcons'
 import { useRouter } from 'vue-router'
+import Icon from './Icon.vue'
 
 const router = useRouter()
 
@@ -48,18 +51,32 @@ const handleCategoryClick = (categoryId: number) => {
 </script>
 
 <style scoped>
-.categories-item:hover{
-  background: var(--bg-hover);
-}
-.categories-count{
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  color: var(--text-main);
-  font-size: 12px;
-  font-weight: 500;
+.category-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.list-item:hover .category-icon {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.categories-count {
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg-soft);
+  color: var(--text-subtle);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
 }
 </style>

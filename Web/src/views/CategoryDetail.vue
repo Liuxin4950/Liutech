@@ -3,7 +3,7 @@
     <!-- 页面头部 -->
     <div v-if="category" class="card bg-soft mb-16">
       <div class="page-title">
-        <span class="title-badge"><Icon name="folder" size="12" /> 分类</span>
+        <span class="title-badge"><Icon name="folder" size="12" /> Category</span>
         <h1 class="title-heading">{{ category.name }}</h1>
         <p v-if="category.description" class="title-desc">{{ category.description }}</p>
         <div class="title-meta">

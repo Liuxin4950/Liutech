@@ -97,7 +97,7 @@ onUnmounted(() => {
 <template>
   <div class="card">
     <div class="flex flex-sb">
-      <h4 class="card-title mb-0">公告</h4>
+      <h4 class="card-title"><span class="card-badge"><Icon name="message" size="12" /> Announcement</span><span class="card-title-text">公告<span class="card-highlight">栏</span></span></h4>
       <button
         @click="refreshAnnouncements"
         :disabled="loading"
@@ -547,12 +547,10 @@ onUnmounted(() => {
     padding: 16px;
   }
 }
-/* 公告列表项与标题（原全局 .list-item/.mb-8 移入） */
-.list-item {
-  padding: 8px 0;
-}
-
 .announcement-title {
   margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

@@ -2,7 +2,7 @@
   <div class="content">
     <!-- 页面标题 -->
     <div class="page-title is-center mb-20">
-      <span class="title-badge">Archive</span>
+      <span class="title-badge"><Icon name="archive" size="12" /> Archive</span>
       <h1 class="title-heading">文章<span class="title-highlight">归档</span></h1>
       <p class="title-desc">按时间浏览所有文章</p>
     </div>

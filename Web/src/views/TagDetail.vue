@@ -1,11 +1,11 @@
 <template>
   <div class="content">
     <!-- 标签头部 -->
-    <div v-if="tagInfo" class="tag-header card bg-soft p-20 rounded-lg mb-20 text-center">
-      <div class="page-title is-center">
-        <span class="title-badge"><Icon name="tag" size="12" /> 标签</span>
+    <div v-if="tagInfo" class="tag-header card bg-soft p-20 rounded-lg mb-20">
+      <div class="page-title">
+        <span class="title-badge"><Icon name="tag" size="12" /> Tag</span>
         <h1 class="title-heading">{{ tagInfo.name }}</h1>
-        <div class="title-meta flex-jc">
+        <div class="title-meta">
           <span class="badge">{{ tagInfo.postCount || 0 }} 篇文章</span>
         </div>
       </div>

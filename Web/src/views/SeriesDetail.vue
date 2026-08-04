@@ -6,7 +6,7 @@
         <img :src="series.coverImage" :alt="series.name" />
       </div>
       <div class="page-title">
-        <span class="title-badge"><Icon name="book" size="12" /> 系列</span>
+        <span class="title-badge"><Icon name="book" size="12" /> Series</span>
         <h1 class="title-heading">{{ series.name }}</h1>
         <p v-if="series.description" class="title-desc">{{ series.description }}</p>
         <div class="title-meta">

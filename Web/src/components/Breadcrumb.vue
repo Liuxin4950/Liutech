@@ -139,57 +139,62 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+/* 面包屑：药丸容器风格，与页面 title-badge / tag 设计语言统一 */
 .breadcrumb {
-  /* background: var(--bg-card); */
-  /* border-bottom: 1px solid var(--border-base); */
-  padding: 0.75rem 0;
-  font-size: 0.875rem;
+  padding-top: 10px;
 }
 
 .breadcrumb-list {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  gap: 6px;
   margin: 0;
-  padding: 0;
+  padding: 5px 14px;
   list-style: none;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  border-radius: 30px;
 }
 
 .breadcrumb-item {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 6px;
+  font-size: 0.8rem;
 }
 
 .breadcrumb-separator {
   color: var(--text-muted);
-  font-weight: normal;
   user-select: none;
 }
 
 .breadcrumb-link {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 4px;
   color: var(--color-primary);
+  font-weight: 500;
   text-decoration: none;
   transition: color 0.2s ease;
-}
 
-.breadcrumb-link:hover {
-  color: var(--color-primary-dark);
-  text-decoration: underline;
+  &:hover {
+    color: var(--color-secondary);
+  }
 }
 
 .breadcrumb-current {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  color: var(--text-main);
+  gap: 4px;
+  color: var(--text-subtle);
   font-weight: 500;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .icon {
@@ -200,20 +205,21 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 /* 响应式设计 */
 @include respond(md) {
   .breadcrumb {
-    padding: 0.5rem 0;
-    font-size: 0.8rem;
+    padding: 12px 0;
   }
-}
 
-.breadcrumb-list {
-  gap: 0.125rem;
-}
+  .breadcrumb-list {
+    padding: 4px 12px;
+    gap: 4px;
+  }
 
-.breadcrumb-item {
-  gap: 0.125rem;
-}
+  .breadcrumb-item {
+    gap: 4px;
+    font-size: 0.75rem;
+  }
 
-.icon {
-  font-size: 0.75rem;
+  .icon {
+    font-size: 0.75rem;
+  }
 }
 </style>

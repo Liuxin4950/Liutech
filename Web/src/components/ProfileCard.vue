@@ -6,8 +6,8 @@
       </div>
 
       <div class="flex flex-col flex-ac">
-        <h3 class="text-lg font-semibold">{{ name }}</h3>
-        <p class="text-muted text-lg mb-0">{{ title }}</p>
+        <h3 class="font-semibold" style="font-size: 1.125rem; margin-bottom: 2px">{{ name }}</h3>
+        <p class="text-muted mb-0" style="font-size: 0.8rem">{{ title }}</p>
       </div>
     </div>
 
@@ -64,8 +64,8 @@ withDefaults(defineProps<Props>(), {
 }
 
 .avatar-wrapper {
-  width: 88px;
-  height: 88px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   padding: 3px;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
@@ -87,6 +87,7 @@ withDefaults(defineProps<Props>(), {
 }
 
 .profile-bio {
+  font-size: 0.875rem;
   line-height: 1.6;
   text-align: center;
   color: var(--text-subtle);
@@ -119,9 +120,9 @@ withDefaults(defineProps<Props>(), {
 
 .stat-number {
   display: block;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  color: var(--color-primary);
+  color: var(--text-title);
   line-height: 1.2;
 }
 

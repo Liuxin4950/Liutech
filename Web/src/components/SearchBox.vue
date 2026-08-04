@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="card">
-    <div class="card-title"><Icon name="search" size="18" /> 文章搜索</div>
+    <h4 class="card-title"><span class="card-badge"><Icon name="search" size="12" /> Search</span><span class="card-title-text">文章<span class="card-highlight">搜索</span></span></h4>
     <div class="search-container">
       <input
         v-model="searchKeyword"
@@ -40,11 +40,11 @@
           <button @click="clearSearch" class="clear-btn">清除</button>
         </div>
 
-        <div class="list gap-8">
+        <div class="list">
           <article
             v-for="post in searchResults"
             :key="post.id"
-            class="result-item"
+            class="list-item"
             @click="goToPost(post.id)"
           >
             <h4 class="result-title">{{ post.title }}</h4>
@@ -191,29 +191,6 @@ const clearSearch = () => {
   width: 100%;
 }
 
-.search-btn {
-  padding: 8px 12px;
-  background: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 40px;
-}
-
-.search-btn:hover:not(:disabled) {
-  background: var(--color-primary-dark);
-}
-
-.search-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 /* 按钮内小号 spinner（区别于全局 40px 的 loading-spinner） */
 .spinner-sm {
   width: 14px;
@@ -281,22 +258,8 @@ const clearSearch = () => {
   color: white;
 }
 
-.result-item {
-  padding: 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: var(--bg-soft);
-}
-
-.result-item:hover {
-  border-color: var(--color-primary);
-  background: var(--bg-hover);
-}
-
 .result-title {
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-main);
   margin: 0 0 4px 0;

@@ -14,6 +14,7 @@ import LoginModal from '@/components/LoginModal.vue'
 import GlobalSearchModal from '@/components/GlobalSearchModal.vue'
 import { requireAuth } from '@/utils/auth'
 import { useChatStore } from '@/stores/chat'
+import { useBannerStore } from '@/stores/banner'
 import { useOnboarding } from '@/composables/useOnboarding'
 import { useTtsPlayer } from '@/composables/useTtsPlayer'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
@@ -32,6 +33,7 @@ const showLoginModal = ref(false)
 const loginMessage = ref('')
 
 const chatStore = useChatStore()
+const bannerStore = useBannerStore()
 const live2dRef = ref<InstanceType<typeof Live2d> | null>(null)
 const aiChatRef = ref<InstanceType<typeof AiChat> | null>(null)
 const bottomNavRef = ref<InstanceType<typeof BottomNavigation> | null>(null)
@@ -163,7 +165,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   <div class="main-layout">
     <TheHeader class="header" @open-search="searchModalRef?.open()" />
     <main class="main-content">
-      <Banner class="banner" />
+      <Banner class="banner" :class="{ 'banner--compact': bannerStore.compact }" />
       <Breadcrumb />
       <router-view />
       <div v-if="chatStore.showModel || chatStore.showChat" class="ai-content" :class="{ 'expanded': chatStore.isExpanded }">
@@ -264,14 +266,25 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 }
 
 .banner {
-  height: 600px;
+  min-height: 600px;
   @include respond(md) {
-    height: 400px;
+    min-height: 400px;
 
   }
   @include respond(sm) {
-    height: 300px;
+    min-height: 300px;
 
+  }
+}
+
+/* 紧凑模式（文章详情页）：页眉定位，更矮；min-height 与 Banner 内部 transition 配合产生高度过渡动画 */
+.banner--compact {
+  min-height: 340px;
+  @include respond(md) {
+    min-height: 280px;
+  }
+  @include respond(sm) {
+    min-height: 240px;
   }
 }
 

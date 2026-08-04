@@ -170,10 +170,16 @@ const startEmailCountdown = () => {
       <!-- 左侧表单区 -->
       <div class="card-left">
         <div class="form-wrapper">
-          <!-- 标题 -->
+          <!-- 标题（页面标题组合设计：蓝色药丸 + 深色标题 + 橙色高亮） -->
           <div class="card-header">
-            <h2>{{ isLogin ? '欢迎回来' : '创建账户' }}</h2>
-            <p>{{ isLogin ? '请登录您的账户' : '开始您的技术之旅' }}</p>
+            <div class="page-title">
+              <span class="title-badge"><Icon :name="isLogin ? 'lock' : 'person_add'" size="12" /> {{ isLogin ? 'Welcome' : 'Sign Up' }}</span>
+              <h1 class="title-heading">
+                <template v-if="isLogin">欢迎<span class="title-highlight">回来</span></template>
+                <template v-else>创建<span class="title-highlight">账户</span></template>
+              </h1>
+              <p class="title-desc">{{ isLogin ? '请登录您的账户' : '开始您的技术之旅' }}</p>
+            </div>
           </div>
 
           <!-- 切换标签 -->
@@ -266,8 +272,8 @@ const startEmailCountdown = () => {
             </div>
 
             <button type="submit" class="submit-btn" :disabled="userStore.isLoading">
-              <span v-if="userStore.isLoading" class="spinner-sm"></span>
-              <Icon v-else :name="isLogin ? 'login' : 'person_add'" size="18" />
+              <span v-if="userStore.isLoading" class="spinner-sm spinner-abs"></span>
+              <Icon v-else :name="isLogin ? 'login' : 'person_add'" size="18" class="btn-icon" />
               {{ userStore.isLoading ? '处理中...' : (isLogin ? '登 录' : '立即注册') }}
             </button>
           </form>
@@ -296,8 +302,8 @@ const startEmailCountdown = () => {
             </div>
 
             <button type="submit" class="submit-btn" :disabled="userStore.isLoading">
-              <span v-if="userStore.isLoading" class="spinner-sm"></span>
-              <Icon v-else name="login" size="18" />
+              <span v-if="userStore.isLoading" class="spinner-sm spinner-abs"></span>
+              <Icon v-else name="login" size="18" class="btn-icon" />
               {{ userStore.isLoading ? '处理中...' : '登 录' }}
             </button>
           </form>
@@ -311,13 +317,15 @@ const startEmailCountdown = () => {
 
       <!-- 右侧品牌区 -->
       <div class="card-right">
+        <div class="brand-decor decor-1"></div>
+        <div class="brand-decor decor-2"></div>
         <div class="brand-content">
           <router-link to="/" class="brand-link">
           <div class="brand-logo">
-            <Icon name="code" size="48" class="logo-icon" />
+            <Icon name="code" size="30" class="logo-icon" />
           </div>
-          <h1 class="brand-title">LiuTech</h1>
-          <p class="brand-subtitle">技术博客平台</p>
+          <div class="brand-title">LiuTech</div>
+          <p class="brand-subtitle">TECH · BLOG</p>
           <p class="brand-desc">分享技术，记录成长<br />探索无限可能</p>
           </router-link>
         </div>
@@ -408,7 +416,7 @@ const startEmailCountdown = () => {
   position: relative;
   z-index: 1;
   box-shadow: var(--shadow-lg);
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -424,8 +432,11 @@ const startEmailCountdown = () => {
 
 .card-header {
   margin-bottom: 24px;
-  h2 { font-size: 1.5rem; font-weight: 600; color: var(--text-title); margin: 0 0 6px 0; }
-  p { color: var(--text-subtle); font-size: 0.9rem; margin: 0; }
+
+  .page-title {
+    gap: 10px;
+    margin-bottom: 0;
+  }
 }
 
 // 切换标签
@@ -434,7 +445,7 @@ const startEmailCountdown = () => {
   position: relative;
   margin-bottom: 24px;
   background: var(--bg-soft);
-  border-radius: 10px;
+  border-radius: 30px;
   padding: 4px;
 }
 
@@ -461,7 +472,7 @@ const startEmailCountdown = () => {
   width: calc(50% - 4px);
   height: calc(100% - 8px);
   background: var(--bg-card);
-  border-radius: 8px;
+  border-radius: 26px;
   box-shadow: var(--shadow-sm);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   &.tab-indicator-right { transform: translateX(100%); }
@@ -480,7 +491,7 @@ const startEmailCountdown = () => {
   flex: 1;
   padding: 8px 12px;
   border: 1.5px solid var(--border-base);
-  border-radius: 8px;
+  border-radius: 30px;
   background: var(--bg-soft);
   color: var(--text-subtle);
   font-size: 0.85rem;
@@ -522,7 +533,7 @@ const startEmailCountdown = () => {
   font-size: 0.8rem;
   font-weight: 500;
   padding: 4px 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.2s ease;
@@ -553,7 +564,7 @@ const startEmailCountdown = () => {
   width: 100%;
   padding: 12px 14px 12px 44px;
   border: 1.5px solid var(--border-base);
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 0.95rem;
   background: var(--bg-soft);
   color: var(--text-main);
@@ -591,6 +602,7 @@ const startEmailCountdown = () => {
 
 // 提交按钮
 .submit-btn {
+  position: relative;
   width: 100%;
   min-height: 48px;
   padding: 12px 14px;
@@ -598,7 +610,7 @@ const startEmailCountdown = () => {
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 30px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -606,10 +618,18 @@ const startEmailCountdown = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   &:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.4); filter: brightness(1.05); }
   &:active:not(:disabled) { filter: brightness(0.97); }
   &:disabled { opacity: 0.75; cursor: not-allowed; }
+}
+
+.btn-icon,
+.spinner-abs {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .spinner-sm {
@@ -653,7 +673,10 @@ const startEmailCountdown = () => {
 // ============================================
 // 右侧品牌区
 .card-right {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  background:
+    radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(255, 255, 255, 0.12) 0%, transparent 45%),
+    linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -662,6 +685,26 @@ const startEmailCountdown = () => {
   position: relative;
   overflow: hidden;
   order: 2;
+}
+
+.brand-decor {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+
+  &.decor-1 {
+    width: 260px;
+    height: 260px;
+    top: -90px;
+    right: -90px;
+  }
+
+  &.decor-2 {
+    width: 180px;
+    height: 180px;
+    bottom: -50px;
+    left: -50px;
+  }
 }
 
 
@@ -682,36 +725,38 @@ const startEmailCountdown = () => {
 }
 
 .brand-logo {
-  width: 80px;
-  height: 80px;
+  width: 72px;
+  height: 72px;
   margin: 0 auto 20px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(10px);
-  animation: float 6s ease-in-out infinite;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
-.logo-icon { color: white; }
+.logo-icon { color: rgba(255, 255, 255, 0.92); }
 
 .brand-title {
-  font-size: 1.8rem;
+  font-size: 2rem;
   font-weight: 700;
-  color: white;
-  margin: 0 0 6px 0;
+  margin: 0 0 8px 0;
   letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.72) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .brand-subtitle {
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
   margin: 0 0 24px 0;
 }
 
@@ -756,7 +801,7 @@ const startEmailCountdown = () => {
   .card-left { order: 2; }
   .card-right { order: 1; min-height: 180px; padding: 24px; }
 
-  .brand-logo { width: 56px; height: 56px; margin-bottom: 12px; border-radius: 14px; :deep(svg) { width: 28px; height: 28px; } }
+  .brand-logo { width: 56px; height: 56px; margin-bottom: 12px; border-radius: 50%; :deep(svg) { width: 24px; height: 24px; } }
   .brand-title { font-size: 1.4rem; }
   .brand-subtitle { font-size: 0.85rem; margin-bottom: 12px; }
   .brand-desc { font-size: 0.8rem; }

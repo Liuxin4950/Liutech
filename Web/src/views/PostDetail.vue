@@ -7,6 +7,8 @@ import type { PostDetail } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate } from '@/utils/utils'
 import { handleImageError } from '@/composables/useImageFallback'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 import CommentSection from '@/components/CommentSection.vue'
 import { isLoggedIn } from '../utils/auth'
 import LoginModal from '../components/LoginModal.vue'
@@ -36,6 +38,21 @@ const normalizePublicUrl = (url?: string | null) => {
 // 已移除：旧的基于 referrer 的导航激活逻辑，改由 Header 基于当前路径自动判定
 // 响应式数据
 const post = ref<PostDetail | null>(null)
+
+// 常驻 Banner（MainLayout 中的 Banner 组件）内容定制：把"LiuTech"替换为文章标题/分类
+const bannerStore = useBannerStore()
+watch(() => post.value, (p) => {
+  if (p) {
+    bannerStore.setBanner([{
+      title: p.title,
+      description: '', // 摘要不展示在 Banner，卡片头部已有
+      imageUrl: p.coverImage || bannerFallback, // 无封面时回退到默认品牌图
+      linkUrl: '',
+      sortOrder: 0,
+      status: 1
+    }], { badgeText: p.category?.name || '文章', titleAs: 'h1', compact: true })
+  }
+})
 
 // SEO Meta — 在 setup 阶段调用 useHead，通过响应式 post 驱动更新
 useHead(() => {
@@ -395,14 +412,17 @@ watch(() => route.params.id, () => {
 
 // 组件挂载时加载数据
 onMounted(() => {
+  // 立即进入紧凑 Banner 模式，避免加载期间高度（600px）与内容跳变；文章数据到达后 watch 再注入标题
+  bannerStore.setBanner([], { compact: true })
   loadPostDetail()
   // 添加点击外部区域关闭分享选项的事件监听
   document.addEventListener('click', handleClickOutside)
 })
 
-// 组件卸载时清理事件监听器
+// 组件卸载时清理事件监听器，并恢复 Banner 默认轮播内容
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  bannerStore.resetBanner()
 })
 
 const interactionStore = usePostInteractionStore()
@@ -443,47 +463,50 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
       </aside>
 
       <div class="post-card card bg-soft">
-      <!-- 文章头部信息 -->
+      <!-- 文章元信息（标题已展示在顶部 Banner） -->
       <header class="post-header">
-        <h1 class="post-title">{{ post.title }}</h1>
+        <div class="post-meta-info">
+            <div class="meta-left-section">
+              <div class="author-info">
+                <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
+                  class="author-avatar" @error="handleImageError">
+                <span v-else class="author-avatar-fallback">{{ (post.author?.username || 'L').slice(0, 1).toUpperCase() }}</span>
+                <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
+              </div>
+            </div>
+            <div class="meta-right-section">
+              <div class="meta-stat">
+                <Icon name="calendar" size="14" />
+                {{ formatDate(post.createdAt) }}
+              </div>
+              <div class="meta-stat">
+                <Icon name="eye" size="14" />
+                {{ post.viewCount || 0 }}
+              </div>
+              <div class="meta-stat">
+                <Icon name="heart" size="14" />
+                {{ currentLikeCount || 0 }}
+              </div>
+              <div class="meta-stat">
+                <Icon name="message" size="14" />
+                {{ post.commentCount || 0 }}
+              </div>
+            </div>
+        </div>
+
         <!-- 文章摘要 -->
         <div v-if="post.summary" class="post-excerpt">
           {{ post.summary }}
         </div>
 
-        <div class="post-meta-info">
-          <div class="meta-left-section">
-            <div class="author-info">
-              <img v-if="post.author?.avatarUrl" :src="post.author.avatarUrl" :alt="post.author.username"
-                class="author-avatar" @error="handleImageError">
-              <span v-else class="author-avatar-fallback">{{ (post.author?.username || 'L').slice(0, 1).toUpperCase() }}</span>
-              <span class="author-name">{{ post.author?.username || '匿名用户' }}</span>
-            </div>
+        
+        <div v-if="post.category || (post.tags && post.tags.length > 0)" class="post-tags-row">
+          <span v-if="post.category" class="category-badge" @click="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
+          <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
+            <span v-for="tag in post.tags" :key="tag.id" class="tag" @click="handleTagClick(tag.id)">
+              {{ tag.name }}
+            </span>
           </div>
-          <div class="meta-right-section">
-            <span v-if="post.category" class="category-badge" @click="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
-            <div class="meta-stat">
-              <Icon name="calendar" size="14" />
-              {{ formatDate(post.createdAt) }}
-            </div>
-            <div class="meta-stat">
-              <Icon name="eye" size="14" />
-              {{ post.viewCount || 0 }}
-            </div>
-            <div class="meta-stat">
-              <Icon name="heart" size="14" />
-              {{ currentLikeCount || 0 }}
-            </div>
-            <div class="meta-stat">
-              <Icon name="message" size="14" />
-              {{ post.commentCount || 0 }}
-            </div>
-          </div>
-        </div>
-        <div v-if="post.tags && post.tags.length > 0" class="tags-cloud">
-          <span v-for="tag in post.tags" :key="tag.id" class="tag" @click="handleTagClick(tag.id)">
-            {{ tag.name }}
-          </span>
         </div>
       </header>
 
@@ -709,9 +732,9 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .series-card {
   margin: 32px 0;
   padding: 18px 20px 14px;
-  background: var(--bg-card, #fff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
 }
 .series-card-head {
   display: flex;
@@ -721,7 +744,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   color: var(--text-muted);
   padding-bottom: 12px;
   margin-bottom: 10px;
-  border-bottom: 1px solid var(--color-border, #f0f0f0);
+  border-bottom: 1px solid var(--border-soft);
 }
 .series-card-label {
   color: var(--color-primary);
@@ -791,7 +814,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   gap: 8px;
   padding-top: 12px;
   margin-top: 4px;
-  border-top: 1px solid var(--color-border, #f0f0f0);
+  border-top: 1px solid var(--border-soft);
 }
 .series-prev,
 .series-next {
@@ -845,11 +868,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 .post-card {
   min-width: 0;
-  padding: 36px 40px 0;
+  padding: 10px 40px 0;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 18px;
-  box-shadow: var(--shadow-xl);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
 }
 
 .article-toc-panel {
@@ -899,38 +922,15 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .post-header {
-  margin-bottom: 20px;
-}
-
-.post-title {
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 750;
-  color: var(--text-title);
-  line-height: 1.16;
-  letter-spacing: 0;
-  position: relative;
-}
-
-.post-cover {
-  overflow: hidden;
+  margin-bottom: 10px;
 }
 
 .post-excerpt {
   color: var(--text-subtle);
   font-size: 1rem;
   line-height: 1.7;
-  margin: 16px 0 24px;
-  padding: 0;
+  margin: 16px 0;
   opacity: 0.85;
-}
-
-.cover-image {
-  width: 100%;
-  height: auto;
-  max-height: 400px;
-  object-fit: cover;
-  display: block;
-  border-radius: 8px;
 }
 
 .author-avatar {
@@ -959,20 +959,9 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 22px;
   padding: 14px 0;
-  border-top: 1px solid var(--border-light);
   border-bottom: 1px solid var(--border-light);
-  background: transparent;
 }
-
-.meta-left-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
 .author-info {
   display: flex;
   align-items: center;
@@ -1001,11 +990,19 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   font-size: 13px;
 }
 
+.post-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
 .category-badge {
   background: rgba(var(--color-primary-rgb), 0.1);
   color: var(--color-primary);
-  padding: 4px 12px;
-  border-radius: 4px;
+  padding: 4px 14px;
+  border-radius: 30px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -1257,7 +1254,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 :root.dark .post-card {
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-md);
 }
 
 :root.dark :deep(.article-toc) {
@@ -1398,7 +1395,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   border: 1px solid var(--border-light);
   background-color: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
-  border-radius: 18px 18px 0 0;
+  border-radius: 12px 12px 0 0;
   position: sticky;
   bottom: 0;
   z-index: 5;
@@ -1548,10 +1545,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 /* 响应式样式 */
 @include respond(md) {
-  .post-title {
-    font-size: 1.8rem;
-  }
-
   // 文章元信息 - 移动端适配
   .post-meta-info {
     flex-direction: column;
@@ -1871,10 +1864,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 // 超小屏幕（小于 480px）
 @include respond(sm) {
-  .post-title {
-    font-size: 1.5rem;
-  }
-
   .author-avatar {
     width: 32px;
     height: 32px;

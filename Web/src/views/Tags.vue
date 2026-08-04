@@ -177,13 +177,7 @@ onMounted(async () => {
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
-/* 标签页样式（原全局 .px-12/.py-8/.rounded-8 移入） */
-.tag {
-  padding: 8px 12px;
-  border-radius: 8px;
-}
-
-/* 标签页有独立 Icon，隐藏全局 .tag 的 # 前缀 */
+/* 标签页有独立 Icon，隐藏全局 .tag 的 # 前缀；其余样式走全局药丸 */
 .tag::before {
   content: none;
 }
@@ -202,11 +196,6 @@ onMounted(async () => {
 .tags-cloud {
   @include respond(sm) {
     gap: 8px;
-    
-    .tag-item {
-      font-size: 12px;
-      padding: 6px 10px;
-    }
   }
 }
 

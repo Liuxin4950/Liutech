@@ -1,483 +1,497 @@
 <template>
-    <div class="banner-header">
-        <!-- 轮播图图片 -->
-        <template v-if="carousels.length > 0">
-            <div
-                v-for="(slide, index) in carousels"
-                :key="slide.id || index"
-                class="banner-slide"
-                :class="{ 'is-active': index === currentIndex, 'is-prev': isPrev(index), 'is-next': isNext(index) }"
-            >
-                <div class="banner-image-wrapper">
-                    <img
-                        class="banner-image"
-                        :class="{ 'is-loaded': loadedIndex === index }"
-                        :src="slide.imageUrl"
-                        :alt="slide.title"
-                        loading="eager"
-                        fetchpriority="high"
-                        @load="onImageLoad(index)"
-                        @error="handleImageError"
-                    >
-                    <div class="banner-overlay"></div>
-                </div>
+  <section class="banner-header" aria-label="站点横幅">
+    <!-- 轮播幻灯片（无数据时自动回退到默认单张） -->
+    <div
+      v-for="(slide, index) in slides"
+      :key="slide.id ?? index"
+      class="banner-slide"
+      :class="{ 'is-active': index === currentIndex, 'is-prev': isPrev(index), 'is-next': isNext(index) }"
+    >
+      <div class="banner-image-wrapper">
+        <img
+          class="banner-image"
+          :class="{ 'is-loaded': loadedIndex === index }"
+          :src="slide.imageUrl"
+          :alt="slide.title"
+          loading="eager"
+          fetchpriority="high"
+          @load="onImageLoad(index)"
+          @error="handleImageError"
+        >
+        <div class="banner-overlay"></div>
+      </div>
 
-                <!-- Hero 内容层 -->
-                <div class="banner-content">
-                    <div class="banner-content-inner">
-                        <transition name="slide-text" mode="out-in">
-                            <div v-if="index === currentIndex" :key="currentIndex" class="banner-text">
-                                <span v-if="slide.title" class="banner-title-badge">精选</span>
-                                <h2 class="banner-title">{{ slide.title || 'LiuTech' }}</h2>
-                                <p v-if="slide.description" class="banner-desc">{{ slide.description }}</p>
-                                <div v-if="slide.linkUrl" class="banner-actions">
-                                    <a :href="slide.linkUrl" target="_blank" rel="noopener noreferrer" class="btn-primary banner-btn">
-                                        查看详情
-                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
-                                        </svg>
-                                    </a>
-                                </div>
-                            </div>
-                        </transition>
-                    </div>
-                </div>
+      <!-- 文字内容层（文章详情页由 banner store 注入文章标题/分类） -->
+      <div class="banner-content">
+        <div class="banner-content-inner">
+          <transition name="slide-text" mode="out-in">
+            <div v-if="index === currentIndex" :key="currentIndex" class="banner-text">
+              <span v-if="slide.title" class="banner-title-badge">{{ bannerStore.badgeText }}</span>
+              <component :is="bannerStore.titleAs" class="banner-title">{{ slide.title || 'LiuTech' }}</component>
+              <p v-if="slide.description" class="banner-desc">{{ slide.description }}</p>
+              <div v-if="slide.linkUrl" class="banner-actions">
+                <a :href="slide.linkUrl" target="_blank" rel="noopener noreferrer" class="btn-primary banner-btn">
+                  查看详情
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                    <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+                  </svg>
+                </a>
+              </div>
             </div>
-        </template>
-
-        <!-- 无轮播图时显示默认图片 -->
-        <template v-else>
-            <div class="banner-slide is-active">
-                <div class="banner-image-wrapper">
-                    <img
-                        class="banner-image is-loaded"
-                        src="@/assets/image/banner/banner0.png"
-                        alt="Banner"
-                        @error="handleImageError"
-                    >
-                    <div class="banner-overlay"></div>
-                </div>
-                <div class="banner-content">
-                    <div class="banner-content-inner">
-                        <div class="banner-text">
-                            <h2 class="banner-title">LiuTech</h2>
-                            <p class="banner-desc">全栈工程师的技术博客</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </template>
-
-        <!-- 切换按钮（多张图片时显示） -->
-        <template v-if="carousels.length > 1">
-            <button class="banner-nav prev" @click="prevImage" aria-label="上一张">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-                </svg>
-            </button>
-            <button class="banner-nav next" @click="nextImage" aria-label="下一张">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                    <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/>
-                </svg>
-            </button>
-            <!-- 指示器 -->
-            <div class="banner-dots">
-                <button
-                    v-for="(_, index) in carousels"
-                    :key="index"
-                    class="dot"
-                    :class="{ active: index === currentIndex }"
-                    @click="goToIndex(index)"
-                    :aria-label="`切换到第 ${index + 1} 张`"
-                ></button>
-            </div>
-        </template>
-
-        <!-- 波浪动画 -->
-        <div class="wave-container">
-            <svg class="waves" xmlns="http://www.w3.org/2000/svg" viewBox="0 24 150 28" preserveAspectRatio="none">
-                <defs>
-                     <path id="gentle-wave"
-                        d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
-                </defs>
-                <g class="parallax">
-                    <use xlink:href="#gentle-wave" x="48" y="0" class="wave-1" />
-                    <use xlink:href="#gentle-wave" x="48" y="3" class="wave-2" />
-                    <use xlink:href="#gentle-wave" x="48" y="5" class="wave-3" />
-                    <use xlink:href="#gentle-wave" x="48" y="7" class="wave-4" />
-                </g>
-            </svg>
+          </transition>
         </div>
+      </div>
     </div>
+
+    <!-- 切换按钮与指示器（多张图片时显示） -->
+    <template v-if="slides.length > 1">
+      <button class="banner-nav prev" @click="prevImage" aria-label="上一张">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+          <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+        </svg>
+      </button>
+      <button class="banner-nav next" @click="nextImage" aria-label="下一张">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+          <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/>
+        </svg>
+      </button>
+      <div class="banner-dots" role="tablist" aria-label="轮播指示器">
+        <button
+          v-for="(_, index) in slides"
+          :key="index"
+          class="dot"
+          :class="{ active: index === currentIndex }"
+          @click="goToIndex(index)"
+          :aria-label="`切换到第 ${index + 1} 张`"
+        ></button>
+      </div>
+    </template>
+
+    <!-- 波浪动画（装饰性，跟随主题底色衔接下方内容） -->
+    <svg class="waves" viewBox="0 24 150 28" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <path id="gentle-wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
+      </defs>
+      <g class="parallax">
+        <use href="#gentle-wave" x="48" y="0" class="wave-1" />
+        <use href="#gentle-wave" x="48" y="3" class="wave-2" />
+        <use href="#gentle-wave" x="48" y="5" class="wave-3" />
+        <use href="#gentle-wave" x="48" y="7" class="wave-4" />
+      </g>
+    </svg>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import CarouselService, { type Carousel } from '@/services/carousel'
 import { handleImageError } from '@/composables/useImageFallback'
+import { useBannerStore } from '@/stores/banner'
+import banner0 from '@/assets/image/banner/banner0.png'
+
+const bannerStore = useBannerStore()
+
+/** 无轮播数据、无页面定制时的默认单张横幅 */
+const fallbackSlide: Carousel = {
+  title: 'LiuTech',
+  description: '全栈工程师的技术博客',
+  imageUrl: banner0,
+  sortOrder: 0,
+  status: 1
+}
 
 const carousels = ref<Carousel[]>([])
 const currentIndex = ref(0)
 const loadedIndex = ref<number | null>(null)
 let autoPlayTimer: number | null = null
 
-const currentCarousel = computed(() => {
-    if (carousels.value.length > 0) {
-        return carousels.value[currentIndex.value]
-    }
-    return { title: '', imageUrl: '', linkUrl: '', description: '', sortOrder: 0, status: 1 }
+// 数据优先级：页面定制（banner store）> 接口轮播 > 默认单张
+const slides = computed<Carousel[]>(() => {
+  if (bannerStore.customSlides.length > 0) return bannerStore.customSlides
+  if (carousels.value.length > 0) return carousels.value
+  return [fallbackSlide]
 })
 
+const currentSlide = computed(() => slides.value[currentIndex.value])
+
 const isPrev = (index: number) => {
-    if (carousels.value.length <= 1) return false
-    return index === (currentIndex.value === 0 ? carousels.value.length - 1 : currentIndex.value - 1)
+  if (slides.value.length <= 1) return false
+  return index === (currentIndex.value === 0 ? slides.value.length - 1 : currentIndex.value - 1)
 }
 
 const isNext = (index: number) => {
-    if (carousels.value.length <= 1) return false
-    return index === (currentIndex.value === carousels.value.length - 1 ? 0 : currentIndex.value + 1)
+  if (slides.value.length <= 1) return false
+  return index === (currentIndex.value === slides.value.length - 1 ? 0 : currentIndex.value + 1)
 }
 
 // 切换图片时重置加载状态，触发淡入
-watch(() => currentCarousel.value.imageUrl, () => {
-    loadedIndex.value = null
+watch(() => currentSlide.value.imageUrl, () => {
+  loadedIndex.value = null
 })
 
 const onImageLoad = (index: number) => {
-    loadedIndex.value = index
-    preloadNext()
+  loadedIndex.value = index
+  preloadNext()
 }
 
 // 预加载下一张，减少切换时的等待
 const preloadNext = () => {
-    if (carousels.value.length <= 1) return
-    const nextIndex = (currentIndex.value + 1) % carousels.value.length
-    const nextUrl = carousels.value[nextIndex]?.imageUrl
-    if (nextUrl) {
-        const img = new Image()
-        img.src = nextUrl
-    }
+  if (slides.value.length <= 1) return
+  const nextIndex = (currentIndex.value + 1) % slides.value.length
+  const nextUrl = slides.value[nextIndex]?.imageUrl
+  if (nextUrl) {
+    const img = new Image()
+    img.src = nextUrl
+  }
 }
 
 const prevImage = () => {
-    if (carousels.value.length <= 1) return
-    currentIndex.value = currentIndex.value === 0
-        ? carousels.value.length - 1
-        : currentIndex.value - 1
+  if (slides.value.length <= 1) return
+  currentIndex.value = currentIndex.value === 0
+    ? slides.value.length - 1
+    : currentIndex.value - 1
 }
 
 const nextImage = () => {
-    if (carousels.value.length <= 1) return
-    currentIndex.value = currentIndex.value >= carousels.value.length - 1
-        ? 0
-        : currentIndex.value + 1
+  if (slides.value.length <= 1) return
+  currentIndex.value = currentIndex.value >= slides.value.length - 1
+    ? 0
+    : currentIndex.value + 1
 }
 
 const goToIndex = (index: number) => {
-    if (index === currentIndex.value) return
-    currentIndex.value = index
+  if (index === currentIndex.value) return
+  currentIndex.value = index
 }
 
 const startAutoPlay = () => {
-    if (carousels.value.length <= 1) return
-    stopAutoPlay()
-    autoPlayTimer = window.setInterval(() => {
-        nextImage()
-    }, 5000)
+  if (slides.value.length <= 1) return
+  stopAutoPlay()
+  autoPlayTimer = window.setInterval(() => {
+    nextImage()
+  }, 5000)
 }
 
 const stopAutoPlay = () => {
-    if (autoPlayTimer !== null) {
-        clearInterval(autoPlayTimer)
-        autoPlayTimer = null
-    }
+  if (autoPlayTimer !== null) {
+    clearInterval(autoPlayTimer)
+    autoPlayTimer = null
+  }
 }
 
 const loadCarousels = async () => {
-    try {
-        const data = await CarouselService.getActiveCarousels()
-        if (data) {
-            carousels.value = data
-            currentIndex.value = 0
-            startAutoPlay()
-        }
-    } catch {
-        // 加载轮播图失败时静默处理
+  try {
+    const data = await CarouselService.getActiveCarousels()
+    if (data) {
+      carousels.value = data
+      currentIndex.value = 0
+      startAutoPlay()
     }
+  } catch {
+    // 加载轮播图失败时静默处理
+  }
 }
 
 onMounted(() => {
-    loadCarousels()
+  loadCarousels()
 })
 
 onUnmounted(() => {
-    stopAutoPlay()
+  stopAutoPlay()
 })
 </script>
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+
+/* ===== 基础结构与层级 ===== */
 .banner-header {
-    width: 100%;
-    height: 100%;
-    position: relative;
-    background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg-element) 100%);
-    overflow: hidden;
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg-element) 100%);
+  /* 紧凑模式切换（600px ↔ 340px）过渡动画，由外层 min-height 驱动 */
+  transition: min-height 0.4s ease;
 }
 
 .banner-slide {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.8s ease, visibility 0.8s ease;
-    z-index: 1;
-}
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
 
-.banner-slide.is-active {
+  &.is-active {
+    z-index: 2;
     opacity: 1;
     visibility: visible;
-    z-index: 2;
+  }
 }
 
 .banner-image-wrapper {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 
 .banner-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    opacity: 0;
-    transform: scale(1.05);
-    transition: opacity 0.8s ease;
-}
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform: scale(1.05);
+  transition: opacity 0.8s ease;
 
-.banner-image.is-loaded {
+  &.is-loaded {
     opacity: 1;
     animation: kenBurns 8s ease forwards;
+  }
 }
 
 .banner-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.45) 60%, rgba(0, 0, 0, 0.6) 100%);
-    z-index: 1;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.45) 60%, rgba(0, 0, 0, 0.6) 100%);
 }
 
+/* ===== 文字内容层 ===== */
 .banner-content {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    padding: 80px 40px;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  padding: 80px 0;
 }
 
+/* 与页面 .content 容器同宽（1200px 居中），水平 padding 跟随全局 .content 响应式，保证与正文对齐 */
 .banner-content-inner {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+
+  @include respond(md) {
+    padding: 0 16px;
+  }
+
+  @include respond(sm) {
+    padding: 0 12px;
+  }
 }
 
 .banner-text {
-    max-width: 600px;
-    color: #fff;
+  max-width: 600px;
+  color: #fff;
 }
 
+/* 徽标：参考 Gardyn subheader 的 crumb —— 白字 + 半透明白底药丸 */
 .banner-title-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 14px;
-    margin-bottom: 16px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #fff;
-    background: var(--color-secondary);
-    border-radius: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  margin-bottom: 18px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 30px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .banner-title {
-    margin: 0 0 16px;
-    font-size: clamp(2rem, 5vw, 3.5rem);
-    font-weight: 800;
-    line-height: 1.1;
-    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+  margin: 0 0 16px;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
 }
 
 .banner-desc {
-    margin: 0 0 28px;
-    font-size: clamp(1rem, 2vw, 1.25rem);
-    line-height: 1.6;
-    opacity: 0.9;
-    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
+  margin: 0 0 28px;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  line-height: 1.6;
+  opacity: 0.9;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
 }
 
 .banner-btn {
-    padding: 12px 28px;
-    font-size: 0.95rem;
+  padding: 12px 28px;
+  font-size: 0.95rem;
 }
 
-/* 文字进场动画 */
+/* ===== 文字进场动画 ===== */
 .slide-text-enter-active,
 .slide-text-leave-active {
-    transition: all 0.5s ease;
+  transition: all 0.5s ease;
 }
 
 .slide-text-enter-from {
-    opacity: 0;
-    transform: translateY(30px);
+  opacity: 0;
+  transform: translateY(30px);
 }
 
 .slide-text-leave-to {
-    opacity: 0;
-    transform: translateY(-20px);
+  opacity: 0;
+  transform: translateY(-20px);
 }
 
-/* 导航按钮 */
+/* ===== 切换按钮与指示器 ===== */
 .banner-nav {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 48px;
-    height: 48px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-    z-index: 20;
-    backdrop-filter: blur(8px);
-}
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 20;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
 
-.banner-nav:hover {
+  &:hover {
     background: rgba(255, 255, 255, 0.35);
     transform: translateY(-50%) scale(1.1);
+  }
+
+  &.prev { left: 24px; }
+  &.next { right: 24px; }
 }
 
-.banner-nav.prev {
-    left: 24px;
-}
-
-.banner-nav.next {
-    right: 24px;
-}
-
-/* 指示器 */
 .banner-dots {
-    position: absolute;
-    bottom: 90px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 10px;
-    z-index: 20;
+  position: absolute;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  gap: 10px;
 }
 
 .dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.4);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: none;
-    padding: 0;
-}
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
 
-.dot:hover {
-    background: rgba(255, 255, 255, 0.7);
-}
+  &:hover { background: rgba(255, 255, 255, 0.7); }
 
-.dot.active {
+  &.active {
     background: #fff;
     transform: scale(1.3);
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+  }
 }
 
+/* ===== 波浪（装饰，衔接下方主题底色） ===== */
 .waves {
-    width: 100%;
-    position: absolute;
-    bottom: 0;
-    height: 10vh;
-    min-height: 100px;
-    max-height: 150px;
-    z-index: 10;
+  position: absolute;
+  bottom: 0;
+  z-index: 10;
+  width: 100%;
+  height: 10vh;
+  min-height: 100px;
+  max-height: 150px;
 }
 
-/* 波浪颜色适配主题 */
 .wave-1 { fill: var(--bg-main); opacity: 0.7; }
 .wave-2 { fill: var(--bg-main); opacity: 0.5; }
 .wave-3 { fill: var(--bg-main); opacity: 0.3; }
 .wave-4 { fill: var(--bg-main); opacity: 1; }
 
-.parallax>use {
-    animation: move-forever 25s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite;
+.parallax > use {
+  animation: move-forever 25s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite;
 }
 
-.parallax>use:nth-child(1) { animation-delay: -2s; animation-duration: 7s; }
-.parallax>use:nth-child(2) { animation-delay: -3s; animation-duration: 10s; }
-.parallax>use:nth-child(3) { animation-delay: -4s; animation-duration: 13s; }
-.parallax>use:nth-child(4) { animation-delay: -5s; animation-duration: 20s; }
+.parallax > use:nth-child(1) { animation-delay: -2s; animation-duration: 7s; }
+.parallax > use:nth-child(2) { animation-delay: -3s; animation-duration: 10s; }
+.parallax > use:nth-child(3) { animation-delay: -4s; animation-duration: 13s; }
+.parallax > use:nth-child(4) { animation-delay: -5s; animation-duration: 20s; }
 
-@keyframes move-forever {
-    0% { transform: translate3d(-90px, 0, 0); }
-    100% { transform: translate3d(85px, 0, 0); }
+/* ===== 紧凑模式（文章详情页）：更矮的页眉形态 =====
+   保留波浪作为与内容的衔接；文字集中在底部、波浪收敛、标题占满容器 */
+.banner-header.banner--compact {
+  min-height: 340px;
+
+  .banner-text { max-width: none; }
+
+  .banner-content {
+    align-items: flex-end;
+    padding: 64px 0 88px;
+  }
+
+  .banner-title {
+    margin-bottom: 0;
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+  }
+
+  .waves {
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+  }
+
+  @include respond(md) {
+    min-height: 280px;
+    .banner-content { padding: 48px 0 64px; }
+  }
+
+  @include respond(sm) {
+    min-height: 240px;
+    .banner-content { padding: 40px 0 48px; }
+  }
 }
 
-@keyframes kenBurns {
-    0% { transform: scale(1.05); }
-    100% { transform: scale(1.15); }
-}
-
+/* ===== 响应式 ===== */
 @include respond(md) {
-    .banner-content {
-        padding: 60px 24px;
-    }
+  .banner-content { padding: 60px 0; }
 
-    .banner-nav {
-        width: 40px;
-        height: 40px;
-    }
+  .banner-nav { width: 40px; height: 40px; }
+  .banner-nav.prev { left: 12px; }
+  .banner-nav.next { right: 12px; }
 
-    .banner-nav.prev { left: 12px; }
-    .banner-nav.next { right: 12px; }
+  .banner-dots { bottom: 70px; }
 
-    .banner-dots {
-        bottom: 70px;
-    }
-
-    .waves {
-        height: 40px;
-        min-height: 40px;
-    }
+  .waves { height: 40px; min-height: 40px; }
 }
 
 @include respond(sm) {
-    .banner-content {
-        padding: 40px 16px;
-        align-items: flex-end;
-        padding-bottom: 100px;
-    }
+  .banner-content {
+    align-items: flex-end;
+    padding: 40px 0 100px;
+  }
 
-    .banner-title {
-        margin-bottom: 10px;
-    }
+  .banner-title { margin-bottom: 10px; }
+  .banner-desc { margin-bottom: 20px; }
+  .banner-dots { bottom: 60px; }
+}
 
-    .banner-desc {
-        margin-bottom: 20px;
-    }
+@keyframes kenBurns {
+  0% { transform: scale(1.05); }
+  100% { transform: scale(1.15); }
+}
 
-    .banner-dots {
-        bottom: 60px;
-    }
+@keyframes move-forever {
+  0% { transform: translate3d(-90px, 0, 0); }
+  100% { transform: translate3d(85px, 0, 0); }
 }
 </style>

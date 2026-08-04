@@ -1,12 +1,12 @@
 <template>
   <div class="card bg-card">
-    <h4 class="card-title"><Icon name="link" size="18" /> 友情链接</h4>
+    <h4 class="card-title"><span class="card-badge"><Icon name="link" size="12" /> Links</span><span class="card-title-text">友情<span class="card-highlight">链接</span></span></h4>
     <div class="list gap-8">
       <a
           v-for="link in links"
           :key="link.id"
           :href="link.url"
-          class="flex flex-ac gap-8 p-8 rounded transition link"
+          class="list-item flex flex-ac gap-8 link transition"
           target="_blank"
       >
         <Icon :name="link.iconName" size="18" />

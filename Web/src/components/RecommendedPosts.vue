@@ -1,19 +1,19 @@
 <template>
   <div class="card bg-card ">
-    <h4 class="card-title">推荐阅读</h4>
+    <h4 class="card-title"><span class="card-badge"><Icon name="book" size="12" /> Reading</span><span class="card-title-text">推荐<span class="card-highlight">阅读</span></span></h4>
     <div v-if="loading" class="loading-text text-sm">加载中...</div>
     <div v-else-if="posts.length === 0" class="empty-text flex flex-col flex-ac text-sm">
       <p>暂无推荐</p>
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
     </div>
-    <div v-else class="list gap-12">
+    <div v-else class="list">
       <div
         v-for="post in posts"
         :key="post.id"
-        class="recommended-item flex flex-col gap-8 rounded link transition bg-soft"
+        class="list-item flex flex-col gap-8 link transition"
         @click="handlePostClick(post.id)"
       >
-        <h5 class="text-base font-semibold text-primary mb-0">{{ post.title }}</h5>
+        <h5 class="text-lg font-semibold mb-0 recommended-title" style="color: var(--text-title)">{{ post.title }}</h5>
         <div class="flex flex-sb flex-ac text-sm text-muted">
           <span class="font-medium">{{ post.author?.username }}</span>
           <span>{{ formatDate(post.createdAt) }}</span>
@@ -25,6 +25,7 @@
 
 <script setup lang="ts">
 import { formatDate } from '@/utils/utils'
+import Icon from './Icon.vue'
 
 // 定义props
 interface Author {
@@ -60,13 +61,9 @@ const handlePostClick = (postId: number) => {
 </script>
 
 <style scoped lang="scss">
-.recommended-item {
-  padding: 12px;
-  transition: transform 0.2s ease, background 0.2s ease;
-
-  &:hover {
-    transform: translateX(4px);
-    background: var(--bg-hover);
-  }
+.recommended-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
