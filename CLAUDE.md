@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 本项目是一个**全栈博客平台**（LiuTech），文档和注释主要使用中文编写。前后端分离 + Spring Boot 微服务，部署在 Docker Compose 上。
 
+技术栈关键事实：后端 **Java 21** + Spring Boot 3.5 + MyBatis-Plus；缓存用 **Caffeine 本地多级 TTL**（文章 5min / 标签 10min / 分类 15min），**未引入 Redis**，别建议加 Redis 或写 Redis 代码；前端 Vue 3 + TS + Vite；数据库 MySQL 8（两个库：`liutech` 主库、`liutech_ai` AI 库）。
+
 ## 🏗️ 顶层模块
 
 | 路径 | 角色 | 端口 |
@@ -19,52 +21,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 容器内部使用服务名通信：`backend:8080`、`ai:8081`、`mysql:3306`。完整编排见 `docker-compose.yml`。
 
-后端分层（`LiuTech/src/main/java/chat/liuxin/liutech/`）：`controller/{admin,web}` → `service` → `mapper` → `model`，横切关注点放在 `common/`、`config/`、`aspect/`、`filter/`；AI 服务结构类似但包名为 `chat.liuxin.ai`。
+后端分层（`LiuTech/src/main/java/chat/liuxin/liutech/`）：`controller/{admin,web}` -> `service` -> `mapper` -> `model`，横切关注点放在 `common/`、`config/`、`aspect/`、`filter/`；AI 服务结构类似但包名为 `chat.liuxin.ai`。
 
-前端分层（`Web/src/` 与 `Admin/src/`）：`views/`（页面）→ `components/`（复用）→ `services/`（API）→ `stores/`（Pinia）→ `router/`、`composables/`、`utils/`。Web 含 Live2D、TinyMCE、看板娘聊天；Admin 以表格/表单 CRUD 为主。
+前端分层（`Web/src/` 与 `Admin/src/`）：`views/`（页面）-> `components/`（复用）-> `services/`（API）-> `stores/`（Pinia）-> `router/`、`composables/`、`utils/`。Web 含 Live2D、TinyMCE、看板娘聊天；Admin 以表格/表单 CRUD 为主。
 
-## 🛠️ 常用命令
+## 🛠️ 如何运行
 
-按影响范围选择，不要机械全跑。
+**本地开发**：两个 Spring Boot 服务需 JDK 21，环境变量从根目录 `.env` 加载（真实密钥在 `.env`，已 gitignore 不入库）。
 
 ```bash
-# 后端单服务
+# bash：每次新 shell 先从 .env 加载环境变量
+set -a && source .env && set +a
+cd LiuTech && mvn spring-boot:run          # 主后端 :8080
+cd LiuTech-AI && mvn spring-boot:run       # AI 服务 :8081
+```
+
+`JWT_SECRET` 与 `TTS_PROXY_INTERNAL_TOKEN` 在两个服务必须一致，否则 token 验证 / TTS 代理失败。
+
+AI 要自己启动项目验证：开发完接口后本地启动 + 实时读日志 + 调接口测试，小问题自行解决，避免麻烦用户。token 通过登录接口获取（请求参数：用户名 + 密码，返回 token）。
+
+**生产部署**：见 `.claude/skills/deploy.md`（连服务器、构建上传镜像、重启容器）。
+
+⚠️ 真实密钥只在本地 `.env`，**不要**写入 CLAUDE.md 或任何入库文件。
+
+## 📦 构建与测试
+
+```bash
+# 后端（本机 mvn 默认 Java 8，需设 JAVA_HOME 指向 JDK 21）
 cd LiuTech && mvn test                       # 单元测试
+cd LiuTech && mvn test -Dtest=类名#方法      # 跑单个测试类/方法
 cd LiuTech && mvn clean package -DskipTests # 构建 JAR
-cd LiuTech-AI && mvn spring-boot:run        # 本地起 AI 服务
+mvn clean install -DskipTests                # 从根构建所有后端模块
 
 # 前端
 cd Web && npm run dev                        # 起 Web 开发服务器
-cd Web && npm run build                      # 生产构建（npm test 当前未配置）
+cd Web && npm run build                      # 生产构建
 cd Admin && npm run build                    # Admin 构建
 
-# 全栈
-mvn clean install -DskipTests                # 从根构建所有后端模块
-./快速打包文件.bat && docker-compose up -d   # Windows 一键构建并启动
-docker-compose logs -f backend               # 跟踪后端日志
-
 # 数据库
-mysql -u root -p < sql/sql.sql               # 一次性初始化两个库
+mysql -u root -p < sql/sql.sql               # 初始化两个库
 docker exec -it liutech-mysql mysql -u root -p
+
+# 全栈部署（Windows 一键）
+./快速打包文件.bat && docker-compose up -d
+docker-compose logs -f backend               # 跟踪后端日志
 ```
 
 ## ⚠️ 跨服务集成约束（最容易出错的点）
 
 - **`JWT_SECRET`** 在 `backend` 和 `ai` 服务中**必须完全一致**，否则 token 验证失败。
 - **`TTS_PROXY_INTERNAL_TOKEN`** 在 `backend` 和 `ai` 服务中**必须一致**，AI 服务通过 `/tts/speech` 代理调用主后端 TTS。
-- **AI 服务 → 主后端** URL：在 Docker 内是 `http://backend:8080`（`BLOG_API_URL`），本地开发用 `http://localhost:8080`。
+- **AI 服务 -> 主后端** URL：Docker 内 `http://backend:8080`（`BLOG_API_URL`），本地 `http://localhost:8080`。
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证。
-- **文件上传**：容器内 `/app/uploads` 绑定到宿主机 `/liuxin/uploads`；**不要**用 `docker compose down -v`，会清空 `mysql_data` 卷。
-- **图片 URL 策略**：后端 `FileUtil.generateFileUrl` 返回**相对路径** `/uploads/...`，不拼 `serverBaseUrl`；开发环境 vite proxy 转发 `/uploads` -> 8080，生产 nginx 已配反代。数据库存相对路径，环境无关。**不要**为"开发环境图片显示不了"去改 `.env` 的 `SERVER_BASE_URL`。详见 [当前架构.md](doc/记录/当前架构.md)。
-- **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`，会破坏 JSON 响应（406）。
+- **文件上传**：容器内 `/app/uploads` 绑定宿主机 `/liuxin/uploads`；**不要** `docker compose down -v`（清空 `mysql_data` 卷）。
+- **图片 URL 策略**：`FileUtil.generateFileUrl` 返回**相对路径** `/uploads/...`，不拼 `serverBaseUrl`；数据库存相对路径，环境无关。**不要**为"开发环境图片显示不了"改 `.env` 的 `SERVER_BASE_URL`。详见 [当前架构.md](Docs/记录/当前架构.md)。
+- **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`（破坏 JSON 响应 406）。
+- **域名拓扑**：主站 `liuxin.chat` 走腾讯云 CDN 回源 443；后台 `admin.liuxin.chat` A 记录直连源站绕开 CDN（443）。证书 SAN 含 `liuxin.chat`/`www.liuxin.chat` 但**不含 admin 子域名**，浏览器报名称不匹配需手动继续，故 admin 站**不发 HSTS**；81 端口为其备用入口。详见 [部署运维总览](Docs/架构/部署运维/总览.md)。
 - **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`。
+- **nginx 配置烤进镜像**：`conf.d/*.conf` 是 `COPY` 进 nginx 镜像的，改 nginx 配置后**必须重新 build nginx 镜像并部署**，改宿主机文件不生效。
+- **CORS allowedOrigins 双服务同步**：新增前端访问域名时，`LiuTech` 与 `LiuTech-AI` 两个 `SecurityConfig.java` 的 `allowedOrigins` 必须同步添加，否则该域名跨域请求被拦。
 - **环境变量**从根目录 `.env` 注入；`.env.example` 是模板，生产替换为强密钥。
+- **开发/生产 compose 区分**：`docker-compose.override.yml` 仅本地开发，暴露 mysql/backend/ai/web/admin 宿主机端口便于调试，`docker compose up` 自动合并；生产**不上传此文件**，只 `docker-compose.yml`，仅 nginx 暴露 80/443/81。
 
 ## 🤖 工作约定
 
 工作流靠判断力 + [`.claude/rules/style.md`](.claude/rules/style.md) 沟通风格，不设强制流程文档。复杂功能先口头确认方案再动手，做完按规范提交。
 
-**高风险领域**（认证授权、积分支付、数据库结构、上传下载、AI/SSE/TTS、Nginx/Docker/部署、跨服务调用）改动要特别谨慎：先读相关代码和 [当前架构.md](doc/记录/当前架构.md)，确认影响范围再动手，不猜测。
+**高风险领域**（认证授权、积分支付、数据库结构、上传下载、AI/SSE/TTS、Nginx/Docker/部署、跨服务调用）改动要特别谨慎：先读相关代码和 [当前架构.md](Docs/记录/当前架构.md)，确认影响范围再动手，不猜测。
 
 **架构文档**：新增或大改功能模块时，在 `Docs/架构/<模块>/` 下补充文档并更新 `Docs/架构/README.md` 索引；每个模块以「总览.md」为入口，单一领域文档不超过 500 行。
 
@@ -91,11 +114,14 @@ docker exec -it liutech-mysql mysql -u root -p
 
 ## 🔗 重要资源指针
 
-- `README.md` — 完整功能介绍、特性列表、部署流程（产品向）
-- `LiuTech/src/main/java/chat/liuxin/liutech/controller/` — 后端 API 完整参考
-- `快速部署指南.md` — 生产环境部署步骤
-- `doc/记录/当前架构.md` — 当前生效的总体架构
-- `Docs/架构/README.md` — 模块化架构文档索引，接手某模块前先读对应目录的「总览.md」
+- `README.md` - 完整功能介绍、特性列表、部署流程（产品向）
+- `LiuTech/src/main/java/chat/liuxin/liutech/controller/` - 后端 API 完整参考
+- `快速部署指南.md` - 生产环境部署步骤
+- `Docs/记录/当前架构.md` - 当前生效的总体架构
+- `Docs/架构/README.md` - 模块化架构文档索引，接手某模块先读对应目录的「总览.md」
+- `AGENTS.md` - 给 Codex 的精简指引，指向本文件；改动约定时两处保持同步
+- `.claude/skills/` - `deploy.md`（部署步骤）、`docs-architecture/`（架构文档维护规范）
+- `Docs/` 子目录：`架构/`（模块文档）、`记录/`（当前架构 + 历史归档）、`PRD/`、`SQL/`、`团队反馈/`
 
 ## 🧠 GBrain 持久知识库
 

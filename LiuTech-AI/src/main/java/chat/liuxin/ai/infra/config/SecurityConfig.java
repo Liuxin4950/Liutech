@@ -159,7 +159,9 @@ public class SecurityConfig {
             "http://www.liuxin.chat",
             "https://www.liuxin.chat",
             "http://www.liuxin.chat:*",
-            "https://www.liuxin.chat:*"
+            "https://www.liuxin.chat:*",
+            "http://admin.liuxin.chat",
+            "https://admin.liuxin.chat"
         ));
 
         // 允许的HTTP方法
