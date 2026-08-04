@@ -168,7 +168,7 @@ onUnmounted(() => {
       </nav>
 
       <!-- 搜索 + 用户区域（右侧整体） -->
-      <div class="flex flex-ac">
+      <div class="flex flex-ac header-right">
         <button class="search-trigger" @click="emit('open-search')" title="搜索 (Ctrl+K)">
           <Icon name="search" size="18" />
         </button>
@@ -346,6 +346,15 @@ onUnmounted(() => {
   font-size: 32px;
   font-weight: bold;
   line-height: 1;
+  @include respond(md) {
+    display: none;
+  }
+}
+
+.header-right {
+  @include respond(md) {
+    margin-left: auto;
+  }
 }
 
 .logo-mark {

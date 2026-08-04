@@ -10,22 +10,37 @@
             >
                 <img
                     class="banner-image"
+                    :class="{ 'is-loaded': loaded }"
                     :src="currentCarousel.imageUrl"
                     :alt="currentCarousel.title"
+                    loading="eager"
+                    fetchpriority="high"
+                    @load="onImageLoad"
                     @error="handleImageError"
                 >
             </a>
             <img
                 v-else
                 class="banner-image"
+                :class="{ 'is-loaded': loaded }"
                 :src="currentCarousel.imageUrl"
                 :alt="currentCarousel.title"
+                loading="eager"
+                fetchpriority="high"
+                @load="onImageLoad"
                 @error="handleImageError"
             >
         </template>
         <!-- 无轮播图时显示默认图片 -->
         <template v-else>
-            <img class="banner-image" src="@/assets/image/banner/liuyin.png" alt="Banner">
+            <img
+                class="banner-image"
+                :class="{ 'is-loaded': loaded }"
+                src="@/assets/image/banner/banner0.png"
+                alt="Banner"
+                @load="onImageLoad"
+                @error="handleImageError"
+            >
         </template>
 
         <!-- 切换按钮（多张图片时显示） -->
@@ -71,12 +86,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import CarouselService, { type Carousel } from '@/services/carousel'
 import { handleImageError } from '@/composables/useImageFallback'
 
 const carousels = ref<Carousel[]>([])
 const currentIndex = ref(0)
+const loaded = ref(false)
 let autoPlayTimer: number | null = null
 
 const currentCarousel = computed(() => {
@@ -85,6 +101,27 @@ const currentCarousel = computed(() => {
     }
     return { title: '', imageUrl: '', linkUrl: '', sortOrder: 0, status: 1 }
 })
+
+// 切换图片时重置加载状态，触发淡入
+watch(() => currentCarousel.value.imageUrl, () => {
+    loaded.value = false
+})
+
+const onImageLoad = () => {
+    loaded.value = true
+    preloadNext()
+}
+
+// 预加载下一张，减少切换时的等待
+const preloadNext = () => {
+    if (carousels.value.length <= 1) return
+    const nextIndex = (currentIndex.value + 1) % carousels.value.length
+    const nextUrl = carousels.value[nextIndex]?.imageUrl
+    if (nextUrl) {
+        const img = new Image()
+        img.src = nextUrl
+    }
+}
 
 const prevImage = () => {
     if (carousels.value.length <= 1) return
@@ -143,7 +180,8 @@ onUnmounted(() => {
     width: 100%;
     height: 100%;
     position: relative;
-    background: linear-gradient(60deg, var(--color-primary) 0%, var(--color-primary) 100%);
+    /* 加载期间占位：跟随主题的柔和灰，避免图片未加载时与页面背景冲突 */
+    background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg-element) 100%);
     overflow: hidden;
 }
 .banner-link {
@@ -155,7 +193,11 @@ onUnmounted(() => {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    opacity: 0;
     transition: opacity 0.5s ease;
+}
+.banner-image.is-loaded {
+    opacity: 1;
 }
 
 /* 导航按钮 */
