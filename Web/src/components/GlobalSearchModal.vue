@@ -4,17 +4,19 @@
       <div v-if="visible" class="search-overlay" @click.self="close">
         <div class="search-modal">
           <div class="search-header">
-            <Icon name="search" size="18" class="modal-search-icon" />
-            <input
-              ref="inputRef"
-              v-model="keyword"
-              type="text"
-              placeholder="搜索文章标题、内容或摘要..."
-              class="modal-search-input"
-              @input="handleInput"
-              @keyup.enter="handleSearch"
-              @keyup.esc="close"
-            />
+            <div class="search-box modal-search-box">
+              <input
+                ref="inputRef"
+                v-model="keyword"
+                type="text"
+                placeholder="搜索文章标题、内容或摘要..."
+                class="search-input"
+                @input="handleInput"
+                @keyup.enter="handleSearch"
+                @keyup.esc="close"
+              />
+              <Icon name="search" size="16" class="search-icon" />
+            </div>
           </div>
 
           <div ref="searchBodyRef" class="search-body" data-lenis-prevent>
@@ -33,7 +35,7 @@
               <article
                 v-for="post in results"
                 :key="post.id"
-                class="result-item"
+                class="result-item list-item"
                 @click="goToPost(post.id)"
               >
                 <h4 class="result-title">{{ post.title }}</h4>
@@ -155,27 +157,19 @@ defineExpose({ open, close })
 .search-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-soft);
 }
 
-.modal-search-icon {
-  color: var(--text-subtle);
-  flex-shrink: 0;
-}
-
-.modal-search-input {
+/* 复用全局 .search-input（styles.scss 唯一实现），弹窗内放开 max-width 占满宽度，放大一号 */
+.modal-search-box {
   flex: 1;
-  border: none;
-  background: transparent;
-  font-size: 1rem;
-  color: var(--text-main);
-  outline: none;
-}
+  max-width: none;
 
-.modal-search-input::placeholder {
-  color: var(--text-muted);
+  .search-input {
+    padding: 10px 40px 10px 14px;
+    font-size: 0.9rem;
+  }
 }
 
 .search-body {
@@ -221,37 +215,26 @@ defineExpose({ open, close })
 .results-list {
   display: flex;
   flex-direction: column;
+  padding: 4px;
 }
 
+/* 分隔线条目：样式走全局 .list-item（10px 12px / 8px 圆角 / 底部线 / hover bg-hover），这里只留内容布局 */
 .result-item {
-  padding: 14px 16px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border-left: 3px solid transparent;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.result-item + .result-item {
-  border-top: 1px solid var(--border-soft);
-}
-
-.result-item:hover {
-  background: var(--bg-hover, #f8f8f8);
-  border-left-color: var(--color-primary, #4a90a4);
-}
-
 .result-title {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--text-title);
   margin: 0;
   line-height: 1.5;
 }
 
 .result-summary {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-subtle);
   margin: 0;
   line-height: 1.5;
@@ -269,17 +252,17 @@ defineExpose({ open, close })
   color: var(--text-muted);
 }
 
+/* 分类角标：主题色药丸（与 ArticleList.article-category / 全局分类角标统一） */
 .result-category {
-  background: var(--color-primary-light, #e8f4f8);
-  color: var(--color-primary, #4a90a4);
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 12px;
+  border-radius: 30px;
+  font-weight: 600;
   font-size: 0.7rem;
-}
-
-.result-date {
-  font-size: 0.7rem;
+  color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.16);
 }
 
 /* 过渡动画 */

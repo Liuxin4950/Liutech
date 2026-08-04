@@ -13,12 +13,14 @@ const props = withDefaults(defineProps<{
   multiple?: boolean
   placeholder?: string
   searchPlaceholder?: string
+  hideSearch?: boolean
   creatable?: boolean
   createLabel?: string
 }>(), {
   multiple: false,
   placeholder: '请选择',
   searchPlaceholder: '搜索...',
+  hideSearch: false,
   creatable: false,
   createLabel: '新建',
 })
@@ -108,7 +110,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 <template>
   <div class="ss-select" ref="rootRef">
-    <div class="ss-trigger" @click="toggleOpen">
+    <div class="ss-trigger" :class="{ open }" @click="toggleOpen">
       <div v-if="multiple && selectedLabels.length" class="ss-chips">
         <span v-for="(label, i) in selectedLabels" :key="i" class="ss-chip">
           {{ label }}
@@ -121,15 +123,18 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     </div>
 
     <div v-if="open" class="ss-dropdown">
-      <div class="ss-search">
-        <Icon name="search" size="14" class="ss-search-icon" />
-        <input
-          ref="searchInputRef"
-          v-model="query"
-          type="text"
-          :placeholder="searchPlaceholder"
-          @keyup.enter="onEnter"
-        />
+      <div v-if="!hideSearch" class="ss-search">
+        <div class="search-box ss-search-box">
+          <input
+            ref="searchInputRef"
+            v-model="query"
+            type="text"
+            :placeholder="searchPlaceholder"
+            class="search-input"
+            @keyup.enter="onEnter"
+          />
+          <Icon name="search" size="14" class="search-icon" />
+        </div>
       </div>
       <div class="ss-options">
         <div v-if="filteredOptions.length === 0" class="ss-empty">无匹配项</div>
@@ -168,10 +173,15 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   padding: 6px 10px;
   border: 1px solid var(--border-base);
   border-radius: 6px;
-  background: var(--bg-card, #fff);
+  background: var(--bg-soft);
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   &:hover { border-color: var(--color-primary); }
+  /* 展开态与全局输入框 focus 描边一致 */
+  &.open {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
+  }
 }
 
 .ss-chips {
@@ -186,10 +196,10 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.1);
+  background: rgba(var(--color-primary-rgb), 0.1);
   color: var(--color-primary);
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
 }
 
 .ss-chip-x {
@@ -201,7 +211,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .ss-single {
   flex: 1;
   color: var(--text-main);
-  font-size: 14px;
+  font-size: 0.875rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -210,7 +220,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 .ss-placeholder {
   flex: 1;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .ss-arrow {
@@ -233,46 +243,42 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   overflow: hidden;
 }
 
+/* 展开态搜索框：复用全局 .search-input（styles.scss 唯一实现），面板内放开 max-width */
 .ss-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  padding: 8px;
   border-bottom: 1px solid var(--border-light);
-  .ss-search-icon { color: var(--text-muted); flex-shrink: 0; }
-  input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 13px;
-    color: var(--text-main);
-  }
+}
+
+.ss-search-box {
+  flex: 1;
+  max-width: none;
 }
 
 .ss-options {
   max-height: 220px;
   overflow-y: auto;
-  padding: 4px 0;
+  padding: 4px;
 }
 
 .ss-empty {
   padding: 16px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 0.875rem;
 }
 
+/* 选项：8px 圆角条目 + hover bg-hover（与全局 .list-item 反馈一致） */
 .ss-option {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.875rem;
   color: var(--text-main);
   transition: background 0.15s;
-  &:hover { background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.06); }
+  &:hover { background: var(--bg-hover); }
   &.selected { color: var(--color-primary); font-weight: 500; }
   .ss-check { color: var(--color-primary); }
 }
@@ -290,8 +296,8 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
   padding: 10px 12px;
   border-top: 1px dashed var(--border-soft);
   color: var(--color-primary);
-  font-size: 13px;
+  font-size: 0.875rem;
   cursor: pointer;
-  &:hover { background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.06); }
+  &:hover { background: var(--bg-hover); }
 }
 </style>

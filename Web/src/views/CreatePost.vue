@@ -287,10 +287,13 @@
           <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">发布状态</div>
             <div class="sidebar-content">
-              <select v-model="form.status" class="field-select w-full">
-                <option value="draft">草稿</option>
-                <option value="published">发布</option>
-              </select>
+              <SearchableSelect
+                :options="statusOptions"
+                :model-value="form.status"
+                placeholder="请选择发布状态"
+                hide-search
+                @update:model-value="val => form.status = (val === 'draft' || val === 'published') ? val : 'draft'"
+              />
             </div>
           </div>
 
@@ -555,6 +558,11 @@ const seriesOptions = computed(() => [
   { label: '不属于任何系列', value: '' },
   ...seriesList.value.map(s => ({ label: s.name, value: String(s.id) }))
 ])
+// 发布状态选项（与标签/分类/系列同走 SearchableSelect，保持下拉样式一致）
+const statusOptions = [
+  { label: '草稿', value: 'draft' },
+  { label: '发布', value: 'published' }
+]
 const selectedTagIds = computed<(string | number)[]>(() => selectedTags.value.map(t => t.id))
 const onTagIdsChange = (ids: string | number | (string | number)[]) => {
   const arr = Array.isArray(ids) ? ids : []
@@ -927,8 +935,7 @@ onMounted(async () => {
 
 
 .field-input,
-.field-textarea,
-.field-select {
+.field-textarea {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--border-base);
@@ -938,49 +945,14 @@ onMounted(async () => {
   transition: all 0.2s;
   outline: none;
   border-radius: 6px;
-  cursor: pointer;
   font-family: inherit;
 }
 
-.field-select {
-  min-height: 44px;
-  padding-right: 40px;
-  color-scheme: light;
-  appearance: none;
-  background-color: var(--bg-soft);
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='m6 9 6 6 6-6'/%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px;
-}
-
-.field-select option {
-  background-color: var(--bg-card);
-  color: var(--text-main);
-}
-
-.field-select option:checked {
-  background-color: var(--bg-hover);
-  color: var(--text-title);
-}
-
-:global(.dark) .field-select {
-  color-scheme: dark;
-  background-color: var(--bg-element);
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23CBD5E1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='m6 9 6 6 6-6'/%3e%3c/svg%3e");
-}
-
 .field-input:focus,
-.field-textarea:focus,
-.field-select:focus {
+.field-textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.18);
-}
-
-.field-select:hover {
-  border-color: var(--color-primary);
-  background-color: var(--bg-hover);
+  box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
 }
 
 .char-count {

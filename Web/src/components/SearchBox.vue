@@ -261,7 +261,7 @@ const clearSearch = () => {
 .result-title {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--text-title);
   margin: 0 0 4px 0;
   line-height: 1.4;
 }
@@ -281,15 +281,21 @@ const clearSearch = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
+/* 分类角标：主题色药丸（与搜索结果弹窗 / ArticleList 统一） */
 .result-category {
-  background: var(--bg-tag);
-  color: var(--text-main);
-  padding: 2px 6px;
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 12px;
+  border-radius: 30px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: rgba(var(--color-primary-rgb), 0.1);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.16);
 }
 
 .pagination {

@@ -58,13 +58,17 @@ const fetchAnnouncements = async () => {
   }
 }
 
-// 刷新公告数据
-const refreshAnnouncements = async () => {
-  try {
-    const data = await announcementStore.refreshLatestAnnouncements(5)
-  } catch {
-    // 刷新公告失败时静默处理
-  }
+// 刷新公告数据（防抖：快速重复点击只触发一次请求，避免连续布局变化）
+let refreshTimer: number | null = null
+const refreshAnnouncements = () => {
+  if (refreshTimer) clearTimeout(refreshTimer)
+  refreshTimer = window.setTimeout(async () => {
+    try {
+      await announcementStore.refreshLatestAnnouncements(5)
+    } catch {
+      // 刷新公告失败时静默处理
+    }
+  }, 300)
 }
 
 // ESC键关闭弹窗
@@ -91,6 +95,10 @@ onMounted(async () => {
 // 组件卸载时清理
 onUnmounted(() => {
   document.removeEventListener('keydown', handleEscKey)
+  if (refreshTimer) {
+    clearTimeout(refreshTimer)
+    refreshTimer = null
+  }
 })
 </script>
 
@@ -107,12 +115,15 @@ onUnmounted(() => {
         <Icon name="refresh" :spin="loading" />
       </button>
     </div>
-    <div v-if="loading" class="text-center p-16">
-      <span class="text-sm">加载中...</span>
-    </div>
-    <div v-else-if="announcements.length === 0" class="text-center p-16 flex flex-col flex-ac">
-      <span class="text-sm">暂无公告</span>
-      <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+    <!-- 仅首次加载（无数据）显示加载态；刷新时保留旧列表，避免闪烁 -->
+    <div v-if="announcements.length === 0" class="text-center p-16 flex flex-col flex-ac">
+      <div v-if="loading">
+        <span class="text-sm">加载中...</span>
+      </div>
+      <template v-else>
+        <span class="text-sm">暂无公告</span>
+        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
+      </template>
     </div>
     <div v-else class="list">
       <div
