@@ -194,8 +194,43 @@ public class FileUtil {
     }
     
     /**
+     * 基于文件头探测图片真实格式
+     * 用于 TinyMCE 粘贴上传的 blob：文件名不可靠（如 blobid0.png 实际可能是 CMYK JPEG）
+     *
+     * @param data 图片字节
+     * @return 真实扩展名（小写），无法识别返回 null
+     */
+    public String detectImageFormat(byte[] data) {
+        if (data == null || data.length < 12) {
+            return null;
+        }
+        // JPEG: FF D8 FF
+        if ((data[0] & 0xFF) == 0xFF && (data[1] & 0xFF) == 0xD8 && (data[2] & 0xFF) == 0xFF) {
+            return "jpg";
+        }
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if ((data[0] & 0xFF) == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47) {
+            return "png";
+        }
+        // GIF: 47 49 46 38 ("GIF8")
+        if (data[0] == 0x47 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x38) {
+            return "gif";
+        }
+        // BMP: 42 4D ("BM")
+        if (data[0] == 0x42 && data[1] == 0x4D) {
+            return "bmp";
+        }
+        // WebP: 52 49 46 46 xx xx xx xx 57 45 42 50 ("RIFF....WEBP")
+        if (data[0] == 0x52 && data[1] == 0x49 && data[2] == 0x46 && data[3] == 0x46
+                && data[8] == 0x57 && data[9] == 0x45 && data[10] == 0x42 && data[11] == 0x50) {
+            return "webp";
+        }
+        return null;
+    }
+
+    /**
      * 删除文件
-     * 
+     *
      * @param relativePath 文件相对路径
      * @return 是否删除成功
      */

@@ -50,7 +50,15 @@ public class ImageCompressService {
             return null;
         }
 
-        BufferedImage original = ImageIO.read(new ByteArrayInputStream(originalBytes));
+        BufferedImage original;
+        try {
+            original = ImageIO.read(new ByteArrayInputStream(originalBytes));
+        } catch (IOException e) {
+            // JDK ImageIO 无法解码的图片（如 Word 粘贴的 CMYK 色彩空间 JPEG）会抛异常，
+            // 降级为原样保存，浏览器仍能正常显示，不阻塞上传
+            log.warn("图片解码失败（{}），降级为原样保存: {}", e.getMessage(), originalFilename);
+            return null;
+        }
         if (original == null) {
             return null;
         }
@@ -98,6 +106,17 @@ public class ImageCompressService {
      * 编码为 JPEG 格式
      */
     private byte[] encodeJpeg(BufferedImage image, float quality) throws IOException {
+        // JPEG 不支持 alpha 通道：带透明的图片（如 RGBA PNG）直接写会抛 "Bogus input colorspace"，
+        // 先合成到白底 RGB
+        if (image.getColorModel().hasAlpha()) {
+            BufferedImage rgb = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+            Graphics2D g = rgb.createGraphics();
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, image.getWidth(), image.getHeight());
+            g.drawImage(image, 0, 0, null);
+            g.dispose();
+            image = rgb;
+        }
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
         if (!writers.hasNext()) {

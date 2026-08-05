@@ -54,18 +54,18 @@ public class ImagesService {
         }
 
         // 3. 压缩图片后保存
-        byte[] compressedBytes = imageCompressService.compress(file.getBytes(), file.getOriginalFilename());
-        String relativePath;
-        long fileSize;
+        byte[] originalBytes = file.getBytes();
+        byte[] compressedBytes = imageCompressService.compress(originalBytes, file.getOriginalFilename());
+        // 保存字节：压缩成功用压缩版，否则原样保存
+        byte[] bytesToSave = compressedBytes != null ? compressedBytes : originalBytes;
+        // 扩展名：TinyMCE 粘贴上传的 blob 文件名不可靠（如 blobid0.png 实为 CMYK JPEG），
+        // 统一按文件头探测真实格式，避免扩展名与实际字节不符
+        String realExtension = fileUtil.detectImageFormat(bytesToSave);
+        String saveName = realExtension != null ? "upload." + realExtension : file.getOriginalFilename();
+        String relativePath = fileUtil.saveFile(bytesToSave, subPath, saveName);
+        long fileSize = bytesToSave.length;
         if (compressedBytes != null) {
-            // 压缩成功，保存压缩版
-            relativePath = fileUtil.saveFile(compressedBytes, subPath, file.getOriginalFilename());
-            fileSize = compressedBytes.length;
             log.debug("图片已压缩: {}KB -> {}KB", file.getSize() / 1024, fileSize / 1024);
-        } else {
-            // 无需压缩（GIF、小图片等），原样保存
-            relativePath = fileUtil.saveFile(file, subPath);
-            fileSize = file.getSize();
         }
         String fileUrl = fileUtil.generateFileUrl(relativePath);
 
