@@ -3,34 +3,34 @@ package chat.liuxin.liutech.storage;
 import chat.liuxin.liutech.config.FileUploadConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 
 /**
  * 本地磁盘文件存储（{@link FileStorage} 默认实现）
- * 逻辑迁自原 FileUtil 的磁盘 IO 部分；上传根目录配置见 {@link FileUploadConfig#getBasePath()}
+ * cos.enabled=false（默认）时生效；启用 COS 后由 {@link CosFileStorage} 接管
+ * 上传根目录配置见 {@link FileUploadConfig#getBasePath()}
  *
  * @author 刘鑫
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "cos", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class LocalFileStorage implements FileStorage {
 
     private final FileUploadConfig fileUploadConfig;
 
     @Override
     public String save(byte[] data, String subPath, String originalFilename) throws IOException {
-        String fileName = generateFileName(originalFilename);
-        String datePath = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
-        String relativePath = subPath + "/" + datePath + "/" + fileName;
+        // 路径生成与 COS 实现共用 StoragePathUtil，保证两处逻辑路径结构一致（数据库零迁移）
+        String relativePath = StoragePathUtil.generateRelativePath(subPath, originalFilename);
 
         // 创建完整的文件路径（确保为绝对路径，避免Tomcat相对路径解析到临时目录）
         Path base = Paths.get(fileUploadConfig.getBasePath());
@@ -65,20 +65,17 @@ public class LocalFileStorage implements FileStorage {
         return fileUploadConfig.getUrlPrefix() + "/" + relativePath;
     }
 
-    /**
-     * 生成唯一文件名（保留原始扩展名）
-     */
-    private String generateFileName(String originalFilename) {
-        String extension = getFileExtension(originalFilename);
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        return timestamp + "_" + uuid + "." + extension;
-    }
-
-    private String getFileExtension(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return "";
+    @Override
+    public InputStream open(String relativePath) {
+        Path filePath = Paths.get(fileUploadConfig.getBasePath(), relativePath);
+        if (!Files.exists(filePath)) {
+            return null;
         }
-        return filename.substring(filename.lastIndexOf(".") + 1).toLowerCase();
+        try {
+            return Files.newInputStream(filePath);
+        } catch (IOException e) {
+            log.warn("打开文件失败: {}", relativePath, e);
+            return null;
+        }
     }
 }

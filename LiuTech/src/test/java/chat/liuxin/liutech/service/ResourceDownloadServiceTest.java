@@ -4,17 +4,15 @@ import chat.liuxin.liutech.mapper.ResourceDownloadsMapper;
 import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.model.ResourceDownloads;
 import chat.liuxin.liutech.model.Resources;
+import chat.liuxin.liutech.storage.FileStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.io.Resource;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.util.ReflectionTestUtils;
 
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -26,9 +24,7 @@ class ResourceDownloadServiceTest {
     private ResourcesMapper resourcesMapper;
     private ResourceDownloadsMapper resourceDownloadsMapper;
     private PointsService pointsService;
-
-    @TempDir
-    Path uploadDir;
+    private FileStorage fileStorage;
 
     private static final Long USER_ID = 10L;
     private static final Long RESOURCE_ID = 1L;
@@ -39,8 +35,8 @@ class ResourceDownloadServiceTest {
         resourcesMapper = mock(ResourcesMapper.class);
         resourceDownloadsMapper = mock(ResourceDownloadsMapper.class);
         pointsService = mock(PointsService.class);
-        service = new ResourceDownloadService(resourcesMapper, resourceDownloadsMapper, pointsService);
-        ReflectionTestUtils.setField(service, "uploadDir", uploadDir.toString());
+        fileStorage = mock(FileStorage.class);
+        service = new ResourceDownloadService(resourcesMapper, resourceDownloadsMapper, pointsService, fileStorage);
     }
 
     private Resources createPaidResource() {
@@ -66,21 +62,35 @@ class ResourceDownloadServiceTest {
     // ========== downloadResource 路径安全测试 ==========
 
     @Test
-    void shouldDownloadResourceInsideUploadDir() throws Exception {
-        Path file = uploadDir.resolve("resources/2026/04/demo.zip");
-        Files.createDirectories(file.getParent());
-        Files.writeString(file, "demo");
-
+    void shouldDownloadResourceViaStorage() throws Exception {
         Resources resource = new Resources();
         resource.setName("demo.zip");
         resource.setFileUrl("https://liuxin.chat/uploads/resources/2026/04/demo.zip");
         resource.setDownloadType(0);
         when(resourcesMapper.selectById(1L)).thenReturn(resource);
+        when(fileStorage.open("resources/2026/04/demo.zip"))
+                .thenReturn(new ByteArrayInputStream("demo".getBytes()));
 
         ResponseEntity<Resource> response = service.downloadResource(USER_ID, 1L);
 
         assertEquals(200, response.getStatusCode().value());
         assertTrue(response.getBody().exists());
+        verify(fileStorage).open("resources/2026/04/demo.zip");
+    }
+
+    @Test
+    void shouldThrowWhenFileNotExistsInStorage() {
+        Resources resource = new Resources();
+        resource.setName("missing.zip");
+        resource.setFileUrl("/uploads/resources/2026/04/missing.zip");
+        resource.setDownloadType(0);
+        when(resourcesMapper.selectById(1L)).thenReturn(resource);
+        when(fileStorage.open("resources/2026/04/missing.zip")).thenReturn(null);
+
+        RuntimeException error = assertThrows(RuntimeException.class,
+                () -> service.downloadResource(USER_ID, 1L));
+
+        assertEquals("文件不存在", error.getMessage());
     }
 
     @Test
@@ -95,6 +105,8 @@ class ResourceDownloadServiceTest {
                 () -> service.downloadResource(USER_ID, 2L));
 
         assertEquals("非法资源路径", error.getMessage());
+        // 非法路径必须在校验层拦截，不触碰存储
+        verify(fileStorage, never()).open(anyString());
     }
 
     @Test

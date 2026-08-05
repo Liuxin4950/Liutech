@@ -33,6 +33,15 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 /liuxin/uploads 到此路径
       - FILE_UPLOAD_BASE_PATH=/app/uploads
+      # 腾讯云 COS 对象存储（可选）：COS_ENABLED=true 时上传到 COS（生成 URL 直出 COS 域名），否则本地磁盘
+      # COS_MIGRATE=true 时启动后执行一次性迁移（本地 uploads 全量传 COS），完成看日志后移除
+      - COS_ENABLED=${COS_ENABLED:-false}
+      - COS_SECRET_ID=${COS_SECRET_ID:-}
+      - COS_SECRET_KEY=${COS_SECRET_KEY:-}
+      - COS_REGION=${COS_REGION:-}
+      - COS_BUCKET=${COS_BUCKET:-}
+      - COS_BASE_URL=${COS_BASE_URL:-}
+      - COS_MIGRATE=${COS_MIGRATE:-false}
       - SERVER_BASE_URL=${SERVER_BASE_URL:-http://liuxin.chat}
       # SiliconFlow TTS：只由主后端读取，不返回前端
       - SILICONFLOW_TTS_API_KEY=${SILICONFLOW_TTS_API_KEY:-}

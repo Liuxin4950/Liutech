@@ -113,6 +113,13 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
+        <!-- 腾讯云对象存储 COS SDK（cos.enabled=true 时启用，替代本地磁盘存储） -->
+        <dependency>
+            <groupId>com.qcloud</groupId>
+            <artifactId>cos_api</artifactId>
+            <version>5.6.227</version>
+        </dependency>
+
     </dependencies>
 
     <build>

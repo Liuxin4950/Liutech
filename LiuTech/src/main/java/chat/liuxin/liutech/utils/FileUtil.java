@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.utils;
 
+import chat.liuxin.liutech.config.CosStorageProperties;
 import chat.liuxin.liutech.config.FileUploadConfig;
 import chat.liuxin.liutech.storage.FileStorage;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,9 @@ public class FileUtil {
     private final FileUploadConfig fileUploadConfig;
 
     private final FileStorage fileStorage;
+
+    /** COS 配置（bucket/region 未配置时 getBaseUrl() 返回 null，各解析方法自动跳过 COS 形态） */
+    private final CosStorageProperties cosStorageProperties;
 
     /** 图片URL提取正则：匹配 <img src="URL">，支持属性换行和多种格式 */
     private static final Pattern IMG_SRC_PATTERN = Pattern.compile(
@@ -113,8 +117,9 @@ public class FileUtil {
 
     /**
      * 从完整URL提取相对路径
-     * @param fileUrl 完整文件URL（如 http://localhost:8080/uploads/music/2025/01/05/xxx.mp3）
-     * @return 相对路径（如 music/2025/01/05/xxx.mp3），提取失败返回null
+     * 兼容三种形态：站内完整 URL（SERVER_BASE_URL + /uploads/...）、相对路径 /uploads/...、COS 直出 URL
+     * @param fileUrl 完整文件URL（如 http://localhost:8080/uploads/music/xxx.mp3 或 https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/music/xxx.mp3）
+     * @return 相对路径（如 music/xxx.mp3），提取失败返回null
      */
     public String extractRelativePath(String fileUrl) {
         if (fileUrl == null || fileUrl.isEmpty()) {
@@ -126,7 +131,14 @@ public class FileUtil {
             return fileUrl.substring(prefix.length());
         }
 
-        // 兼容旧数据或其他来源的URL
+        // COS 直出 URL：https://<bucket>.cos.<region>.myqcloud.com/<逻辑路径>
+        // 仅当 COS 已配置（bucket/region 非空）时识别，未启用 COS 的环境自动跳过
+        String cosBaseUrl = cosStorageProperties.getBaseUrl();
+        if (cosBaseUrl != null && fileUrl.startsWith(cosBaseUrl + "/")) {
+            return fileUrl.substring(cosBaseUrl.length() + 1);
+        }
+
+        // 兼容旧数据或其他来源的相对路径 URL
         if (fileUrl.startsWith("/uploads/")) {
             return fileUrl.substring("/uploads/".length());
         }
@@ -152,7 +164,7 @@ public class FileUtil {
 
     /**
      * 统一路径归一化：URL / 相对路径 → 逻辑路径（如 images/2026/01/xxx.png）
-     * 兼容三种存储格式：相对路径 /uploads/...、完整 URL https://.../uploads/...、历史遗留数据
+     * 兼容四种存储格式：相对路径 /uploads/...、站内完整 URL、COS 直出 URL、历史遗留数据
      * 所有引用计数/对账/溯源场景必须走此方法，保证口径一致
      *
      * @param fileUrlOrRelativePath 文件URL或相对路径
@@ -289,7 +301,7 @@ public class FileUtil {
             if (src != null) {
                 src = src.replaceAll("^[\"']|[\"']$", "").trim();
             }
-            if (src != null && (src.startsWith("/uploads/") || src.contains("/uploads/"))) {
+            if (isSystemImageUrl(src)) {
                 urls.add(src);
             }
         }
@@ -300,7 +312,7 @@ public class FileUtil {
             if (src != null) {
                 src = src.trim();
             }
-            if (src != null && (src.startsWith("/uploads/") || src.contains("/uploads/"))) {
+            if (isSystemImageUrl(src)) {
                 urls.add(src);
             }
         }
@@ -311,11 +323,20 @@ public class FileUtil {
             if (src != null) {
                 src = src.trim();
             }
-            if (src != null && (src.startsWith("/uploads/") || src.contains("/uploads/"))) {
+            if (isSystemImageUrl(src)) {
                 urls.add(src);
             }
         }
 
         return urls;
+    }
+
+    /**
+     * 判断图片 URL 是否属于系统内：能归一化为逻辑路径的才是
+     * 兼容：/uploads/... 相对路径、站内完整 URL、COS 直出 URL；外部站点图片（含外部站点的 uploads 路径）一律排除
+     * 所有引用计数/对账的 URL 归属判断统一走此口径，不在此方法外散落前缀判断
+     */
+    private boolean isSystemImageUrl(String src) {
+        return src != null && normalizeToRelativePath(src) != null;
     }
 }

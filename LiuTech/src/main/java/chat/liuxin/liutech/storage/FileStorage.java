@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.storage;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * 文件存储抽象
@@ -46,4 +47,12 @@ public interface FileStorage {
      * @return 访问 URL
      */
     String generateUrl(String relativePath);
+
+    /**
+     * 打开文件内容（付费资源下载等鉴权场景，由后端转发，不直出）
+     *
+     * @param relativePath 逻辑路径
+     * @return 文件内容流（调用方负责关闭），文件不存在返回 null
+     */
+    InputStream open(String relativePath);
 }

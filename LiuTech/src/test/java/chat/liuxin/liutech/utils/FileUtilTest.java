@@ -1,9 +1,12 @@
 package chat.liuxin.liutech.utils;
 
+import chat.liuxin.liutech.config.CosStorageProperties;
 import chat.liuxin.liutech.config.FileUploadConfig;
 import chat.liuxin.liutech.storage.FileStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -22,7 +25,10 @@ class FileUtilTest {
         FileUploadConfig config = new FileUploadConfig();
         config.setUrlPrefix("/uploads");
         config.setServerBaseUrl("https://www.liuxin.chat");
-        fileUtil = new FileUtil(config, mock(FileStorage.class));
+        CosStorageProperties cosProps = new CosStorageProperties();
+        cosProps.setRegion("ap-chongqing");
+        cosProps.setBucket("liutech-1341692466");
+        fileUtil = new FileUtil(config, mock(FileStorage.class), cosProps);
     }
 
     @Test
@@ -35,6 +41,13 @@ class FileUtilTest {
     void normalize_站内完整URL() {
         assertEquals("images/2026/01/01/a.jpg",
                 fileUtil.normalizeToRelativePath("https://www.liuxin.chat/uploads/images/2026/01/01/a.jpg"));
+    }
+
+    @Test
+    void normalize_COS直出URL() {
+        assertEquals("images/2026/01/01/a.jpg",
+                fileUtil.normalizeToRelativePath(
+                        "https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/images/2026/01/01/a.jpg"));
     }
 
     @Test
@@ -52,6 +65,24 @@ class FileUtilTest {
     void normalize_空值返回null() {
         assertNull(fileUtil.normalizeToRelativePath(null));
         assertNull(fileUtil.normalizeToRelativePath(""));
+    }
+
+    @Test
+    void extractImageUrls_兼容三种URL形态() {
+        String content = "<p>本地图</p>"
+                + "<img src=\"/uploads/images/a.jpg\">"
+                + "<img src='https://www.liuxin.chat/uploads/images/b.jpg'>"
+                + "<img src=\"https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/images/c.jpg\">"
+                + "<img src=\"https://example.com/uploads/outside.png\">"
+                + "![md图](/uploads/images/d.jpg)";
+
+        List<String> urls = fileUtil.extractImageUrls(content);
+
+        assertEquals(4, urls.size());
+        assertEquals("/uploads/images/a.jpg", urls.get(0));
+        assertEquals("https://www.liuxin.chat/uploads/images/b.jpg", urls.get(1));
+        assertEquals("https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/images/c.jpg", urls.get(2));
+        assertEquals("/uploads/images/d.jpg", urls.get(3));
     }
 
     @Test

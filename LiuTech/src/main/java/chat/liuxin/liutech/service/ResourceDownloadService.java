@@ -1,12 +1,11 @@
 package chat.liuxin.liutech.service;
 
-import java.io.File;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpHeaders;
@@ -20,6 +19,7 @@ import chat.liuxin.liutech.mapper.ResourceDownloadsMapper;
 import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.model.ResourceDownloads;
 import chat.liuxin.liutech.model.Resources;
+import chat.liuxin.liutech.storage.FileStorage;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
@@ -45,8 +45,8 @@ public class ResourceDownloadService {
 
     private final PointsService pointsService;
 
-    @Value("${file.upload.base-path:${file.upload-dir}}")
-    private String uploadDir;
+    /** 文件存储（本地磁盘或 COS，读文件统一走这里，业务不感知存储后端） */
+    private final FileStorage fileStorage;
 
     /**
      * 购买资源（扣减积分）- 安全加固版
@@ -139,28 +139,25 @@ public class ResourceDownloadService {
         // 构建文件路径
         String fileUrl = resource.getFileUrl();
         log.debug("原始文件URL: {}", fileUrl);
-        log.debug("上传目录配置: {}", uploadDir);
 
         String relativePath = extractResourceRelativePath(fileUrl);
         log.debug("解析后的相对路径: {}", relativePath);
 
-        Path basePath = Paths.get(uploadDir).toAbsolutePath().normalize();
-        Path filePath = basePath.resolve(relativePath).normalize();
-        if (!filePath.startsWith(basePath)) {
-            log.warn("拒绝访问上传目录外的资源文件，资源ID: {}, 路径: {}", resourceId, filePath);
+        // 纯路径校验（不依赖磁盘）：拦截绝对路径与目录穿越，本地磁盘与 COS 两种存储统一生效
+        if (isInvalidRelativePath(relativePath)) {
+            log.warn("拒绝访问非法资源路径，资源ID: {}, 路径: {}", resourceId, relativePath);
             throw new RuntimeException("非法资源路径");
         }
-        File file = filePath.toFile();
 
-        log.debug("最终文件路径: {}", file.getAbsolutePath());
-
-        if (!file.exists()) {
-            log.error("文件不存在: {}", filePath);
+        // 经存储层读取文件内容（本地磁盘读文件 / COS 拉对象），鉴权下载不直出 URL
+        InputStream inputStream = fileStorage.open(relativePath);
+        if (inputStream == null) {
+            log.error("文件不存在: {}", relativePath);
             throw new RuntimeException("文件不存在");
         }
 
         // 创建文件资源
-        Resource fileResource = new FileSystemResource(file);
+        Resource fileResource = new InputStreamResource(inputStream);
 
         // 设置响应头
         HttpHeaders headers = new HttpHeaders();
@@ -210,6 +207,15 @@ public class ResourceDownloadService {
         }
 
         return relativePath;
+    }
+
+    /**
+     * 相对路径合法性校验：拒绝绝对路径与目录穿越（".."）
+     * 替代原基于磁盘路径的 startsWith 检查，对存储实现无依赖
+     */
+    private boolean isInvalidRelativePath(String relativePath) {
+        Path path = Paths.get(relativePath);
+        return path.isAbsolute() || path.normalize().toString().contains("..");
     }
 
     /**
