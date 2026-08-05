@@ -20,12 +20,12 @@ import chat.liuxin.liutech.model.Images;
 public interface ImagesMapper extends BaseMapper<Images> {
 
     /**
-     * 根据文件哈希查询图片（排除软删除）
+     * 根据文件哈希查询图片（排除软删除与禁用，与引用计数查询口径一致）
      *
      * @param fileHash 文件哈希值
      * @return 匹配的记录，不存在返回null
      */
-    @Select("SELECT * FROM images WHERE file_hash = #{fileHash} AND deleted_at IS NULL LIMIT 1")
+    @Select("SELECT * FROM images WHERE file_hash = #{fileHash} AND deleted_at IS NULL AND status = 1 LIMIT 1")
     Images selectByHash(@Param("fileHash") String fileHash);
 
     /**

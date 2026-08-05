@@ -42,27 +42,34 @@ public class ImageUsageReconcileService {
 
     private final FileUtil fileUtil;
 
+    private final ImageReferenceService imageReferenceService;
+
     @Scheduled(cron = "${image.reconcile.cron:0 55 2 * * ?}", zone = "${image.reconcile.zone:Asia/Shanghai}")
     @Transactional(rollbackFor = Exception.class)
     public ImageUsageReconcileResp reconcileUsageCount() {
         int resetRows = valueOrZero(imagesMapper.resetUsageCount());
 
-        Map<String, Integer> countsByPath = new HashMap<>();
-        addUrls(countsByPath, userMapper.selectAllAvatarUrls());
-        addUrls(countsByPath, musicMapper.selectAllCoverUrls());
-        addUrls(countsByPath, carouselMapper.selectAllImageUrls());
-        addUrls(countsByPath, postSeriesMapper.selectAllCoverUrls());
+        // 收集所有引用图片的 URL（头像/封面/轮播/系列/文章封面缩略图正文），统一走 ImageReferenceService 统计口径
+        List<String> allUrls = new ArrayList<>();
+        allUrls.addAll(userMapper.selectAllAvatarUrls());
+        allUrls.addAll(musicMapper.selectAllCoverUrls());
+        allUrls.addAll(carouselMapper.selectAllImageUrls());
+        allUrls.addAll(postSeriesMapper.selectAllCoverUrls());
 
         List<Posts> posts = postsMapper.selectAllPostsWithContent();
         for (Posts post : posts) {
             if (post == null) {
                 continue;
             }
-            addUrl(countsByPath, post.getCoverImage());
-            addUrl(countsByPath, post.getThumbnail());
-            List<String> contentUrls = fileUtil.extractImageUrls(post.getContent());
-            addUrls(countsByPath, contentUrls);
+            if (StringUtils.hasText(post.getCoverImage())) {
+                allUrls.add(post.getCoverImage());
+            }
+            if (StringUtils.hasText(post.getThumbnail())) {
+                allUrls.add(post.getThumbnail());
+            }
+            allUrls.addAll(fileUtil.extractImageUrls(post.getContent()));
         }
+        Map<String, Integer> countsByPath = imageReferenceService.countByPath(allUrls);
 
         List<String> paths = new ArrayList<>(countsByPath.keySet());
         int updatedImages = 0;
@@ -105,51 +112,6 @@ public class ImageUsageReconcileService {
                 resetRows, countsByPath.size(), updatedImages, missingImages);
 
         return new ImageUsageReconcileResp(resetRows, countsByPath.size(), updatedImages, missingImages);
-    }
-
-    private void addUrls(Map<String, Integer> countsByPath, List<String> urls) {
-        if (urls == null || urls.isEmpty()) {
-            return;
-        }
-        for (String url : urls) {
-            addUrl(countsByPath, url);
-        }
-    }
-
-    private void addUrl(Map<String, Integer> countsByPath, String url) {
-        String path = normalizeToRelativePath(url);
-        if (!StringUtils.hasText(path)) {
-            return;
-        }
-        countsByPath.merge(path, 1, (oldValue, delta) ->
-                (oldValue == null ? 0 : oldValue) + (delta == null ? 0 : delta));
-    }
-
-    private String normalizeToRelativePath(String fileUrlOrRelativePath) {
-        if (!StringUtils.hasText(fileUrlOrRelativePath)) {
-            return null;
-        }
-
-        String relativePath = fileUtil.extractRelativePath(fileUrlOrRelativePath);
-        if (StringUtils.hasText(relativePath)) {
-            return relativePath;
-        }
-
-        if (fileUrlOrRelativePath.contains("://")) {
-            return null;
-        }
-
-        String value = fileUrlOrRelativePath.trim();
-        if (value.startsWith("/")) {
-            value = value.substring(1);
-        }
-        if (value.startsWith("uploads/")) {
-            value = value.substring("uploads/".length());
-        }
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        return value;
     }
 
     private int valueOrZero(Integer value) {

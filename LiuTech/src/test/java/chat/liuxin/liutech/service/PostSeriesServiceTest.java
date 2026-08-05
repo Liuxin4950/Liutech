@@ -47,6 +47,9 @@ class PostSeriesServiceTest {
     @Mock
     private PostsMapper postsMapper;
 
+    @Mock
+    private ImageReferenceService imageReferenceService;
+
     @InjectMocks
     private PostSeriesService postSeriesService;
 
@@ -156,6 +159,9 @@ class PostSeriesServiceTest {
     @Test
     void updateById_shouldCallUpdateById() {
         PostSeriesResp resp = createSeriesResp(1L, "Spring", 0);
+        PostSeries exist = new PostSeries();
+        exist.setId(1L);
+        when(postSeriesMapper.selectById(1L)).thenReturn(exist);
         when(postSeriesMapper.updateById(any(PostSeries.class))).thenReturn(1);
         assertTrue(postSeriesService.updateById(resp));
         verify(postSeriesMapper).updateById(any(PostSeries.class));

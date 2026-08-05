@@ -10,6 +10,7 @@ import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.FileUploadResp;
 import chat.liuxin.liutech.resp.ImageUploadResult;
+import chat.liuxin.liutech.storage.FileStorage;
 import chat.liuxin.liutech.utils.FileUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +47,9 @@ class FileUploadServiceTest {
 
     @Mock
     private ImagesService imagesService;
+
+    @Mock
+    private FileStorage fileStorage;
 
     @InjectMocks
     private FileUploadService fileUploadService;

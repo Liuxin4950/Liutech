@@ -19,7 +19,6 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CarouselMapper;
 import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.model.Carousel;
-import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.resp.CarouselResp;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +42,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
 
     private final ImagesMapper imagesMapper;
 
-    private final ImagesService imagesService;
+    private final ImageReferenceService imageReferenceService;
 
     /**
      * 获取启用的轮播图列表（前台展示）
@@ -417,15 +416,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
         if (imageUrl == null || imageUrl.isEmpty()) {
             return;
         }
-        try {
-            Images img = imagesService.getImageByUrl(imageUrl);
-            if (img != null && img.getDeletedAt() == null) {
-                imagesMapper.incrementUsageCount(img.getId(), 1);
-                log.debug("轮播图增加图片引用: {} -> {}", imageUrl, img.getUsageCount() + 1);
-            }
-        } catch (Exception e) {
-            log.warn("增加图片引用计数失败: {}", imageUrl, e);
-        }
+        imageReferenceService.addReferences(List.of(imageUrl));
     }
 
     /**
@@ -436,15 +427,6 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
         if (imageUrl == null || imageUrl.isEmpty()) {
             return;
         }
-        try {
-            Images img = imagesService.getImageByUrl(imageUrl);
-            if (img != null) {
-                // 无论图片是否已软删除，都减少 usage_count
-                imagesMapper.incrementUsageCount(img.getId(), -1);
-                log.debug("轮播图减少图片引用: {} -> {}", imageUrl, Math.max(0, img.getUsageCount() - 1));
-            }
-        } catch (Exception e) {
-            log.warn("减少图片引用计数失败: {}", imageUrl, e);
-        }
+        imageReferenceService.removeReferences(List.of(imageUrl));
     }
 }

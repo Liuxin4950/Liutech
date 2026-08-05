@@ -14,8 +14,8 @@ import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.config.FileUploadConfig;
 import chat.liuxin.liutech.mapper.MusicMapper;
-import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Music;
+import chat.liuxin.liutech.storage.FileStorage;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -31,11 +31,13 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
 
     private final MusicMapper musicMapper;
 
+    private final FileStorage fileStorage;
+
     private final FileUtil fileUtil;
 
     private final FileUploadConfig fileUploadConfig;
 
-    private final ImagesService imagesService;
+    private final ImageReferenceService imageReferenceService;
 
     /**
      * 获取启用的音乐列表
@@ -132,12 +134,12 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
 
         try {
             // 保存完整音频
-            String fullAudioPath = fileUtil.saveFile(fullAudio, fileUploadConfig.getMusicPath());
-            music.setFullAudioUrl(fileUtil.generateFileUrl(fullAudioPath));
+            String fullAudioPath = fileStorage.save(fullAudio.getBytes(), fileUploadConfig.getMusicPath(), fullAudio.getOriginalFilename());
+            music.setFullAudioUrl(fileStorage.generateUrl(fullAudioPath));
 
             // 保存人声音频
-            String vocalAudioPath = fileUtil.saveFile(vocalAudio, fileUploadConfig.getMusicPath());
-            music.setVocalUrl(fileUtil.generateFileUrl(vocalAudioPath));
+            String vocalAudioPath = fileStorage.save(vocalAudio.getBytes(), fileUploadConfig.getMusicPath(), vocalAudio.getOriginalFilename());
+            music.setVocalUrl(fileStorage.generateUrl(vocalAudioPath));
 
             // 保存记录
             musicMapper.insert(music);
@@ -256,11 +258,21 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         // 只删除音频文件（音频文件没有复用机制）
         // 删除完整音频
         if (music.getFullAudioUrl() != null) {
-            fileUtil.deleteFileByUrl(music.getFullAudioUrl());
+            deleteByUrl(music.getFullAudioUrl());
         }
         // 删除人声音频
         if (music.getVocalUrl() != null) {
-            fileUtil.deleteFileByUrl(music.getVocalUrl());
+            deleteByUrl(music.getVocalUrl());
+        }
+    }
+
+    /**
+     * 按 URL 删除文件（解析路径后委托存储层）
+     */
+    private void deleteByUrl(String fileUrl) {
+        String relativePath = fileUtil.extractRelativePath(fileUrl);
+        if (relativePath != null) {
+            fileStorage.delete(relativePath);
         }
     }
 
@@ -296,15 +308,7 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         if (coverUrl == null || coverUrl.isEmpty()) {
             return;
         }
-        try {
-            Images img = imagesService.getImageByUrl(coverUrl);
-            if (img != null && img.getDeletedAt() == null) {
-                imagesService.incrementUsageCount(img.getId(), 1);
-                log.debug("音乐封面增加引用: {} -> {}", coverUrl, img.getUsageCount() + 1);
-            }
-        } catch (Exception e) {
-            log.warn("增加封面引用计数失败: {}", coverUrl, e);
-        }
+        imageReferenceService.addReferences(List.of(coverUrl));
     }
 
     /**
@@ -315,15 +319,6 @@ public class MusicService extends ServiceImpl<MusicMapper, Music> {
         if (coverUrl == null || coverUrl.isEmpty()) {
             return;
         }
-        try {
-            Images img = imagesService.getImageByUrl(coverUrl);
-            if (img != null) {
-                // 无论图片是否已软删除，都减少 usage_count
-                imagesService.incrementUsageCount(img.getId(), -1);
-                log.debug("音乐封面减少引用: {} -> {}", coverUrl, Math.max(0, img.getUsageCount() - 1));
-            }
-        } catch (Exception e) {
-            log.warn("减少封面引用计数失败: {}", coverUrl, e);
-        }
+        imageReferenceService.removeReferences(List.of(coverUrl));
     }
 }

@@ -4,6 +4,7 @@ import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.config.FileUploadConfig;
 import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.storage.FileStorage;
 import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
 import chat.liuxin.liutech.model.Users;
@@ -45,6 +46,8 @@ public class FileUploadService {
 
     private final ImagesService imagesService;
 
+    private final FileStorage fileStorage;
+
     /**
      * 上传图片文件（用于TinyMCE编辑器）
      * 支持图片去重，相同内容的图片只保存一份
@@ -73,7 +76,7 @@ public class FileUploadService {
             result.setFileName(image.getFileName());
             result.setFilePath(image.getFilePath());
             // 用 filePath 重新生成 URL，确保返回相对路径（重复图片的旧记录可能存的是完整 URL）
-            result.setFileUrl(fileUtil.generateFileUrl(image.getFilePath()));
+            result.setFileUrl(fileStorage.generateUrl(image.getFilePath()));
             result.setFileSize(image.getFileSize());
             result.setFileType("image");
             result.setExtension(image.getExtension());
@@ -112,10 +115,10 @@ public class FileUploadService {
 
         try {
             // 保存文件
-            String relativePath = fileUtil.saveFile(file, fileUploadConfig.getDocumentPath());
+            String relativePath = fileStorage.save(file.getBytes(), fileUploadConfig.getDocumentPath(), file.getOriginalFilename());
 
             // 生成访问URL
-            String fileUrl = fileUtil.generateFileUrl(relativePath);
+            String fileUrl = fileStorage.generateUrl(relativePath);
 
             // 构建响应
             FileUploadResp result = new FileUploadResp();
@@ -175,10 +178,10 @@ public class FileUploadService {
 
         try {
             // 保存文件
-            String relativePath = fileUtil.saveFile(file, fileUploadConfig.getResourcePath());
+            String relativePath = fileStorage.save(file.getBytes(), fileUploadConfig.getResourcePath(), file.getOriginalFilename());
 
             // 生成访问URL
-            String fileUrl = fileUtil.generateFileUrl(relativePath);
+            String fileUrl = fileStorage.generateUrl(relativePath);
 
             // 创建资源记录
             Resources resource = new Resources();
@@ -536,7 +539,7 @@ public class FileUploadService {
             if (resource.getFileUrl() != null) {
                 String relativePath = fileUtil.extractRelativePath(resource.getFileUrl());
                 if (relativePath != null) {
-                    fileUtil.deleteFile(relativePath);
+                    fileStorage.delete(relativePath);
                 }
             }
 

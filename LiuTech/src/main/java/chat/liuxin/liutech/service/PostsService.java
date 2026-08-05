@@ -2,11 +2,8 @@ package chat.liuxin.liutech.service;
 
 import java.util.Date;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
@@ -72,7 +69,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     private final FileUtil fileUtil;
 
-    private final ImagesService imagesService;
+    private final ImageReferenceService imageReferenceService;
 
     /**
      * 分页查询文章列表（公开接口）
@@ -377,7 +374,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章创建失败");
         }
 
-        applyImageReferenceDelta(countUrls(collectPostImageUrls(post.getCoverImage(), post.getThumbnail(), post.getContent())));
+        imageReferenceService.addReferences(collectPostImageUrls(post.getCoverImage(), post.getThumbnail(), post.getContent()));
 
         // 处理标签关联
         if (req != null && req.getTagIds() != null && !req.getTagIds().isEmpty()) {
@@ -443,7 +440,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         // 系列归属单独更新（自动管理序号：换系列追加末尾，不变保持原顺序）
         updateSeriesAssignment(req.getId(), existPost.getSeriesId(), req.getSeriesId());
 
-        syncImageReferences(oldImageUrls, newImageUrls);
+        imageReferenceService.syncReferences(oldImageUrls, newImageUrls);
 
         // 更新标签关联
         updatePostTags(req.getId(), req.getTagIds());
@@ -484,7 +481,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
         updateSeriesAssignment(req.getId(), existPost.getSeriesId(), req.getSeriesId());
 
-        syncImageReferences(oldImageUrls, newImageUrls);
+        imageReferenceService.syncReferences(oldImageUrls, newImageUrls);
         updatePostTags(req.getId(), req.getTagIds());
 
         if (org.springframework.util.StringUtils.hasText(req.getDraftKey())) {
@@ -506,51 +503,6 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         }
         urls.addAll(fileUtil.extractImageUrls(content));
         return urls;
-    }
-
-    private Map<String, Integer> countUrls(List<String> urls) {
-        Map<String, Integer> counts = new HashMap<>();
-        if (urls == null || urls.isEmpty()) {
-            return counts;
-        }
-        for (String url : urls) {
-            if (!StringUtils.hasText(url)) {
-                continue;
-            }
-            counts.merge(url, 1, (oldValue, delta) ->
-                    (oldValue == null ? 0 : oldValue) + (delta == null ? 0 : delta));
-        }
-        return counts;
-    }
-
-    private void syncImageReferences(List<String> oldUrls, List<String> newUrls) {
-        Map<String, Integer> oldCounts = countUrls(oldUrls);
-        Map<String, Integer> newCounts = countUrls(newUrls);
-        Set<String> allUrls = new HashSet<>();
-        allUrls.addAll(oldCounts.keySet());
-        allUrls.addAll(newCounts.keySet());
-
-        Map<String, Integer> delta = new HashMap<>();
-        for (String url : allUrls) {
-            int d = newCounts.getOrDefault(url, 0) - oldCounts.getOrDefault(url, 0);
-            if (d != 0) {
-                delta.put(url, d);
-            }
-        }
-        applyImageReferenceDelta(delta);
-    }
-
-    private void applyImageReferenceDelta(Map<String, Integer> deltaByUrl) {
-        if (deltaByUrl == null || deltaByUrl.isEmpty()) {
-            return;
-        }
-        for (Map.Entry<String, Integer> entry : deltaByUrl.entrySet()) {
-            Integer delta = entry.getValue();
-            if (delta == null || delta == 0) {
-                continue;
-            }
-            imagesService.incrementImageUsageCountByUrl(entry.getKey(), delta);
-        }
     }
 
     /**

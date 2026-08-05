@@ -2,6 +2,7 @@ package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.model.Images;
+import chat.liuxin.liutech.storage.FileStorage;
 import chat.liuxin.liutech.utils.FileUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,8 @@ public class ImagesService {
     private final ImagesMapper imagesMapper;
 
     private final FileUtil fileUtil;
+
+    private final FileStorage fileStorage;
 
     private final ImageCompressService imageCompressService;
 
@@ -62,12 +65,12 @@ public class ImagesService {
         // 统一按文件头探测真实格式，避免扩展名与实际字节不符
         String realExtension = fileUtil.detectImageFormat(bytesToSave);
         String saveName = realExtension != null ? "upload." + realExtension : file.getOriginalFilename();
-        String relativePath = fileUtil.saveFile(bytesToSave, subPath, saveName);
+        String relativePath = fileStorage.save(bytesToSave, subPath, saveName);
         long fileSize = bytesToSave.length;
         if (compressedBytes != null) {
             log.debug("图片已压缩: {}KB -> {}KB", file.getSize() / 1024, fileSize / 1024);
         }
-        String fileUrl = fileUtil.generateFileUrl(relativePath);
+        String fileUrl = fileStorage.generateUrl(relativePath);
 
         // 4. 创建新记录
         Images newImage = new Images();
@@ -159,7 +162,7 @@ public class ImagesService {
      * @return 影响行数
      */
     public int incrementImageUsageCountByUrl(String url, int delta) {
-        String relativePath = normalizeToRelativePath(url);
+        String relativePath = fileUtil.normalizeToRelativePath(url);
         if (relativePath == null) {
             return 0;
         }
@@ -182,27 +185,6 @@ public class ImagesService {
      */
     public int decrementImageUsageCountByUrl(String url) {
         return incrementImageUsageCountByUrl(url, -1);
-    }
-
-    private String normalizeToRelativePath(String fileUrlOrRelativePath) {
-        if (fileUrlOrRelativePath == null || fileUrlOrRelativePath.isEmpty()) {
-            return null;
-        }
-        String relativePath = fileUtil.extractRelativePath(fileUrlOrRelativePath);
-        if (relativePath != null && !relativePath.isEmpty()) {
-            return relativePath;
-        }
-        if (fileUrlOrRelativePath.contains("://")) {
-            return null;
-        }
-        String value = fileUrlOrRelativePath.trim();
-        if (value.startsWith("/")) {
-            value = value.substring(1);
-        }
-        if (value.startsWith("uploads/")) {
-            value = value.substring("uploads/".length());
-        }
-        return value.isEmpty() ? null : value;
     }
 
     /**

@@ -8,7 +8,6 @@ import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.mapper.SystemSettingMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
-import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.UpdateProfileReq;
 import chat.liuxin.liutech.resp.UserResp;
@@ -51,7 +50,7 @@ public class UserProfileService {
 
     private final ImagesMapper imagesMapper;
 
-    private final ImagesService imagesService;
+    private final ImageReferenceService imageReferenceService;
 
     private final SystemSettingMapper systemSettingMapper;
 
@@ -356,15 +355,7 @@ public class UserProfileService {
         if (imageUrl == null || imageUrl.isEmpty()) {
             return;
         }
-        try {
-            Images img = imagesService.getImageByUrl(imageUrl);
-            if (img != null && img.getDeletedAt() == null) {
-                imagesMapper.incrementUsageCount(img.getId(), 1);
-                log.debug("用户头像增加引用: {} -> {}", imageUrl, img.getUsageCount() + 1);
-            }
-        } catch (Exception e) {
-            log.warn("增加头像引用计数失败: {}", imageUrl, e);
-        }
+        imageReferenceService.addReferences(List.of(imageUrl));
     }
 
     /**
@@ -375,14 +366,6 @@ public class UserProfileService {
         if (imageUrl == null || imageUrl.isEmpty()) {
             return;
         }
-        try {
-            Images img = imagesService.getImageByUrl(imageUrl);
-            if (img != null && img.getDeletedAt() == null) {
-                imagesMapper.incrementUsageCount(img.getId(), -1);
-                log.debug("用户头像减少引用: {} -> {}", imageUrl, Math.max(0, img.getUsageCount() - 1));
-            }
-        } catch (Exception e) {
-            log.warn("减少头像引用计数失败: {}", imageUrl, e);
-        }
+        imageReferenceService.removeReferences(List.of(imageUrl));
     }
 }

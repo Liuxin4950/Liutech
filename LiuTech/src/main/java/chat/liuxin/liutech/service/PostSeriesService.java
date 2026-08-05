@@ -42,7 +42,7 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
 
     private final PostsMapper postsMapper;
 
-    private final ImagesService imagesService;
+    private final ImageReferenceService imageReferenceService;
 
     /**
      * 查询所有系列（含已发布文章数），web 端列表用
@@ -230,7 +230,7 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
         if (!StringUtils.hasText(coverUrl)) {
             return;
         }
-        imagesService.incrementImageUsageCountByUrl(coverUrl, 1);
+        imageReferenceService.addReferences(List.of(coverUrl));
     }
 
     /**
@@ -240,6 +240,6 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
         if (!StringUtils.hasText(coverUrl)) {
             return;
         }
-        imagesService.incrementImageUsageCountByUrl(coverUrl, -1);
+        imageReferenceService.removeReferences(List.of(coverUrl));
     }
 }

@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -250,6 +251,16 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
     @Transactional(rollbackFor = Exception.class)
     public int cleanupOrphanImages() {
         List<Images> orphans = imagesMapper.selectOrphanImages();
+        if (orphans.isEmpty()) {
+            return 0;
+        }
+
+        // 保护最近 24 小时上传的图片：编辑器粘贴上传但文章尚未保存的图片此时引用计数为 0，
+        // 直接清理会误删用户正在编辑的内容
+        Date cutoff = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000L);
+        orphans = orphans.stream()
+                .filter(img -> img.getCreatedAt() == null || img.getCreatedAt().before(cutoff))
+                .toList();
         if (orphans.isEmpty()) {
             return 0;
         }
