@@ -7,6 +7,7 @@ import chat.liuxin.liutech.resp.PostDetailResp;
 import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.service.PostInteractionService;
 import chat.liuxin.liutech.service.PostsService;
+import chat.liuxin.liutech.service.ViewHistoryService;
 import chat.liuxin.liutech.utils.UserUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,14 +24,16 @@ class PostsControllerTest {
     private PostsController controller;
     private PostsService postsService;
     private PostInteractionService postInteractionService;
+    private ViewHistoryService viewHistoryService;
     private UserUtils userUtils;
 
     @BeforeEach
     void setUp() {
         postsService = mock(PostsService.class);
         postInteractionService = mock(PostInteractionService.class);
+        viewHistoryService = mock(ViewHistoryService.class);
         userUtils = mock(UserUtils.class);
-        controller = new PostsController(postsService, postInteractionService, userUtils);
+        controller = new PostsController(postsService, postInteractionService, viewHistoryService, userUtils);
     }
 
     // ========== getPostList ==========
@@ -305,5 +308,73 @@ class PostsControllerTest {
         Result<PageResp<PostListResp>> result = controller.getFavoritePosts(1, 10, null);
 
         assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
+    }
+
+    // ========== recordView ==========
+
+    @Test
+    void recordView_shouldRecordWhenLoggedIn() {
+        when(userUtils.getCurrentUserId()).thenReturn(1L);
+
+        Result<Boolean> result = controller.recordView(1L);
+
+        assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
+        verify(viewHistoryService).recordView(1L, 1L);
+    }
+
+    @Test
+    void recordView_shouldFailWhenNotLoggedIn() {
+        when(userUtils.getCurrentUserId()).thenReturn(null);
+
+        Result<Boolean> result = controller.recordView(1L);
+
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
+        verify(viewHistoryService, never()).recordView(any(), any());
+    }
+
+    // ========== getViewHistory ==========
+
+    @Test
+    void getViewHistory_shouldReturnHistoryWhenLoggedIn() {
+        PageResp<PostListResp> pageResp = new PageResp<>(Collections.emptyList(), 0L, 1L, 10L);
+        when(userUtils.getCurrentUserId()).thenReturn(1L);
+        when(viewHistoryService.getViewHistory(1, 10, 1L)).thenReturn(pageResp);
+
+        Result<PageResp<PostListResp>> result = controller.getViewHistory(1, 10);
+
+        assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
+        assertNotNull(result.getData());
+    }
+
+    @Test
+    void getViewHistory_shouldFailWhenNotLoggedIn() {
+        when(userUtils.getCurrentUserId()).thenReturn(null);
+
+        Result<PageResp<PostListResp>> result = controller.getViewHistory(1, 10);
+
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
+    }
+
+    // ========== clearViewHistory ==========
+
+    @Test
+    void clearViewHistory_shouldClearWhenLoggedIn() {
+        when(userUtils.getCurrentUserId()).thenReturn(1L);
+        when(viewHistoryService.clearViewHistory(1L)).thenReturn(3);
+
+        Result<Boolean> result = controller.clearViewHistory();
+
+        assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
+        verify(viewHistoryService).clearViewHistory(1L);
+    }
+
+    @Test
+    void clearViewHistory_shouldFailWhenNotLoggedIn() {
+        when(userUtils.getCurrentUserId()).thenReturn(null);
+
+        Result<Boolean> result = controller.clearViewHistory();
+
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
+        verify(viewHistoryService, never()).clearViewHistory(any());
     }
 }

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.UserViewHistoryMapper">
+
+    <!-- 记录浏览：不存在则插入，已存在（uk_user_post 冲突）则刷新浏览时间 -->
+    <insert id="upsertViewHistory">
+        INSERT INTO user_view_history (user_id, post_id, viewed_at)
+        VALUES (#{userId}, #{postId}, NOW())
+        ON DUPLICATE KEY UPDATE
+        viewed_at = NOW()
+    </insert>
+
+    <!-- 分页查询用户浏览历史：JOIN 文章信息，仅已发布未删除文章，按浏览时间倒序 -->
+    <select id="selectViewHistory" resultMap="chat.liuxin.liutech.mapper.PostsMapper.PostListRespMap">
+        SELECT
+            p.id,
+            p.title,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            p.series_id,
+            p.series_sort,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            p.status,
+            p.created_at,
+            p.updated_at,
+            p.deleted_at,
+            vh.viewed_at,
+            -- 分类信息
+            c.id as cat_id,
+            c.name as cat_name,
+            -- 系列信息
+            s.name as series_name,
+            -- 作者信息
+            u.id as author_user_id,
+            u.username as author_username,
+            u.avatar_url as author_avatar_url,
+            -- 用户状态（浏览历史中的文章视为未点赞未收藏）
+            CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
+            0 as favorite_status
+        FROM user_view_history vh
+        INNER JOIN posts p ON p.id = vh.post_id
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1 AND pl.deleted_at IS NULL
+        WHERE vh.user_id = #{userId}
+        AND p.status = 'published'
+        AND p.deleted_at IS NULL
+        ORDER BY vh.viewed_at DESC
+    </select>
+
+    <!-- 清空用户的浏览历史 -->
+    <delete id="deleteByUserId">
+        DELETE FROM user_view_history WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

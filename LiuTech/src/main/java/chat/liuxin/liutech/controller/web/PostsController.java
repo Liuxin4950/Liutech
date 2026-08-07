@@ -28,6 +28,7 @@ import chat.liuxin.liutech.resp.PostDetailResp;
 import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.service.PostInteractionService;
 import chat.liuxin.liutech.service.PostsService;
+import chat.liuxin.liutech.service.ViewHistoryService;
 import chat.liuxin.liutech.utils.UserUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,6 +49,8 @@ public class PostsController {
     private final PostsService postsService;
 
     private final PostInteractionService postInteractionService;
+
+    private final ViewHistoryService viewHistoryService;
 
     private final UserUtils userUtils;
 
@@ -230,5 +233,40 @@ public class PostsController {
         req.setKeyword(keyword);
         req.setSort("latest");
         return Result.success("查询成功", postInteractionService.getFavoritePosts(req, userId));
+    }
+
+    /** 记录文章浏览（需登录）：同一文章重复浏览只刷新时间，列表置顶 */
+    @PostMapping("/{id}/view")
+    public Result<Boolean> recordView(@PathVariable Long id) {
+        Long currentUserId = userUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
+        }
+        viewHistoryService.recordView(id, currentUserId);
+        return Result.success("记录成功", true);
+    }
+
+    /** 获取当前用户的浏览历史（需登录，按最近浏览时间倒序） */
+    @GetMapping("/view-history")
+    public Result<PageResp<PostListResp>> getViewHistory(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        Long userId = userUtils.getCurrentUserId();
+        if (userId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
+        }
+        return Result.success("查询成功", viewHistoryService.getViewHistory(page, size, userId));
+    }
+
+    /** 清空当前用户的浏览历史（需登录） */
+    @DeleteMapping("/view-history")
+    public Result<Boolean> clearViewHistory() {
+        Long userId = userUtils.getCurrentUserId();
+        if (userId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
+        }
+        int cleared = viewHistoryService.clearViewHistory(userId);
+        log.info("用户 {} 清空浏览历史，清除 {} 条记录", userId, cleared);
+        return Result.success("清空成功", true);
     }
 }

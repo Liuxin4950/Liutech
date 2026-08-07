@@ -94,7 +94,8 @@ public final class SecurityWhitelist {
     public static final List<String> AUTHENTICATED_PATHS = List.of(
             "/posts/my",
             "/posts/drafts",
-            "/posts/favorites"
+            "/posts/favorites",
+            "/posts/view-history"
     );
 
     // ==================== 匹配工具方法 ====================

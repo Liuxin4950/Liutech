@@ -50,6 +50,9 @@ public class PostListResp {
     /** 删除时间（软删除，管理端使用） */
     private Date deletedAt;
 
+    /** 最近浏览时间（仅浏览历史接口填充） */
+    private Date viewedAt;
+
     @Data
     public static class CategoryInfo {
         private Long id;

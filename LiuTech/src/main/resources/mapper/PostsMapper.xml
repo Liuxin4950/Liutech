@@ -40,6 +40,7 @@
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <result property="deletedAt" column="deleted_at"/>
+        <result property="viewedAt" column="viewed_at"/>
         <!-- 分类信息 -->
         <association property="category" javaType="chat.liuxin.liutech.resp.PostListResp$CategoryInfo">
             <id property="id" column="cat_id"/>

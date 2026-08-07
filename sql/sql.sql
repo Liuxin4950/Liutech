@@ -173,6 +173,18 @@ CREATE TABLE IF NOT EXISTS post_favorites (
   FOREIGN KEY (post_id) REFERENCES posts(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章收藏表';
 
+-- 用户浏览历史表：同一用户浏览同一篇文章仅一条记录，重复浏览只刷新 viewed_at（列表置顶）
+CREATE TABLE IF NOT EXISTS user_view_history (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '浏览记录ID',
+  user_id BIGINT NOT NULL COMMENT '用户ID',
+  post_id BIGINT NOT NULL COMMENT '文章ID',
+  viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '浏览时间',
+  UNIQUE KEY uk_user_post (user_id, post_id) COMMENT '用户文章唯一索引',
+  INDEX idx_user_viewed (user_id, viewed_at) COMMENT '按用户和时间查询',
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (post_id) REFERENCES posts(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户浏览历史表';
+
 CREATE TABLE IF NOT EXISTS comments (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '评论ID',
   post_id BIGINT NOT NULL COMMENT '文章ID',
