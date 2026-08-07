@@ -1,8 +1,8 @@
 import { post, ServiceType } from './api'
-import type { AiChatRequest } from './ai-types'
+import type { AiChatRequest } from './aiTypes'
 
 // 重新导出共享类型，保持向后兼容
-export type { AiChatRequest } from './ai-types'
+export type { AiChatRequest } from './aiTypes'
 
 export interface AiChatResponse {
   success: boolean

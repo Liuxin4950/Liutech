@@ -1,6 +1,6 @@
 import { type Ref } from 'vue'
 import { useSequencedBuffer } from '@/composables/useSequencedBuffer'
-import { getServiceBaseURL, ServiceType } from '@/config/services'
+import { getServiceBaseURL, ServiceType } from '@/services/serviceConfig'
 import type { TtsAudioItem, AvatarCueItem } from '@/stores/chat'
 
 /**

@@ -18,7 +18,7 @@ import { ref, watch, computed, onMounted } from 'vue'
 import Editor from '@tinymce/tinymce-vue'
 import theme from '../utils/theme'
 import { ImageUploadService } from '@/services/utils'
-import { getContentStyle } from '@/styles/tinymce-content'
+import { getContentStyle } from '@/utils/tinymceContent'
 // 导入TinyMCE核心
 import 'tinymce/tinymce'
 // 导入TinyMCE主题

@@ -1,5 +1,5 @@
 import { watch, type Ref } from 'vue'
-import { getServiceBaseURL, ServiceType } from '@/config/services'
+import { getServiceBaseURL, ServiceType } from '@/services/serviceConfig'
 import type { useChatStore } from '@/stores/chat'
 import type Live2d from '@/components/Live2d.vue'
 import type BottomNavigation from '@/components/BottomNavigation.vue'

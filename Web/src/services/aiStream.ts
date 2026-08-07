@@ -1,7 +1,7 @@
 import { ServiceType } from './api'
-import type { AiChatRequest } from './ai-types'
+import type { AiChatRequest } from './aiTypes'
 import type { ArticleResultsPayload } from './ai'
-import { getServiceBaseURL } from '@/config/services'
+import { getServiceBaseURL } from '@/services/serviceConfig'
 
 /**
  * SSE Envelope 格式版本。

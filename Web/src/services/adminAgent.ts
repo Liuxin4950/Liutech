@@ -1,4 +1,4 @@
-import { getServiceBaseURL, ServiceType } from '@/config/services'
+import { getServiceBaseURL, ServiceType } from '@/services/serviceConfig'
 
 export interface AdminArticleDraftSnapshot {
   postId?: number | null
