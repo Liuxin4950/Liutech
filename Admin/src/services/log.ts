@@ -10,8 +10,10 @@ export interface LogItem {
   operator: string
   action: string
   target: string
+  targetName?: string
   description: string
   ip: string
+  userAgent?: string
   status: string
   createdAt: string
   detail?: string
@@ -22,6 +24,8 @@ export interface LogListParams {
   size?: number
   operator?: string
   action?: string
+  targetType?: string
+  status?: number
   startTime?: string
   endTime?: string
 }
@@ -36,10 +40,10 @@ export async function getLogList(params: LogListParams = {}): Promise<ApiRespons
 }
 
 /**
- * 获取操作类型统计（操作类型及数量）
+ * 获取操作类型列表
  */
-export async function getActionStats(): Promise<ApiResponse<Array<Record<string, any>>>> {
-  return get<Array<Record<string, any>>>(`${ADMIN_LOGS_URL}/action-stats`)
+export async function getActionTypes(): Promise<ApiResponse<string[]>> {
+  return get<string[]>(`${ADMIN_LOGS_URL}/actions`)
 }
 
 /**
@@ -52,6 +56,6 @@ export async function getTargetTypes(): Promise<ApiResponse<string[]>> {
 // 导出默认对象（兼容导入方式）
 export default {
   getLogList,
-  getActionStats,
+  getActionTypes,
   getTargetTypes
 }

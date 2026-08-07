@@ -37,6 +37,11 @@ public class LogResp {
     private String target;
 
     /**
+     * 目标名称（具体操作了哪个目标，SpEL 解析自 @OperationLog）
+     */
+    private String targetName;
+
+    /**
      * 操作描述
      */
     private String description;
@@ -45,6 +50,11 @@ public class LogResp {
      * IP地址
      */
     private String ip;
+
+    /**
+     * 浏览器 User-Agent
+     */
+    private String userAgent;
 
     /**
      * 操作状态（成功/失败）

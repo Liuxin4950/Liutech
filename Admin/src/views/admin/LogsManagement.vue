@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { SearchOutlined, ReloadOutlined, FileTextOutlined, ClockCircleOutlined, GlobalOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons-vue'
+import { ref, onMounted } from 'vue'
+import { SearchOutlined, ReloadOutlined, FileTextOutlined, ClockCircleOutlined, GlobalOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import { useTablePage } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
@@ -14,45 +15,71 @@ const {
   load, handleSearch, handleReset, handleTableChange
 } = useTablePage<LogItem, LogListParams>({
   loadFn: (params) => LogService.getLogList(params),
-  defaultSearchParams: { operator: '', action: '', startTime: undefined, endTime: undefined },
+  defaultSearchParams: { operator: '', action: '', targetType: undefined, status: undefined, startTime: undefined, endTime: undefined },
   loadErrorMessage: '加载日志列表失败'
 })
 
-// 操作类型选项
-const actionOptions = [
-  { label: '全部', value: '' },
-  { label: '创建', value: 'create' },
-  { label: '更新', value: 'update' },
-  { label: '删除', value: 'delete' },
-  { label: '恢复', value: 'restore' },
-  { label: '发布', value: 'publish' },
-  { label: '下线', value: 'offline' },
-  { label: '启用/禁用', value: 'disable' },
-  { label: '上传', value: 'upload' },
-  { label: '购买', value: 'purchase' },
-  { label: '签到', value: 'checkin' },
-  { label: '审核', value: 'review' },
-  { label: '回复', value: 'reply' },
-  { label: '导出', value: 'export' },
-  { label: '导入', value: 'import' }
+// 操作类型选项（兜底静态列表，正常由后端 /actions 动态加载）
+const actionMap: Record<string, string> = {
+  login: '登录', create: '创建', update: '更新', delete: '删除', restore: '恢复',
+  publish: '发布', offline: '下线', enable: '启用', disable: '禁用',
+  upload: '上传', download: '下载', purchase: '购买', checkin: '签到',
+  review: '审核', reply: '回复', export: '导出', import: '导入', test: '测试'
+}
+const actionOptions = ref<Array<{ label: string, value: string }>>([{ label: '全部', value: '' }])
+
+// 目标类型选项（后端 /target-types 动态加载）
+const targetOptions = ref<Array<{ label: string, value: string }>>([{ label: '全部', value: '' }])
+
+// 状态选项
+const statusOptions = [
+  { label: '全部', value: undefined },
+  { label: '成功', value: 1 },
+  { label: '失败', value: 0 }
 ]
 
 // 获取操作类型显示名称
-const getActionLabel = (action: string) => {
-  const option = actionOptions.find(opt => opt.value === action)
-  return option ? option.label : action
-}
+const getActionLabel = (action: string) => actionMap[action] || action
 
 // 获取目标类型显示名称
-const getTargetLabel = (target: string) => {
-  const targetMap: Record<string, string> = {
-    post: '文章', user: '用户', category: '分类', tag: '标签',
-    announcement: '公告', message: '留言', image: '图片',
-    carousel: '轮播图', resource: '资源', attachment: '附件',
-    points: '积分', comment: '评论', tts: '语音', ai_model: 'AI模型'
-  }
-  return targetMap[target] || target || '-'
+const targetMap: Record<string, string> = {
+  post: '文章', user: '用户', category: '分类', tag: '标签',
+  announcement: '公告', message: '留言', image: '图片',
+  carousel: '轮播图', resource: '资源', attachment: '附件',
+  points: '积分', comment: '评论', tts: '语音', ai_model: 'AI模型',
+  music: '音乐', document: '文档', system_setting: '系统设置'
 }
+const getTargetLabel = (target: string) => targetMap[target] || target || '-'
+
+// 详情弹窗
+const detailVisible = ref(false)
+const detailLog = ref<LogItem | null>(null)
+
+const showDetail = (record: LogItem) => {
+  detailLog.value = record
+  detailVisible.value = true
+}
+
+// 加载筛选选项
+const loadFilterOptions = async () => {
+  try {
+    const [actionRes, targetRes] = await Promise.all([
+      LogService.getActionTypes(),
+      LogService.getTargetTypes()
+    ])
+    if (actionRes.code === 200 && actionRes.data?.length) {
+      actionOptions.value = [{ label: '全部', value: '' }, ...actionRes.data.map(a => ({ label: actionMap[a] || a, value: a }))]
+    }
+    if (targetRes.code === 200 && targetRes.data?.length) {
+      targetOptions.value = [{ label: '全部', value: '' }, ...targetRes.data.map(t => ({ label: getTargetLabel(t), value: t }))]
+    }
+  } catch (e) {
+    // 加载失败使用兜底静态选项（actionMap 全量），不阻塞页面
+    actionOptions.value = [{ label: '全部', value: '' }, ...Object.entries(actionMap).map(([value, label]) => ({ label, value }))]
+  }
+}
+
+onMounted(loadFilterOptions)
 
 // 状态颜色
 const getStatusColor = (status: string) => {
@@ -64,10 +91,11 @@ const columns = [
   { title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
   { title: '操作人', dataIndex: 'operator', key: 'operator', width: 120 },
   { title: '操作类型', dataIndex: 'action', key: 'action', width: 100 },
-  { title: '目标类型', dataIndex: 'target', key: 'target', width: 80 },
+  { title: '目标', dataIndex: 'target', key: 'target', width: 110 },
   { title: '操作描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: 'IP地址', dataIndex: 'ip', key: 'ip', width: 140 },
-  { title: '状态', dataIndex: 'status', key: 'status', width: 80 }
+  { title: 'IP地址', dataIndex: 'ip', key: 'ip', minWidth: 170, ellipsis: true },
+  { title: '状态', dataIndex: 'status', key: 'status', width: 90 },
+  { title: '操作', key: 'actionCol', width: 70 }
 ]
 
 const columnPrefsCtrl = useTableColumnPrefs('logs', columns)
@@ -95,6 +123,24 @@ const exportCtrl = useTableExport({
             <a-form-item label="操作类型" class="mb-0">
               <a-select v-model:value="searchParams.action" placeholder="全部" allow-clear>
                 <a-select-option v-for="option in actionOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+            <a-form-item label="目标类型" class="mb-0">
+              <a-select v-model:value="searchParams.targetType" placeholder="全部" allow-clear>
+                <a-select-option v-for="option in targetOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+            <a-form-item label="状态" class="mb-0">
+              <a-select v-model:value="searchParams.status" placeholder="全部" allow-clear>
+                <a-select-option v-for="option in statusOptions" :key="String(option.value)" :value="option.value">
                   {{ option.label }}
                 </a-select-option>
               </a-select>
@@ -164,7 +210,13 @@ const exportCtrl = useTableExport({
             </a-tag>
           </template>
           <template v-else-if="column.key === 'target'">
-            <span class="target-text">{{ getTargetLabel(record.target) }}</span>
+            <a-tooltip v-if="record.targetName" :title="`目标名称：${record.targetName}`">
+              <span class="target-text">
+                {{ getTargetLabel(record.target) }}
+                <span v-if="record.targetName" class="target-name">/ {{ record.targetName }}</span>
+              </span>
+            </a-tooltip>
+            <span v-else class="target-text">{{ getTargetLabel(record.target) }}</span>
           </template>
           <template v-else-if="column.key === 'description'">
             <span class="description-text" :title="record.description">
@@ -172,13 +224,24 @@ const exportCtrl = useTableExport({
             </span>
           </template>
           <template v-else-if="column.key === 'ip'">
-            <div class="ip-cell">
-              <GlobalOutlined class="ip-icon" />
-              {{ record.ip || '-' }}
-            </div>
+            <a-tooltip :title="record.ip || '-'">
+              <div class="ip-cell">
+                <GlobalOutlined class="ip-icon" />
+                <span class="ip-text">{{ record.ip || '-' }}</span>
+              </div>
+            </a-tooltip>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)" class="status-tag">
+            <a-tooltip v-if="record.status !== '成功' && record.detail" :title="`失败原因：${record.detail}`">
+              <a-tag :color="getStatusColor(record.status)" class="status-tag">
+                <template #icon>
+                  <CheckCircleOutlined v-if="record.status === '成功'" />
+                  <CloseCircleOutlined v-else />
+                </template>
+                {{ record.status }}
+              </a-tag>
+            </a-tooltip>
+            <a-tag v-else :color="getStatusColor(record.status)" class="status-tag">
               <template #icon>
                 <CheckCircleOutlined v-if="record.status === '成功'" />
                 <CloseCircleOutlined v-else />
@@ -186,9 +249,42 @@ const exportCtrl = useTableExport({
               {{ record.status }}
             </a-tag>
           </template>
+          <template v-else-if="column.key === 'actionCol'">
+            <a-button type="link" size="small" @click="showDetail(record)">
+              <template #icon><EyeOutlined /></template>
+              详情
+            </a-button>
+          </template>
         </template>
       </a-table>
     </a-card>
+
+    <!-- 日志详情弹窗 -->
+    <a-modal
+      v-model:open="detailVisible"
+      title="日志详情"
+      :footer="null"
+      width="640"
+    >
+      <a-descriptions v-if="detailLog" :column="1" size="middle" bordered>
+        <a-descriptions-item label="时间">{{ formatDateTime(detailLog.createdAt) }}</a-descriptions-item>
+        <a-descriptions-item label="操作人">{{ detailLog.operator || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="操作类型">{{ getActionLabel(detailLog.action) }}</a-descriptions-item>
+        <a-descriptions-item label="目标">
+          {{ getTargetLabel(detailLog.target) }}<template v-if="detailLog.targetName"> / {{ detailLog.targetName }}</template>
+        </a-descriptions-item>
+        <a-descriptions-item label="操作描述">{{ detailLog.description || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="IP地址">
+          <span class="ip-cell">{{ detailLog.ip || '-' }}</span>
+        </a-descriptions-item>
+        <a-descriptions-item label="User-Agent" :span="1">
+          <span class="ua-text">{{ detailLog.userAgent || '-' }}</span>
+        </a-descriptions-item>
+        <a-descriptions-item v-if="detailLog.status !== '成功'" label="失败原因">
+          <span class="error-text">{{ detailLog.detail || '-' }}</span>
+        </a-descriptions-item>
+      </a-descriptions>
+    </a-modal>
   </div>
 </template>
 
@@ -211,6 +307,11 @@ const exportCtrl = useTableExport({
   font-weight: var(--lt-font-weight-medium);
 }
 
+.target-name {
+  color: var(--text-main);
+  font-weight: var(--lt-font-weight-regular);
+}
+
 .description-text {
   color: var(--text-main);
   max-width: 280px;
@@ -227,6 +328,23 @@ const exportCtrl = useTableExport({
   color: var(--text-secondary);
   font-family: var(--lt-font-family-mono);
   font-size: var(--lt-font-size-xs);
+}
+
+.ip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ua-text {
+  color: var(--text-secondary);
+  font-size: var(--lt-font-size-xs);
+  word-break: break-all;
+}
+
+.error-text {
+  color: var(--error-color, #ff4d4f);
+  word-break: break-all;
 }
 
 .ip-icon {
