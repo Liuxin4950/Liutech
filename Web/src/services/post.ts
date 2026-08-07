@@ -373,6 +373,8 @@ export class PostService {
 
   /**
    * 上传附件
+   * 大文件（>5MB）走分片上传：单片 5MB，整个请求在 CDN 空闲超时阈值内完成，
+   * 避免大请求回源耗时过长被边缘节点掐断（表现为 ERR_HTTP2_PROTOCOL_ERROR / 响应丢失）。
    * @param file 文件
    * @param draftKey 草稿键
    * @param type 附件类型（默认 attachment）
@@ -381,6 +383,41 @@ export class PostService {
    */
   static async uploadAttachment(file: File, draftKey: string, type: string = 'attachment', downloadType: number = 0, pointsNeeded: number = 0): Promise<AttachmentUploadResponse> {
     try {
+      const CHUNK_SIZE = 5 * 1024 * 1024
+
+      // 大文件分片上传
+      if (file.size > CHUNK_SIZE) {
+        const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE)
+
+        for (let i = 0; i < totalChunks; i++) {
+          const chunk = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size))
+          const chunkForm = new FormData()
+          chunkForm.append('file', chunk, file.name)
+          chunkForm.append('uploadId', uploadId)
+          chunkForm.append('chunkIndex', String(i))
+          chunkForm.append('totalChunks', String(totalChunks))
+          chunkForm.append('fileName', file.name)
+          await post('/upload/resource/chunk', chunkForm as any, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          } as any)
+        }
+
+        const mergeForm = new FormData()
+        mergeForm.append('uploadId', uploadId)
+        mergeForm.append('totalChunks', String(totalChunks))
+        mergeForm.append('fileName', file.name)
+        mergeForm.append('draftKey', draftKey)
+        mergeForm.append('type', type)
+        mergeForm.append('downloadType', downloadType.toString())
+        mergeForm.append('pointsNeeded', pointsNeeded.toString())
+        const mergeResponse = await post('/upload/resource/merge', mergeForm as any, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        } as any)
+        return mergeResponse.data
+      }
+
+      // 小文件直接上传
       const formData = new FormData()
       formData.append('file', file)
       formData.append('type', type)
@@ -472,8 +509,11 @@ export class PostService {
         responseType: 'blob'
       })
 
+      // 拦截器会把非标准响应包成 { code, message, data }，blob 在 data 里
+      const rawData: any = (response.data as any)?.data ?? response.data
+
       // 创建下载链接
-      const blob = new Blob([response.data])
+      const blob = new Blob([rawData])
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

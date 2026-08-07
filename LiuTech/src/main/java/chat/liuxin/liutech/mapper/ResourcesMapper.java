@@ -68,4 +68,14 @@ public interface ResourcesMapper extends BaseMapper<Resources> {
      * @return 影响的行数
      */
     int permanentDeleteByIds(@Param("ids") List<Long> ids);
+
+    /**
+     * 查重：同用户、同名、10 分钟内未删除的资源（防网络超时重试、刷新页面重传导致重复上传）
+     *
+     * @param userId   用户ID
+     * @param fileName 文件名
+     * @return 已存在的重复资源，无则返回 null
+     */
+    Resources selectRecentDuplicate(@Param("userId") Long userId,
+                                    @Param("fileName") String fileName);
 }

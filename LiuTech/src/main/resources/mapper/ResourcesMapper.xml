@@ -97,4 +97,17 @@
         </foreach>
     </delete>
 
+    <!-- 查重：同用户、同名、10 分钟内未删除的资源（防网络超时重试、刷新页面重传导致重复上传）。
+         不依赖草稿键：刷新页面 draftKey 会变化，按 draftKey 查重会漏。用户要传新版同名文件时先删除旧附件即可绕开。 -->
+    <select id="selectRecentDuplicate" resultType="chat.liuxin.liutech.model.Resources">
+        SELECT *
+        FROM resources
+        WHERE uploader_id = #{userId}
+          AND name = #{fileName}
+          AND deleted_at IS NULL
+          AND created_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
 </mapper>

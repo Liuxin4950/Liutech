@@ -64,6 +64,14 @@ public interface PostAttachmentsMapper extends BaseMapper<PostAttachments> {
     List<PostAttachmentVO> selectPostAttachmentsPublic(@Param("postId") Long postId);
     
     /**
+     * 查询草稿键下指定资源的附件关联（幂等查重用）
+     * @param draftKey 草稿键
+     * @param resourceId 资源ID
+     * @return 附件关联，无则返回 null
+     */
+    PostAttachments selectByDraftKeyAndResourceId(@Param("draftKey") String draftKey, @Param("resourceId") Long resourceId);
+
+    /**
      * 根据资源ID删除附件关联记录
      * @param resourceId 资源ID
      * @return 删除行数

@@ -121,6 +121,63 @@ public class FileUploadController {
     }
 
     /**
+     * 上传资源分片（大文件分片上传：单片 5MB，规避 CDN 传输超时）
+     *
+     * @param file       单片文件
+     * @param uploadId   分片任务标识（同一次上传各片一致）
+     * @param chunkIndex 分片序号（从 0 开始）
+     * @param totalChunks 分片总数
+     * @param fileName   原始文件名
+     * @return 操作结果
+     */
+    @PostMapping("/resource/chunk")
+    @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "upload", targetType = "resource", description = "上传资源分片")
+    public Result<Void> uploadResourceChunk(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("uploadId") String uploadId,
+            @RequestParam("chunkIndex") Integer chunkIndex,
+            @RequestParam("totalChunks") Integer totalChunks,
+            @RequestParam("fileName") String fileName) {
+
+        Long userId = userUtils.getCurrentUserId();
+        fileUploadService.uploadResourceChunk(file, userId, uploadId, chunkIndex, totalChunks, fileName);
+        return Result.success(null);
+    }
+
+    /**
+     * 合并资源分片（校验完整性后拼接入库）
+     *
+     * @param uploadId     分片任务标识
+     * @param totalChunks  分片总数
+     * @param fileName     原始文件名
+     * @param description  文件描述（可选）
+     * @param draftKey     草稿关联键（可选）
+     * @param type         附件类型（可选）
+     * @param downloadType 下载类型（0免费，1积分，默认0）
+     * @param pointsNeeded 下载所需积分（默认0）
+     * @return 上传结果
+     */
+    @PostMapping("/resource/merge")
+    @PreAuthorize("hasRole('ADMIN')")
+    @OperationLog(action = "upload", targetType = "resource", description = "合并资源分片")
+    public Result<FileUploadResp> mergeResourceChunks(
+            @RequestParam("uploadId") String uploadId,
+            @RequestParam("totalChunks") Integer totalChunks,
+            @RequestParam("fileName") String fileName,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "draftKey", required = false) String draftKey,
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "downloadType", required = false, defaultValue = "0") Integer downloadType,
+            @RequestParam(value = "pointsNeeded", required = false, defaultValue = "0") Integer pointsNeeded) {
+
+        Long userId = userUtils.getCurrentUserId();
+        FileUploadResp result = fileUploadService.mergeResourceChunks(userId, uploadId, totalChunks, fileName,
+                description, draftKey, type, downloadType, pointsNeeded);
+        return Result.success(result);
+    }
+
+    /**
      * 查询草稿附件列表
      *
      * @param draftKey 草稿关联键

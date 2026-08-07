@@ -464,7 +464,9 @@ export function usePostEditor() {
       Swal.fire('成功', `附件 "${file.name}" 上传成功！`, 'success')
     }, {
       onError: () => {
-        Swal.fire('错误', `附件 "${file.name}" 上传失败，请重试`, 'error')
+        // 网络中断时响应可能已丢失但文件已上传成功（CDN 掐断响应），后端有幂等查重兜底；
+        // 提示用户勿立即重试同名文件，避免产生重复附件
+        Swal.fire('提示', `附件 "${file.name}" 上传结果未确认（网络中断）。请勿立即重试上传同名文件，系统会自动去重；可稍后刷新页面在附件列表中确认`, 'warning')
       }
     })
   }
