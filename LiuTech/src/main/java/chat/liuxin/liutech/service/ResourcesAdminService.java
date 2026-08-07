@@ -19,6 +19,7 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.ResourceResp;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
@@ -35,6 +36,9 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
     private final ResourcesMapper resourcesMapper;
 
     private final ResourceDownloadsMapper resourceDownloadsMapper;
+
+    /** 文件 URL 解析与删除（兼容本地磁盘与 COS 存储） */
+    private final FileUtil fileUtil;
 
     /**
      * 获取资源列表（管理端）
@@ -185,7 +189,13 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
                 return false;
             }
 
-            // 先删除关联的下载记录
+            // 先删除物理文件（本地磁盘 / COS），避免残留孤儿文件
+            Resources resource = resourcesMapper.selectById(id);
+            if (resource != null && resource.getFileUrl() != null) {
+                fileUtil.deleteFileByUrl(resource.getFileUrl());
+            }
+
+            // 再删除关联的下载记录
             LambdaUpdateWrapper<ResourceDownloads> downloadWrapper = new LambdaUpdateWrapper<>();
             downloadWrapper.eq(ResourceDownloads::getResourceId, id);
             int downloadResult = resourceDownloadsMapper.delete(downloadWrapper);
@@ -218,7 +228,17 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
                 return false;
             }
 
-            // 先删除关联的下载记录
+            // 先删除物理文件（本地磁盘 / COS），避免残留孤儿文件
+            List<Resources> resourceList = resourcesMapper.selectByIds(ids);
+            if (resourceList != null) {
+                for (Resources resource : resourceList) {
+                    if (resource.getFileUrl() != null) {
+                        fileUtil.deleteFileByUrl(resource.getFileUrl());
+                    }
+                }
+            }
+
+            // 再删除关联的下载记录
             LambdaUpdateWrapper<ResourceDownloads> downloadWrapper = new LambdaUpdateWrapper<>();
             downloadWrapper.in(ResourceDownloads::getResourceId, ids);
             int downloadResult = resourceDownloadsMapper.delete(downloadWrapper);

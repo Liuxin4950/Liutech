@@ -5,6 +5,7 @@ import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.model.ResourceDownloads;
 import chat.liuxin.liutech.model.Resources;
 import chat.liuxin.liutech.storage.FileStorage;
+import chat.liuxin.liutech.utils.FileUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.Resource;
@@ -25,6 +26,7 @@ class ResourceDownloadServiceTest {
     private ResourceDownloadsMapper resourceDownloadsMapper;
     private PointsService pointsService;
     private FileStorage fileStorage;
+    private FileUtil fileUtil;
 
     private static final Long USER_ID = 10L;
     private static final Long RESOURCE_ID = 1L;
@@ -36,7 +38,8 @@ class ResourceDownloadServiceTest {
         resourceDownloadsMapper = mock(ResourceDownloadsMapper.class);
         pointsService = mock(PointsService.class);
         fileStorage = mock(FileStorage.class);
-        service = new ResourceDownloadService(resourcesMapper, resourceDownloadsMapper, pointsService, fileStorage);
+        fileUtil = mock(FileUtil.class);
+        service = new ResourceDownloadService(resourcesMapper, resourceDownloadsMapper, pointsService, fileStorage, fileUtil);
     }
 
     private Resources createPaidResource() {
@@ -68,6 +71,8 @@ class ResourceDownloadServiceTest {
         resource.setFileUrl("https://liuxin.chat/uploads/resources/2026/04/demo.zip");
         resource.setDownloadType(0);
         when(resourcesMapper.selectById(1L)).thenReturn(resource);
+        when(fileUtil.extractRelativePath("https://liuxin.chat/uploads/resources/2026/04/demo.zip"))
+                .thenReturn("resources/2026/04/demo.zip");
         when(fileStorage.open("resources/2026/04/demo.zip"))
                 .thenReturn(new ByteArrayInputStream("demo".getBytes()));
 
@@ -85,6 +90,8 @@ class ResourceDownloadServiceTest {
         resource.setFileUrl("/uploads/resources/2026/04/missing.zip");
         resource.setDownloadType(0);
         when(resourcesMapper.selectById(1L)).thenReturn(resource);
+        when(fileUtil.extractRelativePath("/uploads/resources/2026/04/missing.zip"))
+                .thenReturn("resources/2026/04/missing.zip");
         when(fileStorage.open("resources/2026/04/missing.zip")).thenReturn(null);
 
         RuntimeException error = assertThrows(RuntimeException.class,
@@ -100,6 +107,8 @@ class ResourceDownloadServiceTest {
         resource.setFileUrl("https://liuxin.chat/uploads/resources/../../application.yml");
         resource.setDownloadType(0);
         when(resourcesMapper.selectById(2L)).thenReturn(resource);
+        when(fileUtil.extractRelativePath("https://liuxin.chat/uploads/resources/../../application.yml"))
+                .thenReturn("resources/../../application.yml");
 
         RuntimeException error = assertThrows(RuntimeException.class,
                 () -> service.downloadResource(USER_ID, 2L));

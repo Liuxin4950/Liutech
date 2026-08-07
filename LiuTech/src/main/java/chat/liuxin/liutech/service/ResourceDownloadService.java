@@ -20,6 +20,7 @@ import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.model.ResourceDownloads;
 import chat.liuxin.liutech.model.Resources;
 import chat.liuxin.liutech.storage.FileStorage;
+import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
@@ -47,6 +48,9 @@ public class ResourceDownloadService {
 
     /** 文件存储（本地磁盘或 COS，读文件统一走这里，业务不感知存储后端） */
     private final FileStorage fileStorage;
+
+    /** 路径解析统一口径（兼容 /uploads/ 相对路径、站内完整 URL、COS 直出 URL） */
+    private final FileUtil fileUtil;
 
     /**
      * 购买资源（扣减积分）- 安全加固版
@@ -182,12 +186,21 @@ public class ResourceDownloadService {
             throw new RuntimeException("资源文件地址为空");
         }
 
-        String relativePath = fileUrl.replace('\\', '/');
-        int uploadsIndex = relativePath.indexOf("/uploads/");
-        if (uploadsIndex >= 0) {
-            relativePath = relativePath.substring(uploadsIndex + "/uploads/".length());
-        } else if (relativePath.startsWith("uploads/")) {
-            relativePath = relativePath.substring("uploads/".length());
+        // 统一走 FileUtil 解析口径：兼容 /uploads/ 相对路径、站内完整 URL、COS 直出 URL，
+        // 避免各自实现导致 COS 直出 URL（https://static.liuxin.chat/resources/...）解析失败
+        String relativePath = fileUtil.extractRelativePath(fileUrl);
+        if (relativePath == null) {
+            // 兼容历史裸相对路径（resources/xxx.zip）
+            String value = fileUrl.replace('\\', '/');
+            int queryIndex = value.indexOf('?');
+            if (queryIndex >= 0) {
+                value = value.substring(0, queryIndex);
+            }
+            if (value.startsWith("resources/")) {
+                relativePath = value;
+            } else {
+                throw new RuntimeException("非法资源路径");
+            }
         }
 
         int queryIndex = relativePath.indexOf('?');
