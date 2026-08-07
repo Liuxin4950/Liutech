@@ -1,154 +1,23 @@
 <script setup lang="ts">
-import { ref, reactive, onUnmounted } from 'vue'
+import { onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '../stores/user'
-import { useErrorHandler } from '../composables/useErrorHandler'
-import type { RegisterRequest } from '../services/user'
-import { sendEmailLoginCode } from '../services/user'
+import { useAuthForm } from '../composables/useAuthForm'
 import Icon from '../components/Icon.vue'
 
 const router = useRouter()
-const userStore = useUserStore()
-const { handleFormSubmit, showSuccess, clearError, showSuccessToast } = useErrorHandler()
 
-const isLogin = ref(true)
-const loginMode = ref<'password' | 'email'>('password') // 密码登录或邮箱验证码登录
-
-const loginForm = reactive({ username: '', password: '' })
-const emailLoginForm = reactive({ email: '', code: '' })
-const emailLoginErrors = reactive({ email: '', code: '' })
-const emailCountdown = ref(0)
-let emailTimer: ReturnType<typeof setInterval> | null = null
-const registerForm = reactive({ email: '', code: '', password: '' })
-const isSending = ref(false)
-
-const errors = reactive({ username: '', email: '', password: '', code: '', confirmPassword: '' })
-
-const showPassword = reactive({ login: false })
-
-const toggleMode = () => { isLogin.value = !isLogin.value; clearErrors(); Object.assign(emailLoginErrors, { email: '', code: '' }); clearError(); loginMode.value = 'password' }
-
-const clearForms = () => {
-  Object.assign(loginForm, { username: '', password: '' })
-  Object.assign(registerForm, { email: '', code: '', password: '' })
-}
-
-const clearErrors = () => {
-  Object.assign(errors, { username: '', email: '', password: '', code: '', confirmPassword: '' })
-}
-
-const validateForm = () => {
-  clearErrors()
-  let isValid = true
-  if (isLogin.value) {
-    if (!loginForm.username.trim()) { errors.username = '请输入用户名或邮箱'; isValid = false }
-    if (!loginForm.password) { errors.password = '请输入密码'; isValid = false }
-  } else {
-    if (!registerForm.email.trim()) { errors.email = '请输入邮箱地址'; isValid = false }
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) { errors.email = '请输入有效的邮箱地址'; isValid = false }
-    if (!registerForm.code.trim()) { errors.code = '请输入验证码'; isValid = false }
-    if (!registerForm.password) { errors.password = '请输入密码'; isValid = false }
-    else if (registerForm.password.length < 6) { errors.password = '密码至少6位'; isValid = false }
-  }
-  return isValid
-}
-
-/** 生成随机用户名：user_ + 6位小写字母数字，满足后端 3-20 位约束 */
-const generateRandomUsername = () => {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let suffix = ''
-  for (let i = 0; i < 6; i++) {
-    suffix += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return `user_${suffix}`
-}
-
-const handleLogin = async () => {
-  if (!validateForm()) return
-  const result = await handleFormSubmit(async () => await userStore.login(loginForm.username, loginForm.password))
-  if (result) { showSuccessToast("登录成功！"); setTimeout(() => router.push((router.currentRoute.value.query.redirect as string) || '/'), 600) }
-}
-
-const handleRegister = async () => {
-  if (!validateForm()) return
-  const result = await handleFormSubmit(async () => {
-    const data: RegisterRequest = {
-      username: generateRandomUsername(),
-      email: registerForm.email,
-      code: registerForm.code,
-      password: registerForm.password
-    }
-    return await userStore.register(data)
-  })
-  if (result) {
-    showSuccess('注册成功！请使用邮箱登录')
-    isLogin.value = true
-    loginMode.value = 'email'
-    clearForms()
-  }
-}
-
-const handleSubmit = () => { isLogin.value ? handleLogin() : handleRegister() }
-
-// 注册验证码相关
-const registerCountdown = ref(0)
-let registerTimer: ReturnType<typeof setInterval> | null = null
-
-// M13: 页面卸载时清理所有 timer
-onUnmounted(() => {
-  if (registerTimer) { clearInterval(registerTimer); registerTimer = null }
-  if (emailTimer) { clearInterval(emailTimer); emailTimer = null }
+// 表单逻辑与登录弹窗共用 useAuthForm；页面版登录成功后跳转 redirect 或首页
+const {
+  isLogin, loginMode, loginForm, emailLoginForm, emailLoginErrors, emailCountdown,
+  registerForm, isSending, errors, showPassword, registerCountdown, userStore,
+  toggleMode, handleSubmit, handleSendRegisterCode, handleSendEmailCode,
+  handleEmailLogin, cleanupTimers
+} = useAuthForm({
+  onLoginSuccess: () => setTimeout(() => router.push((router.currentRoute.value.query.redirect as string) || '/'), 600)
 })
 
-const handleSendRegisterCode = async () => {
-  errors.email = ''
-  if (!registerForm.email.trim()) { errors.email = '请输入邮箱地址'; return }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) { errors.email = '请输入有效的邮箱地址'; return }
-  isSending.value = true
-  try {
-    const { sendRegisterCode } = await import('../services/user')
-    const result = await handleFormSubmit(async () => await sendRegisterCode(registerForm.email))
-    if (result) { showSuccessToast('验证码已发送到您的邮箱'); startRegisterCountdown() }
-  } finally {
-    isSending.value = false
-  }
-}
-
-const startRegisterCountdown = () => {
-  if (registerTimer) { clearInterval(registerTimer); registerTimer = null }
-  registerCountdown.value = 60
-  registerTimer = setInterval(() => { registerCountdown.value--; if (registerCountdown.value <= 0 && registerTimer) { clearInterval(registerTimer); registerTimer = null } }, 1000)
-}
-
-// 邮箱登录相关方法
-const handleSendEmailCode = async () => {
-  emailLoginErrors.email = ''
-  if (!emailLoginForm.email.trim()) { emailLoginErrors.email = '请输入邮箱地址'; return }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLoginForm.email)) { emailLoginErrors.email = '请输入有效的邮箱地址'; return }
-  isSending.value = true
-  try {
-    const result = await handleFormSubmit(async () => await sendEmailLoginCode(emailLoginForm.email))
-    if (result) { showSuccessToast('验证码已发送到您的邮箱'); startEmailCountdown() }
-  } finally {
-    isSending.value = false
-  }
-}
-
-const handleEmailLogin = async () => {
-  emailLoginErrors.email = ''
-  emailLoginErrors.code = ''
-  if (!emailLoginForm.email.trim()) { emailLoginErrors.email = '请输入邮箱地址'; return }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLoginForm.email)) { emailLoginErrors.email = '请输入有效的邮箱地址'; return }
-  if (!emailLoginForm.code.trim()) { emailLoginErrors.code = '请输入验证码'; return }
-  const result = await handleFormSubmit(async () => await userStore.emailLogin(emailLoginForm.email, emailLoginForm.code))
-  if (result) { showSuccessToast('登录成功！'); setTimeout(() => router.push((router.currentRoute.value.query.redirect as string) || '/'), 600) }
-}
-
-const startEmailCountdown = () => {
-  if (emailTimer) { clearInterval(emailTimer); emailTimer = null }
-  emailCountdown.value = 60
-  emailTimer = setInterval(() => { emailCountdown.value--; if (emailCountdown.value <= 0 && emailTimer) { clearInterval(emailTimer); emailTimer = null } }, 1000)
-}
+// M13: 页面卸载时清理验证码倒计时 timer
+onUnmounted(cleanupTimers)
 </script>
 
 <template>

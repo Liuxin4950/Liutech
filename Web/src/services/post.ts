@@ -57,6 +57,7 @@ export interface PostListItem {
   status: 'draft' | 'published' | 'archived'
   createdAt: string
   updatedAt?: string
+  viewedAt?: string  // 浏览历史接口返回的最近浏览时间
 }
 
 // 文章详情接口
@@ -511,6 +512,54 @@ export class PostService {
       return response.data
     } catch (error) {
       console.error('获取收藏文章列表失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 记录文章浏览（需登录）：同一文章重复浏览只刷新时间，列表置顶
+   * @param postId 文章ID
+   * @author 刘鑫
+   * @date 2026-08-07
+   */
+  static async recordView(postId: number): Promise<boolean> {
+    try {
+      const response = await post(`/posts/${postId}/view`)
+      return response.data
+    } catch (error) {
+      console.error('记录浏览失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取当前用户的浏览历史（需登录，按最近浏览时间倒序）
+   * @param params 查询参数
+   * @returns 分页浏览历史文章列表（含 viewedAt 最近浏览时间）
+   * @author 刘鑫
+   * @date 2026-08-07
+   */
+  static async getViewHistory(params: PostQueryParams = {}): Promise<PageResponse<PostListItem>> {
+    try {
+      const response = await get('/posts/view-history', params)
+      return response.data
+    } catch (error) {
+      console.error('获取浏览历史失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 清空当前用户的浏览历史（需登录）
+   * @author 刘鑫
+   * @date 2026-08-07
+   */
+  static async clearViewHistory(): Promise<boolean> {
+    try {
+      const response = await del('/posts/view-history')
+      return response.data
+    } catch (error) {
+      console.error('清空浏览历史失败:', error)
       throw error
     }
   }

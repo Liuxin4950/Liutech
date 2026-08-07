@@ -283,8 +283,8 @@ const goAiChat = throttle(() => {
 
   &:hover {
     background: var(--bg-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
   }
 
   &--progress {

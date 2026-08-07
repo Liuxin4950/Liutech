@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import theme from '../utils/theme'
 import { useUserStore } from '../stores/user'
+import { useAuthModalStore } from '@/stores/authModal'
 import { handleImageError } from '@/composables/useImageFallback'
 import Icon from './Icon.vue'
 import menuIconLight from '@/assets/image/icon/menu.png'
@@ -14,6 +15,7 @@ const emit = defineEmits(['open-search'])
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const authModalStore = useAuthModalStore()
 
 const isMenuOpen = ref(false)
 const isUserMenuOpen = ref(false)
@@ -57,6 +59,12 @@ const toggleUserMenu = () => {
 const navigateTo = (path: string) => {
   router.push(path)
   closeMenus()
+}
+
+/** 打开全局登录弹窗（不跳转登录页，登录后停留当前页） */
+const openLoginModal = () => {
+  closeMenus()
+  authModalStore.show()
 }
 
 /** 退出登录 */
@@ -214,7 +222,7 @@ onUnmounted(() => {
           <button
             v-else
             class="flex flex-ac gap-8 transition rounded p-8 login-btn"
-            @click="navigateTo('/login')"
+            @click="openLoginModal"
             style="white-space: nowrap;"
           >
             <Icon name="user" size="16" />
@@ -235,11 +243,11 @@ onUnmounted(() => {
                 <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="transition link">
                   <Icon name="edit" size="16" />我的文章
                 </li>
-                <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts?tab=drafts')" class="transition link">
-                  <Icon name="file" size="16" />草稿箱
-                </li>
                 <li @click="navigateTo('/favorites')" class="transition link">
                   <Icon name="favorite" size="16" />我的收藏
+                </li>
+                <li @click="navigateTo('/view-history')" class="transition link">
+                  <Icon name="history" size="16" />浏览历史
                 </li>
                 <li @click="handleLogout" class="transition link">
                   <Icon name="close" size="16" />退出登录
@@ -291,11 +299,11 @@ onUnmounted(() => {
           <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="p-16 link">
             <Icon name="edit" size="18" />我的文章
           </li>
-          <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts?tab=drafts')" class="p-16 link">
-            <Icon name="file" size="18" />草稿箱
-          </li>
           <li v-if="userStore.isLoggedIn" @click="navigateTo('/favorites')" class="p-16 link">
             <Icon name="favorite" size="18" />我的收藏
+          </li>
+          <li v-if="userStore.isLoggedIn" @click="navigateTo('/view-history')" class="p-16 link">
+            <Icon name="history" size="18" />浏览历史
           </li>
           <li v-if="userStore.isLoggedIn" @click="handleLogout" class="p-16 link logout-item">
             <Icon name="close" size="18" />退出登录

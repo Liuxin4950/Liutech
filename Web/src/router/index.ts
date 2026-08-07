@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import Swal from 'sweetalert2'
 import { useUserStore } from '@/stores/user'
+import { useAuthModalStore } from '@/stores/authModal'
 import { getLenis } from '@/composables/useLenis'
 
 /**
@@ -62,6 +63,14 @@ const routes: RouteRecordRaw[] = [
         component: () => import('../views/Favorites.vue'),
         meta: {
           title: '我的收藏'
+        }
+      },
+      {
+        path: 'view-history',
+        name: 'view-history',
+        component: () => import('../views/ViewHistory.vue'),
+        meta: {
+          title: '浏览历史'
         }
       },
       {
@@ -234,6 +243,8 @@ const router = createRouter({
  * 设置页面标题和权限检查
  */
 router.beforeEach(async (to, from, next) => {
+  // 守卫回调内获取 store：模块加载期 pinia 尚未安装，不能在顶层实例化
+  const authModalStore = useAuthModalStore()
   // 路由切换时清除所有弹窗，避免 401 后弹窗残留
   Swal.close()
 
@@ -241,7 +252,7 @@ router.beforeEach(async (to, from, next) => {
   document.title = `Liutech-${to.meta.title || '博客'}`
 
   // 需要登录的页面
-  const requiresAuth = ['create-post', 'my-posts', 'favorites', 'profile', 'ai-chat-full']
+  const requiresAuth = ['create-post', 'my-posts', 'favorites', 'view-history', 'profile', 'ai-chat-full']
   // 需要管理员权限的页面
   const requiresAdmin = ['create-post', 'my-posts']
 
@@ -249,15 +260,18 @@ router.beforeEach(async (to, from, next) => {
   if (requiresAuth.includes(to.name as string)) {
     const token = localStorage.getItem('token')
     if (!token) {
-      // 未登录，跳转到登录页面
-      next({ name: 'login', query: { redirect: to.fullPath } })
+      // 未登录：停留当前页并弹出全局登录提示；记录目标路径，登录成功后自动跳回
+      authModalStore.show('此页面需要登录后才能访问，请先登录您的账户。', to.fullPath)
+      next(false)
       return
     }
 
     const userStore = useUserStore()
     await userStore.fetchUserInfo()
     if (!userStore.isLoggedIn) {
-      next({ name: 'login', query: { redirect: to.fullPath } })
+      // 会话失效（token 无效/过期）：同样弹窗提示，停留当前页
+      authModalStore.show('登录状态已失效，请重新登录。', to.fullPath)
+      next(false)
       return
     }
 

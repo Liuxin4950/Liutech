@@ -11,7 +11,8 @@ import { useBannerStore } from '@/stores/banner'
 import bannerFallback from '@/assets/image/banner/banner0.png'
 import CommentSection from '@/components/CommentSection.vue'
 import { isLoggedIn } from '../utils/auth'
-import LoginModal from '../components/LoginModal.vue'
+import { useAuthModalStore } from '@/stores/authModal'
+import { useUserStore } from '@/stores/user'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
 import Icon from '@/components/Icon.vue'
@@ -134,8 +135,15 @@ const currentFavoriteCount = ref(0)
 const showShare = ref(false)
 
 // 登录弹窗相关状态
-const showLoginModal = ref(false)
-const loginMessage = ref('点赞和收藏功能需要登录后才能使用')
+const authModalStore = useAuthModalStore()
+const userStore = useUserStore()
+
+// 登录成功后刷新详情（点赞/收藏状态即时更新），用户登录完原地可继续操作
+watch(() => userStore.isLoggedIn, (logged) => {
+  if (logged && post.value) {
+    loadPostDetail()
+  }
+})
 
 // 购买状态
 const purchasingId = ref<number | null>(null)
@@ -207,6 +215,11 @@ const loadPostDetail = async () => {
     currentFavoriteCount.value = postData.favoriteCount || 0
     isLiked.value = postData.likeStatus === 1  // 1表示已点赞
     isFavorited.value = postData.favoriteStatus === 1  // 1表示已收藏
+
+    // 记录浏览历史（仅登录用户，失败静默不影响阅读）
+    if (localStorage.getItem('token')) {
+      PostService.recordView(postId).catch(() => {})
+    }
   }, {
     onError: () => {
       error.value = '加载文章详情失败，请稍后重试'
@@ -223,8 +236,7 @@ const loadPostDetail = async () => {
 const onPurchase = async (resourceId: number) => {
   if (!resourceId) return
   if (!isLoggedIn()) {
-    loginMessage.value = '购买资源需要登录后才能进行'
-    showLoginModal.value = true
+    authModalStore.show('购买资源需要登录后才能进行')
     return
   }
   await handleAsync(async () => {
@@ -248,8 +260,7 @@ const handleDownload = async (resourceId: number, fileName: string) => {
 
   // 检查登录状态
   if (!isLoggedIn()) {
-    loginMessage.value = '下载资源需要登录后才能进行'
-    showLoginModal.value = true
+    authModalStore.show('下载资源需要登录后才能进行')
     return
   }
 
@@ -281,8 +292,7 @@ const handleLike = async () => {
 
   // 检查登录状态
   if (!isLoggedIn()) {
-    loginMessage.value = '点赞功能需要登录后才能使用'
-    showLoginModal.value = true
+    authModalStore.show('点赞功能需要登录后才能使用')
     return
   }
 
@@ -314,8 +324,7 @@ const handleFavorite = async () => {
 
   // 检查登录状态
   if (!isLoggedIn()) {
-    loginMessage.value = '收藏功能需要登录后才能使用'
-    showLoginModal.value = true
+    authModalStore.show('收藏功能需要登录后才能使用')
     return
   }
 
@@ -733,7 +742,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     </div>
 
     <!-- 登录弹窗 -->
-    <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
 
   </div>
 </template>

@@ -1,9 +1,9 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import Swal from 'sweetalert2'
-import router from '../router'
 import { showErrorToast } from '../utils/errorHandler'
-import { ServiceType, getServiceConfig, DEFAULT_SERVICE } from '../config/services'
+import { useAuthModalStore } from '../stores/authModal'
+import { ServiceType, getServiceConfig, DEFAULT_SERVICE } from './serviceConfig'
 
 // API 响应接口
 export interface ApiResponse<T = any> {
@@ -99,14 +99,17 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
 
       const status = error.response?.status
       const bizMessage = error.response?.data?.message
+      const requestUrl = error.config?.url || ''
 
-      // 特殊处理401错误：清除所有弹窗、token，跳转登录页
+      // 特殊处理401错误：清除所有弹窗、token，弹出全局登录弹窗（停留当前页，不跳转登录页）
       if (status === 401) {
-        Swal.close()
-        localStorage.removeItem('token')
-        const currentRoute = router.currentRoute.value
-        if (currentRoute.name !== 'login') {
-          router.push({ name: 'login', query: { redirect: currentRoute.fullPath } }).catch(() => undefined)
+        // 登录/注册/验证码等 /user/ 接口的 401 属于业务失败（防御性处理）：提示后端消息，不弹会话失效
+        if (requestUrl.includes('/user/')) {
+          if (bizMessage) showErrorToast(bizMessage)
+        } else {
+          Swal.close()
+          localStorage.removeItem('token')
+          useAuthModalStore().show('登录状态已失效，请重新登录。')
         }
       } else if (status === 403) {
         // 特殊处理403错误：清除弹窗

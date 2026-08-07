@@ -15,6 +15,7 @@ import GlobalSearchModal from '@/components/GlobalSearchModal.vue'
 import { requireAuth } from '@/utils/auth'
 import { useChatStore } from '@/stores/chat'
 import { useBannerStore } from '@/stores/banner'
+import { useAuthModalStore } from '@/stores/authModal'
 import { useOnboarding } from '@/composables/useOnboarding'
 import { useTtsPlayer } from '@/composables/useTtsPlayer'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
@@ -28,16 +29,13 @@ let timer: number | null = null
 // 检查是否为首次访问（页面刷新或首次打开）
 const isFirstLoad = ref(true)
 
-// 登录弹窗控制
-const showLoginModal = ref(false)
-const loginMessage = ref('')
-
 const chatStore = useChatStore()
 const bannerStore = useBannerStore()
+const authModalStore = useAuthModalStore()
 
 // Banner 定制集中管理：定制页进入时自行 setBanner 覆盖，这里只在进入非定制页时恢复默认轮播。
 // 不用"页面卸载时 resetBanner"——路由切换时旧页面的 reset 可能晚于新页面的 set 执行，产生竞态。
-const CUSTOM_BANNER_PATHS = ['/post/', '/category-detail/', '/tags', '/series', '/categories', '/archive', '/about']
+const CUSTOM_BANNER_PATHS = ['/post/', '/category-detail/', '/tags', '/series', '/categories', '/archive', '/about', '/my-posts', '/view-history', '/favorites']
 watch(() => route.path, () => {
   if (!CUSTOM_BANNER_PATHS.some(p => route.path.startsWith(p))) {
     bannerStore.resetBanner()
@@ -158,15 +156,9 @@ const handleModelWheel = (event: WheelEvent) => {
   aiChatRef.value?.scrollBodyBy?.(event.deltaY)
 }
 
-// 显示登录弹窗
-const showLoginModalWithMessage = (message?: string) => {
-  loginMessage.value = message || '此功能需要登录后才能使用，请先登录您的账户。'
-  showLoginModal.value = true
-}
-
-// 处理需要登录的操作
+// 处理需要登录的操作：已登录直接执行，未登录弹出全局登录提示
 const handleAuthRequired = (action: () => void, message?: string) => {
-  requireAuth(action, () => showLoginModalWithMessage(message))
+  requireAuth(action, () => authModalStore.show(message))
 }
 
 </script>
@@ -208,8 +200,8 @@ const handleAuthRequired = (action: () => void, message?: string) => {
     ></BottomNavigation>
     <GlobalPageLoader :show="showLoader" />
 
-    <!-- 登录弹窗 -->
-    <LoginModal v-model:visible="showLoginModal" :message="loginMessage" />
+    <!-- 登录弹窗（状态来自全局 authModal store，路由守卫与页面操作共用） -->
+    <LoginModal v-model:visible="authModalStore.visible" :message="authModalStore.message" />
 
     <!-- 全局搜索 -->
     <GlobalSearchModal ref="searchModalRef" />

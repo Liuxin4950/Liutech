@@ -67,7 +67,7 @@
               <span class="flex flex-ac gap-4"><Icon name="eye" size="14" /> {{ post.viewCount || 0 }}</span>
               <span class="flex flex-ac gap-4"><Icon name="heart" size="14" /> {{ post.likeCount || 0 }}</span>
               <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount || 0 }}</span>
-              <span>{{ formatDate(post.createdAt) }}</span>
+              <span>{{ showViewedAt && post.viewedAt ? '浏览于 ' + formatDate(post.viewedAt) : formatDate(post.createdAt) }}</span>
             </div>
           </div>
         </div>
@@ -105,6 +105,8 @@ const props = defineProps<{
     total: number
     pages: number
   }
+  /** 浏览历史模式：时间显示"浏览于 viewedAt"而非文章发布时间 */
+  showViewedAt?: boolean
 }>()
 
 const emit = defineEmits<{

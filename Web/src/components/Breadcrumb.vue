@@ -61,6 +61,7 @@ const listRoutes = new Set([
   'archive',
   'about',
   'my-posts',
+  'view-history',
   'profile',
   'create-post'
 ])
@@ -115,6 +116,8 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
       addParent('全部文章', { name: 'posts' })
     } else if (from === 'my-posts') {
       addParent('我的文章', { name: 'my-posts' })
+    } else if (from === 'view-history') {
+      addParent('浏览历史', { name: 'view-history' })
     } else {
       // 默认回退到“全部文章”
       const parent = sectionParentMap.home

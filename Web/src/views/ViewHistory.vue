@@ -1,32 +1,31 @@
 <template>
   <div class="content">
       <main class="main-content">
-        <!-- 收藏文章展示 -->
+        <!-- 浏览历史展示 -->
         <div class="posts-section">
-          <!-- 搜索框 -->
+          <!-- 操作栏 -->
           <div class="actions-container">
-            <div class="search-box">
-                            <Icon name="search" size="16" class="search-icon" />
-              <input v-model="searchKeyword" type="text" placeholder="搜索文章..." class="search-input"
-                @keyup.enter="searchFavorites" />
-            </div>
+            <button class="clear-btn" @click="clearHistory">
+              <Icon name="trash" size="16" />
+              清空历史
+            </button>
           </div>
 
           <!-- 文章列表 -->
           <ArticleList
-            :posts="favoritePosts"
+            :posts="historyPosts"
             :loading="postsLoading"
             :error="postsError"
             :pagination="postsPagination"
+            show-viewed-at
             @post-click="goToPost"
             @page-change="goToPostsPage"
-            @retry="loadFavoritePosts"
+            @retry="loadHistory"
           >
             <template #empty>
             <div class="empty-text flex flex-col flex-ac text-sm">
-              <!-- <div class="empty-icon">💔</div> -->
-              <p>{{ searchKeyword ? '没有找到相关的收藏文章' : '您还没有收藏任何文章' }}</p>
-              <router-link to="/" class="link-btn">去首页看看</router-link>
+              <p>您还没有浏览过任何文章</p>
+              <router-link to="/" class="link-btn">去首页逛逛</router-link>
             </div>
           </template>
           </ArticleList>
@@ -47,29 +46,28 @@ import Icon from '@/components/Icon.vue'
 import ArticleList from '@/components/ArticleList.vue'
 
 const router = useRouter()
-const { handleAsync } = useErrorHandler()
+const { handleAsync, showToastSuccess, showToastError, confirm } = useErrorHandler()
 const bannerStore = useBannerStore()
 
 // 页面标题由 banner 承载（hero 大横幅）
 bannerStore.setBanner({
   slides: [{
-    title: '我的',
-    description: '这里是您收藏的所有文章',
+    title: '浏览',
+    description: '这里是您最近浏览过的文章',
     imageUrl: bannerFallback,
     sortOrder: 0,
     status: 1
   }],
-  badgeText: 'Favorites',
+  badgeText: 'View History',
   titleAs: 'h1',
-  titleHighlight: '收藏',
+  titleHighlight: '历史',
   mode: 'hero'
 })
 
 // 响应式数据
-const favoritePosts = ref<PostListItem[]>([])
+const historyPosts = ref<PostListItem[]>([])
 const postsLoading = ref(false)
 const postsError = ref('')
-const searchKeyword = ref('')
 
 // 分页信息
 const postsPagination = ref({
@@ -81,24 +79,23 @@ const postsPagination = ref({
 
 // 跳转到文章详情
 const goToPost = (postId: number) => {
-  router.push(`/post/${postId}?from=favorites`)
+  router.push(`/post/${postId}?from=view-history`)
 }
 
-// 加载收藏文章列表
-const loadFavoritePosts = async (page: number = 1) => {
+// 加载浏览历史列表
+const loadHistory = async (page: number = 1) => {
   await handleAsync(async () => {
     postsLoading.value = true
     postsError.value = ''
 
     const params: PostQueryParams = {
       page,
-      size: postsPagination.value.size,
-      keyword: searchKeyword.value || undefined
+      size: postsPagination.value.size
     }
 
-    const response = await PostService.getFavoritePosts(params)
+    const response = await PostService.getViewHistory(params)
 
-    favoritePosts.value = response.records
+    historyPosts.value = response.records
 
     postsPagination.value = {
       current: response.current,
@@ -108,18 +105,12 @@ const loadFavoritePosts = async (page: number = 1) => {
     }
   }, {
     onError: () => {
-      postsError.value = '加载收藏文章失败，请稍后重试'
+      postsError.value = '加载浏览历史失败，请稍后重试'
     },
     onFinally: () => {
       postsLoading.value = false
     }
   })
-}
-
-// 搜索收藏文章
-const searchFavorites = () => {
-  postsPagination.value.current = 1
-  loadFavoritePosts(1)
 }
 
 // 跳转到指定页面
@@ -128,29 +119,71 @@ const goToPostsPage = (page: number) => {
     return
   }
 
-  loadFavoritePosts(page)
+  loadHistory(page)
+}
+
+// 清空浏览历史（不可恢复）
+const clearHistory = async () => {
+  const confirmed = await confirm('确定要清空全部浏览历史吗？此操作不可恢复。')
+  if (!confirmed) {
+    return
+  }
+
+  await handleAsync(async () => {
+    await PostService.clearViewHistory()
+    historyPosts.value = []
+    postsPagination.value = {
+      current: 1,
+      size: postsPagination.value.size,
+      total: 0,
+      pages: 0
+    }
+    showToastSuccess('浏览历史已清空')
+  }, {
+    onError: () => {
+      showToastError('清空失败，请稍后重试')
+    }
+  })
 }
 
 // 页面挂载时加载数据
 onMounted(async () => {
-  await loadFavoritePosts()
+  await loadHistory()
 })
 </script>
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 16px;
-}
-
 .actions-container {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  margin: 28px 0 30px;
+  margin-bottom: 30px;
   gap: 20px;
+}
+
+/* 清空历史按钮 */
+.clear-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--bg-error, #ffebee);
+  color: var(--color-error, #d32f2f);
+  border: none;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.clear-btn:hover {
+  background: var(--color-error, #d32f2f);
+  color: #fff;
+  transform: translateY(-2px);
 }
 
 .link-btn {
@@ -168,43 +201,12 @@ onMounted(async () => {
   background: var(--color-primary-dark);
 }
 
-.posts-img {
-  width: 200px;
-  height: 150px;
-  background-color: var(--bg-card);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
 // 响应式样式
 @include respond(md) {
-  .search-box {
-    max-width: none;
-  }
-
   .actions-container {
     flex-direction: column;
     align-items: stretch;
     gap: 16px;
-  }
-
-  .list article {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .posts-img {
-    width: 100%;
-    height: 200px;
-  }
-
-  .relative h3 {
-    padding-right: 0 !important;
-  }
-
-  .flex.gap-12.text-sm.text-subtle {
-    flex-wrap: wrap;
-    gap: 8px;
   }
 }
 </style>

@@ -1,11 +1,5 @@
 <template>
   <div class="content my-posts-page">
-    <div class="page-title">
-      <span class="title-badge"><Icon name="book" size="12" /> My Posts</span>
-      <h1 class="title-heading">我的<span class="title-highlight">文章</span></h1>
-      <p class="title-desc">{{ activeTab === 'posts' ? '管理您已发布的文章，编辑或删除' : '管理您的草稿文章，继续编辑或发布' }}</p>
-    </div>
-
     <!-- 文章/草稿切换 -->
     <div class="tab-bar">
       <button
@@ -189,14 +183,35 @@ import { PostService, type PostListItem, type PageResponse } from '../services/p
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { formatDate, formatRelativeTime } from '@/utils/utils'
 import { handleImageError } from '@/composables/useImageFallback'
+import { useBannerStore } from '@/stores/banner'
+import bannerFallback from '@/assets/image/banner/banner0.png'
 import Pagination from '@/components/Pagination.vue'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
 const route = useRoute()
 const { handleAsync, showToastSuccess, showToastError, confirm } = useErrorHandler()
+const bannerStore = useBannerStore()
 
 type TabKey = 'posts' | 'drafts'
+
+// 页面标题由 banner 承载（hero 大横幅），tab 切换时标题联动
+const updateBanner = () => {
+  const isPosts = activeTab.value === 'posts'
+  bannerStore.setBanner({
+    slides: [{
+      title: isPosts ? '我的' : '草稿',
+      description: isPosts ? '管理您已发布的文章，编辑或删除' : '管理您的草稿文章，继续编辑或发布',
+      imageUrl: bannerFallback,
+      sortOrder: 0,
+      status: 1
+    }],
+    badgeText: isPosts ? 'My Posts' : 'Drafts',
+    titleAs: 'h1',
+    titleHighlight: isPosts ? '文章' : '箱',
+    mode: 'hero'
+  })
+}
 
 // 文章与草稿各自独立的状态（列表/搜索/分页），切换 tab 互不影响
 interface TabState {
@@ -236,6 +251,9 @@ watch(() => route.query.tab, (tab) => {
     }
   }
 })
+
+// tab 切换时 banner 标题联动（我的文章 ↔ 草稿箱）
+watch(activeTab, updateBanner)
 
 // 计算属性
 const filteredList = computed(() => {
@@ -285,11 +303,18 @@ const loadActive = async () => {
 const switchTab = (tab: TabKey) => {
   if (activeTab.value === tab) return
   activeTab.value = tab
-  // URL 同步，刷新/分享保留当前 tab；posts 为默认 tab，不留在 query 里
+  // URL 同步（刷新/分享保留当前 tab；posts 为默认 tab，不留在 query 里）
+  // 用 history.replaceState 而非 router.replace：后者触发 vue-router 导航会滚动回顶部
   const query = { ...route.query }
   if (tab === 'drafts') query.tab = 'drafts'
   else delete query.tab
-  router.replace({ query })
+  const params = new URLSearchParams()
+  Object.entries(query).forEach(([k, v]) => {
+    if (Array.isArray(v)) v.forEach(item => params.append(k, item ?? ''))
+    else if (v != null) params.append(k, String(v))
+  })
+  const queryStr = params.toString()
+  window.history.replaceState(window.history.state, '', route.path + (queryStr ? `?${queryStr}` : ''))
   // 懒加载：首次进入该 tab 才请求
   if (activeState.value.list.length === 0 && !activeState.value.loading) {
     loadActive()
@@ -398,6 +423,7 @@ const changePage = (page: number) => {
 
 // 生命周期
 onMounted(() => {
+  updateBanner()
   loadActive()
 })
 </script>
@@ -412,11 +438,11 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-/* tab 切换条 */
+/* tab 切换条（标题已由 banner 承载，顶部留出呼吸间距） */
 .tab-bar {
   display: flex;
   gap: 8px;
-  margin-bottom: 24px;
+  margin: 0 0px 10px;
   padding: 4px;
   background: var(--bg-soft, #f5f5f5);
   border-radius: 30px;
