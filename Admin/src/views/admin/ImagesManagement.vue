@@ -8,7 +8,8 @@ import {
   EyeOutlined,
   ClearOutlined,
   ExclamationCircleOutlined,
-  SyncOutlined
+  SyncOutlined,
+  LinkOutlined
 } from '@ant-design/icons-vue'
 import ImagesService from '../../services/images'
 import type { Image, ImageListParams, ImageReference } from '../../services/images'
@@ -110,11 +111,20 @@ const formatDimensions = (width: number | null, height: number | null): string =
 const previewVisible = ref(false)
 const previewImage = ref('')
 const previewFileName = ref('')
+const previewRecord = ref<Image | null>(null)
 
 const handlePreview = (record: Image) => {
+  previewRecord.value = record
   previewImage.value = record.fileUrl
   previewFileName.value = record.fileName
   previewVisible.value = true
+}
+
+// 从预览弹窗进入引用来源抽屉
+const showReferencesFromPreview = () => {
+  if (!previewRecord.value) return
+  previewVisible.value = false
+  handleShowReferences(previewRecord.value)
 }
 
 // ============== 孤立图片清理 ==============
@@ -354,15 +364,16 @@ const exportCtrl = useTableExport({
 
           <!-- 引用次数（可点击查看引用来源） -->
           <template v-else-if="column.key === 'usageCount'">
-            <a-button
-              v-if="record.usageCount > 0"
-              type="link"
-              size="small"
-              style="padding: 0"
-              @click="handleShowReferences(record)"
-            >
-              <a-tag color="blue" style="margin: 0">{{ record.usageCount }}</a-tag>
-            </a-button>
+            <a-tooltip v-if="record.usageCount > 0" title="点击查看引用来源">
+              <a-button
+                type="link"
+                size="small"
+                style="padding: 0"
+                @click="handleShowReferences(record)"
+              >
+                <a-tag color="blue" style="margin: 0; cursor: pointer">{{ record.usageCount }}</a-tag>
+              </a-button>
+            </a-tooltip>
             <a-tag v-else color="default">{{ record.usageCount }}</a-tag>
           </template>
 
@@ -413,6 +424,21 @@ const exportCtrl = useTableExport({
       @cancel="previewVisible = false"
     >
       <img :src="previewImage" :alt="previewFileName" class="preview-image" />
+      <div v-if="previewRecord" class="preview-info">
+        <span class="preview-meta">
+          {{ previewRecord.mimeType }} · {{ formatFileSize(previewRecord.fileSize) }} · {{ formatDimensions(previewRecord.width, previewRecord.height) }}
+        </span>
+        <a-button
+          v-if="previewRecord.usageCount > 0"
+          type="primary"
+          size="small"
+          @click="showReferencesFromPreview"
+        >
+          <template #icon><LinkOutlined /></template>
+          查看引用来源（{{ previewRecord.usageCount }}）
+        </a-button>
+        <span v-else class="preview-no-ref">暂无引用</span>
+      </div>
     </a-modal>
 
     <!-- 孤立图片清理弹窗 -->
@@ -552,6 +578,25 @@ export default { name: 'ImagesManagement' }
   max-width: 90vw;
   max-height: 80vh;
   object-fit: contain;
+}
+
+.preview-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lt-space-md);
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-light, rgba(0, 0, 0, 0.08));
+}
+
+.preview-meta {
+  font-size: var(--lt-font-size-sm);
+  color: var(--text-secondary);
+}
+
+.preview-no-ref {
+  font-size: var(--lt-font-size-sm);
+  color: var(--text-tertiary);
 }
 
 .orphan-modal-content {
