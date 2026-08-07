@@ -885,8 +885,9 @@ export function usePostEditor() {
       autosavedAt.value = null
       await Swal.fire('成功', `${actionText}成功！`, 'success')
       // 草稿对前台公开详情接口不可见，跳详情会报"文章不存在"；只有已发布文章才跳详情页
+      // 草稿箱已并入"我的文章"页，跳 ?tab=drafts 直接定位草稿列表
       if (form.value.status === 'draft') {
-        router.push('/drafts')
+        router.push('/my-posts?tab=drafts')
       } else {
         router.push(`/post/${postId}?from=home`)
       }

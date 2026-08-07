@@ -3,63 +3,71 @@
     <div class="page-title">
       <span class="title-badge"><Icon name="book" size="12" /> My Posts</span>
       <h1 class="title-heading">我的<span class="title-highlight">文章</span></h1>
-      <p class="title-desc">管理您已发布的文章，编辑或删除</p>
+      <p class="title-desc">{{ activeTab === 'posts' ? '管理您已发布的文章，编辑或删除' : '管理您的草稿文章，继续编辑或发布' }}</p>
+    </div>
+
+    <!-- 文章/草稿切换 -->
+    <div class="tab-bar">
+      <button
+        :class="['tab-btn', { active: activeTab === 'posts' }]"
+        @click="switchTab('posts')"
+      >
+        <Icon name="book" size="15" /> 我的文章
+      </button>
+      <button
+        :class="['tab-btn', { active: activeTab === 'drafts' }]"
+        @click="switchTab('drafts')"
+      >
+        <Icon name="file" size="15" /> 草稿箱
+      </button>
     </div>
 
     <!-- 操作栏 -->
     <div class="actions-bar">
       <div class="search-box">
-                <Icon name="search" size="16" class="search-icon" />
-        <input v-model="searchKeyword" type="text" placeholder="搜索文章..." class="search-input"
+        <Icon name="search" size="16" class="search-icon" />
+        <input v-model="activeState.searchKeyword" type="text" :placeholder="activeTab === 'posts' ? '搜索文章...' : '搜索草稿...'" class="search-input"
           @keyup.enter="handleSearch" />
       </div>
-      <div class="flex gap-20">
-        <button class="create-btn" @click="createNewPost">
-          <Icon name="edit" size="16" />
-          新建文章
-        </button>
-        <button class="create-btn" @click="goDrafts">
-          <Icon name="file" size="16" />
-          草稿子箱
-        </button>
-      </div>
-   
+      <button class="create-btn" @click="createNew">
+        <Icon name="edit" size="16" />
+        {{ activeTab === 'posts' ? '新建文章' : '新建草稿' }}
+      </button>
     </div>
 
-    <!-- 文章列表 -->
+    <!-- 列表 -->
     <div class="posts-container">
       <!-- 加载状态 -->
-      <div v-if="loading" class="loading-state text-sm">
+      <div v-if="activeState.loading" class="loading-state text-sm">
         <div class="loading-spinner"></div>
         <p>加载中...</p>
       </div>
 
       <!-- 错误状态 -->
-      <div v-else-if="error" class="error-state text-sm">
+      <div v-else-if="activeState.error" class="error-state text-sm">
         <Icon name="close" size="40" class="error-icon" />
-        <p>{{ error }}</p>
-        <button class="retry-btn" @click="loadPosts">重试</button>
+        <p>{{ activeState.error }}</p>
+        <button class="retry-btn" @click="loadActive">重试</button>
       </div>
 
       <!-- 空状态 -->
-      <div v-else-if="filteredPosts.length === 0" class="empty-state flex flex-col flex-ac text-sm">
-        <!-- <span class="empty-icon">📝</span> -->
-        <h3>暂无文章</h3>
-        <p>开始创建您的第一篇文章吧！</p>
+      <div v-else-if="filteredList.length === 0" class="empty-state flex flex-col flex-ac text-sm">
+        <h3>{{ activeTab === 'posts' ? '暂无文章' : '暂无草稿' }}</h3>
+        <p>{{ activeTab === 'posts' ? '开始创建您的第一篇文章吧！' : '开始创建您的第一篇草稿吧！' }}</p>
         <img src="@/assets/image/扑到.png" alt="" class="fit-err">
-        <button class="create-btn" @click="createNewPost">
+        <button class="create-btn" @click="createNew">
           <Icon name="edit" size="16" />
-          新建文章
+          {{ activeTab === 'posts' ? '新建文章' : '新建草稿' }}
         </button>
       </div>
 
-      <!-- 文章列表 -->
-      <div v-else class="posts-list">
-        <div v-for="post in filteredPosts" :key="post.id" class="post-card bg-card">
+      <!-- 已发布文章列表 -->
+      <div v-else-if="activeTab === 'posts'" class="posts-list">
+        <div v-for="post in filteredList" :key="post.id" class="post-card bg-card">
           <img v-if="post.thumbnail" class="fit" :src="post.thumbnail" alt="" loading="lazy" @error="handleImageError">
           <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="" loading="lazy" @error="handleImageError">
           <img v-else class="fit" src="@/assets/image/err.png" alt="" loading="lazy">
-          
+
           <div class="post-content flex flex-col gap-12">
             <h3 class="post-title text-primary" @click="viewPost(post.id)">
               {{ post.title }}
@@ -118,12 +126,56 @@
           </div>
         </div>
       </div>
+
+      <!-- 草稿列表 -->
+      <div v-else class="posts-list">
+        <div v-for="draft in filteredList" :key="draft.id" class="post-card bg-card">
+          <img v-if="draft.thumbnail" class="fit" :src="draft.thumbnail" alt="" loading="lazy" @error="handleImageError">
+          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="" loading="lazy" @error="handleImageError">
+          <img v-else class="fit" src="@/assets/image/err.png" alt="" loading="lazy">
+          <div class="post-content flex flex-col gap-12">
+            <h3 class="post-title text-primary" @click="editDraft(draft.id)">
+              {{ draft.title || '无标题草稿' }}
+            </h3>
+            <p class="post-summary text-base text-subtle" v-if="draft.summary">
+              {{ draft.summary }}
+            </p>
+            <div class="tags-cloud" v-if="draft.tags && draft.tags.length > 0">
+              <span @click.stop="goToTag(tag.id)" v-for="tag in draft.tags" :key="tag.id" class="tag">
+                {{ tag.name }}
+              </span>
+            </div>
+            <div class="post-meta">
+              <span class="post-date">
+                <Icon name="calendar" size="14" class="meta-icon" />
+                更新于 {{ formatRelativeTime(draft.updatedAt || draft.createdAt) }}
+              </span>
+              <span class="post-category" v-if="draft.category">
+                <Icon name="tag" size="14" class="meta-icon" />
+                {{ draft.category.name }}
+              </span>
+            </div>
+          </div>
+
+          <div class="post-actions">
+            <button class="action-btn edit-btn" @click="editDraft(draft.id)" title="编辑">
+              <Icon name="edit" size="16" />
+            </button>
+            <button class="action-btn publish-btn" @click="publishDraft(draft.id)" title="发布">
+              <Icon name="rocket" size="16" />
+            </button>
+            <button class="action-btn delete-btn" @click="deleteDraft(draft.id)" title="删除">
+              <Icon name="trash" size="16" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 分页 -->
     <Pagination
-      v-if="!loading && filteredPosts.length > 0"
-      :current-page="currentPage"
+      v-if="!activeState.loading && filteredList.length > 0"
+      :current-page="activeState.currentPage"
       :total-pages="totalPages"
       @page-change="changePage"
     />
@@ -131,80 +183,166 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, reactive, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { formatDate } from '@/utils/utils'
+import { formatDate, formatRelativeTime } from '@/utils/utils'
 import { handleImageError } from '@/composables/useImageFallback'
 import Pagination from '@/components/Pagination.vue'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
-const { handleAsync,showToastSuccess,showToastError,confirm } = useErrorHandler()
+const route = useRoute()
+const { handleAsync, showToastSuccess, showToastError, confirm } = useErrorHandler()
 
-// 响应式数据
-const posts = ref<PostListItem[]>([])
-const loading = ref(false)
-const error = ref('')
-const searchKeyword = ref('')
-const currentPage = ref(1)
-const pageSize = ref(10)
-const totalCount = ref(0)
+type TabKey = 'posts' | 'drafts'
+
+// 文章与草稿各自独立的状态（列表/搜索/分页），切换 tab 互不影响
+interface TabState {
+  list: PostListItem[]
+  loading: boolean
+  error: string
+  searchKeyword: string
+  currentPage: number
+  pageSize: number
+  totalCount: number
+}
+
+const createTabState = (): TabState => ({
+  list: [],
+  loading: false,
+  error: '',
+  searchKeyword: '',
+  currentPage: 1,
+  pageSize: 10,
+  totalCount: 0,
+})
+
+const postsState = reactive<TabState>(createTabState())
+const draftsState = reactive<TabState>(createTabState())
+
+// 初始 tab 从 URL 读取，支持 /my-posts?tab=drafts
+const activeTab = ref<TabKey>(route.query.tab === 'drafts' ? 'drafts' : 'posts')
+const activeState = computed(() => (activeTab.value === 'posts' ? postsState : draftsState))
+
+// 浏览器前进/后退改变 query 时跟随切换
+watch(() => route.query.tab, (tab) => {
+  const next: TabKey = tab === 'drafts' ? 'drafts' : 'posts'
+  if (next !== activeTab.value) {
+    activeTab.value = next
+    if (activeState.value.list.length === 0 && !activeState.value.loading) {
+      loadActive()
+    }
+  }
+})
 
 // 计算属性
-const filteredPosts = computed(() => {
-  if (!searchKeyword.value) {
-    return posts.value
+const filteredList = computed(() => {
+  const state = activeState.value
+  if (!state.searchKeyword) {
+    return state.list
   }
-  return posts.value.filter(post =>
-    post.title.toLowerCase().includes(searchKeyword.value.toLowerCase()) ||
-    (post.summary && post.summary.toLowerCase().includes(searchKeyword.value.toLowerCase()))
+  return state.list.filter(item =>
+    item.title.toLowerCase().includes(state.searchKeyword.toLowerCase()) ||
+    (item.summary && item.summary.toLowerCase().includes(state.searchKeyword.toLowerCase()))
   )
 })
 
 const totalPages = computed(() => {
-  return Math.ceil(totalCount.value / pageSize.value)
+  const state = activeState.value
+  return Math.ceil(state.totalCount / state.pageSize)
 })
 
 // 方法
-const loadPosts = async () => {
+const loadActive = async () => {
+  const state = activeState.value
   await handleAsync(async () => {
-    loading.value = true
-    error.value = ''
+    state.loading = true
+    state.error = ''
 
-    const response: PageResponse<PostListItem> = await PostService.getMyPosts({
-      page: currentPage.value,
-      size: pageSize.value,
-      keyword: searchKeyword.value || undefined
-    })
+    const params = {
+      page: state.currentPage,
+      size: state.pageSize,
+      keyword: state.searchKeyword || undefined
+    }
+    const response: PageResponse<PostListItem> = activeTab.value === 'posts'
+      ? await PostService.getMyPosts(params)
+      : await PostService.getDraftList(params)
 
-    posts.value = response.records
-
-    totalCount.value = response.total
+    state.list = response.records
+    state.totalCount = response.total
   }, {
     onError: () => {
-      error.value = '加载文章失败，请稍后重试'
+      state.error = activeTab.value === 'posts' ? '加载文章失败，请稍后重试' : '加载草稿失败，请稍后重试'
     },
     onFinally: () => {
-      loading.value = false
+      state.loading = false
     }
   })
+}
+
+const switchTab = (tab: TabKey) => {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  // URL 同步，刷新/分享保留当前 tab；posts 为默认 tab，不留在 query 里
+  const query = { ...route.query }
+  if (tab === 'drafts') query.tab = 'drafts'
+  else delete query.tab
+  router.replace({ query })
+  // 懒加载：首次进入该 tab 才请求
+  if (activeState.value.list.length === 0 && !activeState.value.loading) {
+    loadActive()
+  }
 }
 
 // 跳转到标签页面
 const goToTag = (tagId: number) => {
   router.push(`/tags/${tagId}`)
 }
-// 跳转新建文章
-const createNewPost = () => {
-  router.push('/create')
+
+// 新建文章/草稿（同一编辑器，draft=true 默认草稿状态）
+const createNew = () => {
+  router.push(activeTab.value === 'drafts' ? '/create?draft=true' : '/create')
 }
 
-const goDrafts = () => {
-  router.push('/drafts')
+const editDraft = (draftId: number) => {
+  router.push(`/create?draft=${draftId}`)
 }
 
+const publishDraft = async (draftId: number) => {
+  const confirmed = await confirm('确定要发布这篇草稿吗？')
+  if (!confirmed) {
+    return
+  }
+
+  await handleAsync(async () => {
+    await PostService.publishPost(draftId)
+    await loadActive()
+    showToastSuccess('草稿发布成功！')
+  }, {
+    onError: () => {
+      showToastError('发布失败，请稍后重试')
+    }
+  })
+}
+
+const deleteDraft = async (draftId: number) => {
+  const confirmed = await confirm('确定要删除这篇草稿吗？此操作不可恢复。')
+  if (!confirmed) {
+    return
+  }
+
+  await handleAsync(async () => {
+    await PostService.deletePost(draftId)
+    await loadActive()
+    showToastSuccess('草稿已删除')
+  }, {
+    onError: () => {
+      showToastError('删除失败，请稍后重试')
+    }
+  })
+}
 
 const viewPost = (postId: number) => {
   router.push(`/post/${postId}?from=my-posts`)
@@ -222,11 +360,7 @@ const deletePost = async (postId: number) => {
 
   await handleAsync(async () => {
     await PostService.deletePost(postId)
-
-    // 重新加载文章列表
-    await loadPosts()
-
-    // 显示成功消息
+    await loadActive()
     showToastSuccess('文章删除成功！')
   }, {
     onError: () => {
@@ -243,11 +377,7 @@ const unpublishPost = async (postId: number) => {
 
   await handleAsync(async () => {
     await PostService.unpublishPost(postId)
-
-    // 重新加载文章列表
-    await loadPosts()
-
-    // 显示成功消息
+    await loadActive()
     showToastSuccess('文章已取消发布，转为草稿状态！')
   }, {
     onError: () => {
@@ -257,20 +387,18 @@ const unpublishPost = async (postId: number) => {
 }
 
 const handleSearch = () => {
-  currentPage.value = 1
-  loadPosts()
+  activeState.value.currentPage = 1
+  loadActive()
 }
 
 const changePage = (page: number) => {
-  currentPage.value = page
-  loadPosts()
+  activeState.value.currentPage = page
+  loadActive()
 }
-
-
 
 // 生命周期
 onMounted(() => {
-  loadPosts()
+  loadActive()
 })
 </script>
 
@@ -282,6 +410,44 @@ onMounted(() => {
   padding: 20px;
   overflow: hidden;
   box-sizing: border-box;
+}
+
+/* tab 切换条 */
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 4px;
+  background: var(--bg-soft, #f5f5f5);
+  border-radius: 30px;
+  width: fit-content;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border: none;
+  border-radius: 30px;
+  background: transparent;
+  color: var(--text-main);
+  opacity: 0.6;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tab-btn:hover {
+  opacity: 1;
+}
+
+.tab-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(var(--color-primary-rgb), 0.35);
 }
 
 .actions-bar {
@@ -312,7 +478,6 @@ onMounted(() => {
   background-color: var(--color-primary-dark);
   transform: translateY(-2px);
 }
-
 
 .loading-state,
 .error-state,
@@ -378,7 +543,6 @@ onMounted(() => {
   color: var(--color-primary);
 }
 
-
 .post-meta {
   display: flex;
   gap: 20px;
@@ -438,6 +602,15 @@ onMounted(() => {
   background-color: rgba(var(--color-primary-rgb, 118, 75, 162), 0.2);
 }
 
+.publish-btn {
+  background-color: var(--bg-success, #e3f9ea);
+  color: var(--color-success, #2f855a);
+}
+
+.publish-btn:hover {
+  background-color: var(--bg-success, #c6f6d5);
+}
+
 .delete-btn {
   background-color: var(--bg-error, #ffebee);
   color: var(--color-error, #d32f2f);
@@ -446,8 +619,6 @@ onMounted(() => {
 .delete-btn:hover {
   background-color: var(--bg-error, #ffcdd2);
 }
-
-
 
 /* 响应式设计 */
 @include respond(md) {
@@ -503,6 +674,15 @@ onMounted(() => {
 @include respond(sm) {
   .actions-bar {
     gap: 10px;
+  }
+
+  .tab-bar {
+    width: 100%;
+  }
+
+  .tab-btn {
+    flex: 1;
+    justify-content: center;
   }
 
   .post-actions {

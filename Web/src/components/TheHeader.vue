@@ -235,8 +235,8 @@ onUnmounted(() => {
                 <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="transition link">
                   <Icon name="edit" size="16" />我的文章
                 </li>
-                <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="transition link">
-                  <Icon name="file" size="16" />草稿子箱
+                <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts?tab=drafts')" class="transition link">
+                  <Icon name="file" size="16" />草稿箱
                 </li>
                 <li @click="navigateTo('/favorites')" class="transition link">
                   <Icon name="favorite" size="16" />我的收藏
@@ -291,8 +291,8 @@ onUnmounted(() => {
           <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts')" class="p-16 link">
             <Icon name="edit" size="18" />我的文章
           </li>
-          <li v-if="userStore.isAdmin" @click="navigateTo('/drafts')" class="p-16 link">
-            <Icon name="file" size="18" />草稿子箱
+          <li v-if="userStore.isAdmin" @click="navigateTo('/my-posts?tab=drafts')" class="p-16 link">
+            <Icon name="file" size="18" />草稿箱
           </li>
           <li v-if="userStore.isLoggedIn" @click="navigateTo('/favorites')" class="p-16 link">
             <Icon name="favorite" size="18" />我的收藏

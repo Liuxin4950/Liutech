@@ -40,9 +40,10 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        // 草稿箱已并入"我的文章"页（?tab=drafts 切换），保留旧链接重定向
         path: 'drafts',
         name: 'drafts',
-        component: () => import('../views/Drafts.vue'),
+        redirect: () => ({ name: 'my-posts', query: { tab: 'drafts' } }),
         meta: {
           title: '草稿箱'
         }
@@ -240,9 +241,9 @@ router.beforeEach(async (to, from, next) => {
   document.title = `Liutech-${to.meta.title || '博客'}`
 
   // 需要登录的页面
-  const requiresAuth = ['create-post', 'drafts', 'my-posts', 'favorites', 'profile', 'ai-chat-full']
+  const requiresAuth = ['create-post', 'my-posts', 'favorites', 'profile', 'ai-chat-full']
   // 需要管理员权限的页面
-  const requiresAdmin = ['create-post', 'drafts', 'my-posts']
+  const requiresAdmin = ['create-post', 'my-posts']
 
   // 检查是否需要登录
   if (requiresAuth.includes(to.name as string)) {

@@ -61,7 +61,6 @@ const listRoutes = new Set([
   'archive',
   'about',
   'my-posts',
-  'drafts',
   'profile',
   'create-post'
 ])
@@ -88,7 +87,9 @@ const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
 
   // 列表页：直接“首页 > 当前页”
   if (listRoutes.has(currentName)) {
-    items.push({ label: currentLabel })
+    // 草稿箱已并入“我的文章”页，?tab=drafts 时面包屑跟随显示“草稿箱”
+    const label = currentName === 'my-posts' && route.query.tab === 'drafts' ? '草稿箱' : currentLabel
+    items.push({ label })
     return items
   }
 
