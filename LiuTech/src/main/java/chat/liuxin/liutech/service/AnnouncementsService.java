@@ -96,7 +96,8 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
         validateAnnouncementId(id);
         Announcements announcement = getValidAnnouncementById(id);
         incrementViewCount(announcement);
-        return convertToResp(announcement);
+        // 重查一次返回自增后的最新数据，保证响应里的 viewCount 与库一致（弹窗展示真实浏览量）
+        return convertToResp(getValidAnnouncementById(id));
     }
 
     /**

@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import DOMPurify from 'dompurify'
 import { useAnnouncementStore } from '../stores/announcement'
+import { AnnouncementService } from '../services/announcement'
 import type { Announcement } from '../services/announcement'
 import Icon from './Icon.vue'
 import { formatDate, formatDateTime } from '@/utils/utils'
@@ -26,10 +27,19 @@ const sanitizeAnnouncementContent = (content?: string) => {
   return DOMPurify.sanitize(content || '')
 }
 
-// 显示公告详情
-const showAnnouncementDetail = (announcement: Announcement) => {
+// 显示公告详情（调详情接口：后端自增浏览量并返回最新数据，与 admin 端浏览量概念同步）
+const showAnnouncementDetail = async (announcement: Announcement) => {
   selectedAnnouncement.value = announcement
   showDetail.value = true
+  try {
+    // 直接调详情接口（不经过 store 缓存）：每次打开都真实计一次浏览量，与 admin 端数据一致
+    const fresh = await AnnouncementService.getAnnouncementById(announcement.id)
+    if (fresh) {
+      selectedAnnouncement.value = fresh
+    }
+  } catch {
+    // 详情加载失败用列表缓存数据展示，不打断浏览
+  }
 }
 
 // 关闭详情弹窗
@@ -166,23 +176,11 @@ onUnmounted(() => {
 
             <div class="modal-content-text" v-html="sanitizeAnnouncementContent(selectedAnnouncement.content)"></div>
 
-            <div class="modal-info">
-              <div class="info-row">
-                <span class="info-label">发布时间：</span>
-                <span class="info-value">{{ formatDateTime(selectedAnnouncement.createdAt) }}</span>
-              </div>
-              <div v-if="selectedAnnouncement.startTime" class="info-row">
-                <span class="info-label">开始时间：</span>
-                <span class="info-value">{{ formatDateTime(selectedAnnouncement.startTime) }}</span>
-              </div>
-              <div v-if="selectedAnnouncement.endTime" class="info-row">
-                <span class="info-label">结束时间：</span>
-                <span class="info-value">{{ formatDateTime(selectedAnnouncement.endTime) }}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">浏览量：</span>
-                <span class="info-value">{{ selectedAnnouncement.viewCount || 0 }}</span>
-              </div>
+            <div class="modal-meta">
+              <span class="meta-item">发布于 {{ formatDateTime(selectedAnnouncement.createdAt) }}</span>
+              <span v-if="selectedAnnouncement.startTime" class="meta-item">开始 {{ formatDateTime(selectedAnnouncement.startTime) }}</span>
+              <span v-if="selectedAnnouncement.endTime" class="meta-item">结束 {{ formatDateTime(selectedAnnouncement.endTime) }}</span>
+              <span class="meta-item meta-views"><Icon name="eye" size="12" /> {{ selectedAnnouncement.viewCount || 0 }} 次浏览</span>
             </div>
           </div>
         </div>
@@ -436,34 +434,28 @@ onUnmounted(() => {
   color: #1d4ed8;
 }
 
-.modal-info {
-  border-top: 1px solid var(--border-soft, rgba(0, 0, 0, 0.08));
-  padding-top: 16px;
-  margin-top: 20px;
-}
-
-.info-row {
+.modal-meta {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 12px;
-  font-size: 0.875rem;
-}
-
-.info-row:last-child {
-  margin-bottom: 0;
-}
-
-.info-label {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  border-top: 1px solid var(--border-soft, rgba(0, 0, 0, 0.08));
+  padding-top: 14px;
+  margin-top: 20px;
+  font-size: 0.8125rem;
   color: var(--text-subtle, #6b7280);
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
-.info-value {
-  color: var(--text-main, #374151);
-  flex: 1;
+.meta-item {
+  white-space: nowrap;
+}
+
+.meta-views {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted, #9ca3af);
 }
 
 /* 刷新按钮 */
@@ -535,17 +527,13 @@ onUnmounted(() => {
     padding: 3px 10px;
   }
 
-  .info-row {
-    flex-direction: column;
-    gap: 4px;
+  .modal-meta {
+    gap: 6px 16px;
+    font-size: 0.75rem;
   }
 
-  .info-label {
-    font-size: 0.8125rem;
-  }
-
-  .info-value {
-    font-size: 0.875rem;
+  .meta-views {
+    margin-left: 0;
   }
 }
 

@@ -15,7 +15,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -174,14 +176,21 @@ public class FileUtil {
         if (fileUrlOrRelativePath == null || fileUrlOrRelativePath.isEmpty()) {
             return null;
         }
-        String relativePath = extractRelativePath(fileUrlOrRelativePath);
+        String value = fileUrlOrRelativePath.trim();
+        String relativePath = extractRelativePath(value);
         if (relativePath != null && !relativePath.isEmpty()) {
             return relativePath;
         }
-        if (fileUrlOrRelativePath.contains("://")) {
+        if (value.contains("://")) {
+            // 畸形双重前缀容错：粘贴来源可能把完整 URL 拼了站内域名前缀（https://系统域https://COS域/...），
+            // 计数/对账必须能归一化。仅当最后一个 :// 后的 host 属于系统域名（SERVER_BASE_URL/COS_BASE_URL
+            // 的 host 及 www 变体）时才继续提取路径，外部站点绝对 URL 不受影响。
+            String malformedPath = extractPathFromMalformedUrl(value);
+            if (malformedPath != null) {
+                return normalizeToRelativePath(malformedPath);
+            }
             return null;
         }
-        String value = fileUrlOrRelativePath.trim();
         if (value.startsWith("/")) {
             value = value.substring(1);
         }
@@ -189,6 +198,63 @@ public class FileUtil {
             value = value.substring("uploads/".length());
         }
         return value.isEmpty() ? null : value;
+    }
+
+    /**
+     * 从畸形双重前缀 URL 提取路径段（host 之后的部分，如 /images/2026/...）
+     * 例：https://liuxin.chathttps://static.liuxin.chat/images/x.png → /images/x.png
+     * 校验最后一个 :// 后的 host 属于系统域名，防止误伤外部站点 URL
+     */
+    private String extractPathFromMalformedUrl(String url) {
+        int lastScheme = url.lastIndexOf("://");
+        if (lastScheme <= 0) {
+            return null;
+        }
+        int hostEnd = url.indexOf('/', lastScheme + 3);
+        if (hostEnd < 0) {
+            return null;
+        }
+        String host = url.substring(lastScheme + 3, hostEnd);
+        if (!isSystemHost(host)) {
+            return null;
+        }
+        return url.substring(hostEnd);
+    }
+
+    /**
+     * 判断 host 是否属于系统已知域名：SERVER_BASE_URL / COS_BASE_URL 的 host 及 www 变体
+     */
+    private boolean isSystemHost(String host) {
+        return buildSystemHosts().contains(host);
+    }
+
+    /**
+     * 构建系统域名集合（含 www 变体，兼容拼接时带/不带 www 的形态）
+     */
+    private Set<String> buildSystemHosts() {
+        Set<String> hosts = new HashSet<>();
+        addHostWithWww(hosts, fileUploadConfig.getServerBaseUrl());
+        String cosBaseUrl = cosStorageProperties.getBaseUrl();
+        if (cosBaseUrl != null) {
+            addHostWithWww(hosts, cosBaseUrl);
+        }
+        return hosts;
+    }
+
+    private void addHostWithWww(Set<String> hosts, String url) {
+        if (url == null || url.isEmpty()) {
+            return;
+        }
+        String host = url.replaceFirst("^https?://", "");
+        int slashIdx = host.indexOf('/');
+        if (slashIdx >= 0) {
+            host = host.substring(0, slashIdx);
+        }
+        if (host.isEmpty()) {
+            return;
+        }
+        hosts.add(host);
+        hosts.add(host.startsWith("www.") ? host.substring(4) : "www." + host);
     }
 
     /**

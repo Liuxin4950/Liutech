@@ -28,6 +28,7 @@ class FileUtilTest {
         CosStorageProperties cosProps = new CosStorageProperties();
         cosProps.setRegion("ap-chongqing");
         cosProps.setBucket("liutech-1341692466");
+        cosProps.setBaseUrl("https://static.liuxin.chat"); // 模拟生产配置的自定义访问域名
         fileUtil = new FileUtil(config, mock(FileStorage.class), cosProps);
     }
 
@@ -46,8 +47,7 @@ class FileUtilTest {
     @Test
     void normalize_COS直出URL() {
         assertEquals("images/2026/01/01/a.jpg",
-                fileUtil.normalizeToRelativePath(
-                        "https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/images/2026/01/01/a.jpg"));
+                fileUtil.normalizeToRelativePath("https://static.liuxin.chat/images/2026/01/01/a.jpg"));
     }
 
     @Test
@@ -62,6 +62,34 @@ class FileUtilTest {
     }
 
     @Test
+    void normalize_畸形双重前缀URL_主站域加COS域() {
+        // 粘贴来源拼了双重前缀：https://liuxin.chat + https://static.liuxin.chat/...
+        assertEquals("images/2026/08/04/a.jpg",
+                fileUtil.normalizeToRelativePath(
+                        "https://liuxin.chathttps://static.liuxin.chat/images/2026/08/04/a.jpg"));
+    }
+
+    @Test
+    void normalize_畸形双重前缀URL_路径带uploads() {
+        assertEquals("images/a.jpg",
+                fileUtil.normalizeToRelativePath(
+                        "https://liuxin.chathttps://static.liuxin.chat/uploads/images/a.jpg"));
+    }
+
+    @Test
+    void normalize_畸形三重前缀URL() {
+        assertEquals("images/a.jpg",
+                fileUtil.normalizeToRelativePath(
+                        "https://liuxin.chathttps://liuxin.chathttps://static.liuxin.chat/images/a.jpg"));
+    }
+
+    @Test
+    void normalize_畸形前缀_外部域名不剥离() {
+        // 双前缀但尾段 host 不是系统域名：保持忽略
+        assertNull(fileUtil.normalizeToRelativePath("https://example.comhttps://evil.com/images/a.jpg"));
+    }
+
+    @Test
     void normalize_空值返回null() {
         assertNull(fileUtil.normalizeToRelativePath(null));
         assertNull(fileUtil.normalizeToRelativePath(""));
@@ -72,7 +100,7 @@ class FileUtilTest {
         String content = "<p>本地图</p>"
                 + "<img src=\"/uploads/images/a.jpg\">"
                 + "<img src='https://www.liuxin.chat/uploads/images/b.jpg'>"
-                + "<img src=\"https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/images/c.jpg\">"
+                + "<img src=\"https://static.liuxin.chat/images/c.jpg\">"
                 + "<img src=\"https://example.com/uploads/outside.png\">"
                 + "![md图](/uploads/images/d.jpg)";
 
@@ -81,7 +109,7 @@ class FileUtilTest {
         assertEquals(4, urls.size());
         assertEquals("/uploads/images/a.jpg", urls.get(0));
         assertEquals("https://www.liuxin.chat/uploads/images/b.jpg", urls.get(1));
-        assertEquals("https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/images/c.jpg", urls.get(2));
+        assertEquals("https://static.liuxin.chat/images/c.jpg", urls.get(2));
         assertEquals("/uploads/images/d.jpg", urls.get(3));
     }
 

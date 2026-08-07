@@ -253,6 +253,7 @@ const exportCtrl = useTableExport({
                 <a-select-option value="image/jpeg">JPEG</a-select-option>
                 <a-select-option value="image/gif">GIF</a-select-option>
                 <a-select-option value="image/webp">WEBP</a-select-option>
+                <a-select-option value="image/bmp">BMP</a-select-option>
                 <a-select-option value="image/svg+xml">SVG</a-select-option>
               </a-select>
             </a-form-item>
