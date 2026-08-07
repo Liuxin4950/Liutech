@@ -564,7 +564,7 @@ ol {
   padding: 8px;
   top: calc(100% + 8px); /* 动态计算：在整个右侧药丸正下方 8px 的位置 */
   right: 0; /* 与右侧药丸右边缘对齐 */
-  width: 160px; /* 稍微加宽一点以更好地容纳图标和文字 */
+  width: 140px; /* 稍微加宽一点以更好地容纳图标和文字 */
   z-index: 999;
   border-radius: 16px;
   /* 统一为毛玻璃样式 */
@@ -581,7 +581,6 @@ ol {
 
   li {
     padding: 10px 12px; /* 与全局 .list-item 规范一致 */
-    margin: 4px 0;
     border-radius: 12px;
     cursor: pointer;
     font-weight: 500;
@@ -591,11 +590,11 @@ ol {
     align-items: center;
     gap: 8px;
     background-color: transparent;
+    font-size: 14px;
   }
 
   li:last-child {
     color: var(--color-error);
-    margin-top: 8px;
     border-top: 1px solid var(--border-light);
     border-radius: 0 0 12px 12px;
   }
@@ -712,7 +711,7 @@ ol {
   position: fixed;
   top: var(--header-height);
   right: 10px; /* 改为悬浮卡片，距离右侧有边距 */
-  width: 240px; /* 固定合理宽度 */
+  width: 160px; /* 固定合理宽度 */
   max-height: calc(100vh - var(--header-height) - 20px);
   /* 使用与顶部药丸风格一致的毛玻璃效果 */
   background: var(--surface-glass-muted);
@@ -720,15 +719,13 @@ ol {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-soft);
   border-radius: 20px; /* 圆润的边角 */
-  
   /* 修改动画：从缩小渐隐到放大显示，类似弹出菜单 */
   transform: scale(0.95);
   opacity: 0;
   pointer-events: none;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   transform-origin: top right;
-  
-  z-index: 1000;
+  z-index: 999;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-lg);
@@ -739,6 +736,7 @@ ol {
     margin: 2px 6px; /* 仅保留横向呼吸间距，不再叠加内边距 */
     padding: 8px 12px; /* 与全局 .list-item 规范一致 */
     border-radius: 12px;
+    font-size: 14px;
     transition: all 0.2s ease;
     font-weight: 500;
     color: var(--text-main);
@@ -765,6 +763,12 @@ ol {
   li.logout-item {
     color: var(--color-error);
   }
+  li:last-child {
+    color: var(--color-error);
+    border-top: 1px solid var(--border-light);
+    border-radius: 0 0 12px 12px;
+  }
+
 
   li.logout-item:hover {
     color: var(--color-error);
