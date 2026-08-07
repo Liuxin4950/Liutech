@@ -16,11 +16,19 @@
         <div class="title-section">
           <input v-model="form.title" type="text" class="title-input" placeholder="请输入文章标题..." maxlength="100">
           <div class="char-count text-sm text-muted">{{ form.title.length }}/100</div>
+          <!-- 本地自动保存提示（仅新建模式） -->
+          <div v-if="autosavedAt" class="autosave-bar">
+            <span class="autosave-hint">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+              草稿已自动保存 {{ draftTimeText }}
+            </span>
+            <button type="button" class="autosave-clear" @click="handleClearAutosave">一键清空草稿</button>
+          </div>
         </div>
 
         <!-- 文章内容编辑器 -->
         <div class="content-section">
-          <TinyMCEEditor v-model="form.content" :height="1000" placeholder="开始编写你的文章内容..." class="content-editor" />
+          <TinyMCEEditor v-model="form.content" :height="1000" class="content-editor" />
         </div>
       </div>
 
@@ -505,7 +513,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed, ref, watch, nextTick } from 'vue'
+import { onMounted, computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import TinyMCEEditor from '@/components/TinyMCEEditor.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import Icon from '@/components/Icon.vue'
@@ -514,6 +522,7 @@ import { handleImageError } from '@/composables/useImageFallback'
 import { formatDate } from '@/utils/utils'
 import { usePostEditor } from '@/composables/usePostEditor'
 import { highlightCodeBlocks } from '@/composables/useRichContent'
+import Swal from 'sweetalert2'
 
 const {
   form, draftKey, generateDraftKey,
@@ -528,6 +537,7 @@ const {
   aiSuggestedCategoryName, aiSuggestedTagNames, creatingAiSuggestion,
   hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
   undoStack, fieldLabels,
+  autosavedAt, loadAutosave, clearAutosave, formatDraftTime,
   handleFieldUpdate, undoField, getCategoryName,
   loadCategories, loadSeries, loadTags, addTag, removeTag,
   coverImageInput, thumbnailInput, attachmentInput,
@@ -569,13 +579,50 @@ const onTagIdsChange = (ids: string | number | (string | number)[]) => {
   selectedTags.value = arr.map(id => tags.value.find(t => t.id === id)!).filter(Boolean)
 }
 
+// 自动保存时间显示刷新：每 15 秒 tick 一次，触发 formatDraftTime 重算
+const autosaveTick = ref(0)
+let autosaveRefreshTimer: number | undefined
+const draftTimeText = computed(() => {
+  void autosaveTick.value
+  return autosavedAt.value ? formatDraftTime(autosavedAt.value) : ''
+})
+
+const handleClearAutosave = () => {
+  Swal.fire({
+    title: '确认清空草稿？',
+    text: '将删除本地自动保存的内容并清空当前表单，此操作不可恢复',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: '一键清空',
+    cancelButtonText: '取消'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      clearAutosave()
+      Swal.fire('已清空', '草稿已清空', 'success')
+    }
+  })
+}
+
 onMounted(async () => {
   checkEditMode()
   draftKey.value = generateDraftKey()
   await Promise.all([loadCategories(), loadTags(), loadSeries()])
   if (isEditMode.value && editingPostId.value) {
     await loadPostData(editingPostId.value)
+  } else {
+    // 新建模式：恢复上次未保存的自动草稿
+    loadAutosave()
+    if (autosavedAt.value) {
+      Swal.fire('已恢复草稿', '已恢复上次未保存的编辑内容，可直接继续', 'info')
+    }
   }
+  autosaveRefreshTimer = window.setInterval(() => {
+    if (autosavedAt.value) { autosaveTick.value++ }
+  }, 15000)
+})
+
+onBeforeUnmount(() => {
+  if (autosaveRefreshTimer) { window.clearInterval(autosaveRefreshTimer); autosaveRefreshTimer = undefined }
 })
 </script>
 
@@ -865,6 +912,44 @@ onMounted(async () => {
 .title-section {
   border-bottom: 1px solid var(--border-soft);
   margin-bottom: 20px;
+}
+
+.autosave-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  margin-top: 10px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.autosave-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.autosave-clear {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  color: var(--text-subtle);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.autosave-clear:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 .title-input {

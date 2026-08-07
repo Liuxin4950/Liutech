@@ -1,4 +1,4 @@
-﻿import { ref, computed } from 'vue'
+﻿import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import DOMPurify from 'dompurify'
 import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '@/services/adminAgent'
@@ -64,6 +64,98 @@ export function usePostEditor() {
       return crypto.randomUUID()
     }
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+  }
+
+  // ========== 本地自动保存（仅新建模式，防止误关/刷新丢失） ==========
+  const AUTOSAVE_KEY = 'liutech-post-autosave-v1'
+  const autosavedAt = ref<number | null>(null)
+  // 恢复草稿期间禁止触发保存，避免恢复值被立即覆盖
+  let restoringAutosave = false
+  let autosaveTimer: number | undefined
+
+  /** 当前可持久化的表单快照（附件/标签不存：附件已按 draftKey 落库，标签恢复易与后端不同步） */
+  const autosaveSnapshot = () => ({
+    title: form.value.title,
+    content: form.value.content,
+    summary: form.value.summary,
+    categoryId: form.value.categoryId,
+    seriesId: form.value.seriesId,
+    seriesSort: form.value.seriesSort,
+    status: form.value.status,
+    coverImage: form.value.coverImage,
+    thumbnail: form.value.thumbnail
+  })
+
+  /** 防抖写入 localStorage：编辑模式/恢复期间不写 */
+  const scheduleAutosave = () => {
+    if (isEditMode.value || restoringAutosave) return
+    if (autosaveTimer) window.clearTimeout(autosaveTimer)
+    autosaveTimer = window.setTimeout(() => {
+      autosaveTimer = undefined
+      if (isEditMode.value || restoringAutosave) return
+      const snapshot = autosaveSnapshot()
+      const hasContent = snapshot.title || snapshot.content || snapshot.summary || snapshot.coverImage
+      if (!hasContent) return
+      try {
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ savedAt: Date.now(), snapshot }))
+        autosavedAt.value = Date.now()
+      } catch {}
+    }, 800)
+  }
+
+  watch(form, scheduleAutosave, { deep: true })
+
+  /** 新建模式进入页面时恢复上次未保存的草稿 */
+  const loadAutosave = () => {
+    if (isEditMode.value) return
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      const snapshot = parsed?.snapshot
+      if (!snapshot) return
+      const hasContent = snapshot.title || snapshot.content || snapshot.summary || snapshot.coverImage
+      if (!hasContent) return
+      restoringAutosave = true
+      form.value.title = snapshot.title || ''
+      form.value.content = snapshot.content || ''
+      form.value.summary = snapshot.summary || ''
+      form.value.categoryId = snapshot.categoryId || ''
+      form.value.seriesId = snapshot.seriesId || ''
+      form.value.seriesSort = snapshot.seriesSort ?? 0
+      form.value.status = snapshot.status === 'draft' ? 'draft' : 'published'
+      form.value.coverImage = snapshot.coverImage || ''
+      form.value.thumbnail = snapshot.thumbnail || ''
+      autosavedAt.value = parsed.savedAt || Date.now()
+      restoringAutosave = false
+      if (autosaveTimer) { window.clearTimeout(autosaveTimer); autosaveTimer = undefined }
+    } catch {}
+  }
+
+  /** 一键清空：删除本地草稿并重置表单字段 */
+  const clearAutosave = () => {
+    try { localStorage.removeItem(AUTOSAVE_KEY) } catch {}
+    autosavedAt.value = null
+    if (autosaveTimer) { window.clearTimeout(autosaveTimer); autosaveTimer = undefined }
+    form.value.title = ''
+    form.value.content = ''
+    form.value.summary = ''
+    form.value.categoryId = ''
+    form.value.seriesId = ''
+    form.value.seriesSort = 0
+    form.value.coverImage = ''
+    form.value.thumbnail = ''
+  }
+
+  /** 格式化自动保存时间：X 秒/分钟/小时前 */
+  const formatDraftTime = (ts: number): string => {
+    const diff = Math.max(0, Date.now() - ts)
+    if (diff < 5000) return '刚刚'
+    const s = Math.floor(diff / 1000)
+    if (s < 60) return `${s} 秒前`
+    const m = Math.floor(s / 60)
+    if (m < 60) return `${m} 分钟前`
+    return `${Math.floor(m / 60)} 小时前`
   }
 
   // Pinia stores
@@ -788,6 +880,9 @@ export function usePostEditor() {
       const actionText = isEditMode.value
         ? (form.value.status === 'draft' ? '更新草稿' : '更新文章')
         : (form.value.status === 'draft' ? '保存草稿' : '发布文章')
+      // 提交成功（发布/保存草稿/更新）后清理本地自动保存，避免残留旧草稿
+      try { localStorage.removeItem(AUTOSAVE_KEY) } catch {}
+      autosavedAt.value = null
       await Swal.fire('成功', `${actionText}成功！`, 'success')
       // 草稿对前台公开详情接口不可见，跳详情会报"文章不存在"；只有已发布文章才跳详情页
       if (form.value.status === 'draft') {
@@ -904,6 +999,7 @@ export function usePostEditor() {
     createAllAiSuggestedTags, createAllAiSuggestedTaxonomy,
     saveDraft, previewPost, closePreview, handleSubmit, submitPost, goBack,
     loadPostData, checkEditMode,
+    autosavedAt, loadAutosave, clearAutosave, formatDraftTime,
     sameName, normalizeSuggestedNames, rememberAiTaxonomySuggestions
   }
 }
