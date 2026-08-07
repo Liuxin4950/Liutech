@@ -34,7 +34,6 @@ import 'tinymce/plugins/charmap' // 特殊字符
 import 'tinymce/plugins/preview' // 预览
 import 'tinymce/plugins/anchor' // 锚点
 import 'tinymce/plugins/searchreplace' // 查找替换
-import 'tinymce/plugins/visualblocks' // 可视化块
 import 'tinymce/plugins/code' // 代码
 import 'tinymce/plugins/fullscreen' // 全屏
 import 'tinymce/plugins/insertdatetime' // 插入日期时间
@@ -44,9 +43,6 @@ import 'tinymce/plugins/help' // 帮助
 import 'tinymce/plugins/wordcount' // 字数统计
 import 'tinymce/plugins/emoticons' // 表情符号
 import 'tinymce/plugins/codesample' // 代码示例
-import 'tinymce/plugins/nonbreaking' // 不间断空格
-import 'tinymce/plugins/visualchars' // 可视化字符
-import 'tinymce/plugins/directionality' // 文字方向
 import 'tinymce/plugins/quickbars' // 快速工具栏
 // 导入表情符号数据库
 import 'tinymce/plugins/emoticons/js/emojis'
@@ -68,7 +64,9 @@ const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
   disabled: false,
   height: 800,
-  placeholder: '请输入文章内容...'
+  // placeholder 默认空：TinyMCE 的占位符固定在内容区起始位置，与点击后的光标位置无法对齐，
+  // 空编辑器下点击任意处光标落在点击处，会出现"提示和光标不一致"的困惑
+  placeholder: ''
 })
 
 const emit = defineEmits<Emits>()
@@ -102,14 +100,6 @@ const getContentStyle = (isDark: boolean) => {
       min-height: 100%;
       word-wrap: break-word;
       caret-color: #202124;
-    }
-
-    body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
-      left: 20px;
-      right: 20px;
-      color: #7D8694;
-      opacity: 1;
-      font-style: normal;
     }
 
     /* 标题样式 */
@@ -298,14 +288,6 @@ const getContentStyle = (isDark: boolean) => {
       caret-color: #FFFFFF;
     }
 
-    body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
-      left: 20px;
-      right: 20px;
-      color: #A8B3C2;
-      opacity: 1;
-      font-style: normal;
-    }
-
     /* 标题样式 */
     h1, h2, h3, h4, h5, h6 {
       margin: 24px 0 16px 0;
@@ -482,17 +464,17 @@ const editorConfig = computed(() => ({
   language: 'zh_CN',
   base_url: '/tinymce',
   suffix: '.min',
+  license_key: 'gpl', // GPL 开源授权声明（TinyMCE 6+ 双授权：GPL-2.0 或商业，个人/自用项目走 GPL 合法免费）
   plugins: [
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+    'anchor', 'searchreplace', 'code', 'fullscreen',
     'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons',
-    'codesample', 'nonbreaking', 'visualchars', 'directionality',
-    'quickbars'
+    'codesample', 'quickbars'
   ],
   toolbar: [
     'undo redo | styles fontfamily fontsize lineheight | bold italic underline strikethrough',
-    'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent',
-    'forecolor backcolor | link image media table emoticons | codesample code | searchreplace',
+    'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | insertdatetime',
+    'forecolor backcolor | link anchor image media table emoticons charmap | codesample code | searchreplace',
     'preview fullscreen | help'
   ].join(' | '),
   toolbar_mode: 'wrap',
@@ -650,8 +632,10 @@ const editorConfig = computed(() => ({
   images_upload_credentials: false,
   images_reuse_filename: true,
   images_file_types: 'jpeg,jpg,jpe,jfi,jif,jfif,png,gif,bmp,webp',
-  // 启用URL转换，处理服务器返回的URL
-  convert_urls: true,
+  // 关闭 URL 转换：保存时保持编辑内容里的 URL 原样（相对路径 /uploads/...、COS 直出、外部图床 URL 都不改写）
+  // 原因：开启 convert_urls 会把站内相对路径改写成"当前编辑器域的绝对 URL"（如 admin.liuxin.chat/uploads/...），
+  // 该形态不在后端 FileUtil 系统域名白名单内，会导致图片引用计数/对账漏计
+  convert_urls: false,
   relative_urls: false,
   // 粘贴配置
   paste_data_images: true,
@@ -664,7 +648,7 @@ const editorConfig = computed(() => ({
   statusbar: true,
   remove_script_host: false,
   content_style: getContentStyle(theme.current.value === 'dark'),
-  placeholder: props.placeholder,
+  placeholder: props.placeholder || undefined,
   promotion: false,
   skin: theme.current.value === 'dark' ? 'oxide-dark' : 'oxide',
   content_css: false,
@@ -678,8 +662,6 @@ const editorConfig = computed(() => ({
   // 编辑器尺寸和布局
   min_height: 300,
   max_height: 800,
-  autoresize_bottom_margin: 50,
-  autoresize_overflow_padding: 16,
   paste_word_valid_elements: 'b,strong,i,em,h1,h2,h3,h4,h5,h6,p,div,ul,ol,li,table,tr,td,th,blockquote,code',
   // 链接配置
   link_context_toolbar: true,
@@ -783,12 +765,12 @@ watch(() => theme.current.value, (mode) => {
   margin-bottom: 10px;
 }
 
-/* TinyMCE样式覆盖 */
+/* TinyMCE样式覆盖 - 跟随主题变量（深色模式细节见全局 tinymce-dark.css） */
 :deep(.tox) {
   border-radius: 8px;
-  border: 1px solid #DDE4EC !important;
-  background: #FFFFFF !important;
-  color: #263445 !important;
+  border: 1px solid var(--lt-color-border-secondary) !important;
+  background: var(--lt-color-bg-container) !important;
+  color: var(--lt-color-text) !important;
   transition: all 0.3s ease;
 }
 
@@ -796,44 +778,44 @@ watch(() => theme.current.value, (mode) => {
 :deep(.tox .tox-toolbar-overlord),
 :deep(.tox .tox-toolbar),
 :deep(.tox .tox-toolbar__primary) {
-  background: #FFFFFF !important;
-  color: #263445 !important;
+  background: var(--lt-color-bg-container) !important;
+  color: var(--lt-color-text) !important;
   transition: all 0.3s ease;
 }
 
 :deep(.tox .tox-toolbar) {
-  border-bottom: 1px solid #DDE4EC !important;
+  border-bottom: 1px solid var(--lt-color-border-secondary) !important;
 }
 
 :deep(.tox-edit-area) {
-  background: #FFFFFF !important;
+  background: var(--lt-color-bg-container) !important;
   transition: all 0.3s ease;
 }
 
 :deep(.tox-statusbar) {
-  background: #FFFFFF !important;
-  border-top: 1px solid #DDE4EC !important;
-  color: #526173 !important;
+  background: var(--lt-color-bg-container) !important;
+  border-top: 1px solid var(--lt-color-border-secondary) !important;
+  color: var(--lt-color-text-tertiary) !important;
   transition: all 0.3s ease;
 }
 
 :deep(.tox-statusbar__path-item),
 :deep(.tox-statusbar__wordcount),
 :deep(.tox-statusbar a) {
-  color: #526173 !important;
+  color: var(--lt-color-text-tertiary) !important;
 }
 
 :deep(.tox-toolbar__group) {
-  border-color: #E6ECF2 !important;
+  border-color: var(--lt-color-border-secondary) !important;
 }
 
 :deep(.tox .tox-tbtn),
 :deep(.tox .tox-split-button),
 :deep(.tox .tox-listboxfield .tox-listbox--select),
 :deep(.tox .tox-textfield) {
-  background: #F7F9FC !important;
-  border-color: #E6ECF2 !important;
-  color: #263445 !important;
+  background: var(--lt-color-bg-spotlight) !important;
+  border-color: var(--lt-color-border-secondary) !important;
+  color: var(--lt-color-text) !important;
 }
 
 :deep(.tox .tox-tbtn svg) {
@@ -852,8 +834,8 @@ watch(() => theme.current.value, (mode) => {
 
 :deep(.tox .tox-tbtn:hover),
 :deep(.tox .tox-split-button:hover) {
-  background: #EEF4FA !important;
-  color: #1F5F91 !important;
+  background: var(--lt-color-primary-bg) !important;
+  color: var(--lt-color-primary) !important;
 }
 
 :deep(.tox-menubar) {

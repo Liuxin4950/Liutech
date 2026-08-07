@@ -5,6 +5,7 @@ import { createHead } from '@vueuse/head'
 import './assets/styles/theme.css'
 import './assets/styles/styles.scss'
 import './assets/styles/markdown.css'
+import './assets/styles/tinymce-dark.css'
 import App from './App.vue'
 // 引入路由
 import router from './router'

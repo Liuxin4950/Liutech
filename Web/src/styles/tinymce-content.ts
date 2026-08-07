@@ -42,7 +42,6 @@ interface ColorPalette {
   uColor: string
   markBg: string
   markColor: string
-  placeholderColor: string
 }
 
 const lightPalette: ColorPalette = {
@@ -79,7 +78,6 @@ const lightPalette: ColorPalette = {
   uColor: '#F0B8C0',
   markBg: '#FEF7E0',
   markColor: '#3C4043',
-  placeholderColor: '#7D8694',
 }
 
 const darkPalette: ColorPalette = {
@@ -116,7 +114,6 @@ const darkPalette: ColorPalette = {
   uColor: '#F8B4B4',
   markBg: '#856404',
   markColor: '#E8EAED',
-  placeholderColor: '#A8B3C2',
 }
 
 const buildContentStyle = (p: ColorPalette) => `
@@ -138,14 +135,6 @@ const buildContentStyle = (p: ColorPalette) => `
     min-height: 100%;
     word-wrap: break-word;
     caret-color: ${p.caretColor};
-  }
-
-  body.mce-content-body[data-mce-placeholder]:not(.mce-visualblocks)::before {
-    left: 20px;
-    right: 20px;
-    color: ${p.placeholderColor};
-    opacity: 1;
-    font-style: normal;
   }
 
   h1, h2, h3, h4, h5, h6 {
