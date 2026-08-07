@@ -349,9 +349,10 @@ public class FileUtil {
 
     /**
      * 从HTML内容中提取所有图片URL（仅提取系统内的图片）
+     * 注意：不去重——同一张图出现 N 次返回 N 次，供引用计数按出现次数增减（与"正文每处引用计 1 点"口径一致）
      *
      * @param content HTML内容
-     * @return 图片URL列表（去重）
+     * @return 图片URL列表（按出现次数，不去重）
      */
     public List<String> extractImageUrls(String content) {
         List<String> urls = new ArrayList<>();

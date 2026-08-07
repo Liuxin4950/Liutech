@@ -114,6 +114,23 @@ class FileUtilTest {
     }
 
     @Test
+    void extractImageUrls_同图多次出现按次数返回() {
+        // 不去重：同一 URL 出现 N 次返回 N 次，创建/删除文章按出现次数增减引用计数
+        String content = "<p>图一</p>"
+                + "<img src=\"/uploads/images/a.jpg\">"
+                + "<p>图二</p>"
+                + "<img src=\"/uploads/images/a.jpg\">"
+                + "<img src=\"/uploads/images/b.jpg\">";
+
+        List<String> urls = fileUtil.extractImageUrls(content);
+
+        assertEquals(3, urls.size());
+        assertEquals("/uploads/images/a.jpg", urls.get(0));
+        assertEquals("/uploads/images/a.jpg", urls.get(1));
+        assertEquals("/uploads/images/b.jpg", urls.get(2));
+    }
+
+    @Test
     void detectImageFormat_各格式识别() {
         byte[] jpeg = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00};
         byte[] png = {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0};
