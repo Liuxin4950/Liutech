@@ -116,6 +116,15 @@ export interface PostListParams {
   includeDeleted?: boolean
 }
 
+/** 收藏某篇文章的用户信息 */
+export interface PostFavoriteUser {
+  userId: number
+  username: string
+  nickname?: string
+  avatarUrl?: string
+  favoriteTime: string
+}
+
 
 /**
  * 文章管理服务
@@ -209,6 +218,13 @@ export class PostsService {
    */
   static async batchPermanentDeletePosts(ids: number[]): Promise<ApiResponse<string>> {
     return post<string>(`${this.BASE_URL}/batch/permanent`, ids)
+  }
+
+  /**
+   * 分页查询收藏该文章的用户列表
+   */
+  static async getPostFavoriteUsers(postId: number, params: { page?: number; size?: number } = {}): Promise<ApiResponse<PageResult<PostFavoriteUser>>> {
+    return get<PageResult<PostFavoriteUser>>(`${this.BASE_URL}/${postId}/favorites`, params)
   }
 }
 

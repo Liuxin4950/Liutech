@@ -9,6 +9,7 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.resp.PostCreateResp;
 import chat.liuxin.liutech.resp.PostDetailResp;
+import chat.liuxin.liutech.resp.PostFavoriteUserResp;
 import chat.liuxin.liutech.service.PostsAdminService;
 import chat.liuxin.liutech.service.PostsService;
 import chat.liuxin.liutech.utils.UserUtils;
@@ -53,6 +54,18 @@ public class PostsAdminController extends BaseAdminController {
     @GetMapping("/{id}")
     public Result<PostDetailResp> getPostById(@PathVariable Long id) {
         return checkResourceExists(postsAdminService.getPostDetailForAdmin(id), ErrorCode.ARTICLE_NOT_FOUND);
+    }
+
+    /** 分页查询收藏该文章的用户列表 */
+    @GetMapping("/{id}/favorites")
+    public Result<PageResp<PostFavoriteUserResp>> getPostFavoriteUsers(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        if (page < 1) page = 1;
+        if (size < 1) size = 10;
+        if (size > 100) size = 100;
+        return Result.success(postsAdminService.getFavoriteUsersByPostId(id, page, size));
     }
 
     /** 创建文章 */

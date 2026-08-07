@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined, StarOutlined } from '@ant-design/icons-vue'
 import DOMPurify from 'dompurify'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
@@ -12,7 +12,7 @@ import PostsService from '../../services/posts'
 import CategoriesService from '../../services/categories'
 import TagsService from '../../services/tags'
 import PostSeriesService from '../../services/series'
-import type { PostListParams, Post, PostListItem } from '../../services/posts'
+import type { PostListParams, Post, PostListItem, PostFavoriteUser } from '../../services/posts'
 import { formatDateTime } from '../../utils/utils'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
 import { ImageUploadService } from '../../services/upload'
@@ -81,6 +81,7 @@ const columns = [
   { title: '作者', dataIndex: 'author', key: 'author' },
   { title: '浏览量', dataIndex: 'viewCount', key: 'viewCount' },
   { title: '点赞量', dataIndex: 'likeCount', key: 'likeCount' },
+  { title: '收藏数', dataIndex: 'favoriteCount', key: 'favoriteCount', width: 90 },
   { title: '评论数', dataIndex: 'commentCount', key: 'commentCount' },
   { title: '状态', dataIndex: 'status', key: 'status' },
   { title: '删除状态', key: 'deleteStatus' },
@@ -98,6 +99,58 @@ const exportCtrl = useTableExport({
   rows: dataSource,
   filename: 'posts',
 })
+
+// ============== 收藏用户弹窗 ==============
+const favColumns = [
+  { title: '头像', dataIndex: 'user', key: 'user', width: 70 },
+  { title: '用户名', dataIndex: 'username', key: 'username', width: 150 },
+  { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 150 },
+  { title: '收藏时间', dataIndex: 'favoriteTime', key: 'favoriteTime' }
+]
+const favVisible = ref(false)
+const favPost = ref<PostListItem | null>(null)
+const favList = ref<PostFavoriteUser[]>([])
+const favLoading = ref(false)
+const favPagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: false,
+  showTotal: (total: number) => `共 ${total} 位用户收藏`
+})
+
+const openFavoriteUsers = (record: PostListItem) => {
+  favPost.value = record
+  favVisible.value = true
+  favPagination.current = 1
+  loadFavoriteUsers()
+}
+
+const loadFavoriteUsers = async () => {
+  if (!favPost.value) return
+  favLoading.value = true
+  try {
+    const res = await PostsService.getPostFavoriteUsers(favPost.value.id, {
+      page: favPagination.current,
+      size: favPagination.pageSize
+    })
+    if (res.code === 200) {
+      favList.value = res.data.records
+      favPagination.total = res.data.total
+    } else {
+      message.error(res.message || '加载收藏用户失败')
+    }
+  } catch (e) {
+    message.error('加载收藏用户失败')
+  } finally {
+    favLoading.value = false
+  }
+}
+
+const onFavTableChange = (p: any) => {
+  favPagination.current = p.current
+  loadFavoriteUsers()
+}
 
 /** 格式化草稿保存时间：显示"X 秒/分钟前" */
 function formatDraftTime(ts: number): string {
@@ -645,6 +698,11 @@ onMounted(async () => {
           <template v-else-if="column.key === 'likeCount'">
             <span>{{ record.likeCount || 0 }}</span>
           </template>
+          <template v-else-if="column.key === 'favoriteCount'">
+            <a-button type="link" size="small" class="fav-count-btn" @click="openFavoriteUsers(record)" :disabled="!record.favoriteCount">
+              <StarOutlined /> {{ record.favoriteCount || 0 }}
+            </a-button>
+          </template>
           <template v-else-if="column.key === 'commentCount'">
             <span>{{ record.commentCount || 0 }}</span>
           </template>
@@ -689,7 +747,7 @@ onMounted(async () => {
     </a-card>
 
     <!-- 新建/编辑 弹窗 -->
-    <a-modal v-model:open="modalVisible" :width="1280" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
+    <a-modal v-model:open="modalVisible" :width="1440" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
       <template #title>
         <div class="modal-title-with-draft">
           <span>{{ modalTitle }}</span>
@@ -719,59 +777,64 @@ onMounted(async () => {
         </a-form-item>
         </div>
 
-        <a-form-item label="封面图片">
-          <div class="image-upload-container">
-            <div v-if="formModel.coverImage" class="image-preview">
-              <img :src="formModel.coverImage" alt="封面图片" class="preview-image" />
-              <div class="image-actions">
-                <a-button type="text" danger @click="removeCoverImage">
-                  <template #icon><DeleteOutlined /></template>
-                  删除
-                </a-button>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="封面图片">
+              <div class="image-upload-container">
+                <div v-if="formModel.coverImage" class="image-preview">
+                  <img :src="formModel.coverImage" alt="封面图片" class="preview-image" />
+                  <div class="image-actions">
+                    <a-button type="text" danger @click="removeCoverImage">
+                      <template #icon><DeleteOutlined /></template>
+                      删除
+                    </a-button>
+                  </div>
+                </div>
+                <div v-else class="upload-placeholder" @click="triggerCoverImageUpload">
+                  <PlusOutlined />
+                  <div class="upload-text">上传封面图片</div>
+                </div>
+                <input
+                  ref="coverImageInput"
+                  type="file"
+                  accept="image/*"
+                  style="display: none"
+                  @change="handleCoverImageUpload"
+                />
               </div>
-            </div>
-            <div v-else class="upload-placeholder" @click="triggerCoverImageUpload">
-              <PlusOutlined />
-              <div class="upload-text">上传封面图片</div>
-            </div>
-            <input 
-              ref="coverImageInput"
-              type="file" 
-              accept="image/*" 
-              style="display: none" 
-              @change="handleCoverImageUpload"
-            />
-          </div>
-        </a-form-item>
-
-        <a-form-item label="缩略图">
-          <div class="image-upload-container">
-            <div v-if="formModel.thumbnail" class="image-preview">
-              <img :src="formModel.thumbnail" alt="缩略图" class="preview-image" />
-              <div class="image-actions">
-                <a-button type="text" danger @click="removeThumbnail">
-                  <template #icon><DeleteOutlined /></template>
-                  删除
-                </a-button>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="缩略图">
+              <div class="image-upload-container">
+                <div v-if="formModel.thumbnail" class="image-preview">
+                  <img :src="formModel.thumbnail" alt="缩略图" class="preview-image" />
+                  <div class="image-actions">
+                    <a-button type="text" danger @click="removeThumbnail">
+                      <template #icon><DeleteOutlined /></template>
+                      删除
+                    </a-button>
+                  </div>
+                </div>
+                <div v-else class="upload-placeholder" @click="triggerThumbnailUpload">
+                  <PlusOutlined />
+                  <div class="upload-text">上传缩略图</div>
+                </div>
+                <input
+                  ref="thumbnailInput"
+                  type="file"
+                  accept="image/*"
+                  style="display: none"
+                  @change="handleThumbnailUpload"
+                />
               </div>
-            </div>
-            <div v-else class="upload-placeholder" @click="triggerThumbnailUpload">
-              <PlusOutlined />
-              <div class="upload-text">上传缩略图</div>
-            </div>
-            <input 
-              ref="thumbnailInput"
-              type="file" 
-              accept="image/*" 
-              style="display: none" 
-              @change="handleThumbnailUpload"
-            />
-          </div>
-        </a-form-item>
+            </a-form-item>
+          </a-col>
+        </a-row>
 
         <div :class="['field-wrapper', { 'field-highlight': highlightedFields.content }]">
         <a-form-item name="content" label="内容" required>
-          <TinyMCEEditor v-model="formModel.content" placeholder="请输入文章内容" :height="400" />
+          <TinyMCEEditor v-model="formModel.content" :height="520" />
         </a-form-item>
         </div>
         <div :class="['field-wrapper', { 'field-highlight': highlightedFields.categoryId }]">
@@ -927,11 +990,46 @@ onMounted(async () => {
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 收藏用户弹窗 -->
+    <a-modal
+      v-model:open="favVisible"
+      :title="`收藏用户 - ${favPost?.title || ''}`"
+      :footer="null"
+      width="640"
+    >
+      <a-table
+        :columns="favColumns"
+        :data-source="favList"
+        :loading="favLoading"
+        :pagination="favPagination"
+        row-key="userId"
+        size="middle"
+        @change="onFavTableChange"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'user'">
+            <a-avatar :src="record.avatarUrl" :size="32">
+              <template #icon v-if="!record.avatarUrl"><StarOutlined /></template>
+            </a-avatar>
+          </template>
+          <template v-else-if="column.key === 'favoriteTime'">
+            {{ formatDateTime(record.favoriteTime) }}
+          </template>
+        </template>
+      </a-table>
+    </a-modal>
   </div>
 </template>
 
 <style scoped>
 /* 移除旧的样式，使用 utility classes */
+.fav-count-btn {
+  padding: 0;
+  height: auto;
+  line-height: inherit;
+}
+
 .editor-agent-layout {
   display: flex;
   gap: var(--lt-space-lg);

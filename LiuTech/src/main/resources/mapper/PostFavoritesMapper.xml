@@ -68,4 +68,18 @@
         WHERE user_id = #{userId} AND is_favorite = 1 AND deleted_at IS NULL
     </select>
 
+    <!-- 分页查询收藏某篇文章的用户列表（JOIN users 带用户信息） -->
+    <select id="selectFavoriteUsersByPostId" resultType="chat.liuxin.liutech.resp.PostFavoriteUserResp">
+        SELECT
+            u.id AS userId,
+            u.username AS username,
+            u.nickname AS nickname,
+            u.avatar_url AS avatarUrl,
+            f.updated_at AS favoriteTime
+        FROM post_favorites f
+        INNER JOIN users u ON u.id = f.user_id
+        WHERE f.post_id = #{postId} AND f.is_favorite = 1 AND f.deleted_at IS NULL
+        ORDER BY f.updated_at DESC
+    </select>
+
 </mapper>

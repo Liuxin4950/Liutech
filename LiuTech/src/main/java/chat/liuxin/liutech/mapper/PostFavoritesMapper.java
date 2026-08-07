@@ -6,8 +6,11 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import chat.liuxin.liutech.model.PostFavorites;
+import chat.liuxin.liutech.resp.PostFavoriteUserResp;
 
 /**
  * 文章收藏Mapper接口
@@ -78,4 +81,12 @@ public interface PostFavoritesMapper extends BaseMapper<PostFavorites> {
      * @return 收藏数量
      */
     Integer countFavoritesByUserId(@Param("userId") Long userId);
+
+    /**
+     * 分页查询收藏某篇文章的用户列表（JOIN users 带用户信息与收藏时间）
+     * @param page 分页参数
+     * @param postId 文章ID
+     * @return 收藏用户分页
+     */
+    IPage<PostFavoriteUserResp> selectFavoriteUsersByPostId(Page<PostFavoriteUserResp> page, @Param("postId") Long postId);
 }

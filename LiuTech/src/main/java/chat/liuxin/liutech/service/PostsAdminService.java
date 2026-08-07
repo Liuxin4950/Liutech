@@ -31,6 +31,7 @@ import chat.liuxin.liutech.model.PostFavorites;
 import chat.liuxin.liutech.vo.PostAttachmentVO;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PostDetailResp;
+import chat.liuxin.liutech.resp.PostFavoriteUserResp;
 import chat.liuxin.liutech.resp.PostListResp;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.BusinessException;
@@ -92,6 +93,16 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
             log.error("管理端文章列表查询失败: {}", e.getMessage(), e);
             throw new RuntimeException("查询文章列表失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 分页查询收藏某篇文章的用户列表
+     */
+    @Transactional(readOnly = true)
+    public PageResp<PostFavoriteUserResp> getFavoriteUsersByPostId(Long postId, int page, int size) {
+        Page<PostFavoriteUserResp> pageObj = new Page<>(page, size);
+        IPage<PostFavoriteUserResp> result = postFavoritesMapper.selectFavoriteUsersByPostId(pageObj, postId);
+        return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 
     /**
