@@ -12,7 +12,7 @@
                 placeholder="搜索文章标题、内容或摘要..."
                 class="search-input"
                 @input="handleInput"
-                @keyup.enter="handleSearch"
+                @keyup.enter="handleEnter"
                 @keyup.esc="close"
               />
               <Icon name="search" size="16" class="search-icon" />
@@ -27,8 +27,27 @@
             </div>
 
             <div v-else-if="!keyword.trim()" class="empty-state">
-              <img src="@/assets/image/扑到.png" alt="" class="empty-img" />
-              <p class="empty-text">输入关键词搜索文章</p>
+              <div v-if="history.length" class="history-section">
+                <div class="history-header">
+                  <span class="history-title">搜索历史</span>
+                  <button type="button" class="history-clear" @click="clearHistory">清空</button>
+                </div>
+                <div class="history-chips">
+                  <button
+                    v-for="word in history"
+                    :key="word"
+                    type="button"
+                    class="history-chip"
+                    @click="searchHistory(word)"
+                  >
+                    {{ word }}
+                  </button>
+                </div>
+              </div>
+              <template v-else>
+                <!-- <img src="@/assets/image/扑到.png" alt="" class="empty-img" /> -->
+                <p class="empty-text">输入关键词搜索文章</p>
+              </template>
             </div>
 
             <div v-else class="results-list">
@@ -73,10 +92,51 @@ const searchError = ref('')
 const results = ref<PostListItem[]>([])
 const inputRef = ref<HTMLInputElement | null>(null)
 
+// 搜索历史：localStorage 持久化，最多 8 条，最新在前
+const HISTORY_KEY = 'liutech-search-history'
+const MAX_HISTORY = 8
+const history = ref<string[]>([])
+
+const loadHistory = () => {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    history.value = raw ? JSON.parse(raw) : []
+  } catch {
+    history.value = []
+  }
+}
+
+const saveHistory = () => {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.value))
+  } catch { /* ignore */ }
+}
+
+/** 记录搜索词：去重并移到最前 */
+const recordKeyword = (word: string) => {
+  const kw = word.trim()
+  if (!kw) return
+  history.value = [kw, ...history.value.filter(w => w !== kw)].slice(0, MAX_HISTORY)
+  saveHistory()
+}
+
+const clearHistory = () => {
+  history.value = []
+  saveHistory()
+}
+
+/** 点击历史词：填入并立即搜索 */
+const searchHistory = (word: string) => {
+  keyword.value = word
+  recordKeyword(word)
+  handleSearch()
+}
+
 let searchTimeout: number | null = null
 
 const open = () => {
   visible.value = true
+  loadHistory()
   nextTick(() => inputRef.value?.focus())
 }
 
@@ -98,6 +158,14 @@ const handleInput = () => {
     return
   }
   searchTimeout = setTimeout(handleSearch, 500)
+}
+
+/** 回车搜索：记录历史；防抖自动搜索（handleInput）不记录，避免存下输入中途的半截词 */
+const handleEnter = () => {
+  const kw = keyword.value.trim()
+  if (!kw) return
+  recordKeyword(kw)
+  handleSearch()
 }
 
 const handleSearch = async () => {
@@ -194,7 +262,7 @@ defineExpose({ open, close })
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 16px;
+  padding: 0px 8px;
   gap: 12px;
 }
 
@@ -210,6 +278,62 @@ defineExpose({ open, close })
   font-size: 0.875rem;
   color: var(--text-muted);
   margin: 0;
+}
+
+/* 搜索历史 */
+.history-section {
+  width: 100%;
+  padding: 4px;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.history-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-subtle);
+}
+
+.history-clear {
+  padding: 2px 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.history-clear:hover {
+  color: var(--color-error);
+}
+
+.history-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-chip {
+  padding: 5px 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  color: var(--text-main);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-chip:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--bg-hover);
 }
 
 .results-list {
