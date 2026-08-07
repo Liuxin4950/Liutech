@@ -13,6 +13,7 @@ import type {
   ToolEventPayload,
   WritingDraftPayload,
   FieldUpdatePayload,
+  TempMessage,
 } from '../../types/agent'
 
 const props = defineProps<{
@@ -28,6 +29,9 @@ const prompt = ref('')
 const answer = ref('')
 const showFullAnswer = ref(false)
 const loading = ref(false)
+const history = ref<TempMessage[]>([])
+const applyNotice = ref('')
+let noticeTimer: number | undefined
 type StepStatus = 'pending' | 'running' | 'completed' | 'waiting' | 'failed'
 type AssistantStep = AgentPlanStep & { status: StepStatus }
 
@@ -213,7 +217,18 @@ const emitScopedUpdate = (payload: FieldUpdatePayload) => {
   const hasSuggestion = !!(scoped.suggestedCategoryName || scoped.suggestedTagNames?.length)
   if (hasConcreteUpdate || hasSuggestion) {
     emit('fieldUpdate', scoped)
+    showApplyNotice(hasConcreteUpdate
+      ? `已自动应用：${activeFieldScope.value.fields.filter(field => field !== 'check').join('、')}`
+      : '已生成可确认创建的分类/标签建议')
   }
+}
+
+const showApplyNotice = (message: string) => {
+  applyNotice.value = message
+  if (noticeTimer) window.clearTimeout(noticeTimer)
+  noticeTimer = window.setTimeout(() => {
+    applyNotice.value = ''
+  }, 2600)
 }
 
 const compactToolStatus = (tool: ToolEventPayload & { status: 'running' | 'success' | 'failed' }) => {
@@ -222,14 +237,17 @@ const compactToolStatus = (tool: ToolEventPayload & { status: 'running' | 'succe
   return tool.resultSummary || '完成'
 }
 
+// 快速指令：字段级指令（含关键词让 inferFieldScope 只更新对应字段）+ Admin 特有操作（草稿/发布）
 const quickPrompts = [
-  '帮我润色当前文章',
-  '根据当前内容生成摘要',
-  '帮我补一个更吸引人的标题',
-  '整理成技术博客 HTML',
-  '发布前检查',
-  '保存为草稿',
-  '发布这篇文章',
+  { label: '写完整文章', message: '根据当前主题（或草稿）写一篇完整的技术博客，一次性输出 HTML 正文并设置标题、摘要、分类、标签' },
+  { label: '润色正文', message: '润色当前正文，保持原意和结构，改善语言表达和排版' },
+  { label: '补摘要', message: '根据正文生成一段 80-150 字的摘要' },
+  { label: '改标题', message: '根据正文内容生成 3 个备选标题，选最合适的一个写入标题字段' },
+  { label: '选分类标签', message: '为当前文章挑选最合适的分类和 3-5 个标签' },
+  { label: '续写下一节', message: '基于当前正文的最后部分，续写下一节内容' },
+  { label: '发布前检查', message: '检查正文是否存在明显问题：错别字、未闭合标签、过长段落、缺失摘要' },
+  { label: '保存为草稿', message: '保存为草稿' },
+  { label: '发布这篇文章', message: '发布这篇文章' },
 ]
 
 const send = async (text?: string) => {
@@ -242,6 +260,7 @@ const send = async (text?: string) => {
   confirmation.value = null
   toolEvents.value = []
   agentStart.value = null
+  applyNotice.value = ''
   prompt.value = ''
   activeFieldScope.value = inferFieldScope(content)
 
@@ -250,6 +269,7 @@ const send = async (text?: string) => {
       {
         message: content,
         draft: props.draft,
+        tempMessages: history.value,
         context: {
           page: 'admin-post-editor',
           postId: props.draft.postId,
@@ -262,10 +282,8 @@ const send = async (text?: string) => {
           answer.value += chunk
           progressTo('html', 'running')
         },
-        // 以下 SSE 事件 handler 部分后端尚未实现（截至 2026-07-09）：
-        // - onPlan/onToolStart/onToolResult/onConfirmation: 写作步骤追踪/工具展示/确认流程，后端暂未发送
-        // - onWritingDraft/onFieldUpdate: 草稿/字段更新，后端写作分支 field-update 实施后启用
-        // 当前 admin 写作以 onData 文本流为主：AI 已能读取 draft 草稿并给出修改建议文本。
+        // SSE 事件（2026-07-09 起后端已全部实现）：写作步骤追踪 onPlan/onToolStart/onToolResult、
+        // 字段自动写入 onWritingDraft/onFieldUpdate、确认流程 onConfirmation、文章结果 onArticles。
         onPlan: (steps) => {
           normalizePlan(steps)
         },
@@ -331,6 +349,11 @@ const send = async (text?: string) => {
     if (runningStep) setStepStatus(runningStep.key, 'failed')
   } finally {
     loading.value = false
+    // 保存本轮对话上下文，支持多轮连续写作（"接着上一轮继续"）
+    if (content && answer.value) {
+      history.value.push({ role: 'user', content })
+      history.value.push({ role: 'assistant', content: answer.value })
+    }
   }
 }
 
@@ -363,12 +386,12 @@ const applyPreview = () => {
     <div class="quick-actions">
       <a-button
         v-for="item in quickPrompts"
-        :key="item"
+        :key="item.label"
         size="small"
-        @click="send(item)"
+        @click="send(item.message)"
         :disabled="loading"
       >
-        {{ item }}
+        {{ item.label }}
       </a-button>
     </div>
 
@@ -410,6 +433,8 @@ const applyPreview = () => {
         <em>{{ compactToolStatus(latestTool) }}</em>
       </div>
     </div>
+
+    <p v-if="applyNotice" class="apply-notice">{{ applyNotice }}</p>
 
     <!-- AI回复区域 -->
     <div v-if="displayAnswer" class="agent-section answer-container">
@@ -456,9 +481,9 @@ const applyPreview = () => {
 
 <style scoped>
 .agent-sidebar {
-  width: 320px;
-  flex: 0 0 320px;
-  border-left: 1px solid #f0f0f0;
+  width: 340px;
+  flex: 0 0 340px;
+  border-left: 1px solid var(--lt-color-border-secondary);
   padding-left: 16px;
   display: flex;
   flex-direction: column;
@@ -471,11 +496,12 @@ const applyPreview = () => {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
+  color: var(--lt-color-text);
 }
 
 .agent-header p {
   margin: 4px 0 0;
-  color: #8c8c8c;
+  color: var(--lt-color-text-tertiary);
   font-size: 12px;
 }
 
@@ -490,13 +516,13 @@ const applyPreview = () => {
 }
 
 .agent-section {
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--lt-color-border-secondary);
   padding-top: 12px;
 }
 
 .section-title {
   font-size: 13px;
-  color: #595959;
+  color: var(--lt-color-text-secondary);
   margin-bottom: 8px;
   font-weight: 600;
 }
@@ -509,8 +535,8 @@ const applyPreview = () => {
 }
 
 .process-card {
-  background: #fafafa;
-  border: 1px solid #f0f0f0;
+  background: var(--lt-color-bg-spotlight);
+  border: 1px solid var(--lt-color-border-secondary);
   border-radius: 8px;
   padding: 12px;
 }
@@ -530,7 +556,7 @@ const applyPreview = () => {
   overflow: hidden !important;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: #1677ff;
+  color: var(--lt-color-primary);
   font-size: 12px;
 }
 
@@ -538,14 +564,14 @@ const applyPreview = () => {
   height: 6px;
   overflow: hidden !important;
   border-radius: 999px;
-  background: #f0f0f0;
+  background: var(--lt-color-border-secondary);
 }
 
 .process-bar span {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #1677ff;
+  background: var(--lt-color-primary);
   transition: width 0.35s ease;
 }
 
@@ -563,7 +589,7 @@ const applyPreview = () => {
   align-items: center;
   min-height: 22px;
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--lt-color-text-tertiary);
 }
 
 .trace-row span:nth-child(2),
@@ -582,31 +608,31 @@ const applyPreview = () => {
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: #d9d9d9;
+  background: var(--lt-color-border);
 }
 
 .trace-row.running .trace-dot {
-  background: #1677ff;
-  box-shadow: 0 0 0 4px rgba(22, 119, 255, 0.12);
+  background: var(--lt-color-primary);
+  box-shadow: 0 0 0 4px var(--lt-color-primary-bg);
 }
 
 .trace-row.success .trace-dot,
 .trace-row.completed .trace-dot {
-  background: #52c41a;
+  background: var(--lt-color-success);
 }
 
 .trace-row.waiting .trace-dot {
-  background: #faad14;
+  background: var(--lt-color-warning);
 }
 
 .trace-row.failed .trace-dot {
-  background: #ff4d4f;
+  background: var(--lt-color-error);
 }
 
 .tool-summary {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px dashed #f0f0f0;
+  border-top: 1px dashed var(--lt-color-border-secondary);
 }
 
 .answer-container {
@@ -621,22 +647,22 @@ const applyPreview = () => {
 .answer-title {
   font-size: 13px;
   font-weight: 600;
-  color: #262626;
+  color: var(--lt-color-text);
 }
 .expand-btn {
-  border: 1px solid #1677ff;
-  background: #e6f4ff;
+  border: 1px solid var(--lt-color-primary);
+  background: var(--lt-color-primary-bg);
   padding: 3px 10px;
   font-size: 12px;
-  color: #1677ff;
+  color: var(--lt-color-primary);
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.2s;
   font-weight: 500;
 }
 .expand-btn:hover {
-  background: #1677ff;
-  color: white;
+  background: var(--lt-color-primary);
+  color: var(--lt-color-text-inverse);
 }
 .answer-box {
   margin-top: 0;
@@ -647,8 +673,8 @@ const applyPreview = () => {
 .answer-box {
   font-size: 12px;
   line-height: 1.6;
-  color: #595959;
-  background: #fafafa;
+  color: var(--lt-color-text-secondary);
+  background: var(--lt-color-bg-spotlight);
   border-radius: 8px;
   padding: 10px 12px;
   white-space: pre-wrap;
@@ -673,7 +699,7 @@ const applyPreview = () => {
   width: 4px;
 }
 .answer-box:not(.collapsed)::-webkit-scrollbar-thumb {
-  background: #d9d9d9;
+  background: var(--lt-color-border);
   border-radius: 2px;
 }
 
@@ -690,21 +716,8 @@ const applyPreview = () => {
   left: 0;
   right: 0;
   height: 30px;
-  background: linear-gradient(transparent, #fafafa);
+  background: linear-gradient(transparent, var(--lt-color-bg-spotlight));
   pointer-events: none;
-}
-
-.expand-btn {
-  font-size: 12px;
-  color: #1677ff;
-  cursor: pointer;
-  white-space: pre-wrap;
-  background: #fafafa;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  padding: 10px;
-  font-size: 13px;
-  line-height: 1.6;
 }
 
 .confirm-actions {
@@ -712,5 +725,14 @@ const applyPreview = () => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.apply-notice {
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 6px;
+  background: var(--lt-color-success-bg);
+  color: var(--lt-color-success);
+  font-size: 13px;
 }
 </style>
