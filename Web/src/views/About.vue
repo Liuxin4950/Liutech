@@ -243,7 +243,7 @@ useScrollReveal('.reveal', { once: false })
     </section>
 
     <!-- 数据统计（独立一行） -->
-    <section class="stats-section section-card reveal">
+    <section class="tech-stack-section section-card reveal">
       <div class="stats-grid">
         <div v-for="stat in stats" :key="stat.label" class="stat-card">
           <Icon :name="stat.icon" size="26" />
