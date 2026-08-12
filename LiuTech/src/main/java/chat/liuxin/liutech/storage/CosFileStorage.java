@@ -95,4 +95,14 @@ public class CosFileStorage implements FileStorage {
             return null;
         }
     }
+
+    @Override
+    public long getContentLength(String relativePath) {
+        try {
+            return cosClient.getObjectMetadata(cosProperties.getBucket(), relativePath).getContentLength();
+        } catch (CosClientException e) {
+            log.warn("获取 COS 对象大小失败: {}", relativePath, e);
+            return -1;
+        }
+    }
 }

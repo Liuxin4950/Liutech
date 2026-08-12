@@ -499,14 +499,20 @@ export class PostService {
   }
 
   /** 下载资源文件（通过后端验证） */
-  static async downloadResource(resourceId: number, fileName: string): Promise<void> {
+  static async downloadResource(resourceId: number, fileName: string, onProgress?: (percent: number) => void): Promise<void> {
     try {
       // 导入axios实例用于文件下载
       const { getAxiosInstance } = await import('./api')
       const axiosInstance = getAxiosInstance()
 
       const response = await axiosInstance.get(`/resource/download/${resourceId}`, {
-        responseType: 'blob'
+        responseType: 'blob',
+        onDownloadProgress: (e) => {
+          // 后端已设 Content-Length（本地磁盘与 COS 统一经存储抽象获取），total 有值才能算百分比
+          if (onProgress && e.total && e.total > 0) {
+            onProgress(Math.min(99, Math.round((e.loaded / e.total) * 100)))
+          }
+        }
       })
 
       // 拦截器会把非标准响应包成 { code, message, data }，blob 在 data 里

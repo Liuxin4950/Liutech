@@ -78,4 +78,18 @@ public class LocalFileStorage implements FileStorage {
             return null;
         }
     }
+
+    @Override
+    public long getContentLength(String relativePath) {
+        Path filePath = Paths.get(fileUploadConfig.getBasePath(), relativePath);
+        if (!Files.isRegularFile(filePath)) {
+            return -1;
+        }
+        try {
+            return Files.size(filePath);
+        } catch (IOException e) {
+            log.warn("获取文件大小失败: {}", relativePath, e);
+            return -1;
+        }
+    }
 }

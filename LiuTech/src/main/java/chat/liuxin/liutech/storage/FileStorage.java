@@ -55,4 +55,13 @@ public interface FileStorage {
      * @return 文件内容流（调用方负责关闭），文件不存在返回 null
      */
     InputStream open(String relativePath);
+
+    /**
+     * 获取文件内容大小（字节）
+     * 用于下载响应设置 Content-Length，前端据此显示下载进度
+     *
+     * @param relativePath 逻辑路径
+     * @return 内容大小（字节），文件不存在或无法获取返回 -1（调用方不设 Content-Length，走 chunked）
+     */
+    long getContentLength(String relativePath);
 }

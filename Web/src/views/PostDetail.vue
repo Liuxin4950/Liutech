@@ -150,6 +150,7 @@ const purchasingId = ref<number | null>(null)
 
 // 下载状态
 const downloadingId = ref<number | null>(null)
+const downloadProgress = ref<number | null>(null)
 
 // 计算属性：附件分组
 const fileAttachments = computed(() => {
@@ -266,7 +267,11 @@ const handleDownload = async (resourceId: number, fileName: string) => {
 
   await handleAsync(async () => {
     downloadingId.value = resourceId
-    await PostService.downloadResource(resourceId, fileName)
+    downloadProgress.value = 0
+    await PostService.downloadResource(resourceId, fileName, (percent) => {
+      downloadProgress.value = percent
+    })
+    downloadProgress.value = 100
     showSuccessToast('下载成功！')
   }, {
     onError: () => {
@@ -274,6 +279,7 @@ const handleDownload = async (resourceId: number, fileName: string) => {
     },
     onFinally: () => {
       downloadingId.value = null
+      downloadProgress.value = null
     }
   })
 }
@@ -612,7 +618,9 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
                   >
                     <Icon v-if="downloadingId === att.resourceId" name="loader" class="animate-spin" size="14" />
                     <Icon v-else name="download" size="14" />
-                    {{ downloadingId === att.resourceId ? '下载中...' : '下载' }}
+                    {{ downloadingId === att.resourceId
+                      ? (downloadProgress !== null ? `下载中 ${downloadProgress}%` : '下载中...')
+                      : '下载' }}
                   </button>
                 </template>
                 <template v-else>

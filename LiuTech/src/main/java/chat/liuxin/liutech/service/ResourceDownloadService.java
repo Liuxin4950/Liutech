@@ -167,6 +167,11 @@ public class ResourceDownloadService {
         HttpHeaders headers = new HttpHeaders();
         headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getName() + "\"");
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        // Content-Length：本地磁盘与 COS 统一经存储抽象获取，前端据此显示下载进度；取不到则不设（chunked）
+        long contentLength = fileStorage.getContentLength(relativePath);
+        if (contentLength >= 0) {
+            headers.setContentLength(contentLength);
+        }
 
         log.info("用户{}下载资源{} - {}", userId, resourceId, resource.getName());
 
