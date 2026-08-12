@@ -22,8 +22,10 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 ## 其它资源
 
 - `CLAUDE.md` — 项目结构、命令、跨服务约束、工作约定
-- `README.md` — 产品向介绍
-- `LiuTech/API文档.md` — API 参考
-- `doc/PRD/` — 历史 PRD 归档
-- `doc/记录/` — 当前架构与历史归档（`archive/`）
-- `doc/记录/当前架构.md` — 当前生效的总体架构
+- `README.md` — 产品向介绍（含 API 概览）
+- `LiuTech-AI/AI接口文档.md` — AI 服务接口参考
+- `Docs/PRD/` — 历史 PRD 归档
+- `Docs/记录/` — 当前架构（`当前架构.md`）
+- `Docs/记录/当前架构.md` — 当前生效的总体架构
+- `Docs/团队反馈/00-团队综合执行方案.md` — 技术债清单与实施进度
+- `Docs/架构/README.md` — 模块化架构文档索引
