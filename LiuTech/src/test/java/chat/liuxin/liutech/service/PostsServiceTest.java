@@ -5,6 +5,7 @@ import chat.liuxin.liutech.mapper.*;
 import chat.liuxin.liutech.model.PostLikes;
 import chat.liuxin.liutech.model.PostFavorites;
 import chat.liuxin.liutech.model.Posts;
+import chat.liuxin.liutech.model.UserViewHistory;
 import chat.liuxin.liutech.req.PostCreateReq;
 import chat.liuxin.liutech.req.PostQueryReq;
 import chat.liuxin.liutech.req.PostUpdateReq;
@@ -60,6 +61,9 @@ class PostsServiceTest {
     private PostAttachmentsMapper postAttachmentsMapper;
 
     @Mock
+    private UserViewHistoryMapper userViewHistoryMapper;
+
+    @Mock
     private ResourceDownloadService resourceDownloadService;
 
     @Mock
@@ -86,6 +90,7 @@ class PostsServiceTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), Posts.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), PostLikes.class);
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), PostFavorites.class);
+        TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), UserViewHistory.class);
     }
 
     // ========== 辅助方法 ==========
@@ -466,5 +471,80 @@ class PostsServiceTest {
 
         assertNull(result.getSeriesCatalog());
         verify(postsMapper, never()).selectSeriesPostCatalog(any());
+    }
+
+    // ========== getPersonalizedRecommendations ==========
+
+    private PostListResp createListResp(Long id) {
+        PostListResp resp = new PostListResp();
+        resp.setId(id);
+        resp.setTitle("文章" + id);
+        return resp;
+    }
+
+    private UserViewHistory createViewHistory(Long postId) {
+        UserViewHistory history = new UserViewHistory();
+        history.setPostId(postId);
+        return history;
+    }
+
+    @Test
+    void getPersonalizedRecommendations_shouldReturnRecommendationsWithoutFill() {
+        // 个性化结果已够 limit，不再查热门
+        List<PostListResp> recommended = new ArrayList<>();
+        for (long id = 1; id <= 5; id++) {
+            recommended.add(createListResp(id));
+        }
+        when(userViewHistoryMapper.selectList(any())).thenReturn(List.of(createViewHistory(100L)));
+        when(postsMapper.selectRecommendedPostListResp(5, AUTHOR_ID)).thenReturn(recommended);
+        when(postsMapper.selectTagsByPostIds(anyList())).thenReturn(Collections.emptyList());
+
+        List<PostListResp> result = postsService.getPersonalizedRecommendations(5, AUTHOR_ID);
+
+        assertEquals(5, result.size());
+        verify(postsMapper, never()).selectHotPostListResp(anyInt(), any());
+    }
+
+    @Test
+    void getPersonalizedRecommendations_shouldFillWithHotPostsWhenNotEnough() {
+        // 个性化只有 2 篇；热门 5 篇里：id=2 已推荐过、id=100 已读、id=3 是新的
+        List<PostListResp> recommended = new ArrayList<>(List.of(createListResp(1L), createListResp(2L)));
+        List<PostListResp> hotPosts = new ArrayList<>();
+        for (long id : new long[]{2L, 100L, 3L, 4L, 5L}) {
+            hotPosts.add(createListResp(id));
+        }
+        when(userViewHistoryMapper.selectList(any())).thenReturn(List.of(createViewHistory(100L)));
+        when(postsMapper.selectRecommendedPostListResp(5, AUTHOR_ID)).thenReturn(recommended);
+        when(postsMapper.selectHotPostListResp(5, AUTHOR_ID)).thenReturn(hotPosts);
+        when(postsMapper.selectTagsByPostIds(anyList())).thenReturn(Collections.emptyList());
+
+        List<PostListResp> result = postsService.getPersonalizedRecommendations(5, AUTHOR_ID);
+
+        // 2 篇个性化 + 3 篇热门补足（跳过重复的 2 和已读的 100），最多 5 篇
+        assertEquals(5, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals(2L, result.get(1).getId());
+        assertEquals(3L, result.get(2).getId());
+        assertEquals(4L, result.get(3).getId());
+        assertEquals(5L, result.get(4).getId());
+    }
+
+    @Test
+    void getPersonalizedRecommendations_shouldReturnHotPostsWhenNoRecommendation() {
+        // 无浏览历史且个性化查询为空：全量回退热门
+        List<PostListResp> hotPosts = new ArrayList<>();
+        for (long id = 1; id <= 5; id++) {
+            hotPosts.add(createListResp(id));
+        }
+        when(userViewHistoryMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(postsMapper.selectRecommendedPostListResp(5, AUTHOR_ID)).thenReturn(Collections.emptyList());
+        when(postsMapper.selectHotPostListResp(5, AUTHOR_ID)).thenReturn(hotPosts);
+        when(postsMapper.selectTagsByPostIds(anyList())).thenReturn(Collections.emptyList());
+
+        List<PostListResp> result = postsService.getPersonalizedRecommendations(5, AUTHOR_ID);
+
+        assertEquals(5, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals(5L, result.get(4).getId());
     }
 }

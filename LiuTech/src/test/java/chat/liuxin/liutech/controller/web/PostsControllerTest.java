@@ -377,4 +377,29 @@ class PostsControllerTest {
         assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
         verify(viewHistoryService, never()).clearViewHistory(any());
     }
+
+    // ========== getRecommendations ==========
+
+    @Test
+    void getRecommendations_shouldReturnPersonalizedWhenLoggedIn() {
+        List<PostListResp> recommendations = List.of(new PostListResp());
+        when(userUtils.getCurrentUserId()).thenReturn(1L);
+        when(postsService.getPersonalizedRecommendations(5, 1L)).thenReturn(recommendations);
+
+        Result<List<PostListResp>> result = controller.getRecommendations(5);
+
+        assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
+        assertNotNull(result.getData());
+        verify(postsService).getPersonalizedRecommendations(5, 1L);
+    }
+
+    @Test
+    void getRecommendations_shouldFailWhenNotLoggedIn() {
+        when(userUtils.getCurrentUserId()).thenReturn(null);
+
+        Result<List<PostListResp>> result = controller.getRecommendations(5);
+
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
+        verify(postsService, never()).getPersonalizedRecommendations(anyInt(), any());
+    }
 }
