@@ -17,7 +17,7 @@ import { formatDateTime } from '../../utils/utils'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
 import { ImageUploadService } from '../../services/upload'
 import AdminAgentSidebar from '../../components/agent/AdminAgentSidebar.vue'
-import type { AdminArticleDraftSnapshot, AgentActionResult, FieldUpdatePayload } from '../../types/agent'
+import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '../../types/agent'
 
 // ============== 表格页面 ==============
 const {
@@ -496,19 +496,6 @@ const undoField = (field: string) => {
   message.info(`已撤销「${fieldLabelMap[field] || field}」`)
 }
 
-const handleAgentActionDone = (result?: AgentActionResult) => {
-  const target = result?.target as { status?: string; postId?: number } | undefined
-  if (target?.status === 'published' || target?.status === 'draft' || target?.status === 'archived') {
-    formModel.value.status = target.status
-  }
-  if (!editingId.value && target?.postId) {
-    editingId.value = target.postId
-    isEdit.value = true
-    modalTitle.value = '编辑文章'
-  }
-  load()
-}
-
 const createAiSuggestedCategory = async (name: string) => {
   const categoryName = name.trim()
   if (!categoryName) return
@@ -906,7 +893,6 @@ onMounted(async () => {
       <AdminAgentSidebar
         :draft="agentDraftSnapshot"
         @field-update="handleFieldUpdate"
-        @action-done="handleAgentActionDone"
       />
       </div>
       <div v-if="aiSuggestedCategoryName || aiSuggestedTagNames.length" class="ai-taxonomy-bar">

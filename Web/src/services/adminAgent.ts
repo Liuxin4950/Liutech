@@ -1,4 +1,5 @@
 import { getServiceBaseURL, ServiceType } from '@/services/serviceConfig'
+import type { ArticleResultsPayload, PostSummaryDTO } from './ai'
 
 export interface AdminArticleDraftSnapshot {
   postId?: number | null
@@ -28,22 +29,6 @@ export interface ToolEventPayload {
   errorMessage?: string
 }
 
-export interface WritingDraftPayload {
-  title?: string
-  summary?: string
-  contentHtml?: string
-  categoryId?: number
-  categoryName?: string
-  tagIds?: number[]
-  tagNames?: string[]
-  suggestedCategoryName?: string
-  suggestedTagNames?: string[]
-  coverPrompt?: string
-  notes?: string
-  checks?: string[]
-  htmlSafe?: boolean
-}
-
 export interface FieldUpdatePayload {
   title?: string
   summary?: string
@@ -70,11 +55,11 @@ export interface AdminAgentRequest {
 }
 
 export interface AdminAgentHandlers {
+  onStart?: () => void
   onData?: (content: string) => void
-  onPlan?: (steps: AgentPlanStep[]) => void
+  onArticles?: (items: PostSummaryDTO[], payload: ArticleResultsPayload) => void
   onToolStart?: (payload: ToolEventPayload) => void
   onToolResult?: (payload: ToolEventPayload) => void
-  onWritingDraft?: (payload: WritingDraftPayload) => void
   onFieldUpdate?: (payload: FieldUpdatePayload) => void
   onComplete?: () => void
   onError?: (message: string) => void
@@ -155,20 +140,22 @@ export class AdminAgentService {
     }
     const p = payload as Record<string, unknown> | null
     switch (eventType) {
+      case 'start':
+        handlers.onStart?.()
+        break
       case 'data':
         handlers.onData?.((p?.content as string) || '')
         break
-      case 'agent-plan':
-        handlers.onPlan?.((p?.steps as AgentPlanStep[]) || [])
+      case 'article-results': {
+        const payload = asPayload<ArticleResultsPayload>(p)
+        handlers.onArticles?.(payload?.items || [], payload)
         break
+      }
       case 'tool-start':
         handlers.onToolStart?.(asPayload<ToolEventPayload>(p))
         break
       case 'tool-result':
         handlers.onToolResult?.(asPayload<ToolEventPayload>(p))
-        break
-      case 'writing-draft':
-        handlers.onWritingDraft?.(asPayload<WritingDraftPayload>(p))
         break
       case 'field-update':
         handlers.onFieldUpdate?.(asPayload<FieldUpdatePayload>(p))

@@ -105,7 +105,25 @@ const buildChatContext = (): Record<string, any> => {
     const n = parsePostId(route.params.id)
     if (Number.isFinite(n)) ctx.postId = n
   }
+  // 注入最近展示给用户的推荐记录，激活后端推荐上下文（追问"刚才推荐的文章"时保留上下文）
+  const recommendations = collectRecentRecommendation()
+  if (recommendations.length) ctx.recommendations = recommendations
   return ctx
+}
+
+// 从最近的消息里提取最近一组 article-results，构造后端 appendRecommendationContext 期望的 {reason, type, posts:[{id,title}]}
+const collectRecentRecommendation = () => {
+  for (let i = chatStore.messages.length - 1; i >= 0; i--) {
+    const msg = chatStore.messages[i]
+    if (msg.articleResults?.length) {
+      return [{
+        reason: msg.articleResultReason,
+        type: 'recommend',
+        posts: msg.articleResults.map(p => ({ id: p.id, title: p.title }))
+      }]
+    }
+  }
+  return []
 }
 
 let mediaPrimed = false
