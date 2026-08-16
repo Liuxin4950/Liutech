@@ -53,7 +53,7 @@ import { useRouter } from 'vue-router'
 import { PostService } from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
 import type { ProfileInfo} from '@/services/user'
-import { getAuthorProfile } from '@/services/user'
+import { getAuthorProfile, UserService } from '@/services/user'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useCategoryStore } from '@/stores/category'
 import { useTagStore } from '@/stores/tag'
@@ -172,11 +172,21 @@ const loadHotTags = async () => {
   await tagStore.fetchHotTags(10)
 }
 
-// 加载推荐文章
+// 加载推荐文章：登录用户走基于浏览历史的个性化推荐，未登录或失败回退热门
 const loadRecommendedPosts = async () => {
   await handleAsync(async () => {
     recommendedLoading.value = true
-    const response = await PostService.getLatestPosts(5)
+    // 登录用户优先用个性化推荐
+    if (UserService.isLoggedIn()) {
+      // 接口失败（如 token 过期）静默回退，不阻塞首页
+      const personalized = await PostService.getRecommendations(5).catch(() => null)
+      if (personalized && personalized.length > 0) {
+        recommendedPosts.value = personalized
+        return
+      }
+    }
+    // 未登录或个性化失败：回退热门文章
+    const response = await PostService.getHotPosts(5)
     recommendedPosts.value = response || []
   }, {
     onError: () => {
