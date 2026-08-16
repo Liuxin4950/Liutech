@@ -65,7 +65,16 @@ export class AgentService {
       if (response.status === 403) {
         throw new Error('当前身份不能执行该操作')
       }
-      throw new Error(`Agent 请求失败：${response.status}`)
+      // 读取后端返回的 JSON 错误信息（参数校验 400 等会带具体原因，如长度超限），
+      // 读不到时退回状态码提示，避免用户只看到"连接中断"。
+      let serverMessage = ''
+      try {
+        const errorBody = await response.json()
+        serverMessage = errorBody?.message || ''
+      } catch {
+        // 响应体不是 JSON（如网关错误页），忽略走状态码兜底
+      }
+      throw new Error(serverMessage || `Agent 请求失败：${response.status}`)
     }
 
     const reader = response.body.getReader()

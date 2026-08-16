@@ -4,6 +4,7 @@ import chat.liuxin.ai.common.utils.WebUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
@@ -67,6 +68,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         return createErrorResponse(ex.getReason() != null ? ex.getReason() : "请求失败", status);
+    }
+
+    /**
+     * 请求体参数校验失败（@Valid 触发，如消息长度超限）。
+     * 取第一条字段错误消息返回给前端，避免 SSE 请求落到兜底处理器时响应体为空、
+     * 前端只能看到"连接中断"而不知道真实原因。
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationException(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(fieldError -> fieldError.getDefaultMessage())
+                .orElse("请求参数不合法");
+        log.warn("参数校验失败: {}", message);
+        return createErrorResponse(message, HttpStatus.BAD_REQUEST);
     }
 
     /** 兜底：任何未处理的异常都归为 500，堆栈只写日志不返回前端，避免泄漏内部实现 */
