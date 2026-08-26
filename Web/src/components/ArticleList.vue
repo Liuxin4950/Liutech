@@ -208,9 +208,9 @@ function handleCategoryClick(categoryId: number) {
     color: var(--text-title);
     font-size: 1.25rem;
     padding-right: 70px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;// 换两行
+    overflow: hidden;// 超出部分隐藏，不显示滚动条等
+    text-overflow: ellipsis;// 超出部分省略号显示
     @include respond(md) {
       white-space: normal;
       padding-right: 0;

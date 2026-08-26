@@ -1,35 +1,7 @@
 @use "./tokens" as *;
 
-/* =================================
-   📐 设计语言（全站统一规范，新增/修改样式先对照这里）
-   ---------------------------------
-   [色彩]（令牌定义在 theme.css）
-   - primary 蓝：链接 / 按钮 / 强调图标 / 分类角标 / hover 填充
-   - secondary 琥珀橙：页面标题高亮词（title-highlight）/ 卡片标题图标与短条
-   - 标题一律 --text-title 深色；数据数字深色，不用主色；次级信息 muted/subtle
 
-   [形状]
-   - 卡片 12px 圆角；条目/图标块 8px；输入框 6px
-   - 胶囊：标签 20px；badge/面包屑/分类角标 30px
-   - 内容文本：条目标题 0.9rem / 标签 0.875rem / 次级信息 0.75rem
-
-   [标题体系]
-   - 页面级 .page-title：title-badge（primary 药丸）+ title-heading（深色）
-     + title-highlight（secondary 高亮词）
-   - 卡片级 .card-title：card-badge（primary 蓝色药丸，英文标签）+ card-title-text
-     （中文标题文本，关键词 card-highlight 橙色高亮）—— 页面标题组合设计的卡片级应用
-
-   [列表条目] .list-item：10px 12px padding / 8px 圆角 / 底部分隔线
-   （末项无）/ hover bg-hover
-
-   [间距] 8px 基数；卡片间 gap-lg(20px)；标题与内容 12px
-
-   [反馈] hover 背景 bg-hover；强调 hover 变 primary 填充
-   ================================= */
-
-/* =================================
-   字体
-   ================================= */
+/* 字体*/
 @font-face {
   font-family: 'DDFont';
   src: url('@/assets/font/dd.ttf');
@@ -37,13 +9,11 @@
   font-style: normal;
 }
 
-/* =================================
-   Reset
-   ================================= */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  outline: none;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
   /* 禁用移动端系统点击高亮（默认矩形半透明背景、无圆角，点击瞬间异常闪现） */
   -webkit-tap-highlight-color: transparent;
@@ -180,7 +150,7 @@ input {
   gap: 4px;
   padding: 3px 10px;
   border-radius: 20px;
-  font-size: 0.75rem;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-subtle);
   background: var(--bg-soft);
@@ -190,14 +160,17 @@ input {
 .tag {
   display: flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 4px;
   background: var(--bg-soft);
   color: var(--text-subtle);
   border-radius: 20px;
-  font-size: 0.875rem;
+  font-size: 12px;
   transition: all 0.2s ease;
   cursor: pointer;
   border: 1px solid transparent;
+  @include respond(md) {
+    font-size: 10px;
+  }
 
   &:hover {
     color: var(--color-primary);
@@ -230,6 +203,7 @@ input {
 
   @include respond(sm) {
     width: 100%;
+    padding: 10px;
   }
 }
 

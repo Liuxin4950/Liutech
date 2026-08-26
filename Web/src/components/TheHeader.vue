@@ -634,7 +634,6 @@ ol {
   position: relative;
   z-index: 1;
   padding: 10px 20px;
-  //同步最右侧导航栏高度
   height: 45px;
   border-radius: 25px;
   cursor: pointer;
@@ -643,11 +642,16 @@ ol {
   justify-content: center;
   gap: 5px;
   transition: all 0.3s ease;
-  
-  @include respond(md) {
+  @include respond(lg) {
     padding: 4px 8px;
     margin: 0 2px;
-    font-size: 14px;
+    font-size: 13px;
+  }
+
+  @include respond(md) {
+    padding: 2px 6px;
+    margin: 0 2px;
+    font-size: 12px;
   }
 }
 
