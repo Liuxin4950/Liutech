@@ -23,7 +23,7 @@
       <article
         v-for="post in posts"
         :key="post.id"
-        class="article-box flex gap-16 p-16 rounded-lg transition link card bg-card"
+        :class="['article-box', 'p-16', 'rounded-lg', 'transition', 'link', 'card', 'bg-card', { 'has-actions': $slots.actions }]"
         @click="$emit('post-click', post.id)"
       >
         <!-- 缩略图 -->
@@ -52,26 +52,33 @@
           </div>
 
           <div class="article-meta mt-8">
-            <div class="flex flex-ac gap-8 text-subtle">
-              <img
-                v-if="post.author?.avatarUrl"
-                :src="post.author.avatarUrl"
-                :alt="post.author.username"
-                class="rounded"
-                style="width: 24px; height: 24px; object-fit: cover"
-                @error="handleImageError"
-              />
-              <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
-            </div>
-            <div class="meta-stats flex gap-12 text-sm text-subtle">
-              <span class="flex flex-ac gap-4"><Icon name="eye" size="14" /> {{ post.viewCount || 0 }}</span>
-              <span class="flex flex-ac gap-4"><Icon name="heart" size="14" /> {{ post.likeCount || 0 }}</span>
-              <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount || 0 }}</span>
-              <span>{{ showViewedAt && post.viewedAt ? '浏览于 ' + formatDate(post.viewedAt) : formatDate(post.createdAt) }}</span>
-            </div>
+            <!-- meta 可定制（如草稿显示"更新于"而非统计），默认渲染作者+统计+日期 -->
+            <slot name="meta" :post="post">
+              <div class="flex flex-ac gap-8 text-subtle">
+                <img
+                  v-if="post.author?.avatarUrl"
+                  :src="post.author.avatarUrl"
+                  :alt="post.author.username"
+                  class="rounded"
+                  style="width: 24px; height: 24px; object-fit: cover"
+                  @error="handleImageError"
+                />
+                <span class="text-sm">{{ post.author?.username || '匿名用户' }}</span>
+              </div>
+              <div class="meta-stats flex gap-12 text-sm text-subtle">
+                <span class="flex flex-ac gap-4"><Icon name="eye" size="14" /> {{ post.viewCount || 0 }}</span>
+                <span class="flex flex-ac gap-4"><Icon name="heart" size="14" /> {{ post.likeCount || 0 }}</span>
+                <span class="flex flex-ac gap-4"><Icon name="message" size="14" /> {{ post.commentCount || 0 }}</span>
+                <span>{{ showViewedAt && post.viewedAt ? '浏览于 ' + formatDate(post.viewedAt) : formatDate(post.createdAt) }}</span>
+              </div>
+            </slot>
           </div>
         </div>
 
+        <!-- 操作按钮区：管理场景（我的文章/草稿）使用，未传则不渲染，不改变通用列表布局 -->
+        <div v-if="$slots.actions" class="post-actions">
+          <slot name="actions" :post="post" />
+        </div>
       </article>
     </div>
 
@@ -95,7 +102,7 @@ import defaultPostImage from '@/assets/image/err.png'
 
 const router = useRouter()
 
-const props = defineProps<{
+defineProps<{
   posts: any[]
   loading: boolean
   error: string
@@ -127,32 +134,34 @@ function handleCategoryClick(categoryId: number) {
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
-  .article-image{
-    width: 200px;
-    height: 200px;
-    position: absolute;
-    top: 0;
-    right: 0;
-    transform: translateY(-11px);
-      @include respond(md) {
-        display: none;
-      }
+.article-box {
+  position: relative;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
+
+  &.has-actions {
+    grid-template-columns: 240px minmax(0, 1fr) auto;
   }
 
-  .article-box{
-    position: relative;
-    @include respond(lg) {
-      flex-wrap: wrap;
+  @include respond(md) {
+    grid-template-columns: minmax(0, 1fr);
+
+    &.has-actions {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
+}
 
-  .article-content{
-    width: 100%;
-    min-width: 0; /* 允许文章内容区收缩，标题 nowrap 时触发省略号而不是撑破列 */
-  }
-  .article-content-box{
-    justify-content: space-around;
-  }
+.article-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.article-content-box {
+  justify-content: space-around;
+}
 
   .article-category {
     /* 分类角标：主题色药丸（与全局 tag / title-badge 语言统一） */
@@ -187,9 +196,11 @@ function handleCategoryClick(categoryId: number) {
   height: 170px;
   border-radius: 8px;
   overflow: hidden;
-   @include respond(md) {
-        width: 100%;
-        height: 200px;
+
+  @include respond(md) {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
   }
 }
 
@@ -208,11 +219,15 @@ function handleCategoryClick(categoryId: number) {
     color: var(--text-title);
     font-size: 1.25rem;
     padding-right: 70px;
-    white-space: normal;// 换两行
-    overflow: hidden;// 超出部分隐藏，不显示滚动条等
-    text-overflow: ellipsis;// 超出部分省略号显示
+    /* 两行截断：需配合 -webkit-box 布局，单独 overflow+ellipsis 只能截单行 */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    line-height: 1.4;
+    word-break: break-word;
     @include respond(md) {
-      white-space: normal;
       padding-right: 0;
     }
 }
@@ -238,6 +253,22 @@ function handleCategoryClick(categoryId: number) {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+}
+
+/* 操作按钮区（管理场景）：桌面端竖排在卡片右侧，移动端横向铺底 */
+.post-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+
+  @include respond(md) {
+    flex-direction: row;
+    width: 100%;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 12px;
   }
 }
 

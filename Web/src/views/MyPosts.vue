@@ -23,156 +23,104 @@
         <input v-model="activeState.searchKeyword" type="text" :placeholder="activeTab === 'posts' ? '搜索文章...' : '搜索草稿...'" class="search-input"
           @keyup.enter="handleSearch" />
       </div>
-      <button class="create-btn" @click="createNew">
+      <button class="btn-primary create-btn" @click="createNew">
         <Icon name="edit" size="16" />
         {{ activeTab === 'posts' ? '新建文章' : '新建草稿' }}
       </button>
     </div>
 
-    <!-- 列表 -->
-    <div class="posts-container">
-      <!-- 加载状态 -->
-      <div v-if="activeState.loading" class="loading-state text-sm">
-        <div class="loading-spinner"></div>
-        <p>加载中...</p>
-      </div>
-
-      <!-- 错误状态 -->
-      <div v-else-if="activeState.error" class="error-state text-sm">
-        <Icon name="close" size="40" class="error-icon" />
-        <p>{{ activeState.error }}</p>
-        <button class="retry-btn" @click="loadActive">重试</button>
-      </div>
-
-      <!-- 空状态 -->
-      <div v-else-if="filteredList.length === 0" class="empty-state flex flex-col flex-ac text-sm">
-        <h3>{{ activeTab === 'posts' ? '暂无文章' : '暂无草稿' }}</h3>
-        <p>{{ activeTab === 'posts' ? '开始创建您的第一篇文章吧！' : '开始创建您的第一篇草稿吧！' }}</p>
-        <img src="@/assets/image/扑到.png" alt="" class="fit-err">
-        <button class="create-btn" @click="createNew">
-          <Icon name="edit" size="16" />
-          {{ activeTab === 'posts' ? '新建文章' : '新建草稿' }}
-        </button>
-      </div>
-
-      <!-- 已发布文章列表 -->
-      <div v-else-if="activeTab === 'posts'" class="posts-list">
-        <div v-for="post in filteredList" :key="post.id" class="post-card bg-card">
-          <img v-if="post.thumbnail" class="fit" :src="post.thumbnail" alt="" loading="lazy" @error="handleImageError">
-          <img v-else-if="post.coverImage" class="fit" :src="post.coverImage" alt="" loading="lazy" @error="handleImageError">
-          <img v-else class="fit" src="@/assets/image/err.png" alt="" loading="lazy">
-
-          <div class="post-content flex flex-col gap-12">
-            <h3 class="post-title text-primary" @click="viewPost(post.id)">
-              {{ post.title }}
-            </h3>
-            <p class="post-summary text-base text-subtle" v-if="post.summary">
-              {{ post.summary }}
-            </p>
-            <div class="tags-cloud" v-if="post.tags && post.tags.length > 0">
-              <span @click.stop="goToTag(tag.id)" v-for="tag in post.tags" :key="tag.id" class="tag">
-                {{ tag.name }}
-              </span>
-            </div>
-
-            <div class="post-meta">
-              <span class="post-date">
-                <Icon name="calendar" size="14" class="meta-icon" />
-                发布于 {{ formatDate(post.createdAt) }}
-              </span>
-              <span class="post-category" v-if="post.category">
-                <Icon name="tag" size="14" class="meta-icon" />
-                {{ post.category.name }}
-              </span>
-              <span class="post-views">
-                <Icon name="eye" size="14" class="meta-icon" />
-                {{ post.viewCount || 0 }} 浏览
-              </span>
-              <span class="post-likes">
-                <Icon name="heart" size="14" class="meta-icon" />
-                {{ post.likeCount || 0 }} 点赞
-              </span>
-              <span class="post-comments">
-                <Icon name="message" size="14" class="meta-icon" />
-                {{ post.commentCount || 0 }} 评论
-              </span>
-            </div>
-          </div>
-
-          <div class="post-actions">
-            <button class="action-btn view-btn" @click="viewPost(post.id)" title="查看">
-              <Icon name="eye" size="16" />
-            </button>
-            <button class="action-btn edit-btn" @click="editPost(post.id)" title="编辑">
-              <Icon name="edit" size="16" />
-            </button>
-            <button
-              v-if="post.status === 'published'"
-              class="action-btn unpublish-btn"
-              @click="unpublishPost(post.id)"
-              title="取消发布"
-            >
-              <Icon name="upload" size="16" />
-            </button>
-            <button class="action-btn delete-btn" @click="deletePost(post.id)" title="删除">
-              <Icon name="trash" size="16" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 草稿列表 -->
-      <div v-else class="posts-list">
-        <div v-for="draft in filteredList" :key="draft.id" class="post-card bg-card">
-          <img v-if="draft.thumbnail" class="fit" :src="draft.thumbnail" alt="" loading="lazy" @error="handleImageError">
-          <img v-else-if="draft.coverImage" class="fit" :src="draft.coverImage" alt="" loading="lazy" @error="handleImageError">
-          <img v-else class="fit" src="@/assets/image/err.png" alt="" loading="lazy">
-          <div class="post-content flex flex-col gap-12">
-            <h3 class="post-title text-primary" @click="editDraft(draft.id)">
-              {{ draft.title || '无标题草稿' }}
-            </h3>
-            <p class="post-summary text-base text-subtle" v-if="draft.summary">
-              {{ draft.summary }}
-            </p>
-            <div class="tags-cloud" v-if="draft.tags && draft.tags.length > 0">
-              <span @click.stop="goToTag(tag.id)" v-for="tag in draft.tags" :key="tag.id" class="tag">
-                {{ tag.name }}
-              </span>
-            </div>
-            <div class="post-meta">
-              <span class="post-date">
-                <Icon name="calendar" size="14" class="meta-icon" />
-                更新于 {{ formatRelativeTime(draft.updatedAt || draft.createdAt) }}
-              </span>
-              <span class="post-category" v-if="draft.category">
-                <Icon name="tag" size="14" class="meta-icon" />
-                {{ draft.category.name }}
-              </span>
-            </div>
-          </div>
-
-          <div class="post-actions">
-            <button class="action-btn edit-btn" @click="editDraft(draft.id)" title="编辑">
-              <Icon name="edit" size="16" />
-            </button>
-            <button class="action-btn publish-btn" @click="publishDraft(draft.id)" title="发布">
-              <Icon name="rocket" size="16" />
-            </button>
-            <button class="action-btn delete-btn" @click="deleteDraft(draft.id)" title="删除">
-              <Icon name="trash" size="16" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 分页 -->
-    <Pagination
-      v-if="!activeState.loading && filteredList.length > 0"
-      :current-page="activeState.currentPage"
-      :total-pages="totalPages"
+    <!-- 列表：文章/草稿均复用通用 ArticleList，仅操作按钮与 meta 行定制 -->
+    <ArticleList
+      v-if="activeTab === 'posts'"
+      class="mt-8"
+      :posts="filteredPosts"
+      :loading="activeState.loading"
+      :error="activeState.error"
+      :pagination="paginationInfo"
+      @post-click="viewPost"
       @page-change="changePage"
-    />
+      @retry="loadActive"
+    >
+      <template #empty>
+        <h3>暂无文章</h3>
+        <p>开始创建您的第一篇文章吧！</p>
+        <button class="btn-primary" @click="createNew">
+          <Icon name="edit" size="16" />
+          新建文章
+        </button>
+      </template>
+      <template #actions="{ post }">
+        <button type="button" class="action-btn view-btn" aria-label="查看文章" @click.stop="viewPost(post.id)" title="查看">
+          <Icon name="eye" size="16" />
+          <span class="action-label">查看</span>
+        </button>
+        <button type="button" class="action-btn edit-btn" aria-label="编辑文章" @click.stop="editPost(post.id)" title="编辑">
+          <Icon name="edit" size="16" />
+          <span class="action-label">编辑</span>
+        </button>
+        <button
+          v-if="post.status === 'published'"
+          type="button"
+          class="action-btn unpublish-btn"
+          aria-label="取消发布"
+          @click.stop="unpublishPost(post.id)"
+          title="取消发布"
+        >
+          <Icon name="upload" size="16" />
+          <span class="action-label">下架</span>
+        </button>
+        <button type="button" class="action-btn delete-btn" aria-label="删除文章" @click.stop="deletePost(post.id)" title="删除">
+          <Icon name="trash" size="16" />
+          <span class="action-label">删除</span>
+        </button>
+      </template>
+    </ArticleList>
+
+    <ArticleList
+      v-else
+      :posts="filteredDrafts"
+      :loading="activeState.loading"
+      :error="activeState.error"
+      :pagination="paginationInfo"
+      @post-click="editDraft"
+      @page-change="changePage"
+      @retry="loadActive"
+    >
+      <template #empty>
+        <h3>暂无草稿</h3>
+        <p>开始创建您的第一篇草稿吧！</p>
+        <button class="btn-primary" @click="createNew">
+          <Icon name="edit" size="16" />
+          新建草稿
+        </button>
+      </template>
+      <template #meta="{ post }">
+        <div class="flex flex-ac gap-16 text-sm text-subtle">
+          <span>
+            <Icon name="calendar" size="14" class="meta-icon" />
+            更新于 {{ formatRelativeTime(post.updatedAt || post.createdAt) }}
+          </span>
+          <span v-if="post.category">
+            <Icon name="tag" size="14" class="meta-icon" />
+            {{ post.category.name }}
+          </span>
+        </div>
+      </template>
+      <template #actions="{ post }">
+        <button type="button" class="action-btn edit-btn" aria-label="编辑草稿" @click.stop="editDraft(post.id)" title="编辑">
+          <Icon name="edit" size="16" />
+          <span class="action-label">编辑</span>
+        </button>
+        <button type="button" class="action-btn publish-btn" aria-label="发布草稿" @click.stop="publishDraft(post.id)" title="发布">
+          <Icon name="rocket" size="16" />
+          <span class="action-label">发布</span>
+        </button>
+        <button type="button" class="action-btn delete-btn" aria-label="删除草稿" @click.stop="deleteDraft(post.id)" title="删除">
+          <Icon name="trash" size="16" />
+          <span class="action-label">删除</span>
+        </button>
+      </template>
+    </ArticleList>
   </div>
 </template>
 
@@ -181,11 +129,10 @@ import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { PostService, type PostListItem, type PageResponse } from '../services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
-import { formatDate, formatRelativeTime } from '@/utils/utils'
-import { handleImageError } from '@/composables/useImageFallback'
+import { formatRelativeTime } from '@/utils/utils'
 import { useBannerStore } from '@/stores/banner'
 import bannerFallback from '@/assets/image/banner/banner0.png'
-import Pagination from '@/components/Pagination.vue'
+import ArticleList from '@/components/ArticleList.vue'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
@@ -255,21 +202,30 @@ watch(() => route.query.tab, (tab) => {
 // tab 切换时 banner 标题联动（我的文章 ↔ 草稿箱）
 watch(activeTab, updateBanner)
 
-// 计算属性
-const filteredList = computed(() => {
-  const state = activeState.value
-  if (!state.searchKeyword) {
-    return state.list
-  }
-  return state.list.filter(item =>
-    item.title.toLowerCase().includes(state.searchKeyword.toLowerCase()) ||
-    (item.summary && item.summary.toLowerCase().includes(state.searchKeyword.toLowerCase()))
+// 计算属性：按关键字过滤（文章/草稿各自独立），草稿标题空时兜底
+const filterByKeyword = (list: PostListItem[]) => {
+  const keyword = activeState.value.searchKeyword
+  if (!keyword) return list
+  return list.filter(item =>
+    (item.title || '').toLowerCase().includes(keyword.toLowerCase()) ||
+    (item.summary && item.summary.toLowerCase().includes(keyword.toLowerCase()))
   )
-})
+}
 
-const totalPages = computed(() => {
+const filteredPosts = computed(() => filterByKeyword(postsState.list))
+const filteredDrafts = computed(() =>
+  filterByKeyword(draftsState.list).map(draft => ({ ...draft, title: draft.title || '无标题草稿' }))
+)
+
+// 通用列表分页参数（ArticleList 内部渲染分页器）
+const paginationInfo = computed(() => {
   const state = activeState.value
-  return Math.ceil(state.totalCount / state.pageSize)
+  return {
+    current: state.currentPage,
+    size: state.pageSize,
+    total: state.totalCount,
+    pages: Math.ceil(state.totalCount / state.pageSize)
+  }
 })
 
 // 方法
@@ -319,11 +275,6 @@ const switchTab = (tab: TabKey) => {
   if (activeState.value.list.length === 0 && !activeState.value.loading) {
     loadActive()
   }
-}
-
-// 跳转到标签页面
-const goToTag = (tagId: number) => {
-  router.push(`/tags/${tagId}`)
 }
 
 // 新建文章/草稿（同一编辑器，draft=true 默认草稿状态）
@@ -484,108 +435,15 @@ onMounted(() => {
   gap: 20px;
 }
 
+/* 尺寸/配色统一走全局 .btn-primary，这里仅保留防换行，避免与全局重复定义产生不一致 */
 .create-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background-color: var(--color-primary);
-  color: white;
-  border: none;
-  border-radius: 25px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s;
   white-space: nowrap;
 }
 
-.create-btn:hover {
-  background-color: var(--color-primary-dark);
-  transform: translateY(-2px);
-}
-
-.loading-state,
-.error-state,
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-}
-
-.error-icon,
-.empty-icon {
-  font-size: 3rem;
-  margin-bottom: 20px;
-}
-
-.posts-list {
-  display: grid;
-  gap: 20px;
-}
-
-.post-card {
-  border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  padding: 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  transition: all 0.3s;
-  gap: 20px;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.post-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-}
-
-.post-card>img {
-  width: 200px;
-  height: 150px;
-}
-
-.post-content {
-  flex: 1;
-}
-
-.post-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: color 0.3s;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.post-title:hover {
-  color: var(--color-primary);
-}
-
-.post-meta {
-  display: flex;
-  gap: 20px;
-  font-size: 0.9rem;
-  color: var(--text-main);
-  opacity: 0.7;
-  flex-wrap: wrap;
-}
+/* 卡片结构/状态/分页样式由通用 ArticleList 接管，这里只保留页面骨架与操作按钮配色 */
 
 .meta-icon {
   margin-right: 5px;
-}
-
-.post-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
 }
 
 .action-btn {
@@ -599,6 +457,10 @@ onMounted(() => {
   justify-content: center;
   transition: all 0.3s;
   font-size: 14px;
+}
+
+.action-label {
+  display: none;
 }
 
 .view-btn {
@@ -654,46 +516,26 @@ onMounted(() => {
 
   .actions-bar {
     flex-direction: column;
-    align-items: stretch;
+    /* 左对齐而非 stretch：避免"新建文章"按钮被拉成 100% 宽度 */
+    align-items: flex-start;
     gap: 12px;
   }
 
   .search-box {
     width: 100%;
+    max-width: 100%;
   }
 
-  .post-card {
-    flex-direction: column;
-    gap: 15px;
-    padding: 16px;
+  .action-btn {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    gap: 6px;
   }
 
-  .post-card>img {
-    width: 100%;
-    height: 180px;
-    object-fit: cover;
-    border-radius: 8px;
-  }
-
-  .post-title {
-    font-size: 1.1rem;
+  .action-label {
+    display: inline;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .post-actions {
-    align-self: stretch;
-    justify-content: flex-end;
-    margin-top: 10px;
-    border-top: 1px solid var(--border-soft);
-    padding-top: 12px;
-  }
-
-  .post-meta {
-    gap: 10px;
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
 
@@ -709,14 +551,6 @@ onMounted(() => {
   .tab-btn {
     flex: 1;
     justify-content: center;
-  }
-
-  .post-actions {
-    justify-content: space-between;
-  }
-
-  .action-btn {
-    flex: 1;
   }
 }
 </style>
