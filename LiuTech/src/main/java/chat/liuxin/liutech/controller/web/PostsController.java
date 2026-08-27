@@ -122,6 +122,16 @@ public class PostsController {
         return Result.success("查询成功", postsService.getLatestPosts(limit));
     }
 
+    /** 查询个性化推荐文章（需登录）：基于浏览历史推荐，不足用热门补足 */
+    @GetMapping("/recommendations")
+    public Result<List<PostListResp>> getRecommendations(@RequestParam(defaultValue = "5") Integer limit) {
+        Long currentUserId = userUtils.getCurrentUserId();
+        if (currentUserId == null) {
+            return Result.fail(ErrorCode.UNAUTHORIZED);
+        }
+        return Result.success("查询成功", postsService.getPersonalizedRecommendations(limit, currentUserId));
+    }
+
     /** 搜索文章（公开，仅已发布） */
     @GetMapping("/search")
     public Result<PageResp<PostListResp>> searchPosts(

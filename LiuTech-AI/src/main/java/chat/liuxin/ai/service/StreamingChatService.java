@@ -370,7 +370,8 @@ public class StreamingChatService {
                     log.error("流式响应错误，用户ID: {}, 会话ID: {}", userIdStr, conversationId, error);
                     String errorMsg = error != null ? error.getMessage() : "未知错误";
                     onError.accept(fullResponseRef.get().toString(), errorMsg);
-                    SseEmitterHelper.safeSendError(emitter, conversationId, errorMsg);
+                    // 发给前端的文案做友好映射，避免把 okhttp 堆栈术语直接丢给用户
+                    SseEmitterHelper.safeSendError(emitter, conversationId, toUserFriendlyError(errorMsg));
                     emitterClosed.set(true);
                     SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
                     emitter.completeWithError(error != null ? error : new RuntimeException("流式响应发生未知错误"));
@@ -652,6 +653,27 @@ public class StreamingChatService {
         if (fu.getSuggestedCategoryName() != null) map.put("suggestedCategoryName", fu.getSuggestedCategoryName());
         if (fu.getSuggestedTagNames() != null) map.put("suggestedTagNames", fu.getSuggestedTagNames());
         return map;
+    }
+
+    /**
+     * 把底层技术性错误文案转成用户可读的中文提示（发给前端的 error 事件用）。
+     * 原始错误仍完整记录在服务端日志里，这里只做展示层映射，不丢排查信息。
+     */
+    private String toUserFriendlyError(String rawMessage) {
+        if (rawMessage == null || rawMessage.isBlank()) {
+            return "AI 服务暂时不可用，请稍后重试";
+        }
+        String msg = rawMessage.toLowerCase();
+        if (msg.contains("timeout")) {
+            return "AI 响应超时：内容较多时模型思考时间会变长，请稍后重试，或将内容分段后分次处理";
+        }
+        if (msg.contains("context") || msg.contains("token") || msg.contains("length") || msg.contains("maximum")) {
+            return "输入内容过长，已超出模型单次处理的上下文范围，请精简后再试";
+        }
+        if (msg.contains("busy") || msg.contains("429") || msg.contains("rate") || msg.contains("quota")) {
+            return "AI 服务当前繁忙，请稍后重试";
+        }
+        return "AI 生成失败：" + rawMessage;
     }
 
 }

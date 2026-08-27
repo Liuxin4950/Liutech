@@ -239,6 +239,38 @@ export class PostService {
   }
 
   /**
+   * 获取热门文章（按点赞、评论、访问量综合热度排序）
+   * @param limit 返回数量，默认10
+   * @returns 热门文章列表
+   */
+  static async getHotPosts(limit: number = 10): Promise<PostListItem[]> {
+    try {
+      const response = await get('/posts/hot', { limit })
+      return response.data
+    } catch (error) {
+      console.error('获取热门文章失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取个性化推荐文章（需登录）
+   * 基于浏览历史推荐同分类/同标签的未读文章，不足时后端用热门补足。
+   * 未登录调用会返回 401，调用方应回退到 getHotPosts。
+   * @param limit 返回数量，默认5
+   * @returns 推荐文章列表
+   */
+  static async getRecommendations(limit: number = 5): Promise<PostListItem[]> {
+    try {
+      const response = await get('/posts/recommendations', { limit })
+      return response.data
+    } catch (error) {
+      console.error('获取个性化推荐失败:', error)
+      throw error
+    }
+  }
+
+  /**
    * 创建文章
    * @param postData 文章数据
    * @returns 创建结果

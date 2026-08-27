@@ -2,8 +2,10 @@ package chat.liuxin.liutech.service;
 
 import java.util.Date;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
@@ -15,6 +17,7 @@ import org.springframework.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -25,8 +28,10 @@ import chat.liuxin.liutech.mapper.PostTagsMapper;
 import chat.liuxin.liutech.mapper.PostLikesMapper;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
+import chat.liuxin.liutech.mapper.UserViewHistoryMapper;
 import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.Resources;
+import chat.liuxin.liutech.model.UserViewHistory;
 import chat.liuxin.liutech.vo.PostAttachmentVO;
 import chat.liuxin.liutech.vo.PostTagRowVO;
 import chat.liuxin.liutech.model.PostTags;
@@ -64,6 +69,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     private final PostFavoritesMapper postFavoritesMapper;
 
     private final PostAttachmentsMapper postAttachmentsMapper;
+
+    private final UserViewHistoryMapper userViewHistoryMapper;
 
     private final ResourceDownloadService resourceDownloadService;
 
@@ -326,6 +333,53 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
         List<PostListResp> posts = postsMapper.selectLatestPostListResp(limit, userId);
         fillTags(posts);
         return posts;
+    }
+
+    /**
+     * 查询个性化推荐文章（需登录用户）
+     * 基于浏览历史推荐同分类/同标签的未读文章，数量不足时用热门文章补足。
+     *
+     * @param limit  返回数量
+     * @param userId 当前用户ID
+     * @return 推荐文章列表（最多 limit 条，不含用户已浏览过的文章）
+     */
+    @Transactional(readOnly = true)
+    public List<PostListResp> getPersonalizedRecommendations(Integer limit, Long userId) {
+        // 用户已浏览过的文章ID集合：推荐结果里不重复出现已读文章
+        Set<Long> viewedIds = userViewHistoryMapper.selectList(
+                        new LambdaQueryWrapper<UserViewHistory>()
+                                .select(UserViewHistory::getPostId)
+                                .eq(UserViewHistory::getUserId, userId))
+                .stream()
+                .map(UserViewHistory::getPostId)
+                .collect(Collectors.toSet());
+
+        // 第一步：基于浏览历史的相关度推荐（SQL 已排除已读文章）
+        List<PostListResp> recommended = new ArrayList<>(
+                postsMapper.selectRecommendedPostListResp(limit, userId));
+        fillTags(recommended);
+
+        // 第二步：不足 limit 时用热门文章补足，跳过已读和已推荐的
+        if (recommended.size() < limit) {
+            Set<Long> existingIds = recommended.stream()
+                    .map(PostListResp::getId)
+                    .collect(Collectors.toCollection(HashSet::new));
+            List<PostListResp> hotPosts = postsMapper.selectHotPostListResp(limit, userId);
+            fillTags(hotPosts);
+            for (PostListResp hot : hotPosts) {
+                if (existingIds.contains(hot.getId()) || viewedIds.contains(hot.getId())) {
+                    continue;
+                }
+                recommended.add(hot);
+                existingIds.add(hot.getId());
+                if (recommended.size() >= limit) {
+                    break;
+                }
+            }
+        }
+
+        log.debug("个性化推荐结果: userId={}, 返回{}篇", userId, recommended.size());
+        return recommended;
     }
 
     /**

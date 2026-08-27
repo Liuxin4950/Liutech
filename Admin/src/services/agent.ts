@@ -1,16 +1,11 @@
 import type {
-  AgentActionResult,
   AgentChatRequest,
   AgentCompletePayload,
   AgentErrorPayload,
-  AgentStartPayload,
   ArticleResultsPayload,
   ArticleResultItem,
-  ConfirmationRequiredPayload,
-  AgentPlanStep,
   ToolEventPayload,
   DataPayload,
-  WritingDraftPayload,
   FieldUpdatePayload,
 } from '../types/agent'
 import { getAiBaseUrl } from './aiClient'
@@ -35,15 +30,11 @@ interface SseEnvelope<T = unknown> {
 }
 
 export interface AgentStreamHandlers {
+  onStart?: () => void
   onData?: (content: string) => void
-  onPlan?: (steps: AgentPlanStep[]) => void
   onArticles?: (items: ArticleResultItem[], payload: ArticleResultsPayload) => void
-  onConfirmation?: (payload: ConfirmationRequiredPayload) => void
-  onActionResult?: (payload: AgentActionResult) => void
-  onStart?: (payload: AgentStartPayload) => void
   onToolStart?: (payload: ToolEventPayload) => void
   onToolResult?: (payload: ToolEventPayload) => void
-  onWritingDraft?: (payload: WritingDraftPayload) => void
   onFieldUpdate?: (payload: FieldUpdatePayload) => void
   onError?: (message: string, code?: string) => void
   onComplete?: (payload: AgentCompletePayload) => void
@@ -74,7 +65,16 @@ export class AgentService {
       if (response.status === 403) {
         throw new Error('当前身份不能执行该操作')
       }
-      throw new Error(`Agent 请求失败：${response.status}`)
+      // 读取后端返回的 JSON 错误信息（参数校验 400 等会带具体原因，如长度超限），
+      // 读不到时退回状态码提示，避免用户只看到"连接中断"。
+      let serverMessage = ''
+      try {
+        const errorBody = await response.json()
+        serverMessage = errorBody?.message || ''
+      } catch {
+        // 响应体不是 JSON（如网关错误页），忽略走状态码兜底
+      }
+      throw new Error(serverMessage || `Agent 请求失败：${response.status}`)
     }
 
     const reader = response.body.getReader()
@@ -107,6 +107,12 @@ export class AgentService {
    * 支持两种格式：
    * 1. 新版 envelope 格式（contractVersion=1）
    * 2. 旧版裸 payload 格式
+   *
+   * 事件集合与后端 StreamingChatService 实际下发严格对齐：
+   * start/data/heartbeat/avatar-cue/audio/audio-skip/field-update/tool-start/
+   * tool-result/article-results/complete/audio-complete/error。
+   * 本服务只消费写作助手需要的事件（data/article-results/tool-start/tool-result/
+   * field-update/complete/error），heartbeat/avatar-cue/audio 由看板娘侧处理。
    */
   private static handleEvent(eventText: string, handlers: AgentStreamHandlers, flags?: { complete?: () => void; error?: () => void }) {
     const lines = eventText.split('\n')
@@ -134,19 +140,13 @@ export class AgentService {
 
     // 根据 eventType 分发到对应 handler
     switch (eventType) {
+      case 'start':
+        handlers.onStart?.()
+        break
+
       case 'data': {
         const dataPayload = payload as DataPayload
         handlers.onData?.(dataPayload?.content || '')
-        break
-      }
-
-      case 'agent-start':
-        handlers.onStart?.(payload as AgentStartPayload)
-        break
-
-      case 'agent-plan': {
-        const planPayload = payload as { steps?: AgentPlanStep[] }
-        handlers.onPlan?.(planPayload?.steps || [])
         break
       }
 
@@ -156,24 +156,12 @@ export class AgentService {
         break
       }
 
-      case 'confirmation-required':
-        handlers.onConfirmation?.(payload as ConfirmationRequiredPayload)
-        break
-
-      case 'action-result':
-        handlers.onActionResult?.(payload as AgentActionResult)
-        break
-
       case 'tool-start':
         handlers.onToolStart?.(payload as ToolEventPayload)
         break
 
       case 'tool-result':
         handlers.onToolResult?.(payload as ToolEventPayload)
-        break
-
-      case 'writing-draft':
-        handlers.onWritingDraft?.(payload as WritingDraftPayload)
         break
 
       case 'field-update':

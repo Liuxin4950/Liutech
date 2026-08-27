@@ -564,6 +564,69 @@
         LIMIT #{limit}
     </select>
 
+    <!-- 查询个性化推荐文章列表（返回PostListResp）
+         基于用户浏览历史打分：
+         - 分类命中：文章分类出现在用户浏览过的分类里，+2 分
+         - 标签重合：与用户浏览过的标签重合，每个标签 +1 分
+         排除用户已浏览过的文章，按得分降序（同分按热度降序）。 -->
+    <select id="selectRecommendedPostListResp" resultMap="PostListRespMap">
+        SELECT
+            p.id,
+            p.title,
+            p.summary,
+            p.cover_image,
+            p.thumbnail,
+            p.category_id,
+            p.author_id,
+            p.series_id,
+            p.series_sort,
+            p.status,
+            p.view_count,
+            p.like_count,
+            p.favorite_count,
+            p.created_at,
+            p.updated_at,
+            c.id as cat_id,
+            c.name as cat_name,
+            s.name as series_name,
+            u.id as author_user_id,
+            u.username as author_username,
+            u.avatar_url as author_avatar_url,
+            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
+            CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status,
+            -- 相关度得分：分类命中 2 分 + 标签重合数
+            (
+                CASE WHEN p.category_id IN (
+                    SELECT DISTINCT hp.category_id
+                    FROM user_view_history hv
+                    INNER JOIN posts hp ON hp.id = hv.post_id AND hp.deleted_at IS NULL
+                    WHERE hv.user_id = #{userId}
+                ) THEN 2 ELSE 0 END
+                +
+                (SELECT COUNT(*)
+                 FROM post_tags pt
+                 WHERE pt.post_id = p.id
+                 AND pt.tag_id IN (
+                     SELECT DISTINCT ht.tag_id
+                     FROM user_view_history hv2
+                     INNER JOIN post_tags ht ON ht.post_id = hv2.post_id
+                     WHERE hv2.user_id = #{userId}
+                 ))
+            ) AS relevance_score
+        FROM posts p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1
+        LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1
+        WHERE p.deleted_at IS NULL
+        AND p.status = 'published'
+        AND p.id NOT IN (SELECT post_id FROM user_view_history WHERE user_id = #{userId})
+        ORDER BY relevance_score DESC, (p.view_count * 0.3 + p.like_count * 0.4 + p.favorite_count * 0.3) DESC, p.created_at DESC
+        LIMIT #{limit}
+    </select>
+
 
     <!-- 查询当前用户的收藏文章列表（返回PostListResp） -->
     <select id="selectFavoritePostList" resultMap="PostListRespMap">

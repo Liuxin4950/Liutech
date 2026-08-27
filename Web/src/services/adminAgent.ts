@@ -1,4 +1,5 @@
 import { getServiceBaseURL, ServiceType } from '@/services/serviceConfig'
+import type { ArticleResultsPayload, PostSummaryDTO } from './ai'
 
 export interface AdminArticleDraftSnapshot {
   postId?: number | null
@@ -28,22 +29,6 @@ export interface ToolEventPayload {
   errorMessage?: string
 }
 
-export interface WritingDraftPayload {
-  title?: string
-  summary?: string
-  contentHtml?: string
-  categoryId?: number
-  categoryName?: string
-  tagIds?: number[]
-  tagNames?: string[]
-  suggestedCategoryName?: string
-  suggestedTagNames?: string[]
-  coverPrompt?: string
-  notes?: string
-  checks?: string[]
-  htmlSafe?: boolean
-}
-
 export interface FieldUpdatePayload {
   title?: string
   summary?: string
@@ -70,11 +55,11 @@ export interface AdminAgentRequest {
 }
 
 export interface AdminAgentHandlers {
+  onStart?: () => void
   onData?: (content: string) => void
-  onPlan?: (steps: AgentPlanStep[]) => void
+  onArticles?: (items: PostSummaryDTO[], payload: ArticleResultsPayload) => void
   onToolStart?: (payload: ToolEventPayload) => void
   onToolResult?: (payload: ToolEventPayload) => void
-  onWritingDraft?: (payload: WritingDraftPayload) => void
   onFieldUpdate?: (payload: FieldUpdatePayload) => void
   onComplete?: () => void
   onError?: (message: string) => void
@@ -106,7 +91,16 @@ export class AdminAgentService {
 
     if (!response.ok || !response.body) {
       if (response.status === 403) throw new Error('当前身份不能使用管理员写作助手')
-      throw new Error(`写作助手请求失败：${response.status}`)
+      // 读取后端返回的 JSON 错误信息（参数校验 400 等会带具体原因，如长度超限），
+      // 读不到时退回状态码提示，避免用户只看到"连接中断"。
+      let serverMessage = ''
+      try {
+        const errorBody = await response.json()
+        serverMessage = errorBody?.message || ''
+      } catch {
+        // 响应体不是 JSON（如网关错误页），忽略走状态码兜底
+      }
+      throw new Error(serverMessage || `写作助手请求失败：${response.status}`)
     }
 
     const reader = response.body.getReader()
@@ -155,20 +149,22 @@ export class AdminAgentService {
     }
     const p = payload as Record<string, unknown> | null
     switch (eventType) {
+      case 'start':
+        handlers.onStart?.()
+        break
       case 'data':
         handlers.onData?.((p?.content as string) || '')
         break
-      case 'agent-plan':
-        handlers.onPlan?.((p?.steps as AgentPlanStep[]) || [])
+      case 'article-results': {
+        const payload = asPayload<ArticleResultsPayload>(p)
+        handlers.onArticles?.(payload?.items || [], payload)
         break
+      }
       case 'tool-start':
         handlers.onToolStart?.(asPayload<ToolEventPayload>(p))
         break
       case 'tool-result':
         handlers.onToolResult?.(asPayload<ToolEventPayload>(p))
-        break
-      case 'writing-draft':
-        handlers.onWritingDraft?.(asPayload<WritingDraftPayload>(p))
         break
       case 'field-update':
         handlers.onFieldUpdate?.(asPayload<FieldUpdatePayload>(p))

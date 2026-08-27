@@ -95,7 +95,8 @@ public final class SecurityWhitelist {
             "/posts/my",
             "/posts/drafts",
             "/posts/favorites",
-            "/posts/view-history"
+            "/posts/view-history",
+            "/posts/recommendations"
     );
 
     // ==================== 匹配工具方法 ====================

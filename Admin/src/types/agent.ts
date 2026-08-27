@@ -10,22 +10,6 @@ export interface AdminArticleDraftSnapshot {
   thumbnail?: string
 }
 
-export interface WritingDraftPayload {
-  title?: string
-  summary?: string
-  contentHtml?: string
-  categoryId?: number
-  categoryName?: string
-  tagIds?: number[]
-  tagNames?: string[]
-  suggestedCategoryName?: string
-  suggestedTagNames?: string[]
-  coverPrompt?: string
-  notes?: string
-  checks?: string[]
-  htmlSafe?: boolean
-}
-
 export interface TempMessage {
   role: 'user' | 'assistant'
   content: string
@@ -66,24 +50,6 @@ export interface ArticleResultsPayload {
   items: ArticleResultItem[]
 }
 
-export interface ConfirmationRequiredPayload {
-  actionId: number
-  actionType: string
-  title: string
-  description: string
-  preview?: AdminArticleDraftSnapshot | WritingDraftPayload | Record<string, unknown>
-  riskLevel?: string
-}
-
-export interface AgentActionResult {
-  success: boolean
-  message: string
-  actionId: number
-  actionType?: string
-  status?: string
-  target?: unknown
-}
-
 export interface AgentCompletePayload {
   taskId?: number
   conversationId?: number
@@ -93,14 +59,6 @@ export interface AgentErrorPayload {
   code?: string
   message?: string
   stage?: string
-}
-
-export interface AgentStartPayload {
-  taskId?: number
-  conversationId?: number
-  intent?: string
-  role?: 'guest' | 'user' | 'admin' | string
-  capabilities?: string[]
 }
 
 /**
@@ -115,8 +73,6 @@ export interface ToolEventPayload {
   resultSummary?: string
   errorMessage?: string
 }
-
-export interface WritingDraftEventPayload extends WritingDraftPayload {}
 
 export interface FieldUpdatePayload {
   title?: string
@@ -136,4 +92,3 @@ export interface FieldUpdatePayload {
 export interface DataPayload {
   content: string
 }
-

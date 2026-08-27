@@ -38,6 +38,11 @@
         <span>{{ latestTool.displayName || latestTool.toolName }}</span>
         <em>{{ compactToolStatus(latestTool) }}</em>
       </div>
+      <div v-if="contentCharCount > 0" class="trace-row content-progress">
+        <span class="trace-dot"></span>
+        <span>生成正文</span>
+        <em>{{ contentCharCount }} 字</em>
+      </div>
     </section>
 
     <p v-if="applyNotice" class="assistant-success">{{ applyNotice }}</p>
@@ -56,13 +61,34 @@
       >{{ previewText }}</div>
     </section>
 
+    <!-- AI 引用的关联文章 -->
+    <section v-if="articleResults.length" class="assistant-section article-results">
+      <div class="answer-header">
+        <span class="answer-title">{{ articleResultReason }}</span>
+      </div>
+      <div class="article-result-list">
+        <a
+          v-for="post in articleResults"
+          :key="post.id"
+          class="article-result-item"
+          :href="`/post/${post.id}`"
+          target="_blank"
+          rel="noopener"
+        >
+          <span class="article-result-title">{{ post.title }}</span>
+          <span class="article-result-arrow">›</span>
+        </a>
+      </div>
+    </section>
+
     <p v-if="error" class="assistant-error">{{ error }}</p>
   </aside>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AdminAgentService, type AdminArticleDraftSnapshot, type AgentPlanStep, type ToolEventPayload, type WritingDraftPayload, type FieldUpdatePayload, type TempMessage } from '@/services/adminAgent'
+import { AdminAgentService, type AdminArticleDraftSnapshot, type AgentPlanStep, type ToolEventPayload, type FieldUpdatePayload, type TempMessage } from '@/services/adminAgent'
+import type { PostSummaryDTO } from '@/services/ai'
 
 const props = defineProps<{
   draft: AdminArticleDraftSnapshot
@@ -84,6 +110,9 @@ type AssistantStep = AgentPlanStep & { status: StepStatus }
 const plan = ref<AssistantStep[]>([])
 const toolEvents = ref<Array<ToolEventPayload & { status: 'running' | 'success' | 'failed' }>>([])
 const applyNotice = ref('')
+const articleResults = ref<PostSummaryDTO[]>([])
+const articleResultReason = ref('')
+const contentCharCount = ref(0)
 let noticeTimer: number | undefined
 type RequestedField = 'title' | 'summary' | 'content' | 'category' | 'tags' | 'check'
 type FieldScope = {
@@ -163,8 +192,7 @@ const processPercent = computed(() => {
 })
 
 const latestTool = computed(() => {
-  const safeTools = toolEvents.value.filter(tool => tool.toolName !== 'admin.generateWritingHtml' || tool.status === 'running')
-  return safeTools[safeTools.length - 1]
+  return toolEvents.value[toolEvents.value.length - 1]
 })
 
 const compactToolStatus = (tool: ToolEventPayload & { status: 'running' | 'success' | 'failed' }) => {
@@ -290,7 +318,6 @@ const showApplyNotice = (message: string) => {
 const TOOL_STEP_MAP: Record<string, string> = {
   'admin.listCategories': 'taxonomy',
   'admin.listTags': 'taxonomy',
-  'admin.generateWritingHtml': 'html',
   'public.getArticleDetail': 'context',
 }
 
@@ -312,6 +339,9 @@ const send = async (text?: string) => {
   plan.value = []
   toolEvents.value = []
   applyNotice.value = ''
+  articleResults.value = []
+  articleResultReason.value = ''
+  contentCharCount.value = 0
   prompt.value = ''
   activeFieldScope.value = inferFieldScope(content)
   try {
@@ -327,12 +357,17 @@ const send = async (text?: string) => {
         appendTags: activeFieldScope.value.appendTags
       }
     }, {
+      onStart: () => {
+        progressTo('understand', 'running')
+      },
       onData: chunk => {
         answer.value += chunk
+        contentCharCount.value += chunk.length
         progressTo('html', 'running')
       },
-      onPlan: steps => {
-        normalizePlan(steps)
+      onArticles: (items, payload) => {
+        articleResults.value = items || []
+        articleResultReason.value = payload?.reason || '这些文章可以继续阅读'
       },
       onToolStart: payload => {
         const stepKey = inferStepKey(payload)
@@ -349,22 +384,6 @@ const send = async (text?: string) => {
           if (payload.success === false) setStepStatus(stepKey, 'failed')
           else completeUpTo(stepKey)
         }
-      },
-      onWritingDraft: payload => {
-        // Convert WritingDraftPayload to FieldUpdatePayload and emit
-        const fieldUpdate: FieldUpdatePayload = {
-          title: payload.title,
-          summary: payload.summary,
-          contentHtml: payload.contentHtml,
-          categoryId: payload.categoryId,
-          categoryName: payload.categoryName,
-          tagIds: payload.tagIds,
-          tagNames: payload.tagNames,
-          suggestedCategoryName: payload.suggestedCategoryName,
-          suggestedTagNames: payload.suggestedTagNames
-        }
-        emitScopedUpdate(fieldUpdate)
-        completeWritingPlan()
       },
       onFieldUpdate: payload => {
         emitScopedUpdate(payload)
@@ -658,6 +677,39 @@ textarea:focus {
   background: rgba(42, 157, 143, 0.12);
   color: var(--color-success);
   font-size: 13px;
+}
+
+.article-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.article-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.article-result-item:hover {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+.article-result-title {
+  font-size: 13px;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.article-result-arrow {
+  color: var(--text-subtle);
+  font-size: 16px;
+  flex-shrink: 0;
 }
 </style>
 

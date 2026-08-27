@@ -29,6 +29,10 @@ spring:
       # Docker部署通过 docker-compose 的 SPRING_AI_OPENAI_API_KEY 注入
       base-url: https://api.siliconflow.cn
       api-key: ${SPRING_AI_OPENAI_API_KEY}
+      # 上游调用超时（okhttp connect/read/write/call）。Spring AI 2.0 默认仅 60s，
+      # 大输入时 DeepSeek 首 token（prefill）超过 60s 会被本地掐断（Stream failed / stream reset: CANCEL）。
+      # 提到 300s 与 SSE 超时对齐，大文本写作不会再误报超时。
+      timeout: 300s
       chat:
         options:
           model: "deepseek-ai/DeepSeek-V3.2"

@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { SendOutlined, CheckCircleOutlined, FileAddOutlined } from '@ant-design/icons-vue'
+import { SendOutlined } from '@ant-design/icons-vue'
 import AgentService from '../../services/agent'
 import type {
   AdminArticleDraftSnapshot,
   AgentPlanStep,
   ArticleResultItem,
-  ConfirmationRequiredPayload,
-  AgentActionResult,
-  AgentStartPayload,
   ToolEventPayload,
-  WritingDraftPayload,
   FieldUpdatePayload,
   TempMessage,
 } from '../../types/agent'
@@ -22,7 +18,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   fieldUpdate: [payload: FieldUpdatePayload]
-  actionDone: [result?: AgentActionResult]
 }>()
 
 const prompt = ref('')
@@ -37,9 +32,8 @@ type AssistantStep = AgentPlanStep & { status: StepStatus }
 
 const plan = ref<AssistantStep[]>([])
 const articles = ref<ArticleResultItem[]>([])
-const confirmation = ref<ConfirmationRequiredPayload | null>(null)
 const toolEvents = ref<Array<ToolEventPayload & { status: 'running' | 'success' | 'failed' }>>([])
-const agentStart = ref<AgentStartPayload | null>(null)
+const contentCharCount = ref(0)
 type RequestedField = 'title' | 'summary' | 'content' | 'category' | 'tags' | 'check'
 type FieldScope = {
   fields: RequestedField[]
@@ -93,8 +87,7 @@ const processPercent = computed(() => {
   return Math.min(100, Math.round(((completed + runningBonus) / steps.length) * 100))
 })
 const latestTool = computed(() => {
-  const safeTools = toolEvents.value.filter(tool => tool.toolName !== 'admin.generateWritingHtml' || tool.status === 'running')
-  return safeTools[safeTools.length - 1]
+  return toolEvents.value[toolEvents.value.length - 1]
 })
 
 const normalizePlan = (steps: AgentPlanStep[]) => {
@@ -163,7 +156,6 @@ const statusLabel = (status: StepStatus) => ({
 const TOOL_STEP_MAP: Record<string, string> = {
   'admin.listCategories': 'taxonomy',
   'admin.listTags': 'taxonomy',
-  'admin.generateWritingHtml': 'html',
   'public.getArticleDetail': 'context',
 }
 
@@ -257,10 +249,9 @@ const send = async (text?: string) => {
   answer.value = ''; showFullAnswer.value = false
   plan.value = []
   articles.value = []
-  confirmation.value = null
   toolEvents.value = []
-  agentStart.value = null
   applyNotice.value = ''
+  contentCharCount.value = 0
   prompt.value = ''
   activeFieldScope.value = inferFieldScope(content)
 
@@ -278,17 +269,13 @@ const send = async (text?: string) => {
         },
       },
       {
+        onStart: () => {
+          progressTo('understand', 'running')
+        },
         onData: (chunk) => {
           answer.value += chunk
+          contentCharCount.value += chunk.length
           progressTo('html', 'running')
-        },
-        // SSE 事件（2026-07-09 起后端已全部实现）：写作步骤追踪 onPlan/onToolStart/onToolResult、
-        // 字段自动写入 onWritingDraft/onFieldUpdate、确认流程 onConfirmation、文章结果 onArticles。
-        onPlan: (steps) => {
-          normalizePlan(steps)
-        },
-        onStart: (payload) => {
-          agentStart.value = payload
         },
         onToolStart: (payload) => {
           const stepKey = inferStepKey(payload)
@@ -311,23 +298,6 @@ const send = async (text?: string) => {
         },
         onArticles: (items) => {
           articles.value = items
-        },
-        onConfirmation: (payload) => {
-          confirmation.value = payload
-        },
-        onWritingDraft: (payload) => {
-          const fields: FieldUpdatePayload = {}
-          if (payload.title) fields.title = payload.title
-          if (payload.summary) fields.summary = payload.summary
-          if (payload.contentHtml) fields.contentHtml = payload.contentHtml
-          if (payload.categoryId) fields.categoryId = payload.categoryId
-          if (payload.categoryName) fields.categoryName = payload.categoryName
-          if (payload.tagIds?.length) fields.tagIds = payload.tagIds
-          if (payload.tagNames?.length) fields.tagNames = payload.tagNames
-          if (payload.suggestedCategoryName) fields.suggestedCategoryName = payload.suggestedCategoryName
-          if (payload.suggestedTagNames?.length) fields.suggestedTagNames = payload.suggestedTagNames
-          emitScopedUpdate(fields)
-          completeWritingPlan()
         },
         onFieldUpdate: (payload) => {
           emitScopedUpdate(payload)
@@ -354,22 +324,6 @@ const send = async (text?: string) => {
       history.value.push({ role: 'user', content })
       history.value.push({ role: 'assistant', content: answer.value })
     }
-  }
-}
-
-const applyPreview = () => {
-  const preview = confirmation.value?.preview as AdminArticleDraftSnapshot | undefined
-  if (!preview) return
-  // Convert preview to field updates
-  const fields: FieldUpdatePayload = {}
-  if ('title' in preview && preview.title) fields.title = preview.title as string
-  if ('summary' in preview && preview.summary) fields.summary = preview.summary as string
-  if ('contentHtml' in preview && (preview as any).contentHtml) fields.contentHtml = (preview as any).contentHtml as string
-  if ('content' in preview && (preview as any).content) fields.contentHtml = (preview as any).content as string
-  if ('categoryId' in preview && (preview as any).categoryId) fields.categoryId = (preview as any).categoryId as number
-  if ('tagIds' in preview && (preview as any).tagIds?.length) fields.tagIds = (preview as any).tagIds as number[]
-  if (Object.keys(fields).length > 0) {
-    emit('fieldUpdate', fields)
   }
 }
 </script>
@@ -413,10 +367,6 @@ const applyPreview = () => {
         <span>执行过程</span>
         <strong>{{ currentProcessLabel }}</strong>
       </div>
-      <div v-if="agentStart" class="agent-meta">
-        <a-tag color="blue">{{ agentStart.intent || 'AGENT' }}</a-tag>
-        <a-tag>{{ agentStart.role || 'unknown' }}</a-tag>
-      </div>
       <div class="process-bar" aria-hidden="true">
         <span :style="{ width: `${processPercent}%` }"></span>
       </div>
@@ -431,6 +381,11 @@ const applyPreview = () => {
         <span class="trace-dot"></span>
         <span>{{ latestTool.displayName || latestTool.toolName }}</span>
         <em>{{ compactToolStatus(latestTool) }}</em>
+      </div>
+      <div v-if="contentCharCount > 0" class="trace-row content-progress">
+        <span class="trace-dot"></span>
+        <span>生成正文</span>
+        <em>{{ contentCharCount }} 字</em>
       </div>
     </div>
 
@@ -462,20 +417,6 @@ const applyPreview = () => {
       </a-list>
     </div>
 
-    <a-alert
-      v-if="confirmation"
-      class="agent-section"
-      type="warning"
-      show-icon
-      :message="confirmation.title"
-      :description="confirmation.description"
-    />
-    <div v-if="confirmation" class="confirm-actions">
-      <a-button size="small" @click="applyPreview">
-        <template #icon><FileAddOutlined /></template>
-        应用预览到表单
-      </a-button>
-    </div>
   </aside>
 </template>
 

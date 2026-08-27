@@ -241,7 +241,7 @@ Liutech/
 |------|------------------|
 | 用户认证 | `POST /api/user/login`、`/api/user/register`、`/api/user/forgot-password`、`/api/user/reset-password`、`/api/user/login/email/send`、`/api/user/login/email/verify` |
 | 用户信息 | `GET /api/user/current`、`GET/PUT /api/user/profile`、`PUT /api/user/password` |
-| 文章 | `/api/posts`（列表 / 详情 / 创建 / 更新 / 删除）、`/api/posts/hot`、`/api/posts/search`、`/api/posts/{id}/like`、`/api/posts/{id}/favorite` |
+| 文章 | `/api/posts`（列表 / 详情 / 创建 / 更新 / 删除）、`/api/posts/hot`、`/api/posts/recommendations`（个性化推荐，需登录）、`/api/posts/search`、`/api/posts/{id}/like`、`/api/posts/{id}/favorite` |
 | 分类 / 标签 | `/api/categories`、`/api/tags` |
 | 互动 | `/api/comments`、`/api/messages`（留言板） |
 | 运营 | `/api/carousels`、`/api/announcements`、`/api/music`、`/api/resource/*`（购买 / 下载） |

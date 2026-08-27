@@ -23,10 +23,12 @@ public class ChatRequest {
     
     /**
      * 用户消息内容
-     * 必填字段，不能为空或空白字符
+     * 必填字段，不能为空或空白字符。
+     * 长度上限 20000：写作助手支持直接粘贴整篇文章让 AI 优化，
+     * 模型上下文（DeepSeek V3.2）足够容纳，2000 的旧上限会让大段粘贴被参数校验拦下。
      */
     @NotBlank(message = "消息内容不能为空")
-    @Size(max = 2000, message = "消息内容长度不能超过2000个字符")
+    @Size(max = 20000, message = "消息内容长度不能超过20000个字符，请精简后重试")
     private String message;
     
     
@@ -84,7 +86,7 @@ public class ChatRequest {
         private String role;
 
         @NotBlank(message = "临时消息内容不能为空")
-        @Size(max = 2000, message = "临时消息内容长度不能超过2000个字符")
+        @Size(max = 20000, message = "临时消息内容长度不能超过20000个字符")
         private String content;
     }
 }

@@ -145,6 +145,17 @@ public interface PostsMapper extends BaseMapper<Posts> {
     List<PostListResp> selectLatestPostListResp(@Param("limit") Integer limit, @Param("userId") Long userId);
 
     /**
+     * 查询个性化推荐文章列表（返回PostListResp）
+     * 基于用户浏览历史：与浏览过的文章同分类（+2分）或同标签（每个标签+1分）的
+     * 未读已发布文章，按相关度得分降序，再按浏览量降序。
+     *
+     * @param limit  限制数量
+     * @param userId 当前用户ID（用于查询点赞收藏状态，必填）
+     * @return 个性化推荐文章列表（可能为空，由调用方用热门文章补足）
+     */
+    List<PostListResp> selectRecommendedPostListResp(@Param("limit") Integer limit, @Param("userId") Long userId);
+
+    /**
      * 查询热门文章（根据评论数排序）
      * 
      * @param limit 限制数量
