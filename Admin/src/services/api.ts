@@ -31,12 +31,13 @@ const getBackendURL = (): string => {
 }
 
 // 创建 axios 实例
+// 注意：不预设 Content-Type，让 axios 按 data 类型自动设置——
+// 普通对象自动 JSON.stringify + application/json，FormData 自动 multipart/form-data + boundary。
+// 曾因默认 application/json 覆盖 FormData 检测，FormData 被 formDataToJSON 序列化成 JSON，
+// 导致音乐上传（POST /admin/music）文件变 {"uid":...} 后端 500。
 const instance: AxiosInstance = axios.create({
   baseURL: getBackendURL(), // 后端接口的根地址
-  timeout: 30000, // 请求超时的时间，单位是毫秒
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  timeout: 30000 // 请求超时的时间，单位是毫秒
 })
 
 // 请求拦截器
