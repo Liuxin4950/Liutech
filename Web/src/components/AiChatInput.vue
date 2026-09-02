@@ -57,7 +57,7 @@ const toggleVoice = () => {
 </script>
 
 <template>
-  <div class="chat-input" :class="{ expanded, compact: !expanded }">
+  <div data-onboarding="chat-input" class="chat-input" :class="{ expanded, compact: !expanded }">
     <div class="quick-prompts" v-if="quickPrompts.length">
       <button
         v-for="prompt in quickPrompts"

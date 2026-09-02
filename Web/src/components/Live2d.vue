@@ -1,6 +1,38 @@
 <template>
-    <div class="container" :class="{ passive: !props.interactive }">
-        <canvas @click="triggerRandomExpression" id="canvas"></canvas>
+    <div class="container" :class="[{ passive: !props.interactive }, `is-${loadState}`]">
+        <canvas
+            ref="canvasRef"
+            class="live2d-canvas"
+            :aria-hidden="loadState !== 'ready'"
+            @click="triggerRandomExpression"
+        ></canvas>
+
+        <div
+            v-if="loadState !== 'ready'"
+            class="live2d-placeholder"
+            :class="{ 'live2d-placeholder--error': loadState === 'error' }"
+            role="status"
+            aria-live="polite"
+        >
+            <div class="live2d-placeholder__avatar-wrap">
+                <img :src="avatarUrl" alt="" class="live2d-placeholder__avatar" />
+                <span v-if="loadState === 'loading'" class="live2d-placeholder__pulse" />
+            </div>
+            <p class="live2d-placeholder__title">
+                {{ loadState === 'error' ? '纳西妲暂时没有加载成功' : '纳西妲正在赶来…' }}
+            </p>
+            <p class="live2d-placeholder__hint">
+                {{ loadState === 'error' ? '请检查网络后重新加载' : '首次加载模型需要一点时间' }}
+            </p>
+            <button
+                v-if="loadState === 'error'"
+                type="button"
+                class="live2d-placeholder__retry"
+                @click.stop="retryLive2D"
+            >
+                重新加载
+            </button>
+        </div>
     </div>
 </template>
 
@@ -12,7 +44,8 @@
  * 修改时间: 2025-09-24 19:33:22 +08:00
  * 功能: 纯净的Live2D模型展示，支持基本交互和拖拽，优化资源管理
  */
-import { onMounted, onBeforeUnmount, watch } from 'vue';
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import avatarUrl from '@/assets/aifile/纳西妲.webp'
 
 // --- useLipSync (内联，仅本组件使用) ---
 
@@ -167,7 +200,13 @@ const useLipSync = (setMouthOpen: MouthController, initialConfig?: Partial<LipSy
   return { config, start, stop, speak, updateConfig, destroy }
 }
 
-const emit = defineEmits(['click', 'speak-start'])
+const emit = defineEmits<{
+    click: []
+    'speak-start': []
+    'load-start': []
+    ready: []
+    error: []
+}>()
 
 const props = withDefaults(defineProps<{
     interactive?: boolean
@@ -185,6 +224,7 @@ declare global {
         PIXI: any;
         LIVE2DCUBISMCORE: any;
         Live2DModel: any;
+        __LIUTECH_LIVE2D_SCRIPTS__?: Promise<void>;
     }
 }
 
@@ -249,6 +289,10 @@ const expressionMap: Record<string, string | null> = {
 let model: any = null;
 let app: any = null;
 let isInitialized = false; // 初始化状态标记
+type Live2dLoadState = 'loading' | 'ready' | 'error'
+const loadState = ref<Live2dLoadState>('loading')
+const canvasRef = ref<HTMLCanvasElement | null>(null)
+let isComponentMounted = false
 let lastExpressionAt = 0
 let lastMotionAt = 0
 let pendingAvatarCue: AvatarCue | null = null
@@ -507,7 +551,9 @@ function triggerRandomExpression() {
 
 // 动态加载 Live2D 脚本（按顺序，确保全局变量可用）
 const loadLive2DScripts = (): Promise<void> => {
-    if (window.PIXI) return Promise.resolve()
+    const Live2DModelClass = window.PIXI?.live2d?.Live2DModel || window.Live2DModel
+    if (window.PIXI && Live2DModelClass) return Promise.resolve()
+    if (window.__LIUTECH_LIVE2D_SCRIPTS__) return window.__LIUTECH_LIVE2D_SCRIPTS__
 
     const scripts = [
         '/live2d/pixi.min.js',
@@ -518,36 +564,67 @@ const loadLive2DScripts = (): Promise<void> => {
 
     const loadScript = (src: string): Promise<void> =>
         new Promise((resolve, reject) => {
+            const selector = `script[data-liutech-live2d-script="${src}"]`
+            const existing = document.querySelector<HTMLScriptElement>(selector)
+            if (existing) {
+                if (existing.dataset.loaded === 'true') {
+                    resolve()
+                    return
+                }
+                existing.addEventListener('load', () => resolve(), { once: true })
+                existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true })
+                return
+            }
+
             const el = document.createElement('script')
             el.src = src
-            el.onload = () => resolve()
-            el.onerror = () => reject(new Error(`Failed to load ${src}`))
+            el.dataset.liutechLive2dScript = src
+            el.onload = () => {
+                el.dataset.loaded = 'true'
+                resolve()
+            }
+            el.onerror = () => {
+                el.remove()
+                reject(new Error(`Failed to load ${src}`))
+            }
             document.head.appendChild(el)
         })
 
-    return scripts.reduce(
+    window.__LIUTECH_LIVE2D_SCRIPTS__ = scripts.reduce(
         (chain, src) => chain.then(() => loadScript(src)),
         Promise.resolve()
     )
+
+    window.__LIUTECH_LIVE2D_SCRIPTS__.catch(() => {
+        delete window.__LIUTECH_LIVE2D_SCRIPTS__
+    })
+
+    return window.__LIUTECH_LIVE2D_SCRIPTS__
+}
+
+const startLive2DLoad = () => {
+    if (isInitialized) return
+
+    loadState.value = 'loading'
+    emit('load-start')
+
+    loadLive2DScripts().then(() => {
+        if (isComponentMounted) initLive2D()
+    }).catch(() => {
+        if (!isComponentMounted) return
+        loadState.value = 'error'
+        emit('error')
+    })
 }
 
 onMounted(() => {
-    // 防止重复初始化
-    if (isInitialized) {
-        return;
-    }
-
-    // 动态加载脚本后再初始化
-    loadLive2DScripts().then(() => {
-        initLive2D()
-    }).catch(() => {
-        // 脚本加载失败时静默处理
-    })
+    isComponentMounted = true
+    startLive2DLoad()
 });
 
 // 刷新渲染器尺寸与模型位置（处理窗口/容器/分辨率变化）
 const refreshRenderer = () => {
-    const canvas = document.getElementById('canvas') as HTMLCanvasElement | null
+    const canvas = canvasRef.value
     if (!canvas) return
     const container = canvas.parentElement
     const rawWidth = container?.clientWidth ?? 0
@@ -592,13 +669,16 @@ const debouncedRefresh = () => {
 // 等待全局脚本加载完成
 const initLive2D = () => {
     if (!window.PIXI) {
-        setTimeout(initLive2D, 100);
+        loadState.value = 'error'
+        emit('error')
         return;
     }
 
     // 检查Live2D是否可用
     const Live2DModelClass = (window as any).PIXI?.live2d?.Live2DModel || (window as any).Live2DModel;
     if (!Live2DModelClass) {
+        loadState.value = 'error'
+        emit('error')
         return;
     }
 
@@ -606,7 +686,11 @@ const initLive2D = () => {
     isInitialized = true;
 
     // 创建 PIXI 应用
-    const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+    const canvas = canvasRef.value;
+    if (!canvas) {
+        isInitialized = false
+        return
+    }
     const container = canvas.parentElement;
     const containerWidth = container?.clientWidth || 400;
     const containerHeight = container?.clientHeight || 400;
@@ -628,6 +712,10 @@ const initLive2D = () => {
 
     // 加载Live2D模型
     Live2DModelClass.from(cubism4Model).then((live2dModel: any) => {
+        if (!isComponentMounted || !app) {
+            live2dModel.destroy?.()
+            return
+        }
         model = live2dModel;
         app.stage.addChild(live2dModel);
         // 设置模型锚点为中心
@@ -668,8 +756,13 @@ const initLive2D = () => {
 
         // 自动眨眼和呼吸
         live2dModel.internalModel.motionManager.startRandomMotion('idle');
+        loadState.value = 'ready'
+        emit('ready')
     }).catch(() => {
-        // Live2D模型加载失败时静默处理
+        if (!isComponentMounted) return
+        app?.ticker?.stop()
+        loadState.value = 'error'
+        emit('error')
     });
 
     // 窗口大小/分辨率变化：防抖刷新
@@ -677,7 +770,7 @@ const initLive2D = () => {
     window.addEventListener('resize', resizeHandler)
 
     // 容器尺寸变化（展开/折叠等）：ResizeObserver 监听，弥补 window resize 无法覆盖的场景
-    const canvasEl = document.getElementById('canvas') as HTMLCanvasElement | null
+    const canvasEl = canvasRef.value
     const containerEl = canvasEl?.parentElement
     if (containerEl && typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(debouncedRefresh)
@@ -689,6 +782,29 @@ const initLive2D = () => {
     applyInteractionMode()
     updatePointerTracking()
 };
+
+const retryLive2D = () => {
+    if (resizeHandler) {
+        window.removeEventListener('resize', resizeHandler)
+        resizeHandler = null
+    }
+    resizeObserver?.disconnect()
+    resizeObserver = null
+    if (resizeTimer) {
+        clearTimeout(resizeTimer)
+        resizeTimer = null
+    }
+    if (model) {
+        try { model.destroy?.() } catch {}
+        model = null
+    }
+    if (app) {
+        try { app.destroy(false, { children: true, texture: true, baseTexture: true }) } catch {}
+        app = null
+    }
+    isInitialized = false
+    startLive2DLoad()
+}
 
 // 资源清理函数
 const cleanup = () => {
@@ -786,6 +902,7 @@ const cleanup = () => {
 
 // 组件卸载时清理资源
 onBeforeUnmount(() => {
+    isComponentMounted = false
     cleanup();
     lipSync.destroy()
 });
@@ -819,10 +936,98 @@ watch(() => props.visible, (visible) => {
     width: 100%;
     height: 100%;
     display: block;
+    position: relative;
 }
 
-#canvas {
+.live2d-canvas {
     width: 100%;
     height: 100%;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.container:not(.is-ready) .live2d-canvas {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.live2d-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    text-align: center;
+    color: var(--text-main);
+    pointer-events: auto;
+}
+
+.live2d-placeholder__avatar-wrap {
+    position: relative;
+    width: 112px;
+    height: 112px;
+    margin-bottom: 18px;
+}
+
+.live2d-placeholder__avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.14));
+    animation: live2d-placeholder-float 2.2s ease-in-out infinite;
+}
+
+.live2d-placeholder__pulse {
+    position: absolute;
+    inset: -8px;
+    border: 2px solid rgba(var(--color-primary-rgb), 0.34);
+    border-radius: 50%;
+    animation: live2d-placeholder-pulse 1.5s ease-out infinite;
+}
+
+.live2d-placeholder__title,
+.live2d-placeholder__hint {
+    margin: 0;
+    text-shadow: 0 1px 8px var(--bg-card);
+}
+
+.live2d-placeholder__title {
+    font-size: 15px;
+    font-weight: 650;
+}
+
+.live2d-placeholder__hint {
+    margin-top: 6px;
+    color: var(--text-subtle);
+    font-size: 12px;
+}
+
+.live2d-placeholder__retry {
+    margin-top: 14px;
+    padding: 7px 16px;
+    border: 1px solid var(--border-base);
+    border-radius: 999px;
+    background: var(--bg-card);
+    color: var(--color-primary);
+    cursor: pointer;
+}
+
+@keyframes live2d-placeholder-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-7px); }
+}
+
+@keyframes live2d-placeholder-pulse {
+    from { opacity: 0.8; transform: scale(0.86); }
+    to { opacity: 0; transform: scale(1.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .live2d-placeholder__avatar,
+    .live2d-placeholder__pulse {
+        animation: none;
+    }
 }
 </style>

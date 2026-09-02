@@ -9,7 +9,7 @@
             <img src="/洛天依.png" alt="小鑫同学" />
           </div>
           <h2 class="welcome__title">欢迎来到我的博客</h2>
-          <p class="welcome__subtitle">我是小鑫同学，第一次来？需要我带你逛逛吗？</p>
+          <p class="welcome__subtitle">我是小鑫同学，用一分钟认识一下这里的 AI 助手吗？</p>
           <div class="welcome__actions">
             <button class="welcome__btn welcome__btn--ghost" @click="handleWelcomeDecline">
               不用了，我自己看看
@@ -72,7 +72,7 @@
         <Transition name="tooltip-pop" appear>
           <div v-if="tooltipVisible" class="tooltip" :style="tooltipPos">
             <div class="tooltip__card">
-              <div class="tooltip__step">1 / 2</div>
+              <div class="tooltip__step">1 / 3</div>
               <p class="tooltip__msg">
                 右下角是我的 <strong>AI 助手</strong>，<br />点击它可以和我聊天哦
               </p>
@@ -95,21 +95,44 @@
       </div>
     </Transition>
 
-    <!-- 第二阶段：Live2D 聊天提示 -->
+    <!-- 第二阶段：等待 Live2D 真正可交互后，再引导用户点击模型 -->
     <Transition name="chat-tip-pop" appear>
       <div
-        v-if="isChatTipActive && chatTipReady"
+        v-if="isModelTipActive && modelTipReady"
         class="chat-tip"
-        :style="chatTipPos"
+        :style="modelTipPos"
       >
         <div class="chat-tip__card">
-          <span class="chat-tip__step">2 / 2</span>
-          <p class="chat-tip__msg">再点我一下，就可以开始聊天啦</p>
-          <button class="chat-tip__close" @click="handleChatTipDismiss" aria-label="关闭">
+          <span class="chat-tip__step">2 / 3</span>
+          <span v-if="live2dStatus === 'loading'" class="chat-tip__loading-dot" aria-hidden="true" />
+          <p class="chat-tip__msg">{{ modelTipMessage }}</p>
+          <button class="chat-tip__close" @click="handleDismiss" aria-label="跳过引导">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
         <div class="chat-tip__arrow" />
+      </div>
+    </Transition>
+
+    <!-- 第三阶段：聊天框已打开，指出真正的输入入口 -->
+    <Transition name="tooltip-pop" appear>
+      <div
+        v-if="isChatTipActive && chatInputReady"
+        class="input-tip"
+        :style="chatInputTipPos"
+      >
+        <div class="tooltip__card">
+          <div class="tooltip__step">3 / 3</div>
+          <p class="tooltip__msg">
+            在这里输入问题，也可以选择<strong>快捷问题或语音输入</strong>。
+          </p>
+          <div class="tooltip__footer">
+            <button class="tooltip__btn tooltip__btn--primary" @click="handleChatTipDismiss">
+              开始聊天
+            </button>
+          </div>
+        </div>
+        <div class="tooltip__arrow tooltip__arrow--top" :style="chatInputArrowStyle" />
       </div>
     </Transition>
   </Teleport>
@@ -118,11 +141,17 @@
 <script setup lang="ts">
 /**
  * 新用户引导组件
- * 两阶段：遮罩高亮 AI 按钮 → Live2D 聊天提示
+ * 三阶段：高亮 AI 按钮 → 等待并点击 Live2D → 定位聊天输入框
  * 使用 SVG mask 实现圆角镂空高亮
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useOnboarding } from '@/composables/useOnboarding'
+
+const props = withDefaults(defineProps<{
+  live2dStatus?: 'idle' | 'loading' | 'ready' | 'error'
+}>(), {
+  live2dStatus: 'idle',
+})
 
 const emit = defineEmits<{
   'spotlight-click': []
@@ -132,6 +161,7 @@ const emit = defineEmits<{
 const {
   isWelcomeActive,
   isSpotlightActive,
+  isModelTipActive,
   isChatTipActive,
   accept,
   nextStep,
@@ -146,7 +176,8 @@ interface Rect { top: number; left: number; width: number; height: number }
 const targetRect = ref<Rect | null>(null)
 const spotlightReady = ref(false)
 const tooltipVisible = ref(false)
-const chatTipReady = ref(false)
+const modelTipReady = ref(false)
+const chatInputReady = ref(false)
 
 const PAD = 12   // 高亮内边距
 const RADIUS = 14 // 高亮圆角
@@ -237,24 +268,61 @@ function placeTooltip() {
 }
 
 // ---- Live2D 聊天提示定位 ----
-const chatTipPos = ref<Record<string, string>>({})
+const modelTipPos = ref<Record<string, string>>({})
 
-function placeChatTip() {
+const modelTipMessage = computed(() => {
+  if (props.live2dStatus === 'error') return '模型加载失败了，可以在占位区域重新加载'
+  if (props.live2dStatus === 'ready') return '我准备好了，点我一下就能打开聊天框'
+  return '模型资源正在加载，完成后就可以点击我啦'
+})
+
+function placeModelTip() {
   const el = document.querySelector('.ai-content .live2d')
     || document.querySelector('[data-onboarding="ai-assistant"]')
   if (!el) {
-    chatTipPos.value = { position: 'fixed', bottom: '340px', right: '80px' }
-    chatTipReady.value = true
+    modelTipPos.value = { position: 'fixed', bottom: '340px', right: '80px' }
+    modelTipReady.value = true
     return
   }
   const rect = el.getBoundingClientRect()
-  chatTipPos.value = {
+  modelTipPos.value = {
     position: 'fixed',
     top: `${rect.top - 56}px`,
     left: `${rect.left + rect.width / 2}px`,
     transform: 'translateX(-50%)',
   }
-  chatTipReady.value = true
+  modelTipReady.value = true
+}
+
+const chatInputTipPos = ref<Record<string, string>>({})
+const chatInputArrowStyle = ref<Record<string, string>>({})
+
+function placeChatInputTip() {
+  const el = document.querySelector('[data-onboarding="chat-input"]')
+  if (!el) {
+    chatInputReady.value = false
+    return
+  }
+
+  const rect = el.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) {
+    chatInputReady.value = false
+    return
+  }
+
+  const width = Math.min(320, window.innerWidth - 32)
+  const centerX = rect.left + rect.width / 2
+  const left = Math.max(16, Math.min(centerX - width / 2, window.innerWidth - width - 16))
+  chatInputTipPos.value = {
+    position: 'fixed',
+    bottom: `${window.innerHeight - rect.top + 14}px`,
+    left: `${left}px`,
+    width: `${width}px`,
+  }
+  chatInputArrowStyle.value = {
+    left: `${Math.max(24, Math.min(centerX - left, width - 24))}px`,
+  }
+  chatInputReady.value = true
 }
 
 // ---- 定位入口 ----
@@ -297,25 +365,14 @@ function handleChatTipDismiss() {
   emit('complete')
 }
 
-// ---- 自动关闭 ----
-let chatTipTimer: ReturnType<typeof setTimeout> | null = null
-
-function startChatTipAutoClose() {
-  clearChatTipTimer()
-  chatTipTimer = setTimeout(() => { finish(); emit('complete') }, 8000)
-}
-
-function clearChatTipTimer() {
-  if (chatTipTimer) { clearTimeout(chatTipTimer); chatTipTimer = null }
-}
-
 // ---- 窗口变化 ----
 let raf = 0
 function onResize() {
   cancelAnimationFrame(raf)
   raf = requestAnimationFrame(() => {
     if (isSpotlightActive.value) { locateSpotlight(); placeTooltip() }
-    if (isChatTipActive.value) placeChatTip()
+    if (isModelTipActive.value) placeModelTip()
+    if (isChatTipActive.value) placeChatInputTip()
   })
 }
 
@@ -324,26 +381,26 @@ watch(isSpotlightActive, (v) => {
   if (v) nextTick(() => setTimeout(locateSpotlight, 350))
 })
 
+watch(isModelTipActive, (v) => {
+  if (v) nextTick(() => setTimeout(placeModelTip, 250))
+})
+
 watch(isChatTipActive, (v) => {
-  if (v) {
-    nextTick(() => setTimeout(() => { placeChatTip(); startChatTipAutoClose() }, 600))
-  } else {
-    clearChatTipTimer()
-  }
+  if (v) nextTick(() => setTimeout(placeChatInputTip, 350))
 })
 
 onMounted(() => {
   window.addEventListener('resize', onResize, { passive: true })
   window.addEventListener('scroll', onResize, { passive: true })
   if (isSpotlightActive.value) nextTick(() => setTimeout(locateSpotlight, 350))
-  if (isChatTipActive.value) nextTick(() => setTimeout(() => { placeChatTip(); startChatTipAutoClose() }, 600))
+  if (isModelTipActive.value) nextTick(() => setTimeout(placeModelTip, 250))
+  if (isChatTipActive.value) nextTick(() => setTimeout(placeChatInputTip, 350))
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('scroll', onResize)
   cancelAnimationFrame(raf)
-  clearChatTipTimer()
 })
 </script>
 
@@ -717,6 +774,20 @@ onUnmounted(() => {
   border-radius: 20px;
 }
 
+.chat-tip__loading-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 0 rgba(var(--color-primary-rgb), 0.35);
+  animation: chat-tip-loading 1.4s ease-out infinite;
+}
+
+@keyframes chat-tip-loading {
+  70%, 100% { box-shadow: 0 0 0 8px rgba(var(--color-primary-rgb), 0); }
+}
+
 .chat-tip__msg {
   margin: 0;
   font-size: 14px;
@@ -764,6 +835,11 @@ onUnmounted(() => {
   border-left: none;
   transform: rotate(45deg);
   box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.06);
+}
+
+.input-tip {
+  z-index: 10002;
+  pointer-events: auto;
 }
 
 /* 聊天提示入场动画 */
@@ -827,6 +903,13 @@ onUnmounted(() => {
   }
   .chat-tip__msg {
     font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-tip__loading-dot,
+  .chat-tip__msg {
+    animation: none;
   }
 }
 </style>

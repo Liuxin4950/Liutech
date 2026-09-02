@@ -1,15 +1,17 @@
 # Live2d 渲染
 
 > Live2d 模型基于 PIXI.js + Live2D Cubism Core，负责模型渲染、口型同步、表情动作驱动、尺寸自适应。
-> 本文档描述 PIXI 生命周期、ticker 控制、口型同步、表情队列、resize。
+> 本文档描述资源加载状态、PIXI 生命周期、ticker 控制、口型同步、表情队列、resize。
 
 ## PIXI Application 生命周期
 
-[`Live2d.vue`](../../../../Web/src/components/Live2d.vue) 在 `onMounted` 动态加载脚本后初始化：
+[`Live2d.vue`](../../../../Web/src/components/Live2d.vue) 在 `onMounted` 进入 `loading`，动态加载脚本后初始化：
 
 ```
-loadLive2DScripts()                    按序加载 4 个脚本（pixi/live2dcubismcore/live2d/cubism4）
-  └─ initLive2D()
+startLive2DLoad()
+  ├─ loadState = 'loading' + emit('load-start')
+  └─ loadLive2DScripts()               按序加载 4 个脚本（pixi/live2dcubismcore/live2d/cubism4）
+      └─ initLive2D()
       ├─ new PIXI.Application({ view, width, height, backgroundAlpha:0, antialias, resolution })
       ├─ if (!props.visible) app.ticker.stop()    初始不可见时停 ticker
       ├─ Live2DModelClass.from(model3.json)       异步加载模型
@@ -18,10 +20,25 @@ loadLive2DScripts()                    按序加载 4 个脚本（pixi/live2dcub
       │   ├─ 绑定 pointerdown/move/up             拖拽
       │   ├─ stage.pointermove -> model.focus     鼠标跟随
       │   └─ hit body -> motion('tap_body')       点击触发动作
-      └─ startRandomMotion('idle')                自动眨眼+呼吸
+      ├─ startRandomMotion('idle')                自动眨眼+呼吸
+      └─ loadState = 'ready' + emit('ready')
 ```
 
 **资源清理**（`onBeforeUnmount`）：移除事件监听、stopAllMotions、removeChild、destroy 模型、destroy PIXI app（含纹理）。`useLipSync.destroy` 关闭 AudioContext。
+
+## 加载反馈与重试
+
+`loadState` 取值为 `loading | ready | error`：
+
+| 状态 | 界面与事件 |
+| --- | --- |
+| `loading` | 静态纳西妲占位图 + “首次加载模型需要一点时间”，canvas 禁止点击，发出 `load-start` |
+| `ready` | 占位消失、canvas 淡入并恢复点击，发出 `ready` |
+| `error` | 显示错误说明与“重新加载”，发出 `error` |
+
+`retryLive2D()` 会移除当前 resize 监听、销毁失败的模型/PIXI app（保留 canvas DOM），再重新进入 `startLive2DLoad()`。脚本加载 Promise 缓存在 `window.__LIUTECH_LIVE2D_SCRIPTS__`，避免快速开关模型时并行插入第二套脚本；脚本失败会清除缓存，允许重试。
+
+异步模型返回前检查 `isComponentMounted` 与 `app`。组件已经卸载时立即销毁迟到的模型，不能再访问失效 canvas。
 
 ## ticker 控制（性能关键）
 
@@ -130,3 +147,5 @@ ResizeObserver(容器) + window resize
 - **模型 scale 固定 0.15**：不随容器缩放，大容器模型偏小是设计选择
 - **拖拽和交互依赖 ticker**：ticker 停时交互失效，但隐藏时不需要交互
 - **资源清理必须彻底**：模型 destroy + PIXI app destroy（含纹理）+ AudioContext close，否则内存泄漏
+- **加载完成以 `ready` 事件为准**：脚本已下载或 canvas 已出现都不代表模型已经可交互
+- **失败脚本必须允许重试**：清理失败的 script 与全局 Promise，不能把 rejected Promise 永久缓存

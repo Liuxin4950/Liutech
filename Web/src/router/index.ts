@@ -4,6 +4,21 @@ import Swal from 'sweetalert2'
 import { useUserStore } from '@/stores/user'
 import { useAuthModalStore } from '@/stores/authModal'
 import { getLenis } from '@/composables/useLenis'
+import { beginRouteLoading, finishRouteLoading } from '@/composables/useRouteLoading'
+
+const primaryRouteLoaders = {
+  '/': () => import('../views/Home.vue'),
+  '/categories': () => import('../views/Categories.vue'),
+  '/tags': () => import('../views/Tags.vue'),
+  '/archive': () => import('../views/Archive.vue'),
+  '/about': () => import('../views/About.vue'),
+}
+
+/** 只在用户悬停/聚焦导航项时预取对应页面，不在首屏批量争抢带宽。 */
+export function preloadPrimaryRoute(path: string) {
+  const loader = primaryRouteLoaders[path as keyof typeof primaryRouteLoaders]
+  if (loader) void loader().catch(() => undefined)
+}
 
 /**
  * 路由配置
@@ -17,7 +32,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'home',
-        component: () => import('../views/Home.vue'),
+        component: primaryRouteLoaders['/'],
         meta: {
           title: '首页',
           section: 'home'
@@ -85,7 +100,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'categories',
         name: 'category-list',
-        component: () => import('../views/Categories.vue'),
+        component: primaryRouteLoaders['/categories'],
         meta: {
           title: '分类',
           section: 'categories'
@@ -121,7 +136,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'tags',
         name: 'tags',
-        component: () => import('../views/Tags.vue'),
+        component: primaryRouteLoaders['/tags'],
         meta: {
           title: '标签',
           section: 'tags'
@@ -139,7 +154,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'archive',
         name: 'archive',
-        component: () => import('../views/Archive.vue'),
+        component: primaryRouteLoaders['/archive'],
         meta: {
           title: '文章归档',
           section: 'archive'
@@ -156,7 +171,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'about',
         name: 'about',
-        component: () => import('../views/About.vue'),
+        component: primaryRouteLoaders['/about'],
         meta: {
           title: '关于我',
           section: 'about'
@@ -243,6 +258,8 @@ const router = createRouter({
  * 设置页面标题和权限检查
  */
 router.beforeEach(async (to, from, next) => {
+  beginRouteLoading(to.fullPath, String(to.meta.title || ''))
+
   // 守卫回调内获取 store：模块加载期 pinia 尚未安装，不能在顶层实例化
   const authModalStore = useAuthModalStore()
   // 路由切换时清除所有弹窗，避免 401 后弹窗残留
@@ -283,6 +300,16 @@ router.beforeEach(async (to, from, next) => {
   }
 
   next()
+})
+
+// afterEach 对成功、重定向和被守卫取消的导航都会执行，统一收口加载状态。
+router.afterEach((to) => {
+  finishRouteLoading(to.fullPath)
+})
+
+// 异步路由 chunk 下载失败时也必须结束进度，避免弱网下提示永久停留。
+router.onError(() => {
+  finishRouteLoading()
 })
 
 export default router

@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
 import Banner from '@/components/Banner.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
 import Live2d from '@/components/Live2d.vue'
-// 全局页面加载（作者：刘鑫，修改时间：2025-09-24 20:11:17 +08:00）
-import GlobalPageLoader from '../components/GlobalPageLoader.vue'
 import AiChat from '@/components/AiChat.vue'
 import LoginModal from '@/components/LoginModal.vue'
 import GlobalSearchModal from '@/components/GlobalSearchModal.vue'
@@ -21,13 +19,7 @@ import { useTtsPlayer } from '@/composables/useTtsPlayer'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
 import { initLenis, destroyLenis } from '@/composables/useLenis'
 
-const showLoader = ref(false)
-const router = useRouter()
 const route = useRoute()
-
-let timer: number | null = null
-// 检查是否为首次访问（页面刷新或首次打开）
-const isFirstLoad = ref(true)
 
 const chatStore = useChatStore()
 const bannerStore = useBannerStore()
@@ -48,7 +40,9 @@ const bottomNavRef = ref<InstanceType<typeof BottomNavigation> | null>(null)
 const searchModalRef = ref<InstanceType<typeof GlobalSearchModal> | null>(null)
 
 // 新用户引导
-const { initOnboarding } = useOnboarding()
+const { initOnboarding, step: onboardingStep, nextStep: nextOnboardingStep } = useOnboarding()
+let onboardingTimer: number | null = null
+const live2dStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 
 // 全局搜索快捷键
 const handleGlobalKeydown = (e: KeyboardEvent) => {
@@ -67,17 +61,27 @@ const handleExternalChatOpen = (event: Event) => {
 }
 
 const handleSpotlightClick = () => {
+  live2dStatus.value = 'loading'
   chatStore.showModel = true
+}
+
+const handleLive2dLoadStart = () => {
+  live2dStatus.value = 'loading'
+}
+
+const handleLive2dReady = () => {
+  live2dStatus.value = 'ready'
+}
+
+const handleLive2dError = () => {
+  live2dStatus.value = 'error'
 }
 
 onMounted(() => {
   initLenis()
 
   // 初始化新用户引导
-  setTimeout(() => initOnboarding(), 2000)
-
-  // 页面加载时立即显示加载动画
-  showLoader.value = true
+  onboardingTimer = window.setTimeout(() => initOnboarding(), 700)
 
   const onceUnlock = () => {
     unlockAudio()
@@ -90,46 +94,14 @@ onMounted(() => {
   window.addEventListener('touchstart', onceUnlock, { passive: true })
   window.addEventListener('ai-chat-open', handleExternalChatOpen)
   window.addEventListener('keydown', handleGlobalKeydown)
-  if (timer) { window.clearTimeout(timer) }
-
-  // 兜底 3s 自动结束
-  timer = window.setTimeout(() => {
-    showLoader.value = false
-    timer = null
-  }, 3000)
-
-  // 正常完成后，保证至少 1.6s 的可见时长
-  const MIN = 1600
-  const start = performance.now()
-  const end = () => {
-    const elapsed = performance.now() - start
-    const remain = Math.max(0, MIN - elapsed)
-    window.setTimeout(() => {
-      showLoader.value = false
-      if (timer) {
-        window.clearTimeout(timer)
-        timer = null
-      }
-    }, remain)
-  }
-
-  // 延迟执行结束逻辑
-  window.setTimeout(end, 100)
-
-  // 设置路由守卫，后续路由跳转不显示加载动画
-  router.beforeEach((to, from, next) => {
-    // 如果不是首次加载，则不显示加载动画
-    if (!isFirstLoad.value) {
-      next()
-      return
-    }
-    isFirstLoad.value = false
-    next()
-  })
 })
 
 onUnmounted(() => {
   destroyLenis()
+  if (onboardingTimer !== null) {
+    window.clearTimeout(onboardingTimer)
+    onboardingTimer = null
+  }
   window.removeEventListener('ai-chat-open', handleExternalChatOpen)
   window.removeEventListener('keydown', handleGlobalKeydown)
 })
@@ -147,7 +119,11 @@ watch(
 )
 
 const handleModelClick = () => {
+  if (live2dStatus.value !== 'ready') return
   chatStore.toggleChat()
+  if (onboardingStep.value === 'model-tip' && chatStore.showChat) {
+    nextOnboardingStep()
+  }
 }
 
 const handleModelWheel = (event: WheelEvent) => {
@@ -177,6 +153,9 @@ const handleAuthRequired = (action: () => void, message?: string) => {
             @click="handleModelClick"
             @wheel="handleModelWheel"
             @speak-start="handleSpeakStart"
+            @load-start="handleLive2dLoadStart"
+            @ready="handleLive2dReady"
+            @error="handleLive2dError"
             class="live2d"
             :class="{ 'centered': chatStore.isExpanded, 'is-hidden': !chatStore.showModel }"
             :interactive="true"
@@ -198,8 +177,6 @@ const handleAuthRequired = (action: () => void, message?: string) => {
       @music-play="handleMusicPlay"
       @music-pause="handleMusicPause"
     ></BottomNavigation>
-    <GlobalPageLoader :show="showLoader" />
-
     <!-- 登录弹窗（状态来自全局 authModal store，路由守卫与页面操作共用） -->
     <LoginModal v-model:visible="authModalStore.visible" :message="authModalStore.message" />
 
@@ -208,6 +185,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
 
     <!-- 新用户引导 -->
     <OnboardingGuide
+      :live2d-status="live2dStatus"
       @spotlight-click="handleSpotlightClick"
       @complete=""
     />

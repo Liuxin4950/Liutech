@@ -9,6 +9,8 @@ import Icon from './Icon.vue'
 import menuIconLight from '@/assets/image/icon/menu.png'
 import menuIconDark from '@/assets/image/icon/menu_dark.png'
 import logoUrl from '@/assets/image/logo/logo.png'
+import { useRouteLoading } from '@/composables/useRouteLoading'
+import { preloadPrimaryRoute } from '@/router'
 
 const emit = defineEmits(['open-search'])
 
@@ -16,6 +18,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const authModalStore = useAuthModalStore()
+const { pendingPath } = useRouteLoading()
 
 const isMenuOpen = ref(false)
 const isUserMenuOpen = ref(false)
@@ -92,6 +95,9 @@ const isActive = (section: string) => {
   }
   return route.meta?.section === section
 }
+
+const isPending = (path: string) => pendingPath.value === path
+const preloadNavigation = (path: string) => preloadPrimaryRoute(path)
 
 /** 导航滑块 */
 const navListRef = ref<HTMLUListElement>()
@@ -175,7 +181,10 @@ onUnmounted(() => {
             <router-link
               :to="item.path"
               class="nav-link transition"
-              :class="{ 'is-active': isActive(item.section) }"
+              :class="{ 'is-active': isActive(item.section), 'is-pending': isPending(item.path) }"
+              :aria-busy="isPending(item.path)"
+              @pointerenter="preloadNavigation(item.path)"
+              @focus="preloadNavigation(item.path)"
             >
               <Icon :name="item.icon" size="16" class="nav-icon" />
               {{ item.label }}
@@ -657,6 +666,23 @@ ol {
 
 .nav-link:hover {
   background: transparent;
+}
+
+.nav-link.is-pending {
+  color: var(--color-primary);
+}
+
+.nav-link.is-pending .nav-icon {
+  animation: nav-pending-pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes nav-pending-pulse {
+  from { opacity: 0.45; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link.is-pending .nav-icon { animation: none; }
 }
 
 .nav-slider {

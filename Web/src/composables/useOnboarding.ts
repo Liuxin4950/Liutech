@@ -1,7 +1,7 @@
 /**
  * 新用户引导 composable
  * 管理首次访问引导的状态、持久化和生命周期
- * 流程：welcome → spotlight → chat-tip → done
+ * 流程：welcome → spotlight → model-tip → chat-tip → done
  */
 import { ref, computed } from 'vue'
 
@@ -9,10 +9,10 @@ const STORAGE_VERSION_KEY = 'liutech_onboarding_version'
 const STORAGE_STEP_KEY = 'liutech_onboarding_step'
 
 // 当前引导版本，修改此值可重新对所有用户触发引导
-const CURRENT_VERSION = '2'
+const CURRENT_VERSION = '3'
 
 // 引导阶段定义
-export type OnboardingStep = 'idle' | 'welcome' | 'spotlight' | 'chat-tip' | 'done'
+export type OnboardingStep = 'idle' | 'welcome' | 'spotlight' | 'model-tip' | 'chat-tip' | 'done'
 
 const step = ref<OnboardingStep>('idle')
 const isActive = ref(false)
@@ -56,7 +56,7 @@ function initOnboarding() {
   }
 
   // 中间状态刷新 → 视为已完成（上下文丢失）
-  if (savedStep === 'spotlight' || savedStep === 'chat-tip') {
+  if (savedStep === 'spotlight' || savedStep === 'model-tip' || savedStep === 'chat-tip') {
     finish()
     return
   }
@@ -81,6 +81,10 @@ function accept() {
  */
 function nextStep() {
   if (step.value === 'spotlight') {
+    step.value = 'model-tip'
+    isActive.value = true
+    persist('model-tip')
+  } else if (step.value === 'model-tip') {
     step.value = 'chat-tip'
     isActive.value = true
     persist('chat-tip')
@@ -120,6 +124,7 @@ function resetOnboarding() {
 export function useOnboarding() {
   const isWelcomeActive = computed(() => isActive.value && step.value === 'welcome')
   const isSpotlightActive = computed(() => isActive.value && step.value === 'spotlight')
+  const isModelTipActive = computed(() => isActive.value && step.value === 'model-tip')
   const isChatTipActive = computed(() => isActive.value && step.value === 'chat-tip')
 
   return {
@@ -127,6 +132,7 @@ export function useOnboarding() {
     isActive,
     isWelcomeActive,
     isSpotlightActive,
+    isModelTipActive,
     isChatTipActive,
     initOnboarding,
     accept,
