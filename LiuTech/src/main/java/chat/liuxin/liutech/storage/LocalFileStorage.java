@@ -66,6 +66,13 @@ public class LocalFileStorage implements FileStorage {
     }
 
     @Override
+    public String generateDownloadUrl(String relativePath, String fileName, long expireSeconds) {
+        // 本地磁盘没有“预签名直链”，返回 null 表示由业务层回退到 open() 流式转发下载。
+        // 若未来需要本地也直连，可在这里签发一次性下载 token 并由后端/nginx 校验。
+        return null;
+    }
+
+    @Override
     public InputStream open(String relativePath) {
         Path filePath = Paths.get(fileUploadConfig.getBasePath(), relativePath);
         if (!Files.exists(filePath)) {

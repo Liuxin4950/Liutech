@@ -19,6 +19,7 @@ import chat.liuxin.liutech.mapper.ResourceDownloadsMapper;
 import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.model.ResourceDownloads;
 import chat.liuxin.liutech.model.Resources;
+import chat.liuxin.liutech.resp.DownloadUrlResp;
 import chat.liuxin.liutech.storage.FileStorage;
 import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -178,6 +179,45 @@ public class ResourceDownloadService {
         return ResponseEntity.ok()
                 .headers(headers)
                 .body(fileResource);
+    }
+
+    /**
+     * 获取资源直链下载地址（COS 等对象存储）
+     * <p>
+     * 校验逻辑与 {@link #downloadResource} 完全一致：登录用户、资源存在、免费或已购买。
+     * 校验通过后由存储层生成短期签名 URL，浏览器直接向 COS 下载，不再经过服务器中转。
+     * 本地磁盘存储不支持签名 URL 时返回 url=null，前端应回退到 {@link #downloadResource}。
+     *
+     * @param userId     用户ID
+     * @param resourceId 资源ID
+     * @return 直链下载响应
+     */
+    public DownloadUrlResp getDownloadUrl(Long userId, Long resourceId) {
+        Resources resource = resourcesMapper.selectById(resourceId);
+        if (resource == null) {
+            throw new RuntimeException("资源不存在");
+        }
+
+        if (isPaidResource(resource) && !hasUserPurchased(userId, resourceId)) {
+            throw new RuntimeException("请先购买该资源");
+        }
+
+        String relativePath = extractResourceRelativePath(resource.getFileUrl());
+        if (isInvalidRelativePath(relativePath)) {
+            log.warn("拒绝访问非法资源路径，资源ID: {}, 路径: {}", resourceId, relativePath);
+            throw new RuntimeException("非法资源路径");
+        }
+
+        long expireSeconds = 10 * 60;
+        String url = fileStorage.generateDownloadUrl(relativePath, resource.getName(), expireSeconds);
+        if (url == null) {
+            log.debug("当前存储不支持直链下载，返回 null 供前端回退流式下载: resourceId={}", resourceId);
+            return new DownloadUrlResp(null, 0);
+        }
+
+        long expiresAt = System.currentTimeMillis() + expireSeconds * 1000;
+        log.info("用户{}获取资源{}直链下载地址，有效期至 {}", userId, resourceId, expiresAt);
+        return new DownloadUrlResp(url, expiresAt);
     }
 
     private boolean isPaidResource(Resources resource) {

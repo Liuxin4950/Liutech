@@ -2,6 +2,7 @@ package chat.liuxin.liutech.controller.web;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.resp.DownloadUrlResp;
 import chat.liuxin.liutech.service.ResourceDownloadService;
 import chat.liuxin.liutech.utils.UserUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,6 +88,32 @@ class ResourceDownloadControllerTest {
 
         assertEquals(400, result.getStatusCode().value());
         assertNull(result.getBody());
+    }
+
+    // ========== getDownloadUrl ==========
+
+    @Test
+    void getDownloadUrl_shouldReturnSignedUrlWhenValid() {
+        DownloadUrlResp resp = new DownloadUrlResp("https://bucket.cos.example.com/resource.zip?sign=abc", 1700000000000L);
+        when(userUtils.getCurrentUserId()).thenReturn(1L);
+        when(resourceDownloadService.getDownloadUrl(1L, 10L)).thenReturn(resp);
+
+        Result<DownloadUrlResp> result = controller.getDownloadUrl(10L);
+
+        assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
+        assertEquals(resp, result.getData());
+    }
+
+    @Test
+    void getDownloadUrl_shouldFailWhenServiceThrows() {
+        when(userUtils.getCurrentUserId()).thenReturn(1L);
+        when(resourceDownloadService.getDownloadUrl(1L, 999L))
+                .thenThrow(new RuntimeException("请先购买该资源"));
+
+        Result<DownloadUrlResp> result = controller.getDownloadUrl(999L);
+
+        assertEquals(400, result.getCode());
+        assertTrue(result.getMessage().contains("请先购买该资源"));
     }
 
     // ========== checkPurchaseStatus ==========

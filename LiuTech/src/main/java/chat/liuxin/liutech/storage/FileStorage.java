@@ -49,6 +49,20 @@ public interface FileStorage {
     String generateUrl(String relativePath);
 
     /**
+     * 生成鉴权下载 URL（付费资源直链下载场景）
+     * <p>
+     * 用于让浏览器直接从对象存储下载，避免大文件经过服务器中转。
+     * 实现应返回短期有效的签名 URL，且仅能访问 {@code relativePath} 对应对象；
+     * 不支持直链的存储实现返回 {@code null}，调用方应回退到 {@link #open} 流式转发。
+     *
+     * @param relativePath  逻辑路径
+     * @param fileName      下载时展示的文件名（用于 Content-Disposition）
+     * @param expireSeconds URL 有效期（秒），需大于 0
+     * @return 签名下载 URL；当前存储不支持时返回 null
+     */
+    String generateDownloadUrl(String relativePath, String fileName, long expireSeconds);
+
+    /**
      * 打开文件内容（付费资源下载等鉴权场景，由后端转发，不直出）
      *
      * @param relativePath 逻辑路径

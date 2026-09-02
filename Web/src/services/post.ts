@@ -170,6 +170,12 @@ interface PostAttachment {
   purchased?: boolean
 }
 
+// 资源直链下载响应（COS 等对象存储返回签名 URL；本地磁盘不支持时 url 为 null）
+interface DownloadUrlResponse {
+  url: string | null
+  expiresAt: number
+}
+
 /**
  * 文章服务类
  */
@@ -526,6 +532,17 @@ export class PostService {
       await post(`/resource/purchase/${resourceId}`)
     } catch (error) {
       console.error('购买资源失败:', error)
+      throw error
+    }
+  }
+
+  /** 获取资源直链下载地址（COS 等对象存储返回签名 URL，前端直接下载） */
+  static async getResourceDownloadUrl(resourceId: number): Promise<DownloadUrlResponse> {
+    try {
+      const response = await get<DownloadUrlResponse>(`/resource/download-url/${resourceId}`)
+      return response.data
+    } catch (error) {
+      console.error('获取资源直链失败:', error)
       throw error
     }
   }

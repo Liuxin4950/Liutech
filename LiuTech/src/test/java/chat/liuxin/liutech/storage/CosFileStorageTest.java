@@ -2,15 +2,20 @@ package chat.liuxin.liutech.storage;
 
 import chat.liuxin.liutech.config.CosStorageProperties;
 import com.qcloud.cos.COSClient;
+import com.qcloud.cos.http.HttpMethodName;
+import com.qcloud.cos.model.GeneratePresignedUrlRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.URL;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -58,6 +63,26 @@ class CosFileStorageTest {
     void generateUrl_返回COS默认域名完整URL() {
         assertEquals("https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/images/2026/08/05/x.jpg",
                 storage.generateUrl("images/2026/08/05/x.jpg"));
+    }
+
+    @Test
+    void generateDownloadUrl_生成带过期时间和下载响应头的预签名URL() throws Exception {
+        when(cosClient.generatePresignedUrl(any(GeneratePresignedUrlRequest.class)))
+                .thenReturn(new URL("https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/resources/a.zip?sign=abc"));
+
+        String url = storage.generateDownloadUrl("resources/a.zip", "a.zip", 600);
+
+        assertEquals("https://liutech-1341692466.cos.ap-chongqing.myqcloud.com/resources/a.zip?sign=abc", url);
+
+        ArgumentCaptor<GeneratePresignedUrlRequest> captor = ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
+        verify(cosClient).generatePresignedUrl(captor.capture());
+        GeneratePresignedUrlRequest request = captor.getValue();
+        assertEquals("liutech-1341692466", request.getBucketName());
+        assertEquals("resources/a.zip", request.getKey());
+        assertEquals(HttpMethodName.GET, request.getMethod());
+        assertNotNull(request.getResponseHeaders());
+        assertTrue(request.getResponseHeaders().getContentDisposition().contains("attachment"));
+        assertTrue(request.getExpiration().getTime() > System.currentTimeMillis());
     }
 
     @Test

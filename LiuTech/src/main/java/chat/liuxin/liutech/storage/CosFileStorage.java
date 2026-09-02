@@ -6,19 +6,26 @@ import com.qcloud.cos.ClientConfig;
 import com.qcloud.cos.auth.BasicCOSCredentials;
 import com.qcloud.cos.auth.COSCredentials;
 import com.qcloud.cos.exception.CosClientException;
+import com.qcloud.cos.http.HttpMethodName;
 import com.qcloud.cos.model.COSObject;
+import com.qcloud.cos.model.GeneratePresignedUrlRequest;
 import com.qcloud.cos.model.ObjectMetadata;
+import com.qcloud.cos.model.ResponseHeaderOverrides;
 import com.qcloud.cos.region.Region;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.ContentDisposition;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 /**
  * 腾讯云 COS 对象存储实现（{@link FileStorage}）
@@ -82,6 +89,28 @@ public class CosFileStorage implements FileStorage {
     @Override
     public String generateUrl(String relativePath) {
         return cosProperties.getBaseUrl() + "/" + relativePath;
+    }
+
+    @Override
+    public String generateDownloadUrl(String relativePath, String fileName, long expireSeconds) {
+        Date expiration = new Date(System.currentTimeMillis() + expireSeconds * 1000);
+        GeneratePresignedUrlRequest request =
+                new GeneratePresignedUrlRequest(cosProperties.getBucket(), relativePath, HttpMethodName.GET);
+        request.setExpiration(expiration);
+
+        // 通过 response-content-disposition 让浏览器直接下载，而不是在 COS 域名下打开预览。
+        ResponseHeaderOverrides overrides = new ResponseHeaderOverrides();
+        String safeFileName = StringUtils.hasText(fileName) ? fileName : "download";
+        overrides.setContentDisposition(
+                ContentDisposition.attachment().filename(safeFileName, StandardCharsets.UTF_8).build().toString());
+        request.setResponseHeaders(overrides);
+
+        try {
+            return cosClient.generatePresignedUrl(request).toString();
+        } catch (CosClientException e) {
+            log.warn("生成 COS 签名下载 URL 失败: {}", relativePath, e);
+            return null;
+        }
     }
 
     @Override

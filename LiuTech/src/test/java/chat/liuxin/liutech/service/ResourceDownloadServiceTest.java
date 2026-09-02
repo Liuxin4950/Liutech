@@ -4,6 +4,7 @@ import chat.liuxin.liutech.mapper.ResourceDownloadsMapper;
 import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.model.ResourceDownloads;
 import chat.liuxin.liutech.model.Resources;
+import chat.liuxin.liutech.resp.DownloadUrlResp;
 import chat.liuxin.liutech.storage.FileStorage;
 import chat.liuxin.liutech.utils.FileUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -252,5 +253,64 @@ class ResourceDownloadServiceTest {
         when(resourceDownloadsMapper.countUserPurchase(USER_ID, RESOURCE_ID)).thenReturn(0);
 
         assertFalse(service.hasUserPurchased(USER_ID, RESOURCE_ID));
+    }
+
+    // ========== getDownloadUrl 测试 ==========
+
+    @Test
+    void getDownloadUrl_shouldReturnSignedUrlWhenStorageSupportsDirectDownload() {
+        Resources resource = new Resources();
+        resource.setId(RESOURCE_ID);
+        resource.setName("直链资源.zip");
+        resource.setFileUrl("https://static.liuxin.chat/resources/2026/04/direct.zip");
+        resource.setDownloadType(0);
+        when(resourcesMapper.selectById(RESOURCE_ID)).thenReturn(resource);
+        when(fileUtil.extractRelativePath("https://static.liuxin.chat/resources/2026/04/direct.zip"))
+                .thenReturn("resources/2026/04/direct.zip");
+        when(fileStorage.generateDownloadUrl("resources/2026/04/direct.zip", "直链资源.zip", 600))
+                .thenReturn("https://bucket.cos.example.com/resources/2026/04/direct.zip?sign=abc");
+
+        DownloadUrlResp resp = service.getDownloadUrl(USER_ID, RESOURCE_ID);
+
+        assertNotNull(resp);
+        assertNotNull(resp.getUrl());
+        assertTrue(resp.getUrl().contains("sign=abc"));
+        assertTrue(resp.getExpiresAt() > System.currentTimeMillis());
+        verify(fileStorage).generateDownloadUrl("resources/2026/04/direct.zip", "直链资源.zip", 600);
+    }
+
+    @Test
+    void getDownloadUrl_shouldReturnNullUrlWhenStorageDoesNotSupportDirectDownload() {
+        Resources resource = new Resources();
+        resource.setId(RESOURCE_ID);
+        resource.setName("本地资源.zip");
+        resource.setFileUrl("/uploads/resources/2026/04/local.zip");
+        resource.setDownloadType(0);
+        when(resourcesMapper.selectById(RESOURCE_ID)).thenReturn(resource);
+        when(fileUtil.extractRelativePath("/uploads/resources/2026/04/local.zip"))
+                .thenReturn("resources/2026/04/local.zip");
+        when(fileStorage.generateDownloadUrl(anyString(), anyString(), anyLong())).thenReturn(null);
+
+        DownloadUrlResp resp = service.getDownloadUrl(USER_ID, RESOURCE_ID);
+
+        assertNotNull(resp);
+        assertNull(resp.getUrl());
+        assertEquals(0, resp.getExpiresAt());
+    }
+
+    @Test
+    void getDownloadUrl_shouldRequirePurchaseForPaidResource() {
+        Resources resource = createPaidResource();
+        resource.setFileUrl("https://static.liuxin.chat/resources/2026/04/paid.zip");
+        when(resourcesMapper.selectById(RESOURCE_ID)).thenReturn(resource);
+        when(fileUtil.extractRelativePath("https://static.liuxin.chat/resources/2026/04/paid.zip"))
+                .thenReturn("resources/2026/04/paid.zip");
+        when(resourceDownloadsMapper.countUserPurchase(USER_ID, RESOURCE_ID)).thenReturn(0);
+
+        RuntimeException error = assertThrows(RuntimeException.class,
+                () -> service.getDownloadUrl(USER_ID, RESOURCE_ID));
+
+        assertEquals("请先购买该资源", error.getMessage());
+        verify(fileStorage, never()).generateDownloadUrl(anyString(), anyString(), anyLong());
     }
 }

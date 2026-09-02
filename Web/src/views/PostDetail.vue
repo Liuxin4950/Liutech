@@ -254,7 +254,18 @@ const onPurchase = async (resourceId: number) => {
   })
 }
 
-// 处理附件下载（通过后端验证）
+// 触发浏览器原生下载（COS 签名 URL 会带 Content-Disposition: attachment）
+const triggerBrowserDownload = (url: string, fileName: string) => {
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName || 'download'
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+
+// 处理附件下载（优先直链，COS 等对象存储不走服务器中转）
 const handleDownload = async (resourceId: number, fileName: string) => {
   if (!resourceId) return
 
@@ -266,6 +277,15 @@ const handleDownload = async (resourceId: number, fileName: string) => {
 
   await handleAsync(async () => {
     downloadingId.value = resourceId
+
+    const downloadInfo = await PostService.getResourceDownloadUrl(resourceId)
+    if (downloadInfo.url) {
+      triggerBrowserDownload(downloadInfo.url, fileName)
+      showSuccessToast('下载已开始')
+      return
+    }
+
+    // 本地磁盘等不支持直链时回退到后端流式下载
     downloadProgress.value = 0
     await PostService.downloadResource(resourceId, fileName, (percent) => {
       downloadProgress.value = percent
