@@ -21,9 +21,50 @@ const sanitizeConfig = {
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onsubmit']
 }
 
-/** 净化文章正文 HTML：保留排版样式，剥离危险标签/属性 */
+const BLOCK_TAGS = new Set([
+  'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DIV', 'DL', 'FIELDSET', 'FIGURE',
+  'FOOTER', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEADER', 'HR', 'MAIN', 'NAV',
+  'OL', 'P', 'PRE', 'SECTION', 'TABLE', 'UL'
+])
+
+/**
+ * TinyMCE 会把根节点下的裸文本规范成段落；旧文章中仍有少量裸文本。
+ * 渲染时做相同的最小规范化，避免“编辑器里是段落，详情页却是一串行内文本”。
+ */
+const normalizeRootBlocks = (html: string): string => {
+  const container = document.createElement('div')
+  container.innerHTML = html
+  let paragraph: HTMLParagraphElement | null = null
+
+  Array.from(container.childNodes).forEach((node) => {
+    const isBlock = node instanceof HTMLElement && BLOCK_TAGS.has(node.tagName)
+    if (isBlock) {
+      paragraph = null
+      return
+    }
+
+    if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) {
+      if (paragraph) {
+        paragraph.appendChild(node)
+      } else {
+        node.remove()
+      }
+      return
+    }
+
+    if (!paragraph) {
+      paragraph = document.createElement('p')
+      container.insertBefore(paragraph, node)
+    }
+    paragraph.appendChild(node)
+  })
+
+  return container.innerHTML
+}
+
+/** 净化并规范文章正文 HTML：保留排版样式，剥离危险标签/属性 */
 export const sanitizePostHtml = (html: string): string =>
-  DOMPurify.sanitize(html || '', sanitizeConfig)
+  normalizeRootBlocks(DOMPurify.sanitize(html || '', sanitizeConfig))
 
 /** 复制按钮已绑定标记，避免重复添加 */
 const COPY_BOUND_FLAG = 'liutech-copy-bound'

@@ -1,0 +1,416 @@
+/*
+ * 文章富文本的唯一展示样式。
+ *
+ * 同一份文件同时用于：
+ * 1. TinyMCE iframe 内的编辑正文；
+ * 2. 发文页预览；
+ * 3. 文章详情页。
+ *
+ * TinyMCE 只保存语义 HTML 与作者主动设置的内联格式，本文件只负责排版。
+ */
+
+.rich-content {
+  --rich-text: var(--text-main, #3c4043);
+  --rich-heading: var(--text-title, #202124);
+  --rich-muted: var(--text-subtle, #5f6368);
+  --rich-link: var(--text-link, var(--color-primary, #4a69d1));
+  --rich-link-hover: var(--color-primary-dark, #3a4f9a);
+  --rich-accent: var(--color-primary, #4a69d1);
+  --rich-surface: var(--bg-card, #ffffff);
+  --rich-soft: var(--bg-soft, #f8f9fa);
+  --rich-hover: var(--bg-hover, #f1f3f4);
+  --rich-border: var(--border-soft, #e8eaed);
+  --rich-code-bg: var(--bg-code, #1f2937);
+  --rich-code-text: var(--text-code, #e5e7eb);
+  --rich-mark-bg: var(--bg-warning, #fef7e0);
+  --rich-shadow-sm: var(--shadow-sm, 0 1px 3px rgb(0 0 0 / 10%));
+
+  color: var(--rich-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* iframe 无法继承宿主页面变量，由编辑器 body 上的主题类提供色板。 */
+.rich-content.liutech-editor-light {
+  --rich-text: #3c4043;
+  --rich-heading: #202124;
+  --rich-muted: #5f6368;
+  --rich-link: #4a69d1;
+  --rich-link-hover: #3a4f9a;
+  --rich-accent: #4a69d1;
+  --rich-surface: #ffffff;
+  --rich-soft: #f8f9fa;
+  --rich-hover: #f1f3f4;
+  --rich-border: #e8eaed;
+  --rich-code-bg: #1f2937;
+  --rich-code-text: #e5e7eb;
+  --rich-mark-bg: #fef7e0;
+}
+
+.rich-content.liutech-editor-dark {
+  --rich-text: #e8eaed;
+  --rich-heading: #ffffff;
+  --rich-muted: #9aa0a6;
+  --rich-link: #8ab4f8;
+  --rich-link-hover: #aecbfa;
+  --rich-accent: #8ab4f8;
+  --rich-surface: #2d2f30;
+  --rich-soft: #303134;
+  --rich-hover: #3c4043;
+  --rich-border: #5f6368;
+  --rich-code-bg: #1f2937;
+  --rich-code-text: #e5e7eb;
+  --rich-mark-bg: #856404;
+  --rich-shadow-sm: 0 1px 3px rgb(0 0 0 / 30%);
+}
+
+html.liutech-editor-light,
+body.rich-content.liutech-editor-light {
+  background: #ffffff;
+}
+
+html.liutech-editor-dark,
+body.rich-content.liutech-editor-dark {
+  background: #2d2f30;
+}
+
+body.rich-content.liutech-editor-content {
+  box-sizing: border-box;
+  min-height: 100%;
+  margin: 0;
+  padding: 24px;
+  caret-color: var(--rich-accent);
+}
+
+.rich-content h1,
+.rich-content h2,
+.rich-content h3,
+.rich-content h4,
+.rich-content h5,
+.rich-content h6 {
+  margin: 2em 0 0.75em;
+  color: var(--rich-heading);
+  font-weight: 700;
+  line-height: 1.35;
+  scroll-margin-top: 96px;
+}
+
+.rich-content > :first-child {
+  margin-top: 0;
+}
+
+.rich-content h1 { font-size: 2em; }
+.rich-content h2 { font-size: 1.58em; }
+.rich-content h3 { font-size: 1.28em; }
+.rich-content h4 { font-size: 1.15em; }
+.rich-content h5 { font-size: 1.05em; }
+.rich-content h6 { font-size: 1em; color: var(--rich-muted); }
+
+.rich-content p {
+  margin: 0 0 1em;
+}
+
+.rich-content a {
+  color: var(--rich-link);
+  text-decoration: none;
+  text-underline-offset: 0.18em;
+}
+
+.rich-content a:hover {
+  color: var(--rich-link-hover);
+  text-decoration: underline;
+}
+
+.rich-content a:focus-visible {
+  outline: 2px solid var(--rich-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.rich-content ul,
+.rich-content ol {
+  margin: 0 0 1em;
+  padding-left: 1.6em;
+}
+
+.rich-content li {
+  margin: 0.35em 0;
+}
+
+.rich-content li > p {
+  margin-bottom: 0.35em;
+}
+
+.rich-content blockquote {
+  margin: 1.5em 0;
+  padding: 0.9em 1.1em;
+  border-left: 4px solid var(--rich-accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--rich-soft);
+  color: var(--rich-muted);
+}
+
+.rich-content blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.rich-content code {
+  padding: 0.12em 0.38em;
+  border: 1px solid var(--rich-border);
+  border-radius: 4px;
+  background: var(--rich-soft);
+  color: inherit;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, Monaco, "Courier New", monospace;
+  font-size: 0.9em;
+}
+
+.rich-content pre {
+  position: relative;
+  margin: 1.5em 0;
+  padding: 1.25em;
+  overflow-x: auto;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 10px;
+  background: var(--rich-code-bg);
+  color: var(--rich-code-text);
+  font-family: "JetBrains Mono", "Fira Code", Consolas, Monaco, "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.65;
+  tab-size: 2;
+}
+
+.rich-content pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre;
+}
+
+.rich-content table {
+  display: block;
+  width: 100%;
+  margin: 1.5em 0;
+  overflow-x: auto;
+  border: 1px solid var(--rich-border);
+  border-radius: 8px;
+  border-spacing: 0;
+  background: var(--rich-surface);
+  font-size: 0.94em;
+}
+
+.rich-content th,
+.rich-content td {
+  min-width: 7em;
+  padding: 0.7em 0.9em;
+  border-right: 1px solid var(--rich-border);
+  border-bottom: 1px solid var(--rich-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.rich-content th:last-child,
+.rich-content td:last-child {
+  border-right: 0;
+}
+
+.rich-content tr:last-child td {
+  border-bottom: 0;
+}
+
+.rich-content th {
+  background: var(--rich-soft);
+  color: var(--rich-heading);
+  font-weight: 650;
+}
+
+.rich-content tr:hover td {
+  background: var(--rich-hover);
+}
+
+.rich-content img,
+.rich-content video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.rich-content img {
+  display: block;
+  margin: 1.25em auto;
+  box-shadow: var(--rich-shadow-sm);
+}
+
+.rich-content figure.image {
+  display: table;
+  max-width: 100%;
+  margin: 1.25em auto;
+}
+
+.rich-content figure.image img {
+  margin: 0 auto;
+}
+
+.rich-content figure.image figcaption {
+  display: table-caption;
+  caption-side: bottom;
+  padding-top: 0.55em;
+  color: var(--rich-muted);
+  font-size: 0.9em;
+  text-align: center;
+}
+
+.rich-content figure.align-left,
+.rich-content img.align-left {
+  float: left;
+  margin: 0.35em 1.25em 0.75em 0;
+}
+
+.rich-content figure.align-right,
+.rich-content img.align-right {
+  float: right;
+  margin: 0.35em 0 0.75em 1.25em;
+}
+
+.rich-content iframe {
+  max-width: 100%;
+}
+
+.rich-content hr {
+  height: 1px;
+  margin: 2em 0;
+  border: 0;
+  background: var(--rich-border);
+}
+
+/* 不设置 color，确保作者通过工具栏设置的内联文字颜色可以继续继承。 */
+.rich-content strong,
+.rich-content b {
+  font-weight: 650;
+}
+
+.rich-content em,
+.rich-content i {
+  font-style: italic;
+}
+
+.rich-content del,
+.rich-content s {
+  text-decoration: line-through;
+}
+
+.rich-content u,
+.rich-content ins {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.rich-content mark {
+  padding: 0.1em 0.25em;
+  border-radius: 3px;
+  background: var(--rich-mark-bg);
+}
+
+.rich-content .text-left { text-align: left; }
+.rich-content .text-center { text-align: center; }
+.rich-content .text-right { text-align: right; }
+.rich-content .text-justify { text-align: justify; }
+
+.rich-content .img-responsive { width: 100%; }
+.rich-content .img-rounded { border-radius: 12px; }
+.rich-content .img-circle { border-radius: 999px; }
+
+/* highlight.js：与 TinyMCE codesample 输出共同使用。 */
+.rich-content .hljs-comment,
+.rich-content .hljs-quote { color: #7f848e; font-style: italic; }
+.rich-content .hljs-keyword,
+.rich-content .hljs-selector-tag,
+.rich-content .hljs-subst { color: #c678dd; }
+.rich-content .hljs-number,
+.rich-content .hljs-literal,
+.rich-content .hljs-variable,
+.rich-content .hljs-template-variable,
+.rich-content .hljs-tag .hljs-attr { color: #d19a66; }
+.rich-content .hljs-string,
+.rich-content .hljs-doctag { color: #98c379; }
+.rich-content .hljs-title,
+.rich-content .hljs-section,
+.rich-content .hljs-selector-id,
+.rich-content .hljs-symbol,
+.rich-content .hljs-bullet { color: #61afef; }
+.rich-content .hljs-type,
+.rich-content .hljs-class .hljs-title,
+.rich-content .hljs-built_in,
+.rich-content .hljs-builtin-name { color: #e5c07b; }
+.rich-content .hljs-tag,
+.rich-content .hljs-name,
+.rich-content .hljs-attribute { color: #e06c75; font-weight: 400; }
+.rich-content .hljs-regexp,
+.rich-content .hljs-link { color: #56b6c2; }
+.rich-content .hljs-meta { color: #c678dd; }
+.rich-content .hljs-deletion { background: #7f1d1d; color: #ffffff; }
+.rich-content .hljs-addition { background: #14532d; color: #ffffff; }
+.rich-content .hljs-emphasis { font-style: italic; }
+.rich-content .hljs-strong { font-weight: 700; }
+
+.rich-content .copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  padding: 4px 10px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 6px;
+  background: rgb(17 24 39 / 82%);
+  color: #d1d5db;
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+.rich-content pre:hover .copy-btn,
+.rich-content .copy-btn:focus-visible {
+  opacity: 1;
+}
+
+.rich-content .copy-btn:hover {
+  background: #374151;
+  color: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .rich-content {
+    font-size: 15px;
+  }
+
+  body.rich-content.liutech-editor-content {
+    padding: 18px;
+  }
+
+  .rich-content pre {
+    padding: 1em;
+    font-size: 13px;
+  }
+
+  .rich-content th,
+  .rich-content td {
+    padding: 0.6em 0.75em;
+  }
+
+  .rich-content .copy-btn {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rich-content .copy-btn {
+    transition: none;
+  }
+}

@@ -5,7 +5,6 @@ import './assets/styles/tokens.css'
 import './assets/styles/theme.css'
 import './assets/styles/styles.css'
 import './assets/styles/rich-text.css'
-import './assets/styles/tinymce-dark.css'
 import App from './App.vue'
 // 引入路由
 import router from './router'
@@ -49,4 +48,3 @@ userStore.initUserState().catch(error => {
 
 // 挂载应用
 app.mount('#app')
-

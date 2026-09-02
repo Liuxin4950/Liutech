@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useHead } from '@vueuse/head'
 import { useRoute, useRouter } from 'vue-router'
@@ -164,12 +164,11 @@ const linkAttachments = computed(() => {
 // 计算属性：渲染富文本内容
 const renderedContent = computed(() => sanitizePostHtml(post.value?.content || ''))
 
-// 监听内容变化，触发代码高亮
-watch(() => renderedContent.value, () => {
-  nextTick(() => {
-    highlightCodeBlocks(contentRef.value)
-  })
-}, { flush: 'post' })
+// 正文数据与 v-if 容器可能先后就绪，两者任一变化都重新执行幂等增强。
+watch([renderedContent, contentRef], async () => {
+  await nextTick()
+  highlightCodeBlocks(contentRef.value)
+}, { flush: 'post', immediate: true })
 
 // 点击外部区域关闭分享选项
 const handleClickOutside = (event: Event) => {
@@ -487,7 +486,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     </div>
     <div v-else-if="post" class="post-reading-layout">
       <aside class="article-toc-panel" aria-label="文章目录">
-        <TableOfContents class="article-toc" :collapsed-below="1680" />
+        <TableOfContents embedded :collapsed-below="1680" />
       </aside>
 
       <div class="post-card card">
@@ -541,7 +540,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     
       <!-- 文章内容 -->
       <article class="post-article">
-        <div ref="contentRef" class="markdown-content" v-html="renderedContent"></div>
+        <div ref="contentRef" class="rich-content" v-html="renderedContent"></div>
       </article>
 
       <!-- 系列导航 -->
@@ -731,7 +730,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
             <!-- 分享选项 -->
             <div v-if="showShare" class="share-options">
               <button @click="copyLink" class="share-option link" title="复制链接">
-                <Icon name="link" size="20" />
+                <Icon name="link" class="share-option-icon" size="20" />
                 <span>复制链接</span>
               </button>
             </div>
@@ -914,42 +913,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   z-index: 12;
 }
 
-:deep(.article-toc) {
-  position: static;
-  width: 100%;
-  max-height: calc(100vh - 130px);
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-}
-
-:deep(.article-toc .toc-header) {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-light);
-  padding: 16px 16px 12px;
-}
-
-:deep(.article-toc .toc-header h4) {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-:deep(.article-toc .toc-link) {
-  font-size: 13px;
-}
-
-:deep(.article-toc .toc-item.active .toc-link) {
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-:deep(.article-toc .toc-item.active .toc-link::before) {
-  background: var(--color-primary);
-}
-
 .post-header {
   margin-bottom: 10px;
 }
@@ -1047,261 +1010,14 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 
 
-/* 富文本内容样式 - 重新设计 */
-.markdown-content {
-  line-height: 1.85;
+/* 页面只负责正文容器布局，元素排版统一由全局 rich-content.css 提供。 */
+.rich-content {
+  margin: 0;
   padding: 10px 0 20px;
-  color: var(--text-main);
-  font-size: 16.5px;
-  word-wrap: break-word;
-  background: transparent;
-  border-radius: 0;
-  margin: 0;
-}
-
-/* 基础元素样式 */
-.markdown-content :deep(h1),
-.markdown-content :deep(h2),
-.markdown-content :deep(h3),
-.markdown-content :deep(h4),
-.markdown-content :deep(h5),
-.markdown-content :deep(h6) {
-  color: var(--text-title);
-  font-weight: 720;
-  margin: 34px 0 16px;
-  line-height: 1.35;
-  scroll-margin-top: 96px;
-}
-
-.markdown-content :deep(h1) { font-size: 2em; }
-.markdown-content :deep(h2) { font-size: 1.58em; }
-.markdown-content :deep(h3) { font-size: 1.28em; }
-.markdown-content :deep(h4) { font-size: 1.2em; }
-.markdown-content :deep(h5) { font-size: 1.1em; }
-.markdown-content :deep(h6) { font-size: 1em; }
-
-.markdown-content :deep(p) {
-  margin: 15px 0;
-  color: var(--text-main);
-}
-
-.markdown-content :deep(a) {
-  color: var(--text-link);
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.markdown-content :deep(a:hover) {
-  color: var(--color-primary-dark);
-  text-decoration: underline;
-}
-
-/* 列表样式 */
-.markdown-content :deep(ul),
-.markdown-content :deep(ol) {
-  margin: 16px 0;
-  padding-left: 24px;
-  color: var(--text-main);
-}
-
-.markdown-content :deep(li) {
-  margin: 8px 0;
-  line-height: 1.6;
-}
-
-/* 引用块样式 - 重新设计 */
-.markdown-content :deep(blockquote) {
-  margin: 28px 0;
-  padding: 18px 22px 18px 28px;
-  border: 1px solid var(--border-soft);
-  background:
-    linear-gradient(135deg, var(--surface-glass-muted), transparent),
-    var(--bg-card);
-  color: var(--text-main);
-  font-style: normal;
-  border-radius: 12px;
-  position: relative;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  
-  &::before {
-    content: "";
-    position: absolute;
-    left: 13px;
-    top: 20px;
-    width: 5px;
-    height: 5px;
-    border-radius: 999px;
-    background: var(--color-accent);
-    box-shadow: 0 0 0 4px rgba(240, 184, 192, 0.16);
-  }
-}
-
-.markdown-content :deep(blockquote p) {
-  margin: 0;
-  color: var(--text-main);
-}
-
-/* 代码样式 - 由 hljs 处理高亮，语法色来自全局 markdown.css 的 .hljs-* */
-.markdown-content :deep(code) {
-  background-color: var(--bg-element);
-  color: var(--text-main);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 0.9em;
-}
-
-.markdown-content :deep(pre) {
-  background: var(--bg-code) !important;
-  color: var(--text-code) !important;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  border-radius: 12px;
-  padding: 24px;
-  margin: 24px 0;
-  overflow-x: auto;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
-  position: relative;
-}
-
-.markdown-content :deep(pre code) {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: inherit;
-  color: inherit !important;
-  white-space: pre;
-}
-
-/* 表格样式 */
-.markdown-content :deep(table) {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 20px 0;
-  background-color: var(--bg-card);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-}
-
-.markdown-content :deep(th),
-.markdown-content :deep(td) {
-  padding: 12px 16px;
-  text-align: left;
-  border-bottom: 1px solid var(--border-base);
-  color: var(--text-main);
-}
-
-.markdown-content :deep(th) {
-  background-color: var(--bg-soft);
-  font-weight: 600;
-  color: var(--text-title);
-  border-bottom: 2px solid var(--color-primary);
-}
-
-.markdown-content :deep(tr:last-child td) {
-  border-bottom: none;
-}
-
-.markdown-content :deep(tr:hover) {
-  background-color: var(--bg-hover);
-}
-
-/* 分隔线样式 */
-.markdown-content :deep(hr) {
-  border: none;
-  height: 2px;
-  background: linear-gradient(to right, transparent, var(--border-base), transparent);
-  margin: 32px 0;
-}
-
-/* 图片样式 */
-.markdown-content :deep(img) {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-  box-shadow: var(--shadow-md);
-  margin: 16px 0;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* 强调文本 */
-.markdown-content :deep(strong),
-.markdown-content :deep(b) {
-  color: var(--text-title);
-  font-weight: 600;
-}
-
-.markdown-content :deep(em),
-.markdown-content :deep(i) {
-  color: var(--text-subtle);
-  font-style: italic;
-}
-
-/* 删除线 */
-.markdown-content :deep(del),
-.markdown-content :deep(s) {
-  color: var(--text-muted);
-  text-decoration: line-through;
-}
-
-/* 下划线 */
-.markdown-content :deep(u) {
-  text-decoration: underline;
-  color: var(--color-accent);
-}
-
-/* 高亮文本 */
-.markdown-content :deep(mark) {
-  background-color: var(--bg-warning);
-  color: var(--text-main);
-  padding: 2px 4px;
-  border-radius: 3px;
-}
-
-/* TinyMCE 特定样式适配 */
-.markdown-content :deep(span.td-span) {
-  color: var(--text-main);
-}
-
-.markdown-content :deep(span.md-plain) {
-  color: var(--text-main);
-}
-
-.markdown-content :deep(code.box-sizing) {
-  background-color: var(--bg-element);
-  color: var(--color-error);
-}
-
-
-
-:root.dark .markdown-content :deep(pre) {
-  border-color: rgba(148, 163, 184, 0.3);
 }
 
 :root.dark .post-card {
   box-shadow: var(--shadow-md);
-}
-
-:root.dark :deep(.article-toc) {
-  background: var(--bg-card);
-  border-color: var(--border-soft);
-  box-shadow: var(--shadow-md);
-}
-
-:root.dark :deep(.article-toc:not(.visible):hover) {
-  border-color: var(--color-primary);
-}
-
-:root.dark .markdown-content :deep(blockquote) {
-  background:
-    linear-gradient(135deg, var(--surface-glass-muted), transparent),
-    var(--bg-card);
-  border-color: var(--border-soft);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 :root.dark .post-actions {
@@ -1330,40 +1046,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     z-index: 30;
   }
 
-  :deep(.article-toc) {
-    position: static !important;
-    inset: auto !important;
-    width: min(280px, 100vw);
-    max-height: min(520px, calc(100vh - 140px));
-  }
-
-  :deep(.article-toc:not(.visible)) {
-    width: 44px;
-    height: auto;
-    border-radius: 10px;
-    border: none;
-    background: var(--bg-card);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    cursor: pointer;
-  }
-
-  :deep(.article-toc:not(.visible):hover) {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  }
-
-  :deep(.article-toc:not(.visible) .toc-header) {
-    padding: 12px 0;
-    justify-content: center;
-    border-bottom: none;
-  }
-
-  :deep(.article-toc:not(.visible) .toc-header h4) {
-    display: none;
-  }
-
-  :deep(.article-toc:not(.visible) .toggle-btn) {
-    transform: rotate(-90deg);
-  }
 }
 
 @media (max-width: 1200px) {
@@ -1394,23 +1076,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     max-width: 100vw;
   }
 
-  :deep(.article-toc) {
-    width: min(280px, 100vw);
-  }
-
-  .markdown-content {
+  .rich-content {
     padding: 22px 0;
     font-size: 15px;
   }
   
-  .markdown-content :deep(th),
-  .markdown-content :deep(td) {
-    padding: 8px 12px;
-  }
-  
-  .markdown-content :deep(pre) {
-    padding: 12px;
-  }
 }
 
 /* 文章互动功能条样式*/
@@ -1553,9 +1223,10 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   transition: all 0.2s ease;
   text-align: left;
 
-  &:deep(svg) {
-    flex-shrink: 0;
-  }
+}
+
+.share-option-icon {
+  flex-shrink: 0;
 }
 
 .share-option:hover {
@@ -1566,10 +1237,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 .share-option.link:hover {
   background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   color: white;
-
-  &:deep(svg) {
-    color: white;
-  }
 }
 
 /* 响应式样式 */
@@ -1902,7 +1569,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     font-size: 14px;
   }
 
-  .markdown-content {
+  .rich-content {
     padding: 18px 0;
     font-size: 14px;
   }

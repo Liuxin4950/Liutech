@@ -1,53 +1,50 @@
 <template>
-  <div class="tinymce-editor" :class="{ dark: theme.current.value === 'dark' }">
-    <div v-if="!editorLoaded" class="editor-loading">
-      正在加载编辑器...
-    </div>
+  <div class="tinymce-editor">
+    <div v-if="!editorLoaded" class="editor-loading">正在加载编辑器...</div>
     <Editor
+      ref="editorComponent"
       v-model="content"
       :init="editorConfig"
       :disabled="disabled"
-      @change="handleChange"
+      license-key="gpl"
       @init="onEditorInit"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import Editor from '@tinymce/tinymce-vue'
-import theme from '../utils/theme'
+import type { Editor as TinyEditor } from 'tinymce'
+import theme from '@/utils/theme'
 import { ImageUploadService } from '@/services/utils'
-import { getContentStyle } from '@/utils/tinymceContent'
-// 导入TinyMCE核心
+import richContentCss from '@/assets/styles/rich-content.css?inline'
+
 import 'tinymce/tinymce'
-// 导入TinyMCE主题
 import 'tinymce/themes/silver'
-// 导入TinyMCE图标
 import 'tinymce/icons/default'
-// 导入TinyMCE插件
-import 'tinymce/plugins/advlist' // 高级列表
-import 'tinymce/plugins/autolink' // 自动链接
-import 'tinymce/plugins/lists' // 列表插件
-import 'tinymce/plugins/link' // 链接插件
-import 'tinymce/plugins/image' // 图片插件
-import 'tinymce/plugins/charmap' // 特殊字符
-import 'tinymce/plugins/preview' // 预览
-import 'tinymce/plugins/anchor' // 锚点
-import 'tinymce/plugins/searchreplace' // 查找替换
-import 'tinymce/plugins/code' // 代码
-import 'tinymce/plugins/fullscreen' // 全屏
-import 'tinymce/plugins/insertdatetime' // 插入日期时间
-import 'tinymce/plugins/media' // 媒体
-import 'tinymce/plugins/table' // 表格
-import 'tinymce/plugins/help' // 帮助
-import 'tinymce/plugins/wordcount' // 字数统计
-import 'tinymce/plugins/emoticons' // 表情符号
-import 'tinymce/plugins/codesample' // 代码示例
-import 'tinymce/plugins/quickbars' // 快速工具栏
-// 导入表情符号数据库
+import 'tinymce/plugins/advlist'
+import 'tinymce/plugins/autolink'
+import 'tinymce/plugins/lists'
+import 'tinymce/plugins/link'
+import 'tinymce/plugins/image'
+import 'tinymce/plugins/charmap'
+import 'tinymce/plugins/preview'
+import 'tinymce/plugins/anchor'
+import 'tinymce/plugins/searchreplace'
+import 'tinymce/plugins/visualblocks'
+import 'tinymce/plugins/code'
+import 'tinymce/plugins/fullscreen'
+import 'tinymce/plugins/insertdatetime'
+import 'tinymce/plugins/media'
+import 'tinymce/plugins/table'
+import 'tinymce/plugins/help'
+import 'tinymce/plugins/wordcount'
+import 'tinymce/plugins/emoticons'
+import 'tinymce/plugins/codesample'
+import 'tinymce/plugins/quickbars'
 import 'tinymce/plugins/emoticons/js/emojis'
-// 定义组件属性
+
 interface Props {
   modelValue?: string
   disabled?: boolean
@@ -55,249 +52,106 @@ interface Props {
   placeholder?: string
 }
 
-// 定义事件
 interface Emits {
-  (e: 'update:modelValue', value: string): void
-  (e: 'change', value: string): void
+  (event: 'update:modelValue', value: string): void
+  (event: 'change', value: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: '',
   disabled: false,
   height: 800,
-  // placeholder 默认空：TinyMCE 的占位符固定在内容区起始位置，与点击后的光标位置无法对齐，
-  // 空编辑器下点击任意处光标落在点击处，会出现"提示和光标不一致"的困惑
   placeholder: ''
 })
 
 const emit = defineEmits<Emits>()
-
-// 编辑器内容
-const content = ref(props.modelValue)
-// 编辑器加载状态
 const editorLoaded = ref(false)
+const editorComponent = ref<{ rerender: (init: Record<string, unknown>) => void } | null>(null)
+const editorTheme = computed(() => theme.current.value === 'dark' ? 'dark' : 'light')
+
+const content = computed({
+  get: () => props.modelValue,
+  set: (value: string) => {
+    emit('update:modelValue', value)
+    emit('change', value)
+  }
+})
 
 const SYSTEM_FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif"
-const EDITOR_FONT_FORMATS = `系统默认=${SYSTEM_FONT_STACK};微软雅黑=Microsoft YaHei,Helvetica Neue,PingFang SC,sans-serif;苹果苹方=PingFang SC,Microsoft YaHei,sans-serif;宋体=simsun,serif;仿宋体=FangSong,serif;黑体=SimHei,sans-serif;Arial=arial,helvetica,sans-serif;Arial Black=arial black,avant garde;Book Antiqua=book antiqua,palatino;`
+const EDITOR_FONT_FORMATS = `系统默认=${SYSTEM_FONT_STACK};微软雅黑=Microsoft YaHei,Helvetica Neue,PingFang SC,sans-serif;苹果苹方=PingFang SC,Microsoft YaHei,sans-serif;宋体=simsun,serif;仿宋体=FangSong,serif;黑体=SimHei,sans-serif;Arial=arial,helvetica,sans-serif;Consolas=consolas,monaco,monospace;`
 
-// TinyMCE配置（响应式主题）
 const editorConfig = computed(() => ({
   height: props.height,
-  menubar: false,
-  readonly: false, // 确保编辑器不是只读模式
-  language_url: '/tinymce/langs/zh_CN.js', // 中文语言包路径
-  language: 'zh_CN', // 设置语言为中文
-  base_url: '/tinymce', // 设置TinyMCE资源基础路径
-  suffix: '.min', // 使用压缩版本
-  license_key: 'gpl',
-  skin: theme.current.value === 'dark' ? 'oxide-dark' : 'oxide',
+  min_height: 360,
+  menubar: 'edit view insert format tools table help',
+  language_url: '/tinymce/langs/zh_CN.js',
+  language: 'zh_CN',
+  content_language: 'zh-CN',
+  base_url: '/tinymce',
+  suffix: '.min',
+  skin: editorTheme.value === 'dark' ? 'oxide-dark' : 'oxide',
+  content_css: false,
+  content_style: richContentCss,
+  body_class: `rich-content liutech-editor-content liutech-editor-${editorTheme.value}`,
   plugins: [
     'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
-    'anchor', 'searchreplace', 'code', 'fullscreen',
+    'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
     'insertdatetime', 'media', 'table', 'help', 'wordcount', 'emoticons',
     'codesample', 'quickbars'
   ],
   toolbar: [
-    'undo redo | styles fontfamily fontsize lineheight | bold italic underline strikethrough',
-    'alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | insertdatetime',
-    'forecolor backcolor | link anchor image media table emoticons charmap | codesample code | searchreplace',
-    'preview fullscreen | help'
+    'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough',
+    'forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent',
+    'blockquote link image media table codesample | removeformat preview fullscreen'
   ].join(' | '),
-  toolbar_mode: 'wrap',
+  toolbar_mode: 'sliding',
   quickbars_selection_toolbar: 'bold italic underline | forecolor backcolor | quicklink h2 h3 blockquote',
   quickbars_insert_toolbar: 'quickimage quicktable',
-  // 字体选项
+  contextmenu: 'link image table',
   font_family_formats: EDITOR_FONT_FORMATS,
-  font_formats: EDITOR_FONT_FORMATS,
-  // 字号选项
-  font_size_formats: '12px 14px 16px 18px 20px 22px 24px 26px 28px 30px 32px 34px 36px 38px 40px 42px 44px 46px 48px 50px 52px 54px 56px 58px 60px 62px 64px 66px 68px 70px 72px',
-  fontsize_formats: '12px 14px 16px 18px 20px 22px 24px 26px 28px 30px 32px 34px 36px 38px 40px 42px 44px 46px 48px 50px 52px 54px 56px 58px 60px 62px 64px 66px 68px 70px 72px',
-  // 行高选项
-  lineheight_formats: '1 1.1 1.2 1.3 1.4 1.5 1.6 1.8 2.0 2.5 3.0',
-  // 代码示例语言
+  font_size_formats: '12px 14px 16px 18px 20px 24px 28px 32px 40px 48px',
+  line_height_formats: '1 1.2 1.4 1.6 1.8 2 2.5',
   codesample_languages: [
     { text: 'HTML/XML', value: 'markup' },
     { text: 'JavaScript', value: 'javascript' },
-    { text: 'CSS', value: 'css' },
-    { text: 'PHP', value: 'php' },
-    { text: 'Ruby', value: 'ruby' },
-    { text: 'Python', value: 'python' },
-    { text: 'Java', value: 'java' },
-    { text: 'C', value: 'c' },
-    { text: 'C#', value: 'csharp' },
-    { text: 'C++', value: 'cpp' },
     { text: 'TypeScript', value: 'typescript' },
     { text: 'Vue', value: 'vue' },
     { text: 'React JSX', value: 'jsx' },
+    { text: 'CSS', value: 'css' },
+    { text: 'Java', value: 'java' },
+    { text: 'Python', value: 'python' },
+    { text: 'Go', value: 'go' },
+    { text: 'Rust', value: 'rust' },
+    { text: 'C', value: 'c' },
+    { text: 'C++', value: 'cpp' },
+    { text: 'C#', value: 'csharp' },
+    { text: 'PHP', value: 'php' },
+    { text: 'Ruby', value: 'ruby' },
     { text: 'SQL', value: 'sql' },
     { text: 'JSON', value: 'json' },
     { text: 'Markdown', value: 'markdown' },
-    { text: 'Shell', value: 'bash' },
-    { text: 'Go', value: 'go' },
-    { text: 'Rust', value: 'rust' }
+    { text: 'Shell', value: 'bash' }
   ],
-  // 自定义颜色调色板 - 完全匹配主题色系
   color_map: [
-    // 主色系
-    '#4A69D1', '主色-现代靛蓝',
-    '#3A4F9A', '主色-深靛蓝',
-    '#8AB4F8', '主色-亮蓝（深色模式）',
-    '#F7F9FC', '主色-极淡灰蓝',
-    
-    // 点缀色系
-    '#F0B8C0', '淡雅粉',
-    '#E89AA8', '淡雅粉-hover',
-    '#F8B4B4', '深色模式-温暖琥珀',
-    
-    // 状态色系
-    '#34A853', '成功-绿',
-    '#FBBC04', '警告-黄',
-    '#EA4335', '错误-红',
-    '#4285F4', '信息-蓝',
-    
-    // 文本色系
-    '#202124', '标题-深灰',
-    '#3C4043', '正文-中灰',
-    '#5F6368', '次要-浅灰',
-    '#9AA0A6', '弱化-更淡',
-    '#FFFFFF', '白色',
-    
-    // 背景色系
-    '#F8F9FA', '柔和背景',
-    '#F7F9FC', '元素背景',
-    '#F1F3F4', '悬停背景',
-    '#E8F0FE', '标签背景',
-    
-    // 边框色系
-    '#E8EAED', '常规边框',
-    '#BDC1C6', '深边框',
-    '#F1F3F4', '极浅边框',
-    
-    // 深色模式专用色
-    '#202124', '深色-主背景',
-    '#2D2F30', '深色-卡片背景',
-    '#3C4043', '深色-元素背景',
-    '#5F6368', '深色-边框'
+    '#202124', '标题灰', '#3C4043', '正文灰', '#5F6368', '次要灰', '#FFFFFF', '白色',
+    '#4A69D1', '主题靛蓝', '#8AB4F8', '浅蓝', '#F0B8C0', '淡雅粉', '#34A853', '成功绿',
+    '#FBBC04', '警告黄', '#EA4335', '错误红', '#4285F4', '信息蓝', '#000000', '黑色'
   ],
-  // 自定义颜色选择器
-  color_cols: 8,
+  color_cols: 6,
   custom_colors: true,
-  color_default_foreground: '#3C4043',
-  color_default_background: '#FFFFFF',
-  // 文字格式预设
-  style_formats: [
-    {
-      title: '标题',
-      items: [
-        { title: '标题 1', format: 'h1' },
-        { title: '标题 2', format: 'h2' },
-        { title: '标题 3', format: 'h3' },
-        { title: '标题 4', format: 'h4' },
-        { title: '标题 5', format: 'h5' },
-        { title: '标题 6', format: 'h6' }
-      ]
-    },
-    {
-      title: '内联',
-      items: [
-        { title: '加粗', format: 'bold' },
-        { title: '斜体', format: 'italic' },
-        { title: '下划线', format: 'underline' },
-        { title: '删除线', format: 'strikethrough' },
-        { title: '上标', format: 'superscript' },
-        { title: '下标', format: 'subscript' },
-        { title: '代码', format: 'code' }
-      ]
-    },
-    {
-      title: '块级',
-      items: [
-        { title: '段落', format: 'p' },
-        { title: '块引用', format: 'blockquote' },
-        { title: '代码块', format: 'pre' },
-        { title: '水平线', format: 'hr' }
-      ]
-    },
-    {
-      title: '对齐',
-      items: [
-        { title: '左对齐', format: 'alignleft' },
-        { title: '居中', format: 'aligncenter' },
-        { title: '右对齐', format: 'alignright' },
-        { title: '两端对齐', format: 'alignjustify' }
-      ]
-    },
-    {
-      title: '主题颜色',
-      items: [
-        { title: '标题文字', inline: 'span', styles: { color: '#202124' } },
-        { title: '正文文字', inline: 'span', styles: { color: '#3C4043' } },
-        { title: '次要文字', inline: 'span', styles: { color: '#5F6368' } },
-        { title: '主色靛蓝', inline: 'span', styles: { color: '#4A69D1' } },
-        { title: '深主色', inline: 'span', styles: { color: '#3A4F9A' } },
-        { title: '淡雅粉', inline: 'span', styles: { color: '#F0B8C0' } },
-        { title: '成功绿色', inline: 'span', styles: { color: '#34A853' } },
-        { title: '警告黄色', inline: 'span', styles: { color: '#FBBC04' } },
-        { title: '错误红色', inline: 'span', styles: { color: '#EA4335' } },
-        { title: '信息蓝色', inline: 'span', styles: { color: '#4285F4' } }
-      ]
-    }
-  ],
-  // 格式选项
-  formats: {
-    alignleft: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-left' },
-    aligncenter: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-center' },
-    alignright: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-right' },
-    alignjustify: { selector: 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li,table,img', classes: 'text-justify' },
-    bold: { inline: 'strong' },
-    italic: { inline: 'em' },
-    underline: { inline: 'span', styles: { 'text-decoration': 'underline' } },
-    strikethrough: { inline: 'span', styles: { 'text-decoration': 'line-through' } }
-  },
-  // 图片上传配置 - 使用统一的图片上传服务
   images_upload_handler: ImageUploadService.uploadTinyMCEImage,
-  // 图片上传相关配置
-  automatic_uploads: true, // 启用自动上传到服务器
-  images_upload_credentials: false, // 是否发送凭据
-  images_reuse_filename: true, // 重用文件名
-  images_file_types: 'jpeg,jpg,jpe,jfi,jif,jfif,png,gif,bmp,webp', // 支持的图片格式
-  
-  // 关闭 URL 转换：保存时保持编辑内容里的 URL 原样（相对路径 /uploads/...、COS 直出、外部图床 URL 都不改写）
-  // 原因：开启 convert_urls 会把站内相对路径改写成"当前编辑器域的绝对 URL"（如 admin.liuxin.chat/uploads/...），
-  // 该形态不在后端 FileUtil 系统域名白名单内，会导致图片引用计数/对账漏计
+  automatic_uploads: true,
+  images_upload_credentials: false,
+  images_reuse_filename: true,
+  images_file_types: 'jpeg,jpg,jpe,jfi,jif,jfif,png,gif,bmp,webp',
+  paste_data_images: true,
+  paste_as_text: false,
   convert_urls: false,
   relative_urls: false,
-  
-  // 粘贴配置
-  paste_data_images: true, // 允许粘贴图片
-  paste_as_text: false, // 不强制粘贴为纯文本
-  paste_remove_styles_if_webkit: false, // 保留样式
-  paste_retain_style_properties: 'color font-size',
-  paste_word_valid_elements: 'b,strong,i,em,h1,h2,h3,h4,h5,h6,p,div,ul,ol,li,table,tr,td,th,blockquote,code',
-  // 其他配置
-  branding: false, // 隐藏TinyMCE品牌信息
-  elementpath: false, // 隐藏底部元素路径
-  resize: 'both', // 允许调整大小
-  statusbar: true, // 显示状态栏
-  remove_script_host: false, // 保留脚本主机
-  content_style: getContentStyle(theme.current.value === 'dark'),
-  placeholder: props.placeholder || undefined,
-  promotion: false, // 隐藏升级提示
-  content_css: false,
-  directionality: 'ltr',
-  element_format: 'html',
-  entities: '160,nbsp,38,amp,60,lt,62,gt',
-  indent: false,
-  keep_styles: false,
-  paste_webkit_styles: 'none',
-  // 编辑器尺寸和布局
-  min_height: 300,
-  max_height: 800,
-  // 链接配置
+  remove_script_host: false,
   link_context_toolbar: true,
   link_default_target: '_blank',
   link_title: false,
-  // 图片配置
   image_caption: true,
   image_advtab: true,
   image_class_list: [
@@ -306,80 +160,26 @@ const editorConfig = computed(() => ({
     { title: '圆角', value: 'img-rounded' },
     { title: '圆形', value: 'img-circle' }
   ],
-  // 表格配置
-  table_advtab: true,
-  table_class_list: [
-    { title: '无', value: '' },
-    { title: '基础表格', value: 'table table-bordered' },
-    { title: '条纹表格', value: 'table table-striped' }
-  ],
-  // 初始化回调，用于调试
-  init_instance_callback: (editor: any) => {
-    applyEditorTheme(editor)
-    // Ctrl+S 保存快捷键
-    editor.shortcuts.add('ctrl+s', '保存内容', function () {
-    })
-  }
+  browser_spellcheck: true,
+  placeholder: props.placeholder || undefined,
+  resize: true,
+  statusbar: true,
+  elementpath: false,
+  branding: false,
+  promotion: false
 }))
 
-// 监听外部值变化
-watch(() => props.modelValue, (newValue) => {
-  if (newValue !== content.value) {
-    content.value = newValue
-  }
-})
-
-// 处理内容变化
-const handleChange = () => {
-  emit('update:modelValue', content.value)
-  emit('change', content.value)
-}
-
-// 监听内容变化
-watch(content, (newValue) => {
-  emit('update:modelValue', newValue)
-  emit('change', newValue)
-})
-
-// 编辑器实例引用
-const editorInstance = ref<any>(null)
-
-const resolveEditor = (eventOrEditor: any, maybeEditor?: any) => {
-  if (maybeEditor && typeof maybeEditor.getDoc === 'function') return maybeEditor
-  if (eventOrEditor && typeof eventOrEditor.getDoc === 'function') return eventOrEditor
-  if (eventOrEditor?.target && typeof eventOrEditor.target.getDoc === 'function') return eventOrEditor.target
-  return null
-}
-
-const applyEditorTheme = (editor: any, mode = theme.current.value) => {
-  if (!editor || typeof editor.getDoc !== 'function') return
-  const isDark = mode === 'dark'
+const onEditorInit = (_event: unknown, editor: TinyEditor) => {
   const doc = editor.getDoc()
-  const styleId = 'liutech-live-theme'
-  let styleNode = doc.getElementById(styleId) as HTMLStyleElement | null
-  if (!styleNode) {
-    const nextStyleNode = doc.createElement('style') as HTMLStyleElement
-    nextStyleNode.id = styleId
-    doc.head.appendChild(nextStyleNode)
-    styleNode = nextStyleNode
-  }
-  styleNode.textContent = getContentStyle(isDark)
-  doc.body.classList.toggle('liutech-editor-dark', isDark)
-  doc.body.classList.toggle('liutech-editor-light', !isDark)
-}
-
-// 编辑器初始化完成
-const onEditorInit = (eventOrEditor: any, maybeEditor?: any) => {
-  const editor = resolveEditor(eventOrEditor, maybeEditor)
-  if (!editor) return
-  editorInstance.value = editor
+  doc.documentElement.classList.add(`liutech-editor-${editorTheme.value}`)
   editorLoaded.value = true
-  applyEditorTheme(editor)
 }
 
-// 监听主题变化，实时刷新 iframe 内容样式，避免销毁编辑器导致内容/光标状态丢失
-watch(() => theme.current.value, (mode) => {
-  applyEditorTheme(editorInstance.value, mode)
+// TinyMCE 的 skin 不能运行时热切换。Vue 集成组件的 rerender 会先保存正文、
+// 安全销毁实例再重建，从而切换官方皮肤且不维护脆弱的 .tox 深层覆盖。
+watch(editorTheme, () => {
+  editorLoaded.value = false
+  editorComponent.value?.rerender(editorConfig.value)
 })
 </script>
 
@@ -389,85 +189,12 @@ watch(() => theme.current.value, (mode) => {
 }
 
 .editor-loading {
+  margin-bottom: 10px;
   padding: 20px;
-  text-align: center;
-  color: var(--text-subtle);
-  background: var(--bg-soft);
   border: 1px solid var(--border-base);
   border-radius: 8px;
-  margin-bottom: 10px;
-}
-
-/* TinyMCE样式覆盖 - 跟随主题变量（深色模式细节见全局 tinymce-dark.css） */
-:deep(.tox) {
-  border-radius: 8px;
-  border: 1px solid var(--border-light) !important;
-  background: var(--bg-card) !important;
-  color: var(--text-main) !important;
-  transition: all 0.3s ease;
-}
-
-:deep(.tox .tox-editor-header),
-:deep(.tox .tox-toolbar-overlord),
-:deep(.tox .tox-toolbar),
-:deep(.tox .tox-toolbar__primary) {
-  background: var(--bg-card) !important;
-  color: var(--text-main) !important;
-  transition: all 0.3s ease;
-}
-
-:deep(.tox .tox-toolbar) {
-  border-bottom: 1px solid var(--border-light) !important;
-}
-
-:deep(.tox-edit-area) {
-  background: var(--bg-card) !important;
-  transition: all 0.3s ease;
-}
-
-:deep(.tox-statusbar) {
-  background: var(--bg-card) !important;
-  border-top: 1px solid var(--border-light) !important;
-  color: var(--text-subtle) !important;
-  transition: all 0.3s ease;
-}
-
-:deep(.tox-statusbar__path-item),
-:deep(.tox-statusbar__wordcount),
-:deep(.tox-statusbar a) {
-  color: var(--text-subtle) !important;
-}
-
-:deep(.tox-toolbar__group) {
-  border-color: var(--border-light) !important;
-}
-
-:deep(.tox .tox-tbtn),
-:deep(.tox .tox-split-button),
-:deep(.tox .tox-listboxfield .tox-listbox--select),
-:deep(.tox .tox-textfield) {
-  background: var(--bg-element, var(--bg-card)) !important;
-  border-color: var(--border-light) !important;
-  color: var(--text-main) !important;
-}
-
-:deep(.tox .tox-tbtn svg) {
-  fill: currentColor !important;
-}
-
-:deep(.tox-tbtn--select) {
-  max-width: 178px;
-}
-
-:deep(.tox-tbtn--select .tox-tbtn__select-label) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:deep(.tox .tox-tbtn:hover),
-:deep(.tox .tox-split-button:hover) {
-  background: var(--bg-hover) !important;
-  color: var(--color-primary) !important;
+  background: var(--bg-soft);
+  color: var(--text-subtle);
+  text-align: center;
 }
 </style>

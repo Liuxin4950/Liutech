@@ -1,5 +1,12 @@
 <template>
-  <div v-if="headings.length > 0" class="table-of-contents" :class="{ 'visible': isVisible }">
+  <div
+    v-if="headings.length > 0"
+    class="table-of-contents"
+    :class="{
+      visible: isVisible,
+      'table-of-contents--embedded': embedded
+    }"
+  >
     <div class="toc-header" @click="toggleVisibility">
       <h4>目录</h4>
       <button @click.stop="toggleVisibility" class="toggle-btn" :aria-expanded="isVisible" aria-label="切换目录">
@@ -35,8 +42,10 @@ import { useNestedLenis, getLenis } from '@/composables/useLenis'
 
 const props = withDefaults(defineProps<{
   collapsedBelow?: number
+  embedded?: boolean
 }>(), {
-  collapsedBelow: 0
+  collapsedBelow: 0,
+  embedded: false
 })
 
 interface Heading {
@@ -104,7 +113,7 @@ const smoothScrollTo = (targetY: number) => {
 
 // 提取标题
 const extractHeadings = () => {
-  const contentElement = document.querySelector('.markdown-content')
+  const contentElement = document.querySelector('.rich-content')
   if (!contentElement) return
 
   const headingElements = contentElement.querySelectorAll('h1, h2, h3, h4, h5, h6')
@@ -224,7 +233,7 @@ const handleScroll = () => {
 
 // 监听内容变化，重新提取标题
 const observeContentChanges = () => {
-  const contentElement = document.querySelector('.markdown-content')
+  const contentElement = document.querySelector('.rich-content')
   if (!contentElement) {
     // 如果内容元素还没有渲染，延迟重试
     setTimeout(() => {
@@ -456,6 +465,75 @@ defineExpose({
 .toc-item.active .toc-link {
   color: var(--color-primary);
   font-weight: 500;
+}
+
+/* 文章详情页嵌入模式：组件自己负责内部外观，父页面只负责定位容器。 */
+.table-of-contents.table-of-contents--embedded {
+  position: static;
+  width: 100%;
+  max-height: calc(100vh - 130px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+
+  .toc-header {
+    padding: 16px 16px 12px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+
+    h4 {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+  }
+
+  .toc-link {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 1680px) {
+  .table-of-contents.table-of-contents--embedded {
+    inset: auto;
+    width: min(280px, 100vw);
+    max-height: min(520px, calc(100vh - 140px));
+
+    &:not(.visible) {
+      width: 44px;
+      height: auto;
+      border: 0;
+      border-radius: 10px;
+      background: var(--bg-card);
+      box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
+      cursor: pointer;
+
+      &:hover {
+        box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+      }
+
+      .toc-header {
+        justify-content: center;
+        padding: 12px 0;
+        border-bottom: 0;
+
+        h4 {
+          display: none;
+        }
+      }
+
+      .toggle-btn {
+        transform: rotate(-90deg);
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .table-of-contents.table-of-contents--embedded {
+    width: min(280px, 100vw);
+  }
 }
 
 // 响应式
