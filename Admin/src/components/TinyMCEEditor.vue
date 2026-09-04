@@ -146,6 +146,9 @@ const editorConfig = computed(() => ({
   images_file_types: 'jpeg,jpg,jpe,jfi,jif,jfif,png,gif,bmp,webp',
   paste_data_images: true,
   paste_as_text: false,
+  // TinyMCE 8 默认会清空 WebKit 粘贴产生的内联样式，仅保留作者需要的颜色和字号。
+  paste_remove_styles_if_webkit: true,
+  paste_webkit_styles: 'color font-size',
   convert_urls: false,
   relative_urls: false,
   remove_script_host: false,

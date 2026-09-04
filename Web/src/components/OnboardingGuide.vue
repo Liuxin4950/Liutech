@@ -149,8 +149,10 @@ import { useOnboarding } from '@/composables/useOnboarding'
 
 const props = withDefaults(defineProps<{
   live2dStatus?: 'idle' | 'loading' | 'ready' | 'error'
+  chatOpen?: boolean
 }>(), {
   live2dStatus: 'idle',
+  chatOpen: false,
 })
 
 const emit = defineEmits<{
@@ -297,17 +299,17 @@ function placeModelTip() {
 const chatInputTipPos = ref<Record<string, string>>({})
 const chatInputArrowStyle = ref<Record<string, string>>({})
 
-function placeChatInputTip() {
+function placeChatInputTip(): boolean {
   const el = document.querySelector('[data-onboarding="chat-input"]')
   if (!el) {
     chatInputReady.value = false
-    return
+    return false
   }
 
   const rect = el.getBoundingClientRect()
   if (rect.width <= 0 || rect.height <= 0) {
     chatInputReady.value = false
-    return
+    return false
   }
 
   const width = Math.min(320, window.innerWidth - 32)
@@ -323,6 +325,41 @@ function placeChatInputTip() {
     left: `${Math.max(24, Math.min(centerX - left, width - 24))}px`,
   }
   chatInputReady.value = true
+  return true
+}
+
+// 聊天框使用 v-show，打开瞬间目标可能仍未完成布局。短时持续定位既能覆盖慢渲染，
+// 也能在后续调整面板过渡时保持气泡跟随；聊天关闭时立即隐藏，避免悬浮在旧位置。
+const CHAT_INPUT_RETRY_INTERVAL_MS = 100
+const CHAT_INPUT_RETRY_LIMIT = 12
+let chatInputRetryTimer: number | null = null
+
+function stopChatInputRetry() {
+  if (chatInputRetryTimer !== null) {
+    window.clearTimeout(chatInputRetryTimer)
+    chatInputRetryTimer = null
+  }
+}
+
+function scheduleChatInputTip() {
+  stopChatInputRetry()
+  let attempts = 0
+
+  const attempt = () => {
+    chatInputRetryTimer = null
+    if (!isChatTipActive.value || !props.chatOpen) {
+      chatInputReady.value = false
+      return
+    }
+
+    placeChatInputTip()
+    attempts += 1
+    if (attempts < CHAT_INPUT_RETRY_LIMIT) {
+      chatInputRetryTimer = window.setTimeout(attempt, CHAT_INPUT_RETRY_INTERVAL_MS)
+    }
+  }
+
+  nextTick(attempt)
 }
 
 // ---- 定位入口 ----
@@ -372,7 +409,7 @@ function onResize() {
   raf = requestAnimationFrame(() => {
     if (isSpotlightActive.value) { locateSpotlight(); placeTooltip() }
     if (isModelTipActive.value) placeModelTip()
-    if (isChatTipActive.value) placeChatInputTip()
+    if (isChatTipActive.value && props.chatOpen) placeChatInputTip()
   })
 }
 
@@ -385,22 +422,27 @@ watch(isModelTipActive, (v) => {
   if (v) nextTick(() => setTimeout(placeModelTip, 250))
 })
 
-watch(isChatTipActive, (v) => {
-  if (v) nextTick(() => setTimeout(placeChatInputTip, 350))
-})
+watch([isChatTipActive, () => props.chatOpen], ([active, chatOpen]) => {
+  if (active && chatOpen) {
+    scheduleChatInputTip()
+  } else {
+    stopChatInputRetry()
+    chatInputReady.value = false
+  }
+}, { immediate: true })
 
 onMounted(() => {
   window.addEventListener('resize', onResize, { passive: true })
   window.addEventListener('scroll', onResize, { passive: true })
   if (isSpotlightActive.value) nextTick(() => setTimeout(locateSpotlight, 350))
   if (isModelTipActive.value) nextTick(() => setTimeout(placeModelTip, 250))
-  if (isChatTipActive.value) nextTick(() => setTimeout(placeChatInputTip, 350))
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', onResize)
   window.removeEventListener('scroll', onResize)
   cancelAnimationFrame(raf)
+  stopChatInputRetry()
 })
 </script>
 
@@ -745,6 +787,7 @@ onUnmounted(() => {
    ============================================ */
 .chat-tip {
   z-index: 10002;
+  max-width: calc(100vw - 32px);
   pointer-events: auto;
 }
 
@@ -760,7 +803,8 @@ onUnmounted(() => {
     0 2px 4px rgba(0, 0, 0, 0.04),
     0 8px 24px rgba(0, 0, 0, 0.1);
   border: 1px solid var(--border-light);
-  white-space: nowrap;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .chat-tip__step {
@@ -789,10 +833,12 @@ onUnmounted(() => {
 }
 
 .chat-tip__msg {
+  min-width: 0;
   margin: 0;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-main);
+  overflow-wrap: anywhere;
   animation: tip-float 2.5s ease-in-out infinite;
 }
 

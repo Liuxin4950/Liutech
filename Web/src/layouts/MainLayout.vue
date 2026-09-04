@@ -61,7 +61,10 @@ const handleExternalChatOpen = (event: Event) => {
 }
 
 const handleSpotlightClick = () => {
-  live2dStatus.value = 'loading'
+  // Live2D 可能已被其它入口提前挂载并加载完成，不要覆盖只会发射一次的 ready 状态。
+  if (live2dStatus.value !== 'ready') {
+    live2dStatus.value = 'loading'
+  }
   chatStore.showModel = true
 }
 
@@ -186,6 +189,7 @@ const handleAuthRequired = (action: () => void, message?: string) => {
     <!-- 新用户引导 -->
     <OnboardingGuide
       :live2d-status="live2dStatus"
+      :chat-open="chatStore.showChat"
       @spotlight-click="handleSpotlightClick"
       @complete=""
     />
