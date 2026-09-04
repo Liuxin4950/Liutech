@@ -100,13 +100,6 @@ const skillGroups = [
   },
 ]
 
-// 技术理念
-const philosophy = [
-  { icon: "check", title: "代码不是目的", desc: "问题在真实业务里，代码只是落地的工具；工程的意义是让系统可靠地运行、持续地创造价值。" },
-  { icon: "book", title: "输出倒逼输入", desc: "技术更新很快，用写博客、记踩坑文档、动手实践的方式沉淀所学——写出来才算真正学会。" },
-  { icon: "users", title: "AI 是团队的生产力", desc: "不仅自己用 AI 提效，更要教团队正确使用、厘清 AI 的能力边界，让 AI 融入每个人的开发流程。" },
-]
-
 // 项目经历（来自真实工作记录）
 const projects = [
   {
@@ -309,22 +302,6 @@ useScrollReveal('.reveal', { once: false })
         <router-link to="/honors" class="text-link">
           查看全部荣誉 <Icon name="chevronRight" size="15" />
         </router-link>
-      </div>
-    </section>
-
-    <!-- 技术理念 -->
-    <section class="philosophy-section section-card reveal">
-      <SectionTitle subtitle="Philosophy" title="技术" highlight="理念" />
-      <div class="philosophy-grid">
-        <div v-for="item in philosophy" :key="item.title" class="philosophy-card">
-          <div class="philosophy-icon">
-            <Icon :name="item.icon" size="20" />
-          </div>
-          <div class="philosophy-body">
-            <h3>{{ item.title }}</h3>
-            <p>{{ item.desc }}</p>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -830,62 +807,6 @@ useScrollReveal('.reveal', { once: false })
   }
 }
 
-// 理念
-.philosophy-section {
-  margin-bottom: 24px;
-}
-
-.philosophy-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-
-.philosophy-card {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding: 24px;
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  transition: border-color 0.2s ease, transform 0.25s ease, box-shadow 0.25s ease;
-
-  &:hover {
-    border-color: var(--color-primary);
-  }
-
-  h3 {
-    margin: 0 0 6px;
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-title);
-  }
-
-  p {
-    margin: 0;
-    font-size: 0.88rem;
-    color: var(--text-subtle);
-    line-height: 1.7;
-  }
-}
-
-.philosophy-icon {
-  flex-shrink: 0;
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  background: var(--bg-soft);
-  color: var(--color-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.philosophy-body {
-  flex: 1;
-  min-width: 0;
-}
-
 // 联系我
 .contact-section {
   display: grid;
@@ -1030,10 +951,6 @@ useScrollReveal('.reveal', { once: false })
   }
 
   .skill-groups {
-    grid-template-columns: 1fr;
-  }
-
-  .philosophy-grid {
     grid-template-columns: 1fr;
   }
 
