@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="chat.liuxin.liutech.mapper.UserViewHistoryMapper">
+    <select id="countVisibleByUserId" resultType="long">
+        SELECT COUNT(*) FROM user_view_history h JOIN posts p ON p.id=h.post_id
+        WHERE h.user_id=#{userId} AND p.deleted_at IS NULL AND p.status='published'
+    </select>
 
     <!-- 记录浏览：不存在则插入，已存在（uk_user_post 冲突）则刷新浏览时间 -->
     <insert id="upsertViewHistory">

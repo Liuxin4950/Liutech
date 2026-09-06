@@ -9,6 +9,7 @@ const props = defineProps<{
   mode: ChatMode
   ttsEnabled: boolean
   ttsAvailable: boolean
+  ttsChecking?: boolean
   ttsToggleTitle: string
   showHistoryButton: boolean
   showModelToggleButton: boolean
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   clear: []
   toggleHistory: []
   toggleTts: []
+  retryTts: []
   toggleModel: []
   setMode: [mode: ChatMode]
 }>()
@@ -102,12 +104,15 @@ onUnmounted(() => {
       <button
         class="icon-action-btn tts-toggle-btn"
         :class="{ 'is-on': ttsEnabled && ttsAvailable }"
-        :disabled="!ttsAvailable"
+        :aria-pressed="ttsEnabled"
+        :aria-label="ttsToggleTitle"
         :title="ttsToggleTitle"
         @click="emit('toggleTts')"
       >
         <Icon :name="ttsEnabled && ttsAvailable ? 'volume' : 'volumeOff'" :size="toolbarIconSize" />
       </button>
+
+      <button v-if="!ttsAvailable" class="icon-action-btn" :disabled="ttsChecking" title="重新检测语音服务" aria-label="重新检测语音服务" @click="emit('retryTts')">↻</button>
 
       <button
         v-if="showHistoryButton"
@@ -175,7 +180,7 @@ onUnmounted(() => {
         </button>
 
         <div v-show="showMoreMenu" class="more-dropdown">
-          <button class="more-option" @click="emit('toggleTts'); showMoreMenu = false" :disabled="!ttsAvailable">
+          <button class="more-option" @click="emit('toggleTts'); showMoreMenu = false" :aria-pressed="ttsEnabled">
             <Icon :name="ttsEnabled && ttsAvailable ? 'volume' : 'volumeOff'" :size="14" />
             <span>{{ ttsEnabled ? '关闭语音' : '开启语音' }}</span>
           </button>

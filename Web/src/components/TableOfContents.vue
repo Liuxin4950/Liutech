@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="headings.length > 0"
+    v-if="headings.length > 0 || $slots.series"
     class="table-of-contents"
     :class="{
       visible: isVisible,
@@ -8,16 +8,20 @@
     }"
   >
     <div class="toc-header" @click="toggleVisibility">
-      <h4>目录</h4>
+      <h4>阅读导航</h4>
       <button @click.stop="toggleVisibility" class="toggle-btn" :aria-expanded="isVisible" aria-label="切换目录">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M6 9l6 6 6-6"/>
         </svg>
       </button>
     </div>
+    <div v-if="isVisible && $slots.series && headings.length" class="toc-tabs">
+      <button :aria-pressed="activePanel === 'article'" @click="activePanel = 'article'">本文目录</button>
+      <button :aria-pressed="activePanel === 'series'" @click="activePanel = 'series'">所属系列</button>
+    </div>
     <!-- :key 强制重建：折叠（display:none）时初始化的嵌套 Lenis 尺寸为 0，展开后需重建才能滚动 -->
     <nav ref="tocNavRef" class="toc-nav" v-show="isVisible" :key="isVisible ? 'open' : 'closed'" data-lenis-prevent>
-      <ul class="toc-list">
+      <ul class="toc-list" :class="{ 'toc-panel-hidden': activePanel !== 'article' && !!$slots.series }">
         <li 
           v-for="heading in headings" 
           :key="heading.id"
@@ -32,6 +36,7 @@
           </a>
         </li>
       </ul>
+      <div :class="{ 'toc-panel-hidden': activePanel !== 'series' && headings.length > 0 }"><slot name="series" /></div>
     </nav>
   </div>
 </template>
@@ -59,6 +64,7 @@ const tocNavRef = ref<HTMLElement | null>(null)
 
 const headings = ref<Heading[]>([])
 const activeId = ref<string>('')
+const activePanel = ref<'article' | 'series'>('article')
 const isVisible = ref(true)
 const isScrolling = ref(false)
 let userToggledVisibility = false
@@ -466,12 +472,19 @@ defineExpose({
   color: var(--color-primary);
   font-weight: 500;
 }
+.toc-tabs { display: none; flex: 0 0 auto; border-bottom: 1px solid var(--border-light); padding: 6px; gap: 4px; }
+.toc-tabs button { flex: 1; border: 0; padding: 8px; border-radius: 6px; color: var(--text-subtle); background: transparent; cursor: pointer; }
+.toc-tabs button[aria-pressed="true"] { color: var(--color-primary); background: var(--bg-hover); }
+@media (max-width: 1680px) {
+  .toc-tabs { display: flex; }
+  .toc-panel-hidden { display: none; }
+}
 
 /* 文章详情页嵌入模式：组件自己负责内部外观，父页面只负责定位容器。 */
 .table-of-contents.table-of-contents--embedded {
   position: static;
   width: 100%;
-  max-height: calc(100vh - 130px);
+  max-height: calc(100dvh - 130px);
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 16px;
@@ -497,8 +510,8 @@ defineExpose({
 @media (max-width: 1680px) {
   .table-of-contents.table-of-contents--embedded {
     inset: auto;
-    width: min(280px, 100vw);
-    max-height: min(520px, calc(100vh - 140px));
+    width: min(280px, calc(100vw - 32px));
+    max-height: min(520px, calc(100dvh - 140px));
 
     &:not(.visible) {
       width: 44px;
@@ -532,7 +545,7 @@ defineExpose({
 
 @media (max-width: 768px) {
   .table-of-contents.table-of-contents--embedded {
-    width: min(280px, 100vw);
+    width: min(280px, calc(100vw - 32px));
   }
 }
 

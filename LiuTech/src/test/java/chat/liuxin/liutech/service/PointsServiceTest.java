@@ -28,6 +28,7 @@ class PointsServiceTest {
     void setUp() {
         userMapper = mock(UserMapper.class);
         pointsTransactionMapper = mock(PointsTransactionMapper.class);
+        when(pointsTransactionMapper.insert(any(PointsTransaction.class))).thenReturn(1);
         pointsService = new PointsService(userMapper, pointsTransactionMapper);
     }
 

@@ -285,6 +285,12 @@ useScrollReveal('.reveal')
 .posts-section {
   width: 100%;
 
+  // 小屏时侧栏排在文章列表之后。预留至少一屏高度，避免请求返回前侧栏先进入
+  // 首屏、文章卡片插入后又被整体推走，形成明显布局偏移。
+  @include respond(lg) {
+    min-height: 100vh;
+  }
+
   .list {
     width: 100%;
     article {

@@ -3,6 +3,9 @@
 import GlobalPageLoader from '@/components/GlobalPageLoader.vue'
 import RouteProgress from '@/components/RouteProgress.vue'
 import { useRouteLoading } from '@/composables/useRouteLoading'
+import { usePageSeo } from '@/composables/usePageSeo'
+
+usePageSeo()
 
 const { isInitialLoading } = useRouteLoading()
 </script>

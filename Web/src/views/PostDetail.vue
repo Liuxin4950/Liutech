@@ -15,8 +15,10 @@ import { useAuthModalStore } from '@/stores/authModal'
 import { useUserStore } from '@/stores/user'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
+import SeriesCatalog from '@/components/SeriesCatalog.vue'
 import Icon from '@/components/Icon.vue'
 import { sanitizePostHtml, highlightCodeBlocks } from '@/composables/useRichContent'
+import { site } from '@/config/site'
 import { parsePostId, buildPostPath } from '@/utils/postPath'
 
 // 文章正文内容容器引用，用于代码高亮
@@ -25,20 +27,26 @@ const contentRef = ref<HTMLElement | null>(null)
 const route = useRoute()
 const router = useRouter()
 const { handleAsync, showSuccessToast, showError } = useErrorHandler()
-const PUBLIC_SITE_URL = 'https://liuxin.chat'
+const PUBLIC_SITE_URL = site.url
 
 const normalizePublicUrl = (url?: string | null) => {
   if (!url) return ''
 
-  return url
-    .replace(/^http:\/\/liuxin\.chat/i, PUBLIC_SITE_URL)
-    .replace(/^http:\/\/liutech\.chat/i, PUBLIC_SITE_URL)
-    .replace(/^https:\/\/liutech\.chat/i, PUBLIC_SITE_URL)
+  try {
+    const resolved = new URL(url, PUBLIC_SITE_URL)
+    if (!['http:', 'https:'].includes(resolved.protocol)) return ''
+    if (['liuxin.chat', 'www.liuxin.chat', 'liutech.chat'].includes(resolved.hostname)) {
+      return new URL(resolved.pathname + resolved.search, PUBLIC_SITE_URL).href
+    }
+    return resolved.href
+  } catch { return '' }
 }
 
 // 已移除：旧的基于 referrer 的导航激活逻辑，改由 Header 基于当前路径自动判定
 // 响应式数据
 const post = ref<PostDetail | null>(null)
+const loading = ref(false)
+const error = ref('')
 
 // 常驻 Banner（MainLayout 中的 Banner 组件）内容定制：把"LiuTech"替换为文章标题/分类
 const bannerStore = useBannerStore()
@@ -65,22 +73,27 @@ watch(() => post.value, (p) => {
 useHead(() => {
   const p = post.value
   if (!p) {
-    return { title: '加载中... - LiuTech' }
+    return { title: error.value ? '文章暂不可用 - LiuTech' : '加载中... - LiuTech', meta: [{ name: 'robots', content: 'noindex, follow' }] }
   }
-  const postUrl = `${PUBLIC_SITE_URL}${buildPostPath(p.id, p.title)}`
+  const postUrl = `${PUBLIC_SITE_URL}${buildPostPath(p.id)}`
+  const fragment = new DOMParser().parseFromString(p.summary || p.content || '', 'text/html')
+  fragment.querySelectorAll('script,style').forEach(node => node.remove())
+  const description = fragment.body.textContent?.replace(/\s+/g, ' ').trim().slice(0, 160) || `LiuTech 技术博客 - ${p.title}`
   const imageUrl = normalizePublicUrl(p.coverImage) || `${PUBLIC_SITE_URL}/og-image.svg`
   return {
     title: `${p.title} - LiuTech`,
     meta: [
-      { name: 'description', content: p.summary || p.content?.substring(0, 150) || `LiuTech 技术博客 - ${p.title}` },
+      { name: 'description', content: description },
       { name: 'keywords', content: p.tags?.map((t: any) => t.name).join(', ') || '技术博客, 编程' },
+      { property: 'og:type', content: 'article' },
+      { name: 'robots', content: 'index, follow' },
       { property: 'og:title', content: `${p.title} - LiuTech` },
-      { property: 'og:description', content: p.summary || p.content?.substring(0, 150) || `LiuTech 技术博客 - ${p.title}` },
+      { property: 'og:description', content: description },
       { property: 'og:url', content: postUrl },
       { property: 'og:image', content: imageUrl },
-      { property: 'twitter:title', content: `${p.title} - LiuTech` },
-      { property: 'twitter:description', content: p.summary || p.content?.substring(0, 150) || `LiuTech 技术博客 - ${p.title}` },
-      { property: 'twitter:image', content: imageUrl }
+      { name: 'twitter:title', content: `${p.title} - LiuTech` },
+      { name: 'twitter:description', content: description },
+      { name: 'twitter:image', content: imageUrl }
     ],
     link: [
       { rel: 'canonical', href: postUrl }
@@ -92,7 +105,7 @@ useHead(() => {
           "@context": "https://schema.org",
           "@type": "Article",
           "headline": p.title,
-          "description": p.summary || p.content?.substring(0, 150) || `LiuTech 技术博客 - ${p.title}`,
+          "description": description,
           "image": imageUrl,
           "author": {
             "@type": "Person",
@@ -118,8 +131,6 @@ useHead(() => {
     ]
   }
 })
-const loading = ref(false)
-const error = ref('')
 
 // 喜欢按钮相关状态
 const isLiked = ref(false)
@@ -167,6 +178,10 @@ const renderedContent = computed(() => sanitizePostHtml(post.value?.content || '
 // 正文数据与 v-if 容器可能先后就绪，两者任一变化都重新执行幂等增强。
 watch([renderedContent, contentRef], async () => {
   await nextTick()
+  contentRef.value?.querySelectorAll('img').forEach(image => {
+    image.loading = 'lazy'
+    image.decoding = 'async'
+  })
   highlightCodeBlocks(contentRef.value)
 }, { flush: 'post', immediate: true })
 
@@ -180,7 +195,9 @@ const handleClickOutside = (event: Event) => {
 }
 
 // 加载文章详情
+let detailGeneration = 0
 const loadPostDetail = async () => {
+  const request = ++detailGeneration
   const postId = parsePostId(route.params.id)
   if (!postId || Number.isNaN(postId)) {
     error.value = '无效的文章ID'
@@ -192,22 +209,15 @@ const loadPostDetail = async () => {
   await handleAsync(async () => {
     loading.value = true
     error.value = ''
+    post.value = null
 
     const postData = await PostService.getPostDetail(postId)
+    if (request !== detailGeneration) return
     post.value = postData
-
-    // 把地址栏从 /post/{id} 补全为 /post/{id}-{slug}
-    // 用 history.replaceState 直接改 URL，不触发 Vue Router 导航，避免重复加载与系列导航死循环
-    const targetPath = buildPostPath(postId, postData.title)
-    if (route.path !== targetPath) {
-      const search = window.location.search || ''
-      window.history.replaceState(window.history.state, '', targetPath + search)
-    }
 
     // 动态更新页面标题与面包屑末项
     if (postData && route.meta) {
       route.meta.title = postData.title
-      document.title = `${postData.title} - LiuTech`
     }
 
     // 初始化点赞和收藏状态
@@ -222,12 +232,14 @@ const loadPostDetail = async () => {
     }
   }, {
     onError: () => {
+      if (request !== detailGeneration) return
+      post.value = null
       error.value = '加载文章详情失败，请稍后重试'
       // 文章不存在（草稿/已删除）时恢复默认轮播，避免残留 subheader 空页眉（onMounted 里无条件 setBanner 过）
       bannerStore.resetBanner()
     },
     onFinally: () => {
-      loading.value = false
+      if (request === detailGeneration) loading.value = false
     }
   })
 }
@@ -469,6 +481,7 @@ onMounted(() => {
 
 // 组件卸载时清理事件监听器（Banner 恢复由 MainLayout 路由监听统一处理，避免切换竞态）
 onUnmounted(() => {
+  detailGeneration++
   document.removeEventListener('click', handleClickOutside)
 })
 
@@ -506,7 +519,11 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     </div>
     <div v-else-if="post" class="post-reading-layout">
       <aside class="article-toc-panel" aria-label="文章目录">
-        <TableOfContents embedded :collapsed-below="1680" />
+        <TableOfContents :key="post.id" embedded :collapsed-below="1680">
+          <template v-if="post.series && post.seriesCatalog?.length" #series>
+            <SeriesCatalog :series="post.series" :items="post.seriesCatalog" />
+          </template>
+        </TableOfContents>
       </aside>
 
       <div class="post-card card">
@@ -570,14 +587,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
           <router-link :to="`/series-detail/${post.series.id}`" class="series-card-name">{{ post.series.name }}</router-link>
           <span class="series-card-progress">{{ currentSeriesIndex + 1 }} / {{ post.seriesCatalog.length }}</span>
         </header>
-        <ol class="series-toc">
-          <li v-for="(item, idx) in post.seriesCatalog" :key="item.id" :class="{ current: item.current }">
-            <router-link :to="`/post/${item.id}`" class="series-toc-link">
-              <span class="series-toc-num">{{ String(idx + 1).padStart(2, '0') }}</span>
-              <span class="series-toc-title">{{ item.title }}</span>
-            </router-link>
-          </li>
-        </ol>
         <nav class="series-prev-next">
           <router-link v-if="prevSeriesPost" :to="`/post/${prevSeriesPost.id}`" class="series-prev">
             <Icon name="chevronLeft" size="14" />
@@ -778,13 +787,14 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 /* 系列导航 */
 .series-card {
-  margin: 32px 0;
-  padding: 18px 20px 14px;
+  margin: 24px 0;
+  padding: 14px 16px;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 12px;
 }
 .series-card-head {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -809,52 +819,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: var(--text-muted);
-}
-.series-toc {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.series-toc li { margin: 0; }
-.series-toc-link {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 7px 10px;
-  margin: 0 -10px;
-  border-radius: 6px;
-  text-decoration: none;
-  color: var(--text-main);
-  font-size: 14px;
-  line-height: 1.5;
-  transition: background 0.15s, color 0.15s;
-  &:hover {
-    background: var(--surface-glass-muted, rgba(0, 0, 0, 0.03));
-    color: var(--color-primary);
-  }
-}
-.series-toc-num {
-  flex-shrink: 0;
-  width: 28px;
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.series-toc-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-.series-toc li.current .series-toc-link {
-  background: rgba(var(--color-primary-rgb, 0, 123, 255), 0.08);
-  color: var(--color-primary);
-  font-weight: 500;
-}
-.series-toc li.current .series-toc-num {
-  color: var(--color-primary);
-  font-weight: 600;
 }
 .series-prev-next {
   display: grid;

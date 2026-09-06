@@ -28,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class PointsService {
+    public static final String TYPE_ACHIEVEMENT = "achievement";
+    public static final String SOURCE_ACHIEVEMENT = "achievement";
 
     private final UserMapper userMapper;
 
@@ -109,7 +111,9 @@ public class PointsService {
         transaction.setDescription(description);
         transaction.setCreatedAt(new Date());
 
-        pointsTransactionMapper.insert(transaction);
+        if (pointsTransactionMapper.insert(transaction) != 1) {
+            throw new chat.liuxin.liutech.common.BusinessException(chat.liuxin.liutech.common.ErrorCode.OPERATION_ERROR, "积分流水记录失败");
+        }
 
         log.info("用户{}成功扣减{}积分，剩余{}积分，来源：{}-{}", userId, amount, newPoints, sourceType, sourceId);
     }
@@ -169,7 +173,9 @@ public class PointsService {
         transaction.setDescription(description);
         transaction.setCreatedAt(new Date());
 
-        pointsTransactionMapper.insert(transaction);
+        if (pointsTransactionMapper.insert(transaction) != 1) {
+            throw new chat.liuxin.liutech.common.BusinessException(chat.liuxin.liutech.common.ErrorCode.OPERATION_ERROR, "积分流水记录失败");
+        }
 
         log.info("用户{}成功增加{}积分，总计{}积分，来源：{}-{}", userId, amount, newPoints, sourceType, sourceId);
     }

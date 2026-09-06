@@ -42,6 +42,7 @@ class ViewHistoryServiceTest {
         Long userId = 10L;
         Posts post = new Posts();
         post.setId(postId);
+        post.setStatus("published");
 
         when(postsMapper.selectById(postId)).thenReturn(post);
         when(userViewHistoryMapper.upsertViewHistory(userId, postId)).thenReturn(1);
@@ -63,6 +64,14 @@ class ViewHistoryServiceTest {
     }
 
     // ========== getViewHistory 测试 ==========
+    @Test
+    void recordView_shouldRejectDraft() {
+        Posts post = new Posts();
+        post.setStatus("draft");
+        when(postsMapper.selectById(1L)).thenReturn(post);
+        assertThrows(BusinessException.class, () -> viewHistoryService.recordView(1L, 10L));
+        verify(userViewHistoryMapper, never()).upsertViewHistory(any(), any());
+    }
 
     @Test
     void getViewHistory_shouldReturnPagedRecords() {

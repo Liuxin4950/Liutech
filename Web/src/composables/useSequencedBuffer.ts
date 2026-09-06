@@ -19,7 +19,7 @@ export function useSequencedBuffer<T extends { seq: number }>() {
 
   /** 按 seq 入队。如果 seq 已存在会被覆盖。 */
   function enqueue(item: T) {
-    if (!item || typeof item.seq !== 'number' || item.seq <= 0) return
+    if (!item || !Number.isSafeInteger(item.seq) || item.seq < nextSeq.value) return
     buffer.value[item.seq] = item
   }
 

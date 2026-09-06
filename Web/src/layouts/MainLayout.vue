@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
 import Banner from '@/components/Banner.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import BottomNavigation from '@/components/BottomNavigation.vue'
-import Live2d from '@/components/Live2d.vue'
-import AiChat from '@/components/AiChat.vue'
+const Live2d = defineAsyncComponent(() => import('@/components/Live2d.vue'))
+const AiChat = defineAsyncComponent(() => import('@/components/AiChat.vue'))
 import LoginModal from '@/components/LoginModal.vue'
 import GlobalSearchModal from '@/components/GlobalSearchModal.vue'
 import { requireAuth } from '@/utils/auth'
@@ -53,7 +53,7 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
 }
 
 // TTS 播放器 + Avatar Cue 调度 + 音乐桥接（集中在 useTtsPlayer composable）
-const { unlockAudio, handleMusicPlay, handleMusicPause, handleSpeakStart } = useTtsPlayer({ chatStore, live2dRef, bottomNavRef })
+const { unlockAudio, handleMusicPlay, handleMusicPause, handleSpeakStart } = useTtsPlayer({ chatStore, live2dRef, bottomNavRef, live2dStatus })
 
 const handleExternalChatOpen = (event: Event) => {
   const detail = (event as CustomEvent<Record<string, any>>).detail
@@ -130,8 +130,9 @@ const handleModelClick = () => {
 }
 
 const handleModelWheel = (event: WheelEvent) => {
-  if (!chatStore.isExpanded) return
+  if (!chatStore.showChat) return
   event.preventDefault()
+  event.stopPropagation()
   aiChatRef.value?.scrollBodyBy?.(event.deltaY)
 }
 
@@ -325,7 +326,8 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   }
 }
 
-.ai-chat {
+// 异步聊天组件的样式会晚加载；外部定位应稳定高于子组件根节点的默认布局。
+.ai-box > .ai-chat {
   width: 400px;
   height: 560px;
   position: absolute;

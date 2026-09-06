@@ -266,7 +266,7 @@ router.beforeEach(async (to, from, next) => {
   Swal.close()
 
   // 设置页面标题
-  document.title = `Liutech-${to.meta.title || '博客'}`
+  // 页面标题由 App/usePageSeo 与内容页 useHead 统一维护。
 
   // 需要登录的页面
   const requiresAuth = ['create-post', 'my-posts', 'favorites', 'view-history', 'profile', 'ai-chat-full']

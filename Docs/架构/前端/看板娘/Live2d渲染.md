@@ -24,7 +24,7 @@ startLive2DLoad()
       └─ loadState = 'ready' + emit('ready')
 ```
 
-**资源清理**（`onBeforeUnmount`）：移除事件监听、stopAllMotions、removeChild、destroy 模型、destroy PIXI app（含纹理）。`useLipSync.destroy` 关闭 AudioContext。
+**资源清理**（`onBeforeUnmount`）：移除事件监听、stopAllMotions、removeChild、destroy 模型、destroy PIXI app（含纹理）。`useAudioLipSync.destroy` 只清理分析支路，声音主路由页面播放器生命周期管理。
 
 ## 加载反馈与重试
 
@@ -56,25 +56,11 @@ props.visible
 
 **陷阱**：`is-hidden` CSS 只设 `visibility:hidden + pointer-events:none`，PIXI 仍渲染。必须配合 ticker.stop 才能真正省资源。
 
-## 口型同步：useLipSync
+## 口型同步：useAudioLipSync
 
-内联在 Live2d.vue，基于 Web Audio API 分析音频 RMS 驱动 `ParamMouthOpenY`：
+[useAudioLipSync.ts](../../../../Web/src/composables/useAudioLipSync.ts) 根据时域波形的 RMS 驱动 `ParamMouthOpenY`。Live2d 传入模型口型写入函数，配置为 `noiseFloor=0.015, gain=14, smoothIn=0.78, smoothOut=0.88, curve=0.75`，通过 `lipSyncConfig/setLipSyncConfig` 暴露。
 
-```
-speakAudioElement(audio)
-  ├─ attach(audio)                    MediaElementSource -> AnalyserNode
-  ├─ rAF 循环:
-  │   ├─ analyser.getByteTimeDomainData  取时域波形
-  │   ├─ computeRms(buffer)             计算 RMS
-  │   ├─ target = (rms - noiseFloor) * gain
-  │   ├─ mouthSmoothed = 平滑插值（smoothIn/smoothOut 不同系数）
-  │   └─ setMouthOpen(mouthSmoothed)    驱动 ParamMouthOpenY
-  └─ audio pause/ended -> stop
-```
-
-**配置**：`noiseFloor=0.015, gain=14, smoothIn=0.78, smoothOut=0.88, curve=0.75`。通过 `defineExpose` 暴露 `lipSyncConfig` + `setLipSyncConfig` 可调。
-
-**单实例**：lipSync 是模块级单例，TTS 和音乐共用。TTS 在播时不启动音乐口型（见 [TTS与表情](TTS与表情.md) 音乐互斥）。
+采样从实际 `playing` 事件开始；暂停/结束闭嘴，恢复播放可再次采样。模型销毁只断开自己的分析支路，同一音频的 source node 可被后续模型复用。音乐和 TTS 的互斥、取消及声音主路见 [TTS与表情](TTS与表情.md)。
 
 ## 表情与动作：applyAvatarCue
 

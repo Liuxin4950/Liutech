@@ -105,7 +105,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "postList", key = "#req.page + ':' + #req.size + ':' + #req.categoryId + ':' + #req.tagId + ':' + #req.keyword + ':' + #req.status + ':' + #req.authorId + ':' + #req.seriesId + ':' + #userId", unless = "#result == null")
+    @Cacheable(value = "postList", key = "#req.page + ':' + #req.size + ':' + #req.categoryId + ':' + #req.tagId + ':' + #req.keyword + ':' + #req.status + ':' + #req.authorId + ':' + #req.seriesId + ':' + #req.sort + ':' + #userId", unless = "#result == null")
     public PageResp<PostListResp> getPostList(PostQueryReq req, Long userId) {
         // 创建分页对象
         Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
@@ -115,7 +115,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
         // 执行分页查询，直接返回PostListResp
         IPage<PostListResp> result = postsMapper.selectPostListResp(page, req.getCategoryId(), req.getTagId(), keyword,
-                req.getStatus(), req.getAuthorId(), req.getSeriesId(), userId);
+                req.getStatus(), req.getAuthorId(), req.getSeriesId(), userId, req.getSort());
 
         // 批量加载标签（替代N+1嵌套查询）
         fillTags(result.getRecords());

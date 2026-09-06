@@ -29,6 +29,7 @@ const loadStats = async () => {
 
 // =================== 积分流水 Tab ===================
 const transactionTypeOptions = [
+  { label: '成就奖励', value: 'achievement' },
   { label: '签到', value: 'checkin' },
   { label: '消费', value: 'consumption' },
   { label: '退款', value: 'refund' },
@@ -36,6 +37,7 @@ const transactionTypeOptions = [
 ]
 
 const transactionTypeMap: Record<string, { label: string; color: string }> = {
+  achievement: { label: '成就奖励', color: 'cyan' },
   checkin: { label: '签到', color: 'green' },
   consumption: { label: '消费', color: 'red' },
   refund: { label: '退款', color: 'orange' },
@@ -44,6 +46,7 @@ const transactionTypeMap: Record<string, { label: string; color: string }> = {
 
 const sourceTypeMap: Record<string, string> = {
   post_purchase: '文章购买',
+  achievement: '成就奖励',
   checkin: '签到',
   admin_adjust: '管理员调整',
   refund: '退款',

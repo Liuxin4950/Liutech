@@ -39,6 +39,7 @@ import java.util.List;
 public class UserProfileService {
 
     private final UserMapper userMapper;
+    private final chat.liuxin.liutech.mapper.UserViewHistoryMapper viewHistoryMapper;
 
     private final UserUtils userUtils;
 
@@ -139,67 +140,24 @@ public class UserProfileService {
      * @return 用户统计信息
      * @throws BusinessException 当用户未认证或不存在时抛出异常
      */
+    /** 个人行为频繁变化，直接读当前数据库；统计错误交由统一异常处理，不能返回伪造的 0。 */
     @Transactional(readOnly = true)
-    @Cacheable(value = "userStats", key = "#root.target.getCurrentUserId()", unless = "#result == null")
     public UserStatsResp getCurrentUserStats() {
-        log.debug("开始获取当前用户统计信息");
-
-        // 1. 获取当前用户信息
-        Users currentUser = userUtils.getCurrentUser();
-        if (currentUser == null) {
-            log.warn("用户未认证");
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
-        }
-
-        // 2. 构建统计信息
+        Long userId = userUtils.getCurrentUserId();
+        if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        Users currentUser = userMapper.selectById(userId);
+        if (currentUser == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
         UserStatsResp stats = new UserStatsResp();
         BeanUtils.copyProperties(currentUser, stats);
-
-        // 3. 获取详细统计数据
-        try {
-            // 获取评论数量
-            Integer commentCount = commentsMapper.countCommentsByUserId(currentUser.getId());
-            stats.setCommentCount(commentCount != null ? commentCount.longValue() : 0L);
-
-            // 获取文章数量（已发布）
-            Integer postCount = postsMapper.countPostsByUserIdAndStatus(currentUser.getId(), "published");
-            stats.setPostCount(postCount != null ? postCount.longValue() : 0L);
-
-            // 获取草稿数量
-            Integer draftCount = postsMapper.countPostsByUserIdAndStatus(currentUser.getId(), "draft");
-            stats.setDraftCount(draftCount != null ? draftCount.longValue() : 0L);
-
-            // 访问量暂时设为0（后续可扩展）
-            stats.setViewCount(0L);
-
-            // 获取收藏数量
-            Integer favoriteCount = postFavoritesMapper.countFavoritesByUserId(currentUser.getId());
-            stats.setFavoriteCount(favoriteCount != null ? favoriteCount.longValue() : 0L);
-
-            // 获取最近活动时间
-            Date lastCommentAt = commentsMapper.getLastCommentTimeByUserId(currentUser.getId());
-            stats.setLastCommentAt(lastCommentAt);
-
-            Date lastPostAt = postsMapper.getLastPostTimeByUserId(currentUser.getId());
-            stats.setLastPostAt(lastPostAt);
-
-            log.debug("用户 {} 统计信息获取成功 - 评论: {}, 文章: {}, 草稿: {}",
-                    currentUser.getUsername(), commentCount, postCount, draftCount);
-
-        } catch (Exception e) {
-            log.error("获取用户统计信息失败，用户: {}, 错误: {}", currentUser.getUsername(), e.getMessage(), e);
-            // 如果统计信息获取失败，设置默认值
-            stats.setCommentCount(0L);
-            stats.setPostCount(0L);
-            stats.setDraftCount(0L);
-            stats.setViewCount(0L);
-            stats.setFavoriteCount(0L);
-        }
-
+        stats.setCommentCount(commentsMapper.countVisibleCommentsByUserId(userId));
+        stats.setPostCount(postsMapper.countPostsByUserIdAndStatus(userId, "published").longValue());
+        stats.setDraftCount(postsMapper.countPostsByUserIdAndStatus(userId, "draft").longValue());
+        stats.setViewCount(viewHistoryMapper.countVisibleByUserId(userId));
+        stats.setFavoriteCount(postFavoritesMapper.countFavoritesByUserId(userId).longValue());
+        stats.setLastCommentAt(commentsMapper.getLastCommentTimeByUserId(userId));
+        stats.setLastPostAt(postsMapper.getLastPostTimeByUserId(userId));
         return stats;
     }
-
-
 
     /**
      * 获取个人资料信息

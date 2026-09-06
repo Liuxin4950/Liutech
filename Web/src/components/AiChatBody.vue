@@ -3,7 +3,6 @@ import { nextTick, ref } from 'vue'
 import type { ChatMessage } from '@/stores/chat'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import Icon from './Icon.vue'
-import { useNestedLenis } from '@/composables/useLenis'
 
 type DisplayMessage = ChatMessage & {
   displayContent: string
@@ -26,14 +25,45 @@ const emit = defineEmits<{
 }>()
 
 const chatContainer = ref<HTMLElement | null>(null)
+const FOLLOW_THRESHOLD = 48
+let interactionVersion = 0
+let followingLatest = true
 
-// 聊天消息列表嵌套 Lenis：与页面一致的平滑惯性；外层 window Lenis 由 data-lenis-prevent 跳过
-useNestedLenis(chatContainer)
+const updateFollowingState = () => {
+  const el = chatContainer.value
+  if (!el) return
+  followingLatest = el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_THRESHOLD
+}
+
+const handleUserWheel = (deltaY: number) => {
+  const el = chatContainer.value
+  if (!el) return
+  interactionVersion++
+  if (deltaY < 0) followingLatest = false
+  el.scrollTop += deltaY
+  requestAnimationFrame(updateFollowingState)
+}
+
+const handleTouchStart = () => {
+  interactionVersion++
+}
+
+type FollowSnapshot = { following: boolean; interactionVersion: number }
+
+const captureFollowSnapshot = (): FollowSnapshot => ({ following: followingLatest, interactionVersion })
+
+const followLatestIfUnchanged = async (snapshot: FollowSnapshot) => {
+  await nextTick()
+  if (snapshot.following && snapshot.interactionVersion === interactionVersion && chatContainer.value) {
+    chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+  }
+}
 
 const scrollToBottom = async () => {
   await nextTick()
   if (chatContainer.value) {
     chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+    followingLatest = true
   }
 }
 
@@ -41,7 +71,10 @@ const getScrollElement = () => chatContainer.value
 
 defineExpose({
   scrollToBottom,
-  getScrollElement
+  getScrollElement,
+  handleUserWheel,
+  captureFollowSnapshot,
+  followLatestIfUnchanged
 })
 </script>
 
@@ -57,7 +90,13 @@ defineExpose({
       <button class="error-close" @click="emit('clearError')"><Icon name="close" /></button>
     </div>
 
-    <div ref="chatContainer" class="chat-messages" data-lenis-prevent>
+    <div
+      ref="chatContainer"
+      class="chat-messages"
+      data-lenis-prevent
+      @scroll.passive="updateFollowingState"
+      @touchstart.passive="handleTouchStart"
+    >
       <div v-if="!hasMessages" class="empty-state text-sm">
         <p>你好！我是纳西妲，有什么我可以帮助你的吗？</p>
       </div>
@@ -212,6 +251,7 @@ defineExpose({
   min-height: 0;
   padding: 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 12px;

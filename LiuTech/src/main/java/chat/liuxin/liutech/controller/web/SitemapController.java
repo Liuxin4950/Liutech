@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class SitemapController {
 
-    @Value("${server.base.url:https://www.liuxin.chat}")
+    @Value("${server.base.url:https://liuxin.chat}")
     private String baseUrl;
 
     private final PostsService postsService;
@@ -32,6 +32,7 @@ public class SitemapController {
     private final CategoriesService categoriesService;
 
     private final TagsService tagsService;
+    private final chat.liuxin.liutech.service.PostSeriesService postSeriesService;
 
     @GetMapping(value = "/sitemap.xml", produces = MediaType.APPLICATION_XML_VALUE)
     public String generateSitemap() {
@@ -45,6 +46,12 @@ public class SitemapController {
         appendUrl(sitemap, "/archive", null, "weekly", "0.7");
         appendUrl(sitemap, "/categories", null, "weekly", "0.6");
         appendUrl(sitemap, "/tags", null, "weekly", "0.6");
+        appendUrl(sitemap, "/series", null, "weekly", "0.6");
+        for (var series : postSeriesService.getAllSeriesWithPostCount()) {
+            if (series.getPostCount() != null && series.getPostCount() > 0) {
+                appendUrl(sitemap, "/series-detail/" + series.getId(), series.getUpdatedAt(), "weekly", "0.6");
+            }
+        }
 
         List<Posts> publishedPosts = postsService.getPublishedPosts();
         for (Posts post : publishedPosts) {
@@ -68,7 +75,8 @@ public class SitemapController {
 
     private void appendUrl(StringBuilder sitemap, String path, Date lastModified, String changeFreq, String priority) {
         sitemap.append("  <url>\n");
-        sitemap.append("    <loc>").append(baseUrl).append(path).append("</loc>\n");
+        String url = baseUrl.replaceAll("/+$", "") + path;
+        sitemap.append("    <loc>").append(org.springframework.web.util.HtmlUtils.htmlEscape(url)).append("</loc>\n");
         if (lastModified != null) {
             sitemap.append("    <lastmod>").append(formatDate(lastModified)).append("</lastmod>\n");
         }

@@ -11,6 +11,7 @@ import { useConversationManager } from '@/composables/useConversationManager'
 import { useVoiceRecognition } from '@/composables/useVoiceRecognition'
 import { parsePostId } from '@/utils/postPath'
 import { useNestedLenis } from '@/composables/useLenis'
+import { resumeAudioContext } from '@/composables/useAudioLipSync'
 
 const historyContentRef = ref<HTMLElement | null>(null)
 useNestedLenis(historyContentRef)
@@ -71,25 +72,26 @@ const guestBannerText = computed(() => isCompact.value
   ? '游客体验中，聊天记录不会保存'
   : '当前为游客体验模式，聊天记录不会保存。登录后可保存历史会话。'
 )
-const quickPrompts = computed(() => {
-  if (route.name === 'post-detail') {
-    return ['帮我总结这篇文章', '推荐几篇相关文章']
-  }
-  return ['推荐几篇文章', '介绍一下这个博客']
-})
-
 const ttsStatusText = ref<string>('语音检测中...')
-const isTtsToggleDisabled = computed(() => !chatStore.ttsAvailable)
 const ttsToggleTitle = computed(() => {
   if (chatStore.ttsAvailable) {
     return chatStore.ttsEnabled ? '语音已开启（点击关闭）' : '语音已关闭（点击开启）'
   }
-  return ttsStatusText.value || '语音不可用'
+  return `${chatStore.ttsEnabled ? '关闭自动朗读' : '开启自动朗读'}（${ttsStatusText.value || '语音暂不可用'}）`
 })
 
 const toggleTts = () => {
-  if (isTtsToggleDisabled.value) return
   chatStore.setTtsEnabled(!chatStore.ttsEnabled)
+  if (chatStore.ttsEnabled) {
+    primeMediaOnce()
+    if (!chatStore.ttsAvailable) void retryTts()
+  }
+}
+const retryTts = async () => {
+  if (chatStore.isModelLoading) return
+  ttsStatusText.value = '语音检测中...'
+  const runtime = await chatStore.loadRuntime()
+  ttsStatusText.value = runtime?.tts.message || (chatStore.ttsAvailable ? '语音可用' : '检测失败，可重新检测')
 }
 
 const cleanedMessages = computed(() => {
@@ -126,41 +128,18 @@ const collectRecentRecommendation = () => {
   return []
 }
 
-let mediaPrimed = false
-const primeMediaOnce = () => {
-  if (mediaPrimed) return
-  mediaPrimed = true
-  try {
-    const Ctx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined
-    if (Ctx) {
-      const ctx = new Ctx()
-      ctx.resume().catch(() => {})
-      const gain = ctx.createGain()
-      gain.gain.value = 0
-      const osc = ctx.createOscillator()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.start()
-      osc.stop(ctx.currentTime + 0.01)
-      window.setTimeout(() => { ctx.close().catch(() => {}) }, 50)
-    }
-  } catch {}
-
-  try {
-    const audio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=')
-    audio.volume = 0
-    audio.play().catch(() => {})
-  } catch {}
-}
+const primeMediaOnce = () => { void resumeAudioContext().catch(() => {}) }
 
 const scrollToBottom = async () => {
   await bodyRef.value?.scrollToBottom?.()
 }
 
 const scrollBodyBy = (deltaY: number) => {
-  const scrollElement = bodyRef.value?.getScrollElement?.()
-  if (!scrollElement) return
-  scrollElement.scrollTop += deltaY
+  bodyRef.value?.handleUserWheel?.(deltaY)
+}
+
+const handleChatWheel = (event: WheelEvent) => {
+  scrollBodyBy(event.deltaY)
 }
 
 const setMode = (newMode: ChatMode) => {
@@ -185,12 +164,10 @@ const sendMessage = async () => {
   voiceInterimText.value = ''
 
   primeMediaOnce()
-  await chatStore.sendMessage(content, buildChatContext())
+  const sending = chatStore.sendMessage(content, buildChatContext())
+  // 新提问先定位到最新消息；用户随后上滑时，流式更新不会再强制追底。
   await scrollToBottom()
-}
-
-const applyPrompt = (prompt: string) => {
-  chatInput.value = prompt
+  await sending
 }
 
 const handleExpandChat = () => {
@@ -230,7 +207,8 @@ const handleMenuClickOutside = (event: MouseEvent) => {
 watch(
   () => messages.value.map(msg => `${msg.id}:${msg.content.length}:${msg.isStreaming ? 1 : 0}:${msg.isThinking ? 1 : 0}:${msg.articleResults?.length || 0}`).join('|'),
   async () => {
-    await scrollToBottom()
+    const snapshot = bodyRef.value?.captureFollowSnapshot?.()
+    if (snapshot) await bodyRef.value?.followLatestIfUnchanged?.(snapshot)
   }
 )
 
@@ -275,7 +253,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="chat-box" :class="{ expanded, compact: !expanded }">
+  <div class="chat-box" :class="{ expanded, compact: !expanded }" @wheel.stop.prevent="handleChatWheel">
     <div class="chat-popup">
       <div v-if="expanded && isAuthenticated" class="history-sidebar" :class="{ show: showHistorySidebar }">
         <div class="history-header">
@@ -352,6 +330,7 @@ defineExpose({
             :mode="mode"
             :tts-enabled="chatStore.ttsEnabled"
             :tts-available="chatStore.ttsAvailable"
+            :tts-checking="chatStore.isModelLoading"
             :tts-toggle-title="ttsToggleTitle"
             :show-history-button="!!expanded"
             :show-model-toggle-button="!!expanded"
@@ -362,6 +341,7 @@ defineExpose({
             @toggle-history="toggleHistorySidebar"
             @toggle-model="handleToggleModelVisibility"
             @toggle-tts="toggleTts"
+            @retry-tts="retryTts"
             @set-mode="setMode"
           />
         </div>
@@ -387,12 +367,10 @@ defineExpose({
             v-model="chatInput"
             :is-loading="isLoading"
             :expanded="expanded"
-            :quick-prompts="quickPrompts"
             :voice-supported="voiceSupported"
             :voice-listening="voiceListening"
             :voice-interim-text="voiceInterimText"
             :voice-error="voiceError"
-            @apply-prompt="applyPrompt"
             @send="sendMessage"
             @start-voice="startVoiceRecognition"
             @stop-voice="stopVoiceRecognition"

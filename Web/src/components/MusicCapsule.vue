@@ -26,7 +26,7 @@
       <div v-if="!isCollapsed" class="music-panel">
         <div v-if="currentMusic" class="music-info">
           <div class="music-title">{{ currentMusic.title }}</div>
-          <div class="music-artist">{{ currentMusic.artist || '未知艺术家' }}</div>
+          <div class="music-artist">{{ loading ? '正在加载...' : playbackError || currentMusic.artist || '未知艺术家' }}</div>
         </div>
 
         <div class="controls">
@@ -36,7 +36,7 @@
             </svg>
           </button>
 
-          <button class="control-btn play-btn" @click.stop="togglePlay" :title="isPlaying ? '暂停' : '播放'" :aria-label="isPlaying ? '暂停' : '播放'">
+          <button class="control-btn play-btn" @click.stop="togglePlay" :title="loading ? '取消加载' : isPlaying ? '暂停' : '播放'" :aria-label="loading ? '取消加载' : isPlaying ? '暂停' : '播放'">
             <svg v-if="!isPlaying" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
             </svg>
@@ -89,352 +89,197 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { getMusicList, type MusicItem } from '../services/musicApi'
+import { getMusicList, type MusicItem } from '@/services/musicApi'
 import { handleImageError } from '@/composables/useImageFallback'
+import { resumeAudioContext } from '@/composables/useAudioLipSync'
 
-// 事件定义（提前声明，避免在 startPlayback/pauseMusic 中前置引用）
-const emit = defineEmits<{
-  (e: 'play', audio: HTMLAudioElement): void
-  (e: 'pause'): void
-}>()
-
-// 播放状态
+const emit = defineEmits<{ play: [audio: HTMLAudioElement]; pause: [] }>()
 const musicList = ref<MusicItem[]>([])
 const currentIndex = ref(0)
 const currentMusic = ref<MusicItem | null>(null)
 const isPlaying = ref(false)
 const isPaused = ref(false)
+const loading = ref(false)
+const playbackError = ref('')
 const showPlaylist = ref(false)
-// 默认折叠成 fab 圆形，融入右下按钮列
 const isCollapsed = ref(true)
-
-// 音频对象
-let fullAudio: HTMLAudioElement | null = null   // 伴奏
-let vocalAudio: HTMLAudioElement | null = null  // 人声（播放+嘴型同步）
-let lastFullUrl: string | null = null
-let lastVocalUrl: string | null = null
-let isSyncing = false
-let unbindSync: (() => void) | null = null
-
-const fabTitle = computed(() => {
-  if (!isCollapsed.value) return '折叠音乐胶囊'
-  if (isPlaying.value) return '展开播放器'
-  return '播放音乐并展开'
-})
-
-// 获取音乐列表
-const fetchMusicList = async () => {
-  try {
-    const list = await getMusicList()
-    musicList.value = list.sort((a, b) => a.sortOrder - b.sortOrder)
-    if (list.length > 0) {
-      currentIndex.value = 0
-      currentMusic.value = list[0]
-    }
-  } catch {
-    // 获取音乐列表失败时静默处理
-  }
+let fullAudio: HTMLAudioElement | null = null
+let vocalAudio: HTMLAudioElement | null = null
+let loadedId: number | null = null
+let generation = 0
+let actionVersion = 0
+let disposed = false
+let cleanupTracks = () => {}
+const pending = new Set<() => void>()
+const playOwners = new WeakMap<HTMLAudioElement, number>()
+const fabTitle = computed(() => !isCollapsed.value ? '折叠音乐胶囊' : isPlaying.value ? '展开播放器' : '播放音乐并展开')
+const getCurrentAudio = () => [vocalAudio, fullAudio].find(audio => audio && !audio.paused && !audio.ended) || null
+const publishState = () => {
+  const source = getCurrentAudio()
+  isPlaying.value = !!source
+  if (source) emit('play', source)
+  else emit('pause')
 }
-
-const createAudio = (url: string) => {
-  const audio = new Audio(url)
-  audio.preload = 'auto'
-  audio.crossOrigin = 'anonymous'
-  audio.volume = 1
-  return audio
-}
-
-const waitForCanPlay = (audio: HTMLAudioElement, timeoutMs = 6000) => {
-  return new Promise<void>((resolve) => {
-    if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
-      resolve()
-      return
-    }
-
-    let settled = false
-    const cleanup = () => {
-      audio.removeEventListener('canplay', onCanPlay)
-      audio.removeEventListener('error', onError)
-    }
-    const done = () => {
-      if (settled) return
-      settled = true
-      cleanup()
-      resolve()
-    }
-    const onCanPlay = () => done()
-    const onError = () => done()
-
-    audio.addEventListener('canplay', onCanPlay)
-    audio.addEventListener('error', onError)
-
-    window.setTimeout(done, timeoutMs)
-  })
-}
-
-const syncCurrentTime = (master: HTMLAudioElement, slave: HTMLAudioElement) => {
-  const drift = Math.abs(slave.currentTime - master.currentTime)
-  if (drift > 0.15 && Number.isFinite(master.currentTime)) {
-    slave.currentTime = master.currentTime
-  }
-  if (slave.playbackRate !== master.playbackRate) {
-    slave.playbackRate = master.playbackRate
-  }
-}
-
-const bindSync = (master: HTMLAudioElement, slave: HTMLAudioElement) => {
-  if (isSyncing) return
-  isSyncing = true
-
-  const onTimeUpdate = () => {
-    if (!fullAudio || !vocalAudio) return
-    syncCurrentTime(master, slave)
-  }
-  const onSeeking = () => {
-    if (!fullAudio || !vocalAudio) return
-    if (Number.isFinite(master.currentTime)) slave.currentTime = master.currentTime
-  }
-  const onPlay = async () => {
-    if (!fullAudio || !vocalAudio) return
-    if (!slave.paused) return
-    try {
-      await slave.play()
-    } catch {
-    }
-  }
-  const onPause = () => {
-    if (!fullAudio || !vocalAudio) return
-    if (!slave.paused) slave.pause()
-  }
-
-  master.addEventListener('timeupdate', onTimeUpdate)
-  master.addEventListener('seeking', onSeeking)
-  master.addEventListener('seeked', onSeeking)
-  master.addEventListener('play', onPlay)
-  master.addEventListener('pause', onPause)
-
-  const unbind = () => {
-    master.removeEventListener('timeupdate', onTimeUpdate)
-    master.removeEventListener('seeking', onSeeking)
-    master.removeEventListener('seeked', onSeeking)
-    master.removeEventListener('play', onPlay)
-    master.removeEventListener('pause', onPause)
-    isSyncing = false
-  }
-
-  unbindSync = unbind
-  fullAudio?.addEventListener('ended', unbind, { once: true })
-}
-
-const ensureTrackLoaded = () => {
-  if (!currentMusic.value) return
-
-  const { fullAudioUrl, vocalUrl } = currentMusic.value
-
-  const fullChanged = lastFullUrl !== fullAudioUrl
-  const vocalChanged = lastVocalUrl !== (vocalUrl || null)
-  if (fullChanged || vocalChanged) {
-    stopMusic()
-  }
-
-  if (!fullAudio) {
-    fullAudio = createAudio(fullAudioUrl)
-    lastFullUrl = fullAudioUrl
-    fullAudio.onended = () => {
-      playNext()
-    }
-  }
-
-  if (vocalUrl) {
-    if (!vocalAudio) {
-      vocalAudio = createAudio(vocalUrl)
-      lastVocalUrl = vocalUrl
-    }
-  } else {
-    vocalAudio = null
-    lastVocalUrl = null
-  }
-
-  const master = vocalAudio || fullAudio
-  const slave = vocalAudio ? fullAudio : null
-  if (slave) bindSync(master, slave)
-}
-
-const startPlayback = async (mode: 'fromStart' | 'resume') => {
-  if (!currentMusic.value) {
-    console.warn('[MusicCapsule] startPlayback 跳过：currentMusic 为空')
-    return
-  }
-  ensureTrackLoaded()
-  if (!fullAudio) {
-    console.warn('[MusicCapsule] startPlayback 跳过：fullAudio 未创建', currentMusic.value)
-    return
-  }
-
-  const master = vocalAudio || fullAudio
-  const slave = vocalAudio ? fullAudio : null
-
-  if (mode === 'fromStart') {
-    fullAudio.currentTime = 0
-    if (vocalAudio) vocalAudio.currentTime = 0
-  } else if (mode === 'resume') {
-    if (slave) syncCurrentTime(master, slave)
-  }
-
-  const readiness = [waitForCanPlay(fullAudio)]
-  if (vocalAudio) readiness.push(waitForCanPlay(vocalAudio))
-  await Promise.all(readiness)
-
-  const playPromises: Promise<any>[] = []
-  playPromises.push(fullAudio.play())
-  if (vocalAudio) playPromises.push(vocalAudio.play())
-  const results = await Promise.allSettled(playPromises)
-  // 记录每条音轨的播放结果，便于定位 NotAllowedError / AbortError 等
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      console.error(`[MusicCapsule] 音轨${i} play 失败:`, r.reason)
-    }
-  })
-  const ok = results.some(r => r.status === 'fulfilled')
-  isPlaying.value = ok
-  isPaused.value = !ok ? isPaused.value : false
-  if (ok) emit('play', master)
-}
-
-// 播放音乐（从头开始）
-const playMusic = async () => {
-  isPaused.value = false
-  await startPlayback('fromStart')
-}
-
-// 停止音乐
-const stopMusic = () => {
-  if (unbindSync) {
-    unbindSync()
-    unbindSync = null
-  }
-  if (fullAudio) {
-    fullAudio.onended = null
-    fullAudio.ontimeupdate = null
-    fullAudio.pause()
-    fullAudio.currentTime = 0
-    fullAudio = null
-  }
-  if (vocalAudio) {
-    vocalAudio.pause()
-    vocalAudio.currentTime = 0
-    vocalAudio = null
-  }
-  isPlaying.value = false
-  isPaused.value = false
-}
-
-// 暂停音乐
-const pauseMusic = () => {
+const pauseMusic = (userInitiated = true) => {
+  if (userInitiated) actionVersion++
+  generation++
+  pending.forEach(cancel => cancel())
+  pending.clear()
+  loading.value = false
   fullAudio?.pause()
   vocalAudio?.pause()
-  isPlaying.value = false
   isPaused.value = true
-  emit('pause')
+  publishState()
 }
-
-// 继续播放
-const resumeMusic = async () => {
-  if (!currentMusic.value) return
-  await startPlayback('resume')
+const stopMusic = () => {
+  pauseMusic(false)
+  cleanupTracks()
+  cleanupTracks = () => {}
+  for (const audio of [fullAudio, vocalAudio]) {
+    if (audio) { audio.removeAttribute('src'); audio.load() }
+  }
+  fullAudio = vocalAudio = null
+  loadedId = null
+  isPaused.value = false
 }
-
-// 切换播放/暂停
-const togglePlay = () => {
-  if (isPlaying.value) {
-    pauseMusic()
-  } else {
-    if (isPaused.value) {
-      resumeMusic()
-      return
+const createAudio = (url: string) => {
+  const audio = new Audio()
+  audio.crossOrigin = 'anonymous'
+  audio.preload = 'auto'
+  audio.src = url
+  return audio
+}
+const ensureTrack = () => {
+  const item = currentMusic.value
+  if (!item || loadedId === item.id) return
+  stopMusic()
+  loadedId = item.id
+  fullAudio = createAudio(item.fullAudioUrl)
+  vocalAudio = item.vocalUrl ? createAudio(item.vocalUrl) : null
+  const full = fullAudio
+  const vocal = vocalAudio
+  const synchronize = () => {
+    if (vocal && !vocal.paused && !full.paused && Math.abs(vocal.currentTime - full.currentTime) > 0.15) full.currentTime = vocal.currentTime
+  }
+  const ended = () => {
+    if (getCurrentAudio()) return
+    isPlaying.value = false
+    if (musicList.value.length > 1) {
+      currentIndex.value = (currentIndex.value + 1) % musicList.value.length
+      currentMusic.value = musicList.value[currentIndex.value]
+      void startPlayback(false, false)
+    } else { isPaused.value = false; publishState() }
+  }
+  const stateChanged = () => { if (!loading.value) publishState() }
+  const failed = () => { playbackError.value = '部分音轨无法播放，可切歌或重试'; stateChanged() }
+  for (const audio of [full, vocal]) {
+    audio?.addEventListener('pause', stateChanged)
+    audio?.addEventListener('playing', stateChanged)
+    audio?.addEventListener('error', failed)
+    audio?.addEventListener('ended', ended)
+  }
+  vocal?.addEventListener('timeupdate', synchronize)
+  cleanupTracks = () => {
+    for (const audio of [full, vocal]) {
+      audio?.removeEventListener('pause', stateChanged)
+      audio?.removeEventListener('playing', stateChanged)
+      audio?.removeEventListener('error', failed)
+      audio?.removeEventListener('ended', ended)
     }
-    playMusic()
+    vocal?.removeEventListener('timeupdate', synchronize)
   }
 }
-
-// 上一首
-const playPrev = () => {
-  if (musicList.value.length <= 1) return
-  const shouldAutoPlay = isPlaying.value
-  currentIndex.value = (currentIndex.value - 1 + musicList.value.length) % musicList.value.length
-  currentMusic.value = musicList.value[currentIndex.value]
-  if (shouldAutoPlay) {
-    playMusic()
+const playTrack = (audio: HTMLAudioElement, token: number) => new Promise<boolean>(resolve => {
+  playOwners.set(audio, token)
+  let finished = false
+  let timer: ReturnType<typeof setTimeout>
+  const finish = (ok: boolean) => {
+    if (finished) return
+    finished = true
+    clearTimeout(timer)
+    pending.delete(cancel)
+    audio.removeEventListener('error', failed)
+    if (!ok && playOwners.get(audio) === token) audio.pause()
+    resolve(ok)
   }
-}
-
-// 下一首
-const playNext = () => {
-  if (musicList.value.length <= 1) return
-  const shouldAutoPlay = isPlaying.value
-  currentIndex.value = (currentIndex.value + 1) % musicList.value.length
-  currentMusic.value = musicList.value[currentIndex.value]
-  if (shouldAutoPlay) {
-    playMusic()
+  const cancel = () => finish(false)
+  const failed = () => finish(false)
+  pending.add(cancel)
+  audio.addEventListener('error', failed, { once: true })
+  timer = setTimeout(cancel, 8000)
+  audio.play().then(() => {
+    if (finished) { if (playOwners.get(audio) === token) audio.pause() }
+    else finish(true)
+  }, failed)
+})
+const startPlayback = async (resume: boolean, userInitiated = true) => {
+  if (!currentMusic.value || disposed) return
+  if (userInitiated) actionVersion++
+  ensureTrack()
+  const token = ++generation
+  const tracks = [fullAudio, vocalAudio].filter((audio): audio is HTMLAudioElement => !!audio)
+  playbackError.value = ''
+  loading.value = true
+  // 在用户点击调用栈内启动音轨和解锁 context，避免等待网络后丢失浏览器播放许可。
+  void resumeAudioContext().catch(() => {})
+  if (!resume) tracks.forEach(audio => { audio.currentTime = 0 })
+  if (!tracks.length) {
+    loading.value = false
+    playbackError.value = '播放失败，请检查音频地址'
+    publishState()
+    return
   }
+  const results = await Promise.all(tracks.map(audio => playTrack(audio, token).then(ok => {
+    if (token === generation && !disposed) {
+      if (ok) {
+        loading.value = false
+        isPaused.value = false
+        publishState()
+      } else if (tracks.some(track => !track.paused && !track.ended)) {
+        loading.value = false
+        playbackError.value = '部分音轨不可用，正在播放可用音轨'
+        publishState()
+      }
+    }
+    return ok
+  })))
+  if (token !== generation || disposed) return
+  loading.value = false
+  isPaused.value = !results.some(Boolean)
+  if (!results.every(Boolean)) playbackError.value = results.some(Boolean) ? '部分音轨不可用，正在播放可用音轨' : '播放失败，请检查网络后点击重试'
+  publishState()
 }
-
+const playMusic = () => startPlayback(false)
+const resumeMusic = (userInitiated = true) => startPlayback(true, userInitiated)
+const togglePlay = () => { if (isPlaying.value || loading.value) pauseMusic(); else void startPlayback(isPaused.value) }
 const selectTrack = (index: number) => {
   if (index < 0 || index >= musicList.value.length) return
-  const shouldAutoPlay = isPlaying.value || isPaused.value
+  actionVersion++
+  const continuePlaying = isPlaying.value || loading.value
+  stopMusic()
   currentIndex.value = index
   currentMusic.value = musicList.value[index]
   showPlaylist.value = false
-  if (shouldAutoPlay) {
-    playMusic()
-  }
+  if (continuePlaying) void startPlayback(false, false)
 }
-
-const togglePlaylist = () => {
-  showPlaylist.value = !showPlaylist.value
-}
-
-// 点击 fab 封面：
-//   - 折叠状态点击 → 展开；若空闲则同时开始播放；若已暂停则恢复
-//   - 展开状态点击封面 → 折叠（不影响播放）
+const playPrev = () => { if (musicList.value.length > 1) selectTrack((currentIndex.value - 1 + musicList.value.length) % musicList.value.length) }
+const playNext = () => { if (musicList.value.length > 1) selectTrack((currentIndex.value + 1) % musicList.value.length) }
+const togglePlaylist = () => { showPlaylist.value = !showPlaylist.value }
 const handleFabClick = () => {
-  if (isCollapsed.value) {
-    isCollapsed.value = false
-    if (!isPlaying.value) {
-      if (isPaused.value) {
-        resumeMusic()
-      } else {
-        playMusic()
-      }
-    }
-  } else {
-    isCollapsed.value = true
-    showPlaylist.value = false
-  }
+  isCollapsed.value = !isCollapsed.value
+  if (!isCollapsed.value && !isPlaying.value && !loading.value) void startPlayback(isPaused.value)
+  if (isCollapsed.value) showPlaylist.value = false
 }
-
-// 组件暴露的方法
-defineExpose({
-  playMusic,
-  pauseMusic,
-  resumeMusic,
-  stopMusic,
-  togglePlay,
-  playNext,
-  playPrev,
-  selectTrack,
-  togglePlaylist,
-  isPlaying: () => isPlaying.value,
-  isPaused: () => isPaused.value
+onMounted(async () => {
+  try {
+    const items = await getMusicList()
+    if (disposed) return
+    musicList.value = items.sort((a, b) => a.sortOrder - b.sortOrder)
+    currentMusic.value = musicList.value[0] || null
+  } catch (error) { console.warn('[music] 歌单加载失败', error) }
 })
-
-onMounted(() => {
-  fetchMusicList()
-})
-
-onBeforeUnmount(() => {
-  stopMusic()
-})
+onBeforeUnmount(() => { disposed = true; stopMusic() })
+defineExpose({ playMusic, pauseMusic, resumeMusic, stopMusic, togglePlay, playNext, playPrev, selectTrack, togglePlaylist, getCurrentAudio, getActionVersion: () => actionVersion, isPlaying: () => isPlaying.value, isPaused: () => isPaused.value })
 </script>
 
 <style lang="scss" scoped>

@@ -76,6 +76,11 @@
         LIMIT #{limit}
     </select>
 
+    <select id="countVisibleCommentsByUserId" resultType="long">
+        SELECT COUNT(*) FROM comments c JOIN posts p ON p.id=c.post_id
+        WHERE c.user_id=#{userId} AND c.deleted_at IS NULL AND p.deleted_at IS NULL AND p.status='published'
+    </select>
+
     <!-- 统计用户评论数量 -->
     <select id="countCommentsByUserId" resultType="java.lang.Integer">
         SELECT COUNT(*)

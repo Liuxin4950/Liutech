@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="search-modal">
       <div v-if="visible" class="search-overlay" @click.self="close">
-        <div class="search-modal">
+        <div ref="modalRef" class="search-modal" role="dialog" aria-modal="true" aria-label="搜索文章" @keydown="handleKeydown">
           <div class="search-header">
             <div class="search-box modal-search-box">
               <input
@@ -44,10 +44,14 @@
                   </button>
                 </div>
               </div>
-              <template v-else>
-                <!-- <img src="@/assets/image/扑到.png" alt="" class="empty-img" /> -->
-                <p class="empty-text">输入关键词搜索文章</p>
-              </template>
+              <section class="history-section" aria-label="热门标签">
+                <div class="history-header"><span class="history-title">热门标签</span></div>
+                <p v-if="tagStore.isHotTagsLoading && !hotTags.length" class="empty-text">正在加载标签...</p>
+                <div v-else-if="hotTags.length" class="history-chips">
+                  <button v-for="tag in hotTags" :key="tag.id" type="button" class="history-chip" @click="goToTag(tag.id)"># {{ tag.name }}</button>
+                </div>
+                <p v-else class="empty-text">暂无可用标签，可以直接输入关键词搜索。</p>
+              </section>
             </div>
 
             <div v-else class="results-list">
@@ -55,7 +59,10 @@
                 v-for="post in results"
                 :key="post.id"
                 class="result-item list-item"
+                tabindex="0"
+                role="link"
                 @click="goToPost(post.id)"
+                @keydown.enter="goToPost(post.id)"
               >
                 <h4 class="result-title">{{ post.title }}</h4>
                 <p class="result-summary">{{ post.summary || '暂无摘要' }}</p>
@@ -73,14 +80,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onUnmounted } from 'vue'
+import { computed, ref, nextTick, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Icon from './Icon.vue'
 import { PostService, type PostListItem } from '@/services/post'
 import { formatDate } from '@/utils/utils'
 import { useNestedLenis } from '@/composables/useLenis'
+import { useTagStore } from '@/stores/tag'
 
 const router = useRouter()
+const tagStore = useTagStore()
+const hotTags = computed(() => tagStore.hotTags.filter(tag => tag.postCount > 0).slice(0, 8))
+const modalRef = ref<HTMLElement | null>(null)
+let trigger: HTMLElement | null = null
+let generation = 0
+
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') { event.preventDefault(); close(); return }
+  if (event.key !== 'Tab') return
+  const items = Array.from(modalRef.value?.querySelectorAll<HTMLElement>('input, button, [tabindex="0"]') || [])
+    .filter(el => !el.hasAttribute('disabled') && el.getClientRects().length)
+  const first = items[0]
+  const last = items[items.length - 1]
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+}
+const goToTag = (id: number) => { void router.push(`/tags/${id}`); close() }
 
 const searchBodyRef = ref<HTMLElement | null>(null)
 useNestedLenis(searchBodyRef)
@@ -100,7 +125,8 @@ const history = ref<string[]>([])
 const loadHistory = () => {
   try {
     const raw = localStorage.getItem(HISTORY_KEY)
-    history.value = raw ? JSON.parse(raw) : []
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    history.value = Array.isArray(parsed) ? [...new Set(parsed.filter((word): word is string => typeof word === 'string' && !!word.trim()).map(word => word.trim()))].slice(0, MAX_HISTORY) : []
   } catch {
     history.value = []
   }
@@ -135,13 +161,18 @@ const searchHistory = (word: string) => {
 let searchTimeout: number | null = null
 
 const open = () => {
+  if (visible.value) return
+  trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
   visible.value = true
   loadHistory()
+  if (!tagStore.isHotTagsLoading) void tagStore.fetchHotTags(10)
   nextTick(() => inputRef.value?.focus())
 }
 
 const close = () => {
+  generation++
   visible.value = false
+  isSearching.value = false
   keyword.value = ''
   results.value = []
   searchError.value = ''
@@ -149,9 +180,13 @@ const close = () => {
     clearTimeout(searchTimeout)
     searchTimeout = null
   }
+  trigger?.focus()
 }
 
 const handleInput = () => {
+  generation++
+  isSearching.value = false
+  searchError.value = ''
   if (searchTimeout) clearTimeout(searchTimeout)
   if (!keyword.value.trim()) {
     results.value = []
@@ -169,18 +204,21 @@ const handleEnter = () => {
 }
 
 const handleSearch = async () => {
+  if (searchTimeout) { clearTimeout(searchTimeout); searchTimeout = null }
   const kw = keyword.value.trim()
-  if (!kw) return
+  if (!kw || !visible.value) return
+  const request = ++generation
 
   try {
     isSearching.value = true
     searchError.value = ''
     const resp = await PostService.getPostList({ keyword: kw, page: 1, size: 10 })
+    if (request !== generation) return
     results.value = resp.records
   } catch {
-    searchError.value = '搜索失败，请稍后重试'
+    if (request === generation) searchError.value = '搜索失败，请稍后重试'
   } finally {
-    isSearching.value = false
+    if (request === generation) isSearching.value = false
   }
 }
 
@@ -190,6 +228,7 @@ const goToPost = (id: number) => {
 }
 
 onUnmounted(() => {
+  generation++
   if (searchTimeout) {
     clearTimeout(searchTimeout)
     searchTimeout = null
@@ -208,12 +247,13 @@ defineExpose({ open, close })
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
-  padding-top: 15vh;
+  align-items: flex-start;
+  padding-top: 10dvh;
 }
 
 .search-modal {
   width: min(90vw, 560px);
-  max-height: 70vh;
+  max-height: 80dvh;
   background: var(--bg-card, #fff);
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -241,6 +281,7 @@ defineExpose({ open, close })
 }
 
 .search-body {
+  min-height: 0;
   flex: 1;
   overflow-y: auto;
   padding: 8px;
@@ -262,7 +303,7 @@ defineExpose({ open, close })
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0px 8px;
+  padding: 16px 12px;
   gap: 12px;
 }
 

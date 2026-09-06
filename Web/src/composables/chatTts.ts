@@ -32,7 +32,7 @@ export function useChatTts(state: {
     state.ttsAvailable.value = available
     if (!available) {
       state.ttsAwaitingAudio.value = false
-      setTtsEnabled(false)
+      ttsAudioQueue.clear()
     }
   }
 

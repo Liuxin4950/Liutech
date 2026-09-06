@@ -33,6 +33,8 @@
             :alt="post.title"
             class="fit"
             loading="lazy"
+            decoding="async"
+            width="240" height="160"
             @error="handleImageError"
           />
         </div>
@@ -40,7 +42,7 @@
         <div class="flex flex-col flex-sb flex-1 relative article-content ">
           <span v-if="post.category" class="article-category" @click.stop="handleCategoryClick(post.category.id)">{{ post.category.name }}</span>
           <div class="flex-1 flex flex-col gap-12 article-content-box">
-            <h3 class="font-semibold post-title">{{ post.title }}</h3>
+            <h3 class="font-semibold post-title"><a :href="`/post/${post.id}`" @click.stop="openPost($event, post.id)">{{ post.title }}</a></h3>
             <p v-if="post.summary" class="text-subtle text-sm post-summary">
               {{ post.summary }}
             </p>
@@ -122,6 +124,12 @@ const emit = defineEmits<{
   'retry': []
 }>()
 
+function openPost(event: MouseEvent, id: number) {
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  emit('post-click', id)
+}
+
 function handleTagClick(tagId: number) {
   router.push(`/tags/${tagId}`)
 }
@@ -133,6 +141,7 @@ function handleCategoryClick(categoryId: number) {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+.post-title a { color: inherit; text-decoration: none; }
 
 .article-box {
   position: relative;

@@ -42,6 +42,14 @@ import lombok.extern.slf4j.Slf4j;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /** 静态音频/图片不存在是 404，不能落入系统异常 500 使播放器误判服务故障。 */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<Result<Void>> handleMissingResource(org.springframework.web.servlet.resource.NoResourceFoundException exception) {
+        log.debug("静态资源不存在: {}", exception.getResourcePath());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new Result<>(ErrorCode.NOT_FOUND.getCode(), "资源不存在", null));
+    }
+
     // ========== 业务异常处理 ==========
 
     /**

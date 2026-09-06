@@ -42,7 +42,7 @@ public class ViewHistoryService {
     @Transactional(rollbackFor = Exception.class)
     public void recordView(Long postId, Long userId) {
         Posts post = postsMapper.selectById(postId);
-        if (post == null || post.getDeletedAt() != null) {
+        if (post == null || post.getDeletedAt() != null || !"published".equals(post.getStatus())) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         }
         userViewHistoryMapper.upsertViewHistory(userId, postId);

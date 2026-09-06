@@ -14,8 +14,9 @@
           :class="{ 'is-loaded': loadedIndex === index }"
           :src="slide.imageUrl"
           :alt="slide.title"
-          loading="eager"
-          fetchpriority="high"
+          :loading="index === currentIndex ? 'eager' : 'lazy'"
+          :fetchpriority="index === currentIndex ? 'high' : 'low'"
+          decoding="async"
           @load="onImageLoad(index)"
           @error="handleBannerImageError"
         >

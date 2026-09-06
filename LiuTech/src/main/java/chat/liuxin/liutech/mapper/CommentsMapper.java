@@ -17,6 +17,7 @@ import chat.liuxin.liutech.model.Comments;
  */
 @Mapper
 public interface CommentsMapper extends BaseMapper<Comments> {
+    long countVisibleCommentsByUserId(@Param("userId") Long userId);
 
     /**
      * 分页查询文章评论（包含用户信息）

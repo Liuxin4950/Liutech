@@ -72,7 +72,7 @@ public class PostsController {
         req.setTagId(tagId);
         req.setSeriesId(seriesId);
         req.setKeyword(keyword);
-        req.setSort(sort);
+        req.setSort("hot".equals(sort) ? "hot" : "latest");
         req.setStatus("published");
         return Result.success("查询成功", postsService.getPostList(req, currentUserId));
     }

@@ -13,7 +13,7 @@
               </svg>
             </button>
           </div>
-          <div class="level-badge">
+          <div v-if="userStats" class="level-badge">
             <Icon name="trophy" size="14" class="level-icon" />
             <span>Lv.{{ calculateLevel(userStats?.points || 0) }}</span>
           </div>
@@ -28,26 +28,28 @@
           <p class="user-bio">{{ userInfo?.bio || '这个人很懒，什么都没有留下...' }}</p>
         </div>
 
+        <p v-if="statsLoading" role="status">正在加载统计...</p>
+        <p v-if="statsError" role="alert">{{ statsError }} <button @click="loadUserStats">重试</button></p>
         <!-- 统计 -->
         <div class="stats-section">
           <div class="stats-row">
             <div class="stat-item">
-              <span class="stat-value">{{ userStats?.postCount || 0 }}</span>
-              <span class="stat-label">文章</span>
+              <span class="stat-value">{{ userStats?.viewCount ?? '—' }}</span>
+              <span class="stat-label">已浏览</span>
             </div>
             <span class="stat-divider">·</span>
             <div class="stat-item">
-              <span class="stat-value">{{ userStats?.commentCount || 0 }}</span>
+              <span class="stat-value">{{ userStats?.commentCount ?? '—' }}</span>
               <span class="stat-label">评论</span>
             </div>
             <span class="stat-divider">·</span>
             <div class="stat-item">
-              <span class="stat-value">{{ userStats?.favoriteCount || 0 }}</span>
+              <span class="stat-value">{{ userStats?.favoriteCount ?? '—' }}</span>
               <span class="stat-label">收藏</span>
             </div>
             <span class="stat-divider">·</span>
             <div class="stat-item">
-              <span class="stat-value">{{ userStats?.points || 0 }}</span>
+              <span class="stat-value">{{ userStats?.points ?? '—' }}</span>
               <span class="stat-label">积分</span>
             </div>
           </div>
@@ -66,7 +68,8 @@
           <!-- 成就 -->
           <div class="section-card">
             <div class="section-header">成就徽章</div>
-            <div class="badges-grid">
+            <UserAchievements @claimed="handleAchievementClaimed" />
+            <div v-if="userStats && checkinStatus" class="badges-grid">
               <div
                 v-for="badge in achievements"
                 :key="badge.name"
@@ -86,21 +89,7 @@
           <!-- 动态 -->
           <div class="section-card">
             <div class="section-header">最近动态</div>
-            <div class="timeline">
-              <div
-                v-for="(item, index) in timelineItems"
-                :key="index"
-                class="timeline-item"
-              >
-                <Icon :name="item.icon" size="14" class="timeline-icon" />
-                <span class="timeline-text">{{ item.text }}</span>
-                <span class="timeline-time">{{ item.time }}</span>
-              </div>
-              <div v-if="timelineItems.length === 0" class="empty-tip">
-                <img src="@/assets/image/扑到.png" alt="" class="fit-err">
-                <span>暂无活动记录</span>
-              </div>
-            </div>
+            <UserActivities ref="activitiesRef" />
           </div>
         </div>
       </div>
@@ -212,13 +201,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onScopeDispose } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse, type CheckinStatus } from '../services/user'
 import { ImageUploadService } from '../services/utils'
 import { showSuccess, showError } from '../utils/errorHandler'
-import { formatRelativeTime } from '../utils/utils'
+import UserAchievements from '@/components/UserAchievements.vue'
+import UserActivities from '@/components/UserActivities.vue'
 import { handleImageError, errImg } from '@/composables/useImageFallback'
 import CheckinCard from '../components/CheckinCard.vue'
 import Icon from '../components/Icon.vue'
@@ -229,6 +219,10 @@ const isLoading = ref(false)
 const showEditForm = ref(false)
 const userStats = ref<UserStats | null>(null)
 const checkinStatus = ref<CheckinStatus | null>(null)
+const statsLoading = ref(false)
+const statsError = ref('')
+const activitiesRef = ref<InstanceType<typeof UserActivities> | null>(null)
+let statsGeneration = 0
 
 const formData = reactive<UpdateProfileRequest>({
   email: '',
@@ -293,7 +287,7 @@ const achievements = computed(() => {
       name: '积分达人',
       icon: 'star',
       locked: points < 100,
-      description: '累计获得 100 积分',
+      description: '积分余额达到 100 分',
       progress: Math.min(points, 100),
       total: 100
     },
@@ -325,32 +319,11 @@ const achievements = computed(() => {
       name: '积分大师',
       icon: 'trophy',
       locked: points < 500,
-      description: '累计获得 500 积分',
+      description: '积分余额达到 500 分',
       progress: Math.min(points, 500),
       total: 500
     }
   ]
-})
-
-// 动态时间线 - 基于真实数据生成
-const timelineItems = computed(() => {
-  const stats = userStats.value
-  const items: { text: string; time: string; icon: string }[] = []
-
-  if (stats?.lastPostAt) {
-    items.push({ text: '发布了新文章', time: formatRelativeTime(stats.lastPostAt), icon: 'pen' })
-  }
-  if (stats?.lastCommentAt) {
-    items.push({ text: '发表了评论', time: formatRelativeTime(stats.lastCommentAt), icon: 'message' })
-  }
-  if (checkinStatus.value?.lastCheckinDate) {
-    items.push({ text: '完成签到', time: formatRelativeTime(checkinStatus.value.lastCheckinDate), icon: 'calendar' })
-  }
-  if (userInfo.value?.createdAt) {
-    items.push({ text: '加入了平台', time: formatRelativeTime(userInfo.value.createdAt), icon: 'user' })
-  }
-
-  return items
 })
 
 const initForm = () => {
@@ -455,19 +428,32 @@ const handleSubmit = async () => {
 
 const loadUserStats = async () => {
   if (!userStore.isLoggedIn) return
+  const token = ++statsGeneration
+  statsLoading.value = true
+  statsError.value = ''
   try {
     const [stats, checkin] = await Promise.all([
       UserService.getUserStats(),
       UserService.getCheckinStatus()
     ])
+    if (token !== statsGeneration) return
     userStats.value = stats
     checkinStatus.value = checkin
   } catch {
-    // 加载失败时静默处理
-  }
+    if (token !== statsGeneration) return
+    userStats.value = null
+    checkinStatus.value = null
+    statsError.value = '统计加载失败，请重试'
+  } finally { if (token === statsGeneration) statsLoading.value = false }
+}
+const handleAchievementClaimed = (points: number) => {
+  if (userStats.value) userStats.value.points = points
+  void userStore.fetchUserInfo(true).catch(() => {})
+  void activitiesRef.value?.refresh()
 }
 
 const handleCheckinSuccess = (result: CheckinResponse) => {
+  void activitiesRef.value?.refresh()
   if (userStats.value) userStats.value.points = result.totalPoints
   if (checkinStatus.value) {
     checkinStatus.value.consecutiveDays = result.consecutiveDays
@@ -484,6 +470,7 @@ onMounted(() => {
   initForm()
   loadUserStats()
 })
+onScopeDispose(() => { statsGeneration++ })
 </script>
 
 <style scoped lang="scss">

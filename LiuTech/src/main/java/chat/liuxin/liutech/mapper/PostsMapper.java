@@ -96,7 +96,8 @@ public interface PostsMapper extends BaseMapper<Posts> {
             @Param("status") String status,
             @Param("authorId") Long authorId,
             @Param("seriesId") Long seriesId,
-            @Param("userId") Long userId);
+            @Param("userId") Long userId,
+            @Param("sort") String sort);
 
     /**
      * 查询文章详情（返回PostDetailResp）

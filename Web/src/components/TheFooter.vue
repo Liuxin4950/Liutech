@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Icon from './Icon.vue'
+import { site } from '@/config/site'
 // 获取当前年份
 const currentYear = new Date().getFullYear();
 </script>
@@ -40,8 +41,13 @@ const currentYear = new Date().getFullYear();
           &copy; {{ currentYear }} LiuTech. All Rights Reserved.
         </p>
         <p class="made-with">
-          由 liuxin 打造
+          <a :href="site.url">{{ site.url.replace('https://', '') }}</a>
+          <span>由 {{ site.owner }} 打造</span>
         </p>
+      </div>
+      <div v-if="site.icpNumber || (site.policeNumber && site.policeCode)" class="footer-registration">
+        <a v-if="site.icpNumber" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ site.icpNumber }}</a>
+        <a v-if="site.policeNumber && site.policeCode" :href="`https://beian.mps.gov.cn/#/query/webSearch?code=${encodeURIComponent(site.policeCode)}`" target="_blank" rel="noopener noreferrer">{{ site.policeNumber }}</a>
       </div>
     </div>
   </footer>
@@ -58,6 +64,9 @@ const currentYear = new Date().getFullYear();
   margin-top: 80px;
   color: var(--text-subtle);
 }
+.made-with, .footer-registration { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; }
+.made-with a, .footer-registration a { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.footer-registration { color: var(--text-muted); font-size: 12px; margin-top: 12px; }
 
 .container {
   max-width: 1200px;

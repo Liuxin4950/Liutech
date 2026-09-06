@@ -207,7 +207,13 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  const cancelTts = () => {
+    ttsCancelCounter.value++
+    ttsAwaitingAudio.value = false
+    chatTts.clearTtsAudioQueue()
+  }
   const setTtsEnabled = (enabled: boolean) => {
+    if (!enabled) cancelTts()
     chatTts.setTtsEnabled(enabled)
     try {
       const storage = getStorage()
@@ -216,7 +222,10 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  const setTtsAvailable = (available: boolean) => chatTts.setTtsAvailable(available)
+  const setTtsAvailable = (available: boolean) => {
+    if (!available) cancelTts()
+    chatTts.setTtsAvailable(available)
+  }
   const clearTtsAudioQueue = () => chatTts.clearTtsAudioQueue()
   const clearAvatarCueQueue = () => chatTts.clearAvatarCueQueue()
   const enqueueTtsAudio = (item: TtsAudioItem) => chatTts.enqueueTtsAudio(item)
@@ -394,6 +403,7 @@ export const useChatStore = defineStore('chat', () => {
     ttsCancelCounter.value++
     clearTtsAudioQueue()
     clearAvatarCueQueue()
+    const audioGeneration = ttsCancelCounter.value
     const shouldUseTts = ttsEnabled.value === true && ttsAvailable.value === true
     ttsAwaitingAudio.value = shouldUseTts
 
@@ -443,12 +453,12 @@ export const useChatStore = defineStore('chat', () => {
             return
           }
           // audio-complete 用来解除“等待音频绑定 cue”的状态
-          if (eventType === 'audio-complete') {
+          if (eventType === 'audio-complete' && audioGeneration === ttsCancelCounter.value) {
             ttsAwaitingAudio.value = false
             return
           }
           // TTS 未启用时，丢弃音频事件（avatar-cue 不受此限制，始终处理）
-          if (ttsEnabled.value !== true || ttsAvailable.value !== true) return
+          if (audioGeneration !== ttsCancelCounter.value || ttsEnabled.value !== true || ttsAvailable.value !== true) return
           if (eventType === 'audio' && payload && payload.audioUrl && typeof payload.seq === 'number') {
             enqueueTtsAudio({
               seq: payload.seq,
@@ -801,6 +811,7 @@ export const useChatStore = defineStore('chat', () => {
     toggleModelVisibility,
     toggleModel,
     openChatExternal,
+    cancelTts,
     setTtsEnabled,
     setTtsAvailable,
     enqueueTtsAudio,

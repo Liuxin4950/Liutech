@@ -169,9 +169,11 @@ const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null)
 
 // 供 MainLayout 在 TTS 播放前挂起音乐、结束后恢复
 defineExpose({
+  getCurrentAudio: () => musicCapsuleRef.value?.getCurrentAudio() || null,
+  getMusicActionVersion: () => musicCapsuleRef.value?.getActionVersion() ?? 0,
   isMusicPlaying: () => !!musicCapsuleRef.value?.isPlaying?.(),
-  pauseMusic: () => musicCapsuleRef.value?.pauseMusic?.(),
-  resumeMusic: () => musicCapsuleRef.value?.resumeMusic?.()
+  pauseMusic: () => musicCapsuleRef.value?.pauseMusic?.(false),
+  resumeMusic: () => musicCapsuleRef.value?.resumeMusic?.(false)
 })
 
 // 平滑滚动到顶部

@@ -6,7 +6,6 @@ const props = defineProps<{
   modelValue: string
   isLoading: boolean
   expanded?: boolean
-  quickPrompts: string[]
   voiceSupported: boolean
   voiceListening: boolean
   voiceInterimText: string
@@ -18,7 +17,6 @@ const emit = defineEmits<{
   send: []
   startVoice: []
   stopVoice: []
-  applyPrompt: [prompt: string]
 }>()
 
 const textValue = computed({
@@ -58,17 +56,6 @@ const toggleVoice = () => {
 
 <template>
   <div data-onboarding="chat-input" class="chat-input" :class="{ expanded, compact: !expanded }">
-    <div class="quick-prompts" v-if="quickPrompts.length">
-      <button
-        v-for="prompt in quickPrompts"
-        :key="prompt"
-        class="prompt-pill"
-        @click="emit('applyPrompt', prompt)"
-      >
-        {{ prompt }}
-      </button>
-    </div>
-
     <div class="input-container">
       <textarea
         v-model="textValue"
@@ -115,32 +102,6 @@ const toggleVoice = () => {
 
 .chat-input.compact {
   border-radius: 0 0 16px 16px;
-}
-
-.quick-prompts {
-  display: inline-flex;
-  gap: 8px;
-  align-self: flex-start;
-  flex-wrap: wrap;
-}
-
-.prompt-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: 999px;
-  background: var(--bg-hover);
-  color: var(--text-subtle);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 13px;
-}
-
-.prompt-pill:hover {
-  background: var(--bg-active);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
 }
 
 .input-container {

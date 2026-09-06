@@ -18,6 +18,7 @@ import chat.liuxin.liutech.resp.PostListResp;
  */
 @Mapper
 public interface UserViewHistoryMapper extends BaseMapper<UserViewHistory> {
+    long countVisibleByUserId(@Param("userId") Long userId);
 
     /**
      * 记录浏览：不存在则插入，已存在则刷新浏览时间（upsert）

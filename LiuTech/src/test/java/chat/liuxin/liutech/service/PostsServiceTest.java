@@ -198,7 +198,7 @@ class PostsServiceTest {
         when(mockPage.getSize()).thenReturn(10L);
 
         when(postsMapper.selectPostListResp(any(Page.class), isNull(), isNull(), isNull(),
-                isNull(), isNull(), isNull(), isNull())).thenReturn(mockPage);
+                isNull(), isNull(), isNull(), isNull(), eq("latest"))).thenReturn(mockPage);
 
         // fillTags 调用 selectTagsByPostIds
         PostTagRowVO tagRow = new PostTagRowVO();
@@ -214,7 +214,7 @@ class PostsServiceTest {
         assertEquals(POST_ID, result.getRecords().get(0).getId());
         assertEquals(1L, result.getTotal());
         verify(postsMapper).selectPostListResp(any(Page.class), isNull(), isNull(), isNull(),
-                isNull(), isNull(), isNull(), isNull());
+                isNull(), isNull(), isNull(), isNull(), eq("latest"));
         verify(postsMapper).selectTagsByPostIds(anyList());
     }
 
@@ -232,7 +232,7 @@ class PostsServiceTest {
         when(mockPage.getSize()).thenReturn(10L);
 
         when(postsMapper.selectPostListResp(any(Page.class), isNull(), isNull(), isNull(),
-                isNull(), isNull(), isNull(), isNull())).thenReturn(mockPage);
+                isNull(), isNull(), isNull(), isNull(), eq("latest"))).thenReturn(mockPage);
 
         PageResp<PostListResp> result = postsService.getPostList(req);
 

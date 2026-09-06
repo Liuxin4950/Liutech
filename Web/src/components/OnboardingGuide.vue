@@ -99,6 +99,7 @@
     <Transition name="chat-tip-pop" appear>
       <div
         v-if="isModelTipActive && modelTipReady"
+        ref="modelTipRef"
         class="chat-tip"
         :style="modelTipPos"
       >
@@ -110,7 +111,7 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
           </button>
         </div>
-        <div class="chat-tip__arrow" />
+        <div class="chat-tip__arrow" :class="{ 'chat-tip__arrow--above': modelTipBelow }" :style="modelTipArrow" />
       </div>
     </Transition>
 
@@ -124,7 +125,7 @@
         <div class="tooltip__card">
           <div class="tooltip__step">3 / 3</div>
           <p class="tooltip__msg">
-            在这里输入问题，也可以选择<strong>快捷问题或语音输入</strong>。
+            在这里输入问题，也可以使用<strong>语音输入</strong>。
           </p>
           <div class="tooltip__footer">
             <button class="tooltip__btn tooltip__btn--primary" @click="handleChatTipDismiss">
@@ -236,16 +237,17 @@ function placeTooltip() {
 
   const vw = window.innerWidth
   const vh = window.innerHeight
+  const width = Math.min(TOOLTIP_W, vw - 32)
   const spotTop = r.top - PAD
   const spotBottom = r.top + r.height + PAD
   const spotCenterX = r.left + r.width / 2
 
   // 水平居中，不超出视口
-  let left = spotCenterX - TOOLTIP_W / 2
-  left = Math.max(16, Math.min(left, vw - TOOLTIP_W - 16))
+  let left = spotCenterX - width / 2
+  left = Math.max(16, Math.min(left, vw - width - 16))
 
   // 箭头水平偏移（指向高亮中心）
-  const arrowX = Math.max(24, Math.min(spotCenterX - left, TOOLTIP_W - 24))
+  const arrowX = Math.max(24, Math.min(spotCenterX - left, width - 24))
 
   // 气泡优先放在高亮上方（用 bottom 定位避免 transform 冲突）
   if (spotTop > 180) {
@@ -254,7 +256,7 @@ function placeTooltip() {
       position: 'fixed',
       bottom: `${vh - spotTop + GAP}px`,
       left: `${left}px`,
-      width: `${TOOLTIP_W}px`,
+      width: `${width}px`,
     }
   } else {
     arrowDir.value = 'bottom'
@@ -262,7 +264,7 @@ function placeTooltip() {
       position: 'fixed',
       top: `${spotBottom + GAP}px`,
       left: `${left}px`,
-      width: `${TOOLTIP_W}px`,
+      width: `${width}px`,
     }
   }
 
@@ -271,6 +273,9 @@ function placeTooltip() {
 
 // ---- Live2D 聊天提示定位 ----
 const modelTipPos = ref<Record<string, string>>({})
+const modelTipRef = ref<HTMLElement | null>(null)
+const modelTipBelow = ref(false)
+const modelTipArrow = ref<Record<string, string>>({})
 
 const modelTipMessage = computed(() => {
   if (props.live2dStatus === 'error') return '模型加载失败了，可以在占位区域重新加载'
@@ -278,22 +283,31 @@ const modelTipMessage = computed(() => {
   return '模型资源正在加载，完成后就可以点击我啦'
 })
 
-function placeModelTip() {
+async function placeModelTip() {
+  if (!isModelTipActive.value || disposed) return
   const el = document.querySelector('.ai-content .live2d')
     || document.querySelector('[data-onboarding="ai-assistant"]')
   if (!el) {
-    modelTipPos.value = { position: 'fixed', bottom: '340px', right: '80px' }
-    modelTipReady.value = true
+    modelTipReady.value = false
     return
   }
   const rect = el.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) { modelTipReady.value = false; return }
+  const width = Math.min(320, window.innerWidth - 32)
+  const center = rect.left + rect.width / 2
+  const left = Math.max(16, Math.min(center - width / 2, window.innerWidth - width - 16))
   modelTipPos.value = {
     position: 'fixed',
-    top: `${rect.top - 56}px`,
-    left: `${rect.left + rect.width / 2}px`,
-    transform: 'translateX(-50%)',
+    top: '16px', left: `${left}px`, width: `${width}px`,
   }
   modelTipReady.value = true
+  await nextTick()
+  if (disposed || !isModelTipActive.value) return
+  const height = modelTipRef.value?.offsetHeight || 90
+  modelTipBelow.value = rect.top - height - GAP < 16
+  const top = modelTipBelow.value ? rect.bottom + GAP : rect.top - height - GAP
+  modelTipPos.value.top = `${Math.max(16, Math.min(top, window.innerHeight - height - 16))}px`
+  modelTipArrow.value = { left: `${Math.max(20, Math.min(center - left, width - 20))}px` }
 }
 
 const chatInputTipPos = ref<Record<string, string>>({})
@@ -372,7 +386,7 @@ function locateSpotlight() {
   nextTick(() => {
     placeTooltip()
     // 气泡延迟出现，让高亮先渲染
-    setTimeout(() => { tooltipVisible.value = true }, 200)
+    schedule(() => { if (isSpotlightActive.value) tooltipVisible.value = true }, 200)
   })
 }
 
@@ -404,6 +418,12 @@ function handleChatTipDismiss() {
 
 // ---- 窗口变化 ----
 let raf = 0
+let disposed = false
+const timers = new Set<ReturnType<typeof setTimeout>>()
+function schedule(action: () => void, delay: number) {
+  const timer = setTimeout(() => { timers.delete(timer); if (!disposed) action() }, delay)
+  timers.add(timer)
+}
 function onResize() {
   cancelAnimationFrame(raf)
   raf = requestAnimationFrame(() => {
@@ -415,11 +435,11 @@ function onResize() {
 
 // ---- 生命周期 ----
 watch(isSpotlightActive, (v) => {
-  if (v) nextTick(() => setTimeout(locateSpotlight, 350))
+  if (v) nextTick(() => schedule(() => { if (isSpotlightActive.value) locateSpotlight() }, 350))
 })
 
 watch(isModelTipActive, (v) => {
-  if (v) nextTick(() => setTimeout(placeModelTip, 250))
+  if (v) nextTick(() => schedule(() => { if (isModelTipActive.value) void placeModelTip() }, 250))
 })
 
 watch([isChatTipActive, () => props.chatOpen], ([active, chatOpen]) => {
@@ -434,11 +454,16 @@ watch([isChatTipActive, () => props.chatOpen], ([active, chatOpen]) => {
 onMounted(() => {
   window.addEventListener('resize', onResize, { passive: true })
   window.addEventListener('scroll', onResize, { passive: true })
-  if (isSpotlightActive.value) nextTick(() => setTimeout(locateSpotlight, 350))
-  if (isModelTipActive.value) nextTick(() => setTimeout(placeModelTip, 250))
+  if (isSpotlightActive.value) nextTick(() => schedule(() => { if (isSpotlightActive.value) locateSpotlight() }, 350))
+  if (isModelTipActive.value) nextTick(() => schedule(() => { if (isModelTipActive.value) void placeModelTip() }, 250))
 })
 
+watch(() => props.live2dStatus, () => { if (isModelTipActive.value) void nextTick(placeModelTip) })
+
 onUnmounted(() => {
+  disposed = true
+  timers.forEach(clearTimeout)
+  timers.clear()
   window.removeEventListener('resize', onResize)
   window.removeEventListener('scroll', onResize)
   cancelAnimationFrame(raf)
@@ -786,6 +811,7 @@ onUnmounted(() => {
    第二阶段：聊天提示
    ============================================ */
 .chat-tip {
+  max-height: calc(100dvh - 32px);
   z-index: 10002;
   max-width: calc(100vw - 32px);
   pointer-events: auto;
@@ -805,6 +831,7 @@ onUnmounted(() => {
   border: 1px solid var(--border-light);
   box-sizing: border-box;
   max-width: 100%;
+  white-space: normal;
 }
 
 .chat-tip__step {
@@ -833,7 +860,10 @@ onUnmounted(() => {
 }
 
 .chat-tip__msg {
+  flex: 1;
   min-width: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
   margin: 0;
   font-size: 14px;
   font-weight: 500;
@@ -867,6 +897,8 @@ onUnmounted(() => {
     color: var(--text-main);
   }
 }
+
+.chat-tip__arrow--above { top: -5px; bottom: auto !important; }
 
 .chat-tip__arrow {
   position: absolute;
@@ -948,6 +980,10 @@ onUnmounted(() => {
     border-radius: 12px;
   }
   .chat-tip__msg {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
     font-size: 13px;
   }
 }
@@ -955,6 +991,10 @@ onUnmounted(() => {
 @media (prefers-reduced-motion: reduce) {
   .chat-tip__loading-dot,
   .chat-tip__msg {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
     animation: none;
   }
 }

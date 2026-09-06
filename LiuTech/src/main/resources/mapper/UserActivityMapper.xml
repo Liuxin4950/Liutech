@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.UserActivityMapper">
+  <!-- 同一个认证用户的现存记录；只公开可见目标，浏览清空后自然消失。 -->
+  <sql id="activities">
+    SELECT CONCAT('comment-', c.id) id, 'comment' type, c.created_at occurred_at, p.title, 'post' target_type, p.id target_id
+    FROM comments c JOIN posts p ON c.post_id=p.id
+    WHERE c.user_id=#{userId} AND c.deleted_at IS NULL AND p.deleted_at IS NULL AND p.status='published'
+    UNION ALL
+    SELECT CONCAT('favorite-', f.id), 'favorite', f.updated_at, p.title, 'post', p.id
+    FROM post_favorites f JOIN posts p ON f.post_id=p.id
+    WHERE f.user_id=#{userId} AND f.is_favorite=1 AND f.deleted_at IS NULL AND p.deleted_at IS NULL AND p.status='published'
+    UNION ALL
+    SELECT CONCAT('view-', h.id), 'view', h.viewed_at, p.title, 'post', p.id
+    FROM user_view_history h JOIN posts p ON h.post_id=p.id
+    WHERE h.user_id=#{userId} AND p.deleted_at IS NULL AND p.status='published'
+    UNION ALL
+    SELECT CONCAT('checkin-', id), 'checkin', created_at, CONCAT('签到获得 ', points_earned, ' 积分'), NULL, NULL
+    FROM user_checkins WHERE user_id=#{userId}
+    UNION ALL
+    SELECT CONCAT('achievement-', id), 'achievement', claimed_at,
+      CONCAT(CASE achievement_code WHEN 'read_10' THEN '阅读探索者' WHEN 'comment_10' THEN '热心评论者' ELSE '成就' END, '：领取 ', reward_points, ' 积分'), NULL, NULL
+    FROM user_achievement_claims WHERE user_id=#{userId}
+    UNION ALL
+    SELECT CONCAT('register-', id), 'register', created_at, '加入了平台', NULL, NULL
+    FROM users WHERE id=#{userId} AND deleted_at IS NULL
+    UNION ALL
+    SELECT CONCAT('post-', p.id), 'post', p.created_at, p.title, 'post', p.id
+    FROM posts p JOIN users u ON p.author_id=u.id
+    WHERE p.author_id=#{userId} AND u.role='admin' AND p.status='published' AND p.deleted_at IS NULL
+  </sql>
+  <select id="selectActivities" resultType="chat.liuxin.liutech.resp.UserActivityResp">
+    SELECT * FROM (<include refid="activities" />) activity
+    ORDER BY occurred_at DESC, type ASC, id DESC LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="countActivities" resultType="long">
+    SELECT COUNT(*) FROM (<include refid="activities" />) activity
+  </select>
+</mapper>
