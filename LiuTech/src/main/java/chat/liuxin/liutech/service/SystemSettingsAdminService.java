@@ -18,9 +18,8 @@ import chat.liuxin.liutech.model.SystemSetting;
 /**
  * 系统设置管理服务（管理端专用）
  *
- * 仅保留真正被业务消费的设置项：
- * - author.*  作者资料（首页侧边栏展示）
- * - tts.*     语音合成配置
+ * 通用系统设置页仅管理非业务页面内容。
+ * author.* 与 about.* 由关于页专用接口和 Admin 页统一管理。
  *
  * site.* / comment.* / upload.* 等已移除，改为硬编码或由 Spring 配置控制。
  */
@@ -34,11 +33,6 @@ public class SystemSettingsAdminService {
     private static final Map<String, String[]> PREDEFINED_SETTINGS = new LinkedHashMap<>();
 
     static {
-        // 作者资料设置（首页侧边栏展示，Admin 可动态修改）
-        PREDEFINED_SETTINGS.put("author.name", new String[]{"小鑫同学", "作者昵称（首页侧边栏展示）", "author"});
-        PREDEFINED_SETTINGS.put("author.title", new String[]{"欢迎访问", "作者头衔/职位", "author"});
-        PREDEFINED_SETTINGS.put("author.avatar", new String[]{"/洛天依.png", "作者头像 URL", "author"});
-        PREDEFINED_SETTINGS.put("author.bio", new String[]{"专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。", "作者个人简介", "author"});
         // TTS 语音设置（TtsConfigService 消费）
         PREDEFINED_SETTINGS.put("tts.enabled", new String[]{"true", "语音推理全局开关：true/false", "tts"});
         PREDEFINED_SETTINGS.put("tts.provider", new String[]{"GPT_SOVITS", "语音推理引擎：GPT_SOVITS/SILICONFLOW", "tts"});
@@ -110,7 +104,7 @@ public class SystemSettingsAdminService {
     /**
      * 按分组获取设置
      *
-     * 返回格式：{ "author": [...], "tts": [...], "other": [...] }
+     * 返回格式：{ "tts": [...], "other": [...] }
      * 如果数据库中还没有预定义的设置项，会自动初始化默认值。
      */
     public Map<String, List<SystemSetting>> getGroupedSettings() {
@@ -121,7 +115,6 @@ public class SystemSettingsAdminService {
 
         // 先按预定义分组顺序初始化空列表
         Map<String, String> groupLabels = new LinkedHashMap<>();
-        groupLabels.put("author", "作者资料设置");
         groupLabels.put("tts", "语音设置");
         groupLabels.put("other", "其他");
 
@@ -131,6 +124,9 @@ public class SystemSettingsAdminService {
 
         // 根据 key 前缀归类
         for (SystemSetting setting : all) {
+            if (isAboutPageSetting(setting.getSettingKey())) {
+                continue;
+            }
             String group = resolveGroup(setting.getSettingKey());
             grouped.computeIfAbsent(group, k -> new ArrayList<>()).add(setting);
         }
@@ -165,8 +161,11 @@ public class SystemSettingsAdminService {
      */
     private String resolveGroup(String key) {
         if (key == null) return "other";
-        if (key.startsWith("author.")) return "author";
         if (key.startsWith("tts.")) return "tts";
         return "other";
+    }
+
+    private boolean isAboutPageSetting(String key) {
+        return key != null && (key.startsWith("author.") || key.startsWith("about."));
     }
 }

@@ -58,6 +58,7 @@ const menuItems = computed(() => [
       { key: 'announcements', icon: NotificationOutlined, label: t('menu.announcements'), path: '/announcements' },
       { key: 'carousels', icon: PictureOutlined, label: t('menu.carousels'), path: '/carousels' },
       { key: 'messages', icon: MessageOutlined, label: t('menu.messages'), path: '/messages' },
+      { key: 'about', icon: ReadOutlined, label: t('menu.aboutPage'), path: '/about' },
     ],
   },
   {
@@ -97,6 +98,7 @@ const getSelectedKey = (): string[] => {
   if (path.startsWith('/announcements')) return ['announcements']
   if (path.startsWith('/carousels')) return ['carousels']
   if (path.startsWith('/messages')) return ['messages']
+  if (path.startsWith('/about')) return ['about']
   if (path.startsWith('/images')) return ['images']
   if (path.startsWith('/resources')) return ['resources']
   if (path.startsWith('/music')) return ['music']
@@ -111,7 +113,7 @@ const getOpenKeys = (): string[] => {
   const path = route.path
   if (path.startsWith('/posts') || path.startsWith('/categories') || path.startsWith('/series') || path.startsWith('/tags') || path.startsWith('/comments')) return ['content']
   if (path.startsWith('/users') || path.startsWith('/points')) return ['user-management']
-  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages')) return ['operations']
+  if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages') || path.startsWith('/about')) return ['operations']
   if (path.startsWith('/images') || path.startsWith('/resources') || path.startsWith('/music')) return ['media']
   if (path.startsWith('/ai-models') || path.startsWith('/ai-settings')) return ['ai-center']
   if (path.startsWith('/logs') || path.startsWith('/settings')) return ['system']

@@ -59,8 +59,7 @@ input {
 .content {
   max-width: 1200px;
   margin: 0 auto;
-  padding:10px 20px;
-  box-sizing: border-box;
+  padding: 10px 20px;
 
   /* 移动端收紧水平边距 */
   @include respond(md) {

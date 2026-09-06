@@ -116,14 +116,6 @@ const icons: Record<string, string> = {
   'heart-comment': '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>', // 评论爱心
   zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>', // 闪电/能量
 
-  // ── 技术框架 ──
-  vue: '<path d="M12 2L2 22h20L12 2z"></path><path d="M12 9l-5 10h10L12 9z"></path>', // Vue.js
-  spring: '<path d="M12 2C7.5 2 4 5.5 4 10c0 3.5 2 6.5 5 8l-1 4 4-1c1.3.5 2.7.8 4 .8 4.5 0 8-3.5 8-8S16.5 2 12 2z"></path><path d="M12 6c-2.5 0-4.5 2-4.5 4.5S9.5 15 12 15"></path>', // Spring
-  typescript: '<rect x="2" y="2" width="20" height="20" rx="3"></rect><path d="M7 7h4M9 7v10"></path><path d="M16 7c2 0 3 1 3 2.5S17.5 12 15.5 12s-1.5 1.5-1.5 2.5 1.5 2.5 3.5 2.5"></path>', // TypeScript
-  docker: '<rect x="4" y="10" width="2" height="2"></rect><rect x="8" y="10" width="2" height="2"></rect><rect x="12" y="10" width="2" height="2"></rect><rect x="4" y="14" width="2" height="2"></rect><rect x="8" y="14" width="2" height="2"></rect><rect x="12" y="14" width="2" height="2"></rect><rect x="16" y="14" width="2" height="2"></rect><path d="M22 15.5c0 3-2.5 5-5 5H5c-2 0-3.5-1.5-3.5-3.5S3.5 13.5 5.5 13.5c.5 0 1 .1 1.5.3C8.5 8.5 12.5 5 17 5c4 0 7 3 7 7v3.5z"></path>', // Docker
-  flutter: '<path d="M13.8 2 5 10.8l3 3 8.8-8.8L13.8 2z"></path><path d="M17 5.8 10.8 12l3 3 6.2-6.2L17 5.8z"></path><path d="M19.8 8.6 15.4 13l3 3 4.4-4.4-3-3z"></path>', // Flutter
-  thinkphp: '<rect x="3.5" y="3.5" width="17" height="17" rx="2" transform="rotate(45 12 12)"></rect><path d="M9.5 15V9h5"></path><path d="M9.5 12h3"></path>', // ThinkPHP
-
   // ── 通讯与分享 ──
   send: '<line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>', // 发送
   share: '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line>', // 分享

@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
  * - categories: 15 分钟（分类很少变动）
  * - postSeries: 15 分钟（系列很少变动）
  * - announcements: 10 分钟
- * - userStats: 10 分钟
+ * - userStats / aboutPage: 10 分钟
  *
  * @author 刘鑫
  */
@@ -46,8 +46,9 @@ public class CacheConfig {
                 buildCache("postSeries", 15, 50),
                 // 公告 — 10 分钟
                 buildCache("announcements", 10, 50),
-                // 用户统计 — 10 分钟
-                buildCache("userStats", 10, 20)
+                // 用户统计与关于页 — 10 分钟
+                buildCache("userStats", 10, 20),
+                buildCache("aboutPage", 10, 2)
         ));
         return cacheManager;
     }

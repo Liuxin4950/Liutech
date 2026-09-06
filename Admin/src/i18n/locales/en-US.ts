@@ -99,6 +99,7 @@ export default {
     announcements: 'Announcements',
     carousels: 'Carousels',
     messages: 'Messages',
+    aboutPage: 'About Page',
     media: 'Media',
     images: 'Images',
     resources: 'Resources',

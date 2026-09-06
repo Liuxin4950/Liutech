@@ -168,6 +168,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'about',
+        name: 'about-page-settings',
+        component: () => import('../views/admin/AboutPageSettings.vue'),
+        meta: {
+          title: '关于页管理',
+          section: 'about'
+        }
+      },
+      {
         path: 'settings',
         name: 'system-settings',
         component: () => import('../views/admin/SystemSettings.vue'),

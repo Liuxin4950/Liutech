@@ -100,6 +100,7 @@ export default {
     announcements: '公告管理',
     carousels: '轮播图管理',
     messages: '留言管理',
+    aboutPage: '关于页管理',
     media: '媒体资源',
     images: '图片管理',
     resources: '资源管理',

@@ -19,7 +19,6 @@ const voiceOptions = ref<string[]>([])
 // 分组中文名称映射
 const groupLabels: Record<string, string> = {
   tts: '语音设置',
-  author: '作者资料设置',
   other: '其他'
 }
 
@@ -34,10 +33,6 @@ const fieldLabels: Record<string, string> = {
   'tts.responseFormat': '音频格式',
   'tts.sampleRate': '采样率',
   'tts.speed': '语速',
-  'author.name': '作者昵称',
-  'author.title': '作者头衔',
-  'author.avatar': '作者头像 URL',
-  'author.bio': '个人简介'
 }
 
 // 布尔类型的设置项
@@ -151,7 +146,7 @@ onMounted(() => {
           <SettingOutlined class="page-header-icon" />
           <div>
             <h3 class="page-title">系统设置</h3>
-            <p class="page-desc">管理作者资料和语音合成配置</p>
+            <p class="page-desc">管理语音合成及其他运行配置</p>
           </div>
         </div>
         <a-button @click="loadSettings" :loading="loading">
