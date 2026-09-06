@@ -9,7 +9,7 @@
             v-for="tag in popularTags"
             :key="tag.id"
             :to="`/tags/${tag.id}`"
-            class="tag flex flex-ac gap-8 transition link"
+            class="taxonomy-chip flex flex-ac gap-8 link"
           >
             <Icon :name="getTagIcon(tag.name)" size="14" />
             <span class="text-sm font-medium">{{ tag.name }}</span>
@@ -56,7 +56,7 @@
             v-for="tag in filteredTags"
             :key="tag.id"
             :to="`/tags/${tag.id}`"
-            class="tag flex flex-ac gap-8 transition link"
+            class="taxonomy-chip flex flex-ac gap-8 link"
           >
             <Icon :name="getTagIcon(tag.name)" size="14" />
             <span class="">{{ tag.name }}</span>
@@ -179,11 +179,6 @@ watch([tags, totalPosts], () => {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
-
-/* 标签页有独立 Icon，隐藏全局 .tag 的 # 前缀；其余样式走全局药丸 */
-.tag::before {
-  content: none;
-}
 
 /* 空状态标题（原全局 .mb-8 移入） */
 .text-center h3 {

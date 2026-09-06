@@ -13,7 +13,7 @@
         class="list-item flex flex-ac gap-12 link transition"
         @click="handleCategoryClick(category.id)"
       >
-        <span class="category-icon"><Icon :name="getCategoryIcon(category.name)" size="16" /></span>
+        <span class="category-icon"><Icon name="folder" size="16" /></span>
         <span class="text-lg font-medium flex-1">{{ category.name }}</span>
         <span class="categories-count">{{ category.postCount || 0 }}</span>
       </div>
@@ -22,7 +22,6 @@
 </template>
 
 <script setup lang="ts">
-import { getCategoryIcon } from '@/utils/categoryIcons'
 import { useRouter } from 'vue-router'
 import Icon from './Icon.vue'
 
@@ -56,8 +55,8 @@ const handleCategoryClick = (categoryId: number) => {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: rgba(var(--color-primary-rgb), 0.1);
-  color: var(--color-primary);
+  background: var(--bg-soft);
+  color: var(--text-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -65,8 +64,8 @@ const handleCategoryClick = (categoryId: number) => {
 }
 
 .list-item:hover .category-icon {
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--bg-element);
+  color: var(--text-title);
 }
 
 .categories-count {

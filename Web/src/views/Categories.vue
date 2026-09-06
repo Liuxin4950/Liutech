@@ -6,8 +6,9 @@
                 <h4 class="card-title"><span class="card-badge"><Icon name="fire" size="12" /> Hot</span><span class="card-title-text">热门<span class="card-highlight">分类</span></span></h4>
                 <div class="flex-fw gap-12">
                     <div v-for="category in popularCategories" :key="category.id"
-                        class="tag flex flex-ac gap-8 transition link"
+                        class="taxonomy-chip flex flex-ac gap-8 link"
                         @click="goToCategory(category.id)">
+                        <Icon name="folder" size="14" />
                         <span class="text-sm font-medium">{{ category.name }}</span>
                         <span class="text-xs text-muted">({{ category.postCount || 0 }})</span>
                     </div>
@@ -40,9 +41,6 @@
                 <div v-for="category in filteredCategories" :key="category.id"
                     class="category-card bg-card card cursor-pointer relative"
                     @click="goToCategory(category.id)">
-                    <!-- 装饰性背景渐变 -->
-                    <div class="category-bg"></div>
-                    
                     <div class="flex flex-col gap-12 relative">
                         <!-- 标题行：分类名 + 文章数徽章 -->
                         <div class="flex flex-sb flex-ac">
@@ -168,19 +166,9 @@ watch([categories, totalPosts], () => {
 
 /* 分类卡片样式 */
 .category-card {
-    transition: all 0.2s ease;
+    border: 1px solid var(--border-light);
+    transition: background-color 0.18s ease, border-color 0.18s ease;
     overflow: hidden;
-}
-
-/* 装饰性背景圆（原全局 .absolute/.top-0/.right-0/.rounded-full 移入） */
-.category-bg {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    opacity: 0.1;
 }
 
 /* 分类标题：无图标后标题为卡片视觉主体，加大加深 */
@@ -198,8 +186,10 @@ watch([categories, totalPosts], () => {
 
 /* 查看入口（右对齐） */
 .category-arrow {
+    color: var(--text-subtle);
     gap: 6px;
     justify-content: flex-end;
+    transition: color 0.18s ease;
 }
 
 .category-card .flex-sb {
@@ -213,19 +203,17 @@ watch([categories, totalPosts], () => {
 }
 
 .category-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: var(--bg-element);
+    border-color: var(--border-strong);
 }
 
-/* 分类标题样式 */
-.category-title {
-    color: var(--color-primary);
-    transition: color 0.2s ease;
+.category-card:hover .category-arrow {
+    color: var(--text-title);
 }
 
 /* 箭头样式 */
 .arrow-icon {
-    transition: transform 0.2s ease;
+    transition: color 0.18s ease;
 }
 
 /* 描述文本样式 */
@@ -247,13 +235,14 @@ watch([categories, totalPosts], () => {
 
 /* 徽章样式 */
 .badge {
-    transition: all 0.2s ease;
+    transition: color 0.18s ease, border-color 0.18s ease;
 }
 
-.category-card:hover .badge {
-    background: var(--color-primary);
-    color: white ;
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
+
 /* 响应式设计 */
 @include respond(md) {
     .categories-page {
@@ -264,39 +253,9 @@ watch([categories, totalPosts], () => {
         padding: 16px;
     }
     
-    .category-icon {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
+    .grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
     }
-}
-</style>
-
-<style scoped lang="scss">
-@use "@/assets/styles/tokens" as *;
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-
-  @include respond(md) {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-}
-
-.category-card {
-  @include respond(sm) {
-    .flex.flex-ac.gap-16 {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
-    }
-    
-    .category-icon {
-      width: 40px;
-      height: 40px;
-    }
-  }
 }
 </style>
