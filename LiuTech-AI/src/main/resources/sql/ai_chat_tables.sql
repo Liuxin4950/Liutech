@@ -1,8 +1,8 @@
 -- AI聊天服务数据库表结构脚本
 -- 作者: 刘鑫
 -- 说明: 仅包含表结构定义（DROP + CREATE），不含数据初始化
---       数据初始化（INSERT）请使用 sql/sql.sql
---       表结构与 sql/sql.sql 的 liutech_ai 段保持一致
+--       数据初始化（INSERT）请使用 Docs/SQL/sql.sql
+--       表结构与 Docs/SQL/sql.sql 的 liutech_ai 段保持一致
 
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS liutech_ai DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

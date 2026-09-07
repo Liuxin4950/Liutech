@@ -1,7 +1,8 @@
 -- ============================================================================
--- LiuTech 全栈初始化脚本 (唯一权威版本)
+-- LiuTech 全栈初始化脚本（唯一权威版本）
 -- 
--- 本文件是项目唯一的数据库初始化脚本，同时初始化主后端库 liutech 和 AI 服务库 liutech_ai。
+-- 权威路径：Docs/SQL/sql.sql
+-- 本文件同时初始化主后端库 liutech 和 AI 服务库 liutech_ai。
 -- Docker 部署时通过 docker-entrypoint-initdb.d 自动执行（仅首次初始化）。
 --
 -- 幂等性保证：
@@ -9,15 +10,20 @@
 --   - 所有 INSERT 使用 IGNORE 或 ON DUPLICATE KEY UPDATE，避免主键冲突。
 --   - 所有 ALTER TABLE 包含条件判断，跳过已存在的列/索引。
 --
--- 历史迁移合并（2026-05-08）：
+-- 已合并的历史变更：
 --   - sql/ai_chat_tables.sql         → 合并到本文件
 --   - sql/ai_agent_migration_*.sql   → 合并到本文件
 --   - sql/tts_dual_provider_*.sql    → 合并到本文件
+--   - post_series                    → 系列表及 posts 系列字段
+--   - user_achievement_claims        → 一次性成就领取记录
+--   - about.content                  → 关于页当前结构化内容
 --
 -- 已有环境使用说明：
---   如果数据库已通过旧脚本初始化过，直接执行本文件不会破坏现有数据
---   （CREATE IF NOT EXISTS 和 INSERT IGNORE 保证安全）。
---   只需确保缺失的表/数据被补齐即可。
+--   本文件的职责是创建“当前完整的新环境”，不是生产迁移执行器。
+--   不要把整份初始化脚本直接重放到已有生产库；其中包含初始化数据，
+--   且 CREATE TABLE IF NOT EXISTS 不会为旧表自动补齐新增列。
+--   已有环境升级应根据版本差异生成、审核并备份后执行最小增量 SQL，
+--   完成后再把最终结构折叠回本文件，不在 Docs/SQL 长期保留历史迁移副本。
 -- ============================================================================
 -- 关闭外键检查，避免顺序限制导致错误
 SET FOREIGN_KEY_CHECKS = 0;
@@ -50,10 +56,8 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
--- 初始化 admin 用户（如不存在则插入，已存在则确保角色为管理员）
-INSERT INTO users (username, email, password_hash, role, status, points, nickname)
-VALUES ('admin', 'admin@liuxin.chat', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 'admin', 1, 0, '管理员')
-ON DUPLICATE KEY UPDATE role = 'admin';
+-- 安全约束：初始化脚本不创建固定用户名/密码的管理员。
+-- 首次部署请先通过正常注册流程创建真实账户，再按部署指南显式提升该账户角色。
 
 CREATE TABLE IF NOT EXISTS categories (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '分类ID',

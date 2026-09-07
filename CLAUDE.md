@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `LiuTech/` | 主后端 REST API（Spring Boot 3.5.6 + MyBatis-Plus） | 8080 |
 | `LiuTech-AI/` | AI 聊天 / 推荐 / TTS 服务（Spring Boot） | 8081 |
 | `nginx/` | 反向代理、CORS、SSE 配置 | 80/443 |
-| `sql/sql.sql` | MySQL 初始化脚本（两个库：`liutech` 与 `liutech_ai`） | 3306 |
+| `Docs/SQL/sql.sql` | MySQL 唯一初始化脚本（两个库：`liutech` 与 `liutech_ai`） | 3306 |
 
 容器内部使用服务名通信：`backend:8080`、`ai:8081`、`mysql:3306`。完整编排见 `docker-compose.yml`。
 
@@ -59,7 +59,7 @@ cd Web && npm run build                      # 生产构建
 cd Admin && npm run build                    # Admin 构建
 
 # 数据库
-mysql -u root -p < sql/sql.sql               # 初始化两个库
+mysql -u root -p < Docs/SQL/sql.sql           # 初始化两个库
 docker exec -it liutech-mysql mysql -u root -p
 
 # 全栈部署（Windows 一键）
@@ -121,7 +121,7 @@ docker-compose logs -f backend               # 跟踪后端日志
 - `Docs/架构/README.md` - 模块化架构文档索引，接手某模块先读对应目录的「总览.md」
 - `AGENTS.md` - 给 Codex 的精简指引，指向本文件；改动约定时两处保持同步
 - `.claude/skills/` - `deploy.md`（部署步骤）、`docs-architecture/`（架构文档维护规范）
-- `Docs/` 子目录：`架构/`（模块文档）、`记录/`（当前架构 + 历史归档）、`PRD/`、`SQL/`、`团队反馈/`
+- `Docs/` 子目录：`架构/`（模块文档）、`记录/`（当前架构 + 检查记录）、`教程/`、`PRD/`、`SQL/`（唯一初始化脚本）
 
 ## 🧠 GBrain 持久知识库
 

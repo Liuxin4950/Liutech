@@ -143,7 +143,7 @@ docker-compose up -d
 
 ```bash
 # 1. 初始化数据库（一次性，导入 liutech 与 liutech_ai 两个库）
-mysql -u root -p < sql/sql.sql
+mysql -u root -p < Docs/SQL/sql.sql
 
 # 2. 主后端（http://localhost:8080）
 cd LiuTech
@@ -161,6 +161,8 @@ cd Admin && npm install && npm run dev    # http://localhost:3001
 ```
 
 > 本地运行后端与 AI 服务需配置 `DB_PASSWORD`、`JWT_SECRET`、`SPRING_AI_OPENAI_API_KEY` 等变量，可在 shell 中导出或在 `application-dev.yml` 中覆盖。`JWT_SECRET` 与 `TTS_PROXY_INTERNAL_TOKEN` 在两个服务间必须一致。
+
+初始化脚本不会创建默认管理员。首次使用时先正常注册真实账户，再由数据库管理员执行 `UPDATE users SET role = 'admin' WHERE username = '<真实用户名>';` 显式授权；不要在仓库保存固定管理员密码或可复用密文。
 
 ---
 
@@ -190,7 +192,7 @@ Liutech/
 │   ├── src/
 │   └── Dockerfile
 ├── nginx/                      # Nginx 配置（conf.d/default.conf + Dockerfile）
-├── sql/sql.sql                 # MySQL 初始化脚本（liutech + liutech_ai）
+├── Docs/SQL/sql.sql            # MySQL 唯一初始化脚本（liutech + liutech_ai）
 ├── docker-compose.yml          # 容器编排
 ├── .env.example                # 环境变量模板
 ├── 快速打包文件.bat            # Windows 镜像构建脚本
@@ -279,7 +281,7 @@ Liutech/
 
 # 3. 上传到服务器 /opt/liutech/
 #    docker-images/*.tar  ->  images/
-#    sql/sql.sql          ->  sql/
+#    Docs/SQL/sql.sql     ->  Docs/SQL/
 #    nginx/               ->  nginx/
 #    服务器部署脚本.sh
 

@@ -46,14 +46,15 @@ mkdir -p /liuxin/uploads
 
 # 检查并复制SQL文件
 echo "检查SQL初始化文件..."
-if [ -f ./sql/sql.sql ]; then
-    cp ./sql/sql.sql "$INSTALL_DIR/sql/"
+if [ -f ./Docs/SQL/sql.sql ]; then
+    cp ./Docs/SQL/sql.sql "$INSTALL_DIR/sql/sql.sql"
     echo "已复制 sql.sql"
 else
-    echo "警告: 未找到 sql/sql.sql 文件"
+    echo "错误: 未找到 Docs/SQL/sql.sql 文件"
+    exit 1
 fi
 
-# sql/sql.sql 已包含主后端 liutech 库和 AI 服务 liutech_ai 库的表结构。
+# Docs/SQL/sql.sql 已包含主后端 liutech 库和 AI 服务 liutech_ai 库的完整初始化结构。
 
 # 复制Nginx配置
 if [ -d ./nginx ]; then
