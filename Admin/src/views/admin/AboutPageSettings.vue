@@ -105,7 +105,7 @@ const loadContent = async () => {
     formRef.value?.clearValidate()
   } catch (error: any) {
     loadFailed.value = true
-    message.error(error?.message || '关于页内容加载失败')
+    if (!error?.isBusiness) message.error('关于页内容加载失败')
   } finally {
     loading.value = false
   }
@@ -127,7 +127,7 @@ const saveContent = async () => {
     form.value = clone(response.data)
     message.success('关于页已更新')
   } catch (error: any) {
-    if (!error?.isBusiness) message.error(error?.message || '关于页保存失败')
+    if (!error?.isBusiness) message.error('关于页保存失败')
   } finally {
     saving.value = false
   }
@@ -142,7 +142,7 @@ const uploadImage = async (file: File, target: 'avatar' | 'honors') => {
     else form.value.honors.imageUrl = result.fileUrl
     message.success('图片上传成功，保存页面后生效')
   } catch (error: any) {
-    message.error(error?.message || '图片上传失败')
+    if (!error?.isBusiness) message.error('图片上传失败')
   } finally {
     uploading.value = null
   }

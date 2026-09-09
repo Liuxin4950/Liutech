@@ -75,7 +75,7 @@ const handleCoverUpload = async (e: Event) => {
     formModel.value.coverImage = result.fileUrl
     message.success('封面上传成功')
   } catch (err: any) {
-    message.error(err.message || '封面上传失败')
+    if (!err?.isBusiness) message.error('封面上传失败')
   } finally {
     uploadingCover.value = false
     target.value = ''

@@ -184,8 +184,6 @@ const handleBatchRestore = async () => {
       message.success('批量恢复成功')
       clearSelection()
       load()
-    } else {
-      message.error(response.message || '批量恢复失败')
     }
   } catch (error: any) {
     if (!error?.isBusiness) message.error('批量恢复失败')
@@ -198,8 +196,6 @@ const handleStatusChange = async (id: number, newStatus: number) => {
     if (response.code === 200) {
       message.success(newStatus === 1 ? '已启用' : '已禁用')
       load()
-    } else {
-      message.error(response.message || '操作失败')
     }
   } catch (error: any) {
     if (!error?.isBusiness) message.error('操作失败')
@@ -218,8 +214,6 @@ const handleBatchEnable = async () => {
       message.success('批量启用成功')
       clearSelection()
       load()
-    } else {
-      message.error(response.message || '批量启用失败')
     }
   } catch (error: any) {
     if (!error?.isBusiness) message.error('批量启用失败')
@@ -238,8 +232,6 @@ const handleBatchDisable = async () => {
       message.success('批量禁用成功')
       clearSelection()
       load()
-    } else {
-      message.error(response.message || '批量禁用失败')
     }
   } catch (error: any) {
     if (!error?.isBusiness) message.error('批量禁用失败')

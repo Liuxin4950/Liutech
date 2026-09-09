@@ -181,7 +181,7 @@ const handleCoverChange = async (info: any) => {
     const result = await ImageUploadService.uploadImage(file)
     uploadForm.value.coverUrl = result.fileUrl
   } catch (e: any) {
-    message.error(e.message || '封面上传失败')
+    if (!e?.isBusiness) message.error('封面上传失败')
     coverPreview.value = ''
   } finally {
     coverUploading.value = false
@@ -230,7 +230,7 @@ const handleUpload = async () => {
     resetUploadForm()
     load()
   } catch (e: any) {
-    message.error(e.message || '上传失败')
+    if (!e?.isBusiness) message.error('上传失败')
   } finally {
     uploadLoading.value = false
   }
@@ -249,7 +249,7 @@ const handleSortChange = async (id: number, direction: 'up' | 'down') => {
     await musicService.updateSortOrder(dataSource.value.map((item) => item.id))
     load()
   } catch (e: any) {
-    message.error(e.message || '排序更新失败')
+    if (!e?.isBusiness) message.error('排序更新失败')
     load()
   }
 }
@@ -262,7 +262,7 @@ const handleStatusChange = async (id: number, status: number) => {
     message.success('状态更新成功')
     if (record) record.status = status
   } catch (e: any) {
-    message.error(e.message || '状态更新失败')
+    if (!e?.isBusiness) message.error('状态更新失败')
   } finally {
     if (record) record.statusLoading = false
   }

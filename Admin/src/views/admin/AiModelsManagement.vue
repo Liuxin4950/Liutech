@@ -121,7 +121,7 @@ const setDefaultModel = async (record: ModelConfig) => {
     message.success('默认模型已更新')
     await load()
   } catch (error: any) {
-    message.error(error?.message || '设置默认模型失败')
+    if (!error?.isBusiness) message.error('设置默认模型失败')
   }
 }
 
@@ -131,7 +131,7 @@ const toggleEnabled = async (record: ModelConfig) => {
     message.success(record.isEnabled ? '模型已禁用' : '模型已启用')
     await load()
   } catch (error: any) {
-    message.error(error?.message || '切换模型状态失败')
+    if (!error?.isBusiness) message.error('切换模型状态失败')
   }
 }
 
@@ -148,7 +148,7 @@ const removeModel = (record: ModelConfig) => {
         message.success('模型已删除')
         await load()
       } catch (error: any) {
-        message.error(error?.message || '删除失败')
+        if (!error?.isBusiness) message.error('删除失败')
       }
     }
   })

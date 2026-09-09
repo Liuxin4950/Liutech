@@ -314,7 +314,7 @@ const send = async (text?: string) => {
       },
     )
   } catch (error: any) {
-    message.error(error?.message || 'Agent 请求失败')
+    if (!error?.isBusiness) message.error('Agent 请求失败')
     const runningStep = plan.value.find(step => step.status === 'running')
     if (runningStep) setStepStatus(runningStep.key, 'failed')
   } finally {

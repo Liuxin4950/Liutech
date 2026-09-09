@@ -104,7 +104,7 @@ const loadSettings = async () => {
     // 加载语音模型选项
     await loadVoiceOptions()
   } catch (error: any) {
-    message.error(error?.message || '加载系统设置失败')
+    if (!error?.isBusiness) message.error('加载系统设置失败')
   } finally {
     loading.value = false
   }
@@ -123,7 +123,7 @@ const saveGroup = async (group: string) => {
     message.success(`${groupLabels[group] || group} 已保存`)
     await loadSettings()
   } catch (error: any) {
-    message.error(error?.message || '保存失败')
+    if (!error?.isBusiness) message.error('保存失败')
   } finally {
     savingGroup.value = null
   }

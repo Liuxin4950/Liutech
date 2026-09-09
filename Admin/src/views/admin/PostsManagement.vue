@@ -346,7 +346,7 @@ const handleCoverImageUpload = async (event: Event) => {
     formModel.value.coverImage = result.fileUrl
     message.success('封面图片上传成功')
   } catch (error: any) {
-    message.error(error.message || '封面图片上传失败')
+    if (!error?.isBusiness) message.error('封面图片上传失败')
   } finally {
     uploadingCover.value = false
     if (target) target.value = ''
@@ -363,7 +363,7 @@ const handleThumbnailUpload = async (event: Event) => {
     formModel.value.thumbnail = result.fileUrl
     message.success('缩略图上传成功')
   } catch (error: any) {
-    message.error(error.message || '缩略图上传失败')
+    if (!error?.isBusiness) message.error('缩略图上传失败')
   } finally {
     uploadingThumbnail.value = false
     if (target) target.value = ''

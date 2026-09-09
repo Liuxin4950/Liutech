@@ -186,7 +186,7 @@ const refresh = async () => {
 
     await Promise.all([refreshVoices(), refreshSiliconFlowVoices()])
   } catch (error: any) {
-    message.error(error?.message || '加载 AI 设置失败')
+    if (!error?.isBusiness) message.error('加载 AI 设置失败')
   } finally {
     loading.value = false
   }
@@ -216,7 +216,7 @@ const save = async () => {
     message.success('AI 设置已保存')
     await refresh()
   } catch (error: any) {
-    message.error(error?.message || '保存失败')
+    if (!error?.isBusiness) message.error('保存失败')
   } finally {
     saving.value = false
   }
@@ -255,7 +255,7 @@ const submitVoiceUpload = async () => {
     uploadDialogOpen.value = false
     await refreshSiliconFlowVoices()
   } catch (error: any) {
-    message.error(error?.message || '上传参考音频失败')
+    if (!error?.isBusiness) message.error('上传参考音频失败')
   } finally {
     uploadingVoice.value = false
   }
@@ -275,7 +275,7 @@ const playTestSpeech = async () => {
     const audio = new Audio(resolveMainAudioUrl(result.audioUrl))
     await audio.play()
   } catch (error: any) {
-    message.error(error?.message || '试听失败')
+    if (!error?.isBusiness) message.error('试听失败')
   } finally {
     testingSpeech.value = false
   }

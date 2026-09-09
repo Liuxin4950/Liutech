@@ -105,12 +105,13 @@ export function useCrudActions(options: UseCrudActionsOptions) {
       const res = await deleteFn(id)
       if (undoEnabled) {
         showUndoMessage(`${entityName}已删除`, undoWindowMs, async () => {
-          const r = await restoreFn!(id).catch(() => null)
-          if (r?.code === 200) {
+          try {
+            await restoreFn!(id)
             message.success('已撤销删除')
             onRefresh()
-          } else {
-            message.error('撤销失败')
+          } catch (e: any) {
+            // 业务错误已由拦截器提示，这里只兜底非业务错误（网络等）
+            if (!e?.isBusiness) message.error('撤销失败')
           }
         })
       } else {
@@ -119,7 +120,7 @@ export function useCrudActions(options: UseCrudActionsOptions) {
       onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 删除失败:', e)
-      message.error('删除失败：' + (e.message || '网络错误'))
+      if (!e?.isBusiness) message.error('删除失败，请检查网络')
     } finally {
       loading.value = false
     }
@@ -153,8 +154,8 @@ export function useCrudActions(options: UseCrudActionsOptions) {
             }
             message.success(`已撤销删除，共恢复 ${idsSnapshot.length} 条`)
             onRefresh()
-          } catch {
-            message.error('撤销失败')
+          } catch (e: any) {
+            if (!e?.isBusiness) message.error('撤销失败')
           }
         })
       } else {
@@ -164,7 +165,7 @@ export function useCrudActions(options: UseCrudActionsOptions) {
       onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 批量删除失败:', e)
-      message.error('批量删除失败：' + (e.message || '网络错误'))
+      if (!e?.isBusiness) message.error('批量删除失败，请检查网络')
     } finally {
       loading.value = false
     }
@@ -185,7 +186,7 @@ export function useCrudActions(options: UseCrudActionsOptions) {
       onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 恢复失败:', e)
-      message.error('恢复失败：' + (e.message || '网络错误'))
+      if (!e?.isBusiness) message.error('恢复失败，请检查网络')
     } finally {
       loading.value = false
     }
@@ -206,7 +207,7 @@ export function useCrudActions(options: UseCrudActionsOptions) {
       onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 彻底删除失败:', e)
-      message.error('彻底删除失败：' + (e.message || '网络错误'))
+      if (!e?.isBusiness) message.error('彻底删除失败，请检查网络')
     } finally {
       loading.value = false
     }
@@ -232,7 +233,7 @@ export function useCrudActions(options: UseCrudActionsOptions) {
       onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 批量彻底删除失败:', e)
-      message.error('批量彻底删除失败：' + (e.message || '网络错误'))
+      if (!e?.isBusiness) message.error('批量彻底删除失败，请检查网络')
     } finally {
       loading.value = false
     }

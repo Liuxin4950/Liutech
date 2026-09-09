@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined, SortAscendingOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
@@ -155,7 +155,7 @@ const handleImageChange = async (info: any) => {
     formModel.value.imageUrl = result.fileUrl
     message.success('图片上传成功')
   } catch (e: any) {
-    message.error(e.message || '图片上传失败')
+    if (!e?.isBusiness) message.error('图片上传失败')
     imagePreview.value = formModel.value.imageUrl || ''
   } finally {
     imageUploading.value = false
@@ -193,9 +193,8 @@ const handleSortChange = async (id: number, direction: 'up' | 'down') => {
     ])
     if (res1?.code === 200 && res2?.code === 200) {
       message.success('排序更新成功')
-    } else {
-      message.warning('排序更新失败')
     }
+    // 失败已在响应拦截器统一提示并抛错（进入下方 catch），无需再弹一次
     loadCarousels()
   } catch (e: any) {
     if (!e?.isBusiness) message.warning('排序更新失败，请稍后重试')

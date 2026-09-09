@@ -116,7 +116,7 @@ const handleAvatarChange = async (info: any) => {
     profileForm.avatarUrl = result.fileUrl
     message.success('头像上传成功')
   } catch (e: any) {
-    message.error(e.message || '头像上传失败')
+    if (!e?.isBusiness) message.error('头像上传失败')
     avatarPreview.value = profileForm.avatarUrl || ''
   } finally {
     avatarUploading.value = false
@@ -135,7 +135,7 @@ const handleSaveProfile = async () => {
     message.success('个人资料更新成功')
     await userStore.fetchUserInfo()
   } catch (e: any) {
-    message.error(e.message || '更新失败')
+    if (!e?.isBusiness) message.error('更新失败')
   } finally {
     profileLoading.value = false
   }
@@ -156,7 +156,7 @@ const handleChangePassword = async () => {
     passwordForm.confirmPassword = ''
   } catch (e: any) {
     if (e?.errorFields) return
-    message.error(e.message || '密码修改失败')
+    if (!e?.isBusiness) message.error('密码修改失败')
   } finally {
     passwordLoading.value = false
   }

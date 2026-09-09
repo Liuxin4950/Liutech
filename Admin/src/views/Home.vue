@@ -340,6 +340,7 @@ async function loadDashboardStats() {
       await nextTick()
       setTimeout(renderAll, 100)
     } else {
+      // code===200 但 data 为空时仍会走到这里（可达分支），展示后端 message
       message.error(res.message || '加载统计数据失败')
     }
   } catch (error: any) {

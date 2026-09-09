@@ -201,7 +201,7 @@ export function useModalForm<T extends Record<string, any>>(options: UseModalFor
     } catch (e: any) {
       if (e?.errorFields) return
       console.error('[useModalForm] 操作失败:', e)
-      message.error('操作失败：' + (e.message || '未知错误'))
+      if (!e?.isBusiness) message.error('操作失败，请检查网络')
     } finally {
       confirmLoading.value = false
     }

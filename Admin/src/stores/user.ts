@@ -35,19 +35,15 @@ export const useUserStore = defineStore('user', () => {
   const login = async (username: string, password: string) => {
     isLoading.value = true
     try {
+      // 拦截器保证 code === 200 才会返回；非 200 已在拦截器抛错并提示后端 message
       const response = await UserService.login({ username, password })
-      if (response.code === 200) {
-        // 保存token到localStorage
-        if (response.data.token) {
-          setToken(response.data.token)
-        }
-        await fetchUserInfo()
-        return true
-      } else {
-        throw new Error(response.message || '登录失败')
+      if (response.data.token) {
+        setToken(response.data.token)
       }
+      await fetchUserInfo()
+      return true
     } catch (error: any) {
-      message.error(error?.message || '登录失败')
+      if (!error?.isBusiness) message.error('登录失败')
       return false
     } finally {
       isLoading.value = false
@@ -61,15 +57,11 @@ export const useUserStore = defineStore('user', () => {
   const register = async (registerData: RegisterRequest) => {
     isLoading.value = true
     try {
-      const response = await UserService.register(registerData)
-      if (response.code === 200) {
-        // 注册成功后可以选择自动登录或跳转到登录页
-        return true
-      } else {
-        throw new Error(response.message || '注册失败')
-      }
+      // 拦截器保证 code === 200 才会返回，失败已在拦截器抛错并提示
+      await UserService.register(registerData)
+      return true
     } catch (error: any) {
-      message.error(error?.message || '注册失败')
+      if (!error?.isBusiness) message.error('注册失败')
       return false
     } finally {
       isLoading.value = false
@@ -94,16 +86,14 @@ export const useUserStore = defineStore('user', () => {
     }
 
     try {
+      // 拦截器保证 code === 200 才会返回，失败已在拦截器抛错并提示
       const response = await UserService.getCurrentUser()
-      if (response.code === 200) {
-        userInfo.value = response.data
-      } else {
-        throw new Error(response.message || '获取用户信息失败')
-      }
-    } catch (error) {
+      userInfo.value = response.data
+    } catch (error: any) {
       console.error('获取用户信息失败:', error)
-      message.error('获取用户信息失败，请重新登录')
-      // 如果获取用户信息失败，可能是token过期，清除登录状态
+      // 401 已由拦截器清凭证并跳登录页，这里只兜底非业务错误，避免重复提示
+      if (!error?.isBusiness) message.error('获取用户信息失败，请重新登录')
+      // 获取用户信息失败通常是 token 失效，清除登录状态
       logout()
     }
   }
