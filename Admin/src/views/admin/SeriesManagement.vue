@@ -102,8 +102,8 @@ const loadSeriesPosts = async (seriesId: number) => {
   try {
     const res = await PostsService.getPostList({ seriesId, size: 1000 })
     seriesPosts.value = res.data?.records || []
-  } catch {
-    message.error('加载系列文章失败')
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error('加载系列文章失败')
   } finally {
     loadingPosts.value = false
   }
@@ -132,8 +132,8 @@ const saveOrder = async () => {
     await PostSeriesService.updatePostsOrder(postsDrawerSeries.value.id, items)
     message.success('排序已保存')
     load()
-  } catch {
-    message.error('排序保存失败')
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error('排序保存失败')
   } finally {
     savingOrder.value = false
   }

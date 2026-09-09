@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useTagsStore } from '@/stores/tabs'
 import { useUserStore } from '@/stores/user'
+import { getToken } from '../utils/auth'
 
 /**
  * 路由配置
@@ -258,7 +259,7 @@ router.beforeEach(async (to, from, next) => {
 
   // 管理后台除登录和 403 外都需要管理员身份
   if (!isPublicRoute) {
-    const token = localStorage.getItem('token')
+    const token = getToken()
     if (!token) {
       next({ name: 'login', query: { redirect: to.fullPath } })
       return

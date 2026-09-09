@@ -116,8 +116,8 @@ const saveContent = async () => {
   normalizeContent(form.value)
   try {
     await formRef.value?.validate()
-  } catch {
-    message.warning('请先修正表单中标记的问题')
+  } catch (error: any) {
+    if (!error?.isBusiness) message.warning('请先修正表单中标记的问题')
     return
   }
 

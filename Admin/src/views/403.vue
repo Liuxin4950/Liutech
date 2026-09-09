@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { HomeOutlined, LoginOutlined } from '@ant-design/icons-vue'
+import { removeToken } from '../utils/auth'
 
 const router = useRouter()
 
 const goHome = () => router.push('/')
 const goLogin = () => {
-  localStorage.removeItem('token')
+  removeToken()
   localStorage.removeItem('userInfo')
   router.push('/login')
 }

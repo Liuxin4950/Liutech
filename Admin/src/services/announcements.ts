@@ -1,5 +1,5 @@
 import type { Dayjs } from 'dayjs'
-import { get, post, put, del } from './api'
+import { get, post, put, del, axiosInstance } from './api'
 import type { ApiResponse } from './api'
 import type { PageResult } from './types'
 
@@ -151,43 +151,34 @@ export class AnnouncementsService {
 
   /**
    * 导出公告数据为Excel
-   * 使用 fetch 而非 axios，因为需要处理 blob 响应类型
+   *
+   * 走统一 axios 实例：自动注入 token、复用超时与错误处理，不再自行拼 baseURL。
+   * blob 响应不是标准 { code, message, data } 结构，拦截器会把它包装成标准格式，
+   * 真实 Blob 位于 data 层（与 Web 端资源下载 post.ts 的解包约定一致）。
    */
   static async exportAnnouncements(params: AnnouncementListParams = {}): Promise<Blob> {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_URL}/export`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(params)
+    const response = await axiosInstance.post(`${this.ADMIN_URL}/export`, params, {
+      responseType: 'blob'
     })
-    if (!response.ok) {
-      throw new Error('导出失败')
-    }
-    return response.blob()
+    // 兼容拦截器包装：有 data 层取 data 层，否则直接用响应体
+    const rawData: any = (response.data as any)?.data ?? response.data
+    return rawData as Blob
   }
 
   /**
    * 导入公告数据从Excel
-   * 使用 fetch 而非 axios，因为需要处理 FormData 上传
+   *
+   * FormData 交由 axios 自动设置 multipart 边界（实例不预设 Content-Type）。
    */
   static async importAnnouncements(file: File): Promise<ApiResponse<{ success: number; failed: number; errors?: string[] }>> {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}${this.ADMIN_URL}/import`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: formData
-    })
-
-    if (!response.ok) {
-      throw new Error('导入失败')
-    }
-    return response.json()
+    return post<{ success: number; failed: number; errors?: string[] }>(
+      `${this.ADMIN_URL}/import`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
   }
 }
 

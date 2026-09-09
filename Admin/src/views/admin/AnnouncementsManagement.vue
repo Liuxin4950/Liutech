@@ -82,23 +82,19 @@ const openEdit = async (record: AnnouncementListItem) => {
 
   try {
     const res = await AnnouncementsService.getAnnouncementById(record.id)
-    if (res.code === 200) {
-      formModel.value = {
-        title: res.data.title,
-        content: res.data.content,
-        type: res.data.type,
-        priority: res.data.priority,
-        status: res.data.status,
-        isTop: res.data.isTop,
-        startTime: res.data.startTime ? dayjs(res.data.startTime) : undefined,
-        endTime: res.data.endTime ? dayjs(res.data.endTime) : undefined
-      }
-      modalVisible.value = true
-    } else {
-      message.error(res.message || '获取公告详情失败')
+    formModel.value = {
+      title: res.data.title,
+      content: res.data.content,
+      type: res.data.type,
+      priority: res.data.priority,
+      status: res.data.status,
+      isTop: res.data.isTop,
+      startTime: res.data.startTime ? dayjs(res.data.startTime) : undefined,
+      endTime: res.data.endTime ? dayjs(res.data.endTime) : undefined
     }
-  } catch (e) {
-    message.warning('获取公告详情失败，请稍后重试')
+    modalVisible.value = true
+  } catch (e: any) {
+    if (!e?.isBusiness) message.warning('获取公告详情失败，请稍后重试')
   }
 }
 
@@ -121,23 +117,15 @@ const handleSubmit = async () => {
 
     if (isEdit.value) {
       const res = await AnnouncementsService.updateAnnouncement(editingId.value as number, submitData)
-      if (res.code === 200) {
-        message.success('更新成功')
-        modalVisible.value = false
-        loadAnnouncements()
-      } else {
-        message.error(res.message || '更新失败')
-      }
+      message.success('更新成功')
+      modalVisible.value = false
+      loadAnnouncements()
     } else {
       const res = await AnnouncementsService.createAnnouncement(submitData as any)
-      if (res.code === 200) {
-        message.success('创建成功')
-        modalVisible.value = false
-        pagination.current = 1
-        loadAnnouncements()
-      } else {
-        message.error(res.message || '创建失败')
-      }
+      message.success('创建成功')
+      modalVisible.value = false
+      pagination.current = 1
+      loadAnnouncements()
     }
   } catch (e) {
     // 表单校验失败或请求错误
@@ -195,9 +183,9 @@ const handleExport = async () => {
 
     message.destroy()
     message.success('导出成功')
-  } catch (e) {
+  } catch (e: any) {
     message.destroy()
-    message.error('导出失败，请稍后重试')
+    if (!e?.isBusiness) message.error('导出失败，请稍后重试')
   }
 }
 
@@ -208,22 +196,18 @@ const handleUpload = async (file: any) => {
     uploadLoading.value = true
     const res = await AnnouncementsService.importAnnouncements(file.file)
 
-    if (res.code === 200) {
-      const { success, failed, errors } = res.data
-      if (errors && errors.length > 0) {
-        message.warning(`导入完成：成功 ${success} 条，失败 ${failed} 条。错误详情：${errors.join(', ')}`)
-      } else {
-        message.success(`导入成功：共 ${success} 条数据`)
-      }
-
-      uploadVisible.value = false
-      fileList.value = []
-      loadAnnouncements()
+    const { success, failed, errors } = res.data
+    if (errors && errors.length > 0) {
+      message.warning(`导入完成：成功 ${success} 条，失败 ${failed} 条。错误详情：${errors.join(', ')}`)
     } else {
-      message.error(res.message || '导入失败')
+      message.success(`导入成功：共 ${success} 条数据`)
     }
-  } catch (e) {
-    message.error('导入失败，请稍后重试')
+
+    uploadVisible.value = false
+    fileList.value = []
+    loadAnnouncements()
+  } catch (e: any) {
+    if (!e?.isBusiness) message.error('导入失败，请稍后重试')
   } finally {
     uploadLoading.value = false
   }
@@ -250,28 +234,20 @@ const beforeUpload = (file: File) => {
 const handleStatusChange = async (id: number, status: number) => {
   try {
     const res = await AnnouncementsService.updateAnnouncementStatus(id, status)
-    if (res && res.code === 200) {
-      message.success('状态更新成功')
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '状态更新失败')
-    }
-  } catch (e) {
-    message.warning('状态更新失败，请稍后重试')
+    message.success('状态更新成功')
+    loadAnnouncements()
+  } catch (e: any) {
+    if (!e?.isBusiness) message.warning('状态更新失败，请稍后重试')
   }
 }
 
 const handleToggleTop = async (id: number, isTop: number) => {
   try {
     const res = await AnnouncementsService.toggleAnnouncementTop(id, isTop)
-    if (res && res.code === 200) {
-      message.success(isTop ? '置顶成功' : '取消置顶成功')
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '操作失败')
-    }
-  } catch (e) {
-    message.warning('操作失败，请稍后重试')
+    message.success(isTop ? '置顶成功' : '取消置顶成功')
+    loadAnnouncements()
+  } catch (e: any) {
+    if (!e?.isBusiness) message.warning('操作失败，请稍后重试')
   }
 }
 
@@ -282,15 +258,11 @@ const handleBatchStatusUpdate = async (status: number) => {
   }
   try {
     const res = await AnnouncementsService.batchUpdateAnnouncementStatus(selectedRowKeys.value, status)
-    if (res && res.code === 200) {
-      message.success('批量状态更新成功')
-      selectedRowKeys.value = []
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '批量状态更新失败')
-    }
-  } catch (e) {
-    message.warning('批量状态更新失败，请稍后重试')
+    message.success('批量状态更新成功')
+    selectedRowKeys.value = []
+    loadAnnouncements()
+  } catch (e: any) {
+    if (!e?.isBusiness) message.warning('批量状态更新失败，请稍后重试')
   }
 }
 
@@ -301,15 +273,11 @@ const handleBatchTopUpdate = async (isTop: number) => {
   }
   try {
     const res = await AnnouncementsService.batchToggleAnnouncementTop(selectedRowKeys.value, isTop)
-    if (res && res.code === 200) {
-      message.success(isTop ? '批量置顶成功' : '批量取消置顶成功')
-      selectedRowKeys.value = []
-      loadAnnouncements()
-    } else {
-      message.warning(res?.message || '批量操作失败')
-    }
-  } catch (e) {
-    message.warning('批量操作失败，请稍后重试')
+    message.success(isTop ? '批量置顶成功' : '批量取消置顶成功')
+    selectedRowKeys.value = []
+    loadAnnouncements()
+  } catch (e: any) {
+    if (!e?.isBusiness) message.warning('批量操作失败，请稍后重试')
   }
 }
 

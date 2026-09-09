@@ -55,18 +55,14 @@ const {
 const handleDelete = async (id: number) => {
   try {
     const res = await ImagesService.deleteImage(id)
-    if (res.code === 200) {
-      if (res.data?.warning) {
-        message.warning(res.data.warning)
-      } else {
-        message.success('删除成功')
-      }
-      loadImages()
+    if (res.data?.warning) {
+      message.warning(res.data.warning)
     } else {
-      message.error(res.message || '删除失败')
+      message.success('删除成功')
     }
-  } catch {
-    message.error('删除失败，请检查网络')
+    loadImages()
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error('删除失败，请检查网络')
   }
 }
 
@@ -77,19 +73,15 @@ const handleBatchDelete = async () => {
   }
   try {
     const res = await ImagesService.batchDeleteImages(selectedRowKeys.value)
-    if (res.code === 200) {
-      if (res.data?.warning) {
-        message.warning(res.data.warning)
-      } else {
-        message.success('批量删除成功')
-      }
-      selectedRowKeys.value = []
-      loadImages()
+    if (res.data?.warning) {
+      message.warning(res.data.warning)
     } else {
-      message.error(res.message || '批量删除失败')
+      message.success('批量删除成功')
     }
-  } catch {
-    message.error('批量删除失败，请检查网络')
+    selectedRowKeys.value = []
+    loadImages()
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error('批量删除失败，请检查网络')
   }
 }
 
@@ -138,13 +130,9 @@ const handleShowOrphans = async () => {
   orphanLoading.value = true
   try {
     const res = await ImagesService.getOrphanImages()
-    if (res.code === 200) {
-      orphanImages.value = res.data
-    } else {
-      message.error(res.message || '查询孤立图片失败')
-    }
-  } catch (e) {
-    message.error('查询孤立图片失败')
+    orphanImages.value = res.data
+  } catch (e: any) {
+    if (!e?.isBusiness) message.error('查询孤立图片失败')
   } finally {
     orphanLoading.value = false
   }
@@ -162,15 +150,11 @@ const handleCleanupOrphans = () => {
       cleanupLoading.value = true
       try {
         const res = await ImagesService.cleanupOrphanImages()
-        if (res.code === 200) {
-          message.success(`成功清理 ${res.data} 张孤立图片`)
-          orphanModalVisible.value = false
-          loadImages()
-        } else {
-          message.error(res.message || '清理孤立图片失败')
-        }
-      } catch (e) {
-        message.error('清理孤立图片失败')
+        message.success(`成功清理 ${res.data} 张孤立图片`)
+        orphanModalVisible.value = false
+        loadImages()
+      } catch (e: any) {
+        if (!e?.isBusiness) message.error('清理孤立图片失败')
       } finally {
         cleanupLoading.value = false
       }
@@ -185,14 +169,10 @@ const handleReconcile = async () => {
   reconcileLoading.value = true
   try {
     const res = await ImagesService.reconcileUsage()
-    if (res.code === 200) {
-      message.success(`对账完成：重置 ${res.data.resetRows} 条，更新 ${res.data.updatedImages} 条引用`)
-      loadImages()
-    } else {
-      message.error(res.message || '对账失败')
-    }
-  } catch {
-    message.error('对账失败')
+    message.success(`对账完成：重置 ${res.data.resetRows} 条，更新 ${res.data.updatedImages} 条引用`)
+    loadImages()
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error('对账失败')
   } finally {
     reconcileLoading.value = false
   }
@@ -210,13 +190,9 @@ const handleShowReferences = async (record: Image) => {
   referencesLoading.value = true
   try {
     const res = await ImagesService.getReferences(record.id)
-    if (res.code === 200) {
-      referencesList.value = res.data
-    } else {
-      message.error(res.message || '查询引用来源失败')
-    }
-  } catch {
-    message.error('查询引用来源失败')
+    referencesList.value = res.data
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error('查询引用来源失败')
   } finally {
     referencesLoading.value = false
   }

@@ -120,14 +120,10 @@ const statusOptions = [
 const handleReview = async (id: number, status: number) => {
   try {
     const res = await MessagesService.reviewMessage(id, status)
-    if (res.code === 200) {
-      message.success(status === 1 ? '已通过' : '已拒绝')
-      load()
-    } else {
-      message.error(res.message || '操作失败')
-    }
-  } catch {
-    message.error('操作失败，请检查网络')
+    message.success(status === 1 ? '已通过' : '已拒绝')
+    load()
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error('操作失败，请检查网络')
   }
 }
 

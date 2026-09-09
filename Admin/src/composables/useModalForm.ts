@@ -184,24 +184,16 @@ export function useModalForm<T extends Record<string, any>>(options: UseModalFor
 
       if (isEdit.value && updateFn) {
         const res = await updateFn(editingId.value as number, formModel.value)
-        if (res.code === 200) {
-          message.success('更新成功')
-          clearDraft()
-          modalVisible.value = false
-          onUpdateSuccess?.()
-        } else {
-          message.error(res.message || '更新失败')
-        }
+        message.success('更新成功')
+        clearDraft()
+        modalVisible.value = false
+        onUpdateSuccess?.()
       } else if (!isEdit.value && createFn) {
         const res = await createFn(formModel.value)
-        if (res.code === 200) {
-          message.success('创建成功')
-          clearDraft()
-          modalVisible.value = false
-          onCreateSuccess?.()
-        } else {
-          message.error(res.message || '创建失败')
-        }
+        message.success('创建成功')
+        clearDraft()
+        modalVisible.value = false
+        onCreateSuccess?.()
       } else {
         console.warn('[useModalForm] 缺少 createFn 或 updateFn')
         message.error('操作配置错误')

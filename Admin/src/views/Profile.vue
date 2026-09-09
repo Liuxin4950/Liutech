@@ -132,12 +132,8 @@ const handleSaveProfile = async () => {
       bio: profileForm.bio,
       avatar: profileForm.avatarUrl
     } as any)
-    if (res.code === 200) {
-      message.success('个人资料更新成功')
-      await userStore.fetchUserInfo()
-    } else {
-      message.error(res.message || '更新失败')
-    }
+    message.success('个人资料更新成功')
+    await userStore.fetchUserInfo()
   } catch (e: any) {
     message.error(e.message || '更新失败')
   } finally {
@@ -154,14 +150,10 @@ const handleChangePassword = async () => {
       newPassword: passwordForm.newPassword,
       confirmPassword: passwordForm.confirmPassword
     })
-    if (res.code === 200) {
-      message.success('密码修改成功')
-      passwordForm.oldPassword = ''
-      passwordForm.newPassword = ''
-      passwordForm.confirmPassword = ''
-    } else {
-      message.error(res.message || '密码修改失败')
-    }
+    message.success('密码修改成功')
+    passwordForm.oldPassword = ''
+    passwordForm.newPassword = ''
+    passwordForm.confirmPassword = ''
   } catch (e: any) {
     if (e?.errorFields) return
     message.error(e.message || '密码修改失败')

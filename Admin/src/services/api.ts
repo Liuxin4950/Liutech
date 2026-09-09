@@ -1,178 +1,78 @@
-import axios from 'axios'
-import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
-import { message } from 'ant-design-vue'
-import router from '../router'
+/**
+ * 主后端 API 客户端（Admin 端）
+ *
+ * 实例创建与请求/响应拦截器统一由 `httpClient.ts` 提供，本文件只负责：
+ * - 声明主后端响应类型 `ApiResponse`
+ * - 导出 get/post/put/del 四个便捷方法（统一返回 `response.data`）
+ * - 导出原始实例，供上传/下载等需要自定义 config 的场景使用
+ *
+ * @author 刘鑫
+ */
+import type { AxiosInstance, AxiosRequestConfig } from 'axios'
+import { createHttpClient } from './httpClient'
+import { getBackendURL } from './serviceConfig'
 
-// API 响应接口
+/** 主后端统一响应结构 */
 export interface ApiResponse<T = any> {
   code: number
   message: string
   data: T
 }
 
-// 请求配置接口
+/** 请求配置（透传 axios 原生配置） */
 export interface RequestConfig extends AxiosRequestConfig {}
 
-// 动态获取后端URL（优先使用环境变量）
-const getBackendURL = (): string => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
-  if (envUrl && envUrl.trim().length > 0) {
-    return envUrl
-  }
-  // 说明：优先使用 VITE_API_BASE_URL；若未配置，以下为兜底策略。
-  // 不建议在生产返回 'backend:8080'，该主机名仅在 Docker 网络内可解析，
-  // 浏览器在用户侧无法解析容器名，会导致请求失败。
-  // 开发环境兜底
-  if (import.meta.env.DEV) {
-    return 'http://127.0.0.1:8080'
-  }
-  // 生产环境通过根 Nginx 的 /api 同源代理访问主后端
-  return '/api'
-}
-
-// 创建 axios 实例
-// 注意：不预设 Content-Type，让 axios 按 data 类型自动设置——
-// 普通对象自动 JSON.stringify + application/json，FormData 自动 multipart/form-data + boundary。
-// 曾因默认 application/json 覆盖 FormData 检测，FormData 被 formDataToJSON 序列化成 JSON，
-// 导致音乐上传（POST /admin/music）文件变 {"uid":...} 后端 500。
-const instance: AxiosInstance = axios.create({
-  baseURL: getBackendURL(), // 后端接口的根地址
-  timeout: 30000 // 请求超时的时间，单位是毫秒
+/**
+ * 主后端 axios 实例
+ *
+ * baseURL 解析见 serviceConfig.ts；normalizeResponse 开启后，
+ * 响应体会被归一化为 `{ code, message, data }`，调用方无需关心后端原始结构。
+ */
+const instance: AxiosInstance = createHttpClient({
+  baseURL: getBackendURL(),
+  timeout: 30000,
+  normalizeResponse: true
 })
 
-// 请求拦截器
-instance.interceptors.request.use(
-  (config) => {
-    // 从本地存储获取 token
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-
-    return config
-  },
-  (error) => {
-    console.error('请求失败', error)
-    return Promise.reject(error)
-  }
-)
-
-// 响应拦截器
-instance.interceptors.response.use(
-  (response: AxiosResponse<ApiResponse>) => {
-    const { data } = response
-
-    // 检查业务状态码
-    if (data.code !== 200) {
-      console.error('API 业务错误:', data.message)
-      // 标记为业务错误，保留 .response 供调用方判断
-      const err: any = new Error(data.message || '请求失败')
-      err.isBusiness = true
-      err.response = response
-      message.error(data.message || '请求失败')
-      throw err
-    }
-
-    return response
-  },
-  (error) => {
-    console.error('API 请求失败:', error?.message, error?.code, error?.config?.url, error?.response?.status)
-
-    // 拦截器只负责路由跳转，不弹窗（弹窗由调用方或 handleApiError 处理）
-
-    // 特殊处理401错误，需要跳转登录页
-    if (error.response?.status === 401) {
-      message.destroy()
-      localStorage.removeItem('token')
-      if (router.currentRoute.value.path !== '/login') {
-        router.push('/login')
-      }
-    }
-
-    // 特殊处理403错误，跳转权限不足页面
-    if (error.response?.status === 403) {
-      message.destroy()
-      if (router.currentRoute.value.path !== '/403') {
-        router.push('/403')
-      }
-    }
-
-    // 重新抛出错误，保持原有的错误传播机制
-    // 确保抛出的是一个有效的错误对象，避免抛出null
-    if (error === null || error === undefined) {
-      throw new Error('网络请求失败')
-    }
-    throw error
-  }
-)
-
-// 封装 GET 请求
+/** GET 请求 */
 export const get = async <T = any>(
-  url: string, 
+  url: string,
   params: Record<string, any> = {},
   config: RequestConfig = {}
 ): Promise<ApiResponse<T>> => {
-  try {
-    const response = await instance.get<ApiResponse<T>>(url, { 
-      params, 
-      ...config 
-    })
-    return response.data
-  } catch (error) {
-    console.error(`GET 请求失败: ${url}`, error)
-    // 确保抛出的是一个有效的错误对象
-    throw error || new Error('请求失败')
-  }
+  const response = await instance.get<ApiResponse<T>>(url, { params, ...config })
+  return response.data
 }
 
-// 封装 POST 请求
+/** POST 请求 */
 export const post = async <T = any>(
-  url: string, 
+  url: string,
   data: any = {},
   config: RequestConfig = {}
 ): Promise<ApiResponse<T>> => {
-  try {
-    const response = await instance.post<ApiResponse<T>>(url, data, config)
-    return response.data
-  } catch (error) {
-    console.error(`POST 请求失败: ${url}`, error)
-    // 确保抛出的是一个有效的错误对象
-    throw error || new Error('请求失败')
-  }
+  const response = await instance.post<ApiResponse<T>>(url, data, config)
+  return response.data
 }
 
-// 封装 PUT 请求
+/** PUT 请求 */
 export const put = async <T = any>(
-  url: string, 
+  url: string,
   data: any = {},
   config: RequestConfig = {}
 ): Promise<ApiResponse<T>> => {
-  try {
-    const response = await instance.put<ApiResponse<T>>(url, data, config)
-    return response.data
-  } catch (error) {
-    console.error(`PUT 请求失败: ${url}`, error)
-    // 确保抛出的是一个有效的错误对象
-    throw error || new Error('请求失败')
-  }
+  const response = await instance.put<ApiResponse<T>>(url, data, config)
+  return response.data
 }
 
-// 封装 DELETE 请求
+/** DELETE 请求 */
 export const del = async <T = any>(
   url: string,
   config: RequestConfig = {}
 ): Promise<ApiResponse<T>> => {
-  try {
-    const response = await instance.delete<ApiResponse<T>>(url, config)
-    return response.data
-  } catch (error: any) {
-    console.error(`DELETE 请求失败: ${url}`, error?.response?.data || error)
-    throw error || new Error('请求失败')
-  }
+  const response = await instance.delete<ApiResponse<T>>(url, config)
+  return response.data
 }
 
 // 导出 axios 实例，供特殊需求使用
 export { instance as axiosInstance }
 export default instance
-
-

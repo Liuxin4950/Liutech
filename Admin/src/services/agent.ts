@@ -8,9 +8,8 @@ import type {
   DataPayload,
   FieldUpdatePayload,
 } from '../types/agent'
-import { getAiBaseUrl } from './aiClient'
-
-const getToken = () => localStorage.getItem('token')
+import { getAiBaseUrl } from './serviceConfig'
+import { getToken } from '../utils/auth'
 
 /**
  * SSE Envelope 格式版本。

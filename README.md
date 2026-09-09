@@ -12,10 +12,10 @@
 
 ## 📖 项目简介
 
-LiuTech 是一个基于 Vue 3 + Spring Boot 3 的全栈博客系统，采用前后端分离 + 微服务架构。系统包含**用户前台**、**管理后台**、**AI 聊天助手**三大模块，提供博客创作、互动、积分、资源下载与智能辅助的完整体验。
+LiuTech 是一个基于 Vue 3 + Spring Boot 4 的全栈博客系统，采用前后端分离 + 微服务架构。系统包含**用户前台**、**管理后台**、**AI 聊天助手**三大模块，提供博客创作、互动、积分、资源下载与智能辅助的完整体验。
 
 - 前端：Vue 3 + TypeScript + Vite（Web 前台）/ Ant Design Vue（Admin 后台）
-- 后端：Spring Boot 3 主服务（REST API）+ 独立 AI 服务（聊天 / 推荐 / TTS）
+- 后端：Spring Boot 4 主服务（REST API）+ 独立 AI 服务（聊天 / 推荐 / TTS）
 - 存储：MySQL 8 + Caffeine 本地缓存
 - 部署：Docker Compose 编排 + Nginx 反向代理 + HTTPS
 
@@ -23,7 +23,7 @@ LiuTech 是一个基于 Vue 3 + Spring Boot 3 的全栈博客系统，采用前�
 
 ## ✨ 核心特性
 
-- **前后端分离**：Vue 3 + TS 前端，Spring Boot 3 双服务后端（主后端 + AI 服务）
+- **前后端分离**：Vue 3 + TS 前端，Spring Boot 4 双服务后端（主后端 + AI 服务）
 - **安全认证**：Spring Security + JWT，支持账号密码登录、邮箱验证码登录、忘记密码/重置
 - **AI 智能助手**：大模型聊天（SSE 流式响应）、内容辅助，独立 AI 服务，多模型可配置
 - **TTS 语音合成**：SiliconFlow 云端语音，AI 服务通过主后端 `/tts/speech` 代理调用
@@ -170,7 +170,7 @@ cd Admin && npm install && npm run dev    # http://localhost:3001
 
 ```
 Liutech/
-├── LiuTech/                    # 主后端 REST API（Spring Boot 3.5.9）
+├── LiuTech/                    # 主后端 REST API（Spring Boot 4）
 │   ├── src/main/java/chat/liuxin/liutech/
 │   │   ├── controller/{admin,web}/   # 控制器层（分后台 / 前台）
 │   │   ├── service/                  # 业务逻辑层

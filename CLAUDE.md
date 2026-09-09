@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 本项目是一个**全栈博客平台**（LiuTech），文档和注释主要使用中文编写。前后端分离 + Spring Boot 微服务，部署在 Docker Compose 上。
 
-技术栈关键事实：后端 **Java 21** + Spring Boot 3.5 + MyBatis-Plus；缓存用 **Caffeine 本地多级 TTL**（文章 5min / 标签 10min / 分类 15min），**未引入 Redis**，别建议加 Redis 或写 Redis 代码；前端 Vue 3 + TS + Vite；数据库 MySQL 8（两个库：`liutech` 主库、`liutech_ai` AI 库）。
+技术栈关键事实：后端 **Java 21** + Spring Boot 4.1.0 + MyBatis-Plus；缓存用 **Caffeine 本地多级 TTL**（文章 5min / 标签 10min / 分类 15min），**未引入 Redis**，别建议加 Redis 或写 Redis 代码；前端 Vue 3 + TS + Vite；数据库 MySQL 8（两个库：`liutech` 主库、`liutech_ai` AI 库）。
 
 ## 🏗️ 顶层模块
 
@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | --- | --- | --- |
 | `Web/` | 用户前台博客（Vue 3 + TS + Vite） | 3000 |
 | `Admin/` | 管理后台（Vue 3 + Ant Design Vue） | 3001 |
-| `LiuTech/` | 主后端 REST API（Spring Boot 3.5.6 + MyBatis-Plus） | 8080 |
+| `LiuTech/` | 主后端 REST API（Spring Boot 4.1.0 + MyBatis-Plus） | 8080 |
 | `LiuTech-AI/` | AI 聊天 / 推荐 / TTS 服务（Spring Boot） | 8081 |
 | `nginx/` | 反向代理、CORS、SSE 配置 | 80/443 |
 | `Docs/SQL/sql.sql` | MySQL 唯一初始化脚本（两个库：`liutech` 与 `liutech_ai`） | 3306 |
@@ -74,7 +74,7 @@ docker-compose logs -f backend               # 跟踪后端日志
 - **AI 服务 -> 主后端** URL：Docker 内 `http://backend:8080`（`BLOG_API_URL`），本地 `http://localhost:8080`。
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证。
 - **文件上传**：容器内 `/app/uploads` 绑定宿主机 `/liuxin/uploads`；**不要** `docker compose down -v`（清空 `mysql_data` 卷）。
-- **图片 URL 策略**：`FileUtil.generateFileUrl` 返回**相对路径** `/uploads/...`，不拼 `serverBaseUrl`；数据库存相对路径，环境无关。**不要**为"开发环境图片显示不了"改 `.env` 的 `SERVER_BASE_URL`。详见 [当前架构.md](Docs/记录/当前架构.md)。
+- **图片 URL 策略**：`FileStorage.generateUrl`（本地实现为 `LocalFileStorage.generateUrl`）返回**相对路径** `/uploads/...`，不拼 `serverBaseUrl`；数据库存相对路径，环境无关。**不要**为"开发环境图片显示不了"改 `.env` 的 `SERVER_BASE_URL`。详见 [当前架构.md](Docs/记录/当前架构.md)。
 - **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`（破坏 JSON 响应 406）。
 - **域名拓扑**：主站 `liuxin.chat` 走腾讯云 CDN 回源 443；后台 `admin.liuxin.chat` A 记录直连源站绕开 CDN（443）。证书 SAN 含 `liuxin.chat`/`www.liuxin.chat` 但**不含 admin 子域名**，浏览器报名称不匹配需手动继续，故 admin 站**不发 HSTS**；81 端口为其备用入口。详见 [部署运维总览](Docs/架构/运维/部署运维/总览.md)。
 - **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`。

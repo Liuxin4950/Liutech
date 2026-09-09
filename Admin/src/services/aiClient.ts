@@ -1,68 +1,21 @@
-import axios from 'axios'
+/**
+ * AI 服务 API 客户端（Admin 端）
+ *
+ * baseURL 解析统一由 `serviceConfig.ts` 提供（环境变量 → 开发 8081 → 生产 /ai）。
+ * 请求/响应拦截器与主后端实例共用 `httpClient.ts`，行为一致（注入 JWT、401 跳登录、403 跳权限页）。
+ *
+ * 唯一区别：**不归一化响应体**。AI 服务的模型接口直接返回原始对象/数组，
+ * 若走归一化会给调用方多包一层 `{ code, message, data }`（见 aiModels.ts 的说明）。
+ *
+ * @author 刘鑫
+ */
 import type { AxiosInstance } from 'axios'
-import { message } from 'ant-design-vue'
-import router from '../router'
+import { createHttpClient } from './httpClient'
+import { getAiBaseUrl } from './serviceConfig'
 
-/**
- * AI 服务 baseURL 解析。
- *
- * 返回值已包含 /ai 前缀,调用方写业务路径即可(如 /admin/models/list、/writing/stream)。
- *
- * 开发环境:VITE_AI_BASE_URL 未配置时兜底 http://127.0.0.1:8081/ai
- * 生产环境:VITE_AI_BASE_URL=/ai 由 Nginx 代理转发到 AI 服务容器
- *
- * 不能复用主 api 实例加 /ai/ 前缀 —— 那样只在生产 Nginx 代理下成立,
- * 开发环境会打到主后端 8080 导致 404/500。
- */
-export const getAiBaseUrl = (): string => {
-  const envUrl = import.meta.env.VITE_AI_BASE_URL as string | undefined
-  const raw = envUrl && envUrl.trim().length > 0 ? envUrl.trim() : 'http://127.0.0.1:8081/ai'
-  const trimmed = raw.replace(/\/$/, '')
-  return trimmed.endsWith('/ai') ? trimmed : `${trimmed}/ai`
-}
-
-/**
- * AI 服务专用 axios 实例。
- *
- * 与主 api.ts 分离:baseURL 指向 AI 服务(8081),不经过 /api 主后端代理。
- * 拦截器行为对齐 api.ts:请求注入 JWT、401 跳登录、403 跳 403 页面,
- * 其他错误交给调用方 catch 处理。
- */
-export const aiApi: AxiosInstance = axios.create({
+/** AI 服务 axios 实例 */
+export const aiApi: AxiosInstance = createHttpClient({
   baseURL: getAiBaseUrl(),
   timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  normalizeResponse: false
 })
-
-aiApi.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
-
-aiApi.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      message.destroy()
-      localStorage.removeItem('token')
-      if (router.currentRoute.value.path !== '/login') {
-        router.push('/login')
-      }
-    }
-    if (error.response?.status === 403) {
-      message.destroy()
-      if (router.currentRoute.value.path !== '/403') {
-        router.push('/403')
-      }
-    }
-    return Promise.reject(error)
-  }
-)

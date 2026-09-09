@@ -153,7 +153,10 @@ const refresh = async () => {
       modelOptions.value = modelsResult.value
     } else {
       console.warn('加载模型列表失败(AI 服务可能未启动)', modelsResult.reason)
-      message.warning('模型列表加载失败,请确认 AI 服务已启动')
+      // 后端业务错误已由响应拦截器提示；这里只兜底非业务错误（网络不通 / AI 服务未启动）
+      if (!(modelsResult.reason as any)?.isBusiness) {
+        message.warning('模型列表加载失败,请确认 AI 服务已启动')
+      }
     }
 
     if (ttsConfigResult.status === 'fulfilled') {
@@ -175,7 +178,10 @@ const refresh = async () => {
       }
     } else {
       console.error('加载 TTS 配置失败', ttsConfigResult.reason)
-      message.error('TTS 配置加载失败,页面表单可能不同步')
+      // 同上：业务错误已由拦截器提示，避免重复弹窗
+      if (!(ttsConfigResult.reason as any)?.isBusiness) {
+        message.error('TTS 配置加载失败,页面表单可能不同步')
+      }
     }
 
     await Promise.all([refreshVoices(), refreshSiliconFlowVoices()])

@@ -91,21 +91,17 @@ const openEdit = async (record: Carousel) => {
 
   try {
     const res = await CarouselService.getCarouselById(record.id)
-    if (res.code === 200) {
-      formModel.value = {
-        title: res.data.title ?? '',
-        imageUrl: res.data.imageUrl ?? '',
-        linkUrl: res.data.linkUrl ?? '',
-        sortOrder: res.data.sortOrder ?? 0,
-        status: res.data.status ?? 1
-      }
-      imagePreview.value = res.data.imageUrl
-      modalVisible.value = true
-    } else {
-      message.error(res.message || '获取轮播图详情失败')
+    formModel.value = {
+      title: res.data.title ?? '',
+      imageUrl: res.data.imageUrl ?? '',
+      linkUrl: res.data.linkUrl ?? '',
+      sortOrder: res.data.sortOrder ?? 0,
+      status: res.data.status ?? 1
     }
-  } catch {
-    message.warning('获取轮播图详情失败，请稍后重试')
+    imagePreview.value = res.data.imageUrl
+    modalVisible.value = true
+  } catch (error: any) {
+    if (!error?.isBusiness) message.warning('获取轮播图详情失败，请稍后重试')
   }
 }
 
@@ -130,23 +126,15 @@ const handleSubmit = async () => {
 
     if (isEdit.value) {
       const res = await CarouselService.updateCarousel(editingId.value as number, formModel.value)
-      if (res.code === 200) {
-        message.success('更新成功')
-        modalVisible.value = false
-        loadCarousels()
-      } else {
-        message.error(res.message || '更新失败')
-      }
+      message.success('更新成功')
+      modalVisible.value = false
+      loadCarousels()
     } else {
       const res = await CarouselService.createCarousel(formModel.value as CarouselFormData)
-      if (res.code === 200) {
-        message.success('创建成功')
-        modalVisible.value = false
-        pagination.current = 1
-        loadCarousels()
-      } else {
-        message.error(res.message || '创建失败')
-      }
+      message.success('创建成功')
+      modalVisible.value = false
+      pagination.current = 1
+      loadCarousels()
     }
   } catch (e) {
   } finally {
@@ -178,14 +166,10 @@ const handleImageChange = async (info: any) => {
 const handleStatusChange = async (id: number, status: number) => {
   try {
     const res = await CarouselService.updateCarouselStatus(id, status)
-    if (res && res.code === 200) {
-      message.success('状态更新成功')
-      loadCarousels()
-    } else {
-      message.warning(res?.message || '状态更新失败')
-    }
-  } catch (e) {
-    message.warning('状态更新失败，请稍后重试')
+    message.success('状态更新成功')
+    loadCarousels()
+  } catch (e: any) {
+    if (!e?.isBusiness) message.warning('状态更新失败，请稍后重试')
   }
 }
 
@@ -213,8 +197,8 @@ const handleSortChange = async (id: number, direction: 'up' | 'down') => {
       message.warning('排序更新失败')
     }
     loadCarousels()
-  } catch (e) {
-    message.warning('排序更新失败，请稍后重试')
+  } catch (e: any) {
+    if (!e?.isBusiness) message.warning('排序更新失败，请稍后重试')
     loadCarousels()
   }
 }

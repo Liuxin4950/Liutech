@@ -108,12 +108,8 @@ export function useTablePage<T extends Record<string, any>, P extends Record<str
       }
 
       const res = await loadFn(params)
-      if (res.code === 200) {
-        dataSource.value = res.data.records
-        pagination.total = res.data.total
-      } else {
-        message.error(res.message || loadErrorMessage)
-      }
+      dataSource.value = res.data.records
+      pagination.total = res.data.total
     } catch (e) {
       message.error(loadErrorMessage)
     } finally {

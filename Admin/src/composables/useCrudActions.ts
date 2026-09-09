@@ -103,24 +103,20 @@ export function useCrudActions(options: UseCrudActionsOptions) {
     try {
       loading.value = true
       const res = await deleteFn(id)
-      if (res.code === 200) {
-        if (undoEnabled) {
-          showUndoMessage(`${entityName}已删除`, undoWindowMs, async () => {
-            const r = await restoreFn!(id).catch(() => null)
-            if (r?.code === 200) {
-              message.success('已撤销删除')
-              onRefresh()
-            } else {
-              message.error('撤销失败')
-            }
-          })
-        } else {
-          message.success(mode === 'hard' ? '彻底删除成功' : '删除成功')
-        }
-        onRefresh()
+      if (undoEnabled) {
+        showUndoMessage(`${entityName}已删除`, undoWindowMs, async () => {
+          const r = await restoreFn!(id).catch(() => null)
+          if (r?.code === 200) {
+            message.success('已撤销删除')
+            onRefresh()
+          } else {
+            message.error('撤销失败')
+          }
+        })
       } else {
-        message.error(res.message || '删除失败')
+        message.success(mode === 'hard' ? '彻底删除成功' : '删除成功')
       }
+      onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 删除失败:', e)
       message.error('删除失败：' + (e.message || '网络错误'))
@@ -146,30 +142,26 @@ export function useCrudActions(options: UseCrudActionsOptions) {
     try {
       loading.value = true
       const res = await batchDeleteFn(idsSnapshot)
-      if (res.code === 200) {
-        if (undoEnabled) {
-          showUndoMessage(`已删除 ${idsSnapshot.length} 条${entityName}`, undoWindowMs, async () => {
-            try {
-              if (batchRestoreFn) {
-                await batchRestoreFn(idsSnapshot)
-              } else {
-                // 无批量恢复 API 时循环单条
-                await Promise.all(idsSnapshot.map((id) => restoreFn!(id).catch(() => null)))
-              }
-              message.success(`已撤销删除，共恢复 ${idsSnapshot.length} 条`)
-              onRefresh()
-            } catch {
-              message.error('撤销失败')
+      if (undoEnabled) {
+        showUndoMessage(`已删除 ${idsSnapshot.length} 条${entityName}`, undoWindowMs, async () => {
+          try {
+            if (batchRestoreFn) {
+              await batchRestoreFn(idsSnapshot)
+            } else {
+              // 无批量恢复 API 时循环单条
+              await Promise.all(idsSnapshot.map((id) => restoreFn!(id).catch(() => null)))
             }
-          })
-        } else {
-          message.success(mode === 'hard' ? '批量彻底删除成功' : '批量删除成功')
-        }
-        clearSelection?.()
-        onRefresh()
+            message.success(`已撤销删除，共恢复 ${idsSnapshot.length} 条`)
+            onRefresh()
+          } catch {
+            message.error('撤销失败')
+          }
+        })
       } else {
-        message.error(res.message || '批量删除失败')
+        message.success(mode === 'hard' ? '批量彻底删除成功' : '批量删除成功')
       }
+      clearSelection?.()
+      onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 批量删除失败:', e)
       message.error('批量删除失败：' + (e.message || '网络错误'))
@@ -189,12 +181,8 @@ export function useCrudActions(options: UseCrudActionsOptions) {
     try {
       loading.value = true
       const res = await restoreFn(id)
-      if (res.code === 200) {
-        message.success('恢复成功')
-        onRefresh()
-      } else {
-        message.error(res.message || '恢复失败')
-      }
+      message.success('恢复成功')
+      onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 恢复失败:', e)
       message.error('恢复失败：' + (e.message || '网络错误'))
@@ -214,12 +202,8 @@ export function useCrudActions(options: UseCrudActionsOptions) {
     try {
       loading.value = true
       const res = await permanentDeleteFn(id)
-      if (res.code === 200) {
-        message.success('彻底删除成功')
-        onRefresh()
-      } else {
-        message.error(res.message || '彻底删除失败')
-      }
+      message.success('彻底删除成功')
+      onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 彻底删除失败:', e)
       message.error('彻底删除失败：' + (e.message || '网络错误'))
@@ -243,13 +227,9 @@ export function useCrudActions(options: UseCrudActionsOptions) {
     try {
       loading.value = true
       const res = await batchPermanentDeleteFn(selectedKeys)
-      if (res.code === 200) {
-        message.success('批量彻底删除成功')
-        clearSelection?.()
-        onRefresh()
-      } else {
-        message.error(res.message || '批量彻底删除失败')
-      }
+      message.success('批量彻底删除成功')
+      clearSelection?.()
+      onRefresh()
     } catch (e: any) {
       console.error('[useCrudActions] 批量彻底删除失败:', e)
       message.error('批量彻底删除失败：' + (e.message || '网络错误'))

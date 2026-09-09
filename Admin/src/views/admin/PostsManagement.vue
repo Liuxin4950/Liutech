@@ -134,14 +134,10 @@ const loadFavoriteUsers = async () => {
       page: favPagination.current,
       size: favPagination.pageSize
     })
-    if (res.code === 200) {
-      favList.value = res.data.records
-      favPagination.total = res.data.total
-    } else {
-      message.error(res.message || '加载收藏用户失败')
-    }
-  } catch (e) {
-    message.error('加载收藏用户失败')
+    favList.value = res.data.records
+    favPagination.total = res.data.total
+  } catch (e: any) {
+    if (!e?.isBusiness) message.error('加载收藏用户失败')
   } finally {
     favLoading.value = false
   }
@@ -189,8 +185,8 @@ const loadCategoriesAndTags = async () => {
     if (seriesList.code === 200) {
       seriesOptions.value = seriesList.data.records.map((s: any) => ({ label: s.name, value: s.id }))
     }
-  } catch (e) {
-    message.error('加载分类或标签失败')
+  } catch (e: any) {
+    if (!e?.isBusiness) message.error('加载分类或标签失败')
   }
 }
 
@@ -234,15 +230,11 @@ const createSeries = async () => {
   try {
     creatingSeries.value = true
     const res = await PostSeriesService.createSeries({ name, description: newSeriesDescription.value.trim() } as any)
-    if (res.code === 200) {
-      await loadCategoriesAndTags()
-      const created = seriesOptions.value.find(item => item.label === name)
-      if (created) formModel.value.seriesId = created.value
-      createSeriesVisible.value = false
-      message.success('系列已创建并选中')
-    } else {
-      message.error(res.message || '创建系列失败')
-    }
+    await loadCategoriesAndTags()
+    const created = seriesOptions.value.find(item => item.label === name)
+    if (created) formModel.value.seriesId = created.value
+    createSeriesVisible.value = false
+    message.success('系列已创建并选中')
   } finally {
     creatingSeries.value = false
   }
@@ -254,15 +246,11 @@ const createCategory = async () => {
   try {
     creatingCategory.value = true
     const res = await CategoriesService.createCategory({ name, description: newCategoryDescription.value.trim() } as any)
-    if (res.code === 200) {
-      await loadCategoriesAndTags()
-      const created = categoryOptions.value.find(item => item.label === name)
-      if (created) formModel.value.categoryId = created.value
-      createCategoryVisible.value = false
-      message.success('分类已创建并选中')
-    } else {
-      message.error(res.message || '创建分类失败')
-    }
+    await loadCategoriesAndTags()
+    const created = categoryOptions.value.find(item => item.label === name)
+    if (created) formModel.value.categoryId = created.value
+    createCategoryVisible.value = false
+    message.success('分类已创建并选中')
   } finally {
     creatingCategory.value = false
   }
@@ -274,20 +262,16 @@ const createTag = async () => {
   try {
     creatingTag.value = true
     const res = await TagsService.createTag({ name } as any)
-    if (res.code === 200) {
-      await loadCategoriesAndTags()
-      const created = tagOptions.value.find(item => item.label === name)
-      if (created) {
-        const current = formModel.value.tagIds || []
-        if (!current.includes(created.value)) {
-          formModel.value.tagIds = [...current, created.value]
-        }
+    await loadCategoriesAndTags()
+    const created = tagOptions.value.find(item => item.label === name)
+    if (created) {
+      const current = formModel.value.tagIds || []
+      if (!current.includes(created.value)) {
+        formModel.value.tagIds = [...current, created.value]
       }
-      createTagVisible.value = false
-      message.success('标签已创建并选中')
-    } else {
-      message.error(res.message || '创建标签失败')
     }
+    createTagVisible.value = false
+    message.success('标签已创建并选中')
   } finally {
     creatingTag.value = false
   }
@@ -323,27 +307,23 @@ const openEdit = async (record: PostListItem) => {
     modalTitle.value = '编辑文章'
     editingId.value = record.id || null
     const res = await PostsService.getPostById(record.id)
-    if (res.code === 200) {
-      const postDetail = res.data
-      formModel.value = {
-        id: postDetail.id,
-        title: postDetail.title,
-        content: postDetail.content || '',
-        summary: postDetail.summary || '',
-        coverImage: postDetail.coverImage || '',
-        thumbnail: postDetail.thumbnail || '',
-        categoryId: postDetail.categoryId,
-        tagIds: postDetail.tags?.map(tag => tag.id) || [],
-        seriesId: postDetail.seriesId ?? null,
-        seriesSort: postDetail.seriesSort ?? 0,
-        status: postDetail.status === 'published' ? 'published' : 'draft'
-      }
-      modalVisible.value = true
-    } else {
-      message.error(res.message || '获取文章详情失败')
+    const postDetail = res.data
+    formModel.value = {
+      id: postDetail.id,
+      title: postDetail.title,
+      content: postDetail.content || '',
+      summary: postDetail.summary || '',
+      coverImage: postDetail.coverImage || '',
+      thumbnail: postDetail.thumbnail || '',
+      categoryId: postDetail.categoryId,
+      tagIds: postDetail.tags?.map(tag => tag.id) || [],
+      seriesId: postDetail.seriesId ?? null,
+      seriesSort: postDetail.seriesSort ?? 0,
+      status: postDetail.status === 'published' ? 'published' : 'draft'
     }
-  } catch (e) {
-    message.error('获取文章详情失败')
+    modalVisible.value = true
+  } catch (e: any) {
+    if (!e?.isBusiness) message.error('获取文章详情失败')
   }
 }
 
@@ -532,13 +512,9 @@ const handleBatchRestore = async () => {
     return
   }
   const res = await PostsService.batchRestorePosts(selectedRowKeys.value)
-  if (res.code === 200) {
-    message.success('批量恢复成功')
-    clearSelection()
-    load()
-  } else {
-    message.error(res.message || '批量恢复失败')
-  }
+  message.success('批量恢复成功')
+  clearSelection()
+  load()
 }
 
 const handleBatchStatusUpdate = async (status: string) => {
@@ -547,23 +523,15 @@ const handleBatchStatusUpdate = async (status: string) => {
     return
   }
   const res = await PostsService.batchUpdatePostStatus(selectedRowKeys.value, status)
-  if (res.code === 200) {
-    message.success('批量状态更新成功')
-    clearSelection()
-    load()
-  } else {
-    message.error(res.message || '批量状态更新失败')
-  }
+  message.success('批量状态更新成功')
+  clearSelection()
+  load()
 }
 
 const handleStatusChange = async (id: number, status: string) => {
   const res = await PostsService.updatePostStatus(id, status)
-  if (res.code === 200) {
-    message.success('状态更新成功')
-    load()
-  } else {
-    message.error(res.message || '状态更新失败')
-  }
+  message.success('状态更新成功')
+  load()
 }
 
 // 表单校验规则

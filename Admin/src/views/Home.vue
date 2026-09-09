@@ -342,8 +342,8 @@ async function loadDashboardStats() {
     } else {
       message.error(res.message || '加载统计数据失败')
     }
-  } catch {
-    message.error('加载统计数据失败')
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error('加载统计数据失败')
   } finally {
     loading.value = false
   }

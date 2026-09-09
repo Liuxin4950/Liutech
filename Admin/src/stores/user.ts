@@ -4,8 +4,9 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { message } from 'ant-design-vue'
 import { UserService, type User, type RegisterRequest } from '../services/user'
-import { showErrorToast } from '../utils/errorHandler'
+import { getToken, removeToken, setToken } from '../utils/auth'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
@@ -14,7 +15,7 @@ export const useUserStore = defineStore('user', () => {
 
   // 计算属性
   const isLoggedIn = computed(() => {
-    return !!userInfo.value && !!localStorage.getItem('token')
+    return !!userInfo.value && !!getToken()
   })
 
   const username = computed(() => {
@@ -38,7 +39,7 @@ export const useUserStore = defineStore('user', () => {
       if (response.code === 200) {
         // 保存token到localStorage
         if (response.data.token) {
-          localStorage.setItem('token', response.data.token)
+          setToken(response.data.token)
         }
         await fetchUserInfo()
         return true
@@ -46,7 +47,7 @@ export const useUserStore = defineStore('user', () => {
         throw new Error(response.message || '登录失败')
       }
     } catch (error: any) {
-      showErrorToast(error?.message || '登录失败')
+      message.error(error?.message || '登录失败')
       return false
     } finally {
       isLoading.value = false
@@ -68,7 +69,7 @@ export const useUserStore = defineStore('user', () => {
         throw new Error(response.message || '注册失败')
       }
     } catch (error: any) {
-      showErrorToast(error?.message || '注册失败')
+      message.error(error?.message || '注册失败')
       return false
     } finally {
       isLoading.value = false
@@ -79,7 +80,7 @@ export const useUserStore = defineStore('user', () => {
    * 登出
    */
   const logout = () => {
-    localStorage.removeItem('token')
+    removeToken()
     userInfo.value = null
   }
 
@@ -87,7 +88,7 @@ export const useUserStore = defineStore('user', () => {
    * 获取用户信息
    */
   const fetchUserInfo = async () => {
-    if (!localStorage.getItem('token')) {
+    if (!getToken()) {
       userInfo.value = null
       return
     }
@@ -101,7 +102,7 @@ export const useUserStore = defineStore('user', () => {
       }
     } catch (error) {
       console.error('获取用户信息失败:', error)
-      showErrorToast('获取用户信息失败，请重新登录')
+      message.error('获取用户信息失败，请重新登录')
       // 如果获取用户信息失败，可能是token过期，清除登录状态
       logout()
     }
@@ -112,7 +113,7 @@ export const useUserStore = defineStore('user', () => {
    * 应用启动时调用，检查本地存储的token并获取用户信息
    */
   const initUserState = async () => {
-    if (localStorage.getItem('token')) {
+    if (getToken()) {
       await fetchUserInfo()
     }
   }

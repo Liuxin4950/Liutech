@@ -1,23 +1,5 @@
 import { post } from './api'
 
-// 动态获取后端URL（优先使用环境变量）
-const getBackendURL = (): string => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined
-  if (envUrl && envUrl.trim().length > 0) {
-    return envUrl
-  }
-  // 开发环境兜底
-  if (import.meta.env.DEV) {
-    return 'http://127.0.0.1:8080'
-  }
-  // 生产环境兜底
-  const hostname = window.location.hostname
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return '/api'
-  }
-  return 'https://liutech.com'
-}
-
 /**
  * 图片上传响应接口
  * @author 刘鑫
@@ -79,53 +61,41 @@ export class ImageUploadService {
 
   /**
    * TinyMCE编辑器图片上传方法
+   *
+   * 走统一 axios 实例（`post`），自动注入 token、复用超时与错误处理；
+   * 不再用原生 fetch 直连 —— 历史实现为了绕过「响应拦截器按 code !== 200 判错」
+   * 才自己解析 URL 与读取 token，导致 Admin 与 Web 两套实现分叉。
+   * 拦截器现已对齐 Web（未知结构包装为标准格式），本方法可以直接复用实例。
+   *
    * @param blobInfo TinyMCE的blob信息
    * @param _progress 进度回调函数
    * @returns Promise<string> 返回图片URL
    */
-  static uploadTinyMCEImage(
-    blobInfo: any, 
+  static async uploadTinyMCEImage(
+    blobInfo: { blob(): Blob; filename(): string },
     _progress: (percent: number) => void
   ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      try {
-        const formData = new FormData()
-        formData.append('file', blobInfo.blob(), blobInfo.filename())
-        
-        // 获取token
-        const token = localStorage.getItem('token')
-        
-        fetch(`${getBackendURL()}/upload/tinymce/image`, {
-          method: 'POST',
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: formData
-        })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-          }
-          return response.json()
-        })
-        .then(data => {
-          // 后端返回格式: { "location": "http://localhost:8080/uploads/images/xxx.jpg" }
-          if (data.location) {
-            resolve(data.location)
-          } else if (data.error) {
-            reject('上传失败：' + data.error)
-          } else {
-            reject('上传失败：服务器未返回图片地址')
-          }
-        })
-        .catch(error => {
-          console.error('TinyMCE图片上传失败:', error)
-          reject('上传失败：' + error.message)
-        })
-      } catch (error) {
-        reject('图片处理失败：' + error)
-      }
+    const formData = new FormData()
+    formData.append('file', blobInfo.blob(), blobInfo.filename())
+
+    const response = await post<any>('/upload/tinymce/image', formData, {
+      // 显式声明 multipart：与 api.ts 实例默认不预设 Content-Type 的约定一致
+      headers: { 'Content-Type': 'multipart/form-data' }
     })
+
+    // 后端返回 TinyMCE 期望的 { location } 或 { error }；拦截器会包装为 { code, message, data }，
+    // 因此 location 可能位于 data 层或顶层，两种都兼容。
+    const wrapped = response as any
+    const location = wrapped?.data?.location ?? wrapped?.location
+    if (location) {
+      return location
+    }
+
+    const errorMsg = wrapped?.data?.error ?? wrapped?.error
+    if (errorMsg) {
+      throw new Error('上传失败：' + errorMsg)
+    }
+    throw new Error('上传失败：服务器未返回图片地址')
   }
 
 }
