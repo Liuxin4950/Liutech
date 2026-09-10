@@ -47,15 +47,6 @@ export interface AdminArticleDraftSnapshot {
 }
 
 /**
- * 写作计划步骤（前端展示用的计划骨架）
- */
-export interface AgentPlanStep {
-  key: string
-  title: string
-  status: string
-}
-
-/**
  * 多轮对话中的临时消息
  */
 export interface TempMessage {
