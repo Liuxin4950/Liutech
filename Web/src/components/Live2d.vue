@@ -350,6 +350,10 @@ defineExpose({
     applyAvatarCue,
     startMusicLipSync,
     stopMusicLipSync,
+    /** 重试当前音频的口型分析（用户在"口型未启用"提示上点击后由 MainLayout 调用） */
+    retryMouthSync() {
+        return lipSync.retry()
+    },
     lipSyncConfig: lipSync.config,
     setLipSyncConfig: lipSync.updateConfig,
     refresh() {

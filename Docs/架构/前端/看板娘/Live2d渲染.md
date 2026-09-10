@@ -62,6 +62,13 @@ props.visible
 
 采样从实际 `playing` 事件开始；暂停/结束闭嘴，恢复播放可再次采样。模型销毁只断开自己的分析支路，同一音频的 source node 可被后续模型复用。音乐和 TTS 的互斥、取消及声音主路见 [TTS与表情](TTS与表情.md)。
 
+**AudioContext 的两条硬约束**（2026-09-10 修复，踩过一次"有声音但模型不张嘴"）：
+
+1. **全页只用一个 AudioContext，且从不主动 close。** `HTMLMediaElement` 一旦绑定过某个 AudioContext 就再也无法改绑（`createMediaElementSource` 抛 `InvalidStateError`）。旧实现在 TTS 播放器卸载时 `close()` 掉上下文，导致音乐播放器那个跨会话长生命周期的 `<audio>` 此后**永久**失去口型能力。上下文现在由 `resumeAudioContext()` 单例托管。
+2. **上下文不是 `running` 时绝不挂载分析。** 一旦 `createMediaElementSource` 生效，声音就完全走 AudioContext 输出，挂起状态下挂载会**连声音一起弄没**。此时的做法是：先让声音按原生方式播出来，把音频元素记在 `deferredElement`，并监听 `statechange`；用户手势让上下文恢复 `running` 后自动补挂，口型随即生效（对应 `start()` 的延迟挂载分支）。
+
+**失败不再静默**：分析接不上时置位模块级的 `lipSyncDegraded` / `lipSyncMessage`，`AiChatHeader` 据此显示可点击的 ⚠ 提示；点击派发 `lip-sync-retry` 事件，由 `MainLayout.handleLipSyncRetry` 借这次用户手势解锁上下文并调用 `live2dRef.retryMouthSync()` 补挂。`resume()` 的 2 秒等待超时只作为诊断信息，不再把整次挂载判死——自动播放策略下 `resume()` 会一直挂起，等手势才恢复，旧实现因此表现为"这一次失败就永远没口型"。
+
 ## 表情与动作：applyAvatarCue
 
 `applyAvatarCue(cue)` 驱动模型表情/动作，由 useTtsPlayer 调用：
@@ -124,6 +131,7 @@ ResizeObserver(容器) + window resize
 | `startMusicLipSync(audio)` | 音乐口型同步 |
 | `stopMusicLipSync()` | 停止音乐口型 |
 | `refresh()` | 手动触发 resize + render |
+| `retryMouthSync()` | 重试当前音频的口型分析（用户点击 ⚠ 提示后调用） |
 | `lipSyncConfig` / `setLipSyncConfig` | 口型参数 |
 
 ## 陷阱与约束
@@ -132,6 +140,6 @@ ResizeObserver(容器) + window resize
 - **resolution 更新要配合 resize**：单独 set resolution 不生效，必须 resize 触发 backing store 重设
 - **模型 scale 固定 0.15**：不随容器缩放，大容器模型偏小是设计选择
 - **拖拽和交互依赖 ticker**：ticker 停时交互失效，但隐藏时不需要交互
-- **资源清理必须彻底**：模型 destroy + PIXI app destroy（含纹理）+ AudioContext close，否则内存泄漏
+- **资源清理必须彻底**：模型 destroy + PIXI app destroy（含纹理），否则内存泄漏；但 **AudioContext 不要 close**（见上「两条硬约束」第 1 条）
 - **加载完成以 `ready` 事件为准**：脚本已下载或 canvas 已出现都不代表模型已经可交互
 - **失败脚本必须允许重试**：清理失败的 script 与全局 Promise，不能把 rejected Promise 永久缓存

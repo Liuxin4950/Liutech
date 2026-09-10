@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { ChatMode } from '@/stores/chat'
 import Icon from './Icon.vue'
 import { BREAKPOINT_MD } from '@/utils/breakpoints'
+import { lipSyncDegraded, lipSyncMessage } from '@/composables/useAudioLipSync'
 
 const props = defineProps<{
   expanded?: boolean
@@ -15,6 +16,11 @@ const props = defineProps<{
   showModelToggleButton: boolean
   modelVisible: boolean
 }>()
+
+/** 口型分析未启用时点击提示：派发事件由 MainLayout 借这次用户手势解锁并补挂（见 MainLayout.handleLipSyncRetry） */
+const retryLipSync = () => {
+  window.dispatchEvent(new CustomEvent('lip-sync-retry'))
+}
 
 const emit = defineEmits<{
   expand: []
@@ -113,6 +119,17 @@ onUnmounted(() => {
       </button>
 
       <button v-if="!ttsAvailable" class="icon-action-btn" :disabled="ttsChecking" title="重新检测语音服务" aria-label="重新检测语音服务" @click="emit('retryTts')">↻</button>
+
+      <!-- 口型分析未启用：不再是"只在控制台里"的事，给一个可见且可点击的入口 -->
+      <button
+        v-if="lipSyncDegraded"
+        class="icon-action-btn lip-sync-hint"
+        :title="`${lipSyncMessage || '模型口型未启用'}（点击启用）`"
+        aria-label="启用模型口型"
+        @click="retryLipSync"
+      >
+        <Icon name="alertCircle" :size="toolbarIconSize" />
+      </button>
 
       <button
         v-if="showHistoryButton"

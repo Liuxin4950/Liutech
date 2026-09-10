@@ -1,6 +1,6 @@
 import { watch, onBeforeUnmount, type Ref } from 'vue'
 import { getServiceBaseURL, ServiceType } from '@/services/serviceConfig'
-import { resumeAudioContext, disposeAudioContext } from '@/composables/useAudioLipSync'
+import { resumeAudioContext } from '@/composables/useAudioLipSync'
 import type { useChatStore } from '@/stores/chat'
 import type Live2d from '@/components/Live2d.vue'
 import type BottomNavigation from '@/components/BottomNavigation.vue'
@@ -130,6 +130,7 @@ export function useTtsPlayer(options: {
     if (ready()) { syncMusic(); void playNextTts(); applyNextAvatarCues() }
     else stopTtsPlayback()
   }, { flush: 'post' })
-  onBeforeUnmount(() => { disposed = true; stopTtsPlayback(); disposeAudioContext() })
+  // 注意：这里刻意不销毁 AudioContext —— 上下文全页共用一个，关闭会让已绑定的音频元素（如音乐播放器）永久失去口型能力
+  onBeforeUnmount(() => { disposed = true; stopTtsPlayback() })
   return { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio, syncMusic, isTtsPlaying: () => isTtsPlaying, handleMusicPlay, handleMusicPause, handleSpeakStart }
 }

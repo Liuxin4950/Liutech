@@ -55,6 +55,17 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
 // TTS 播放器 + Avatar Cue 调度 + 音乐桥接（集中在 useTtsPlayer composable）
 const { unlockAudio, handleMusicPlay, handleMusicPause, handleSpeakStart } = useTtsPlayer({ chatStore, live2dRef, bottomNavRef, live2dStatus })
 
+/**
+ * 用户点击"口型未启用"提示时调用。
+ *
+ * 浏览器要求音频分析必须先有一次用户交互，因此这个点击本身就是解决方案：
+ * 先借这次手势解锁 AudioContext，再把暂缓的音频补挂到分析图上。
+ */
+const handleLipSyncRetry = () => {
+  unlockAudio()
+  live2dRef.value?.retryMouthSync?.()
+}
+
 const handleExternalChatOpen = (event: Event) => {
   const detail = (event as CustomEvent<Record<string, any>>).detail
   chatStore.openChatExternal(detail)
@@ -96,6 +107,7 @@ onMounted(() => {
   window.addEventListener('keydown', onceUnlock, { passive: true })
   window.addEventListener('touchstart', onceUnlock, { passive: true })
   window.addEventListener('ai-chat-open', handleExternalChatOpen)
+  window.addEventListener('lip-sync-retry', handleLipSyncRetry)
   window.addEventListener('keydown', handleGlobalKeydown)
 })
 
@@ -106,6 +118,7 @@ onUnmounted(() => {
     onboardingTimer = null
   }
   window.removeEventListener('ai-chat-open', handleExternalChatOpen)
+  window.removeEventListener('lip-sync-retry', handleLipSyncRetry)
   window.removeEventListener('keydown', handleGlobalKeydown)
 })
 
