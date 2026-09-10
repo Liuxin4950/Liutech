@@ -212,9 +212,18 @@ const setMouthOpen = (value: number) => {
     }
 }
 
+/**
+ * 口型灵敏度
+ *
+ * 数值不能只凭手感拍：分析器给出的是波形 RMS（0~1），映射公式为
+ *   mouth = clamp((rms - noiseFloor) * gain) ^ curve
+ * 之前 gain=14 时，rms ≥ 0.086 就已经打满 —— 而正常说话大约在 0.08~0.12，
+ * 于是"一开口就是全张"，动态范围全丢。
+ * 现在 gain=6：轻声 ≈ 0.35、正常说话 ≈ 0.58、较响 ≈ 0.8~1.0，层次正常。
+ */
 const lipSync = useAudioLipSync(setMouthOpen, {
-    noiseFloor: 0.015,
-    gain: 14,
+    noiseFloor: 0.02,
+    gain: 6,
     smoothIn: 0.78,
     smoothOut: 0.88,
     curve: 0.75

@@ -58,7 +58,7 @@ props.visible
 
 ## 口型同步：useAudioLipSync
 
-[useAudioLipSync.ts](../../../../Web/src/composables/useAudioLipSync.ts) 根据时域波形的 RMS 驱动 `ParamMouthOpenY`。Live2d 传入模型口型写入函数，配置为 `noiseFloor=0.015, gain=14, smoothIn=0.78, smoothOut=0.88, curve=0.75`，通过 `lipSyncConfig/setLipSyncConfig` 暴露。
+[useAudioLipSync.ts](../../../../Web/src/composables/useAudioLipSync.ts) 根据时域波形的 RMS 驱动 `ParamMouthOpenY`（映射公式 `clamp((rms − noiseFloor) × gain) ^ curve`）。Live2d 传入模型口型写入函数，配置为 `noiseFloor=0.02, gain=6, smoothIn=0.78, smoothOut=0.88, curve=0.75`，通过 `lipSyncConfig/setLipSyncConfig` 暴露。
 
 采样从实际 `playing` 事件开始；暂停/结束闭嘴，恢复播放可再次采样。模型销毁只断开自己的分析支路，同一音频的 source node 可被后续模型复用。音乐和 TTS 的互斥、取消及声音主路见 [TTS与表情](TTS与表情.md)。
 
