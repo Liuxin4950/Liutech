@@ -4,6 +4,7 @@ import Swal from 'sweetalert2'
 import { showErrorToast } from '../utils/errorHandler'
 import { useAuthModalStore } from '../stores/authModal'
 import { ServiceType, getServiceConfig, DEFAULT_SERVICE } from './serviceConfig'
+import { getToken, removeToken } from '../utils/auth'
 
 // API 响应接口
 export interface ApiResponse<T = any> {
@@ -43,7 +44,7 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
   instance.interceptors.request.use(
     (config) => {
       // 从本地存储获取 token
-      const token = localStorage.getItem('token')
+      const token = getToken()
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
       }
@@ -108,7 +109,7 @@ Object.entries(instances).forEach(([serviceType, instance]) => {
           if (bizMessage) showErrorToast(bizMessage)
         } else {
           Swal.close()
-          localStorage.removeItem('token')
+          removeToken()
           useAuthModalStore().show('登录状态已失效，请重新登录。')
         }
       } else if (status === 403) {

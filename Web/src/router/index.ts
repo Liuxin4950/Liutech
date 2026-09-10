@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { useAuthModalStore } from '@/stores/authModal'
 import { getLenis } from '@/composables/useLenis'
 import { beginRouteLoading, finishRouteLoading } from '@/composables/useRouteLoading'
+import { getToken } from '@/utils/auth'
 
 const primaryRouteLoaders = {
   '/': () => import('../views/Home.vue'),
@@ -275,7 +276,7 @@ router.beforeEach(async (to, from, next) => {
 
   // 检查是否需要登录
   if (requiresAuth.includes(to.name as string)) {
-    const token = localStorage.getItem('token')
+    const token = getToken()
     if (!token) {
       // 未登录：停留当前页并弹出全局登录提示；记录目标路径，登录成功后自动跳回
       authModalStore.show('此页面需要登录后才能访问，请先登录您的账户。', to.fullPath)

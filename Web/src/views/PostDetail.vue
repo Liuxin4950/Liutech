@@ -227,7 +227,7 @@ const loadPostDetail = async () => {
     isFavorited.value = postData.favoriteStatus === 1  // 1表示已收藏
 
     // 记录浏览历史（仅登录用户，失败静默不影响阅读）
-    if (localStorage.getItem('token')) {
+    if (isLoggedIn()) {
       PostService.recordView(postId).catch(() => {})
     }
   }, {

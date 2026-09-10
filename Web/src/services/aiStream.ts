@@ -2,47 +2,41 @@ import { ServiceType } from './api'
 import type { AiChatRequest } from './aiTypes'
 import type { ArticleResultsPayload } from './ai'
 import { getServiceBaseURL } from '@/services/serviceConfig'
-
-/**
- * SSE Envelope 格式版本。
- * 用于前端判断如何解析 payload。
- */
-const CONTRACT_VERSION = 1
-
-/**
- * SSE Envelope 根结构。
- */
-interface SseEnvelope<T = unknown> {
-  contractVersion: number
-  event: string
-  taskId: number
-  conversationId: number
-  timestamp: string
-  payload: T
-}
+import { getToken } from '@/utils/auth'
+import { parseSseEventText, readSseStream } from './sse'
+import type { ParsedSseEvent } from './sse'
 
 /**
  * data 事件 payload。
  */
 interface DataPayload {
   content: string
+  conversationId?: number
 }
 
 /**
  * error 事件 payload。
+ *
+ * 后端有两条下发路径，文案键名不同，两者都要认：
+ * - `SseEmitterHelper.safeSendError` → `{ conversationId, error }`
+ * - 其它业务异常路径 → `{ code, message, stage }`
  */
 interface ErrorPayload {
-  code: string
-  message: string
-  stage: string
+  code?: string
+  message?: string
+  error?: string
+  stage?: string
 }
 
 /**
  * complete 事件 payload。
  */
 interface CompletePayload {
-  taskId: number
-  conversationId: number
+  taskId?: number
+  conversationId?: number
+  responseLength?: number
+  mode?: string
+  ttsEnabled?: boolean
 }
 
 /**
@@ -156,7 +150,7 @@ export class AiStream {
       // 创建新的AbortController
       this.abortController = new AbortController()
 
-      const token = localStorage.getItem('token')
+      const token = getToken()
 
       // 构建请求URL
       const aiBaseUrl = getServiceBaseURL(ServiceType.AI)
@@ -192,42 +186,20 @@ export class AiStream {
         )
       }
 
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-
-      if (!reader) {
+      if (!response.body) {
         throw new StreamError('无法读取响应流', 'STREAM_READ_ERROR')
       }
 
-      let buffer = ''
-
-      // 读取流
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          break
+      // 读取流：切帧与 JSON 解析统一由 services/sse.ts 负责（与 Admin 同一实现）
+      await readSseStream(response.body, {
+        onEvent: (event: ParsedSseEvent) => {
+          this.dispatchEvent(event, onChunk, wrappedOnEvent, wrappedOnComplete, wrappedOnError)
+        },
+        onParseError: (rawData: string, error: unknown) => {
+          // 单帧坏掉只跳过该帧并留痕：不能因为一条脏数据就把整轮对话判死
+          console.error('忽略无法解析的 SSE 事件:', error, rawData)
         }
-
-        // 解码数据块
-        const chunk = decoder.decode(value, { stream: true })
-        buffer += chunk
-
-        // 处理SSE事件
-        const events = buffer.split('\n\n')
-        buffer = events.pop() || '' // 保留最后一个可能不完整的事件
-
-        for (const event of events) {
-          if (event.trim()) {
-            this.handleSSEEvent(event, onChunk, wrappedOnEvent, wrappedOnComplete, wrappedOnError)
-          }
-        }
-      }
-
-      // 处理剩余的buffer
-      if (buffer.trim()) {
-        this.handleSSEEvent(buffer, onChunk, wrappedOnEvent, wrappedOnComplete, wrappedOnError)
-      }
+      })
     }
 
     /**
@@ -295,12 +267,12 @@ export class AiStream {
   }
 
   /**
-   * 处理SSE事件
+   * 处理单帧 SSE 文本（内部逐帧调用，也便于单测直接喂帧）
    *
-   * 支持两种格式：
-   * 1. 新版 envelope 格式（contractVersion=1）：
-   *    { contractVersion, event, taskId, conversationId, timestamp, payload }
-   * 2. 旧版裸 payload 格式（用于显式关闭 Agent 的遗留 /chat/stream）
+   * 解析交给 services/sse.ts（与 Admin 同一实现），这里只负责把解析结果
+   * 分发到看板娘链路的回调。支持两种负载形态：
+   * 1. 裸 payload（当前线上形态）：data 行就是事件数据本身；
+   * 2. envelope（contractVersion=1）：解析层会剥壳后再交过来。
    */
   static handleSSEEvent(
     eventText: string,
@@ -309,108 +281,111 @@ export class AiStream {
     onComplete?: (response: any) => void,
     onError?: (error: StreamError) => void
   ): void {
-    try {
-      const lines = eventText.split('\n')
-      let eventType = ''
-      const dataLines: string[] = []
+    const outcome = parseSseEventText(eventText)
 
-      for (const line of lines) {
-        if (line.startsWith('event:')) {
-          eventType = line.substring(6).trim()
-        } else if (line.startsWith('data:')) {
-          dataLines.push(line.substring(5).trim())
-        }
+    if (outcome.status === 'empty') return
+
+    if (outcome.status === 'invalid') {
+      // 坏帧只跳过并留痕：单条脏数据不应该让整轮对话失效
+      console.error('忽略无法解析的 SSE 事件:', outcome.error, outcome.rawData)
+      return
+    }
+
+    this.dispatchEvent(outcome.event, onChunk, onEvent, onComplete, onError)
+  }
+
+  /**
+   * 分发看板娘链路的聊天事件
+   *
+   * 事件集合与后端 StreamingChatService 对齐：
+   * start / data / heartbeat / avatar-cue / audio / audio-skip / audio-complete /
+   * article-results / complete / error。
+   * 写作助手相关事件（tool-start / field-update 等）由 services/writingStream.ts 处理。
+   *
+   * @param event 解析后的事件（payload 已剥掉 envelope）
+   * @param onChunk 内容分片回调
+   * @param onEvent 透传事件回调
+   * @param onComplete 完成回调
+   * @param onError 错误回调
+   */
+  private static dispatchEvent(
+    event: ParsedSseEvent,
+    onChunk: (content: string) => void,
+    onEvent?: (eventType: string, payload: any) => void,
+    onComplete?: (response: any) => void,
+    onError?: (error: StreamError) => void
+  ): void {
+    const eventType = event.event
+    const parsedData = event.payload
+
+    switch (eventType) {
+      case 'start': {
+        // 首事件携带 conversationId，立即通知上层更新 store。
+        // 后端当前下发裸 payload，conversationId 就在 payload 顶层；
+        // envelope 形态下解析层已把 payload 剥出来，这里同样取得到。
+        const payload = parsedData as { conversationId?: number } | null
+        onEvent?.('start', { conversationId: payload?.conversationId })
+        break
       }
 
-      const data = dataLines.join('\n')
-
-      if (!data) return
-
-      // 解析数据
-      let parsedData = JSON.parse(data)
-
-      // 提取 envelope 级别的 conversationId（每个事件都携带）
-      let envelopeConversationId: number | undefined
-
-      // 检查是否为新版 envelope 格式
-      if (parsedData && parsedData.contractVersion === CONTRACT_VERSION) {
-        // 新版 envelope 格式
-        const envelope = parsedData as SseEnvelope
-        eventType = envelope.event
-        parsedData = envelope.payload
-        envelopeConversationId = envelope.conversationId
+      case 'data': {
+        // data 事件：提取 content 字段
+        const payload = parsedData as DataPayload
+        if (payload && payload.content) {
+          onChunk(payload.content)
+        } else if (typeof parsedData === 'string') {
+          // 兼容旧格式
+          onChunk(parsedData)
+        }
+        break
       }
-      // else: 旧版裸 payload 格式，保持原样处理
 
-      switch (eventType) {
-        case 'start':
-          // 首事件携带 conversationId，立即通知上层更新 store
-          onEvent?.('start', { conversationId: envelopeConversationId })
-          break
+      case 'audio':
+      case 'audio-skip':
+      case 'audio-complete':
+      case 'avatar-cue':
+      case 'heartbeat':
+        // 音频与表情事件，直接透传
+        onEvent?.(eventType, parsedData)
+        break
 
-        case 'data': {
-          // data 事件：提取 content 字段
-          const payload = parsedData as DataPayload
-          if (payload && payload.content) {
-            onChunk(payload.content)
-          } else if (typeof parsedData === 'string') {
-            // 兼容旧格式
-            onChunk(parsedData)
-          }
-          break
-        }
+      case 'article-results': {
+        const payload = parsedData as ArticleResultsPayload
+        onEvent?.(eventType, payload)
+        break
+      }
 
-        case 'audio':
-        case 'audio-skip':
-        case 'audio-complete':
-        case 'avatar-cue':
-        case 'heartbeat':
-          // 音频事件，直接透传
-          onEvent?.(eventType, parsedData)
-          break
+      case 'complete': {
+        const payload = parsedData as CompletePayload
+        onComplete?.(payload)
+        break
+      }
 
-        case 'article-results': {
-          const payload = parsedData as ArticleResultsPayload
-          onEvent?.(eventType, payload)
-          break
-        }
+      case 'error': {
+        const payload = parsedData as ErrorPayload
+        console.error('流式响应错误:', payload)
+        // 后端 SseEmitterHelper.safeSendError 把面向用户的文案放在 error 键，
+        // 其它路径可能用 message；两个键都读，避免用户只看到兜底文案。
+        onError?.(new StreamError(
+          payload?.message || payload?.error || '流式响应发生错误',
+          payload?.code || 'STREAM_EVENT_ERROR'
+        ))
+        break
+      }
 
-        case 'complete': {
-          const payload = parsedData as CompletePayload
-          onComplete?.(payload)
-          break
-        }
-
-        case 'error': {
-          const payload = parsedData as ErrorPayload
-          console.error('流式响应错误:', payload)
+      default:
+        // 如果没有事件类型，可能是直接的内容（旧格式兼容）
+        if (typeof parsedData === 'string') {
+          onChunk(parsedData)
+        } else if (parsedData && (parsedData as DataPayload).content) {
+          onChunk((parsedData as DataPayload).content)
+        } else if (parsedData && (parsedData as ErrorPayload).error) {
+          // 旧格式错误
           onError?.(new StreamError(
-            payload?.message || '流式响应发生错误',
-            payload?.code || 'STREAM_EVENT_ERROR'
+            (parsedData as ErrorPayload).error as string,
+            'STREAM_EVENT_ERROR'
           ))
-          break
         }
-
-        default:
-          // 如果没有事件类型，可能是直接的内容（旧格式兼容）
-          if (typeof parsedData === 'string') {
-            onChunk(parsedData)
-          } else if (parsedData && parsedData.content) {
-            onChunk(parsedData.content)
-          } else if (parsedData && parsedData.error) {
-            // 旧格式错误
-            onError?.(new StreamError(
-              parsedData.error,
-              'STREAM_EVENT_ERROR'
-            ))
-          }
-      }
-    } catch (error: any) {
-      console.error('处理SSE事件失败:', error)
-      onError?.(new StreamError(
-        `SSE事件解析失败: ${error.message}`,
-        'SSE_PARSE_ERROR'
-      ))
     }
   }
 

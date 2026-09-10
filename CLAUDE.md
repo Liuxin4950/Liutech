@@ -25,6 +25,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 前端分层（`Web/src/` 与 `Admin/src/`）：`views/`（页面）-> `components/`（复用）-> `services/`（API）-> `stores/`（Pinia）-> `router/`、`composables/`、`utils/`。Web 含 Live2D、TinyMCE、看板娘聊天；Admin 以表格/表单 CRUD 为主。
 
+前端网络层的唯一实现（**改前先看这里，别再造第二份**）：
+- token 读写：`Web/src/utils/auth.ts` 与 `Admin/src/utils/auth.ts`（`getToken`/`setToken`/`removeToken`/`isLoggedIn`），其它文件不许直接碰 `localStorage` 的 token。
+- SSE 协议解析：`Web/src/services/sse.ts`（`parseSseEventText` + `readSseStream`），**不要**在业务里再写分帧/JSON 解析。
+- 写作助手流式客户端：`Web/src/services/writingStream.ts`，两端的 `adminAgent.ts` / `agent.ts` 只是注入 baseURL 与 token 的薄封装。
+- 后两项在 Web 与 Admin 各存一份**逐字节一致**的镜像文件（两个独立 Vite 根，暂无法共享 npm 包），改一侧必须 `cp` 同步另一侧；`node scripts/check-mirrored-modules.mjs` 会在 CI 拦下漂移。细节见 [网络封装总览](Docs/架构/设计/网络封装/总览.md)。
+
 ## 🛠️ 如何运行
 
 **本地开发**：两个 Spring Boot 服务需 JDK 21，环境变量从根目录 `.env` 加载（真实密钥在 `.env`，已 gitignore 不入库）。
@@ -55,8 +61,12 @@ mvn clean install -DskipTests                # 从根构建所有后端模块
 
 # 前端
 cd Web && npm run dev                        # 起 Web 开发服务器
+cd Web && npm test                           # Web 单元测试（vitest，CI 会跑）
 cd Web && npm run build                      # 生产构建
 cd Admin && npm run build                    # Admin 构建
+
+# 跨端镜像文件一致性（改过 Web/Admin 的 sse.ts 或 writingStream.ts 后必跑）
+node scripts/check-mirrored-modules.mjs
 
 # 数据库
 mysql -u root -p < Docs/SQL/sql.sql           # 初始化两个库

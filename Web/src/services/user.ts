@@ -1,4 +1,5 @@
 import { get, post, put } from './api'
+import { getToken, removeToken, setToken } from '../utils/auth'
 
 // 登录请求参数接口
 interface LoginRequest {
@@ -152,7 +153,7 @@ export class UserService {
 
     // 保存 token 到本地存储
     if (response.data.token) {
-      localStorage.setItem('token', response.data.token)
+      setToken(response.data.token)
     }
 
     return response.data
@@ -201,7 +202,7 @@ export class UserService {
    * 用户登出
    */
   static logout(): void {
-    localStorage.removeItem('token')
+    removeToken()
     // 清除可能存在的用户缓存
     localStorage.removeItem('user')
   }
@@ -211,7 +212,7 @@ export class UserService {
    * @returns boolean
    */
   static isLoggedIn(): boolean {
-    const token = localStorage.getItem('token')
+    const token = getToken()
     return !!token
   }
 
@@ -220,7 +221,7 @@ export class UserService {
    * @returns string | null
    */
   static getToken(): string | null {
-    return localStorage.getItem('token')
+    return getToken()
   }
 
   /**
@@ -325,7 +326,7 @@ export class UserService {
   static async verifyEmailLogin(data: EmailLoginVerifyRequest): Promise<LoginResponse> {
     const response = await post<LoginResponse>('/user/login/email/verify', data)
     if (response.data.token) {
-      localStorage.setItem('token', response.data.token)
+      setToken(response.data.token)
     }
     return response.data
   }

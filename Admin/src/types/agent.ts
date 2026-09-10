@@ -1,3 +1,32 @@
+/**
+ * 写作助手相关类型（Admin 端）
+ *
+ * 分两块：
+ * 1. **请求体类型**：各端请求结构略有差异（如 Admin 的分类 id 是数字，Web 允许字符串），
+ *    因此留在各端自己的 types 文件里，由 `AdminArticleDraftSnapshot` 等接口定义。
+ * 2. **事件负载类型**：属于两端共用的流式协议，唯一定义在 `services/writingStream.ts`
+ *    （与 `Web/src/services/writingStream.ts` 逐字节一致）。这里按既有名字重新导出，
+ *    使组件层不必因为协议收敛而改 import。
+ *
+ * @author 刘鑫
+ */
+
+// ==================== 共用协议类型（再导出） ====================
+export type {
+  WritingArticleItem as ArticleResultItem,
+  WritingArticleResultsPayload as ArticleResultsPayload,
+  WritingCompletePayload as AgentCompletePayload,
+  WritingErrorPayload as AgentErrorPayload,
+  WritingDataPayload as DataPayload,
+  WritingFieldUpdatePayload as FieldUpdatePayload,
+  WritingToolEventPayload as ToolEventPayload
+} from '../services/writingStream'
+
+// ==================== 请求体类型 ====================
+
+/**
+ * 文章草稿快照
+ */
 export interface AdminArticleDraftSnapshot {
   postId?: number | null
   title?: string
@@ -10,11 +39,17 @@ export interface AdminArticleDraftSnapshot {
   thumbnail?: string
 }
 
+/**
+ * 多轮对话中的临时消息
+ */
 export interface TempMessage {
   role: 'user' | 'assistant'
   content: string
 }
 
+/**
+ * 写作助手请求体
+ */
 export interface AgentChatRequest {
   message: string
   conversationId?: number
@@ -23,72 +58,11 @@ export interface AgentChatRequest {
   tempMessages?: TempMessage[]
 }
 
+/**
+ * 写作计划步骤（前端展示用的计划骨架）
+ */
 export interface AgentPlanStep {
   key: string
   title: string
   status: string
-}
-
-export interface ArticleResultItem {
-  id: number
-  title: string
-  summary?: string
-  status?: string
-  categoryName?: string
-  tagNames?: string[]
-  createdAt?: string
-  url?: string
-  adminUrl?: string
-  reason?: string
-  source?: string
-}
-
-export interface ArticleResultsPayload {
-  source?: string
-  query?: string
-  reason?: string
-  items: ArticleResultItem[]
-}
-
-export interface AgentCompletePayload {
-  taskId?: number
-  conversationId?: number
-}
-
-export interface AgentErrorPayload {
-  code?: string
-  message?: string
-  stage?: string
-}
-
-/**
- * 工具事件负载（tool-start / tool-result）。
- */
-export interface ToolEventPayload {
-  toolName: string
-  displayName: string
-  inputSummary?: string
-  success?: boolean
-  durationMs?: number
-  resultSummary?: string
-  errorMessage?: string
-}
-
-export interface FieldUpdatePayload {
-  title?: string
-  summary?: string
-  contentHtml?: string
-  categoryId?: number
-  categoryName?: string
-  tagIds?: number[]
-  tagNames?: string[]
-  suggestedCategoryName?: string
-  suggestedTagNames?: string[]
-}
-
-/**
- * data 事件负载。
- */
-export interface DataPayload {
-  content: string
 }

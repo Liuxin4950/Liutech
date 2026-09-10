@@ -87,8 +87,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { AdminAgentService, type AdminArticleDraftSnapshot, type AgentPlanStep, type ToolEventPayload, type FieldUpdatePayload, type TempMessage } from '@/services/adminAgent'
-import type { PostSummaryDTO } from '@/services/ai'
+import { AdminAgentService, type AdminArticleDraftSnapshot, type AgentPlanStep, type ArticleResultItem, type ToolEventPayload, type FieldUpdatePayload, type TempMessage } from '@/services/adminAgent'
 
 const props = defineProps<{
   draft: AdminArticleDraftSnapshot
@@ -110,7 +109,7 @@ type AssistantStep = AgentPlanStep & { status: StepStatus }
 const plan = ref<AssistantStep[]>([])
 const toolEvents = ref<Array<ToolEventPayload & { status: 'running' | 'success' | 'failed' }>>([])
 const applyNotice = ref('')
-const articleResults = ref<PostSummaryDTO[]>([])
+const articleResults = ref<ArticleResultItem[]>([])
 const articleResultReason = ref('')
 const contentCharCount = ref(0)
 let noticeTimer: number | undefined

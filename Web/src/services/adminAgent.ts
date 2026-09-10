@@ -1,6 +1,39 @@
+/**
+ * 写作助手服务（Web 前台内置版）
+ *
+ * 只做三件事：取 AI 服务地址、取 token、把请求交给流式核心。
+ * 协议解析、HTTP 错误文案、事件分发都在 `services/writingStream.ts`（前端唯一实现，
+ * 与 `Admin/src/services/writingStream.ts` 逐字节一致，由 CI 校验）。
+ *
+ * 与 Admin 的差异仅限「请求体类型」与「调用方页面」：
+ * Web 前台的文章草稿分类 id 可能是字符串（富文本编辑器回填），因此这里放宽为 number | string。
+ * 事件负载类型统一使用 writingStream 的 `Writing*` 定义，本文件按既有名字重新导出，
+ * 避免组件层大面积改 import。
+ *
+ * @author 刘鑫
+ */
 import { getServiceBaseURL, ServiceType } from '@/services/serviceConfig'
-import type { ArticleResultsPayload, PostSummaryDTO } from './ai'
+import { getToken } from '@/utils/auth'
+import { streamWritingAssistant } from './writingStream'
+import type {
+  WritingArticleItem,
+  WritingArticleResultsPayload,
+  WritingFieldUpdatePayload,
+  WritingStreamHandlers,
+  WritingToolEventPayload
+} from './writingStream'
 
+// ==================== 协议类型再导出（保持既有导入名） ====================
+export type ToolEventPayload = WritingToolEventPayload
+export type FieldUpdatePayload = WritingFieldUpdatePayload
+export type ArticleResultItem = WritingArticleItem
+export type ArticleResultsPayload = WritingArticleResultsPayload
+
+/**
+ * 文章草稿快照
+ *
+ * Web 侧 `categoryId` 允许字符串：编辑器未选中分类时可能回填空串或字符串 id。
+ */
 export interface AdminArticleDraftSnapshot {
   postId?: number | null
   title?: string
@@ -13,39 +46,26 @@ export interface AdminArticleDraftSnapshot {
   thumbnail?: string
 }
 
+/**
+ * 写作计划步骤（前端展示用的计划骨架）
+ */
 export interface AgentPlanStep {
   key: string
   title: string
   status: string
 }
 
-export interface ToolEventPayload {
-  toolName: string
-  displayName: string
-  inputSummary?: string
-  success?: boolean
-  durationMs?: number
-  resultSummary?: string
-  errorMessage?: string
-}
-
-export interface FieldUpdatePayload {
-  title?: string
-  summary?: string
-  contentHtml?: string
-  categoryId?: number
-  categoryName?: string
-  tagIds?: number[]
-  tagNames?: string[]
-  suggestedCategoryName?: string
-  suggestedTagNames?: string[]
-}
-
+/**
+ * 多轮对话中的临时消息
+ */
 export interface TempMessage {
   role: string
   content: string
 }
 
+/**
+ * 写作助手请求体
+ */
 export interface AdminAgentRequest {
   message: string
   conversationId?: number
@@ -54,129 +74,36 @@ export interface AdminAgentRequest {
   tempMessages?: TempMessage[]
 }
 
-export interface AdminAgentHandlers {
-  onStart?: () => void
-  onData?: (content: string) => void
-  onArticles?: (items: PostSummaryDTO[], payload: ArticleResultsPayload) => void
-  onToolStart?: (payload: ToolEventPayload) => void
-  onToolResult?: (payload: ToolEventPayload) => void
-  onFieldUpdate?: (payload: FieldUpdatePayload) => void
-  onComplete?: () => void
-  onError?: (message: string) => void
-}
+/**
+ * 写作助手回调集合
+ *
+ * 与 `WritingStreamHandlers` 结构一致，单独声明是为了让本文件继续对外暴露
+ * `AdminAgentHandlers` 这个名字（既有组件与组合式函数都按它引用）。
+ */
+export type AdminAgentHandlers = WritingStreamHandlers
 
-interface SseEnvelope<T = unknown> {
-  contractVersion: number
-  event: string
-  payload: T
-}
-
-const CONTRACT_VERSION = 1
-
-/** 将 SSE payload 安全转换为目标类型（服务端 contract 保证结构一致） */
-const asPayload = <T>(value: unknown): T => value as T
-
+/**
+ * 写作助手服务
+ */
 export class AdminAgentService {
-  static async stream(request: AdminAgentRequest, handlers: AdminAgentHandlers) {
-    const token = localStorage.getItem('token')
-    const response = await fetch(`${getServiceBaseURL(ServiceType.AI)}/writing/stream`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'text/event-stream',
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify(request)
+  /**
+   * 发起写作助手流式请求
+   *
+   * @param request 请求体（消息 + 草稿 + 上下文）
+   * @param handlers 事件回调
+   * @param signal 可选取消信号
+   */
+  static async stream(
+    request: AdminAgentRequest,
+    handlers: AdminAgentHandlers,
+    signal?: AbortSignal
+  ): Promise<void> {
+    await streamWritingAssistant({
+      baseUrl: getServiceBaseURL(ServiceType.AI),
+      token: getToken(),
+      request,
+      handlers,
+      signal
     })
-
-    if (!response.ok || !response.body) {
-      if (response.status === 403) throw new Error('当前身份不能使用管理员写作助手')
-      // 读取后端返回的 JSON 错误信息（参数校验 400 等会带具体原因，如长度超限），
-      // 读不到时退回状态码提示，避免用户只看到"连接中断"。
-      let serverMessage = ''
-      try {
-        const errorBody = await response.json()
-        serverMessage = errorBody?.message || ''
-      } catch {
-        // 响应体不是 JSON（如网关错误页），忽略走状态码兜底
-      }
-      throw new Error(serverMessage || `写作助手请求失败：${response.status}`)
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let receivedComplete = false
-    let receivedError = false
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const events = buffer.split('\n\n')
-      buffer = events.pop() || ''
-      for (const event of events) {
-        if (event.trim()) this.handleEvent(event, handlers, { complete: () => { receivedComplete = true }, error: () => { receivedError = true } })
-      }
-    }
-    if (buffer.trim()) this.handleEvent(buffer, handlers, { complete: () => { receivedComplete = true }, error: () => { receivedError = true } })
-
-    if (!receivedComplete && !receivedError) {
-      handlers.onError?.('连接中断，请重试')
-      handlers.onComplete?.()
-    }
-  }
-
-  private static handleEvent(eventText: string, handlers: AdminAgentHandlers, flags?: { complete?: () => void; error?: () => void }) {
-    const lines = eventText.split('\n')
-    let eventType = ''
-    const dataLines: string[] = []
-    for (const line of lines) {
-      if (line.startsWith('event:')) eventType = line.substring(6).trim()
-      if (line.startsWith('data:')) dataLines.push(line.substring(5).trim())
-    }
-    if (!dataLines.length) return
-    let payload: unknown
-    try {
-      payload = JSON.parse(dataLines.join('\n'))
-    } catch {
-      return
-    }
-    if ((payload as SseEnvelope)?.contractVersion === CONTRACT_VERSION) {
-      const envelope = (payload as SseEnvelope).payload as Record<string, unknown>
-      eventType = (payload as SseEnvelope).event
-      payload = envelope
-    }
-    const p = payload as Record<string, unknown> | null
-    switch (eventType) {
-      case 'start':
-        handlers.onStart?.()
-        break
-      case 'data':
-        handlers.onData?.((p?.content as string) || '')
-        break
-      case 'article-results': {
-        const payload = asPayload<ArticleResultsPayload>(p)
-        handlers.onArticles?.(payload?.items || [], payload)
-        break
-      }
-      case 'tool-start':
-        handlers.onToolStart?.(asPayload<ToolEventPayload>(p))
-        break
-      case 'tool-result':
-        handlers.onToolResult?.(asPayload<ToolEventPayload>(p))
-        break
-      case 'field-update':
-        handlers.onFieldUpdate?.(asPayload<FieldUpdatePayload>(p))
-        break
-      case 'complete':
-        handlers.onComplete?.()
-        flags?.complete?.()
-        break
-      case 'error':
-        handlers.onError?.((p?.message as string) || '写作助手执行失败')
-        flags?.error?.()
-        break
-    }
   }
 }

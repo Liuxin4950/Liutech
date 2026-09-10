@@ -36,10 +36,15 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: Web/package-lock.json
+      - name: 校验跨端镜像文件一致性
+        # Web 与 Admin 各自持有同一份 SSE 解析与写作助手流式客户端（独立 Vite 根，暂无法共享包），
+        # 这里保证两侧逐字节一致，防止再次出现"改一边忘另一边"的协议漂移。
+        run: node scripts/check-mirrored-modules.mjs
       - name: 构建前端 Web
         working-directory: ./Web
         run: |
           npm ci
+          npm test
           npm run build
       - name: 构建前端 Admin
         working-directory: ./Admin
