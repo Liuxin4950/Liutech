@@ -17,6 +17,8 @@ describe('音频与模型生命周期', () => {
   let contextState: string
   let contextListeners: Map<string, Set<() => void>>
   let resume: ReturnType<typeof vi.fn>
+  /** 置 true 后 analyser 读取抛错，用于模拟分析器失效 */
+  let analyserReadFails = false
 
   /** 切换上下文状态并派发 statechange（模拟用户手势后浏览器恢复音频） */
   const setContextState = (next: string) => {
@@ -35,12 +37,21 @@ describe('音频与模型生命周期', () => {
     createSource = vi.fn(() => source)
     contextState = 'running'
     contextListeners = new Map()
+    analyserReadFails = false
     resume = vi.fn(async () => {})
     vi.stubGlobal('AudioContext', class {
       get state() { return contextState }
       destination = {}
       createMediaElementSource = createSource
-      createAnalyser = () => ({ fftSize: 2048, disconnect: vi.fn(), getByteTimeDomainData: (data: Uint8Array) => data.fill(160) })
+      createAnalyser = () => ({
+        fftSize: 2048,
+        disconnect: vi.fn(),
+        getByteTimeDomainData: (data: Uint8Array) => {
+          if (analyserReadFails) throw new Error('analyser detached')
+          // 160 ≈ 持续有较大振幅（对应"嘴张开"）
+          data.fill(160)
+        }
+      })
       resume = resume
       close = vi.fn(async () => {})
       addEventListener = (type: string, listener: () => void) => {
@@ -55,6 +66,21 @@ describe('音频与模型生命周期', () => {
   })
 
   afterEach(() => { vi.unstubAllGlobals() })
+
+  /**
+   * 手动触发"最新一帧"
+   *
+   * 真实 requestAnimationFrame 在回调执行时会自动出队，桩里必须手动模拟，
+   * 否则留下的陈旧帧会让后续断言失真（踩过一次）。
+   */
+  const runFrame = () => {
+    const ids = [...frames.keys()]
+    if (!ids.length) return
+    const id = Math.max(...ids)
+    const callback = frames.get(id)
+    frames.delete(id)
+    callback?.(0)
+  }
 
   /** 造一个可控 paused 状态的音频元素 */
   const createAudio = (initiallyPaused = true) => {
@@ -166,6 +192,41 @@ describe('音频与模型生命周期', () => {
     expect(lipSyncModule.lipSyncDegraded.value).toBe(false)
     lip.destroy()
     vi.useRealTimers()
+  })
+
+  it('重复挂载不会并存多个采样循环（否则口型会被写死）', async () => {
+    const { audio } = createAudio(false)
+    const lip = lipSyncModule.useAudioLipSync(vi.fn())
+
+    expect(await lip.start(audio)).toBe(true)
+    expect(frames.size).toBe(1)
+
+    // 模拟"上下文 statechange 补挂 + 用户点击重试"这类叠加调用
+    expect(await lip.start(audio)).toBe(true)
+    // 旧循环必须被取消，任何时刻只能有一个循环在写口型
+    expect(frames.size).toBe(1)
+
+    lip.destroy()
+    expect(frames.size).toBe(0)
+  })
+
+  it('分析中断时立即闭嘴，不会把嘴冻在张开状态', async () => {
+    const { audio } = createAudio(false)
+    const mouth = vi.fn()
+    const lip = lipSyncModule.useAudioLipSync(mouth)
+
+    await lip.start(audio)
+    // 先跑一帧：响亮信号 → 嘴张开
+    runFrame()
+    expect(mouth.mock.calls[mouth.mock.calls.length - 1]?.[0]).toBeGreaterThan(0)
+
+    // 分析器失效（例如节点被断开）：必须立刻复位并停止循环
+    analyserReadFails = true
+    runFrame()
+    expect(mouth).toHaveBeenLastCalledWith(0)
+    expect(frames.size).toBe(0)
+
+    lip.destroy()
   })
 
   it('createMediaElementSource 被拒时报出可行动的原因，而不是静默', async () => {

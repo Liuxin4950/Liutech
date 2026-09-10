@@ -91,25 +91,40 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
   /** 因上下文未就绪而暂缓挂载分析的音频元素（上下文恢复后自动补挂） */
   let deferredElement: HTMLAudioElement | null = null
   let deferredToken = -1
+  /**
+   * 采样循环的身份
+   *
+   * 每次挂载/清理都自增，循环体先核对身份再干活：这样即使出现"补挂 + 重试"等叠加调用，
+   * 也绝不会有两个循环同时写口型参数（曾把一个失效分析器的最后一次响亮值一直写下去，
+   * 表现为模型一直张着嘴）。
+   */
+  let loopId = 0
 
   const pauseSampling = () => {
     cancelAnimationFrame(frame)
     frame = 0
     smoothed = 0
+    // 口型只能由活跃循环驱动：循环一停就必须闭嘴
     setMouth(0)
+  }
+
+  /** 拆掉当前分析支路（取消循环、断开分析器），但不改变 generation */
+  const teardownAnalysis = () => {
+    loopId++
+    pauseSampling()
+    detach()
+    detach = () => {}
+    if (source && analyser) { try { source.disconnect(analyser) } catch { /* 已断开的支路无需再次处理 */ } }
+    try { analyser?.disconnect() } catch { /* 忽略重复断开 */ }
+    source = null
+    analyser = null
   }
 
   const stop = () => {
     generation++
     deferredElement = null
     deferredToken = -1
-    pauseSampling()
-    detach()
-    detach = () => {}
-    if (source && analyser) { try { source.disconnect(analyser) } catch { /* 已断开的支路无需再次处理 */ } }
-    analyser?.disconnect()
-    source = null
-    analyser = null
+    teardownAnalysis()
     audio = null
   }
 
@@ -121,6 +136,9 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
    */
   const attach = (element: HTMLAudioElement, token: number): boolean => {
     if (!context || context.state !== 'running') return false
+    // 关键：先彻底拆除上一路分析（含取消它的 rAF 循环），保证同一时刻只有一个循环在写口型
+    teardownAnalysis()
+    const myLoop = loopId
     const node = sources.get(element) || context.createMediaElementSource(element)
     if (!sources.has(element)) {
       // 声音只连一次 destination，分析器是旁路，stop 不会将正在播放的音乐静音。
@@ -135,8 +153,17 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
     node.connect(analyser)
     const tick = () => {
       frame = 0
+      // 已被更新的分析取代：安静退出，不再写任何口型值
+      if (myLoop !== loopId) return
       if (token !== generation || !analyser || element.paused || element.ended) { pauseSampling(); return }
-      analyser.getByteTimeDomainData(data)
+      try {
+        analyser.getByteTimeDomainData(data)
+      } catch (error) {
+        // 分析器失效时如果不复位，最后一个值会把嘴"冻"在张开状态
+        console.warn('[lipSync] 分析中断，已复位口型', error)
+        pauseSampling()
+        return
+      }
       let sum = 0
       for (const value of data) sum += ((value - 128) / 128) ** 2
       const target = Math.pow(Math.max(0, Math.min(1, (Math.sqrt(sum / data.length) - config.noiseFloor) * config.gain)), config.curve)
@@ -145,7 +172,7 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
       setMouth(smoothed)
       frame = requestAnimationFrame(tick)
     }
-    const play = () => { if (!frame && token === generation) frame = requestAnimationFrame(tick) }
+    const play = () => { if (!frame && token === generation && myLoop === loopId) frame = requestAnimationFrame(tick) }
     element.addEventListener('playing', play)
     element.addEventListener('pause', pauseSampling)
     element.addEventListener('ended', pauseSampling)
