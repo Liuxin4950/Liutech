@@ -44,6 +44,10 @@ UPDATE ai_model_config SET context_window = 164000 WHERE model_name = 'deepseek-
 UPDATE ai_model_config SET context_window = 164000 WHERE model_name = 'deepseek-ai/DeepSeek-R1';
 UPDATE ai_model_config SET context_window = 32768  WHERE model_name = 'Qwen/Qwen2.5-7B-Instruct';
 UPDATE ai_model_config SET context_window = 128000 WHERE model_name = 'deepseek-ai/DeepSeek-V2.5';
+-- 线上实际在用的另外两个模型（2026-09-10 核验线上 ai_model_config 后补充）
+UPDATE ai_model_config SET context_window = 32768  WHERE model_name = 'Qwen/Qwen2.5-72B-Instruct';  -- SiliconFlow 官方页标 33K，与其 max_tokens=4096 一致
+-- THUDM/glm-4-9b-chat：模型卡标 128K，但 SiliconFlow 托管版上限没有可靠来源，**不猜**，
+-- 留空由服务端按 model-policy-default-context-window(32768) 保守兜底；需要更大上下文请在管理端手动填写。
 
 -- 3. 仍然为空的模型（自定义/未收录）不猜测：留 NULL，服务端按
 --    spring.ai.security.model-policy-default-context-window 的保守默认值兜底，
