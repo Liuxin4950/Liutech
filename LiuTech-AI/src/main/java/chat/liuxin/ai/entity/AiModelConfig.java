@@ -65,10 +65,19 @@ public class AiModelConfig {
     private Integer sortOrder;
 
     /**
-     * 最大token数限制
+     * 单次输出上限（token），映射到模型请求的 max_tokens
      */
     @TableField("max_tokens")
     private Integer maxTokens;
+
+    /**
+     * 模型上下文窗口（输入 + 输出总 token 上限）
+     *
+     * 用于推导输入预算：输入预算 = contextWindow − maxTokens − 安全余量。
+     * 为空时按 spring.ai.security.model-policy-default-context-window 兜底。
+     */
+    @TableField("context_window")
+    private Integer contextWindow;
 
     /**
      * 默认温度参数

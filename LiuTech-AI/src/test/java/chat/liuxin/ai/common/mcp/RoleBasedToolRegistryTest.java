@@ -12,8 +12,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class RoleBasedToolRegistryTest {
 
-    private final BlogMcpTools blogMcpTools = new BlogMcpTools(null);
-    private final WritingTools writingTools = new WritingTools(null);
+    private final BlogMcpTools blogMcpTools = new BlogMcpTools(null, null);
+    private final WritingTools writingTools = new WritingTools(null, null);
     private final RoleBasedToolRegistry registry = new RoleBasedToolRegistry(List.of(blogMcpTools, writingTools));
 
     @Test

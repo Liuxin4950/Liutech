@@ -208,7 +208,7 @@ SiliconFlow 恢复后（当日稍晚）重跑同一对照，**max_tokens=32768 �
 
 ### 保留的代码改动
 
-`AiChatServiceImpl.writingParameters()`：`Math.max` → `Math.min`（取数据库配置与全局 writingMaxTokens 的较小值）。价值：对不钳制越界参数的模型/上游避免 4xx；代价：R1 写作输出上限被压到 8192（其默认配置值），若 R1 长文生成需要更长输出，应改数据库 per-model max_tokens 而非动代码。
+`AiChatServiceImpl.writingParameters()`：只做「温度未配置时兜底 0.3」，输出上限与上下文窗口一律以管理端模型配置为准（2026-09-10 起）。此前它用全局 `writing-max-tokens` 覆盖模型配置，与全局 ceiling 相互矛盾，导致「管理端配了不生效」难以排查；该覆盖项已删除。
 
 **教训：对照实验要控制"时间"变量——瞬时故障（限流/繁忙）窗口内先后跑的两组样本，差异可能来自时间而非参数；结论必须在上游恢复后复测确认，否则会把巧合当因果。**
 

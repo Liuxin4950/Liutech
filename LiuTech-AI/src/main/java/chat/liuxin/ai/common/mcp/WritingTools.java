@@ -40,9 +40,11 @@ public class WritingTools implements ToolGroup {
     }
 
     private final BlogApiClient blogApiClient;
+    private final ToolResultBudget toolResultBudget;
 
-    public WritingTools(BlogApiClient blogApiClient) {
+    public WritingTools(BlogApiClient blogApiClient, ToolResultBudget toolResultBudget) {
         this.blogApiClient = blogApiClient;
+        this.toolResultBudget = toolResultBudget;
     }
 
     /**
@@ -86,7 +88,8 @@ public class WritingTools implements ToolGroup {
         return wrapToolCall(toolContext, "public.getArticleDetail", "读取文章详情", "postId=" + postId,
                 () -> {
                     log.debug("写作工具调用: getArticleDetail, postId={}", postId);
-                    return blogApiClient.getPostDetail(postId);
+                    // 正文可能上万字，必须按本次输入预算截断后再进上下文（否则模型会卡在上游）
+                    return toolResultBudget.truncateArticleContent(blogApiClient.getPostDetail(postId), toolContext);
                 },
                 r -> r == null ? "未找到" : "已读取: " + (r.getTitle() == null ? "" : r.getTitle()));
     }

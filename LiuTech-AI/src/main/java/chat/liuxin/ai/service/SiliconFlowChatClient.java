@@ -136,17 +136,27 @@ public class SiliconFlowChatClient {
 
     /**
      * 同步调用熔断兜底。Resilience4j 通过反射按签名匹配调用,末尾必须多一个 Exception 参数。
-     * 返回固定的降级文案,让前端能显示"AI 繁忙"而不是抛 5xx。
+     *
+     * <p>这里**抛异常而不是返回一段文案**：过去返回的降级文案会被上层当成模型的正常回复，
+     * 落库成一条 assistant 消息、还会被前端当正文展示。熔断是失败，就应当走失败路径，
+     * 由上层转成用户可读的错误提示。
      */
     public String fallbackChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, String role, Map<String, Object> toolContext, Exception exception) {
         log.warn("AI服务熔断, 模型: {}, 模式: {}, 异常: {}", modelName, mode, exception.getMessage());
-        return "抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage();
+        throw new AIServiceException.ConnectionException(
+                "AI 服务当前繁忙（已触发熔断保护），请稍后重试");
     }
 
-    /** 流式调用熔断兜底,返回只发一条降级文案的 Flux。 */
+    /**
+     * 流式调用熔断兜底：返回一个错误信号而不是"像正文一样的降级文案"。
+     *
+     * 这样错误会走 subscribeStream 的 onError 分支：发 error 事件（前端显示可读提示），
+     * 而不是冒充 AI 说的话混进对话与 TTS 播报里。
+     */
     public Flux<String> fallbackStreamChat(List<Message> messages, String modelName, Double temperature, Integer maxTokens, ChatMode mode, String role, Map<String, Object> toolContext, Exception exception) {
         log.warn("AI服务流式熔断, 模型: {}, 模式: {}, 异常: {}", modelName, mode, exception.getMessage());
-        return Flux.just("抱歉，AI服务当前繁忙，请稍后重试。错误信息: " + exception.getMessage());
+        return Flux.error(new AIServiceException.ConnectionException(
+                "AI 服务当前繁忙（已触发熔断保护），请稍后重试"));
     }
 
     // ==================== 内部方法 ====================

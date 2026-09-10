@@ -7,7 +7,10 @@ import chat.liuxin.ai.dto.AvatarCuePayload;
 import chat.liuxin.ai.dto.FieldUpdatePayload;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.PostSummaryDTO;
+import chat.liuxin.ai.common.mcp.ToolResultBudget;
 import chat.liuxin.ai.infra.config.AiChatProperties;
+import chat.liuxin.ai.infra.exception.AIServiceException;
+import chat.liuxin.ai.infra.security.PromptBudget;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,6 +73,7 @@ public class StreamingChatService {
     private final TtsSegmenter ttsSegmenter;
     private final AvatarCueService avatarCueService;
     private final AiChatProperties aiChatProperties;
+    private final PromptBudget promptBudget;
 
     /** 流式任务线程池大小：个人博客并发有限，固定 16 足够，避免 commonPool 饥饿 */
     private static final int STREAM_POOL_SIZE = 16;
@@ -129,6 +133,8 @@ public class StreamingChatService {
         AtomicReference<ExecutorService> ttsExecutorRef = new AtomicReference<>();
         AtomicReference<ScheduledExecutorService> heartbeatRef = new AtomicReference<>();
         AtomicBoolean emitterClosed = new AtomicBoolean(false);
+        // 超时回调早于会话创建执行，用引用把最终会话 id 带过去，保证超时事件也能带上它
+        AtomicReference<Long> conversationRef = new AtomicReference<>(conversationId);
 
         emitter.onCompletion(() -> {
             emitterClosed.set(true);
@@ -139,6 +145,9 @@ public class StreamingChatService {
             emitterClosed.set(true);
             SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
             SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+            // 过去这里只 complete()，前端只能看到"流断了"却不知道为什么；
+            // 超时同样要发 error 事件，把真实原因（等太久）告诉用户。
+            SseEmitterHelper.safeSendError(emitter, conversationRef.get(), timeoutNotice());
             emitter.complete();
         });
 
@@ -148,9 +157,10 @@ public class StreamingChatService {
                 convId = memoryService.createConversation(userIdStr, chatServiceHelper.generateTitle(input));
             }
             final Long finalConvId = convId;
+            conversationRef.set(finalConvId);
 
             try {
-                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, finalConvId, guestMode, false);
+                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, finalConvId, guestMode, false, modelName, params);
                 if (!guestMode && finalConvId != null) {
                     memoryService.saveUserMessage(userIdStr, finalConvId, input, modelName, null);
                 }
@@ -170,7 +180,12 @@ public class StreamingChatService {
                     }
                 }, HEARTBEAT_INITIAL_DELAY_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS);
 
-                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), role);
+                // 看板娘也能读整篇文章（getPostDetail），同样带上本次的工具结果预算
+                Map<String, Object> chatToolContext = new HashMap<>();
+                chatToolContext.put(ToolResultBudget.CONTEXT_KEY, promptBudget.toolResultCharBudget(
+                        params.inputBudgetTokens(), aiChatProperties.getAgent().getMaxToolResultChars()));
+
+                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.CHAT, role, chatToolContext);
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
                 subscribeStream(emitter, flux, finalConvId, ttsEnabled, emitterClosed, ttsExecutorRef,
@@ -190,7 +205,7 @@ public class StreamingChatService {
             } catch (Exception e) {
                 log.error("流式聊天处理失败，用户ID: {}, 会话ID: {}", userIdStr, finalConvId, e);
                 chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
-                SseEmitterHelper.safeSendError(emitter, finalConvId, e.getMessage());
+                SseEmitterHelper.safeSendError(emitter, finalConvId, toUserFriendlyError(e));
                 emitter.completeWithError(e);
             }
         });
@@ -226,12 +241,13 @@ public class StreamingChatService {
             emitterClosed.set(true);
             SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
             SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+            SseEmitterHelper.safeSendError(emitter, conversationId, timeoutNotice());
             emitter.complete();
         });
 
         runOnStreamPool(() -> {
             try {
-                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true);
+                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true, modelName, params);
 
                 SseEmitterHelper.sendSseEvent(emitter, "start", SseEmitterHelper.eventPayload(
                         "conversationId", conversationId, "model", modelName, "mode", "writing"));
@@ -252,6 +268,11 @@ public class StreamingChatService {
                 Map<String, Object> toolContext = new HashMap<>();
                 toolContext.put(FieldUpdateCollector.CONTEXT_KEY, collector);
 
+                // 工具结果预算：按模型输入预算推导，读文章之类的大结果在这里被限制住
+                int toolResultCharBudget = promptBudget.toolResultCharBudget(
+                        params.inputBudgetTokens(), aiChatProperties.getAgent().getMaxToolResultChars());
+                toolContext.put(ToolResultBudget.CONTEXT_KEY, toolResultCharBudget);
+                log.debug("工具结果字符预算: {}（输入预算 {} token）", toolResultCharBudget, params.inputBudgetTokens());
 
                 // 工具事件回调：工具 start/success/error 实时转成 SSE tool-start/tool-result 事件推给前端
                 WritingToolEventSink toolEventSink = new WritingToolEventSink((eventName, payload) -> {
@@ -271,7 +292,8 @@ public class StreamingChatService {
 
             } catch (Exception e) {
                 log.error("写作助手流式处理失败，用户ID: {}, 会话ID: {}", userIdStr, conversationId, e);
-                SseEmitterHelper.safeSendError(emitter, conversationId, e.getMessage());
+                // 与流中错误保持同一口径：自家异常文案原样透出，技术异常做友好映射
+                SseEmitterHelper.safeSendError(emitter, conversationId, toUserFriendlyError(e));
                 emitter.completeWithError(e);
             }
         });
@@ -371,7 +393,7 @@ public class StreamingChatService {
                     String errorMsg = error != null ? error.getMessage() : "未知错误";
                     onError.accept(fullResponseRef.get().toString(), errorMsg);
                     // 发给前端的文案做友好映射，避免把 okhttp 堆栈术语直接丢给用户
-                    SseEmitterHelper.safeSendError(emitter, conversationId, toUserFriendlyError(errorMsg));
+                    SseEmitterHelper.safeSendError(emitter, conversationId, toUserFriendlyError(error));
                     emitterClosed.set(true);
                     SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
                     emitter.completeWithError(error != null ? error : new RuntimeException("流式响应发生未知错误"));
@@ -402,6 +424,7 @@ public class StreamingChatService {
                             if (finalHtml != null && finalHtml.length() >= MIN_HTML_LENGTH
                                     && (finalHtml.contains("<p") || finalHtml.contains("<h") || finalHtml.contains("<pre"))) {
                                 contentUpdate.put("contentHtml", finalHtml);
+                                contentUpdate.put("fields", List.of("content"));
                                 SseEmitterHelper.sendSseEvent(emitter, "field-update", contentUpdate);
                             }
                         }
@@ -516,7 +539,7 @@ public class StreamingChatService {
             dto.setId(entry.getKey());
             dto.setTitle(entry.getValue());
             result.add(dto);
-            if (result.size() >= 8) break;
+            if (result.size() >= aiChatProperties.getAgent().getMaxArticleResults()) break;
         }
         return result;
     }
@@ -599,6 +622,7 @@ public class StreamingChatService {
             if (hasValidHtml && htmlBody.length() > lastContentUpdateLength.get()) {
                 Map<String, Object> contentUpdate = new LinkedHashMap<>();
                 contentUpdate.put("contentHtml", htmlBody);
+                contentUpdate.put("fields", List.of("content"));
                 SseEmitterHelper.sendSseEvent(emitter, "field-update", contentUpdate);
                 lastContentUpdateLength.set(currentLength);
                 lastContentUpdateTime.set(now);
@@ -640,37 +664,83 @@ public class StreamingChatService {
         return trimmed;
     }
 
-    /** FieldUpdatePayload 转为 SSE 事件 payload Map（只含非 null 字段，对齐前端 FieldUpdatePayload）。 */
+    /**
+     * FieldUpdatePayload 转为 SSE 事件 payload Map（只含非 null 字段，对齐前端 FieldUpdatePayload）。
+     *
+     * 额外附带 {@code fields}：本次真正写入的字段名列表。前端据此显示"已写入：标题、标签"，
+     * 而不是自己猜步骤 —— 过去前端把固定 5 步计划当进度展示，与后端实际行为无关。
+     */
     private Map<String, Object> toPayloadMap(FieldUpdatePayload fu) {
         Map<String, Object> map = new LinkedHashMap<>();
-        if (fu.getTitle() != null) map.put("title", fu.getTitle());
-        if (fu.getSummary() != null) map.put("summary", fu.getSummary());
-        if (fu.getContentHtml() != null) map.put("contentHtml", fu.getContentHtml());
-        if (fu.getCategoryId() != null) map.put("categoryId", fu.getCategoryId());
-        if (fu.getCategoryName() != null) map.put("categoryName", fu.getCategoryName());
-        if (fu.getTagIds() != null) map.put("tagIds", fu.getTagIds());
-        if (fu.getTagNames() != null) map.put("tagNames", fu.getTagNames());
-        if (fu.getSuggestedCategoryName() != null) map.put("suggestedCategoryName", fu.getSuggestedCategoryName());
-        if (fu.getSuggestedTagNames() != null) map.put("suggestedTagNames", fu.getSuggestedTagNames());
+        List<String> writtenFields = new ArrayList<>();
+
+        putIfPresent(map, writtenFields, "title", fu.getTitle());
+        putIfPresent(map, writtenFields, "summary", fu.getSummary());
+        putIfPresent(map, writtenFields, "contentHtml", fu.getContentHtml());
+        putIfPresent(map, writtenFields, "categoryId", fu.getCategoryId());
+        putIfPresent(map, writtenFields, "categoryName", fu.getCategoryName());
+        putIfPresent(map, writtenFields, "tagIds", fu.getTagIds());
+        putIfPresent(map, writtenFields, "tagNames", fu.getTagNames());
+        putIfPresent(map, writtenFields, "suggestedCategoryName", fu.getSuggestedCategoryName());
+        putIfPresent(map, writtenFields, "suggestedTagNames", fu.getSuggestedTagNames());
+
+        if (!writtenFields.isEmpty()) {
+            map.put("fields", writtenFields);
+        }
         return map;
+    }
+
+    /** 非 null 才写入 payload，同时登记字段名（用于 fields 列表） */
+    private void putIfPresent(Map<String, Object> map, List<String> writtenFields, String key, Object value) {
+        if (value != null) {
+            map.put(key, value);
+            writtenFields.add(key);
+        }
     }
 
     /**
      * 把底层技术性错误文案转成用户可读的中文提示（发给前端的 error 事件用）。
      * 原始错误仍完整记录在服务端日志里，这里只做展示层映射，不丢排查信息。
      */
+    /** SSE 超时提示：说明等了多久、以及可以怎么做（具体的秒数比"连接中断"有用得多） */
+    private String timeoutNotice() {
+        long seconds = aiChatProperties.getSseTimeout() / 1000;
+        return "AI 响应超时：已等待 " + seconds + " 秒仍未完成。内容较多时模型思考时间会变长，"
+                + "请稍后重试，或把内容分段后再试";
+    }
+
+    /**
+     * 异常 → 用户可读文案（带类型判断的版本）。
+     *
+     * {@link AIServiceException} 的文案是本项目自己拼的、本就面向用户
+     * （例如"输入内容过长：本次请求必需内容约 N token…"），必须原样透出；
+     * 只有底层技术异常（okhttp/上游报文）才走关键词映射，避免把技术细节丢给用户。
+     */
+    private String toUserFriendlyError(Throwable error) {
+        if (error instanceof AIServiceException) {
+            String message = error.getMessage();
+            if (message != null && !message.isBlank()) {
+                return message;
+            }
+        }
+        return toUserFriendlyError(error == null ? null : error.getMessage());
+    }
+
     private String toUserFriendlyError(String rawMessage) {
         if (rawMessage == null || rawMessage.isBlank()) {
             return "AI 服务暂时不可用，请稍后重试";
         }
         String msg = rawMessage.toLowerCase();
-        if (msg.contains("timeout")) {
+        if (msg.contains("timeout") || msg.contains("超时") || msg.contains("timed out")) {
             return "AI 响应超时：内容较多时模型思考时间会变长，请稍后重试，或将内容分段后分次处理";
         }
-        if (msg.contains("context") || msg.contains("token") || msg.contains("length") || msg.contains("maximum")) {
-            return "输入内容过长，已超出模型单次处理的上下文范围，请精简后再试";
+        // 上游中英文都可能出现：英文 maximum context length / 中文 上下文长度、tokens 超限
+        if (msg.contains("context") || msg.contains("token") || msg.contains("length") || msg.contains("maximum")
+                || msg.contains("上下文") || msg.contains("长度") || msg.contains("超出")) {
+            return "输入内容过长，已超出模型单次处理的上下文范围，请精简后再试，或在管理端为该模型调大上下文窗口";
         }
-        if (msg.contains("busy") || msg.contains("429") || msg.contains("rate") || msg.contains("quota")) {
+        if (msg.contains("busy") || msg.contains("429") || msg.contains("rate") || msg.contains("quota")
+                || msg.contains("繁忙") || msg.contains("限流") || msg.contains("频率")) {
             return "AI 服务当前繁忙，请稍后重试";
         }
         return "AI 生成失败：" + rawMessage;

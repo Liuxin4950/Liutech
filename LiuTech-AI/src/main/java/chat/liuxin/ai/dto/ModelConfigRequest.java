@@ -1,5 +1,8 @@
 package chat.liuxin.ai.dto;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -46,13 +49,27 @@ public class ModelConfigRequest {
     private Integer sortOrder;
 
     /**
-     * 最大token数
+     * 单次输出上限（token）
+     *
+     * 不能超过 spring.ai.security.model-policy-max-tokens-ceiling，否则保存时直接报错。
      */
+    @Min(value = 1, message = "最大 Token 必须大于 0")
     private Integer maxTokens;
+
+    /**
+     * 模型上下文窗口（输入 + 输出总 token 上限）
+     *
+     * 必须大于 maxTokens，否则输入预算为 0，任何请求都会因"输入内容过长"失败。
+     * 可留空，留空时按全局默认上下文窗口兜底。
+     */
+    @Min(value = 1024, message = "上下文窗口至少 1024")
+    private Integer contextWindow;
 
     /**
      * 默认温度参数
      */
+    @DecimalMin(value = "0.0", message = "Temperature 不能小于 0")
+    @DecimalMax(value = "1.0", message = "Temperature 不能大于 1")
     private BigDecimal temperature;
 
     /**

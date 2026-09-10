@@ -7,6 +7,7 @@ import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -37,6 +38,7 @@ public class BlogMcpTools implements ToolGroup {
     }
 
     private final BlogApiClient blogApiClient;
+    private final ToolResultBudget toolResultBudget;
 
     /** 工具调用未传 limit 时的默认返回数 */
     private static final int DEFAULT_TOOL_LIMIT = 5;
@@ -115,9 +117,10 @@ public class BlogMcpTools implements ToolGroup {
      * AI 会在用户追问"这篇文章讲了什么 / 详细内容"时调用,主后端 /posts/{id} 返回正文与元信息。
      */
     @Tool(description = "根据文章ID获取文章详情，适合用户追问某篇文章内容、摘要或细节时调用")
-    public PostDetailDTO getPostDetail(@ToolParam(description = "文章ID") Long postId) {
+    public PostDetailDTO getPostDetail(@ToolParam(description = "文章ID") Long postId, ToolContext toolContext) {
         log.debug("工具调用: getPostDetail, postId={}", postId);
-        return blogApiClient.getPostDetail(postId);
+        // 正文可能上万字，按本次输入预算截断后再交给模型（整篇塞入会顶穿上下文）
+        return toolResultBudget.truncateArticleContent(blogApiClient.getPostDetail(postId), toolContext);
     }
 
     /**

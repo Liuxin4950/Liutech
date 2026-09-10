@@ -4,7 +4,9 @@ import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.dto.ModelConfigRequest;
 import chat.liuxin.ai.dto.ModelUsageStats;
 import chat.liuxin.ai.entity.AiModelConfig;
+import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
+import chat.liuxin.ai.infra.security.PromptBudget;
 import chat.liuxin.ai.mapper.AiChatMessageMapper;
 import chat.liuxin.ai.mapper.AiModelConfigMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -47,6 +49,8 @@ public class AiModelConfigService {
 
     private final AiModelConfigMapper modelConfigMapper;
     private final AiChatMessageMapper chatMessageMapper;
+    private final PromptBudget promptBudget;
+    private final AiChatProperties aiChatProperties;
 
     /**
      * 拉全部模型配置(启用+禁用),供管理后台管理页展示。
@@ -121,6 +125,8 @@ public class AiModelConfigService {
             throw new AIServiceException.RequestException("模型名称已存在");
         }
 
+        validateLimits(request);
+
         AiModelConfig config = new AiModelConfig();
         config.setModelName(request.getModelName());
         config.setDisplayName(request.getDisplayName());
@@ -129,6 +135,7 @@ public class AiModelConfigService {
         config.setIsDefault(false);
         config.setSortOrder(Objects.requireNonNullElse(request.getSortOrder(), 0));
         config.setMaxTokens(request.getMaxTokens());
+        config.setContextWindow(request.getContextWindow());
         config.setTemperature(request.getTemperature());
         config.setDescription(request.getDescription());
 
@@ -161,12 +168,15 @@ public class AiModelConfigService {
             throw new AIServiceException.RequestException("模型名称已被其他模型使用");
         }
 
+        validateLimits(request);
+
         config.setModelName(request.getModelName());
         config.setDisplayName(request.getDisplayName());
         config.setProvider(request.getProvider());
         config.setIsEnabled(request.getIsEnabled());
         config.setSortOrder(Objects.requireNonNullElse(request.getSortOrder(), 0));
         config.setMaxTokens(request.getMaxTokens());
+        config.setContextWindow(request.getContextWindow());
         config.setTemperature(request.getTemperature());
         config.setDescription(request.getDescription());
 
@@ -258,7 +268,7 @@ public class AiModelConfigService {
         return stats;
     }
 
-    /** 实体转 DTO,字段一对一映射。 */
+    /** 实体转 DTO,字段一对一映射,并附带实际生效的限制(管理端据此判断配置是否被全局策略约束)。 */
     private ModelConfigDTO toDTO(AiModelConfig entity) {
         ModelConfigDTO dto = new ModelConfigDTO();
         dto.setId(entity.getId());
@@ -269,8 +279,49 @@ public class AiModelConfigService {
         dto.setIsDefault(entity.getIsDefault());
         dto.setSortOrder(entity.getSortOrder());
         dto.setMaxTokens(entity.getMaxTokens());
+        dto.setContextWindow(entity.getContextWindow());
         dto.setTemperature(entity.getTemperature());
         dto.setDescription(entity.getDescription());
+
+        PromptBudget.ModelLimits limits = promptBudget.resolveLimits(entity.getMaxTokens(), entity.getContextWindow());
+        dto.setEffectiveMaxTokens(limits.maxOutputTokens());
+        dto.setEffectiveContextWindow(limits.contextWindow());
+        dto.setInputBudgetTokens(limits.inputBudgetTokens());
+        dto.setOutputClamped(limits.outputClamped());
+        dto.setInputCappedByPolicy(limits.inputCappedByPolicy());
         return dto;
+    }
+
+    /**
+     * 保存前的参数一致性校验。
+     *
+     * 这里把"配了不生效 / 配了必然失败"的组合挡在写入之前，并给出可操作的提示，
+     * 而不是等运行时被静默夹取或直接报错：
+     * 1. 输出上限不得超过全局安全上限（过去是读取时静默夹取）；
+     * 2. 上下文窗口必须大于输出上限，否则输入预算为 0，任何请求都会失败。
+     */
+    private void validateLimits(ModelConfigRequest request) {
+        int ceiling = aiChatProperties.getSecurity().getModelPolicyMaxTokensCeiling();
+        if (request.getMaxTokens() != null && request.getMaxTokens() > ceiling) {
+            throw new AIServiceException.RequestException(
+                    "最大 Token %d 超过全局安全上限 %d，请调小该值或修改配置 spring.ai.security.model-policy-max-tokens-ceiling"
+                            .formatted(request.getMaxTokens(), ceiling));
+        }
+
+        if (request.getContextWindow() != null && request.getMaxTokens() != null
+                && request.getContextWindow() <= request.getMaxTokens()) {
+            throw new AIServiceException.RequestException(
+                    "上下文窗口 %d 必须大于最大 Token %d，否则没有输入空间（输入预算 = 上下文 − 输出 − 安全余量）"
+                            .formatted(request.getContextWindow(), request.getMaxTokens()));
+        }
+
+        if (request.getContextWindow() != null) {
+            int maxInputTokens = aiChatProperties.getSecurity().getModelPolicyMaxInputTokens();
+            int available = request.getContextWindow() - Objects.requireNonNullElse(request.getMaxTokens(), 0);
+            if (maxInputTokens > 0 && available > maxInputTokens) {
+                log.info("模型上下文 {} 扣除输出后可用输入 {} 超过全局输入护栏 {}，单次请求实际按护栏生效",
+                        request.getContextWindow(), available, maxInputTokens);
+            }
+        }
     }
 }

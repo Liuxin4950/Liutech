@@ -626,7 +626,8 @@ CREATE TABLE IF NOT EXISTS ai_model_config (
   is_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用（0=禁用 1=启用）',
   is_default TINYINT NOT NULL DEFAULT 0 COMMENT '是否为默认模型（0=否 1=是，只能有一个默认）',
   sort_order INT NOT NULL DEFAULT 0 COMMENT '排序顺序（数字越小越靠前）',
-  max_tokens INT DEFAULT NULL COMMENT '最大token数限制',
+  max_tokens INT DEFAULT NULL COMMENT '单次输出上限（token），映射到模型请求的 max_tokens',
+  context_window INT DEFAULT NULL COMMENT '模型上下文窗口（输入+输出总 token 上限）；输入预算 = 本值 - max_tokens - 安全余量',
   temperature DECIMAL(3,2) DEFAULT 0.90 COMMENT '默认温度参数',
   description VARCHAR(500) DEFAULT NULL COMMENT '模型描述',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -638,11 +639,11 @@ CREATE TABLE IF NOT EXISTS ai_model_config (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
 
 INSERT INTO ai_model_config
-  (model_name, display_name, provider, is_enabled, is_default, sort_order, max_tokens, temperature, description)
+  (model_name, display_name, provider, is_enabled, is_default, sort_order, max_tokens, context_window, temperature, description)
 VALUES
-  ('zai-org/GLM-4.6', 'GLM-4.6', 'siliconflow', 1, 1, 1, 8192, 0.90, '智谱AI GLM-4.6模型，通用对话能力强（默认）'),
-  ('Qwen/Qwen2.5-7B-Instruct', 'Qwen2.5-7B', 'siliconflow', 1, 0, 2, 8192, 0.90, '阿里通义千问2.5-7B指令模型'),
-  ('deepseek-ai/DeepSeek-V2.5', 'DeepSeek-V2.5', 'siliconflow', 0, 0, 3, 4096, 0.70, '深度求索V2.5模型，推理能力强')
+  ('zai-org/GLM-4.6', 'GLM-4.6', 'siliconflow', 1, 1, 1, 8192, 205000, 0.90, '智谱AI GLM-4.6，上下文 205K（默认模型）'),
+  ('Qwen/Qwen2.5-7B-Instruct', 'Qwen2.5-7B', 'siliconflow', 1, 0, 2, 8192, 32768, 0.90, '阿里通义千问2.5-7B，上下文 32K'),
+  ('deepseek-ai/DeepSeek-V2.5', 'DeepSeek-V2.5', 'siliconflow', 0, 0, 3, 4096, 128000, 0.70, '深度求索V2.5，上下文 128K（默认禁用）')
 ON DUPLICATE KEY UPDATE
   display_name = VALUES(display_name),
   provider = VALUES(provider),
@@ -650,5 +651,6 @@ ON DUPLICATE KEY UPDATE
   is_default = VALUES(is_default),
   sort_order = VALUES(sort_order),
   max_tokens = VALUES(max_tokens),
+  context_window = VALUES(context_window),
   temperature = VALUES(temperature),
   description = VALUES(description);

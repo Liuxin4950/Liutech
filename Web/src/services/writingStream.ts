@@ -72,6 +72,20 @@ export interface WritingDataPayload {
 }
 
 /**
+ * start 事件负载
+ *
+ * 后端在受理请求后先发这个事件，`model` 是这一轮真实使用的模型名，
+ * 管理端进度展示可以据此显示"正在用哪个模型"，取不到时不要编。
+ */
+export interface WritingStartPayload {
+  conversationId?: number
+  /** 本轮真实使用的模型名 */
+  model?: string
+  /** 会话模式：writing / guest / user */
+  mode?: string
+}
+
+/**
  * tool-start / tool-result 事件负载
  */
 export interface WritingToolEventPayload {
@@ -83,8 +97,12 @@ export interface WritingToolEventPayload {
   inputSummary?: string
   /** 是否执行成功，tool-start 事件不携带 */
   success?: boolean
-  /** 耗时（毫秒） */
+  /** 耗时（毫秒），由后端按真实起止时间计算 */
   durationMs?: number
+  /** 工具开始时间（epoch 毫秒），仅 tool-start 携带 */
+  startedAt?: number
+  /** 工具结束时间（epoch 毫秒），仅 tool-result 携带 */
+  finishedAt?: number
   /** 结果摘要 */
   resultSummary?: string
   /** 失败原因 */
@@ -104,6 +122,14 @@ export interface WritingFieldUpdatePayload {
   tagNames?: string[]
   suggestedCategoryName?: string
   suggestedTagNames?: string[]
+  /**
+   * 本次真实写入的字段名数组（如 ["title","tagNames"]，正文增量写入时是 ["content"]）。
+   *
+   * 与上面那些"值字段"的区别：值字段是写进去的内容，fields 是"写了哪些字段"的清单，
+   * 由后端按实际写入情况生成。老后端可能没有这个字段，调用方需按 payload 里出现的键自行推断，
+   * 不要回退到固定步骤。
+   */
+  fields?: string[]
 }
 
 /**
@@ -137,8 +163,8 @@ export interface WritingErrorPayload {
  * 除 onStart 外全部可选：调用方只关心自己页面需要的事件。
  */
 export interface WritingStreamHandlers {
-  /** start 事件：后端已受理并建立会话 */
-  onStart?: () => void
+  /** start 事件：后端已受理并建立会话，payload 里有本轮真实模型名 */
+  onStart?: (payload: WritingStartPayload) => void
   /** data 事件：正文分片 */
   onData?: (content: string) => void
   /** article-results 事件：AI 引用的文章列表 */
@@ -293,7 +319,8 @@ function dispatchEvent(
 
   switch (event.event) {
     case 'start':
-      handlers.onStart?.()
+      // payload 为空时给空对象，调用方读 payload.model 不会炸
+      handlers.onStart?.((event.payload as WritingStartPayload) || {})
       break
 
     case 'data': {

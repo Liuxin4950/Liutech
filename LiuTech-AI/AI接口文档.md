@@ -51,7 +51,7 @@ Authorization: Bearer <token>
 | --- | --- | --- | --- |
 | `message` | string | 是 | 非空白，最多 20000 字符 |
 | `temperature` | number | 否 | 合法范围 0～1；越界时忽略该值并读取配置 |
-| `maxTokens` | integer | 否 | 正数且不超过服务端策略上限；越界时忽略，仓库配置上限为 8192 |
+| `maxTokens` | integer | 否 | 只允许比模型配置**更小**；比配置大时按配置生效并打 WARN。模型配置本身受全局安全上限 `spring.ai.security.model-policy-max-tokens-ceiling`（默认 65536）约束 |
 | `context` | object | 否 | 页面与写作上下文，见下文 |
 | `tempMessages` | object[] | 否 | 游客/写作历史，按输入顺序取最后 7 条；登录聊天不使用 |
 | `conversationId` | integer / null | 否 | 登录聊天的会话 ID；省略时新建 |
@@ -60,9 +60,20 @@ Authorization: Bearer <token>
 
 `tempMessages[]` 每项为 `{role,content}`：两者都必须非空白，`content` 最多 20000 字符。建议仅传 `user` / `assistant`；服务端将规范化后的 `assistant` 作为助手历史，其他角色均作为用户历史，`system` 不会获得系统指令权限。
 
-**模型选择**完全由服务端决定：优先启用的数据库默认模型，否则回退应用配置。请求 DTO 没有 `model`、`mode`、`chatType`、`enableTts`、`lastSeq` 字段，不应依赖这些字段产生效果。`temperature` / `maxTokens` 的常规优先级为合法请求值 → 启用模型的数据库配置 → 底层默认值。
+**模型选择**完全由服务端决定：优先启用的数据库默认模型，否则回退应用配置。请求 DTO 没有 `model`、`mode`、`chatType`、`enableTts`、`lastSeq` 字段，不应依赖这些字段产生效果。
 
-写作流式额外处理参数：温度未解析到值时使用 0.3；`maxTokens` 已有值时取它与 `spring.ai.writing-max-tokens` 的较小值，否则使用该写作配置（仓库为 32768）。同步写作没有这层额外处理，不能假定两种写作接口的默认输出上限完全相同。
+**参数优先级**（以管理端「模型配置」为权威，表 `ai_model_config`）：
+
+| 参数 | 来源与收敛规则 |
+| --- | --- |
+| `temperature` | 模型配置优先；模型没配时用请求值，写作模式再兜底 0.3 |
+| 输出上限 | 模型配置的 `max_tokens`；请求可以要求更小，不允许更大。再受全局安全上限 `model-policy-max-tokens-ceiling` 约束（超限打 WARN） |
+| 上下文窗口 | 模型配置的 `context_window`；未配置时用 `model-policy-default-context-window`（默认 32768） |
+| 输入预算 | `上下文窗口 − 输出上限 − 安全余量(512)`，再受全局成本护栏 `model-policy-max-input-tokens`（默认 96000）约束 |
+
+**输入预算怎么用**：组装好的 prompt（系统提示 + 站点/草稿上下文 + 历史 + 当前输入）在发给模型前按输入预算检查，超限时**先丢最旧的历史**，仍放不下则直接返回可读错误（给出本次占用、可用预算与解决办法），不再把超长 prompt 丢给上游干等。单个工具结果（如按 ID 读整篇文章）同样按预算截断并显式标注。详见 `Docs/架构/后端/AI服务/总览.md` 的「模型配额与输入预算」小节。
+
+写作流式与同步写作现在共用同一套参数策略：温度未解析到值时使用 0.3，输出上限与上下文窗口一律以模型配置为准。历史上写作流式会用 `spring.ai.writing-max-tokens` 覆盖模型配置（且该覆盖与全局 ceiling 相互矛盾），该配置项已删除，不要再用。
 
 **已使用的 context 字段**：
 

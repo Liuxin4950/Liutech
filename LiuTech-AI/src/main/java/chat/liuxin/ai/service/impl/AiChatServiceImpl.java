@@ -70,7 +70,10 @@ public class AiChatServiceImpl implements AiChatService {
         Long conversationId = guestMode ? null : request.getConversationId();
 
         try {
-            List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, false);
+            // 参数必须先解析：消息组装要用它的输入预算做裁剪（超限时直接抛出可读错误）
+            AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
+            logParameterApplication(modelName, params);
+            List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, false, modelName, params);
             String input = request.getMessage();
 
             if (!guestMode && conversationId == null) {
@@ -80,8 +83,6 @@ public class AiChatServiceImpl implements AiChatService {
                 memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
             }
 
-            AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
-            logParameterApplication(modelName, params);
             String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), role);
 
             if (!guestMode) {
@@ -120,9 +121,9 @@ public class AiChatServiceImpl implements AiChatService {
         Long conversationId = guestMode ? null : request.getConversationId();
 
         try {
-            List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true);
-            AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);
+            AiModelPolicy.ModelParameters params = writingParameters(getModelParameters(request, modelName));
             logParameterApplication(modelName, params);
+            List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true, modelName, params);
             String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role);
 
             long cost = System.currentTimeMillis() - begin;
@@ -176,33 +177,39 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     /**
-     * 写作模式参数处理：maxTokens 在模型上限内尽量取大，保证长正文不被截断。
-     * - temperature: 用配置值，未配置时用0.3兜底（减少废话和空调用）
-     * - maxTokens: 取「数据库配置的模型上限」与 writingMaxTokens（默认 32768）的较小值，
-     *   永不超出模型实际上限——曾因 R1 上限仅 8K 却强制 32K，被上游以 503/429 拒绝，
-     *   导致写作助手必现失败而看板娘正常（看板娘直接用数据库配置 8192）。
+     * 写作模式参数处理。
+     *
+     * 只做一件事：temperature 未配置时用 0.3 兜底（减少废话和空工具调用）。
+     *
+     * 输出上限与上下文窗口**一律以管理端的模型配置为准**，这里不再做任何覆盖或"取大"：
+     * 历史上写作路径用 writing-max-tokens(32768) 覆盖模型配置，与全局 ceiling(8192) 相互矛盾，
+     * 结果既没有真的取大、又让"管理端配了不生效"难以排查。现在模型配置是唯一事实源。
      */
     private AiModelPolicy.ModelParameters writingParameters(AiModelPolicy.ModelParameters base) {
-        Double temperature = base.temperature() != null ? base.temperature() : WRITING_TEMPERATURE;
-        int writingMaxTokens = aiChatProperties.getWritingMaxTokens();
-        Integer maxTokens = base.maxTokens() != null ? Math.min(base.maxTokens(), writingMaxTokens) : writingMaxTokens;
-        return new AiModelPolicy.ModelParameters(temperature, maxTokens, base.source() + "+writing-fallback");
+        if (base.temperature() == null) {
+            return base.withTemperature(WRITING_TEMPERATURE);
+        }
+        return base;
     }
     /** 解析 temperature / maxTokens,来源可能是请求参数、模型默认值或全局默认。 */
     private AiModelPolicy.ModelParameters getModelParameters(ChatRequest request, String modelName) {
         return aiModelPolicy.resolveParameters(request, modelName);
     }
 
-    /** 记录本次实际生效的模型参数,便于排查前端传参和策略生效情况。 */
+    /**
+     * 记录本次实际生效的模型参数,便于排查前端传参和策略生效情况。
+     *
+     * 输出上限与输入预算都打出来：过去只打 temperature/maxTokens，
+     * 排查"配了不生效""模型卡住"时看不出上下文窗口和输入预算到底是多少。
+     */
     private void logParameterApplication(String modelName, AiModelPolicy.ModelParameters params) {
-        if (params.temperature() != null || params.maxTokens() != null) {
-            log.debug("AI模型参数 - 模型: {}, 来源: {}, temperature: {}, maxTokens: {}",
-                    modelName, params.source(),
-                    params.temperature() != null ? String.format("%.2f", params.temperature()) : "未设置",
-                    params.maxTokens() != null ? params.maxTokens() : "未设置");
-        } else {
-            log.debug("AI模型参数 - 模型: {}, 来源: {}, 使用默认参数", modelName, params.source());
-        }
+        log.info("AI模型参数 - 模型: {}, 来源: {}, temperature: {}, 输出上限: {}, 上下文窗口: {}, 输入预算: {}{}{}",
+                modelName, params.source(),
+                params.temperature() != null ? String.format("%.2f", params.temperature()) : "未设置",
+                params.maxTokens() != null ? params.maxTokens() : "未设置",
+                params.contextWindow(), params.inputBudgetTokens(),
+                params.outputClamped() ? " [输出上限被全局安全上限夹小]" : "",
+                params.inputCappedByPolicy() ? " [输入预算受全局护栏约束]" : "");
     }
 
     /** 粗略按字符数/4 估算 token 数,仅用于监控埋点,非计费用。 */

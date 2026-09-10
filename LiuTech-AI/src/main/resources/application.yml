@@ -83,23 +83,31 @@ spring:
       json-output-instruction: ""
     # 聊天配置（平铺 key 匹配 AiChatProperties.chatHistoryLimit）
     chat-history-limit: 14
-    # 写作模式最大 token 数（强制值，管理端配置低于此值被覆盖）
-    writing-max-tokens: 32768
+    # 说明：输出上限/上下文窗口一律以管理端「模型配置 ai_model_config」为准。
+    # 这里不再提供 writing-max-tokens 之类的覆盖项：历史上它与 security 的 ceiling 互相矛盾，
+    # 导致管理端配置被静默夹取、表现为"配了不生效"。
     # SSE配置（平铺 key 匹配 AiChatProperties.sseTimeout）
     sse-timeout: 300000  # SSE超时时间（毫秒），5分钟（需大于AI重试链最大耗时：30s×3+2s=92s）
     agent:
-      tool-cache-ttl-ms: 60000
+      # 单个工具结果注入上下文的上限（字符）：按 ID 读整篇文章时正文动辄上万字，
+      # 整篇塞进去正是"模型卡住"的根因，超出部分截断并显式标注
+      max-tool-result-chars: 12000
       max-article-results: 8
       blog-connect-timeout-ms: 3000
       blog-read-timeout-ms: 8000
+      # 草稿快照 / 站点上下文注入上限（字符）
       max-context-chars: 6000
     # 看板娘角色配置
     persona:
       name: "纳西妲"
-      title-suffix: "生成"
     security:
       prompt-guard-enabled: true
-      model-policy-max-tokens-ceiling: 8192
+      # 单次输出上限的全局安全上限：管理端保存超过此值的配置会直接报错（不再静默夹取）
+      model-policy-max-tokens-ceiling: 65536
+      # 未配置上下文窗口的模型按此值兜底
+      model-policy-default-context-window: 32768
+      # 单次请求输入预算的全局成本护栏（token）；0 或负数表示不限制
+      model-policy-max-input-tokens: 96000
       rate-limit:
         enabled: true
         window-seconds: 60

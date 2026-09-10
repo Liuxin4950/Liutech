@@ -7,6 +7,7 @@ import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
+import chat.liuxin.ai.infra.security.PromptBudget;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ class AiChatServiceImplTest {
         streamingChatService = mock(StreamingChatService.class);
         AiChatProperties aiChatProperties = new AiChatProperties();
         aiChatProperties.setDefaultModel("fallback-model");
-        aiModelPolicy = new AiModelPolicy(aiModelConfigService, aiChatProperties);
+        aiModelPolicy = new AiModelPolicy(aiModelConfigService, aiChatProperties, new PromptBudget(aiChatProperties));
         ttsSegmenter = new TtsSegmenter(new TtsSegmenterProperties());
 
         service = new AiChatServiceImpl(
