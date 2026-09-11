@@ -24,7 +24,7 @@
             </div>
 
             <!-- 加载异常处理 -->
-            <div v-if="loading" class="loading-text text-sm">加载中...</div>
+            <LoadingState v-if="loading" label="正在加载分类…" />
             <div v-else-if="error" class="loading-text text-primary text-sm">
                 <p>{{ error }}</p>
                 <button @click="loadCategories"
@@ -81,6 +81,7 @@ import bannerFallback from '@/assets/image/banner/banner0.png'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import type { Category } from '@/services/category'
 import Icon from '@/components/Icon.vue'
+import LoadingState from '@/components/LoadingState.vue'
 
 const router = useRouter()
 const categoryStore = useCategoryStore()

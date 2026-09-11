@@ -1,7 +1,7 @@
 <template>
   <div class="card bg-card ">
     <h4 class="card-title"><span class="card-badge"><Icon name="book" size="12" /> Reading</span><span class="card-title-text">推荐<span class="card-highlight">阅读</span></span></h4>
-    <div v-if="loading" class="loading-text text-sm">加载中...</div>
+    <LoadingState v-if="loading" compact label="正在加载推荐…" />
     <div v-else-if="posts.length === 0" class="empty-text flex flex-col flex-ac text-sm">
       <p>暂无推荐</p>
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
@@ -26,6 +26,7 @@
 <script setup lang="ts">
 import { formatDate } from '@/utils/utils'
 import Icon from './Icon.vue'
+import LoadingState from './LoadingState.vue'
 
 // 定义props
 interface Author {

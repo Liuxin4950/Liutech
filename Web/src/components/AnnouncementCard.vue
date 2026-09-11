@@ -6,6 +6,7 @@ import { AnnouncementService } from '../services/announcement'
 import type { Announcement } from '../services/announcement'
 import Icon from './Icon.vue'
 import { formatDate, formatDateTime } from '@/utils/utils'
+import LoadingState from './LoadingState.vue'
 
 // 使用公告 store
 const announcementStore = useAnnouncementStore()
@@ -126,14 +127,13 @@ onUnmounted(() => {
       </button>
     </div>
     <!-- 仅首次加载（无数据）显示加载态；刷新时保留旧列表，避免闪烁 -->
-    <div v-if="announcements.length === 0" class="text-center p-16 flex flex-col flex-ac">
-      <div v-if="loading">
-        <span class="text-sm">加载中...</span>
-      </div>
-      <template v-else>
-        <!-- <img src="@/assets/image/扑到.png" alt="" class="fit-err"> -->
-        <span class="text-sm">暂无公告</span>
-      </template>
+    <LoadingState
+      v-if="announcements.length === 0 && loading"
+      compact
+      label="正在加载公告…"
+    />
+    <div v-else-if="announcements.length === 0" class="text-center p-16 flex flex-col flex-ac">
+      <span class="text-sm">暂无公告</span>
     </div>
     <div v-else class="list">
       <div

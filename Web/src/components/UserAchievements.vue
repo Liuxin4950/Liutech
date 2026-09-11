@@ -2,6 +2,7 @@
 import { ref, watch, onScopeDispose } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { getAchievements, claimAchievement, type Achievement } from '@/services/userActivity'
+import LoadingState from './LoadingState.vue'
 
 const emit = defineEmits<{ claimed: [points: number] }>()
 const user = useUserStore()
@@ -41,7 +42,7 @@ defineExpose({ refresh })
 <template>
   <section class="achievement-tasks" aria-label="读者成就奖励">
     <p class="task-note">评论 10 条或浏览 10 篇不同公开文章，每项可领取一次 2 积分。</p>
-    <p v-if="loading" role="status">正在加载成就...</p>
+    <LoadingState v-if="loading" compact label="正在加载成就…" />
     <p v-if="error" role="alert">{{ error }} <button :disabled="loading || !!claiming" @click="refresh">刷新进度</button></p>
     <div v-for="item in items" :key="item.code" class="task">
       <div class="task-info">

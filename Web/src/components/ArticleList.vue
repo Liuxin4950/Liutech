@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- 加载状态 -->
-    <div v-if="loading" class="loading-text text-sm" style="text-align:center">加载中...</div>
+    <LoadingState v-if="loading" compact label="正在加载文章…" />
 
     <!-- 错误状态 -->
     <div v-else-if="error" class="loading-text text-primary text-sm" style="display:flex;flex-direction:column;align-items:center">
@@ -100,6 +100,7 @@ import { formatDate } from '@/utils/utils'
 import { handleImageError } from '@/composables/useImageFallback'
 import Pagination from '@/components/Pagination.vue'
 import Icon from './Icon.vue'
+import LoadingState from './LoadingState.vue'
 import defaultPostImage from '@/assets/image/err.png'
 
 const router = useRouter()

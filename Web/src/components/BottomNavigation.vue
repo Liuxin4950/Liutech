@@ -84,14 +84,16 @@
       <!-- 改为普通用户也可以使用，但是没有记忆功能  v-if="userStore.isLoggedIn" -->
       <button
         data-onboarding="ai-assistant"
-        class="fab"
+        class="fab fab--assistant"
         @click="goAiChat"
         aria-label="纳西妲"
         title="纳西妲"
       >
-        <!-- 纳西妲头像 -->
-
-        <img class="fit" src="@/assets/aifile/纳西妲.webp" alt="">
+        <img
+          class="fab__assistant-avatar"
+          src="@/assets/aifile/live2d-assistant-button.png"
+          alt=""
+        >
       </button>
 
     </div>
@@ -294,6 +296,25 @@ const goAiChat = throttle(() => {
     overflow: visible;
   }
 
+  &--assistant {
+    overflow: hidden;
+    padding: 2px;
+    border-color: rgba(var(--color-primary-rgb), 0.24);
+    background: var(--bg-card);
+
+    &:hover .fab__assistant-avatar {
+      transform: scale(1.03);
+    }
+  }
+
+  &__assistant-avatar {
+    width: 46px;
+    height: 46px;
+    object-fit: contain;
+    transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+    pointer-events: none;
+  }
+
   &__icon {
     position: relative;
     z-index: 2;
@@ -343,6 +364,12 @@ const goAiChat = throttle(() => {
     &--flipped {
       transform: rotate(180deg);
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab__assistant-avatar {
+    transition: none;
   }
 }
 </style>

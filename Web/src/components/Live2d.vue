@@ -14,24 +14,26 @@
             role="status"
             aria-live="polite"
         >
-            <div class="live2d-placeholder__avatar-wrap">
-                <img :src="avatarUrl" alt="" class="live2d-placeholder__avatar" />
-                <span v-if="loadState === 'loading'" class="live2d-placeholder__pulse" />
+            <div class="live2d-placeholder__panel">
+                <div class="live2d-placeholder__avatar-wrap">
+                    <img :src="loadingArtworkUrl" alt="" class="live2d-placeholder__avatar" />
+                </div>
+                <p class="live2d-placeholder__title">
+                    <span v-if="loadState === 'loading'" class="live2d-placeholder__spinner" aria-hidden="true"></span>
+                    {{ loadState === 'error' ? '这次连接没有成功' : '正在唤醒纳西妲' }}
+                </p>
+                <p class="live2d-placeholder__hint">
+                    {{ loadState === 'error' ? '检查网络后，可以再试一次' : '准备好后就可以和她互动了' }}
+                </p>
+                <button
+                    v-if="loadState === 'error'"
+                    type="button"
+                    class="live2d-placeholder__retry"
+                    @click.stop="retryLive2D"
+                >
+                    重新加载
+                </button>
             </div>
-            <p class="live2d-placeholder__title">
-                {{ loadState === 'error' ? '纳西妲暂时没有加载成功' : '纳西妲正在赶来…' }}
-            </p>
-            <p class="live2d-placeholder__hint">
-                {{ loadState === 'error' ? '请检查网络后重新加载' : '首次加载模型需要一点时间' }}
-            </p>
-            <button
-                v-if="loadState === 'error'"
-                type="button"
-                class="live2d-placeholder__retry"
-                @click.stop="retryLive2D"
-            >
-                重新加载
-            </button>
         </div>
     </div>
 </template>
@@ -45,7 +47,7 @@
  * 功能: 纯净的Live2D模型展示，支持基本交互和拖拽，优化资源管理
  */
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import avatarUrl from '@/assets/aifile/纳西妲.webp'
+import loadingArtworkUrl from '@/assets/aifile/live2d-loading.png'
 
 import { useAudioLipSync } from '@/composables/useAudioLipSync'
 
@@ -820,33 +822,38 @@ watch(() => props.visible, (visible) => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 28px;
+    padding: 24px;
     text-align: center;
     color: var(--text-main);
     pointer-events: auto;
 }
 
+.live2d-placeholder__panel {
+    width: min(264px, 100%);
+    padding: 18px 18px 20px;
+    border: 1px solid var(--border-soft);
+    border-radius: 24px;
+    background: var(--bg-card);
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+    transform: translate(
+        var(--live2d-placeholder-offset-x, 0),
+        var(--live2d-placeholder-offset-y, 0)
+    );
+}
+
 .live2d-placeholder__avatar-wrap {
-    position: relative;
-    width: 112px;
-    height: 112px;
-    margin-bottom: 18px;
+    width: 156px;
+    aspect-ratio: 1;
+    margin: 0 auto 8px;
+    display: grid;
+    place-items: center;
 }
 
 .live2d-placeholder__avatar {
-    width: 100%;
-    height: 100%;
+    width: 92%;
+    height: 92%;
     object-fit: contain;
-    filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.14));
-    animation: live2d-placeholder-float 2.2s ease-in-out infinite;
-}
-
-.live2d-placeholder__pulse {
-    position: absolute;
-    inset: -8px;
-    border: 2px solid rgba(var(--color-primary-rgb), 0.34);
-    border-radius: 50%;
-    animation: live2d-placeholder-pulse 1.5s ease-out infinite;
+    filter: drop-shadow(0 14px 24px rgba(32, 88, 58, 0.14));
 }
 
 .live2d-placeholder__title,
@@ -856,6 +863,10 @@ watch(() => props.visible, (visible) => {
 }
 
 .live2d-placeholder__title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     font-size: 15px;
     font-weight: 650;
 }
@@ -866,6 +877,16 @@ watch(() => props.visible, (visible) => {
     font-size: 12px;
 }
 
+.live2d-placeholder__spinner {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    border: 2px solid rgba(var(--color-primary-rgb), 0.18);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: live2d-placeholder-spin 0.9s linear infinite;
+}
+
 .live2d-placeholder__retry {
     margin-top: 14px;
     padding: 7px 16px;
@@ -874,22 +895,30 @@ watch(() => props.visible, (visible) => {
     background: var(--bg-card);
     color: var(--color-primary);
     cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
-@keyframes live2d-placeholder-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-7px); }
+.live2d-placeholder__retry:hover {
+    border-color: rgba(var(--color-primary-rgb), 0.44);
+    background: var(--bg-hover);
+    transform: translateY(-1px);
 }
 
-@keyframes live2d-placeholder-pulse {
-    from { opacity: 0.8; transform: scale(0.86); }
-    to { opacity: 0; transform: scale(1.12); }
+.live2d-placeholder--error .live2d-placeholder__avatar {
+    opacity: 0.7;
+    filter: grayscale(0.22) drop-shadow(0 12px 20px rgba(0, 0, 0, 0.1));
+    animation: none;
+}
+
+@keyframes live2d-placeholder-spin {
+    to { transform: rotate(360deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .live2d-placeholder__avatar,
-    .live2d-placeholder__pulse {
+    .live2d-placeholder__spinner {
         animation: none;
+        border-top-color: rgba(var(--color-primary-rgb), 0.18);
+        border-right-color: var(--color-primary);
     }
 }
 </style>

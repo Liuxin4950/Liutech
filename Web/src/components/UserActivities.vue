@@ -3,6 +3,7 @@ import { ref, watch, onScopeDispose } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { getActivities, type UserActivity } from '@/services/userActivity'
 import { formatRelativeTime } from '@/utils/utils'
+import LoadingState from './LoadingState.vue'
 
 const user = useUserStore()
 const items = ref<UserActivity[]>([])
@@ -34,7 +35,7 @@ defineExpose({ refresh })
 
 <template>
   <div aria-label="最近动态">
-    <p v-if="loading" role="status">正在加载动态...</p>
+    <LoadingState v-if="loading" compact label="正在加载动态…" />
     <p v-else-if="error" role="alert">{{ error }} <button @click="refresh(page)">重试</button></p>
     <p v-else-if="!items.length" class="empty-tip">暂无活动记录</p>
     <ol v-else class="activities">

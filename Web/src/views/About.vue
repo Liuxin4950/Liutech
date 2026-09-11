@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue"
 import { useHead } from '@vueuse/head'
 import Icon from "../components/Icon.vue"
 import SectionTitle from "@/components/SectionTitle.vue"
+import LoadingState from "@/components/LoadingState.vue"
 import { handleImageError } from "@/composables/useImageFallback"
 import { useBannerStore } from "@/stores/banner"
 import bannerFallback from "@/assets/image/banner/banner0.png"
@@ -86,10 +87,10 @@ setBanner()
 
 <template>
   <div class="content">
-    <section v-if="loadState === 'loading'" class="about-state" aria-live="polite">
-      <Icon name="loader" size="24" class="state-spinner" />
-      <span>正在加载关于页内容…</span>
-    </section>
+    <LoadingState
+      v-if="loadState === 'loading'"
+      label="正在加载关于页内容…"
+    />
 
     <section v-else-if="loadState === 'error'" class="about-state" role="alert">
       <Icon name="alertCircle" size="26" />
@@ -245,13 +246,6 @@ setBanner()
   background: var(--bg-card);
   box-shadow: var(--shadow-sm);
 
-  .state-spinner {
-    animation: spin 0.9s linear infinite;
-  }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .section-card {

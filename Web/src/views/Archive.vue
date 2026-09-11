@@ -19,10 +19,7 @@
     </div>
 
     <!-- 加载状态 -->
-    <div v-if="loading" class="loading text-center p-20 text-sm">
-      <div class="loading-spinner"></div>
-      <p>正在加载归档数据...</p>
-    </div>
+    <LoadingState v-if="loading" label="正在加载归档数据…" />
 
     <!-- 错误状态 -->
     <div v-else-if="error" class="error text-center p-20 text-sm">
@@ -94,6 +91,7 @@ import { PostService, type PostListItem } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useBannerStore } from '@/stores/banner'
 import bannerFallback from '@/assets/image/banner/banner0.png'
+import LoadingState from '@/components/LoadingState.vue'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
@@ -339,11 +337,6 @@ bannerStore.setBanner({
     flex-direction: column;
     gap: 16px;
   }
-}
-
-/* 加载 / 错误 / 空状态（原全局 .mt-12/.text-error/.text-xl 移入） */
-.loading p {
-  margin-top: 12px;
 }
 
 .error p {

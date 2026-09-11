@@ -8,9 +8,7 @@
       </div>
     </div>
 
-    <div v-if="loading" class="loading text-sm">
-      <p>加载中...</p>
-    </div>
+    <LoadingState v-if="loading" compact label="正在加载热门文章…" />
     <div v-else-if="error" class="error text-sm">
       <p>{{ error }}</p>
       <button @click="$emit('retry')" class="retry-btn">重试</button>
@@ -72,6 +70,7 @@ import type { PostListItem } from '@/services/post'
 import { formatDate } from '@/utils/utils'
 import { handleImageError } from '@/composables/useImageFallback'
 import Icon from './Icon.vue'
+import LoadingState from './LoadingState.vue'
 import defaultPostImage from '@/assets/image/err.png'
 
 interface Props {

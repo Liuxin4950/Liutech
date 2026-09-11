@@ -3,7 +3,7 @@
 
     <!-- 系列网格 -->
     <div class="card shadow-sm mb-16">
-      <div v-if="loading" class="loading-text text-sm">加载中...</div>
+      <LoadingState v-if="loading" label="正在加载系列…" />
       <div v-else-if="error" class="loading-text text-primary text-sm">
         <p>{{ error }}</p>
         <button @click="loadSeries" class="bg-primary text-sm font-medium p-8 rounded transition mt-8">重试</button>
@@ -45,6 +45,7 @@ import { useBannerStore } from '@/stores/banner'
 import bannerFallback from '@/assets/image/banner/banner0.png'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import Icon from '@/components/Icon.vue'
+import LoadingState from '@/components/LoadingState.vue'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()

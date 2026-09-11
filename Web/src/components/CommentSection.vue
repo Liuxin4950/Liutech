@@ -17,9 +17,7 @@
 
     <!-- 评论列表 -->
     <div class="comment-list">
-      <div v-if="loading" class="loading text-sm">
-        <p>加载评论中...</p>
-      </div>
+      <LoadingState v-if="loading" compact label="正在加载评论…" />
       <div v-else-if="error" class="error text-sm">
         <p>{{ error }}</p>
         <button @click="loadComments" class="tag-retry-btn">重试</button>
@@ -48,6 +46,7 @@ import { useErrorHandler } from '@/composables/useErrorHandler'
 import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
 import Icon from './Icon.vue'
+import LoadingState from './LoadingState.vue'
 
 // Props
 interface Props {

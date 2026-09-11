@@ -1,7 +1,7 @@
 <template>
   <div class="card bg-card">
     <h4 class="card-title"><span class="card-badge"><Icon name="folder" size="12" /> Categories</span><span class="card-title-text">文章<span class="card-highlight">分类</span></span></h4>
-    <div v-if="loading" class="loading-text text-sm">加载中...</div>
+    <LoadingState v-if="loading" compact label="正在加载分类…" />
     <div v-else-if="categories.length === 0" class="empty-text flex flex-col flex-ac text-sm">
       <p>暂无分类</p>
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
@@ -24,6 +24,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import Icon from './Icon.vue'
+import LoadingState from './LoadingState.vue'
 
 const router = useRouter()
 

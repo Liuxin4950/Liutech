@@ -1,10 +1,7 @@
 <template>
   <div class="content">
     <!-- 加载状态 -->
-    <div v-if="metadataLoading && !tagInfo" class="text-center p-20 text-sm">
-      <div class="loading-spinner"></div>
-      <p class="loading-text">正在加载标签信息...</p>
-    </div>
+    <LoadingState v-if="metadataLoading && !tagInfo" label="正在加载标签信息…" />
 
     <!-- 文章列表部分 -->
     <div v-if="tagInfo" class="mb-20">
@@ -40,6 +37,7 @@ import { usePostListing } from '@/composables/usePostListing'
 import bannerFallback from '@/assets/image/banner/banner0.png'
 import ArticleList from '@/components/ArticleList.vue'
 import PostSortSelect from '@/components/PostSortSelect.vue'
+import LoadingState from '@/components/LoadingState.vue'
 
 const route = useRoute()
 const router = useRouter()

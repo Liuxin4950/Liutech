@@ -1,6 +1,6 @@
 <template>
   <div class="category-posts content">
-    <p v-if="metadataLoading" class="text-center p-20">正在加载分类信息...</p>
+    <LoadingState v-if="metadataLoading" label="正在加载分类信息…" />
     <p v-else-if="metadataError" class="empty-text" role="alert">{{ metadataError }}</p>
     <div v-if="category" class="listing-header">
       <h2>相关文章</h2>
@@ -31,6 +31,7 @@ import { usePostListing } from '@/composables/usePostListing'
 import bannerFallback from '@/assets/image/banner/banner0.png'
 import ArticleList from '@/components/ArticleList.vue'
 import PostSortSelect from '@/components/PostSortSelect.vue'
+import LoadingState from '@/components/LoadingState.vue'
 
 const route = useRoute()
 const router = useRouter()

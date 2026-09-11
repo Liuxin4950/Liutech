@@ -22,7 +22,7 @@
 
     <!-- 搜索结果 -->
     <div v-if="showResults" class="search-results">
-      <div v-if="isSearching" class="loading-text text-sm">搜索中...</div>
+      <LoadingState v-if="isSearching" compact label="正在搜索…" />
 
       <div v-else-if="searchError" class="error-text text-sm">
         <p>{{ searchError }}</p>
@@ -79,6 +79,7 @@ import Icon from './Icon.vue'
 import { PostService, type PostListItem } from '@/services/post'
 import { formatDate } from '@/utils/utils'
 import { useErrorHandler } from '@/composables/useErrorHandler'
+import LoadingState from './LoadingState.vue'
 
 const router = useRouter()
 const { showError } = useErrorHandler()
@@ -191,7 +192,7 @@ const clearSearch = () => {
   width: 100%;
 }
 
-/* 按钮内小号 spinner（区别于全局 40px 的 loading-spinner） */
+/* 按钮内小号 spinner：保留操作级反馈，与内容区 LoadingState 分层 */
 .spinner-sm {
   width: 14px;
   height: 14px;

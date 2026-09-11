@@ -1,8 +1,6 @@
 <template>
   <div class="message-list">
-    <div v-if="loading" class="loading-state">
-      加载中...
-    </div>
+    <LoadingState v-if="loading" compact label="正在加载留言…" />
     <div v-else-if="messages.length === 0" class="empty-state">
       暂无留言，快来抢沙发吧~
     </div>
@@ -25,6 +23,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { MessageService, type Message } from '@/services/message'
+import LoadingState from './LoadingState.vue'
 
 const loading = ref(true)
 const messages = ref<Message[]>([])
@@ -74,7 +73,6 @@ defineExpose({
   width: 100%;
 }
 
-.loading-state,
 .empty-state {
   text-align: center;
   padding: 40px 20px;

@@ -339,6 +339,11 @@ const handleAuthRequired = (action: () => void, message?: string) => {
   }
 }
 
+.ai-content:not(.expanded) .live2d {
+  --live2d-placeholder-offset-x: -34px;
+  --live2d-placeholder-offset-y: -24px;
+}
+
 // 异步聊天组件的样式会晚加载；外部定位应稳定高于子组件根节点的默认布局。
 .ai-box > .ai-chat {
   width: 400px;

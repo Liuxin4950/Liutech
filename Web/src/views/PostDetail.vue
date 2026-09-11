@@ -17,6 +17,7 @@ import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
 import SeriesCatalog from '@/components/SeriesCatalog.vue'
 import Icon from '@/components/Icon.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { sanitizePostHtml, highlightCodeBlocks } from '@/composables/useRichContent'
 import { site } from '@/config/site'
 import { parsePostId, buildPostPath } from '@/utils/postPath'
@@ -510,9 +511,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 
 <template>
   <div class="post-detail content">
-    <div v-if="loading" class="text-center p-20 text-sm">
-      <p>加载中...</p>
-    </div>
+    <LoadingState v-if="loading" label="正在加载文章…" />
     <div v-else-if="error" class="text-center p-20 text-sm">
       <p>{{ error }}</p>
       <button @click="loadPostDetail" class="retry-btn bg-primary text-center rounded transition mt-8">重试</button>

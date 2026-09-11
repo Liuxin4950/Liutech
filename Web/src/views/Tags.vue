@@ -37,7 +37,7 @@
         </div>
 
         <!-- 加载状态 -->
-        <div v-if="isLoading" class="loading-text text-sm">加载中...</div>
+        <LoadingState v-if="isLoading" label="正在加载标签…" />
 
         <!-- 空状态 -->
         <div v-else-if="filteredTags.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
@@ -75,6 +75,7 @@ import { useBannerStore } from '@/stores/banner'
 import bannerFallback from '@/assets/image/banner/banner0.png'
 import type { Tag } from '@/services/tag'
 import Icon from '@/components/Icon.vue'
+import LoadingState from '@/components/LoadingState.vue'
 
 const tagStore = useTagStore()
 const bannerStore = useBannerStore()
