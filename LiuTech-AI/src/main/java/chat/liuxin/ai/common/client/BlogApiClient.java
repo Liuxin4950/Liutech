@@ -6,15 +6,10 @@ import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
 import chat.liuxin.ai.dto.TagDTO;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
-import org.springframework.web.client.RestTemplate;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +26,7 @@ import java.util.Map;
 @Component
 public class BlogApiClient {
 
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+    private final BackendApiTransport transport;
 
     /** 工具调用未传 limit 时的默认返回数 */
     private static final int DEFAULT_TOOL_LIMIT = 5;
@@ -43,26 +37,13 @@ public class BlogApiClient {
      * 本地开发使用: http://localhost:8080
      * 可通过环境变量 BLOG_API_URL 覆盖
      */
-    @Value("${blog.api.url:http://backend:8080}")
-    private String blogApiUrl;
-
-    public BlogApiClient(ObjectMapper objectMapper,
-                         @Value("${spring.ai.agent.blog-connect-timeout-ms:3000}") long connectTimeoutMs,
-                         @Value("${spring.ai.agent.blog-read-timeout-ms:8000}") long readTimeoutMs) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout((int) connectTimeoutMs);
-        factory.setReadTimeout((int) readTimeoutMs);
-        this.restTemplate = new RestTemplate(factory);
-        this.objectMapper = objectMapper;
+    public BlogApiClient(BackendApiTransport transport) {
+        this.transport = transport;
     }
 
     /** 从标准响应 {code, data} 中提取 data 节点；code 非 200 或无 data 返回 null */
     private JsonNode extractData(JsonNode root) {
-        if (root == null) return null;
-        if (root.has("code") && root.get("code").asInt() == 200 && root.has("data")) {
-            return root.get("data");
-        }
-        return null;
+        return transport.extractData(root);
     }
 
     /**
@@ -74,11 +55,10 @@ public class BlogApiClient {
      */
     public PostDetailDTO getPostDetail(Long postId) {
         try {
-            String url = blogApiUrl + "/posts/" + postId;
+            String url = "/posts/" + postId;
             log.debug("调用博客API获取文章详情: {}", url);
 
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            JsonNode root = transport.getJson(url);
 
             if (extractData(root) != null) {
                 JsonNode data = root.get("data");
@@ -102,8 +82,7 @@ public class BlogApiClient {
     public List<PostSummaryDTO> searchPosts(String keyword, Integer limit) {
         try {
             int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
-            String url = UriComponentsBuilder.fromUriString(blogApiUrl)
-                    .path("/posts/search")
+            String url = UriComponentsBuilder.fromPath("/posts/search")
                     .queryParam("keyword", keyword == null ? "" : keyword)
                     .queryParam("size", size)
                     .build()
@@ -111,8 +90,7 @@ public class BlogApiClient {
                     .toUriString();
             log.debug("调用博客API搜索文章: {}", url);
 
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            JsonNode root = transport.getJson(url);
 
             List<PostSummaryDTO> results = new ArrayList<>();
             if (extractData(root) != null) {
@@ -142,11 +120,10 @@ public class BlogApiClient {
     public List<PostSummaryDTO> getPostsByCategory(Long categoryId, Integer limit) {
         try {
             int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
-            String url = blogApiUrl + "/posts?categoryId=" + categoryId + "&size=" + size + "&sort=latest";
+            String url = "/posts?categoryId=" + categoryId + "&size=" + size + "&sort=latest";
             log.debug("调用博客API获取分类文章: {}", url);
 
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            JsonNode root = transport.getJson(url);
 
             List<PostSummaryDTO> results = new ArrayList<>();
             if (extractData(root) != null) {
@@ -176,11 +153,10 @@ public class BlogApiClient {
     public List<PostSummaryDTO> getLatestPosts(Integer limit) {
         try {
             int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
-            String url = blogApiUrl + "/posts/latest?limit=" + size;
+            String url = "/posts/latest?limit=" + size;
             log.debug("调用博客API获取最新文章: {}", url);
 
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            JsonNode root = transport.getJson(url);
 
             List<PostSummaryDTO> results = new ArrayList<>();
             if (extractData(root) != null) {
@@ -208,11 +184,10 @@ public class BlogApiClient {
     public List<PostSummaryDTO> getHotPosts(Integer limit) {
         try {
             int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
-            String url = blogApiUrl + "/posts/hot?limit=" + size;
+            String url = "/posts/hot?limit=" + size;
             log.debug("调用博客API获取热门文章: {}", url);
 
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            JsonNode root = transport.getJson(url);
 
             List<PostSummaryDTO> results = new ArrayList<>();
             if (extractData(root) != null) {
@@ -239,11 +214,10 @@ public class BlogApiClient {
      */
     public List<CategoryDTO> getAllCategories() {
         try {
-            String url = blogApiUrl + "/categories";
+            String url = "/categories";
             log.debug("调用博客API获取所有分类: {}", url);
 
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            JsonNode root = transport.getJson(url);
 
             List<CategoryDTO> results = new ArrayList<>();
             if (extractData(root) != null) {
@@ -268,11 +242,10 @@ public class BlogApiClient {
      */
     public List<TagDTO> getAllTags() {
         try {
-            String url = blogApiUrl + "/tags";
+            String url = "/tags";
             log.debug("调用博客API获取所有标签: {}", url);
 
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            JsonNode root = transport.getJson(url);
 
             List<TagDTO> results = new ArrayList<>();
             if (extractData(root) != null) {
@@ -306,11 +279,10 @@ public class BlogApiClient {
      */
     public AuthorProfileDTO getAuthorProfile() {
         try {
-            String url = blogApiUrl + "/user/author/profile";
+            String url = "/user/author/profile";
             log.debug("调用博客API获取作者资料: {}", url);
 
-            String response = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(response);
+            JsonNode root = transport.getJson(url);
 
             if (extractData(root) != null) {
                 return parseAuthorProfile(root.get("data"));

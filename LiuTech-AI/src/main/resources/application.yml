@@ -122,6 +122,16 @@ spring:
 blog:
   api:
     url: ${BLOG_API_URL:${SERVER_BASE_URL:http://localhost:8080}}
+
+liutech:
+  internal-token: ${LIUTECH_INTERNAL_TOKEN:}
+
+tts:
+  cache:
+    dir: ${TTS_CACHE_DIR:${java.io.tmpdir}/liutech-ai-tts-cache}
+    max-age-hours: ${TTS_CACHE_MAX_AGE_HOURS:24}
+    max-bytes: ${TTS_CACHE_MAX_BYTES:536870912}
+    cleanup-interval-ms: ${TTS_CACHE_CLEANUP_INTERVAL_MS:3600000}
   
 # MyBatis-Plus 配置
 mybatis-plus:
@@ -144,16 +154,6 @@ mybatis-plus:
       logic-delete-value: 1
       # 逻辑未删除值
       logic-not-delete-value: 0
-
-# JWT 配置
-jwt:
-  # 签名密钥 - 生产环境必须使用强密钥（通过环境变量注入）
-  # 本地开发也应通过环境变量或启动参数注入，避免默认密钥入库
-  # 生成强密钥命令：openssl rand -base64 64
-  secret: ${JWT_SECRET}
-  expiration: 2592000000  # 30天，单位：毫秒
-  header: Authorization
-  prefix: Bearer
 
 # 日志配置
 logging:

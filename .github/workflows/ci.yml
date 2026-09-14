@@ -1,7 +1,5 @@
 name: CI
 
-# 触发条件：PR 到 main，或 push 到 main / refactor 分支
-# 与 deploy.yml 分工：CI 跑测试和构建（质量门禁），deploy 只负责打包镜像部署
 on:
   pull_request:
     branches: [main]
@@ -9,45 +7,105 @@ on:
     branches: [main, refactor/**]
 
 jobs:
-  backend-test:
-    name: 后端单元测试
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      ai: ${{ steps.filter.outputs.ai }}
+      web: ${{ steps.filter.outputs.web }}
+      admin: ${{ steps.filter.outputs.admin }}
+      common: ${{ steps.filter.outputs.common }}
     steps:
       - uses: actions/checkout@v4
-      - name: 配置 JDK 21
-        uses: actions/setup-java@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
         with:
-          distribution: 'temurin'
-          java-version: '21'
-          cache: 'maven'
-      - name: LiuTech 单元测试
-        run: mvn -f LiuTech/pom.xml test
-      - name: LiuTech-AI 单元测试
-        run: mvn -f LiuTech-AI/pom.xml test
+          filters: |
+            backend:
+              - 'LiuTech/**'
+            ai:
+              - 'LiuTech-AI/**'
+            web:
+              - 'Web/**'
+            admin:
+              - 'Admin/**'
+            common:
+              - 'pom.xml'
+              - 'docker-compose*.yml'
+              - '.env.example'
+              - 'Docs/SQL/**'
+              - 'mysql/**'
+              - 'nginx/**'
+              - 'scripts/check-mirrored-modules.mjs'
 
-  frontend-build:
-    name: 前端构建
+  backend-test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.common == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: 配置 Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn -f LiuTech/pom.xml test
+
+  ai-test:
+    needs: changes
+    if: needs.changes.outputs.ai == 'true' || needs.changes.outputs.common == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - run: mvn -f LiuTech-AI/pom.xml test
+
+  frontend-contract:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.common == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+      - run: node scripts/check-mirrored-modules.mjs
+
+  web-build:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.common == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
           cache-dependency-path: Web/package-lock.json
-      - name: 校验跨端镜像文件一致性
-        # Web 与 Admin 各自持有同一份 SSE 解析与写作助手流式客户端（独立 Vite 根，暂无法共享包），
-        # 这里保证两侧逐字节一致，防止再次出现"改一边忘另一边"的协议漂移。
-        run: node scripts/check-mirrored-modules.mjs
-      - name: 构建前端 Web
-        working-directory: ./Web
-        run: |
-          npm ci
-          npm test
-          npm run build
-      - name: 构建前端 Admin
-        working-directory: ./Admin
-        run: |
-          npm ci
-          npm run build
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  admin-build:
+    needs: changes
+    if: needs.changes.outputs.admin == 'true' || needs.changes.outputs.common == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: Admin/package-lock.json
+      - run: npm ci
+      - run: npm run build

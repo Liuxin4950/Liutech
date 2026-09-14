@@ -8,9 +8,12 @@ services:
       # 通过 .env 注入密码，避免把真实默认值写入仓库
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       MYSQL_DATABASE: liutech
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
+      DB_AI_APP_PASSWORD: ${DB_AI_APP_PASSWORD:?DB_AI_APP_PASSWORD is required}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./Docs/SQL/sql.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./Docs/SQL/sql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./mysql/init-users.sh:/docker-entrypoint-initdb.d/99-users.sh:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:?DB_PASSWORD is required}"]
@@ -21,14 +24,14 @@ services:
 
   # 后端应用服务
   backend:
-    image: liutech-backend:latest
+    image: liutech-backend:${BACKEND_IMAGE_TAG:-latest}
     container_name: liutech-backend
     restart: unless-stopped
     environment:
       # 数据库配置 - 生产环境从环境变量读取
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - SPRING_DATASOURCE_USERNAME=liutech_app
+      - SPRING_DATASOURCE_PASSWORD=${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
       # JWT签名密钥 - 生产环境必须配置强密钥
       - JWT_SECRET=${JWT_SECRET}
       # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 /liuxin/uploads 到此路径
@@ -43,15 +46,8 @@ services:
       - COS_BASE_URL=${COS_BASE_URL:-}
       - COS_MIGRATE=${COS_MIGRATE:-false}
       - SERVER_BASE_URL=${SERVER_BASE_URL:-http://liuxin.chat}
-      # SiliconFlow TTS：只由主后端读取，不返回前端
-      - SILICONFLOW_TTS_API_KEY=${SILICONFLOW_TTS_API_KEY:-}
-      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
-      # 可选：保护 /tts/speech 代理入口，需与 AI 服务保持一致
-      - TTS_PROXY_INTERNAL_TOKEN=${TTS_PROXY_INTERNAL_TOKEN:-}
-      # TTS 临时缓存清理策略
-      - TTS_CACHE_MAX_AGE_HOURS=${TTS_CACHE_MAX_AGE_HOURS:-24}
-      - TTS_CACHE_MAX_BYTES=${TTS_CACHE_MAX_BYTES:-536870912}
-      - TTS_CACHE_CLEANUP_INTERVAL_MS=${TTS_CACHE_CLEANUP_INTERVAL_MS:-3600000}
+      - LIUTECH_INTERNAL_TOKEN=${LIUTECH_INTERNAL_TOKEN:?LIUTECH_INTERNAL_TOKEN is required}
+      - AI_USER_DATA_URL=http://ai:8081
       # 邮箱 SMTP 配置（忘记密码、验证码登录等）
       - MAIL_HOST=${MAIL_HOST:-smtp.qq.com}
       - MAIL_PORT=${MAIL_PORT:-465}
@@ -86,24 +82,27 @@ services:
 
     # AI服务
   ai:
-    image: liutech-ai:latest
+    image: liutech-ai:${AI_IMAGE_TAG:-latest}
     container_name: liutech-ai
     restart: unless-stopped
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       # 数据库配置 - 生产环境从环境变量读取
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=root
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:?DB_PASSWORD is required}
+      - SPRING_DATASOURCE_USERNAME=liutech_ai_app
+      - SPRING_DATASOURCE_PASSWORD=${DB_AI_APP_PASSWORD:?DB_AI_APP_PASSWORD is required}
       # AI服务API密钥 - 生产环境必须配置
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - BLOG_API_URL=http://backend:8080
-      # 可选：AI 服务调用主后端 TTS 代理时携带
-      - TTS_PROXY_INTERNAL_TOKEN=${TTS_PROXY_INTERNAL_TOKEN:-}
-      # 默认 1，保护本地 GPT-SoVITS 笔记本推理资源
-      - TTS_PROXY_CONCURRENCY=${TTS_PROXY_CONCURRENCY:-1}
-      # JWT密钥 - 必须与后端一致，否则无法验证token
-      - JWT_SECRET=${JWT_SECRET}
+      - LIUTECH_INTERNAL_TOKEN=${LIUTECH_INTERNAL_TOKEN:?LIUTECH_INTERNAL_TOKEN is required}
+      # TTS 完全归 AI 服务所有
+      - SILICONFLOW_TTS_API_KEY=${SILICONFLOW_TTS_API_KEY:-}
+      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
+      - TTS_CACHE_DIR=/app/tts-cache
+      - TTS_CACHE_MAX_AGE_HOURS=${TTS_CACHE_MAX_AGE_HOURS:-24}
+      - TTS_CACHE_MAX_BYTES=${TTS_CACHE_MAX_BYTES:-536870912}
+      - TTS_CACHE_CLEANUP_INTERVAL_MS=${TTS_CACHE_CLEANUP_INTERVAL_MS:-3600000}
+      - TTS_CONCURRENCY=${TTS_CONCURRENCY:-1}
     depends_on:
       mysql:
         condition: service_healthy
@@ -127,23 +126,25 @@ services:
 
   # Web前端服务
   web:
-    image: liutech-web:latest
+    image: liutech-web:${WEB_IMAGE_TAG:-latest}
     container_name: liutech-web
     restart: unless-stopped
     depends_on:
       - backend
+      - ai
 
   # Admin前端服务
   admin:
-    image: liutech-admin:latest
+    image: liutech-admin:${ADMIN_IMAGE_TAG:-latest}
     container_name: liutech-admin
     restart: unless-stopped
     depends_on:
       - backend
+      - ai
 
   # Nginx反向代理服务
   nginx:
-    image: liutech-nginx:latest
+    image: liutech-nginx:${NGINX_IMAGE_TAG:-latest}
     container_name: liutech-nginx
     restart: unless-stopped
     ports:

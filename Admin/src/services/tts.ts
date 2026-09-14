@@ -1,4 +1,5 @@
-import { get, post, put, axiosInstance } from './api'
+import { aiApi } from './aiClient'
+import { getAiBaseUrl } from './serviceConfig'
 
 export interface TtsConfigDTO {
   enabled: boolean
@@ -43,27 +44,27 @@ export interface TtsSpeechResponseDTO {
 }
 
 export const getTtsConfig = async (): Promise<TtsConfigDTO> => {
-  const resp = await get<TtsConfigDTO>('/admin/tts/config')
+  const resp = await aiApi.get<TtsConfigDTO>('/admin/tts/config')
   return resp.data
 }
 
-export const updateTtsConfig = async (config: TtsConfigDTO): Promise<string> => {
-  const resp = await put<string>('/admin/tts/config', config)
+export const updateTtsConfig = async (config: TtsConfigDTO): Promise<TtsConfigDTO> => {
+  const resp = await aiApi.put<TtsConfigDTO>('/admin/tts/config', config)
   return resp.data
 }
 
 export const getTtsStatus = async (): Promise<TtsStatusDTO> => {
-  const resp = await get<TtsStatusDTO>('/admin/tts/status')
+  const resp = await aiApi.get<TtsStatusDTO>('/admin/tts/status')
   return resp.data
 }
 
 export const getTtsVoices = async (baseUrl?: string): Promise<string[]> => {
-  const resp = await get<string[]>('/admin/tts/voices', baseUrl ? { baseUrl } : {})
+  const resp = await aiApi.get<string[]>('/admin/tts/voices', { params: baseUrl ? { baseUrl } : {} })
   return resp.data || []
 }
 
 export const getSiliconFlowVoices = async (): Promise<SiliconFlowVoiceDTO[]> => {
-  const resp = await get<SiliconFlowVoiceDTO[]>('/admin/tts/siliconflow/voices')
+  const resp = await aiApi.get<SiliconFlowVoiceDTO[]>('/admin/tts/siliconflow/voices')
   return resp.data || []
 }
 
@@ -78,22 +79,20 @@ export const uploadSiliconFlowVoice = async (
   formData.append('model', model)
   formData.append('customName', customName)
   formData.append('text', text)
-  const response = await axiosInstance.post('/admin/tts/siliconflow/voice', formData, {
+  const response = await aiApi.post('/admin/tts/siliconflow/voice', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
   return response.data.data
 }
 
 export const testTtsSpeech = async (text: string): Promise<TtsSpeechResponseDTO> => {
-  const resp = await post<TtsSpeechResponseDTO>('/admin/tts/test-speech', { text })
+  const resp = await aiApi.post<TtsSpeechResponseDTO>('/admin/tts/test-speech', { text })
   return resp.data
 }
 
-export const resolveMainAudioUrl = (audioUrl?: string | null): string => {
+export const resolveAiAudioUrl = (audioUrl?: string | null): string => {
   if (!audioUrl) return ''
   if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) return audioUrl
-  const base = String(axiosInstance.defaults.baseURL || '').replace(/\/$/, '')
-  if (base.startsWith('/') && audioUrl.startsWith(`${base}/`)) return audioUrl
-  if (audioUrl.startsWith('/')) return `${base}${audioUrl}`
-  return `${base}/${audioUrl}`
+  const base = getAiBaseUrl().replace(/\/$/, '')
+  return `${base}/${audioUrl.replace(/^\/+/, '')}`
 }

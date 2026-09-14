@@ -33,16 +33,7 @@ public class SystemSettingsAdminService {
     private static final Map<String, String[]> PREDEFINED_SETTINGS = new LinkedHashMap<>();
 
     static {
-        // TTS 语音设置（TtsConfigService 消费）
-        PREDEFINED_SETTINGS.put("tts.enabled", new String[]{"true", "语音推理全局开关：true/false", "tts"});
-        PREDEFINED_SETTINGS.put("tts.provider", new String[]{"GPT_SOVITS", "语音推理引擎：GPT_SOVITS/SILICONFLOW", "tts"});
-        PREDEFINED_SETTINGS.put("tts.baseUrl", new String[]{"", "语音推理服务基础地址", "tts"});
-        PREDEFINED_SETTINGS.put("tts.voiceModel", new String[]{"", "默认语音模型", "tts"});
-        PREDEFINED_SETTINGS.put("tts.siliconFlowModel", new String[]{"FunAudioLLM/CosyVoice2-0.5B", "SiliconFlow TTS 模型名称", "tts"});
-        PREDEFINED_SETTINGS.put("tts.siliconFlowVoiceUri", new String[]{"", "SiliconFlow 自定义音色 URI", "tts"});
-        PREDEFINED_SETTINGS.put("tts.responseFormat", new String[]{"mp3", "TTS 输出音频格式", "tts"});
-        PREDEFINED_SETTINGS.put("tts.sampleRate", new String[]{"44100", "TTS 输出采样率", "tts"});
-        PREDEFINED_SETTINGS.put("tts.speed", new String[]{"1.0", "TTS 语速", "tts"});
+        // 当前无需要由通用系统设置页自动补齐的预定义项。
     }
 
     /**
@@ -161,7 +152,6 @@ public class SystemSettingsAdminService {
      */
     private String resolveGroup(String key) {
         if (key == null) return "other";
-        if (key.startsWith("tts.")) return "tts";
         return "other";
     }
 

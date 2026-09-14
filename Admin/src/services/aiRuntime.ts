@@ -1,4 +1,4 @@
-import { get } from './api'
+import { aiApi } from './aiClient'
 
 export interface RuntimeTtsStatusDTO {
   enabled: boolean
@@ -16,6 +16,6 @@ export interface AiRuntimeDTO {
 }
 
 export const getAiRuntime = async (): Promise<AiRuntimeDTO> => {
-  const resp = await get<AiRuntimeDTO>('/runtime/ai')
+  const resp = await aiApi.get<AiRuntimeDTO>('/runtime')
   return resp.data
 }

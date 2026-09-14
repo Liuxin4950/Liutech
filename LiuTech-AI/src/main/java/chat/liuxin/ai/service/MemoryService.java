@@ -144,7 +144,7 @@ public class MemoryService {
      * 物理删除用户名下所有会话及其消息(不可恢复)。用户主动"清空记忆"入口。
      */
     @Transactional(rollbackFor = Exception.class)
-    public void clearAllMemory(String userId) {
+    public PurgeCounts clearAllMemory(String userId) {
         List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
                 .eq(AiConversation::getUserId, userId)
                 .select(AiConversation::getId))
@@ -157,12 +157,16 @@ public class MemoryService {
             );
         }
 
-        conversationMapper.delete(new LambdaQueryWrapper<AiConversation>()
+        int deletedConversations = conversationMapper.delete(new LambdaQueryWrapper<AiConversation>()
                 .eq(AiConversation::getUserId, userId)
         );
 
-        log.debug("清空用户记忆：userId={}, 删除{}条记录", userId, deleted);
+        log.info("清空用户 AI 数据：userId={}, conversations={}, messages={}",
+                userId, deletedConversations, deleted);
+        return new PurgeCounts(deletedConversations, deleted);
     }
+
+    public record PurgeCounts(int conversationsDeleted, int messagesDeleted) {}
 
     /**
      * 建新会话并返回主键 id。看板娘/写作助手在首条消息前没有 conversationId 时会调这里补建。

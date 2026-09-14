@@ -414,13 +414,13 @@ describe('看板娘聊天流式链路', () => {
   it('透传 avatar-cue / audio / article-results / complete', async () => {
     const result = await parseFrames([
       frame('avatar-cue', { seq: 1, text: '你好', conversationId: 3 }),
-      frame('audio', { seq: 1, audioUrl: '/tts/a.mp3', conversationId: 3 }),
+      frame('audio', { seq: 1, audioUrl: 'tts/audio/a.mp3', conversationId: 3 }),
       frame('article-results', { reason: '推荐', items: [{ id: 9, title: '文章' }] }),
       frame('complete', { conversationId: 3, responseLength: 2 })
     ])
 
     expect(result.events.map(item => item.event)).toEqual(['avatar-cue', 'audio', 'article-results'])
-    expect(result.events[1].payload.audioUrl).toBe('/tts/a.mp3')
+    expect(result.events[1].payload.audioUrl).toBe('tts/audio/a.mp3')
     expect(result.events[2].payload.items).toEqual([{ id: 9, title: '文章' }])
     expect(result.completedPayload.conversationId).toBe(3)
   })

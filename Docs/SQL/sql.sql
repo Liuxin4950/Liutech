@@ -397,15 +397,6 @@ CREATE TABLE IF NOT EXISTS system_settings (
 
 INSERT INTO system_settings (setting_key, setting_value, description)
 VALUES
-  ('tts.enabled', 'true', '语音推理全局开关：true/false'),
-  ('tts.provider', 'GPT_SOVITS', '语音推理引擎：GPT_SOVITS/SILICONFLOW'),
-  ('tts.baseUrl', '', 'GPT-SoVITS 语音推理服务基础地址（例如：http://127.0.0.1:8000）'),
-  ('tts.voiceModel', '', 'GPT-SoVITS 默认语音模型（例如：原神-中文-纳西妲_ZH）'),
-  ('tts.siliconFlowModel', 'FunAudioLLM/CosyVoice2-0.5B', 'SiliconFlow TTS 模型名称'),
-  ('tts.siliconFlowVoiceUri', '', 'SiliconFlow 自定义音色 URI'),
-  ('tts.responseFormat', 'mp3', 'TTS 输出音频格式'),
-  ('tts.sampleRate', '44100', 'TTS 输出采样率'),
-  ('tts.speed', '1.0', 'TTS 语速'),
   ('site.name', 'LiuTech', '站点名称'),
   ('site.description', '', '站点描述（SEO description）'),
   ('site.keywords', '', 'SEO 关键词（逗号分隔）'),
@@ -573,6 +564,30 @@ CREATE DATABASE IF NOT EXISTS liutech_ai DEFAULT CHARACTER SET utf8mb4 COLLATE u
 USE liutech_ai;
 
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- AI TTS 单行配置表（配置归 AI 服务所有）
+CREATE TABLE IF NOT EXISTS ai_tts_config (
+  id TINYINT UNSIGNED NOT NULL COMMENT '固定为1的单行配置主键',
+  enabled TINYINT NOT NULL DEFAULT 1 COMMENT '语音功能开关',
+  provider VARCHAR(32) NOT NULL DEFAULT 'GPT_SOVITS' COMMENT 'GPT_SOVITS/SILICONFLOW',
+  base_url VARCHAR(512) NULL COMMENT 'GPT-SoVITS 服务基础地址',
+  voice_model VARCHAR(255) NULL COMMENT 'GPT-SoVITS 默认语音模型',
+  siliconflow_model VARCHAR(255) NOT NULL DEFAULT 'FunAudioLLM/CosyVoice2-0.5B' COMMENT 'SiliconFlow TTS 模型',
+  siliconflow_voice_uri VARCHAR(512) NULL COMMENT 'SiliconFlow 自定义音色 URI',
+  response_format VARCHAR(16) NOT NULL DEFAULT 'mp3' COMMENT 'mp3/wav/opus/pcm',
+  sample_rate INT NOT NULL DEFAULT 44100 COMMENT '输出采样率',
+  speed DECIMAL(4,2) NOT NULL DEFAULT 1.00 COMMENT '语速，范围0.25-4.00',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (id),
+  CONSTRAINT chk_ai_tts_config_singleton CHECK (id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI服务TTS配置';
+
+INSERT INTO ai_tts_config
+  (id, enabled, provider, base_url, voice_model, siliconflow_model, siliconflow_voice_uri, response_format, sample_rate, speed)
+VALUES
+  (1, 1, 'GPT_SOVITS', NULL, NULL, 'FunAudioLLM/CosyVoice2-0.5B', NULL, 'mp3', 44100, 1.00)
+ON DUPLICATE KEY UPDATE id = VALUES(id);
 
 -- AI 会话表
 CREATE TABLE IF NOT EXISTS ai_conversation

@@ -70,6 +70,12 @@ public interface UserMapper extends BaseMapper<Users> {
      */
     int restoreUsersByIds(@Param("ids") List<Long> ids, @Param("updatedBy") Long updatedBy);
 
+    /** 绕过 @TableLogic，真正从 users 表物理删除。 */
+    int physicalDeleteById(@Param("id") Long id);
+
+    /** 批量物理删除；调用方必须先完成关联数据与 AI 数据清理。 */
+    int physicalDeleteByIds(@Param("ids") List<Long> ids);
+
     /**
      * 统计用户总数（用于仪表盘）
      * @return 用户总数

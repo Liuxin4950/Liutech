@@ -21,10 +21,11 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## 关键约束
 
-- **JWT_SECRET** 在 backend 和 ai 服务必须完全一致
-- **TTS_PROXY_INTERNAL_TOKEN** 在 backend 和 ai 服务必须一致
+- **JWT_SECRET** 只属于主后端；AI 服务禁止读取或自行解析用户 JWT
+- **LIUTECH_INTERNAL_TOKEN** 在 backend 和 ai 服务必须一致，仅用于容器内身份内省与用户数据清理
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`
 - **AI 服务 → 主后端** Docker 内用 `http://backend:8080`
+- **TTS 完全归 AI 服务**；主后端不得新增 TTS 配置、推理、音色或音频缓存逻辑
 - **文件上传** 容器内 `/app/uploads` 绑定到宿主机 `/liuxin/uploads`；**不要** `docker compose down -v`（会清空 `mysql_data` 卷）
 - **SSE** Nginx 必须 `proxy_buffering off` 并提高 `proxy_read_timeout`；非 SSE 路径不要加 `Accept "text/event-stream"`（会破坏 JSON 响应 406）
 

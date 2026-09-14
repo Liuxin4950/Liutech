@@ -1,3 +1,24 @@
+# 内部接口只允许 Docker 内网直连服务，不经过公网 Nginx。
+location ^~ /api/internal/ {
+    return 404;
+}
+
+location ^~ /ai/internal/ {
+    return 404;
+}
+
+# AI 服务生成的临时音频：独立缓存策略，不继承 SSE 的 no-store/关闭缓冲。
+location ^~ /ai/tts/audio/ {
+    proxy_pass http://ai_servers;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    expires 1d;
+    add_header Cache-Control "public" always;
+    access_log off;
+}
+
 # AI 服务代理（SSE 流式 + 动态源 CORS）
 # 主站点(443)与后台(81)共用此配置，避免两处重复维护。
 # 已修复 406 问题：不强制 Accept 头，让客户端自然发送。

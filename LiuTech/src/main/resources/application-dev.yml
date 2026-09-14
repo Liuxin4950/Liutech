@@ -20,5 +20,5 @@ spring:
     display-name: ${MAIL_DISPLAY_NAME}
 
 ai:
-  service:
-    url: ${AI_SERVICE_URL:http://127.0.0.1:8081}
+  user-data:
+    url: ${AI_USER_DATA_URL:http://127.0.0.1:8081}

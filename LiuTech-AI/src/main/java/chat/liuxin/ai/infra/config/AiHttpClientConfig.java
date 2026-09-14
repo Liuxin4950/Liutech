@@ -3,6 +3,7 @@ package chat.liuxin.ai.infra.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.http.client.reactive.JdkClientHttpConnector;
 import org.springframework.web.client.RestClient;
@@ -28,9 +29,18 @@ public class AiHttpClientConfig {
                 .build();
     }
 
+    /** TTS 音频下载必须逐跳校验同源地址，因此禁止客户端自动跟随重定向。 */
+    @Bean("ttsHttpClient")
+    public HttpClient ttsHttpClient() {
+        return HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .build();
+    }
+
     @Bean
     @Primary
-    public RestClient.Builder aiRestClientBuilder(HttpClient aiHttpClient) {
+    public RestClient.Builder aiRestClientBuilder(@Qualifier("aiHttpClient") HttpClient aiHttpClient) {
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(aiHttpClient);
         requestFactory.setReadTimeout(Duration.ofSeconds(90));
         return RestClient.builder().requestFactory(requestFactory);
@@ -38,7 +48,7 @@ public class AiHttpClientConfig {
 
     @Bean
     @Primary
-    public WebClient.Builder aiWebClientBuilder(HttpClient aiHttpClient) {
+    public WebClient.Builder aiWebClientBuilder(@Qualifier("aiHttpClient") HttpClient aiHttpClient) {
         return WebClient.builder().clientConnector(new JdkClientHttpConnector(aiHttpClient));
     }
 }

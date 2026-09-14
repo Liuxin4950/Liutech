@@ -1,6 +1,6 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.common.client.TtsClient;
+import chat.liuxin.ai.service.tts.TtsSpeechService;
 import chat.liuxin.ai.common.tts.AvatarCueService;
 import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.AvatarCuePayload;
@@ -69,7 +69,7 @@ public class StreamingChatService {
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final ChatServiceHelper chatServiceHelper;
-    private final TtsClient ttsClient;
+    private final TtsSpeechService ttsSpeechService;
     private final TtsSegmenter ttsSegmenter;
     private final AvatarCueService avatarCueService;
     private final AiChatProperties aiChatProperties;
@@ -560,7 +560,7 @@ public class StreamingChatService {
 
         CompletableFuture<Void> task = CompletableFuture.runAsync(() -> {
             try {
-                String audioUrl = ttsClient.inferSingleAudioUrl(segment);
+                String audioUrl = ttsSpeechService.inferSingleAudioUrl(segment);
                 if (audioUrl == null || audioUrl.isBlank()) {
                     SseEmitterHelper.sendSseEvent(emitter, "audio-skip", SseEmitterHelper.eventPayload(
                             "seq", seq, "text", segment, "reason", "empty-audio-url", "conversationId", conversationId));

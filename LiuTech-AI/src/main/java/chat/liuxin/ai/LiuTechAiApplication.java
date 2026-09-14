@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * LiuTech AI 服务启动类
@@ -15,6 +16,7 @@ import org.springframework.retry.annotation.EnableRetry;
 @Slf4j
 @SpringBootApplication
 @EnableRetry
+@EnableScheduling
 public class LiuTechAiApplication {
 
     public static void main(String[] args) {

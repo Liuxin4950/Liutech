@@ -42,7 +42,7 @@ cd LiuTech && mvn spring-boot:run          # 主后端 :8080
 cd LiuTech-AI && mvn spring-boot:run       # AI 服务 :8081
 ```
 
-`JWT_SECRET` 与 `TTS_PROXY_INTERNAL_TOKEN` 在两个服务必须一致，否则 token 验证 / TTS 代理失败。
+`JWT_SECRET` 只给主后端；AI 服务通过主后端身份内省认证。`LIUTECH_INTERNAL_TOKEN` 在两个服务必须一致，用于容器内内部接口。
 
 AI 要自己启动项目验证：开发完接口后本地启动 + 实时读日志 + 调接口测试，小问题自行解决，避免麻烦用户。token 通过登录接口获取（请求参数：用户名 + 密码，返回 token）。
 
@@ -79,8 +79,9 @@ docker-compose logs -f backend               # 跟踪后端日志
 
 ## ⚠️ 跨服务集成约束（最容易出错的点）
 
-- **`JWT_SECRET`** 在 `backend` 和 `ai` 服务中**必须完全一致**，否则 token 验证失败。
-- **`TTS_PROXY_INTERNAL_TOKEN`** 在 `backend` 和 `ai` 服务中**必须一致**，AI 服务通过 `/tts/speech` 代理调用主后端 TTS。
+- **`JWT_SECRET`** 只注入 `backend`；AI 服务不得自行验签，带 token 的请求通过主后端 `/internal/auth/introspect` 确认当前身份。
+- **`LIUTECH_INTERNAL_TOKEN`** 在 `backend` 和 `ai` 中必须一致，只用于身份内省与用户彻底删除时的 AI 数据清理；公网 Nginx 屏蔽 `/api/internal/**`、`/ai/internal/**`。
+- **TTS 归属 AI 服务**：配置、状态、GPT-SoVITS/SiliconFlow 调用、音色和临时音频缓存均在 `LiuTech-AI`；主后端不再提供 `/tts/**`。
 - **AI 服务 -> 主后端** URL：Docker 内 `http://backend:8080`（`BLOG_API_URL`），本地 `http://localhost:8080`。
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证。
 - **文件上传**：容器内 `/app/uploads` 绑定宿主机 `/liuxin/uploads`；**不要** `docker compose down -v`（清空 `mysql_data` 卷）。

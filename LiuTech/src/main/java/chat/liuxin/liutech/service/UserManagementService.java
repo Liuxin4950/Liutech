@@ -40,6 +40,8 @@ public class UserManagementService {
 
     private final BCryptPasswordEncoder passwordEncoder;
 
+    private final AiUserDataClient aiUserDataClient;
+
     /**
      * 获取当前用户信息
      * 从Spring Security上下文中获取认证用户信息，返回脱敏后的用户数据
@@ -655,6 +657,9 @@ public class UserManagementService {
                 return false;
             }
 
+            // 先清理 AI 服务中的会话与消息；失败时中止主库物理删除，避免孤儿数据。
+            aiUserDataClient.purgeUser(id);
+
             // 清理用户缓存
             Users user = userMapper.selectById(id);
             if (user != null && StringUtils.hasText(user.getUsername())) {
@@ -663,12 +668,14 @@ public class UserManagementService {
             }
 
             // 物理删除
-            int result = userMapper.deleteById(id);
+            int result = userMapper.physicalDeleteById(id);
             boolean success = result > 0;
 
             log.debug("彻底删除用户{} - 用户ID: {}", success ? "成功" : "失败", id);
             return success;
 
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("彻底删除用户失败 - 用户ID: {}, 错误: {}", id, e.getMessage(), e);
             throw new RuntimeException("彻底删除用户失败: " + e.getMessage());
@@ -692,6 +699,9 @@ public class UserManagementService {
                 return false;
             }
 
+            // AI 清理接口幂等，客户端按每批最多100个ID分片。
+            aiUserDataClient.purgeUsers(ids.stream().distinct().toList());
+
             // 清理相关用户的缓存
             LambdaQueryWrapper<Users> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.in(Users::getId, ids);
@@ -706,12 +716,14 @@ public class UserManagementService {
             }
 
             // 批量物理删除
-            int result = userMapper.deleteBatchIds(ids);
+            int result = userMapper.physicalDeleteByIds(ids);
             boolean success = result > 0;
 
             log.debug("批量彻底删除用户{} - 影响用户数: {}", success ? "成功" : "失败", ids.size());
             return success;
 
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("批量彻底删除用户失败 - 用户ID列表: {}, 错误: {}", ids, e.getMessage(), e);
             throw new RuntimeException("批量彻底删除用户失败: " + e.getMessage());
@@ -733,5 +745,3 @@ public class UserManagementService {
         }
     }
 }
-
-

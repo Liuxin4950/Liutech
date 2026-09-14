@@ -77,8 +77,10 @@ export function useTtsPlayer(options: {
         if (!item) break
         if (item.status === 'skipped' || !item.audioUrl) continue
         if (item.cue) live2dRef.value?.applyAvatarCue({ ...item.cue, skipResetTimer: true })
-        const base = getServiceBaseURL(ServiceType.MAIN).replace(/\/$/, '')
-        const url = item.audioUrl.startsWith('/') && !item.audioUrl.startsWith(`${base}/`) ? `${base}${item.audioUrl}` : item.audioUrl
+        const base = getServiceBaseURL(ServiceType.AI).replace(/\/$/, '')
+        const url = item.audioUrl.startsWith('http://') || item.audioUrl.startsWith('https://')
+          ? item.audioUrl
+          : `${base}/${item.audioUrl.replace(/^\/+/, '')}`
         const audio = item.audioEl
           ? await live2dRef.value!.speakAudioElement(item.audioEl)
           : await live2dRef.value!.speakAudioUrl(url)

@@ -18,10 +18,8 @@ export function useChatTts(state: {
   const resolveTtsAudioUrl = (audioUrl?: string): string => {
     if (!audioUrl) return ''
     if (audioUrl.startsWith('http://') || audioUrl.startsWith('https://')) return audioUrl
-    const base = getServiceBaseURL(ServiceType.MAIN).replace(/\/$/, '')
-    if (base.startsWith('/') && audioUrl.startsWith(`${base}/`)) return audioUrl
-    if (audioUrl.startsWith('/')) return `${base}${audioUrl}`
-    return `${base}/${audioUrl}`
+    const base = getServiceBaseURL(ServiceType.AI).replace(/\/$/, '')
+    return `${base}/${audioUrl.replace(/^\/+/, '')}`
   }
 
   const setTtsEnabled = (enabled: boolean) => {

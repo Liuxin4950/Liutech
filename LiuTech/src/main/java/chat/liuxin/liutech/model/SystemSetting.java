@@ -25,7 +25,7 @@ public class SystemSetting {
 
     /**
      * 配置键（全局唯一）
-     * 例如：tts.baseUrl、tts.enabled
+     * 例如：site.name、about.content
      */
     private String settingKey;
 
@@ -43,4 +43,3 @@ public class SystemSetting {
 
     private Date updatedAt;
 }
-

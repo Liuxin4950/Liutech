@@ -1,7 +1,8 @@
 package chat.liuxin.ai.infra.config;
 
 import chat.liuxin.ai.common.utils.WebUtils;
-import chat.liuxin.ai.infra.filter.JwtAuthenticationFilter;
+import chat.liuxin.ai.infra.filter.InternalServiceTokenFilter;
+import chat.liuxin.ai.infra.filter.RemoteAuthenticationFilter;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -42,7 +43,10 @@ import java.util.Map;
 public class SecurityConfig {
 
     @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    private RemoteAuthenticationFilter remoteAuthenticationFilter;
+
+    @Autowired
+    private InternalServiceTokenFilter internalServiceTokenFilter;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -117,6 +121,8 @@ public class SecurityConfig {
                 // 公开API：模型与游客聊天能力
                 .requestMatchers("/ai/models/**").permitAll()
                 .requestMatchers("/ai/status").permitAll()
+                .requestMatchers("/ai/runtime", "/ai/tts/audio/**").permitAll()
+                .requestMatchers("/ai/internal/**").permitAll()
                 .requestMatchers("/ai/chat", "/ai/chat/stream").permitAll()
                 // 写作助手是博主/管理员功能，配置层直接限制管理员，避免依赖业务层补判
                 .requestMatchers("/ai/writing", "/ai/writing/stream").hasRole("ADMIN")
@@ -134,7 +140,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             // 添加JWT认证过滤器
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(remoteAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

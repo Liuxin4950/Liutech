@@ -43,7 +43,6 @@ public final class SecurityWhitelist {
             "/uploads/images/",
             "/uploads/documents/",
             "/uploads/music/",
-            "/tts/audio/",
             "/music/",
             "/sitemap/"
     );
@@ -56,9 +55,7 @@ public final class SecurityWhitelist {
             "/about",
             "/user/author/profile",
             "/author/profile",
-            "/tts/status",
             "/sitemap.xml",
-            "/runtime/ai",
             // 健康检查端点：供 docker compose healthcheck 探针访问，无需登录
             "/actuator/health"
     );
@@ -67,7 +64,6 @@ public final class SecurityWhitelist {
      * HEAD 方法公开的路径前缀
      */
     public static final List<String> PUBLIC_HEAD_PREFIXES = List.of(
-            "/tts/audio/",
             "/uploads/images/",
             "/uploads/documents/",
             "/uploads/music/"
@@ -77,8 +73,7 @@ public final class SecurityWhitelist {
      * POST 方法公开的精确路径
      */
     public static final List<String> PUBLIC_POST_EXACT = List.of(
-            "/messages",
-            "/tts/speech"
+            "/messages"
     );
 
     /**

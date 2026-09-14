@@ -9,7 +9,7 @@ import {
   getTtsConfig,
   getTtsStatus,
   getTtsVoices,
-  resolveMainAudioUrl,
+  resolveAiAudioUrl,
   testTtsSpeech,
   updateTtsConfig,
   uploadSiliconFlowVoice,
@@ -272,7 +272,7 @@ const playTestSpeech = async () => {
   testingSpeech.value = true
   try {
     const result = await testTtsSpeech('慢工出细活，再给我两分钟，你马上就能见识到超梦分析的厉害了。')
-    const audio = new Audio(resolveMainAudioUrl(result.audioUrl))
+    const audio = new Audio(resolveAiAudioUrl(result.audioUrl))
     await audio.play()
   } catch (error: any) {
     if (!error?.isBusiness) message.error('试听失败')

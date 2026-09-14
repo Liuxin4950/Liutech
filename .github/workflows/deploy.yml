@@ -19,8 +19,38 @@ env:
   DOCKER_HUB: liuxin4950  # Docker Hub 用户名
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      ai: ${{ steps.filter.outputs.ai }}
+      web: ${{ steps.filter.outputs.web }}
+      admin: ${{ steps.filter.outputs.admin }}
+      nginx: ${{ steps.filter.outputs.nginx }}
+      java_common: ${{ steps.filter.outputs.java_common }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'LiuTech/**'
+            ai:
+              - 'LiuTech-AI/**'
+            web:
+              - 'Web/**'
+            admin:
+              - 'Admin/**'
+            nginx:
+              - 'nginx/**'
+            java_common:
+              - 'pom.xml'
+
   # ==================== Job 1: 构建后端 ====================
   build-backend:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true' || needs.changes.outputs.java_common == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -54,6 +84,8 @@ jobs:
 
   # ==================== Job 2: 构建 AI 服务 ====================
   build-ai:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ai == 'true' || needs.changes.outputs.java_common == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -87,6 +119,8 @@ jobs:
 
   # ==================== Job 3: 构建 Web 前端 ====================
   build-web:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -125,6 +159,8 @@ jobs:
 
   # ==================== Job 4: 构建 Admin 前端 ====================
   build-admin:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -163,8 +199,9 @@ jobs:
 
   # ==================== Job 5: 构建 Nginx ====================
   build-nginx:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.nginx == 'true'
     runs-on: ubuntu-latest
-    needs: [build-web, build-admin]  # 等待前端构建完成
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

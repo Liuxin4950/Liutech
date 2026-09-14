@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.config;
 
 import chat.liuxin.liutech.filter.JwtAuthenticationFilter;
+import chat.liuxin.liutech.filter.InternalServiceTokenFilter;
 import chat.liuxin.liutech.filter.RequestTraceFilter;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;   
@@ -44,6 +45,9 @@ public class SecurityConfig {
     // - 通过 @EnableMethodSecurity 激活 @PreAuthorize 等注解
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Autowired
+    private InternalServiceTokenFilter internalServiceTokenFilter;
 
     @Autowired
     private RequestTraceFilter requestTraceFilter;
@@ -133,6 +137,7 @@ public class SecurityConfig {
                 authz.anyRequest().authenticated();
             })
             // 依赖：JwtAuthenticationFilter 提供身份认证上下文
+            .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(requestTraceFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

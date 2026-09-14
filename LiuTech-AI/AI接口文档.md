@@ -1,6 +1,6 @@
 # LiuTech AI 接口文档
 
-> 核对日期：2026-09-09。以当前工作树的 Controller、DTO、Service、Mapper 和安全配置为依据。
+> 核对日期：2026-09-13。以当前工作树的 Controller、DTO、Service、Mapper 和安全配置为依据。
 > 本文描述现有 HTTP 接口及 SSE 协议；示例 ID、文本和模型配置仅用于说明格式。线上配置可能不同。
 
 ## 1. 接入与认证
@@ -19,11 +19,11 @@ Authorization: Bearer <token>
 
 | 权限 | 接口 |
 | --- | --- |
-| 游客可访问 | 聊天 `/ai/chat`、`/ai/chat/stream`，状态 `/ai/status`，公开模型 `/ai/models/**` |
+| 游客可访问 | 聊天 `/ai/chat`、`/ai/chat/stream`，状态 `/ai/status`、`/ai/runtime`，公开模型 `/ai/models/**`，音频 `/ai/tts/audio/**` |
 | 登录用户 | 历史记录、清空记忆、会话管理 |
-| 管理员 | 写作 `/ai/writing`、`/ai/writing/stream`，模型管理 `/ai/admin/models/**` |
+| 管理员 | 写作 `/ai/writing`、`/ai/writing/stream`，模型与 TTS 管理 `/ai/admin/**` |
 
-服务端先验证 JWT 签名，再通过主后端 `/user/current` 校验用户身份与当前角色，用户状态缓存 60 秒。两服务的 `JWT_SECRET` 必须一致。无效 Token 在公开聊天端点会按游客处理；在受保护端点返回 401。不能用请求里的用户 ID 或自称管理员替代认证。
+AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过主后端 `/internal/auth/introspect` 校验当前身份和角色，成功结果按 Token 摘要缓存 60 秒。无 Token 的公开聊天按游客处理；带无效 Token 返回 401；主服务不可用返回 503，不能静默降级为游客。不能用请求里的用户 ID 或自称管理员替代认证。
 
 **响应没有单一成功包裹格式**：聊天返回 `ChatResponse`，部分列表直接返回数组，模型名和状态直接返回文本，部分管理操作成功为空体。不要对所有成功响应统一读取 `data` 或统一调用 `response.json()`。错误处理见第 7 节。
 
@@ -225,7 +225,7 @@ data: {"conversationId":123,"responseLength":3,"mode":"user","ttsEnabled":false}
 - 登录聊天的模型流错误会尝试保存部分回复（status=3）和错误占位，再发送 `error`；游客和写作不保存消息。客户端断开、超时或 I/O 错误不保证部分回复落库。
 - 当前无取消、去重或断点续传 HTTP 接口，也未处理 `lastSeq` / `Last-Event-ID`。客户端 Abort 只能结束本地请求，不能保证上游生成停止。自动重发 POST 可能再次生成、落库，不应视为续传。
 
-语音由 AI 服务调用主后端 `/tts/status` 和 `/tts/speech` 代理生成；内部使用 `X-TTS-Internal-Token`，其值来自两服务一致的 `TTS_PROXY_INTERNAL_TOKEN`，不要下发到浏览器。`audioUrl` 可能是完整 URL 或主后端相对路径（如 `/tts/audio/**`），应按实际后端/站点地址解析，不能一律拼在 8081 后。
+语音配置、状态、GPT-SoVITS/SiliconFlow 推理和临时缓存全部位于 AI 服务。`audioUrl` 是相对于 AI baseURL 的 `tts/audio/{fileName}`；开发环境拼为 `http://127.0.0.1:8081/ai/tts/audio/**`，生产同源路径为 `/ai/tts/audio/**`。
 
 ### 3.5 fetch 客户端示例
 
@@ -442,15 +442,13 @@ DTO 不包含 API Key、baseUrl 或创建/更新时间。
 - `usage/today` 按数据库 `CURDATE()` 统计当日已落库且 model 非空的 assistant 消息数，按 usageCount 倒序；不包含未落库的游客/写作请求，未过滤异常状态，删除历史也会改变统计。它不是所有 API 调用数或 Token 数。
 - 当前没有模型测试、刷新清单、连通性测试 HTTP 接口。
 
-## 6. 状态接口
+## 6. 运行时与 TTS 接口
 
-`GET /ai/status` 公开访问，返回裸文本：
+`GET /ai/status` 公开返回裸文本 `服务可用，用户ID: null`；Token 被认可时替换为当前用户 ID。它不执行模型或 TTS 探测。直连健康检查是 `/actuator/health`。
 
-```text
-服务可用，用户ID: null
-```
+`GET /ai/runtime` 公开返回 `{aiOnline,aiMessage,defaultModel,tts:{enabled,online,provider,checkedAt,message}}`。`GET /ai/tts/audio/{fileName}` 公开读取当前容器的临时音频。
 
-Token 被认可时 null 替换为当前用户 ID。此接口只说明 AI Web 服务可响应及当前认证状态，不执行模型推理或 TTS 探测。Spring Boot 另暴露 `GET /actuator/health`，属于直连服务的健康检查端点，不应自行拼成 `/ai/actuator/health`。
+TTS 管理接口均要求管理员且成功响应为原始 DTO/数组：`GET/PUT /ai/admin/tts/config`、`GET /ai/admin/tts/status`、`GET /ai/admin/tts/voices`、`GET /ai/admin/tts/siliconflow/voices`、`POST /ai/admin/tts/siliconflow/voice`、`POST /ai/admin/tts/test-speech`。
 
 ## 7. 错误与限流
 
@@ -463,13 +461,13 @@ Token 被认可时 null 替换为当前用户 ID。此接口只说明 AI Web 服
 | HTTP 状态 | 当前场景 |
 | --- | --- |
 | 400 | Bean Validation 失败（message 为首条字段错误）；AI RequestException（message 为“输入内容有误，请检查”） |
-| 401 | 受保护端点未登录或 Token 未被认可 |
+| 401 | 受保护端点未登录，或携带的 Token 未被主服务认可 |
 | 403 | 非管理员访问管理功能，或访问其他用户会话 |
 | 404 | 指定会话不存在 |
 | 408 | 被归类为 AI 超时异常 |
 | 429 | 聊天/写作请求超过本地角色限流 |
 | 500 | 未细分 AI 异常或普通系统异常 |
-| 503 | 被归类为 AI 连接失败或模型不可用 |
+| 503 | 身份权威不可用、上游 AI/TTS 连接失败或模型不可用 |
 
 不要假定所有参数格式/绑定错误都有专门的 400 映射；当前全局处理器只对明确处理的异常保证上述结果。
 
@@ -492,5 +490,5 @@ Token 被认可时 null 替换为当前用户 ID。此接口只说明 AI Web 服
 - 流式协议：[StreamingChatService](src/main/java/chat/liuxin/ai/service/StreamingChatService.java)、[SseEmitterHelper](src/main/java/chat/liuxin/ai/service/SseEmitterHelper.java)、[WritingToolEventSink](src/main/java/chat/liuxin/ai/service/WritingToolEventSink.java)、[FieldUpdatePayload](src/main/java/chat/liuxin/ai/dto/FieldUpdatePayload.java)。
 - 上下文与同步行为：[PromptService](src/main/java/chat/liuxin/ai/service/PromptService.java)、[AiChatServiceImpl](src/main/java/chat/liuxin/ai/service/impl/AiChatServiceImpl.java)、[草稿 DTO](src/main/java/chat/liuxin/ai/dto/AdminArticleDraftSnapshot.java)。
 - 持久化与统计：[MemoryService](src/main/java/chat/liuxin/ai/service/MemoryService.java)、[AiChatMessageMapper](src/main/java/chat/liuxin/ai/mapper/AiChatMessageMapper.java)、[AiModelConfigService](src/main/java/chat/liuxin/ai/service/AiModelConfigService.java)。
-- 鉴权与错误：[SecurityConfig](src/main/java/chat/liuxin/ai/infra/config/SecurityConfig.java)、[JWT Filter](src/main/java/chat/liuxin/ai/infra/filter/JwtAuthenticationFilter.java)、[AiModelPolicy](src/main/java/chat/liuxin/ai/infra/security/AiModelPolicy.java)、[限流拦截器](src/main/java/chat/liuxin/ai/infra/security/AiRateLimitInterceptor.java)、[GlobalExceptionHandler](src/main/java/chat/liuxin/ai/infra/exception/GlobalExceptionHandler.java)。
-- 配置与代理：[application.yml](src/main/resources/application.yml)、[AI 代理](../nginx/conf.d/ai-proxy.include)、[TtsClient](src/main/java/chat/liuxin/ai/common/client/TtsClient.java)、[跨服务规范](../Docs/架构/跨服务规范.md)。
+- 鉴权与错误：[SecurityConfig](src/main/java/chat/liuxin/ai/infra/config/SecurityConfig.java)、[远程身份过滤器](src/main/java/chat/liuxin/ai/infra/filter/RemoteAuthenticationFilter.java)、[身份客户端](src/main/java/chat/liuxin/ai/common/client/AuthIntrospectionClient.java)、[AiModelPolicy](src/main/java/chat/liuxin/ai/infra/security/AiModelPolicy.java)、[GlobalExceptionHandler](src/main/java/chat/liuxin/ai/infra/exception/GlobalExceptionHandler.java)。
+- TTS 与配置：[TtsSpeechService](src/main/java/chat/liuxin/ai/service/tts/TtsSpeechService.java)、[TtsConfigService](src/main/java/chat/liuxin/ai/service/tts/TtsConfigService.java)、[application.yml](src/main/resources/application.yml)、[AI 代理](../nginx/conf.d/ai-proxy.include)、[跨服务规范](../Docs/架构/跨服务规范.md)。

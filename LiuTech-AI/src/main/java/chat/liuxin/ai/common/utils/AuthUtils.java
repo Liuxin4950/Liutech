@@ -19,7 +19,7 @@ public class AuthUtils {
     /**
      * 读取当前请求线程绑定的用户 ID。
      *
-     * JwtAuthenticationFilter 会在鉴权时把 userId 放到 Authentication.details,
+     * RemoteAuthenticationFilter 会在主服务身份内省成功后把 userId 放到 Authentication.details,
      * 这里做类型安全的拆箱,未认证或 details 不是 Long 时返回 null。
      */
     public Long getCurrentUserId() {

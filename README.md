@@ -26,7 +26,7 @@ LiuTech 是一个基于 Vue 3 + Spring Boot 4 的全栈博客系统，采用前�
 - **前后端分离**：Vue 3 + TS 前端，Spring Boot 4 双服务后端（主后端 + AI 服务）
 - **安全认证**：Spring Security + JWT，支持账号密码登录、邮箱验证码登录、忘记密码/重置
 - **AI 智能助手**：大模型聊天（SSE 流式响应）、内容辅助，独立 AI 服务，多模型可配置
-- **TTS 语音合成**：SiliconFlow 云端语音，AI 服务通过主后端 `/tts/speech` 代理调用
+- **TTS 语音合成**：GPT-SoVITS / SiliconFlow 配置、推理和临时音频全部由 AI 服务负责
 - **富文本创作**：TinyMCE 7.9 编辑器，草稿、点赞、收藏、热门、搜索
 - **本地缓存**：Caffeine 多级 TTL 缓存（文章 5 分钟 / 标签 10 分钟 / 分类 15 分钟），无外部缓存依赖
 - **容器化部署**：Docker Compose 一键编排，Nginx 反向代理 + 强制 HTTPS
@@ -71,7 +71,8 @@ graph TB
     BE --> DB[(MySQL liutech<br/>mysql:3306)]
     AI --> DB2[(MySQL liutech_ai<br/>mysql:3306)]
     BE --> CC[Caffeine 本地缓存]
-    AI -->|TTS 代理 /tts/speech| BE
+    AI --> TTS[GPT-SoVITS / SiliconFlow TTS]
+    AI -->|博客查询 / 身份内省| BE
     BE --> FILES[文件存储<br/>/app/uploads]
 ```
 
@@ -160,7 +161,7 @@ cd Web && npm install && npm run dev      # http://localhost:3000
 cd Admin && npm install && npm run dev    # http://localhost:3001
 ```
 
-> 本地运行后端与 AI 服务需配置 `DB_PASSWORD`、`JWT_SECRET`、`SPRING_AI_OPENAI_API_KEY` 等变量，可在 shell 中导出或在 `application-dev.yml` 中覆盖。`JWT_SECRET` 与 `TTS_PROXY_INTERNAL_TOKEN` 在两个服务间必须一致。
+> 本地运行后端与 AI 服务需配置数据库密码、`JWT_SECRET`、`LIUTECH_INTERNAL_TOKEN`、`SPRING_AI_OPENAI_API_KEY` 等变量。`JWT_SECRET` 只给主后端；内部接口令牌由两个服务共享。
 
 初始化脚本不会创建默认管理员。首次使用时先正常注册真实账户，再由数据库管理员执行 `UPDATE users SET role = 'admin' WHERE username = '<真实用户名>';` 显式授权；不要在仓库保存固定管理员密码或可复用密文。
 
@@ -217,10 +218,11 @@ Liutech/
 | `WEB_PORT` / `ADMIN_PORT` / `BACKEND_PORT` / `AI_PORT` / `MYSQL_PORT` | 服务端口（默认 3000 / 3001 / 8080 / 8081 / 3306） |
 | `NGINX_HTTP` / `NGINX_HTTPS` | Nginx 对外端口（80 / 443） |
 | `DB_PASSWORD` | MySQL root 密码 |
-| `JWT_SECRET` | JWT 签名密钥，**主后端与 AI 服务必须一致**（建议 `openssl rand -hex 64`） |
-| `TTS_PROXY_INTERNAL_TOKEN` | AI 服务调用主后端 `/tts/speech` 的内部令牌，**两服务必须一致**，否则 TTS 不可用 |
+| `DB_APP_PASSWORD` / `DB_AI_APP_PASSWORD` | 主服务与 AI 服务各自的最小权限数据库账户密码 |
+| `JWT_SECRET` | JWT 签名密钥，只注入主后端（建议 `openssl rand -hex 64`） |
+| `LIUTECH_INTERNAL_TOKEN` | 身份内省和用户 AI 数据清理的内部令牌，两服务必须一致 |
 | `SPRING_AI_OPENAI_API_KEY` | 大模型 API 密钥 |
-| `SILICONFLOW_API_KEY` | SiliconFlow 通用 API Key（后端与 AI 共用） |
+| `SILICONFLOW_API_KEY` | SiliconFlow 通用 API Key，只注入 AI 服务 |
 | `SILICONFLOW_TTS_API_KEY` | SiliconFlow TTS 专用 Key（未配置则回退到 `SPRING_AI_OPENAI_API_KEY`） |
 | `SERVER_BASE_URL` | 应用基础 URL，本地 `http://localhost`，生产 `https://www.liuxin.chat` |
 | `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_FROM` / `MAIL_DISPLAY_NAME` | 邮箱 SMTP 配置（忘记密码、邮箱验证码登录） |
@@ -229,7 +231,7 @@ Liutech/
 ### 关键约束
 
 - **JDBC URL** 必须包含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证（`docker-compose.yml` 已配置）。
-- **`JWT_SECRET` 与 `TTS_PROXY_INTERNAL_TOKEN`** 在 `backend` 和 `ai` 两个服务中必须完全一致。
+- **`JWT_SECRET`** 只属于 backend；**`LIUTECH_INTERNAL_TOKEN`** 在 backend 和 ai 中必须一致。
 - **文件上传**：容器内 `/app/uploads` 绑定宿主机 `/liuxin/uploads`。
 - **AI 服务调用主后端**：Docker 内 `http://backend:8080`（`BLOG_API_URL`），本地开发 `http://localhost:8080`。
 
@@ -248,9 +250,9 @@ Liutech/
 | 互动 | `/api/comments`、`/api/messages`（留言板） |
 | 运营 | `/api/carousels`、`/api/announcements`、`/api/music`、`/api/resource/*`（购买 / 下载） |
 | 签到积分 | `/api/checkin`、积分相关 |
-| 语音 | `/api/tts/status`、`/api/tts/speech` |
+| AI 语音 | `/ai/runtime`、`/ai/tts/audio/**`、`/ai/admin/tts/**` |
 | 其他 | `/api/sitemap.xml`、`/api/dashboard`、`/api/stats` |
-| AI 服务 | `/ai/*`（聊天 SSE、会话管理、模型配置） — 详见 [AI 接口文档](./LiuTech-AI/AI接口文档.md) |
+| AI 服务 | `/ai/*`（聊天 SSE、会话、模型、TTS） — 详见 [AI 接口文档](./LiuTech-AI/AI接口文档.md) |
 | 管理后台 | `/admin/*`（文章 / 分类 / 标签 / 评论 / 用户 / 资源 / 积分 / 公告 / 图片 / 系统设置 / 缓存 / 日志 / 模型等 CRUD） |
 
 ---
