@@ -41,5 +41,5 @@ WHERE setting_key IN (
   'upload.max_size_mb'
 );
 
--- 预期影响：旧库通常删除 18 行（存在 9 行 tts.* 时）或 9 行（仅初始化种子时）；
+-- 预期影响：旧库最多删除 19 行（9 行 tts.* + 8 行 site.* + comment.need_review + upload.max_size_mb）；
 -- author.* 与 about.content 不受影响。
