@@ -178,15 +178,6 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'settings',
-        name: 'system-settings',
-        component: () => import('../views/admin/SystemSettings.vue'),
-        meta: {
-          title: '系统设置',
-          section: 'settings'
-        }
-      },
-      {
         path: 'profile',
         name: 'profile',
         component: () => import('../views/Profile.vue'),

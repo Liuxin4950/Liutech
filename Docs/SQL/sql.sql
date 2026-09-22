@@ -395,18 +395,12 @@ CREATE TABLE IF NOT EXISTS system_settings (
   UNIQUE KEY uk_setting_key (setting_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统设置表';
 
+-- 仅播种真实被消费的设置：author.* 由关于页管理（AboutPageService/UserProfileService 读取）。
+-- site.* / comment.need_review / upload.max_size_mb 历史上是无消费方的死配置，已移除；
+-- 站点资料走 Web/src/config/site.ts 与 VITE_* 环境变量，上传上限走 Spring 配置。
+-- 旧 tts.* 已随 TTS 迁入 liutech_ai.ai_tts_config，主库不再保留（见 migration_remove_dead_settings.sql）。
 INSERT INTO system_settings (setting_key, setting_value, description)
 VALUES
-  ('site.name', 'LiuTech', '站点名称'),
-  ('site.description', '', '站点描述（SEO description）'),
-  ('site.keywords', '', 'SEO 关键词（逗号分隔）'),
-  ('site.logo_url', '', '站点 Logo URL'),
-  ('site.favicon_url', '', 'Favicon URL'),
-  ('site.footer_text', '', '页脚文本'),
-  ('site.icp_number', '', 'ICP 备案号'),
-  ('site.analytics_code', '', '统计代码（如 Google Analytics）'),
-  ('comment.need_review', 'true', '评论是否需要审核（true/false）'),
-  ('upload.max_size_mb', '100', '上传文件最大大小（MB）'),
   ('author.name', '小鑫同学', '作者昵称（首页与关于页展示）'),
   ('author.title', '欢迎访问', '作者头衔/职位'),
   ('author.avatar', '/洛天依.png', '作者头像 URL'),

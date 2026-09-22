@@ -110,7 +110,6 @@ export default {
     aiSettings: 'AI 设置',
     system: '系统管理',
     logs: '操作日志',
-    systemSettings: '系统设置',
   },
   footer: {
     website: '官网',

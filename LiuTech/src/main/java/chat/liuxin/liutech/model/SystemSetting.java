@@ -25,7 +25,7 @@ public class SystemSetting {
 
     /**
      * 配置键（全局唯一）
-     * 例如：site.name、about.content
+     * 例如：author.name、about.content
      */
     private String settingKey;
 

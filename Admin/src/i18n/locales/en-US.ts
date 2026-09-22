@@ -109,7 +109,6 @@ export default {
     aiSettings: 'AI Settings',
     system: 'System',
     logs: 'Audit Log',
-    systemSettings: 'System Settings',
   },
   footer: {
     website: 'Website',

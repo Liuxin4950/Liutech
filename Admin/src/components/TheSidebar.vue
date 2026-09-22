@@ -80,7 +80,6 @@ const menuItems = computed(() => [
     key: 'system', icon: SettingOutlined, label: t('menu.system'),
     children: [
       { key: 'logs', icon: HistoryOutlined, label: t('menu.logs'), path: '/logs' },
-      { key: 'settings', icon: SettingOutlined, label: t('menu.systemSettings'), path: '/settings' },
     ],
   },
 ])
@@ -105,7 +104,6 @@ const getSelectedKey = (): string[] => {
   if (path.startsWith('/ai-models')) return ['ai-models']
   if (path.startsWith('/ai-settings')) return ['ai-settings']
   if (path.startsWith('/logs')) return ['logs']
-  if (path.startsWith('/settings')) return ['settings']
   return ['dashboard']
 }
 
@@ -116,7 +114,7 @@ const getOpenKeys = (): string[] => {
   if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages') || path.startsWith('/about')) return ['operations']
   if (path.startsWith('/images') || path.startsWith('/resources') || path.startsWith('/music')) return ['media']
   if (path.startsWith('/ai-models') || path.startsWith('/ai-settings')) return ['ai-center']
-  if (path.startsWith('/logs') || path.startsWith('/settings')) return ['system']
+  if (path.startsWith('/logs')) return ['system']
   return []
 }
 

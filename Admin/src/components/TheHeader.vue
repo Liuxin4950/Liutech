@@ -72,7 +72,6 @@ useShortcuts([
   { key: 'g m', handler: () => router.push('/messages'), description: '跳转到留言管理' },
   { key: 'g a', handler: () => router.push('/announcements'), description: '跳转到公告管理' },
   { key: 'g l', handler: () => router.push('/logs'), description: '跳转到操作日志' },
-  { key: 'g s', handler: () => router.push('/settings'), description: '跳转到系统设置' },
 ])
 </script>
 
