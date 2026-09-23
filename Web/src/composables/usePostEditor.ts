@@ -390,6 +390,10 @@ export function usePostEditor() {
   const triggerCoverImageUpload = () => { coverImageInput.value?.click() }
   const triggerThumbnailUpload = () => { thumbnailInput.value?.click() }
 
+  // 拖拽上传：主封面 / 副封面都支持把图片从电脑直接拖进来
+  const coverDragOver = ref(false)
+  const thumbnailDragOver = ref(false)
+
   const handleCoverImageUpload = async (event: Event) => {
     const target = event.target as HTMLInputElement
     const file = target.files?.[0]
@@ -403,6 +407,32 @@ export function usePostEditor() {
     if (!file) return
     await uploadImage(file, 'thumbnail')
   }
+
+  const handleCoverDrop = async (event: DragEvent) => {
+    coverDragOver.value = false
+    const file = event.dataTransfer?.files?.[0]
+    if (file) await uploadImage(file, 'cover')
+  }
+
+  const handleThumbnailDrop = async (event: DragEvent) => {
+    thumbnailDragOver.value = false
+    const file = event.dataTransfer?.files?.[0]
+    if (file) await uploadImage(file, 'thumbnail')
+  }
+
+  // dragover 必须 preventDefault，否则浏览器不会触发 drop（会直接打开图片）
+  const handleCoverDragOver = (event: DragEvent) => {
+    event.preventDefault()
+    coverDragOver.value = true
+  }
+
+  const handleThumbnailDragOver = (event: DragEvent) => {
+    event.preventDefault()
+    thumbnailDragOver.value = true
+  }
+
+  const handleCoverDragLeave = () => { coverDragOver.value = false }
+  const handleThumbnailDragLeave = () => { thumbnailDragOver.value = false }
 
   const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
     await handleAsync(async () => {
@@ -992,6 +1022,10 @@ export function usePostEditor() {
     coverImageInput, thumbnailInput, attachmentInput,
     triggerCoverImageUpload, triggerThumbnailUpload,
     handleCoverImageUpload, handleThumbnailUpload, uploadImage,
+    coverDragOver, thumbnailDragOver,
+    handleCoverDrop, handleThumbnailDrop,
+    handleCoverDragOver, handleThumbnailDragOver,
+    handleCoverDragLeave, handleThumbnailDragLeave,
     triggerAttachmentUpload, handleAttachmentUpload, uploadAttachment,
     switchAttachmentType, createExternalLinkResource, removeAttachment,
     onDownloadTypeChange, onPointsNeededChange, handlePointsInput, onPointsNeededInput,

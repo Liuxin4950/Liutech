@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref, provide, onMounted, watch } from 'vue'
+import { ref, computed, provide, onMounted, watch } from 'vue'
 import TheHeader from '@/components/TheHeader.vue'
 import TheFooter from '@/components/TheFooter.vue'
 import TheSidebar from '@/components/TheSidebar.vue'
 import TagsView from '@/components/TagsView.vue'
 import { useTagsStore } from '@/stores/tabs'
 import { useSettingsStore } from '@/stores/settings'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const settings = useSettingsStore()
+const route = useRoute()
 
 // 侧边栏折叠状态：初始值取自 settings（用户偏好），
 // 后续变化同步回 settings 以持久化。
@@ -21,6 +22,16 @@ watch(() => settings.sidebarCollapsed, (v) => {
 })
 
 const tagsStore = useTagsStore()
+
+/**
+ * 强制重挂载当前页面用的令牌。
+ * KeepAlive 的 include 变更只会丢弃缓存条目（pruneCacheEntry 对"当前正在渲染"
+ * 的实例只清标志位、不卸载），因此「刷新」必须再改变 key 才能让页面真正重新挂载、
+ * 重新拉数据。TagsView 通过 inject('ltReloadCurrentView') 触发。
+ */
+const reloadToken = ref(0)
+const viewKey = computed(() => `${route.path}::${reloadToken.value}`)
+provide('ltReloadCurrentView', () => { reloadToken.value++ })
 
 onMounted(() => {
   const router = useRouter()
@@ -50,11 +61,14 @@ onMounted(() => {
 
       <a-layout-content class="lt-shell__content">
         <router-view v-slot="{ Component }">
-          <KeepAlive :include="tagsStore.cachedViews">
-            <transition name="lt-fade" mode="out-in">
-              <component :is="Component" />
-            </transition>
-          </KeepAlive>
+          <!-- ⚠️ transition 必须在 KeepAlive 外层：
+               KeepAlive 只认「状态组件/Suspense」这一种子节点，包在它里面的
+               Transition 会让 KeepAlive 直接放行、不写缓存（已用 vue 3.5.34 实测）。 -->
+          <transition name="lt-fade" mode="out-in">
+            <KeepAlive :include="tagsStore.cachedViews">
+              <component :is="Component" :key="viewKey" />
+            </KeepAlive>
+          </transition>
         </router-view>
       </a-layout-content>
 

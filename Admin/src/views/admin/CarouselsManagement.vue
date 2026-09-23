@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined, SortAscendingOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import type { Carousel, CarouselListParams, CarouselFormData } from '../../services/carousel'
 import CarouselService from '../../services/carousel'
 import { formatDateTime, formatRelativeTime } from '../../utils/utils'
@@ -267,9 +268,16 @@ const statusOptions = [
           <TableExportButton :ctrl="exportCtrl" />
           <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <template v-if="searchParams.includeDeleted">
-            <a-button type="primary" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchPermanentDelete(selectedRowKeys)">
-              <DeleteOutlined /> 批量彻底删除
-            </a-button>
+            <a-popconfirm
+              title="确定要批量彻底删除选中的轮播图吗？此操作不可恢复！"
+              ok-text="确定"
+              cancel-text="取消"
+              @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+            >
+              <a-button type="primary" danger :disabled="selectedRowKeys.length === 0">
+                <DeleteOutlined /> 批量彻底删除
+              </a-button>
+            </a-popconfirm>
           </template>
           <template v-else>
             <a-button type="primary" @click="openCreate">
@@ -322,8 +330,7 @@ const statusOptions = [
           </template>
 
           <template v-else-if="column.key === 'deleteStatus'">
-            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
-            <a-tag v-else color="green">正常</a-tag>
+            <LtStatusTag :status="record.deletedAt ? 'deleted' : 'normal'" />
           </template>
 
           <template v-else-if="column.key === 'createdAt'">
@@ -520,8 +527,8 @@ const statusOptions = [
 }
 
 .image-preview {
-  width: 200px;
-  height: 120px;
+  width: var(--lt-size-thumbnail-w);
+  height: var(--lt-size-thumbnail-h);
   border-radius: var(--lt-radius-lg);
   overflow: hidden;
   border: 1px dashed var(--lt-color-border);
@@ -531,17 +538,6 @@ const statusOptions = [
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.search-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-@media (max-width: 991px) {
-  .search-actions {
-    justify-content: flex-start;
-  }
 }
 </style>
 

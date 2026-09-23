@@ -154,6 +154,21 @@ button {
   }
 }
 
+/* 弹窗标题栏内的草稿状态提示（文章管理 / 公告管理共用） */
+.modal-title-with-draft {
+  display: flex;
+  align-items: center;
+  gap: var(--lt-space-md);
+}
+.draft-hint {
+  font-size: var(--lt-font-size-xs);
+  color: var(--lt-color-success);
+  font-weight: var(--lt-font-weight-regular);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lt-space-xs);
+}
+
 .no-underline {
   text-decoration: none;
 }

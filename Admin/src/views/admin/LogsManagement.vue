@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { SearchOutlined, ReloadOutlined, FileTextOutlined, ClockCircleOutlined, GlobalOutlined, CheckCircleOutlined, CloseCircleOutlined, EyeOutlined } from '@ant-design/icons-vue'
+import { SearchOutlined, ReloadOutlined, FileTextOutlined, ClockCircleOutlined, GlobalOutlined, EyeOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import { useTablePage } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
@@ -16,6 +17,14 @@ const {
 } = useTablePage<LogItem, LogListParams>({
   loadFn: (params) => LogService.getLogList(params),
   defaultSearchParams: { operator: '', action: '', targetType: undefined, status: undefined, startTime: undefined, endTime: undefined },
+  // 日期选择器只精确到「日」，而后端是 created_at <= #{endTime} 的字符串比较，
+  // 直接把 '2026-09-23' 传过去等于 <= '2026-09-23 00:00:00'，
+  // 会把所选结束日整天的日志全部排除。这里补成整天边界。
+  transformSearchParams: (params) => ({
+    ...params,
+    startTime: params.startTime ? `${params.startTime} 00:00:00` : undefined,
+    endTime: params.endTime ? `${params.endTime} 23:59:59` : undefined,
+  }),
   loadErrorMessage: '加载日志列表失败'
 })
 
@@ -81,10 +90,6 @@ const loadFilterOptions = async () => {
 
 onMounted(loadFilterOptions)
 
-// 状态颜色
-const getStatusColor = (status: string) => {
-  return status === '成功' ? 'success' : 'error'
-}
 
 // 表格列定义
 const columns = [
@@ -116,7 +121,7 @@ const exportCtrl = useTableExport({
         <a-row :gutter="[16, 12]" align="bottom">
           <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="操作人" class="mb-0">
-              <a-input v-model:value="searchParams.operator" placeholder="输入操作人" allow-clear />
+              <a-input v-model:value="searchParams.operator" placeholder="输入操作人" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :sm="12" :lg="8" :xl="6">
@@ -233,21 +238,9 @@ const exportCtrl = useTableExport({
           </template>
           <template v-else-if="column.key === 'status'">
             <a-tooltip v-if="record.status !== '成功' && record.detail" :title="`失败原因：${record.detail}`">
-              <a-tag :color="getStatusColor(record.status)" class="status-tag">
-                <template #icon>
-                  <CheckCircleOutlined v-if="record.status === '成功'" />
-                  <CloseCircleOutlined v-else />
-                </template>
-                {{ record.status }}
-              </a-tag>
+              <LtStatusTag :status="record.status === '成功' ? 'success' : 'failed'" class="status-tag" />
             </a-tooltip>
-            <a-tag v-else :color="getStatusColor(record.status)" class="status-tag">
-              <template #icon>
-                <CheckCircleOutlined v-if="record.status === '成功'" />
-                <CloseCircleOutlined v-else />
-              </template>
-              {{ record.status }}
-            </a-tag>
+            <LtStatusTag v-else :status="record.status === '成功' ? 'success' : 'failed'" class="status-tag" />
           </template>
           <template v-else-if="column.key === 'actionCol'">
             <a-button type="link" size="small" @click="showDetail(record)">
@@ -343,7 +336,7 @@ const exportCtrl = useTableExport({
 }
 
 .error-text {
-  color: var(--error-color, #ff4d4f);
+  color: var(--lt-color-error);
   word-break: break-all;
 }
 
@@ -387,17 +380,6 @@ const exportCtrl = useTableExport({
   :deep(.ant-form-inline .ant-form-item) {
     margin-right: 0;
     margin-bottom: var(--lt-space-md);
-  }
-}
-
-.search-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-@media (max-width: 991px) {
-  .search-actions {
-    justify-content: flex-start;
   }
 }
 </style>

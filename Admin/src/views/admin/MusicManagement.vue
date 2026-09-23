@@ -92,6 +92,10 @@ const {
 })
 
 // ============== 编辑弹窗 ==============
+const editRules = {
+  title: [{ required: true, whitespace: true, message: '请输入歌曲名', trigger: 'blur' }]
+}
+
 const {
   modalVisible: editModalVisible,
   confirmLoading: editLoading,
@@ -237,16 +241,20 @@ const handleUpload = async () => {
 }
 
 // ============== 排序与状态 ==============
+// 后端 PUT /admin/music/sort 是按「传入 id 列表的顺序」把 sortOrder 重写成数组下标
+// （MusicService.updateSortOrder: music.setSortOrder(i)），并不读取任何 sortOrder 字段。
+// 所以必须真正移动数组元素再发送；只交换两条记录的 sortOrder 字段、按原顺序发 id 是无效操作。
 const handleSortChange = async (id: number, direction: 'up' | 'down') => {
   const index = dataSource.value.findIndex((item) => item.id === id)
   if (index === -1) return
   const newIndex = direction === 'up' ? index - 1 : index + 1
   if (newIndex < 0 || newIndex >= dataSource.value.length) return
-  const temp = dataSource.value[index].sortOrder
-  dataSource.value[index].sortOrder = dataSource.value[newIndex].sortOrder
-  dataSource.value[newIndex].sortOrder = temp
+  const list = [...dataSource.value]
+  const [moved] = list.splice(index, 1)
+  list.splice(newIndex, 0, moved)
+  dataSource.value = list
   try {
-    await musicService.updateSortOrder(dataSource.value.map((item) => item.id))
+    await musicService.updateSortOrder(list.map((item) => item.id))
     load()
   } catch (e: any) {
     if (!e?.isBusiness) message.error('排序更新失败')
@@ -453,9 +461,9 @@ const handleStatusChange = async (id: number, status: number) => {
       @ok="handleEditSubmit"
       @cancel="handleEditCancel"
     >
-      <a-form ref="editFormRef" :model="editForm" layout="vertical">
-        <a-form-item label="歌曲名">
-          <a-input v-model:value="editForm.title" placeholder="请输入歌曲名" />
+      <a-form ref="editFormRef" :model="editForm" :rules="editRules" layout="vertical">
+        <a-form-item name="title" label="歌曲名" required>
+          <a-input v-model:value="editForm.title" placeholder="请输入歌曲名" maxlength="100" />
         </a-form-item>
         <a-form-item label="艺术家">
           <a-input v-model:value="editForm.artist" placeholder="请输入艺术家名称" />
@@ -488,17 +496,6 @@ const handleStatusChange = async (id: number, status: number) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.search-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-@media (max-width: 991px) {
-  .search-actions {
-    justify-content: flex-start;
-  }
 }
 </style>
 

@@ -48,6 +48,12 @@ export default {
     login: '登录',
     breadcrumbHome: '首页',
   },
+  tabsView: {
+    refresh: '刷新',
+    closeCurrent: '关闭当前',
+    closeOther: '关闭其他',
+    closeAll: '关闭所有',
+  },
   settings: {
     title: '界面设置',
     themeMode: '主题模式',

@@ -13,10 +13,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('../layouts/MainLayout.vue'),
+    // ⚠️ 本节内的 name 必须与页面组件名逐字一致：
+    // MainLayout 用 <KeepAlive :include="tagsStore.cachedViews"> 做多页签缓存，
+    // 而 KeepAlive 的 include 匹配的是「组件名」（<script setup> 按文件名推断），
+    // cachedViews 存的却是 route.name。两者不一致时缓存静默失效。
     children: [
       {
         path: '',
-        name: 'home',
+        name: 'Home',
         component: () => import('../views/Home.vue'),
         meta: {
           title: '首页',
@@ -26,7 +30,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'posts',
-        name: 'posts-management',
+        name: 'PostsManagement',
         component: () => import('../views/admin/PostsManagement.vue'),
         meta: {
           title: '文章管理',
@@ -35,7 +39,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'categories',
-        name: 'categories-management',
+        name: 'CategoriesManagement',
         component: () => import('../views/admin/CategoriesManagement.vue'),
         meta: {
           title: '分类管理',
@@ -44,7 +48,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'series',
-        name: 'series-management',
+        name: 'SeriesManagement',
         component: () => import('../views/admin/SeriesManagement.vue'),
         meta: {
           title: '系列管理',
@@ -53,7 +57,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'tags',
-        name: 'tags-management',
+        name: 'TagsManagement',
         component: () => import('../views/admin/TagsManagement.vue'),
         meta: {
           title: '标签管理',
@@ -62,7 +66,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'comments',
-        name: 'comments-management',
+        name: 'CommentsManagement',
         component: () => import('../views/admin/CommentsManagement.vue'),
         meta: {
           title: '评论管理',
@@ -71,7 +75,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'users',
-        name: 'users-management',
+        name: 'UsersManagement',
         component: () => import('../views/admin/UsersManagement.vue'),
         meta: {
           title: '用户管理',
@@ -80,7 +84,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'points',
-        name: 'points-management',
+        name: 'PointsManagement',
         component: () => import('../views/admin/PointsManagement.vue'),
         meta: {
           title: '积分管理',
@@ -89,7 +93,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'announcements',
-        name: 'announcements-management',
+        name: 'AnnouncementsManagement',
         component: () => import('../views/admin/AnnouncementsManagement.vue'),
         meta: {
           title: '公告管理',
@@ -98,7 +102,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'carousels',
-        name: 'carousels-management',
+        name: 'CarouselsManagement',
         component: () => import('../views/admin/CarouselsManagement.vue'),
         meta: {
           title: '轮播图管理',
@@ -107,7 +111,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'logs',
-        name: 'logs-management',
+        name: 'LogsManagement',
         component: () => import('../views/admin/LogsManagement.vue'),
         meta: {
           title: '操作日志',
@@ -116,7 +120,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'music',
-        name: 'music-management',
+        name: 'MusicManagement',
         component: () => import('../views/admin/MusicManagement.vue'),
         meta: {
           title: 'AI音乐管理',
@@ -125,7 +129,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'ai-models',
-        name: 'ai-models-management',
+        name: 'AiModelsManagement',
         component: () => import('../views/admin/AiModelsManagement.vue'),
         meta: {
           title: 'AI模型管理',
@@ -134,7 +138,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'ai-settings',
-        name: 'ai-settings',
+        name: 'AiSettings',
         component: () => import('../views/admin/AiSettings.vue'),
         meta: {
           title: 'AI设置',
@@ -143,7 +147,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'images',
-        name: 'images-management',
+        name: 'ImagesManagement',
         component: () => import('../views/admin/ImagesManagement.vue'),
         meta: {
           title: '图片管理',
@@ -152,7 +156,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'messages',
-        name: 'messages-management',
+        name: 'MessagesManagement',
         component: () => import('../views/admin/MessagesManagement.vue'),
         meta: {
           title: '留言管理',
@@ -161,7 +165,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'resources',
-        name: 'resources-management',
+        name: 'ResourcesManagement',
         component: () => import('../views/admin/ResourcesManagement.vue'),
         meta: {
           title: '资源管理',
@@ -170,7 +174,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'about',
-        name: 'about-page-settings',
+        name: 'AboutPageSettings',
         component: () => import('../views/admin/AboutPageSettings.vue'),
         meta: {
           title: '关于页管理',
@@ -179,7 +183,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'profile',
-        name: 'profile',
+        name: 'Profile',
         component: () => import('../views/Profile.vue'),
         meta: {
           title: '个人资料',

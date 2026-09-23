@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import DOMPurify from 'dompurify'
 import dayjs, { Dayjs } from 'dayjs'
 import AnnouncementsService from '../../services/announcements'
@@ -481,7 +482,7 @@ const stripHtml = (html: string) => {
                   <span class="title-text">{{ record.title }}</span>
                 </a-tooltip>
                 <div class="title-badges">
-                  <a-tag v-if="record.isTop" size="small" color="red">置顶</a-tag>
+                  <LtStatusTag v-if="record.isTop" status="top" size="small" />
                   <a-tag size="small" :color="getTypeColor(record.type)">{{ record.typeName }}</a-tag>
                 </div>
               </div>
@@ -494,20 +495,15 @@ const stripHtml = (html: string) => {
           </template>
 
           <template v-else-if="column.key === 'isTop'">
-            <a-tag :color="(record.isTop !== null && record.isTop !== undefined && record.isTop) ? 'red' : 'default'">
-              {{ (record.isTop !== null && record.isTop !== undefined && record.isTop) ? '置顶' : '普通' }}
-            </a-tag>
+            <LtStatusTag :status="(record.isTop !== null && record.isTop !== undefined && record.isTop) ? 'top' : 'plain'" />
           </template>
 
           <template v-else-if="column.key === 'isValid'">
-            <a-tag :color="(record.isValid !== null && record.isValid !== undefined && record.isValid) ? 'green' : 'orange'">
-              {{ (record.isValid !== null && record.isValid !== undefined && record.isValid) ? '有效' : '无效' }}
-            </a-tag>
+            <LtStatusTag :status="(record.isValid !== null && record.isValid !== undefined && record.isValid) ? 'valid' : 'invalid'" />
           </template>
 
           <template v-else-if="column.key === 'deleteStatus'">
-            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
-            <a-tag v-else color="green">正常</a-tag>
+            <LtStatusTag :status="record.deletedAt ? 'deleted' : 'normal'" />
           </template>
 
           <template v-else-if="column.key === 'createdAt'">
@@ -707,7 +703,7 @@ const stripHtml = (html: string) => {
             <a-space>
               <a-tag :color="getTypeColor(previewData.type)">{{ getTypeName(previewData.type) }}</a-tag>
               <a-tag :color="getPriorityColor(previewData.priority)">{{ getPriorityName(previewData.priority) }}</a-tag>
-              <a-tag v-if="previewData.isTop" color="red">置顶</a-tag>
+              <LtStatusTag v-if="previewData.isTop" status="top" />
               <span class="preview-time">{{ formatDateTime(previewData.createdAt) }}</span>
             </a-space>
           </div>
@@ -932,32 +928,6 @@ const stripHtml = (html: string) => {
 
 .upload-tips p:last-child {
   margin-bottom: 0;
-}
-
-/* 弹窗标题栏内的草稿状态提示 */
-.modal-title-with-draft {
-  display: flex;
-  align-items: center;
-  gap: var(--lt-space-md);
-}
-.draft-hint {
-  font-size: var(--lt-font-size-xs);
-  color: var(--lt-color-success);
-  font-weight: var(--lt-font-weight-regular);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--lt-space-xs);
-}
-
-.search-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-@media (max-width: 991px) {
-  .search-actions {
-    justify-content: flex-start;
-  }
 }
 </style>
 

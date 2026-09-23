@@ -2,6 +2,7 @@
 import { h } from 'vue'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, DownOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import UserService from '../../services/user'
 import type { User } from '../../services/user'
 import { formatDateTime } from '../../utils/utils'
@@ -97,7 +98,10 @@ const {
 
 const rules = {
   username: [{ required: true, message: '请输入用户名' }],
-  email: [{ required: true, message: '请输入邮箱' }],
+  email: [
+    { required: true, message: '请输入邮箱' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
+  ],
   passwordHash: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
@@ -247,12 +251,12 @@ const handleBatchDisable = async () => {
         <a-row :gutter="[16, 12]" align="bottom">
           <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="用户名" class="mb-0">
-              <a-input v-model:value="searchParams.username" placeholder="请输入用户名" allow-clear />
+              <a-input v-model:value="searchParams.username" placeholder="请输入用户名" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="邮箱" class="mb-0">
-              <a-input v-model:value="searchParams.email" placeholder="请输入邮箱" allow-clear />
+              <a-input v-model:value="searchParams.email" placeholder="请输入邮箱" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
           <a-col :xs="24" :sm="12" :lg="8" :xl="6">
@@ -317,9 +321,7 @@ const handleBatchDisable = async () => {
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
-            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
-            <a-tag v-else-if="record.status === 1" color="green">启用</a-tag>
-            <a-tag v-else color="red">禁用</a-tag>
+            <LtStatusTag :status="record.deletedAt ? 'deleted' : record.status === 1 ? 'enabled' : 'disabled'" />
           </template>
           <template v-else-if="column.key === 'role'">
             <a-tag :color="record.role === 'admin' ? 'blue' : 'default'">

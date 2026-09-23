@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, MessageOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import MessagesService from '../../services/message'
 import type { Message } from '../../services/message'
 import { formatDateTime } from '../../utils/utils'
@@ -90,6 +91,10 @@ const {
 
 const detailModalVisible = ref(false)
 const detailRecord = ref<Message | null>(null)
+
+const replyRules = {
+  reply: [{ required: true, whitespace: true, message: '请输入回复内容', trigger: 'blur' }]
+}
 
 const columns = [
   { title: '昵称', dataIndex: 'nickname', key: 'nickname', width: 120 },
@@ -258,10 +263,7 @@ const handleBatchReject = async () => {
             <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ record.content }}</div>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
-            <a-tag v-else-if="record.status === 0" color="orange">待审核</a-tag>
-            <a-tag v-else-if="record.status === 1" color="green">已通过</a-tag>
-            <a-tag v-else-if="record.status === 2" color="red">已拒绝</a-tag>
+            <LtStatusTag :status="record.deletedAt ? 'deleted' : record.status === 0 ? 'pending' : record.status === 1 ? 'approved' : record.status === 2 ? 'rejected' : ''" />
           </template>
           <template v-else-if="column.key === 'reply'">
             <span v-if="record.reply" style="color: var(--color-success); font-size: var(--lt-font-size-xs);">{{ record.reply }}</span>
@@ -310,9 +312,9 @@ const handleBatchReject = async () => {
       @ok="handleReplySubmit"
       @cancel="handleReplyCancel"
     >
-      <a-form :model="replyFormModel" ref="replyFormRef" layout="vertical">
-        <a-form-item label="回复内容">
-          <a-textarea v-model:value="replyFormModel.reply" :rows="5" placeholder="请输入回复内容" />
+      <a-form :model="replyFormModel" :rules="replyRules" ref="replyFormRef" layout="vertical">
+        <a-form-item name="reply" label="回复内容" required>
+          <a-textarea v-model:value="replyFormModel.reply" :rows="5" placeholder="请输入回复内容" maxlength="500" show-count />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -325,9 +327,7 @@ const handleBatchReject = async () => {
           <div style="white-space: pre-wrap; word-break: break-word; line-height: var(--lt-line-height-relaxed);">{{ detailRecord.content }}</div>
         </a-descriptions-item>
         <a-descriptions-item label="状态">
-          <a-tag v-if="detailRecord.status === 0" color="orange">待审核</a-tag>
-          <a-tag v-else-if="detailRecord.status === 1" color="green">已通过</a-tag>
-          <a-tag v-else-if="detailRecord.status === 2" color="red">已拒绝</a-tag>
+          <LtStatusTag :status="detailRecord.status === 0 ? 'pending' : detailRecord.status === 1 ? 'approved' : detailRecord.status === 2 ? 'rejected' : ''" />
         </a-descriptions-item>
         <a-descriptions-item v-if="detailRecord.reply" label="博主回复">
           <div style="white-space: pre-wrap; word-break: break-word; line-height: var(--lt-line-height-relaxed); background: var(--lt-color-success-bg); padding: var(--lt-space-sm) var(--lt-space-md); border-radius: var(--lt-radius-sm); border-left: 3px solid var(--lt-color-success);">{{ detailRecord.reply }}</div>

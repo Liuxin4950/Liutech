@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, h } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   SearchOutlined,
@@ -11,6 +11,7 @@ import {
   SyncOutlined,
   LinkOutlined
 } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import ImagesService from '../../services/images'
 import type { Image, ImageListParams, ImageReference } from '../../services/images'
 import { formatDateTime } from '../../utils/utils'
@@ -280,9 +281,17 @@ const exportCtrl = useTableExport({
           </a-button>
           <TableExportButton :ctrl="exportCtrl" />
           <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete">
-            <template #icon><DeleteOutlined /></template>批量删除
-          </a-button>
+          <a-popconfirm
+            v-if="!searchParams.includeDeleted"
+            title="确定要批量删除选中的图片吗？被引用的图片会给出引用提示。"
+            ok-text="确定"
+            cancel-text="取消"
+            @confirm="handleBatchDelete"
+          >
+            <a-button danger :disabled="selectedRowKeys.length === 0">
+              <template #icon><DeleteOutlined /></template>批量删除
+            </a-button>
+          </a-popconfirm>
           <a-popconfirm
             v-if="searchParams.includeDeleted"
             title="确定要批量彻底删除选中的图片吗？此操作不可恢复！"
@@ -323,7 +332,7 @@ const exportCtrl = useTableExport({
                 <a-tooltip :title="record.fileName">
                   <span class="file-name">{{ record.fileName }}</span>
                 </a-tooltip>
-                <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
+                <LtStatusTag v-if="record.deletedAt" status="deleted" />
               </div>
             </div>
           </template>
@@ -507,11 +516,6 @@ const exportCtrl = useTableExport({
   </div>
 </template>
 
-<script lang="ts">
-import { h } from 'vue'
-export default { name: 'ImagesManagement' }
-</script>
-
 <style scoped>
 .mb-16 {
   margin-bottom: var(--lt-space-md);
@@ -582,17 +586,6 @@ export default { name: 'ImagesManagement' }
 .orphan-actions {
   margin-top: var(--lt-space-md);
   text-align: right;
-}
-
-.search-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-@media (max-width: 991px) {
-  .search-actions {
-    justify-content: flex-start;
-  }
 }
 </style>
 

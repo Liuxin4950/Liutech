@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { SearchOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import { useTablePage, useCrudActions } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
@@ -213,8 +214,7 @@ const handleUserSearch = async (value: string) => {
             <span v-else class="text-placeholder">-</span>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
-            <a-tag v-else color="green">正常</a-tag>
+            <LtStatusTag :status="record.deletedAt ? 'deleted' : 'normal'" />
           </template>
           <template v-else-if="column.key === 'createdAt'">{{ formatDateTime(record.createdAt) }}</template>
           <template v-else-if="column.key === 'action'">

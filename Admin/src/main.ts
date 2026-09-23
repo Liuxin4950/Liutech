@@ -4,7 +4,6 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import './assets/styles/tokens.css'
 import './assets/styles/theme.css'
 import './assets/styles/styles.css'
-import './assets/styles/rich-text.css'
 import App from './App.vue'
 // 引入路由
 import router from './router'

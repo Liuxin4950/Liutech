@@ -2,7 +2,12 @@
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined, HolderOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
+import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
+import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 import PostSeriesService, { type PostSeries, type PostSeriesListParams, type SeriesPostOrder } from '../../services/series'
 import PostsService, { type PostListItem } from '../../services/posts'
 import { ImageUploadService } from '../../services/upload'
@@ -61,13 +66,23 @@ const columns = [
   { title: '操作', key: 'action', width: 230, fixed: 'right' as const }
 ]
 
+const columnPrefsCtrl = useTableColumnPrefs('series', columns, { alwaysVisible: ["action"] })
+const prefColumns = columnPrefsCtrl.prefColumns
+
+const exportCtrl = useTableExport({
+  columns: prefColumns,
+  rows: dataSource,
+  filename: 'series',
+})
+
 // ============== 封面图上传 ==============
-const coverInput = ref<HTMLInputElement>()
+// 用 a-upload-dragger：点击选择 + 拖拽上传都可用。
+// :before-upload 必须返回字面量 false 才会拦下 antd 自身的上传请求，
+// 且此时要从 info.fileList[0].originFileObj 取原始 File。
 const uploadingCover = ref(false)
-const triggerCoverUpload = () => coverInput.value?.click()
-const handleCoverUpload = async (e: Event) => {
-  const target = e.target as HTMLInputElement
-  const file = target.files?.[0]
+
+const handleCoverChange = async (info: any) => {
+  const file = info?.fileList?.[0]?.originFileObj || info?.file?.originFileObj
   if (!file) return
   try {
     uploadingCover.value = true
@@ -78,7 +93,6 @@ const handleCoverUpload = async (e: Event) => {
     if (!err?.isBusiness) message.error('封面上传失败')
   } finally {
     uploadingCover.value = false
-    target.value = ''
   }
 }
 const removeCover = () => { formModel.value.coverImage = '' }
@@ -175,6 +189,8 @@ const saveOrder = async () => {
       <template #title><span>系列列表</span></template>
       <template #extra>
         <a-space>
+          <TableExportButton :ctrl="exportCtrl" />
+          <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <a-button type="primary" @click="openCreate">
             <template #icon><PlusOutlined /></template>新建系列
           </a-button>
@@ -193,7 +209,7 @@ const saveOrder = async () => {
         </a-space>
       </template>
       <a-table
-        :columns="columns"
+        :columns="prefColumns"
         :data-source="dataSource"
         :loading="loading"
         :pagination="pagination"
@@ -208,8 +224,7 @@ const saveOrder = async () => {
             <span v-else style="color: var(--lt-color-text-quaternary)">无</span>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
-            <a-tag v-else color="green">正常</a-tag>
+            <LtStatusTag :status="record.deletedAt ? 'deleted' : 'normal'" />
           </template>
           <template v-else-if="column.key === 'createdAt'">{{ formatDateTime(record.createdAt) }}</template>
           <template v-else-if="column.key === 'action'">
@@ -250,19 +265,25 @@ const saveOrder = async () => {
           <a-textarea v-model:value="formModel.description" placeholder="请输入系列描述" :rows="3" maxlength="500" />
         </a-form-item>
         <a-form-item name="coverImage" label="系列封面">
-          <div class="cover-upload">
+          <!-- 点击选择 + 拖拽上传；已有封面时直接拖新图即可替换 -->
+          <a-upload-dragger
+            class="cover-uploader"
+            :show-upload-list="false"
+            accept="image/*"
+            :before-upload="() => false"
+            @change="handleCoverChange"
+          >
             <div v-if="formModel.coverImage" class="cover-preview">
               <img :src="formModel.coverImage" alt="封面" />
-              <a-button type="text" danger size="small" @click="removeCover">
+              <a-button type="text" danger size="small" @click.stop="removeCover">
                 <template #icon><DeleteOutlined /></template>移除
               </a-button>
             </div>
-            <div v-else class="cover-placeholder" @click="triggerCoverUpload">
+            <div v-else class="cover-placeholder">
               <PlusOutlined />
-              <span>{{ uploadingCover ? '上传中...' : '上传封面' }}</span>
+              <span>{{ uploadingCover ? '上传中...' : '点击或拖拽上传封面' }}</span>
             </div>
-            <input ref="coverInput" type="file" accept="image/*" style="display:none" @change="handleCoverUpload" />
-          </div>
+          </a-upload-dragger>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -310,15 +331,15 @@ const saveOrder = async () => {
   gap: 4px;
 }
 .cover-preview img {
-  width: 200px;
-  height: 120px;
+  width: var(--lt-size-thumbnail-w);
+  height: var(--lt-size-thumbnail-h);
   object-fit: cover;
   border-radius: 6px;
   border: 1px solid var(--lt-color-border-secondary);
 }
 .cover-placeholder {
-  width: 200px;
-  height: 120px;
+  width: var(--lt-size-thumbnail-w);
+  height: var(--lt-size-thumbnail-h);
   border: 1px dashed var(--lt-color-border);
   border-radius: 6px;
   display: flex;
@@ -333,6 +354,21 @@ const saveOrder = async () => {
 .cover-placeholder:hover {
   border-color: var(--lt-color-primary);
   color: var(--lt-color-primary);
+}
+
+/* a-upload-dragger 只借它的「点击 + 拖拽」，外观仍由 .cover-placeholder 提供，
+   中和掉 antd 自带虚线盒子，避免两层虚线框 */
+.cover-uploader :deep(.ant-upload-drag) {
+  border: none;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+}
+
+.cover-uploader :deep(.ant-upload-drag-hover) .cover-placeholder {
+  border-color: var(--lt-color-primary);
+  color: var(--lt-color-primary);
+  background: var(--lt-color-primary-bg);
 }
 
 .drawer-toolbar {

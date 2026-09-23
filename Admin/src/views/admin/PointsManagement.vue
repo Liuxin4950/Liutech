@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import { useTablePage, useModalForm } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
+import { useTableExport } from '@/composables/useTableExport'
+import TableExportButton from '@/components/TableExportButton.vue'
 import PointsService from '../../services/points'
 import { UserService } from '../../services/user'
 import type { TransactionListParams, CheckinListParams, PointsStats } from '../../services/points'
@@ -21,7 +24,9 @@ const loadStats = async () => {
     statsLoading.value = true
     const response = await PointsService.getPointsStats()
     if (response.code === 200) stats.value = response.data
-  } catch (error) {
+  } catch (error: any) {
+    // 统计失败必须显式提示：否则三张 KPI 卡会静默显示 0，与真实余额无法区分
+    if (!error?.isBusiness) message.error('加载积分统计失败')
   } finally {
     statsLoading.value = false
   }
@@ -67,7 +72,7 @@ const txColumns = [
   { title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 }
 ]
 
-const txColumnPrefsCtrl = useTableColumnPrefs('points-transactions', txColumns, { alwaysVisible: ["action"] })
+const txColumnPrefsCtrl = useTableColumnPrefs('points-transactions', txColumns)
 const txPrefColumns = txColumnPrefsCtrl.prefColumns
 
 const {
@@ -81,6 +86,12 @@ const {
   autoLoad: false
 })
 
+const txExportCtrl = useTableExport({
+  columns: txPrefColumns,
+  rows: txDataSource,
+  filename: 'points-transactions',
+})
+
 // =================== 签到记录 Tab ===================
 const checkinColumns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 70 },
@@ -91,7 +102,7 @@ const checkinColumns = [
   { title: '签到时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 }
 ]
 
-const checkinColumnPrefsCtrl = useTableColumnPrefs('points-checkins', checkinColumns, { alwaysVisible: ["action"] })
+const checkinColumnPrefsCtrl = useTableColumnPrefs('points-checkins', checkinColumns)
 const checkinPrefColumns = checkinColumnPrefsCtrl.prefColumns
 
 const {
@@ -105,10 +116,23 @@ const {
   autoLoad: false
 })
 
+const checkinExportCtrl = useTableExport({
+  columns: checkinPrefColumns,
+  rows: checkinDataSource,
+  filename: 'points-checkins',
+})
+
 // =================== 手动调整积分弹窗 ===================
 const adjustRules = {
   userId: [{ required: true, message: '请选择用户' }],
-  amount: [{ required: true, message: '请输入调整金额' }]
+  amount: [
+    { required: true, message: '请输入调整金额' },
+    {
+      // 后端对 0 直接报错，在这里拦下可省一次失败往返
+      validator: (_rule: unknown, value: number | undefined | null) =>
+        value === 0 ? Promise.reject(new Error('调整金额不能为 0')) : Promise.resolve(),
+    },
+  ]
 }
 
 const {
@@ -323,6 +347,7 @@ onMounted(() => {
 
           <div class="mb-16">
             <a-space>
+              <TableExportButton :ctrl="txExportCtrl" />
               <TableColumnSettings :ctrl="txColumnPrefsCtrl" />
               <a-button type="primary" @click="openAdjustModal">手动调整积分</a-button>
             </a-space>
@@ -409,6 +434,7 @@ onMounted(() => {
 
           <div class="mb-16">
             <a-space>
+              <TableExportButton :ctrl="checkinExportCtrl" />
               <TableColumnSettings :ctrl="checkinColumnPrefsCtrl" />
             </a-space>
           </div>
@@ -466,6 +492,9 @@ onMounted(() => {
           <a-input-number
             v-model:value="adjustForm.amount"
             placeholder="正数为增加，负数为扣减"
+            :min="-1000000"
+            :max="1000000"
+            :precision="0"
             style="width: 100%"
           />
           <div class="form-tip">正数表示增加积分，负数表示扣减积分</div>
@@ -509,17 +538,6 @@ onMounted(() => {
 .stat-card :deep(.ant-statistic-content) {
   font-variant-numeric: tabular-nums;
   font-weight: var(--lt-font-weight-semibold);
-}
-
-.search-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-@media (max-width: 991px) {
-  .search-actions {
-    justify-content: flex-start;
-  }
 }
 </style>
 

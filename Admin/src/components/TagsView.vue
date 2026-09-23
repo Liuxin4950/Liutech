@@ -1,18 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, inject, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTagsStore, type TagView } from '@/stores/tabs'
-import { ColumnWidthOutlined } from '@ant-design/icons-vue'
-import ContextMenu from './ContextMenu.vue'
+import { ColumnWidthOutlined, ReloadOutlined, CloseOutlined, SwitcherOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { useI18n } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
 const tagsStore = useTagsStore()
-
-// 右键菜单相关
-const contextMenuVisible = ref(false)
-const contextMenuPosition = ref({ x: 0, y: 0 })
-const contextMenuTarget = ref<TagView | null>(null)
+const { t } = useI18n()
 
 // 刷新加载状态
 const refreshing = ref(false)
@@ -43,56 +39,48 @@ const handleClose = (event: Event | undefined, tag: TagView): void => {
 
 /**
  * 刷新当前页面
+ *
+ * MainLayout 的 KeepAlive 只会「丢弃缓存条目」而不会卸载当前实例
+ * （Vue pruneCacheEntry 对正在渲染的 vnode 只清标志位），所以必须：
+ * 1) 先把本页从 include 摘掉 —— 缓存条目作废，旧实例在下次换 key 时真正卸载；
+ * 2) 由 MainLayout 递增 key 触发重新挂载，页面重新执行 onMounted 拉数据；
+ * 3) 再把名字加回 include，让该标签继续享有缓存。
  */
-const handleRefresh = (): void => {
+const reloadCurrentView = inject<(() => void) | undefined>('ltReloadCurrentView', undefined)
+
+const handleRefresh = async (): Promise<void> => {
+  const name = route.name as string
   refreshing.value = true
-  // 从缓存中移除再重新添加，触发组件重新挂载
-  const cacheIndex = tagsStore.cachedViews.indexOf(route.name as string)
+  const cacheIndex = tagsStore.cachedViews.indexOf(name)
   if (cacheIndex > -1) {
     tagsStore.cachedViews.splice(cacheIndex, 1)
   }
-  setTimeout(() => {
-    tagsStore.addCachedView(route.name as string)
-    refreshing.value = false
-  }, 100)
+  await nextTick()
+  reloadCurrentView?.()
+  await nextTick()
+  tagsStore.addCachedView(name)
+  refreshing.value = false
 }
 
 /**
- * 关闭其他标签
+ * 右键菜单动作（菜单由 a-dropdown + a-menu 提供，避免自管定位/外部点击/ESC）
+ * 菜单项通过 key 区分，目标标签由每个 dropdown 自己的闭包带入
  */
-const handleCloseOther = (): void => {
-  if (contextMenuTarget.value) {
-    tagsStore.delOtherViews(contextMenuTarget.value)
-  } else {
-    tagsStore.delOtherViews()
+const handleMenuClick = (info: { key?: string | number }, tag: TagView): void => {
+  switch (String(info?.key)) {
+    case 'refresh':
+      handleRefresh()
+      break
+    case 'close-current':
+      if (!tag.affix) tagsStore.delVisitedView(tag)
+      break
+    case 'close-other':
+      tagsStore.delOtherViews(tag)
+      break
+    case 'close-all':
+      tagsStore.delAllViews()
+      break
   }
-  contextMenuVisible.value = false
-}
-
-/**
- * 关闭所有标签
- */
-const handleCloseAll = (): void => {
-  tagsStore.delAllViews()
-  contextMenuVisible.value = false
-}
-
-/**
- * 右键点击标签
- */
-const handleContextMenu = (event: MouseEvent, tag: TagView): void => {
-  event.preventDefault() // 阻止默认右键菜单
-  contextMenuTarget.value = tag
-  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
-  contextMenuVisible.value = true
-}
-
-/**
- * 点击空白处关闭右键菜单
- */
-const handleClickOutside = (): void => {
-  contextMenuVisible.value = false
-  contextMenuTarget.value = null
 }
 
 /**
@@ -120,39 +108,60 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="tags-view-container" @click.self="handleClickOutside">
+  <div class="tags-view-container">
     <!-- 标签列表 -->
     <div class="tags-view-wrapper">
       <transition-group name="tag-list" tag="div" class="tags-view-list">
-        <a-tag
-          v-for="tag in tagsStore.visitedViews"
-          :key="tag.path"
-          :class="['tag-view', { active: isActive(tag), affix: tag.affix }]"
-          :closable="!tag.affix"
-          :bordered="false"
-          @click="handleClick(tag)"
-          @close="handleClose($event, tag)"
-          @contextmenu.prevent="handleContextMenu($event, tag)"
-        >
-          <span class="tag-icon" v-if="tag.affix">
-            <ColumnWidthOutlined />
-          </span>
-          {{ tag.title }}
-        </a-tag>
+        <!-- 右键菜单用 a-dropdown(trigger=contextmenu)：跟随鼠标、贴边自动翻转、
+             外部点击/ESC 关闭都由 antd 托管，不再自管定位与全局监听。
+             a-dropdown 的根是 Fragment，但 Trigger 只把事件挂在子节点上、
+             不额外包一层元素，所以 transition-group 的子元素仍是 a-tag 本身。 -->
+        <a-dropdown v-for="tag in tagsStore.visitedViews" :key="tag.path" :trigger="['contextmenu']">
+          <a-tag
+            :class="['tag-view', { active: isActive(tag), affix: tag.affix }]"
+            :closable="!tag.affix"
+            :bordered="false"
+            @click="handleClick(tag)"
+            @close="handleClose($event, tag)"
+          >
+            <span class="tag-icon" v-if="tag.affix">
+              <ColumnWidthOutlined />
+            </span>
+            {{ tag.title }}
+          </a-tag>
+          <template #overlay>
+            <a-menu @click="handleMenuClick($event, tag)">
+              <a-menu-item key="refresh">
+                <template #icon><ReloadOutlined /></template>{{ t('tabsView.refresh') }}
+              </a-menu-item>
+              <a-menu-item key="close-current" :disabled="tag.affix">
+                <template #icon><CloseOutlined /></template>{{ t('tabsView.closeCurrent') }}
+              </a-menu-item>
+              <a-menu-item key="close-other">
+                <template #icon><SwitcherOutlined /></template>{{ t('tabsView.closeOther') }}
+              </a-menu-item>
+              <a-menu-item key="close-all" danger>
+                <template #icon><DeleteOutlined /></template>{{ t('tabsView.closeAll') }}
+              </a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
       </transition-group>
     </div>
 
-    <!-- 右键菜单 -->
-    <ContextMenu
-      v-model:visible="contextMenuVisible"
-      :x="contextMenuPosition.x"
-      :y="contextMenuPosition.y"
-      :is-affix="contextMenuTarget?.affix || false"
-      @refresh="handleRefresh"
-      @close-current="contextMenuTarget && handleClose(undefined, contextMenuTarget)"
-      @close-other="handleCloseOther"
-      @close-all="handleCloseAll"
-    />
+    <!-- 刷新当前页：标签缓存生效后页面不会自行重载，必须给一个显式入口 -->
+    <a-tooltip :title="t('tabsView.refresh')">
+      <a-button
+        class="tags-view-refresh"
+        type="text"
+        size="small"
+        :loading="refreshing"
+        :aria-label="t('tabsView.refresh')"
+        @click="handleRefresh"
+      >
+        <template #icon><ReloadOutlined /></template>
+      </a-button>
+    </a-tooltip>
   </div>
 </template>
 
@@ -172,6 +181,17 @@ onMounted(() => {
   overflow-x: auto;
   overflow-y: hidden;
   padding: var(--lt-space-xs) var(--lt-space-md);
+}
+
+.tags-view-refresh {
+  flex: 0 0 auto;
+  margin-right: var(--lt-space-sm);
+  color: var(--lt-color-text-secondary);
+}
+
+.tags-view-refresh:hover {
+  color: var(--lt-color-primary);
+  background: var(--lt-color-hover-bg);
 }
 
 .tags-view-list {

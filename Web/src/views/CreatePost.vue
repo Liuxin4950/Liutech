@@ -215,15 +215,18 @@
           <div class="sidebar-item flex-col gap-8">
             <div class="sidebar-title">添加封面</div>
             <div class="sidebar-content flex gap-12 flex-fw">
-              <!-- 封面图片上传 -->
+              <!-- 封面图片上传：点击选择 + 直接把图片拖进来 -->
               <div class="image-upload-container">
                 <div class="image-preview-box" @click="triggerCoverImageUpload"
-                  :class="{ 'has-image': form.coverImage }">
+                  :class="{ 'has-image': form.coverImage, 'is-dragover': coverDragOver }"
+                  @drop.prevent="handleCoverDrop"
+                  @dragover="handleCoverDragOver"
+                  @dragleave="handleCoverDragLeave">
                   <img v-if="form.coverImage" :src="form.coverImage" alt="封面图片预览" class="preview-image" @error="handleImageError">
                   <div class="upload-overlay">
                     <div class="upload-text">
                       <span class="overlay-icon"><Icon name="camera" /></span>
-                      <span>{{ form.coverImage ? '点击更换图片' : '点击上传封面图片' }}</span>
+                      <span>{{ form.coverImage ? '点击更换图片' : '点击或拖拽上传封面' }}</span>
                     </div>
                   </div>
                 </div>
@@ -231,15 +234,18 @@
                   style="display: none;">
               </div>
 
-              <!-- 缩略图上传 -->
+              <!-- 缩略图上传：点击选择 + 直接把图片拖进来 -->
               <div class="image-upload-container">
                 <div class="image-preview-box thumbnail-box" @click="triggerThumbnailUpload"
-                  :class="{ 'has-image': form.thumbnail }">
+                  :class="{ 'has-image': form.thumbnail, 'is-dragover': thumbnailDragOver }"
+                  @drop.prevent="handleThumbnailDrop"
+                  @dragover="handleThumbnailDragOver"
+                  @dragleave="handleThumbnailDragLeave">
                   <img v-if="form.thumbnail" :src="form.thumbnail" alt="缩略图预览" class="preview-image" @error="handleImageError">
                   <div class="upload-overlay">
                     <div class="upload-text">
                       <span class="overlay-icon"><Icon name="image" /></span>
-                      <span>{{ form.thumbnail ? '点击更换图片' : '点击上传缩略图' }}</span>
+                      <span>{{ form.thumbnail ? '点击更换图片' : '点击或拖拽上传缩略图' }}</span>
                     </div>
                   </div>
                 </div>
@@ -543,6 +549,10 @@ const {
   coverImageInput, thumbnailInput, attachmentInput,
   triggerCoverImageUpload, triggerThumbnailUpload,
   handleCoverImageUpload, handleThumbnailUpload,
+  coverDragOver, thumbnailDragOver,
+  handleCoverDrop, handleThumbnailDrop,
+  handleCoverDragOver, handleThumbnailDragOver,
+  handleCoverDragLeave, handleThumbnailDragLeave,
   triggerAttachmentUpload, handleAttachmentUpload,
   createExternalLinkResource, removeAttachment,
   onDownloadTypeChange, handlePointsInput, onPointsNeededInput,
@@ -762,6 +772,13 @@ onBeforeUnmount(() => {
 .image-preview-box.has-image {
   border-style: solid;
   border-color: var(--color-primary);
+}
+
+/* 拖拽悬停反馈：跟 Profile 头像拖拽区保持一致的视觉语言 */
+.image-preview-box.is-dragover {
+  border-color: var(--color-primary);
+  border-style: solid;
+  background: var(--bg-hover);
 }
 
 .preview-image {

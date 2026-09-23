@@ -2,40 +2,30 @@
  * 通用工具函数
  * @author 刘鑫
  * @date 2025-01-16
+ *
+ * 日期格式化统一走 dayjs（项目既有的日期库），不再用原生 Date.toLocaleString。
+ * 输出格式与迁移前逐字一致：`2026/09/23 21:31:59`，所以是零视觉变化的替换。
  */
+import dayjs from 'dayjs'
 
 /**
  * 格式化日期
  * @param dateString 日期字符串
- * @returns 格式化后的日期字符串 (YYYY-MM-DD)
+ * @returns 格式化后的日期字符串 (YYYY/MM/DD)
  */
 export const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
+  return dayjs(dateString).format('YYYY/MM/DD')
 }
 
 /**
  * 格式化日期时间
  * @param dateString 日期字符串
- * @returns 格式化后的日期时间字符串 (YYYY-MM-DD HH:mm:ss)
+ * @returns 格式化后的日期时间字符串 (YYYY/MM/DD HH:mm:ss)
  */
 export const formatDateTime = (dateString: string | undefined): string => {
   if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  })
+  return dayjs(dateString).format('YYYY/MM/DD HH:mm:ss')
 }
 
 /**

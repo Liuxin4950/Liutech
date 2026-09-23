@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import ResourcesService from '../../services/resources'
 import type { Resource } from '../../services/resources'
 import { formatDateTime } from '../../utils/utils'
@@ -248,8 +249,7 @@ const handleBatchPermanentDeleteAction = () => {
             {{ record.downloadType === 1 ? (record.pointsNeeded || 0) : '-' }}
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
-            <a-tag v-else color="green">正常</a-tag>
+            <LtStatusTag :status="record.deletedAt ? 'deleted' : 'normal'" />
           </template>
           <template v-else-if="column.key === 'createdAt'">{{ formatDateTime(record.createdAt) }}</template>
           <template v-else-if="column.key === 'action'">
@@ -279,7 +279,7 @@ const handleBatchPermanentDeleteAction = () => {
       </a-table>
     </a-card>
 
-    <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close width="640px">
+    <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close :width="640">
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
         <a-form-item name="name" label="资源名称" required>
           <a-input v-model:value="formModel.name" placeholder="请输入资源名称" />

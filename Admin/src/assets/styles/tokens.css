@@ -35,6 +35,8 @@
   --lt-color-primary-border: var(--lt-color-brand-3);
   --lt-color-primary-bg: var(--lt-color-brand-1);
   --lt-color-primary-bg-hover: var(--lt-color-brand-2);
+  /* 主色 RGB 分量：供 rgba(var(--lt-color-primary-rgb), α) 叠加半透明主色使用 */
+  --lt-color-primary-rgb: 22, 119, 255;
 
   /* 主色 bg 拆语义：hover / selected / highlight 分离，避免一变量三职 */
   --lt-color-hover-bg: rgba(0, 0, 0, 0.03);
@@ -117,6 +119,8 @@
   --lt-color-border-secondary: #f0f0f0;
   --lt-color-border-strong: #bfbfbf;
   --lt-color-split: rgba(5, 5, 5, 0.06);
+  /* 次级填充：序号徽章、标签底色等浅填充 */
+  --lt-color-fill-secondary: rgba(0, 0, 0, 0.06);
 
   /* ===== 图表色板（ECharts / registerTheme） ===== */
   --lt-color-chart-1: #1677ff;
@@ -289,6 +293,7 @@
   --lt-color-border-secondary: #303030;
   --lt-color-border-strong: #595959;
   --lt-color-split: rgba(253, 253, 253, 0.08);
+  --lt-color-fill-secondary: rgba(255, 255, 255, 0.12);
 
   --lt-color-code-bg: #1f1f1f;
   --lt-color-code-border: #303030;

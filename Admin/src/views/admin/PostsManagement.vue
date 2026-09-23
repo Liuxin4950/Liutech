@@ -2,6 +2,7 @@
 import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined, StarOutlined } from '@ant-design/icons-vue'
+import LtStatusTag from '@/components/LtStatusTag.vue'
 import DOMPurify from 'dompurify'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
@@ -328,17 +329,18 @@ const openEdit = async (record: PostListItem) => {
 }
 
 // ============== 图片上传 ==============
-const coverImageInput = ref<HTMLInputElement>()
-const thumbnailInput = ref<HTMLInputElement>()
+// 用 a-upload-dragger 承载：点击选择 + 直接把图片拖进来都能用。
+// 注意 :before-upload 必须返回字面量 false 才会拦下 antd 自己的上传请求，
+// 文件从 info.fileList[0].originFileObj 取（before-upload 为 false 时 info.file 不含原始 File）。
 const uploadingCover = ref(false)
 const uploadingThumbnail = ref(false)
 
-const triggerCoverImageUpload = () => { coverImageInput.value?.click() }
-const triggerThumbnailUpload = () => { thumbnailInput.value?.click() }
+/** 从 antd upload 的 change 事件里取出原始 File */
+const pickUploadFile = (info: any): File | undefined =>
+  info?.fileList?.[0]?.originFileObj || info?.file?.originFileObj
 
-const handleCoverImageUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
+const handleCoverImageChange = async (info: any) => {
+  const file = pickUploadFile(info)
   if (!file) return
   try {
     uploadingCover.value = true
@@ -349,13 +351,11 @@ const handleCoverImageUpload = async (event: Event) => {
     if (!error?.isBusiness) message.error('封面图片上传失败')
   } finally {
     uploadingCover.value = false
-    if (target) target.value = ''
   }
 }
 
-const handleThumbnailUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
+const handleThumbnailChange = async (info: any) => {
+  const file = pickUploadFile(info)
   if (!file) return
   try {
     uploadingThumbnail.value = true
@@ -366,7 +366,6 @@ const handleThumbnailUpload = async (event: Event) => {
     if (!error?.isBusiness) message.error('缩略图上传失败')
   } finally {
     uploadingThumbnail.value = false
-    if (target) target.value = ''
   }
 }
 
@@ -662,11 +661,10 @@ onMounted(async () => {
             <span>{{ record.commentCount || 0 }}</span>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 'published' ? 'green' : 'orange'">{{ record.status === 'published' ? '已发布' : '草稿' }}</a-tag>
+            <LtStatusTag :status="record.status === 'published' ? 'published' : 'draft'" />
           </template>
           <template v-else-if="column.key === 'deleteStatus'">
-            <a-tag v-if="record.deletedAt" color="red">已删除</a-tag>
-            <a-tag v-else color="green">正常</a-tag>
+            <LtStatusTag :status="record.deletedAt ? 'deleted' : 'normal'" />
           </template>
           <template v-else-if="column.key === 'createdAt'">
             {{ formatDateTime(record.createdAt) }}
@@ -735,54 +733,53 @@ onMounted(async () => {
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="封面图片">
-              <div class="image-upload-container">
+              <!-- 点击选择 + 拖拽上传；已有封面时直接拖新图即可替换 -->
+              <a-upload-dragger
+                class="cover-uploader"
+                :show-upload-list="false"
+                accept="image/*"
+                :before-upload="() => false"
+                @change="handleCoverImageChange"
+              >
                 <div v-if="formModel.coverImage" class="image-preview">
                   <img :src="formModel.coverImage" alt="封面图片" class="preview-image" />
                   <div class="image-actions">
-                    <a-button type="text" danger @click="removeCoverImage">
+                    <a-button type="text" danger @click.stop="removeCoverImage">
                       <template #icon><DeleteOutlined /></template>
                       删除
                     </a-button>
                   </div>
                 </div>
-                <div v-else class="upload-placeholder" @click="triggerCoverImageUpload">
+                <div v-else class="upload-placeholder">
                   <PlusOutlined />
-                  <div class="upload-text">上传封面图片</div>
+                  <div class="upload-text">点击或拖拽上传封面</div>
                 </div>
-                <input
-                  ref="coverImageInput"
-                  type="file"
-                  accept="image/*"
-                  style="display: none"
-                  @change="handleCoverImageUpload"
-                />
-              </div>
+              </a-upload-dragger>
             </a-form-item>
           </a-col>
           <a-col :span="12">
             <a-form-item label="缩略图">
-              <div class="image-upload-container">
+              <a-upload-dragger
+                class="cover-uploader"
+                :show-upload-list="false"
+                accept="image/*"
+                :before-upload="() => false"
+                @change="handleThumbnailChange"
+              >
                 <div v-if="formModel.thumbnail" class="image-preview">
                   <img :src="formModel.thumbnail" alt="缩略图" class="preview-image" />
                   <div class="image-actions">
-                    <a-button type="text" danger @click="removeThumbnail">
+                    <a-button type="text" danger @click.stop="removeThumbnail">
                       <template #icon><DeleteOutlined /></template>
                       删除
                     </a-button>
                   </div>
                 </div>
-                <div v-else class="upload-placeholder" @click="triggerThumbnailUpload">
+                <div v-else class="upload-placeholder">
                   <PlusOutlined />
-                  <div class="upload-text">上传缩略图</div>
+                  <div class="upload-text">点击或拖拽上传缩略图</div>
                 </div>
-                <input
-                  ref="thumbnailInput"
-                  type="file"
-                  accept="image/*"
-                  style="display: none"
-                  @change="handleThumbnailUpload"
-                />
-              </div>
+              </a-upload-dragger>
             </a-form-item>
           </a-col>
         </a-row>
@@ -1000,7 +997,7 @@ onMounted(async () => {
   gap: 6px;
 }
 .dropdown-create-btn:hover {
-  background: rgba(var(--lt-color-primary-rgb, 0, 123, 255), 0.06);
+  background: rgba(var(--lt-color-primary-rgb), 0.06);
 }
 
 .editor-form-pane {
@@ -1021,8 +1018,8 @@ onMounted(async () => {
 }
 
 .preview-image {
-  width: 200px;
-  height: 120px;
+  width: var(--lt-size-thumbnail-w);
+  height: var(--lt-size-thumbnail-h);
   object-fit: cover;
   display: block;
 }
@@ -1049,8 +1046,8 @@ onMounted(async () => {
 }
 
 .upload-placeholder {
-  width: 200px;
-  height: 120px;
+  width: var(--lt-size-thumbnail-w);
+  height: var(--lt-size-thumbnail-h);
   border: 2px dashed var(--border-base);
   border-radius: var(--lt-radius-md);
   display: flex;
@@ -1065,6 +1062,22 @@ onMounted(async () => {
 .upload-placeholder:hover {
   border-color: var(--lt-color-primary);
   color: var(--lt-color-primary);
+}
+
+/* a-upload-dragger 只用它的「点击 + 拖拽」能力，外观仍由 .upload-placeholder 提供，
+   所以把 antd 自带的虚线盒子中和掉，避免出现两层虚线框 */
+.cover-uploader :deep(.ant-upload-drag) {
+  border: none;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+}
+
+/* 拖拽悬停反馈 */
+.cover-uploader :deep(.ant-upload-drag-hover) .upload-placeholder {
+  border-color: var(--lt-color-primary);
+  color: var(--lt-color-primary);
+  background: var(--lt-color-primary-bg);
 }
 
 .upload-text {
@@ -1124,33 +1137,6 @@ onMounted(async () => {
   color: var(--lt-color-success);
   font-weight: var(--lt-font-weight-medium);
   white-space: nowrap;
-}
-
-/* 搜索区按钮组：右对齐，窄屏时自然换行 */
-.search-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-@media (max-width: 991px) {
-  .search-actions {
-    justify-content: flex-start;
-  }
-}
-
-/* 弹窗标题栏内的草稿状态提示 */
-.modal-title-with-draft {
-  display: flex;
-  align-items: center;
-  gap: var(--lt-space-md);
-}
-.draft-hint {
-  font-size: var(--lt-font-size-xs);
-  color: var(--lt-color-success);
-  font-weight: var(--lt-font-weight-regular);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--lt-space-xs);
 }
 </style>
 

@@ -47,6 +47,12 @@ export default {
     login: 'Log in',
     breadcrumbHome: 'Home',
   },
+  tabsView: {
+    refresh: 'Refresh',
+    closeCurrent: 'Close current',
+    closeOther: 'Close others',
+    closeAll: 'Close all',
+  },
   settings: {
     title: 'Settings',
     themeMode: 'Theme',
