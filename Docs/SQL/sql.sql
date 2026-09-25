@@ -425,7 +425,7 @@ CAST(JSON_OBJECT(
   ),
   'skillGroups', JSON_ARRAY(
     JSON_OBJECT('category', '前端开发', 'skills', JSON_ARRAY('Vue 3', 'TypeScript', 'Vite', 'uni-app', 'Flutter', 'ECharts', 'SCSS', 'Ant Design')),
-    JSON_OBJECT('category', '后端开发', 'skills', JSON_ARRAY('Spring Boot', 'Java', 'MyBatis-Plus', 'MySQL', 'Redis', 'ThinkPHP', 'Spring Security')),
+    JSON_OBJECT('category', '后端开发', 'skills', JSON_ARRAY('Spring Boot', 'Java', 'MyBatis-Plus', 'MySQL', 'Spring Security')),
     JSON_OBJECT('category', '工程化', 'skills', JSON_ARRAY('Docker', 'Compose', 'Nginx', 'Linux', '微服务网关', 'Actions', 'CI/CD')),
     JSON_OBJECT('category', 'AI 探索', 'skills', JSON_ARRAY('OpenClaw', 'Ollama', 'Spring AI', '大模型 API', 'Prompt 工程', 'Live2D', 'Claude Code'))
   ),
@@ -450,7 +450,7 @@ CAST(JSON_OBJECT(
     ),
     JSON_OBJECT(
       'name', 'LiuTech 博客',
-      'description', '全栈个人博客平台：Spring Boot 微服务 + Vue 3 + Docker Compose 架构，含 AI 聊天、Live2D 看板娘、SSE 流式对话与 TTS 语音合成。',
+      'description', '全栈个人博客平台：Spring Boot 双服务（主后端 + AI 服务） + Vue 3 + Docker Compose 架构，含 AI 聊天、Live2D 看板娘、SSE 流式对话与 TTS 语音合成。',
       'technologies', JSON_ARRAY('Vue 3', 'Spring Boot', 'MySQL', 'Docker'),
       'link', '/'
     )
