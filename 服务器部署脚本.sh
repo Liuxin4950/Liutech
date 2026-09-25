@@ -74,120 +74,17 @@ fi
 
 # 创建docker-compose.yml文件
 echo "创建Docker Compose配置文件..."
-cat > "$INSTALL_DIR/docker-compose.yml" << 'EOF'
-services:
-  # MySQL 数据库服务
-  mysql:
-    image: mysql:8.0
-    container_name: liutech-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      MYSQL_DATABASE: liutech
-      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
-      DB_AI_APP_PASSWORD: ${DB_AI_APP_PASSWORD:?DB_AI_APP_PASSWORD is required}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./sql/sql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./mysql/init-users.sh:/docker-entrypoint-initdb.d/99-users.sh:ro
-    command: --default-authentication-plugin=mysql_native_password
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:?DB_PASSWORD is required}"]
-      timeout: 20s
-      retries: 10
-      interval: 10s
-      start_period: 40s
-
-  # 后端应用服务
-  backend:
-    image: liutech-backend:${BACKEND_IMAGE_TAG:-latest}
-    container_name: liutech-backend
-    restart: unless-stopped
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=liutech_app
-      - SPRING_DATASOURCE_PASSWORD=${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
-      # JWT签名密钥 - 生产环境必须配置强密钥
-      - JWT_SECRET=${JWT_SECRET}
-      - LIUTECH_INTERNAL_TOKEN=${LIUTECH_INTERNAL_TOKEN:?LIUTECH_INTERNAL_TOKEN is required}
-      - AI_USER_DATA_URL=http://ai:8081
-      # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 $INSTALL_DIR/uploads 到此路径
-      - FILE_UPLOAD_BASE_PATH=/app/uploads
-      - SERVER_BASE_URL=${SERVER_BASE_URL:-http://liuxin.chat}
-      # 静态资源路径（可选，用于直接返回文件）
-      - SPRING_WEB_RESOURCES_STATIC_LOCATIONS=file:/app/uploads
-    volumes:
-      # 将宿主机 /liuxin/uploads 目录挂载到容器 /app/uploads
-      # 这样文件会持久化到宿主机 /liuxin/uploads 目录
-      - /liuxin/uploads:/app/uploads
-    depends_on:
-      mysql:
-        condition: service_healthy
-
-  # AI服务
-  ai:
-    image: liutech-ai:${AI_IMAGE_TAG:-latest}
-    container_name: liutech-ai
-    restart: unless-stopped
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=liutech_ai_app
-      - SPRING_DATASOURCE_PASSWORD=${DB_AI_APP_PASSWORD:?DB_AI_APP_PASSWORD is required}
-      - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
-      - BLOG_API_URL=http://backend:8080
-      - LIUTECH_INTERNAL_TOKEN=${LIUTECH_INTERNAL_TOKEN:?LIUTECH_INTERNAL_TOKEN is required}
-      - SILICONFLOW_TTS_API_KEY=${SILICONFLOW_TTS_API_KEY:-}
-      - SILICONFLOW_API_KEY=${SILICONFLOW_API_KEY:-}
-      - TTS_CACHE_DIR=/app/tts-cache
-      - TTS_CACHE_MAX_AGE_HOURS=${TTS_CACHE_MAX_AGE_HOURS:-24}
-      - TTS_CACHE_MAX_BYTES=${TTS_CACHE_MAX_BYTES:-536870912}
-      - TTS_CACHE_CLEANUP_INTERVAL_MS=${TTS_CACHE_CLEANUP_INTERVAL_MS:-3600000}
-      - TTS_CONCURRENCY=${TTS_CONCURRENCY:-1}
-    depends_on:
-      mysql:
-        condition: service_healthy
-
-  # Web前端服务
-  web:
-    image: liutech-web:${WEB_IMAGE_TAG:-latest}
-    container_name: liutech-web
-    restart: unless-stopped
-    depends_on:
-      - backend
-      - ai
-
-  # Admin前端服务
-  admin:
-    image: liutech-admin:${ADMIN_IMAGE_TAG:-latest}
-    container_name: liutech-admin
-    restart: unless-stopped
-    depends_on:
-      - backend
-      - ai
-
-  # Nginx反向代理服务
-  nginx:
-    image: liutech-nginx:${NGINX_IMAGE_TAG:-latest}
-    container_name: liutech-nginx
-    restart: unless-stopped
-    ports:
-      - "${NGINX_HTTP:-80}:80"
-      - "${NGINX_HTTPS:-443}:443"
-      - "81:81"
-    volumes:
-      - ./nginx:/etc/nginx/ssl:ro
-    depends_on:
-      - backend
-      - web
-      - admin
-      - ai
-
-volumes:
-  mysql_data:
-    driver: local
-EOF
+# 复制仓库根目录的 docker-compose.yml（唯一事实源）
+# 说明：此前本脚本内嵌了一份 compose 副本，与根目录版本已漂移
+#       （缺 backend/ai 的 healthcheck、deploy.resources、COS、MAIL、挂载路径变量），
+#       执行会把生产配置覆盖坏。现改为直接复制根文件，杜绝多事实源。
+if [ -f ./docker-compose.yml ]; then
+    cp ./docker-compose.yml "$INSTALL_DIR/docker-compose.yml"
+    echo "已复制 docker-compose.yml（根目录版本，唯一事实源）"
+else
+    echo "错误: 未找到项目根目录的 docker-compose.yml，无法部署"
+    exit 1
+fi
 
 # 进入镜像目录加载所有镜像
 echo ""
@@ -223,48 +120,36 @@ echo "=========================================="
 # 返回项目根目录
 cd "$INSTALL_DIR"
 
-# 创建.env文件
+# 创建 .env 文件（模板取自仓库根 .env.example —— 唯一事实源）
+# 说明：此前本脚本内嵌了第二份 .env 模板（17 变量），缺全部 6 个 MAIL_* 变量，
+#       导致用本脚本部署时后端邮件功能（忘记密码/验证码登录）静默失效。现改为复制 .env.example。
+# ⚠️ 此处 CWD 已是 $INSTALL_DIR，而 .env.example 只存在于仓库根、不会被拷进 $INSTALL_DIR，
+#    因此必须用 $SCRIPT_DIR 绝对路径读取，否则永远命中「未找到」分支、.env 根本不会生成。
 if [ ! -f .env ]; then
-cat > .env << 'EOF'
-# 服务端口配置
-WEB_PORT=3000
-ADMIN_PORT=3001
-BACKEND_PORT=8080
-MYSQL_PORT=3306
-AI_PORT=8081
-NGINX_HTTP=80
-NGINX_HTTPS=443
-
-# 服务器配置
-SERVER_BASE_URL=https://www.liuxin.chat
-
-# MySQL root 密码（必需配置）
-DB_PASSWORD=your_mysql_root_password
-
-# 两个应用最小权限数据库账户密码
-DB_APP_PASSWORD=your_blog_app_password
-DB_AI_APP_PASSWORD=your_ai_app_password
-
-# JWT密钥 - 仅主后端读取（必需配置，请修改为随机字符串）
-JWT_SECRET=your_strong_jwt_secret_min_32_chars
-
-# 两服务内部接口令牌（身份内省、用户AI数据清理）
-LIUTECH_INTERNAL_TOKEN=your_internal_service_token
-
-# AI服务API Key（必需配置）
-# 请替换为你的SiliconFlow API Key
-SPRING_AI_OPENAI_API_KEY=your_siliconflow_api_key
-
-# SiliconFlow 通用 API Key（仅 AI 服务读取）
-SILICONFLOW_API_KEY=your_siliconflow_api_key
-
-# SiliconFlow TTS API Key（可与通用 API Key 相同，也可单独配置）
-SILICONFLOW_TTS_API_KEY=your_siliconflow_tts_api_key
-
-# TTS 推理并发上限
-TTS_CONCURRENCY=1
-EOF
-    echo "环境配置文件 .env 已创建"
+    if [ -f "$SCRIPT_DIR/.env.example" ]; then
+        cp "$SCRIPT_DIR/.env.example" .env
+    else
+        echo "错误: 未找到 $SCRIPT_DIR/.env.example，无法生成 .env 模板"
+        exit 1
+    fi
+    echo ""
+    echo "=========================================="
+    echo "⚠️  请立即编辑 .env 并填写以下必填项："
+    echo "=========================================="
+    echo "  JWT_SECRET                    - 强随机密钥 (openssl rand -hex 64)"
+    echo "  LIUTECH_INTERNAL_TOKEN        - 内部服务令牌"
+    echo "  DB_PASSWORD                   - MySQL root 密码"
+    echo "  DB_APP_PASSWORD               - 应用数据库密码"
+    echo "  DB_AI_APP_PASSWORD            - AI 服务数据库密码"
+    echo "  SPRING_AI_OPENAI_API_KEY      - AI 模型密钥"
+    echo "  MAIL_HOST/MAIL_USERNAME/MAIL_PASSWORD/MAIL_FROM  - 邮件配置"
+    echo "  UPLOADS_PATH / LOGS_PATH / NGINX_SSL_PATH        - 生产绝对路径"
+    echo "  COS_ENABLED / COS_SECRET_ID / COS_SECRET_KEY ... - 如启用对象存储"
+    echo ""
+    echo "编辑命令： nano $INSTALL_DIR/.env"
+    echo "=========================================="
+    echo ""
+    echo "环境配置文件 .env 已创建（模板复制自 .env.example）"
 else
     echo "环境配置文件 .env 已存在，跳过创建"
 fi
