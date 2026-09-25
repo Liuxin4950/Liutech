@@ -39,6 +39,14 @@
         <!-- 加载状态 -->
         <LoadingState v-if="isLoading" label="正在加载标签…" />
 
+        <!-- 加载失败 -->
+        <div v-else-if="loadError" class="text-center p-20 flex flex-col flex-ac text-sm">
+          <h3 class="text-base font-semibold">加载标签失败</h3>
+          <p class="text-muted text-sm mb-8">请检查网络后重试</p>
+          <button @click="reloadTags"
+            class="bg-primary text-sm font-medium p-8 rounded transition">重试</button>
+        </div>
+
         <!-- 空状态 -->
         <div v-else-if="filteredTags.length === 0" class="text-center p-20 flex flex-col flex-ac text-sm">
           <h3 class="text-base font-semibold">
@@ -85,6 +93,17 @@ const searchResults = ref<Tag[]>([])
 // 响应式数据
 const tags = computed(() => tagStore.tags || [])
 const isLoading = computed(() => tagStore.isLoading)
+// 加载失败标记：用于区分「暂无标签」与「请求失败」
+const loadError = computed(() => tagStore.error)
+
+/** 重新加载标签；失败时由 store.error 驱动错误态展示 */
+const reloadTags = async () => {
+  try {
+    await tagStore.fetchTags(true)
+  } catch {
+    // 错误已记入 tagStore.error
+  }
+}
 
 // 计算总文章数
 const totalPosts = computed(() => {
@@ -155,7 +174,7 @@ const getTagIcon = (tagName: string): string => {
 
 // 初始化数据
 onMounted(async () => {
-  await tagStore.initTags()
+  await tagStore.initTags().catch(() => undefined)
 })
 
 // Banner 页眉：标签云（一级页面，500px hero 大横幅承担页面标题）

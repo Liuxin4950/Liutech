@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.controller.web;
 
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.CreateMessageReq;
@@ -81,8 +82,10 @@ class MessagesControllerTest {
 
         when(messagesService.createMessage(req)).thenThrow(new RuntimeException("提交过于频繁"));
 
-        Result<MessageResp> result = controller.createMessage(req);
+        // 原始异常消息不外泄，统一换为通用业务提示，交由 GlobalExceptionHandler 转响应
+        BusinessException ex = assertThrows(BusinessException.class, () -> controller.createMessage(req));
 
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        assertEquals(ErrorCode.OPERATION_ERROR.getCode(), ex.getCode());
+        assertFalse(ex.getMessage().contains("提交过于频繁"));
     }
 }

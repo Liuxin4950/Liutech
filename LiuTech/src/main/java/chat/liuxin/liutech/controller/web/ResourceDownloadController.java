@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.aspect.OperationLog;
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.DownloadUrlResp;
 import chat.liuxin.liutech.service.ResourceDownloadService;
@@ -42,14 +44,11 @@ public class ResourceDownloadController {
     @OperationLog(action = "purchase", targetType = "resource", description = "购买资源")
     public Result<String> purchaseResource(@PathVariable Long resourceId) {
         Long userId = userUtils.getCurrentUserId();
-        
-        try {
-            resourceDownloadService.purchaseResource(userId, resourceId);
-            return Result.success("购买成功");
-        } catch (Exception e) {
-            log.error("购买资源失败: {}", e.getMessage());
-            return Result.fail(500, e.getMessage());
-        }
+
+        // 服务层已用明确的业务消息表达失败原因，交给 GlobalExceptionHandler 统一转成 Result，
+        // 避免在此把原始异常消息直接回给客户端
+        resourceDownloadService.purchaseResource(userId, resourceId);
+        return Result.success("购买成功");
     }
     
     /**
@@ -61,11 +60,12 @@ public class ResourceDownloadController {
     @GetMapping("/download/{resourceId}")
     public ResponseEntity<Resource> downloadResource(@PathVariable Long resourceId) {
         Long userId = userUtils.getCurrentUserId();
-        
+
         try {
             return resourceDownloadService.downloadResource(userId, resourceId);
         } catch (Exception e) {
-            log.error("下载资源失败: {}", e.getMessage());
+            // 该接口返回文件流，无法承载 Result；失败一律返回 400，细节只进日志
+            log.error("下载资源失败: resourceId={}, userId={}", resourceId, userId, e);
             return ResponseEntity.badRequest().build();
         }
     }
@@ -85,9 +85,12 @@ public class ResourceDownloadController {
 
         try {
             return Result.success(resourceDownloadService.getDownloadUrl(userId, resourceId));
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("获取资源直链失败: {}", e.getMessage());
-            return Result.fail(400, e.getMessage());
+            // 底层异常消息（路径、存储细节）不外泄，仅记录日志
+            log.error("获取资源直链失败: resourceId={}, userId={}", resourceId, userId, e);
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取资源下载地址失败，请稍后重试");
         }
     }
 

@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.controller.web;
 
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.CreateCommentReq;
@@ -99,8 +100,10 @@ class CommentsControllerTest {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(commentsService.createComment(req)).thenThrow(new RuntimeException("文章不存在"));
 
-        Result<CommentResp> result = controller.createComment(req);
+        // 原始异常消息不外泄，统一换为通用业务提示，交由 GlobalExceptionHandler 转响应
+        BusinessException ex = assertThrows(BusinessException.class, () -> controller.createComment(req));
 
-        assertEquals(ErrorCode.SYSTEM_ERROR.getCode(), result.getCode());
+        assertEquals(ErrorCode.OPERATION_ERROR.getCode(), ex.getCode());
+        assertFalse(ex.getMessage().contains("文章不存在"));
     }
 }

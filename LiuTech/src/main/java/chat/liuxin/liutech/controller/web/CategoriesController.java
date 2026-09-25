@@ -64,10 +64,11 @@ public class CategoriesController {
 
             return Result.success("查询成功", category);
         } catch (BusinessException e) {
-            return Result.fail(e.getCode(), e.getMessage());
+            // 直接上抛，由 GlobalExceptionHandler 统一转 400 + 业务错误码
+            throw e;
         } catch (Exception e) {
-            log.error("查询分类详情失败: {}", e.getMessage(), e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR);
+            log.error("查询分类详情失败: id={}", id, e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR);
         }
     }
 
@@ -84,10 +85,11 @@ public class CategoriesController {
             boolean result = categoriesService.save(categoryResp);
             return Result.success(result);
         } catch (BusinessException e) {
-            return Result.fail(e.getCode(), e.getMessage());
+            // 直接上抛，由 GlobalExceptionHandler 统一转 400 + 业务错误码
+            throw e;
         } catch (Exception e) {
-            log.error("创建分类失败: {}", e.getMessage(), e);
-            return Result.fail(ErrorCode.CATEGORY_CREATE_FAILED);
+            log.error("创建分类失败: name={}", categoryResp.getName(), e);
+            throw new BusinessException(ErrorCode.CATEGORY_CREATE_FAILED);
         }
     }
 }

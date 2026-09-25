@@ -108,10 +108,11 @@ public class TagsController {
             List<TagResp> tags = tagsService.getTagsByName(name);
             return Result.success("查询成功", tags);
         } catch (BusinessException e) {
-            return Result.fail(e.getCode(), e.getMessage());
+            // 直接上抛，由 GlobalExceptionHandler 统一转 400 + 业务错误码
+            throw e;
         } catch (Exception e) {
-            log.error("搜索标签失败: {}", e.getMessage(), e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR);
+            log.error("搜索标签失败: name={}", name, e);
+            throw new BusinessException(ErrorCode.TAG_SEARCH_FAILED);
         }
     }
 
@@ -128,10 +129,11 @@ public class TagsController {
             boolean result = tagsService.save(tagResp);
             return Result.success(result);
         } catch (BusinessException e) {
-            return Result.fail(e.getCode(), e.getMessage());
+            // 直接上抛，由 GlobalExceptionHandler 统一转 400 + 业务错误码
+            throw e;
         } catch (Exception e) {
-            log.error("创建标签失败: {}", e.getMessage(), e);
-            return Result.fail(ErrorCode.TAG_CREATE_FAILED);
+            log.error("创建标签失败: name={}", tagResp.getName(), e);
+            throw new BusinessException(ErrorCode.TAG_CREATE_FAILED);
         }
     }
 }

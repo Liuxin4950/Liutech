@@ -206,10 +206,10 @@ onMounted(async () => {
   // 从URL获取初始页码
   const page = Number(route.query.page) || 1
   
-  // 加载分类和标签数据
+  // 加载分类和标签数据（侧栏降级：失败不阻塞文章列表渲染）
   await Promise.all([
-    categoryStore.fetchCategories(),
-    tagStore.fetchTags()
+    categoryStore.fetchCategories().catch(() => undefined),
+    tagStore.fetchTags().catch(() => undefined)
   ])
   
   // 加载文章列表

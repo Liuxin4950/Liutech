@@ -11,6 +11,8 @@ export const useCategoryStore = defineStore('category', () => {
   const categories = ref<Category[]>([])
   const isLoading = ref(false)
   const lastFetchTime = ref<number>(0)
+  /** 最近一次请求的错误信息；null 表示无错误。页面据此区分「真的没有数据」与「请求失败」 */
+  const error = ref<string | null>(null)
 
   // 缓存时间（5分钟）
   const CACHE_DURATION = 5 * 60 * 1000
@@ -42,11 +44,13 @@ export const useCategoryStore = defineStore('category', () => {
       const response = await CategoryService.getCategories()
       categories.value = response || []
       lastFetchTime.value = Date.now()
+      error.value = null
 
       return categories.value
-    } catch (error) {
-      console.error('获取分类列表失败:', error)
-      return []
+    } catch (err) {
+      // 不再吞掉异常返回空数组：请求失败必须能被调用方感知
+      error.value = err instanceof Error ? err.message : '获取分类列表失败'
+      throw err
     } finally {
       isLoading.value = false
     }
@@ -77,19 +81,26 @@ export const useCategoryStore = defineStore('category', () => {
       }
 
       return response
-    } catch (error) {
-      console.error('获取分类详情失败:', error)
-      return null
+    } catch (err) {
+      // 同上：抛出以便调用方进入错误态，而不是误判为「分类不存在」
+      error.value = err instanceof Error ? err.message : '获取分类详情失败'
+      throw err
     }
   }
 
   /**
    * 初始化分类数据
    * Pinia persist 插件会自动恢复状态，此处仅检查数据是否过期并按需刷新
+   * 注意：启动阶段由 main.ts 无 await 调用，失败时需自行兜底，避免未处理的 Promise 拒绝
    */
   const initCategories = async () => {
     if (categories.value.length === 0 || isDataStale.value) {
-      await fetchCategories(true)
+      try {
+        await fetchCategories(true)
+      } catch (err) {
+        // 错误已记入 error 状态，后续页面进入时会再次尝试并展示错误态
+        console.error('初始化分类失败:', err)
+      }
     }
   }
 
@@ -99,6 +110,7 @@ export const useCategoryStore = defineStore('category', () => {
   const clearCache = () => {
     categories.value = []
     lastFetchTime.value = 0
+    error.value = null
   }
 
   /**
@@ -113,6 +125,7 @@ export const useCategoryStore = defineStore('category', () => {
     categories,
     isLoading,
     lastFetchTime,
+    error,
 
     // 计算属性
     categoriesWithCount,

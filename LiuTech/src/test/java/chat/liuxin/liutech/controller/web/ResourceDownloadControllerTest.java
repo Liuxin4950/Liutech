@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.controller.web;
 
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.DownloadUrlResp;
@@ -46,10 +47,8 @@ class ResourceDownloadControllerTest {
         doThrow(new RuntimeException("积分不足")).when(resourceDownloadService)
                 .purchaseResource(1L, 10L);
 
-        Result<String> result = controller.purchaseResource(10L);
-
-        assertEquals(500, result.getCode());
-        assertTrue(result.getMessage().contains("积分不足"));
+        // Controller 不再自行包装异常，交由 GlobalExceptionHandler 统一转响应
+        assertThrows(RuntimeException.class, () -> controller.purchaseResource(10L));
     }
 
     @Test
@@ -58,9 +57,7 @@ class ResourceDownloadControllerTest {
         doThrow(new RuntimeException("用户不存在")).when(resourceDownloadService)
                 .purchaseResource(isNull(), eq(10L));
 
-        Result<String> result = controller.purchaseResource(10L);
-
-        assertEquals(500, result.getCode());
+        assertThrows(RuntimeException.class, () -> controller.purchaseResource(10L));
     }
 
     // ========== downloadResource ==========
@@ -110,10 +107,12 @@ class ResourceDownloadControllerTest {
         when(resourceDownloadService.getDownloadUrl(1L, 999L))
                 .thenThrow(new RuntimeException("请先购买该资源"));
 
-        Result<DownloadUrlResp> result = controller.getDownloadUrl(999L);
+        // 原始异常消息（含资源路径等内部细节）不得外泄，统一换成通用提示
+        BusinessException ex = assertThrows(BusinessException.class, () -> controller.getDownloadUrl(999L));
 
-        assertEquals(400, result.getCode());
-        assertTrue(result.getMessage().contains("请先购买该资源"));
+        assertEquals(ErrorCode.OPERATION_ERROR.getCode(), ex.getCode());
+        assertFalse(ex.getMessage().contains("请先购买该资源"));
+        assertTrue(ex.getMessage().contains("获取资源下载地址失败"));
     }
 
     // ========== checkPurchaseStatus ==========

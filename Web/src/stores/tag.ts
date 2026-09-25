@@ -14,6 +14,8 @@ export const useTagStore = defineStore('tag', () => {
   const isHotTagsLoading = ref(false)
   const lastFetchTime = ref<number>(0)
   const lastHotTagsFetchTime = ref<number>(0)
+  /** 最近一次标签列表请求的错误信息；null 表示无错误。页面据此区分「真的没有数据」与「请求失败」 */
+  const error = ref<string | null>(null)
 
   // 缓存时间（5分钟）
   const CACHE_DURATION = 5 * 60 * 1000
@@ -48,13 +50,15 @@ export const useTagStore = defineStore('tag', () => {
       const response = await TagService.getTags()
       tags.value = response || []
       lastFetchTime.value = Date.now()
+      error.value = null
 
       // 数据已通过Pinia persist自动持久化
 
       return tags.value
-    } catch (error) {
-      console.error('获取标签列表失败:', error)
-      return []
+    } catch (err) {
+      // 不再吞掉异常返回空数组：请求失败必须能被调用方感知
+      error.value = err instanceof Error ? err.message : '获取标签列表失败'
+      throw err
     } finally {
       isLoading.value = false
     }
@@ -78,9 +82,10 @@ export const useTagStore = defineStore('tag', () => {
       lastHotTagsFetchTime.value = Date.now()
 
       return hotTags.value
-    } catch (error) {
-      console.error('获取热门标签失败:', error)
-      return []
+    } catch (err) {
+      // 热门标签非关键路径，但仍需让调用方可感知，由调用方决定是否降级
+      console.error('获取热门标签失败:', err)
+      throw err
     } finally {
       isHotTagsLoading.value = false
     }
@@ -111,9 +116,10 @@ export const useTagStore = defineStore('tag', () => {
       }
 
       return response
-    } catch (error) {
-      console.error('获取标签详情失败:', error)
-      return null
+    } catch (err) {
+      // 同上：抛出以便调用方进入错误态，而不是误判为「标签不存在」
+      error.value = err instanceof Error ? err.message : '获取标签详情失败'
+      throw err
     }
   }
 
@@ -122,18 +128,14 @@ export const useTagStore = defineStore('tag', () => {
    * @param postId 文章ID
    */
   const fetchTagsByPostId = async (postId: number) => {
-    try {
-      const response = await TagService.getTagsByPostId(postId)
-      return response || []
-    } catch (error) {
-      console.error('获取文章标签失败:', error)
-      return []
-    }
+    const response = await TagService.getTagsByPostId(postId)
+    return response || []
   }
 
   /**
    * 初始化标签数据
    * 检查缓存数据是否过期，如果过期则重新获取
+   * 注意：启动阶段由 main.ts 无 await 调用，失败时需自行兜底，避免未处理的 Promise 拒绝
    */
   const initTags = async () => {
     // 检查数据是否需要刷新（Pinia persist会自动恢复数据）
@@ -145,7 +147,12 @@ export const useTagStore = defineStore('tag', () => {
       promises.push(fetchHotTags(10, true))
     }
 
-    await Promise.all(promises)
+    const results = await Promise.allSettled(promises)
+    results.forEach(result => {
+      if (result.status === 'rejected') {
+        console.error('初始化标签数据失败:', result.reason)
+      }
+    })
   }
 
   /**
@@ -156,6 +163,7 @@ export const useTagStore = defineStore('tag', () => {
     hotTags.value = []
     lastFetchTime.value = 0
     lastHotTagsFetchTime.value = 0
+    error.value = null
     // Pinia persist会自动同步清理
   }
 
@@ -212,6 +220,7 @@ export const useTagStore = defineStore('tag', () => {
     isHotTagsLoading,
     lastFetchTime,
     lastHotTagsFetchTime,
+    error,
 
     // 计算属性
     tagsWithCount,

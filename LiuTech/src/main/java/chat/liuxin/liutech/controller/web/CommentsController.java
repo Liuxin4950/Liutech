@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.aspect.OperationLog;
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Comments;
@@ -156,9 +157,12 @@ public class CommentsController {
 
             CommentResp comment = commentsService.createComment(createCommentReq);
             return Result.success("创建成功", comment);
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
+            // 原始异常消息不外泄，仅记录日志；统一交给 GlobalExceptionHandler 转响应
             log.error("创建评论失败", e);
-            return Result.fail(ErrorCode.SYSTEM_ERROR, "创建评论失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "评论发表失败，请稍后重试");
         }
     }
 }

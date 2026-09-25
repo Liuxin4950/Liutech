@@ -162,14 +162,22 @@ const goToPostsPage = (page: number) => {
   loadAllPosts(page)
 }
 
-// 加载分类
+// 加载分类（首页侧栏降级：失败不阻塞其余内容渲染，页面自身有错误态）
 const loadCategories = async () => {
-  await categoryStore.fetchCategories()
+  try {
+    await categoryStore.fetchCategories()
+  } catch {
+    // 错误已记入 categoryStore.error
+  }
 }
 
-// 加载热门标签
+// 加载热门标签（同上）
 const loadHotTags = async () => {
-  await tagStore.fetchHotTags(10)
+  try {
+    await tagStore.fetchHotTags(10)
+  } catch {
+    // 错误已记入 tagStore.error
+  }
 }
 
 // 加载推荐文章：登录用户走基于浏览历史的个性化推荐，未登录或失败回退热门
