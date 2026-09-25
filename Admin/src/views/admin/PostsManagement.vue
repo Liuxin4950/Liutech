@@ -16,7 +16,7 @@ import PostSeriesService from '../../services/series'
 import type { PostListParams, Post, PostListItem, PostFavoriteUser } from '../../services/posts'
 import { formatDateTime } from '../../utils/utils'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
-import { ImageUploadService } from '../../services/upload'
+import { ImageUploadService, pickUploadFile } from '../../services/upload'
 import AdminAgentSidebar from '../../components/agent/AdminAgentSidebar.vue'
 import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '../../types/agent'
 
@@ -330,14 +330,9 @@ const openEdit = async (record: PostListItem) => {
 
 // ============== 图片上传 ==============
 // 用 a-upload-dragger 承载：点击选择 + 直接把图片拖进来都能用。
-// 注意 :before-upload 必须返回字面量 false 才会拦下 antd 自己的上传请求，
-// 文件从 info.fileList[0].originFileObj 取（before-upload 为 false 时 info.file 不含原始 File）。
+// :before-upload 返回 false 拦下 antd 自带请求，文件用 pickUploadFile 从 @change 参数取。
 const uploadingCover = ref(false)
 const uploadingThumbnail = ref(false)
-
-/** 从 antd upload 的 change 事件里取出原始 File */
-const pickUploadFile = (info: any): File | undefined =>
-  info?.fileList?.[0]?.originFileObj || info?.file?.originFileObj
 
 const handleCoverImageChange = async (info: any) => {
   const file = pickUploadFile(info)
@@ -738,6 +733,7 @@ onMounted(async () => {
                 class="cover-uploader"
                 :show-upload-list="false"
                 accept="image/*"
+                :max-count="1"
                 :before-upload="() => false"
                 @change="handleCoverImageChange"
               >
@@ -763,6 +759,7 @@ onMounted(async () => {
                 class="cover-uploader"
                 :show-upload-list="false"
                 accept="image/*"
+                :max-count="1"
                 :before-upload="() => false"
                 @change="handleThumbnailChange"
               >

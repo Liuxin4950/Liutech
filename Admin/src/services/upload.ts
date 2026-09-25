@@ -100,4 +100,25 @@ export class ImageUploadService {
 
 }
 
+/**
+ * 从 ant-design-vue Upload 的 @change 事件参数里取出「本次选中」的原始 File。
+ *
+ * 为什么要统一走这里：Upload 在 `:before-upload` 返回 `false`（我们用它拦下 antd
+ * 自带的上传请求、自己走上传流程）时是非受控的，内部 fileList 会跨多次选择不断
+ * 累积。若直接取 `info.fileList[0]`，在同一个弹窗里第二次换图时会拿到上一次的
+ * 旧文件——上传的是旧图。这里取列表的最后一项（最新），并兜底 `info.file`
+ * 本身（before-upload=false 时 antd 会把 info.file 设成重建出的原始 File）。
+ * 搭配 `:max-count="1"` 使用时 fileList 恒为最新一项，最稳妥。
+ */
+export function pickUploadFile(info: any): File | undefined {
+  const list = info?.fileList
+  if (Array.isArray(list) && list.length > 0) {
+    const last = list[list.length - 1]
+    const fromList = last?.originFileObj ?? (last instanceof File ? last : undefined)
+    if (fromList) return fromList as File
+  }
+  const current = info?.file
+  return current?.originFileObj ?? (current instanceof File ? current : undefined)
+}
+
 export default ImageUploadService

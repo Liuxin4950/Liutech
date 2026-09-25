@@ -10,7 +10,7 @@ import { useTableExport } from '@/composables/useTableExport'
 import TableExportButton from '@/components/TableExportButton.vue'
 import PostSeriesService, { type PostSeries, type PostSeriesListParams, type SeriesPostOrder } from '../../services/series'
 import PostsService, { type PostListItem } from '../../services/posts'
-import { ImageUploadService } from '../../services/upload'
+import { ImageUploadService, pickUploadFile } from '../../services/upload'
 import { formatDateTime } from '../../utils/utils'
 
 // 表格页面：加载、分页、搜索、选择
@@ -77,12 +77,11 @@ const exportCtrl = useTableExport({
 
 // ============== 封面图上传 ==============
 // 用 a-upload-dragger：点击选择 + 拖拽上传都可用。
-// :before-upload 必须返回字面量 false 才会拦下 antd 自身的上传请求，
-// 且此时要从 info.fileList[0].originFileObj 取原始 File。
+// :before-upload 返回 false 拦下 antd 自身请求，文件用 pickUploadFile 从 @change 参数取。
 const uploadingCover = ref(false)
 
 const handleCoverChange = async (info: any) => {
-  const file = info?.fileList?.[0]?.originFileObj || info?.file?.originFileObj
+  const file = pickUploadFile(info)
   if (!file) return
   try {
     uploadingCover.value = true
@@ -270,6 +269,7 @@ const saveOrder = async () => {
             class="cover-uploader"
             :show-upload-list="false"
             accept="image/*"
+            :max-count="1"
             :before-upload="() => false"
             @change="handleCoverChange"
           >

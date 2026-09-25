@@ -6,7 +6,7 @@ import LtStatusTag from '@/components/LtStatusTag.vue'
 import type { Carousel, CarouselListParams, CarouselFormData } from '../../services/carousel'
 import CarouselService from '../../services/carousel'
 import { formatDateTime, formatRelativeTime } from '../../utils/utils'
-import { ImageUploadService } from '../../services/upload'
+import { ImageUploadService, pickUploadFile } from '../../services/upload'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
@@ -145,7 +145,7 @@ const handleSubmit = async () => {
 
 // ============== 图片上传 ==============
 const handleImageChange = async (info: any) => {
-  const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
+  const file = pickUploadFile(info)
   if (!file) return
 
   imagePreview.value = URL.createObjectURL(file)
@@ -432,6 +432,7 @@ const statusOptions = [
                 name="file"
                 :show-upload-list="false"
                 accept="image/*"
+                :max-count="1"
                 :before-upload="() => false"
                 @change="handleImageChange"
               >

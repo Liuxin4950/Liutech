@@ -19,7 +19,7 @@ import TableExportButton from '@/components/TableExportButton.vue'
 import type { Music } from '../../services/music'
 import musicService from '../../services/music'
 import { formatDateTime } from '../../utils/utils'
-import { ImageUploadService } from '../../services/upload'
+import { ImageUploadService, pickUploadFile } from '../../services/upload'
 
 // 扩展 Music 类型以支持前端状态
 interface MusicItem extends Music {
@@ -177,7 +177,7 @@ const coverPreview = ref<string>('')
 const coverUploading = ref(false)
 
 const handleCoverChange = async (info: any) => {
-  const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
+  const file = pickUploadFile(info)
   if (!file) return
   coverPreview.value = URL.createObjectURL(file)
   try {
@@ -193,12 +193,12 @@ const handleCoverChange = async (info: any) => {
 }
 
 const handleFullAudioChange = (info: any) => {
-  const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
+  const file = pickUploadFile(info)
   if (file) uploadForm.value.fullAudio = file
 }
 
 const handleVocalAudioChange = (info: any) => {
-  const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
+  const file = pickUploadFile(info)
   if (file) uploadForm.value.vocalAudio = file
 }
 
@@ -425,7 +425,7 @@ const handleStatusChange = async (id: number, status: number) => {
           <a-input v-model:value="uploadForm.artist" placeholder="请输入艺术家名称" />
         </a-form-item>
         <a-form-item label="封面图">
-          <a-upload :show-upload-list="false" accept="image/*" :before-upload="() => false" @change="handleCoverChange">
+          <a-upload :show-upload-list="false" accept="image/*" :max-count="1" :before-upload="() => false" @change="handleCoverChange">
             <div v-if="coverPreview" class="cover-preview">
               <img :src="coverPreview" alt="封面预览" />
             </div>
@@ -435,14 +435,14 @@ const handleStatusChange = async (id: number, status: number) => {
           </a-upload>
         </a-form-item>
         <a-form-item label="完整音频" required help="背景音乐（伴奏+人声混合）">
-          <a-upload :show-upload-list="false" accept="audio/*" :before-upload="() => false" @change="handleFullAudioChange">
+          <a-upload :show-upload-list="false" accept="audio/*" :max-count="1" :before-upload="() => false" @change="handleFullAudioChange">
             <a-button :type="uploadForm.fullAudio ? 'primary' : 'default'">
               {{ uploadForm.fullAudio ? '已选择: ' + uploadForm.fullAudio.name : '选择完整音频' }}
             </a-button>
           </a-upload>
         </a-form-item>
         <a-form-item label="人声音频" required help="纯人声，用于Live2D模型对口型">
-          <a-upload :show-upload-list="false" accept="audio/*" :before-upload="() => false" @change="handleVocalAudioChange">
+          <a-upload :show-upload-list="false" accept="audio/*" :max-count="1" :before-upload="() => false" @change="handleVocalAudioChange">
             <a-button :type="uploadForm.vocalAudio ? 'primary' : 'default'">
               {{ uploadForm.vocalAudio ? '已选择: ' + uploadForm.vocalAudio.name : '选择人声音频' }}
             </a-button>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, provide, onMounted, watch } from 'vue'
+import { ref, reactive, computed, provide, onMounted, watch } from 'vue'
 import TheHeader from '@/components/TheHeader.vue'
 import TheFooter from '@/components/TheFooter.vue'
 import TheSidebar from '@/components/TheSidebar.vue'
@@ -24,14 +24,21 @@ watch(() => settings.sidebarCollapsed, (v) => {
 const tagsStore = useTagsStore()
 
 /**
- * 强制重挂载当前页面用的令牌。
+ * 强制重挂载「当前页面」用的令牌，按 route.path 分桶存储。
+ *
  * KeepAlive 的 include 变更只会丢弃缓存条目（pruneCacheEntry 对"当前正在渲染"
  * 的实例只清标志位、不卸载），因此「刷新」必须再改变 key 才能让页面真正重新挂载、
  * 重新拉数据。TagsView 通过 inject('ltReloadCurrentView') 触发。
+ *
+ * ⚠️ 令牌必须按 path 分桶，不能是单个全局值：key 参与每个页签的计算，
+ * 若用全局 token，刷新 A 会同时改掉 B、C… 的 key，切回它们时缓存全部未命中、
+ * 被迫重挂载——反而破坏多页签缓存。分桶后只有当前 path 的 key 变化。
  */
-const reloadToken = ref(0)
-const viewKey = computed(() => `${route.path}::${reloadToken.value}`)
-provide('ltReloadCurrentView', () => { reloadToken.value++ })
+const reloadTokens = reactive<Record<string, number>>({})
+const viewKey = computed(() => `${route.path}::${reloadTokens[route.path] ?? 0}`)
+provide('ltReloadCurrentView', () => {
+  reloadTokens[route.path] = (reloadTokens[route.path] ?? 0) + 1
+})
 
 onMounted(() => {
   const router = useRouter()

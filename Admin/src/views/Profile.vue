@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import { UserOutlined, UploadOutlined, LockOutlined } from '@ant-design/icons-vue'
 import { useUserStore } from '../stores/user'
 import UserService from '../services/user'
-import { ImageUploadService } from '../services/upload'
+import { ImageUploadService, pickUploadFile } from '../services/upload'
 
 const userStore = useUserStore()
 
@@ -104,7 +104,7 @@ const beforeAvatarUpload = (file: File): boolean => {
 }
 
 const handleAvatarChange = async (info: any) => {
-  const file = info.fileList?.[0]?.originFileObj || info.file?.originFileObj
+  const file = pickUploadFile(info)
   if (!file) return
   if (!beforeAvatarUpload(file)) return
 
@@ -184,6 +184,7 @@ onMounted(() => {
                     name="file"
                     :show-upload-list="false"
                     accept="image/png,image/jpeg,image/gif,image/webp"
+                    :max-count="1"
                     :before-upload="() => false"
                     @change="handleAvatarChange"
                   >
