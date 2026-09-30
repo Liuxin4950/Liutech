@@ -16,7 +16,7 @@
     <select id="selectByUserIdAndPostId" resultMap="PostLikesMap">
         SELECT id, user_id, post_id, is_like, created_at, updated_at
         FROM post_likes
-        WHERE user_id = #{userId} AND post_id = #{postId}
+        WHERE user_id = #{userId} AND post_id = #{postId} AND deleted_at IS NULL
     </select>
 
     <!-- 统计文章的点赞数 -->
@@ -36,7 +36,7 @@
     <select id="getLikeStatus" resultType="java.lang.Integer">
         SELECT is_like
         FROM post_likes
-        WHERE user_id = #{userId} AND post_id = #{postId}
+        WHERE user_id = #{userId} AND post_id = #{postId} AND deleted_at IS NULL
     </select>
     
     <!-- 插入或更新点赞记录 -->
@@ -45,6 +45,7 @@
         VALUES (#{userId}, #{postId}, #{status}, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
         is_like = #{status},
+        deleted_at = NULL,
         updated_at = NOW()
     </insert>
     
@@ -60,5 +61,18 @@
             #{postId}
         </foreach>
     </delete>
+
+    <!-- 恢复文章互动；仍被删除的账户记录不能复活。 -->
+    <update id="restoreByPostIds">
+        UPDATE post_likes i
+        INNER JOIN posts p ON p.id = i.post_id
+        INNER JOIN users u ON u.id = i.user_id AND u.deleted_at IS NULL
+        SET i.deleted_at = NULL
+        WHERE i.post_id IN
+        <foreach collection="postIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND p.deleted_at IS NULL AND i.deleted_at IS NOT NULL
+    </update>
 
 </mapper>

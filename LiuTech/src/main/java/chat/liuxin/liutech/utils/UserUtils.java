@@ -1,8 +1,7 @@
 package chat.liuxin.liutech.utils;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -14,13 +13,12 @@ import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Users;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.concurrent.TimeUnit;
 
 /**
  * 用户工具类
  * 提供用户相关的公共方法，包括获取当前登录用户信息等。
  *
- * 内部使用 Caffeine 缓存用户信息，避免每次请求都查库。
+ * 仅缓存不可变的用户名到 ID 映射；完整用户信息读取当前数据库。
  *
  * @author 刘鑫
  * @date 2025-08-30
@@ -29,17 +27,17 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class UserUtils {
 
-    @Autowired
-    @Lazy
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
+    private final CacheManager cacheManager;
 
-    /**
-     * 用户信息缓存（username → Users），5 分钟自动过期，最多 200 条
-     */
-    private final Cache<String, Users> userCache = Caffeine.newBuilder()
-            .expireAfterWrite(5, TimeUnit.MINUTES)
-            .maximumSize(200)
-            .build();
+    public UserUtils(@Lazy UserMapper userMapper, CacheManager cacheManager) {
+        this.userMapper = userMapper;
+        this.cacheManager = cacheManager;
+    }
+
+    private Cache userCache() {
+        return java.util.Objects.requireNonNull(cacheManager.getCache("userIdentity"));
+    }
 
     /**
      * 从 Spring Security 上下文获取当前用户 ID。
@@ -72,8 +70,11 @@ public class UserUtils {
             // 2) 回退：从 principal 的用户名查找
             Object principal = authentication.getPrincipal();
             if (principal instanceof String username && StringUtils.hasText(username)) {
+                Long userId = userCache().get(username, Long.class);
+                if (userId != null) return userId;
                 Users user = getOrLoadUser(username);
                 if (user != null && user.getId() != null) {
+                    userCache().put(username, user.getId());
                     return user.getId();
                 }
                 log.warn("未找到用户名为 {} 的用户", username);
@@ -110,7 +111,7 @@ public class UserUtils {
     }
 
     /**
-     * 获取当前登录用户的完整信息（带缓存）
+     * 完整资料读取当前数据库；仅用户名到 ID 的不可变映射可缓存。
      */
     public Users getCurrentUser() {
         try {
@@ -151,7 +152,7 @@ public class UserUtils {
      */
     public void clearUserCache(String username) {
         if (StringUtils.hasText(username)) {
-            userCache.invalidate(username);
+            userCache().evict(username);
             log.debug("已清除用户 {} 的缓存", username);
         }
     }
@@ -160,26 +161,16 @@ public class UserUtils {
      * 清除所有用户缓存
      */
     public void clearAllUserCache() {
-        long size = userCache.estimatedSize();
-        userCache.invalidateAll();
-        log.info("已清除所有用户缓存，共 {} 项", size);
+        userCache().clear();
+        log.info("已清除所有用户身份缓存");
     }
 
     /**
-     * 从缓存获取用户，未命中则查库并回填
+     * 不缓存可变实体，避免调用方修改共享对象以及读取过期余额/权限。
      */
     private Users getOrLoadUser(String username) {
-        Users cached = userCache.getIfPresent(username);
-        if (cached != null) {
-            log.debug("从缓存获取到用户信息 for username: {}", username);
-            return cached;
-        }
-
-        Users user = userMapper.findByUserName(username).stream().findFirst().orElse(null);
-        if (user != null) {
-            userCache.put(username, user);
-            log.debug("从数据库查询并缓存用户信息 for username: {}", username);
-        }
-        return user;
+        return userMapper.findByUserName(username).stream()
+                .filter(user -> user.getDeletedAt() == null)
+                .findFirst().orElse(null);
     }
 }

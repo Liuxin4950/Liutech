@@ -31,6 +31,14 @@ public class UserDataPurgeController {
         return result;
     }
 
+    /** 仅供主库已提交删除后的持久化任务使用；旧接口仍保留普通清空语义。 */
+    @DeleteMapping("/{userId}/permanent-data")
+    public UserDataPurgeResult purgePermanent(@PathVariable Long userId) {
+        MemoryService.PurgeCounts counts = memoryService.purgeUserData(String.valueOf(userId));
+        log.info("AI 用户数据已永久清理: userId={}", userId);
+        return new UserDataPurgeResult(userId, counts.conversationsDeleted(), counts.messagesDeleted(), true);
+    }
+
     @PostMapping("/purge")
     public List<UserDataPurgeResult> purgeBatch(@Valid @RequestBody UserDataPurgeRequest request) {
         List<UserDataPurgeResult> results = request.getUserIds().stream().distinct().map(this::purge).toList();

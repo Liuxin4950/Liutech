@@ -22,6 +22,17 @@ import java.util.Map;
 @Slf4j
 @Component
 public class JwtUtil {
+    /** 经过签名、有效期校验的不可变请求身份；不从 token 角色授权。 */
+    public record TokenIdentity(Long userId, String username, String passwordDigest) {}
+
+    public TokenIdentity parseIdentity(String token) {
+        Claims claims = getClaimsFromToken(token);
+        if (claims == null) return null;
+        Object id = claims.get("userId");
+        Object digest = claims.get("passwordHash");
+        if (!(id instanceof Number) || (digest != null && !(digest instanceof String))) return null;
+        return new TokenIdentity(((Number) id).longValue(), claims.getSubject(), (String) digest);
+    }
 
     // 依赖说明：
     // - 配置属性：jwt.secret（签名密钥）、jwt.expiration（过期毫秒数）
@@ -229,7 +240,8 @@ public class JwtUtil {
      */
     public boolean validateToken(String token) {
         // 弱校验：只校验签名与未过期（不校验用户名）
-        return getClaimsFromToken(token) != null && !isTokenExpired(token);
+        // JJWT 解析已经校验 exp，不能再次解析同一 token。
+        return getClaimsFromToken(token) != null;
     }
 
     /**

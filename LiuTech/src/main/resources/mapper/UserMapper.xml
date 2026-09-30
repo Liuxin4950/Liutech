@@ -148,6 +148,7 @@
             version = #{newVersion},
             updated_at = NOW()
         WHERE id = #{userId}
+        AND deleted_at IS NULL
         AND version = #{currentVersion}
         AND points >= #{amount}
     </update>
@@ -159,6 +160,7 @@
             version = #{newVersion},
             updated_at = NOW()
         WHERE id = #{userId}
+        AND deleted_at IS NULL
         AND version = #{currentVersion}
     </update>
 
@@ -177,4 +179,11 @@
         LIMIT #{limit}
     </select>
 
+    <select id="countUsersByDateRange" resultType="chat.liuxin.liutech.resp.DashboardResp$TrendData">
+        SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS count
+        FROM users
+        WHERE created_at &gt;= #{start} AND created_at &lt; #{end} AND deleted_at IS NULL
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+        ORDER BY date
+    </select>
 </mapper>

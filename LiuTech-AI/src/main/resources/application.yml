@@ -14,15 +14,16 @@ spring:
       request-timeout: 300s
   # 数据库连接池优化配置
   datasource:
+    url: jdbc:mysql://${DB_HOST:${liutech.database.host:127.0.0.1}}:${DB_PORT:3306}/liutech_ai?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       connection-timeout: 15000
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
-      connection-test-query: SELECT 1
   ai:
+    max-concurrent-streams: ${AI_MAX_CONCURRENT_STREAMS:32}
     openai:
       # API密钥 - 生产环境必须配置（通过环境变量注入）
       # 本地开发也应通过环境变量或启动参数注入，避免默认密钥入库

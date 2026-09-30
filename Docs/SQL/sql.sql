@@ -23,7 +23,7 @@
 --   不要把整份初始化脚本直接重放到已有生产库；其中包含初始化数据，
 --   且 CREATE TABLE IF NOT EXISTS 不会为旧表自动补齐新增列。
 --   已有环境升级应根据版本差异生成、审核并备份后执行最小增量 SQL，
---   完成后再把最终结构折叠回本文件，不在 Docs/SQL 长期保留历史迁移副本。
+--   完成后把最终结构同步回本文件；已发布版本迁移长期保留在 migrations 中且不可修改。
 -- ============================================================================
 -- 关闭外键检查，避免顺序限制导致错误
 SET FOREIGN_KEY_CHECKS = 0;
@@ -55,6 +55,17 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_points (points) COMMENT '积分索引，用于排行榜',
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+CREATE TABLE IF NOT EXISTS user_purge_tasks (
+  user_id BIGINT NOT NULL PRIMARY KEY COMMENT '已删除用户ID，无外键',
+  attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  next_attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  lease_token VARCHAR(36) DEFAULT NULL,
+  last_error VARCHAR(100) DEFAULT NULL,
+  completed_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_purge_due (completed_at, next_attempt_at, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='跨服务用户清理任务';
 
 -- 安全约束：初始化脚本不创建固定用户名/密码的管理员。
 -- 首次部署请先通过正常注册流程创建真实账户，再按部署指南显式提升该账户角色。
@@ -583,6 +594,12 @@ VALUES
   (1, 1, 'GPT_SOVITS', NULL, NULL, 'FunAudioLLM/CosyVoice2-0.5B', NULL, 'mp3', 44100, 1.00)
 ON DUPLICATE KEY UPDATE id = VALUES(id);
 
+CREATE TABLE IF NOT EXISTS ai_user_state (
+  user_id VARCHAR(64) NOT NULL PRIMARY KEY,
+  purged TINYINT NOT NULL DEFAULT 0 COMMENT '1=永久清理，禁止旧请求重新创建数据',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI用户数据生命周期';
+
 -- AI 会话表
 CREATE TABLE IF NOT EXISTS ai_conversation
 (
@@ -619,7 +636,7 @@ CREATE TABLE IF NOT EXISTS ai_chat_message
     KEY idx_user_created (user_id, created_at) COMMENT '按用户和时间查询历史',
     KEY idx_user_role (user_id, role) COMMENT '按用户和角色查询',
     KEY idx_conv_created (conversation_id, created_at) COMMENT '按会话查询消息',
-    KEY idx_conv_seq (conversation_id, seq_no) COMMENT '按会话和序号查询',
+    UNIQUE KEY uk_conv_seq (conversation_id, seq_no) COMMENT '按会话和序号查询',
     CONSTRAINT fk_message_conversation FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='AI聊天消息表';

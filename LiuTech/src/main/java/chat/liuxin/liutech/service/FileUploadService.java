@@ -21,10 +21,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.LinkOption;
 import java.util.Comparator;
 
 /**
@@ -51,6 +54,9 @@ public class FileUploadService {
     private final ImagesService imagesService;
 
     private final FileStorage fileStorage;
+
+    private final ResourceRecordService resourceRecordService;
+    private final chat.liuxin.liutech.storage.StorageWriteCompensator storageWriteCompensator;
 
     /**
      * 上传图片文件（用于TinyMCE编辑器）
@@ -95,7 +101,7 @@ public class FileUploadService {
 
         } catch (IOException e) {
             log.error("图片上传失败 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename(), e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文件保存失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文件保存失败");
         }
     }
 
@@ -141,7 +147,7 @@ public class FileUploadService {
 
         } catch (IOException e) {
             log.error("文档上传失败 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename(), e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文件保存失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文件保存失败");
         }
     }
 
@@ -169,7 +175,6 @@ public class FileUploadService {
      * @param pointsNeeded 所需积分
      * @return 上传结果
      */
-    @Transactional(rollbackFor = Exception.class)
     public FileUploadResp uploadResource(MultipartFile file, Long userId, String description, String draftKey, String type, Integer downloadType, Integer pointsNeeded) {
         log.debug("开始上传资源 - 用户ID: {}, 文件名: {}, 大小: {} bytes, 描述: {}, 草稿键: {}, 类型: {}",
                 userId, file.getOriginalFilename(), file.getSize(), description, draftKey, type);
@@ -180,12 +185,12 @@ public class FileUploadService {
         // 验证文件
         validateResourceFile(file);
 
-        try {
-            return saveResourceFile(file.getBytes(), file.getOriginalFilename(), file.getSize(), userId,
+        try (InputStream input = file.getInputStream()) {
+            return saveResourceStream(input, file.getOriginalFilename(), file.getSize(), userId,
                     description, draftKey, type, downloadType, pointsNeeded);
         } catch (IOException e) {
             log.error("资源上传失败 - 用户ID: {}, 文件名: {}", userId, file.getOriginalFilename(), e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文件保存失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文件保存失败");
         }
     }
 
@@ -207,10 +212,17 @@ public class FileUploadService {
      * @param pointsNeeded 所需积分
      * @return 上传结果
      */
-    @Transactional(rollbackFor = Exception.class)
     public FileUploadResp saveResourceFile(byte[] data, String fileName, long fileSize, Long userId,
                                            String description, String draftKey, String type,
                                            Integer downloadType, Integer pointsNeeded) throws IOException {
+        try (InputStream input = new ByteArrayInputStream(data)) {
+            return saveResourceStream(input, fileName, fileSize, userId, description, draftKey, type, downloadType, pointsNeeded);
+        }
+    }
+
+    private FileUploadResp saveResourceStream(InputStream input, String fileName, long fileSize, Long userId,
+                                               String description, String draftKey, String type,
+                                               Integer downloadType, Integer pointsNeeded) throws IOException {
         Resources duplicate = resourcesMapper.selectRecentDuplicate(userId, fileName);
         if (duplicate != null) {
             log.info("检测到重复上传，复用已有资源 - 用户ID: {}, 文件名: {}, 资源ID: {}",
@@ -244,8 +256,11 @@ public class FileUploadService {
             return result;
         }
 
+        int normalizedDownloadType = normalizeDownloadType(downloadType);
+        BigDecimal normalizedPoints = normalizePointsNeeded(normalizedDownloadType, pointsNeeded);
+
         // 保存文件
-        String relativePath = fileStorage.save(data, fileUploadConfig.getResourcePath(), fileName);
+        String relativePath = fileStorage.save(input, fileSize, fileUploadConfig.getResourcePath(), fileName);
 
         // 生成访问URL
         String fileUrl = fileStorage.generateUrl(relativePath);
@@ -256,28 +271,18 @@ public class FileUploadService {
         resource.setDescription(description);
         resource.setFileUrl(fileUrl);
         resource.setUploaderId(userId);
-        int normalizedDownloadType = normalizeDownloadType(downloadType);
         resource.setDownloadType(normalizedDownloadType);
-        resource.setPointsNeeded(normalizePointsNeeded(normalizedDownloadType, pointsNeeded));
+        resource.setPointsNeeded(normalizedPoints);
 
-        // 保存到数据库
-        resourcesMapper.insert(resource);
-        Long resourceId = resource.getId();
-
-        Long attachmentId = null;
-        // 如果提供了草稿键，创建附件关联记录
-        if (draftKey != null && !draftKey.trim().isEmpty()) {
-            PostAttachments attachment = new PostAttachments();
-            attachment.setDraftKey(draftKey);
-            attachment.setResourceId(resourceId);
-            attachment.setType(type != null ? type : "resource");
-
-            postAttachmentsMapper.insert(attachment);
-            attachmentId = attachment.getId();
-
-            log.debug("创建草稿附件关联 - 草稿键: {}, 资源ID: {}, 附件ID: {}, 类型: {}",
-                    draftKey, resourceId, attachmentId, type);
+        Long attachmentId;
+        try {
+            attachmentId = resourceRecordService.save(resource, draftKey, type);
+        } catch (RuntimeException e) {
+            // DB 事务回滚后补偿本次上传的独立文件，不清理复用资源。
+            storageWriteCompensator.onFailure(relativePath, e);
+            throw e;
         }
+        Long resourceId = resource.getId();
 
         // 构建响应
         FileUploadResp result = new FileUploadResp();
@@ -314,10 +319,8 @@ public class FileUploadService {
                                     Integer chunkIndex, Integer totalChunks, String fileName) {
         validateUser(userId);
 
-        if (uploadId == null || uploadId.trim().isEmpty() || uploadId.length() > 64) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片标识不合法");
-        }
-        if (chunkIndex == null || chunkIndex < 0 || totalChunks == null || totalChunks < 1 || chunkIndex >= totalChunks) {
+        Path dir = chunkDirectory(userId, uploadId);
+        if (chunkIndex == null || chunkIndex < 0 || totalChunks == null || totalChunks < 1 || totalChunks > 1000 || chunkIndex >= totalChunks) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片参数不合法");
         }
         if (file == null || file.isEmpty()) {
@@ -332,8 +335,9 @@ public class FileUploadService {
         }
 
         try {
-            Path dir = Paths.get(fileUploadConfig.getBasePath(), "tmp", uploadId);
             Files.createDirectories(dir);
+            checkChunkPath(dir);
+            checkChunkPath(dir.resolve(chunkIndex + ".part"));
             file.transferTo(dir.resolve(chunkIndex + ".part").toFile());
         } catch (IOException e) {
             log.error("分片保存失败 - 用户ID: {}, uploadId: {}, chunkIndex: {}", userId, uploadId, chunkIndex, e);
@@ -360,9 +364,7 @@ public class FileUploadService {
                                               Integer downloadType, Integer pointsNeeded) {
         validateUser(userId);
 
-        if (uploadId == null || uploadId.trim().isEmpty() || uploadId.length() > 64) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片标识不合法");
-        }
+        Path dir = chunkDirectory(userId, uploadId);
         if (totalChunks == null || totalChunks < 1 || totalChunks > 1000) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片总数不合法");
         }
@@ -371,8 +373,7 @@ public class FileUploadService {
                     "不支持的资源格式，支持的格式: " + String.join(", ", fileUploadConfig.getAllowedResourceTypes()));
         }
 
-        Path dir = Paths.get(fileUploadConfig.getBasePath(), "tmp", uploadId);
-        if (!Files.isDirectory(dir)) {
+        if (!Files.isDirectory(dir, LinkOption.NOFOLLOW_LINKS)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片不存在，请重新上传");
         }
 
@@ -381,7 +382,7 @@ public class FileUploadService {
             long totalSize = 0;
             for (int i = 0; i < totalChunks; i++) {
                 Path part = dir.resolve(i + ".part");
-                if (!Files.isRegularFile(part)) {
+                if (!Files.isRegularFile(part, LinkOption.NOFOLLOW_LINKS)) {
                     throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片不完整，请重新上传");
                 }
                 totalSize += Files.size(part);
@@ -393,22 +394,52 @@ public class FileUploadService {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "资源文件大小不能超过 100MB");
             }
 
-            // 按序合并到内存
-            byte[] data = new byte[(int) totalSize];
-            int offset = 0;
-            for (int i = 0; i < totalChunks; i++) {
-                byte[] part = Files.readAllBytes(dir.resolve(i + ".part"));
-                System.arraycopy(part, 0, data, offset, part.length);
-                offset += part.length;
+            // 分片按序写入临时文件，整个资源不进入堆内存。
+            Path merged = Files.createTempFile(dir, "merged-", ".tmp");
+            FileUploadResp result;
+            try {
+                try (var output = Files.newOutputStream(merged)) {
+                    for (int i = 0; i < totalChunks; i++) {
+                        try (var part = Files.newInputStream(dir.resolve(i + ".part"))) {
+                            part.transferTo(output);
+                        }
+                    }
+                }
+                try (var input = Files.newInputStream(merged)) {
+                    result = saveResourceStream(input, fileName, totalSize, userId, description, draftKey,
+                            type, downloadType, pointsNeeded);
+                }
+            } finally {
+                Files.deleteIfExists(merged);
             }
-
-            // 清理临时分片目录
+            // 保存成功再清理，失败时保留分片供重试。
             deleteRecursively(dir);
-
-            return saveResourceFile(data, fileName, totalSize, userId, description, draftKey, type, downloadType, pointsNeeded);
+            return result;
         } catch (IOException e) {
             log.error("分片合并失败 - 用户ID: {}, uploadId: {}", userId, uploadId, e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "分片合并失败: " + e.getMessage());
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "分片合并失败");
+        }
+    }
+
+    /** 保留客户端任务标识协议；目录按用户隔离，拒绝路径字符和符号链接。 */
+    private Path chunkDirectory(Long userId, String uploadId) {
+        if (uploadId == null || !uploadId.matches("[A-Za-z0-9_-]{1,64}")) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片标识不合法");
+        }
+        Path root = Paths.get(fileUploadConfig.getBasePath()).toAbsolutePath().normalize();
+        Path dir = root.resolve("tmp").resolve(userId.toString()).resolve(uploadId).normalize();
+        if (!dir.startsWith(root.resolve("tmp")) || dir.equals(root.resolve("tmp"))) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片路径不合法");
+        }
+        for (Path path = dir; path != null && path.startsWith(root); path = path.getParent()) {
+            checkChunkPath(path);
+        }
+        return dir;
+    }
+
+    private void checkChunkPath(Path path) {
+        if (Files.isSymbolicLink(path)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "分片路径不合法");
         }
     }
 

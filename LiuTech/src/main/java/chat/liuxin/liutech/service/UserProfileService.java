@@ -22,6 +22,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 
 import java.util.Date;
 import java.util.List;
@@ -69,7 +70,8 @@ public class UserProfileService {
         log.debug("开始更新用户个人资料");
 
         // 1. 获取当前用户信息
-        Users currentUser = userUtils.getCurrentUser();
+        Long userId = userUtils.getCurrentUserId();
+        Users currentUser = userId == null ? null : userMapper.selectProfileForUpdate(userId);
         if (currentUser == null) {
             log.warn("用户未认证");
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
@@ -101,24 +103,29 @@ public class UserProfileService {
             incrementImageReference(newAvatarUrl);
         }
 
-        // 4. 更新用户信息
+        // 只写资料字段，不能把查询结果中的余额、权限、密码等写回。
+        LambdaUpdateWrapper<Users> update = new LambdaUpdateWrapper<Users>()
+                .eq(Users::getId, currentUser.getId())
+                .set(Users::getUpdatedAt, new Date());
         if (StringUtils.hasText(updateProfileReq.getEmail())) {
-            currentUser.setEmail(updateProfileReq.getEmail());
+            update.set(Users::getEmail, updateProfileReq.getEmail());
         }
         if (StringUtils.hasText(updateProfileReq.getAvatarUrl())) {
-            currentUser.setAvatarUrl(updateProfileReq.getAvatarUrl());
+            update.set(Users::getAvatarUrl, updateProfileReq.getAvatarUrl());
         }
         if (StringUtils.hasText(updateProfileReq.getNickname())) {
-            currentUser.setNickname(updateProfileReq.getNickname());
+            update.set(Users::getNickname, updateProfileReq.getNickname());
         }
         if (StringUtils.hasText(updateProfileReq.getBio())) {
-            currentUser.setBio(updateProfileReq.getBio());
+            update.set(Users::getBio, updateProfileReq.getBio());
         }
-        currentUser.setUpdatedAt(new Date());
 
         // 5. 保存到数据库
         try {
-            userMapper.updateById(currentUser);
+            if (userMapper.update(null, update) != 1) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "个人资料更新失败");
+            }
+            userUtils.clearUserCache(currentUser.getUsername());
             log.debug("用户 {} 个人资料更新成功", currentUser.getUsername());
         } catch (Exception e) {
             log.error("个人资料更新失败，用户: {}, 错误: {}", currentUser.getUsername(), e.getMessage(), e);
@@ -127,7 +134,7 @@ public class UserProfileService {
 
         // 6. 转换为响应对象
         UserResp userResp = new UserResp();
-        BeanUtils.copyProperties(currentUser, userResp);
+        BeanUtils.copyProperties(userMapper.selectById(currentUser.getId()), userResp);
         return userResp;
     }
 

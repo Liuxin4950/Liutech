@@ -65,8 +65,7 @@ public class AiConversationController {
     @PutMapping("/{id}/rename")
     public ChatResponse rename(@PathVariable Long id, @RequestParam String title) {
         String userId = authUtils.getCurrentUserIdStr();
-        memoryService.getConversationOwnedByUser(userId, id);
-        memoryService.renameConversation(id, title);
+        memoryService.renameConversation(userId, id, title);
         return ChatResponse.success("会话重命名成功");
     }
 
@@ -74,8 +73,7 @@ public class AiConversationController {
     @PutMapping("/{id}/archive")
     public ChatResponse archive(@PathVariable Long id) {
         String userId = authUtils.getCurrentUserIdStr();
-        memoryService.getConversationOwnedByUser(userId, id);
-        memoryService.archiveConversation(id);
+        memoryService.archiveConversation(userId, id);
         return ChatResponse.success("会话已归档");
     }
 
@@ -83,8 +81,7 @@ public class AiConversationController {
     @DeleteMapping("/{id}")
     public ChatResponse delete(@PathVariable Long id) {
         String userId = authUtils.getCurrentUserIdStr();
-        memoryService.getConversationOwnedByUser(userId, id);
-        memoryService.deleteConversation(id);
+        memoryService.deleteConversation(userId, id);
         return ChatResponse.success("会话已删除");
     }
 

@@ -69,6 +69,10 @@ public class AiChatServiceImpl implements AiChatService {
         String modelName = resolveModelName(request);
         Long conversationId = guestMode ? null : request.getConversationId();
 
+        if (conversationId != null) {
+            memoryService.getConversationOwnedByUser(userIdStr, conversationId);
+        }
+
         try {
             // 参数必须先解析：消息组装要用它的输入预算做裁剪（超限时直接抛出可读错误）
             AiModelPolicy.ModelParameters params = getModelParameters(request, modelName);

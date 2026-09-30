@@ -64,10 +64,15 @@ public class CosFileStorage implements FileStorage {
 
     @Override
     public String save(byte[] data, String subPath, String originalFilename) throws IOException {
+        return save(new ByteArrayInputStream(data), data.length, subPath, originalFilename);
+    }
+
+    @Override
+    public String save(InputStream input, long size, String subPath, String originalFilename) throws IOException {
         String relativePath = StoragePathUtil.generateRelativePath(subPath, originalFilename);
         ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(data.length);
-        cosClient.putObject(cosProperties.getBucket(), relativePath, new ByteArrayInputStream(data), metadata);
+        metadata.setContentLength(size);
+        cosClient.putObject(cosProperties.getBucket(), relativePath, input, metadata);
         return relativePath;
     }
 

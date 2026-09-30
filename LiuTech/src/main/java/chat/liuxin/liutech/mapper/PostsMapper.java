@@ -22,6 +22,20 @@ import chat.liuxin.liutech.vo.PostTagRowVO;
  */
 @Mapper
 public interface PostsMapper extends BaseMapper<Posts> {
+    List<chat.liuxin.liutech.resp.DashboardResp.TrendData> countPostsByDateRange(
+            @Param("start") String start, @Param("end") String end);
+
+    /** 与删除/恢复共同争用文章行锁，串行化状态切换与计数重算。 */
+    @Select("SELECT * FROM posts WHERE id = #{id} AND deleted_at IS NULL FOR UPDATE")
+    Posts selectActiveForUpdate(@Param("id") Long id);
+
+    @Select("<script>SELECT * FROM posts WHERE id IN " +
+            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach> " +
+            "ORDER BY id FOR UPDATE</script>")
+    List<Posts> selectForUpdateByIds(@Param("ids") List<Long> ids);
+
+    int refreshInteractionCounts(@Param("ids") List<Long> ids);
+
 
     /**
      * 获取所有已发布的文章（用于 sitemap 生成）

@@ -5,6 +5,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.support.SimpleCacheManager;
+import org.springframework.cache.transaction.TransactionAwareCacheManagerProxy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -48,9 +49,12 @@ public class CacheConfig {
                 buildCache("announcements", 10, 50),
                 // 用户统计与关于页 — 10 分钟
                 buildCache("userStats", 10, 20),
-                buildCache("aboutPage", 10, 2)
+                buildCache("aboutPage", 10, 2),
+                // 只缓存不可变用户 ID，不缓存 Users 实体
+                buildCache("userIdentity", 5, 200)
         ));
-        return cacheManager;
+        cacheManager.initializeCaches();
+        return new TransactionAwareCacheManagerProxy(cacheManager);
     }
 
     /**

@@ -40,3 +40,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 - `Docs/记录/2026-09-07-项目减法与可维护性检查.md` — 当前代码减法、Bug 与维护性清单
 - `Docs/SQL/sql.sql` — 两个数据库的唯一完整初始化脚本
 - `Docs/架构/README.md` — 模块化架构文档索引
+
+## 数据库升级入口
+
+`Docs/SQL/sql.sql` 仍是唯一完整初始化快照；增量发布使用 `Docs/SQL/migrations/README.md` 与 `scripts/migrate.ps1`。已发布迁移长期保留且不可修改；应用不执行 DDL。修改数据库结构时同步增量、快照、启动结构检查和真实 MySQL 回归，发布前先迁移再启动新版。

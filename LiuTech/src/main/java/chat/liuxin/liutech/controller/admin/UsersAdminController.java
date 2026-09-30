@@ -72,7 +72,9 @@ public class UsersAdminController extends BaseAdminController {
         ValidationUtil.validateNotNull(user, "用户信息");
         ValidationUtil.validateEmail(user.getEmail());
         user.setId(id);
-        preservePasswordIfEmpty(user, id);
+        if (!org.springframework.util.StringUtils.hasText(user.getPasswordHash())) {
+            user.setPasswordHash(null);
+        }
         return handleOperationResult(userManagementService.updateUserById(user), "用户更新成功", "用户更新");
     }
 
@@ -134,7 +136,7 @@ public class UsersAdminController extends BaseAdminController {
     @OperationLog(action = "delete", targetType = "user", description = "彻底删除用户", targetName = "#id")
     public Result<String> permanentDeleteUser(@PathVariable Long id) {
         ValidationUtil.validateId(id, "用户ID");
-        return handleOperationResult(userManagementService.permanentDeleteUser(id), "用户彻底删除成功", "用户彻底删除");
+        return handleOperationResult(userManagementService.permanentDeleteUser(id), "用户已删除，关联数据清理任务已提交", "用户彻底删除");
     }
 
     /** 批量彻底删除用户（物理删除） */
@@ -142,19 +144,10 @@ public class UsersAdminController extends BaseAdminController {
     @OperationLog(action = "delete", targetType = "user", description = "批量彻底删除用户")
     public Result<String> batchPermanentDeleteUsers(@RequestBody List<Long> ids) {
         ValidationUtil.validateNotEmpty(ids, "用户ID列表");
-        return handleOperationResult(userManagementService.batchPermanentDeleteUsers(ids), "批量彻底删除用户成功", "批量彻底删除用户");
+        return handleOperationResult(userManagementService.batchPermanentDeleteUsers(ids), "用户已批量删除，关联数据清理任务已提交", "批量彻底删除用户");
     }
 
     /** 如果密码为空则保留原密码 */
-    private void preservePasswordIfEmpty(Users user, Long id) {
-        if (user.getPasswordHash() == null || user.getPasswordHash().trim().isEmpty()) {
-            Users existingUser = userManagementService.findUserById(id);
-            if (existingUser != null) {
-                user.setPasswordHash(existingUser.getPasswordHash());
-            }
-        }
-    }
-
     /** 构建用户状态更新对象 */
     private Users buildUserStatusUpdate(Long id, Boolean enabled) {
         Users user = new Users();

@@ -156,3 +156,7 @@ docker-compose logs -f backend               # 跟踪后端日志
 **⚠️ PGLite 单写者约束（重要）：** CLI 命令（`gbrain sync`/`import`/`doctor`/`sources`）与 `gbrain serve`（MCP）不能同时打开数据库。若 CLI 报 "already open through gbrain serve" 或 doctor 报 broken-config，先停 serve（`taskkill //F //PID <bun.exe PID>`），跑完 CLI 再重连 MCP（重启 Claude Code 或 `/mcp`）。serve 进程退出后 PGLite 锁会自动回收。
 
 **已知限制：** 当前 schema pack 是 `gbrain-base-v2`，不抽取代码符号，`gbrain code-def`/`code-refs`/调用图无结果（语义搜索 `search`/`query` 正常）。需要符号查询要迁移到 code-aware pack（大迁移，未做）。
+
+## 数据库升级入口
+
+`Docs/SQL/sql.sql` 仍是唯一完整初始化快照；增量发布使用 `Docs/SQL/migrations/README.md` 与 `scripts/migrate.ps1`。已发布迁移长期保留且不可修改；应用不执行 DDL。修改数据库结构时同步增量、快照、启动结构检查和真实 MySQL 回归，发布前先迁移再启动新版。

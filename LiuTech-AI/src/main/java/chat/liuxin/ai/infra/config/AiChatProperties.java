@@ -20,6 +20,9 @@ public class AiChatProperties {
     /** SSE 超时时间（毫秒） */
     private long sseTimeout = 120000;
 
+    /** 每实例活跃 SSE 上限，包含聊天、写作以及等待音频结束的请求。 */
+    private int maxConcurrentStreams = 32;
+
     /** 聊天历史消息限制 */
     private int chatHistoryLimit = 14;
 

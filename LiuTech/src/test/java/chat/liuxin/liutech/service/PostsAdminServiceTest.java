@@ -138,8 +138,7 @@ class PostsAdminServiceTest {
         post.setId(postId);
         post.setTitle("Test Post");
 
-        when(postsMapper.selectById(postId)).thenReturn(post);
-        when(postTagsMapper.deleteByPostId(postId)).thenReturn(1);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.update(isNull(), any())).thenReturn(1);
         when(postFavoritesMapper.update(isNull(), any())).thenReturn(1);
         when(postsMapper.deleteById(eq(postId), any(), eq(operatorId))).thenReturn(1);
@@ -148,7 +147,7 @@ class PostsAdminServiceTest {
 
         assertTrue(result);
 
-        verify(postTagsMapper).deleteByPostId(postId);
+        verify(postTagsMapper, never()).deleteByPostId(postId);
         verify(postLikesMapper).update(isNull(), any());
         verify(postFavoritesMapper).update(isNull(), any());
         verify(postsMapper).deleteById(eq(postId), any(), eq(operatorId));
@@ -159,7 +158,7 @@ class PostsAdminServiceTest {
         Long postId = 999L;
         Long operatorId = 10L;
 
-        when(postsMapper.selectById(postId)).thenReturn(null);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(null);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> postsAdminService.deletePostForAdmin(postId, operatorId));

@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
  * 积分服务类 - 统一管理积分变动
  *
  * 核心安全特性：
- * 1. 使用乐观锁防止并发竞态条件
+ * 1. 当前读锁定用户行，余额与流水在同一短事务提交
  * 2. 记录完整的积分流水
  * 3. 原子性的积分扣减操作
  *
@@ -50,9 +50,6 @@ public class PointsService {
     public static final String SOURCE_ADMIN_MANUAL = "admin_manual";
     public static final String SOURCE_SYSTEM_REWARD = "system_reward";
 
-    /** 乐观锁冲突时的最大重试次数 */
-    private static final int MAX_RETRY_COUNT = 3;
-
     /**
      * 扣减用户积分（原子操作，防止并发问题）
      *
@@ -70,12 +67,12 @@ public class PointsService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void deductPoints(Long userId, BigDecimal amount, String sourceType, Long sourceId, String description) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("扣减金额必须大于0");
         }
 
         // 1. 查询用户当前积分和版本号
-        Users user = userMapper.selectById(userId);
+        Users user = userMapper.selectActiveForUpdate(userId);
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
@@ -130,35 +127,21 @@ public class PointsService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void addPoints(Long userId, BigDecimal amount, String transactionType, String sourceType, Long sourceId, String description) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("增加金额必须大于0");
         }
 
         // 1. 查询用户当前积分
-        Users user = userMapper.selectById(userId);
+        Users user = userMapper.selectActiveForUpdate(userId);
         if (user == null) {
             throw new RuntimeException("用户不存在");
         }
 
-        // 2. 使用乐观锁更新积分（重试机制，防止并发竞态）
-        boolean updated = false;
-        BigDecimal newPoints = BigDecimal.ZERO;
-        for (int attempt = 0; attempt < MAX_RETRY_COUNT; attempt++) {
-            user = userMapper.selectById(userId);
-            BigDecimal currentPoints = user.getPoints() != null ? user.getPoints() : BigDecimal.ZERO;
-            Integer currentVersion = user.getVersion() != null ? user.getVersion() : 0;
-            int newVersion = currentVersion + 1;
-            newPoints = currentPoints.add(amount);
-
-            int rows = userMapper.addPointsWithVersion(userId, amount, currentVersion, newVersion);
-            if (rows > 0) {
-                updated = true;
-                break;
-            }
-            log.warn("用户{}积分增加乐观锁冲突，重试第{}次", userId, attempt + 1);
-        }
-
-        if (!updated) {
+        // 锁定读得到最新余额，不在 RR 事务旧快照中重试普通 SELECT。
+        BigDecimal currentPoints = user.getPoints() != null ? user.getPoints() : BigDecimal.ZERO;
+        int currentVersion = user.getVersion() != null ? user.getVersion() : 0;
+        BigDecimal newPoints = currentPoints.add(amount);
+        if (userMapper.addPointsWithVersion(userId, amount, currentVersion, currentVersion + 1) != 1) {
             throw new RuntimeException("系统繁忙，请稍后重试");
         }
 

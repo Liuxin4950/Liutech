@@ -40,7 +40,7 @@ public class UserManagementService {
 
     private final BCryptPasswordEncoder passwordEncoder;
 
-    private final AiUserDataClient aiUserDataClient;
+    private final chat.liuxin.liutech.mapper.UserPurgeTaskMapper userPurgeTaskMapper;
 
     /**
      * 获取当前用户信息
@@ -320,7 +320,7 @@ public class UserManagementService {
             preprocessUserForUpdate(user);
 
             // 2. 更新到数据库
-            int result = userMapper.updateById(user);
+            int result = userMapper.updateById(accountPatch(user));
             boolean success = result > 0;
 
             if (success) {
@@ -338,6 +338,21 @@ public class UserManagementService {
             log.error("更新用户失败，用户ID: {}, 错误: {}", user.getId(), e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "更新用户失败");
         }
+    }
+
+    private Users accountPatch(Users user) {
+        Users patch = new Users();
+        patch.setId(user.getId());
+        patch.setUsername(user.getUsername());
+        patch.setEmail(user.getEmail());
+        patch.setPasswordHash(user.getPasswordHash());
+        patch.setAvatarUrl(user.getAvatarUrl());
+        patch.setNickname(user.getNickname());
+        patch.setBio(user.getBio());
+        patch.setRole(user.getRole());
+        patch.setStatus(user.getStatus());
+        patch.setUpdatedAt(new Date());
+        return patch;
     }
 
     /**
@@ -509,7 +524,7 @@ public class UserManagementService {
      */
     public void updateUser(Users user) {
         log.debug("更新用户: {}", user.getId());
-        userMapper.updateById(user);
+        userMapper.updateById(accountPatch(user));
     }
 
     /**
@@ -649,37 +664,17 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeleteUser(Long id) {
-        log.debug("彻底删除用户 - 用户ID: {}", id);
-
-        try {
-            if (id == null) {
-                log.warn("用户ID不能为空");
-                return false;
-            }
-
-            // 先清理 AI 服务中的会话与消息；失败时中止主库物理删除，避免孤儿数据。
-            aiUserDataClient.purgeUser(id);
-
-            // 清理用户缓存
-            Users user = userMapper.selectById(id);
-            if (user != null && StringUtils.hasText(user.getUsername())) {
-                userUtils.clearUserCache(user.getUsername());
-                log.debug("已清理彻底删除用户 {} 的缓存", user.getUsername());
-            }
-
-            // 物理删除
-            int result = userMapper.physicalDeleteById(id);
-            boolean success = result > 0;
-
-            log.debug("彻底删除用户{} - 用户ID: {}", success ? "成功" : "失败", id);
-            return success;
-
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("彻底删除用户失败 - 用户ID: {}, 错误: {}", id, e.getMessage(), e);
-            throw new RuntimeException("彻底删除用户失败: " + e.getMessage());
+        if (id == null) return false;
+        Users user = userMapper.selectIncludingDeletedForUpdate(id);
+        if (user == null) return false;
+        // 主库删除和持久化任务一起提交；失败回滚不会先删 AI 数据。
+        userPurgeTaskMapper.enqueue(id);
+        if (userMapper.physicalDeleteById(id) != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "用户删除失败");
         }
+        userUtils.clearUserCache(user.getUsername());
+        log.info("用户已永久删除，AI 数据清理已持久化排队: userId={}", id);
+        return true;
     }
 
     /**
@@ -691,43 +686,12 @@ public class UserManagementService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeleteUsers(List<Long> ids) {
-        log.debug("批量彻底删除用户 - 用户ID列表: {}", ids);
-
-        try {
-            if (ids == null || ids.isEmpty()) {
-                log.warn("用户ID列表不能为空");
-                return false;
-            }
-
-            // AI 清理接口幂等，客户端按每批最多100个ID分片。
-            aiUserDataClient.purgeUsers(ids.stream().distinct().toList());
-
-            // 清理相关用户的缓存
-            LambdaQueryWrapper<Users> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.in(Users::getId, ids);
-            List<Users> users = userMapper.selectList(queryWrapper);
-            if (users != null && !users.isEmpty()) {
-                users.forEach(u -> {
-                    if (StringUtils.hasText(u.getUsername())) {
-                        userUtils.clearUserCache(u.getUsername());
-                    }
-                });
-                log.debug("已清理 {} 个用户的缓存", users.size());
-            }
-
-            // 批量物理删除
-            int result = userMapper.physicalDeleteByIds(ids);
-            boolean success = result > 0;
-
-            log.debug("批量彻底删除用户{} - 影响用户数: {}", success ? "成功" : "失败", ids.size());
-            return success;
-
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("批量彻底删除用户失败 - 用户ID列表: {}, 错误: {}", ids, e.getMessage(), e);
-            throw new RuntimeException("批量彻底删除用户失败: " + e.getMessage());
+        if (ids == null || ids.isEmpty()) return false;
+        boolean deleted = false;
+        for (Long id : ids.stream().distinct().sorted().toList()) {
+            deleted |= permanentDeleteUser(id);
         }
+        return deleted;
     }
 
     /**

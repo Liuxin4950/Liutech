@@ -21,6 +21,8 @@ import chat.liuxin.liutech.resp.PostFavoriteUserResp;
 @Mapper
 public interface PostFavoritesMapper extends BaseMapper<PostFavorites> {
 
+    int restoreByPostIds(@Param("postIds") List<Long> postIds);
+
     /**
      * 查询用户对文章的收藏状态
      * @param userId 用户ID

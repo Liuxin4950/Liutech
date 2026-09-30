@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -33,6 +32,7 @@ public class ImagesService {
     private final FileStorage fileStorage;
 
     private final ImageCompressService imageCompressService;
+    private final chat.liuxin.liutech.storage.StorageWriteCompensator storageWriteCompensator;
 
     /**
      * 上传图片（带去重）
@@ -44,7 +44,6 @@ public class ImagesService {
      * @return 图片信息
      * @throws IOException IO异常
      */
-    @Transactional(rollbackFor = Exception.class)
     public ImageUploadResult uploadImage(MultipartFile file, Long uploaderId, String subPath) throws IOException {
         String fileHash = fileUtil.calculateFileHash(file);
         log.debug("计算文件哈希: {}", fileHash);
@@ -96,7 +95,16 @@ public class ImagesService {
             log.warn("获取图片尺寸失败: {}", e.getMessage());
         }
 
-        imagesMapper.insert(newImage);
+        // 单条 INSERT 自身原子提交；压缩和文件 IO 不占用数据库事务。
+        try {
+            if (imagesMapper.insert(newImage) != 1) {
+                throw new chat.liuxin.liutech.common.BusinessException(
+                        chat.liuxin.liutech.common.ErrorCode.OPERATION_ERROR, "图片记录保存失败");
+            }
+        } catch (RuntimeException e) {
+            storageWriteCompensator.onFailure(relativePath, e);
+            throw e;
+        }
         log.debug("新图片保存成功，ID: {}，路径: {}", newImage.getId(), relativePath);
 
         return new ImageUploadResult(newImage, false);

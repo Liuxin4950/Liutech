@@ -21,6 +21,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -356,7 +357,12 @@ public class UserAuthService {
             Date now = new Date();
             user.setLastLoginAt(now);
             user.setUpdatedAt(now);
-            userMapper.updateById(user);
+            if (userMapper.update(null, new LambdaUpdateWrapper<Users>()
+                    .eq(Users::getId, user.getId())
+                    .set(Users::getLastLoginAt, now)
+                    .set(Users::getUpdatedAt, now)) != 1) {
+                log.warn("更新登录时间失败，用户ID: {}", user.getId());
+            }
             log.info("用户登录成功: {}", user.getUsername());
         } catch (Exception e) {
             log.error("更新登录时间失败: {}", e.getMessage(), e);
@@ -424,9 +430,7 @@ public class UserAuthService {
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
         Users user = users.get(0);
-        user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
-        user.setUpdatedAt(new Date());
-        userMapper.updateById(user);
+        updateUserPassword(user, req.getNewPassword());
         verificationCodeService.markUsed(vc.getId());
     }
 
@@ -543,9 +547,13 @@ public class UserAuthService {
     private void updateUserPassword(Users currentUser, String newPassword) {
         try {
             String encodedNewPassword = passwordEncoder.encode(newPassword);
-            currentUser.setPasswordHash(encodedNewPassword);
-            currentUser.setUpdatedAt(new Date());
-            userMapper.updateById(currentUser);
+            if (userMapper.update(null, new LambdaUpdateWrapper<Users>()
+                    .eq(Users::getId, currentUser.getId())
+                    .set(Users::getPasswordHash, encodedNewPassword)
+                    .set(Users::getUpdatedAt, new Date())) != 1) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "密码更新失败");
+            }
+            userUtils.clearUserCache(currentUser.getUsername());
         } catch (Exception e) {
             log.error("密码更新失败，用户ID: {}, 错误: {}", currentUser.getId(), e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "密码更新失败");

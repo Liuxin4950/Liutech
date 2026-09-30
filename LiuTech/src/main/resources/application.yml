@@ -18,21 +18,19 @@ spring:
   # 上传文件通过 WebConfig 中的显式 /uploads/images、/uploads/documents、/uploads/music 映射暴露。
   # 不把上传根目录注册为默认静态目录，避免 /resources/** 绕过资源购买下载接口。
   datasource:
-    # 数据源URL由不同环境的配置文件覆盖：
-    # - application-dev.yml：本地开发（示例使用 127.0.0.1:3307）
-    # - application-prod.yml：Docker/生产（示例使用 docker 网络主机名 mysql:3306）
+    url: jdbc:mysql://${DB_HOST:${liutech.database.host:127.0.0.1}}:${DB_PORT:3306}/liutech?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+    # URL 参数仅在此维护；端点可通过 DB_HOST/DB_PORT 覆盖。
     username: root
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       idle-timeout: 300000
       connection-timeout: 15000
       max-lifetime: 900000
       leak-detection-threshold: 60000
       pool-name: HikariCP-Blog
-      connection-test-query: SELECT 1
 
   # 邮件配置（忘记密码、邮箱验证码登录）
   mail:
@@ -63,12 +61,6 @@ mybatis-plus:
       logic-delete-field: deletedAt
       logic-delete-value: "NOW()"
       logic-not-delete-value: "NULL"
-  # 分页插件配置
-  configuration-properties:
-    helperDialect: mysql
-    reasonable: true
-    supportMethodsArguments: true
-    params: count=countSql
 
 logging:
   level:

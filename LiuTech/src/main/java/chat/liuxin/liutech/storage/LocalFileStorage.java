@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,6 +30,11 @@ public class LocalFileStorage implements FileStorage {
 
     @Override
     public String save(byte[] data, String subPath, String originalFilename) throws IOException {
+        return save(new ByteArrayInputStream(data), data.length, subPath, originalFilename);
+    }
+
+    @Override
+    public String save(InputStream input, long size, String subPath, String originalFilename) throws IOException {
         // 路径生成与 COS 实现共用 StoragePathUtil，保证两处逻辑路径结构一致（数据库零迁移）
         String relativePath = StoragePathUtil.generateRelativePath(subPath, originalFilename);
 
@@ -36,7 +42,13 @@ public class LocalFileStorage implements FileStorage {
         Path base = Paths.get(fileUploadConfig.getBasePath());
         Path fullPath = (base.isAbsolute() ? base : base.toAbsolutePath()).resolve(relativePath);
         Files.createDirectories(fullPath.getParent());
-        Files.write(fullPath, data);
+        try {
+            long copied = Files.copy(input, fullPath);
+            if (copied != size) throw new IOException("文件长度不一致");
+        } catch (IOException e) {
+            Files.deleteIfExists(fullPath);
+            throw e;
+        }
         return relativePath;
     }
 

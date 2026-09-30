@@ -13,6 +13,18 @@ import java.util.List;
 
 @Mapper
 public interface UserMapper extends BaseMapper<Users> {
+    /** 串行处理头像引用与资料更新，只读取该操作所需字段。 */
+    @Select("SELECT id,username,email,avatar_url FROM users WHERE id=#{id} AND deleted_at IS NULL AND status=1 FOR UPDATE")
+    Users selectProfileForUpdate(@Param("id") Long id);
+    List<chat.liuxin.liutech.resp.DashboardResp.TrendData> countUsersByDateRange(
+            @Param("start") String start, @Param("end") String end);
+
+    /** 物理删除可读取软删账户，先锁定后登记清理任务。 */
+    @Select("SELECT id, username FROM users WHERE id=#{id} FOR UPDATE")
+    Users selectIncludingDeletedForUpdate(@Param("id") Long id);
+    /** 积分业务的当前读；锁持续到余额更新和流水写入一起提交。 */
+    @Select("SELECT id, points, version FROM users WHERE id = #{id} AND deleted_at IS NULL FOR UPDATE")
+    Users selectActiveForUpdate(@Param("id") Long id);
     // 这里可以添加自定义查询方法
     // 例如：List<User> findByUserName(String userName);
     List<Users> findByUserName(String username);

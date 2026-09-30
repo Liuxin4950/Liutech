@@ -39,16 +39,22 @@ public class UserAuthLookupService {
      * @return true 表示 token 仍然有效
      */
     public boolean isCurrentUserTokenValid(Users currentUser, String tokenUsername, String token) {
+        JwtUtil.TokenIdentity identity = jwtUtil.parseIdentity(token);
+        return identity != null && tokenUsername != null && tokenUsername.equals(identity.username())
+                && isCurrentUserTokenValid(currentUser, identity);
+    }
+
+    public boolean isCurrentUserTokenValid(Users currentUser, JwtUtil.TokenIdentity identity) {
         if (currentUser == null || currentUser.getDeletedAt() != null) {
             return false;
         }
-        if (!StringUtils.hasText(currentUser.getUsername()) || !currentUser.getUsername().equals(tokenUsername)) {
+        if (identity == null || !StringUtils.hasText(currentUser.getUsername()) || !currentUser.getUsername().equals(identity.username())) {
             return false;
         }
         if (!Integer.valueOf(1).equals(currentUser.getStatus())) {
             return false;
         }
-        String tokenPasswordHash = jwtUtil.getPasswordHashFromToken(token);
+        String tokenPasswordHash = identity.passwordDigest();
         // token 中存储的是 SHA-256(passwordHash)，需要对数据库值也做 SHA-256 后再比较
         return !StringUtils.hasText(tokenPasswordHash) || tokenPasswordHash.equals(JwtUtil.sha256(currentUser.getPasswordHash()));
     }

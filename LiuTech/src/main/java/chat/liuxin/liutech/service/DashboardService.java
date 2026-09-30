@@ -136,52 +136,36 @@ public class DashboardService {
         return distribution;
     }
 
-    /**
-     * 构建最近N天的趋势数据（按天归零后统计计数）
-     *
-     * @param days        统计天数
-     * @param countByDate 按日期查询计数的函数
-     */
-    private List<TrendData> buildTrend(int days, java.util.function.Function<Date, Integer> countByDate) {
-        List<TrendData> trend = new ArrayList<>();
+    /** 一次范围聚合读取所有日期，再补齐没有数据的自然日。 */
+    private List<TrendData> buildTrend(int days,
+            java.util.function.BiFunction<String, String, List<TrendData>> queryRange) {
         Calendar calendar = Calendar.getInstance();
-
-        for (int i = days - 1; i >= 0; i--) {
-            calendar.setTimeInMillis(System.currentTimeMillis());
-            calendar.add(Calendar.DAY_OF_YEAR, -i);
-            // 归零到当天 00:00:00.000，保证按自然日统计
-            calendar.set(Calendar.HOUR_OF_DAY, 0);
-            calendar.set(Calendar.MINUTE, 0);
-            calendar.set(Calendar.SECOND, 0);
-            calendar.set(Calendar.MILLISECOND, 0);
-            Date date = calendar.getTime();
-
-            // Calendar 月份从 0 开始，格式化时 +1
-            String dateStr = String.format("%04d-%02d-%02d",
-                    calendar.get(Calendar.YEAR),
-                    calendar.get(Calendar.MONTH) + 1,
-                    calendar.get(Calendar.DAY_OF_MONTH));
-
-            Integer count = countByDate.apply(date);
-            long value = count != null ? count.longValue() : 0L;
-
-            trend.add(TrendData.builder()
-                    .date(dateStr)
-                    .count(value)
-                    .build());
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        calendar.add(Calendar.DAY_OF_YEAR, -(days - 1));
+        var formatter = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        String start = formatter.format(calendar.getTime());
+        Calendar end = (Calendar) calendar.clone();
+        end.add(Calendar.DAY_OF_YEAR, days);
+        var counts = queryRange.apply(start, formatter.format(end.getTime())).stream()
+                .collect(java.util.stream.Collectors.toMap(TrendData::getDate, TrendData::getCount));
+        List<TrendData> trend = new ArrayList<>(days);
+        for (int i = 0; i < days; i++) {
+            String date = formatter.format(calendar.getTime());
+            trend.add(TrendData.builder().date(date).count(counts.getOrDefault(date, 0L)).build());
+            calendar.add(Calendar.DAY_OF_YEAR, 1);
         }
-
         return trend;
     }
 
-    /** 最近N天的文章发布趋势 */
     private List<TrendData> getPostTrend(int days) {
-        return buildTrend(days, postsMapper::countPostsByDate);
+        return buildTrend(days, postsMapper::countPostsByDateRange);
     }
 
-    /** 最近N天的用户注册趋势 */
     private List<TrendData> getUserTrend(int days) {
-        return buildTrend(days, userMapper::countUsersByDate);
+        return buildTrend(days, userMapper::countUsersByDateRange);
     }
 
     /**

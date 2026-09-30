@@ -45,7 +45,7 @@ public class PostInteractionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean toggleLike(Long postId, Long userId) {
-        Posts post = postsService.getById(postId);
+        Posts post = postsMapper.selectActiveForUpdate(postId);
         if (post == null || post.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         }
@@ -76,7 +76,7 @@ public class PostInteractionService {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean toggleFavorite(Long postId, Long userId) {
-        Posts post = postsService.getById(postId);
+        Posts post = postsMapper.selectActiveForUpdate(postId);
         if (post == null || post.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         }

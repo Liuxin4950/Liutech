@@ -127,7 +127,6 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @date 2025-01-30
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "categories", key = "#name")
     public Categories getCategoryByName(String name) {
         if (name == null || name.trim().isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);

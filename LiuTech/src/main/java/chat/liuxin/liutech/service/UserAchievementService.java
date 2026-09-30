@@ -4,13 +4,10 @@ import chat.liuxin.liutech.common.*;
 import chat.liuxin.liutech.mapper.*;
 import chat.liuxin.liutech.model.UserAchievementClaim;
 import chat.liuxin.liutech.resp.*;
-import chat.liuxin.liutech.utils.UserUtils;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
@@ -24,7 +21,6 @@ public class UserAchievementService {
     private final CommentsMapper commentsMapper;
     private final UserMapper userMapper;
     private final PointsService pointsService;
-    private final UserUtils userUtils;
 
     @Transactional(readOnly = true)
     public List<AchievementResp> list(Long userId) {
@@ -62,9 +58,7 @@ public class UserAchievementService {
             achievement = new AchievementResp(code, achievement.title(), 10, 10, REWARD, "claimed", claim.getClaimedAt());
         }
         var user = userMapper.selectById(userId);
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override public void afterCommit() { userUtils.clearUserCache(user.getUsername()); }
-        });
+        // 余额读取不走用户实体缓存，提交后无需再次嵌套注册缓存失效回调。
         return new AchievementClaimResp(achievement, user.getPoints());
     }
 }

@@ -29,9 +29,11 @@ services:
     restart: unless-stopped
     environment:
       # 数据库配置 - 生产环境从环境变量读取
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=liutech_app
-      - SPRING_DATASOURCE_PASSWORD=${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_APP_PASSWORD=${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
+      - DB_POOL_MAX_SIZE=${BACKEND_DB_POOL_MAX_SIZE:-20}
+      - DB_POOL_MIN_IDLE=${BACKEND_DB_POOL_MIN_IDLE:-5}
       # JWT签名密钥 - 生产环境必须配置强密钥
       - JWT_SECRET=${JWT_SECRET}
       # 文件上传路径：使用 /app/uploads，外部通过 Bind Mount 挂载 /liuxin/uploads 到此路径
@@ -88,9 +90,12 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       # 数据库配置 - 生产环境从环境变量读取
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/liutech_ai?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=liutech_ai_app
-      - SPRING_DATASOURCE_PASSWORD=${DB_AI_APP_PASSWORD:?DB_AI_APP_PASSWORD is required}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_AI_APP_PASSWORD=${DB_AI_APP_PASSWORD:?DB_AI_APP_PASSWORD is required}
+      - DB_POOL_MAX_SIZE=${AI_DB_POOL_MAX_SIZE:-20}
+      - DB_POOL_MIN_IDLE=${AI_DB_POOL_MIN_IDLE:-5}
+      - AI_MAX_CONCURRENT_STREAMS=${AI_MAX_CONCURRENT_STREAMS:-32}
       # AI服务API密钥 - 生产环境必须配置
       - SPRING_AI_OPENAI_API_KEY=${SPRING_AI_OPENAI_API_KEY}
       - BLOG_API_URL=http://backend:8080

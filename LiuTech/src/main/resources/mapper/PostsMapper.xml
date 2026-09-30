@@ -962,4 +962,22 @@
         SELECT MAX(series_sort) FROM posts WHERE series_id = #{seriesId} AND deleted_at IS NULL
     </select>
 
+    <update id="refreshInteractionCounts">
+        UPDATE posts p SET
+            like_count = (SELECT COUNT(*) FROM post_likes l
+                          WHERE l.post_id = p.id AND l.is_like = 1 AND l.deleted_at IS NULL),
+            favorite_count = (SELECT COUNT(*) FROM post_favorites f
+                              WHERE f.post_id = p.id AND f.is_favorite = 1 AND f.deleted_at IS NULL)
+        WHERE p.deleted_at IS NULL AND p.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+    <select id="countPostsByDateRange" resultType="chat.liuxin.liutech.resp.DashboardResp$TrendData">
+        SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS count
+        FROM posts
+        WHERE created_at &gt;= #{start} AND created_at &lt; #{end} AND deleted_at IS NULL
+        GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d')
+        ORDER BY date
+    </select>
 </mapper>

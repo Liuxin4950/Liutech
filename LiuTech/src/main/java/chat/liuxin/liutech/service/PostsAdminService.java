@@ -143,7 +143,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
         log.debug("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
 
         try {
-            Posts existPost = this.getById(id);
+            Posts existPost = postsMapper.selectActiveForUpdate(id);
             if (existPost == null || existPost.getDeletedAt() != null) {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
@@ -173,12 +173,12 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
         log.debug("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
 
         try {
-            Posts existPost = this.getById(id);
+            Posts existPost = postsMapper.selectActiveForUpdate(id);
             if (existPost == null || existPost.getDeletedAt() != null) {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
 
-            postTagsMapper.deleteByPostId(id);
+            // 软删保留标签关联，恢复后可继续使用；物理删除另行清理。
 
             LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
             likeUpdateWrapper.eq(PostLikes::getPostId, id)
@@ -240,9 +240,9 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 return false;
             }
 
-            LambdaQueryWrapper<PostTags> tagQueryWrapper = new LambdaQueryWrapper<>();
-            tagQueryWrapper.in(PostTags::getPostId, ids);
-            postTagsMapper.delete(tagQueryWrapper);
+            postsMapper.selectForUpdateByIds(ids);
+
+            // 软删保留标签关联。
 
             LambdaUpdateWrapper<PostLikes> likesUpdateWrapper = new LambdaUpdateWrapper<>();
             likesUpdateWrapper.in(PostLikes::getPostId, ids)
@@ -277,7 +277,10 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
             if (id == null) {
                 return false;
             }
+            List<Posts> locked = postsMapper.selectForUpdateByIds(List.of(id));
+            if (locked.isEmpty() || locked.getFirst().getDeletedAt() == null) return false;
             int result = postsMapper.restorePostById(id);
+            if (result > 0) restoreInteractions(List.of(id));
             log.debug("恢复文章ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
@@ -297,13 +300,23 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 log.warn("文章ID列表不能为空");
                 return false;
             }
-            int result = postsMapper.restorePostsByIds(ids);
+            List<Long> deletedIds = postsMapper.selectForUpdateByIds(ids).stream()
+                    .filter(post -> post.getDeletedAt() != null).map(Posts::getId).toList();
+            if (deletedIds.isEmpty()) return false;
+            int result = postsMapper.restorePostsByIds(deletedIds);
+            if (result > 0) restoreInteractions(deletedIds);
             log.debug("批量恢复文章ID列表: {}, 成功数量: {}", ids, result);
             return result > 0;
         } catch (Exception e) {
             log.error("批量恢复文章失败: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量恢复文章失败");
         }
+    }
+
+    private void restoreInteractions(List<Long> ids) {
+        postLikesMapper.restoreByPostIds(ids);
+        postFavoritesMapper.restoreByPostIds(ids);
+        postsMapper.refreshInteractionCounts(ids);
     }
 
     /**

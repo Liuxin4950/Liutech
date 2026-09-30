@@ -18,6 +18,19 @@ import java.util.Map;
  */
 @Mapper
 public interface AiChatMessageMapper extends BaseMapper<AiChatMessage> {
+    /** 当前读；调用前必须先锁定并校验会话。 */
+    @Select("SELECT seq_no FROM ai_chat_message WHERE conversation_id = #{id} " +
+            "ORDER BY seq_no DESC, id DESC LIMIT 1 FOR UPDATE")
+    Integer selectLastSeqNoForUpdate(@Param("id") Long conversationId);
+
+    @Select("SELECT id, role, content, created_at, seq_no FROM ai_chat_message " +
+            "WHERE conversation_id = #{id} ORDER BY seq_no, id LIMIT #{offset}, #{size}")
+    List<AiChatMessage> selectConversationPage(@Param("id") Long conversationId,
+                                              @Param("offset") long offset, @Param("size") int size);
+
+    @Select("SELECT * FROM ai_chat_message WHERE conversation_id = #{id} " +
+            "ORDER BY seq_no DESC, id DESC LIMIT #{limit}")
+    List<AiChatMessage> selectConversationTail(@Param("id") Long conversationId, @Param("limit") int limit);
     
     /**
      * 通过用户ID直接查询最近N条消息（避免N+1查询）
@@ -30,7 +43,7 @@ public interface AiChatMessageMapper extends BaseMapper<AiChatMessage> {
     @Select("SELECT m.* FROM ai_chat_message m " +
             "INNER JOIN ai_conversation c ON m.conversation_id = c.id " +
             "WHERE c.user_id = #{userId} " +
-            "ORDER BY m.created_at ASC, m.id ASC " +
+            "ORDER BY m.created_at DESC, m.id DESC " +
             "LIMIT #{limit}")
     List<AiChatMessage> selectRecentMessagesByUserId(@Param("userId") String userId, @Param("limit") int limit);
     
@@ -49,7 +62,7 @@ public interface AiChatMessageMapper extends BaseMapper<AiChatMessage> {
             "ORDER BY m.created_at DESC, m.id DESC " +
             "LIMIT #{offset}, #{size}")
     List<AiChatMessage> selectHistoryMessagesByUserId(@Param("userId") String userId,
-                                                     @Param("offset") int offset,
+                                                     @Param("offset") long offset,
                                                      @Param("size") int size);
     
     /**

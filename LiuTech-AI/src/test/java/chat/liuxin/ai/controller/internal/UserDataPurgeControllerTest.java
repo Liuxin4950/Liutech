@@ -12,6 +12,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class UserDataPurgeControllerTest {
 
@@ -24,6 +27,16 @@ class UserDataPurgeControllerTest {
 
         assertEquals(2, result.conversationsDeleted());
         assertEquals(9, result.messagesDeleted());
+        assertFalse(result.permanentlyPurged());
+    }
+
+    @Test void permanentEndpointUsesDistinctProtocolAndConfirmation() {
+        MemoryService memoryService = mock(MemoryService.class);
+        when(memoryService.purgeUserData("7")).thenReturn(new MemoryService.PurgeCounts(2, 9));
+        var result = new UserDataPurgeController(memoryService).purgePermanent(7L);
+        assertTrue(result.permanentlyPurged());
+        verify(memoryService).purgeUserData("7");
+        verify(memoryService, never()).clearAllMemory("7");
     }
 
     @Test

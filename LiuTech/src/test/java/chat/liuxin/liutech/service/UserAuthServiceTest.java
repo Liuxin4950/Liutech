@@ -41,12 +41,16 @@ class UserAuthServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+                new org.apache.ibatis.builder.MapperBuilderAssistant(new com.baomidou.mybatisplus.core.MybatisConfiguration(), ""), Users.class);
         userMapper = mock(UserMapper.class);
         jwtUtil = mock(JwtUtil.class);
         userUtils = mock(UserUtils.class);
         passwordEncoder = new BCryptPasswordEncoder();
         verificationCodeService = mock(VerificationCodeService.class);
         authService = new UserAuthService(userMapper, jwtUtil, userUtils, passwordEncoder, verificationCodeService);
+
+        lenient().when(userMapper.update(isNull(), any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(1);
 
         // 清除暴力破解计数器（通过反射访问静态字段）
         clearBruteForceCounters();
@@ -248,7 +252,10 @@ class UserAuthServiceTest {
 
         authService.resetPassword(req);
 
-        verify(userMapper).updateById(argThat((Users u) -> u.getPasswordHash() != null && u.getPasswordHash().startsWith("$2a$")));
+        verify(userMapper).update(isNull(), argThat((com.baomidou.mybatisplus.core.conditions.Wrapper<Users> w) ->
+                w instanceof com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Users> update
+                && update.getParamNameValuePairs().values().stream()
+                    .anyMatch(value -> value instanceof String hash && hash.startsWith("$2a$"))));
         verify(verificationCodeService).markUsed(1L);
     }
 

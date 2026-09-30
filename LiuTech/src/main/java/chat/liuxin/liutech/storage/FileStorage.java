@@ -24,6 +24,9 @@ public interface FileStorage {
      */
     String save(byte[] data, String subPath, String originalFilename) throws IOException;
 
+    /** 流式保存；调用方关闭输入流，避免大资源整体进入堆内存。 */
+    String save(InputStream input, long size, String subPath, String originalFilename) throws IOException;
+
     /**
      * 删除文件（对象不存在视为成功，不抛异常）
      *

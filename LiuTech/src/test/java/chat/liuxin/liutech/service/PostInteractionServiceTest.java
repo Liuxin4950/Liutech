@@ -60,7 +60,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.getLikeStatus(userId, postId)).thenReturn(0);
         when(postLikesMapper.countLikesByPostId(postId)).thenReturn(5);
         when(postsService.update(any())).thenReturn(true);
@@ -78,7 +78,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.getLikeStatus(userId, postId)).thenReturn(1);
         when(postLikesMapper.countLikesByPostId(postId)).thenReturn(4);
         when(postsService.update(any())).thenReturn(true);
@@ -95,7 +95,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.getLikeStatus(userId, postId)).thenReturn(null);
         when(postLikesMapper.countLikesByPostId(postId)).thenReturn(1);
         when(postsService.update(any())).thenReturn(true);
@@ -111,7 +111,7 @@ class PostInteractionServiceTest {
         Long postId = 999L;
         Long userId = 10L;
 
-        when(postsService.getById(postId)).thenReturn(null);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(null);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postInteractionService.toggleLike(postId, userId));
@@ -125,7 +125,7 @@ class PostInteractionServiceTest {
         Posts post = createPost(postId);
         post.setDeletedAt(new Date());
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postInteractionService.toggleLike(postId, userId));
@@ -138,7 +138,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.getLikeStatus(userId, postId)).thenReturn(0);
         when(postLikesMapper.countLikesByPostId(postId)).thenReturn(10);
         when(postsService.update(any())).thenReturn(true);
@@ -157,7 +157,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postFavoritesMapper.getFavoriteStatus(userId, postId)).thenReturn(0);
         when(postFavoritesMapper.countFavoritesByPostId(postId)).thenReturn(3);
         when(postsService.update(any())).thenReturn(true);
@@ -175,7 +175,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postFavoritesMapper.getFavoriteStatus(userId, postId)).thenReturn(1);
         when(postFavoritesMapper.countFavoritesByPostId(postId)).thenReturn(2);
         when(postsService.update(any())).thenReturn(true);
@@ -192,7 +192,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postFavoritesMapper.getFavoriteStatus(userId, postId)).thenReturn(null);
         when(postFavoritesMapper.countFavoritesByPostId(postId)).thenReturn(1);
         when(postsService.update(any())).thenReturn(true);
@@ -208,7 +208,7 @@ class PostInteractionServiceTest {
         Long postId = 999L;
         Long userId = 10L;
 
-        when(postsService.getById(postId)).thenReturn(null);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(null);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postInteractionService.toggleFavorite(postId, userId));
@@ -222,7 +222,7 @@ class PostInteractionServiceTest {
         Posts post = createPost(postId);
         post.setDeletedAt(new Date());
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postInteractionService.toggleFavorite(postId, userId));
@@ -235,7 +235,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsService.getById(postId)).thenReturn(post);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
         when(postFavoritesMapper.getFavoriteStatus(userId, postId)).thenReturn(0);
         when(postFavoritesMapper.countFavoritesByPostId(postId)).thenReturn(7);
         when(postsService.update(any())).thenReturn(true);

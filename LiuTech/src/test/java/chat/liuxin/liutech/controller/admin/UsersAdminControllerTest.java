@@ -141,9 +141,6 @@ class UsersAdminControllerTest {
 
     @Test
     void updateUser_shouldPreservePasswordWhenEmpty() {
-        Users existingUser = new Users();
-        existingUser.setPasswordHash("oldHash");
-        when(userManagementService.findUserById(1L)).thenReturn(existingUser);
         when(userManagementService.updateUserById(any())).thenReturn(true);
 
         Users user = new Users();
@@ -151,7 +148,8 @@ class UsersAdminControllerTest {
         Result<String> result = controller.updateUser(1L, user);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
-        assertEquals("oldHash", user.getPasswordHash());
+        assertNull(user.getPasswordHash());
+        verify(userManagementService, never()).findUserById(anyLong());
     }
 
     @Test

@@ -18,6 +18,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.mock.web.MockMultipartFile;
+import org.junit.jupiter.api.io.TempDir;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.io.InputStream;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -29,6 +35,51 @@ import static org.mockito.Mockito.*;
  */
 @ExtendWith(MockitoExtension.class)
 class FileUploadServiceTest {
+    @TempDir Path tempDirectory;
+
+    @Test void chunksRejectTraversalAndAreIsolatedByUser() throws Exception {
+        Users user = new Users();
+        user.setId(1L);
+        when(userMapper.selectById(anyLong())).thenReturn(user);
+        var file = new MockMultipartFile("file", "test.zip", "application/zip", new byte[]{1});
+        for (String invalid : new String[]{"..", "../escape", "a/b", "a\\b", "/absolute", "a.b"}) {
+            assertThrows(BusinessException.class,
+                    () -> fileUploadService.uploadResourceChunk(file, 1L, invalid, 0, 1, "test.zip"));
+            assertThrows(BusinessException.class,
+                    () -> fileUploadService.mergeResourceChunks(1L, invalid, 1, "test.zip", null, null, null, 0, 0));
+        }
+        when(fileUploadConfig.getBasePath()).thenReturn(tempDirectory.toString());
+        when(fileUtil.isAllowedResourceType("test.zip")).thenReturn(true);
+        fileUploadService.uploadResourceChunk(file, 1L, "task-1", 0, 1, "test.zip");
+        assertTrue(Files.exists(tempDirectory.resolve("tmp/1/task-1/0.part")));
+        assertThrows(BusinessException.class,
+                () -> fileUploadService.mergeResourceChunks(2L, "task-1", 1, "test.zip", null, null, null, 0, 0));
+        assertTrue(Files.exists(tempDirectory.resolve("tmp/1/task-1/0.part")));
+    }
+
+    @Test void mergeStreamsInOrderAndKeepsChunksWhenDatabaseFails() throws Exception {
+        Users user = new Users();
+        user.setId(1L);
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(fileUploadConfig.getBasePath()).thenReturn(tempDirectory.toString());
+        when(fileUploadConfig.getMaxFileSize()).thenReturn(100L);
+        when(fileUploadConfig.getResourcePath()).thenReturn("resources");
+        when(fileUtil.isAllowedResourceType("test.zip")).thenReturn(true);
+        fileUploadService.uploadResourceChunk(new MockMultipartFile("file", new byte[]{1, 2}), 1L, "task", 0, 2, "test.zip");
+        fileUploadService.uploadResourceChunk(new MockMultipartFile("file", new byte[]{3, 4}), 1L, "task", 1, 2, "test.zip");
+        AtomicReference<byte[]> saved = new AtomicReference<>();
+        when(fileStorage.save(any(InputStream.class), eq(4L), eq("resources"), eq("test.zip"))).thenAnswer(call -> {
+            saved.set(((InputStream) call.getArgument(0)).readAllBytes());
+            return "resources/test.zip";
+        });
+        when(resourceRecordService.save(any(), isNull(), isNull())).thenThrow(new IllegalStateException("DB failed"));
+        assertThrows(IllegalStateException.class,
+                () -> fileUploadService.mergeResourceChunks(1L, "task", 2, "test.zip", null, null, null, 0, 0));
+        assertArrayEquals(new byte[]{1, 2, 3, 4}, saved.get());
+        verify(storageWriteCompensator).onFailure(eq("resources/test.zip"), any(IllegalStateException.class));
+        assertTrue(Files.exists(tempDirectory.resolve("tmp/1/task/0.part")));
+        assertTrue(Files.exists(tempDirectory.resolve("tmp/1/task/1.part")));
+    }
 
     @Mock
     private FileUtil fileUtil;
@@ -50,6 +101,12 @@ class FileUploadServiceTest {
 
     @Mock
     private FileStorage fileStorage;
+
+    @Mock
+    private ResourceRecordService resourceRecordService;
+
+    @Mock
+    private chat.liuxin.liutech.storage.StorageWriteCompensator storageWriteCompensator;
 
     @InjectMocks
     private FileUploadService fileUploadService;

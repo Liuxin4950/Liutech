@@ -1,22 +1,23 @@
--- AI聊天服务数据库表结构脚本
--- 作者: 刘鑫
--- 说明: 仅包含表结构定义（DROP + CREATE），不含数据初始化
---       数据初始化（INSERT）请使用 Docs/SQL/sql.sql
---       表结构与 Docs/SQL/sql.sql 的 liutech_ai 段保持一致
+-- 冻结的版本0结构测试夹具，基线 commit 4c3578d；无业务数据、无建库语句，不是当前初始化入口。
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE IF NOT EXISTS ai_tts_config (
+  id TINYINT UNSIGNED NOT NULL COMMENT '固定为1的单行配置主键',
+  enabled TINYINT NOT NULL DEFAULT 1 COMMENT '语音功能开关',
+  provider VARCHAR(32) NOT NULL DEFAULT 'GPT_SOVITS' COMMENT 'GPT_SOVITS/SILICONFLOW',
+  base_url VARCHAR(512) NULL COMMENT 'GPT-SoVITS 服务基础地址',
+  voice_model VARCHAR(255) NULL COMMENT 'GPT-SoVITS 默认语音模型',
+  siliconflow_model VARCHAR(255) NOT NULL DEFAULT 'FunAudioLLM/CosyVoice2-0.5B' COMMENT 'SiliconFlow TTS 模型',
+  siliconflow_voice_uri VARCHAR(512) NULL COMMENT 'SiliconFlow 自定义音色 URI',
+  response_format VARCHAR(16) NOT NULL DEFAULT 'mp3' COMMENT 'mp3/wav/opus/pcm',
+  sample_rate INT NOT NULL DEFAULT 44100 COMMENT '输出采样率',
+  speed DECIMAL(4,2) NOT NULL DEFAULT 1.00 COMMENT '语速，范围0.25-4.00',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (id),
+  CONSTRAINT chk_ai_tts_config_singleton CHECK (id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI服务TTS配置';
 
--- 创建数据库
-CREATE DATABASE IF NOT EXISTS liutech_ai DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE liutech_ai;
-
-SET FOREIGN_KEY_CHECKS = 0;
-
--- 先删除子表再删除父表（虽然 FK_CHECKS=0 时顺序不影响，但保持清晰）
-DROP TABLE IF EXISTS ai_chat_message;
-DROP TABLE IF EXISTS ai_conversation;
-DROP TABLE IF EXISTS ai_model_config;
-
--- AI 会话表
-CREATE TABLE ai_conversation
+CREATE TABLE IF NOT EXISTS ai_conversation
 (
     id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '会话ID，主键',
     user_id         VARCHAR(64)     NOT NULL COMMENT '用户ID',
@@ -32,8 +33,7 @@ CREATE TABLE ai_conversation
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='AI会话表';
 
--- AI 聊天消息表
-CREATE TABLE ai_chat_message
+CREATE TABLE IF NOT EXISTS ai_chat_message
 (
     id              BIGINT UNSIGNED                    NOT NULL AUTO_INCREMENT COMMENT '消息ID，主键',
     conversation_id BIGINT UNSIGNED                    NOT NULL COMMENT '会话ID（外键关联 ai_conversation.id）',
@@ -56,8 +56,7 @@ CREATE TABLE ai_chat_message
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='AI聊天消息表';
 
--- AI 模型配置表
-CREATE TABLE ai_model_config (
+CREATE TABLE IF NOT EXISTS ai_model_config (
   id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   model_name VARCHAR(100) NOT NULL COMMENT '模型名称（如 zai-org/GLM-4.6）',
   display_name VARCHAR(100) NOT NULL COMMENT '显示名称（如 GLM-4.6）',
@@ -65,7 +64,8 @@ CREATE TABLE ai_model_config (
   is_enabled TINYINT NOT NULL DEFAULT 1 COMMENT '是否启用（0=禁用 1=启用）',
   is_default TINYINT NOT NULL DEFAULT 0 COMMENT '是否为默认模型（0=否 1=是，只能有一个默认）',
   sort_order INT NOT NULL DEFAULT 0 COMMENT '排序顺序（数字越小越靠前）',
-  max_tokens INT DEFAULT NULL COMMENT '最大token数限制',
+  max_tokens INT DEFAULT NULL COMMENT '单次输出上限（token），映射到模型请求的 max_tokens',
+  context_window INT DEFAULT NULL COMMENT '模型上下文窗口（输入+输出总 token 上限）；输入预算 = 本值 - max_tokens - 安全余量',
   temperature DECIMAL(3,2) DEFAULT 0.90 COMMENT '默认温度参数',
   description VARCHAR(500) DEFAULT NULL COMMENT '模型描述',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -75,5 +75,4 @@ CREATE TABLE ai_model_config (
   KEY idx_enabled_sort (is_enabled, sort_order) COMMENT '启用状态和排序索引',
   KEY idx_default (is_default) COMMENT '默认模型索引'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
-
-SET FOREIGN_KEY_CHECKS = 1;
+SET FOREIGN_KEY_CHECKS=1;

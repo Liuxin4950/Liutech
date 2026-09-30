@@ -80,13 +80,17 @@ public class StreamingChatService {
 
     /** SSE 流式任务专用线程池，避免长阻塞任务占用 ForkJoinPool.commonPool 影响其他并行计算 */
     private ExecutorService streamExecutor;
+    private Semaphore streamCapacity;
+
 
     // ==================== 线程池生命周期 ====================
 
     /** 初始化流式线程池 */
     @PostConstruct
     void initStreamExecutor() {
-        streamExecutor = Executors.newFixedThreadPool(STREAM_POOL_SIZE);
+        streamExecutor = new ThreadPoolExecutor(STREAM_POOL_SIZE, STREAM_POOL_SIZE, 0, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(32), new ThreadPoolExecutor.AbortPolicy());
+        streamCapacity = new Semaphore(Math.max(1, aiChatProperties.getMaxConcurrentStreams()));
     }
 
     /** 优雅关闭流式线程池 */
@@ -105,7 +109,23 @@ public class StreamingChatService {
 
     /** 在流式线程池上执行任务，避免占用 ForkJoinPool.commonPool */
     private void runOnStreamPool(Runnable task) {
-        CompletableFuture.runAsync(task, streamExecutor);
+        try {
+            streamExecutor.execute(task);
+        } catch (RejectedExecutionException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "流式任务队列已满，请稍后重试");
+        }
+    }
+
+    private void submitStreamTask(StreamLifecycle session, Runnable task) {
+        try {
+            runOnStreamPool(() -> {
+                if (!session.closed.get()) task.run();
+            });
+        } catch (RuntimeException e) {
+            session.close();
+            throw e;
+        }
     }
 
     // ==================== 公开接口 ====================
@@ -129,37 +149,31 @@ public class StreamingChatService {
         Long conversationId = guestMode ? null : request.getConversationId();
         String input = request.getMessage();
 
+        if (conversationId != null) {
+            memoryService.getConversationOwnedByUser(userIdStr, conversationId);
+        }
+
+        StreamLifecycle session = new StreamLifecycle(streamCapacity);
         SseEmitter emitter = new SseEmitter(aiChatProperties.getSseTimeout());
-        AtomicReference<ExecutorService> ttsExecutorRef = new AtomicReference<>();
-        AtomicReference<ScheduledExecutorService> heartbeatRef = new AtomicReference<>();
-        AtomicBoolean emitterClosed = new AtomicBoolean(false);
+        AtomicReference<ExecutorService> ttsExecutorRef = session.tts;
+        AtomicReference<ScheduledExecutorService> heartbeatRef = session.heartbeat;
+        AtomicBoolean emitterClosed = session.closed;
         // 超时回调早于会话创建执行，用引用把最终会话 id 带过去，保证超时事件也能带上它
         AtomicReference<Long> conversationRef = new AtomicReference<>(conversationId);
 
-        emitter.onCompletion(() -> {
-            emitterClosed.set(true);
-            SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
-            SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
-        });
-        emitter.onTimeout(() -> {
-            emitterClosed.set(true);
-            SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
-            SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
-            // 过去这里只 complete()，前端只能看到"流断了"却不知道为什么；
-            // 超时同样要发 error 事件，把真实原因（等太久）告诉用户。
-            SseEmitterHelper.safeSendError(emitter, conversationRef.get(), timeoutNotice());
-            emitter.complete();
-        });
+        session.bind(emitter, () -> SseEmitterHelper.safeSendError(emitter, conversationRef.get(), timeoutNotice()));
 
-        runOnStreamPool(() -> {
-            Long convId = conversationId;
-            if (!guestMode && convId == null) {
-                convId = memoryService.createConversation(userIdStr, chatServiceHelper.generateTitle(input));
-            }
-            final Long finalConvId = convId;
-            conversationRef.set(finalConvId);
-
+        submitStreamTask(session, () -> {
             try {
+                if (emitterClosed.get()) return;
+                Long convId = conversationId;
+                if (!guestMode && convId == null) {
+                    convId = memoryService.createConversation(userIdStr, chatServiceHelper.generateTitle(input));
+                }
+                final Long finalConvId = convId;
+                conversationRef.set(finalConvId);
+
+                if (emitterClosed.get()) return;
                 List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, finalConvId, guestMode, false, modelName, params);
                 if (!guestMode && finalConvId != null) {
                     memoryService.saveUserMessage(userIdStr, finalConvId, input, modelName, null);
@@ -170,6 +184,7 @@ public class StreamingChatService {
 
                 ScheduledExecutorService hb = Executors.newSingleThreadScheduledExecutor();
                 heartbeatRef.set(hb);
+                if (emitterClosed.get()) { session.close(); return; }
                 hb.scheduleAtFixedRate(() -> {
                     if (emitterClosed.get()) return;
                     try {
@@ -177,6 +192,8 @@ public class StreamingChatService {
                                 "conversationId", finalConvId, "timestamp", System.currentTimeMillis()));
                     } catch (Exception e) {
                         log.debug("心跳发送失败: {}", e.getMessage());
+                        session.close();
+                        emitter.completeWithError(e);
                     }
                 }, HEARTBEAT_INITIAL_DELAY_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS);
 
@@ -188,24 +205,26 @@ public class StreamingChatService {
                 Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.CHAT, role, chatToolContext);
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
-                subscribeStream(emitter, flux, finalConvId, ttsEnabled, emitterClosed, ttsExecutorRef,
+                subscribeStream(emitter, flux, conversationRef.get(), ttsEnabled, emitterClosed, ttsExecutorRef, session,
                         guestMode, userIdStr, modelName, false, null, null,
                         fullResponse -> {
-                            if (!guestMode && finalConvId != null) {
-                                memoryService.saveAssistantMessage(userIdStr, finalConvId, fullResponse, modelName, MemoryService.MESSAGE_STATUS_NORMAL, null);
+                            if (!guestMode && conversationRef.get() != null) {
+                                memoryService.saveAssistantMessage(userIdStr, conversationRef.get(), fullResponse, modelName, MemoryService.MESSAGE_STATUS_NORMAL, null);
                             }
                         },
                         (partial, errorMsg) -> {
-                            if (!guestMode && finalConvId != null && partial != null && !partial.isBlank()) {
-                                memoryService.saveAssistantMessage(userIdStr, finalConvId, partial, modelName, MemoryService.MESSAGE_STATUS_ERROR, null);
+                            if (!guestMode && conversationRef.get() != null && partial != null && !partial.isBlank()) {
+                                memoryService.saveAssistantMessage(userIdStr, conversationRef.get(), partial, modelName, MemoryService.MESSAGE_STATUS_ERROR, null);
+                            } else {
+                                chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
                             }
-                            chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
                         });
 
             } catch (Exception e) {
-                log.error("流式聊天处理失败，用户ID: {}, 会话ID: {}", userIdStr, finalConvId, e);
-                chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
-                SseEmitterHelper.safeSendError(emitter, finalConvId, toUserFriendlyError(e));
+                log.error("流式聊天处理失败，用户ID: {}, 会话ID: {}", userIdStr, conversationRef.get(), e);
+                chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, conversationRef.get(), modelName);
+                SseEmitterHelper.safeSendError(emitter, conversationRef.get(), toUserFriendlyError(e));
+                session.close();
                 emitter.completeWithError(e);
             }
         });
@@ -227,25 +246,15 @@ public class StreamingChatService {
         String userIdStr = userId != null ? userId.toString() : null;
         Long conversationId = guestMode ? null : request.getConversationId();
 
+        StreamLifecycle session = new StreamLifecycle(streamCapacity);
         SseEmitter emitter = new SseEmitter(aiChatProperties.getSseTimeout());
-        AtomicReference<ExecutorService> ttsExecutorRef = new AtomicReference<>();
-        AtomicReference<ScheduledExecutorService> heartbeatRef = new AtomicReference<>();
-        AtomicBoolean emitterClosed = new AtomicBoolean(false);
+        AtomicReference<ExecutorService> ttsExecutorRef = session.tts;
+        AtomicReference<ScheduledExecutorService> heartbeatRef = session.heartbeat;
+        AtomicBoolean emitterClosed = session.closed;
 
-        emitter.onCompletion(() -> {
-            emitterClosed.set(true);
-            SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
-            SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
-        });
-        emitter.onTimeout(() -> {
-            emitterClosed.set(true);
-            SseEmitterHelper.shutdown(heartbeatRef.getAndSet(null), true);
-            SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
-            SseEmitterHelper.safeSendError(emitter, conversationId, timeoutNotice());
-            emitter.complete();
-        });
+        session.bind(emitter, () -> SseEmitterHelper.safeSendError(emitter, conversationId, timeoutNotice()));
 
-        runOnStreamPool(() -> {
+        submitStreamTask(session, () -> {
             try {
                 List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true, modelName, params);
 
@@ -254,6 +263,7 @@ public class StreamingChatService {
 
                 ScheduledExecutorService hb = Executors.newSingleThreadScheduledExecutor();
                 heartbeatRef.set(hb);
+                if (emitterClosed.get()) { session.close(); return; }
                 hb.scheduleAtFixedRate(() -> {
                     if (emitterClosed.get()) return;
                     try {
@@ -261,6 +271,8 @@ public class StreamingChatService {
                                 "conversationId", conversationId, "timestamp", System.currentTimeMillis()));
                     } catch (Exception e) {
                         log.debug("心跳发送失败: {}", e.getMessage());
+                        session.close();
+                        emitter.completeWithError(e);
                     }
                 }, HEARTBEAT_INITIAL_DELAY_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS);
 
@@ -286,7 +298,7 @@ public class StreamingChatService {
                 Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role, toolContext);
                 boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
 
-                subscribeStream(emitter, flux, conversationId, ttsEnabled, emitterClosed, ttsExecutorRef,
+                subscribeStream(emitter, flux, conversationId, ttsEnabled, emitterClosed, ttsExecutorRef, session,
                         guestMode, userIdStr, modelName, true, new FieldUpdateParser(), collector,
                         fullResponse -> {}, (partial, errorMsg) -> {});
 
@@ -324,6 +336,7 @@ public class StreamingChatService {
             boolean ttsEnabled,
             AtomicBoolean emitterClosed,
             AtomicReference<ExecutorService> ttsExecutorRef,
+            StreamLifecycle session,
             boolean guestMode,
             String userIdStr,
             String modelName,
@@ -354,13 +367,16 @@ public class StreamingChatService {
         }
 
         int poolSize = Math.max(1, aiChatProperties.getTtsStreamConcurrency());
-        ExecutorService ttsExecutor = Executors.newFixedThreadPool(poolSize);
+        if (emitterClosed.get()) return;
+        ExecutorService ttsExecutor = ttsEnabled ? Executors.newFixedThreadPool(poolSize) : null;
         ttsExecutorRef.set(ttsExecutor);
+        if (emitterClosed.get()) { session.close(); return; }
         List<CompletableFuture<Void>> ttsFutures = Collections.synchronizedList(new ArrayList<>());
 
-        flux.subscribe(
+        reactor.core.Disposable subscription = flux.subscribe(
                 // ---- onNext ----
                 chunk -> {
+                    if (emitterClosed.get()) return;
                     try {
                         if (writingMode && parser != null) {
                             handleWritingChunk(emitter, parser, chunk, fullResponseRef, textBuffer, seq,
@@ -383,23 +399,27 @@ public class StreamingChatService {
                         SseEmitterHelper.sendSseEvent(emitter, "data", SseEmitterHelper.eventPayload(
                                 "content", chunk, "conversationId", conversationId));
                     } catch (java.io.IOException e) {
-                        log.error("发送SSE事件失败", e);
+                        log.debug("客户端已断开 SSE", e);
+                        session.close();
                         emitter.completeWithError(e);
                     }
                 },
                 // ---- onError ----
                 error -> {
-                    log.error("流式响应错误，用户ID: {}, 会话ID: {}", userIdStr, conversationId, error);
-                    String errorMsg = error != null ? error.getMessage() : "未知错误";
-                    onError.accept(fullResponseRef.get().toString(), errorMsg);
-                    // 发给前端的文案做友好映射，避免把 okhttp 堆栈术语直接丢给用户
-                    SseEmitterHelper.safeSendError(emitter, conversationId, toUserFriendlyError(error));
-                    emitterClosed.set(true);
-                    SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
-                    emitter.completeWithError(error != null ? error : new RuntimeException("流式响应发生未知错误"));
+                    if (emitterClosed.get()) return;
+                    try {
+                        log.error("流式响应错误，用户ID: {}, 会话ID: {}", userIdStr, conversationId, error);
+                        String errorMsg = error != null ? error.getMessage() : "未知错误";
+                        onError.accept(fullResponseRef.get().toString(), errorMsg);
+                        SseEmitterHelper.safeSendError(emitter, conversationId, toUserFriendlyError(error));
+                    } finally {
+                        session.close();
+                        emitter.completeWithError(error != null ? error : new RuntimeException("流式响应发生未知错误"));
+                    }
                 },
                 // ---- onComplete ----
                 () -> {
+                    if (emitterClosed.get()) return;
                     try {
                         if (writingMode && parser != null) {
                             String rest = parser.flush();
@@ -477,6 +497,7 @@ public class StreamingChatService {
                                 }
                                 emitterClosed.set(true);
                                 SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), false);
+                                session.close();
                                 emitter.complete();
                             });
                             return;
@@ -484,15 +505,19 @@ public class StreamingChatService {
 
                         emitterClosed.set(true);
                         SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+                        session.close();
                         emitter.complete();
                     } catch (Exception e) {
                         log.error("完成流式响应时发生错误", e);
                         emitterClosed.set(true);
                         SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
+                        session.close();
                         emitter.completeWithError(e);
                     }
                 }
         );
+        session.upstream.update(subscription);
+        if (emitterClosed.get()) session.close();
     }
 
     // ==================== TTS / AvatarCue ====================

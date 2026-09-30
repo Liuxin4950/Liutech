@@ -45,24 +45,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private UserAuthLookupService userAuthLookupService;
 
+    @Autowired
+    private tools.jackson.databind.ObjectMapper objectMapper;
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
-        try {
-            String requestURI = request.getRequestURI();
-            String method = request.getMethod();
-            // 跳过公开接口，不进行JWT验证
-            if (shouldSkipAuthentication(requestURI, method)) {
-                log.debug("跳过JWT验证的公开接口: {} {}", method, requestURI);
-                filterChain.doFilter(request, response);
-                return;
-            }
+        String requestURI = request.getRequestURI();
+        String method = request.getMethod();
+        // 下游异常不得落入认证 catch 后再次执行过滤链。
+        if (shouldSkipAuthentication(requestURI, method)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
+        try {
             String token = extractTokenFromRequest(request);
             if (token != null) {
                 processValidToken(token, request);
             }
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
+            SecurityContextHolder.clearContext();
+            log.warn("JWT身份无效，请求路径: {}", requestURI);
         } catch (Exception e) {
-            log.error("JWT认证过程中发生错误，请求路径: {}, 错误: {}", request.getRequestURI(), e.getMessage());
+            // 认证权威不可用与无效凭据不同，不能误报 401 导致客户端删除有效 token。
+            SecurityContextHolder.clearContext();
+            log.error("认证服务处理失败，请求路径: {}", requestURI, e);
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setContentType("application/json;charset=UTF-8");
+            objectMapper.writeValue(response.getWriter(), chat.liuxin.liutech.common.Result.fail(
+                    chat.liuxin.liutech.common.ErrorCode.OPERATION_ERROR, "认证服务暂时不可用，请稍后重试"));
+            return;
         }
         filterChain.doFilter(request, response);
     }
@@ -96,17 +108,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * @param request HTTP请求
      */
     private void processValidToken(String token, HttpServletRequest request) {
-        if (!jwtUtil.validateToken(token)) {
+        JwtUtil.TokenIdentity identity = jwtUtil.parseIdentity(token);
+        if (identity == null) {
             log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
             return;
         }
 
-        String username = jwtUtil.getUsernameFromToken(token);
-        Long userId = jwtUtil.getUserIdFromToken(token);
+        String username = identity.username();
+        Long userId = identity.userId();
 
         if (username != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             Users currentUser = userAuthLookupService.selectById(userId);
-            if (!userAuthLookupService.isCurrentUserTokenValid(currentUser, username, token)) {
+            if (!userAuthLookupService.isCurrentUserTokenValid(currentUser, identity)) {
                 log.warn("JWT用户状态校验失败，用户ID: {}, 请求路径: {}", userId, request.getRequestURI());
                 return;
             }

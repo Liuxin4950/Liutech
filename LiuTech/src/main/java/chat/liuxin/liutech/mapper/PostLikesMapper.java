@@ -18,6 +18,8 @@ import chat.liuxin.liutech.model.PostLikes;
 @Mapper
 public interface PostLikesMapper extends BaseMapper<PostLikes> {
 
+    int restoreByPostIds(@Param("postIds") List<Long> postIds);
+
     /**
      * 查询用户对文章的点赞状态
      * @param userId 用户ID

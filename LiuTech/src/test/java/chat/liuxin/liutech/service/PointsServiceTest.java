@@ -37,7 +37,7 @@ class PointsServiceTest {
     @Test
     void deductPoints_shouldSucceedWhenPointsAreSufficient() {
         Users user = createUser(1L, BigDecimal.valueOf(100), 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
         when(userMapper.deductPointsWithVersion(eq(1L), eq(BigDecimal.valueOf(30)), eq(0), eq(1))).thenReturn(1);
 
         pointsService.deductPoints(1L, BigDecimal.valueOf(30), "resource_download", 5L, "下载资源");
@@ -65,7 +65,7 @@ class PointsServiceTest {
 
     @Test
     void deductPoints_shouldThrowWhenUserNotFound() {
-        when(userMapper.selectById(999L)).thenReturn(null);
+        when(userMapper.selectActiveForUpdate(999L)).thenReturn(null);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> pointsService.deductPoints(999L, BigDecimal.TEN, "test", 1L, "test"));
@@ -75,7 +75,7 @@ class PointsServiceTest {
     @Test
     void deductPoints_shouldThrowWhenPointsInsufficient() {
         Users user = createUser(1L, BigDecimal.valueOf(5), 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> pointsService.deductPoints(1L, BigDecimal.TEN, "test", 1L, "test"));
@@ -85,7 +85,7 @@ class PointsServiceTest {
     @Test
     void deductPoints_shouldThrowWhenOptimisticLockFails() {
         Users user = createUser(1L, BigDecimal.valueOf(100), 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
         when(userMapper.deductPointsWithVersion(eq(1L), any(), eq(0), eq(1))).thenReturn(0);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
@@ -96,7 +96,7 @@ class PointsServiceTest {
     @Test
     void deductPoints_shouldHandleNullPointsGracefully() {
         Users user = createUser(1L, null, 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> pointsService.deductPoints(1L, BigDecimal.TEN, "test", 1L, "test"));
@@ -108,7 +108,7 @@ class PointsServiceTest {
     @Test
     void addPoints_shouldSucceedOnFirstAttempt() {
         Users user = createUser(1L, BigDecimal.valueOf(50), 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
         when(userMapper.addPointsWithVersion(eq(1L), eq(BigDecimal.valueOf(20)), eq(0), eq(1))).thenReturn(1);
 
         pointsService.addPoints(1L, BigDecimal.valueOf(20), PointsService.TYPE_CHECKIN,
@@ -136,7 +136,7 @@ class PointsServiceTest {
     @Test
     void addPoints_shouldHandleNullPointsGracefully() {
         Users user = createUser(1L, null, 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
         when(userMapper.addPointsWithVersion(eq(1L), eq(BigDecimal.TEN), eq(0), eq(1))).thenReturn(1);
 
         assertDoesNotThrow(() ->
@@ -150,7 +150,7 @@ class PointsServiceTest {
     @Test
     void addPoints_shouldHandleNullVersionGracefully() {
         Users user = createUser(1L, BigDecimal.valueOf(50), null);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
         when(userMapper.addPointsWithVersion(eq(1L), eq(BigDecimal.TEN), eq(0), eq(1))).thenReturn(1);
 
         assertDoesNotThrow(() ->
@@ -159,32 +159,28 @@ class PointsServiceTest {
 
     @Test
     void addPoints_shouldThrowWhenUserNotFound() {
-        when(userMapper.selectById(999L)).thenReturn(null);
+        when(userMapper.selectActiveForUpdate(999L)).thenReturn(null);
 
         assertThrows(RuntimeException.class,
                 () -> pointsService.addPoints(999L, BigDecimal.TEN, "test", "test", null, "test"));
     }
 
     @Test
-    void addPoints_shouldRetryOnOptimisticLockConflict() {
+    void addPoints_shouldNotRetryWithinSameTransaction() {
         Users user = createUser(1L, BigDecimal.valueOf(50), 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
-        // 第一次冲突，第二次成功（链式调用）
-        when(userMapper.addPointsWithVersion(eq(1L), any(), eq(0), eq(1)))
-                .thenReturn(0)
-                .thenReturn(1);
-
-        assertDoesNotThrow(() ->
-                pointsService.addPoints(1L, BigDecimal.TEN, "test", "test", null, "test"));
-
-        // 验证调用了2次
-        verify(userMapper, times(2)).addPointsWithVersion(eq(1L), any(), eq(0), eq(1));
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
+        when(userMapper.addPointsWithVersion(eq(1L), any(), eq(0), eq(1))).thenReturn(0);
+        assertThrows(RuntimeException.class,
+                () -> pointsService.addPoints(1L, BigDecimal.TEN, "test", "test", null, "test"));
+        verify(userMapper, times(1)).selectActiveForUpdate(1L);
+        verify(userMapper, times(1)).addPointsWithVersion(eq(1L), any(), eq(0), eq(1));
+        verify(pointsTransactionMapper, never()).insert(any(PointsTransaction.class));
     }
 
     @Test
-    void addPoints_shouldThrowAfterAllRetriesExhausted() {
+    void addPoints_shouldThrowWhenLockedUpdateFails() {
         Users user = createUser(1L, BigDecimal.valueOf(50), 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
         when(userMapper.addPointsWithVersion(eq(1L), any(), eq(0), eq(1))).thenReturn(0);
 
         RuntimeException ex = assertThrows(RuntimeException.class,
@@ -197,7 +193,7 @@ class PointsServiceTest {
     @Test
     void refundPoints_shouldDelegateToAddPoints() {
         Users user = createUser(1L, BigDecimal.valueOf(50), 0);
-        when(userMapper.selectById(1L)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(user);
         when(userMapper.addPointsWithVersion(eq(1L), any(), eq(0), eq(1))).thenReturn(1);
 
         pointsService.refundPoints(1L, BigDecimal.TEN, 5L, "退款");

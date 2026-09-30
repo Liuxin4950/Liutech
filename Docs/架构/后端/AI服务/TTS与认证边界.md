@@ -9,7 +9,7 @@
 | JWT 签发、验签、用户当前状态与角色 | 主服务 | `JWT_SECRET`、`liutech.users` |
 | AI 身份上下文 | AI 服务 | 主服务内省成功结果，按 token SHA-256 摘要缓存 60s |
 | TTS 配置、状态、推理、音色、临时音频 | AI 服务 | `liutech_ai.ai_tts_config`、AI 容器密钥与 `/app/tts-cache` |
-| 用户彻底删除 | 主服务发起、AI 先清理 | `LIUTECH_INTERNAL_TOKEN` 保护幂等清理接口 |
+| 用户彻底删除 | 主库删除与任务提交、AI 后台永久清理 | `LIUTECH_INTERNAL_TOKEN` 保护幂等清理接口 |
 
 两个应用使用 `liutech_app` 与 `liutech_ai_app`，各自只拥有本服务数据库的运行期增删改查权限。应用不使用 MySQL root。
 
@@ -58,12 +58,13 @@ TTS 缓存是可再生临时数据，不挂载主服务 uploads，也不跨容�
 | 接口 | 调用方 | 行为 |
 | --- | --- | --- |
 | `GET /internal/auth/introspect` | AI → 主服务 | 返回当前最小身份，需用户 token + 内部 token |
-| `DELETE /ai/internal/users/{userId}/data` | 主服务 → AI | 幂等删除单个用户会话与消息 |
+| `DELETE /ai/internal/users/{userId}/data` | 旧版本兼容 | 普通幂等清空，不标记永久删除 |
+| `DELETE /ai/internal/users/{userId}/permanent-data` | 主库清理任务 → AI | 幂等永久清理，返回 permanentlyPurged=true；阻止旧身份重新创建数据 |
 | `POST /ai/internal/users/purge` | 主服务 → AI | 每次最多 100 个用户 ID |
 
 Nginx 对 `/api/internal/**` 与 `/ai/internal/**` 直接返回 404；容器内通过 `backend:8080`、`ai:8081` 直连。两个服务读取同一个 `LIUTECH_INTERNAL_TOKEN`，比较使用常量时间算法。
 
-用户软删除不清理 AI 数据；彻底删除前必须先收到 AI 清理成功响应。AI 不可用时彻底删除中止，避免产生无法归属的聊天数据。
+用户软删除不清理 AI 数据；永久删除与持久化任务在主库一起提交，AI 清理由独立后台任务执行。AI 不可用时任务保留重试，不在数据库事务中等待 HTTP。发布顺序、租约和永久用户状态见[数据库版本迁移](../../../SQL/migrations/README.md)。
 
 ## 故障语义
 
@@ -74,7 +75,7 @@ Nginx 对 `/api/internal/**` 与 `/ai/internal/**` 直接返回 404；容器内�
 | token 无效、过期或用户状态失效 | 401，前端清理登录状态 |
 | AI 服务离线 | 主站核心博客功能不受影响 |
 | TTS 关闭/离线/单段失败 | 文本流继续，发送 `audio-skip` |
-| AI 用户数据清理失败 | 主服务中止彻底删除用户 |
+| AI 用户数据清理失败 | 已提交主库删除，关联清理任务保留并退避重试 |
 
 ## 生产数据迁移
 
