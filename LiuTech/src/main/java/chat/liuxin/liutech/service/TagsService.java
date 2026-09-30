@@ -192,7 +192,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags", "postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean save(TagResp tagResp) {
         // 检查标签名称是否已存在
         if (getTagByName(tagResp.getName()) != null) {
@@ -215,7 +215,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @author 刘鑫
      * @date 2025-01-30
      */
-    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags", "postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean updateById(TagResp tagResp) {
         Tags tag = new Tags();
         tag.setId(tagResp.getId());
@@ -234,17 +234,14 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @return 是否删除成功
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags", "postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
                 return false;
             }
 
-            // 先删除标签与文章的关联关系
-            LambdaQueryWrapper<PostTags> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.in(PostTags::getTagId, ids);
-            postTagsMapper.delete(queryWrapper);
+            // 保留 post_tags；公开查询过滤已删标签，恢复后原关联重新可见。
 
             // 使用软删除
             LambdaUpdateWrapper<Tags> updateWrapper = new LambdaUpdateWrapper<>();
@@ -269,7 +266,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags", "postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean restoreTag(Long id) {
         try {
             if (id == null) {
@@ -297,7 +294,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags", "postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean permanentDeleteTag(Long id) {
         log.debug("彻底删除标签 - 标签ID: {}", id);
 
@@ -334,7 +331,7 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = {"hotTags", "allTags"}, allEntries = true)
+    @CacheEvict(value = {"hotTags", "allTags", "postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean batchPermanentDeleteTags(List<Long> ids) {
         log.debug("批量彻底删除标签 - 标签数量: {}", ids.size());
 

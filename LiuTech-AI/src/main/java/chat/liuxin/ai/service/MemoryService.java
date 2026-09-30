@@ -241,7 +241,7 @@ public class MemoryService {
     /**
      * 会话列表分页查询,排除已归档(status=9),按更新时间倒序,size 上限 100 防滥用。
      */
-    public List<AiConversation> listConversations(String userId, String type, int page, int size) {
+    public List<AiConversation> listConversations(String userId, int page, int size) {
         int safeSize = safeSize(size);
         return conversationMapper.selectVisiblePage(userId, offset(page, safeSize), safeSize);
     }

@@ -18,6 +18,8 @@ import chat.liuxin.liutech.model.Images;
  */
 @Mapper
 public interface ImagesMapper extends BaseMapper<Images> {
+    @Select("SELECT id, file_name, file_url, file_path, file_hash, file_size, mime_type, extension, width, height, uploader_id, usage_count, status, created_at, updated_at, created_by, updated_by, deleted_at FROM images WHERE id=#{id}")
+    Images selectIncludingDeletedById(@Param("id") Long id);
 
     /**
      * 根据文件哈希查询图片（排除软删除与禁用，与引用计数查询口径一致）

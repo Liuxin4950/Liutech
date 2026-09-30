@@ -142,28 +142,29 @@ class LogsControllerTest {
     // ========== getActionTypes ==========
 
     @Test
-    void getActionTypes_shouldReturnHardcodedList() {
+    void getActionTypes_shouldReturnPersistedTypes() {
+        when(logService.getActionTypes()).thenReturn(List.of("create", "custom_action"));
         Result<List<String>> result = controller.getActionTypes();
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertNotNull(result.getData());
         assertTrue(result.getData().contains("create"));
-        assertTrue(result.getData().contains("delete"));
-        assertTrue(result.getData().contains("login"));
-        assertEquals(18, result.getData().size());
+        assertTrue(result.getData().contains("custom_action"));
+        assertEquals(2, result.getData().size());
     }
 
     // ========== getTargetTypes ==========
 
     @Test
-    void getTargetTypes_shouldReturnHardcodedList() {
+    void getTargetTypes_shouldReturnPersistedTypes() {
+        when(logService.getTargetTypes()).thenReturn(List.of("post", "message", "custom_target"));
         Result<List<String>> result = controller.getTargetTypes();
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertNotNull(result.getData());
         assertTrue(result.getData().contains("post"));
-        assertTrue(result.getData().contains("user"));
+        assertTrue(result.getData().contains("custom_target"));
         assertTrue(result.getData().contains("message"));
-        assertEquals(16, result.getData().size());
+        assertEquals(3, result.getData().size());
     }
 }

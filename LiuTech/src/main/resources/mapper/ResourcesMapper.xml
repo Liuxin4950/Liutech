@@ -105,9 +105,17 @@
         WHERE uploader_id = #{userId}
           AND name = #{fileName}
           AND deleted_at IS NULL
+          AND resource_type='file' AND file_url IS NOT NULL
           AND created_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
         ORDER BY id DESC
         LIMIT 1
     </select>
 
+    <select id="selectIncludingDeletedById" resultType="chat.liuxin.liutech.model.Resources">
+        SELECT id, name, description, file_url, external_link, resource_type, purchased_note, uploader_id, download_type, points_needed, created_at, updated_at, created_by, updated_by, deleted_at FROM resources WHERE id=#{id}
+    </select>
+    <select id="selectIncludingDeletedByIds" resultType="chat.liuxin.liutech.model.Resources">
+        SELECT id, name, description, file_url, external_link, resource_type, purchased_note, uploader_id, download_type, points_needed, created_at, updated_at, created_by, updated_by, deleted_at FROM resources WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
 </mapper>

@@ -44,13 +44,14 @@
             u.avatar_url as author_avatar_url,
             -- 用户状态（浏览历史中的文章视为未点赞未收藏）
             CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
-            0 as favorite_status
+            CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
         FROM user_view_history vh
         INNER JOIN posts p ON p.id = vh.post_id
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN post_series s ON p.series_id = s.id AND s.deleted_at IS NULL
         LEFT JOIN users u ON p.author_id = u.id
         LEFT JOIN post_likes pl ON p.id = pl.post_id AND pl.user_id = #{userId} AND pl.is_like = 1 AND pl.deleted_at IS NULL
+        LEFT JOIN post_favorites pf ON p.id = pf.post_id AND pf.user_id = #{userId} AND pf.is_favorite = 1 AND pf.deleted_at IS NULL
         WHERE vh.user_id = #{userId}
         AND p.status = 'published'
         AND p.deleted_at IS NULL

@@ -2,7 +2,7 @@
  * 主后端 API 客户端（Admin 端）
  *
  * 实例创建与请求/响应拦截器统一由 `httpClient.ts` 提供，本文件只负责：
- * - 声明主后端响应类型 `ApiResponse`
+ * - 导出主后端响应类型 `ApiResponse`
  * - 导出 get/post/put/del 四个便捷方法（统一返回 `response.data`）
  * - 导出原始实例，供上传/下载等需要自定义 config 的场景使用
  *
@@ -12,12 +12,8 @@ import type { AxiosInstance, AxiosRequestConfig } from 'axios'
 import { createHttpClient } from './httpClient'
 import { getBackendURL } from './serviceConfig'
 
-/** 主后端统一响应结构 */
-export interface ApiResponse<T = any> {
-  code: number
-  message: string
-  data: T
-}
+import type { ApiResponse } from './types'
+export type { ApiResponse } from './types'
 
 /** 请求配置（透传 axios 原生配置） */
 export interface RequestConfig extends AxiosRequestConfig {}

@@ -7,6 +7,8 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import chat.liuxin.liutech.model.Messages;
 
@@ -15,6 +17,8 @@ import chat.liuxin.liutech.model.Messages;
  */
 @Mapper
 public interface MessagesMapper extends BaseMapper<Messages> {
+    IPage<Messages> selectForAdmin(Page<Messages> page, @Param("nickname") String nickname,
+                                   @Param("status") Integer status, @Param("includeDeleted") Boolean includeDeleted);
 
     /**
      * 物理删除留言（绕过 @TableLogic 逻辑删除拦截）

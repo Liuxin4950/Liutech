@@ -77,7 +77,7 @@ const kpis = computed(() => {
   const delta = (arr: any[]) => {
     if (arr.length < 4) return 0
     const first = sum(arr, [0, half])
-    const second = sum(arr, [half, arr.length])
+    const second = sum(arr, [half, half * 2])
     if (first === 0) return second > 0 ? 100 : 0
     return Math.round(((second - first) / first) * 100)
   }
@@ -90,7 +90,7 @@ const kpis = computed(() => {
       token: '--lt-color-chart-1',
       trend: trend7.map((t) => t.count),
       delta: delta(trend7),
-      deltaLabel: '近 7 日新增趋势',
+      deltaLabel: '近 3 天较前 3 天（不含今日）',
       to: '/posts',
     },
     {
@@ -101,7 +101,7 @@ const kpis = computed(() => {
       token: '--lt-color-chart-4',
       trend: userTrend7.map((t) => t.count),
       delta: delta(userTrend7),
-      deltaLabel: '近 7 日注册趋势',
+      deltaLabel: '近 3 天较前 3 天（不含今日）',
       to: '/users',
     },
     {

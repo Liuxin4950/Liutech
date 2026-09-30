@@ -1,8 +1,7 @@
 package chat.liuxin.liutech.service;
 
-import java.net.URI;
+import static chat.liuxin.liutech.common.ContentLinkValidator.validateHref;
 import java.util.List;
-import java.util.Locale;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -206,26 +205,6 @@ public class AboutPageService {
         }
         validateHref(req.getAuthor().getAvatar(), false, false);
         validateHref(req.getHonors().getImageUrl(), true, false);
-    }
-
-    private void validateHref(String href, boolean allowBlank, boolean allowMailto) {
-        String value = normalizeNullable(href);
-        if (value == null) {
-            if (allowBlank) return;
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "链接地址不能为空");
-        }
-        if (value.startsWith("/") && !value.startsWith("//")) return;
-        try {
-            URI uri = URI.create(value);
-            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
-            boolean isHttp = ("http".equals(scheme) || "https".equals(scheme)) && uri.getHost() != null;
-            boolean isMailto = allowMailto && "mailto".equals(scheme) && !uri.getSchemeSpecificPart().isBlank();
-            if (isHttp || isMailto) return;
-        } catch (IllegalArgumentException ignore) {
-            // 统一转换为用户可读的参数错误。
-        }
-        String allowedTypes = allowMailto ? "站内路径、HTTP(S) 或 mailto" : "站内路径或 HTTP(S)";
-        throw new BusinessException(ErrorCode.PARAMS_ERROR, "链接地址仅支持" + allowedTypes);
     }
 
     private String normalizeNullable(String value) {

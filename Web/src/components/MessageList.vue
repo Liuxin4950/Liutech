@@ -1,6 +1,7 @@
 <template>
   <div class="message-list">
     <LoadingState v-if="loading" compact label="正在加载留言…" />
+    <p v-else-if="error" role="alert">{{ error }} <button @click="loadMessages">重试</button></p>
     <div v-else-if="messages.length === 0" class="empty-state">
       暂无留言，快来抢沙发吧~
     </div>
@@ -27,13 +28,15 @@ import LoadingState from './LoadingState.vue'
 
 const loading = ref(true)
 const messages = ref<Message[]>([])
+const error = ref('')
 
 const loadMessages = async () => {
   loading.value = true
+  error.value = ''
   try {
     messages.value = await MessageService.getPublicMessages()
   } catch {
-    // 加载留言失败时静默处理
+    error.value = '留言加载失败，请重试'
   } finally {
     loading.value = false
   }

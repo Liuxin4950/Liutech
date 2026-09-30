@@ -91,7 +91,8 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
     /**
      * 创建系列
      */
-    @CacheEvict(value = "postSeries", allEntries = true)
+    @CacheEvict(value = {"postSeries", "postList", "hotPosts", "latestPosts"}, allEntries = true)
+    @Transactional(rollbackFor = Exception.class)
     public boolean save(PostSeriesResp resp) {
         if (getSeriesByName(resp.getName()) != null) {
             throw new BusinessException(ErrorCode.SERIES_NAME_EXISTS);
@@ -110,7 +111,8 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
     /**
      * 更新系列
      */
-    @CacheEvict(value = "postSeries", allEntries = true)
+    @CacheEvict(value = {"postSeries", "postList", "hotPosts", "latestPosts"}, allEntries = true)
+    @Transactional(rollbackFor = Exception.class)
     public boolean updateById(PostSeriesResp resp) {
         PostSeries exist = postSeriesMapper.selectById(resp.getId());
         if (exist == null) {
@@ -157,7 +159,7 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
      * 恢复已删除的系列
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "postSeries", allEntries = true)
+    @CacheEvict(value = {"postSeries", "postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean restoreSeries(Long id) {
         return postSeriesMapper.restoreSeriesById(id) > 0;
     }

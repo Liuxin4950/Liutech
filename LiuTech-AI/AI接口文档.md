@@ -223,7 +223,7 @@ data: {"conversationId":123,"responseLength":3,"mode":"user","ttsEnabled":false}
 - `audio-complete.timedOut=true` 表示音频等待超时；`segments` 是文本段数，不是成功音频数量。单段 TTS 失败不使整轮文本失败。
 - 仓库 `spring.ai.sse-timeout` 为 300000 毫秒。超时或网络中断不保证有 `error`；未收到 `complete` 就 EOF 应视作未完成，不能把连接关闭等同成功。
 - 登录聊天的模型流错误会尝试保存部分回复（status=3）和错误占位，再发送 `error`；游客和写作不保存消息。客户端断开、超时或 I/O 错误不保证部分回复落库。
-- 当前无取消、去重或断点续传 HTTP 接口，也未处理 `lastSeq` / `Last-Event-ID`。客户端 Abort 只能结束本地请求，不能保证上游生成停止。自动重发 POST 可能再次生成、落库，不应视为续传。
+- 当前没有去重或断点续传 HTTP 接口，不处理 `lastSeq` / `Last-Event-ID`。SSE 关闭时 StreamLifecycle 取消上游订阅并回收计时器和 TTS；供应商是否停止计算由其取消行为决定。客户端生成 POST 不自动重放，异常断流保留已收内容并提示手动重试。
 
 语音配置、状态、GPT-SoVITS/SiliconFlow 推理和临时缓存全部位于 AI 服务。`audioUrl` 是相对于 AI baseURL 的 `tts/audio/{fileName}`；开发环境拼为 `http://127.0.0.1:8081/ai/tts/audio/**`，生产同源路径为 `/ai/tts/audio/**`。
 

@@ -50,6 +50,9 @@ const transactionTypeMap: Record<string, { label: string; color: string }> = {
 }
 
 const sourceTypeMap: Record<string, string> = {
+  resource_download: '资源购买',
+  admin_manual: '管理员手动调整',
+  system_reward: '系统奖励',
   post_purchase: '文章购买',
   achievement: '成就奖励',
   checkin: '签到',

@@ -1,5 +1,7 @@
 package chat.liuxin.liutech.service;
 
+import chat.liuxin.liutech.common.ErrorCode;
+
 import chat.liuxin.liutech.mapper.UserCheckinMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.UserCheckin;
@@ -43,8 +45,7 @@ class CheckinServiceExceptionTest {
 
     @Test
     void checkin_shouldFailWhenUserNotFound() {
-        when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(null);
-        when(userMapper.selectById(USER_ID)).thenReturn(null);
+        when(userMapper.selectActiveForUpdate(USER_ID)).thenReturn(null);
 
         BusinessException ex = assertThrows(BusinessException.class, () -> checkinService.checkin(USER_ID));
         assertTrue(ex.getMessage().contains("用户不存在"));
@@ -60,9 +61,9 @@ class CheckinServiceExceptionTest {
         user.setVersion(0);
 
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(null);
-        when(userMapper.selectById(USER_ID)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(USER_ID)).thenReturn(user);
         when(userCheckinMapper.findRecentCheckins(USER_ID, 100)).thenReturn(java.util.Collections.emptyList());
-        doThrow(new RuntimeException("积分服务异常")).when(pointsService)
+        doThrow(new BusinessException(ErrorCode.OPERATION_ERROR, "积分服务异常")).when(pointsService)
                 .addPoints(any(), any(), any(), any(), isNull(), any());
 
         BusinessException ex = assertThrows(BusinessException.class, () -> checkinService.checkin(USER_ID));

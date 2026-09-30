@@ -166,11 +166,11 @@ const downloadProgress = ref<number | null>(null)
 
 // 计算属性：附件分组
 const fileAttachments = computed(() => {
-  return post.value?.attachments?.filter(a => a.resourceType === 'file') || []
+  return post.value?.attachments?.filter(a => (!a.resourceType || a.resourceType === 'file' || a.resourceType === 'both')) || []
 })
 
 const linkAttachments = computed(() => {
-  return post.value?.attachments?.filter(a => a.resourceType === 'link') || []
+  return post.value?.attachments?.filter(a => (a.resourceType === 'link' || a.resourceType === 'both')) || []
 })
 
 // 计算属性：渲染富文本内容

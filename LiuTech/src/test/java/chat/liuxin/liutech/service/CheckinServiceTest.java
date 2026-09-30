@@ -1,5 +1,7 @@
 package chat.liuxin.liutech.service;
 
+import chat.liuxin.liutech.common.ErrorCode;
+
 import chat.liuxin.liutech.mapper.UserCheckinMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.UserCheckin;
@@ -60,7 +62,7 @@ class CheckinServiceTest {
     void checkin_shouldSucceedForFirstTimeCheckin() {
         Users user = createDefaultUser();
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(null);
-        when(userMapper.selectById(USER_ID)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(USER_ID)).thenReturn(user);
         when(userCheckinMapper.findRecentCheckins(USER_ID, 100)).thenReturn(Collections.emptyList());
         // addPoints mock - doNothing
         doNothing().when(pointsService).addPoints(eq(USER_ID), any(BigDecimal.class), anyString(), anyString(), isNull(), anyString());
@@ -85,6 +87,7 @@ class CheckinServiceTest {
         UserCheckin existingCheckin = new UserCheckin();
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(existingCheckin);
 
+        when(userMapper.selectActiveForUpdate(USER_ID)).thenReturn(new Users());
         BusinessException ex = assertThrows(BusinessException.class, () -> checkinService.checkin(USER_ID));
         assertTrue(ex.getMessage().contains("已签到"));
         verify(pointsService, never()).addPoints(any(), any(), any(), any(), any(), any());
@@ -94,7 +97,7 @@ class CheckinServiceTest {
     void checkin_shouldCalculateConsecutiveDays7Bonus() {
         Users user = createDefaultUser();
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(null);
-        when(userMapper.selectById(USER_ID)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(USER_ID)).thenReturn(user);
 
         // Simulate 6 consecutive days before today (yesterday through 6 days ago)
         List<UserCheckin> recentCheckins = new ArrayList<>();
@@ -121,7 +124,7 @@ class CheckinServiceTest {
     void checkin_shouldCalculateConsecutiveDays30Bonus() {
         Users user = createDefaultUser();
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(null);
-        when(userMapper.selectById(USER_ID)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(USER_ID)).thenReturn(user);
 
         // Simulate 29 consecutive days before today
         List<UserCheckin> recentCheckins = new ArrayList<>();
@@ -148,7 +151,7 @@ class CheckinServiceTest {
     void checkin_shouldResetConsecutiveDaysOnGap() {
         Users user = createDefaultUser();
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(null);
-        when(userMapper.selectById(USER_ID)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(USER_ID)).thenReturn(user);
 
         // Simulate a gap: last checkin was 3 days ago (missed 2 days)
         List<UserCheckin> recentCheckins = new ArrayList<>();
@@ -173,9 +176,9 @@ class CheckinServiceTest {
     void checkin_shouldRollbackWhenPointsServiceFail() {
         Users user = createDefaultUser();
         when(userCheckinMapper.findByUserIdAndDate(eq(USER_ID), any(LocalDate.class))).thenReturn(null);
-        when(userMapper.selectById(USER_ID)).thenReturn(user);
+        when(userMapper.selectActiveForUpdate(USER_ID)).thenReturn(user);
         when(userCheckinMapper.findRecentCheckins(USER_ID, 100)).thenReturn(Collections.emptyList());
-        doThrow(new RuntimeException("积分服务异常")).when(pointsService)
+        doThrow(new BusinessException(ErrorCode.OPERATION_ERROR, "积分服务异常")).when(pointsService)
                 .addPoints(any(), any(), any(), any(), isNull(), any());
 
         // The method should propagate the exception (wrapped in RuntimeException) which triggers rollback

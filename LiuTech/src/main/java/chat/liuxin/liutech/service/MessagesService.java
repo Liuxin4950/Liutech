@@ -133,20 +133,7 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
     @Transactional(readOnly = true)
     public IPage<Messages> getMessagesForAdmin(Integer page, Integer size, String nickname, Integer status, Boolean includeDeleted) {
         Page<Messages> pageParam = PageQuery.of(page, size).toPage();
-        QueryWrapper<Messages> wrapper = new QueryWrapper<>();
-
-        if (nickname != null && !nickname.isEmpty()) {
-            wrapper.like("nickname", nickname);
-        }
-        if (status != null) {
-            wrapper.eq("status", status);
-        }
-        if (!Boolean.TRUE.equals(includeDeleted)) {
-            wrapper.isNull("deleted_at");
-        }
-
-        wrapper.orderByDesc("created_at");
-        return this.page(pageParam, wrapper);
+        return baseMapper.selectForAdmin(pageParam, nickname, status, includeDeleted);
     }
 
     /**

@@ -21,6 +21,9 @@ import chat.liuxin.liutech.resp.DownloadLogResp;
  */
 @Mapper
 public interface ResourceDownloadsMapper extends BaseMapper<ResourceDownloads> {
+    @org.apache.ibatis.annotations.Delete({"<script>DELETE FROM download_logs WHERE resource_id IN",
+            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>"})
+    int permanentDeleteByResourceIds(@Param("ids") List<Long> ids);
 
     IPage<PurchasedResourceResp> selectUserPurchases(Page<PurchasedResourceResp> page, @Param("userId") Long userId);
 

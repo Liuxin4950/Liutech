@@ -103,16 +103,16 @@ public class UserAuthService {
      */
     private void validateUserNotExists(String username, String email) {
         // 检查用户名是否已存在
-        List<Users> existingUsers = userMapper.findByUserName(username);
-        if (existingUsers != null && !existingUsers.isEmpty()) {
+        long existingUsers = userMapper.countUsernameIncludingDeleted(username);
+        if (existingUsers > 0) {
             log.warn("注册失败，用户名已存在: {}", username);
             throw new BusinessException(ErrorCode.USERNAME_EXISTS);
         }
 
         // 检查邮箱是否已被注册（如果提供了邮箱）
         if (StringUtils.hasText(email)) {
-            List<Users> existingEmailUsers = userMapper.findByEmail(email);
-            if (existingEmailUsers != null && !existingEmailUsers.isEmpty()) {
+            long existingEmailUsers = userMapper.countEmailIncludingDeleted(email);
+            if (existingEmailUsers > 0) {
                 log.warn("注册失败，邮箱已被注册: {}", email);
                 throw new BusinessException(ErrorCode.EMAIL_EXISTS);
             }

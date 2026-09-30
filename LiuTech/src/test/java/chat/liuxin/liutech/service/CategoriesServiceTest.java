@@ -109,8 +109,12 @@ class CategoriesServiceTest {
 
     @Test
     void getById_shouldReturnCategoryRespWhenExists() {
-        Categories category = createCategory(1L, "技术", "技术文章");
-        when(categoriesMapper.selectById(1L)).thenReturn(category);
+        CategoryResp category = new CategoryResp();
+        category.setId(1L);
+        category.setName("技术");
+        category.setDescription("技术文章");
+        category.setPostCount(5);
+        when(categoriesMapper.selectCategoryByIdWithPostCount(1L)).thenReturn(category);
 
         CategoryResp result = categoriesService.getById(1L);
 
@@ -118,17 +122,17 @@ class CategoriesServiceTest {
         assertEquals(1L, result.getId());
         assertEquals("技术", result.getName());
         assertEquals("技术文章", result.getDescription());
-        assertEquals(0, result.getPostCount());
-        verify(categoriesMapper).selectById(1L);
+        assertEquals(5, result.getPostCount());
+        verify(categoriesMapper).selectCategoryByIdWithPostCount(1L);
     }
 
     @Test
     void getById_shouldReturnNullWhenNotExists() {
-        when(categoriesMapper.selectById(999L)).thenReturn(null);
+        when(categoriesMapper.selectCategoryByIdWithPostCount(999L)).thenReturn(null);
 
         CategoryResp result = categoriesService.getById(999L);
 
         assertNull(result);
-        verify(categoriesMapper).selectById(999L);
+        verify(categoriesMapper).selectCategoryByIdWithPostCount(999L);
     }
 }

@@ -6,21 +6,20 @@ import { showConfirm, showPrompt } from '@/utils/errorHandler'
 const props = defineProps<{ modelValue: number | null }>()
 const emit = defineEmits<{ (e:'update:modelValue', id:number):void }>()
 
-const type = ref<string>('general')
 const list = ref<Conversation[]>([])
 const loading = ref(false)
 
 const load = async () => {
   loading.value = true
   try { 
-    const data = await ConversationService.list(type.value, 1, 50)
+    const data = await ConversationService.list(1, 50)
     // 反转数组，让最早的会话显示在上面，最新的显示在下面
     list.value = data.reverse()
   } finally { loading.value = false }
 }
 
 const select = (id:number) => emit('update:modelValue', id)
-const create = async () => { const id = await ConversationService.create(type.value, '新会话'); await load(); emit('update:modelValue', id) }
+const create = async () => { const id = await ConversationService.create('新会话'); await load(); emit('update:modelValue', id) }
 
 const rename = async (id:number) => {
   const title = await showPrompt('输入新的会话标题', '重命名', '新会话')
@@ -46,13 +45,7 @@ const formatTime = (val?: string) => {
 <template>
   <div class="conv-list">
     <div class="toolbar">
-      <select v-model="type" @change="load">
-        <option value="general">通用</option>
-        <option value="post">文章</option>
-        <option value="tag">标签</option>
-        <option value="category">分类</option>
-        <option value="user">用户</option>
-      </select>
+      <span>我的会话</span>
       <button class="new-btn" @click="create">新会话</button>
     </div>
     <div class="items" v-if="!loading">

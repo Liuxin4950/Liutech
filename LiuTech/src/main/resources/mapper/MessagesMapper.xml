@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="chat.liuxin.liutech.mapper.MessagesMapper">
+    <select id="selectForAdmin" resultType="chat.liuxin.liutech.model.Messages">
+        SELECT id, nickname, email, content, status, reply, replied_at, created_at, updated_at, deleted_at
+        FROM messages
+        <where>
+            <if test="includeDeleted == null or includeDeleted == false">deleted_at IS NULL</if>
+            <if test="nickname != null and nickname != ''">AND nickname LIKE CONCAT('%', #{nickname}, '%')</if>
+            <if test="status != null">AND status=#{status}</if>
+        </where>
+        ORDER BY created_at DESC, id DESC
+    </select>
+</mapper>

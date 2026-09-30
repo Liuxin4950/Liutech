@@ -1,5 +1,8 @@
 package chat.liuxin.liutech.service;
 
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
+
 import chat.liuxin.liutech.mapper.*;
 import chat.liuxin.liutech.model.PostFavorites;
 import chat.liuxin.liutech.model.PostLikes;
@@ -163,8 +166,9 @@ class PostsAdminServiceTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> postsAdminService.deletePostForAdmin(postId, operatorId));
 
-        // catch 块用 new RuntimeException(msg) 包装，未链式传递 cause
-        assertTrue(ex.getMessage().contains("删除文章失败"));
+        // 服务层保留业务异常语义。
+        assertInstanceOf(BusinessException.class, ex);
+        assertEquals(ErrorCode.ARTICLE_NOT_FOUND.getCode(), ((BusinessException) ex).getCode());
 
         verify(postTagsMapper, never()).deleteByPostId(anyLong());
         verify(postsMapper, never()).deleteById(anyLong(), any(), anyLong());
@@ -186,7 +190,8 @@ class PostsAdminServiceTest {
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> postsAdminService.deletePostForAdmin(postId, operatorId));
 
-        assertTrue(ex.getMessage().contains("删除文章失败"));
+        assertInstanceOf(BusinessException.class, ex);
+        assertEquals(ErrorCode.ARTICLE_NOT_FOUND.getCode(), ((BusinessException) ex).getCode());
 
         verify(postTagsMapper, never()).deleteByPostId(anyLong());
         verify(postsMapper, never()).deleteById(anyLong(), any(), anyLong());

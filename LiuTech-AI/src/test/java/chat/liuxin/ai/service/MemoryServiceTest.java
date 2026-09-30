@@ -46,11 +46,11 @@ class MemoryServiceTest {
 
     @Test void pageOffsetUsesClampedSizeAndDoesNotOverflow() {
         when(conversations.selectVisiblePage(anyString(), anyLong(), anyInt())).thenReturn(List.of());
-        service.listConversations("owner", null, 2, 500);
+        service.listConversations("owner", 2, 500);
         verify(conversations).selectVisiblePage("owner", 100L, 100);
-        service.listConversations("owner", null, Integer.MAX_VALUE, 500);
+        service.listConversations("owner", Integer.MAX_VALUE, 500);
         verify(conversations).selectVisiblePage("owner", 214748364600L, 100);
-        service.listConversations("owner", null, -10, -10);
+        service.listConversations("owner", -10, -10);
         verify(conversations).selectVisiblePage("owner", 0L, 1);
     }
     @Test void historyUseCaseNormalizesPaginationAndPreservesOwner() {

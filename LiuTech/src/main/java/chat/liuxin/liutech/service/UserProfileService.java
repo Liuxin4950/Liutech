@@ -81,22 +81,16 @@ public class UserProfileService {
         if (StringUtils.hasText(updateProfileReq.getEmail()) &&
             !updateProfileReq.getEmail().equals(currentUser.getEmail())) {
 
-            List<Users> existingEmailUsers = userMapper.findByEmail(updateProfileReq.getEmail());
-            if (existingEmailUsers != null && !existingEmailUsers.isEmpty()) {
-                // 检查是否是其他用户使用了这个邮箱
-                boolean emailUsedByOther = existingEmailUsers.stream()
-                    .anyMatch(u -> !u.getId().equals(currentUser.getId()));
-                if (emailUsedByOther) {
-                    log.warn("邮箱已被其他用户使用: {}", updateProfileReq.getEmail());
-                    throw new BusinessException(ErrorCode.EMAIL_EXISTS, "邮箱已被其他用户使用");
-                }
+            if (!updateProfileReq.getEmail().equalsIgnoreCase(currentUser.getEmail())
+                    && userMapper.countEmailIncludingDeleted(updateProfileReq.getEmail()) > 0) {
+                throw new BusinessException(ErrorCode.EMAIL_EXISTS, "邮箱已被其他用户使用");
             }
         }
 
         // 3. 处理头像变更，同步 usage_count
         String oldAvatarUrl = currentUser.getAvatarUrl();
         String newAvatarUrl = updateProfileReq.getAvatarUrl();
-        if (StringUtils.hasText(newAvatarUrl) && !newAvatarUrl.equals(oldAvatarUrl)) {
+        if (newAvatarUrl != null && !newAvatarUrl.equals(oldAvatarUrl)) {
             // 减少旧头像引用
             decrementImageReference(oldAvatarUrl);
             // 增加新头像引用
@@ -110,13 +104,13 @@ public class UserProfileService {
         if (StringUtils.hasText(updateProfileReq.getEmail())) {
             update.set(Users::getEmail, updateProfileReq.getEmail());
         }
-        if (StringUtils.hasText(updateProfileReq.getAvatarUrl())) {
+        if (updateProfileReq.getAvatarUrl() != null) {
             update.set(Users::getAvatarUrl, updateProfileReq.getAvatarUrl());
         }
-        if (StringUtils.hasText(updateProfileReq.getNickname())) {
+        if (updateProfileReq.getNickname() != null) {
             update.set(Users::getNickname, updateProfileReq.getNickname());
         }
-        if (StringUtils.hasText(updateProfileReq.getBio())) {
+        if (updateProfileReq.getBio() != null) {
             update.set(Users::getBio, updateProfileReq.getBio());
         }
 
@@ -168,67 +162,14 @@ public class UserProfileService {
 
     /**
      * 获取个人资料信息
-     * 支持已登录用户和未登录用户的不同展示
+     * 作者资料来源为 system_settings，不混入当前访问者的头像与统计
      *
      * @return 个人资料信息
      */
     @Transactional(readOnly = true)
     public ProfileResp getProfile() {
-        // 检查用户是否已登录
-        if (userUtils.isCurrentUserLoggedIn()) {
-            try {
-                Users currentUser = userUtils.getCurrentUser();
-                if (currentUser == null) {
-                    log.warn("无法获取当前用户信息，返回默认个人资料");
-                    return getDefaultProfile();
-                }
-
-                // 构建用户个人资料
-                ProfileResp profile = new ProfileResp();
-
-                // 设置基本信息
-                // profile.setName(StringUtils.hasText(currentUser.getNickname()) ? currentUser.getNickname() : currentUser.getUsername());
-                profile.setName("Liuxin");
-                profile.setTitle("全栈工程师"); 
-                profile.setAvatar(StringUtils.hasText(currentUser.getAvatarUrl()) ? currentUser.getAvatarUrl() : "/洛天依.png");
-                profile.setBio(StringUtils.hasText(currentUser.getBio()) ? currentUser.getBio() : "专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。");
-
-                // 获取统计信息
-                ProfileResp.Stats stats = new ProfileResp.Stats();
-                try {
-                    // 获取评论数量
-                    Integer commentCount = commentsMapper.countCommentsByUserId(currentUser.getId());
-                    stats.setComments(commentCount != null ? commentCount.longValue() : 0L);
-
-                    // 获取文章数量（已发布）
-                    Integer postCount = postsMapper.countPostsByUserIdAndStatus(currentUser.getId(), "published");
-                    stats.setPosts(postCount != null ? postCount.longValue() : 0L);
-
-                    // 获取用户文章总浏览量
-                    Long totalViews = postsMapper.countViewsByUserId(currentUser.getId());
-                    stats.setViews(totalViews != null ? totalViews : 0L);
-
-                    log.debug("用户 {} 个人资料获取成功 - 评论: {}, 文章: {}",
-                            currentUser.getUsername(), commentCount, postCount);
-
-                } catch (Exception e) {
-                    log.error("获取用户统计信息失败，用户: {}, 错误: {}", currentUser.getUsername(), e.getMessage(), e);
-                    // 如果统计信息获取失败，设置默认值
-                    stats.setComments(0L);
-                    stats.setPosts(0L);
-                    stats.setViews(0L);
-                }
-
-                profile.setStats(stats);
-                return profile;
-
-            } catch (Exception e) {
-                log.error("获取用户个人资料失败: {}", e.getMessage(), e);
-                return getDefaultProfile();
-            }
-        } else {
-            return getDefaultProfile();
-        }
+        // 首页侧栏展示配置的博客作者，个人中心使用 /user/current 与 /user/stats。
+        return getDefaultProfile();
     }
 
 

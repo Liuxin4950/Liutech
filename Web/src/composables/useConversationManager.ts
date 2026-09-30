@@ -29,7 +29,7 @@ export function useConversationManager(chatStore: ChatStore) {
     if (!isAuthenticated.value || isLoadingHistory.value) return
     try {
       isLoadingHistory.value = true
-      conversations.value = await ConversationService.list('general', 1, 50)
+      conversations.value = await ConversationService.list(1, 50)
     } catch {
       // 加载会话历史失败时静默处理
     } finally {

@@ -20,7 +20,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -179,12 +178,11 @@ public class PointsAdminService {
         Map<String, BigDecimal> stats = new HashMap<>();
 
         // 总发放积分（签到 + 管理员增加 + 退款）- SQL 聚合
-        BigDecimal totalIssued = pointsTransactionMapper.sumPointsByTypes(
-                Arrays.asList("checkin", "admin_adjust", "refund"));
+        BigDecimal totalIssued = pointsTransactionMapper.sumIssuedPoints();
         stats.put("totalIssued", totalIssued != null ? totalIssued : BigDecimal.ZERO);
 
         // 总消耗积分 - SQL 聚合（取绝对值）
-        BigDecimal totalConsumed = pointsTransactionMapper.sumPointsByType("consumption");
+        BigDecimal totalConsumed = pointsTransactionMapper.sumConsumedPoints();
         stats.put("totalConsumed", totalConsumed != null ? totalConsumed.abs() : BigDecimal.ZERO);
 
         // 总用户积分余额 - SQL 聚合

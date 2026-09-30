@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
 import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +71,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      * @return 是否删除成功
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean softDeleteComment(Long id) {
         try {
             if (id == null) {
@@ -97,6 +99,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      * @return 是否删除成功
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean batchSoftDeleteComments(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -124,6 +127,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      * @return 是否恢复成功
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean restoreComment(Long id) {
         try {
             if (id == null) {
@@ -147,6 +151,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      * @return 是否删除成功
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean permanentDeleteComment(Long id) {
         log.debug("彻底删除评论 - 评论ID: {}", id);
 
@@ -163,7 +168,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             }
 
             // 删除自身
-            int result = commentsMapper.deleteById(id);
+            int result = commentsMapper.permanentDeleteByIds(List.of(id));
             boolean success = result > 0;
             log.debug("彻底删除评论{} - 评论ID: {}", success ? "成功" : "失败", id);
             return success;
@@ -181,6 +186,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      * @return 是否删除成功
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean batchPermanentDeleteComments(List<Long> ids) {
         log.debug("批量彻底删除评论 - 评论数量: {}", ids.size());
 

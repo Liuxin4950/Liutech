@@ -31,6 +31,7 @@ public class ViewHistoryService {
     private final UserViewHistoryMapper userViewHistoryMapper;
 
     private final PostsMapper postsMapper;
+    private final PostsService postsService;
 
     /**
      * 记录一次浏览
@@ -61,6 +62,7 @@ public class ViewHistoryService {
     public PageResp<PostListResp> getViewHistory(Integer page, Integer size, Long userId) {
         Page<PostListResp> pageParam = PageQuery.of(page, size).toPage();
         IPage<PostListResp> result = userViewHistoryMapper.selectViewHistory(pageParam, userId);
+        postsService.fillTags(result.getRecords());
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 

@@ -245,14 +245,14 @@ function stopMusicLipSync() {
 /**
  * 统一“让 Live2D 读音频”的入口（替代原本的 speak 思路）
  * - 传入：音频URL（例如未来 TTS 返回的 url）
- * - 行为：播放该音频，并用同一条音频驱动口型
+ * - 行为：创建音频并绑定口型，调用方控制 play/暂停和生命周期
  *
  * 注意：浏览器可能要求用户先有一次交互才能播放音频
  */
 const speakAudioUrl = async (url: string) => {
     if (!model || loadState.value !== 'ready') return null
     emit('speak-start')
-    return lipSync.speak({ url, play: true, volume: 1, crossOrigin: 'anonymous' })
+    return lipSync.speak({ url, volume: 1, crossOrigin: 'anonymous' })
 }
 
 /**

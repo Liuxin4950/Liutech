@@ -77,23 +77,16 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                                                       Long authorId, Long seriesId, Boolean includeDeleted) {
         log.debug("管理端查询文章列表 - 页码: {}, 每页: {}, 标题: {}, 分类: {}, 状态: {}, 作者: {}, 系列: {}, 包含已删除: {}",
                 page, size, title, categoryId, status, authorId, seriesId, includeDeleted);
-
-        try {
-            Page<PostListResp> pageObj = PageQuery.of(page, size).toPage();
+        Page<PostListResp> pageObj = PageQuery.of(page, size).toPage();
             String keyword = StringUtils.hasText(title) ? title.trim() : null;
 
-            IPage<PostListResp> result = postsMapper.selectPostListForAdmin(pageObj, categoryId, keyword, status,
+        IPage<PostListResp> result = postsMapper.selectPostListForAdmin(pageObj, categoryId, keyword, status,
                     authorId, seriesId, includeDeleted);
 
-            log.debug("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
+        log.debug("管理端文章列表查询成功 - 总数: {}, 当前页数据: {}", result.getTotal(), result.getRecords().size());
 
-            postsService.fillTags(result.getRecords());
+        postsService.fillTags(result.getRecords());
             return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
-
-        } catch (Exception e) {
-            log.error("管理端文章列表查询失败: {}", e.getMessage(), e);
-            throw new RuntimeException("查询文章列表失败: " + e.getMessage());
-        }
     }
 
     /**
@@ -139,102 +132,81 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 管理端更新文章状态（无权限检查）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean updatePostStatusForAdmin(Long id, String status, Long operatorId) {
         log.debug("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
-
-        try {
-            Posts existPost = postsMapper.selectActiveForUpdate(id);
+        Posts existPost = postsMapper.selectActiveForUpdate(id);
             if (existPost == null || existPost.getDeletedAt() != null) {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
 
-            LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.eq(Posts::getId, id)
                     .set(Posts::getStatus, status)
                     .set(Posts::getUpdatedAt, new Date())
                     .set(Posts::getUpdatedBy, operatorId);
 
-            boolean result = this.update(updateWrapper);
+        boolean result = this.update(updateWrapper);
             log.debug("管理端文章状态更新{} - 文章ID: {}", result ? "成功" : "失败", id);
             return result;
-
-        } catch (Exception e) {
-            log.error("管理端更新文章状态失败 - 文章ID: {}, 错误: {}", id, e.getMessage(), e);
-            throw new RuntimeException("更新文章状态失败: " + e.getMessage());
-        }
     }
 
     /**
      * 管理端删除文章（软删除，无权限检查）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean deletePostForAdmin(Long id, Long operatorId) {
         log.debug("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
-
-        try {
-            Posts existPost = postsMapper.selectActiveForUpdate(id);
+        Posts existPost = postsMapper.selectActiveForUpdate(id);
             if (existPost == null || existPost.getDeletedAt() != null) {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
 
-            // 软删保留标签关联，恢复后可继续使用；物理删除另行清理。
+        // 软删保留标签关联，恢复后可继续使用；物理删除另行清理。
 
-            LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
+        LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
             likeUpdateWrapper.eq(PostLikes::getPostId, id)
                     .set(PostLikes::getDeletedAt, new Date());
             postLikesMapper.update(null, likeUpdateWrapper);
 
-            LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
+        LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
             favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
                     .set(PostFavorites::getDeletedAt, new Date());
             postFavoritesMapper.update(null, favoriteUpdateWrapper);
 
-            int result = postsMapper.deleteById(id, new Date(), operatorId);
+        int result = postsMapper.deleteById(id, new Date(), operatorId);
             boolean success = result > 0;
             log.debug("管理端文章删除{} - 文章ID: {}", success ? "成功" : "失败", id);
             return success;
-
-        } catch (Exception e) {
-            log.error("管理端删除文章失败 - 文章ID: {}, 错误: {}", id, e.getMessage(), e);
-            throw new RuntimeException("删除文章失败: " + e.getMessage());
-        }
     }
 
     /**
      * 管理端批量更新文章状态
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
         log.debug("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
-
-        try {
-            if (ids == null || ids.isEmpty()) {
+        if (ids == null || ids.isEmpty()) {
                 return false;
             }
 
-            LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
             updateWrapper.in(Posts::getId, ids)
                     .set(Posts::getStatus, status)
                     .set(Posts::getUpdatedAt, new Date());
 
-            boolean result = this.update(updateWrapper);
+        boolean result = this.update(updateWrapper);
             log.debug("管理端批量更新文章状态{} - 影响文章数: {}", result ? "成功" : "失败", ids.size());
             return result;
-
-        } catch (Exception e) {
-            log.error("管理端批量更新文章状态失败 - 错误: {}", e.getMessage(), e);
-            throw new RuntimeException("批量更新文章状态失败: " + e.getMessage());
-        }
     }
 
     /**
      * 批量删除文章（管理端）- 软删除
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -272,7 +244,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 恢复已删除的文章
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean restorePost(Long id) {
         try {
             if (id == null) {
@@ -294,7 +266,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 批量恢复已删除的文章
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean batchRestorePosts(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -324,82 +296,72 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 彻底删除文章（物理删除）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean permanentDeletePost(Long id) {
         if (id == null) {
             throw new IllegalArgumentException("文章ID不能为空");
         }
-        try {
-            Posts post = postsMapper.selectByIdWithDeleted(id);
-            if (post == null) {
-                log.warn("文章不存在或已被删除，文章ID: {}", id);
-                return false;
-            }
-
-            List<String> imageUrls = collectPostImageUrls(post.getCoverImage(), post.getThumbnail(), post.getContent());
-
-            postFavoritesMapper.deleteByPostId(id);
-            postLikesMapper.deleteByPostId(id);
-            commentsMapper.deleteChildrenByPostId(id);
-            commentsMapper.deleteRootsByPostId(id);
-            postTagsMapper.deleteByPostId(id);
-            postAttachmentsMapper.deleteByPostId(id);
-
-            int result = postsMapper.permanentDeleteById(id);
-            if (result <= 0) {
-                throw new RuntimeException("文章删除失败，可能文章不存在");
-            }
-
-            for (String url : imageUrls) {
-                imagesService.decrementImageUsageCountByUrl(url);
-            }
-
-            log.debug("彻底删除文章成功，文章ID: {}", id);
-            return true;
-        } catch (Exception e) {
-            log.error("彻底删除文章失败，文章ID: {}, 错误: {}", id, e.getMessage(), e);
-            throw new RuntimeException("彻底删除文章失败: " + e.getMessage(), e);
+        Posts post = postsMapper.selectByIdWithDeleted(id);
+        if (post == null) {
+            log.warn("文章不存在或已被删除，文章ID: {}", id);
+            return false;
         }
+
+        List<String> imageUrls = collectPostImageUrls(post.getCoverImage(), post.getThumbnail(), post.getContent());
+
+        postFavoritesMapper.deleteByPostId(id);
+        postLikesMapper.deleteByPostId(id);
+        commentsMapper.deleteChildrenByPostId(id);
+        commentsMapper.deleteRootsByPostId(id);
+        postTagsMapper.deleteByPostId(id);
+        postAttachmentsMapper.deleteByPostId(id);
+
+        int result = postsMapper.permanentDeleteById(id);
+        if (result <= 0) {
+            throw new RuntimeException("文章删除失败，可能文章不存在");
+        }
+
+        for (String url : imageUrls) {
+            imagesService.decrementImageUsageCountByUrl(url);
+        }
+
+        log.debug("彻底删除文章成功，文章ID: {}", id);
+        return true;
     }
 
     /**
      * 批量彻底删除文章（物理删除）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean batchPermanentDeletePosts(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new IllegalArgumentException("文章ID列表不能为空");
         }
-        try {
-            List<String> imageUrls = new ArrayList<>();
-            for (Long postId : ids) {
-                Posts post = postsMapper.selectByIdWithDeleted(postId);
-                if (post == null) {
-                    continue;
-                }
-                imageUrls.addAll(collectPostImageUrls(post.getCoverImage(), post.getThumbnail(), post.getContent()));
+        List<String> imageUrls = new ArrayList<>();
+        for (Long postId : ids) {
+            Posts post = postsMapper.selectByIdWithDeleted(postId);
+            if (post == null) {
+                continue;
             }
-
-            postFavoritesMapper.deleteByPostIds(ids);
-            postLikesMapper.deleteByPostIds(ids);
-            commentsMapper.deleteChildrenByPostIds(ids);
-            commentsMapper.deleteRootsByPostIds(ids);
-            postTagsMapper.deleteByPostIds(ids);
-            postAttachmentsMapper.deleteByPostIds(ids);
-
-            postsMapper.permanentDeleteByIds(ids);
-
-            for (String url : imageUrls) {
-                imagesService.decrementImageUsageCountByUrl(url);
-            }
-
-            log.debug("批量彻底删除文章成功，文章ID: {}", ids);
-            return true;
-        } catch (Exception e) {
-            log.error("批量彻底删除文章失败，文章ID: {}, 错误: {}", ids, e.getMessage(), e);
-            throw new RuntimeException("批量彻底删除文章失败: " + e.getMessage(), e);
+            imageUrls.addAll(collectPostImageUrls(post.getCoverImage(), post.getThumbnail(), post.getContent()));
         }
+
+        postFavoritesMapper.deleteByPostIds(ids);
+        postLikesMapper.deleteByPostIds(ids);
+        commentsMapper.deleteChildrenByPostIds(ids);
+        commentsMapper.deleteRootsByPostIds(ids);
+        postTagsMapper.deleteByPostIds(ids);
+        postAttachmentsMapper.deleteByPostIds(ids);
+
+        postsMapper.permanentDeleteByIds(ids);
+
+        for (String url : imageUrls) {
+            imagesService.decrementImageUsageCountByUrl(url);
+        }
+
+        log.debug("批量彻底删除文章成功，文章ID: {}", ids);
+        return true;
     }
 
     private List<String> collectPostImageUrls(String coverImage, String thumbnail, String content) {

@@ -17,6 +17,8 @@ import chat.liuxin.liutech.resp.ResourceResp;
  */
 @Mapper
 public interface ResourcesMapper extends BaseMapper<Resources> {
+    Resources selectIncludingDeletedById(@Param("id") Long id);
+    List<Resources> selectIncludingDeletedByIds(@Param("ids") List<Long> ids);
 
     /**
      * 根据ID查询资源详情（包含上传者信息）

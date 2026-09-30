@@ -13,6 +13,12 @@ import java.util.List;
 
 @Mapper
 public interface UserMapper extends BaseMapper<Users> {
+    @org.apache.ibatis.annotations.Select("SELECT COUNT(*) FROM users WHERE username=#{username}")
+    long countUsernameIncludingDeleted(@Param("username") String username);
+
+    @org.apache.ibatis.annotations.Select("SELECT COUNT(*) FROM users WHERE email=#{email}")
+    long countEmailIncludingDeleted(@Param("email") String email);
+
     /** 串行处理头像引用与资料更新，只读取该操作所需字段。 */
     @Select("SELECT id,username,email,avatar_url FROM users WHERE id=#{id} AND deleted_at IS NULL AND status=1 FOR UPDATE")
     Users selectProfileForUpdate(@Param("id") Long id);

@@ -75,19 +75,13 @@ public class LogsController extends BaseAdminController {
     /** 获取操作类型列表 */
     @GetMapping("/actions")
     public Result<List<String>> getActionTypes() {
-        return Result.success(List.of(
-                "login", "create", "update", "delete", "restore", "publish", "offline",
-                "enable", "disable", "upload", "download", "review", "reply",
-                "purchase", "checkin", "export", "import", "test"));
+        return Result.success(logService.getActionTypes());
     }
 
     /** 获取目标类型列表 */
     @GetMapping("/target-types")
     public Result<List<String>> getTargetTypes() {
-        return Result.success(List.of(
-                "post", "user", "category", "tag", "announcement", "comment", "resource",
-                "music", "image", "document", "attachment", "message", "carousel",
-                "tts", "system_setting", "points"));
+        return Result.success(logService.getTargetTypes());
     }
 
     /** AdminLogs 转换为 LogResp */

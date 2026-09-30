@@ -31,6 +31,9 @@ class ViewHistoryServiceTest {
     @Mock
     private PostsMapper postsMapper;
 
+    @Mock
+    private PostsService postsService;
+
     @InjectMocks
     private ViewHistoryService viewHistoryService;
 

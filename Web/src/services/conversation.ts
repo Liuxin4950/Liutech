@@ -17,12 +17,12 @@ interface ChatMessageItem {
 }
 
 export const ConversationService = {
-  async list(type?: string, page: number = 1, size: number = 20): Promise<Conversation[]> {
-    const res = await get<Conversation[]>('/conversations', {type, page, size}, {serviceType: ServiceType.AI})
+  async list(page: number = 1, size: number = 20): Promise<Conversation[]> {
+    const res = await get<Conversation[]>('/conversations', {page, size}, {serviceType: ServiceType.AI})
     return res.data
   },
-  async create(type: string = 'general', title?: string): Promise<number> {
-    const res = await post<{ conversationId?: number }>('/conversations', null as any, {params: {type, title}, serviceType: ServiceType.AI} as any)
+  async create(title?: string): Promise<number> {
+    const res = await post<{ conversationId?: number }>('/conversations', null as any, {params: {title}, serviceType: ServiceType.AI} as any)
     return res.data?.conversationId || 0
   },
   async messages(id: number, page: number = 1, size: number = 50): Promise<ChatMessageItem[]> {

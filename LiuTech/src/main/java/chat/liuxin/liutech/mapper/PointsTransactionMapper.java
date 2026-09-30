@@ -20,6 +20,12 @@ import java.util.List;
 @Mapper
 public interface PointsTransactionMapper extends BaseMapper<PointsTransaction> {
 
+    @org.apache.ibatis.annotations.Select("SELECT COALESCE(SUM(amount),0) FROM points_transactions WHERE amount>0")
+    BigDecimal sumIssuedPoints();
+
+    @org.apache.ibatis.annotations.Select("SELECT COALESCE(-SUM(amount),0) FROM points_transactions WHERE amount<0")
+    BigDecimal sumConsumedPoints();
+
     /**
      * 管理端分页查询积分流水（关联用户名）
      *

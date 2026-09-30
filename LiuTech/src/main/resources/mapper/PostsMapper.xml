@@ -463,6 +463,7 @@
         ORDER BY
         <choose>
             <when test="sort == 'hot'">p.view_count DESC, p.created_at DESC, p.id DESC</when>
+            <when test="seriesId != null">p.series_sort ASC, p.created_at ASC, p.id ASC</when>
             <otherwise>p.created_at DESC, p.id DESC</otherwise>
         </choose>
     </select>
@@ -843,7 +844,11 @@
                 AND p.title LIKE CONCAT('%', #{keyword}, '%')
             </if>
         </where>
-        ORDER BY p.created_at DESC
+        ORDER BY
+        <choose>
+            <when test="seriesId != null">p.series_sort ASC, p.created_at ASC, p.id ASC</when>
+            <otherwise>p.created_at DESC, p.id DESC</otherwise>
+        </choose>
     </select>
 
     <!-- 管理端统计文章总数 -->

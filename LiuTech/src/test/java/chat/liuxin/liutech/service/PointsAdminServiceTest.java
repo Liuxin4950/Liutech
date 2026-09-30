@@ -152,8 +152,8 @@ class PointsAdminServiceTest {
 
     @Test
     void getPointsStats_shouldReturnStats() {
-        when(pointsTransactionMapper.sumPointsByTypes(anyList())).thenReturn(BigDecimal.valueOf(500));
-        when(pointsTransactionMapper.sumPointsByType("consumption")).thenReturn(BigDecimal.valueOf(-200));
+        when(pointsTransactionMapper.sumIssuedPoints()).thenReturn(BigDecimal.valueOf(500));
+        when(pointsTransactionMapper.sumConsumedPoints()).thenReturn(BigDecimal.valueOf(200));
         when(pointsTransactionMapper.sumTotalUserPoints()).thenReturn(BigDecimal.valueOf(300));
 
         Map<String, BigDecimal> stats = pointsAdminService.getPointsStats();
@@ -165,8 +165,8 @@ class PointsAdminServiceTest {
 
     @Test
     void getPointsStats_shouldHandleNullResults() {
-        when(pointsTransactionMapper.sumPointsByTypes(anyList())).thenReturn(null);
-        when(pointsTransactionMapper.sumPointsByType("consumption")).thenReturn(null);
+        when(pointsTransactionMapper.sumIssuedPoints()).thenReturn(null);
+        when(pointsTransactionMapper.sumConsumedPoints()).thenReturn(null);
         when(pointsTransactionMapper.sumTotalUserPoints()).thenReturn(null);
 
         Map<String, BigDecimal> stats = pointsAdminService.getPointsStats();

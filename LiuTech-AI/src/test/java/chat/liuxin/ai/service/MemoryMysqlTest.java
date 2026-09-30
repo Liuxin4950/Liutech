@@ -63,8 +63,8 @@ class MemoryMysqlTest {
 
     @Test void conversationsUseStableBoundedPagination() {
         for (int i = 0; i < 7; i++) memory.createConversation("pages", "title" + i);
-        var first = memory.listConversations("pages", null, 1, 3);
-        var second = memory.listConversations("pages", null, 2, 3);
+        var first = memory.listConversations("pages", 1, 3);
+        var second = memory.listConversations("pages", 2, 3);
         assertEquals(3, first.size());
         assertEquals(3, second.size());
         assertTrue(first.stream().noneMatch(a -> second.stream().anyMatch(b -> a.getId().equals(b.getId()))));

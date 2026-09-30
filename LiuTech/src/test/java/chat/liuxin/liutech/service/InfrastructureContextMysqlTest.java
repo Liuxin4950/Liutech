@@ -94,4 +94,171 @@ class InfrastructureContextMysqlTest {
         assertEquals(0, admin.getTransactionsByUserId(931L, Integer.MAX_VALUE, 500).getRecords().size());
     }
 
+    private void seedChainPost(long id) {
+        db.jdbc.update("INSERT INTO users(id,username,email,password_hash) VALUES(?,?,?,'hash')", id, "chain"+id, "chain"+id+"@test.local");
+        db.jdbc.update("INSERT INTO categories(id,name) VALUES(?,?)", id, "chain-category"+id);
+        db.jdbc.update("INSERT INTO posts(id,title,content,category_id,author_id,status) VALUES(?,'chain-post','body',?,?,'published')", id,id,id);
+    }
+
+    @Test void articleAndTagTrashKeepAssociationsAndHistoryShowsCurrentTagsAndFavorites() {
+        seedChainPost(2001);
+        db.jdbc.update("INSERT INTO tags(id,name) VALUES(2001,'chain-tag')");
+        db.jdbc.update("INSERT INTO post_tags(post_id,tag_id) VALUES(2001,2001)");
+        var history = context.getBean(ViewHistoryService.class);
+        history.recordView(2001L,2001L);
+        var favorites = context.getBean(PostInteractionService.class);
+        var cache = context.getBean(org.springframework.cache.CacheManager.class).getCache("postList");
+        cache.put("chain-test-marker", "old-value");
+        favorites.toggleFavorite(2001L,2001L);
+        assertNull(cache.get("chain-test-marker"));
+        var row = history.getViewHistory(1,10,2001L).getRecords().getFirst();
+        assertEquals(1,row.getFavoriteStatus());
+        assertEquals("chain-tag", row.getTags().getFirst().getName());
+        var posts = context.getBean(PostsService.class);
+        posts.deletePost(2001L,2001L);
+        assertEquals(1,db.jdbc.queryForObject("SELECT COUNT(*) FROM post_tags WHERE post_id=2001",Integer.class));
+        context.getBean(PostsAdminService.class).restorePost(2001L);
+        var tags = context.getBean(TagsService.class);
+        tags.removeByIds(java.util.List.of(2001L));
+        assertEquals(1,db.jdbc.queryForObject("SELECT COUNT(*) FROM post_tags WHERE post_id=2001",Integer.class));
+        tags.restoreTag(2001L);
+        assertEquals(1,tags.getTagByIdWithPostCount(2001L).getPostCount());
+        assertEquals(1,context.getBean(CategoriesService.class).getById(2001L).getPostCount());
+        db.jdbc.update("INSERT INTO posts(title,content,category_id,author_id,status) VALUES('draft','body',2001,2001,'draft')");
+        long draftId = db.jdbc.queryForObject("SELECT MAX(id) FROM posts",Long.class);
+        db.jdbc.update("INSERT INTO post_tags(post_id,tag_id) VALUES(?,2001)",draftId);
+        assertEquals(1,tags.getAllTagsWithPostCount().stream().filter(tag -> tag.getId()==2001).findFirst().orElseThrow().getPostCount());
+        assertEquals(1,context.getBean(CategoriesService.class).getById(2001L).getPostCount());
+    }
+
+    @Test void messageTrashAndPermanentCommentDeletionUseExplicitPhysicalSemantics() {
+        seedChainPost(2011);
+        db.jdbc.update("INSERT INTO messages(nickname,email,content,deleted_at) VALUES('chain-message','msg@test.local','active',NULL),('chain-message','msg@test.local','deleted',NOW())");
+        var messages = context.getBean(MessagesService.class);
+        assertEquals(1,messages.getMessagesForAdmin(1,10,"chain-message",null,false).getTotal());
+        assertEquals(2,messages.getMessagesForAdmin(1,10,"chain-message",null,true).getTotal());
+        db.jdbc.update("INSERT INTO comments(id,post_id,user_id,content,deleted_at) VALUES(2011,2011,2011,'root',NOW())");
+        db.jdbc.update("INSERT INTO comments(id,post_id,user_id,parent_id,content,deleted_at) VALUES(2012,2011,2011,2011,'child',NOW())");
+        assertTrue(context.getBean(CommentsAdminService.class).permanentDeleteComment(2011L));
+        assertEquals(0,db.jdbc.queryForObject("SELECT COUNT(*) FROM comments WHERE id IN(2011,2012)",Integer.class));
+    }
+
+    @Test void resourceSoftDeleteCanBeRestoredAndPermanentDeleteCleansDependentRows() {
+        seedChainPost(2021);
+        db.jdbc.update("INSERT INTO resources(id,name,uploader_id,resource_type,download_type,points_needed) VALUES(2021,'chain-resource',2021,'file',1,10)");
+        db.jdbc.update("INSERT INTO post_attachments(post_id,resource_id) VALUES(2021,2021)");
+        db.jdbc.update("INSERT INTO download_logs(user_id,resource_id,points_used) VALUES(2021,2021,10)");
+        context.getBean(FileUploadService.class).deleteAttachment(2021L,2021L);
+        assertEquals(1,db.jdbc.queryForObject("SELECT COUNT(*) FROM post_attachments WHERE resource_id=2021",Integer.class));
+        var admin = context.getBean(ResourcesAdminService.class);
+        assertTrue(admin.restoreResource(2021L));
+        context.getBean(FileUploadService.class).deleteAttachment(2021L,2021L);
+        assertTrue(admin.permanentDeleteResource(2021L));
+        assertEquals(0,db.jdbc.queryForObject("SELECT COUNT(*) FROM resources WHERE id=2021",Integer.class));
+        assertEquals(0,db.jdbc.queryForObject("SELECT COUNT(*) FROM download_logs WHERE resource_id=2021",Integer.class));
+        assertEquals(0,db.jdbc.queryForObject("SELECT COUNT(*) FROM post_attachments WHERE resource_id=2021",Integer.class));
+    }
+
+    @Test void activeLookupExcludesDeletedAccountsButNamesRemainReserved() {
+        seedChainPost(2031);
+        db.jdbc.update("UPDATE users SET deleted_at=NOW() WHERE id=2031");
+        var users = context.getBean(chat.liuxin.liutech.mapper.UserMapper.class);
+        assertTrue(users.findByUserName("chain2031").isEmpty());
+        assertTrue(users.findByEmail("chain2031@test.local").isEmpty());
+        assertEquals(1,users.countUsernameIncludingDeleted("chain2031"));
+        assertEquals(1,users.countEmailIncludingDeleted("chain2031@test.local"));
+    }
+
+    @Test void signBasedPointTotalsIncludeAchievementsAndNegativeAdminAdjustments() {
+        seedChainPost(2041);
+        var points = context.getBean(PointsService.class);
+        var admin = context.getBean(PointsAdminService.class);
+        var before = admin.getPointsStats();
+        points.addPoints(2041L,java.math.BigDecimal.TEN,PointsService.TYPE_ACHIEVEMENT,PointsService.SOURCE_ACHIEVEMENT,null,"chain-test");
+        admin.adjustPoints(2041L,new java.math.BigDecimal("-2"),"chain-test");
+        var after = admin.getPointsStats();
+        assertEquals(0,java.math.BigDecimal.TEN.compareTo(after.get("totalIssued").subtract(before.get("totalIssued"))));
+        assertEquals(0,new java.math.BigDecimal("2").compareTo(after.get("totalConsumed").subtract(before.get("totalConsumed"))));
+    }
+
+    @Test void simultaneousCheckinsAwardOnceAndReturnADomainErrorForTheDuplicate() throws Exception {
+        seedChainPost(2051);
+        var checkin = context.getBean(CheckinService.class);
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            java.util.concurrent.Callable<Boolean> call = () -> {
+                start.await();
+                try { checkin.checkin(2051L); return true; }
+                catch (chat.liuxin.liutech.common.BusinessException duplicate) {
+                    assertEquals("今日已签到",duplicate.getMessage()); return false;
+                }
+            };
+            var first = pool.submit(call); var second = pool.submit(call); start.countDown();
+            assertNotEquals(first.get(15,java.util.concurrent.TimeUnit.SECONDS),second.get(15,java.util.concurrent.TimeUnit.SECONDS));
+        }
+        assertEquals(1,db.jdbc.queryForObject("SELECT COUNT(*) FROM user_checkins WHERE user_id=2051",Integer.class));
+        assertEquals(1,db.jdbc.queryForObject("SELECT COUNT(*) FROM points_transactions WHERE user_id=2051",Integer.class));
+    }
+
+    @Test void profileEmptyValuesClearFieldsAndHomeCardKeepsTheConfiguredAuthor() {
+        seedChainPost(2061);
+        db.jdbc.update("UPDATE users SET nickname='old',bio='private-reader-bio',avatar_url='/uploads/chain-test-avatar.png' WHERE id=2061");
+        var profile = context.getBean(UserProfileService.class);
+        var author = profile.getProfile();
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("chain2061",null,java.util.List.of());
+        auth.setDetails(2061L);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+        try {
+            var request = new chat.liuxin.liutech.req.UpdateProfileReq();
+            request.setNickname("");request.setBio("");request.setAvatarUrl("");
+            var result = profile.updateProfile(request);
+            assertEquals("",result.getNickname()); assertEquals("",result.getBio()); assertEquals("",result.getAvatarUrl());
+            assertEquals(author.getName(),profile.getProfile().getName());
+            assertEquals(author.getBio(),profile.getProfile().getBio());
+        } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+    }
+
+    @Test void fileUploadDedupDoesNotReuseAnExternalLinkWithTheSameName() {
+        seedChainPost(2071);
+        db.jdbc.update("INSERT INTO resources(id,name,uploader_id,resource_type,external_link) VALUES(2071,'same-name',2071,'link','https://example.invalid/resource')");
+        var resources = context.getBean(chat.liuxin.liutech.mapper.ResourcesMapper.class);
+        assertNull(resources.selectRecentDuplicate(2071L,"same-name"));
+        db.jdbc.update("INSERT INTO resources(id,name,uploader_id,resource_type,file_url) VALUES(2072,'same-name',2071,'file','/uploads/chain-test.zip')");
+        assertEquals(2072,resources.selectRecentDuplicate(2071L,"same-name").getId());
+    }
+
+    @Test void softDeletedImagesCanBePermanentlyRemoved() {
+        seedChainPost(2091);
+        db.jdbc.update("INSERT INTO images(id,file_name,file_url,file_path,mime_type,file_size,file_hash,extension,uploader_id,usage_count,deleted_at) VALUES(2091,'chain.png','https://example.invalid/chain.png','chain.png','image/png',1,?,'png',2091,0,NOW())",
+                java.util.UUID.randomUUID().toString().replace("-","").repeat(2));
+        var images = context.getBean(chat.liuxin.liutech.mapper.ImagesMapper.class);
+        assertNull(images.selectById(2091L));
+        assertNotNull(images.selectIncludingDeletedById(2091L));
+        assertTrue(context.getBean(ImagesAdminService.class).permanentDeleteImage(2091L));
+        assertEquals(0,db.jdbc.queryForObject("SELECT COUNT(*) FROM images WHERE id=2091",Integer.class));
+    }
+
+    @Test void logFilterTypesFollowPersistedActionsAndTargets() {
+        db.jdbc.update("INSERT INTO system_logs(operator,action,target_type,status) VALUES('chain-test','chain_action','chain_target',1)");
+        var logs = context.getBean(LogService.class);
+        assertTrue(logs.getActionTypes().contains("chain_action"));
+        assertTrue(logs.getTargetTypes().contains("chain_target"));
+    }
+
+    @Test void seriesListsUseTheSavedOrderAcrossPublicAndAdminPagination() {
+        seedChainPost(2101);
+        db.jdbc.update("INSERT INTO post_series(id,name) VALUES(2101,'chain-ordered-series')");
+        db.jdbc.update("UPDATE posts SET series_id=2101,series_sort=2 WHERE id=2101");
+        db.jdbc.update("INSERT INTO posts(id,title,content,category_id,author_id,status,series_id,series_sort) VALUES(2102,'first','body',2101,2101,'published',2101,1)");
+        var request = new chat.liuxin.liutech.req.PostQueryReq();
+        request.setSeriesId(2101L); request.setSize(1);
+        var posts = context.getBean(PostsService.class);
+        assertEquals(2102,posts.getPostList(request,null).getRecords().getFirst().getId());
+        request.setPage(2);
+        assertEquals(2101,posts.getPostList(request,null).getRecords().getFirst().getId());
+        var admin = context.getBean(PostsAdminService.class);
+        assertEquals(2102,admin.getPostListForAdmin(1,1,null,null,null,null,2101L,false).getRecords().getFirst().getId());
+        assertEquals(2101,admin.getPostListForAdmin(2,1,null,null,null,null,2101L,false).getRecords().getFirst().getId());
+    }
+
 }

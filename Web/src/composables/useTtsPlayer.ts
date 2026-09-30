@@ -51,14 +51,15 @@ export function useTtsPlayer(options: {
     let timer: ReturnType<typeof setTimeout>
     const finish = () => {
       clearTimeout(timer)
-      for (const event of ['ended', 'error', 'pause']) audio.removeEventListener(event, finish)
+      for (const event of ['ended', 'error']) audio.removeEventListener(event, finish)
       if (cancelWait === finish) cancelWait = null
       audio.pause()
       resolve()
     }
     cancelWait = finish
-    for (const event of ['ended', 'error', 'pause']) audio.addEventListener(event, finish)
-    timer = setTimeout(finish, 60000)
+    for (const event of ['ended', 'error']) audio.addEventListener(event, finish)
+    timer = setTimeout(finish, Number.isFinite(audio.duration)
+      ? Math.max(60000, (audio.duration + 15) * 1000) : 300000)
   })
   const handleSpeakStart = () => {
     const nav = bottomNavRef.value
@@ -70,13 +71,15 @@ export function useTtsPlayer(options: {
   const playNextTts = async () => {
     if (isTtsPlaying || !ready() || !chatStore.ttsEnabled || !chatStore.ttsAvailable) return
     const token = playbackToken
+    let keepTimedCue = false
     isTtsPlaying = true
     try {
       while (token === playbackToken && ready() && chatStore.ttsEnabled && chatStore.ttsAvailable) {
         const item = chatStore.shiftTtsAudioQueue()
         if (!item) break
+        keepTimedCue = !!item.cue && (item.status === 'skipped' || !item.audioUrl)
+        if (item.cue) live2dRef.value?.applyAvatarCue({ ...item.cue, skipResetTimer: item.status !== 'skipped' && !!item.audioUrl })
         if (item.status === 'skipped' || !item.audioUrl) continue
-        if (item.cue) live2dRef.value?.applyAvatarCue({ ...item.cue, skipResetTimer: true })
         const base = getServiceBaseURL(ServiceType.AI).replace(/\/$/, '')
         const url = item.audioUrl.startsWith('http://') || item.audioUrl.startsWith('https://')
           ? item.audioUrl
@@ -104,7 +107,7 @@ export function useTtsPlayer(options: {
       if (token === playbackToken) {
         isTtsPlaying = false
         live2dRef.value?.stopMusicLipSync()
-        live2dRef.value?.applyAvatarCue({ expression: 'neutral' })
+        if (!keepTimedCue) live2dRef.value?.applyAvatarCue({ expression: 'neutral' })
         if (!chatStore.ttsAwaitingAudio && chatStore.ttsPendingCount === 0) resumeMusic()
         syncMusic()
       }

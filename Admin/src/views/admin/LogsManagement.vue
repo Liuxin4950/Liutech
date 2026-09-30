@@ -85,6 +85,7 @@ const loadFilterOptions = async () => {
   } catch (e) {
     // 加载失败使用兜底静态选项（actionMap 全量），不阻塞页面
     actionOptions.value = [{ label: '全部', value: '' }, ...Object.entries(actionMap).map(([value, label]) => ({ label, value }))]
+    targetOptions.value = [{ label: '全部', value: '' }, ...Object.entries(targetMap).map(([value, label]) => ({ label, value }))]
   }
 }
 

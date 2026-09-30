@@ -17,6 +17,11 @@ import chat.liuxin.liutech.model.AdminLogs;
  */
 @Mapper
 public interface AdminLogsMapper extends BaseMapper<AdminLogs> {
+    @org.apache.ibatis.annotations.Select("SELECT DISTINCT action FROM system_logs WHERE action IS NOT NULL AND action<>'' ORDER BY action")
+    List<String> selectActionTypes();
+
+    @org.apache.ibatis.annotations.Select("SELECT DISTINCT target_type FROM system_logs WHERE target_type IS NOT NULL AND target_type<>'' ORDER BY target_type")
+    List<String> selectTargetTypes();
 
     /**
      * 分页查询日志列表（带筛选条件）

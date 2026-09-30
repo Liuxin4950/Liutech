@@ -30,7 +30,6 @@ import chat.liuxin.liutech.model.Posts;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.ImageReferenceResp;
 import chat.liuxin.liutech.resp.PageResp;
-import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
@@ -47,7 +46,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
 
     private final ImagesMapper imagesMapper;
 
-    private final FileUtil fileUtil;
+    private final chat.liuxin.liutech.storage.StorageFileCleanup storageFileCleanup;
 
     private final PostsMapper postsMapper;
 
@@ -183,16 +182,17 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeleteImage(Long id) {
-        Images image = imagesMapper.selectById(id);
+        Images image = imagesMapper.selectIncludingDeletedById(id);
         if (image == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "图片不存在");
         }
 
         // 删除文件系统中的文件
-        deleteImageFile(image);
+        storageFileCleanup.afterCommit(java.util.Collections.singletonList(image.getFileUrl()));
 
         // 物理删除数据库记录
         int result = imagesMapper.permanentDeleteById(id);
+        if (result != 1) throw new BusinessException(ErrorCode.OPERATION_ERROR, "图片删除未完成");
         boolean success = result > 0;
 
         log.debug("物理删除图片{} - ID: {}, 文件名: {}", success ? "成功" : "失败", id, image.getFileName());
@@ -213,14 +213,15 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
 
         // 先删除文件系统中的文件
         for (Long id : ids) {
-            Images image = imagesMapper.selectById(id);
+            Images image = imagesMapper.selectIncludingDeletedById(id);
             if (image != null) {
-                deleteImageFile(image);
+                storageFileCleanup.afterCommit(java.util.Collections.singletonList(image.getFileUrl()));
             }
         }
 
         // 批量物理删除数据库记录
         int result = imagesMapper.batchPermanentDelete(ids);
+        if (result == 0) throw new BusinessException(ErrorCode.OPERATION_ERROR, "图片删除未完成");
         boolean success = result > 0;
 
         log.debug("批量物理删除图片{} - 影响数量: {}", success ? "成功" : "失败", ids.size());
@@ -259,7 +260,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
         }
 
         for (Images image : orphans) {
-            deleteImageFile(image);
+            storageFileCleanup.afterCommit(java.util.Collections.singletonList(image.getFileUrl()));
         }
 
         List<Long> ids = orphans.stream().map(Images::getId).toList();
@@ -274,19 +275,6 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
      *
      * @param image 图片记录
      */
-    private void deleteImageFile(Images image) {
-        try {
-            boolean deleted = fileUtil.deleteFileByUrl(image.getFileUrl());
-            if (deleted) {
-                log.debug("删除图片文件成功: {}", image.getFileUrl());
-            } else {
-                log.warn("删除图片文件失败或文件不存在: {}", image.getFileUrl());
-            }
-        } catch (Exception e) {
-            log.error("删除图片文件异常: {}", image.getFileUrl(), e);
-        }
-    }
-
     /**
      * 查询图片的引用来源（反向溯源）
      * 现查 posts/users/carousels/music/post_series 五张表，用 filePath 做 LIKE 匹配

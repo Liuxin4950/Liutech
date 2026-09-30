@@ -48,16 +48,16 @@ public class CheckinService {
     public CheckinResp checkin(Long userId) {
         LocalDate today = LocalDate.now();
 
+        // 先锁用户，再写签到与积分流水，避免并发签到的外键共享锁升级死锁
+        Users user = userMapper.selectActiveForUpdate(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+
         // 检查今日是否已签到
         UserCheckin todayCheckin = userCheckinMapper.findByUserIdAndDate(userId, today);
         if (todayCheckin != null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "今日已签到");
-        }
-
-        // 获取用户信息
-        Users user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
 
         // 计算连续签到天数
@@ -76,22 +76,21 @@ public class CheckinService {
                 .setCreatedAt(now)
                 .setUpdatedAt(now);
 
-        userCheckinMapper.insert(checkin);
+        try {
+            userCheckinMapper.insert(checkin);
+        } catch (org.springframework.dao.DuplicateKeyException duplicate) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "今日已签到");
+        }
 
         // 使用PointsService增加积分（原子操作 + 流水记录）
-        try {
-            pointsService.addPoints(
-                userId,
-                pointsEarned,
-                PointsService.TYPE_CHECKIN,
-                PointsService.SOURCE_SYSTEM_REWARD,
-                null,
-                "连续签到" + consecutiveDays + "天奖励"
-            );
-        } catch (Exception e) {
-            log.error("用户{}签到积分增加失败", userId, e);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "积分奖励发放失败，请稍后重试");
-        }
+        pointsService.addPoints(
+            userId,
+            pointsEarned,
+            PointsService.TYPE_CHECKIN,
+            PointsService.SOURCE_SYSTEM_REWARD,
+            null,
+            "连续签到" + consecutiveDays + "天奖励"
+        );
 
         // 获取用户最新积分
         Users updatedUser = userMapper.selectById(userId);

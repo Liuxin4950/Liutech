@@ -757,26 +757,10 @@ public class FileUploadService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "无权限删除此附件");
         }
 
-        try {
-            // 删除物理文件
-            if (resource.getFileUrl() != null) {
-                String relativePath = fileUtil.extractRelativePath(resource.getFileUrl());
-                if (relativePath != null) {
-                    fileStorage.delete(relativePath);
-                }
-            }
-
-            // 删除数据库记录
-            resourcesMapper.deleteById(resourceId);
-
-            // 删除附件关联记录
-            postAttachmentsMapper.deleteByResourceId(resourceId);
-
-            log.debug("附件删除成功 - 用户ID: {}, 资源ID: {}", userId, resourceId);
-
-        } catch (Exception e) {
-            log.error("删除附件失败 - 用户ID: {}, 资源ID: {}", userId, resourceId, e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除附件失败: " + e.getMessage());
+        // 移入回收站；文件与附件关联保留，管理端恢复后仍可下载。
+        if (resourcesMapper.deleteById(resourceId) != 1) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "附件删除未完成");
         }
+        log.info("附件移入回收站: userId={}, resourceId={}", userId, resourceId);
     }
 }

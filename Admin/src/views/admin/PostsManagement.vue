@@ -10,9 +10,10 @@ import { useTableExport } from '@/composables/useTableExport'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
 import TableExportButton from '@/components/TableExportButton.vue'
 import PostsService from '../../services/posts'
-import CategoriesService from '../../services/categories'
-import TagsService from '../../services/tags'
-import PostSeriesService from '../../services/series'
+import CategoriesService, { type Category } from '../../services/categories'
+import TagsService, { type Tag } from '../../services/tags'
+import PostSeriesService, { type PostSeries } from '../../services/series'
+import { loadAllPages } from '../../services/pagination'
 import type { PostListParams, Post, PostListItem, PostFavoriteUser } from '../../services/posts'
 import { formatDateTime } from '../../utils/utils'
 import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
@@ -172,20 +173,15 @@ const statusOptions = [
 // ============== 分类/标签管理 ==============
 const loadCategoriesAndTags = async () => {
   try {
+    // 下拉选项需要全量数据：后端 PageQuery 的 size 有上限（1000 会 400），逐页读满
     const [cats, tags, seriesList] = await Promise.all([
-      CategoriesService.getCategoryList({ page: 1, size: 1000 }),
-      TagsService.getTagList({ page: 1, size: 1000 }),
-      PostSeriesService.getSeriesList({ page: 1, size: 1000 })
+      loadAllPages<Category>((page, size) => CategoriesService.getCategoryList({ page, size })),
+      loadAllPages<Tag>((page, size) => TagsService.getTagList({ page, size })),
+      loadAllPages<PostSeries>((page, size) => PostSeriesService.getSeriesList({ page, size }))
     ])
-    if (cats.code === 200) {
-      categoryOptions.value = cats.data.records.map((c: any) => ({ label: c.name, value: c.id }))
-    }
-    if (tags.code === 200) {
-      tagOptions.value = tags.data.records.map((t: any) => ({ label: t.name, value: t.id }))
-    }
-    if (seriesList.code === 200) {
-      seriesOptions.value = seriesList.data.records.map((s: any) => ({ label: s.name, value: s.id }))
-    }
+    categoryOptions.value = cats.map((c) => ({ label: c.name, value: c.id! }))
+    tagOptions.value = tags.map((t) => ({ label: t.name, value: t.id! }))
+    seriesOptions.value = seriesList.map((s) => ({ label: s.name, value: s.id! }))
   } catch (e: any) {
     if (!e?.isBusiness) message.error('加载分类或标签失败')
   }

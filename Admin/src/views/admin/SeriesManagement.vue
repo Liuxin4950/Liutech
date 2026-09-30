@@ -10,6 +10,7 @@ import { useTableExport } from '@/composables/useTableExport'
 import TableExportButton from '@/components/TableExportButton.vue'
 import PostSeriesService, { type PostSeries, type PostSeriesListParams, type SeriesPostOrder } from '../../services/series'
 import PostsService, { type PostListItem } from '../../services/posts'
+import { loadAllPages } from '../../services/pagination'
 import { ImageUploadService, pickUploadFile } from '../../services/upload'
 import { formatDateTime } from '../../utils/utils'
 
@@ -113,8 +114,10 @@ const openPostsDrawer = async (record: PostSeries) => {
 const loadSeriesPosts = async (seriesId: number) => {
   loadingPosts.value = true
   try {
-    const res = await PostsService.getPostList({ seriesId, size: 1000 })
-    seriesPosts.value = res.data?.records || []
+    // 抽屉需要系列内全部文章供拖拽排序：后端 size 有上限，逐页读满
+    seriesPosts.value = await loadAllPages<PostListItem>((page, size) =>
+      PostsService.getPostList({ seriesId, page, size })
+    )
   } catch (error: any) {
     if (!error?.isBusiness) message.error('加载系列文章失败')
   } finally {

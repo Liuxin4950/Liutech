@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
 import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -213,6 +214,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      * @return 创建的评论
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public CommentResp createComment(CreateCommentReq createCommentReq) {
         log.debug("开始创建评论，请求参数: {}", createCommentReq);
 

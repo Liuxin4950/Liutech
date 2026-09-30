@@ -20,7 +20,6 @@ import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.ResourceResp;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
-import chat.liuxin.liutech.utils.FileUtil;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
@@ -38,8 +37,8 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
 
     private final ResourceDownloadsMapper resourceDownloadsMapper;
 
-    /** 文件 URL 解析与删除（兼容本地磁盘与 COS 存储） */
-    private final FileUtil fileUtil;
+    private final chat.liuxin.liutech.mapper.PostAttachmentsMapper postAttachmentsMapper;
+    private final chat.liuxin.liutech.storage.StorageFileCleanup storageFileCleanup;
 
     /**
      * 获取资源列表（管理端）
@@ -175,34 +174,8 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean permanentDeleteResource(Long id) {
-        log.debug("彻底删除资源 - 资源ID: {}", id);
-
-        try {
-            if (id == null) {
-                return false;
-            }
-
-            // 先删除物理文件（本地磁盘 / COS），避免残留孤儿文件
-            Resources resource = resourcesMapper.selectById(id);
-            if (resource != null && resource.getFileUrl() != null) {
-                fileUtil.deleteFileByUrl(resource.getFileUrl());
-            }
-
-            // 再删除关联的下载记录
-            LambdaUpdateWrapper<ResourceDownloads> downloadWrapper = new LambdaUpdateWrapper<>();
-            downloadWrapper.eq(ResourceDownloads::getResourceId, id);
-            int downloadResult = resourceDownloadsMapper.delete(downloadWrapper);
-            log.debug("彻底删除资源时，删除关联下载记录数量: {}", downloadResult);
-
-            // 物理删除资源
-            int result = resourcesMapper.permanentDeleteByIds(Collections.singletonList(id));
-            boolean success = result > 0;
-            log.debug("彻底删除资源{} - 资源ID: {}", success ? "成功" : "失败", id);
-            return success;
-        } catch (Exception e) {
-            log.error("彻底删除资源失败 - 资源ID: {}, 错误: {}", id, e.getMessage(), e);
-            throw new RuntimeException("彻底删除资源失败: " + e.getMessage());
-        }
+        if (id == null) return false;
+        return deleteResourcesPermanently(List.of(id));
     }
 
     /**
@@ -214,38 +187,21 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeleteResources(List<Long> ids) {
-        log.debug("批量彻底删除资源 - 资源数量: {}", ids.size());
+        if (ids == null || ids.isEmpty()) return false;
+        return deleteResourcesPermanently(ids);
+    }
 
-        try {
-            if (ids == null || ids.isEmpty()) {
-                return false;
-            }
-
-            // 先删除物理文件（本地磁盘 / COS），避免残留孤儿文件
-            List<Resources> resourceList = resourcesMapper.selectByIds(ids);
-            if (resourceList != null) {
-                for (Resources resource : resourceList) {
-                    if (resource.getFileUrl() != null) {
-                        fileUtil.deleteFileByUrl(resource.getFileUrl());
-                    }
-                }
-            }
-
-            // 再删除关联的下载记录
-            LambdaUpdateWrapper<ResourceDownloads> downloadWrapper = new LambdaUpdateWrapper<>();
-            downloadWrapper.in(ResourceDownloads::getResourceId, ids);
-            int downloadResult = resourceDownloadsMapper.delete(downloadWrapper);
-            log.debug("批量彻底删除资源时，删除关联下载记录数量: {}", downloadResult);
-
-            // 物理删除资源
-            int result = resourcesMapper.permanentDeleteByIds(ids);
-            boolean success = result > 0;
-            log.debug("批量彻底删除资源{} - 影响资源数: {}", success ? "成功" : "失败", ids.size());
-            return success;
-        } catch (Exception e) {
-            log.error("批量彻底删除资源失败 - 错误: {}", e.getMessage(), e);
-            throw new RuntimeException("批量彻底删除资源失败: " + e.getMessage());
-        }
+    private boolean deleteResourcesPermanently(List<Long> ids) {
+        List<Resources> resources = resourcesMapper.selectIncludingDeletedByIds(ids);
+        if (resources.isEmpty()) return false;
+        List<Long> existingIds = resources.stream().map(Resources::getId).toList();
+        resourceDownloadsMapper.permanentDeleteByResourceIds(existingIds);
+        for (Long resourceId : existingIds) postAttachmentsMapper.deleteByResourceId(resourceId);
+        int deleted = resourcesMapper.permanentDeleteByIds(existingIds);
+        if (deleted != existingIds.size()) throw new BusinessException(ErrorCode.OPERATION_ERROR, "资源删除未完成");
+        storageFileCleanup.afterCommit(resources.stream().map(Resources::getFileUrl).toList());
+        log.info("永久删除资源完成: count={}", deleted);
+        return true;
     }
 
     /**

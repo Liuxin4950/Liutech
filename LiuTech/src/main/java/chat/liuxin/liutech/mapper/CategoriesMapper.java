@@ -22,6 +22,8 @@ public interface CategoriesMapper extends BaseMapper<Categories> {
      */
     List<CategoryResp> selectCategoriesWithPostCount();
 
+    CategoryResp selectCategoryByIdWithPostCount(@Param("id") Long id);
+
     /**
      * 管理端分页查询分类列表（包含创建者信息）
      * @param offset 偏移量

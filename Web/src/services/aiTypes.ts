@@ -32,9 +32,4 @@ export interface AiChatRequest {
    */
   ttsEnabled?: boolean
 
-  /**
-   * 断线重连时携带的最后收到的事件 seq，供后端去重/续传。
-   * 仅在 SSE 重连场景下由 AiStream 内部填充，业务调用无需传入。
-   */
-  lastSeq?: number
 }

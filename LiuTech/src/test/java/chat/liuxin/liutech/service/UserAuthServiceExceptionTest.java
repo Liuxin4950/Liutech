@@ -52,7 +52,7 @@ class UserAuthServiceExceptionTest {
     @Test
     void register_shouldThrowWhenUsernameExists() {
         Users existingUser = createUser("existinguser", passwordEncoder.encode("pass"));
-        when(userMapper.findByUserName("existinguser")).thenReturn(Collections.singletonList(existingUser));
+        when(userMapper.countUsernameIncludingDeleted("existinguser")).thenReturn(1L);
 
         RegisterReq req = new RegisterReq();
         req.setUsername("existinguser");
@@ -66,9 +66,9 @@ class UserAuthServiceExceptionTest {
 
     @Test
     void register_shouldThrowWhenEmailExists() {
-        when(userMapper.findByUserName("newuser")).thenReturn(Collections.emptyList());
+        when(userMapper.countUsernameIncludingDeleted("newuser")).thenReturn(0L);
         Users existingEmailUser = createUser("someone", passwordEncoder.encode("pass"));
-        when(userMapper.findByEmail("taken@example.com")).thenReturn(Collections.singletonList(existingEmailUser));
+        when(userMapper.countEmailIncludingDeleted("taken@example.com")).thenReturn(1L);
 
         RegisterReq req = new RegisterReq();
         req.setUsername("newuser");
@@ -120,7 +120,7 @@ class UserAuthServiceExceptionTest {
 
     @Test
     void sendVerificationCode_shouldThrowWhenFrequencyTooFast() {
-        when(userMapper.findByUserName("user1")).thenReturn(Collections.emptyList());
+        when(userMapper.countUsernameIncludingDeleted("user1")).thenReturn(0L);
         when(verificationCodeService.verifyCode(anyString(), anyString(), anyString()))
                 .thenThrow(new BusinessException(ErrorCode.PARAMS_ERROR, "发送过于频繁，请60秒后再试"));
 
@@ -137,7 +137,7 @@ class UserAuthServiceExceptionTest {
 
     @Test
     void verifyCode_shouldThrowWhenCodeIncorrect() {
-        when(userMapper.findByUserName("user1")).thenReturn(Collections.emptyList());
+        when(userMapper.countUsernameIncludingDeleted("user1")).thenReturn(0L);
         when(verificationCodeService.verifyCode("user1@example.com", "REGISTER", "123456"))
                 .thenThrow(new BusinessException(ErrorCode.VERIFICATION_CODE_INVALID, "验证码错误"));
 
@@ -154,7 +154,7 @@ class UserAuthServiceExceptionTest {
 
     @Test
     void verifyCode_shouldThrowWhenCodeExpired() {
-        when(userMapper.findByUserName("user1")).thenReturn(Collections.emptyList());
+        when(userMapper.countUsernameIncludingDeleted("user1")).thenReturn(0L);
         when(verificationCodeService.verifyCode("user1@example.com", "REGISTER", "123456"))
                 .thenThrow(new BusinessException(ErrorCode.VERIFICATION_CODE_INVALID, "验证码无效或已过期，请重新获取"));
 

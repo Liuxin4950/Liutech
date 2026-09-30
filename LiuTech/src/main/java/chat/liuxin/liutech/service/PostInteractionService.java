@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -45,6 +46,7 @@ public class PostInteractionService {
      * @throws BusinessException 当文章不存在时抛出异常
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean toggleLike(Long postId, Long userId) {
         Posts post = postsMapper.selectActiveForUpdate(postId);
         if (post == null || post.getDeletedAt() != null) {
@@ -76,6 +78,7 @@ public class PostInteractionService {
      * @throws BusinessException 当文章不存在时抛出异常
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean toggleFavorite(Long postId, Long userId) {
         Posts post = postsMapper.selectActiveForUpdate(postId);
         if (post == null || post.getDeletedAt() != null) {

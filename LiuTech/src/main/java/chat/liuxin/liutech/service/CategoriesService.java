@@ -100,21 +100,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      */
     @Transactional(readOnly = true)
     public CategoryResp getById(Long id) {
-        Categories category = super.getById(id);
-        if (category == null) {
-            return null;
-        }
-
-        CategoryResp categoryResp = new CategoryResp();
-        categoryResp.setId(category.getId());
-        categoryResp.setName(category.getName());
-        categoryResp.setDescription(category.getDescription());
-        categoryResp.setCreatedAt(category.getCreatedAt());
-        categoryResp.setUpdatedAt(category.getUpdatedAt());
-        // postCount 在单个查询时设为0，如需要可以单独查询
-        categoryResp.setPostCount(0);
-
-        return categoryResp;
+        return categoriesMapper.selectCategoryByIdWithPostCount(id);
     }
 
     /**
@@ -147,7 +133,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @author 刘鑫
      * @date 2025-01-30
      */
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories", "postList", "hotPosts", "latestPosts", "postSeries", "allTags", "hotTags"}, allEntries = true)
     public boolean save(CategoryResp categoryResp) {
         // 检查分类名称是否已存在
         if (getCategoryByName(categoryResp.getName()) != null) {
@@ -170,7 +156,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @author 刘鑫
      * @date 2025-01-30
      */
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories", "postList", "hotPosts", "latestPosts", "postSeries", "allTags", "hotTags"}, allEntries = true)
     public boolean updateById(CategoryResp categoryResp) {
         Categories category = new Categories();
         category.setId(categoryResp.getId());
@@ -189,7 +175,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @return 是否删除成功
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories", "postList", "hotPosts", "latestPosts", "postSeries", "allTags", "hotTags"}, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -229,7 +215,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories", "postList", "hotPosts", "latestPosts", "postSeries", "allTags", "hotTags"}, allEntries = true)
     public boolean restoreCategory(Long id) {
         try {
             if (id == null) {
@@ -257,7 +243,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories", "postList", "hotPosts", "latestPosts", "postSeries", "allTags", "hotTags"}, allEntries = true)
     public boolean permanentDeleteCategory(Long id) {
         log.debug("彻底删除分类 - 分类ID: {}", id);
 
@@ -305,7 +291,7 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = "categories", allEntries = true)
+    @CacheEvict(value = {"categories", "postList", "hotPosts", "latestPosts", "postSeries", "allTags", "hotTags"}, allEntries = true)
     public boolean batchPermanentDeleteCategories(List<Long> ids) {
         log.debug("批量彻底删除分类 - 分类数量: {}", ids.size());
 

@@ -8,6 +8,7 @@ import { handleImageError } from "@/composables/useImageFallback"
 import { useBannerStore } from "@/stores/banner"
 import bannerFallback from "@/assets/image/banner/banner0.png"
 import MessageModal from "@/components/MessageModal.vue"
+import MessageList from "@/components/MessageList.vue"
 import aboutHonorsImg from "@/assets/image/about/about-honors-collage.png"
 import { getAboutPage } from "@/services/about"
 import type { AboutPageInfo } from "@/services/about"
@@ -225,6 +226,11 @@ setBanner()
       </div>
     </section>
     </template>
+
+    <section class="card" aria-label="读者留言">
+      <SectionTitle title="读者留言" subtitle="公开留言与博主回复" />
+      <MessageList />
+    </section>
 
     <MessageModal v-model:visible="messageModalVisible" />
   </div>

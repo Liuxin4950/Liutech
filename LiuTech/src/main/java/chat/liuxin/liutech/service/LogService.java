@@ -26,6 +26,9 @@ public class LogService extends ServiceImpl<AdminLogsMapper, AdminLogs> {
 
     private final AdminLogsMapper adminLogsMapper;
 
+    public List<String> getActionTypes() { return adminLogsMapper.selectActionTypes(); }
+    public List<String> getTargetTypes() { return adminLogsMapper.selectTargetTypes(); }
+
     /**
      * 保存日志
      *

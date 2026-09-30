@@ -8,3 +8,11 @@ export interface PageResult<T> {
   size: number
   pages: number
 }
+
+
+/** 主后端统一响应结构 */
+export interface ApiResponse<T = any> {
+  code: number
+  message: string
+  data: T
+}

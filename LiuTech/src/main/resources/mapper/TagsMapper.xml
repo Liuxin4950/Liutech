@@ -10,7 +10,7 @@
             COUNT(DISTINCT p.id) as post_count
         FROM tags t
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
-        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY t.name
@@ -35,7 +35,7 @@
             COUNT(DISTINCT p.id) AS postCount
         FROM tags t
                  LEFT JOIN post_tags pt ON t.id = pt.tag_id
-                 LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+                 LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY postCount DESC, t.name
@@ -64,7 +64,7 @@
             COUNT(DISTINCT p.id) as post_count
         FROM tags t
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
-        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE t.name LIKE CONCAT('%', #{name}, '%') AND t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY t.name
@@ -84,7 +84,7 @@
         FROM tags t
         LEFT JOIN users u ON t.created_by = u.id
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
-        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
         <where>
             <if test="includeDeleted == null or includeDeleted == false">
                 t.deleted_at IS NULL

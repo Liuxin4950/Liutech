@@ -282,6 +282,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      * 验证轮播图数据
      */
     private void validateCarouselData(Carousel carousel) {
+        chat.liuxin.liutech.common.ContentLinkValidator.validateHref(carousel.getLinkUrl(), true, false);
         if (carousel.getTitle() == null || carousel.getTitle().trim().isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "轮播图标题不能为空");
         }

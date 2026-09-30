@@ -70,7 +70,14 @@ public class VerificationCodeService {
         verificationCodeMapper.insert(vc);
 
         // 发送邮件
-        emailService.sendVerificationCode(email, code, purpose);
+        try {
+            emailService.sendVerificationCode(email, code, purpose);
+        } catch (BusinessException failure) {
+            if (failure.getCode() == ErrorCode.EMAIL_SEND_FAILED.getCode()) {
+                verificationCodeMapper.deleteById(vc.getId());
+            }
+            throw failure;
+        }
 
         log.info("验证码已发送，邮箱: {}, 类型: {}", email, type);
     }
