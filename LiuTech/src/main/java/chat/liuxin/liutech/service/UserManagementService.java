@@ -632,9 +632,12 @@ public class UserManagementService {
             if (userMapper.physicalDeleteById(id) != 1) {
                 throw new BusinessException(ErrorCode.OPERATION_ERROR, "用户删除失败");
             }
-        } catch (org.springframework.dao.DataIntegrityViolationException failure) {
-            if (failure.getMostSpecificCause() instanceof java.sql.SQLException sql && sql.getErrorCode() == 1451) {
-                throw new BusinessException(ErrorCode.OPERATION_ERROR, "该用户仍有关联记录，暂不能永久删除；可先禁用账户");
+        } catch (org.springframework.dao.DataAccessException failure) {
+            for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+                if (cause instanceof java.sql.SQLException sql
+                        && (sql.getErrorCode() == 1451 || sql.getErrorCode() == 1217)) {
+                    throw new BusinessException(ErrorCode.OPERATION_ERROR, "该用户仍有关联记录，暂不能永久删除；可先禁用账户");
+                }
             }
             throw failure;
         }
