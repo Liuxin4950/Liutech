@@ -58,7 +58,7 @@ public interface TagsMapper extends BaseMapper<Tags> {
      * @param includeDeleted 是否包含已删除标签
      * @return 标签列表
      */
-    List<TagResp> selectTagsForAdmin(@Param("offset") Integer offset,
+    List<TagResp> selectTagsForAdmin(@Param("offset") long offset,
                                      @Param("limit") Integer limit,
                                      @Param("name") String name,
                                      @Param("includeDeleted") Boolean includeDeleted);

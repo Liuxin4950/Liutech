@@ -35,7 +35,7 @@
                 AND r.download_type = #{downloadType}
             </if>
         </where>
-        ORDER BY r.created_at DESC
+        ORDER BY r.created_at DESC, r.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

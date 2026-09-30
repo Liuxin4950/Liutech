@@ -12,12 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.aspect.OperationLog;
-import chat.liuxin.liutech.common.BusinessException;
-import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.CategoryResp;
 import chat.liuxin.liutech.service.CategoriesService;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 分类控制器
@@ -25,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
  *
  * @author 刘鑫
  */
-@Slf4j
 @RestController
 @RequestMapping("/categories")
 @RequiredArgsConstructor
@@ -54,22 +50,7 @@ public class CategoriesController {
      */
     @GetMapping("/{id}")
     public Result<CategoryResp> getCategoryById(@PathVariable Long id) {
-
-        try {
-            CategoryResp category = categoriesService.getById(id);
-            if (category == null) {
-                log.warn("分类不存在 - ID: {}", id);
-                return Result.fail(ErrorCode.CATEGORY_NOT_FOUND);
-            }
-
-            return Result.success("查询成功", category);
-        } catch (BusinessException e) {
-            // 直接上抛，由 GlobalExceptionHandler 统一转 400 + 业务错误码
-            throw e;
-        } catch (Exception e) {
-            log.error("查询分类详情失败: id={}", id, e);
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR);
-        }
+        return Result.success("查询成功", categoriesService.requireCategory(id));
     }
 
     /**
@@ -81,15 +62,7 @@ public class CategoriesController {
     @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "create", targetType = "category", description = "创建分类")
     public Result<Boolean> createCategory(@RequestBody CategoryResp categoryResp) {
-        try {
-            boolean result = categoriesService.save(categoryResp);
-            return Result.success(result);
-        } catch (BusinessException e) {
-            // 直接上抛，由 GlobalExceptionHandler 统一转 400 + 业务错误码
-            throw e;
-        } catch (Exception e) {
-            log.error("创建分类失败: name={}", categoryResp.getName(), e);
-            throw new BusinessException(ErrorCode.CATEGORY_CREATE_FAILED);
-        }
+        boolean result = categoriesService.save(categoryResp);
+        return Result.success(result);
     }
 }

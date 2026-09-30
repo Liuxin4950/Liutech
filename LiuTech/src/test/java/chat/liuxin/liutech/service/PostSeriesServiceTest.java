@@ -94,7 +94,7 @@ class PostSeriesServiceTest {
 
     @Test
     void getSeriesListForAdmin_shouldReturnPage() {
-        when(postSeriesMapper.selectSeriesForAdmin(any(), any(), any(), any()))
+        when(postSeriesMapper.selectSeriesForAdmin(anyLong(), any(), any(), any()))
                 .thenReturn(List.of(createSeriesResp(1L, "Spring", 3)));
         when(postSeriesMapper.countSeriesForAdmin(any(), any())).thenReturn(1);
 

@@ -1,6 +1,7 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.entity.AiChatMessage;
+import chat.liuxin.ai.dto.ChatHistoryResponse;
 import chat.liuxin.ai.entity.AiConversation;
 import chat.liuxin.ai.mapper.AiChatMessageMapper;
 import chat.liuxin.ai.mapper.AiConversationMapper;
@@ -64,6 +65,21 @@ public class MemoryService {
         if (page < 1 || size <= 0) return Collections.emptyList();
         int safeSize = safeSize(size);
         return messageMapper.selectHistoryMessagesByUserId(userId, offset(page, safeSize), safeSize);
+    }
+
+    @Transactional(readOnly = true)
+    public ChatHistoryResponse getChatHistory(String userId, int page, int size) {
+        requireUserId(userId);
+        int current = Math.max(1, page);
+        int limit = size <= 0 ? 20 : safeSize(size);
+        return ChatHistoryResponse.success(listHistoryMessages(userId, current, limit), current, limit,
+                countHistoryMessages(userId), userId);
+    }
+
+    private void requireUserId(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
+        }
     }
 
     /** 与 {@link #listHistoryMessages} 配对的总数查询,用于分页控件。 */
@@ -163,6 +179,7 @@ public class MemoryService {
      */
     @Transactional(rollbackFor = Exception.class)
     public PurgeCounts clearAllMemory(String userId) {
+        requireUserId(userId);
         List<Long> conversationIds = conversationMapper.selectOwnedForUpdate(userId)
                 .stream().map(AiConversation::getId).toList();
 

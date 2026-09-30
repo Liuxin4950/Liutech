@@ -43,7 +43,7 @@ public interface UserMapper extends BaseMapper<Users> {
      * @param includeDeleted 是否包含已删除用户
      * @return 用户列表
      */
-    List<UserResp> selectUsersForAdmin(@Param("offset") Integer offset,
+    List<UserResp> selectUsersForAdmin(@Param("offset") long offset,
                                        @Param("limit") Integer limit,
                                        @Param("username") String username,
                                        @Param("email") String email,

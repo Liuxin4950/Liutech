@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.PageQuery;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.PostFavoritesMapper;
 import chat.liuxin.liutech.mapper.PostLikesMapper;
@@ -105,7 +106,7 @@ public class PostInteractionService {
      */
     @Transactional(readOnly = true)
     public PageResp<PostListResp> getFavoritePosts(PostQueryReq req, Long userId) {
-        Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
+        Page<PostListResp> page = PageQuery.of(req.getPage(), req.getSize()).toPage();
         String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;
 
         IPage<PostListResp> result = postsMapper.selectFavoritePostList(page, userId, keyword);

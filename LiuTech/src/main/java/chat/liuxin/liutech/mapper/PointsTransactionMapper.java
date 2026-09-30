@@ -32,7 +32,7 @@ public interface PointsTransactionMapper extends BaseMapper<PointsTransaction> {
      * @return 带用户名的积分流水列表
      */
     List<PointsTransactionResp> selectTransactionsForAdmin(
-            @Param("offset") int offset,
+            @Param("offset") long offset,
             @Param("limit") int limit,
             @Param("userId") Long userId,
             @Param("transactionType") String transactionType,

@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
@@ -36,6 +37,13 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     private final TagsMapper tagsMapper;
 
     private final PostTagsMapper postTagsMapper;
+
+    @Transactional(readOnly = true)
+    public TagResp requireTag(Long id) {
+        TagResp result = getTagByIdWithPostCount(id);
+        if (result == null) throw new BusinessException(ErrorCode.TAG_NOT_FOUND);
+        return result;
+    }
 
     /**
      * 查询所有标签（包含文章数量）
@@ -117,25 +125,17 @@ public class TagsService extends ServiceImpl<TagsMapper, Tags> {
     @Transactional(readOnly = true)
     public PageResp<TagResp> getTagListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
         // 计算偏移量
-        Integer offset = (page - 1) * size;
+        PageQuery query = PageQuery.of(page, size);
+        long offset = query.offset();
 
         // 查询标签列表
-        List<TagResp> tagList = tagsMapper.selectTagsForAdmin(offset, size, name, includeDeleted);
+        List<TagResp> tagList = tagsMapper.selectTagsForAdmin(offset, (int) query.size(), name, includeDeleted);
 
         // 查询总数
         Integer total = tagsMapper.countTagsForAdmin(name, includeDeleted);
 
         // 构建分页结果
-        PageResp<TagResp> pageResp = new PageResp<>();
-        pageResp.setRecords(tagList);
-        pageResp.setTotal(total.longValue());
-        pageResp.setCurrent(page.longValue());
-        pageResp.setSize(size.longValue());
-        pageResp.setPages((long) Math.ceil((double) total / size));
-        pageResp.setHasNext(page.longValue() < pageResp.getPages());
-        pageResp.setHasPrevious(page.longValue() > 1);
-
-        return pageResp;
+        return new PageResp<>(tagList, total.longValue(), query.current(), query.size());
     }
 
     /**

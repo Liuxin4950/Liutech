@@ -26,7 +26,7 @@
                 AND uc.checkin_date &lt;= #{endDate}
             </if>
         </where>
-        ORDER BY uc.checkin_date DESC
+        ORDER BY uc.checkin_date DESC, uc.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

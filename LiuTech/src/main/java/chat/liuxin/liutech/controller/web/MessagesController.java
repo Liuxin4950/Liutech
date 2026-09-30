@@ -48,14 +48,7 @@ public class MessagesController {
     public Result<MessageResp> createMessage(@Valid @RequestBody CreateMessageReq req) {
         // 业务失败由服务层抛 BusinessException（含友好消息），此处仅记录日志并上抛，
         // 由 GlobalExceptionHandler 统一转换响应，避免把原始异常消息暴露给客户端
-        try {
-            MessageResp message = messagesService.createMessage(req);
-            return Result.success("留言提交成功，等待管理员审核", message);
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("留言提交失败", e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "留言提交失败，请稍后重试");
-        }
+        MessageResp message = messagesService.createMessage(req);
+        return Result.success("留言提交成功，等待管理员审核", message);
     }
 }

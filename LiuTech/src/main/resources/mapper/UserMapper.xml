@@ -57,7 +57,7 @@
             </choose>
         </where>
         GROUP BY u.id, u.username, u.email, u.nickname, u.role, u.avatar_url, u.bio, u.points, u.status, u.last_login_at, u.password_hash, u.created_at, u.updated_at, u.deleted_at
-        ORDER BY u.created_at DESC
+        ORDER BY u.created_at DESC, u.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

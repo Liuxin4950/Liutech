@@ -1,6 +1,9 @@
 package chat.liuxin.liutech.mapper;
 
 import java.util.List;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import chat.liuxin.liutech.resp.PurchasedResourceResp;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -19,6 +22,8 @@ import chat.liuxin.liutech.resp.DownloadLogResp;
 @Mapper
 public interface ResourceDownloadsMapper extends BaseMapper<ResourceDownloads> {
 
+    IPage<PurchasedResourceResp> selectUserPurchases(Page<PurchasedResourceResp> page, @Param("userId") Long userId);
+
     /**
      * 查询用户是否已购买某资源
      *
@@ -36,7 +41,7 @@ public interface ResourceDownloadsMapper extends BaseMapper<ResourceDownloads> {
      * @param resourceId 资源ID（可选）
      * @return 下载记录列表
      */
-    List<DownloadLogResp> selectDownloadLogsForAdmin(@Param("offset") Integer offset,
+    List<DownloadLogResp> selectDownloadLogsForAdmin(@Param("offset") long offset,
                                                      @Param("limit") Integer limit,
                                                      @Param("userId") Long userId,
                                                      @Param("resourceId") Long resourceId);

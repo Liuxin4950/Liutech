@@ -35,7 +35,7 @@ public interface PostSeriesMapper extends BaseMapper<PostSeries> {
      * @param includeDeleted 是否包含已删除系列
      * @return 系列列表
      */
-    List<PostSeriesResp> selectSeriesForAdmin(@Param("offset") Integer offset,
+    List<PostSeriesResp> selectSeriesForAdmin(@Param("offset") long offset,
                                               @Param("limit") Integer limit,
                                               @Param("name") String name,
                                               @Param("includeDeleted") Boolean includeDeleted);

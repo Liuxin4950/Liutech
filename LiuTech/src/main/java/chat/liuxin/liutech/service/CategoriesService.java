@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
@@ -43,6 +44,13 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
 
     private final PostAttachmentsMapper postAttachmentsMapper;
 
+    @Transactional(readOnly = true)
+    public CategoryResp requireCategory(Long id) {
+        CategoryResp result = getById(id);
+        if (result == null) throw new BusinessException(ErrorCode.CATEGORY_NOT_FOUND);
+        return result;
+    }
+
     /**
      * 查询所有分类（包含文章数量）
      * @return 分类列表
@@ -68,25 +76,17 @@ public class CategoriesService extends ServiceImpl<CategoriesMapper, Categories>
     @Transactional(readOnly = true)
     public PageResp<CategoryResp> getCategoryListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
         // 计算偏移量
-        Integer offset = (page - 1) * size;
+        PageQuery query = PageQuery.of(page, size);
+        long offset = query.offset();
 
         // 查询分类列表
-        List<CategoryResp> categoryList = categoriesMapper.selectCategoriesForAdmin(offset, size, name, includeDeleted);
+        List<CategoryResp> categoryList = categoriesMapper.selectCategoriesForAdmin(offset, (int) query.size(), name, includeDeleted);
 
         // 查询总数
         Integer total = categoriesMapper.countCategoriesForAdmin(name, includeDeleted);
 
         // 构建分页结果
-        PageResp<CategoryResp> pageResp = new PageResp<>();
-        pageResp.setRecords(categoryList);
-        pageResp.setTotal(total.longValue());
-        pageResp.setCurrent(page.longValue());
-        pageResp.setSize(size.longValue());
-        pageResp.setPages((long) Math.ceil((double) total / size));
-        pageResp.setHasNext(page.longValue() < pageResp.getPages());
-        pageResp.setHasPrevious(page.longValue() > 1);
-
-        return pageResp;
+        return new PageResp<>(categoryList, total.longValue(), query.current(), query.size());
     }
 
     /**

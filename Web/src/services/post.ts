@@ -1,4 +1,5 @@
 import { get, post, put, del } from './api'
+import { usePostInteractionStore } from '@/stores/postInteraction'
 
 // 文章分类信息接口
 interface CategoryInfo {
@@ -652,6 +653,7 @@ export class PostService {
   static async clearViewHistory(): Promise<boolean> {
     try {
       const response = await del('/posts/view-history')
+      usePostInteractionStore().historyChanged()
       return response.data
     } catch (error) {
       console.error('清空浏览历史失败:', error)

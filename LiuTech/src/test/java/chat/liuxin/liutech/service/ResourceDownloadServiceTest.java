@@ -11,7 +11,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.Resource;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.ResponseEntity;
+import chat.liuxin.liutech.storage.DownloadFile;
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
 
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
@@ -77,10 +79,11 @@ class ResourceDownloadServiceTest {
         when(fileStorage.open("resources/2026/04/demo.zip"))
                 .thenReturn(new ByteArrayInputStream("demo".getBytes()));
 
-        ResponseEntity<Resource> response = service.downloadResource(USER_ID, 1L);
+        DownloadFile response = service.downloadResource(USER_ID, 1L);
 
-        assertEquals(200, response.getStatusCode().value());
-        assertTrue(response.getBody().exists());
+        assertEquals("demo.zip", response.fileName());
+        assertEquals("demo", new String(response.stream().readAllBytes()));
+        response.stream().close();
         verify(fileStorage).open("resources/2026/04/demo.zip");
     }
 
@@ -199,12 +202,13 @@ class ResourceDownloadServiceTest {
         Resources resource = createPaidResource();
         when(resourcesMapper.selectById(RESOURCE_ID)).thenReturn(resource);
         when(resourceDownloadsMapper.insert(any(ResourceDownloads.class))).thenReturn(1);
-        doThrow(new RuntimeException("积分不足")).when(pointsService)
+        doThrow(new BusinessException(ErrorCode.PARAMS_ERROR, "积分不足")).when(pointsService)
                 .deductPoints(eq(USER_ID), any(), any(), any(), any());
 
         RuntimeException ex = assertThrows(RuntimeException.class,
                 () -> service.purchaseResource(USER_ID, RESOURCE_ID));
-        assertTrue(ex.getMessage().contains("积分扣减失败"));
+        assertEquals("积分不足", ex.getMessage());
+        assertInstanceOf(BusinessException.class, ex);
     }
 
     @Test

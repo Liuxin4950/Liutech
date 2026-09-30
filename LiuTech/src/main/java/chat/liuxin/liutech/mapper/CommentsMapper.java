@@ -112,7 +112,7 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      * @param includeDeleted 是否包含已删除评论
      * @return 评论列表
      */
-    List<Comments> selectCommentsForAdmin(@Param("offset") Integer offset,
+    List<Comments> selectCommentsForAdmin(@Param("offset") long offset,
                                           @Param("limit") Integer limit,
                                           @Param("postId") Long postId,
                                           @Param("userId") Long userId,

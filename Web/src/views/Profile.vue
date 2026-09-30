@@ -13,17 +13,12 @@
               </svg>
             </button>
           </div>
-          <div v-if="userStats" class="level-badge">
-            <Icon name="trophy" size="14" class="level-icon" />
-            <span>Lv.{{ calculateLevel(userStats?.points || 0) }}</span>
-          </div>
         </div>
 
         <!-- 用户信息 -->
         <div class="user-info">
           <div class="user-header">
             <h1 class="username">{{ userInfo?.nickname || userInfo?.username || 'Liuxin' }}</h1>
-            <Icon name="check" size="14" class="verified-badge" />
           </div>
           <p class="user-bio">{{ userInfo?.bio || '这个人很懒，什么都没有留下...' }}</p>
         </div>
@@ -60,38 +55,27 @@
     <!-- 主要内容 -->
     <div class="main-content">
       <div class="content">
-        <!-- 签到 -->
-        <CheckinCard @checkin-success="handleCheckinSuccess" class="mb-20" />
-
         <!-- 下方卡片 -->
         <div class="content-grid">
-          <!-- 成就 -->
           <div class="section-card">
-            <div class="section-header">成就徽章</div>
-            <UserAchievements @claimed="handleAchievementClaimed" />
-            <div v-if="userStats && checkinStatus" class="badges-grid">
-              <div
-                v-for="badge in achievements"
-                :key="badge.name"
-                class="badge-item"
-                :class="{ locked: badge.locked }"
-                :title="badge.description"
-              >
-                <Icon :name="badge.icon" size="18" class="badge-icon" />
-                <div class="badge-info">
-                  <span class="badge-name">{{ badge.name }}</span>
-                  <span v-if="badge.total" class="badge-progress">{{ badge.progress }}/{{ badge.total }}</span>
-                </div>
-              </div>
-            </div>
+            <div class="section-header">我的内容</div>
+            <ProfileLibrary />
           </div>
 
           <!-- 动态 -->
           <div class="section-card">
-            <div class="section-header">最近动态</div>
+            <div class="section-header activity-header">
+              <span>最近动态</span>
+              <button class="history-clear" :disabled="clearingHistory" @click="clearHistory">{{ clearingHistory ? '清空中…' : '清空浏览记录' }}</button>
+            </div>
+            <p class="activity-hint">浏览、收藏、评论与签到的最近记录。清空浏览不会删除收藏或评论。</p>
             <UserActivities ref="activitiesRef" />
           </div>
         </div>
+        <details class="profile-checkin" @toggle="showCheckin = ($event.target as HTMLDetailsElement).open">
+          <summary>签到与积分 <small>每日签到 · 查看签到记录</small></summary>
+          <CheckinCard v-if="showCheckin" @checkin-success="handleCheckinSuccess" />
+        </details>
       </div>
     </div>
 
@@ -201,13 +185,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onScopeDispose } from 'vue'
+import { ref, reactive, computed, onMounted, onScopeDispose, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse, type CheckinStatus } from '../services/user'
+import { UserService, type UpdateProfileRequest, type UserStats, type CheckinResponse } from '../services/user'
 import { ImageUploadService } from '../services/utils'
 import { showSuccess, showError } from '../utils/errorHandler'
-import UserAchievements from '@/components/UserAchievements.vue'
+import ProfileLibrary from '@/components/ProfileLibrary.vue'
+import PostService from '@/services/post'
+import { usePostInteractionStore } from '@/stores/postInteraction'
+import { useErrorHandler } from '@/composables/useErrorHandler'
 import UserActivities from '@/components/UserActivities.vue'
 import { handleImageError, errImg } from '@/composables/useImageFallback'
 import CheckinCard from '../components/CheckinCard.vue'
@@ -215,10 +202,13 @@ import Icon from '../components/Icon.vue'
 
 const userStore = useUserStore()
 const router = useRouter()
+const interaction = usePostInteractionStore()
+const { confirm } = useErrorHandler()
+const clearingHistory = ref(false)
+const showCheckin = ref(false)
 const isLoading = ref(false)
 const showEditForm = ref(false)
 const userStats = ref<UserStats | null>(null)
-const checkinStatus = ref<CheckinStatus | null>(null)
 const statsLoading = ref(false)
 const statsError = ref('')
 const activitiesRef = ref<InstanceType<typeof UserActivities> | null>(null)
@@ -238,93 +228,6 @@ const avatarDragOver = ref(false)
 const avatarMode = ref<'upload' | 'url'>('upload')
 
 const userInfo = computed(() => userStore.userInfo)
-
-const calculateLevel = (points: number) => {
-  if (points >= 1000) return 10
-  if (points >= 700) return 9
-  if (points >= 500) return 8
-  if (points >= 300) return 7
-  if (points >= 200) return 6
-  if (points >= 100) return 5
-  if (points >= 50) return 4
-  if (points >= 30) return 3
-  if (points >= 10) return 2
-  if (points >= 1) return 1
-  return 0
-}
-
-// 动态成就列表 - 基于真实数据计算
-const achievements = computed(() => {
-  const stats = userStats.value
-  const consecutive = checkinStatus.value?.consecutiveDays || 0
-  const totalCheckins = checkinStatus.value?.totalCheckins || 0
-  const points = stats?.points || 0
-  const commentCount = stats?.commentCount || 0
-  const favoriteCount = stats?.favoriteCount || 0
-
-  return [
-    {
-      name: '初来乍到',
-      icon: 'user',
-      locked: false, // 注册即解锁
-      description: '完成注册，加入平台'
-    },
-    {
-      name: '藏书达人',
-      icon: 'book',
-      locked: favoriteCount < 1,
-      description: '收藏第一篇文章'
-    },
-    {
-      name: '热心观众',
-      icon: 'message',
-      locked: commentCount < 10,
-      description: '累计发表 10 条评论',
-      progress: Math.min(commentCount, 10),
-      total: 10
-    },
-    {
-      name: '积分达人',
-      icon: 'star',
-      locked: points < 100,
-      description: '积分余额达到 100 分',
-      progress: Math.min(points, 100),
-      total: 100
-    },
-    {
-      name: '签到达人',
-      icon: 'calendar',
-      locked: totalCheckins < 30,
-      description: '累计签到 30 天',
-      progress: Math.min(totalCheckins, 30),
-      total: 30
-    },
-    {
-      name: '坚持不懈',
-      icon: 'fire',
-      locked: consecutive < 7,
-      description: '连续签到 7 天',
-      progress: Math.min(consecutive, 7),
-      total: 7
-    },
-    {
-      name: '收藏家',
-      icon: 'heart',
-      locked: favoriteCount < 10,
-      description: '收藏 10 篇文章',
-      progress: Math.min(favoriteCount, 10),
-      total: 10
-    },
-    {
-      name: '积分大师',
-      icon: 'trophy',
-      locked: points < 500,
-      description: '积分余额达到 500 分',
-      progress: Math.min(points, 500),
-      total: 500
-    }
-  ]
-})
 
 const initForm = () => {
   if (userInfo.value) {
@@ -432,34 +335,40 @@ const loadUserStats = async () => {
   statsLoading.value = true
   statsError.value = ''
   try {
-    const [stats, checkin] = await Promise.all([
-      UserService.getUserStats(),
-      UserService.getCheckinStatus()
-    ])
+    const stats = await UserService.getUserStats()
     if (token !== statsGeneration) return
     userStats.value = stats
-    checkinStatus.value = checkin
   } catch {
     if (token !== statsGeneration) return
     userStats.value = null
-    checkinStatus.value = null
     statsError.value = '统计加载失败，请重试'
   } finally { if (token === statsGeneration) statsLoading.value = false }
 }
-const handleAchievementClaimed = (points: number) => {
-  if (userStats.value) userStats.value.points = points
-  void userStore.fetchUserInfo(true).catch(() => {})
-  void activitiesRef.value?.refresh()
+const clearHistory = async () => {
+  if (clearingHistory.value) return
+  if (!await confirm('确定清空全部浏览记录吗？收藏、评论和已购资源会保留。')) return
+  clearingHistory.value = true
+  try {
+    await PostService.clearViewHistory()
+    showSuccess('浏览记录已清空')
+  } catch (error: any) {
+    if (!error?.isBusiness) showError('清空失败，请稍后重试')
+  } finally {
+    clearingHistory.value = false
+  }
 }
+
+watch(() => [userStore.isLoggedIn, userInfo.value?.id, interaction.historyRevision], () => {
+  statsGeneration++
+  userStats.value = null
+  statsLoading.value = false
+  statsError.value = ''
+  void loadUserStats()
+}, { immediate: true })
 
 const handleCheckinSuccess = (result: CheckinResponse) => {
   void activitiesRef.value?.refresh()
   if (userStats.value) userStats.value.points = result.totalPoints
-  if (checkinStatus.value) {
-    checkinStatus.value.consecutiveDays = result.consecutiveDays
-    checkinStatus.value.hasCheckedInToday = true
-    checkinStatus.value.totalCheckins++
-  }
 }
 
 onMounted(() => {
@@ -468,7 +377,6 @@ onMounted(() => {
     return
   }
   initForm()
-  loadUserStats()
 })
 onScopeDispose(() => { statsGeneration++ })
 </script>
@@ -564,18 +472,6 @@ onScopeDispose(() => { statsGeneration++ })
   }
 }
 
-.level-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
-  background: linear-gradient(135deg, var(--color-warning) 0%, #d97706 100%);
-  border-radius: 12px;
-  color: var(--text-on-primary, #fff);
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
 /* 用户信息 */
 .user-info {
   flex: 1;
@@ -602,11 +498,6 @@ onScopeDispose(() => { statsGeneration++ })
   font-weight: 600;
   color: var(--text-title);
   margin: 0;
-}
-
-.verified-badge {
-  color: var(--color-success);
-  font-size: 0.9rem;
 }
 
 .user-bio {
@@ -678,7 +569,7 @@ onScopeDispose(() => { statsGeneration++ })
 
 .content-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   gap: 20px;
 
   @include respond(lg) {
@@ -703,99 +594,15 @@ onScopeDispose(() => { statsGeneration++ })
   border-bottom: 1px solid var(--border-light);
 }
 
-/* 徽章 */
-.badges-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+.activity-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.history-clear { border: none; background: none; color: var(--color-primary); cursor: pointer; font-size: 12px; }
+.history-clear:disabled { opacity: .5; cursor: default; }
+.activity-hint { margin: 0 0 8px; color: var(--text-muted); font-size: 12px; line-height: 1.7; }
 
-  @include respond(sm) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.badge-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: var(--bg-soft);
-  border-radius: 8px;
-  transition: all 0.2s;
-  cursor: default;
-
-  &:hover {
-    transform: translateY(-1px);
-  }
-
-  &.locked {
-    opacity: 0.4;
-  }
-}
-
-.badge-icon {
-  font-size: 1.25rem;
-  flex-shrink: 0;
-}
-
-.badge-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.badge-name {
-  font-size: 0.9rem;
-  color: var(--text-main);
-}
-
-.badge-progress {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-/* 时间线 */
-.timeline {
-  position: relative;
-}
-
-.timeline-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  font-size: 0.9rem;
-
-  &:not(:last-child) {
-    border-bottom: 1px solid var(--border-light);
-  }
-}
-
-.timeline-icon {
-  color: var(--color-primary);
-  flex-shrink: 0;
-}
-
-.timeline-text {
-  color: var(--text-main);
-  flex: 1;
-}
-
-.timeline-time {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-.empty-tip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  text-align: center;
-  padding: 20px;
-}
+.profile-checkin { margin-top: 20px; }
+.profile-checkin summary { cursor: pointer; padding: 16px 20px; border: 1px solid var(--border-base); border-radius: 12px; background: var(--bg-card); color: var(--text-title); font-size: 14px; }
+.profile-checkin small { color: var(--text-muted); font-size: 12px; margin-left: 8px; }
+.profile-checkin[open] summary { margin-bottom: 12px; }
 
 /* 模态框 */
 .modal-overlay {
@@ -1071,7 +878,6 @@ onScopeDispose(() => { statsGeneration++ })
 /* 移动端 */
 @include respond(sm) {
   .profile-card {
-    margin-top: -200px;
     padding: 0 12px;
   }
 
@@ -1081,12 +887,12 @@ onScopeDispose(() => { statsGeneration++ })
 
   .stats-row {
     width: 100%;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
 
-  .stat-item {
-    padding: 0 16px;
-  }
+  .stat-divider { display: none; }
+  .stat-item { padding: 0; }
 }
 </style>

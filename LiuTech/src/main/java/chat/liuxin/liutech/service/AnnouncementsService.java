@@ -9,6 +9,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -56,7 +57,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      */
     @Transactional(readOnly = true)
     public IPage<AnnouncementResp> getValidAnnouncements(long current, long size) {
-        Page<Announcements> page = new Page<>(current, size);
+        Page<Announcements> page = new PageQuery(current, size).toPage();
         IPage<Announcements> announcementPage = announcementsMapper.selectValidAnnouncements(page);
         return announcementPage.convert(this::convertToResp);
     }
@@ -160,7 +161,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
 
     @Transactional(readOnly = true)
     public IPage<AnnouncementResp> getAllAnnouncements(long current, long size, Integer status, Integer type, String keyword, Boolean includeDeleted) {
-        Page<Announcements> page = new Page<>(current, size);
+        Page<Announcements> page = new PageQuery(current, size).toPage();
         QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, keyword, includeDeleted);
         IPage<Announcements> announcementPage = this.page(page, queryWrapper);
         return announcementPage.convert(this::convertToResp);

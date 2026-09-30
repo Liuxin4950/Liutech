@@ -2,6 +2,14 @@ package chat.liuxin.liutech.controller.web;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestParam;
+import java.nio.charset.StandardCharsets;
+import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.PurchasedResourceResp;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,13 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.aspect.OperationLog;
-import chat.liuxin.liutech.common.BusinessException;
-import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.DownloadUrlResp;
 import chat.liuxin.liutech.service.ResourceDownloadService;
 import chat.liuxin.liutech.utils.UserUtils;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 资源下载控制器
@@ -24,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
  * @author 刘鑫
  * @date 2025-01-15
  */
-@Slf4j
 @RestController
 @RequestMapping("/resource")
 @RequiredArgsConstructor
@@ -59,15 +63,12 @@ public class ResourceDownloadController {
      */
     @GetMapping("/download/{resourceId}")
     public ResponseEntity<Resource> downloadResource(@PathVariable Long resourceId) {
-        Long userId = userUtils.getCurrentUserId();
-
-        try {
-            return resourceDownloadService.downloadResource(userId, resourceId);
-        } catch (Exception e) {
-            // 该接口返回文件流，无法承载 Result；失败一律返回 400，细节只进日志
-            log.error("下载资源失败: resourceId={}, userId={}", resourceId, userId, e);
-            return ResponseEntity.badRequest().build();
-        }
+        var file = resourceDownloadService.downloadResource(userUtils.getCurrentUserId(), resourceId);
+        var response = ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(file.fileName(), StandardCharsets.UTF_8).build().toString());
+        if (file.contentLength() >= 0) response.contentLength(file.contentLength());
+        return response.body(new InputStreamResource(file.stream()));
     }
     
     /**
@@ -81,17 +82,14 @@ public class ResourceDownloadController {
      */
     @GetMapping("/download-url/{resourceId}")
     public Result<DownloadUrlResp> getDownloadUrl(@PathVariable Long resourceId) {
-        Long userId = userUtils.getCurrentUserId();
+        return Result.success(resourceDownloadService.getDownloadUrl(userUtils.getCurrentUserId(), resourceId));
+    }
 
-        try {
-            return Result.success(resourceDownloadService.getDownloadUrl(userId, resourceId));
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            // 底层异常消息（路径、存储细节）不外泄，仅记录日志
-            log.error("获取资源直链失败: resourceId={}, userId={}", resourceId, userId, e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取资源下载地址失败，请稍后重试");
-        }
+    @GetMapping("/purchases")
+    public Result<PageResp<PurchasedResourceResp>> getPurchases(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size) {
+        return Result.success(resourceDownloadService.getUserPurchases(userUtils.getCurrentUserId(), page, size));
     }
 
     /**

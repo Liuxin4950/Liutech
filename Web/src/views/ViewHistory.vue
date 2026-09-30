@@ -5,7 +5,7 @@
         <div class="posts-section">
           <!-- 操作栏 -->
           <div class="actions-container">
-            <button class="clear-btn" @click="clearHistory">
+            <button class="clear-btn" :disabled="clearingHistory" @click="clearHistory">
               <Icon name="trash" size="16" />
               清空历史
             </button>
@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onScopeDispose } from 'vue'
 import { useRouter } from 'vue-router'
 import PostService from '@/services/post'
 import type { PostListItem, PostQueryParams } from '@/services/post'
@@ -68,6 +68,8 @@ bannerStore.setBanner({
 const historyPosts = ref<PostListItem[]>([])
 const postsLoading = ref(false)
 const postsError = ref('')
+const clearingHistory = ref(false)
+let generation = 0
 
 // 分页信息
 const postsPagination = ref({
@@ -84,6 +86,7 @@ const goToPost = (postId: number) => {
 
 // 加载浏览历史列表
 const loadHistory = async (page: number = 1) => {
+  const token = ++generation
   await handleAsync(async () => {
     postsLoading.value = true
     postsError.value = ''
@@ -94,6 +97,7 @@ const loadHistory = async (page: number = 1) => {
     }
 
     const response = await PostService.getViewHistory(params)
+    if (token !== generation) return
 
     historyPosts.value = response.records
 
@@ -105,10 +109,10 @@ const loadHistory = async (page: number = 1) => {
     }
   }, {
     onError: () => {
-      postsError.value = '加载浏览历史失败，请稍后重试'
+      if (token === generation) postsError.value = '加载浏览历史失败，请稍后重试'
     },
     onFinally: () => {
-      postsLoading.value = false
+      if (token === generation) postsLoading.value = false
     }
   })
 }
@@ -124,13 +128,18 @@ const goToPostsPage = (page: number) => {
 
 // 清空浏览历史（不可恢复）
 const clearHistory = async () => {
+  if (clearingHistory.value) return
   const confirmed = await confirm('确定要清空全部浏览历史吗？此操作不可恢复。')
   if (!confirmed) {
     return
   }
 
+  clearingHistory.value = true
   await handleAsync(async () => {
     await PostService.clearViewHistory()
+    generation++
+    postsLoading.value = false
+    postsError.value = ''
     historyPosts.value = []
     postsPagination.value = {
       current: 1,
@@ -142,7 +151,8 @@ const clearHistory = async () => {
   }, {
     onError: () => {
       showToastError('清空失败，请稍后重试')
-    }
+    },
+    onFinally: () => { clearingHistory.value = false }
   })
 }
 
@@ -150,6 +160,7 @@ const clearHistory = async () => {
 onMounted(async () => {
   await loadHistory()
 })
+onScopeDispose(() => { generation++ })
 </script>
 
 <style scoped lang="scss">

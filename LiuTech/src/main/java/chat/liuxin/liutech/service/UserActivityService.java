@@ -14,7 +14,8 @@ public class UserActivityService {
 
     @Transactional(readOnly = true)
     public PageResp<UserActivityResp> list(Long userId, int page, int size) {
-        if (page < 1 || size < 1 || size > 20) throw new BusinessException(ErrorCode.PARAMS_ERROR, "分页参数不正确，每页最多20条");
-        return new PageResp<>(mapper.selectActivities(userId, (long) (page - 1) * size, size), mapper.countActivities(userId), (long) page, (long) size);
+        PageQuery query = PageQuery.of(page, size, 20);
+        return new PageResp<>(mapper.selectActivities(userId, query.offset(), (int) query.size()),
+                mapper.countActivities(userId), query.current(), query.size());
     }
 }

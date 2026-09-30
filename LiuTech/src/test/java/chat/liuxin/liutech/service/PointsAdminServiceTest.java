@@ -6,11 +6,9 @@ import chat.liuxin.liutech.mapper.UserCheckinMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.PointsTransaction;
 import chat.liuxin.liutech.model.UserCheckin;
-import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PointsTransactionResp;
 import chat.liuxin.liutech.resp.UserCheckinResp;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,7 +19,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 
-import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -51,14 +48,6 @@ class PointsAdminServiceTest {
 
     private static final Long USER_ID = 1L;
 
-    private Users createDefaultUser() {
-        Users user = new Users();
-        user.setId(USER_ID);
-        user.setPoints(BigDecimal.valueOf(100));
-        user.setVersion(0);
-        return user;
-    }
-
     // ========== adjustPoints 测试 ==========
 
     @Test void adjustPoints_shouldDelegatePositiveAndNegativeAmountsWithAdminType() {
@@ -68,8 +57,7 @@ class PointsAdminServiceTest {
         pointsAdminService.adjustPoints(USER_ID, BigDecimal.TEN.negate(), null);
         verify(pointsService).deductPoints(USER_ID, BigDecimal.TEN, PointsService.TYPE_ADMIN_ADJUST,
                 PointsService.SOURCE_ADMIN_MANUAL, null, "管理员手动调整积分");
-        verify(userMapper, never()).addPointsWithVersion(any(), any(), any(), any());
-        verify(userMapper, never()).deductPointsWithVersion(any(), any(), any(), any());
+        verifyNoInteractions(userMapper);
         verify(pointsTransactionMapper, never()).insert(any(PointsTransaction.class));
     }
 
@@ -102,7 +90,7 @@ class PointsAdminServiceTest {
         records.add(resp);
 
         when(pointsTransactionMapper.countTransactionsForAdmin(isNull(), isNull(), isNull(), isNull())).thenReturn(1L);
-        when(pointsTransactionMapper.selectTransactionsForAdmin(eq(0), eq(10), isNull(), isNull(), isNull(), isNull()))
+        when(pointsTransactionMapper.selectTransactionsForAdmin(eq(0L), eq(10), isNull(), isNull(), isNull(), isNull()))
                 .thenReturn(records);
 
         PageResp<PointsTransactionResp> result = pointsAdminService.getTransactionList(1, 10, null, null, null, null);
@@ -116,8 +104,7 @@ class PointsAdminServiceTest {
 
     @Test
     void getTransactionsByUserId_shouldReturnUserTransactions() {
-        when(pointsTransactionMapper.selectCount(any())).thenReturn(0L);
-        when(pointsTransactionMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(pointsTransactionMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         PageResp<PointsTransaction> result = pointsAdminService.getTransactionsByUserId(USER_ID, 1, 10);
 
@@ -130,7 +117,7 @@ class PointsAdminServiceTest {
     @Test
     void getCheckinList_shouldReturnPagedCheckins() {
         when(userCheckinMapper.countCheckinsForAdmin(isNull(), isNull(), isNull())).thenReturn(0L);
-        when(userCheckinMapper.selectCheckinsForAdmin(eq(0), eq(10), isNull(), isNull(), isNull()))
+        when(userCheckinMapper.selectCheckinsForAdmin(eq(0L), eq(10), isNull(), isNull(), isNull()))
                 .thenReturn(Collections.emptyList());
 
         PageResp<UserCheckinResp> result = pointsAdminService.getCheckinList(1, 10, null, null, null);
@@ -142,12 +129,23 @@ class PointsAdminServiceTest {
 
     @Test
     void getCheckinsByUserId_shouldReturnUserCheckins() {
-        when(userCheckinMapper.selectCount(any())).thenReturn(0L);
-        when(userCheckinMapper.selectList(any())).thenReturn(Collections.emptyList());
+        when(userCheckinMapper.selectPage(any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         PageResp<UserCheckin> result = pointsAdminService.getCheckinsByUserId(USER_ID, 1, 10);
 
         assertEquals(0, result.getTotal());
+    }
+
+    @Test void getTransactionList_shouldRejectInvalidPagesBeforeQueryAndUseLongOffsets() {
+        assertThrows(BusinessException.class, () -> pointsAdminService.getTransactionList(0, 10, null, null, null, null));
+        assertThrows(BusinessException.class, () -> pointsAdminService.getTransactionList(1, 501, null, null, null, null));
+        verifyNoInteractions(pointsTransactionMapper);
+        when(pointsTransactionMapper.countTransactionsForAdmin(isNull(), isNull(), isNull(), isNull())).thenReturn(0L);
+        when(pointsTransactionMapper.selectTransactionsForAdmin(anyLong(), eq(500), isNull(), isNull(), isNull(), isNull()))
+                .thenReturn(List.of());
+        var result = pointsAdminService.getTransactionList(Integer.MAX_VALUE, 500, null, null, null, null);
+        verify(pointsTransactionMapper).selectTransactionsForAdmin(1073741823000L, 500, null, null, null, null);
+        assertEquals(Integer.MAX_VALUE, result.getCurrent());
     }
 
     // ========== getPointsStats 测试 ==========

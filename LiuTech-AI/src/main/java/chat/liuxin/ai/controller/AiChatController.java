@@ -5,9 +5,7 @@ import chat.liuxin.ai.dto.ChatResponse;
 import chat.liuxin.ai.dto.ChatHistoryResponse;
 import chat.liuxin.ai.service.AiChatService;
 import chat.liuxin.ai.service.MemoryService;
-import chat.liuxin.ai.entity.AiChatMessage;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import chat.liuxin.ai.common.utils.AuthUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +13,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.List;
 
 /**
  * AI 聊天控制器。
@@ -32,7 +29,6 @@ import java.util.List;
  * - 当 request.conversationId 为空时将创建新会话（在服务层处理），随后保存消息；否则直接使用现有会话。
  * - 每次保存消息会同步维护会话的 messageCount 与 lastMessageAt。
  */
-@Slf4j
 @RestController
 @RequestMapping("/ai")
 @Validated
@@ -116,29 +112,7 @@ public class AiChatController {
     public ChatHistoryResponse getChatHistory(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        try {
-            Long userId = authUtils.getCurrentUserId();
-            if (userId == null) {
-                return ChatHistoryResponse.error("用户未认证");
-            }
-
-            String userIdStr = userId.toString();
-
-            // 参数校验
-            if (page < 1) page = 1;
-            if (size < 1) size = 20;
-            if (size > 100) size = 100; // 限制最大每页数量
-
-            // 查询历史记录和总数
-            List<AiChatMessage> messages = memoryService.listHistoryMessages(userIdStr, page, size);
-            long total = memoryService.countHistoryMessages(userIdStr);
-
-            return ChatHistoryResponse.success(messages, page, size, total, userIdStr);
-
-        } catch (Exception e) {
-            log.error("获取聊天历史记录失败", e);
-            return ChatHistoryResponse.error("获取聊天历史记录失败: " + e.getMessage());
-        }
+        return memoryService.getChatHistory(authUtils.getCurrentUserIdStr(), page, size);
     }
 
     /**
@@ -147,23 +121,8 @@ public class AiChatController {
      */
     @DeleteMapping("/chat/memory")
     public ChatResponse clearChatMemory() {
-        try {
-            Long userId = authUtils.getCurrentUserId();
-            if (userId == null) {
-                return ChatResponse.error("用户未认证");
-            }
-
-            String userIdStr = userId.toString();
-
-            // 调用记忆服务清空用户所有记忆
-            memoryService.clearAllMemory(userIdStr);
-
-            return ChatResponse.success("聊天记忆已清空");
-
-        } catch (Exception e) {
-            log.error("清空聊天记忆失败", e);
-            return ChatResponse.error("清空聊天记忆失败: " + e.getMessage());
-        }
+        memoryService.clearAllMemory(authUtils.getCurrentUserIdStr());
+        return ChatResponse.success("聊天记忆已清空");
     }
 
     /**

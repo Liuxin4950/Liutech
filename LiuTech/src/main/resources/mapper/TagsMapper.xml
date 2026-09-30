@@ -94,7 +94,7 @@
             </if>
         </where>
         GROUP BY t.id, t.name, t.description, t.created_at, t.updated_at, t.deleted_at, u.username
-        ORDER BY t.created_at DESC
+        ORDER BY t.created_at DESC, t.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

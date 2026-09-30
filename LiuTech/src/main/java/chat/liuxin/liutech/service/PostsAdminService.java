@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -78,7 +79,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 page, size, title, categoryId, status, authorId, seriesId, includeDeleted);
 
         try {
-            Page<PostListResp> pageObj = new Page<>(page, size);
+            Page<PostListResp> pageObj = PageQuery.of(page, size).toPage();
             String keyword = StringUtils.hasText(title) ? title.trim() : null;
 
             IPage<PostListResp> result = postsMapper.selectPostListForAdmin(pageObj, categoryId, keyword, status,
@@ -100,7 +101,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(readOnly = true)
     public PageResp<PostFavoriteUserResp> getFavoriteUsersByPostId(Long postId, int page, int size) {
-        Page<PostFavoriteUserResp> pageObj = new Page<>(page, size);
+        Page<PostFavoriteUserResp> pageObj = PageQuery.of(page, size).toPage();
         IPage<PostFavoriteUserResp> result = postFavoritesMapper.selectFavoriteUsersByPostId(pageObj, postId);
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }

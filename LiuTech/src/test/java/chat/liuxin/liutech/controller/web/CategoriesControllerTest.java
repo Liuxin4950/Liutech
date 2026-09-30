@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.controller.web;
 
 import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.CategoryResp;
 import chat.liuxin.liutech.service.CategoriesService;
@@ -55,7 +56,7 @@ class CategoriesControllerTest {
     void getCategoryById_shouldReturnCategoryWhenExists() {
         CategoryResp cat = new CategoryResp();
         cat.setName("Spring Boot");
-        when(categoriesService.getById(1L)).thenReturn(cat);
+        when(categoriesService.requireCategory(1L)).thenReturn(cat);
 
         Result<CategoryResp> result = controller.getCategoryById(1L);
 
@@ -65,11 +66,9 @@ class CategoriesControllerTest {
 
     @Test
     void getCategoryById_shouldReturnErrorWhenNotFound() {
-        when(categoriesService.getById(999L)).thenReturn(null);
+        when(categoriesService.requireCategory(999L)).thenThrow(new BusinessException(ErrorCode.CATEGORY_NOT_FOUND));
 
-        Result<CategoryResp> result = controller.getCategoryById(999L);
-
-        assertEquals(ErrorCode.CATEGORY_NOT_FOUND.getCode(), result.getCode());
-        assertNull(result.getData());
+        var error = assertThrows(BusinessException.class, () -> controller.getCategoryById(999L));
+        assertEquals(ErrorCode.CATEGORY_NOT_FOUND.getCode(), error.getCode());
     }
 }

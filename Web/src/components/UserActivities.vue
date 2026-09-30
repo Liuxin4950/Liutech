@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, watch, onScopeDispose } from 'vue'
 import { useUserStore } from '@/stores/user'
+import { usePostInteractionStore } from '@/stores/postInteraction'
 import { getActivities, type UserActivity } from '@/services/userActivity'
 import { formatRelativeTime } from '@/utils/utils'
 import LoadingState from './LoadingState.vue'
 
 const user = useUserStore()
+const interaction = usePostInteractionStore()
 const items = ref<UserActivity[]>([])
 const page = ref(1)
 const pages = ref(0)
@@ -16,6 +18,10 @@ let generation = 0
 const refresh = async (next = 1) => {
   const token = ++generation
   items.value = []
+  page.value = 1
+  pages.value = 0
+  error.value = ''
+  loading.value = false
   if (!user.isLoggedIn) return
   loading.value = true
   error.value = ''
@@ -28,7 +34,7 @@ const refresh = async (next = 1) => {
   } catch { if (token === generation) error.value = '动态加载失败，请重试' }
   finally { if (token === generation) loading.value = false }
 }
-watch(() => [user.isLoggedIn, user.userInfo?.id], () => refresh(), { immediate: true })
+watch(() => [user.isLoggedIn, user.userInfo?.id, interaction.historyRevision, interaction.lastFavoriteEvent], () => refresh(), { immediate: true })
 onScopeDispose(() => { generation++ })
 defineExpose({ refresh })
 </script>

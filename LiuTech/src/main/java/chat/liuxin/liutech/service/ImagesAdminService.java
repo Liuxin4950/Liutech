@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -72,21 +73,13 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
     public PageResp<Images> getImageListForAdmin(Integer page, Integer size,
                                                   String fileName, String mimeType,
                                                   Integer status, Boolean includeDeleted) {
-        Integer offset = (page - 1) * size;
+        PageQuery query = PageQuery.of(page, size);
+        long offset = query.offset();
 
-        List<Images> imageList = imagesMapper.selectImagesForAdmin(offset, size, fileName, mimeType, status, includeDeleted);
+        List<Images> imageList = imagesMapper.selectImagesForAdmin(offset, (int) query.size(), fileName, mimeType, status, includeDeleted);
         Integer total = imagesMapper.countImagesForAdmin(fileName, mimeType, status, includeDeleted);
 
-        PageResp<Images> pageResp = new PageResp<>();
-        pageResp.setRecords(imageList);
-        pageResp.setTotal(total.longValue());
-        pageResp.setCurrent(page.longValue());
-        pageResp.setSize(size.longValue());
-        pageResp.setPages((long) Math.ceil((double) total / size));
-        pageResp.setHasNext(page.longValue() < pageResp.getPages());
-        pageResp.setHasPrevious(page.longValue() > 1);
-
-        return pageResp;
+        return new PageResp<>(imageList, total.longValue(), query.current(), query.size());
     }
 
     /**

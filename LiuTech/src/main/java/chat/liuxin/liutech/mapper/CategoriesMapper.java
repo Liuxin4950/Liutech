@@ -30,7 +30,7 @@ public interface CategoriesMapper extends BaseMapper<Categories> {
      * @param includeDeleted 是否包含已删除分类
      * @return 分类列表
      */
-    List<CategoryResp> selectCategoriesForAdmin(@Param("offset") Integer offset,
+    List<CategoryResp> selectCategoriesForAdmin(@Param("offset") long offset,
                                                 @Param("limit") Integer limit,
                                                 @Param("name") String name,
                                                 @Param("includeDeleted") Boolean includeDeleted);

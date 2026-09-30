@@ -16,7 +16,7 @@
         LEFT JOIN posts p ON s.id = p.series_id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE s.deleted_at IS NULL
         GROUP BY s.id, s.name, s.description, s.cover_image, s.created_at, s.updated_at
-        ORDER BY s.created_at DESC
+        ORDER BY s.created_at DESC, s.id DESC
     </select>
 
     <!-- 管理端分页查询系列列表 -->
@@ -43,7 +43,7 @@
             </if>
         </where>
         GROUP BY s.id, s.name, s.description, s.cover_image, s.created_at, s.updated_at, s.deleted_at, u.username
-        ORDER BY s.created_at DESC
+        ORDER BY s.created_at DESC, s.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 

@@ -54,7 +54,7 @@
         WHERE vh.user_id = #{userId}
         AND p.status = 'published'
         AND p.deleted_at IS NULL
-        ORDER BY vh.viewed_at DESC
+        ORDER BY vh.viewed_at DESC, vh.id DESC
     </select>
 
     <!-- 清空用户的浏览历史 -->

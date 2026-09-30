@@ -8,6 +8,7 @@ import java.util.Map;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -58,19 +59,12 @@ public class PostSeriesService extends ServiceImpl<PostSeriesMapper, PostSeries>
      */
     @Transactional(readOnly = true)
     public PageResp<PostSeriesResp> getSeriesListForAdmin(Integer page, Integer size, String name, Boolean includeDeleted) {
-        Integer offset = (page - 1) * size;
-        List<PostSeriesResp> list = postSeriesMapper.selectSeriesForAdmin(offset, size, name, includeDeleted);
+        PageQuery query = PageQuery.of(page, size);
+        long offset = query.offset();
+        List<PostSeriesResp> list = postSeriesMapper.selectSeriesForAdmin(offset, (int) query.size(), name, includeDeleted);
         Integer total = postSeriesMapper.countSeriesForAdmin(name, includeDeleted);
 
-        PageResp<PostSeriesResp> pageResp = new PageResp<>();
-        pageResp.setRecords(list);
-        pageResp.setTotal(total.longValue());
-        pageResp.setCurrent(page.longValue());
-        pageResp.setSize(size.longValue());
-        pageResp.setPages((long) Math.ceil((double) total / size));
-        pageResp.setHasNext(page.longValue() < pageResp.getPages());
-        pageResp.setHasPrevious(page.longValue() > 1);
-        return pageResp;
+        return new PageResp<>(list, total.longValue(), query.current(), query.size());
     }
 
     /**

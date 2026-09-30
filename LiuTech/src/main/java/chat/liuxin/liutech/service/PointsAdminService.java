@@ -4,10 +4,10 @@ import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.PointsTransactionMapper;
 import chat.liuxin.liutech.mapper.UserCheckinMapper;
-import chat.liuxin.liutech.mapper.UserMapper;
+import chat.liuxin.liutech.common.PageQuery;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import chat.liuxin.liutech.model.PointsTransaction;
 import chat.liuxin.liutech.model.UserCheckin;
-import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.PointsTransactionResp;
 import chat.liuxin.liutech.resp.UserCheckinResp;
@@ -42,7 +42,6 @@ public class PointsAdminService {
 
     private final UserCheckinMapper userCheckinMapper;
 
-    private final UserMapper userMapper;
     private final PointsService pointsService;
 
     /**
@@ -56,18 +55,19 @@ public class PointsAdminService {
      * @param endTime         结束时间（可选）
      * @return 分页积分流水列表（含用户名）
      */
+    @Transactional(readOnly = true)
     public PageResp<PointsTransactionResp> getTransactionList(int page, int size, Long userId,
                                                               String transactionType, Date startTime, Date endTime) {
         log.debug("查询积分流水 - 页码: {}, 每页: {}, 用户ID: {}, 交易类型: {}, 时间范围: {} ~ {}",
                 page, size, userId, transactionType, startTime, endTime);
 
+        PageQuery query = PageQuery.of(page, size);
         Long total = pointsTransactionMapper.countTransactionsForAdmin(userId, transactionType, startTime, endTime);
 
-        int offset = (page - 1) * size;
         List<PointsTransactionResp> records = pointsTransactionMapper.selectTransactionsForAdmin(
-                offset, size, userId, transactionType, startTime, endTime);
+                query.offset(), (int) query.size(), userId, transactionType, startTime, endTime);
 
-        return buildTransactionPageResult(records, total, page, size);
+        return new PageResp<>(records, total, query.current(), query.size());
     }
 
     /**
@@ -78,20 +78,16 @@ public class PointsAdminService {
      * @param size   每页大小
      * @return 分页积分流水列表
      */
+    @Transactional(readOnly = true)
     public PageResp<PointsTransaction> getTransactionsByUserId(Long userId, int page, int size) {
         log.debug("查询用户积分流水 - 用户ID: {}, 页码: {}, 每页: {}", userId, page, size);
 
         LambdaQueryWrapper<PointsTransaction> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PointsTransaction::getUserId, userId)
-               .orderByDesc(PointsTransaction::getCreatedAt);
+               .orderByDesc(PointsTransaction::getCreatedAt, PointsTransaction::getId);
 
-        Long total = pointsTransactionMapper.selectCount(wrapper);
-
-        int offset = (page - 1) * size;
-        wrapper.last("LIMIT " + size + " OFFSET " + offset);
-        List<PointsTransaction> records = pointsTransactionMapper.selectList(wrapper);
-
-        return buildPageResult(records, total, page, size);
+        Page<PointsTransaction> result = pointsTransactionMapper.selectPage(PageQuery.of(page, size).toPage(), wrapper);
+        return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 
     /**
@@ -135,18 +131,19 @@ public class PointsAdminService {
      * @param endDate   结束日期（可选）
      * @return 分页签到记录列表（含用户名）
      */
+    @Transactional(readOnly = true)
     public PageResp<UserCheckinResp> getCheckinList(int page, int size, Long userId,
                                                     LocalDate startDate, LocalDate endDate) {
         log.debug("查询签到记录 - 页码: {}, 每页: {}, 用户ID: {}, 日期范围: {} ~ {}",
                 page, size, userId, startDate, endDate);
 
+        PageQuery query = PageQuery.of(page, size);
         Long total = userCheckinMapper.countCheckinsForAdmin(userId, startDate, endDate);
 
-        int offset = (page - 1) * size;
         List<UserCheckinResp> records = userCheckinMapper.selectCheckinsForAdmin(
-                offset, size, userId, startDate, endDate);
+                query.offset(), (int) query.size(), userId, startDate, endDate);
 
-        return buildCheckinPageResult(records, total, page, size);
+        return new PageResp<>(records, total, query.current(), query.size());
     }
 
     /**
@@ -157,20 +154,16 @@ public class PointsAdminService {
      * @param size   每页大小
      * @return 分页签到记录列表
      */
+    @Transactional(readOnly = true)
     public PageResp<UserCheckin> getCheckinsByUserId(Long userId, int page, int size) {
         log.debug("查询用户签到记录 - 用户ID: {}, 页码: {}, 每页: {}", userId, page, size);
 
         LambdaQueryWrapper<UserCheckin> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserCheckin::getUserId, userId)
-               .orderByDesc(UserCheckin::getCheckinDate);
+               .orderByDesc(UserCheckin::getCheckinDate, UserCheckin::getId);
 
-        Long total = userCheckinMapper.selectCount(wrapper);
-
-        int offset = (page - 1) * size;
-        wrapper.last("LIMIT " + size + " OFFSET " + offset);
-        List<UserCheckin> records = userCheckinMapper.selectList(wrapper);
-
-        return buildUserCheckinPageResult(records, total, page, size);
+        Page<UserCheckin> result = userCheckinMapper.selectPage(PageQuery.of(page, size).toPage(), wrapper);
+        return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }
 
     /**
@@ -201,66 +194,4 @@ public class PointsAdminService {
         return stats;
     }
 
-    /**
-     * 构建积分流水分页结果（含用户名）
-     */
-    private PageResp<PointsTransactionResp> buildTransactionPageResult(List<PointsTransactionResp> records,
-                                                                       Long total, int page, int size) {
-        PageResp<PointsTransactionResp> pageResult = new PageResp<>();
-        pageResult.setRecords(records);
-        pageResult.setTotal(total);
-        pageResult.setCurrent((long) page);
-        pageResult.setSize((long) size);
-        pageResult.setPages((long) Math.ceil((double) total / size));
-        pageResult.setHasNext((long) page < pageResult.getPages());
-        pageResult.setHasPrevious((long) page > 1);
-        return pageResult;
-    }
-
-    /**
-     * 构建积分流水分页结果（基础实体）
-     */
-    private PageResp<PointsTransaction> buildPageResult(List<PointsTransaction> records, Long total, int page, int size) {
-        PageResp<PointsTransaction> pageResult = new PageResp<>();
-        pageResult.setRecords(records);
-        pageResult.setTotal(total);
-        pageResult.setCurrent((long) page);
-        pageResult.setSize((long) size);
-        pageResult.setPages((long) Math.ceil((double) total / size));
-        pageResult.setHasNext((long) page < pageResult.getPages());
-        pageResult.setHasPrevious((long) page > 1);
-        return pageResult;
-    }
-
-    /**
-     * 构建签到记录分页结果（含用户名）
-     */
-    private PageResp<UserCheckinResp> buildCheckinPageResult(List<UserCheckinResp> records,
-                                                             Long total, int page, int size) {
-        PageResp<UserCheckinResp> pageResult = new PageResp<>();
-        pageResult.setRecords(records);
-        pageResult.setTotal(total);
-        pageResult.setCurrent((long) page);
-        pageResult.setSize((long) size);
-        pageResult.setPages((long) Math.ceil((double) total / size));
-        pageResult.setHasNext((long) page < pageResult.getPages());
-        pageResult.setHasPrevious((long) page > 1);
-        return pageResult;
-    }
-
-    /**
-     * 构建签到记录分页结果（基础实体）
-     */
-    private PageResp<UserCheckin> buildUserCheckinPageResult(List<UserCheckin> records,
-                                                             Long total, int page, int size) {
-        PageResp<UserCheckin> pageResult = new PageResp<>();
-        pageResult.setRecords(records);
-        pageResult.setTotal(total);
-        pageResult.setCurrent((long) page);
-        pageResult.setSize((long) size);
-        pageResult.setPages((long) Math.ceil((double) total / size));
-        pageResult.setHasNext((long) page < pageResult.getPages());
-        pageResult.setHasPrevious((long) page > 1);
-        return pageResult;
-    }
 }

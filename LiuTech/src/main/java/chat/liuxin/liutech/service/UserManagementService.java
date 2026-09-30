@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -174,35 +175,10 @@ public class UserManagementService {
         log.debug("管理端查询用户列表 - 页码: {}, 每页: {}, 用户名: {}, 邮箱: {}, 角色: {}, 状态: {}, 包含已删除: {}",
                 page, size, username, email, role, status, includeDeleted);
 
-        try {
-            // 1. 参数验证
-            validatePaginationParams(page, size);
-
-            // 2. 查询用户列表
-            List<UserResp> users = queryUsersForAdmin(page, size, username, email, role, status, includeDeleted);
-
-            // 3. 查询总数
-            int total = userMapper.countUsersForAdmin(username, email, role, status, includeDeleted);
-
-            // 4. 构建分页结果
-            return buildPageResult(users, total, page, size);
-
-        } catch (Exception e) {
-            log.error("管理端用户列表查询失败: {}", e.getMessage(), e);
-            throw new RuntimeException("查询用户列表失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 验证分页参数
-     */
-    private void validatePaginationParams(Integer page, Integer size) {
-        if (page == null || page < 1) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "页码必须大于0");
-        }
-        if (size == null || size < 1 || size > 100) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "每页大小必须在1-100之间");
-        }
+        PageQuery query = PageQuery.of(page, size, 100);
+        List<UserResp> users = queryUsersForAdmin((int) query.current(), (int) query.size(), username, email, role, status, includeDeleted);
+        int total = userMapper.countUsersForAdmin(username, email, role, status, includeDeleted);
+        return new PageResp<>(users, (long) total, query.current(), query.size());
     }
 
     /**
@@ -210,30 +186,13 @@ public class UserManagementService {
      */
     private List<UserResp> queryUsersForAdmin(Integer page, Integer size, String username,
                                               String email, String role, Integer status, Boolean includeDeleted) {
-        int offset = (page - 1) * size;
+        long offset = PageQuery.of(page, size, 100).offset();
         List<UserResp> users = userMapper.selectUsersForAdmin(offset, size, username, email, role, status, includeDeleted);
 
         // 不返回密码等敏感信息
         users.forEach(user -> user.setPasswordHash(null));
 
         return users;
-    }
-
-    /**
-     * 构建分页结果
-     */
-    private PageResp<UserResp> buildPageResult(List<UserResp> users, int total, Integer page, Integer size) {
-        PageResp<UserResp> pageResult = new PageResp<>();
-        pageResult.setRecords(users);
-        pageResult.setTotal((long) total);
-        pageResult.setCurrent((long) page);
-        pageResult.setSize((long) size);
-        pageResult.setPages((long) Math.ceil((double) total / size));
-        pageResult.setHasNext((long) page < pageResult.getPages());
-        pageResult.setHasPrevious((long) page > 1);
-
-        log.debug("管理端用户列表查询成功 - 总数: {}, 当前页数据: {}", total, users.size());
-        return pageResult;
     }
 
     /**

@@ -35,7 +35,7 @@ public interface ResourcesMapper extends BaseMapper<Resources> {
      * @param includeDeleted 是否包含已删除资源
      * @return 资源列表
      */
-    List<ResourceResp> selectResourcesForAdmin(@Param("offset") Integer offset,
+    List<ResourceResp> selectResourcesForAdmin(@Param("offset") long offset,
                                                @Param("limit") Integer limit,
                                                @Param("name") String name,
                                                @Param("resourceType") String resourceType,

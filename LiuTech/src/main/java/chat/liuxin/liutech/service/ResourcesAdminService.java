@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -55,23 +56,15 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
     public PageResp<ResourceResp> getResourceListForAdmin(Integer page, Integer size, String name,
                                                            String resourceType, Integer downloadType,
                                                            Boolean includeDeleted) {
-        Integer offset = (page - 1) * size;
+        PageQuery query = PageQuery.of(page, size);
+        long offset = query.offset();
 
         List<ResourceResp> resourceList = resourcesMapper.selectResourcesForAdmin(
-                offset, size, name, resourceType, downloadType, includeDeleted);
+                offset, (int) query.size(), name, resourceType, downloadType, includeDeleted);
 
         Integer total = resourcesMapper.countResourcesForAdmin(name, resourceType, downloadType, includeDeleted);
 
-        PageResp<ResourceResp> pageResp = new PageResp<>();
-        pageResp.setRecords(resourceList);
-        pageResp.setTotal(total.longValue());
-        pageResp.setCurrent(page.longValue());
-        pageResp.setSize(size.longValue());
-        pageResp.setPages((long) Math.ceil((double) total / size));
-        pageResp.setHasNext(page.longValue() < pageResp.getPages());
-        pageResp.setHasPrevious(page.longValue() > 1);
-
-        return pageResp;
+        return new PageResp<>(resourceList, total.longValue(), query.current(), query.size());
     }
 
     /**
@@ -266,22 +259,14 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
      */
     public PageResp<DownloadLogResp> getDownloadLogsForAdmin(Integer page, Integer size,
                                                               Long userId, Long resourceId) {
-        Integer offset = (page - 1) * size;
+        PageQuery query = PageQuery.of(page, size);
+        long offset = query.offset();
 
         List<DownloadLogResp> logList = resourceDownloadsMapper.selectDownloadLogsForAdmin(
-                offset, size, userId, resourceId);
+                offset, (int) query.size(), userId, resourceId);
 
         Integer total = resourceDownloadsMapper.countDownloadLogsForAdmin(userId, resourceId);
 
-        PageResp<DownloadLogResp> pageResp = new PageResp<>();
-        pageResp.setRecords(logList);
-        pageResp.setTotal(total.longValue());
-        pageResp.setCurrent(page.longValue());
-        pageResp.setSize(size.longValue());
-        pageResp.setPages((long) Math.ceil((double) total / size));
-        pageResp.setHasNext(page.longValue() < pageResp.getPages());
-        pageResp.setHasPrevious(page.longValue() > 1);
-
-        return pageResp;
+        return new PageResp<>(logList, total.longValue(), query.current(), query.size());
     }
 }

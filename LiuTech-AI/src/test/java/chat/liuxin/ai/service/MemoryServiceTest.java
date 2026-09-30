@@ -53,4 +53,23 @@ class MemoryServiceTest {
         service.listConversations("owner", null, -10, -10);
         verify(conversations).selectVisiblePage("owner", 0L, 1);
     }
+    @Test void historyUseCaseNormalizesPaginationAndPreservesOwner() {
+        when(messages.selectHistoryMessagesByUserId(anyString(), anyLong(), anyInt())).thenReturn(List.of());
+        when(messages.countMessagesByUserId("owner")).thenReturn(201L);
+        var result = service.getChatHistory("owner", 2, 500);
+        assertTrue(result.isSuccess());
+        assertEquals(100, result.getSize());
+        assertEquals(3, result.getTotalPages());
+        verify(messages).selectHistoryMessagesByUserId("owner", 100L, 100);
+        var defaults = service.getChatHistory("owner", -1, 0);
+        assertEquals(1, defaults.getPage());
+        assertEquals(20, defaults.getSize());
+    }
+
+    @Test void anonymousHistoryAndClearMustFailBeforeQuerying() {
+        assertThrows(ResponseStatusException.class, () -> service.getChatHistory(null, 1, 10));
+        assertThrows(ResponseStatusException.class, () -> service.clearAllMemory(null));
+        verifyNoInteractions(messages, conversations);
+    }
+
 }

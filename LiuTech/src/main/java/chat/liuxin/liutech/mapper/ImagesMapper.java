@@ -61,7 +61,7 @@ public interface ImagesMapper extends BaseMapper<Images> {
      * @param includeDeleted 是否包含已删除
      * @return 图片列表
      */
-    List<Images> selectImagesForAdmin(@Param("offset") Integer offset,
+    List<Images> selectImagesForAdmin(@Param("offset") long offset,
                                       @Param("limit") Integer limit,
                                       @Param("fileName") String fileName,
                                       @Param("mimeType") String mimeType,

@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
@@ -40,20 +41,12 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      * @return 分页结果
      */
     public PageResp<Comments> getCommentListForAdmin(Integer page, Integer size, Long postId,Long userId, String status, Boolean includeDeleted) {
-        Integer offset = (page - 1) * size;
-        List<Comments> commentList = commentsMapper.selectCommentsForAdmin(offset, size, postId, userId, status, includeDeleted);
+        PageQuery query = PageQuery.of(page, size);
+        long offset = query.offset();
+        List<Comments> commentList = commentsMapper.selectCommentsForAdmin(offset, (int) query.size(), postId, userId, status, includeDeleted);
         Integer total = commentsMapper.countCommentsForAdmin(postId, userId, status, includeDeleted);
 
-        PageResp<Comments> pageResp = new PageResp<>();
-        pageResp.setRecords(commentList);
-        pageResp.setTotal(total.longValue());
-        pageResp.setCurrent(page.longValue());
-        pageResp.setSize(size.longValue());
-        pageResp.setPages((long) Math.ceil((double) total / size));
-        pageResp.setHasNext(page.longValue() < pageResp.getPages());
-        pageResp.setHasPrevious(page.longValue() > 1);
-
-        return pageResp;
+        return new PageResp<>(commentList, total.longValue(), query.current(), query.size());
     }
 
     /**

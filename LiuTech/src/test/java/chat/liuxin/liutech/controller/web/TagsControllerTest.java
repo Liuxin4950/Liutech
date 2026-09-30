@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.controller.web;
 
 import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
@@ -56,7 +57,7 @@ class TagsControllerTest {
         TagResp tag = new TagResp();
         tag.setName("Spring");
         tag.setPostCount(5);
-        when(tagsService.getTagByIdWithPostCount(1L)).thenReturn(tag);
+        when(tagsService.requireTag(1L)).thenReturn(tag);
 
         Result<TagResp> result = controller.getTagById(1L);
 
@@ -67,12 +68,10 @@ class TagsControllerTest {
 
     @Test
     void getTagById_shouldReturnErrorWhenNotFound() {
-        when(tagsService.getTagByIdWithPostCount(999L)).thenReturn(null);
+        when(tagsService.requireTag(999L)).thenThrow(new BusinessException(ErrorCode.TAG_NOT_FOUND));
 
-        Result<TagResp> result = controller.getTagById(999L);
-
-        assertEquals(ErrorCode.TAG_NOT_FOUND.getCode(), result.getCode());
-        assertNull(result.getData());
+        var error = assertThrows(BusinessException.class, () -> controller.getTagById(999L));
+        assertEquals(ErrorCode.TAG_NOT_FOUND.getCode(), error.getCode());
     }
 
     // ========== getHotTags ==========

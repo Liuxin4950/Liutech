@@ -36,7 +36,7 @@
                 AND dl.resource_id = #{resourceId}
             </if>
         </where>
-        ORDER BY dl.downloaded_at DESC
+        ORDER BY dl.downloaded_at DESC, dl.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -55,4 +55,19 @@
         </where>
     </select>
 
+    <!-- 一次购买一行；附件可能关联多篇文章，仅链接一篇仍公开的文章。 -->
+    <select id="selectUserPurchases" resultType="chat.liuxin.liutech.resp.PurchasedResourceResp">
+        SELECT dl.id, dl.resource_id, COALESCE(r.name, '资源已下架') AS resource_name,
+               r.resource_type, dl.points_used, dl.downloaded_at AS purchased_at,
+               p.id AS post_id, p.title AS post_title, (r.id IS NOT NULL) AS available
+        FROM download_logs dl
+        LEFT JOIN resources r ON r.id = dl.resource_id AND r.deleted_at IS NULL
+        LEFT JOIN posts p ON p.id = (
+            SELECT MIN(pa.post_id) FROM post_attachments pa
+            JOIN posts visible ON visible.id = pa.post_id AND visible.deleted_at IS NULL AND visible.status = 'published'
+            WHERE pa.resource_id = r.id AND pa.deleted_at IS NULL
+        )
+        WHERE dl.user_id = #{userId} AND dl.deleted_at IS NULL
+        ORDER BY dl.downloaded_at DESC, dl.id DESC
+    </select>
 </mapper>

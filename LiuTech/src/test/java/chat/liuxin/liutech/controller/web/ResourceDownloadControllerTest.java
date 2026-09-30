@@ -9,6 +9,8 @@ import chat.liuxin.liutech.utils.UserUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.Resource;
+import java.io.ByteArrayInputStream;
+import chat.liuxin.liutech.storage.DownloadFile;
 import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -64,27 +66,25 @@ class ResourceDownloadControllerTest {
 
     @Test
     void downloadResource_shouldReturnFileWhenValid() {
-        Resource mockResource = mock(Resource.class);
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(resourceDownloadService.downloadResource(1L, 10L))
-                .thenReturn(ResponseEntity.ok(mockResource));
+                .thenReturn(new DownloadFile("中文文件.zip", 4L, new ByteArrayInputStream(new byte[4])));
 
         ResponseEntity<Resource> result = controller.downloadResource(10L);
 
         assertEquals(200, result.getStatusCode().value());
         assertNotNull(result.getBody());
+        assertEquals(4, result.getHeaders().getContentLength());
+        assertTrue(result.getHeaders().getFirst("Content-Disposition").contains("filename*=UTF-8"));
     }
 
     @Test
-    void downloadResource_shouldReturnBadRequestWhenServiceThrows() {
+    void downloadResource_shouldPropagateFailureToGlobalHandler() {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(resourceDownloadService.downloadResource(1L, 999L))
                 .thenThrow(new RuntimeException("资源不存在"));
 
-        ResponseEntity<Resource> result = controller.downloadResource(999L);
-
-        assertEquals(400, result.getStatusCode().value());
-        assertNull(result.getBody());
+        assertThrows(RuntimeException.class, () -> controller.downloadResource(999L));
     }
 
     // ========== getDownloadUrl ==========
@@ -105,14 +105,13 @@ class ResourceDownloadControllerTest {
     void getDownloadUrl_shouldFailWhenServiceThrows() {
         when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(resourceDownloadService.getDownloadUrl(1L, 999L))
-                .thenThrow(new RuntimeException("请先购买该资源"));
+                .thenThrow(new BusinessException(ErrorCode.FORBIDDEN, "请先购买该资源"));
 
-        // 原始异常消息（含资源路径等内部细节）不得外泄，统一换成通用提示
+        // 服务层领域错误保持语义，交给全局处理。
         BusinessException ex = assertThrows(BusinessException.class, () -> controller.getDownloadUrl(999L));
 
-        assertEquals(ErrorCode.OPERATION_ERROR.getCode(), ex.getCode());
-        assertFalse(ex.getMessage().contains("请先购买该资源"));
-        assertTrue(ex.getMessage().contains("获取资源下载地址失败"));
+        assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+        assertEquals("请先购买该资源", ex.getMessage());
     }
 
     // ========== checkPurchaseStatus ==========

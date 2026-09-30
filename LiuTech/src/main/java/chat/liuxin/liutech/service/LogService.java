@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -58,7 +59,7 @@ public class LogService extends ServiceImpl<AdminLogsMapper, AdminLogs> {
      */
     public IPage<AdminLogs> getLogList(int page, int size, String operator, String action,
             String targetType, String startTime, String endTime, Integer status) {
-        Page<AdminLogs> pageParam = new Page<>(page, size);
+        Page<AdminLogs> pageParam = PageQuery.of(page, size).toPage();
         return adminLogsMapper.selectLogList(pageParam, operator, action, targetType, startTime, endTime, status);
     }
 

@@ -11,6 +11,9 @@ export interface FavoriteEvent { postId: number; isFavorited: boolean }
 
 export const usePostInteractionStore = defineStore('postInteraction', () => {
   // 最近一次的点赞/收藏事件（事件风格，供订阅方 watch 即时响应）
+  const historyRevision = ref(0)
+  const historyChanged = () => { historyRevision.value++ }
+
   const lastLikeEvent = ref<LikeEvent | null>(null)
   const lastFavoriteEvent = ref<FavoriteEvent | null>(null)
 
@@ -29,6 +32,8 @@ export const usePostInteractionStore = defineStore('postInteraction', () => {
   }
 
   return {
+    historyRevision,
+    historyChanged,
     lastLikeEvent,
     lastFavoriteEvent,
     toggleLike,

@@ -91,7 +91,7 @@ public interface UserCheckinMapper extends BaseMapper<UserCheckin> {
      * @return 带用户名的签到记录列表
      */
     List<UserCheckinResp> selectCheckinsForAdmin(
-            @Param("offset") int offset,
+            @Param("offset") long offset,
             @Param("limit") int limit,
             @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,

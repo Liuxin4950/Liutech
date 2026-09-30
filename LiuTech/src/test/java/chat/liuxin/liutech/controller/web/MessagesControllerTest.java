@@ -80,12 +80,12 @@ class MessagesControllerTest {
         req.setEmail("test@example.com");
         req.setContent("Hello");
 
-        when(messagesService.createMessage(req)).thenThrow(new RuntimeException("提交过于频繁"));
+        when(messagesService.createMessage(req)).thenThrow(new BusinessException(ErrorCode.OPERATION_ERROR, "提交过于频繁"));
 
-        // 原始异常消息不外泄，统一换为通用业务提示，交由 GlobalExceptionHandler 转响应
+        // 已知业务错误保留错误码与消息，由 GlobalExceptionHandler 转响应
         BusinessException ex = assertThrows(BusinessException.class, () -> controller.createMessage(req));
 
         assertEquals(ErrorCode.OPERATION_ERROR.getCode(), ex.getCode());
-        assertFalse(ex.getMessage().contains("提交过于频繁"));
+        assertEquals("提交过于频繁", ex.getMessage());
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -108,7 +109,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
     @Cacheable(value = "postList", key = "#req.page + ':' + #req.size + ':' + #req.categoryId + ':' + #req.tagId + ':' + #req.keyword + ':' + #req.status + ':' + #req.authorId + ':' + #req.seriesId + ':' + #req.sort + ':' + #userId", unless = "#result == null")
     public PageResp<PostListResp> getPostList(PostQueryReq req, Long userId) {
         // 创建分页对象
-        Page<PostListResp> page = new Page<>(req.getPage(), req.getSize());
+        Page<PostListResp> page = PageQuery.of(req.getPage(), req.getSize()).toPage();
 
         // 处理搜索关键词
         String keyword = StringUtils.hasText(req.getKeyword()) ? req.getKeyword().trim() : null;

@@ -6,7 +6,6 @@ import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.CreateCommentReq;
 import chat.liuxin.liutech.resp.CommentResp;
 import chat.liuxin.liutech.service.CommentsService;
-import chat.liuxin.liutech.utils.UserUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,13 +19,11 @@ class CommentsControllerTest {
 
     private CommentsController controller;
     private CommentsService commentsService;
-    private UserUtils userUtils;
 
     @BeforeEach
     void setUp() {
         commentsService = mock(CommentsService.class);
-        userUtils = mock(UserUtils.class);
-        controller = new CommentsController(commentsService, userUtils);
+        controller = new CommentsController(commentsService);
     }
 
     // ========== getTreeCommentsByPostId ==========
@@ -67,7 +64,6 @@ class CommentsControllerTest {
         resp.setId(100L);
         resp.setContent("Nice article!");
 
-        when(userUtils.getCurrentUserId()).thenReturn(1L);
         when(commentsService.createComment(req)).thenReturn(resp);
 
         Result<CommentResp> result = controller.createComment(req);
@@ -83,12 +79,9 @@ class CommentsControllerTest {
         req.setPostId(1L);
         req.setContent("Test");
 
-        when(userUtils.getCurrentUserId()).thenReturn(null);
-
-        Result<CommentResp> result = controller.createComment(req);
-
-        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), result.getCode());
-        assertNull(result.getData());
+        when(commentsService.createComment(req)).thenThrow(new BusinessException(ErrorCode.UNAUTHORIZED));
+        var error = assertThrows(BusinessException.class, () -> controller.createComment(req));
+        assertEquals(ErrorCode.UNAUTHORIZED.getCode(), error.getCode());
     }
 
     @Test
@@ -97,13 +90,12 @@ class CommentsControllerTest {
         req.setPostId(1L);
         req.setContent("Test");
 
-        when(userUtils.getCurrentUserId()).thenReturn(1L);
-        when(commentsService.createComment(req)).thenThrow(new RuntimeException("文章不存在"));
+        when(commentsService.createComment(req)).thenThrow(new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在"));
 
-        // 原始异常消息不外泄，统一换为通用业务提示，交由 GlobalExceptionHandler 转响应
+        // 已知业务错误保留错误码与消息，由 GlobalExceptionHandler 转响应
         BusinessException ex = assertThrows(BusinessException.class, () -> controller.createComment(req));
 
-        assertEquals(ErrorCode.OPERATION_ERROR.getCode(), ex.getCode());
-        assertFalse(ex.getMessage().contains("文章不存在"));
+        assertEquals(ErrorCode.ARTICLE_NOT_FOUND.getCode(), ex.getCode());
+        assertEquals("文章不存在", ex.getMessage());
     }
 }

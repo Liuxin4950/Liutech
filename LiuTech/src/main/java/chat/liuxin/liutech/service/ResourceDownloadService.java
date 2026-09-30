@@ -1,16 +1,17 @@
 package chat.liuxin.liutech.service;
 
 import java.io.InputStream;
+import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.ErrorCode;
+import chat.liuxin.liutech.common.PageQuery;
+import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.PurchasedResourceResp;
+import chat.liuxin.liutech.storage.DownloadFile;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.springframework.core.io.InputStreamResource;
-import org.springframework.core.io.Resource;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -67,20 +68,21 @@ public class ResourceDownloadService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void purchaseResource(Long userId, Long resourceId) {
+        requireUser(userId);
         // 1. 检查资源是否存在
         Resources resource = resourcesMapper.selectById(resourceId);
         if (resource == null) {
-            throw new RuntimeException("资源不存在");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "资源不存在");
         }
 
         // 2. 检查是否为免费资源
         if (resource.getDownloadType() == Resources.DOWNLOAD_TYPE_FREE) {
-            throw new RuntimeException("该资源为免费资源，无需购买");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该资源为免费资源，无需购买");
         }
 
         // 3. 检查是否为资源上传者（上传者无需购买）
         if (resource.getUploaderId().equals(userId)) {
-            throw new RuntimeException("您是该资源的上传者，无需购买");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "您是该资源的上传者，无需购买");
         }
 
         BigDecimal requiredPoints = resource.getPointsNeeded();
@@ -96,28 +98,17 @@ public class ResourceDownloadService {
         try {
             int insertResult = resourceDownloadsMapper.insert(download);
             if (insertResult == 0) {
-                throw new RuntimeException("购买记录创建失败");
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "购买记录创建失败");
             }
         } catch (DuplicateKeyException e) {
             // 唯一索引冲突，说明已经购买过
             log.warn("用户{}尝试重复购买资源{}", userId, resourceId);
-            throw new RuntimeException("您已购买过该资源，请勿重复购买");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "您已购买过该资源，请勿重复购买");
         }
 
-        // 5. 扣减积分（原子操作，包含并发安全）
-        try {
-            pointsService.deductPoints(
-                userId,
-                requiredPoints,
-                PointsService.SOURCE_RESOURCE_DOWNLOAD,
-                resourceId,
-                "购买资源：" + resource.getName()
-            );
-        } catch (Exception e) {
-            // 积分扣减失败，事务会自动回滚，删除已插入的购买记录
-            log.error("用户{}购买资源{}积分扣减失败，事务回滚", userId, resourceId, e);
-            throw new RuntimeException("积分扣减失败：" + e.getMessage());
-        }
+        // 余额与购买记录同事务；业务失败保留 PointsService 的错误码和消息。
+        pointsService.deductPoints(userId, requiredPoints, PointsService.SOURCE_RESOURCE_DOWNLOAD,
+                resourceId, "购买资源：" + resource.getName());
 
         log.info("用户{}成功购买资源{}，消费{}积分", userId, resourceId, requiredPoints);
     }
@@ -129,56 +120,20 @@ public class ResourceDownloadService {
      * @param resourceId 资源ID
      * @return 文件响应
      */
-    public ResponseEntity<Resource> downloadResource(Long userId, Long resourceId) {
-        // 检查资源是否存在
-        Resources resource = resourcesMapper.selectById(resourceId);
-        if (resource == null) {
-            throw new RuntimeException("资源不存在");
-        }
-
-        // 检查下载权限：只有明确免费且积分为0的资源可直接下载，其余都必须购买。
-        if (isPaidResource(resource) && !hasUserPurchased(userId, resourceId)) {
-            throw new RuntimeException("请先购买该资源");
-        }
-
-        // 构建文件路径
-        String fileUrl = resource.getFileUrl();
-        log.debug("原始文件URL: {}", fileUrl);
-
-        String relativePath = extractResourceRelativePath(fileUrl);
-        log.debug("解析后的相对路径: {}", relativePath);
-
-        // 纯路径校验（不依赖磁盘）：拦截绝对路径与目录穿越，本地磁盘与 COS 两种存储统一生效
-        if (isInvalidRelativePath(relativePath)) {
-            log.warn("拒绝访问非法资源路径，资源ID: {}, 路径: {}", resourceId, relativePath);
-            throw new RuntimeException("非法资源路径");
-        }
+    public DownloadFile downloadResource(Long userId, Long resourceId) {
+        Resources resource = requireDownloadableResource(userId, resourceId);
+        String relativePath = requireResourcePath(resource);
+        long contentLength = fileStorage.getContentLength(relativePath);
 
         // 经存储层读取文件内容（本地磁盘读文件 / COS 拉对象），鉴权下载不直出 URL
         InputStream inputStream = fileStorage.open(relativePath);
         if (inputStream == null) {
             log.error("文件不存在: {}", relativePath);
-            throw new RuntimeException("文件不存在");
-        }
-
-        // 创建文件资源
-        Resource fileResource = new InputStreamResource(inputStream);
-
-        // 设置响应头
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getName() + "\"");
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        // Content-Length：本地磁盘与 COS 统一经存储抽象获取，前端据此显示下载进度；取不到则不设（chunked）
-        long contentLength = fileStorage.getContentLength(relativePath);
-        if (contentLength >= 0) {
-            headers.setContentLength(contentLength);
+            throw new BusinessException(ErrorCode.NOT_FOUND, "文件不存在");
         }
 
         log.info("用户{}下载资源{} - {}", userId, resourceId, resource.getName());
-
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(fileResource);
+        return new DownloadFile(resource.getName(), contentLength, inputStream);
     }
 
     /**
@@ -193,20 +148,8 @@ public class ResourceDownloadService {
      * @return 直链下载响应
      */
     public DownloadUrlResp getDownloadUrl(Long userId, Long resourceId) {
-        Resources resource = resourcesMapper.selectById(resourceId);
-        if (resource == null) {
-            throw new RuntimeException("资源不存在");
-        }
-
-        if (isPaidResource(resource) && !hasUserPurchased(userId, resourceId)) {
-            throw new RuntimeException("请先购买该资源");
-        }
-
-        String relativePath = extractResourceRelativePath(resource.getFileUrl());
-        if (isInvalidRelativePath(relativePath)) {
-            log.warn("拒绝访问非法资源路径，资源ID: {}, 路径: {}", resourceId, relativePath);
-            throw new RuntimeException("非法资源路径");
-        }
+        Resources resource = requireDownloadableResource(userId, resourceId);
+        String relativePath = requireResourcePath(resource);
 
         long expireSeconds = 10 * 60;
         String url = fileStorage.generateDownloadUrl(relativePath, resource.getName(), expireSeconds);
@@ -220,6 +163,36 @@ public class ResourceDownloadService {
         return new DownloadUrlResp(url, expiresAt);
     }
 
+    @Transactional(readOnly = true)
+    public PageResp<PurchasedResourceResp> getUserPurchases(Long userId, Integer page, Integer size) {
+        requireUser(userId);
+        var result = resourceDownloadsMapper.selectUserPurchases(PageQuery.of(page, size).toPage(), userId);
+        return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
+    }
+
+    private void requireUser(Long userId) {
+        if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+    }
+
+    private Resources requireDownloadableResource(Long userId, Long resourceId) {
+        requireUser(userId);
+        Resources resource = resourcesMapper.selectById(resourceId);
+        if (resource == null) throw new BusinessException(ErrorCode.NOT_FOUND, "资源不存在");
+        if (isPaidResource(resource) && !hasUserPurchased(userId, resourceId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "请先购买该资源");
+        }
+        return resource;
+    }
+
+    private String requireResourcePath(Resources resource) {
+        String relativePath = extractResourceRelativePath(resource.getFileUrl());
+        if (isInvalidRelativePath(relativePath)) {
+            log.warn("拒绝访问非法资源路径，资源ID: {}", resource.getId());
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "非法资源路径");
+        }
+        return relativePath;
+    }
+
     private boolean isPaidResource(Resources resource) {
         Integer downloadType = resource.getDownloadType();
         return (downloadType != null && downloadType != Resources.DOWNLOAD_TYPE_FREE)
@@ -228,7 +201,7 @@ public class ResourceDownloadService {
 
     private String extractResourceRelativePath(String fileUrl) {
         if (!StringUtils.hasText(fileUrl)) {
-            throw new RuntimeException("资源文件地址为空");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "资源文件地址为空");
         }
 
         // 统一走 FileUtil 解析口径：兼容 /uploads/ 相对路径、站内完整 URL、COS 直出 URL，
@@ -244,7 +217,7 @@ public class ResourceDownloadService {
             if (value.startsWith("resources/")) {
                 relativePath = value;
             } else {
-                throw new RuntimeException("非法资源路径");
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "非法资源路径");
             }
         }
 
@@ -261,7 +234,7 @@ public class ResourceDownloadService {
         }
 
         if (!relativePath.startsWith("resources/")) {
-            throw new RuntimeException("非法资源路径");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "非法资源路径");
         }
 
         return relativePath;

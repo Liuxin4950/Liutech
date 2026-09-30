@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -62,7 +63,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      */
     @Transactional(readOnly = true)
     public IPage<CarouselResp> getValidCarousels(long current, long size) {
-        Page<Carousel> page = new Page<>(current, size);
+        Page<Carousel> page = new PageQuery(current, size).toPage();
         IPage<Carousel> carouselPage = carouselMapper.selectValidCarousels(page);
         return carouselPage.convert(this::convertToResp);
     }
@@ -77,7 +78,7 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
      */
     @Transactional(readOnly = true)
     public IPage<CarouselResp> getAllCarousels(long current, long size, Integer status, Boolean includeDeleted) {
-        Page<Carousel> page = new Page<>(current, size);
+        Page<Carousel> page = new PageQuery(current, size).toPage();
         // 使用自定义查询，绕过 @TableLogic 逻辑删除
         IPage<Carousel> carouselPage = carouselMapper.selectAllCarouselsWithDeleted(page, status, Boolean.TRUE.equals(includeDeleted));
         return carouselPage.convert(this::convertToResp);

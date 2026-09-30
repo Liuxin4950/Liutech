@@ -5,7 +5,6 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 
-import chat.liuxin.liutech.utils.UserUtils;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,15 +15,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.aspect.OperationLog;
-import chat.liuxin.liutech.common.BusinessException;
-import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Comments;
 import chat.liuxin.liutech.req.CreateCommentReq;
 import chat.liuxin.liutech.resp.CommentResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.CommentsService;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 评论控制器
@@ -32,7 +28,6 @@ import lombok.extern.slf4j.Slf4j;
  *
  * @author 刘鑫
  */
-@Slf4j
 @RestController
 @RequestMapping("/comments")
 @RequiredArgsConstructor
@@ -40,7 +35,6 @@ public class CommentsController {
 
     private final CommentsService commentsService;
 
-    private final UserUtils userUtils;
 
     /**
      * 分页查询文章评论
@@ -127,14 +121,7 @@ public class CommentsController {
      */
     @GetMapping("/{id}")
     public Result<Comments> getCommentById(@PathVariable Long id) {
-
-        Comments comment = commentsService.getById(id);
-        if (comment == null) {
-            log.warn("评论不存在 - ID: {}", id);
-            return Result.fail(ErrorCode.NOT_FOUND, "评论不存在");
-        }
-
-        return Result.success("查询成功", comment);
+        return Result.success("查询成功", commentsService.requireComment(id));
     }
 
     /**
@@ -147,22 +134,6 @@ public class CommentsController {
     @OperationLog(action = "create", targetType = "comment", description = "发表评论")
     public Result<CommentResp> createComment(@Valid @RequestBody CreateCommentReq createCommentReq) {
 
-        try {
-            // 方法级认证确认：确保用户已登录
-            Long currentUserId = userUtils.getCurrentUserId();
-            if (currentUserId == null) {
-                log.warn("用户未登录，无法发表评论");
-                return Result.fail(ErrorCode.UNAUTHORIZED);
-            }
-
-            CommentResp comment = commentsService.createComment(createCommentReq);
-            return Result.success("创建成功", comment);
-        } catch (BusinessException e) {
-            throw e;
-        } catch (Exception e) {
-            // 原始异常消息不外泄，仅记录日志；统一交给 GlobalExceptionHandler 转响应
-            log.error("创建评论失败", e);
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "评论发表失败，请稍后重试");
-        }
+        return Result.success("创建成功", commentsService.createComment(createCommentReq));
     }
 }

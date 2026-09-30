@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import chat.liuxin.liutech.common.BusinessException;
@@ -131,7 +132,7 @@ public class MessagesService extends ServiceImpl<MessagesMapper, Messages> {
      */
     @Transactional(readOnly = true)
     public IPage<Messages> getMessagesForAdmin(Integer page, Integer size, String nickname, Integer status, Boolean includeDeleted) {
-        Page<Messages> pageParam = new Page<>(page, size);
+        Page<Messages> pageParam = PageQuery.of(page, size).toPage();
         QueryWrapper<Messages> wrapper = new QueryWrapper<>();
 
         if (nickname != null && !nickname.isEmpty()) {

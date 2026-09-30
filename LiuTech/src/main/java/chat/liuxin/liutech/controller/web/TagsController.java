@@ -13,12 +13,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import chat.liuxin.liutech.aspect.OperationLog;
-import chat.liuxin.liutech.common.BusinessException;
-import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.TagResp;
 import chat.liuxin.liutech.service.TagsService;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 标签控制器
@@ -26,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
  *
  * @author 刘鑫
  */
-@Slf4j
 @RestController
 @RequestMapping("/tags")
 @RequiredArgsConstructor
@@ -55,14 +51,7 @@ public class TagsController {
      */
     @GetMapping("/{id}")
     public Result<TagResp> getTagById(@PathVariable Long id) {
-
-        TagResp tag = tagsService.getTagByIdWithPostCount(id);
-        if (tag == null) {
-            log.warn("标签不存在 - ID: {}", id);
-            return Result.fail(ErrorCode.TAG_NOT_FOUND);
-        }
-
-        return Result.success("查询成功", tag);
+        return Result.success("查询成功", tagsService.requireTag(id));
     }
 
     /**
@@ -104,16 +93,8 @@ public class TagsController {
     @GetMapping("/search")
     public Result<List<TagResp>> searchTagsByName(@RequestParam String name) {
 
-        try {
-            List<TagResp> tags = tagsService.getTagsByName(name);
-            return Result.success("查询成功", tags);
-        } catch (BusinessException e) {
-            // 直接上抛，由 GlobalExceptionHandler 统一转 400 + 业务错误码
-            throw e;
-        } catch (Exception e) {
-            log.error("搜索标签失败: name={}", name, e);
-            throw new BusinessException(ErrorCode.TAG_SEARCH_FAILED);
-        }
+        List<TagResp> tags = tagsService.getTagsByName(name);
+        return Result.success("查询成功", tags);
     }
 
     /**
@@ -125,15 +106,7 @@ public class TagsController {
     @PreAuthorize("hasRole('ADMIN')")
     @OperationLog(action = "create", targetType = "tag", description = "创建标签")
     public Result<Boolean> createTag(@RequestBody TagResp tagResp) {
-        try {
-            boolean result = tagsService.save(tagResp);
-            return Result.success(result);
-        } catch (BusinessException e) {
-            // 直接上抛，由 GlobalExceptionHandler 统一转 400 + 业务错误码
-            throw e;
-        } catch (Exception e) {
-            log.error("创建标签失败: name={}", tagResp.getName(), e);
-            throw new BusinessException(ErrorCode.TAG_CREATE_FAILED);
-        }
+        boolean result = tagsService.save(tagResp);
+        return Result.success(result);
     }
 }

@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import chat.liuxin.liutech.common.BusinessException;
+import chat.liuxin.liutech.common.PageQuery;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.mapper.UserViewHistoryMapper;
@@ -58,7 +59,7 @@ public class ViewHistoryService {
      */
     @Transactional(readOnly = true)
     public PageResp<PostListResp> getViewHistory(Integer page, Integer size, Long userId) {
-        Page<PostListResp> pageParam = new Page<>(page, size);
+        Page<PostListResp> pageParam = PageQuery.of(page, size).toPage();
         IPage<PostListResp> result = userViewHistoryMapper.selectViewHistory(pageParam, userId);
         return new PageResp<>(result.getRecords(), result.getTotal(), result.getCurrent(), result.getSize());
     }

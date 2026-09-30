@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import chat.liuxin.liutech.common.PageQuery;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -42,6 +43,13 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
     private final UserUtils userUtils;
 
+    @Transactional(readOnly = true)
+    public Comments requireComment(Long id) {
+        Comments result = getById(id);
+        if (result == null) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+        return result;
+    }
+
     /**
      * 分页查询文章评论
      * 获取指定文章的所有评论，支持分页显示
@@ -53,7 +61,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      */
     @Transactional(readOnly = true)
     public PageResp<CommentResp> getCommentsByPostId(Long postId, Integer page, Integer size) {
-        Page<Comments> pageParam = new Page<>(page, size);
+        Page<Comments> pageParam = PageQuery.of(page, size).toPage();
         IPage<Comments> result = commentsMapper.selectCommentsByPostId(pageParam, postId);
 
         List<CommentResp> commentResps = result.getRecords().stream()
