@@ -205,6 +205,17 @@ class PointsServiceTest {
         assertEquals(0, BigDecimal.TEN.compareTo(tx.getAmount()));
     }
 
+    @Test void adminDeductionKeepsAdminTransactionType() {
+        when(userMapper.selectActiveForUpdate(1L)).thenReturn(createUser(1L, BigDecimal.TEN, 0));
+        when(userMapper.deductPointsWithVersion(eq(1L), eq(BigDecimal.ONE), eq(0), eq(1))).thenReturn(1);
+        pointsService.deductPoints(1L, BigDecimal.ONE, PointsService.TYPE_ADMIN_ADJUST,
+                PointsService.SOURCE_ADMIN_MANUAL, null, "admin");
+        ArgumentCaptor<PointsTransaction> captor = ArgumentCaptor.forClass(PointsTransaction.class);
+        verify(pointsTransactionMapper).insert(captor.capture());
+        assertEquals(PointsService.TYPE_ADMIN_ADJUST, captor.getValue().getTransactionType());
+        assertEquals(0, new BigDecimal("9").compareTo(captor.getValue().getBalanceAfter()));
+    }
+
     private Users createUser(Long id, BigDecimal points, Integer version) {
         Users user = new Users();
         user.setId(id);

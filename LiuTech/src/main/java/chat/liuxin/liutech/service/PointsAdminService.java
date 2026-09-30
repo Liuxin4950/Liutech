@@ -38,13 +38,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PointsAdminService {
 
-    private static final int MAX_OPTIMISTIC_LOCK_RETRIES = 3;
-
     private final PointsTransactionMapper pointsTransactionMapper;
 
     private final UserCheckinMapper userCheckinMapper;
 
     private final UserMapper userMapper;
+    private final PointsService pointsService;
 
     /**
      * 分页查询积分流水（关联用户名）
@@ -97,7 +96,7 @@ public class PointsAdminService {
 
     /**
      * 管理员手动调整积分
-     * 使用乐观锁更新用户积分，并记录积分流水
+     * 复用 PointsService 的用户行锁、条件更新和流水事务
      *
      * @param userId      目标用户ID
      * @param amount      调整金额（正数增加，负数减少）
@@ -116,59 +115,14 @@ public class PointsAdminService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "调整金额不能为零");
         }
 
-        // 2. 查询用户
-        Users user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        String reason = description != null ? description : "管理员手动调整积分";
+        if (amount.signum() > 0) {
+            pointsService.addPoints(userId, amount, PointsService.TYPE_ADMIN_ADJUST,
+                    PointsService.SOURCE_ADMIN_MANUAL, null, reason);
+        } else {
+            pointsService.deductPoints(userId, amount.abs(), PointsService.TYPE_ADMIN_ADJUST,
+                    PointsService.SOURCE_ADMIN_MANUAL, null, reason);
         }
-
-        // 3. 检查扣减时积分是否充足
-        BigDecimal currentPoints = user.getPoints() != null ? user.getPoints() : BigDecimal.ZERO;
-        if (amount.compareTo(BigDecimal.ZERO) < 0 && currentPoints.add(amount).compareTo(BigDecimal.ZERO) < 0) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户积分不足，当前积分: " + currentPoints);
-        }
-
-        // 4. 使用乐观锁更新积分（重试机制）
-        boolean updated = false;
-        for (int i = 0; i < MAX_OPTIMISTIC_LOCK_RETRIES; i++) {
-            // 重新获取最新版本号
-            user = userMapper.selectById(userId);
-            int currentVersion = user.getVersion() != null ? user.getVersion() : 0;
-            int newVersion = currentVersion + 1;
-
-            int rows;
-            if (amount.compareTo(BigDecimal.ZERO) > 0) {
-                rows = userMapper.addPointsWithVersion(userId, amount, currentVersion, newVersion);
-            } else {
-                rows = userMapper.deductPointsWithVersion(userId, amount.abs(), currentVersion, newVersion);
-            }
-
-            if (rows > 0) {
-                updated = true;
-                break;
-            }
-            log.warn("乐观锁冲突，重试第 {} 次 - 用户ID: {}", i + 1, userId);
-        }
-
-        if (!updated) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "积分调整失败，请稍后重试");
-        }
-
-        // 5. 记录积分流水
-        Users updatedUser = userMapper.selectById(userId);
-        BigDecimal balanceAfter = updatedUser.getPoints() != null ? updatedUser.getPoints() : BigDecimal.ZERO;
-
-        PointsTransaction transaction = new PointsTransaction();
-        transaction.setUserId(userId);
-        transaction.setTransactionType("admin_adjust");
-        transaction.setAmount(amount);
-        transaction.setBalanceAfter(balanceAfter);
-        transaction.setSourceType("admin_manual");
-        transaction.setDescription(description != null ? description : "管理员手动调整积分");
-        transaction.setCreatedAt(new Date());
-        pointsTransactionMapper.insert(transaction);
-
-        log.info("积分调整成功 - 用户ID: {}, 金额: {}, 调整后余额: {}", userId, amount, balanceAfter);
     }
 
     /**

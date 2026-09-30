@@ -43,6 +43,9 @@ class PointsAdminServiceTest {
     @Mock
     private UserMapper userMapper;
 
+    @Mock
+    private PointsService pointsService;
+
     @InjectMocks
     private PointsAdminService pointsAdminService;
 
@@ -58,146 +61,33 @@ class PointsAdminServiceTest {
 
     // ========== adjustPoints 测试 ==========
 
-    @Test
-    void adjustPoints_shouldIncreasePoints() {
-        Users user = createDefaultUser(); // version=0
-        Users updatedUser = createDefaultUser();
-        updatedUser.setPoints(BigDecimal.valueOf(150));
-        updatedUser.setVersion(1);
-        // adjustPoints calls selectById 3 times: initial check, loop iteration, balance query
-        when(userMapper.selectById(USER_ID))
-                .thenReturn(user)        // initial check (line 121)
-                .thenReturn(user)        // loop iteration (line 136)
-                .thenReturn(updatedUser); // balance query (line 159)
-        when(userMapper.addPointsWithVersion(eq(USER_ID), eq(BigDecimal.valueOf(50)), eq(0), eq(1))).thenReturn(1);
-
-        pointsAdminService.adjustPoints(USER_ID, BigDecimal.valueOf(50), "奖励");
-
-        verify(userMapper).addPointsWithVersion(eq(USER_ID), eq(BigDecimal.valueOf(50)), eq(0), eq(1));
-        ArgumentCaptor<PointsTransaction> txCaptor = ArgumentCaptor.forClass(PointsTransaction.class);
-        verify(pointsTransactionMapper).insert(txCaptor.capture());
-        PointsTransaction tx = txCaptor.getValue();
-        assertEquals("admin_adjust", tx.getTransactionType());
-        assertEquals(0, BigDecimal.valueOf(50).compareTo(tx.getAmount()));
-        assertEquals(0, BigDecimal.valueOf(150).compareTo(tx.getBalanceAfter()));
+    @Test void adjustPoints_shouldDelegatePositiveAndNegativeAmountsWithAdminType() {
+        pointsAdminService.adjustPoints(USER_ID, BigDecimal.TEN, "奖励");
+        verify(pointsService).addPoints(USER_ID, BigDecimal.TEN, PointsService.TYPE_ADMIN_ADJUST,
+                PointsService.SOURCE_ADMIN_MANUAL, null, "奖励");
+        pointsAdminService.adjustPoints(USER_ID, BigDecimal.TEN.negate(), null);
+        verify(pointsService).deductPoints(USER_ID, BigDecimal.TEN, PointsService.TYPE_ADMIN_ADJUST,
+                PointsService.SOURCE_ADMIN_MANUAL, null, "管理员手动调整积分");
+        verify(userMapper, never()).addPointsWithVersion(any(), any(), any(), any());
+        verify(userMapper, never()).deductPointsWithVersion(any(), any(), any(), any());
+        verify(pointsTransactionMapper, never()).insert(any(PointsTransaction.class));
     }
 
-    @Test
-    void adjustPoints_shouldDecreasePoints() {
-        Users user = createDefaultUser(); // version=0
-        Users updatedUser = createDefaultUser();
-        updatedUser.setPoints(BigDecimal.valueOf(70));
-        updatedUser.setVersion(1);
-        when(userMapper.selectById(USER_ID))
-                .thenReturn(user)        // initial check
-                .thenReturn(user)        // loop iteration
-                .thenReturn(updatedUser); // balance query
-        when(userMapper.deductPointsWithVersion(eq(USER_ID), eq(BigDecimal.valueOf(30)), eq(0), eq(1))).thenReturn(1);
-
-        pointsAdminService.adjustPoints(USER_ID, BigDecimal.valueOf(-30), "扣减");
-
-        verify(userMapper).deductPointsWithVersion(eq(USER_ID), eq(BigDecimal.valueOf(30)), eq(0), eq(1));
-        ArgumentCaptor<PointsTransaction> txCaptor = ArgumentCaptor.forClass(PointsTransaction.class);
-        verify(pointsTransactionMapper).insert(txCaptor.capture());
-        assertEquals(0, BigDecimal.valueOf(-30).compareTo(txCaptor.getValue().getAmount()));
+    @Test void adjustPoints_shouldRejectInvalidParameters() {
+        assertThrows(BusinessException.class, () -> pointsAdminService.adjustPoints(null, BigDecimal.TEN, "test"));
+        assertThrows(BusinessException.class, () -> pointsAdminService.adjustPoints(0L, BigDecimal.TEN, "test"));
+        assertThrows(BusinessException.class, () -> pointsAdminService.adjustPoints(USER_ID, null, "test"));
+        assertThrows(BusinessException.class, () -> pointsAdminService.adjustPoints(USER_ID, BigDecimal.ZERO, "test"));
+        verifyNoInteractions(pointsService);
     }
 
-    @Test
-    void adjustPoints_shouldThrowWhenUserIdIsNull() {
-        assertThrows(BusinessException.class,
-                () -> pointsAdminService.adjustPoints(null, BigDecimal.TEN, "test"));
-    }
-
-    @Test
-    void adjustPoints_shouldThrowWhenUserIdIsZero() {
-        assertThrows(BusinessException.class,
-                () -> pointsAdminService.adjustPoints(0L, BigDecimal.TEN, "test"));
-    }
-
-    @Test
-    void adjustPoints_shouldThrowWhenAmountIsNull() {
-        assertThrows(BusinessException.class,
-                () -> pointsAdminService.adjustPoints(USER_ID, null, "test"));
-    }
-
-    @Test
-    void adjustPoints_shouldThrowWhenAmountIsZero() {
-        assertThrows(BusinessException.class,
-                () -> pointsAdminService.adjustPoints(USER_ID, BigDecimal.ZERO, "test"));
-    }
-
-    @Test
-    void adjustPoints_shouldThrowWhenUserNotFound() {
-        when(userMapper.selectById(999L)).thenReturn(null);
-
-        assertThrows(BusinessException.class,
-                () -> pointsAdminService.adjustPoints(999L, BigDecimal.TEN, "test"));
-    }
-
-    @Test
-    void adjustPoints_shouldThrowWhenInsufficientPointsForDeduction() {
-        Users user = createDefaultUser();
-        user.setPoints(BigDecimal.valueOf(10));
-        when(userMapper.selectById(USER_ID)).thenReturn(user);
-
-        BusinessException ex = assertThrows(BusinessException.class,
-                () -> pointsAdminService.adjustPoints(USER_ID, BigDecimal.valueOf(-50), "扣减"));
-        assertTrue(ex.getMessage().contains("积分不足"));
-    }
-
-    @Test
-    void adjustPoints_shouldRetryOnOptimisticLockConflict() {
-        Users user = createDefaultUser();
-        Users updatedUser = createDefaultUser();
-        updatedUser.setPoints(BigDecimal.valueOf(150));
-        updatedUser.setVersion(1);
-        // initial check, loop iter 1 (fails), loop iter 2 (succeeds), balance query
-        when(userMapper.selectById(USER_ID))
-                .thenReturn(user)         // initial check
-                .thenReturn(user)         // retry 1
-                .thenReturn(user)         // retry 2
-                .thenReturn(updatedUser); // balance query
-
-        when(userMapper.addPointsWithVersion(eq(USER_ID), any(), eq(0), eq(1)))
-                .thenReturn(0)  // first attempt fails
-                .thenReturn(1); // second attempt succeeds
-
-        assertDoesNotThrow(() ->
-                pointsAdminService.adjustPoints(USER_ID, BigDecimal.valueOf(50), "奖励"));
-    }
-
-    @Test
-    void adjustPoints_shouldThrowAfterMaxRetriesExhausted() {
-        Users user = createDefaultUser();
-        // initial check + 3 loop iterations = 4 calls
-        when(userMapper.selectById(USER_ID))
-                .thenReturn(user)
-                .thenReturn(user)
-                .thenReturn(user)
-                .thenReturn(user);
-        when(userMapper.addPointsWithVersion(eq(USER_ID), any(), eq(0), eq(1))).thenReturn(0);
-
-        assertThrows(BusinessException.class,
-                () -> pointsAdminService.adjustPoints(USER_ID, BigDecimal.valueOf(50), "奖励"));
-    }
-
-    @Test
-    void adjustPoints_shouldUseDefaultDescriptionWhenNull() {
-        Users user = createDefaultUser();
-        Users updatedUser = createDefaultUser();
-        updatedUser.setPoints(BigDecimal.valueOf(150));
-        updatedUser.setVersion(1);
-        when(userMapper.selectById(USER_ID))
-                .thenReturn(user)         // initial check
-                .thenReturn(user)         // loop iteration
-                .thenReturn(updatedUser); // balance query
-        when(userMapper.addPointsWithVersion(eq(USER_ID), any(), eq(0), eq(1))).thenReturn(1);
-
-        pointsAdminService.adjustPoints(USER_ID, BigDecimal.valueOf(50), null);
-
-        ArgumentCaptor<PointsTransaction> txCaptor = ArgumentCaptor.forClass(PointsTransaction.class);
-        verify(pointsTransactionMapper).insert(txCaptor.capture());
-        assertEquals("管理员手动调整积分", txCaptor.getValue().getDescription());
+    @Test void adjustPoints_shouldPropagateDomainFailuresWithoutRetrying() {
+        doThrow(new BusinessException(chat.liuxin.liutech.common.ErrorCode.PARAMS_ERROR, "积分不足"))
+                .when(pointsService).deductPoints(USER_ID, BigDecimal.TEN, PointsService.TYPE_ADMIN_ADJUST,
+                        PointsService.SOURCE_ADMIN_MANUAL, null, "扣减");
+        assertThrows(BusinessException.class, () -> pointsAdminService.adjustPoints(USER_ID, BigDecimal.TEN.negate(), "扣减"));
+        verify(pointsService, times(1)).deductPoints(USER_ID, BigDecimal.TEN, PointsService.TYPE_ADMIN_ADJUST,
+                PointsService.SOURCE_ADMIN_MANUAL, null, "扣减");
     }
 
     // ========== getTransactionList 测试 ==========

@@ -67,6 +67,12 @@ public class PointsService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void deductPoints(Long userId, BigDecimal amount, String sourceType, Long sourceId, String description) {
+        deductPoints(userId, amount, TYPE_CONSUMPTION, sourceType, sourceId, description);
+    }
+
+    /** 管理调整复用同一扣减事务，并保留其业务流水类型。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void deductPoints(Long userId, BigDecimal amount, String transactionType, String sourceType, Long sourceId, String description) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("扣减金额必须大于0");
         }
@@ -74,7 +80,7 @@ public class PointsService {
         // 1. 查询用户当前积分和版本号
         Users user = userMapper.selectActiveForUpdate(userId);
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw new chat.liuxin.liutech.common.BusinessException(chat.liuxin.liutech.common.ErrorCode.USER_NOT_FOUND);
         }
 
         BigDecimal currentPoints = user.getPoints() != null ? user.getPoints() : BigDecimal.ZERO;
@@ -82,7 +88,7 @@ public class PointsService {
 
         // 2. 检查积分是否充足
         if (currentPoints.compareTo(amount) < 0) {
-            throw new RuntimeException("积分不足，需要 " + amount + " 积分，当前仅有 " + currentPoints + " 积分");
+            throw new chat.liuxin.liutech.common.BusinessException(chat.liuxin.liutech.common.ErrorCode.PARAMS_ERROR, "积分不足，需要 " + amount + " 积分，当前仅有 " + currentPoints + " 积分");
         }
 
         // 3. 原子性扣减积分（使用乐观锁 + WHERE条件双重保证）
@@ -94,13 +100,13 @@ public class PointsService {
         if (updateResult == 0) {
             // 乐观锁冲突，说明有并发修改
             log.warn("用户{}积分扣减失败，可能存在并发操作", userId);
-            throw new RuntimeException("系统繁忙，请稍后重试");
+            throw new chat.liuxin.liutech.common.BusinessException(chat.liuxin.liutech.common.ErrorCode.OPERATION_ERROR, "系统繁忙，请稍后重试");
         }
 
         // 4. 记录积分流水
         PointsTransaction transaction = new PointsTransaction();
         transaction.setUserId(userId);
-        transaction.setTransactionType(TYPE_CONSUMPTION);
+        transaction.setTransactionType(transactionType);
         transaction.setAmount(amount.negate()); // 负数表示减少
         transaction.setBalanceAfter(newPoints);
         transaction.setSourceType(sourceType);
@@ -134,7 +140,7 @@ public class PointsService {
         // 1. 查询用户当前积分
         Users user = userMapper.selectActiveForUpdate(userId);
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw new chat.liuxin.liutech.common.BusinessException(chat.liuxin.liutech.common.ErrorCode.USER_NOT_FOUND);
         }
 
         // 锁定读得到最新余额，不在 RR 事务旧快照中重试普通 SELECT。
@@ -142,7 +148,7 @@ public class PointsService {
         int currentVersion = user.getVersion() != null ? user.getVersion() : 0;
         BigDecimal newPoints = currentPoints.add(amount);
         if (userMapper.addPointsWithVersion(userId, amount, currentVersion, currentVersion + 1) != 1) {
-            throw new RuntimeException("系统繁忙，请稍后重试");
+            throw new chat.liuxin.liutech.common.BusinessException(chat.liuxin.liutech.common.ErrorCode.OPERATION_ERROR, "系统繁忙，请稍后重试");
         }
 
         // 3. 记录积分流水
