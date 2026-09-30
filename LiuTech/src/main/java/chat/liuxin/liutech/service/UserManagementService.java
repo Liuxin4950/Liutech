@@ -628,8 +628,15 @@ public class UserManagementService {
         if (user == null) return false;
         // 主库删除和持久化任务一起提交；失败回滚不会先删 AI 数据。
         userPurgeTaskMapper.enqueue(id);
-        if (userMapper.physicalDeleteById(id) != 1) {
-            throw new BusinessException(ErrorCode.OPERATION_ERROR, "用户删除失败");
+        try {
+            if (userMapper.physicalDeleteById(id) != 1) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "用户删除失败");
+            }
+        } catch (org.springframework.dao.DataIntegrityViolationException failure) {
+            if (failure.getMostSpecificCause() instanceof java.sql.SQLException sql && sql.getErrorCode() == 1451) {
+                throw new BusinessException(ErrorCode.OPERATION_ERROR, "该用户仍有关联记录，暂不能永久删除；可先禁用账户");
+            }
+            throw failure;
         }
         userUtils.clearUserCache(user.getUsername());
         log.info("用户已永久删除，AI 数据清理已持久化排队: userId={}", id);

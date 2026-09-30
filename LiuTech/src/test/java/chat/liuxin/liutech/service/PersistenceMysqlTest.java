@@ -162,7 +162,8 @@ class PersistenceMysqlTest {
         var tasks = db.session.getMapper(UserPurgeTaskMapper.class);
         var usersService = db.transactional(new UserManagementService(users, mock(UserUtils.class),
                 mock(org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder.class), tasks));
-        assertThrows(RuntimeException.class, () -> usersService.permanentDeleteUser(7L));
+        var failure = assertThrows(chat.liuxin.liutech.common.BusinessException.class, () -> usersService.permanentDeleteUser(7L));
+        assertTrue(failure.getMessage().contains("可先禁用账户"));
         assertNotNull(users.selectIncludingDeletedForUpdate(7L));
         assertEquals(0, db.jdbc.queryForObject("SELECT COUNT(*) FROM user_purge_tasks WHERE user_id=7", Integer.class));
     }

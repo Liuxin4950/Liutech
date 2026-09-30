@@ -261,4 +261,20 @@ class InfrastructureContextMysqlTest {
         assertEquals(2101,admin.getPostListForAdmin(2,1,null,null,null,null,2101L,false).getRecords().getFirst().getId());
     }
 
+    @Test void selfDeletionAuditKeepsAuthenticatedOperatorAfterUserRowIsGone() throws Exception {
+        db.jdbc.update("INSERT INTO users(id,username,email,password_hash,role) VALUES(2111,'chain-audit-delete','chain-audit@test.local','hash','admin')");
+        var auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("chain-audit-delete",null,
+                java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
+        auth.setDetails(2111L);
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+        try {
+            var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(
+                    (org.springframework.web.context.WebApplicationContext)context).build();
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/admin/users/2111/permanent"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+            assertEquals(0,db.jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE id=2111",Integer.class));
+            assertEquals("chain-audit-delete",db.jdbc.queryForObject("SELECT operator FROM system_logs WHERE target_type='user' AND action='delete' AND target_name='2111' ORDER BY id DESC LIMIT 1",String.class));
+        } finally { org.springframework.security.core.context.SecurityContextHolder.clearContext(); }
+    }
+
 }

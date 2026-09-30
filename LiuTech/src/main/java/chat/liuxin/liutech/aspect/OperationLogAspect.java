@@ -80,7 +80,15 @@ public class OperationLogAspect {
             logEntry.setOperator(currentUser.getUsername());
             logEntry.setOperatorId(currentUser.getId());
         } else {
-            logEntry.setOperator("未知用户");
+            var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()
+                    && !"anonymousUser".equals(authentication.getPrincipal())) {
+                // 自身永久删除后，认证上下文仍保留本次操作身份。
+                logEntry.setOperator(authentication.getName());
+                logEntry.setOperatorId(userUtils.getCurrentUserId());
+            } else {
+                logEntry.setOperator("未知用户");
+            }
         }
 
         if (request != null) {
