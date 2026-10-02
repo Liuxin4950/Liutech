@@ -99,6 +99,12 @@
         LIMIT 1
     </select>
 
+    <!-- 当前删除接口仅接收 resourceId，多引用资源不能直接销毁。 -->
+    <select id="countActiveReferences" resultType="long">
+        SELECT COUNT(*) FROM post_attachments
+        WHERE resource_id = #{resourceId} AND deleted_at IS NULL
+    </select>
+
     <!-- 根据资源ID删除附件关联记录 -->
     <delete id="deleteByResourceId">
         DELETE FROM post_attachments
