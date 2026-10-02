@@ -346,14 +346,14 @@ console.log(reply);
 | --- | --- | --- |
 | `GET /ai/conversations` | query：`type?`、`page=1`、`size=20` | 裸 `AiConversation[]`；排除归档，`updatedAt DESC,id DESC` |
 | `POST /ai/conversations` | query/form：`type?`、`title?` | `ChatResponse`：`success=true,message="会话创建成功",conversationId` |
-| `GET /ai/conversations/{id}/messages` | query：`page=1`、`size=50` | 裸 `AiChatMessage[]`；`seqNo ASC,id ASC` |
+| `GET /ai/conversations/{id}/messages` | query：`page=1`、`size=50` | 裸 `AiChatMessage[]`；从最近消息开始分页，页内 `seqNo ASC,id ASC` |
 | `PUT /ai/conversations/{id}/rename` | 必填 query/form：`title` | `ChatResponse`：`success=true,message="会话重命名成功"` |
 | `PUT /ai/conversations/{id}/archive` | 无请求体 | `ChatResponse`：`success=true,message="会话已归档"`；置 status=9，保留消息 |
 | `DELETE /ai/conversations/{id}` | 无请求体 | `ChatResponse`：`success=true,message="会话已删除"`；物理删除会话及其消息 |
 
 **当前实现限制**：
 
-- 会话列表与会话消息列表虽接收 `page/size`，当前 `MemoryService` 使用 `.last(false, "LIMIT ...")`，没有实际应用 SQL 分页；不能依赖 size 限制条数，也没有 total。全局 `/ai/chat/history` 不受此问题影响。
+- 会话列表与会话消息列表实际应用 SQL 分页：`page<1` 修正为 1，`size` 限为 1～100。消息第 1 页取最近记录，之后的页取更早记录，各页内部正序；返回数组不包含 total。
 - `type` 在创建和列表中均未使用，不能用于区分聊天/写作或筛选。
 - 创建仅在 `title` 缺省/null 时用“新会话”；空字符串不会自动替换。重命名未声明非空白/长度校验。
 - 归档仅让会话从列表隐藏；属主仍可访问其消息。当前没有恢复归档接口。

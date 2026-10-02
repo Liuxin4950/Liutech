@@ -25,6 +25,7 @@ import java.net.UnknownHostException;
 import java.text.ParseException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.core.exc.StreamReadException;
 
 /**
@@ -93,7 +94,7 @@ public class AiChatServiceImpl implements AiChatService {
             aiMetrics.recordSuccess(modelName, cost, estimateTokens(aiOutput));
             return buildSuccessResponse(aiOutput, modelName, cost, conversationId, guestMode);
 
-        } catch (AIServiceException e) {
+        } catch (AIServiceException | ResponseStatusException e) {
             aiMetrics.recordFailure(modelName, System.currentTimeMillis() - begin, e.getClass().getSimpleName());
             throw e;
         } catch (Exception e) {

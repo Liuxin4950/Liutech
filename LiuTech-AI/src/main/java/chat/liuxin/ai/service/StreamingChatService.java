@@ -127,6 +127,10 @@ public class StreamingChatService {
         boolean guestMode = userId == null;
         String userIdStr = userId != null ? userId.toString() : null;
         Long conversationId = guestMode ? null : request.getConversationId();
+        // 在建立 SSE 和调度异步任务前校验，越权请求直接交全局处理器返回 403/404。
+        if (conversationId != null) {
+            memoryService.getConversationOwnedByUser(userIdStr, conversationId);
+        }
         String input = request.getMessage();
 
         SseEmitter emitter = new SseEmitter(aiChatProperties.getSseTimeout());

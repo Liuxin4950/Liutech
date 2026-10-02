@@ -121,7 +121,7 @@ loadConversation(id)
 | --- | --- | --- |
 | `list(type, page, size)` | `GET /ai/conversations` | 会话列表（按 lastMessageAt 倒序） |
 | `create(type, title)` | `POST /ai/conversations` | 创建会话，返回 id |
-| `messages(id, page, size)` | `GET /ai/conversations/{id}/messages` | 分页消息（倒序） |
+| `messages(id, page, size)` | `GET /ai/conversations/{id}/messages` | 从最近消息开始分页，页内正序 |
 | `rename(id, title)` | `PUT /ai/conversations/{id}/rename` | 重命名 |
 | `remove(id)` | `DELETE /ai/conversations/{id}` | 删除（先删消息再删会话） |
 

@@ -75,6 +75,7 @@ public class MemoryService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson) {
+        getConversationOwnedByUser(userId, conversationId);
         Integer maxSeqNo = getMaxSeqNo(conversationId);
 
         AiChatMessage m = new AiChatMessage();
@@ -98,6 +99,7 @@ public class MemoryService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson) {
+        getConversationOwnedByUser(userId, conversationId);
         Integer maxSeqNo = getMaxSeqNo(conversationId);
 
         AiChatMessage m = new AiChatMessage();
@@ -189,8 +191,8 @@ public class MemoryService {
      * 会话列表分页查询,排除已归档(status=9),按更新时间倒序,size 上限 100 防滥用。
      */
     public List<AiConversation> listConversations(String userId, String type, int page, int size) {
-        int offset = Math.max(0, (page - 1) * size);
         int safeSize = Math.max(1, Math.min(size, 100));
+        long offset = (Math.max(1, page) - 1L) * safeSize;
         var qw = new LambdaQueryWrapper<AiConversation>()
                 .select(AiConversation::getId,
                         AiConversation::getUserId,
@@ -204,7 +206,7 @@ public class MemoryService {
                 .ne(AiConversation::getStatus, CONVERSATION_STATUS_ARCHIVED)
                 .orderByDesc(AiConversation::getUpdatedAt)
                 .orderByDesc(AiConversation::getId)
-                .last(false, "LIMIT " + offset + ", " + safeSize);
+                .last("LIMIT " + offset + ", " + safeSize);
         return conversationMapper.selectList(qw);
     }
 
@@ -230,23 +232,25 @@ public class MemoryService {
     }
 
     /**
-     * 分页取指定会话内的消息,按 seqNo 升序还原对话时序。会先做属主校验。
+     * 从最近消息开始分页,页内按 seqNo 升序还原对话时序。会先做属主校验。
      */
     public List<AiChatMessage> listMessagesByConversation(String userId, Long conversationId, int page, int size) {
         getConversationOwnedByUser(userId, conversationId);
-        int offset = Math.max(0, (page - 1) * size);
         int safeSize = Math.max(1, Math.min(size, 100));
-        return messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+        long offset = (Math.max(1, page) - 1L) * safeSize;
+        List<AiChatMessage> messages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
                 .select(AiChatMessage::getId,
                         AiChatMessage::getRole,
                         AiChatMessage::getContent,
                         AiChatMessage::getCreatedAt,
                         AiChatMessage::getSeqNo)
                 .eq(AiChatMessage::getConversationId, conversationId)
-                .orderByAsc(AiChatMessage::getSeqNo)
-                .orderByAsc(AiChatMessage::getId)
-                .last(false, "LIMIT " + offset + ", " + safeSize)
+                .orderByDesc(AiChatMessage::getSeqNo)
+                .orderByDesc(AiChatMessage::getId)
+                .last("LIMIT " + offset + ", " + safeSize)
         );
+        Collections.reverse(messages);
+        return messages;
     }
 
     /**
@@ -260,7 +264,7 @@ public class MemoryService {
                 .eq(AiChatMessage::getConversationId, conversationId)
                 .orderByDesc(AiChatMessage::getSeqNo)
                 .orderByDesc(AiChatMessage::getId)
-                .last(false, "LIMIT " + safeLimit)
+                .last("LIMIT " + safeLimit)
         );
         Collections.reverse(messages);
         return messages;
