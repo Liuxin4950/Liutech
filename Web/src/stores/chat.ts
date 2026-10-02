@@ -495,10 +495,17 @@ export const useChatStore = defineStore('chat', () => {
         },
         // onError - 发生错误
         (error) => {
-          // 移除流式消息
+          // 断线或服务端错误时保留已收到的正文，仅移除尚未输出的占位消息。
           const index = messages.value.findIndex(msg => msg.id === aiMessage.id)
           if (index > -1) {
-            messages.value.splice(index, 1)
+            const partialMessage = messages.value[index]!
+            if (partialMessage.content) {
+              partialMessage.isStreaming = false
+              partialMessage.isThinking = false
+              partialMessage.renderedContent = undefined
+            } else {
+              messages.value.splice(index, 1)
+            }
           }
 
           // 添加错误消息

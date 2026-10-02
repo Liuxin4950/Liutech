@@ -172,7 +172,7 @@ export function parseSseEventText(eventText: string): SseParseOutcome {
  * 持续读取响应体，按帧解析并回调
  *
  * 只负责「读流 + 切帧 + 解析」，不碰 HTTP 错误、不碰重连、不碰事件分发：
- * 这些属于各调用方的业务语义（看板娘要重连，写作助手不要）。
+ * 这些属于各调用方的业务语义；当前聊天/写作断线均由用户手动重试。
  *
  * @param body 响应体可读流（调用方需自行确认 response.body 非空）
  * @param handlers 事件回调与可选的解析失败回调

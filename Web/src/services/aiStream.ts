@@ -1,7 +1,6 @@
-import { ServiceType } from './api'
+import { ServiceType, getServiceBaseURL } from './serviceConfig'
 import type { AiChatRequest } from './aiTypes'
 import type { ArticleResultsPayload } from './ai'
-import { getServiceBaseURL } from '@/services/serviceConfig'
 import { getToken } from '@/utils/auth'
 import { parseSseEventText, readSseStream } from './sse'
 import type { ParsedSseEvent } from './sse'
@@ -71,29 +70,12 @@ export class StreamError extends Error {
 export class AiStream {
   // AbortController用于取消请求
   static abortController: AbortController | null = null
-  // 用户主动取消标志（区别于网络中断，避免触发重连）
-  private static userCancelled = false
-  // 重连等待定时器
-  private static retryTimer: ReturnType<typeof setTimeout> | null = null
-  // 重连等待 Promise 的 resolve（供 cancel 立即解除等待）
-  private static retryResolve: (() => void) | null = null
-
-  /**
-   * 最大重连次数
-   */
-  private static readonly MAX_RETRIES = 4
-
-  /**
-   * 最大重连间隔（毫秒）
-   */
-  private static readonly MAX_DELAY_MS = 30000
 
   /**
    * 发起流式聊天请求
    *
-   * 支持断线重连：当流异常中断（非用户取消、非服务端 error、非正常 complete）时，
-   * 按指数退避（1s/2s/4s/8s，上限 30s）自动重连，最多 4 次。
-   * 重连时携带原 conversationId 和最后收到的 seq，避免重复。
+   * 每次调用只提交一次 POST。服务端尚无续传/幂等协议，断线后由用户手动重试，
+   * 保留已收到的正文，避免重复落库、模型调用和内容拼接。
    *
    * @param request 聊天请求
    * @param onChunk 接收到内容块时的回调
@@ -109,160 +91,71 @@ export class AiStream {
     onComplete?: (response: any) => void,
     onError?: (error: StreamError) => void
   ): Promise<void> {
-    // 重连状态
-    this.userCancelled = false
+    this.cancel()
+    const controller = new AbortController()
+    this.abortController = controller
     let isCompleted = false
     let serverError = false
-    let currentConversationId = request.conversationId
-    let lastSeq: number | undefined
-    let retryCount = 0
 
-    // 包装 onEvent：拦截 start 事件更新 conversationId，拦截带 seq 的事件记录 lastSeq
-    const wrappedOnEvent = (eventType: string, payload: any) => {
-      if (eventType === 'start' && payload?.conversationId) {
-        currentConversationId = payload.conversationId
-      }
-      if (payload && typeof payload.seq === 'number' && payload.seq > (lastSeq ?? -1)) {
-        lastSeq = payload.seq
-      }
-      onEvent?.(eventType, payload)
-    }
-
-    // 包装 onComplete：标记正常完成，阻止重连
-    const wrappedOnComplete = (response: any) => {
-      isCompleted = true
-      onComplete?.(response)
-    }
-
-    // 包装 onError：标记服务端错误，阻止重连
-    const wrappedOnError = (error: StreamError) => {
-      serverError = true
-      onError?.(error)
-    }
-
-    /**
-     * 执行单次流式请求
-     */
-    const doStream = async (): Promise<void> => {
-      // 清理之前的连接
-      this.cleanup()
-
-      // 创建新的AbortController
-      this.abortController = new AbortController()
-
+    try {
       const token = getToken()
-
-      // 构建请求URL
       const aiBaseUrl = getServiceBaseURL(ServiceType.AI)
-      // 看板娘聊天走 /ai/chat/stream，写作助手走 /ai/writing/stream
       const { chatType, ...requestBody } = request
       const streamUrl = chatType === 'writing' ? `${aiBaseUrl}/writing/stream` : `${aiBaseUrl}/chat/stream`
 
-      // 由于EventSource不支持自定义请求头和POST方法，
-      // 我们使用fetch流式读取作为替代方案
       const response = await fetch(streamUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({
-          ...requestBody,
-          // 重连时携带 conversationId 和 lastSeq，供后端去重/续传
-          ...(currentConversationId ? { conversationId: currentConversationId } : {}),
-          ...(lastSeq !== undefined ? { lastSeq } : {})
-        }),
-        signal: this.abortController.signal
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
       })
 
       if (!response.ok) {
-        throw new StreamError(
-          `HTTP ${response.status}: ${response.statusText}`,
-          'HTTP_ERROR',
-          response.status
-        )
+        let message = `请求失败（HTTP ${response.status}），请稍后重试`
+        try {
+          const body = await response.json()
+          if (typeof body?.message === 'string' && body.message) message = body.message
+        } catch {
+          // 网关可能返回非 JSON 响应，保留状态码兜底文案。
+        }
+        throw new StreamError(message, 'HTTP_ERROR', response.status)
       }
-
       if (!response.body) {
-        throw new StreamError('无法读取响应流', 'STREAM_READ_ERROR')
+        throw new StreamError('无法读取响应流，请重试', 'STREAM_READ_ERROR')
       }
 
-      // 读取流：切帧与 JSON 解析统一由 services/sse.ts 负责（与 Admin 同一实现）
       await readSseStream(response.body, {
         onEvent: (event: ParsedSseEvent) => {
-          this.dispatchEvent(event, onChunk, wrappedOnEvent, wrappedOnComplete, wrappedOnError)
+          if (controller.signal.aborted || serverError) return
+          this.dispatchEvent(event, onChunk, onEvent, (payload) => {
+            isCompleted = true
+            onComplete?.(payload)
+          }, (error) => {
+            serverError = true
+            onError?.(error)
+          })
         },
         onParseError: (rawData: string, error: unknown) => {
-          // 单帧坏掉只跳过该帧并留痕：不能因为一条脏数据就把整轮对话判死
           console.error('忽略无法解析的 SSE 事件:', error, rawData)
         }
       })
-    }
 
-    /**
-     * 指数退避等待（可被 cancel 立即中断）
-     */
-    const retryDelay = (ms: number): Promise<void> => {
-      return new Promise<void>(resolve => {
-        this.retryResolve = resolve
-        this.retryTimer = setTimeout(() => {
-          this.retryTimer = null
-          this.retryResolve = null
-          resolve()
-        }, ms)
-      })
-    }
-
-    try {
-      while (true) {
-        try {
-          await doStream()
-        } catch (error: any) {
-          // 用户主动取消 → 不重连
-          if (this.userCancelled) return
-          // 已正常完成或服务端报错 → 不重连
-          if (isCompleted || serverError) return
-
-          // 重连次数用尽 → 通知错误
-          if (retryCount >= this.MAX_RETRIES) {
-            const streamError = error instanceof StreamError
-              ? error
-              : new StreamError(error.message || '流式请求失败', 'STREAM_ERROR')
-            onError?.(streamError)
-            return
-          }
-
-          // 指数退避重连
-          const delay = Math.min(1000 * Math.pow(2, retryCount), this.MAX_DELAY_MS)
-          retryCount++
-          console.warn(`[AiStream] 流异常中断，${delay}ms 后重连（第 ${retryCount}/${this.MAX_RETRIES} 次）`)
-          await retryDelay(delay)
-          if (this.userCancelled) return
-          continue
-        }
-
-        // doStream 正常返回（reader.done）
-        if (isCompleted || this.userCancelled || serverError) {
-          return
-        }
-
-        // 流读完但未收到 complete → 异常中断，尝试重连
-        if (retryCount >= this.MAX_RETRIES) {
-          onError?.(new StreamError('流异常中断且重连次数用尽', 'STREAM_INCOMPLETE'))
-          return
-        }
-
-        const delay = Math.min(1000 * Math.pow(2, retryCount), this.MAX_DELAY_MS)
-        retryCount++
-        console.warn(`[AiStream] 流未正常完成，${delay}ms 后重连（第 ${retryCount}/${this.MAX_RETRIES} 次）`)
-        await retryDelay(delay)
-        if (this.userCancelled) return
+      if (!isCompleted && !serverError && !controller.signal.aborted) {
+        onError?.(new StreamError('连接中断，已保留收到的内容，请重试', 'STREAM_INCOMPLETE'))
       }
+    } catch (error: unknown) {
+      if (controller.signal.aborted || isCompleted || serverError) return
+      onError?.(error instanceof StreamError
+        ? error
+        : new StreamError('连接中断，已保留收到的内容，请重试', 'STREAM_ERROR'))
     } finally {
-      this.cleanup()
+      // 旧请求结束时不能清理后来建立的新请求。
+      controller.abort()
+      if (this.abortController === controller) this.abortController = null
     }
   }
 
@@ -390,20 +283,9 @@ export class AiStream {
   }
 
   /**
-   * 取消当前流式请求（用户主动取消，不触发重连）
+   * 取消当前流式请求，不报告连接错误。
    */
   static cancel(): void {
-    this.userCancelled = true
-    // 清除重连等待定时器，立即解除阻塞
-    if (this.retryTimer) {
-      clearTimeout(this.retryTimer)
-      this.retryTimer = null
-    }
-    if (this.retryResolve) {
-      const resolve = this.retryResolve
-      this.retryResolve = null
-      resolve()
-    }
     this.cleanup()
   }
 
