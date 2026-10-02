@@ -1,6 +1,5 @@
 package chat.liuxin.liutech.filter;
 
-import chat.liuxin.liutech.config.SecurityWhitelist;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.service.UserAuthLookupService;
 import chat.liuxin.liutech.utils.JwtUtil;
@@ -48,15 +47,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
-            String requestURI = request.getRequestURI();
-            String method = request.getMethod();
-            // 跳过公开接口，不进行JWT验证
-            if (shouldSkipAuthentication(requestURI, method)) {
-                log.debug("跳过JWT验证的公开接口: {} {}", method, requestURI);
-                filterChain.doFilter(request, response);
-                return;
-            }
-
+            // 公开接口仍需识别可选登录身份；是否允许游客访问由 SecurityConfig 决定。
             String token = extractTokenFromRequest(request);
             if (token != null) {
                 processValidToken(token, request);
@@ -65,16 +56,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.error("JWT认证过程中发生错误，请求路径: {}, 错误: {}", request.getRequestURI(), e.getMessage());
         }
         filterChain.doFilter(request, response);
-    }
-
-    /**
-     * 判断是否应该跳过JWT认证（委托给 SecurityWhitelist 统一管理）
-     * @param requestURI 请求URI
-     * @param method HTTP方法
-     * @return 是否跳过认证
-     */
-    private boolean shouldSkipAuthentication(String requestURI, String method) {
-        return SecurityWhitelist.shouldSkipAuthentication(requestURI, method);
     }
 
     /**
