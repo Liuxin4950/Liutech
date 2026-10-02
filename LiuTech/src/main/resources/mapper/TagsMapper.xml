@@ -10,7 +10,7 @@
             COUNT(DISTINCT p.id) as post_count
         FROM tags t
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
-        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY t.name
@@ -23,6 +23,7 @@
             t.name
         FROM tags t
         INNER JOIN post_tags pt ON t.id = pt.tag_id
+        INNER JOIN posts p ON p.id = pt.post_id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE pt.post_id = #{postId} AND t.deleted_at IS NULL
         ORDER BY t.name
     </select>
@@ -35,7 +36,7 @@
             COUNT(DISTINCT p.id) AS postCount
         FROM tags t
                  LEFT JOIN post_tags pt ON t.id = pt.tag_id
-                 LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+                 LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY postCount DESC, t.name
@@ -64,7 +65,7 @@
             COUNT(DISTINCT p.id) as post_count
         FROM tags t
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
-        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE t.name LIKE CONCAT('%', #{name}, '%') AND t.deleted_at IS NULL
         GROUP BY t.id, t.name
         ORDER BY t.name

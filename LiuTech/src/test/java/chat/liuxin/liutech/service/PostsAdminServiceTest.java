@@ -55,6 +55,9 @@ class PostsAdminServiceTest {
     private CommentsMapper commentsMapper;
 
     @Mock
+    private CommentsAdminService commentsAdminService;
+
+    @Mock
     private FileUtil fileUtil;
 
     @Mock
@@ -139,18 +142,13 @@ class PostsAdminServiceTest {
         post.setTitle("Test Post");
 
         when(postsMapper.selectById(postId)).thenReturn(post);
-        when(postTagsMapper.deleteByPostId(postId)).thenReturn(1);
-        when(postLikesMapper.update(isNull(), any())).thenReturn(1);
-        when(postFavoritesMapper.update(isNull(), any())).thenReturn(1);
         when(postsMapper.deleteById(eq(postId), any(), eq(operatorId))).thenReturn(1);
 
         boolean result = postsAdminService.deletePostForAdmin(postId, operatorId);
 
         assertTrue(result);
 
-        verify(postTagsMapper).deleteByPostId(postId);
-        verify(postLikesMapper).update(isNull(), any());
-        verify(postFavoritesMapper).update(isNull(), any());
+        verifyNoInteractions(postTagsMapper, postLikesMapper, postFavoritesMapper);
         verify(postsMapper).deleteById(eq(postId), any(), eq(operatorId));
     }
 
@@ -192,4 +190,43 @@ class PostsAdminServiceTest {
         verify(postTagsMapper, never()).deleteByPostId(anyLong());
         verify(postsMapper, never()).deleteById(anyLong(), any(), anyLong());
     }
+    @Test
+    void batchSoftDeleteAndRestoreKeepRecoverableRelations() {
+        var ids = Arrays.asList(1L, 2L);
+        when(postsMapper.update(isNull(), any())).thenReturn(2);
+        when(postsMapper.restorePostsByIds(ids)).thenReturn(2);
+        assertTrue(postsAdminService.removeByIds(ids));
+        assertTrue(postsAdminService.batchRestorePosts(ids));
+        verifyNoInteractions(postTagsMapper, postLikesMapper, postFavoritesMapper, postAttachmentsMapper);
+    }
+
+    @Test
+    void permanentDeleteStillRemovesAllRelations() {
+        Posts post = new Posts();
+        post.setId(1L);
+        when(postsMapper.selectByIdWithDeleted(1L)).thenReturn(post);
+        when(postsMapper.permanentDeleteById(1L)).thenReturn(1);
+        when(fileUtil.extractImageUrls(any())).thenReturn(Collections.emptyList());
+        assertTrue(postsAdminService.permanentDeletePost(1L));
+        verify(postTagsMapper).deleteByPostId(1L);
+        verify(postLikesMapper).deleteByPostId(1L);
+        verify(postFavoritesMapper).deleteByPostId(1L);
+        verify(postAttachmentsMapper).deleteByPostId(1L);
+    }
+
+    @Test
+    void articlePermanentDeleteReusesCommentTreeCleanupBeforeRemovingPost() {
+        Posts post = new Posts();
+        post.setId(1L);
+        when(postsMapper.selectByIdWithDeleted(1L)).thenReturn(post);
+        when(commentsMapper.selectRootCommentIdsByPostIds(Collections.singletonList(1L))).thenReturn(Arrays.asList(10L, 20L));
+        when(postsMapper.permanentDeleteById(1L)).thenReturn(1);
+        assertTrue(postsAdminService.permanentDeletePost(1L));
+        var order = inOrder(commentsAdminService, postsMapper);
+        order.verify(postsMapper).selectByIdWithDeleted(1L);
+        order.verify(commentsAdminService).batchPermanentDeleteComments(Arrays.asList(10L, 20L));
+        order.verify(postsMapper).permanentDeleteById(1L);
+        verify(commentsMapper, never()).deleteChildrenByPostId(anyLong());
+    }
+
 }

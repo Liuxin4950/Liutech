@@ -62,6 +62,8 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
     private final CommentsMapper commentsMapper;
 
+    private final CommentsAdminService commentsAdminService;
+
     private final FileUtil fileUtil;
 
     private final ImagesService imagesService;
@@ -138,7 +140,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 管理端更新文章状态（无权限检查）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean updatePostStatusForAdmin(Long id, String status, Long operatorId) {
         log.debug("管理端更新文章状态 - 文章ID: {}, 新状态: {}, 操作者: {}", id, status, operatorId);
 
@@ -168,7 +170,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 管理端删除文章（软删除，无权限检查）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean deletePostForAdmin(Long id, Long operatorId) {
         log.debug("管理端删除文章 - 文章ID: {}, 操作者: {}", id, operatorId);
 
@@ -178,18 +180,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
 
-            postTagsMapper.deleteByPostId(id);
-
-            LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
-            likeUpdateWrapper.eq(PostLikes::getPostId, id)
-                    .set(PostLikes::getDeletedAt, new Date());
-            postLikesMapper.update(null, likeUpdateWrapper);
-
-            LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
-            favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
-                    .set(PostFavorites::getDeletedAt, new Date());
-            postFavoritesMapper.update(null, favoriteUpdateWrapper);
-
+            // 软删除保留关联，恢复文章即可恢复标签和交互状态。
             int result = postsMapper.deleteById(id, new Date(), operatorId);
             boolean success = result > 0;
             log.debug("管理端文章删除{} - 文章ID: {}", success ? "成功" : "失败", id);
@@ -205,7 +196,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 管理端批量更新文章状态
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
         log.debug("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
 
@@ -233,27 +224,14 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 批量删除文章（管理端）- 软删除
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean removeByIds(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
                 return false;
             }
 
-            LambdaQueryWrapper<PostTags> tagQueryWrapper = new LambdaQueryWrapper<>();
-            tagQueryWrapper.in(PostTags::getPostId, ids);
-            postTagsMapper.delete(tagQueryWrapper);
-
-            LambdaUpdateWrapper<PostLikes> likesUpdateWrapper = new LambdaUpdateWrapper<>();
-            likesUpdateWrapper.in(PostLikes::getPostId, ids)
-                    .set(PostLikes::getDeletedAt, new Date());
-            postLikesMapper.update(null, likesUpdateWrapper);
-
-            LambdaUpdateWrapper<PostFavorites> favoritesUpdateWrapper = new LambdaUpdateWrapper<>();
-            favoritesUpdateWrapper.in(PostFavorites::getPostId, ids)
-                    .set(PostFavorites::getDeletedAt, new Date());
-            postFavoritesMapper.update(null, favoritesUpdateWrapper);
-
+            // 批量软删除同样只隐藏文章，不销毁可恢复的关联。
             LambdaUpdateWrapper<Posts> postsUpdateWrapper = new LambdaUpdateWrapper<>();
             postsUpdateWrapper.in(Posts::getId, ids)
                     .set(Posts::getDeletedAt, new Date());
@@ -271,7 +249,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 恢复已删除的文章
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean restorePost(Long id) {
         try {
             if (id == null) {
@@ -290,7 +268,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 批量恢复已删除的文章
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean batchRestorePosts(List<Long> ids) {
         try {
             if (ids == null || ids.isEmpty()) {
@@ -310,7 +288,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 彻底删除文章（物理删除）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean permanentDeletePost(Long id) {
         if (id == null) {
             throw new IllegalArgumentException("文章ID不能为空");
@@ -326,8 +304,10 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
             postFavoritesMapper.deleteByPostId(id);
             postLikesMapper.deleteByPostId(id);
-            commentsMapper.deleteChildrenByPostId(id);
-            commentsMapper.deleteRootsByPostId(id);
+            List<Long> commentRoots = commentsMapper.selectRootCommentIdsByPostIds(List.of(id));
+            if (!commentRoots.isEmpty()) {
+                commentsAdminService.batchPermanentDeleteComments(commentRoots);
+            }
             postTagsMapper.deleteByPostId(id);
             postAttachmentsMapper.deleteByPostId(id);
 
@@ -352,7 +332,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
      * 批量彻底删除文章（物理删除）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean batchPermanentDeletePosts(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             throw new IllegalArgumentException("文章ID列表不能为空");
@@ -369,8 +349,10 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
             postFavoritesMapper.deleteByPostIds(ids);
             postLikesMapper.deleteByPostIds(ids);
-            commentsMapper.deleteChildrenByPostIds(ids);
-            commentsMapper.deleteRootsByPostIds(ids);
+            List<Long> commentRoots = commentsMapper.selectRootCommentIdsByPostIds(ids);
+            if (!commentRoots.isEmpty()) {
+                commentsAdminService.batchPermanentDeleteComments(commentRoots);
+            }
             postTagsMapper.deleteByPostIds(ids);
             postAttachmentsMapper.deleteByPostIds(ids);
 

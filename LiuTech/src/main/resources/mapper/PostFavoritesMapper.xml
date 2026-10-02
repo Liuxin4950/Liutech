@@ -64,8 +64,10 @@
     <!-- 统计用户的收藏数量 -->
     <select id="countFavoritesByUserId" resultType="java.lang.Integer">
         SELECT COUNT(*)
-        FROM post_favorites
-        WHERE user_id = #{userId} AND is_favorite = 1 AND deleted_at IS NULL
+        FROM post_favorites f
+        INNER JOIN posts p ON p.id = f.post_id
+        WHERE f.user_id = #{userId} AND f.is_favorite = 1 AND f.deleted_at IS NULL
+          AND p.deleted_at IS NULL AND p.status = 'published'
     </select>
 
     <!-- 分页查询收藏某篇文章的用户列表（JOIN users 带用户信息） -->

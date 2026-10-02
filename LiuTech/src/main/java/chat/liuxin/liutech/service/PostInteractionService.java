@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -44,8 +45,9 @@ public class PostInteractionService {
      * @throws BusinessException 当文章不存在时抛出异常
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean toggleLike(Long postId, Long userId) {
-        Posts post = postsService.getById(postId);
+        Posts post = postsMapper.selectByIdForUpdate(postId);
         if (post == null || post.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         }
@@ -60,7 +62,9 @@ public class PostInteractionService {
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Posts::getId, postId)
                 .set(Posts::getLikeCount, likeCount);
-        postsService.update(updateWrapper);
+        if (!postsService.update(updateWrapper)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章交互计数更新失败");
+        }
 
         return newStatus;
     }
@@ -75,8 +79,9 @@ public class PostInteractionService {
      * @throws BusinessException 当文章不存在时抛出异常
      */
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean toggleFavorite(Long postId, Long userId) {
-        Posts post = postsService.getById(postId);
+        Posts post = postsMapper.selectByIdForUpdate(postId);
         if (post == null || post.getDeletedAt() != null) {
             throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         }
@@ -91,7 +96,9 @@ public class PostInteractionService {
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(Posts::getId, postId)
                 .set(Posts::getFavoriteCount, favoriteCount);
-        postsService.update(updateWrapper);
+        if (!postsService.update(updateWrapper)) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "文章交互计数更新失败");
+        }
 
         return newStatus;
     }

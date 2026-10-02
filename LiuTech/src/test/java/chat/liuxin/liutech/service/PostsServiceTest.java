@@ -354,7 +354,6 @@ class PostsServiceTest {
     void deletePost_shouldDeleteSuccessfully() {
         Posts existPost = createDefaultPost();
         when(postsMapper.selectById(POST_ID)).thenReturn(existPost);
-        when(postTagsMapper.deleteByPostId(POST_ID)).thenReturn(1);
         when(postLikesMapper.update(isNull(), any())).thenReturn(0);
         when(postFavoritesMapper.update(isNull(), any())).thenReturn(0);
         when(postsMapper.deleteById(eq(POST_ID), any(Date.class), eq(AUTHOR_ID))).thenReturn(1);
@@ -362,9 +361,7 @@ class PostsServiceTest {
         boolean result = postsService.deletePost(POST_ID, AUTHOR_ID);
 
         assertTrue(result);
-        verify(postTagsMapper).deleteByPostId(POST_ID);
-        verify(postLikesMapper).update(isNull(), any());
-        verify(postFavoritesMapper).update(isNull(), any());
+        verifyNoInteractions(postTagsMapper, postLikesMapper, postFavoritesMapper);
         verify(postsMapper).deleteById(eq(POST_ID), any(Date.class), eq(AUTHOR_ID));
     }
 
