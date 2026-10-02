@@ -52,14 +52,17 @@ const {
 })
 
 const {
+  loading: crudLoading,
   handleDelete,
   handleBatchDelete,
   handleRestore,
+  handleBatchRestore,
   handlePermanentDelete
 } = useCrudActions({
   deleteFn: (id) => UserService.deleteUser(id),
   batchDeleteFn: (ids) => UserService.batchDeleteUsers(ids),
   restoreFn: (id) => UserService.restoreUser(id),
+  batchRestoreFn: (ids) => UserService.batchRestoreUsers(ids),
   permanentDeleteFn: (id) => UserService.permanentDeleteUser(id),
   onRefresh: load,
   clearSelection,
@@ -176,24 +179,6 @@ const exportCtrl = useTableExport({
   filename: 'users',
 })
 
-const handleBatchRestore = async () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要恢复的用户')
-    return
-  }
-
-  try {
-    const response = await UserService.batchRestoreUsers(selectedRowKeys.value)
-    if (response.code === 200) {
-      message.success('批量恢复成功')
-      clearSelection()
-      load()
-    }
-  } catch (error: any) {
-    if (!error?.isBusiness) message.error('批量恢复失败')
-  }
-}
-
 const handleStatusChange = async (id: number, newStatus: number) => {
   try {
     const response = await UserService.updateUserStatus(id, newStatus === 1)
@@ -296,7 +281,7 @@ const handleBatchDisable = async () => {
           <a-popconfirm title="确定批量删除选中的用户吗？" @confirm="handleBatchDelete(selectedRowKeys)">
             <a-button danger :disabled="selectedRowKeys.length === 0">批量删除</a-button>
           </a-popconfirm>
-          <a-button :disabled="selectedRowKeys.length === 0" @click="handleBatchRestore">批量恢复</a-button>
+          <a-button :disabled="selectedRowKeys.length === 0" :loading="crudLoading" @click="handleBatchRestore(selectedRowKeys)">批量恢复</a-button>
           <a-dropdown>
             <template #overlay>
               <a-menu>
@@ -383,6 +368,5 @@ const handleBatchDisable = async () => {
     </a-modal>
   </div>
 </template>
-
 
 

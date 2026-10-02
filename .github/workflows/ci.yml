@@ -29,6 +29,8 @@ jobs:
               - 'Web/**'
             admin:
               - 'Admin/**'
+              - 'Web/package.json'
+              - 'Web/package-lock.json'
             common:
               - 'pom.xml'
               - 'docker-compose*.yml'
@@ -106,6 +108,10 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: Admin/package-lock.json
+          cache-dependency-path: |
+            Admin/package-lock.json
+            Web/package-lock.json
       - run: npm ci
+      - run: npm --prefix ../Web ci
+      - run: npm --prefix ../Web test -- --config ../Admin/vitest.config.mts
       - run: npm run build

@@ -33,12 +33,14 @@ const {
 
 // ============== CRUD 操作 ==============
 const {
-  handleDelete, handleBatchDelete, handleRestore,
+  loading: crudLoading,
+  handleDelete, handleBatchDelete, handleRestore, handleBatchRestore,
   handlePermanentDelete, handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => PostsService.deletePost(id),
   batchDeleteFn: (ids) => PostsService.batchDeletePosts(ids),
   restoreFn: (id) => PostsService.restorePost(id),
+  batchRestoreFn: (ids) => PostsService.batchRestorePosts(ids),
   permanentDeleteFn: (id) => PostsService.permanentDeletePost(id),
   batchPermanentDeleteFn: (ids) => PostsService.batchPermanentDeletePosts(ids),
   onRefresh: load,
@@ -505,17 +507,6 @@ const createAllAiSuggestedTaxonomy = async () => {
 }
 
 // ============== 自定义操作 ==============
-const handleBatchRestore = async () => {
-  if (!selectedRowKeys.value.length) {
-    message.warning('请选择要恢复的文章')
-    return
-  }
-  const res = await PostsService.batchRestorePosts(selectedRowKeys.value)
-  message.success('批量恢复成功')
-  clearSelection()
-  load()
-}
-
 const handleBatchStatusUpdate = async (status: string) => {
   if (!selectedRowKeys.value.length) {
     message.warning('请选择要更新状态的文章')
@@ -616,7 +607,7 @@ onMounted(async () => {
                </a-popconfirm>
             </template>
             <template v-else>
-              <a-button :disabled="selectedRowKeys.length === 0" @click="handleBatchRestore">批量恢复</a-button>
+              <a-button :disabled="selectedRowKeys.length === 0" :loading="crudLoading" @click="handleBatchRestore(selectedRowKeys)">批量恢复</a-button>
               <a-popconfirm
                 title="确定要彻底删除选中的文章吗？此操作不可恢复！"
                 ok-text="确定"
@@ -1139,4 +1130,3 @@ onMounted(async () => {
   white-space: nowrap;
 }
 </style>
-
