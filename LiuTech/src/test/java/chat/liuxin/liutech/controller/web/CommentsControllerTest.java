@@ -2,6 +2,7 @@ package chat.liuxin.liutech.controller.web;
 
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
+import chat.liuxin.liutech.model.Comments;
 import chat.liuxin.liutech.req.CreateCommentReq;
 import chat.liuxin.liutech.resp.CommentResp;
 import chat.liuxin.liutech.service.CommentsService;
@@ -52,6 +53,25 @@ class CommentsControllerTest {
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertTrue(result.getData().isEmpty());
+    }
+
+    @Test
+    void publicCommentDetailUsesVisibilityQueryAndKeepsNotFoundResponse() {
+        when(commentsService.getPublicCommentById(99L)).thenReturn(null);
+        Result<Comments> result = controller.getCommentById(99L);
+        assertEquals(ErrorCode.NOT_FOUND.getCode(), result.getCode());
+        assertNull(result.getData());
+        verify(commentsService).getPublicCommentById(99L);
+        verify(commentsService, never()).getById(anyLong());
+    }
+
+    @Test
+    void publicCommentDetailReturnsVisibleComment() {
+        Comments comment = new Comments();
+        comment.setId(99L);
+        comment.setContent("公开评论");
+        when(commentsService.getPublicCommentById(99L)).thenReturn(comment);
+        assertSame(comment, controller.getCommentById(99L).getData());
     }
 
     // ========== createComment ==========

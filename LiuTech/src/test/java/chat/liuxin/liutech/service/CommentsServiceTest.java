@@ -38,6 +38,14 @@ class CommentsServiceTest {
     // ========== getTopLevelCommentsByPostId ==========
 
     @Test
+    void publicDetailDoesNotFallBackToUnrestrictedPrimaryKeyQuery() {
+        when(commentsMapper.selectPublicCommentById(99L)).thenReturn(null);
+        assertNull(commentsService.getPublicCommentById(99L));
+        verify(commentsMapper).selectPublicCommentById(99L);
+        verify(commentsMapper, never()).selectById(anyLong());
+    }
+
+    @Test
     void getTopLevelCommentsByPostId_shouldReturnTreeStructure() {
         Comments top1 = createComment(1L, 100L, null, "top comment 1");
         Comments top2 = createComment(2L, 100L, null, "top comment 2");

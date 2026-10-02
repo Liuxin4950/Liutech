@@ -42,6 +42,12 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
     private final UserUtils userUtils;
 
+    /** 公开详情只返回未删除评论及其仍公开、未删除的所属文章；后台查询使用独立入口。 */
+    @Transactional(readOnly = true)
+    public Comments getPublicCommentById(Long id) {
+        return commentsMapper.selectPublicCommentById(id);
+    }
+
     /**
      * 分页查询文章评论
      * 获取指定文章的所有评论，支持分页显示

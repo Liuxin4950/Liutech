@@ -165,12 +165,13 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             // 递归查询所有子孙评论ID
             List<Long> descendantIds = commentsMapper.selectAllDescendantIds(List.of(id));
             if (descendantIds != null && !descendantIds.isEmpty()) {
-                commentsMapper.permanentDeleteByIds(descendantIds);
+                // parent_id 是无级联的自引用外键，必须按深度倒序逐条删除。
+                deleteDescendantsInOrder(descendantIds);
                 log.debug("彻底删除评论的子孙评论数量: {}", descendantIds.size());
             }
 
-            // 删除自身
-            int result = commentsMapper.deleteById(id);
+            // 使用显式 DELETE，BaseMapper.deleteById 会触发 @TableLogic。
+            int result = commentsMapper.permanentDeleteByIds(List.of(id));
             boolean success = result > 0;
             log.debug("彻底删除评论{} - 评论ID: {}", success ? "成功" : "失败", id);
             return success;
@@ -189,17 +190,16 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
      */
     @Transactional(rollbackFor = Exception.class)
     public boolean batchPermanentDeleteComments(List<Long> ids) {
-        log.debug("批量彻底删除评论 - 评论数量: {}", ids.size());
-
         try {
             if (ids == null || ids.isEmpty()) {
                 return false;
             }
+            log.debug("批量彻底删除评论 - 评论数量: {}", ids.size());
 
             // 递归查询所有子孙评论ID
             List<Long> descendantIds = commentsMapper.selectAllDescendantIds(ids);
             if (descendantIds != null && !descendantIds.isEmpty()) {
-                commentsMapper.permanentDeleteByIds(descendantIds);
+                deleteDescendantsInOrder(descendantIds);
                 log.debug("批量彻底删除评论的子孙评论数量: {}", descendantIds.size());
             }
 
@@ -211,6 +211,13 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
         } catch (Exception e) {
             log.error("批量彻底删除评论失败 - 错误: {}", e.getMessage(), e);
             throw new RuntimeException("批量彻底删除评论失败: " + e.getMessage());
+        }
+    }
+
+    /** Mapper 已按最大深度倒序去重；先删最深子孙，保证自引用外键完整。 */
+    private void deleteDescendantsInOrder(List<Long> descendantIds) {
+        for (Long descendantId : descendantIds) {
+            commentsMapper.permanentDeleteByIds(List.of(descendantId));
         }
     }
 }

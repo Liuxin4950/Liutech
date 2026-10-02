@@ -21,7 +21,12 @@
         </association>
     </resultMap>
 
-    <!-- 基础查询SQL片段 -->
+    <!-- 公开评论对应的文章必须仍公开且未删除；后台审核查询不复用此片段。 -->
+    <sql id="publicPostCondition">
+        p.deleted_at IS NULL AND p.status = 'published'
+    </sql>
+
+    <!-- 公开评论基础查询SQL片段 -->
     <sql id="baseSelectSql">
         SELECT
             c.id,
@@ -35,9 +40,16 @@
             u.username,
             u.avatar_url
         FROM comments c
+        INNER JOIN posts p ON p.id = c.post_id
         LEFT JOIN users u ON c.user_id = u.id
         WHERE c.deleted_at IS NULL
+        AND <include refid="publicPostCondition"/>
     </sql>
+
+    <select id="selectPublicCommentById" resultMap="CommentWithUserMap">
+        <include refid="baseSelectSql"/>
+        AND c.id = #{id}
+    </select>
 
     <!-- 分页查询文章评论 -->
     <select id="selectCommentsByPostId" resultMap="CommentWithUserMap">
@@ -65,8 +77,10 @@
     <select id="countCommentsByPostId" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM comments c
+        INNER JOIN posts p ON p.id = c.post_id
         WHERE c.post_id = #{postId}
         AND c.deleted_at IS NULL
+        AND <include refid="publicPostCondition"/>
     </select>
 
     <!-- 查询最新评论 -->
@@ -255,18 +269,20 @@
         </foreach>
     </delete>
 
-    <!-- 递归查询指定评论的所有子孙评论ID（不含传入的ID本身） -->
+    <!-- 删除专用：包含已删除/未发布文章上的评论，按最大深度倒序去重。 -->
     <select id="selectAllDescendantIds" resultType="java.lang.Long">
         WITH RECURSIVE descendants AS (
-            SELECT id FROM comments WHERE parent_id IN
+            SELECT id, 1 AS depth FROM comments WHERE parent_id IN
             <foreach collection="ids" item="id" open="(" separator="," close=")">
                 #{id}
             </foreach>
             UNION ALL
-            SELECT c.id FROM comments c
+            SELECT c.id, d.depth + 1 AS depth FROM comments c
             INNER JOIN descendants d ON c.parent_id = d.id
         )
         SELECT id FROM descendants
+        GROUP BY id
+        ORDER BY MAX(depth) DESC, id DESC
     </select>
 
     <!-- 递归查询指定评论的所有子孙评论（含用户信息，不含传入的ID本身） -->
@@ -297,8 +313,18 @@
             u.username,
             u.avatar_url
         FROM descendants d
+        INNER JOIN posts p ON p.id = d.post_id
         LEFT JOIN users u ON d.user_id = u.id
+        WHERE <include refid="publicPostCondition"/>
         ORDER BY d.created_at ASC
+    </select>
+
+    <select id="selectRootCommentIdsByPostIds" resultType="java.lang.Long">
+        SELECT id FROM comments
+        WHERE parent_id IS NULL AND post_id IN
+        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
     </select>
 
 </mapper>

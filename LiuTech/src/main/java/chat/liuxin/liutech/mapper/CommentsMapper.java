@@ -19,6 +19,9 @@ import chat.liuxin.liutech.model.Comments;
 public interface CommentsMapper extends BaseMapper<Comments> {
     long countVisibleCommentsByUserId(@Param("userId") Long userId);
 
+    /** 公开评论详情：排除删除评论以及删除、未发布文章上的评论。 */
+    Comments selectPublicCommentById(@Param("id") Long id);
+
     /**
      * 分页查询文章评论（包含用户信息）
      * @param page 分页参数
@@ -156,7 +159,7 @@ public interface CommentsMapper extends BaseMapper<Comments> {
     /**
      * 递归查询指定评论的所有子孙评论ID（不含传入的ID本身）
      * @param ids 祖先评论ID列表
-     * @return 所有子孙评论ID
+     * @return 去重后的所有子孙评论ID，按最大深度倒序，供物理删除时先删最深子节点
      */
     List<Long> selectAllDescendantIds(@Param("ids") List<Long> ids);
 
@@ -167,4 +170,7 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      * @return 所有子孙评论列表，按created_at升序排列
      */
     List<Comments> selectAllDescendantsByRootIds(@Param("rootIds") List<Long> rootIds);
+    /** 管理端删除文章时取得所有根评论，包含已软删除记录。 */
+    List<Long> selectRootCommentIdsByPostIds(@Param("postIds") List<Long> postIds);
+
 }

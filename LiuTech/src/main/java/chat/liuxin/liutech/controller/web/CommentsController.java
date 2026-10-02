@@ -127,7 +127,7 @@ public class CommentsController {
     @GetMapping("/{id}")
     public Result<Comments> getCommentById(@PathVariable Long id) {
 
-        Comments comment = commentsService.getById(id);
+        Comments comment = commentsService.getPublicCommentById(id);
         if (comment == null) {
             log.warn("评论不存在 - ID: {}", id);
             return Result.fail(ErrorCode.NOT_FOUND, "评论不存在");
