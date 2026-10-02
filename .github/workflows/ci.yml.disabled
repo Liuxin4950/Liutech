@@ -1,3 +1,4 @@
+# 暂停 CI/CD：此文件改为 .disabled 后缀，GitHub Actions 不加载。恢复时移除 .disabled 后缀。
 name: CI
 
 on:
