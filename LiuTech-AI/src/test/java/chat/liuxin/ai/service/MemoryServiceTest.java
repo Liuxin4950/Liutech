@@ -47,6 +47,7 @@ class MemoryServiceTest {
         owned.setUserId("42");
         owned.setMessageCount(5);
         when(conversations.selectById(99L)).thenReturn(owned);
+        when(conversations.lockById(99L)).thenReturn(owned);
     }
 
     @Test
@@ -77,19 +78,92 @@ class MemoryServiceTest {
                 () -> memory.saveUserMessage("42", 123L, "消息", "model", null));
         assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
         verifyNoInteractions(messages);
-        verify(conversations, never()).updateById(any(AiConversation.class));
+        verify(conversations, never()).incrementMessageCount(anyLong(), any());
     }
 
     @Test
     void ownerCanSaveUserAndAssistantMessagesAndUpdateCount() {
+        when(messages.selectOne(any(Wrapper.class))).thenReturn(message(5), message(6));
         memory.saveUserMessage("42", 99L, "问题", "model", null);
         memory.saveAssistantMessage("42", 99L, "回答", "model", MemoryService.MESSAGE_STATUS_NORMAL, null);
         var captor = ArgumentCaptor.forClass(AiChatMessage.class);
         verify(messages, times(2)).insert(captor.capture());
         assertEquals(List.of("user", "assistant"), captor.getAllValues().stream().map(AiChatMessage::getRole).toList());
         assertTrue(captor.getAllValues().stream().allMatch(m -> "42".equals(m.getUserId()) && m.getConversationId() == 99L));
-        assertEquals(7, owned.getMessageCount());
-        verify(conversations, times(2)).updateById(owned);
+        assertEquals(List.of(6, 7), captor.getAllValues().stream().map(AiChatMessage::getSeqNo).toList());
+        verify(conversations, times(2)).incrementMessageCount(eq(99L), any());
+        // 落库统计只由原子 SQL 更新，不能把查出的旧实体写回。
+        verify(conversations, never()).updateById(any(AiConversation.class));
+        verify(conversations, never()).selectById(anyLong());
+    }
+
+    @Test
+    void messageWriteLocksAndChecksOwnerBeforeReadingSequenceAndInserting() {
+        when(messages.selectOne(any(Wrapper.class))).thenAnswer(invocation -> {
+            assertTrue(((Wrapper<?>) invocation.getArgument(0)).getSqlSegment().endsWith("LIMIT 1 FOR UPDATE"));
+            return message(5);
+        });
+        memory.saveUserMessage("42", 99L, "问题", "model", null);
+        var order = inOrder(conversations, messages);
+        order.verify(conversations).lockById(99L);
+        order.verify(messages).selectOne(any(Wrapper.class));
+        order.verify(messages).insert(any(AiChatMessage.class));
+        order.verify(conversations).incrementMessageCount(eq(99L), any());
+    }
+
+    @Test
+    void failedMessageInsertDoesNotIncrementConversationCount() {
+        doThrow(new IllegalStateException("插入失败")).when(messages).insert(any(AiChatMessage.class));
+        assertThrows(IllegalStateException.class, () -> memory.saveUserMessage("42", 99L, "问题", "model", null));
+        verify(conversations, never()).incrementMessageCount(anyLong(), any());
+    }
+
+    @Test
+    void renameAndArchiveOnlyUpdateTheirOwnFields() {
+        memory.renameConversation(99L, "新标题");
+        memory.archiveConversation(99L);
+        var updates = ArgumentCaptor.forClass(AiConversation.class);
+        verify(conversations, times(2)).updateById(updates.capture());
+        AiConversation rename = updates.getAllValues().get(0);
+        assertEquals("新标题", rename.getTitle());
+        assertNull(rename.getStatus());
+        AiConversation archive = updates.getAllValues().get(1);
+        assertEquals(MemoryService.CONVERSATION_STATUS_ARCHIVED, archive.getStatus());
+        assertNull(archive.getTitle());
+        for (AiConversation update : updates.getAllValues()) {
+            assertEquals(99L, update.getId());
+            assertNotNull(update.getUpdatedAt());
+            assertNull(update.getMessageCount());
+            assertNull(update.getLastMessageAt());
+            assertNull(update.getUserId());
+            assertNull(update.getCreatedAt());
+        }
+        verify(conversations, never()).selectById(anyLong());
+    }
+
+    @Test
+    void conversationDeleteUsesSameLockOrderAsMessageWrites() {
+        memory.deleteConversation(99L);
+        var order = inOrder(conversations, messages);
+        order.verify(conversations).lockById(99L);
+        order.verify(messages).delete(any(Wrapper.class));
+        order.verify(conversations).deleteById(99L);
+    }
+
+    @Test
+    void clearMemoryLocksConversationsInOrderBeforeDeletingTheirMessages() {
+        when(conversations.selectList(any(Wrapper.class))).thenAnswer(invocation -> {
+            String sql = ((Wrapper<?>) invocation.getArgument(0)).getSqlSegment();
+            assertTrue(sql.endsWith("ORDER BY id ASC FOR UPDATE"));
+            return List.of(owned);
+        });
+        when(messages.delete(any(Wrapper.class))).thenReturn(5);
+        when(conversations.delete(any(Wrapper.class))).thenReturn(1);
+        assertEquals(new MemoryService.PurgeCounts(1, 5), memory.clearAllMemory("42"));
+        var order = inOrder(conversations, messages);
+        order.verify(conversations).selectList(any(Wrapper.class));
+        order.verify(messages).delete(any(Wrapper.class));
+        order.verify(conversations).delete(any(Wrapper.class));
     }
 
     @Test
@@ -159,6 +233,14 @@ class MemoryServiceTest {
     }
 
     @Test
+    void historyPaginationUsesLongOffsetAndPreservesDefaultPageSize() {
+        memory.listHistoryMessages("42", Integer.MAX_VALUE, Integer.MAX_VALUE);
+        verify(messages).selectHistoryMessagesByUserId("42", 214748364600L, 100);
+        memory.listHistoryMessages("42", -1, -1);
+        verify(messages).selectHistoryMessagesByUserId("42", 0L, 20);
+    }
+
+    @Test
     void messagePagesStartWithRecentMessagesAndReturnChronologicalOrder() {
         List<String> sql = new ArrayList<>();
         AiChatMessage older = message(2);
@@ -189,6 +271,7 @@ class MemoryServiceTest {
     private void assertNoMessageWrite() {
         verifyNoInteractions(messages);
         verify(conversations, never()).updateById(any(AiConversation.class));
+        verify(conversations, never()).incrementMessageCount(anyLong(), any());
         assertEquals(5, owned.getMessageCount());
     }
 

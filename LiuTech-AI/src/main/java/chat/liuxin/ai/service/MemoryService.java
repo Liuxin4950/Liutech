@@ -58,9 +58,9 @@ public class MemoryService {
      * 分页查用户所有历史消息(倒序),供管理后台/个人中心的消息记录列表使用。
      */
     public List<AiChatMessage> listHistoryMessages(String userId, int page, int size) {
-        if (page < 1 || size <= 0) return Collections.emptyList();
-        int offset = (page - 1) * size;
-        return messageMapper.selectHistoryMessagesByUserId(userId, offset, size);
+        int safeSize = size < 1 ? 20 : Math.min(size, 100);
+        long offset = (Math.max(1, page) - 1L) * safeSize;
+        return messageMapper.selectHistoryMessagesByUserId(userId, offset, safeSize);
     }
 
     /** 与 {@link #listHistoryMessages} 配对的总数查询,用于分页控件。 */
@@ -75,7 +75,7 @@ public class MemoryService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson) {
-        getConversationOwnedByUser(userId, conversationId);
+        lockConversationOwnedByUser(userId, conversationId);
         Integer maxSeqNo = getMaxSeqNo(conversationId);
 
         AiChatMessage m = new AiChatMessage();
@@ -99,7 +99,7 @@ public class MemoryService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson) {
-        getConversationOwnedByUser(userId, conversationId);
+        lockConversationOwnedByUser(userId, conversationId);
         Integer maxSeqNo = getMaxSeqNo(conversationId);
 
         AiChatMessage m = new AiChatMessage();
@@ -116,17 +116,10 @@ public class MemoryService {
     }
 
     /**
-     * 每插入一条消息后调,累加会话 messageCount、刷新 lastMessageAt / updatedAt。
-     * 会话不存在(如访客虚拟会话或已被删)时静默跳过。
+     * 在持有会话行锁的消息事务中调用，原子累加计数并只更新消息统计字段。
      */
     private void touchConversation(Long conversationId) {
-        if (conversationId == null) return;
-        AiConversation c = conversationMapper.selectById(conversationId);
-        if (c == null) return;
-        c.setMessageCount((c.getMessageCount() == null ? 0 : c.getMessageCount()) + 1);
-        c.setLastMessageAt(LocalDateTime.now());
-        c.setUpdatedAt(LocalDateTime.now());
-        conversationMapper.updateById(c);
+        conversationMapper.incrementMessageCount(conversationId, LocalDateTime.now());
     }
 
     /**
@@ -137,7 +130,8 @@ public class MemoryService {
                 .eq(AiChatMessage::getConversationId, conversationId)
                 .select(AiChatMessage::getSeqNo)
                 .orderByDesc(AiChatMessage::getSeqNo)
-                .last("LIMIT 1")
+                // 当前读：即使调用方事务已有 RR 快照，也读取前一条写入已提交的序号。
+                .last("LIMIT 1 FOR UPDATE")
         );
         return lastMessage != null ? lastMessage.getSeqNo() : 0;
     }
@@ -149,7 +143,10 @@ public class MemoryService {
     public PurgeCounts clearAllMemory(String userId) {
         List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
                 .eq(AiConversation::getUserId, userId)
-                .select(AiConversation::getId))
+                .select(AiConversation::getId)
+                .orderByAsc(AiConversation::getId)
+                // 与保存消息保持同一锁顺序：会话 -> 消息。
+                .last("FOR UPDATE"))
                 .stream().map(AiConversation::getId).toList();
 
         int deleted = 0;
@@ -222,6 +219,15 @@ public class MemoryService {
      */
     public AiConversation getConversationOwnedByUser(String userId, Long conversationId) {
         AiConversation conversation = conversationMapper.selectById(conversationId);
+        return requireConversationOwnedByUser(userId, conversation);
+    }
+
+    /** 行锁持续到消息事务结束，同会话串行落库，不同会话仍可独立写入。 */
+    private void lockConversationOwnedByUser(String userId, Long conversationId) {
+        requireConversationOwnedByUser(userId, conversationMapper.lockById(conversationId));
+    }
+
+    private AiConversation requireConversationOwnedByUser(String userId, AiConversation conversation) {
         if (conversation == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在或已删除");
         }
@@ -294,23 +300,21 @@ public class MemoryService {
     /** 重命名会话标题;会话不存在时静默跳过。调用方应先做属主校验。 */
     @Transactional(rollbackFor = Exception.class)
     public void renameConversation(Long conversationId, String title) {
-        var c = conversationMapper.selectById(conversationId);
-        if (c != null) {
-            c.setTitle(title);
-            c.setUpdatedAt(LocalDateTime.now());
-            conversationMapper.updateById(c);
-        }
+        AiConversation update = new AiConversation();
+        update.setId(conversationId);
+        update.setTitle(title);
+        update.setUpdatedAt(LocalDateTime.now());
+        conversationMapper.updateById(update);
     }
 
     /** 软删除会话:置 status=9,列表查询会自动过滤,消息数据保留。 */
     @Transactional(rollbackFor = Exception.class)
     public void archiveConversation(Long conversationId) {
-        var c = conversationMapper.selectById(conversationId);
-        if (c != null) {
-            c.setStatus(CONVERSATION_STATUS_ARCHIVED);
-            c.setUpdatedAt(LocalDateTime.now());
-            conversationMapper.updateById(c);
-        }
+        AiConversation update = new AiConversation();
+        update.setId(conversationId);
+        update.setStatus(CONVERSATION_STATUS_ARCHIVED);
+        update.setUpdatedAt(LocalDateTime.now());
+        conversationMapper.updateById(update);
     }
 
     /**
@@ -319,6 +323,7 @@ public class MemoryService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void deleteConversation(Long conversationId) {
+        if (conversationMapper.lockById(conversationId) == null) return;
         messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getConversationId, conversationId));
         conversationMapper.deleteById(conversationId);

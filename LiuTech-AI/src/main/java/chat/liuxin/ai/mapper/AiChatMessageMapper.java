@@ -49,7 +49,7 @@ public interface AiChatMessageMapper extends BaseMapper<AiChatMessage> {
             "ORDER BY m.created_at DESC, m.id DESC " +
             "LIMIT #{offset}, #{size}")
     List<AiChatMessage> selectHistoryMessagesByUserId(@Param("userId") String userId,
-                                                     @Param("offset") int offset,
+                                                     @Param("offset") long offset,
                                                      @Param("size") int size);
     
     /**
