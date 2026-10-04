@@ -39,9 +39,14 @@ public final class SseEmitterHelper {
     public static void sendSseEvent(SseEmitter emitter, String event, Map<String, Object> data) throws IOException {
         Object safeData = data != null ? data : new HashMap<String, Object>();
         synchronized (emitter) {
-            emitter.send(SseEmitter.event()
-                    .name(event != null ? event : "unknown")
-                    .data(safeData));
+            try {
+                emitter.send(SseEmitter.event()
+                        .name(event != null ? event : "unknown")
+                        .data(safeData));
+            } catch (IllegalStateException closed) {
+                // 容器完成/浏览器断开与发送可能同时发生，统一交调用方的断流路径处理。
+                throw new IOException("SSE 连接已完成或关闭", closed);
+            }
         }
     }
 
@@ -68,6 +73,8 @@ public final class SseEmitterHelper {
                 executor.shutdown();
                 executor.awaitTermination(2, TimeUnit.SECONDS);
             }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
         } catch (Exception ignore) {
         }
     }

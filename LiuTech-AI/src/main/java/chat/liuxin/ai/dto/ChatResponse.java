@@ -71,6 +71,9 @@ public class ChatResponse {
      * user: 登录用户模式
      */
     private String mode;
+
+    /** 同步写作返回待采纳字段，不代表文章已持久化。 */
+    private java.util.List<FieldUpdatePayload> fieldUpdates;
     
     
     /**

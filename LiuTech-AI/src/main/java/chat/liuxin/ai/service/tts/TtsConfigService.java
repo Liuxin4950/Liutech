@@ -7,6 +7,8 @@ import chat.liuxin.ai.mapper.AiTtsConfigMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 
@@ -36,6 +38,11 @@ public class TtsConfigService {
 
     @Transactional(rollbackFor = Exception.class)
     public TtsConfigDTO updateConfig(TtsConfigRequest config) {
+        String requestedFormat = config == null ? null : normalizeText(config.getResponseFormat());
+        if (requestedFormat != null && !java.util.Set.of("mp3", "wav", "opus")
+                .contains(requestedFormat.toLowerCase(java.util.Locale.ROOT))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "语音输出格式仅支持 mp3、wav、opus");
+        }
         boolean enabled = config != null && Boolean.TRUE.equals(config.getEnabled());
         String baseUrl = config == null ? null : normalizeBaseUrl(config.getBaseUrl());
         String voiceModel = config == null ? null : normalizeText(config.getVoiceModel());
@@ -133,7 +140,7 @@ public class TtsConfigService {
         if (normalized == null) return DEFAULT_RESPONSE_FORMAT;
         String lower = normalized.toLowerCase();
         return switch (lower) {
-            case "wav", "opus", "pcm" -> lower;
+            case "wav", "opus" -> lower;
             default -> DEFAULT_RESPONSE_FORMAT;
         };
     }

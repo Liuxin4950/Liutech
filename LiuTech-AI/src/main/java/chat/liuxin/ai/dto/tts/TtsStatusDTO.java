@@ -13,10 +13,16 @@ public class TtsStatusDTO {
      */
     private boolean enabled;
 
+    /** 当前供应商所需地址/密钥/音色配置是否齐全。 */
+    private boolean configured;
+
     /**
      * 当前服务是否可用（可连通）
      */
     private boolean online;
+
+    /** online 是否有最近探测或真实推理结果支持；配置齐全不等同于在线。 */
+    private boolean onlineVerified;
 
     /**
      * 当前生效的 TTS 基础地址（用于前端调试展示）

@@ -19,4 +19,9 @@ public interface ToolGroup {
      * @return 允许的角色集合
      */
     Set<String> allowedRoles();
+
+    /** 请求模式由服务端入口决定，历史和文章内容不能切换模式。 */
+    default Set<String> allowedModes() {
+        return Set.of("CHAT");
+    }
 }

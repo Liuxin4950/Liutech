@@ -6,6 +6,10 @@ import lombok.AllArgsConstructor;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
 import java.util.Map;
 import java.util.List;
 
@@ -38,12 +42,15 @@ public class ChatRequest {
      * 控制AI回复的随机性，范围0.0-1.0
      * 0.0表示最确定性，1.0表示最随机
      */
+    @DecimalMin(value = "0.0", message = "温度不能小于0")
+    @DecimalMax(value = "1.0", message = "温度不能大于1")
     private Double temperature;
     
     /**
      * 最大令牌数（可选）
      * 控制AI回复的最大长度
      */
+    @Positive(message = "输出上限必须大于0")
     private Integer maxTokens;
 
     /**
@@ -58,10 +65,12 @@ public class ChatRequest {
      * 仅用于匿名聊天，不允许服务端持久化。
      */
     @Valid
+    @Size(max = 14, message = "临时历史最多14条")
     private List<TempMessage> tempMessages;
 
     // 会话ID（可选）
     // 用于维护上下文，若不指定则创建新会话
+    @Positive(message = "会话ID必须大于0")
     private Long conversationId;
 
     /**
@@ -83,6 +92,7 @@ public class ChatRequest {
     @AllArgsConstructor
     public static class TempMessage {
         @NotBlank(message = "临时消息角色不能为空")
+        @Pattern(regexp = "user|assistant", message = "临时消息只允许user或assistant角色")
         private String role;
 
         @NotBlank(message = "临时消息内容不能为空")
@@ -90,4 +100,3 @@ public class ChatRequest {
         private String content;
     }
 }
-

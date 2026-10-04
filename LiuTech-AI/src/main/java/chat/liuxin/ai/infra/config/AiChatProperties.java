@@ -39,15 +39,15 @@ public class AiChatProperties {
          * 模型策略：单次输出上限的全局安全上限
          *
          * 管理端为单个模型配置的 max_tokens 不得超过此值（保存时就报错），
-         * 读取时若仍超限会被夹小并打 WARN —— 不再像过去那样静默夹取。
+         * 读取时若仍超限会被夹小并打 WARN；0表示不另设上限，默认遵循模型配置。
          */
-        private int modelPolicyMaxTokensCeiling = 65536;
+        private int modelPolicyMaxTokensCeiling = 0;
 
         /**
          * 模型策略：未配置 context_window 时的兜底上下文窗口
          *
          * 管理端没填的模型按此值算输入预算。取 32768 是保守选择：
-         * 主流开源模型上下文都 ≥ 32K，宁可少塞也不越界。
+         * 未知模型应由管理员补齐真实窗口，不据模型名称猜测容量。
          */
         private int modelPolicyDefaultContextWindow = 32768;
 
@@ -58,7 +58,7 @@ public class AiChatProperties {
          * 本值是成本护栏 —— 即使模型支持 200K 上下文，也不希望一次请求就烧掉大量额度。
          * 设为 0 或负数表示不限制。
          */
-        private int modelPolicyMaxInputTokens = 96000;
+        private int modelPolicyMaxInputTokens = 0;
     }
 
     /** Agent 相关限制：注入模型的内容体积控制 */
@@ -72,8 +72,13 @@ public class AiChatProperties {
          */
         private int maxToolResultChars = 12000;
 
-        /** 草稿快照 / 站点上下文注入上限（字符），超出截断 */
-        private int maxContextChars = 6000;
+        /** 一次请求最多执行的工具轮次与工具数量，不能由请求或模型修改。 */
+        private int maxToolRounds = 8;
+        private int maxToolCalls = 24;
+
+        /** 活跃推理和准备任务队列的服务端上限。 */
+        private int maxConcurrentRequests = 16;
+        private int maxQueuedRequests = 32;
 
         /** article-results 事件最多抽取几篇文章 */
         private int maxArticleResults = 8;

@@ -3,10 +3,13 @@ package chat.liuxin.ai.service;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import chat.liuxin.ai.infra.security.PromptBudget;
+import chat.liuxin.ai.common.mcp.RoleBasedToolRegistry;
+import org.springframework.ai.support.ToolCallbacks;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import chat.liuxin.ai.infra.exception.AIServiceException;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -27,6 +30,7 @@ public class ChatServiceHelper {
     private final PromptService promptService;
     private final MemoryService memoryService;
     private final PromptBudget promptBudget;
+    private final RoleBasedToolRegistry toolRegistry;
 
     /**
      * 组装本次调用要发送给模型的完整消息序列，并保证不超出模型的输入预算。
@@ -48,6 +52,7 @@ public class ChatServiceHelper {
     public List<Message> prepareMessages(ChatRequest request, String userId, Long conversationId,
                                          boolean guestMode, boolean writingMode,
                                          String modelName, AiModelPolicy.ModelParameters params) {
+        validateContext(request);
         PromptService.AssembledPrompt parts = promptService.assembleParts(
                 request, userId, conversationId, guestMode, writingMode, memoryService);
 
@@ -56,23 +61,67 @@ public class ChatServiceHelper {
 
         int mandatoryTokens = promptBudget.estimateTokens(parts.mandatory())
                 + promptBudget.estimateTokens(currentInput.getText()) + 4;
+        int schemaTokens = 0;
+        if (toolRegistry != null) {
+            var tools = java.util.Arrays.asList(ToolCallbacks.from(toolRegistry.getToolsForRoleAndMode(
+                    writingMode ? "ADMIN" : "GUEST", writingMode ? "WRITING" : "CHAT").toArray()));
+            schemaTokens = promptBudget.estimateToolTokens(tools);
+            mandatoryTokens += schemaTokens;
+        }
 
         // 必需内容都放不下 → 立刻失败，并告诉用户超了多少、可以怎么做
         promptBudget.assertMandatoryFits(modelName, mandatoryTokens,
                 params.inputBudgetTokens(), params.contextWindow(), params.maxTokens());
 
-        int historyBudget = params.inputBudgetTokens() - mandatoryTokens;
+        int remaining = params.inputBudgetTokens() - mandatoryTokens;
+        List<Message> references = new ArrayList<>();
+        int toolReserve = Math.min(remaining / 2, Math.min(12000, params.inputBudgetTokens() / 4));
+        remaining -= toolReserve;
+        int referenceBudget = remaining / 2;
+        for (Message reference : parts.references()) {
+            if (referenceBudget < 128) break;
+            String text = reference.getText();
+            int cost = promptBudget.estimateTokens(text) + 4;
+            if (cost > referenceBudget) {
+                String notice = "\n[当前文章参考资料已按模型预算节选，不能声称已读取全文；需要后续内容时调用分段读取工具。]";
+                text = promptBudget.truncateReference(text, referenceBudget - 4, notice);
+                cost = promptBudget.estimateTokens(text) + 4;
+            }
+            references.add(new UserMessage(text));
+            referenceBudget -= cost;
+            remaining -= cost;
+        }
+        int historyBudget = remaining;
         List<Message> history = promptBudget.trimHistory(parts.history(), historyBudget);
 
         List<Message> messages = new ArrayList<>(parts.mandatory());
+        messages.addAll(references);
         messages.addAll(history);
         messages.add(currentInput);
 
         int historyTokens = promptBudget.estimateTokens(history);
         log.info("输入预算 - 模型: {}, 上下文: {}, 输出上限: {}, 输入预算: {}, 本次实际: {} token（必需 {} + 历史 {} 条 {}）, 消息数: {}",
                 modelName, params.contextWindow(), params.maxTokens(), params.inputBudgetTokens(),
-                mandatoryTokens + historyTokens, mandatoryTokens, history.size(), historyTokens, messages.size());
+                promptBudget.estimateTokens(messages) + schemaTokens, mandatoryTokens, history.size(), historyTokens, messages.size());
         return messages;
+    }
+
+    private void validateContext(ChatRequest request) {
+        var context = request.getContext();
+        if (context == null) return;
+        var allowed = java.util.Set.of("page", "postId", "recommendations", "requestedFields", "source", "appendTags");
+        if (context.size() > allowed.size() || context.keySet().stream().anyMatch(key -> !allowed.contains(key))) {
+            throw new AIServiceException.RequestException("页面上下文包含不支持的字段");
+        }
+        if (String.valueOf(context).length() > 20000) {
+            throw new AIServiceException.RequestException("页面上下文过长，请减少推荐记录后重试");
+        }
+        Object fields = context.get("requestedFields");
+        if (fields != null && (!(fields instanceof List<?> values) || values.size() > 8
+                || values.stream().anyMatch(value -> !(value instanceof String)
+                || !java.util.Set.of("title", "summary", "content", "category", "tags", "tag", "check").contains(value)))) {
+            throw new AIServiceException.RequestException("写作字段范围无效");
+        }
     }
 
     /**

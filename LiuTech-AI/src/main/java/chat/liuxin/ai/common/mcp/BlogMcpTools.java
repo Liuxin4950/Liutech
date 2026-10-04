@@ -55,7 +55,10 @@ public class BlogMcpTools implements ToolGroup {
             @ToolParam(description = "返回数量，建议 1 到 8") Integer limit
     ) {
         log.debug("工具调用: searchPosts, keyword={}, limit={}", keyword, limit);
-        List<PostSummaryDTO> results = blogApiClient.searchPosts(keyword, limit);
+        if (keyword == null || keyword.length() > 200) {
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("搜索关键词不能超过200个字符");
+        }
+        List<PostSummaryDTO> results = blogApiClient.searchPosts(keyword, boundedLimit(limit));
         log.debug("搜索结果: {} 篇", results.size());
         return results;
     }
@@ -71,7 +74,7 @@ public class BlogMcpTools implements ToolGroup {
             @ToolParam(description = "返回数量，建议 1 到 8") Integer limit
     ) {
         log.debug("工具调用: getPostsByCategory, categoryId={}, limit={}", categoryId, limit);
-        int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
+        int size = boundedLimit(limit);
         List<PostSummaryDTO> results = blogApiClient.getPostsByCategory(categoryId, size);
         log.debug("分类文章结果: {} 篇", results.size());
         return results;
@@ -83,7 +86,7 @@ public class BlogMcpTools implements ToolGroup {
     @Tool(description = "获取博客最新发布的文章列表，适合用户要求看看最近更新了什么时调用。推荐文章时必须使用 [标题](/post/ID) 格式引用")
     public List<PostSummaryDTO> getLatestPosts(@ToolParam(description = "返回数量，建议 1 到 8") Integer limit) {
         log.debug("工具调用: getLatestPosts, limit={}", limit);
-        int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
+        int size = boundedLimit(limit);
         List<PostSummaryDTO> results = blogApiClient.getLatestPosts(size);
         log.debug("最新文章结果: {} 篇", results.size());
         return results;
@@ -95,7 +98,7 @@ public class BlogMcpTools implements ToolGroup {
     @Tool(description = "获取博客热门文章列表，适合用户要求看热门内容时调用。推荐文章时必须使用 [标题](/post/ID) 格式引用")
     public List<PostSummaryDTO> getHotPosts(@ToolParam(description = "返回数量，建议 1 到 8") Integer limit) {
         log.debug("工具调用: getHotPosts, limit={}", limit);
-        int size = limit != null ? limit : DEFAULT_TOOL_LIMIT;
+        int size = boundedLimit(limit);
         List<PostSummaryDTO> results = blogApiClient.getHotPosts(size);
         log.debug("热门文章结果: {} 篇", results.size());
         return results;
@@ -123,6 +126,21 @@ public class BlogMcpTools implements ToolGroup {
         return toolResultBudget.truncateArticleContent(blogApiClient.getPostDetail(postId), toolContext);
     }
 
+    @Tool(description = "分段读取文章正文。详情或当前页面资料不完整时，按字符偏移读取后续段落，不要假装已看过全文。")
+    public String getPostSection(@ToolParam(description = "文章ID") Long postId,
+                                 @ToolParam(description = "正文字符偏移，从0开始") Integer offset,
+                                 ToolContext toolContext) {
+        PostDetailDTO detail = blogApiClient.getPostDetail(postId);
+        if (detail == null || detail.getContent() == null) return "文章不存在或正文不可读取";
+        String content = detail.getContent();
+        int start = Math.max(0, offset == null ? 0 : offset);
+        if (start >= content.length()) return "已到正文结尾，总字符数=" + content.length();
+        int size = Math.min(4000, toolResultBudget.resolveCharBudget(toolContext));
+        int end = Math.min(content.length(), start + size);
+        return "文章ID=" + postId + "，正文区间=" + start + ".." + end + "，总字符数=" + content.length()
+                + "，下一段偏移=" + end + "\n" + content.substring(start, end);
+    }
+
     /**
      * AI 会在用户问"作者是谁 / 你博主是谁 / 站点介绍"时调用,拉取主后端 /user/author/profile。
      */
@@ -130,5 +148,9 @@ public class BlogMcpTools implements ToolGroup {
     public AuthorProfileDTO getAuthorProfile() {
         log.debug("工具调用: getAuthorProfile");
         return blogApiClient.getAuthorProfile();
+    }
+
+    private static int boundedLimit(Integer requested) {
+        return requested == null ? DEFAULT_TOOL_LIMIT : Math.max(1, Math.min(8, requested));
     }
 }

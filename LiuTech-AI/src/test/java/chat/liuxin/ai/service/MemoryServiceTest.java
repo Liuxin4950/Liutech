@@ -67,7 +67,7 @@ class MemoryServiceTest {
 
     @Test
     void errorFallbackCannotWriteToForeignConversation() {
-        var helper = new ChatServiceHelper(null, memory, null);
+        var helper = new ChatServiceHelper(null, memory, null, null);
         helper.saveErrorIfNeeded(false, "7", 99L, "model");
         assertNoMessageWrite();
     }
@@ -176,7 +176,7 @@ class MemoryServiceTest {
                     memory.listLastMessagesByConversation("7", 99L, 8);
                     return null;
                 });
-        var helper = new ChatServiceHelper(prompt, memory, budget);
+        var helper = new ChatServiceHelper(prompt, memory, budget, null);
         AiModelPolicy policy = mock(AiModelPolicy.class);
         when(policy.resolveModelName(any())).thenReturn("model");
         when(policy.resolveParameters(any(), any())).thenReturn(
@@ -196,7 +196,7 @@ class MemoryServiceTest {
         SiliconFlowChatClient client = mock(SiliconFlowChatClient.class);
         ChatServiceHelper helper = mock(ChatServiceHelper.class);
         // 无需初始化线程池：权限失败必须发生在创建 SSE 和调度任务之前。
-        var service = new StreamingChatService(client, memory, helper, null, null, null, new AiChatProperties(), null);
+        var service = new StreamingChatService(client, memory, helper, null, null, null, new AiChatProperties(), null, null, null);
         ResponseStatusException error = assertThrows(ResponseStatusException.class,
                 () -> service.processStreamChat(request(99L), 7L, "model", null, "USER"));
         assertEquals(HttpStatus.FORBIDDEN, error.getStatusCode());

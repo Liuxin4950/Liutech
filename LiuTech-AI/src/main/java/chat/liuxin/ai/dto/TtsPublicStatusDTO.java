@@ -6,7 +6,9 @@ import lombok.Data;
 @Data
 public class TtsPublicStatusDTO {
     private boolean enabled;
+    private boolean configured;
     private boolean online;
+    private boolean onlineVerified;
     private String provider;
     private long checkedAt;
     private String message;
@@ -21,7 +23,9 @@ public class TtsPublicStatusDTO {
             return dto;
         }
         dto.setEnabled(status.isEnabled());
+        dto.setConfigured(status.isConfigured());
         dto.setOnline(status.isOnline());
+        dto.setOnlineVerified(status.isOnlineVerified());
         dto.setProvider(status.getProvider());
         dto.setCheckedAt(status.getCheckedAt());
         dto.setMessage(status.getMessage());

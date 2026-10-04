@@ -112,7 +112,7 @@ LiuTech/logs/
 LiuTech-AI/logs/
 nginx/logs/
 nginx/certs/
-LiuTech-AI/allure-results/
+**/allure-results/
 .gstack/
 .mcp.json
 .gbrain-source

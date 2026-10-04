@@ -11,6 +11,7 @@ import chat.liuxin.ai.service.ChatServiceHelper;
 import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
 import chat.liuxin.ai.service.StreamingChatService;
+import chat.liuxin.ai.service.FieldUpdateCollector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -40,8 +41,6 @@ import tools.jackson.core.exc.StreamReadException;
 public class AiChatServiceImpl implements AiChatService {
     /** 写作模式专用参数：低温度保证稳定输出，高 maxTokens 避免正文被截断 */
     private static final double WRITING_TEMPERATURE = 0.3;
-    /** token 估算系数：约 4 个字符 ≈ 1 token */
-    private static final int CHARS_PER_TOKEN_ESTIMATE = 4;
 
 
     private final AiChatProperties aiChatProperties;
@@ -69,6 +68,7 @@ public class AiChatServiceImpl implements AiChatService {
         String userIdStr = userId != null ? userId.toString() : null;
         String modelName = resolveModelName(request);
         Long conversationId = guestMode ? null : request.getConversationId();
+        boolean userMessageSaved = false;
 
         try {
             // 参数必须先解析：消息组装要用它的输入预算做裁剪（超限时直接抛出可读错误）
@@ -82,26 +82,37 @@ public class AiChatServiceImpl implements AiChatService {
             }
             if (!guestMode) {
                 memoryService.saveUserMessage(userIdStr, conversationId, input, modelName, null);
+                userMessageSaved = true;
             }
 
-            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), role);
+            var usage = new AiMetrics.UsageTracker();
+            var context = new java.util.HashMap<String, Object>();
+            context.put(SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, params);
+            context.put(AiMetrics.UsageTracker.CONTEXT_KEY, usage);
+            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(),
+                    SiliconFlowChatClient.ChatMode.CHAT, role, context);
 
             if (!guestMode) {
                 memoryService.saveAssistantMessage(userIdStr, conversationId, aiOutput, modelName, MemoryService.MESSAGE_STATUS_NORMAL, null);
             }
 
             long cost = System.currentTimeMillis() - begin;
-            aiMetrics.recordSuccess(modelName, cost, estimateTokens(aiOutput));
+            aiMetrics.recordSuccess(modelName, cost, (int) Math.min(Integer.MAX_VALUE, usage.inputTokens() + usage.outputTokens()));
             return buildSuccessResponse(aiOutput, modelName, cost, conversationId, guestMode);
 
         } catch (AIServiceException | ResponseStatusException e) {
             aiMetrics.recordFailure(modelName, System.currentTimeMillis() - begin, e.getClass().getSimpleName());
+            if (userMessageSaved) {
+                chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, conversationId, modelName);
+            }
             throw e;
         } catch (Exception e) {
             long cost = System.currentTimeMillis() - begin;
             aiMetrics.recordFailure(modelName, cost, e.getClass().getSimpleName());
             log.error("AI普通聊天失败", e);
-            chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, conversationId, modelName);
+            if (userMessageSaved) {
+                chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, conversationId, modelName);
+            }
             throw classifyException(e);
         }
     }
@@ -125,18 +136,29 @@ public class AiChatServiceImpl implements AiChatService {
             AiModelPolicy.ModelParameters params = writingParameters(getModelParameters(request, modelName));
             logParameterApplication(modelName, params);
             List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true, modelName, params);
-            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role);
+            var collector = new FieldUpdateCollector();
+            var usage = new AiMetrics.UsageTracker();
+            var context = new java.util.HashMap<String, Object>();
+            context.put(SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, params);
+            context.put(AiMetrics.UsageTracker.CONTEXT_KEY, usage);
+            context.put(FieldUpdateCollector.CONTEXT_KEY, collector);
+            if (request.getContext() != null && request.getContext().get("requestedFields") instanceof List<?> fields) {
+                context.put("allowedWritingFields", List.copyOf(fields));
+            }
+            String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role, context);
 
             long cost = System.currentTimeMillis() - begin;
-            aiMetrics.recordSuccess(modelName, cost, estimateTokens(aiOutput));
-            return buildSuccessResponse(aiOutput, modelName, cost, conversationId, guestMode);
+            aiMetrics.recordSuccess(modelName, cost, (int) Math.min(Integer.MAX_VALUE, usage.inputTokens() + usage.outputTokens()));
+            ChatResponse result = buildSuccessResponse(aiOutput, modelName, cost, conversationId, guestMode);
+            result.setFieldUpdates(collector.drain());
+            return result;
 
         } catch (Exception e) {
             long cost = System.currentTimeMillis() - begin;
             aiMetrics.recordFailure(modelName, cost, e.getClass().getSimpleName());
             log.error("AI写作助手失败", e);
             return ChatResponse.builder().success(false)
-                    .message("写作助手处理失败: " + e.getMessage())
+                    .message(e instanceof AIServiceException ? e.getMessage() : "写作助手暂不可用，请稍后重试")
                     .model(modelName).processingTime(cost).build();
         }
     }
@@ -213,11 +235,6 @@ public class AiChatServiceImpl implements AiChatService {
                 params.inputCappedByPolicy() ? " [输入预算受全局护栏约束]" : "");
     }
 
-    /** 粗略按字符数/4 估算 token 数,仅用于监控埋点,非计费用。 */
-    private int estimateTokens(String text) {
-        return text != null ? text.length() / CHARS_PER_TOKEN_ESTIMATE : 0;
-    }
-
     /**
      * 把底层异常映射为 {@link AIServiceException} 的语义子类,便于上层统一处理和前端提示。
      *
@@ -232,22 +249,20 @@ public class AiChatServiceImpl implements AiChatService {
         Throwable root = e.getCause() != null ? e.getCause() : e;
         if (root instanceof ConnectException || root instanceof SocketTimeoutException
                 || root instanceof UnknownHostException) {
-            return new AIServiceException.ConnectionException("AI服务连接失败: " + root.getMessage());
+            return new AIServiceException.ConnectionException("模型服务连接失败，请稍后重试");
         }
-        if (root instanceof HttpStatusCodeException httpEx) {
-            return new AIServiceException.RequestException("AI服务HTTP错误 " + httpEx.getStatusCode() + ": " + httpEx.getMessage());
+        if (root instanceof HttpStatusCodeException) {
+            return new AIServiceException.RequestException("模型服务拒绝了本次请求，请检查模型配置或精简输入");
         }
         if (root instanceof ResourceAccessException) {
-            return new AIServiceException.ConnectionException("AI服务网络访问失败: " + root.getMessage());
+            return new AIServiceException.ConnectionException("模型服务网络访问失败，请稍后重试");
         }
         if (root instanceof StreamReadException || root instanceof ParseException) {
-            return new AIServiceException.ModelException("AI服务响应解析失败: " + root.getMessage());
+            return new AIServiceException.ModelException("模型响应格式异常，本轮结果未应用，请重试");
         }
         if (root instanceof TimeoutException || (e.getMessage() != null && e.getMessage().toLowerCase().contains("timeout"))) {
-            return new AIServiceException.TimeoutException("AI服务响应超时: " + root.getMessage());
+            return new AIServiceException.TimeoutException("模型服务响应超时，请缩小任务范围后重试");
         }
-        return new AIServiceException("AI服务处理异常: " + (root.getMessage() != null ? root.getMessage() : "未知错误"));
+        return new AIServiceException("本次回复未能完成，请稍后重试");
     }
 }
-
-

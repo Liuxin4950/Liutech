@@ -14,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * PromptBudget 单元测试。
@@ -34,21 +35,21 @@ class PromptBudgetTest {
     // ==================== token 估算 ====================
 
     @Test
-    void shouldEstimateChineseAsOneTokenPerChar() {
+    void shouldBudgetChineseByUtf8UpperBound() {
         // 10 个汉字 ≈ 10 token（不含包装开销）
-        assertEquals(10, budget.estimateTokens("你好世界一二三四五六"));
+        assertEquals(30, budget.estimateTokens("你好世界一二三四五六"));
     }
 
     @Test
-    void shouldEstimateAsciiAsQuarterTokenPerChar() {
+    void shouldNotDiscountHighEntropyAscii() {
         // 40 个 ASCII 字符 ≈ 10 token
-        assertEquals(10, budget.estimateTokens("a".repeat(40)));
+        assertEquals(40, budget.estimateTokens("a".repeat(40)));
     }
 
     @Test
     void shouldEstimateMixedTextBySummingBothParts() {
         // 5 汉字 + 40 ASCII ≈ 5 + 10 = 15
-        assertEquals(15, budget.estimateTokens("你好世界啊" + "b".repeat(40)));
+        assertEquals(55, budget.estimateTokens("你好世界啊" + "b".repeat(40)));
     }
 
     @Test
@@ -61,7 +62,7 @@ class PromptBudgetTest {
     void shouldCountPerMessageOverheadWhenEstimatingMessages() {
         List<Message> messages = List.of(new UserMessage("你好"), new AssistantMessage("你好"));
         // 2 条消息各 2 token 内容 + 各 4 token 包装开销
-        assertEquals(12, budget.estimateTokens(messages));
+        assertEquals(20, budget.estimateTokens(messages));
     }
 
     // ==================== 生效限制解析 ====================
@@ -128,8 +129,9 @@ class PromptBudgetTest {
             history.add(new UserMessage("第" + i + "条历史内容"));
         }
 
-        // 每条 7 字 ≈ 7 token + 4 包装 = 11 token，给 25 token 只放得下最后 2 条
-        List<Message> kept = budget.trimHistory(history, 25);
+        // 给两条消息加少量剩余空间，验证从最旧整条丢弃。
+        int available = budget.estimateTokens(history.subList(3, 5)) + 1;
+        List<Message> kept = budget.trimHistory(history, available);
 
         assertEquals(2, kept.size());
         assertEquals("第4条历史内容", kept.get(0).getText());
@@ -191,12 +193,36 @@ class PromptBudgetTest {
     }
 
     @Test
-    void shouldKeepToolResultBudgetAboveFloor() {
-        assertEquals(500, budget.toolResultCharBudget(100, 12000));
+    void shouldNotInventToolSpaceWhenContextIsAlmostFull() {
+        assertEquals(50, budget.toolResultCharBudget(100, 12000));
     }
 
     @Test
     void shouldIgnoreNonPositiveConfiguredLimit() {
         assertEquals(5000, budget.toolResultCharBudget(10000, 0));
+    }
+    @Test
+    void countsToolArgumentsAndResponsesInsideInputBudget() {
+        var call = org.springframework.ai.chat.messages.AssistantMessage.builder().content("")
+                .toolCalls(List.of(new org.springframework.ai.chat.messages.AssistantMessage.ToolCall("1", "function", "read", "数".repeat(100)))).build();
+        var reply = org.springframework.ai.chat.messages.ToolResponseMessage.builder().responses(List.of(
+                new org.springframework.ai.chat.messages.ToolResponseMessage.ToolResponse("1", "read", "文".repeat(200)))).build();
+        assertTrue(budget.estimateTokens(List.of(call, reply)) >= 300);
+    }
+
+    @Test
+    void configuredModelLimitsAreAuthoritativeWhenOptionalCostGuardsDisabled() {
+        var limits = budget.resolveLimits(100000, 256000);
+        assertEquals(100000, limits.maxOutputTokens());
+        assertEquals(256000 - 100000 - PromptBudget.SAFETY_MARGIN_TOKENS, limits.inputBudgetTokens());
+        assertTrue(!limits.outputClamped() && !limits.inputCappedByPolicy());
+    }
+    @Test
+    void emojiAndUnpairedSurrogatesCannotEvadeBudget() {
+        assertEquals(400, budget.estimateTokens("😀".repeat(100)));
+        assertEquals(6, budget.estimateTokens("\uD800"));
+        String trimmed = budget.truncateReference("😀".repeat(100), 24, "[节选]");
+        assertTrue(budget.estimateTokens(trimmed) <= 24);
+        assertFalse(trimmed.matches(".*[\uD800-\uDBFF]$"));
     }
 }

@@ -20,9 +20,9 @@ class RoleBasedToolRegistryTest {
     void getToolsForRole_小写admin归一化匹配_拿到全部工具() {
         // AuthUtils.resolveRole 返回小写 "admin"，allowedRoles 声明大写 "ADMIN"，归一化后应匹配
         List<Object> tools = registry.getToolsForRole("admin");
-        assertEquals(2, tools.size(), "admin 应拿到 BlogMcpTools + WritingTools");
+        assertEquals(1, tools.size(), "聊天入口即使管理员也只能拿到博客读取工具");
         assertTrue(tools.contains(blogMcpTools));
-        assertTrue(tools.contains(writingTools));
+        assertFalse(tools.contains(writingTools));
     }
 
     @Test
@@ -43,6 +43,13 @@ class RoleBasedToolRegistryTest {
     @Test
     void getToolsForRole_大写role也能匹配() {
         List<Object> tools = registry.getToolsForRole("ADMIN");
-        assertEquals(2, tools.size());
+        assertEquals(1, tools.size());
+    }
+    @Test
+    void writingModeRequiresAdministratorAndExcludesChatTools() {
+        assertEquals(List.of(writingTools), registry.getToolsForRoleAndMode("admin", "WRITING"));
+        assertTrue(registry.getToolsForRoleAndMode("USER", "WRITING").isEmpty());
+        assertTrue(registry.getToolsForRoleAndMode("GUEST", "WRITING").isEmpty());
+        assertTrue(registry.getToolsForRoleAndMode("ADMIN", "UNKNOWN").isEmpty());
     }
 }

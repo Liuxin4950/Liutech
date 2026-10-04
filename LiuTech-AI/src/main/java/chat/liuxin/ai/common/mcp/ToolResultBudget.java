@@ -50,7 +50,7 @@ public class ToolResultBudget {
         Object fromContext = toolContext == null || toolContext.getContext() == null
                 ? null
                 : toolContext.getContext().get(CONTEXT_KEY);
-        if (fromContext instanceof Number number && number.intValue() > 0) {
+        if (fromContext instanceof Number number && number.intValue() >= 0) {
             return number.intValue();
         }
         int fallback = aiChatProperties.getAgent().getMaxToolResultChars();
@@ -74,7 +74,7 @@ public class ToolResultBudget {
             return text;
         }
         log.info("工具结果超预算已截断 - 内容: {}, 原长度: {} 字符, 预算: {} 字符", what, text.length(), budget);
-        return text.substring(0, budget) + TRUNCATED_NOTICE.formatted(budget);
+        return text.substring(0, Math.min(text.length(), budget)) + TRUNCATED_NOTICE.formatted(budget);
     }
 
     /**

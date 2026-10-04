@@ -39,6 +39,11 @@ public class WritingTools implements ToolGroup {
         return Set.of("ADMIN");
     }
 
+    @Override
+    public Set<String> allowedModes() {
+        return Set.of("WRITING");
+    }
+
     private final BlogApiClient blogApiClient;
     private final ToolResultBudget toolResultBudget;
 
@@ -124,12 +129,12 @@ public class WritingTools implements ToolGroup {
      */
     @Tool(description = """
             更新当前编辑器的结构化字段（标题/摘要/分类/标签）。这是你修改表单字段的工具，正文不要通过本工具传。
-            调用一次即完成一次回写，前端会自动更新对应的表单字段。
-            参数只填需要修改的字段，其他留空即可；每次调用至少传一个非空字段。
+            调用形成待采纳修改，管理员预览后应用；不代表保存或发布。
+            未改字段传null；summary空字符串或tagIds空数组代表清空，每次至少提供一个修改字段。
 
             title/summary 是简短字符串；categoryId 和 tagIds 必须来自 listCategories / listTags 返回的真实 ID，不要编造。
             若目标分类或标签在现有列表中不存在，用 suggestedCategoryName / suggestedTagNames 提交待管理员确认创建，不要编造不存在的 ID。
-            正文 HTML 不要通过本工具传递，直接作为正常回复内容输出（流式，含 <h2>/<p>/<pre><code> 等标签），后端会自动写入编辑器。
+            正文 HTML 不要通过本工具传递，直接作为正常回复内容输出（流式，含 <h2>/<p>/<pre><code> 等标签），后端验证完整结束后形成预览。
             """)
     public String applyArticleUpdate(
             @ToolParam(required = false, description = "文章标题") String title,
@@ -140,14 +145,41 @@ public class WritingTools implements ToolGroup {
             @ToolParam(required = false, description = "建议新增的标签名称列表（当现有标签都不合适时）") List<String> suggestedTagNames,
             ToolContext toolContext
     ) {
+        Object rawScope = toolContext == null ? null : toolContext.getContext().get("allowedWritingFields");
+        if (rawScope instanceof List<?> scope && !scope.isEmpty()) {
+            if (scope.contains("check")) {
+                throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("本轮仅检查文章，不能生成字段修改");
+            }
+            if (!scope.contains("title")) title = null;
+            if (!scope.contains("summary")) summary = null;
+            if (!scope.contains("category")) { categoryId = null; suggestedCategoryName = null; }
+            if (!scope.contains("tags") && !scope.contains("tag")) { tagIds = null; suggestedTagNames = null; }
+        }
+        if ((title != null && title.length() > 200) || (summary != null && summary.length() > 500)
+                || (tagIds != null && tagIds.size() > 20)
+                || (suggestedCategoryName != null && suggestedCategoryName.length() > 100)
+                || (suggestedTagNames != null && (suggestedTagNames.size() > 20
+                || suggestedTagNames.stream().anyMatch(name -> name != null && name.length() > 100)))) {
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("生成的文章字段超出允许长度，请精简后重试");
+        }
+        final Long requestedCategoryId = categoryId;
+        if (categoryId != null && blogApiClient.getAllCategories().stream().noneMatch(c -> requestedCategoryId.equals(c.getId()))) {
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("生成的分类不存在，请重新选择分类");
+        }
+        if (tagIds != null && !tagIds.isEmpty()) {
+            Set<Long> validIds = blogApiClient.getAllTags().stream().map(TagDTO::getId).collect(Collectors.toSet());
+            if (!validIds.containsAll(tagIds)) {
+                throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("生成的标签不存在，请重新选择标签");
+            }
+        }
         log.debug("写作工具调用: applyArticleUpdate, title={}, categoryId={}, tagIds={}", title, categoryId, tagIds);
 
         FieldUpdatePayload payload = new FieldUpdatePayload();
         payload.setTitle(isBlank(title) ? null : title.trim());
-        payload.setSummary(isBlank(summary) ? null : summary.trim());
+        payload.setSummary(summary == null ? null : summary.trim());
         payload.setCategoryId(categoryId);
-        if (tagIds != null && !tagIds.isEmpty()) {
-            payload.setTagIds(new ArrayList<>(tagIds));
+        if (tagIds != null) {
+            payload.setTagIds(new ArrayList<>(new java.util.LinkedHashSet<>(tagIds)));
         }
         payload.setSuggestedCategoryName(isBlank(suggestedCategoryName) ? null : suggestedCategoryName.trim());
         if (suggestedTagNames != null) {
@@ -162,7 +194,7 @@ public class WritingTools implements ToolGroup {
         // 早期拦截：所有字段都为空时不写入，避免无效空 payload 触发 SSE
         if (payload.getTitle() == null && payload.getSummary() == null
                 && payload.getCategoryId() == null
-                && (payload.getTagIds() == null || payload.getTagIds().isEmpty())
+                && payload.getTagIds() == null
                 && payload.getSuggestedCategoryName() == null
                 && (payload.getSuggestedTagNames() == null || payload.getSuggestedTagNames().isEmpty())) {
             if (sink != null) sink.fireError("admin.applyArticleUpdate", "写入文章字段", "未收到任何有效字段");
@@ -172,15 +204,11 @@ public class WritingTools implements ToolGroup {
         if (sink != null) sink.fireStart("admin.applyArticleUpdate", "写入文章字段", summarizeFields(payload));
         FieldUpdateCollector collector = resolveCollector(toolContext);
         if (collector == null) {
-            // 同步 /ai/writing 路径不建 SSE 通道，静默接受字段更新（前端走流式接口才有回写）。
-            // 返回确认信息防止 AI 误判为失败反复重试。
-            log.debug("applyArticleUpdate 被调用但无收集器（同步路径），字段: {}", summarizeFields(payload));
-            if (sink != null) sink.fireSuccess("admin.applyArticleUpdate", "写入文章字段", summarizeFields(payload));
-            return "已记录：" + summarizeFields(payload) + "（当前为非流式调用，字段将随回复文本返回）";
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("当前请求不支持字段更新，请使用写作助手入口");
         }
         collector.add(payload);
         if (sink != null) sink.fireSuccess("admin.applyArticleUpdate", "写入文章字段", summarizeFields(payload));
-        return "已写入：" + summarizeFields(payload);
+        return "已生成待采纳修改：" + summarizeFields(payload) + "；尚未保存或发布";
     }
 
     private WritingToolEventSink resolveSink(ToolContext toolContext) {
@@ -206,17 +234,14 @@ public class WritingTools implements ToolGroup {
     private String summarizeFields(FieldUpdatePayload p) {
         List<String> fields = new ArrayList<>();
         if (p.getTitle() != null) fields.add("标题");
-        if (p.getSummary() != null) fields.add("摘要");
+        if (p.getSummary() != null) fields.add(p.getSummary().isEmpty() ? "清空摘要" : "摘要");
 
         if (p.getCategoryId() != null) fields.add("分类");
-        if (p.getTagIds() != null && !p.getTagIds().isEmpty()) fields.add("标签");
+        if (p.getTagIds() != null) fields.add(p.getTagIds().isEmpty() ? "清空标签" : "标签");
         if (p.getSuggestedCategoryName() != null) fields.add("建议新分类");
         if (p.getSuggestedTagNames() != null && !p.getSuggestedTagNames().isEmpty()) fields.add("建议新标签");
         return fields.isEmpty() ? "（无有效字段）" : String.join("、", fields);
     }
 }
-
-
-
 
 

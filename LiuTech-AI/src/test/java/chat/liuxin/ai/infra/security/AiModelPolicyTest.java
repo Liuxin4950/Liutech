@@ -56,10 +56,10 @@ class AiModelPolicyTest {
 
         AiModelPolicy.ModelParameters params = policy.resolveParameters(request, "fallback-model");
 
-        // 越界温度直接忽略；越界输出上限被全局安全上限（默认 65536）夹住，而不是"整条忽略"
+        // 缺配置时仍有保守输出限额，请求不能把默认4096提高。
         assertNull(params.temperature());
-        assertEquals(65536, params.maxTokens());
-        assertTrue(params.outputClamped(), "应标记输出上限被夹小，供管理端/日志观察");
+        assertEquals(4096, params.maxTokens());
+        assertFalse(params.outputClamped(), "客户端不能提高缺省模型输出限额");
     }
 
     @Test
@@ -83,10 +83,10 @@ class AiModelPolicyTest {
         assertEquals(1024, params.maxTokens(), "请求更小的输出上限应被接受");
         assertEquals(205000, params.contextWindow());
         // 输入预算先按 上下文 205000 − 输出 1024 − 安全余量 512 = 203464 计算，
-        // 再被全局成本护栏（默认 model-policy-max-input-tokens=96000）夹住：
-        // 这是刻意设计——模型能力 205K ≠ 允许单次请求烧掉 205K 输入
-        assertEquals(96000, params.inputBudgetTokens());
-        assertTrue(params.inputCappedByPolicy());
+        // 默认不额外夹取模型配置，成本护栏只有显式配置时生效。
+        // 输入预算由模型上下文与实际输出预留共同决定。
+        assertEquals(205000 - 1024 - PromptBudget.SAFETY_MARGIN_TOKENS, params.inputBudgetTokens());
+        assertFalse(params.inputCappedByPolicy());
     }
 
     @Test

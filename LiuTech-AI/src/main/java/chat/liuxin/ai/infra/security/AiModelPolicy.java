@@ -62,6 +62,9 @@ public class AiModelPolicy {
             log.warn("请求携带的 temperature 超出范围 [0.0, 1.0]: {}, 已忽略", requestTemperature);
             requestTemperature = null;
         }
+        if (requestTemperature != null && !Double.isFinite(requestTemperature)) {
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("温度必须是有限数值");
+        }
         if (requestMaxTokens != null && requestMaxTokens <= 0) {
             log.warn("请求携带的 maxTokens 非法: {}, 已忽略", requestMaxTokens);
             requestMaxTokens = null;
@@ -70,11 +73,13 @@ public class AiModelPolicy {
         // 读取管理端的模型配置（上下文窗口 / 输出上限 / 温度都来自这里）
         ModelConfigDTO config = null;
         try {
-            config = aiModelConfigService.getModelByName(modelName)
-                    .filter(item -> Boolean.TRUE.equals(item.getIsEnabled()))
-                    .orElse(null);
+            config = aiModelConfigService.getModelByName(modelName).orElse(null);
         } catch (Exception e) {
-            log.warn("读取模型参数失败，模型: {}, 错误: {}", modelName, e.getMessage());
+            log.warn("读取模型参数失败，模型: {}", modelName);
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.ConnectionException("模型配置暂不可用，请稍后重试");
+        }
+        if (config != null && !Boolean.TRUE.equals(config.getIsEnabled())) {
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("当前模型已停用，请管理员检查默认模型配置");
         }
 
         String source = config != null ? "database" : "default";
@@ -93,10 +98,8 @@ public class AiModelPolicy {
         }
 
         // 输出上限：请求可以要求更小，但不得超过模型配置
-        Integer maxTokens = configuredMaxTokens;
-        if (maxTokens == null) {
-            maxTokens = requestMaxTokens;
-        } else if (requestMaxTokens != null && requestMaxTokens < maxTokens) {
+        Integer maxTokens = promptBudget.resolveLimits(configuredMaxTokens, configuredContextWindow).maxOutputTokens();
+        if (requestMaxTokens != null && requestMaxTokens < maxTokens) {
             maxTokens = requestMaxTokens;
             source = source + "+request-smaller";
         } else if (requestMaxTokens != null && requestMaxTokens > maxTokens) {
@@ -128,8 +131,8 @@ public class AiModelPolicy {
                     .filter(value -> !value.isEmpty())
                     .orElse(aiChatProperties.getDefaultModel());
         } catch (Exception e) {
-            log.warn("读取默认模型配置失败，使用配置默认模型: {}", e.getMessage());
-            return aiChatProperties.getDefaultModel();
+            log.warn("读取默认模型配置失败");
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.ConnectionException("模型配置暂不可用，请稍后重试");
         }
     }
 

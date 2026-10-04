@@ -8,17 +8,20 @@ import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import chat.liuxin.ai.infra.security.PromptBudget;
+import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class AiChatServiceImplTest {
 
@@ -87,6 +90,68 @@ class AiChatServiceImplTest {
         when(aiModelConfigService.getDefaultModel()).thenReturn(Optional.empty());
 
         assertEquals("fallback-model", resolveModelName(request));
+    }
+
+    private PromptService prepareSyncChat() {
+        AiChatProperties properties = new AiChatProperties();
+        PromptService prompt = mock(PromptService.class);
+        when(prompt.assembleParts(any(), any(), any(), anyBoolean(), anyBoolean(), any()))
+                .thenReturn(new PromptService.AssembledPrompt(List.of(), List.of()));
+        chatServiceHelper = new ChatServiceHelper(prompt, memoryService, new PromptBudget(properties), null);
+        service = new AiChatServiceImpl(properties, siliconFlowChatClient, memoryService, aiMetrics,
+                chatServiceHelper, aiModelPolicy, streamingChatService);
+        when(aiModelConfigService.getDefaultModel()).thenReturn(Optional.empty());
+        return prompt;
+    }
+
+    private ChatRequest syncRequest(String message) {
+        ChatRequest request = new ChatRequest();
+        request.setMessage(message);
+        request.setConversationId(99L);
+        return request;
+    }
+
+    @Test
+    void knownModelFailureAfterSavingUserAlsoSavesOneErrorReply() {
+        prepareSyncChat();
+        AIServiceException.RequestException failure = new AIServiceException.RequestException("输出达到单次上限");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenThrow(failure);
+        assertSame(failure, assertThrows(AIServiceException.RequestException.class,
+                () -> service.processChat(syncRequest("请回答"), 7L, "USER")));
+        var order = inOrder(memoryService);
+        order.verify(memoryService).saveUserMessage("7", 99L, "请回答", "fallback-model", null);
+        order.verify(memoryService).saveAssistantMessage("7", 99L, null, "fallback-model", MemoryService.MESSAGE_STATUS_ERROR, null);
+        verify(memoryService, times(1)).saveAssistantMessage(anyString(), anyLong(), any(), anyString(), anyInt(), any());
+    }
+
+    @Test
+    void providerStatusFailureAfterSavingUserAlsoSavesErrorReplyAndKeepsStatus() {
+        prepareSyncChat();
+        ResponseStatusException failure = new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "当前繁忙");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenThrow(failure);
+        assertSame(failure, assertThrows(ResponseStatusException.class,
+                () -> service.processChat(syncRequest("请回答"), 7L, "USER")));
+        verify(memoryService, times(1)).saveAssistantMessage("7", 99L, null, "fallback-model", MemoryService.MESSAGE_STATUS_ERROR, null);
+    }
+
+    @Test
+    void ownerRejectionBeforeSavingUserCannotCreateErrorReply() {
+        PromptService prompt = prepareSyncChat();
+        ResponseStatusException failure = new ResponseStatusException(HttpStatus.FORBIDDEN, "无权访问会话");
+        when(prompt.assembleParts(any(), any(), any(), anyBoolean(), anyBoolean(), any())).thenThrow(failure);
+        assertSame(failure, assertThrows(ResponseStatusException.class,
+                () -> service.processChat(syncRequest("请回答"), 7L, "USER")));
+        verifyNoInteractions(memoryService, siliconFlowChatClient);
+    }
+
+    @Test
+    void initialBudgetRejectionCannotCreateUserOrErrorReply() {
+        prepareSyncChat();
+        assertThrows(AIServiceException.RequestException.class,
+                () -> service.processChat(syncRequest("字".repeat(20_000)), 7L, "USER"));
+        verifyNoInteractions(memoryService, siliconFlowChatClient);
     }
 
     @Test
