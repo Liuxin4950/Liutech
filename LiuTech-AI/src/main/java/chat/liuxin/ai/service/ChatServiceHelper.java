@@ -109,7 +109,7 @@ public class ChatServiceHelper {
     private void validateContext(ChatRequest request) {
         var context = request.getContext();
         if (context == null) return;
-        var allowed = java.util.Set.of("page", "postId", "recommendations", "requestedFields", "source", "appendTags");
+        var allowed = java.util.Set.of("page", "postId", "recommendations", "requestedFields", "source", "appendTags", "contentMode");
         if (context.size() > allowed.size() || context.keySet().stream().anyMatch(key -> !allowed.contains(key))) {
             throw new AIServiceException.RequestException("页面上下文包含不支持的字段");
         }
@@ -121,6 +121,10 @@ public class ChatServiceHelper {
                 || values.stream().anyMatch(value -> !(value instanceof String)
                 || !java.util.Set.of("title", "summary", "content", "category", "tags", "tag", "check").contains(value)))) {
             throw new AIServiceException.RequestException("写作字段范围无效");
+        }
+        Object contentMode = context.get("contentMode");
+        if (contentMode != null && !java.util.Set.of("patch", "replace").contains(contentMode)) {
+            throw new AIServiceException.RequestException("正文修改模式无效，请选择局部修改或整篇重写");
         }
     }
 

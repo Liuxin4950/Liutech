@@ -7,6 +7,8 @@ import chat.liuxin.ai.dto.TagDTO;
 import chat.liuxin.ai.dto.FieldUpdatePayload;
 import chat.liuxin.ai.service.FieldUpdateCollector;
 import chat.liuxin.ai.service.WritingToolEventSink;
+import chat.liuxin.ai.service.WritingContentSession;
+import chat.liuxin.ai.dto.WritingContentPatch;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
@@ -23,11 +25,10 @@ import java.util.stream.Collectors;
  *
  * 分两类：
  * - 只读工具：listCategories / listTags / getArticleDetail，获取分类标签和文章内容
- * - 写工具：applyArticleUpdate，把内容写入管理员编辑器的字段（function calling 即操作页面）
+ * - 建议工具：applyArticleUpdate / editArticleContent，生成字段或局部正文建议
  *
  * 写工具通过 ToolContext 拿到 FieldUpdateCollector，把字段压入收集器，
- * StreamingChatService 流结束后发 field-update SSE 事件给前端回写表单。
- * 这样 AI 是"执行者"而非"顾问"，不再依赖 ---field-update--- 文本标记。
+ * StreamingChatService 以统一 writing-event 下发待采纳建议，成功后由管理员明确采纳。
  */
 @Slf4j
 @Component
@@ -100,30 +101,59 @@ public class WritingTools implements ToolGroup {
     }
 
     /**
-     * 工具调用统一模板：发 fireStart，执行 action，发 fireSuccess/fireError。
+     * 工具调用统一模板：按唯一活动 ID 发送实际起止，失败不泄漏上游错误。
      * 消除只读工具的 try/catch + fire 样板代码。
      */
     private <T> T wrapToolCall(ToolContext toolContext, String toolName, String displayName,
                                 String inputSummary, java.util.function.Supplier<T> action,
                                 java.util.function.Function<T, String> successSummary) {
         WritingToolEventSink sink = resolveSink(toolContext);
-        if (sink != null) sink.fireStart(toolName, displayName, inputSummary);
+        String activityId = sink == null ? null : sink.fireStart(toolName, displayName, inputSummary);
         try {
             T result = action.get();
-            if (sink != null) sink.fireSuccess(toolName, displayName, successSummary.apply(result));
+            if (sink != null) sink.complete(activityId, successSummary.apply(result));
             return result;
         } catch (Exception e) {
-            if (sink != null) sink.fireError(toolName, displayName, e.getMessage());
+            if (sink != null) sink.fail(activityId, "工具执行失败，请稍后重试");
             throw e;
         }
     }
 
+    @Tool(description = """
+            局部修改已有正文，仅生成待采纳的段落替换；不会保存文章。
+            edits中每项before必须逐字复制本轮草稿中唯一出现的完整HTML段落（可含相邻段落以消除重复），
+            after是替换后的完整HTML片段，空字符串代表删除。所有before均基于本轮原稿，不要以已修改内容定位。
+            只提交真正需要修改的段落，保留未修改内容；同一轮片段不可重叠。最多32处，可一次提交多处。
+            续写可定位最后一段，after保留该段并附上新增段落。空edits表示正文已检查且无需修改。
+            本工具只用于局部修改模式；新稿或整篇重写应直接输出完整HTML。
+            调用后仅用简短文字说明修改数量或无须修改，禁止重新输出整篇正文。
+            """)
+    public String editArticleContent(
+            @ToolParam(description = "基于本轮原稿的段落替换列表；确认无需修改时传空数组") List<WritingContentPatch.Edit> edits,
+            ToolContext toolContext) {
+        if (toolContext == null || !(toolContext.getContext().get(WritingContentSession.CONTEXT_KEY) instanceof WritingContentSession session)) {
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("当前请求不支持正文修改，请使用写作助手入口");
+        }
+        Object scope = toolContext.getContext().get("allowedWritingFields");
+        if (scope instanceof List<?> fields && !fields.isEmpty()
+                && (fields.contains("check") || !fields.contains("content"))) {
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("本轮不允许修改正文");
+        }
+        if ("replace".equals(toolContext.getContext().get("writingContentMode"))) {
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("本轮为整篇重写模式，请返回完整 HTML 正文");
+        }
+        return wrapToolCall(toolContext, "admin.editArticleContent", "生成正文局部修改", null,
+                () -> { session.add(edits); return edits.size(); },
+                count -> count == 0 ? "已检查，正文无需修改" : "已生成 " + count + " 处局部修改，待采纳")
+                + "；不要输出未修改的整篇正文";
+    }
+
     /**
-     * 写工具：把内容写入管理员当前编辑器的字段。
+     * 字段工具：生成管理员当前草稿的字段建议，不直接写编辑器或数据库。
      *
-     * AI 通过 function calling 调用本工具即视为执行一次字段回写。工具内部把
+     * 工具内部把
      * {@link FieldUpdatePayload} 压入 {@link FieldUpdateCollector}（通过 ToolContext 传入），
-     * 由 StreamingChatService 实时发 field-update SSE 事件给前端。
+     * 由 StreamingChatService 实时发 proposal 事件给前端暂存。
      *
      * 参数只填需要修改的字段，留空的不动。这是 AI 操作博客页面的唯一入口。
      */
@@ -134,7 +164,7 @@ public class WritingTools implements ToolGroup {
 
             title/summary 是简短字符串；categoryId 和 tagIds 必须来自 listCategories / listTags 返回的真实 ID，不要编造。
             若目标分类或标签在现有列表中不存在，用 suggestedCategoryName / suggestedTagNames 提交待管理员确认创建，不要编造不存在的 ID。
-            正文 HTML 不要通过本工具传递，直接作为正常回复内容输出（流式，含 <h2>/<p>/<pre><code> 等标签），后端验证完整结束后形成预览。
+            正文不要通过本工具传递；局部修改调用editArticleContent，新稿或整篇重写才输出完整HTML。
             """)
     public String applyArticleUpdate(
             @ToolParam(required = false, description = "文章标题") String title,
@@ -172,7 +202,7 @@ public class WritingTools implements ToolGroup {
                 throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("生成的标签不存在，请重新选择标签");
             }
         }
-        log.debug("写作工具调用: applyArticleUpdate, title={}, categoryId={}, tagIds={}", title, categoryId, tagIds);
+        log.debug("写作工具调用: applyArticleUpdate, categoryId={}, tagIds={}", categoryId, tagIds);
 
         FieldUpdatePayload payload = new FieldUpdatePayload();
         payload.setTitle(isBlank(title) ? null : title.trim());
@@ -197,17 +227,16 @@ public class WritingTools implements ToolGroup {
                 && payload.getTagIds() == null
                 && payload.getSuggestedCategoryName() == null
                 && (payload.getSuggestedTagNames() == null || payload.getSuggestedTagNames().isEmpty())) {
-            if (sink != null) sink.fireError("admin.applyArticleUpdate", "写入文章字段", "未收到任何有效字段");
-            return "未收到任何有效字段。请在调用时至少提供 title/summary/categoryId/tagIds 中的一个字段。";
+            throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("未收到任何有效字段，请只提交需要修改的文章字段");
         }
 
-        if (sink != null) sink.fireStart("admin.applyArticleUpdate", "写入文章字段", summarizeFields(payload));
         FieldUpdateCollector collector = resolveCollector(toolContext);
         if (collector == null) {
             throw new chat.liuxin.ai.infra.exception.AIServiceException.RequestException("当前请求不支持字段更新，请使用写作助手入口");
         }
+        String activityId = sink == null ? null : sink.fireStart("admin.applyArticleUpdate", "生成文章字段建议", summarizeFields(payload));
         collector.add(payload);
-        if (sink != null) sink.fireSuccess("admin.applyArticleUpdate", "写入文章字段", summarizeFields(payload));
+        if (sink != null) sink.complete(activityId, summarizeFields(payload) + "，待采纳");
         return "已生成待采纳修改：" + summarizeFields(payload) + "；尚未保存或发布";
     }
 
@@ -243,5 +272,3 @@ public class WritingTools implements ToolGroup {
         return fields.isEmpty() ? "（无有效字段）" : String.join("、", fields);
     }
 }
-
-

@@ -18,6 +18,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
+import chat.liuxin.ai.dto.AdminArticleDraftSnapshot;
+import chat.liuxin.ai.dto.WritingContentPatch;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -152,6 +155,70 @@ class AiChatServiceImplTest {
         assertThrows(AIServiceException.RequestException.class,
                 () -> service.processChat(syncRequest("字".repeat(20_000)), 7L, "USER"));
         verifyNoInteractions(memoryService, siliconFlowChatClient);
+    }
+
+    private ChatRequest writingRequest(String mode) {
+        prepareSyncChat();
+        var request = syncRequest("只修复正文中的错误");
+        request.setDraft(new AdminArticleDraftSnapshot());
+        request.getDraft().setContent("<p>不修改的段落</p><p>错字</p>");
+        request.setContext(Map.of("requestedFields", List.of("content"), "contentMode", mode));
+        return request;
+    }
+
+    @Test
+    void synchronousWritingReturnsVerifiedPartialProposalWithoutRepeatingWholeArticle() {
+        var request = writingRequest("patch");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenAnswer(invocation -> {
+                    Map<String, Object> context = invocation.getArgument(6);
+                    ((WritingContentSession) context.get(WritingContentSession.CONTEXT_KEY))
+                            .add(List.of(new WritingContentPatch.Edit("<p>错字</p>", "<p>已改</p>")));
+                    return "只修改了一段";
+                });
+        var response = service.processWriting(request, 7L, "ADMIN");
+        assertTrue(response.getSuccess());
+        assertEquals("writing", response.getMode());
+        assertEquals("只修改了一段", response.getMessage());
+        assertEquals(1, response.getFieldUpdates().size());
+        assertNull(response.getFieldUpdates().getFirst().getContentHtml());
+        assertEquals("<p>已改</p>", response.getFieldUpdates().getFirst().getContentPatch().edits().getFirst().after());
+        verifyNoInteractions(memoryService);
+    }
+
+    @Test
+    void synchronousPatchModeRejectsUnexpectedWholeArticleInsteadOfOverwriting() {
+        var request = writingRequest("patch");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenReturn("<p>重写后丢失的整篇</p>");
+        var response = service.processWriting(request, 7L, "ADMIN");
+        assertFalse(response.getSuccess());
+        assertNull(response.getFieldUpdates());
+        verifyNoInteractions(memoryService);
+    }
+
+    @Test
+    void synchronousWholeArticleModeProducesCompleteHtmlProposal() {
+        var request = writingRequest("replace");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenReturn("<p>新的完整正文</p>");
+        var response = service.processWriting(request, 7L, "ADMIN");
+        assertTrue(response.getSuccess());
+        assertEquals("<p>新的完整正文</p>", response.getFieldUpdates().getFirst().getContentHtml());
+    }
+
+    @Test
+    void synchronousExplicitNoChangesCompletesWithoutCreatingAPreview() {
+        var request = writingRequest("patch");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenAnswer(invocation -> {
+                    Map<String, Object> context = invocation.getArgument(6);
+                    ((WritingContentSession) context.get(WritingContentSession.CONTEXT_KEY)).add(List.of());
+                    return "";
+                });
+        var response = service.processWriting(request, 7L, "ADMIN");
+        assertTrue(response.getSuccess());
+        assertTrue(response.getFieldUpdates().isEmpty());
     }
 
     @Test

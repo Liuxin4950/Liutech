@@ -2,6 +2,9 @@ package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.common.mcp.RoleBasedToolRegistry;
 import chat.liuxin.ai.common.mcp.ToolGroup;
+import chat.liuxin.ai.common.mcp.WritingTools;
+import chat.liuxin.ai.common.mcp.ToolResultBudget;
+import chat.liuxin.ai.common.client.BlogApiClient;
 import chat.liuxin.ai.common.monitor.AiMetrics;
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
@@ -109,6 +112,106 @@ class SiliconFlowChatClientTest {
     }
 
     @Test
+    void reviewedWritingWithNoChangesAcceptsConfirmedEmptyStopAndReportsRealModelRound() {
+        WritingContentSession content = new WritingContentSession("<p>正文正确</p>");
+        content.add(List.of());
+        List<Map<String, Object>> activities = new CopyOnWriteArrayList<>();
+        WritingToolEventSink sink = new WritingToolEventSink((type, payload) -> activities.add(payload));
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("", "stop", null, 10)));
+        List<String> output = client.streamChat(List.of(new UserMessage("检查错别字")), "model", .3, 1000,
+                SiliconFlowChatClient.ChatMode.WRITING, "ADMIN", Map.of(
+                        SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, limits,
+                        WritingContentSession.CONTEXT_KEY, content,
+                        WritingToolEventSink.CONTEXT_KEY, sink)).collectList().block(Duration.ofSeconds(3));
+        assertTrue(output.isEmpty());
+        assertEquals(List.of("running", "completed"), activities.stream().map(event -> event.get("status")).toList());
+        assertEquals(activities.getFirst().get("activityId"), activities.getLast().get("activityId"));
+        assertEquals("thinking", activities.getFirst().get("stage"));
+    }
+
+    @Test
+    void unreviewedWritingCannotTurnEmptyProviderReplyIntoSuccess() {
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("", "stop", null, 10)));
+        assertThrows(AIServiceException.ModelException.class,
+                () -> client.streamChat(List.of(new UserMessage("修改正文")), "model", .3, 1000,
+                        SiliconFlowChatClient.ChatMode.WRITING, "ADMIN", Map.of(
+                                SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, limits,
+                                WritingContentSession.CONTEXT_KEY, new WritingContentSession("<p>原文</p>")))
+                        .blockLast(Duration.ofSeconds(3)));
+    }
+
+    @Test
+    void truncatedEditArgumentsNeverReportSuccessfulParameterGeneration() {
+        List<Map<String, Object>> activities = new CopyOnWriteArrayList<>();
+        WritingToolEventSink sink = new WritingToolEventSink((type, payload) -> activities.add(payload));
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("", "length", "editArticleContent", 1000)));
+        assertThrows(AIServiceException.RequestException.class,
+                () -> client.streamChat(List.of(new UserMessage("修改正文")), "model", .3, 1000,
+                        SiliconFlowChatClient.ChatMode.WRITING, "ADMIN", Map.of(
+                                SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, limits,
+                                WritingToolEventSink.CONTEXT_KEY, sink)).blockLast(Duration.ofSeconds(3)));
+        sink.finishRunning("failed", "修改参数已截断");
+        assertTrue(activities.stream().anyMatch(event -> "editing_content".equals(event.get("stage")) && "failed".equals(event.get("status"))));
+        assertFalse(activities.stream().anyMatch(event -> "editing_content".equals(event.get("stage")) && "completed".equals(event.get("status"))));
+    }
+
+    @Test
+    void writingScopeRejectionEscapesSpringAiExceptionConversionAndStopsBeforeNextModelRound() {
+        WritingTools writing = new WritingTools(mock(BlogApiClient.class), new ToolResultBudget(props));
+        SiliconFlowChatClient writingClient = new SiliconFlowChatClient(model, props,
+                new RoleBasedToolRegistry(List.of(writing)), mock(AiModelPolicy.class), budget, ToolCallingManager.builder().build());
+        var content = new WritingContentSession("<p>原稿</p>");
+        List<Map<String, Object>> events = new CopyOnWriteArrayList<>();
+        WritingToolEventSink sink = new WritingToolEventSink((type, payload) -> events.add(payload));
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("", "tool_calls", "editArticleContent", 20)));
+        var error = assertThrows(AIServiceException.RequestException.class,
+                () -> writingClient.streamChat(List.of(new UserMessage("只检查")), "model", .3, 1000,
+                        SiliconFlowChatClient.ChatMode.WRITING, "ADMIN", Map.of(
+                                SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY,
+                                new AiModelPolicy.ModelParameters(.3, 1000, 50000, 48488, false, false, "test"),
+                                WritingContentSession.CONTEXT_KEY, content,
+                                "allowedWritingFields", List.of("check"), "writingContentMode", "patch",
+                                WritingToolEventSink.CONTEXT_KEY, sink)).blockLast(Duration.ofSeconds(3)));
+        assertEquals("本轮不允许修改正文", error.getMessage());
+        assertFalse(content.wasReviewed());
+        assertTrue(content.isEmpty());
+        assertTrue(events.stream().anyMatch(event -> "editArticleContent".equals(event.get("toolName"))
+                && "failed".equals(event.get("status"))));
+        verify(model, times(1)).stream(any(Prompt.class));
+    }
+
+    @Test
+    void emptyWritingFieldToolIsRejectedInsteadOfSilentlyCompleting() {
+        WritingTools writing = new WritingTools(mock(BlogApiClient.class), new ToolResultBudget(props));
+        SiliconFlowChatClient writingClient = new SiliconFlowChatClient(model, props,
+                new RoleBasedToolRegistry(List.of(writing)), mock(AiModelPolicy.class), budget, ToolCallingManager.builder().build());
+        FieldUpdateCollector collector = new FieldUpdateCollector();
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("", "tool_calls", "applyArticleUpdate", 20)));
+        var error = assertThrows(AIServiceException.RequestException.class,
+                () -> writingClient.streamChat(List.of(new UserMessage("修改标题")), "model", .3, 1000,
+                        SiliconFlowChatClient.ChatMode.WRITING, "ADMIN", Map.of(
+                                SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY,
+                                new AiModelPolicy.ModelParameters(.3, 1000, 50000, 48488, false, false, "test"),
+                                FieldUpdateCollector.CONTEXT_KEY, collector)).blockLast(Duration.ofSeconds(3)));
+        assertTrue(error.getMessage().contains("未收到任何有效字段"));
+        assertTrue(collector.isEmpty());
+        verify(model, times(1)).stream(any(Prompt.class));
+    }
+
+    @Test
+    void chatKeepsExistingSpringAiToolExceptionRecoveryBehavior() {
+        SiliconFlowChatClient chatClient = new SiliconFlowChatClient(model, props,
+                new RoleBasedToolRegistry(List.of(new RejectedTools())), mock(AiModelPolicy.class), budget, ToolCallingManager.builder().build());
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("", "tool_calls", "reject", 20)),
+                Flux.just(response("改为提供公开建议", "stop", null, 20)));
+        String output = chatClient.streamChat(List.of(new UserMessage("查资料")), "model", .3, 1000,
+                SiliconFlowChatClient.ChatMode.CHAT, "USER", Map.of(SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, limits))
+                .collectList().map(parts -> String.join("", parts)).block(Duration.ofSeconds(3));
+        assertEquals("改为提供公开建议", output);
+        verify(model, times(2)).stream(any(Prompt.class));
+    }
+
+    @Test
     void cumulativeToolResultsAreTruncatedBeforeNextProviderCall() {
         tools.result = "长".repeat(5000);
         List<Prompt> prompts = new CopyOnWriteArrayList<>();
@@ -162,5 +265,11 @@ class SiliconFlowChatClientTest {
         public Set<String> allowedRoles() { return Set.of("USER", "GUEST", "ADMIN"); }
         @Tool(description = "读取公开资料")
         public String read() { calls.incrementAndGet(); return result; }
+    }
+
+    public static class RejectedTools implements ToolGroup {
+        public Set<String> allowedRoles() { return Set.of("USER", "ADMIN"); }
+        @Tool(description = "模拟既有聊天工具业务异常")
+        public String reject() { throw new AIServiceException.RequestException("公开资料暂不可用"); }
     }
 }

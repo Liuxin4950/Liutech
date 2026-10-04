@@ -103,6 +103,28 @@ class AiPromptSecurityTest {
     }
 
     @Test
+    void invalidContentModeCannotEnterTheModelAndDraftModeIsExplicit() {
+        ChatRequest request = request();
+        request.setDraft(new AdminArticleDraftSnapshot());
+        request.getDraft().setContent("<p>原稿正文</p>");
+        request.setContext(Map.of("contentMode", "execute"));
+        assertThrows(AIServiceException.RequestException.class,
+                () -> helper.prepareMessages(request, "7", null, false, true, "model", params));
+        request.setContext(Map.of("contentMode", "patch", "requestedFields", List.of("content")));
+        String system = prompts.assembleParts(request, "7", null, false, true, memory).mandatory().getFirst().getText();
+        assertTrue(system.contains("本轮正文模式（服务端约束）：patch"));
+        assertTrue(system.contains("未修改的段落不要输出"));
+        assertFalse(system.contains("无论写新文章、润色、续写还是局部修改"));
+        request.setContext(Map.of("contentMode", "patch", "requestedFields", List.of("check")));
+        system = prompts.assembleParts(request, "7", null, false, true, memory).mandatory().getFirst().getText();
+        assertTrue(system.contains("本轮仅检查：只输出检查结论"));
+        assertTrue(system.contains("不要提交空edits或替换正文"));
+        request.setContext(Map.of("contentMode", "patch", "requestedFields", List.of("title")));
+        system = prompts.assembleParts(request, "7", null, false, true, memory).mandatory().getFirst().getText();
+        assertTrue(system.contains("本轮只允许修改这些字段：[title]"));
+    }
+
+    @Test
     void articleOrHistoryInstructionsCannotGrantToolsEvenForAdminChat() {
         assertFalse(tools.getToolsForRoleAndMode("ADMIN", "CHAT").contains(writing));
         assertFalse(tools.getToolsForRoleAndMode("USER", "WRITING").contains(writing));

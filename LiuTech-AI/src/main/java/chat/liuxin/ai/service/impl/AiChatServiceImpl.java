@@ -12,6 +12,9 @@ import chat.liuxin.ai.service.MemoryService;
 import chat.liuxin.ai.service.SiliconFlowChatClient;
 import chat.liuxin.ai.service.StreamingChatService;
 import chat.liuxin.ai.service.FieldUpdateCollector;
+import chat.liuxin.ai.service.WritingContentSession;
+import chat.liuxin.ai.service.WritingHtmlValidator;
+import chat.liuxin.ai.dto.FieldUpdatePayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
@@ -137,20 +140,53 @@ public class AiChatServiceImpl implements AiChatService {
             logParameterApplication(modelName, params);
             List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true, modelName, params);
             var collector = new FieldUpdateCollector();
+            String originalContent = request.getDraft() == null ? null : request.getDraft().getContent();
+            var contentSession = new WritingContentSession(originalContent);
+            String contentMode = WritingContentSession.contentMode(request);
             var usage = new AiMetrics.UsageTracker();
             var context = new java.util.HashMap<String, Object>();
             context.put(SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, params);
             context.put(AiMetrics.UsageTracker.CONTEXT_KEY, usage);
             context.put(FieldUpdateCollector.CONTEXT_KEY, collector);
+            context.put(WritingContentSession.CONTEXT_KEY, contentSession);
+            context.put("writingContentMode", contentMode);
             if (request.getContext() != null && request.getContext().get("requestedFields") instanceof List<?> fields) {
                 context.put("allowedWritingFields", List.copyOf(fields));
             }
             String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role, context);
 
+            List<FieldUpdatePayload> updates = new java.util.ArrayList<>(collector.drain());
+            Object rawFields = context.get("allowedWritingFields");
+            List<?> fields = rawFields instanceof List<?> values ? values : List.of();
+            boolean contentRequested = fields.contains("content") && !fields.contains("check");
+            boolean contentAllowed = fields.isEmpty() || contentRequested;
+            if (contentAllowed && "patch".equals(contentMode)) {
+                if (contentRequested && !contentSession.wasReviewed()) {
+                    throw new AIServiceException.ModelException("AI 没有生成可定位的局部修改，正文未修改，请重试");
+                }
+                var patch = contentSession.finish();
+                if (patch != null) {
+                    var body = new FieldUpdatePayload();
+                    body.setContentPatch(patch);
+                    updates.add(body);
+                }
+            } else if (contentAllowed) {
+                String html = WritingHtmlValidator.validate(aiOutput, originalContent);
+                if (contentRequested && html == null) {
+                    throw new AIServiceException.ModelException("AI 没有返回完整有效的 HTML 正文，正文未修改，请重试");
+                }
+                if (html != null) {
+                    var body = new FieldUpdatePayload();
+                    body.setContentHtml(html);
+                    updates.add(body);
+                }
+            }
+
             long cost = System.currentTimeMillis() - begin;
             aiMetrics.recordSuccess(modelName, cost, (int) Math.min(Integer.MAX_VALUE, usage.inputTokens() + usage.outputTokens()));
             ChatResponse result = buildSuccessResponse(aiOutput, modelName, cost, conversationId, guestMode);
-            result.setFieldUpdates(collector.drain());
+            result.setFieldUpdates(updates);
+            result.setMode("writing");
             return result;
 
         } catch (Exception e) {

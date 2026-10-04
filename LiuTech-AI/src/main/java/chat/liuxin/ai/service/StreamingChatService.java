@@ -10,6 +10,7 @@ import chat.liuxin.ai.dto.FieldUpdatePayload;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
+import chat.liuxin.ai.dto.WritingStreamEvent;
 import chat.liuxin.ai.common.mcp.ToolResultBudget;
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
@@ -94,6 +95,10 @@ public class StreamingChatService {
         StreamSession session = new StreamSession(userId, modelName, writingMode,
                 userId == null ? null : request.getConversationId());
         session.originalDraftContent = writingMode && request.getDraft() != null ? request.getDraft().getContent() : null;
+        if (writingMode) {
+            session.contentSession = new WritingContentSession(session.originalDraftContent);
+            session.contentMode = WritingContentSession.contentMode(request);
+        }
         Object requestedFields = request.getContext() == null ? null : request.getContext().get("requestedFields");
         session.contentRequested = requestedFields instanceof List<?> fields
                 && fields.contains("content") && !fields.contains("check");
@@ -102,13 +107,18 @@ public class StreamingChatService {
         session.emitter.onError(error -> session.stop("cancelled", error, false));
         session.emitter.onTimeout(() -> session.stop("timeout", null, true));
         try {
+            // 写作的第一条信封在入队前发出，连调度拒绝/排队超时也拥有相同的请求标识。
+            if (writingMode) {
+                session.sendStarted();
+                session.startHeartbeat();
+            }
             // Servlet 自身的 timeout 回调执行前已把 emitter 标记完成，无法再推送错误；
             // 应用 deadline 先通知，Servlet 稍后只作兜底。
             session.setDeadline(heartbeatExecutor.schedule(() -> session.stop("timeout", null, true),
                     Math.max(1, aiChatProperties.getSseTimeout()), TimeUnit.MILLISECONDS));
             Future<?> future = streamExecutor.submit(() -> prepareAndSubscribe(session, request, params, role));
             session.setFuture(future);
-        } catch (RejectedExecutionException error) {
+        } catch (Exception error) {
             session.stop("error", error, true);
         }
         return session.emitter;
@@ -119,8 +129,13 @@ public class StreamingChatService {
         session.preparationThread = Thread.currentThread();
         try {
             if (!session.isRunning()) return;
+            String draftActivity = null;
+            if (session.writingMode) {
+                draftActivity = session.activities.start("reading_draft", "AI 正在读取当前草稿正文");
+            }
             List<Message> messages = chatServiceHelper.prepareMessages(request, session.userId,
                     session.conversationId.get(), session.guestMode, session.writingMode, session.modelName, params);
+            if (draftActivity != null) session.activities.complete(draftActivity, "当前草稿已读取");
             // 会话与用户消息变动和取消共用短临界区，避免取消后又落一条没有回复的用户消息。
             synchronized (session) {
                 if (!session.isRunning()) return;
@@ -136,17 +151,10 @@ public class StreamingChatService {
                 }
             }
             if (!session.isRunning()) return;
-            session.send("start", SseEmitterHelper.eventPayload("conversationId", session.conversationId.get(),
-                    "model", session.modelName, "mode", session.writingMode ? "writing" : session.guestMode ? "guest" : "user"));
-            session.setHeartbeat(heartbeatExecutor.scheduleAtFixedRate(() -> {
-                if (session.closed.get()) return;
-                try {
-                    session.send("heartbeat", SseEmitterHelper.eventPayload("conversationId", session.conversationId.get(),
-                            "timestamp", System.currentTimeMillis()));
-                } catch (Exception error) {
-                    session.stop("cancelled", error, false);
-                }
-            }, HEARTBEAT_INTERVAL_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS));
+            if (!session.writingMode) {
+                session.sendStarted();
+                session.startHeartbeat();
+            }
 
             Map<String, Object> toolContext = new HashMap<>();
             toolContext.put(AiMetrics.UsageTracker.CONTEXT_KEY, session.usage);
@@ -160,6 +168,8 @@ public class StreamingChatService {
             toolContext.put(ToolResultBudget.CONTEXT_KEY, promptBudget.toolResultCharBudget(
                     params.inputBudgetTokens(), aiChatProperties.getAgent().getMaxToolResultChars()));
             if (session.writingMode) {
+                toolContext.put(WritingContentSession.CONTEXT_KEY, session.contentSession);
+                toolContext.put("writingContentMode", session.contentMode);
                 toolContext.put(FieldUpdateCollector.CONTEXT_KEY, session.collector);
                 session.collector.addListener(payload -> {
                     if (!session.isRunning()) return;
@@ -170,14 +180,10 @@ public class StreamingChatService {
                         catch (Exception error) { session.stop("cancelled", error, false); }
                     }
                 });
-                toolContext.put(WritingToolEventSink.CONTEXT_KEY, new WritingToolEventSink((event, payload) -> {
-                    if (!session.isRunning()) return;
-                    try { session.send(event, payload); }
-                    catch (Exception error) { session.stop("cancelled", error, false); }
-                }));
+                toolContext.put(WritingToolEventSink.CONTEXT_KEY, session.activities);
             }
             if (!session.isRunning()) return;
-            session.ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
+            session.ttsEnabled = !session.writingMode && Boolean.TRUE.equals(request.getTtsEnabled());
             if (session.ttsEnabled) {
                 session.setTtsExecutor(Executors.newFixedThreadPool(Math.max(1, aiChatProperties.getTtsStreamConcurrency())));
             }
@@ -207,6 +213,9 @@ public class StreamingChatService {
                 session.append(dataText);
                 if (session.firstToken.compareAndSet(false, true)) {
                     aiMetrics.recordStreamFirstToken(session.modelName, session.mode(), session.elapsedMillis());
+                    if (session.writingMode && "replace".equals(session.contentMode) && session.allowsBodyPreview()) {
+                        session.bodyActivity = session.activities.start("editing_content", "AI 正在生成完整正文");
+                    }
                 }
                 session.textBuffer.append(dataText);
                 sendSegments(session, ttsSegmenter.extractSegments(session.textBuffer, session.seq.get() > 0));
@@ -221,7 +230,11 @@ public class StreamingChatService {
         // 正常模型完成先占用唯一终态：后续浏览器关闭不能把已完成内容改成错误或重复落库。
         if (!session.modelEnded.compareAndSet(false, true)) return;
         try {
+            String validationActivity = null;
             if (session.writingMode) {
+                session.activities.modelRoundCompleted();
+                if (session.bodyActivity != null) session.activities.complete(session.bodyActivity, "正文生成已结束");
+                validationActivity = session.activities.start("validating", "正在校验本轮修改和原稿定位");
                 String rest = session.parser.flush();
                 if (rest != null && !rest.isEmpty()) {
                     session.append(rest);
@@ -230,13 +243,22 @@ public class StreamingChatService {
                 }
             }
             String fullResponse = session.responseText();
-            if (fullResponse.isBlank() && (!session.writingMode || session.collector.isEmpty())) {
+            boolean patchReviewed = session.writingMode && session.contentSession.wasReviewed();
+            if (fullResponse.isBlank() && (!session.writingMode || (session.collector.isEmpty() && !patchReviewed))) {
                 throw new AIServiceException.ModelException("AI 没有返回有效内容，请稍后重试");
             }
-            String articleHtml = session.writingMode && session.allowsBodyPreview()
+            boolean patchMode = session.writingMode && "patch".equals(session.contentMode);
+            if (patchMode && session.contentRequested && !patchReviewed) {
+                throw new AIServiceException.ModelException("AI 未生成可定位的局部修改，草稿正文未修改，请重试");
+            }
+            String articleHtml = session.writingMode && !patchMode && session.allowsBodyPreview()
                     ? completeArticleHtml(fullResponse, session.originalDraftContent) : null;
-            if (session.writingMode && session.contentRequested && articleHtml == null) {
+            if (session.writingMode && !patchMode && session.contentRequested && articleHtml == null) {
                 throw new AIServiceException.ModelException("AI 没有返回完整有效的 HTML 正文，草稿正文未修改，请重试");
+            }
+            var contentPatch = patchReviewed ? session.contentSession.finish() : null;
+            if (contentPatch != null && (!patchMode || !session.allowsBodyPreview())) {
+                throw new AIServiceException.ModelException("正文修改方式与本轮范围不一致，草稿正文未修改");
             }
             if (!session.guestMode && !session.writingMode) {
                 memoryService.saveAssistantMessage(session.userId, session.conversationId.get(), fullResponse,
@@ -246,8 +268,12 @@ public class StreamingChatService {
             session.finishMetrics("success");
             if (session.closed.get()) return;
             if (session.writingMode) {
+                session.activities.complete(validationActivity, "本轮修改校验通过");
                 if (articleHtml != null) {
                     session.send("field-update", SseEmitterHelper.eventPayload("contentHtml", articleHtml, "fields", List.of("content")));
+                }
+                if (contentPatch != null) {
+                    session.send("field-update", SseEmitterHelper.eventPayload("contentPatch", contentPatch, "fields", List.of("content")));
                 }
             }
             sendSegments(session, ttsSegmenter.extractSegments(session.textBuffer, session.seq.get() > 0));
@@ -258,6 +284,13 @@ public class StreamingChatService {
             if (!articles.isEmpty()) {
                 session.send("article-results", SseEmitterHelper.eventPayload("items", articles,
                         "reason", "这些文章已在博客中核实，可以点开阅读。"));
+            }
+            if (session.writingMode) {
+                boolean hasChanges = articleHtml != null || contentPatch != null || !session.collector.isEmpty();
+                String message = hasChanges ? "本轮结果已就绪，请检查后采纳"
+                        : patchReviewed ? "检查已完成，正文无需修改" : "本轮检查已完成，草稿未修改";
+                String readyActivity = session.activities.start("ready", message);
+                session.activities.complete(readyActivity, message);
             }
             session.send("complete", SseEmitterHelper.eventPayload("conversationId", session.conversationId.get(),
                     "responseLength", fullResponse.length(), "mode", session.writingMode ? "writing" : session.guestMode ? "guest" : "user",
@@ -284,7 +317,8 @@ public class StreamingChatService {
             log.warn("AI 流式收尾失败: model={}, conversationId={}", session.modelName, session.conversationId.get(), error);
             session.savePartialOnce();
             session.finishMetrics("error");
-            SseEmitterHelper.safeSendError(session.emitter, session.conversationId.get(), toUserFriendlyError(error));
+            if (session.writingMode) session.activities.finishRunning("failed", "本轮修改校验失败，草稿未修改");
+            session.sendError(toUserFriendlyError(error));
             session.closeChannel();
             // 错误已经通过SSE协议发送，正常关闭以免异步异常分派再写JSON破坏流。
             session.emitter.complete();
@@ -292,6 +326,7 @@ public class StreamingChatService {
     }
 
     private void sendSegments(StreamSession session, List<String> segments) {
+        if (session.writingMode) return;
         for (String segment : segments) {
             if (session.closed.get()) return;
             int number = session.seq.incrementAndGet();
@@ -310,6 +345,8 @@ public class StreamingChatService {
         final boolean guestMode;
         final boolean writingMode;
         final String modelName;
+        final String requestId = UUID.randomUUID().toString();
+        final WritingToolEventSink activities;
         final long startedNanos = System.nanoTime();
         final AtomicReference<Long> conversationId;
         final AtomicBoolean modelEnded = new AtomicBoolean();
@@ -331,6 +368,11 @@ public class StreamingChatService {
         final AtomicInteger seq = new AtomicInteger();
         final List<CompletableFuture<Void>> ttsFutures = Collections.synchronizedList(new ArrayList<>());
         volatile boolean ttsEnabled;
+        long writingSequence;
+        boolean writingTerminal;
+        WritingContentSession contentSession;
+        String contentMode;
+        String bodyActivity;
         boolean contentRequested;
         String originalDraftContent;
         List<String> allowedWritingFields = List.of();
@@ -343,6 +385,11 @@ public class StreamingChatService {
             writingMode = writing;
             modelName = model;
             conversationId = new AtomicReference<>(conversation);
+            activities = new WritingToolEventSink((event, payload) -> {
+                if (closed.get()) return;
+                try { send(event, payload); }
+                catch (Exception error) { stop("cancelled", error, false); }
+            });
             aiMetrics.recordStreamStarted(modelName, mode());
         }
         String mode() { return writingMode ? "writing" : "chat"; }
@@ -355,8 +402,52 @@ public class StreamingChatService {
         synchronized void append(String text) { response.append(text); }
         synchronized String responseText() { return response.toString(); }
         void send(String event, Map<String, Object> payload) throws java.io.IOException {
-            if (closed.get()) throw new java.io.IOException("SSE 连接已关闭");
-            SseEmitterHelper.sendSseEvent(emitter, event, payload);
+            synchronized (emitter) {
+                if (closed.get()) throw new java.io.IOException("SSE 连接已关闭");
+                if (!writingMode) {
+                    SseEmitterHelper.sendSseEvent(emitter, event, payload);
+                    return;
+                }
+                if (writingTerminal) return;
+                String type = switch (event) {
+                    case "start" -> "started";
+                    case "data" -> "delta";
+                    case "activity" -> "activity";
+                    case "field-update" -> "proposal";
+                    case "article-results" -> "references";
+                    case "complete" -> "completed";
+                    case "error" -> "failed";
+                    case "heartbeat" -> "heartbeat";
+                    default -> null;
+                };
+                if (type == null) return;
+                WritingStreamEvent envelope = new WritingStreamEvent(1, requestId, ++writingSequence,
+                        System.currentTimeMillis(), type, payload);
+                SseEmitterHelper.sendSseEvent(emitter, WritingStreamEvent.EVENT_NAME, envelope.toPayload());
+                if ("completed".equals(type) || "failed".equals(type)) writingTerminal = true;
+            }
+        }
+        void sendStarted() throws java.io.IOException {
+            Map<String, Object> payload = SseEmitterHelper.eventPayload("conversationId", conversationId.get(),
+                    "model", modelName, "mode", writingMode ? "writing" : guestMode ? "guest" : "user");
+            if (writingMode) {
+                payload.put("baseRevision", contentSession.revision());
+                payload.put("contentMode", contentMode);
+            }
+            send("start", payload);
+        }
+        void startHeartbeat() {
+            setHeartbeat(heartbeatExecutor.scheduleAtFixedRate(() -> {
+                if (closed.get()) return;
+                try {
+                    send("heartbeat", SseEmitterHelper.eventPayload("conversationId", conversationId.get(),
+                            "timestamp", System.currentTimeMillis()));
+                } catch (Exception error) { stop("cancelled", error, false); }
+            }, HEARTBEAT_INTERVAL_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS));
+        }
+        void sendError(String message) {
+            try { send("error", SseEmitterHelper.eventPayload("conversationId", conversationId.get(), "error", message)); }
+            catch (Exception ignored) { }
         }
         void setSubscription(Disposable disposable) {
             subscription.set(disposable);
@@ -410,9 +501,10 @@ public class StreamingChatService {
                 if (future != null) future.cancel(Thread.currentThread() != preparationThread);
                 savePartialOnce();
                 finishMetrics(outcome);
+                if (writingMode) activities.finishRunning("cancelled".equals(outcome) ? "cancelled" : "failed",
+                        "cancelled".equals(outcome) ? "本轮生成已停止，草稿未修改" : "本轮生成未完成，草稿未修改");
                 if (notify && !closed.get()) {
-                    SseEmitterHelper.safeSendError(emitter, conversationId.get(), "timeout".equals(outcome)
-                            ? timeoutNotice() : toUserFriendlyError(error));
+                    sendError("timeout".equals(outcome) ? timeoutNotice() : toUserFriendlyError(error));
                 }
             }
             closeChannel();
@@ -516,80 +608,13 @@ public class StreamingChatService {
         futures.add(task);
     }
 
-    private static final Set<String> ARTICLE_TAGS = Set.of("article", "section", "div", "h1", "h2", "h3", "h4", "h5", "h6", "p", "pre", "code", "ul", "ol", "li", "blockquote", "strong", "em", "b", "i", "s", "del", "a", "img", "br", "hr", "table", "thead", "tbody", "tfoot", "tr", "th", "td", "span", "figure", "figcaption");
-    private static final Set<String> VOID_TAGS = Set.of("img", "br", "hr");
-    private static final Set<String> BLOCK_TAGS = Set.of("article", "section", "div", "h1", "h2", "h3", "h4", "h5", "h6", "p", "pre", "ul", "ol", "blockquote", "table", "figure");
-    private static final Set<String> EXISTING_MEDIA_TAGS = Set.of("audio", "video", "iframe", "svg", "math");
-    private static final Pattern HTML_TAG = Pattern.compile("<(/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^<>\"']|\"[^\"]*\"|'[^']*')*)>");
-    private static final Pattern UNSAFE_ATTRIBUTE = Pattern.compile("(?i)\\s(?:on[a-z]+|srcdoc)\\s*=|(?:javascript|vbscript|data)\\s*:");
-
-    /** 只接受完整合法的文章 HTML 片段，禁止从聊天/半截正文中猜测一个可回写区间。 */
+    /** 兼容既有入口；统一校验由 WritingHtmlValidator 维护。 */
     private String completeArticleHtml(String text) {
-        return completeArticleHtml(text, null);
+        return WritingHtmlValidator.validate(text, null);
     }
 
     private String completeArticleHtml(String text, String originalContent) {
-        if (text == null) return null;
-        String html = text.trim();
-        if (!html.startsWith("<") || !html.endsWith(">")) return null;
-        // 原稿完整媒体节点只供原样保留：验证时遮罩其内部结构，返回时仍使用完整原输出。
-        // 前端会在惰性 DOM 中净化保留节点；新媒体或被改动的子资源不会获得例外。
-        String validationHtml = maskExistingMedia(html, originalContent);
-        Matcher matcher = HTML_TAG.matcher(validationHtml);
-        Deque<String> stack = new ArrayDeque<>();
-        int previous = 0;
-        boolean first = true;
-        while (matcher.find()) {
-            String between = validationHtml.substring(previous, matcher.start());
-            if (between.indexOf('<') >= 0 || (stack.isEmpty() && !between.isBlank())) return null;
-            String tag = matcher.group(2).toLowerCase(Locale.ROOT);
-            String attributes = matcher.group(3);
-            if (!ARTICLE_TAGS.contains(tag) || UNSAFE_ATTRIBUTE.matcher(attributes).find()) return null;
-            boolean closing = !matcher.group(1).isEmpty();
-            if (first && (closing || !BLOCK_TAGS.contains(tag))) return null;
-            first = false;
-            if (closing) {
-                if (!attributes.isBlank() || stack.isEmpty() || !stack.pop().equals(tag)) return null;
-            } else if (!VOID_TAGS.contains(tag)) {
-                if (!attributes.endsWith("/")) stack.push(tag);
-            }
-            previous = matcher.end();
-        }
-        return !first && stack.isEmpty() && validationHtml.substring(previous).isBlank() ? html : null;
-    }
-
-    /** 复用标签扫描器提取五类既有媒体的完整根节点，不解析或信任生成内容中的未知节点。 */
-    private String maskExistingMedia(String html, String originalContent) {
-        if (originalContent == null || originalContent.isBlank()) return html;
-        Matcher matcher = HTML_TAG.matcher(originalContent);
-        String mediaTag = null;
-        int start = 0;
-        int depth = 0;
-        List<String> nodes = new ArrayList<>();
-        while (matcher.find()) {
-            String tag = matcher.group(2).toLowerCase(Locale.ROOT);
-            boolean closing = !matcher.group(1).isEmpty();
-            boolean selfClosing = matcher.group(3).trim().endsWith("/");
-            if (mediaTag == null) {
-                if (closing || !EXISTING_MEDIA_TAGS.contains(tag)) continue;
-                start = matcher.start();
-                if (selfClosing) {
-                    nodes.add(originalContent.substring(start, matcher.end()));
-                } else {
-                    mediaTag = tag;
-                    depth = 1;
-                }
-            } else if (mediaTag.equals(tag)) {
-                if (closing) depth--;
-                else if (!selfClosing) depth++;
-                if (depth == 0) {
-                    nodes.add(originalContent.substring(start, matcher.end()));
-                    mediaTag = null;
-                }
-            }
-        }
-        for (String node : nodes) html = html.replace(node, "<div></div>");
-        return html;
+        return WritingHtmlValidator.validate(text, originalContent);
     }
 
     /**

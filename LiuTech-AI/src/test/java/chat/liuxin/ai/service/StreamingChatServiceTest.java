@@ -7,6 +7,7 @@ import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.AdminArticleDraftSnapshot;
 import chat.liuxin.ai.dto.PostDetailDTO;
+import chat.liuxin.ai.dto.WritingContentPatch;
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.config.AvatarCueProperties;
 import chat.liuxin.ai.infra.config.TtsSegmenterProperties;
@@ -99,13 +100,112 @@ class StreamingChatServiceTest {
         synchronized (emitter) {
             Set<ResponseBodyEmitter.DataWithMediaType> early = (Set<ResponseBodyEmitter.DataWithMediaType>) ReflectionTestUtils.getField(emitter, "earlySendAttempts");
             return early.stream().map(ResponseBodyEmitter.DataWithMediaType::getData).filter(Map.class::isInstance)
-                    .map(value -> (Map<String, Object>) value).toList();
+                    .map(value -> (Map<String, Object>) value)
+                    .map(value -> value.containsKey("version") ? (Map<String, Object>) value.get("data") : value).toList();
         }
     }
 
     private void finished(String outcome) {
         await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> assertEquals(1,
                 registry.get("ai_stream_requests_total").tag("outcome", outcome).counter().count()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> writingEvents(SseEmitter emitter) {
+        synchronized (emitter) {
+            Set<ResponseBodyEmitter.DataWithMediaType> early = (Set<ResponseBodyEmitter.DataWithMediaType>) ReflectionTestUtils.getField(emitter, "earlySendAttempts");
+            return early.stream().map(ResponseBodyEmitter.DataWithMediaType::getData).filter(Map.class::isInstance)
+                    .map(value -> (Map<String, Object>) value).filter(value -> value.containsKey("version")).toList();
+        }
+    }
+
+    private ChatRequest patchRequest() {
+        ChatRequest request = request();
+        request.setContext(Map.of("requestedFields", List.of("content")));
+        AdminArticleDraftSnapshot draft = new AdminArticleDraftSnapshot();
+        draft.setContent("<p>错误句子</p><!-- 保留原稿注释 --><p>其他段落原样保留</p>");
+        request.setDraft(draft);
+        return request;
+    }
+
+    @Test
+    void patchProposalsOnlyContainEditedParagraphsAndTerminalEnvelopeIsLast() throws Exception {
+        SseEmitter emitter = service.processWritingStream(patchRequest(), 7L, "model", params, "admin");
+        assertTrue(subscribed.await(3, TimeUnit.SECONDS));
+        WritingContentSession content = (WritingContentSession) toolContext.get().get(WritingContentSession.CONTEXT_KEY);
+        content.add(List.of(new WritingContentPatch.Edit("<p>错误句子</p>", "<p>正确句子</p>")));
+        source.get().next("已修正一处句子。");
+        source.get().complete();
+        finished("success");
+        List<Map<String, Object>> events = writingEvents(emitter);
+        assertEquals("started", events.getFirst().get("type"));
+        assertEquals("completed", events.getLast().get("type"));
+        String requestId = (String) events.getFirst().get("requestId");
+        for (int i = 0; i < events.size(); i++) {
+            assertEquals(1, events.get(i).get("version"));
+            assertEquals(requestId, events.get(i).get("requestId"));
+            assertEquals(i + 1L, ((Number) events.get(i).get("sequence")).longValue());
+        }
+        Map<String, Object> proposal = payloads(emitter).stream().filter(map -> map.containsKey("contentPatch")).findFirst().orElseThrow();
+        assertEquals(content.revision(), ((WritingContentPatch) proposal.get("contentPatch")).baseRevision());
+        assertFalse(proposal.containsKey("contentHtml"));
+        assertFalse(proposal.toString().contains("其他段落"));
+        assertEquals("<p>正确句子</p><!-- 保留原稿注释 --><p>其他段落原样保留</p>", content.resultHtml());
+        assertTrue(payloads(emitter).stream().anyMatch(map -> "validating".equals(map.get("stage")) && "completed".equals(map.get("status"))));
+        assertTrue(payloads(emitter).stream().anyMatch(map -> "ready".equals(map.get("stage"))));
+        verifyNoInteractions(memory);
+    }
+
+    @Test
+    void reviewedArticleWithoutEditsCanCompleteWithNoTextAndNoProposal() throws Exception {
+        SseEmitter emitter = service.processWritingStream(patchRequest(), 7L, "model", params, "admin");
+        assertTrue(subscribed.await(3, TimeUnit.SECONDS));
+        WritingContentSession content = (WritingContentSession) toolContext.get().get(WritingContentSession.CONTEXT_KEY);
+        content.add(List.of());
+        source.get().complete();
+        finished("success");
+        assertEquals("completed", writingEvents(emitter).getLast().get("type"));
+        assertFalse(writingEvents(emitter).stream().anyMatch(event -> "proposal".equals(event.get("type"))));
+        assertTrue(payloads(emitter).stream().anyMatch(map -> "检查已完成，正文无需修改".equals(map.get("message"))));
+    }
+
+    @Test
+    void fullHtmlInPatchModeCannotReplaceExistingDraft() throws Exception {
+        SseEmitter emitter = service.processWritingStream(patchRequest(), 7L, "model", params, "admin");
+        assertTrue(subscribed.await(3, TimeUnit.SECONDS));
+        source.get().next("<p>模型擅自重写全部正文</p>");
+        source.get().complete();
+        finished("error");
+        assertEquals("failed", writingEvents(emitter).getLast().get("type"));
+        assertTrue(payloads(emitter).stream().noneMatch(map -> map.containsKey("contentHtml") || map.containsKey("contentPatch")));
+    }
+
+    @Test
+    void writingDisconnectEndsActivitiesAndDisposesProviderWithoutLateCompletion() throws Exception {
+        SseEmitter emitter = start(true, 7L);
+        WritingToolEventSink activities = (WritingToolEventSink) toolContext.get().get(WritingToolEventSink.CONTEXT_KEY);
+        String activity = activities.fireStart("admin.listCategories", "读取现有分类", null);
+        callback(emitter, "completionCallback");
+        assertTrue(disposed.await(3, TimeUnit.SECONDS));
+        finished("cancelled");
+        // Servlet 完成回调时传输已关闭，取消状态保留在活动生命周期，不能伪造可送达事件。
+        assertTrue(((Map<?, ?>) ReflectionTestUtils.getField(activities, "active")).isEmpty());
+        activities.complete(activity, "迟到的结果");
+        source.get().complete();
+        assertFalse(writingEvents(emitter).stream().anyMatch(event -> "completed".equals(event.get("type"))));
+        verifyNoInteractions(memory);
+    }
+
+    @Test
+    void schedulingFailureStillStartsUnifiedRequestBeforeItsFailure() {
+        service.shutdownStreamExecutor();
+        SseEmitter emitter = service.processWritingStream(request(), 7L, "model", params, "admin");
+        List<Map<String, Object>> events = writingEvents(emitter);
+        assertEquals(List.of("started", "failed"), events.stream().map(event -> event.get("type")).toList());
+        assertEquals(events.getFirst().get("requestId"), events.getLast().get("requestId"));
+        assertEquals(1L, ((Number) events.getFirst().get("sequence")).longValue());
+        assertEquals(2L, ((Number) events.getLast().get("sequence")).longValue());
+        verifyNoInteractions(client, memory);
     }
 
     @Test
@@ -196,7 +296,7 @@ class StreamingChatServiceTest {
                 + "<svg viewBox='0 0 10 10'><svg><circle cx='5' cy='5' r='4'></circle></svg></svg>"
                 + "<math><mrow><mi>x</mi><mo>=</mo><mn>1</mn></mrow></math>";
         ChatRequest request = request();
-        request.setContext(Map.of("requestedFields", List.of("content")));
+        request.setContext(Map.of("requestedFields", List.of("content"), "contentMode", "replace"));
         AdminArticleDraftSnapshot draft = new AdminArticleDraftSnapshot();
         draft.setContent("<p>原稿说明</p>" + media);
         request.setDraft(draft);
@@ -274,6 +374,10 @@ class StreamingChatServiceTest {
         source.get().complete();
         finished("success");
         assertTrue(payloads(emitter).stream().noneMatch(map -> map.containsKey("contentHtml")));
+        assertTrue(payloads(emitter).stream().anyMatch(map -> "ready".equals(map.get("stage"))
+                && String.valueOf(map.get("message")).contains("草稿未修改")));
+        assertFalse(payloads(emitter).stream().anyMatch(map -> "ready".equals(map.get("stage"))
+                && String.valueOf(map.get("message")).contains("采纳")));
     }
 
     @Test

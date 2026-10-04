@@ -27,6 +27,9 @@ public class FieldUpdatePayload {
     /** 修改后的正文（HTML） */
     private String contentHtml;
 
+    /** 基于本轮原稿的局部正文修改，与 contentHtml 整文建议互斥。 */
+    private WritingContentPatch contentPatch;
+
     /** 修改后的分类ID */
     private Long categoryId;
 
