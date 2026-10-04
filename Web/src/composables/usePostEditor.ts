@@ -1,6 +1,7 @@
-﻿import { ref, computed, watch } from 'vue'
+﻿import { ref, computed, watch, getCurrentScope, onScopeDispose } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { sanitizeWritingHtml, useWritingUndo } from '@/services/writingReview'
+import { resolveWritingContentUpdate, writingDraftSignature, useWritingUndo } from '@/services/writingReview'
+import type { WritingLocalActivity } from '@/services/writingSession'
 import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '@/services/adminAgent'
 import { PostService, type PostDetail } from '@/services/post'
 import type { Tag } from '@/services/tag'
@@ -134,6 +135,8 @@ export function usePostEditor() {
 
   /** 一键清空：删除本地草稿并重置表单字段 */
   const clearAutosave = () => {
+    invalidateTaxonomyCreation()
+    resetAiChanges()
     try { localStorage.removeItem(AUTOSAVE_KEY) } catch {}
     autosavedAt.value = null
     if (autosaveTimer) { window.clearTimeout(autosaveTimer); autosaveTimer = undefined }
@@ -218,6 +221,18 @@ export function usePostEditor() {
   const aiSuggestedCategoryName = ref('')
   const aiSuggestedTagNames = ref<string[]>([])
   const creatingAiSuggestion = ref('')
+  const localActivities = ref<WritingLocalActivity[]>([])
+  let taxonomyOperation = 0
+  let taxonomyEpoch = 0
+  let disposed = false
+  const invalidateTaxonomyCreation = () => {
+    taxonomyEpoch++
+    taxonomyOperation++
+    creatingAiSuggestion.value = ''
+    localActivities.value = []
+  }
+  watch([editingPostId, () => route.fullPath, () => userStore.userInfo?.id], invalidateTaxonomyCreation, { flush: 'sync' })
+  if (getCurrentScope()) onScopeDispose(() => { disposed = true; invalidateTaxonomyCreation() })
 
   const availableTags = computed(() => {
     return tags.value.filter(tag =>
@@ -252,6 +267,7 @@ export function usePostEditor() {
       else (form.value as Record<string, unknown>)[field] = oldValue
     },
     field => {
+      if (!field || field === 'categoryId' || field === 'tagIds') invalidateTaxonomyCreation()
       if (!field || field === 'categoryId') aiSuggestedCategoryName.value = ''
       if (!field || field === 'tagIds') aiSuggestedTagNames.value = []
     }
@@ -307,7 +323,15 @@ export function usePostEditor() {
 
   const handleFieldUpdate = (payload: FieldUpdatePayload, original?: AdminArticleDraftSnapshot) => {
     const before = original || adminDraftSnapshot.value
-    if ((before.postId ?? null) !== (editingPostId.value ?? null)) return
+    if (writingDraftSignature(before) !== writingDraftSignature(adminDraftSnapshot.value)) return
+    let contentUpdate: string | undefined
+    try {
+      contentUpdate = resolveWritingContentUpdate(payload, before.content || '')
+    } catch {
+      Swal.fire('无法应用', '正文修改与当前原稿不匹配，请重新生成', 'warning')
+      return
+    }
+    invalidateTaxonomyCreation()
     const nextUndoStack: Array<{ field: string, oldValue: any }> = []
     if (isPresent(payload.title)) {
       nextUndoStack.push({ field: 'title', oldValue: before.title })
@@ -317,9 +341,9 @@ export function usePostEditor() {
       nextUndoStack.push({ field: 'summary', oldValue: before.summary })
       form.value.summary = payload.summary
     }
-    if (isPresent(payload.contentHtml)) {
+    if (contentUpdate !== undefined) {
       nextUndoStack.push({ field: 'content', oldValue: before.content })
-      form.value.content = sanitizeWritingHtml(payload.contentHtml, before.content)
+      form.value.content = contentUpdate
     }
     if (isPresent(payload.categoryId)) {
       nextUndoStack.push({ field: 'categoryId', oldValue: before.categoryId ?? '' })
@@ -698,6 +722,7 @@ export function usePostEditor() {
   }
 
   const createCategory = async () => {
+    if (creatingCategory.value || creatingAiSuggestion.value) return
     if (!newCategoryName.value.trim()) {
       Swal.fire('提示', '请输入分类名称', 'warning')
       return
@@ -726,6 +751,7 @@ export function usePostEditor() {
   }
 
   const createTag = async () => {
+    if (creatingTag.value || creatingAiSuggestion.value) return
     if (!newTagName.value.trim()) {
       Swal.fire('提示', '请输入标签名称', 'warning')
       return
@@ -749,83 +775,101 @@ export function usePostEditor() {
     })
   }
 
-  // AI 建议分类/标签
-  const createAiSuggestedCategory = async (name: string) => {
-    const categoryName = name.trim()
-    if (!categoryName || creatingAiSuggestion.value) return
-    const existing = categories.value.find(category => sameName(category.name, categoryName))
-    if (existing) {
-      form.value.categoryId = String(existing.id)
-      aiSuggestedCategoryName.value = ''
-      Swal.fire('已选中', `已选中分类「${categoryName}」`, 'success')
-      return
+  // 主后端真实创建与 AI 推理分开：仅用户点击建议后执行，成功拿到 ID 才绑定。
+  const processAiTaxonomy = async (items: Array<{ kind: 'category' | 'tag', name: string }>) => {
+    if (!items.length || creatingAiSuggestion.value || creatingCategory.value || creatingTag.value) return
+    const operation = ++taxonomyOperation
+    const epoch = taxonomyEpoch
+    const activityId = `local:taxonomy:${operation}`
+    const startedAt = Date.now()
+    const isCurrent = () => !disposed && operation === taxonomyOperation && epoch === taxonomyEpoch
+    const progress = (stage: WritingLocalActivity['stage'], status: WritingLocalActivity['status'], text: string) => {
+      if (!isCurrent()) return
+      localActivities.value = [{ activityId, stage, status, message: text, startedAt,
+        ...(status !== 'running' ? { finishedAt: Date.now(), durationMs: Date.now() - startedAt } : {}) }]
     }
-    await handleAsync(async () => {
-      creatingAiSuggestion.value = `category:${categoryName}`
-      const created = await CategoryService.createCategory({ name: categoryName, description: '由 AI 写作助手建议创建' })
-      await categoryStore.fetchCategories(true)
-      if (created?.id) {
-        await categoryStore.fetchCategoryById(created.id)
-        form.value.categoryId = String(created.id)
-      } else {
-        const found = categories.value.find(category => sameName(category.name, categoryName))
-        if (found) form.value.categoryId = String(found.id)
+    creatingAiSuggestion.value = 'batch'
+    let selectedCount = 0
+    let unselectedCount = 0
+    try {
+      for (const item of items) {
+        if (!isCurrent()) return
+        const name = item.name.trim()
+        if (!name) continue
+        const isCategory = item.kind === 'category'
+        const label = isCategory ? '分类' : '标签'
+        const stage = isCategory ? 'creating_category' : 'creating_tag'
+        creatingAiSuggestion.value = `${item.kind}:${name}`
+        const categoryBefore = form.value.categoryId
+        const tagsBefore = JSON.stringify(selectedTags.value.map(tag => tag.id))
+        // 上次响应丢失也可能已经创建成功，重试前先查最新列表，避免重复提交。
+        progress('refreshing_taxonomy', 'running', `正在读取现有${label}并确认「${name}」`)
+        if (isCategory) {
+          const refreshed = await CategoryService.getCategories()
+          if (!isCurrent()) return
+          categoryStore.categories = refreshed
+        } else {
+          const refreshed = await TagService.getTags()
+          if (!isCurrent()) return
+          tagStore.tags = refreshed
+        }
+        if (!isCurrent()) return
+        let created = isCategory
+          ? categories.value.find(category => sameName(category.name, name))
+          : tags.value.find(tag => sameName(tag.name, name))
+        if (!created) {
+          progress(stage, 'running', `正在创建${label}「${name}」`)
+          created = isCategory
+            ? await CategoryService.createCategory({ name, description: '由 AI 写作助手建议创建' })
+            : await TagService.createTag({ name })
+          if (!isCurrent()) return
+          progress('refreshing_taxonomy', 'running', `正在刷新${label}列表并确认「${name}」`)
+          if (isCategory) await categoryStore.fetchCategories(true)
+          else await tagStore.fetchTags(true)
+          if (!isCurrent()) return
+          const refreshed = isCategory
+            ? categories.value.find(category => sameName(category.name, name))
+            : tags.value.find(tag => sameName(tag.name, name))
+          created = refreshed || created
+        }
+        if (!created || !Number.isSafeInteger(created.id) || created.id <= 0 || !sameName(created.name, name)) {
+          progress(stage, 'failed', `${label}「${name}」创建结果未确认，建议已保留；请刷新列表后重试`)
+          return
+        }
+        // 刷新列表失败时仍可使用创建接口确认的 ID，补入选项避免显示裸 ID。
+        if (isCategory && !categories.value.some(category => category.id === created.id)) categoryStore.categories.push(created)
+        if (!isCategory && !tags.value.some(tag => tag.id === created.id)) tagStore.tags.push(created as Tag)
+        const selectionUnchanged = isCategory
+          ? categoryBefore === form.value.categoryId
+          : tagsBefore === JSON.stringify(selectedTags.value.map(tag => tag.id))
+        if (selectionUnchanged) {
+          if (isCategory) form.value.categoryId = String(created.id)
+          else if (!selectedTags.value.some(tag => tag.id === created.id)) selectedTags.value.push(created as Tag)
+          selectedCount++
+        } else {
+          unselectedCount++
+        }
+        if (isCategory && sameName(aiSuggestedCategoryName.value, name)) aiSuggestedCategoryName.value = ''
+        if (!isCategory) aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(suggestion => !sameName(suggestion, name))
+        progress(stage, 'completed', selectionUnchanged ? `${label}「${name}」已创建或确认并选中，文章待保存` : `${label}「${name}」已创建；保留你刚修改的选择`)
       }
-      aiSuggestedCategoryName.value = ''
-      Swal.fire('成功', `分类「${categoryName}」已创建并选中`, 'success')
-    }, {
-      onError: (err) => { Swal.fire('错误', `创建分类失败: ${err.message || '请重试'}`, 'error') },
-      onFinally: () => { creatingAiSuggestion.value = '' }
-    })
-  }
-
-  const createAiSuggestedTag = async (name: string, silent = false) => {
-    const tagName = name.trim()
-    if (!tagName || creatingAiSuggestion.value) return
-    const existing = tags.value.find(tag => sameName(tag.name, tagName))
-    if (existing) {
-      if (!selectedTags.value.some(tag => tag.id === existing.id)) {
-        selectedTags.value.push(existing)
-      }
-      aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(item => !sameName(item, tagName))
-      if (!silent) Swal.fire('已选中', `已选中标签「${tagName}」`, 'success')
-      return
+      if (isCurrent() && items.length > 1) progress('refreshing_taxonomy', 'completed', `已选中 ${selectedCount} 项${unselectedCount ? `，另 ${unselectedCount} 项已创建并保留你的选择` : ''}，文章待保存`)
+    } catch (error: any) {
+      if (!isCurrent()) return
+      progress(creatingAiSuggestion.value.startsWith('category:') ? 'creating_category' : 'creating_tag', 'failed', `创建未完成，已处理 ${selectedCount + unselectedCount} 项；未完成的建议已保留`)
+      if (!error?.isBusiness) Swal.fire('创建未完成', '创建分类或标签失败，请检查网络后重试；已创建的项目会复用', 'error')
+    } finally {
+      if (isCurrent()) creatingAiSuggestion.value = ''
     }
-    await handleAsync(async () => {
-      creatingAiSuggestion.value = `tag:${tagName}`
-      const created = await TagService.createTag({ name: tagName })
-      await tagStore.fetchTags(true)
-      let tagToSelect = created
-      if (created?.id) {
-        const fetched = await tagStore.fetchTagById(created.id)
-        if (fetched) tagToSelect = fetched
-      } else {
-        tagToSelect = tags.value.find(tag => sameName(tag.name, tagName)) as Tag
-      }
-      if (tagToSelect?.id && !selectedTags.value.some(tag => tag.id === tagToSelect.id)) {
-        selectedTags.value.push(tagToSelect)
-      }
-      aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(item => !sameName(item, tagName))
-      if (!silent) Swal.fire('成功', `标签「${tagName}」已创建并选中`, 'success')
-    }, {
-      onError: (err) => { Swal.fire('错误', `创建标签失败: ${err.message || '请重试'}`, 'error') },
-      onFinally: () => { creatingAiSuggestion.value = '' }
-    })
   }
 
-  const createAllAiSuggestedTags = async () => {
-    const names = [...aiSuggestedTagNames.value]
-    if (!names.length || creatingAiSuggestion.value) return
-    for (const name of names) { await createAiSuggestedTag(name, true) }
-    Swal.fire('成功', 'AI 建议标签已创建并选中', 'success')
-  }
-
-  const createAllAiSuggestedTaxonomy = async () => {
-    if (creatingAiSuggestion.value) return
-    if (aiSuggestedCategoryName.value) { await createAiSuggestedCategory(aiSuggestedCategoryName.value) }
-    for (const name of [...aiSuggestedTagNames.value]) { await createAiSuggestedTag(name, true) }
-    Swal.fire('成功', 'AI 建议分类和标签已处理完成', 'success')
-  }
+  const createAiSuggestedCategory = (name: string) => processAiTaxonomy([{ kind: 'category', name }])
+  const createAiSuggestedTag = (name: string) => processAiTaxonomy([{ kind: 'tag', name }])
+  const createAllAiSuggestedTags = () => processAiTaxonomy(aiSuggestedTagNames.value.map(name => ({ kind: 'tag', name })))
+  const createAllAiSuggestedTaxonomy = () => processAiTaxonomy([
+    ...(aiSuggestedCategoryName.value ? [{ kind: 'category' as const, name: aiSuggestedCategoryName.value }] : []),
+    ...aiSuggestedTagNames.value.map(name => ({ kind: 'tag' as const, name }))
+  ])
 
   // 保存草稿
   const saveDraft = async () => {
@@ -939,6 +983,7 @@ export function usePostEditor() {
   }
 
   const loadPostData = async (postId: number) => {
+    invalidateTaxonomyCreation()
     resetAiChanges()
     await handleAsync(async () => {
       loading.value = true
@@ -1008,7 +1053,7 @@ export function usePostEditor() {
     showCreateCategoryDialogVisible, showCreateTagDialogVisible, showCreateSeriesDialogVisible,
     creatingCategory, creatingTag, creatingSeries, newCategoryName, newCategoryDescription,
     newTagName, newSeriesName, newSeriesDescription,
-    aiSuggestedCategoryName, aiSuggestedTagNames, creatingAiSuggestion,
+    aiSuggestedCategoryName, aiSuggestedTagNames, creatingAiSuggestion, localActivities,
     hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
     undoStack, fieldLabels,
     handleFieldUpdate, undoField, undoAiRound, getCategoryName,

@@ -35,6 +35,7 @@
       <div v-if="isAdminWritingAvailable" class="editor-ai-panel">
         <AdminWritingAssistant
           :draft="adminDraftSnapshot"
+          :local-activities="localActivities"
           @field-update="handleFieldUpdate"
         />
         <section v-if="hasAiTaxonomySuggestions" class="ai-taxonomy-card">
@@ -50,7 +51,7 @@
               :disabled="!!creatingAiSuggestion"
               @click="createAiSuggestedCategory(aiSuggestedCategoryName)"
             >
-              + {{ aiSuggestedCategoryName }}
+              {{ creatingAiSuggestion === `category:${aiSuggestedCategoryName}` ? '处理中…' : '+' }} {{ aiSuggestedCategoryName }}
             </button>
           </div>
           <div v-if="aiSuggestedCategoryName && aiSuggestedTagNames.length" class="ai-taxonomy-row">
@@ -74,7 +75,7 @@
               :disabled="!!creatingAiSuggestion"
               @click="createAiSuggestedTag(name)"
             >
-              + {{ name }}
+              {{ creatingAiSuggestion === `tag:${name}` ? '处理中…' : '+' }} {{ name }}
             </button>
             <button
               type="button"
@@ -86,7 +87,7 @@
             </button>
           </div>
           <p class="ai-taxonomy-hint">
-            这些不是已有分类/标签，点击后才会新增到后台并写入当前文章。
+            点击后新增分类/标签并选入当前编辑器，保存文章后才生效。
           </p>
         </section>
       </div>
@@ -541,7 +542,7 @@ const {
   showCreateCategoryDialogVisible, showCreateTagDialogVisible, showCreateSeriesDialogVisible,
   creatingCategory, creatingTag, creatingSeries, newCategoryName, newCategoryDescription,
   newTagName, newSeriesName, newSeriesDescription,
-  aiSuggestedCategoryName, aiSuggestedTagNames, creatingAiSuggestion,
+  aiSuggestedCategoryName, aiSuggestedTagNames, creatingAiSuggestion, localActivities,
   hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
   undoStack, fieldLabels,
   autosavedAt, loadAutosave, clearAutosave, formatDraftTime,

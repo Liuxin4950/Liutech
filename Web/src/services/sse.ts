@@ -89,6 +89,8 @@ export interface SseStreamHandlers {
    * 不传则静默跳过该帧：一条坏帧不应该让整条流停摆。
    */
   onParseError?: (rawData: string, error: unknown) => void
+  /** 调用方已收到终态或取消时主动关闭读流；聊天语音续流不提供此回调。 */
+  shouldStop?: () => boolean
 }
 
 /**
@@ -208,12 +210,20 @@ export async function readSseStream(
 
   try {
     while (true) {
+      if (handlers.shouldStop?.()) {
+        await reader.cancel()
+        return
+      }
       const { done, value } = await reader.read()
       if (done) break
 
       // stream: true 保证多字节字符被网络切断时不会被解码成乱码
       buffer += decoder.decode(value, { stream: true })
       drainBuffer(false)
+      if (handlers.shouldStop?.()) {
+        await reader.cancel()
+        return
+      }
     }
 
     // 冲刷解码器里可能残留的半个字符，再处理缓冲区里的最后一帧

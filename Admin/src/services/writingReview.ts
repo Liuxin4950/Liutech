@@ -1,6 +1,6 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import DOMPurify from 'dompurify'
-import type { WritingFieldUpdatePayload } from './writingStream'
+import type { WritingContentPatch, WritingFieldUpdatePayload } from './writingStream'
 
 /** 一轮写作只产生待采纳建议。完整成功、草稿未变化时才允许整轮应用。 */
 export interface WritingDraftSnapshot {
@@ -16,11 +16,48 @@ export interface WritingDraftSnapshot {
 }
 
 const copy = <T>(value: T): T => JSON.parse(JSON.stringify(value))
-const signature = (draft: WritingDraftSnapshot) => JSON.stringify([
+export const writingDraftSignature = (draft: WritingDraftSnapshot) => JSON.stringify([
   draft.postId ?? null, draft.title ?? '', draft.summary ?? '', draft.content ?? '',
   String(draft.categoryId ?? ''), draft.tagIds ?? [], draft.status ?? '',
   draft.coverImage ?? '', draft.thumbnail ?? ''
 ])
+
+/** 只净化修改片段。原稿未命中片段直接按原字节拼接，避免整文 DOM 序列化改变排版/媒体。 */
+export function applyWritingContentPatch(originalContent: string, patch: WritingContentPatch): string {
+  if (!patch || typeof patch.baseRevision !== 'string' || !patch.baseRevision || !Array.isArray(patch.edits)
+    || patch.edits.length < 1 || patch.edits.length > 32) throw new Error('正文修改建议格式无效，请重新生成')
+  const replacements = patch.edits.map(edit => {
+    if (typeof edit.before !== 'string' || !edit.before || typeof edit.after !== 'string') throw new Error('正文修改片段无效')
+    const start = originalContent.indexOf(edit.before)
+    if (start < 0 || originalContent.indexOf(edit.before, start + 1) >= 0) throw new Error('无法唯一定位原稿段落，请重新生成')
+    const after = sanitizeWritingHtml(edit.after, edit.before)
+    if (edit.after.trim() && !after.trim()) throw new Error('正文修改片段净化后为空，请重新生成')
+    return { start, end: start + edit.before.length, after }
+  }).sort((left, right) => left.start - right.start)
+  let cursor = 0
+  let result = ''
+  for (const replacement of replacements) {
+    if (replacement.start < cursor) throw new Error('正文修改片段相互重叠，请重新生成')
+    result += originalContent.slice(cursor, replacement.start) + replacement.after
+    cursor = replacement.end
+  }
+  result += originalContent.slice(cursor)
+  if (result.length > 200000) throw new Error('正文修改后超出长度限制，请减少修改内容')
+  return result
+}
+
+/** 父编辑器再次验证补丁，防止其它调用路径跳过预览校验；必须在写入任一字段前调用。 */
+export function resolveWritingContentUpdate(payload: WritingFieldUpdatePayload, originalContent = ''): string | undefined {
+  if (payload.contentPatch) {
+    const result = applyWritingContentPatch(originalContent, payload.contentPatch)
+    if (payload.contentHtml !== undefined && payload.contentHtml !== result) throw new Error('正文修改建议与预览不一致，请重新生成')
+    return result
+  }
+  if (payload.contentHtml === undefined) return undefined
+  const content = sanitizeWritingHtml(payload.contentHtml, originalContent)
+  if (content.length > 200000) throw new Error('正文建议超出长度限制，请减少生成内容')
+  return content
+}
 
 const TEXT_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'section', 'article',
   'br', 'hr', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'blockquote', 'pre', 'code', 'ul', 'ol', 'li',
@@ -221,11 +258,13 @@ export function useWritingReview<T extends WritingDraftSnapshot>(
   const pending = ref<WritingFieldUpdatePayload>({})
   const succeeded = ref(false)
   let failed = false
+  let baseRevision = ''
   const applied = ref(false)
   const hasChanges = computed(() => Object.keys(pending.value).some(key => key !== 'fields'))
-  const missingMedia = computed(() => pending.value.contentHtml === undefined ? 0
-    : countMissingWritingMedia(original.value?.content || '', pending.value.contentHtml))
-  const conflict = computed(() => original.value !== null && signature(original.value) !== signature(getDraft()))
+  const proposedContent = computed(() => resolveWritingContentUpdate(pending.value, original.value?.content || ''))
+  const missingMedia = computed(() => proposedContent.value === undefined ? 0
+    : countMissingWritingMedia(original.value?.content || '', proposedContent.value))
+  const conflict = computed(() => original.value !== null && writingDraftSignature(original.value) !== writingDraftSignature(getDraft()))
   const canApply = computed(() => succeeded.value && hasChanges.value && !applied.value && !conflict.value)
 
   const begin = () => {
@@ -233,23 +272,31 @@ export function useWritingReview<T extends WritingDraftSnapshot>(
     pending.value = {}
     succeeded.value = false
     failed = false
+    baseRevision = ''
     applied.value = false
     return copy(original.value)
   }
   const stage = (update: WritingFieldUpdatePayload) => {
-    if (applied.value) return
+    if (applied.value || failed || !original.value) return
+    if (update.contentPatch && (!baseRevision || update.contentPatch.baseRevision !== baseRevision)) throw new Error('正文修改建议已过期，请重新生成')
     const values = Object.fromEntries(Object.entries(update).filter(([key, value]) => key !== 'fields' && value !== undefined && value !== null))
-    pending.value = { ...pending.value, ...copy(values) }
+    const next = { ...pending.value, ...copy(values) }
+    resolveWritingContentUpdate(next, original.value.content)
+    pending.value = next
   }
+  const setRevision = (revision?: string) => { baseRevision = revision || '' }
   const complete = () => { if (!failed) succeeded.value = true }
   const fail = () => { failed = true; succeeded.value = false }
   const apply = () => {
     if (!canApply.value || !original.value) return
     // 每轮只触发一次父编辑器写入；原始快照同时交给父页，整轮撤销不会被流式片段覆盖。
-    applied.value = true
     const update = copy(pending.value)
-    if (update.contentHtml !== undefined) update.contentHtml = sanitizeWritingHtml(update.contentHtml, original.value.content)
+    const content = resolveWritingContentUpdate(update, original.value.content)
+    if (update.contentPatch) update.contentPatch.edits = update.contentPatch.edits.map(edit => ({ ...edit, after: sanitizeWritingHtml(edit.after, edit.before) }))
+    if (content !== undefined) update.contentHtml = content
     onApply(update, copy(original.value))
+    applied.value = true
   }
-  return { pending, succeeded, applied, hasChanges, missingMedia, conflict, canApply, begin, stage, complete, fail, apply }
+  const reset = () => { original.value = null; pending.value = {}; succeeded.value = false; failed = false; applied.value = false; baseRevision = '' }
+  return { pending, succeeded, applied, hasChanges, missingMedia, proposedContent, conflict, canApply, begin, setRevision, stage, complete, fail, apply, reset }
 }

@@ -15,9 +15,8 @@
  * 除了同目录的 `./sse`，本文件不依赖任何应用内模块（baseURL 与 token 由调用方注入），
  * 将来迁移到 workspace 共享包时整体搬走即可。
  *
- * 事件集合与后端 StreamingChatService 严格对齐：
- *   start / data* / tool-start* / tool-result* / field-update* / article-results? / complete / error
- * （heartbeat / avatar-cue / audio / audio-skip / audio-complete 属于看板娘链路，本客户端忽略）
+ * 统一写作事件：writing-event 包含 version/requestId/sequence/timestamp/type/data。
+ * 旧 start/data/tool/field-update 协议仅为兼容保留，单轮不得混用。
  *
  * @author 刘鑫
  */
@@ -64,7 +63,7 @@ export interface WritingArticleResultsPayload {
 }
 
 /**
- * data 事件负载（正文流式分片）
+ * 模型答复分片；只有 proposal 建议可以进入编辑器。
  */
 export interface WritingDataPayload {
   content: string
@@ -83,6 +82,36 @@ export interface WritingStartPayload {
   model?: string
   /** 会话模式：writing / guest / user */
   mode?: string
+  baseRevision?: string
+  requestId?: string
+}
+
+export type WritingActivityStage = 'reading_draft' | 'thinking' | 'reading_article' | 'reading_categories'
+  | 'reading_tags' | 'editing_content' | 'updating_fields' | 'validating' | 'ready'
+
+export interface WritingActivityPayload {
+  activityId: string
+  stage: WritingActivityStage
+  status: 'running' | 'completed' | 'failed' | 'cancelled'
+  message: string
+  startedAt?: number
+  finishedAt?: number
+  durationMs?: number
+  toolName?: string
+}
+
+export interface WritingContentPatch {
+  baseRevision: string
+  edits: Array<{ before: string; after: string }>
+}
+
+export interface WritingEventEnvelope {
+  version: 1
+  requestId: string
+  sequence: number
+  timestamp: number
+  type: 'started' | 'activity' | 'delta' | 'proposal' | 'references' | 'completed' | 'failed' | 'heartbeat'
+  data: Record<string, unknown>
 }
 
 /**
@@ -110,12 +139,13 @@ export interface WritingToolEventPayload {
 }
 
 /**
- * field-update 事件负载（AI 回写编辑器字段）
+ * proposal / 旧 field-update 负载（待用户采纳的字段建议）
  */
 export interface WritingFieldUpdatePayload {
   title?: string
   summary?: string
   contentHtml?: string
+  contentPatch?: WritingContentPatch
   categoryId?: number
   categoryName?: string
   tagIds?: number[]
@@ -165,7 +195,8 @@ export interface WritingErrorPayload {
 export interface WritingStreamHandlers {
   /** start 事件：后端已受理并建立会话，payload 里有本轮真实模型名 */
   onStart?: (payload: WritingStartPayload) => void
-  /** data 事件：正文分片 */
+  onActivity?: (payload: WritingActivityPayload) => void
+  /** delta / 旧 data：模型答复分片，不作为编辑器增量写入 */
   onData?: (content: string) => void
   /** article-results 事件：AI 引用的文章列表 */
   onArticles?: (items: WritingArticleItem[], payload: WritingArticleResultsPayload) => void
@@ -173,7 +204,7 @@ export interface WritingStreamHandlers {
   onToolStart?: (payload: WritingToolEventPayload) => void
   /** tool-result 事件：某个工具执行结束 */
   onToolResult?: (payload: WritingToolEventPayload) => void
-  /** field-update 事件：AI 回写编辑器字段 */
+  /** proposal / 旧 field-update：待采纳建议 */
   onFieldUpdate?: (payload: WritingFieldUpdatePayload) => void
   /**
    * error 事件或连接异常
@@ -278,88 +309,168 @@ export async function streamWritingAssistant(options: WritingStreamOptions): Pro
     throw new Error(await resolveHttpErrorMessage(response))
   }
 
-  // 记录是否收到终态事件，用于识别"流被中途掐断"
-  let receivedComplete = false
-  let receivedError = false
-
-  await readSseStream(response.body, {
-    onEvent: (event: ParsedSseEvent) => {
-      if (signal?.aborted || receivedComplete || receivedError) return
-      dispatchEvent(event, handlers, {
-        onComplete: () => { receivedComplete = true },
-        onError: () => { receivedError = true }
-      })
-    },
-    onParseError: (_rawData: string, error: unknown) => {
-      // 单帧坏掉不影响整轮：跳过并留痕，便于线上排查
-      console.warn('[写作助手] 忽略无法解析的 SSE 事件', error)
-    }
-  })
-
-  if (!receivedComplete && !receivedError && !signal?.aborted) {
-    handlers.onError?.('连接中断，请重试')
+  let terminal = false
+  let protocol: 'unified' | 'legacy' | null = null
+  let requestId = ''
+  let sequence = 0
+  let baseRevision = ''
+  const activities = new Map<string, WritingActivityPayload>()
+  const fail = (message = '写作事件异常，本轮修改不能应用，请重试') => {
+    if (terminal) return
+    terminal = true
+    handlers.onError?.(message, 'WRITING_PROTOCOL_ERROR')
   }
+
+  try {
+    await readSseStream(response.body, {
+    onEvent: (event: ParsedSseEvent) => {
+      if (signal?.aborted || terminal) return
+      try {
+        if (event.event === 'writing-event') {
+          if (protocol === 'legacy') throw new Error('mixed protocol')
+          protocol = 'unified'
+          const envelope = validateWritingEnvelope(event.payload)
+          if (envelope.sequence !== sequence + 1 || (requestId && envelope.requestId !== requestId)) throw new Error('invalid ordering')
+          if (!requestId && envelope.type !== 'started') throw new Error('missing start')
+          if (requestId && envelope.type === 'started') throw new Error('duplicate start')
+          requestId = envelope.requestId
+          sequence = envelope.sequence
+          const data = envelope.data
+          switch (envelope.type) {
+            case 'started':
+              if (!textValue(data.baseRevision) || !textValue(data.model) || data.mode !== 'writing') throw new Error('invalid start')
+              baseRevision = data.baseRevision as string
+              handlers.onStart?.({ ...data, requestId } as WritingStartPayload)
+              break
+            case 'activity': {
+              const activity = validateActivity(data)
+              const previous = activities.get(activity.activityId)
+              if (previous && (previous.stage !== activity.stage || previous.status !== 'running')) throw new Error('invalid activity transition')
+              activities.set(activity.activityId, activity)
+              handlers.onActivity?.(activity)
+              break
+            }
+            case 'delta':
+              if (typeof data.content !== 'string') throw new Error('invalid delta')
+              handlers.onData?.(data.content)
+              break
+            case 'proposal': {
+              const proposal = validateProposal(data)
+              if (proposal.contentPatch && proposal.contentPatch.baseRevision !== baseRevision) throw new Error('stale patch')
+              handlers.onFieldUpdate?.(proposal)
+              break
+            }
+            case 'references': {
+              const references = validateReferences(data)
+              handlers.onArticles?.(references.items, references)
+              break
+            }
+            case 'completed':
+              if ([...activities.values()].some(activity => activity.status === 'running')) throw new Error('unfinished activity')
+              terminal = true
+              handlers.onComplete?.(data as WritingCompletePayload)
+              break
+            case 'failed':
+              if (!textValue(data.message) && !textValue(data.error)) throw new Error('invalid failure')
+              terminal = true
+              handlers.onError?.(resolveEventErrorMessage(data as WritingErrorPayload), typeof data.code === 'string' ? data.code : undefined)
+              break
+            case 'heartbeat': break
+          }
+          return
+        }
+        if (!LEGACY_EVENTS.has(event.event)) throw new Error('unknown event')
+        if (protocol === 'unified') throw new Error('mixed protocol')
+        protocol = 'legacy'
+        dispatchLegacyEvent(event, handlers, () => { terminal = true })
+      } catch {
+        // 字段或补丁帧丢失会使建议不完整，不能在后续 complete 时允许采纳。
+        terminal = false
+        fail()
+      }
+    },
+    onParseError: () => { if (!signal?.aborted) fail() },
+    shouldStop: () => terminal || !!signal?.aborted
+    })
+  } catch (error) {
+    // 已收到确定终态后，传输层的关闭异常不能把成功结果改判成失败。
+    if (!terminal && !signal?.aborted) throw error
+  }
+
+  if (!terminal && !signal?.aborted) handlers.onError?.('连接中断，请重试')
 }
 
-/**
- * 把解析后的事件分发到对应回调
- *
- * @param event 解析结果（payload 已剥 envelope）
- * @param handlers 回调集合
- * @param flags 终态标记回调，供调用方判断流是否正常收尾
- */
-function dispatchEvent(
-  event: ParsedSseEvent,
-  handlers: WritingStreamHandlers,
-  flags: { onComplete: () => void; onError: () => void }
-): void {
-  // payload 已由解析层剥掉 envelope；这里按事件名收窄类型（服务端 contract 保证结构一致）
-  const payload = event.payload as Record<string, unknown> | null
+const LEGACY_EVENTS = new Set(['start', 'data', 'tool-start', 'tool-result', 'field-update', 'article-results', 'complete', 'error', 'heartbeat'])
+const STAGES = new Set<WritingActivityStage>(['reading_draft', 'thinking', 'reading_article', 'reading_categories', 'reading_tags', 'editing_content', 'updating_fields', 'validating', 'ready'])
+const STATES = new Set(['running', 'completed', 'failed', 'cancelled'])
+const EVENT_TYPES = new Set(['started', 'activity', 'delta', 'proposal', 'references', 'completed', 'failed', 'heartbeat'])
+const objectValue = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+const textValue = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
 
+function validateWritingEnvelope(value: unknown): WritingEventEnvelope {
+  if (!objectValue(value) || value.version !== 1 || !textValue(value.requestId) || value.requestId.length > 128
+    || !Number.isSafeInteger(value.sequence) || (value.sequence as number) < 1
+    || typeof value.timestamp !== 'number' || !Number.isFinite(value.timestamp) || value.timestamp < 0
+    || typeof value.type !== 'string' || !EVENT_TYPES.has(value.type) || !objectValue(value.data)) throw new Error('invalid envelope')
+  return value as unknown as WritingEventEnvelope
+}
+
+function validateActivity(value: Record<string, unknown>): WritingActivityPayload {
+  if (!textValue(value.activityId) || !STAGES.has(value.stage as WritingActivityStage)
+    || !STATES.has(value.status as string) || !textValue(value.message)) throw new Error('invalid activity')
+  for (const key of ['startedAt', 'finishedAt', 'durationMs']) {
+    if (value[key] !== undefined && (typeof value[key] !== 'number' || !Number.isFinite(value[key]) || (value[key] as number) < 0)) throw new Error('invalid timing')
+  }
+  if (value.toolName !== undefined && typeof value.toolName !== 'string') throw new Error('invalid tool')
+  return value as unknown as WritingActivityPayload
+}
+
+function validateProposal(value: Record<string, unknown>): WritingFieldUpdatePayload {
+  const allowed = new Set(['title', 'summary', 'contentHtml', 'contentPatch', 'categoryId', 'categoryName', 'tagIds', 'tagNames', 'suggestedCategoryName', 'suggestedTagNames', 'fields'])
+  if (Object.keys(value).some(key => !allowed.has(key))) throw new Error('unknown proposal field')
+  for (const key of ['title', 'summary', 'contentHtml', 'categoryName', 'suggestedCategoryName']) {
+    if (value[key] !== undefined && typeof value[key] !== 'string') throw new Error('invalid field')
+  }
+  if (value.categoryId !== undefined && (!Number.isSafeInteger(value.categoryId) || (value.categoryId as number) <= 0)) throw new Error('invalid category')
+  for (const key of ['tagNames', 'suggestedTagNames', 'fields']) {
+    if (value[key] !== undefined && (!Array.isArray(value[key]) || !(value[key] as unknown[]).every(item => typeof item === 'string'))) throw new Error('invalid names')
+  }
+  if (value.tagIds !== undefined && (!Array.isArray(value.tagIds) || !value.tagIds.every(item => Number.isSafeInteger(item) && item > 0))) throw new Error('invalid tags')
+  if (value.contentPatch !== undefined) {
+    const patch = value.contentPatch
+    if (!objectValue(patch) || !textValue(patch.baseRevision) || !Array.isArray(patch.edits) || patch.edits.length < 1 || patch.edits.length > 32
+      || !patch.edits.every(edit => objectValue(edit) && textValue(edit.before) && typeof edit.after === 'string')
+      || value.contentHtml !== undefined) throw new Error('invalid patch')
+  }
+  if (!Object.keys(value).some(key => key !== 'fields')) throw new Error('empty proposal')
+  return value as WritingFieldUpdatePayload
+}
+
+function validateReferences(value: Record<string, unknown>): WritingArticleResultsPayload {
+  if (!Array.isArray(value.items) || !value.items.every(item => objectValue(item) && Number.isSafeInteger(item.id) && (item.id as number) > 0 && textValue(item.title))) throw new Error('invalid references')
+  return value as unknown as WritingArticleResultsPayload
+}
+
+/** 仅用于旧服务兼容；同一请求一旦选择协议，禁止混入另一种事件。 */
+function dispatchLegacyEvent(event: ParsedSseEvent, handlers: WritingStreamHandlers, finish: () => void): void {
+  if (!objectValue(event.payload)) throw new Error('invalid legacy payload')
+  const payload = event.payload
   switch (event.event) {
-    case 'start':
-      // payload 为空时给空对象，调用方读 payload.model 不会炸
-      handlers.onStart?.((event.payload as WritingStartPayload) || {})
+    case 'start': handlers.onStart?.(payload as WritingStartPayload); break
+    case 'data':
+      if (typeof payload.content !== 'string') throw new Error('invalid delta')
+      handlers.onData?.(payload.content)
       break
-
-    case 'data': {
-      const dataPayload = event.payload as WritingDataPayload | null
-      handlers.onData?.(dataPayload?.content || '')
-      break
-    }
-
     case 'article-results': {
-      const articlePayload = event.payload as WritingArticleResultsPayload | null
-      handlers.onArticles?.(articlePayload?.items || [], articlePayload as WritingArticleResultsPayload)
+      const references = validateReferences(payload)
+      handlers.onArticles?.(references.items, references)
       break
     }
-
-    case 'tool-start':
-      handlers.onToolStart?.(event.payload as WritingToolEventPayload)
-      break
-
-    case 'tool-result':
-      handlers.onToolResult?.(event.payload as WritingToolEventPayload)
-      break
-
-    case 'field-update':
-      handlers.onFieldUpdate?.(event.payload as WritingFieldUpdatePayload)
-      break
-
-    case 'complete':
-      handlers.onComplete?.(event.payload as WritingCompletePayload)
-      flags.onComplete()
-      break
-
-    case 'error': {
-      const errorPayload = payload as WritingErrorPayload | null
-      handlers.onError?.(resolveEventErrorMessage(errorPayload), errorPayload?.code)
-      flags.onError()
-      break
-    }
-
-    default:
-      // heartbeat / avatar-cue / audio 等看板娘链路事件：写作助手不需要，直接忽略
-      break
+    case 'tool-start': handlers.onToolStart?.(payload as unknown as WritingToolEventPayload); break
+    case 'tool-result': handlers.onToolResult?.(payload as unknown as WritingToolEventPayload); break
+    case 'field-update': handlers.onFieldUpdate?.(validateProposal(payload)); break
+    case 'complete': finish(); handlers.onComplete?.(payload as WritingCompletePayload); break
+    case 'error': finish(); handlers.onError?.(resolveEventErrorMessage(payload), typeof payload.code === 'string' ? payload.code : undefined); break
+    case 'heartbeat': break
   }
 }
