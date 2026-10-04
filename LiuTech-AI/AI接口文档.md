@@ -53,9 +53,9 @@ AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过�
 | `temperature` | number | 否 | 合法范围0～1；越界返回400 |
 | `maxTokens` | integer | 否 | 只允许比模型配置**更小**；比配置大时按配置生效并打 WARN。模型配置本身受全局安全上限 `spring.ai.security.model-policy-max-tokens-ceiling`（默认0，仅显式正数时额外限制）约束 |
 | `context` | object | 否 | 页面与写作上下文，见下文 |
-| `tempMessages` | object[] | 否 | 游客/写作历史，最多14条，按输入顺序取最后7条；登录聊天不使用 |
+| `tempMessages` | object[] | 否 | 临时历史最多14条；游客取末7条，写作取末7轮（14条），随后按模型预算裁剪；登录聊天不使用 |
 | `conversationId` | integer / null | 否 | 登录聊天的会话 ID；省略时新建 |
-| `ttsEnabled` | boolean | 否 | 仅流式接口且显式为 `true` 才尝试语音合成；默认关闭，同步接口不生成音频 |
+| `ttsEnabled` | boolean | 否 | 仅流式聊天且显式为 `true` 才尝试语音合成；写作及同步接口不生成音频 |
 | `draft` | object | 否 | 写作时的草稿快照，聊天端点不注入此快照 |
 
 `tempMessages[]` 每项为 `{role,content}`：两者都必须非空白，`content` 最多 20000 字符。角色仅允许`user/assistant`，其他角色返回400，不能获得系统指令权限。
@@ -83,10 +83,11 @@ AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过�
 | `page: "home"` / `"about"` | 注入站点资料；问题含站点相关关键词时也可能注入 |
 | `recommendations` | 推荐历史数组；取最近有效组的 `type/reason/posts[{id,title}]`，最多引用 3 篇，用于后续追问 |
 | `requestedFields` | 本轮修改范围，支持title/summary/content/category/tags/tag；check只读，完整草稿仍用于理解 |
+| `contentMode` | `patch/replace`；已有正文默认局部修改，空稿默认整篇生成 |
 
 `context.requestedFields`只能收窄本轮待采纳字段；check只读检查，不产生修改。上下文不能声明或更改用户身份。
 
-**draft 字段**均可选：`postId: integer`、`title: string`、`content: string`、`summary: string`、`categoryId: integer`、`tagIds: integer[]`、`status: string`。`content`是编辑器完整正文，最多200000字符；不截断原稿，超模型预算明确失败。请求是 `content`，字段回写事件是 `contentHtml`，两者不要混用。
+**draft 字段**均可选：`postId: integer`、`title: string`、`content: string`、`summary: string`、`categoryId: integer`、`tagIds: integer[]`、`status: string`。`content`是编辑器完整正文，最多200000字符；不截断原稿，超模型预算明确失败。请求是 `content`，正文建议是 `contentPatch`（局部）或 `contentHtml`（整篇），两者不要混用。
 
 聊天示例（登录时可另传 `conversationId`）：
 
@@ -149,7 +150,7 @@ AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过�
 | `processingTime` | integer / null | 毫秒 |
 | `responseLength` | integer / null | 回复字符数，不是 Token 数 |
 | `conversationId` | integer / null | 游客为 null；登录聊天为实际会话 ID |
-| `mode` | string / null | `guest` 或 `user`；同步写作成功时也为 `user` |
+| `mode` | string / null | `guest` 或 `user`；同步写作成功时为 `writing` |
 | `emotion`、`action` | string / null | 保留字段，当前成功响应构造器不赋值 |
 
 同步写作以`fieldUpdates: FieldUpdatePayload[]`返回待采纳字段，不表示文章已保存或发布。写作服务内部捕获到的失败返回 **HTTP 200 + `success:false`**，并附 `message/model/processingTime`；请求校验、认证失败仍使用对应 HTTP 错误。
@@ -158,7 +159,7 @@ AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过�
 
 ### 3.1 线格式与生命周期
 
-流式接口使用 **POST + JSON 请求体**，返回 `text/event-stream`。`event:` 是事件名，`data:` 是该事件的 JSON 负载；没有额外的 `{event,data}` 或 `{payload,...}` 外层。
+流式接口使用 **POST + JSON 请求体**，返回 `text/event-stream`。`event:` 是事件名，`data:` 是该事件的 JSON 负载；聊天事件没有额外信封；写作统一使用下文版本信封。
 
 ```text
 event: start
@@ -183,15 +184,12 @@ data: {"conversationId":123,"responseLength":3,"mode":"user","ttsEnabled":false}
 
 | event | JSON 负载 | 含义 |
 | --- | --- | --- |
-| `start` | `{conversationId,model,mode}` | 开始；聊天 mode 为 `guest/user`，写作为 `writing`；conversationId 可空 |
+| `start` | `{conversationId,model,mode}` | 聊天开始；mode 为 `guest/user`；conversationId 可空 |
 | `heartbeat` | `{conversationId,timestamp}` | 首次及后续间隔均为 15 秒；timestamp 为 Unix 毫秒 |
 | `data` | `{content,conversationId}` | content 为文本增量，按顺序拼接；没有 seq |
 | `avatar-cue` | `{seq,conversationId,expression,motion,intensity,durationMs,text}` | Live2D 表情提示；expression 为字符串，intensity 为数值，durationMs 为毫秒；当前 motion 为 null |
 | `audio` | `{seq,text,audioUrl,conversationId}` | 单段音频地址；按 seq 对齐文本与播放次序 |
 | `audio-skip` | `{seq,text,reason,conversationId}` | 该段合成失败/无音频；reason 为 `empty-audio-url` 或异常类名 |
-| `tool-start` | `{toolName,displayName,inputSummary?}` | 写作工具开始，字段为字符串 |
-| `tool-result` | `{toolName,displayName,durationMs,success,resultSummary?,errorMessage?}` | 写作工具完成；耗时毫秒，success 为布尔值，成功/失败分别带摘要/错误 |
-| `field-update` | 第 3.3 节的字段对象 | 写作字段回写，不含 conversationId |
 | `article-results` | `{items,reason}` | 正常文本完成前发送，items 可以为空 |
 | `complete` | `{conversationId,responseLength,mode,ttsEnabled}` | **文本完成**；mode为guest/user/writing，写作保持writing |
 | `audio-complete` | `{conversationId,timedOut,segments}` | 存在 TTS 任务时的音频收尾；timedOut 为布尔值，segments 为本轮已编号文本段总数 |
@@ -199,21 +197,22 @@ data: {"conversationId":123,"responseLength":3,"mode":"user","ttsEnabled":false}
 
 `article-results` 当前从回复中的 `[标题](/post/ID)` 提取链接，按 ID 去重，最多 8 篇。`items` 是 `PostSummaryDTO[]`，向博客接口核验后使用真实 `id` 和 `title`，其他 DTO 字段可能为空；不能假定附带完整文章资料或 URL，详情链接可由 ID 组成 `/post/{id}`。
 
-### 3.3 写作字段回写
+### 3.3 写作统一事件和建议
 
-`field-update` 仅包含本次非 null 字段：
+写作仅发送 `event: writing-event`，data 为 `{version:1,requestId,sequence,timestamp,type,data}`。序号从1开始、每帧加1，首次type为 `started`，唯一终态为 `completed/failed`。详细字段、活动阶段和完整示例见[写作事件与局部修改](../Docs/架构/后端/AI服务/写作事件与局部修改.md)。
 
-| 字段 | 类型 | 用法 |
-| --- | --- | --- |
-| `title`、`summary` | string | 替换对应字段 |
-| `contentHtml` | string | 完整成功后的正文HTML预览，明确采纳后替换，不是文本增量 |
-| `categoryId`、`categoryName` | integer、string | 已有分类信息 |
-| `tagIds`、`tagNames` | integer[]、string[] | 已有标签信息 |
-| `suggestedCategoryName`、`suggestedTagNames` | string、string[] | 建议新分类/标签名称，不表示已经创建 |
+| type | 用途 |
+| --- | --- |
+| `started` | 实际model、mode=writing、baseRevision、contentMode |
+| `activity` | activityId、stage、status、message与真实起止时长 |
+| `delta` | 可见回复增量，不直接回写 |
+| `proposal` | 标题/摘要/分类/标签建议；正文为contentPatch或contentHtml，两者互斥 |
+| `references/heartbeat` | 核验文章引用/保活 |
+| `completed/failed` | 成功可预览采纳/失败不可采纳 |
 
-前端先暂存预览；完整成功后明确应用。缺省字段保留，summary空字符串/tagIds空数组明确清空。`applyArticleUpdate` 工具主要返回标题、摘要、分类和标签；正文仅在模型正常完整结束且HTML验证通过后发送最终预览。并非每轮一定有字段回写，也不保证一次事件包含全部字段。
+上下文 `contentMode=patch/replace` 控制正文形态，已有正文默认patch、空稿默认replace；`requestedFields` 和check范围仍生效。局部建议为 `contentPatch:{baseRevision,edits:[{before,after}]}`，每个before逐字匹配本轮原稿唯一完整HTML段落，无重叠。模型只返回改动片段；空edits确认无需修改。整篇重写才返回contentHtml完整HTML。
 
-`tool-start` / `tool-result` 和 `field-update` 用于展示进度、更新编辑状态；工具成功不代表文章已保存或发布。
+proposal仅包含非null修改字段。缺省保持原值，summary空字符串/tagIds空数组明确清空；新分类和标签只提交suggestedCategoryName/suggestedTagNames，等待用户确认创建。所有建议在完整成功、原稿签名一致且用户明确采纳后应用，不表示文章已经保存或发布。写作不发送聊天TTS/表情事件。
 
 ### 3.4 语音、结束与中断
 
@@ -309,7 +308,7 @@ console.log(reply);
 // UI 的取消按钮可以调用 controller.abort()。
 ```
 
-同源 Nginx 环境将 `baseUrl` 设为空字符串；写作改为 `path: '/ai/writing/stream'` 并提供管理员 `token`。示例不会因为 `complete` 提前关闭连接，但返回文本不代表所有音频都合成成功。
+同源 Nginx 环境将 `baseUrl` 设为空字符串。此示例消费聊天协议，写作请使用仓库 `writingStream.ts` 并按第3.3节验证信封。聊天示例不会因为complete提前关闭连接，返回文本不代表音频全部成功。
 
 ## 4. 历史记录与会话
 
