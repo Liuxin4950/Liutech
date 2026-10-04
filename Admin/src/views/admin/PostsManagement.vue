@@ -3,7 +3,7 @@ import { computed, ref, reactive, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined, StarOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
-import DOMPurify from 'dompurify'
+import { sanitizeWritingHtml, useWritingUndo } from '@/services/writingReview'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import { useTableExport } from '@/composables/useTableExport'
@@ -282,6 +282,8 @@ const createTag = async () => {
 
 // ============== 覆盖 openCreate/openEdit ==============
 const openCreate = async () => {
+  agentEditorSession.value++
+  resetAiChanges()
   if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
     await loadCategoriesAndTags()
   }
@@ -302,6 +304,8 @@ const openCreate = async () => {
 }
 
 const openEdit = async (record: PostListItem) => {
+  agentEditorSession.value++
+  resetAiChanges()
   try {
     if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
       await loadCategoriesAndTags()
@@ -375,10 +379,20 @@ const removeCoverImage = () => { formModel.value.coverImage = '' }
 const removeThumbnail = () => { formModel.value.thumbnail = '' }
 
 // ============== AI Agent 集成 ==============
+const agentEditorSession = ref(0)
 const aiSuggestedCategoryName = ref('')
 const aiSuggestedTagNames = ref<string[]>([])
-const undoStack = ref<Array<{ field: string; oldValue: any }>>([])
 const highlightedFields = reactive<Record<string, boolean>>({})
+const { entries: undoStack, record: recordAiChanges, undoField: restoreAiField,
+  undoRound: undoAiRound, reset: resetAiChanges } = useWritingUndo(
+  () => editingId.value,
+  ({ field, oldValue }) => { (formModel.value as any)[field] = oldValue },
+  field => {
+    if (!field || field === 'categoryId') aiSuggestedCategoryName.value = ''
+    if (!field || field === 'tagIds') aiSuggestedTagNames.value = []
+    if (!field) Object.keys(highlightedFields).forEach(key => { delete highlightedFields[key] })
+  }
+)
 
 const agentDraftSnapshot = computed(() => ({
   postId: editingId.value,
@@ -442,17 +456,19 @@ const rememberAiTaxonomySuggestions = (payload: FieldUpdatePayload) => {
   }
 }
 
-const handleFieldUpdate = (payload: FieldUpdatePayload) => {
+const handleFieldUpdate = (payload: FieldUpdatePayload, original?: AdminArticleDraftSnapshot) => {
+  const before = original || agentDraftSnapshot.value
+  if ((before.postId ?? null) !== (editingId.value ?? null)) return
   const entries: Array<[string, any]> = []
   if (payload.title !== undefined && payload.title !== null) entries.push(['title', payload.title])
   if (payload.summary !== undefined && payload.summary !== null) entries.push(['summary', payload.summary])
-  if (payload.contentHtml !== undefined && payload.contentHtml !== null) entries.push(['content', DOMPurify.sanitize(payload.contentHtml)])
+  if (payload.contentHtml !== undefined && payload.contentHtml !== null) entries.push(['content', sanitizeWritingHtml(payload.contentHtml, before.content)])
   if (payload.categoryId !== undefined && payload.categoryId !== null) entries.push(['categoryId', payload.categoryId])
-  if (payload.tagIds?.length) entries.push(['tagIds', [...payload.tagIds]])
-  if (entries.length > 0) undoStack.value = []
+  if (Array.isArray(payload.tagIds)) entries.push(['tagIds', [...payload.tagIds]])
+  const nextUndoStack: Array<{ field: string; oldValue: any }> = []
   for (const [field, newValue] of entries) {
-    const oldValue = (formModel.value as any)[field]
-    undoStack.value.push({ field, oldValue })
+    const oldValue = field === 'tagIds' ? [...(before.tagIds || [])] : (before as any)[field]
+    nextUndoStack.push({ field, oldValue })
     ;(formModel.value as any)[field] = newValue
     highlightedFields[field] = true
     nextTick(() => {
@@ -462,18 +478,14 @@ const handleFieldUpdate = (payload: FieldUpdatePayload) => {
   if (entries.length > 0) {
     message.success(`AI 已更新 ${entries.map(([f]) => fieldLabelMap[f] || f).join('、')}`)
   }
+  if (payload.suggestedCategoryName && !nextUndoStack.some(entry => entry.field === 'categoryId')) nextUndoStack.push({ field: 'categoryId', oldValue: before.categoryId })
+  if (payload.suggestedTagNames?.length && !nextUndoStack.some(entry => entry.field === 'tagIds')) nextUndoStack.push({ field: 'tagIds', oldValue: [...(before.tagIds || [])] })
   rememberAiTaxonomySuggestions(payload)
+  recordAiChanges(before, nextUndoStack)
 }
 
 const undoField = (field: string) => {
-  let lastIdx = -1
-  for (let i = undoStack.value.length - 1; i >= 0; i--) {
-    if (undoStack.value[i].field === field) { lastIdx = i; break }
-  }
-  if (lastIdx < 0) return
-  const { oldValue } = undoStack.value[lastIdx]
-  undoStack.value.splice(lastIdx, 1)
-  ;(formModel.value as any)[field] = oldValue
+  if (!restoreAiField(field)) return
   message.info(`已撤销「${fieldLabelMap[field] || field}」`)
 }
 
@@ -847,6 +859,7 @@ onMounted(async () => {
       </a-form>
       </div>
       <AdminAgentSidebar
+        :key="agentEditorSession"
         :draft="agentDraftSnapshot"
         @field-update="handleFieldUpdate"
       />
@@ -892,6 +905,7 @@ onMounted(async () => {
       </div>
       <div v-if="undoStack.length" class="undo-bar">
         <span class="undo-bar-label">AI 已修改：</span>
+        <a-button size="small" @click="undoAiRound">撤销本轮修改</a-button>
         <a-button
           v-for="(entry, idx) in undoStack"
           :key="idx"

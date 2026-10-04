@@ -2,6 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AiStream, StreamError } from '@/services/aiStream'
 import { useChatStore } from '@/stores/chat'
+import { getAiRuntime } from '@/services/aiRuntime'
 
 vi.mock('@/services/aiRuntime', () => ({
   getAiRuntime: vi.fn().mockResolvedValue({ defaultModel: 'test-model', tts: { enabled: false, online: false } })
@@ -45,4 +46,21 @@ it('尚未输出正文的失败请求移除空占位，仅显示错误', async (
   expect(store.messages.map(message => message.content)).toEqual(['问题', '❌ 权限不足'])
   expect(store.isLoading).toBe(false)
   expect(store.isStreaming).toBe(false)
+})
+
+it('云TTS已配置但未验证允许首次生成，真实失败状态关闭语音入口', async () => {
+  vi.mocked(getAiRuntime).mockResolvedValueOnce({
+    aiOnline: true, defaultModel: 'configured-model',
+    tts: { enabled: true, online: false, configured: true, onlineVerified: false, checkedAt: 0 }
+  })
+  const store = useChatStore()
+  await Promise.resolve()
+  expect(store.defaultModel).toBe('configured-model')
+  expect(store.ttsAvailable).toBe(true)
+  vi.mocked(getAiRuntime).mockResolvedValueOnce({
+    aiOnline: true, defaultModel: 'configured-model',
+    tts: { enabled: true, online: false, configured: true, onlineVerified: true, checkedAt: 1 }
+  })
+  await store.loadRuntime()
+  expect(store.ttsAvailable).toBe(false)
 })

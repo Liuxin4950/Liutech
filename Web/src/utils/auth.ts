@@ -31,6 +31,7 @@ export const getToken = (): string | null => {
  */
 export const setToken = (token: string): void => {
   localStorage.setItem(TOKEN_KEY, token)
+  window.dispatchEvent(new Event('liutech-auth-change'))
 }
 
 /**
@@ -38,6 +39,7 @@ export const setToken = (token: string): void => {
  */
 export const removeToken = (): void => {
   localStorage.removeItem(TOKEN_KEY)
+  window.dispatchEvent(new Event('liutech-auth-change'))
 }
 
 /**

@@ -216,8 +216,8 @@ export class AiStream {
         // 首事件携带 conversationId，立即通知上层更新 store。
         // 后端当前下发裸 payload，conversationId 就在 payload 顶层；
         // envelope 形态下解析层已把 payload 剥出来，这里同样取得到。
-        const payload = parsedData as { conversationId?: number } | null
-        onEvent?.('start', { conversationId: payload?.conversationId })
+        const payload = parsedData as { conversationId?: number; model?: string } | null
+        onEvent?.('start', { conversationId: payload?.conversationId, ...(payload?.model ? { model: payload.model } : {}) })
         break
       }
 

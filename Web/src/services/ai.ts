@@ -73,12 +73,13 @@ export class Ai {
      * 普通聊天请求
      * 使用AI服务8081端口
      */
-    static async chat(request: AiChatRequest): Promise<AiChatResponse> {
+    static async chat(request: AiChatRequest, signal?: AbortSignal): Promise<AiChatResponse> {
         const { chatType, ...requestBody } = request
         // 看板娘聊天走 /ai/chat，写作助手走 /ai/writing
         const endpoint = chatType === 'writing' ? '/writing' : '/chat'
         const response = await post<AiChatResponse>(endpoint, requestBody, {
-            serviceType: ServiceType.AI
+            serviceType: ServiceType.AI,
+            signal
         })
         return response.data
     }

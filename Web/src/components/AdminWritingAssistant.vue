@@ -17,6 +17,7 @@
     <button type="button" class="send-btn" :disabled="!canSend" @click="send()">
       {{ loading ? '生成中...' : '发送给纳西妲' }}
     </button>
+    <button v-if="loading" type="button" @click="stop">停止生成</button>
 
     <section v-if="showProcessCard" class="assistant-section process-card">
       <div class="section-title process-title">
@@ -41,7 +42,19 @@
       </div>
     </section>
 
-    <p v-if="applyNotice" class="assistant-success">{{ applyNotice }}</p>
+    <section v-if="hasChanges" class="writing-preview">
+      <strong>本轮修改预览</strong>
+      <p v-if="pendingUpdate.title">标题：{{ pendingUpdate.title }}</p>
+      <p v-if="pendingUpdate.summary !== undefined">摘要：{{ pendingUpdate.summary || '清空摘要' }}</p>
+      <p v-if="pendingUpdate.categoryId || pendingUpdate.suggestedCategoryName">分类：{{ pendingUpdate.categoryName || pendingUpdate.suggestedCategoryName || '调整为现有分类' }}</p>
+      <p v-if="pendingUpdate.tagIds !== undefined || pendingUpdate.suggestedTagNames?.length">标签：{{ pendingUpdate.tagIds?.length === 0 ? '清空所有标签' : [...(pendingUpdate.tagNames || (pendingUpdate.tagIds?.length ? [`${pendingUpdate.tagIds.length} 个现有标签`] : [])), ...(pendingUpdate.suggestedTagNames || [])].join('、') }}</p>
+      <div v-if="previewHtml" class="writing-preview-body" v-html="previewHtml" @click="openWritingPreviewLink" @keydown="openWritingPreviewLink"></div>
+      <p v-if="missingMedia" role="alert">本轮将移除 {{ missingMedia }} 处原稿媒体，请检查后再应用；应用后可撤销。</p>
+      <p v-if="draftConflict && !applied" role="alert">原稿在生成后已修改，请根据当前原稿重新生成。</p>
+      <button type="button" :disabled="!canApply || loading" @click="review.apply()">{{ applied ? '本轮修改已应用' : '应用本轮修改' }}</button>
+      <p v-if="!review.succeeded.value && !loading">本轮未完整成功，不能应用到原稿。</p>
+    </section>
+
     <!-- AI回复区域 -->
     <section v-if="displayAnswer" class="assistant-section answer-container">
       <div class="answer-header">
@@ -82,7 +95,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { openWritingPreviewLink, sanitizeWritingPreview, useWritingReview } from '@/services/writingReview'
 import { AdminAgentService, type AdminArticleDraftSnapshot, type ArticleResultItem, type ToolEventPayload, type FieldUpdatePayload, type TempMessage } from '@/services/adminAgent'
 
 const props = defineProps<{
@@ -90,7 +104,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  fieldUpdate: [payload: FieldUpdatePayload]
+  fieldUpdate: [payload: FieldUpdatePayload, original: AdminArticleDraftSnapshot]
 }>()
 
 const prompt = ref('')
@@ -98,6 +112,18 @@ const loading = ref(false)
 const answer = ref('')
 const showFullAnswer = ref(false)
 const history = ref<TempMessage[]>([])
+let requestController: AbortController | null = null
+const review = useWritingReview(() => props.draft, (update, original) => emit('fieldUpdate', update, original))
+const { pending: pendingUpdate, conflict: draftConflict, canApply, hasChanges, missingMedia, applied } = review
+const previewHtml = computed(() => sanitizeWritingPreview(pendingUpdate.value.contentHtml || ''))
+const stop = () => {
+  requestController?.abort()
+  review.fail()
+  streamError.value = '已停止生成，原稿保持不变'
+}
+onBeforeUnmount(() => {
+  requestController?.abort()
+})
 
 // ============== 真实活动时间线 ==============
 // 时间线只由后端 SSE 事件驱动（start / tool-start / tool-result / field-update /
@@ -170,10 +196,8 @@ const nextActivityId = () => {
   return activitySeq
 }
 
-const applyNotice = ref('')
 const articleResults = ref<ArticleResultItem[]>([])
 const articleResultReason = ref('')
-let noticeTimer: number | undefined
 type RequestedField = 'title' | 'summary' | 'content' | 'category' | 'tags' | 'check'
 type FieldScope = {
   fields: RequestedField[]
@@ -191,19 +215,10 @@ const quickPrompts: Array<{label: string, message: string}> = [
   { label: '发布前检查', message: '检查正文是否存在明显问题：错别字、未闭合标签、过长段落、缺失摘要' },
 ]
 
-// 处理回答显示：长HTML正文只显示提示，不显示原始源码
+// 生成的正文在下方预览，原稿仅在用户确认应用后更新。
 const displayAnswer = computed(() => {
   if (!answer.value) return ''
-  if (answer.value.length < 200) return answer.value
-  const editorHasContent = props.draft.content && props.draft.content.trim().length > 0
-  const textHasHtml = answer.value.includes('<p') || answer.value.includes('<h') || answer.value.includes('<pre')
-  if (textHasHtml && editorHasContent) {
-    const firstTag = answer.value.indexOf('<')
-    if (firstTag > 10) {
-      return answer.value.substring(0, firstTag).trim() + '\n\n✓ 正文已写入编辑器，可直接在富文本框查看编辑'
-    }
-    return '✓ 正文已写入编辑器，可直接在富文本框查看编辑'
-  }
+  if (pendingUpdate.value.contentHtml) return applied.value ? '本轮修改已应用，可在编辑器检查或撤销。' : '正文已生成，请检查下方预览后应用本轮修改。'
   return answer.value
 })
 
@@ -233,9 +248,9 @@ const writtenFieldLabels = computed(() => {
 /** 结束后的真实汇总：完成 · 调用工具 N 次 · 写入 M 个字段 · 生成 X 字 */
 const summaryText = computed(() => {
   const parts = [
-    '完成',
+    applied.value ? '已应用' : '生成完成，待采纳',
     `调用工具 ${toolItems.value.length} 次`,
-    `AI 写入 ${writtenFieldLabels.value.size} 个字段`,
+    `建议修改 ${writtenFieldLabels.value.size} 个字段`,
     `生成 ${generatedChars.value} 字`,
   ]
   let text = parts.join(' · ')
@@ -327,7 +342,7 @@ const activityTitle = (item: ActivityItem): string => {
   switch (item.type) {
     case 'notice': return item.text
     case 'tool': return item.displayName || item.toolName
-    case 'field': return `已写入：${Array.from(new Set(item.fields.map(fieldLabel))).join('、')}`
+    case 'field': return `待采纳：${Array.from(new Set(item.fields.map(fieldLabel))).join('、')}`
     case 'articles': return `找到 ${item.count} 篇相关文章`
     case 'error': return item.text
   }
@@ -382,32 +397,19 @@ const filterFieldUpdate = (payload: FieldUpdatePayload, scope = activeFieldScope
     next.suggestedCategoryName = payload.suggestedCategoryName
   }
   if (scope.fields.includes('tags')) {
-    next.tagIds = payload.tagIds
+    next.tagIds = Array.isArray(payload.tagIds) && scope.appendTags
+      ? Array.from(new Set([...(props.draft.tagIds || []), ...payload.tagIds]))
+      : payload.tagIds
     next.tagNames = payload.tagNames
     next.suggestedTagNames = payload.suggestedTagNames
   }
   return Object.fromEntries(Object.entries(next).filter(([, value]) => value !== undefined && value !== null)) as FieldUpdatePayload
 }
 
-const emitScopedUpdate = (payload: FieldUpdatePayload) => {
-  const scoped = filterFieldUpdate(payload)
-  const hasConcreteUpdate = !!(scoped.title || scoped.summary || scoped.contentHtml || scoped.categoryId || scoped.tagIds?.length)
-  const hasSuggestion = !!(scoped.suggestedCategoryName || scoped.suggestedTagNames?.length)
-  if (hasConcreteUpdate || hasSuggestion) {
-    emit('fieldUpdate', scoped)
-    showApplyNotice(hasConcreteUpdate
-      ? `已自动应用：${activeFieldScope.value.fields.filter(field => field !== 'check').join('、')}`
-      : '已生成可确认创建的分类/标签建议')
-  }
+const stageScopedUpdate = (payload: FieldUpdatePayload) => {
+  review.stage(filterFieldUpdate(payload))
 }
 
-const showApplyNotice = (message: string) => {
-  applyNotice.value = message
-  if (noticeTimer) window.clearTimeout(noticeTimer)
-  noticeTimer = window.setTimeout(() => {
-    applyNotice.value = ''
-  }, 2600)
-}
 
 /**
  * 输入框按键处理：Enter 发送，Shift+Enter 换行。
@@ -418,7 +420,7 @@ const showApplyNotice = (message: string) => {
  * 合并成一个处理函数既避开这个问题，逻辑也更直观。
  */
 const handleKeydown = (event: KeyboardEvent) => {
-  if (event.key !== 'Enter') return
+  if (event.key !== 'Enter' || event.isComposing) return
   // Shift/Ctrl/Alt/Meta + Enter 一律放行（换行或其它输入法行为）
   if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
   event.preventDefault()
@@ -429,13 +431,15 @@ const send = async (text?: string) => {
   const content = (text || prompt.value).trim()
   if (!content || loading.value) return
   loading.value = true
+  const controller = new AbortController()
+  requestController = controller
+  const draft = review.begin()
   answer.value = ''; showFullAnswer.value = false
   activity.value = []
   generatedChars.value = 0
   receivingData.value = false
   streamError.value = ''
   finished.value = false
-  applyNotice.value = ''
   articleResults.value = []
   articleResultReason.value = ''
   prompt.value = ''
@@ -443,12 +447,12 @@ const send = async (text?: string) => {
   try {
     await AdminAgentService.stream({
       message: content,
-      draft: props.draft,
+      draft,
       tempMessages: history.value,
       context: {
         page: 'admin-post-editor',
         source: 'web-create-post',
-        postId: props.draft.postId,
+        postId: draft.postId,
         requestedFields: activeFieldScope.value.fields,
         appendTags: activeFieldScope.value.appendTags
       }
@@ -512,27 +516,32 @@ const send = async (text?: string) => {
         else activity.value.push(next)
       },
       onFieldUpdate: payload => {
-        emitScopedUpdate(payload)
-        const fields = resolveWrittenFields(payload)
+        stageScopedUpdate(payload)
+        const fields = resolveWrittenFields(filterFieldUpdate(payload))
         if (fields.length) {
           activity.value.push({ id: nextActivityId(), type: 'field', fields })
         }
       },
       onComplete: () => {
+        review.complete()
         finished.value = true
       },
       onError: message => {
+        review.fail()
         streamError.value = message
         activity.value.push({ id: nextActivityId(), type: 'error', text: message })
       }
-    })
+    }, controller.signal)
   } catch (e: any) {
+    review.fail()
+    if (controller.signal.aborted) return
     const text = e?.message || '写作助手请求失败'
     streamError.value = text
     activity.value.push({ id: nextActivityId(), type: 'error', text })
   } finally {
+    if (requestController === controller) requestController = null
     loading.value = false
-    if (content && answer.value) {
+    if (review.succeeded.value && content && answer.value) {
       history.value.push({ role: 'user', content })
       history.value.push({ role: 'assistant', content: answer.value })
     }
@@ -541,6 +550,11 @@ const send = async (text?: string) => {
 </script>
 
 <style scoped>
+.writing-preview { border: 1px solid var(--border-light, #ddd); border-radius: 8px; padding: 12px; }
+.writing-preview-body { max-height: 320px; overflow: auto; overflow-wrap: anywhere; }
+.writing-preview button { margin-top: 8px; cursor: pointer; }
+.writing-preview button:disabled { cursor: default; opacity: .5; }
+
 .writing-assistant {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
@@ -864,5 +878,4 @@ textarea:focus {
   flex-shrink: 0;
 }
 </style>
-
 

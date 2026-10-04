@@ -31,7 +31,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
  */
 const MIRRORED_MODULES = [
   ['SSE 协议解析', 'Web/src/services/sse.ts', 'Admin/src/services/sse.ts'],
-  ['写作助手流式客户端', 'Web/src/services/writingStream.ts', 'Admin/src/services/writingStream.ts']
+  ['写作助手流式客户端', 'Web/src/services/writingStream.ts', 'Admin/src/services/writingStream.ts'],
+  ['写作采纳与冲突检查', 'Web/src/services/writingReview.ts', 'Admin/src/services/writingReview.ts']
 ]
 
 /** 镜像文件里不允许出现的应用内依赖（必须自包含，才能整体迁移到共享包） */

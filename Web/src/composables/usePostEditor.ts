@@ -1,6 +1,6 @@
 ﻿import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import DOMPurify from 'dompurify'
+import { sanitizeWritingHtml, useWritingUndo } from '@/services/writingReview'
 import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '@/services/adminAgent'
 import { PostService, type PostDetail } from '@/services/post'
 import type { Tag } from '@/services/tag'
@@ -244,7 +244,18 @@ export function usePostEditor() {
   }))
 
   // AI 字段回退栈
-  const undoStack = ref<Array<{ field: string, oldValue: any }>>([])
+  const { entries: undoStack, record: recordAiChanges, undoField, undoRound: undoAiRound,
+    reset: resetAiChanges } = useWritingUndo(
+    () => editingPostId.value,
+    ({ field, oldValue }) => {
+      if (field === 'tagIds') selectedTags.value = oldValue
+      else (form.value as Record<string, unknown>)[field] = oldValue
+    },
+    field => {
+      if (!field || field === 'categoryId') aiSuggestedCategoryName.value = ''
+      if (!field || field === 'tagIds') aiSuggestedTagNames.value = []
+    }
+  )
   const fieldLabels: Record<string, string> = {
     title: '标题',
     summary: '摘要',
@@ -294,56 +305,38 @@ export function usePostEditor() {
     }
   }
 
-  const handleFieldUpdate = (payload: FieldUpdatePayload) => {
+  const handleFieldUpdate = (payload: FieldUpdatePayload, original?: AdminArticleDraftSnapshot) => {
+    const before = original || adminDraftSnapshot.value
+    if ((before.postId ?? null) !== (editingPostId.value ?? null)) return
     const nextUndoStack: Array<{ field: string, oldValue: any }> = []
     if (isPresent(payload.title)) {
-      nextUndoStack.push({ field: 'title', oldValue: form.value.title })
+      nextUndoStack.push({ field: 'title', oldValue: before.title })
       form.value.title = payload.title
     }
     if (isPresent(payload.summary)) {
-      nextUndoStack.push({ field: 'summary', oldValue: form.value.summary })
+      nextUndoStack.push({ field: 'summary', oldValue: before.summary })
       form.value.summary = payload.summary
     }
     if (isPresent(payload.contentHtml)) {
-      nextUndoStack.push({ field: 'content', oldValue: form.value.content })
-      form.value.content = DOMPurify.sanitize(payload.contentHtml)
+      nextUndoStack.push({ field: 'content', oldValue: before.content })
+      form.value.content = sanitizeWritingHtml(payload.contentHtml, before.content)
     }
     if (isPresent(payload.categoryId)) {
-      nextUndoStack.push({ field: 'categoryId', oldValue: form.value.categoryId })
+      nextUndoStack.push({ field: 'categoryId', oldValue: before.categoryId ?? '' })
       form.value.categoryId = String(payload.categoryId)
     }
-    if (payload.tagIds?.length) {
-      nextUndoStack.push({ field: 'tagIds', oldValue: [...selectedTags.value] })
+    if (Array.isArray(payload.tagIds)) {
+      nextUndoStack.push({ field: 'tagIds', oldValue: tags.value.filter(tag => before.tagIds?.includes(tag.id)) })
       const nextTags = tags.value.filter(tag => payload.tagIds?.includes(tag.id))
-      if (nextTags.length) {
-        selectedTags.value = nextTags
-      }
+      selectedTags.value = nextTags
       aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(name =>
         !nextTags.some(tag => sameName(tag.name, name))
       )
     }
+    if (payload.suggestedCategoryName && !nextUndoStack.some(entry => entry.field === 'categoryId')) nextUndoStack.push({ field: 'categoryId', oldValue: before.categoryId ?? '' })
+    if (payload.suggestedTagNames?.length && !nextUndoStack.some(entry => entry.field === 'tagIds')) nextUndoStack.push({ field: 'tagIds', oldValue: tags.value.filter(tag => before.tagIds?.includes(tag.id)) })
     rememberAiTaxonomySuggestions(payload)
-    if (nextUndoStack.length) {
-      undoStack.value = nextUndoStack
-    }
-  }
-
-  const undoField = (field: string) => {
-    let index = -1
-    for (let i = undoStack.value.length - 1; i >= 0; i--) {
-      if (undoStack.value[i].field === field) { index = i; break }
-    }
-    if (index < 0) return
-
-    const entry = undoStack.value[index]
-    switch (entry.field) {
-      case 'title': form.value.title = entry.oldValue; break
-      case 'summary': form.value.summary = entry.oldValue; break
-      case 'content': form.value.content = entry.oldValue; break
-      case 'categoryId': form.value.categoryId = entry.oldValue; break
-      case 'tagIds': selectedTags.value = entry.oldValue; break
-    }
-    undoStack.value = undoStack.value.filter(e => e.field !== field)
+    recordAiChanges(before, nextUndoStack)
   }
 
   const getCategoryName = (categoryId: string | number) => {
@@ -946,6 +939,7 @@ export function usePostEditor() {
   }
 
   const loadPostData = async (postId: number) => {
+    resetAiChanges()
     await handleAsync(async () => {
       loading.value = true
       const postData: PostDetail = await PostService.getPostDetailForAdmin(postId)
@@ -1017,7 +1011,7 @@ export function usePostEditor() {
     aiSuggestedCategoryName, aiSuggestedTagNames, creatingAiSuggestion,
     hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
     undoStack, fieldLabels,
-    handleFieldUpdate, undoField, getCategoryName,
+    handleFieldUpdate, undoField, undoAiRound, getCategoryName,
     loadCategories, loadSeries, loadTags, addTag, removeTag,
     coverImageInput, thumbnailInput, attachmentInput,
     triggerCoverImageUpload, triggerThumbnailUpload,

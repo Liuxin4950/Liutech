@@ -3,6 +3,8 @@ import { get, ServiceType } from './api'
 export interface RuntimeTtsStatusDTO {
   enabled: boolean
   online: boolean
+  configured?: boolean
+  onlineVerified?: boolean
   provider?: string | null
   checkedAt: number
   message?: string | null

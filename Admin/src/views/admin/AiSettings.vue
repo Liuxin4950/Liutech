@@ -65,6 +65,7 @@ const enabledModelCount = computed(() =>
 const currentStatusText = computed(() => {
   if (!ttsStatus.value) return '未检测'
   if (!ttsStatus.value.enabled) return ttsStatus.value.message || '已关闭'
+  if (ttsStatus.value.configured && ttsStatus.value.onlineVerified === false) return ttsStatus.value.message || '已配置，待首次语音确认'
   return ttsStatus.value.online ? (ttsStatus.value.message || '在线') : (ttsStatus.value.message || '离线')
 })
 
@@ -325,7 +326,7 @@ onMounted(() => {
             </div>
             <div class="stat-text">
               <div class="stat-label">TTS 状态</div>
-              <div class="stat-value" :title="ttsStatus?.online ? '在线' : '离线'">{{ ttsStatus?.online ? '在线' : '离线' }}</div>
+              <div class="stat-value" :title="ttsStatus?.online ? '在线' : ttsStatus?.configured && ttsStatus?.onlineVerified === false ? '待确认' : '离线'">{{ ttsStatus?.online ? '在线' : ttsStatus?.configured && ttsStatus?.onlineVerified === false ? '待确认' : '离线' }}</div>
               <div class="stat-sub" :title="currentStatusText">{{ currentStatusText }}</div>
             </div>
           </div>
@@ -467,7 +468,7 @@ onMounted(() => {
                   <a-form-item label="音频格式">
                     <a-select
                       v-model:value="form.responseFormat"
-                      :options="['mp3', 'wav', 'opus', 'pcm'].map(item => ({ value: item, label: item }))"
+                      :options="['mp3', 'wav', 'opus'].map(item => ({ value: item, label: item }))"
                     />
                   </a-form-item>
                 </a-col>

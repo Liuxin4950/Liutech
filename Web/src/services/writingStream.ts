@@ -256,8 +256,7 @@ function resolveEventErrorMessage(payload: WritingErrorPayload | null): string {
  * 返回 Promise 的语义：
  * - HTTP 层失败（非 2xx / 无响应体）→ reject，调用方 catch 后自行提示；
  * - 流内 error 事件 → 不 reject，通过 handlers.onError 上报（与既有实现一致，避免页面同时弹两个提示）；
- * - 流读完却没收到 complete/error → 视作连接中断，onError('连接中断，请重试') 后照常 onComplete，
- *   让页面结束 loading 状态。
+ * - 流读完却没收到 complete/error → 只上报连接中断，绝不能伪造成功完成事件。
  *
  * @param options baseURL / token / 请求体 / 回调
  */
@@ -285,6 +284,7 @@ export async function streamWritingAssistant(options: WritingStreamOptions): Pro
 
   await readSseStream(response.body, {
     onEvent: (event: ParsedSseEvent) => {
+      if (signal?.aborted || receivedComplete || receivedError) return
       dispatchEvent(event, handlers, {
         onComplete: () => { receivedComplete = true },
         onError: () => { receivedError = true }
@@ -296,9 +296,8 @@ export async function streamWritingAssistant(options: WritingStreamOptions): Pro
     }
   })
 
-  if (!receivedComplete && !receivedError) {
+  if (!receivedComplete && !receivedError && !signal?.aborted) {
     handlers.onError?.('连接中断，请重试')
-    handlers.onComplete?.({})
   }
 }
 

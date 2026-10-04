@@ -223,7 +223,7 @@ onMounted(async () => {
   try {
     const runtime = await chatStore.loadRuntime()
     const status = runtime?.tts
-    const available = status?.enabled === true && status?.online === true
+    const available = status?.enabled === true && (status.online === true || (status.configured === true && status.onlineVerified === false))
     if (status) {
       ttsStatusText.value = status.message || (available ? '语音可用' : '语音不可用')
     } else {

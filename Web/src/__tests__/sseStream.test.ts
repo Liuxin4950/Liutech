@@ -347,7 +347,27 @@ describe('写作助手流式链路（Web 侧）', () => {
     })
 
     expect(errorMessage).toBe('连接中断，请重试')
-    expect(completed).toBe(true)
+    expect(completed).toBe(false)
+    recorder.restore()
+  })
+
+  it('截断error之后忽略字段与complete，不能把失败轮次变成成功', async () => {
+    installLocalStorage('unit-test-token')
+    const recorder = stubFetch(() => sseResponse(
+      frame('field-update', { contentHtml: '<p>部分正文</p>' }) +
+      frame('error', { code: 'OUTPUT_TRUNCATED', error: '输出达到上限，请重新生成' }) +
+      frame('field-update', { title: '迟到字段' }) + frame('complete', {})
+    ))
+    const AdminAgentService = await loadWritingAssistant()
+    const fields: any[] = []
+    const complete = vi.fn()
+    const error = vi.fn()
+    await AdminAgentService.stream({ message: '生成正文' }, {
+      onFieldUpdate: value => fields.push(value), onComplete: complete, onError: error
+    })
+    expect(fields).toEqual([{ contentHtml: '<p>部分正文</p>' }])
+    expect(error).toHaveBeenCalledWith('输出达到上限，请重新生成', 'OUTPUT_TRUNCATED')
+    expect(complete).not.toHaveBeenCalled()
     recorder.restore()
   })
 
@@ -477,7 +497,7 @@ describe('看板娘聊天流式链路', () => {
     expect(recorder.captured[0].url).toBe('https://test.local/ai/chat/stream')
     expect(chunks).toEqual(['第一段', '第二段'])
     expect(errors).toEqual([])
-    expect(events[0]).toEqual({ event: 'start', payload: { conversationId: 8 } })
+    expect(events[0]).toEqual({ event: 'start', payload: { conversationId: 8, model: 'qwen' } })
     expect(completedPayload.conversationId).toBe(8)
     expect(AiStream.isStreaming).toBe(false)
 

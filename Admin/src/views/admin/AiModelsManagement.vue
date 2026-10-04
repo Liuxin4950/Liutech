@@ -214,12 +214,12 @@ const applyPreset = (value: unknown) => {
 const validateContextWindow = async (_rule: any, value: any) => {
   if (value === undefined || value === null || value === '') return
   const contextWindow = Number(value)
-  if (!Number.isFinite(contextWindow) || contextWindow < 4096) {
-    throw new Error('上下文窗口至少 4096，再小就放不下输入了')
+  if (!Number.isFinite(contextWindow) || contextWindow < 1024) {
+    throw new Error('上下文窗口至少1024')
   }
-  const maxTokens = Number(formModel.value.maxTokens ?? 0)
-  if (Number.isFinite(maxTokens) && maxTokens > 0 && contextWindow <= maxTokens) {
-    throw new Error('上下文窗口必须大于最大 Token（输出上限），否则没有输入预算')
+  const maxTokens = Number(formModel.value.maxTokens ?? 4096)
+  if (Number.isFinite(maxTokens) && maxTokens > 0 && contextWindow <= maxTokens + 512) {
+    throw new Error('上下文窗口必须大于输出上限加安全余量512，否则没有输入预算')
   }
 }
 
@@ -455,13 +455,13 @@ const removeModel = (record: ModelConfig) => {
         <a-form-item label="最大 Token">
           <a-input-number
             v-model:value="formModel.maxTokens"
-            :min="0"
+            :min="1"
             :step="1024"
             class="full-width"
             placeholder="例如：16384"
             @change="revalidateContextWindow"
           />
-          <div class="param-text mt-4">单次回答的输出上限。</div>
+          <div class="param-text mt-4">本轮输出上限，工具循环也累计在内；达到上限的写作结果不会应用。</div>
         </a-form-item>
         <a-form-item label="上下文窗口" name="contextWindow">
           <a-input-number
@@ -472,11 +472,11 @@ const removeModel = (record: ModelConfig) => {
             placeholder="例如：205000"
           />
           <div class="param-text mt-4">
-            输入预算 = 上下文窗口 − 最大 Token − 安全余量；决定 AI 一次能读多少历史与文章正文。
+            输入预算 = 上下文窗口 − 输出上限 − 512；含历史、完整草稿、工具定义与返回值，按保守预算检查。
           </div>
         </a-form-item>
         <a-form-item label="Temperature">
-          <a-input-number v-model:value="formModel.temperature" :min="0" :max="2" :step="0.1" class="full-width" />
+          <a-input-number v-model:value="formModel.temperature" :min="0" :max="1" :step="0.1" class="full-width" />
         </a-form-item>
         <a-form-item label="排序">
           <a-input-number v-model:value="formModel.sortOrder" :min="0" class="full-width" />

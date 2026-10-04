@@ -335,6 +335,7 @@
         <div v-if="undoStack.length > 0" class="undo-inline">
           <span class="undo-label">AI 已修改 {{ undoStack.length }} 个字段</span>
           <div class="undo-actions">
+            <button type="button" class="undo-field-btn" @click="undoAiRound">撤销本轮修改</button>
             <button
               v-for="entry in undoStack"
               :key="entry.field"
@@ -544,7 +545,7 @@ const {
   hasAiTaxonomySuggestions, isAdminWritingAvailable, adminDraftSnapshot,
   undoStack, fieldLabels,
   autosavedAt, loadAutosave, clearAutosave, formatDraftTime,
-  handleFieldUpdate, undoField, getCategoryName,
+  handleFieldUpdate, undoField, undoAiRound, getCategoryName,
   loadCategories, loadSeries, loadTags, addTag, removeTag,
   coverImageInput, thumbnailInput, attachmentInput,
   triggerCoverImageUpload, triggerThumbnailUpload,
