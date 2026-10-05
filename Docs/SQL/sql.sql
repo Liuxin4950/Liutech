@@ -2,13 +2,14 @@
 -- LiuTech 全栈初始化脚本（唯一权威版本）
 -- 
 -- 权威路径：Docs/SQL/sql.sql
+-- 当前结构版本：2026-10-05
 -- 本文件同时初始化主后端库 liutech 和 AI 服务库 liutech_ai。
 -- Docker 部署时通过 docker-entrypoint-initdb.d 自动执行（仅首次初始化）。
+-- Docs/SQL 只维护这一份完整脚本，表结构和默认初始化数据一同更新。
 --
 -- 幂等性保证：
 --   - 所有 CREATE TABLE 使用 IF NOT EXISTS，重复执行不会报错。
 --   - 所有 INSERT 使用 IGNORE 或 ON DUPLICATE KEY UPDATE，避免主键冲突。
---   - 所有 ALTER TABLE 包含条件判断，跳过已存在的列/索引。
 --
 -- 已合并的历史变更：
 --   - sql/ai_chat_tables.sql         → 合并到本文件
@@ -17,13 +18,14 @@
 --   - post_series                    → 系列表及 posts 系列字段
 --   - user_achievement_claims        → 一次性成就领取记录
 --   - about.content                  → 关于页当前结构化内容
+--   - ai_model_config.context_window → 模型输入预算配置
+--   - community_* / ai_community_*    → 评论 AI 角色、知识、任务、审查与公共记忆
 --
 -- 已有环境使用说明：
 --   本文件的职责是创建“当前完整的新环境”，不是生产迁移执行器。
 --   不要把整份初始化脚本直接重放到已有生产库；其中包含初始化数据，
 --   且 CREATE TABLE IF NOT EXISTS 不会为旧表自动补齐新增列。
---   已有环境升级应根据版本差异生成、审核并备份后执行最小增量 SQL，
---   完成后再把最终结构折叠回本文件，不在 Docs/SQL 长期保留历史迁移副本。
+--   已有环境按本文件的最终结构核对差异；一次性升级操作不另存为维护脚本。
 -- ============================================================================
 -- 关闭外键检查，避免顺序限制导致错误
 SET FOREIGN_KEY_CHECKS = 0;
@@ -217,12 +219,17 @@ CREATE TABLE IF NOT EXISTS community_settings (
   max_delay_seconds INT NOT NULL DEFAULT 90,cooldown_seconds INT NOT NULL DEFAULT 30,
   max_chain_comments INT NOT NULL DEFAULT 4,version BIGINT NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-INSERT IGNORE INTO community_settings(id) VALUES(1);
+-- 社区默认暂停；启用、角色配置和额度调整由 Admin 管理。
+INSERT IGNORE INTO community_settings
+  (id, enabled, bot_daily_comment_limit, site_daily_comment_limit, post_daily_comment_limit,
+   bot_daily_task_limit, site_daily_task_limit, min_delay_seconds, max_delay_seconds,
+   cooldown_seconds, max_chain_comments, version)
+VALUES (1, FALSE, 20, 100, 20, 40, 200, 20, 90, 30, 4, 1);
 CREATE TABLE IF NOT EXISTS community_post_state (
   post_id BIGINT PRIMARY KEY,enabled BOOLEAN NOT NULL DEFAULT TRUE,
   first_public_seen BOOLEAN NOT NULL DEFAULT FALSE,version BIGINT NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
--- 历史文章都视为已经见过；关闭后重新启用、撤回后重发均不会补评。
+-- 首次公开状态由文章业务维护；新环境不预置文章或虚构发布记录。
 
 CREATE TABLE IF NOT EXISTS community_chains (
   root_event_id CHAR(36) PRIMARY KEY,post_id BIGINT NOT NULL,emitted INT NOT NULL DEFAULT 0,
@@ -468,7 +475,7 @@ CREATE TABLE IF NOT EXISTS system_settings (
 -- 仅播种真实被消费的设置：author.* 由关于页管理（AboutPageService/UserProfileService 读取）。
 -- site.* / comment.need_review / upload.max_size_mb 历史上是无消费方的死配置，已移除；
 -- 站点资料走 Web/src/config/site.ts 与 VITE_* 环境变量，上传上限走 Spring 配置。
--- 旧 tts.* 已随 TTS 迁入 liutech_ai.ai_tts_config，主库不再保留（见 migration_remove_dead_settings.sql）。
+-- TTS 配置统一在 liutech_ai.ai_tts_config 初始化，主库不再保留旧 tts.* 键。
 INSERT INTO system_settings (setting_key, setting_value, description)
 VALUES
   ('author.name', '小鑫同学', '作者昵称（首页与关于页展示）'),
@@ -753,7 +760,7 @@ CREATE TABLE IF NOT EXISTS ai_community_task (
 CREATE TABLE IF NOT EXISTS ai_community_worker (
  id INT NOT NULL PRIMARY KEY, lease_token VARCHAR(36) NULL, lease_until DATETIME(3) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-INSERT IGNORE INTO ai_community_worker(id) VALUES(1);
+INSERT IGNORE INTO ai_community_worker(id, lease_token, lease_until) VALUES(1, NULL, NULL);
 CREATE TABLE IF NOT EXISTS ai_community_run (
  id VARCHAR(36) NOT NULL PRIMARY KEY, task_id VARCHAR(36) NOT NULL,
  bot_id BIGINT NOT NULL, post_id BIGINT NOT NULL, status VARCHAR(20) NOT NULL,
