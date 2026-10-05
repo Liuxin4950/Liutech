@@ -52,6 +52,7 @@ public final class SecurityWhitelist {
      */
     public static final List<String> PUBLIC_GET_EXACT = List.of(
             "/carousels",
+            "/community/bots",
             "/about",
             "/user/author/profile",
             "/author/profile",

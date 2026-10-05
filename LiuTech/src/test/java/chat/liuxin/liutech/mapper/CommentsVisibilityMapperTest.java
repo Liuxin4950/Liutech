@@ -38,6 +38,7 @@ class CommentsVisibilityMapperTest {
 
     static Stream<Query> publicQueries() {
         return Stream.of(
+                new Query("selectRecentForCommunity", Map.of("postId",1L), "c"),
                 new Query("selectPublicCommentById", Map.of("id", 1L), "c"),
                 new Query("selectCommentsByPostId", Map.of("postId", 1L), "c"),
                 new Query("selectTopLevelCommentsByPostId", Map.of("postId", 1L), "c"),
@@ -45,6 +46,23 @@ class CommentsVisibilityMapperTest {
                 new Query("countCommentsByPostId", Map.of("postId", 1L), "c"),
                 new Query("selectLatestComments", Map.of("limit", 5), "c"),
                 new Query("selectAllDescendantsByRootIds", Map.of("rootIds", List.of(1L, 2L)), "d"));
+    }
+
+    @Test
+    void publicQueriesShareAncestorVisibilityAndCommunityDoesNotBuildAnotherPolicy() {
+        for (String name:List.of("selectPublicCommentById","selectCommentsByPostId","selectLatestComments","countCommentsByPostId","selectRecentForCommunity")) {
+            String sql=sql(name, Map.of("id",1L,"postId",1L,"limit",5));
+            assertTrue(sql.contains("WITH RECURSIVE visible_comments AS"),sql);
+            assertTrue(sql.contains("c.parent_id IS NULL AND c.deleted_at IS NULL"),sql);
+            assertTrue(sql.contains("INNER JOIN visible_comments ancestor ON c.parent_id=ancestor.id WHERE c.deleted_at IS NULL"),sql);
+            assertTrue(sql.contains("INNER JOIN visible_comments visible ON visible.id=c.id"),sql);
+            assertTrue(sql.contains("LEFT JOIN community_bots b ON c.bot_id = b.id") || name.equals("countCommentsByPostId"),sql);
+        }
+        String achievement=sql("countVisibleCommentsByUserId",Map.of("userId",1L));
+        assertTrue(achievement.contains("JOIN visible_comments visible ON visible.id=c.id"),achievement);
+        assertTrue(achievement.contains("c.user_id=?"),achievement);
+        String admin=sql("selectCommentsForAdminById",Map.of("id",1L));
+        assertFalse(admin.contains("visible_comments"),admin);
     }
 
     @Test
@@ -68,6 +86,24 @@ class CommentsVisibilityMapperTest {
             assertFalse(sql.contains("p.deleted_at IS NULL"), sql);
             assertFalse(sql.contains("c.deleted_at IS NULL"), sql);
         }
+    }
+
+    @Test
+    void roleAuditRetainsHiddenAndDeletedFactsAndLimitsLatestThreadReplies() {
+        String list=sql("selectCommentsByBotForAdmin",Map.of("botId",1L,"offset",0L,"limit",20));
+        String root=sql("selectRootCommentIdForAdmin",Map.of("commentId",3L,"postId",2L));
+        String count=sql("countThreadCommentsForAdmin",Map.of("rootCommentId",1L,"postId",2L));
+        String thread=sql("selectThreadCommentsForAdmin",Map.of("rootCommentId",1L,"postId",2L,"limit",200));
+        for (String audit:List.of(list,root,count,thread)) {
+            assertFalse(audit.contains("deleted_at IS NULL"),audit);
+            assertFalse(audit.contains("status = 'published'"),audit);
+        }
+        assertTrue(list.contains("WHERE c.bot_id=?"),list);
+        assertTrue(thread.contains("ORDER BY c.created_at DESC,c.id DESC LIMIT ?"),thread);
+        assertTrue(thread.endsWith("ORDER BY c.created_at,c.id"),thread);
+        assertTrue(thread.contains("WHERE c.post_id=?"),thread);
+        assertEquals("AdminCommentMap",configuration.getMappedStatement(CommentsMapper.class.getName()+".selectThreadCommentsForAdmin")
+            .getResultMaps().getFirst().getId().substring(CommentsMapper.class.getName().length()+1));
     }
 
     @Test

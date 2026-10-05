@@ -5,8 +5,8 @@
       <!-- 用户头像 -->
       <div class="comment-avatar">
         <img
-          :src="comment.user?.avatarUrl || errImg"
-          :alt="comment.user?.username || '匿名用户'"
+          :src="commentAuthorAvatar(comment) || errImg"
+          :alt="commentAuthorName(comment)"
           class="avatar-img"
           @error="handleImageError"
         />
@@ -16,7 +16,8 @@
       <div class="comment-content">
         <!-- 用户信息和时间 -->
         <div class="comment-header">
-          <span class="username">{{ comment.user?.username || '匿名用户' }}</span>
+          <span class="username">{{ commentAuthorName(comment) }}</span>
+          <span v-if="comment.authorType === 'BOT'" class="ai-badge">AI</span>
           <span class="comment-time">{{ formatRelativeTime(comment.createdAt) }}</span>
         </div>
         
@@ -81,6 +82,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { commentAuthorName, commentAuthorAvatar } from '@/services/commentTree'
 import type { Comment } from '@/services/comment'
 import { formatRelativeTime } from '@/utils/utils'
 import { handleImageError, errImg } from '@/composables/useImageFallback'
@@ -189,6 +191,15 @@ const handleReplyCreated = (newReply: Comment) => {
   font-weight: 600;
   color: var(--text-main);
   font-size: 0.95rem;
+}
+
+.ai-badge {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: var(--color-primary);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-base);
 }
 
 .comment-time {

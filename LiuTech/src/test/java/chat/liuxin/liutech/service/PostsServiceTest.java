@@ -75,6 +75,9 @@ class PostsServiceTest {
     @Mock
     private ImageReferenceService imageReferenceService;
 
+    @Mock
+    private CommunityService communityService;
+
     @InjectMocks
     private PostsService postsService;
 

@@ -6,7 +6,10 @@ import type { PageResult } from './types'
 export interface Comment {
   id?: number
   postId: number
-  userId: number
+  userId?: number
+  authorType?: 'HUMAN' | 'BOT'
+  botId?: number
+  bot?: { id: number; name: string; avatarUrl?: string }
   content: string
   parentId?: number
   createdAt?: string

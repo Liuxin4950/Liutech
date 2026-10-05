@@ -334,7 +334,7 @@
         AND p.status = 'published'
         GROUP BY p.id, p.title, p.summary, p.cover_image, p.thumbnail, p.category_id, p.author_id, p.status, p.view_count, p.like_count, p.created_at, p.updated_at,
                  c.id, c.name, c.description, u.id, u.username, u.email, u.avatar_url
-        ORDER BY comment_count DESC, IFNULL(p.view_count, 0) DESC, IFNULL(p.like_count, 0) DESC, p.created_at DESC
+        ORDER BY (SELECT COUNT(*) FROM comments human WHERE human.post_id=p.id AND human.bot_id IS NULL AND human.deleted_at IS NULL) DESC, IFNULL(p.view_count, 0) DESC, IFNULL(p.like_count, 0) DESC, p.created_at DESC
         LIMIT #{limit}
     </select>
 

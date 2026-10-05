@@ -66,6 +66,9 @@ class PostsAdminServiceTest {
     @Mock
     private PostsService postsService;
 
+    @Mock
+    private CommunityService communityService;
+
     @InjectMocks
     private PostsAdminService postsAdminService;
 

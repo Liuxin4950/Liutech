@@ -78,6 +78,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     private final ImageReferenceService imageReferenceService;
 
+    private final CommunityService communityService;
+
     /**
      * 分页查询文章列表（公开接口）
      * 支持按分类、标签、关键词、状态、作者等条件进行筛选
@@ -442,6 +444,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     post.getId(), req.getDraftKey(), bindCount);
         }
 
+        communityService.articleSaved(post.getId());
+
         // 构建响应对象
         PostCreateResp response = new PostCreateResp();
         response.setId(post.getId());
@@ -506,6 +510,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     req.getId(), req.getDraftKey(), bindCount);
         }
 
+        communityService.articleSaved(req.getId());
         return true;
     }
 
@@ -544,6 +549,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     req.getId(), req.getDraftKey(), bindCount);
         }
 
+        communityService.articleSaved(req.getId());
         return true;
     }
 
@@ -660,7 +666,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 .set(Posts::getUpdatedAt, new Date())
                 .set(Posts::getUpdatedBy, authorId);
 
-        return this.update(updateWrapper);
+        boolean updated = this.update(updateWrapper);
+        if (updated) communityService.articleSaved(id);
+        return updated;
     }
 
     /**

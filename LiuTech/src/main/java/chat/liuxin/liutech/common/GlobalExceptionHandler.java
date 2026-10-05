@@ -67,8 +67,9 @@ public class GlobalExceptionHandler {
         // 直接使用异常中的错误码和消息构造响应
         Result<Void> result = new Result<>(e.getCode(), e.getMessage(), null);
 
-        // 业务异常通常返回400状态码
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+        // 明确的资源缺失沿用统一404错误码；其他业务异常保持400。
+        return ResponseEntity.status(e.getCode() == ErrorCode.NOT_FOUND.getCode()
+                ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST).body(result);
     }
 
     // ========== 参数校验异常处理 ==========

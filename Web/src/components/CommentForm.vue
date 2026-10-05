@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { CommentService, type Comment, type CreateCommentRequest } from '@/services/comment'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useUserStore } from '@/stores/user'
@@ -75,6 +75,12 @@ const userStore = useUserStore()
 // 响应式数据
 const content = ref('')
 const submitting = ref(false)
+let formGeneration = 0
+watch([() => props.postId, () => props.parentId], () => {
+  formGeneration++
+  content.value = ''
+  submitting.value = false
+})
 
 // 计算属性
 const isLoggedIn = computed(() => userStore.isLoggedIn)
@@ -90,16 +96,20 @@ const canSubmit = computed(() => {
 const submitComment = async () => {
   if (!canSubmit.value) return
 
+  const generation = formGeneration
+  const articleId = props.postId
+  const replyId = props.parentId
   await handleAsync(async () => {
     submitting.value = true
     
     const commentData: CreateCommentRequest = {
-      postId: props.postId,
+      postId: articleId,
       content: content.value.trim(),
-      parentId: props.parentId
+      parentId: replyId
     }
     
     const newComment = await CommentService.createComment(commentData)
+    if (generation !== formGeneration || props.postId !== articleId || props.parentId !== replyId) return
     
     // 清空表单
     content.value = ''
@@ -116,7 +126,7 @@ const submitComment = async () => {
       // 错误处理已在 useErrorHandler 中统一处理
     },
     onFinally: () => {
-      submitting.value = false
+      if (generation === formGeneration) submitting.value = false
     }
   })
 }

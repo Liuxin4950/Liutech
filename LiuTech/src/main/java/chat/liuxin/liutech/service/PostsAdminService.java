@@ -70,6 +70,8 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
     private final PostsService postsService;
 
+    private final CommunityService communityService;
+
     /**
      * 管理端分页查询文章列表
      */
@@ -157,6 +159,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                     .set(Posts::getUpdatedBy, operatorId);
 
             boolean result = this.update(updateWrapper);
+            if (result) communityService.articleSaved(id);
             log.debug("管理端文章状态更新{} - 文章ID: {}", result ? "成功" : "失败", id);
             return result;
 

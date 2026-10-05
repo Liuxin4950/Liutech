@@ -113,6 +113,7 @@ export default {
     music: 'AI 音乐管理',
     aiCenter: 'AI 中心',
     aiModels: 'AI 模型管理',
+    communityAi: '社区 AI 角色',
     aiSettings: 'AI 设置',
     system: '系统管理',
     logs: '操作日志',

@@ -20,7 +20,7 @@ class UserDataPurgeControllerTest {
         MemoryService memoryService = mock(MemoryService.class);
         when(memoryService.clearAllMemory("7")).thenReturn(new MemoryService.PurgeCounts(2, 9));
 
-        UserDataPurgeResult result = new UserDataPurgeController(memoryService).purgeOne(7L);
+        UserDataPurgeResult result = new UserDataPurgeController(memoryService, mock(chat.liuxin.ai.service.community.CommunityStore.class)).purgeOne(7L);
 
         assertEquals(2, result.conversationsDeleted());
         assertEquals(9, result.messagesDeleted());
@@ -33,7 +33,7 @@ class UserDataPurgeControllerTest {
         UserDataPurgeRequest request = new UserDataPurgeRequest();
         request.setUserIds(List.of(7L, 7L));
 
-        List<UserDataPurgeResult> results = new UserDataPurgeController(memoryService).purgeBatch(request);
+        List<UserDataPurgeResult> results = new UserDataPurgeController(memoryService, mock(chat.liuxin.ai.service.community.CommunityStore.class)).purgeBatch(request);
 
         assertEquals(1, results.size());
         verify(memoryService, times(1)).clearAllMemory("7");

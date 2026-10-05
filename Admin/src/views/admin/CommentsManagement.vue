@@ -202,7 +202,8 @@ const handleUserSearch = async (value: string) => {
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'username'">
-            {{ record.user?.username || '-' }}
+            {{ record.authorType === 'BOT' ? record.bot?.name || 'AI 角色' : record.user?.username || '-' }}
+            <a-tag v-if="record.authorType === 'BOT'" color="purple">AI</a-tag>
           </template>
           <template v-else-if="column.key === 'content'">
             <a-tooltip :title="record.content">

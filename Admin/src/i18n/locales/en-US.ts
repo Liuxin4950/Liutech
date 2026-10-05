@@ -112,6 +112,7 @@ export default {
     music: 'AI Music',
     aiCenter: 'AI Center',
     aiModels: 'AI Models',
+    communityAi: 'Community AI',
     aiSettings: 'AI Settings',
     system: 'System',
     logs: 'Audit Log',

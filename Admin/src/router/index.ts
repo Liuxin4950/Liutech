@@ -137,6 +137,12 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'community-ai',
+        name: 'CommunityAiManagement',
+        component: () => import('../views/admin/CommunityAiManagement.vue'),
+        meta: { title: '社区 AI 角色', section: 'community-ai' }
+      },
+      {
         path: 'ai-settings',
         name: 'AiSettings',
         component: () => import('../views/admin/AiSettings.vue'),

@@ -248,7 +248,14 @@ public enum ErrorCode {
     // ========== 邮箱相关业务错误 1600-1699 ==========
     VERIFICATION_CODE_INVALID(1601, "验证码无效或已过期"),
     EMAIL_NOT_REGISTERED(1602, "该邮箱未注册"),
-    EMAIL_SEND_FAILED(1603, "邮件发送失败，请稍后重试");
+    EMAIL_SEND_FAILED(1603, "邮件发送失败，请稍后重试"),
+
+    COMMUNITY_PAUSED(1700, "社区互动已暂停"),
+    COMMUNITY_STALE_CONTEXT(1701, "讨论或角色资料已变化，请重新生成"),
+    COMMUNITY_QUOTA_EXCEEDED(1702, "今日社区评论额度已用完"),
+    COMMUNITY_CHAIN_LIMIT(1703, "本轮互动已达到上限"),
+    COMMUNITY_BOT_NOT_FOUND(1704, "角色不存在"),
+    COMMUNITY_COOLDOWN(1705, "角色正在等待发言间隔");
 
     /**
      * 错误码

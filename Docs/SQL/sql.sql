@@ -189,10 +189,76 @@ CREATE TABLE IF NOT EXISTS user_view_history (
   FOREIGN KEY (post_id) REFERENCES posts(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户浏览历史表';
 
+-- 社区 AI：角色、资料、配置、业务事件与发布回执。
+CREATE TABLE IF NOT EXISTS community_bots (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(80) NOT NULL, avatar_url VARCHAR(1000) DEFAULT NULL,
+  personality TEXT NOT NULL, background TEXT, interests VARCHAR(1000),
+  system_prompt TEXT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT FALSE, participation INT NOT NULL DEFAULT 50,
+  version BIGINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  deleted_at TIMESTAMP(3) NULL,
+  CONSTRAINT ck_community_participation CHECK(participation BETWEEN 0 AND 100)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_knowledge (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY, bot_id BIGINT NOT NULL,
+  title VARCHAR(200) NOT NULL,content MEDIUMTEXT NOT NULL,version BIGINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  INDEX idx_community_knowledge_bot(bot_id), FOREIGN KEY(bot_id) REFERENCES community_bots(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_settings (
+  id BIGINT PRIMARY KEY,enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  bot_daily_comment_limit INT NOT NULL DEFAULT 20,site_daily_comment_limit INT NOT NULL DEFAULT 100,
+  post_daily_comment_limit INT NOT NULL DEFAULT 20,bot_daily_task_limit INT NOT NULL DEFAULT 40,
+  site_daily_task_limit INT NOT NULL DEFAULT 200,min_delay_seconds INT NOT NULL DEFAULT 20,
+  max_delay_seconds INT NOT NULL DEFAULT 90,cooldown_seconds INT NOT NULL DEFAULT 30,
+  max_chain_comments INT NOT NULL DEFAULT 4,version BIGINT NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT IGNORE INTO community_settings(id) VALUES(1);
+CREATE TABLE IF NOT EXISTS community_post_state (
+  post_id BIGINT PRIMARY KEY,enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  first_public_seen BOOLEAN NOT NULL DEFAULT FALSE,version BIGINT NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 历史文章都视为已经见过；关闭后重新启用、撤回后重发均不会补评。
+
+CREATE TABLE IF NOT EXISTS community_chains (
+  root_event_id CHAR(36) PRIMARY KEY,post_id BIGINT NOT NULL,emitted INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_events (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,event_key VARCHAR(120) NOT NULL,event_type VARCHAR(30) NOT NULL,
+  bot_id BIGINT NOT NULL,post_id BIGINT NOT NULL,comment_id BIGINT NULL,root_event_id CHAR(36) NOT NULL,
+  available_at TIMESTAMP(3) NOT NULL,lease_token CHAR(36) NULL,lease_until TIMESTAMP(3) NULL,
+  acknowledged_at TIMESTAMP(3) NULL,created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uk_community_event_key(event_key),INDEX idx_community_claim(acknowledged_at,available_at,lease_until),
+  FOREIGN KEY(bot_id) REFERENCES community_bots(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 发布回执不设评论外键，删除评论也不能重试生成同一个任务。
+CREATE TABLE IF NOT EXISTS community_publications (
+  task_id CHAR(36) PRIMARY KEY,bot_id BIGINT NOT NULL,post_id BIGINT NOT NULL,comment_id BIGINT NOT NULL,
+  created_at TIMESTAMP(3) NOT NULL,
+  INDEX idx_community_publication_day(created_at),
+  INDEX idx_community_publication_bot(bot_id,post_id,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS community_attempts (
+  task_id CHAR(36) NOT NULL,attempt INT NOT NULL,bot_id BIGINT NOT NULL,post_id BIGINT NOT NULL,
+  allowed BOOLEAN NOT NULL,reason VARCHAR(200) NOT NULL,
+  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY(task_id,attempt),INDEX idx_community_attempt_day(allowed,created_at),
+  INDEX idx_community_attempt_bot(bot_id,allowed,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS comments (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '评论ID',
   post_id BIGINT NOT NULL COMMENT '文章ID',
-  user_id BIGINT NOT NULL COMMENT '评论者用户ID',
+  user_id BIGINT NULL COMMENT '真人评论者ID，机器人评论为空',
+  bot_id BIGINT NULL COMMENT '机器人作者ID，与user_id恰好一个非空',
+  community_task_id CHAR(36) NULL COMMENT '机器人发布幂等键',
+  root_event_id CHAR(36) NULL COMMENT '共享互聊根链',
   content TEXT NOT NULL COMMENT '评论内容',
   parent_id BIGINT DEFAULT NULL COMMENT '父评论ID',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '评论时间',
@@ -203,6 +269,10 @@ CREATE TABLE IF NOT EXISTS comments (
   INDEX idx_post_id (post_id),
   INDEX idx_user_id (user_id),
   INDEX idx_parent_id (parent_id),
+  UNIQUE KEY uk_comment_community_task (community_task_id),
+  INDEX idx_comments_bot (bot_id),
+  CONSTRAINT fk_comment_bot FOREIGN KEY (bot_id) REFERENCES community_bots(id),
+  CONSTRAINT ck_comment_author CHECK ((user_id IS NULL) <> (bot_id IS NULL)),
   INDEX idx_deleted_at (deleted_at),
   FOREIGN KEY (post_id) REFERENCES posts(id),
   FOREIGN KEY (user_id) REFERENCES users(id),
@@ -663,3 +733,55 @@ ON DUPLICATE KEY UPDATE
   context_window = VALUES(context_window),
   temperature = VALUES(temperature),
   description = VALUES(description);
+
+-- 社区 AI：执行任务、租约、运行记录和独立公共互动记忆。
+
+CREATE TABLE IF NOT EXISTS ai_community_inbox (
+ event_id BIGINT NOT NULL PRIMARY KEY, event_json LONGTEXT NOT NULL,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS ai_community_task (
+ id VARCHAR(36) NOT NULL PRIMARY KEY, event_id BIGINT NOT NULL, bot_id BIGINT NOT NULL,
+ post_id BIGINT NOT NULL, comment_id BIGINT NULL, root_event_id VARCHAR(36) NOT NULL,
+ status VARCHAR(20) NOT NULL DEFAULT 'READY', attempts INT NOT NULL DEFAULT 0,
+ failures INT NOT NULL DEFAULT 0, memory_epoch BIGINT NULL, decision_json LONGTEXT NULL,
+ context_version VARCHAR(128) NULL, error VARCHAR(300) NULL, available_at DATETIME(3) NOT NULL,
+ lease_until DATETIME(3) NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ UNIQUE KEY uk_community_task_event_bot(event_id,bot_id), KEY idx_community_task_ready(status,available_at),
+ KEY idx_community_task_bot(bot_id,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS ai_community_worker (
+ id INT NOT NULL PRIMARY KEY, lease_token VARCHAR(36) NULL, lease_until DATETIME(3) NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT IGNORE INTO ai_community_worker(id) VALUES(1);
+CREATE TABLE IF NOT EXISTS ai_community_run (
+ id VARCHAR(36) NOT NULL PRIMARY KEY, task_id VARCHAR(36) NOT NULL,
+ bot_id BIGINT NOT NULL, post_id BIGINT NOT NULL, status VARCHAR(20) NOT NULL,
+ result_json LONGTEXT NULL, error VARCHAR(300) NULL,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ KEY idx_community_run_bot(bot_id,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS ai_community_role_state (
+ bot_id BIGINT NOT NULL PRIMARY KEY, memory_epoch BIGINT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS ai_community_memory (
+ id VARCHAR(36) NOT NULL PRIMARY KEY, task_id VARCHAR(36) NOT NULL,
+ bot_id BIGINT NOT NULL, source_post_id BIGINT NOT NULL, source_comment_id BIGINT NOT NULL,
+ summary TEXT NOT NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ UNIQUE KEY uk_community_memory_task(task_id), KEY idx_community_memory_bot(bot_id,created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS ai_community_memory_participant (
+ memory_id VARCHAR(36) NOT NULL, user_id BIGINT NOT NULL,
+ PRIMARY KEY(memory_id,user_id), KEY idx_community_memory_user(user_id),
+ CONSTRAINT fk_community_memory_participant FOREIGN KEY(memory_id) REFERENCES ai_community_memory(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS ai_community_user_state (
+ user_id BIGINT NOT NULL PRIMARY KEY, purged TINYINT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS ai_community_memory_source (
+ memory_id VARCHAR(36) NOT NULL, source_comment_id BIGINT NOT NULL,
+ PRIMARY KEY(memory_id,source_comment_id),
+ CONSTRAINT fk_community_memory_source FOREIGN KEY(memory_id) REFERENCES ai_community_memory(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET FOREIGN_KEY_CHECKS = 1;

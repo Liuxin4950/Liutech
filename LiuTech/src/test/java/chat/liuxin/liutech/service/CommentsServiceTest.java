@@ -30,7 +30,7 @@ class CommentsServiceTest {
     void setUp() {
         commentsMapper = mock(CommentsMapper.class);
         userUtils = mock(UserUtils.class);
-        commentsService = new CommentsService(commentsMapper, userUtils);
+        commentsService = new CommentsService(commentsMapper, userUtils, mock(CommunityService.class));
         // ServiceImpl 需要 baseMapper 字段
         ReflectionTestUtils.setField(commentsService, "baseMapper", commentsMapper);
     }

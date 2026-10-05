@@ -23,6 +23,7 @@ import java.util.List;
 public class UserDataPurgeController {
 
     private final MemoryService memoryService;
+    private final chat.liuxin.ai.service.community.CommunityStore communityStore;
 
     @DeleteMapping("/{userId}/data")
     public UserDataPurgeResult purgeOne(@PathVariable Long userId) {
@@ -40,6 +41,7 @@ public class UserDataPurgeController {
 
     private UserDataPurgeResult purge(Long userId) {
         MemoryService.PurgeCounts counts = memoryService.clearAllMemory(String.valueOf(userId));
+        communityStore.purgeUser(userId);
         return new UserDataPurgeResult(userId, counts.conversationsDeleted(), counts.messagesDeleted());
     }
 }

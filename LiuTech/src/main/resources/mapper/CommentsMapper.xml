@@ -7,12 +7,22 @@
         <id property="id" column="id"/>
         <result property="postId" column="post_id"/>
         <result property="userId" column="user_id"/>
+        <result property="botId" column="bot_id"/>
+        <result property="communityTaskId" column="community_task_id"/>
+        <result property="rootEventId" column="root_event_id"/>
         <result property="content" column="content"/>
         <result property="parentId" column="parent_id"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
         <result property="deletedAt" column="deleted_at"/>
 
+        <association property="bot" javaType="chat.liuxin.liutech.resp.CommunityResp$BotInfo">
+            <constructor>
+                <arg column="bot_id" javaType="java.lang.Long"/>
+                <arg column="bot_name" javaType="java.lang.String"/>
+                <arg column="bot_avatar_url" javaType="java.lang.String"/>
+            </constructor>
+        </association>
         <!-- 关联用户信息 -->
         <association property="user" javaType="chat.liuxin.liutech.model.Users">
             <id property="id" column="user_id"/>
@@ -26,12 +36,27 @@
         p.deleted_at IS NULL AND p.status = 'published'
     </sql>
 
+    <!-- 可见评论树：根及每一级父评论都未删除。文章公开性仍由 publicPostCondition 统一判定。 -->
+    <sql id="visibleCommentDefinitions">
+        visible_comments AS (
+            SELECT c.id FROM comments c WHERE c.parent_id IS NULL AND c.deleted_at IS NULL
+            UNION ALL
+            SELECT c.id FROM comments c INNER JOIN visible_comments ancestor ON c.parent_id=ancestor.id
+            WHERE c.deleted_at IS NULL
+        )
+    </sql>
+    <sql id="visibleCommentCte">
+        WITH RECURSIVE <include refid="visibleCommentDefinitions"/>
+    </sql>
+
     <!-- 公开评论基础查询SQL片段 -->
     <sql id="baseSelectSql">
+        <include refid="visibleCommentCte"/>
         SELECT
             c.id,
             c.post_id,
-            c.user_id,
+            c.user_id, c.bot_id, c.community_task_id, c.root_event_id,
+            b.name AS bot_name, b.avatar_url AS bot_avatar_url,
             c.content,
             c.parent_id,
             c.created_at,
@@ -40,8 +65,10 @@
             u.username,
             u.avatar_url
         FROM comments c
+        INNER JOIN visible_comments visible ON visible.id=c.id
         INNER JOIN posts p ON p.id = c.post_id
         LEFT JOIN users u ON c.user_id = u.id
+        LEFT JOIN community_bots b ON c.bot_id = b.id
         WHERE c.deleted_at IS NULL
         AND <include refid="publicPostCondition"/>
     </sql>
@@ -49,6 +76,12 @@
     <select id="selectPublicCommentById" resultMap="CommentWithUserMap">
         <include refid="baseSelectSql"/>
         AND c.id = #{id}
+    </select>
+
+    <select id="selectRecentForCommunity" resultMap="CommentWithUserMap">
+        <include refid="baseSelectSql"/>
+        AND c.post_id=#{postId}
+        ORDER BY c.created_at DESC,c.id DESC LIMIT 50
     </select>
 
     <!-- 分页查询文章评论 -->
@@ -75,8 +108,10 @@
 
     <!-- 统计文章评论数量 -->
     <select id="countCommentsByPostId" resultType="java.lang.Integer">
+        <include refid="visibleCommentCte"/>
         SELECT COUNT(*)
         FROM comments c
+        INNER JOIN visible_comments visible ON visible.id=c.id
         INNER JOIN posts p ON p.id = c.post_id
         WHERE c.post_id = #{postId}
         AND c.deleted_at IS NULL
@@ -91,7 +126,8 @@
     </select>
 
     <select id="countVisibleCommentsByUserId" resultType="long">
-        SELECT COUNT(*) FROM comments c JOIN posts p ON p.id=c.post_id
+        <include refid="visibleCommentCte"/>
+        SELECT COUNT(*) FROM comments c JOIN visible_comments visible ON visible.id=c.id JOIN posts p ON p.id=c.post_id
         WHERE c.user_id=#{userId} AND c.deleted_at IS NULL AND p.deleted_at IS NULL AND p.status='published'
     </select>
 
@@ -154,6 +190,9 @@
         <id property="id" column="id"/>
         <result property="postId" column="post_id"/>
         <result property="userId" column="user_id"/>
+        <result property="botId" column="bot_id"/>
+        <result property="communityTaskId" column="community_task_id"/>
+        <result property="rootEventId" column="root_event_id"/>
         <result property="content" column="content"/>
         <result property="parentId" column="parent_id"/>
         <result property="createdAt" column="created_at"/>
@@ -161,6 +200,13 @@
         <result property="deletedAt" column="deleted_at"/>
         <!-- 文章标题（非实体字段，通过额外列传递） -->
         <result property="postTitle" column="post_title"/>
+        <association property="bot" javaType="chat.liuxin.liutech.resp.CommunityResp$BotInfo">
+            <constructor>
+                <arg column="bot_id" javaType="java.lang.Long"/>
+                <arg column="bot_name" javaType="java.lang.String"/>
+                <arg column="bot_avatar_url" javaType="java.lang.String"/>
+            </constructor>
+        </association>
         <!-- 关联用户信息 -->
         <association property="user" javaType="chat.liuxin.liutech.model.Users">
             <id property="id" column="user_id"/>
@@ -170,12 +216,13 @@
         </association>
     </resultMap>
 
-    <!-- 管理端分页查询评论列表 -->
-    <select id="selectCommentsForAdmin" resultMap="AdminCommentMap">
+    <!-- 审查查询复用关联字段和结果映射，保留软删除作者与评论的历史身份。 -->
+    <sql id="adminCommentSelectSql">
         SELECT
             c.id,
             c.post_id,
-            c.user_id,
+            c.user_id, c.bot_id, c.community_task_id, c.root_event_id,
+            b.name AS bot_name, b.avatar_url AS bot_avatar_url,
             c.content,
             c.parent_id,
             c.created_at,
@@ -187,7 +234,13 @@
             p.title AS post_title
         FROM comments c
         LEFT JOIN users u ON c.user_id = u.id
+        LEFT JOIN community_bots b ON c.bot_id = b.id
         LEFT JOIN posts p ON c.post_id = p.id
+    </sql>
+
+    <!-- 管理端分页查询评论列表 -->
+    <select id="selectCommentsForAdmin" resultMap="AdminCommentMap">
+        <include refid="adminCommentSelectSql"/>
         <where>
             <if test="includeDeleted == null or includeDeleted == false">
                 c.deleted_at IS NULL
@@ -241,23 +294,47 @@
 
     <!-- 根据ID查询评论详情（管理端） -->
     <select id="selectCommentsForAdminById" resultMap="AdminCommentMap">
-        SELECT
-            c.id,
-            c.post_id,
-            c.user_id,
-            c.content,
-            c.parent_id,
-            c.created_at,
-            c.updated_at,
-            c.deleted_at,
-            u.username,
-            u.email,
-            u.avatar_url,
-            p.title AS post_title
-        FROM comments c
-        LEFT JOIN users u ON c.user_id = u.id
-        LEFT JOIN posts p ON c.post_id = p.id
+        <include refid="adminCommentSelectSql"/>
         WHERE c.id = #{id}
+    </select>
+
+    <select id="selectCommentsByBotForAdmin" resultMap="AdminCommentMap">
+        <include refid="adminCommentSelectSql"/>
+        WHERE c.bot_id=#{botId}
+        ORDER BY c.created_at DESC,c.id DESC LIMIT #{offset},#{limit}
+    </select>
+    <select id="countCommentsByBotForAdmin" resultType="long">
+        SELECT COUNT(*) FROM comments WHERE bot_id=#{botId}
+    </select>
+
+    <select id="selectRootCommentIdForAdmin" resultType="java.lang.Long">
+        WITH RECURSIVE ancestors AS (
+            SELECT id,parent_id FROM comments WHERE id=#{commentId} AND post_id=#{postId}
+            UNION ALL
+            SELECT c.id,c.parent_id FROM comments c JOIN ancestors a ON a.parent_id=c.id
+            WHERE c.post_id=#{postId}
+        ) SELECT id FROM ancestors WHERE parent_id IS NULL
+    </select>
+    <sql id="adminThreadCte">
+        WITH RECURSIVE thread_ids AS (
+            SELECT id FROM comments WHERE id=#{rootCommentId} AND post_id=#{postId}
+            UNION ALL
+            SELECT c.id FROM comments c JOIN thread_ids t ON c.parent_id=t.id
+            WHERE c.post_id=#{postId}
+        )
+    </sql>
+    <select id="countThreadCommentsForAdmin" resultType="long">
+        <include refid="adminThreadCte"/>
+        SELECT COUNT(*) FROM thread_ids
+    </select>
+    <select id="selectThreadCommentsForAdmin" resultMap="AdminCommentMap">
+        <include refid="adminThreadCte"/>, recent AS (
+            SELECT c.id FROM comments c JOIN thread_ids t ON t.id=c.id
+            ORDER BY c.created_at DESC,c.id DESC LIMIT #{limit}
+        )
+        <include refid="adminCommentSelectSql"/>
+        JOIN recent r ON r.id=c.id
+        ORDER BY c.created_at,c.id
     </select>
 
     <!-- 根据ID列表物理删除评论 -->
@@ -287,8 +364,8 @@
 
     <!-- 递归查询指定评论的所有子孙评论（含用户信息，不含传入的ID本身） -->
     <select id="selectAllDescendantsByRootIds" resultMap="CommentWithUserMap">
-        WITH RECURSIVE descendants AS (
-            SELECT c.id, c.post_id, c.user_id, c.content, c.parent_id, c.created_at, c.updated_at, c.deleted_at
+        WITH RECURSIVE <include refid="visibleCommentDefinitions"/>, descendants AS (
+            SELECT c.id, c.post_id, c.user_id, c.bot_id, c.community_task_id, c.root_event_id, c.content, c.parent_id, c.created_at, c.updated_at, c.deleted_at
             FROM comments c
             WHERE c.parent_id IN
             <foreach collection="rootIds" item="rootId" open="(" separator="," close=")">
@@ -296,7 +373,7 @@
             </foreach>
             AND c.deleted_at IS NULL
             UNION ALL
-            SELECT c.id, c.post_id, c.user_id, c.content, c.parent_id, c.created_at, c.updated_at, c.deleted_at
+            SELECT c.id, c.post_id, c.user_id, c.bot_id, c.community_task_id, c.root_event_id, c.content, c.parent_id, c.created_at, c.updated_at, c.deleted_at
             FROM comments c
             INNER JOIN descendants d ON c.parent_id = d.id
             WHERE c.deleted_at IS NULL
@@ -304,7 +381,8 @@
         SELECT
             d.id,
             d.post_id,
-            d.user_id,
+            d.user_id, d.bot_id, d.community_task_id, d.root_event_id,
+            b.name AS bot_name,b.avatar_url AS bot_avatar_url,
             d.content,
             d.parent_id,
             d.created_at,
@@ -313,8 +391,10 @@
             u.username,
             u.avatar_url
         FROM descendants d
+        INNER JOIN visible_comments visible ON visible.id=d.id
         INNER JOIN posts p ON p.id = d.post_id
         LEFT JOIN users u ON d.user_id = u.id
+        LEFT JOIN community_bots b ON d.bot_id = b.id
         WHERE <include refid="publicPostCondition"/>
         ORDER BY d.created_at ASC
     </select>

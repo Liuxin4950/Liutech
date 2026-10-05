@@ -74,6 +74,7 @@ const menuItems = computed(() => [
     children: [
       { key: 'ai-models', icon: RobotOutlined, label: t('menu.aiModels'), path: '/ai-models' },
       { key: 'ai-settings', icon: SettingOutlined, label: t('menu.aiSettings'), path: '/ai-settings' },
+      { key: 'community-ai', icon: CommentOutlined, label: t('menu.communityAi'), path: '/community-ai' },
     ],
   },
   {
@@ -103,6 +104,7 @@ const getSelectedKey = (): string[] => {
   if (path.startsWith('/music')) return ['music']
   if (path.startsWith('/ai-models')) return ['ai-models']
   if (path.startsWith('/ai-settings')) return ['ai-settings']
+  if (path.startsWith('/community-ai')) return ['community-ai']
   if (path.startsWith('/logs')) return ['logs']
   return ['dashboard']
 }
@@ -113,7 +115,7 @@ const getOpenKeys = (): string[] => {
   if (path.startsWith('/users') || path.startsWith('/points')) return ['user-management']
   if (path.startsWith('/announcements') || path.startsWith('/carousels') || path.startsWith('/messages') || path.startsWith('/about')) return ['operations']
   if (path.startsWith('/images') || path.startsWith('/resources') || path.startsWith('/music')) return ['media']
-  if (path.startsWith('/ai-models') || path.startsWith('/ai-settings')) return ['ai-center']
+  if (path.startsWith('/ai-models') || path.startsWith('/ai-settings') || path.startsWith('/community-ai')) return ['ai-center']
   if (path.startsWith('/logs')) return ['system']
   return []
 }

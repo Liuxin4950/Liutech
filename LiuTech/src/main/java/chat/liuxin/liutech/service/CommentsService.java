@@ -42,6 +42,8 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
 
     private final UserUtils userUtils;
 
+    private final CommunityService communityService;
+
     /** 公开详情只返回未删除评论及其仍公开、未删除的所属文章；后台查询使用独立入口。 */
     @Transactional(readOnly = true)
     public Comments getPublicCommentById(Long id) {
@@ -217,12 +219,15 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
         // 获取并验证当前用户
         Users currentUser = validateCurrentUser();
 
+        communityService.lockCommentPost(createCommentReq.getPostId());
+
         // 验证父评论（如果是回复）
         validateParentComment(createCommentReq);
 
         // 创建并保存评论
         Comments comment = buildComment(createCommentReq, currentUser);
         saveComment(comment);
+        communityService.humanCommentCreated(comment, createCommentReq.getMentionedBotIds());
 
         // 设置用户信息并转换为响应对象
         comment.setUser(currentUser);
@@ -321,6 +326,9 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
         commentResp.setContent(comment.getContent());
         commentResp.setParentId(comment.getParentId());
         commentResp.setCreatedAt(comment.getCreatedAt());
+        commentResp.setAuthorType(comment.getAuthorType());
+        commentResp.setBotId(comment.getBotId());
+        commentResp.setBot(comment.getBot());
 
         // 转换用户信息
         if (comment.getUser() != null) {
