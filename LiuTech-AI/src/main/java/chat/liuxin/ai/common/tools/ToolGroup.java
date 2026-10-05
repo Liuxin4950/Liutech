@@ -1,4 +1,4 @@
-package chat.liuxin.ai.common.mcp;
+package chat.liuxin.ai.common.tools;
 
 import java.util.Set;
 

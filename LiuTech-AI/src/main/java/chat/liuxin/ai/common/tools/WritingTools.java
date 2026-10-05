@@ -1,4 +1,4 @@
-package chat.liuxin.ai.common.mcp;
+package chat.liuxin.ai.common.tools;
 
 import chat.liuxin.ai.common.client.BlogApiClient;
 import chat.liuxin.ai.dto.CategoryDTO;
@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 写作专用 MCP 工具。
+ * 写作专用本地工具。
  *
  * 分两类：
  * - 只读工具：listCategories / listTags / getArticleDetail，获取分类标签和文章内容

@@ -1,4 +1,4 @@
-package chat.liuxin.ai.common.mcp;
+package chat.liuxin.ai.common.tools;
 
 import chat.liuxin.ai.common.client.BlogApiClient;
 import chat.liuxin.ai.dto.AuthorProfileDTO;
@@ -29,7 +29,7 @@ import java.util.Set;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class BlogMcpTools implements ToolGroup {
+public class BlogTools implements ToolGroup {
 
     /** 所有人可用（游客/用户/管理员） */
     @Override

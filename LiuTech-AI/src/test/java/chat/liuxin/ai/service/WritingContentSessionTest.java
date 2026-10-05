@@ -1,8 +1,8 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.common.client.BlogApiClient;
-import chat.liuxin.ai.common.mcp.ToolResultBudget;
-import chat.liuxin.ai.common.mcp.WritingTools;
+import chat.liuxin.ai.common.tools.ToolResultBudget;
+import chat.liuxin.ai.common.tools.WritingTools;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.AdminArticleDraftSnapshot;
 import chat.liuxin.ai.dto.WritingContentPatch.Edit;

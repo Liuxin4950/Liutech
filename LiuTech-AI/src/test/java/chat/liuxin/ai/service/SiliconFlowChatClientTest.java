@@ -1,9 +1,9 @@
 package chat.liuxin.ai.service;
 
-import chat.liuxin.ai.common.mcp.RoleBasedToolRegistry;
-import chat.liuxin.ai.common.mcp.ToolGroup;
-import chat.liuxin.ai.common.mcp.WritingTools;
-import chat.liuxin.ai.common.mcp.ToolResultBudget;
+import chat.liuxin.ai.common.tools.RoleBasedToolRegistry;
+import chat.liuxin.ai.common.tools.ToolGroup;
+import chat.liuxin.ai.common.tools.WritingTools;
+import chat.liuxin.ai.common.tools.ToolResultBudget;
 import chat.liuxin.ai.common.client.BlogApiClient;
 import chat.liuxin.ai.common.monitor.AiMetrics;
 import chat.liuxin.ai.infra.config.AiChatProperties;
@@ -122,6 +122,8 @@ class SiliconFlowChatClientTest {
                 SiliconFlowChatClient.ChatMode.WRITING, "ADMIN", Map.of(
                         SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, limits,
                         WritingContentSession.CONTEXT_KEY, content,
+                        chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
+                        new chat.liuxin.ai.common.client.ModelExecutionPolicy(true, sink, content::wasReviewed),
                         WritingToolEventSink.CONTEXT_KEY, sink)).collectList().block(Duration.ofSeconds(3));
         assertTrue(output.isEmpty());
         assertEquals(List.of("running", "completed"), activities.stream().map(event -> event.get("status")).toList());
@@ -149,6 +151,8 @@ class SiliconFlowChatClientTest {
                 () -> client.streamChat(List.of(new UserMessage("修改正文")), "model", .3, 1000,
                         SiliconFlowChatClient.ChatMode.WRITING, "ADMIN", Map.of(
                                 SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, limits,
+                                chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
+                                new chat.liuxin.ai.common.client.ModelExecutionPolicy(true, sink, () -> false),
                                 WritingToolEventSink.CONTEXT_KEY, sink)).blockLast(Duration.ofSeconds(3)));
         sink.finishRunning("failed", "修改参数已截断");
         assertTrue(activities.stream().anyMatch(event -> "editing_content".equals(event.get("stage")) && "failed".equals(event.get("status"))));
@@ -171,6 +175,8 @@ class SiliconFlowChatClientTest {
                                 new AiModelPolicy.ModelParameters(.3, 1000, 50000, 48488, false, false, "test"),
                                 WritingContentSession.CONTEXT_KEY, content,
                                 "allowedWritingFields", List.of("check"), "writingContentMode", "patch",
+                                chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
+                                new chat.liuxin.ai.common.client.ModelExecutionPolicy(true, sink, () -> false),
                                 WritingToolEventSink.CONTEXT_KEY, sink)).blockLast(Duration.ofSeconds(3)));
         assertEquals("本轮不允许修改正文", error.getMessage());
         assertFalse(content.wasReviewed());
@@ -208,6 +214,23 @@ class SiliconFlowChatClientTest {
                 SiliconFlowChatClient.ChatMode.CHAT, "USER", Map.of(SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, limits))
                 .collectList().map(parts -> String.join("", parts)).block(Duration.ofSeconds(3));
         assertEquals("改为提供公开建议", output);
+        verify(model, times(2)).stream(any(Prompt.class));
+    }
+
+    @Test
+    void structuredDecisionPolicyReturnsOnlyConfirmedFinalRoundText() {
+        SiliconFlowChatClient community = new SiliconFlowChatClient(model, props,
+                new RoleBasedToolRegistry(List.of(new CommunityReadTools())), mock(AiModelPolicy.class), budget,
+                ToolCallingManager.builder().build());
+        String decision = "{\"decision\":\"SKIP\"}";
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("我先读取资料", "tool_calls", "read", 20)),
+                Flux.just(response(decision, "stop", null, 20)));
+        String output = community.chat(List.of(new UserMessage("判断是否发言")), "model", .3, 1000,
+                SiliconFlowChatClient.ChatMode.COMMUNITY, "BOT", Map.of(
+                        SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, limits,
+                        chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
+                        new chat.liuxin.ai.common.client.ModelExecutionPolicy(true, null, () -> false, true)));
+        assertEquals(decision, output);
         verify(model, times(2)).stream(any(Prompt.class));
     }
 
@@ -265,6 +288,13 @@ class SiliconFlowChatClientTest {
         public Set<String> allowedRoles() { return Set.of("USER", "GUEST", "ADMIN"); }
         @Tool(description = "读取公开资料")
         public String read() { calls.incrementAndGet(); return result; }
+    }
+
+    public static class CommunityReadTools implements ToolGroup {
+        public Set<String> allowedRoles() { return Set.of("BOT"); }
+        public Set<String> allowedModes() { return Set.of("COMMUNITY"); }
+        @Tool(description = "读取当前公开资料")
+        public String read() { return "真实资料"; }
     }
 
     public static class RejectedTools implements ToolGroup {

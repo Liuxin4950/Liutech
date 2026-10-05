@@ -1,4 +1,4 @@
-package chat.liuxin.ai.common.mcp;
+package chat.liuxin.ai.common.tools;
 
 import org.junit.jupiter.api.Test;
 
@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class RoleBasedToolRegistryTest {
 
-    private final BlogMcpTools blogMcpTools = new BlogMcpTools(null, null);
+    private final BlogTools blogMcpTools = new BlogTools(null, null);
     private final WritingTools writingTools = new WritingTools(null, null);
     private final RoleBasedToolRegistry registry = new RoleBasedToolRegistry(List.of(blogMcpTools, writingTools));
 
@@ -26,7 +26,7 @@ class RoleBasedToolRegistryTest {
     }
 
     @Test
-    void getToolsForRole_小写user只拿到BlogMcpTools() {
+    void getToolsForRole_小写user只拿到BlogTools() {
         List<Object> tools = registry.getToolsForRole("user");
         assertEquals(1, tools.size());
         assertTrue(tools.contains(blogMcpTools));

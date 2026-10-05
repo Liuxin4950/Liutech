@@ -160,6 +160,34 @@ public class PromptBudget {
         return new ArrayList<>(history.subList(keepFrom, history.size()));
     }
 
+    /** 三类业务共用首次输入分配：必需内容不截断，参考资料节选，历史整条裁剪。 */
+    public List<Message> prepareInitial(String model, AiModelPolicy.ModelParameters params,
+            List<Message> mandatory, List<Message> references, List<Message> history,
+            Message currentInput, List<ToolCallback> tools) {
+        int required = estimateTokens(mandatory) + estimateTokens(List.of(currentInput)) + estimateToolTokens(tools);
+        assertMandatoryFits(model, required, params.inputBudgetTokens(), params.contextWindow(), params.maxTokens());
+        int remaining = params.inputBudgetTokens() - required;
+        remaining -= Math.min(remaining / 2, Math.min(12000, params.inputBudgetTokens() / 4));
+        int referenceBudget = remaining / 2;
+        List<Message> messages = new ArrayList<>(mandatory);
+        for (Message reference : references) {
+            if (referenceBudget < 128) break;
+            String text = reference.getText();
+            int cost = estimateTokens(text) + 4;
+            if (cost > referenceBudget) {
+                text = truncateReference(text, referenceBudget - 4,
+                    "\n[参考资料已按模型预算节选，不能声称已读取全文；请使用分段读取工具。]");
+                cost = estimateTokens(text) + 4;
+            }
+            messages.add(new org.springframework.ai.chat.messages.UserMessage(text));
+            remaining -= cost;
+            referenceBudget -= cost;
+        }
+        messages.addAll(trimHistory(history, remaining));
+        messages.add(currentInput);
+        return messages;
+    }
+
     /**
      * 校验「必需内容」是否放得下，放不下就快速失败。
      *

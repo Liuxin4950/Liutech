@@ -1,4 +1,4 @@
-package chat.liuxin.ai.common.mcp;
+package chat.liuxin.ai.common.tools;
 
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.infra.config.AiChatProperties;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * 工具结果体积控制：给"按 ID 读整篇文章"这类工具的结果加一道上限。
  *
  * <p>为什么必须有这一层：写作助手与看板娘都提供读全文的工具（{@link WritingTools#getArticleDetail}、
- * {@link BlogMcpTools#getPostDetail}），返回的是含完整 HTML 正文的 {@link PostDetailDTO}。
+ * {@link BlogTools#getPostDetail}），返回的是含完整 HTML 正文的 {@link PostDetailDTO}。
  * 一篇长文正文可能上万字，整篇塞进上下文会直接顶穿模型上下文窗口 ——
  * 线上表现就是"模型卡住、没有提示"（上游长时间不返回，最终只能等 SSE 超时）。
  *

@@ -55,4 +55,3 @@ public final class FieldUpdateCollector {
         return items.isEmpty();
     }
 }
-

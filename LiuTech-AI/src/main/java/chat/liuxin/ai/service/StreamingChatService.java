@@ -11,7 +11,7 @@ import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
 import chat.liuxin.ai.dto.WritingStreamEvent;
-import chat.liuxin.ai.common.mcp.ToolResultBudget;
+import chat.liuxin.ai.common.tools.ToolResultBudget;
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.infra.security.PromptBudget;
@@ -181,6 +181,8 @@ public class StreamingChatService {
                     }
                 });
                 toolContext.put(WritingToolEventSink.CONTEXT_KEY, session.activities);
+                toolContext.put(chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
+                        WritingResultValidator.executionPolicy(session.collector, session.contentSession, session.activities));
             }
             if (!session.isRunning()) return;
             session.ttsEnabled = !session.writingMode && Boolean.TRUE.equals(request.getTtsEnabled());
@@ -243,23 +245,15 @@ public class StreamingChatService {
                 }
             }
             String fullResponse = session.responseText();
-            boolean patchReviewed = session.writingMode && session.contentSession.wasReviewed();
-            if (fullResponse.isBlank() && (!session.writingMode || (session.collector.isEmpty() && !patchReviewed))) {
+            if (!session.writingMode && fullResponse.isBlank()) {
                 throw new AIServiceException.ModelException("AI 没有返回有效内容，请稍后重试");
             }
-            boolean patchMode = session.writingMode && "patch".equals(session.contentMode);
-            if (patchMode && session.contentRequested && !patchReviewed) {
-                throw new AIServiceException.ModelException("AI 未生成可定位的局部修改，草稿正文未修改，请重试");
-            }
-            String articleHtml = session.writingMode && !patchMode && session.allowsBodyPreview()
-                    ? completeArticleHtml(fullResponse, session.originalDraftContent) : null;
-            if (session.writingMode && !patchMode && session.contentRequested && articleHtml == null) {
-                throw new AIServiceException.ModelException("AI 没有返回完整有效的 HTML 正文，草稿正文未修改，请重试");
-            }
-            var contentPatch = patchReviewed ? session.contentSession.finish() : null;
-            if (contentPatch != null && (!patchMode || !session.allowsBodyPreview())) {
-                throw new AIServiceException.ModelException("正文修改方式与本轮范围不一致，草稿正文未修改");
-            }
+            boolean patchReviewed = session.writingMode && session.contentSession.wasReviewed();
+            var body = session.writingMode ? WritingResultValidator.validate(fullResponse,
+                    session.originalDraftContent, session.contentMode, session.allowedWritingFields,
+                    session.collector, session.contentSession) : null;
+            String articleHtml = body == null ? null : body.html();
+            var contentPatch = body == null ? null : body.patch();
             if (!session.guestMode && !session.writingMode) {
                 memoryService.saveAssistantMessage(session.userId, session.conversationId.get(), fullResponse,
                         session.modelName, MemoryService.MESSAGE_STATUS_NORMAL, null);

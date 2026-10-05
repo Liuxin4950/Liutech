@@ -1,10 +1,10 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.common.client.BlogApiClient;
-import chat.liuxin.ai.common.mcp.BlogMcpTools;
-import chat.liuxin.ai.common.mcp.RoleBasedToolRegistry;
-import chat.liuxin.ai.common.mcp.ToolResultBudget;
-import chat.liuxin.ai.common.mcp.WritingTools;
+import chat.liuxin.ai.common.tools.BlogTools;
+import chat.liuxin.ai.common.tools.RoleBasedToolRegistry;
+import chat.liuxin.ai.common.tools.ToolResultBudget;
+import chat.liuxin.ai.common.tools.WritingTools;
 import chat.liuxin.ai.dto.AdminArticleDraftSnapshot;
 import chat.liuxin.ai.dto.CategoryDTO;
 import chat.liuxin.ai.dto.ChatRequest;
@@ -35,7 +35,7 @@ class AiPromptSecurityTest {
     private final PromptBudget budget = new PromptBudget(properties);
     private final ToolResultBudget toolBudget = new ToolResultBudget(properties);
     private final WritingTools writing = new WritingTools(blog, toolBudget);
-    private final RoleBasedToolRegistry tools = new RoleBasedToolRegistry(List.of(new BlogMcpTools(blog, toolBudget), writing));
+    private final RoleBasedToolRegistry tools = new RoleBasedToolRegistry(List.of(new BlogTools(blog, toolBudget), writing));
     private final PromptService prompts = new PromptService(promptConfig(), blog, properties);
     private final ChatServiceHelper helper = new ChatServiceHelper(prompts, memory, budget, tools);
     private final AiModelPolicy.ModelParameters params = new AiModelPolicy.ModelParameters(.3, 4096, 32768, 28160, false, false, "test");

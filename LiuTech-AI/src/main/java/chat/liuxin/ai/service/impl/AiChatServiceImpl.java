@@ -150,36 +150,23 @@ public class AiChatServiceImpl implements AiChatService {
             context.put(FieldUpdateCollector.CONTEXT_KEY, collector);
             context.put(WritingContentSession.CONTEXT_KEY, contentSession);
             context.put("writingContentMode", contentMode);
+            context.put(chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
+                    chat.liuxin.ai.service.WritingResultValidator.executionPolicy(collector, contentSession, null));
             if (request.getContext() != null && request.getContext().get("requestedFields") instanceof List<?> fields) {
                 context.put("allowedWritingFields", List.copyOf(fields));
             }
             String aiOutput = siliconFlowChatClient.chat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role, context);
 
-            List<FieldUpdatePayload> updates = new java.util.ArrayList<>(collector.drain());
             Object rawFields = context.get("allowedWritingFields");
             List<?> fields = rawFields instanceof List<?> values ? values : List.of();
-            boolean contentRequested = fields.contains("content") && !fields.contains("check");
-            boolean contentAllowed = fields.isEmpty() || contentRequested;
-            if (contentAllowed && "patch".equals(contentMode)) {
-                if (contentRequested && !contentSession.wasReviewed()) {
-                    throw new AIServiceException.ModelException("AI 没有生成可定位的局部修改，正文未修改，请重试");
-                }
-                var patch = contentSession.finish();
-                if (patch != null) {
-                    var body = new FieldUpdatePayload();
-                    body.setContentPatch(patch);
-                    updates.add(body);
-                }
-            } else if (contentAllowed) {
-                String html = WritingHtmlValidator.validate(aiOutput, originalContent);
-                if (contentRequested && html == null) {
-                    throw new AIServiceException.ModelException("AI 没有返回完整有效的 HTML 正文，正文未修改，请重试");
-                }
-                if (html != null) {
-                    var body = new FieldUpdatePayload();
-                    body.setContentHtml(html);
-                    updates.add(body);
-                }
+            var bodyResult = chat.liuxin.ai.service.WritingResultValidator.validate(aiOutput, originalContent,
+                    contentMode, fields, collector, contentSession);
+            List<FieldUpdatePayload> updates = new java.util.ArrayList<>(collector.drain());
+            if (bodyResult.html() != null || bodyResult.patch() != null) {
+                var body = new FieldUpdatePayload();
+                body.setContentHtml(bodyResult.html());
+                body.setContentPatch(bodyResult.patch());
+                updates.add(body);
             }
 
             long cost = System.currentTimeMillis() - begin;

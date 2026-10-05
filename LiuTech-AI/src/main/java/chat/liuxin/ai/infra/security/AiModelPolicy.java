@@ -57,6 +57,13 @@ public class AiModelPolicy {
     public ModelParameters resolveParameters(ChatRequest request, String modelName) {
         Double requestTemperature = request == null ? null : request.getTemperature();
         Integer requestMaxTokens = request == null ? null : request.getMaxTokens();
+        return resolveParameters(requestTemperature, requestMaxTokens, modelName);
+    }
+
+    /** 后台业务使用同一参数策略，无需构造聊天请求。 */
+    public String resolveModelName() { return resolveConfiguredDefaultModel(); }
+
+    public ModelParameters resolveParameters(Double requestTemperature, Integer requestMaxTokens, String modelName) {
 
         if (requestTemperature != null && (requestTemperature < 0.0 || requestTemperature > 1.0)) {
             log.warn("请求携带的 temperature 超出范围 [0.0, 1.0]: {}, 已忽略", requestTemperature);

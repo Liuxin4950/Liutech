@@ -1,4 +1,4 @@
-package chat.liuxin.ai.common.mcp;
+package chat.liuxin.ai.common.tools;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

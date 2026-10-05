@@ -3,7 +3,7 @@ package chat.liuxin.ai.service;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import chat.liuxin.ai.infra.security.PromptBudget;
-import chat.liuxin.ai.common.mcp.RoleBasedToolRegistry;
+import chat.liuxin.ai.common.tools.RoleBasedToolRegistry;
 import org.springframework.ai.support.ToolCallbacks;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,51 +59,11 @@ public class ChatServiceHelper {
         // 当前输入属于必需内容：即使为空也补一条空 UserMessage，防止 Spring AI 报错
         Message currentInput = new UserMessage(request.getMessage() != null ? request.getMessage() : "");
 
-        int mandatoryTokens = promptBudget.estimateTokens(parts.mandatory())
-                + promptBudget.estimateTokens(currentInput.getText()) + 4;
-        int schemaTokens = 0;
-        if (toolRegistry != null) {
-            var tools = java.util.Arrays.asList(ToolCallbacks.from(toolRegistry.getToolsForRoleAndMode(
+        var tools = toolRegistry == null ? List.<org.springframework.ai.tool.ToolCallback>of()
+                : java.util.Arrays.asList(ToolCallbacks.from(toolRegistry.getToolsForRoleAndMode(
                     writingMode ? "ADMIN" : "GUEST", writingMode ? "WRITING" : "CHAT").toArray()));
-            schemaTokens = promptBudget.estimateToolTokens(tools);
-            mandatoryTokens += schemaTokens;
-        }
-
-        // 必需内容都放不下 → 立刻失败，并告诉用户超了多少、可以怎么做
-        promptBudget.assertMandatoryFits(modelName, mandatoryTokens,
-                params.inputBudgetTokens(), params.contextWindow(), params.maxTokens());
-
-        int remaining = params.inputBudgetTokens() - mandatoryTokens;
-        List<Message> references = new ArrayList<>();
-        int toolReserve = Math.min(remaining / 2, Math.min(12000, params.inputBudgetTokens() / 4));
-        remaining -= toolReserve;
-        int referenceBudget = remaining / 2;
-        for (Message reference : parts.references()) {
-            if (referenceBudget < 128) break;
-            String text = reference.getText();
-            int cost = promptBudget.estimateTokens(text) + 4;
-            if (cost > referenceBudget) {
-                String notice = "\n[当前文章参考资料已按模型预算节选，不能声称已读取全文；需要后续内容时调用分段读取工具。]";
-                text = promptBudget.truncateReference(text, referenceBudget - 4, notice);
-                cost = promptBudget.estimateTokens(text) + 4;
-            }
-            references.add(new UserMessage(text));
-            referenceBudget -= cost;
-            remaining -= cost;
-        }
-        int historyBudget = remaining;
-        List<Message> history = promptBudget.trimHistory(parts.history(), historyBudget);
-
-        List<Message> messages = new ArrayList<>(parts.mandatory());
-        messages.addAll(references);
-        messages.addAll(history);
-        messages.add(currentInput);
-
-        int historyTokens = promptBudget.estimateTokens(history);
-        log.info("输入预算 - 模型: {}, 上下文: {}, 输出上限: {}, 输入预算: {}, 本次实际: {} token（必需 {} + 历史 {} 条 {}）, 消息数: {}",
-                modelName, params.contextWindow(), params.maxTokens(), params.inputBudgetTokens(),
-                promptBudget.estimateTokens(messages) + schemaTokens, mandatoryTokens, history.size(), historyTokens, messages.size());
-        return messages;
+        return promptBudget.prepareInitial(modelName, params, parts.mandatory(), parts.references(),
+                parts.history(), currentInput, tools);
     }
 
     private void validateContext(ChatRequest request) {

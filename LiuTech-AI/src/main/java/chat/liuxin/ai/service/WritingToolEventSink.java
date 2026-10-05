@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.BiConsumer;
 
 /** 请求作用域的真实写作活动；工具、准备与模型轮次共用同一协议，不推测模型内部思维。 */
-public final class WritingToolEventSink {
+public final class WritingToolEventSink implements chat.liuxin.ai.common.client.ModelExecutionObserver {
     public static final String CONTEXT_KEY = "writingToolEventSink";
 
     private final BiConsumer<String, Map<String, Object>> eventSender;
@@ -68,6 +68,11 @@ public final class WritingToolEventSink {
 
     public synchronized void modelRoundStarted() {
         modelActivity = start("thinking", "AI 正在理解草稿并准备回复");
+    }
+
+    @Override
+    public void modelToolsPrepared(java.util.List<String> names) {
+        if (names.contains("editArticleContent")) preparingContentEdit();
     }
 
     /** 原生工具流已出现正文编辑工具名，才展示参数准备；此时尚未修改草稿。 */
