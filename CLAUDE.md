@@ -80,7 +80,7 @@ docker-compose logs -f backend               # 跟踪后端日志
 ## ⚠️ 跨服务集成约束（最容易出错的点）
 
 - **`JWT_SECRET`** 只注入 `backend`；AI 服务不得自行验签，带 token 的请求通过主后端 `/internal/auth/introspect` 确认当前身份。
-- **`LIUTECH_INTERNAL_TOKEN`** 在 `backend` 和 `ai` 中必须一致，只用于身份内省与用户彻底删除时的 AI 数据清理；公网 Nginx 屏蔽 `/api/internal/**`、`/ai/internal/**`。
+- **`LIUTECH_INTERNAL_TOKEN`** 在 `backend` 和 `ai` 中必须一致，用于身份内省、社区任务内部调用与用户彻底删除时的 AI 数据清理；公网 Nginx 屏蔽 `/api/internal/**`、`/ai/internal/**`。
 - **TTS 归属 AI 服务**：配置、状态、GPT-SoVITS/SiliconFlow 调用、音色和临时音频缓存均在 `LiuTech-AI`；主后端不再提供 `/tts/**`。
 - **AI 服务 -> 主后端** URL：Docker 内 `http://backend:8080`（`BLOG_API_URL`），本地 `http://localhost:8080`。
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证。

@@ -277,16 +277,16 @@ AI 服务**不信任 JWT 里的角色**（虽然自己能验签），账号状�
 | | 看板娘聊天 `/ai/chat(/stream)` | 写作助手 `/ai/writing(/stream)` |
 |---|---|---|
 | 系统提示词 | `PromptService.buildSystemPrompt()`（:117-120）＝配置人设 + 能力边界 + 安全规则 | `PromptService.buildWritingSystemPrompt()`（:130-162）＝硬编码的"写作执行助手"规则 |
-| 工具 | `BlogMcpTools`（公开只读） | `WritingTools`（含唯一写工具 `applyArticleUpdate`） |
+| 工具 | `BlogTools`（公开只读） | `WritingTools`（含唯一写工具 `applyArticleUpdate`） |
 | 消息持久化 | 落库会话 + 消息 | **不落库**（草稿由前端管理，`AiChatServiceImpl.java:110-112`） |
 | 历史来源 | 登录→DB 最近 14 条；游客→请求 tempMessages 末 7 条 | 只用 tempMessages（`PromptService.java:98-102`） |
 | 权限 | permitAll | `hasRole('ADMIN')`（`SecurityConfig.java:122`） |
 | 参数 | 请求/库配置 | 温度 0.3 兜底 + maxTokens 强制抬到 32768 但不超过模型上限（`AiChatServiceImpl.writingParameters`, :185-190） |
 | 失败处理 | 抛异常走全局处理器 | `processWriting` 捕获后返回 `success=false`（:132-139） |
 
-### 3.2 BlogMcpTools 注册的工具（7 个，全部只读）
+### 3.2 BlogTools 注册的工具（7 个，全部只读）
 
-`common/mcp/BlogMcpTools.java`，`allowedRoles() = {ADMIN, USER, GUEST}`（:34-37）。每个方法上 `@Tool(description=...)`，参数上 `@ToolParam`——Spring AI 会把这些描述和签名转成 OpenAI function calling 的 schema 发给模型。
+`common/tools/BlogTools.java`，`allowedRoles() = {ADMIN, USER, GUEST}`（:34-37）。每个方法上 `@Tool(description=...)`，参数上 `@ToolParam`——Spring AI 会把这些描述和签名转成 OpenAI function calling 的 schema 发给模型。
 
 | 工具 | 入参 | 用途 | 位置 |
 |---|---|---|---|
@@ -300,7 +300,7 @@ AI 服务**不信任 JWT 里的角色**（虽然自己能验签），账号状�
 
 ### 3.3 WritingTools 注册的工具（4 个）
 
-`common/mcp/WritingTools.java`，`allowedRoles() = {ADMIN}`（:37-40）。分两类（类注释 :24-30）：
+`common/tools/WritingTools.java`，`allowedRoles() = {ADMIN}`（:37-40）。分两类（类注释 :24-30）：
 
 - 只读：`listCategories`（:53-61）、`listTags`（:68-76）、`getArticleDetail(postId)`（:84-92）——注意这三个方法第一个参数是 `ToolContext`（Spring AI 会自动注入，模型看不到）；
 - **写工具** `applyArticleUpdate`（:131-181）：这是"AI 操作博客页面的唯一入口"（:120 注释）。入参全部可选：`title, summary, categoryId, tagIds, suggestedCategoryName, suggestedTagNames`（+ 隐含 ToolContext）。逻辑：
@@ -311,7 +311,7 @@ AI 服务**不信任 JWT 里的角色**（虽然自己能验签），账号状�
 
 ### 3.4 ToolGroup + RoleBasedToolRegistry 工具隔离（三层防御）
 
-`ToolGroup` 接口（`common/mcp/ToolGroup.java:14-21`）只有一个方法 `Set<String> allowedRoles()`——每个工具类自我声明"谁能用我"。`RoleBasedToolRegistry`（`common/mcp/RoleBasedToolRegistry.java`）构造时自动收集所有 `ToolGroup` Bean（:27-30），`getToolsForRole`（:38-49）把 role 归一化大写（null→GUEST）后过滤。`SiliconFlowChatClient.resolveToolsByRole`（:163-165）每次调用前按角色拿工具组，放进 `.tools()`。
+`ToolGroup` 接口（`common/tools/ToolGroup.java:14-21`）只有一个方法 `Set<String> allowedRoles()`——每个工具类自我声明"谁能用我"。`RoleBasedToolRegistry`（`common/tools/RoleBasedToolRegistry.java`）构造时自动收集所有 `ToolGroup` Bean（:27-30），`getToolsForRole`（:38-49）把 role 归一化大写（null→GUEST）后过滤。`SiliconFlowChatClient.resolveToolsByRole`（:163-165）每次调用前按角色拿工具组，放进 `.tools()`。
 
 **三层防御**（`RoleBasedToolRegistry.java:16-18` 注释原文，`ToolGroup.java:9-10` 呼应）：
 
@@ -430,7 +430,7 @@ chat.liuxin.ai
 ├── common
 │   ├── client/BlogApiClient      RestTemplate 封装主后端文章/分类/标签/作者接口（超时+全降级）
 │   ├── client/TtsClient          TTS 代理客户端（状态缓存 5s、内部 token、Semaphore 并发 1）
-│   ├── mcp/BlogMcpTools          看板娘 7 个只读工具（全员可用）
+│   ├── mcp/BlogTools          看板娘 7 个只读工具（全员可用）
 │   ├── mcp/WritingTools          写作 4 个工具（仅 ADMIN，含唯一写工具 applyArticleUpdate）
 │   ├── mcp/ToolGroup             工具组角色声明接口
 │   ├── mcp/RoleBasedToolRegistry 按角色过滤工具组（三层防御第二层）
@@ -563,7 +563,7 @@ chat.liuxin.ai
 | 模型调用 | `service/SiliconFlowChatClient.java`、`infra/config/AiHttpClientConfig.java`、`infra/config/ChatClientConfig.java` |
 | 主后端调用 | `common/client/BlogApiClient.java`、`common/client/TtsClient.java` |
 | 鉴权 | `infra/filter/JwtAuthenticationFilter.java`、`infra/config/SecurityConfig.java`、`common/utils/AuthUtils.java`、`common/utils/JwtUtil.java` |
-| 双智能体 | `common/mcp/{BlogMcpTools,WritingTools,ToolGroup,RoleBasedToolRegistry}.java`、`service/PromptService.java` |
+| 双智能体 | `common/tools/{BlogTools,WritingTools,ToolGroup,RoleBasedToolRegistry}.java`、`service/PromptService.java` |
 | 写作回写 | `service/{FieldUpdateCollector,FieldUpdateParser,WritingToolEventSink}.java`、`dto/{FieldUpdatePayload,AdminArticleDraftSnapshot}.java` |
 | 安全 | `infra/security/{AiModelPolicy,AiRateLimitInterceptor,AiRequestRateLimitProperties,AiSecurityWebConfig}.java` |
 | 持久化 | `service/MemoryService.java`、`entity/*.java`、`mapper/*.java`、`src/main/resources/sql/ai_chat_tables.sql` |
