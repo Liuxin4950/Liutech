@@ -12,24 +12,30 @@ import lombok.Data;
  */
 @Data
 public class UpdateProfileReq {
-    
+
+    /**
+     * 用户名（登录账号），可选，规则与注册一致（3-20 位）；修改后旧 token 失效需重新登录
+     */
+    @Size(min = 3, max = 20, message = "用户名长度必须在3-20之间")
+    private String username;
+
     /**
      * 邮箱地址
      */
     @Email(message = "邮箱格式不正确")
     private String email;
-    
+
     /**
      * 头像URL
      */
     private String avatarUrl;
-    
+
     /**
      * 昵称
      */
     @Size(max = 50, message = "昵称长度不能超过50个字符")
     private String nickname;
-    
+
     /**
      * 个人简介
      */

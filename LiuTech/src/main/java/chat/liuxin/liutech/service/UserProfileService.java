@@ -1,5 +1,14 @@
 package chat.liuxin.liutech.service;
 
+import java.util.Date;
+import java.util.List;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CommentsMapper;
@@ -10,21 +19,12 @@ import chat.liuxin.liutech.mapper.SystemSettingMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.req.UpdateProfileReq;
+import chat.liuxin.liutech.resp.ProfileResp;
 import chat.liuxin.liutech.resp.UserResp;
 import chat.liuxin.liutech.resp.UserStatsResp;
-import chat.liuxin.liutech.resp.ProfileResp;
 import chat.liuxin.liutech.utils.UserUtils;
-import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import java.util.Date;
-import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 用户资料服务类
@@ -75,15 +75,30 @@ public class UserProfileService {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户未认证");
         }
 
-        // 2. 验证邮箱是否冲突
+        // 2. 校验用户名是否冲突（用户名是登录账号，需全局唯一）
+        if (StringUtils.hasText(updateProfileReq.getUsername()) &&
+                !updateProfileReq.getUsername().equals(currentUser.getUsername())) {
+
+            List<Users> existingUsernameUsers = userMapper.findByUserName(updateProfileReq.getUsername());
+            if (existingUsernameUsers != null && !existingUsernameUsers.isEmpty()) {
+                boolean usernameUsedByOther = existingUsernameUsers.stream()
+                        .anyMatch(u -> !u.getId().equals(currentUser.getId()));
+                if (usernameUsedByOther) {
+                    log.warn("用户名已被其他用户使用: {}", updateProfileReq.getUsername());
+                    throw new BusinessException(ErrorCode.USERNAME_EXISTS, "用户名已被其他用户使用");
+                }
+            }
+        }
+
+        // 3. 验证邮箱是否冲突
         if (StringUtils.hasText(updateProfileReq.getEmail()) &&
-            !updateProfileReq.getEmail().equals(currentUser.getEmail())) {
+                !updateProfileReq.getEmail().equals(currentUser.getEmail())) {
 
             List<Users> existingEmailUsers = userMapper.findByEmail(updateProfileReq.getEmail());
             if (existingEmailUsers != null && !existingEmailUsers.isEmpty()) {
                 // 检查是否是其他用户使用了这个邮箱
                 boolean emailUsedByOther = existingEmailUsers.stream()
-                    .anyMatch(u -> !u.getId().equals(currentUser.getId()));
+                        .anyMatch(u -> !u.getId().equals(currentUser.getId()));
                 if (emailUsedByOther) {
                     log.warn("邮箱已被其他用户使用: {}", updateProfileReq.getEmail());
                     throw new BusinessException(ErrorCode.EMAIL_EXISTS, "邮箱已被其他用户使用");
@@ -102,6 +117,9 @@ public class UserProfileService {
         }
 
         // 4. 更新用户信息
+        if (StringUtils.hasText(updateProfileReq.getUsername())) {
+            currentUser.setUsername(updateProfileReq.getUsername());
+        }
         if (StringUtils.hasText(updateProfileReq.getEmail())) {
             currentUser.setEmail(updateProfileReq.getEmail());
         }
@@ -131,8 +149,6 @@ public class UserProfileService {
         return userResp;
     }
 
-
-
     /**
      * 获取当前用户统计信息
      * 从Spring Security上下文中获取认证用户信息并返回统计数据
@@ -144,9 +160,11 @@ public class UserProfileService {
     @Transactional(readOnly = true)
     public UserStatsResp getCurrentUserStats() {
         Long userId = userUtils.getCurrentUserId();
-        if (userId == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        if (userId == null)
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         Users currentUser = userMapper.selectById(userId);
-        if (currentUser == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        if (currentUser == null)
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         UserStatsResp stats = new UserStatsResp();
         BeanUtils.copyProperties(currentUser, stats);
         stats.setCommentCount(commentsMapper.countVisibleCommentsByUserId(userId));
@@ -180,11 +198,14 @@ public class UserProfileService {
                 ProfileResp profile = new ProfileResp();
 
                 // 设置基本信息
-                // profile.setName(StringUtils.hasText(currentUser.getNickname()) ? currentUser.getNickname() : currentUser.getUsername());
+                // profile.setName(StringUtils.hasText(currentUser.getNickname()) ?
+                // currentUser.getNickname() : currentUser.getUsername());
                 profile.setName("Liuxin");
-                profile.setTitle("全栈工程师"); 
-                profile.setAvatar(StringUtils.hasText(currentUser.getAvatarUrl()) ? currentUser.getAvatarUrl() : "/洛天依.png");
-                profile.setBio(StringUtils.hasText(currentUser.getBio()) ? currentUser.getBio() : "专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。");
+                profile.setTitle("全栈工程师");
+                profile.setAvatar(
+                        StringUtils.hasText(currentUser.getAvatarUrl()) ? currentUser.getAvatarUrl() : "/洛天依.png");
+                profile.setBio(StringUtils.hasText(currentUser.getBio()) ? currentUser.getBio()
+                        : "专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。");
 
                 // 获取统计信息
                 ProfileResp.Stats stats = new ProfileResp.Stats();
@@ -223,8 +244,6 @@ public class UserProfileService {
             return getDefaultProfile();
         }
     }
-
-
 
     /**
      * 获取默认个人资料信息
@@ -307,6 +326,7 @@ public class UserProfileService {
 
     /**
      * 增加图片引用计数
+     *
      * @param imageUrl 图片URL
      */
     private void incrementImageReference(String imageUrl) {
@@ -318,6 +338,7 @@ public class UserProfileService {
 
     /**
      * 减少图片引用计数
+     *
      * @param imageUrl 图片URL
      */
     private void decrementImageReference(String imageUrl) {

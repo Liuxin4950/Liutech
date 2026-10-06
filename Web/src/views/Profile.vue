@@ -172,7 +172,8 @@
 
           <div class="form-group">
             <label>用户名</label>
-            <input type="text" :value="userInfo?.username || '暂无数据'" class="form-input" disabled />
+            <input type="text" v-model="formData.username" class="form-input" maxlength="20" placeholder="请输入用户名" />
+            <small class="form-hint">用户名是登录账号，3-20 位，修改后需重新登录</small>
           </div>
 
           <div class="form-group">
@@ -225,6 +226,7 @@ const activitiesRef = ref<InstanceType<typeof UserActivities> | null>(null)
 let statsGeneration = 0
 
 const formData = reactive<UpdateProfileRequest>({
+  username: '',
   email: '',
   nickname: '',
   bio: '',
@@ -328,6 +330,7 @@ const achievements = computed(() => {
 
 const initForm = () => {
   if (userInfo.value) {
+    formData.username = userInfo.value.username || ''
     formData.email = userInfo.value.email || ''
     formData.nickname = userInfo.value.nickname || ''
     formData.bio = userInfo.value.bio || ''
@@ -410,14 +413,28 @@ const handleAvatarDragLeave = () => {
 
 const handleSubmit = async () => {
   if (!formData.email) return
+  // 用户名规则与注册一致：3-20 位
+  const username = (formData.username || '').trim()
+  if (username.length < 3 || username.length > 20) {
+    showError('用户名长度必须在3-20之间')
+    return
+  }
+  const usernameChanged = username !== userStore.userInfo?.username
   isLoading.value = true
   try {
-    const updatedUser = await UserService.updateProfile(formData)
+    const updatedUser = await UserService.updateProfile({ ...formData, username })
     userStore.updateUserInfo(updatedUser)
+    if (usernameChanged) {
+      // 用户名是登录账号，JWT 中已绑定旧用户名，修改后旧 token 失效，需重新登录
+      userStore.logout()
+      showSuccess('用户名修改成功，请重新登录')
+      router.push('/login')
+      return
+    }
     showSuccess('更新成功')
     closeModal()
   } catch (error: any) {
-    // 业务错误（如邮箱被占用）已在拦截器 Toast 提示具体原因，这里不重复弹模态框
+    // 业务错误（如用户名/邮箱被占用）已在拦截器 Toast 提示具体原因，这里不重复弹模态框
     if (!error?.isBusiness) {
       showError('更新失败')
     }

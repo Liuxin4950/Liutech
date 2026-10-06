@@ -269,6 +269,9 @@ router.beforeEach(async (to, from, next) => {
     const userStore = useUserStore()
     if (!userStore.userInfo) {
       await userStore.fetchUserInfo()
+    } else if (userStore.userInfo.role?.toLowerCase() !== 'admin') {
+      // 缓存角色非 admin：强制刷新一次，避免 localStorage persist 陈旧数据（如权限刚被提升）导致的误拦截
+      await userStore.fetchUserInfo()
     }
 
     if (!userStore.userInfo) {

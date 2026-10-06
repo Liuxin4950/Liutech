@@ -2,14 +2,15 @@
 -- LiuTech 全栈初始化脚本（唯一权威版本）
 -- 
 -- 权威路径：Docs/SQL/sql.sql
--- 当前结构版本：2026-10-05
+-- 当前结构与基础数据基准：2026-10-06，已核对云端 53965f5 两库。
 -- 本文件同时初始化主后端库 liutech 和 AI 服务库 liutech_ai。
 -- Docker 部署时通过 docker-entrypoint-initdb.d 自动执行（仅首次初始化）。
 -- Docs/SQL 只维护这一份完整脚本，表结构和默认初始化数据一同更新。
 --
 -- 幂等性保证：
 --   - 所有 CREATE TABLE 使用 IF NOT EXISTS，重复执行不会报错。
---   - 所有 INSERT 使用 IGNORE 或 ON DUPLICATE KEY UPDATE，避免主键冲突。
+--   - 基础数据只补缺失项，不覆盖管理员配置，不复制云端账号与业务历史。
+--   - 新模型目录默认使用 DeepSeek-V3.2；已有目录的默认选择和参数保留。
 --
 -- 已合并的历史变更：
 --   - sql/ai_chat_tables.sql         → 合并到本文件
@@ -27,7 +28,10 @@
 --   且 CREATE TABLE IF NOT EXISTS 不会为旧表自动补齐新增列。
 --   已有环境按本文件的最终结构核对差异；一次性升级操作不另存为维护脚本。
 -- ============================================================================
--- 关闭外键检查，避免顺序限制导致错误
+-- 明确连接字符集，公告和关于页中的中文/emoji 使用 UTF-8。
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+SET @liutech_fk_checks_before_init = @@FOREIGN_KEY_CHECKS;
+-- 关闭本连接外键检查，完成后恢复原值。
 SET FOREIGN_KEY_CHECKS = 0;
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS liutech DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -61,6 +65,19 @@ CREATE TABLE IF NOT EXISTS users (
 -- 安全约束：初始化脚本不创建固定用户名/密码的管理员。
 -- 首次部署请先通过正常注册流程创建真实账户，再按部署指南显式提升该账户角色。
 
+-- 云端保留的用户生命周期状态表；只创建结构，不复制历史状态。
+CREATE TABLE IF NOT EXISTS user_purge_tasks (
+  `user_id` bigint NOT NULL COMMENT '已删除用户ID，无外键',
+  `attempts` int unsigned NOT NULL DEFAULT '0',
+  `next_attempt_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `lease_token` varchar(36) DEFAULT NULL,
+  `last_error` varchar(100) DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  KEY `idx_purge_due` (`completed_at`,`next_attempt_at`,`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='跨服务用户清理任务';
+
 CREATE TABLE IF NOT EXISTS categories (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '分类ID',
   name VARCHAR(150) NOT NULL UNIQUE COMMENT '分类名',
@@ -72,6 +89,13 @@ CREATE TABLE IF NOT EXISTS categories (
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章分类表';
+
+-- 云端公开基础目录；用名称去重，不固定生产 ID 或用户审计 ID。
+INSERT IGNORE INTO categories (name, description)
+VALUES
+  ('技术分享', '分享我学习或现有的技术'),
+  ('资源', NULL),
+  ('学习笔记', '日常学习过程中的知识整理');
 
 CREATE TABLE IF NOT EXISTS tags (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '标签ID',
@@ -85,6 +109,16 @@ CREATE TABLE IF NOT EXISTS tags (
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签表';
 
+-- 云端公开基础目录；用名称去重，不固定生产 ID 或用户审计 ID。
+INSERT IGNORE INTO tags (name, description)
+VALUES
+  ('Docker', NULL),
+  ('Dsh', NULL),
+  ('Agent', NULL),
+  ('Fultter', NULL),
+  ('Route', NULL),
+  ('Widget', NULL);
+
 CREATE TABLE IF NOT EXISTS post_series (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '系列ID',
   name VARCHAR(150) NOT NULL UNIQUE COMMENT '系列名',
@@ -97,6 +131,11 @@ CREATE TABLE IF NOT EXISTS post_series (
   deleted_at TIMESTAMP NULL DEFAULT NULL COMMENT '软删除时间',
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章系列表';
+
+-- 云端公开基础目录；用名称去重，不固定生产 ID 或用户审计 ID。
+INSERT IGNORE INTO post_series (name, description, cover_image)
+VALUES
+  ('Fultter学习', NULL, NULL);
 
 CREATE TABLE IF NOT EXISTS posts (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '文章ID',
@@ -383,6 +422,11 @@ CREATE TABLE IF NOT EXISTS announcements (
   INDEX idx_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告表';
 
+-- 当前云端常驻公开欢迎公告；重复初始化不重新发布或复制统计。
+INSERT INTO announcements (title, content, type, priority, status, start_time, end_time, is_top)
+SELECT '欢迎来到我的博客', '<p>欢迎来到我的技术博客，这里是我分享我的所得的地方哦🤣</p>', 1, 3, 1, NULL, NULL, 1
+WHERE NOT EXISTS (SELECT 1 FROM announcements WHERE title='欢迎来到我的博客');
+
 -- 用户签到记录表
 CREATE TABLE IF NOT EXISTS user_checkins (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '签到记录ID',
@@ -476,74 +520,142 @@ CREATE TABLE IF NOT EXISTS system_settings (
 -- site.* / comment.need_review / upload.max_size_mb 历史上是无消费方的死配置，已移除；
 -- 站点资料走 Web/src/config/site.ts 与 VITE_* 环境变量，上传上限走 Spring 配置。
 -- TTS 配置统一在 liutech_ai.ai_tts_config 初始化，主库不再保留旧 tts.* 键。
-INSERT INTO system_settings (setting_key, setting_value, description)
+INSERT IGNORE INTO system_settings (setting_key, setting_value, description)
 VALUES
-  ('author.name', '小鑫同学', '作者昵称（首页与关于页展示）'),
+  ('author.name', '刘鑫', '作者昵称'),
   ('author.title', '欢迎访问', '作者头衔/职位'),
   ('author.avatar', '/洛天依.png', '作者头像 URL'),
-  ('author.bio', '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。', '作者个人简介')
-ON DUPLICATE KEY UPDATE
-  description = VALUES(description);
+  ('author.bio', '专注于前端开发、后端架构和技术分享。热爱编程，喜欢探索新技术。', '作者个人简介');
 
--- 关于页内容以数据库为唯一事实源；Java 不保留静默回退副本。
-INSERT INTO system_settings (setting_key, setting_value, description)
+-- 关于页结构与公开内容按云端当前配置播种；已有自定义内容保留。
+INSERT IGNORE INTO system_settings (setting_key, setting_value, description)
 VALUES (
   'about.content',
-CAST(JSON_OBJECT(
-  'motto', '「代码记录自我，热爱成就未来」',
-  'introParagraphs', JSON_ARRAY(
-    '我叫刘鑫，是软件工程专业的学生，正在努力成为全栈开发工程师。用代码记录时间与成长，用技术创造成果与价值。',
-    '最初接触编程只是出于好奇，把它和传说中黑客的网络技术搞混了，但是在学习的过程中却渐渐发现这不冲突——不论网络技术还是软件工程，都是计算机的一部分：相比刷短视频，我更喜欢用学习到的知识来实现一些我感兴趣的功能或项目。',
-    '这些年，我从初学者前端开始，逐渐过渡到后端开发、数据库设计、容器化和其他中间件——这个博客就是我为整合所学、并亲手实现一个能和读者交流的 Live2D 看板娘而搭建的。'
-  ),
-  'socialLinks', JSON_ARRAY(
-    JSON_OBJECT('label', 'GitHub', 'value', 'Liuxin4950', 'href', 'https://github.com/Liuxin4950'),
-    JSON_OBJECT('label', '邮箱', 'value', 'liuxin4950@gmail.com', 'href', 'mailto:liuxin4950@gmail.com')
-  ),
-  'skillGroups', JSON_ARRAY(
-    JSON_OBJECT('category', '前端开发', 'skills', JSON_ARRAY('Vue 3', 'TypeScript', 'Vite', 'uni-app', 'Flutter', 'ECharts', 'SCSS', 'Ant Design')),
-    JSON_OBJECT('category', '后端开发', 'skills', JSON_ARRAY('Spring Boot', 'Java', 'MyBatis-Plus', 'MySQL', 'Redis', 'ThinkPHP', 'Spring Security')),
-    JSON_OBJECT('category', '工程化', 'skills', JSON_ARRAY('Docker', 'Compose', 'Nginx', 'Linux', '微服务网关', 'Actions', 'CI/CD')),
-    JSON_OBJECT('category', 'AI 探索', 'skills', JSON_ARRAY('OpenClaw', 'Ollama', 'Spring AI', '大模型 API', 'Prompt 工程', 'Live2D', 'Claude Code'))
-  ),
-  'projects', JSON_ARRAY(
-    JSON_OBJECT(
-      'name', '名钓九洲',
-      'description', '负责钓场小程序与管理后台的全栈开发：B2B 商城迁移（21 个页面精简至 13 个、分包压缩至 2M 以下）、团购/随到随钓子订单与退款审核体系、活动成绩排行榜与自动开杆定时任务、数据看板（20+ 页面 ECharts 可视化）、库存效期管理与导出、战队排名计算、微信 openid 登录重构。',
-      'technologies', JSON_ARRAY('uni-app', 'Vue 3', 'Spring Boot', 'MySQL', 'ECharts'),
-      'link', NULL
+  CAST(JSON_OBJECT(
+    'bannerDescription', '全栈工程师 & 技术博主',
+    'contactText', '有文章内容、项目问题或技术交流，欢迎留言。',
+    'honors', JSON_OBJECT(
+      'imageUrl', NULL,
+      'summary', '全国职业院校技能大赛团体二等奖、重庆市软件测试第一名、重庆市移动开发第一、Web 应用开发第一、金砖国家技能大赛三等奖……'
     ),
-    JSON_OBJECT(
-      'name', '亿家康健健康服务平台',
-      'description', '药品商城小程序：实现商品详情、购物车、立即购买与订单售后全流程，对接订单商品客服与服务商交易流水，迁移阿里云短信服务，修复收藏、历史记录等页面功能。',
-      'technologies', JSON_ARRAY('小程序', 'Vue', 'Spring Boot', '阿里云'),
-      'link', NULL
+    'introParagraphs', JSON_ARRAY(
+      '我叫刘鑫，是软件工程专业的学生，正在努力成为全栈开发工程师。用代码记录时间与成长，用技术创造成果与价值。',
+      '最初接触编程只是出于好奇，把它和传说中黑客的网络技术搞混了，但是在学习的过程中却渐渐发现这不冲突——不论网络技术还是软件工程，都是计算机的一部分：相比刷短视频，我更喜欢用学习到的知识来实现一些我感兴趣的功能或项目。',
+      '这些年，我从初学者前端开始，逐渐过渡到后端开发、数据库设计、容器化和其他中间件——这个博客就是我为整合所学、并亲手实现一个能和读者交流的 Live2D 看板娘而搭建的。'
     ),
-    JSON_OBJECT(
-      'name', 'AI 落地与团队赋能',
-      'description', '把 AI 引入团队并沉淀为可复制的工作方式：指导成员正确使用 AI、厘清 AI 的能力边界（能做什么、不能做什么、如何校验结果），让 AI 提效成为团队共识；同时落地具体业务实践——代码审核智能体（每日检查提交）、药品宣传合规审核、跨设备浏览器自动化，验证 AI 在真实业务中的可行性。',
-      'technologies', JSON_ARRAY('AI 指导', 'OpenClaw', 'Claude Code', '业务实践'),
-      'link', NULL
+    'metaDescription', '关于 LiuTech 作者刘鑫：全栈工程师、技术博主，专注于 Spring Boot、Vue 3、AI 应用与软件工程实践。',
+    'motto', '「代码记录自我，热爱成就未来」',
+    'projects', JSON_ARRAY(
+      JSON_OBJECT(
+        'description', '负责钓场小程序与管理后台的全栈开发：B2B钓鱼商城迁移从vue2迁移至本项目的vue3（21 个页面精简至 13 个、分包压缩至 2M 以下）、团购/随到随钓子订单与退款审核体系流程、活动成绩排行榜与自动开杆定时任务、以及管理员数据看板（20+ 页面 ECharts 可视化）、商品的库存效期管理与导出、微信 openid 登录重构。',
+        'link', NULL,
+        'name', '名钓九洲',
+        'technologies', JSON_ARRAY(
+          'uni-app',
+          'Vue 3',
+          'Spring Boot',
+          'MySQL',
+          'ECharts'
+        )
+      ),
+      JSON_OBJECT(
+        'description', '药品商城小程序：实现商品详情、购物车、立即购买与订单售后全流程，对接订单商品客服与服务商交易流水，迁移阿里云短信服务，修复收藏、历史记录等页面功能。',
+        'link', NULL,
+        'name', '亿家康健健康服务平台',
+        'technologies', JSON_ARRAY(
+          '小程序',
+          'Vue',
+          'Spring Boot',
+          '阿里云'
+        )
+      ),
+      JSON_OBJECT(
+        'description', '把 AI 引入团队并沉淀为可复制的工作方式：指导成员正确使用 AI、清理 AI 的能力边界（能做什么、不能做什么、如何校验结果），让 AI 提效成为团队共识；同时落地具体业务实践——代码审核智能体（每日检查提交）、药品宣传合规审核、跨设备浏览器自动化，验证 AI 在真实业务中的可行性。',
+        'link', NULL,
+        'name', 'AI 落地与团队赋能',
+        'technologies', JSON_ARRAY(
+          'AI 指导',
+          'OpenClaw',
+          'Claude Code',
+          '业务实践'
+        )
+      ),
+      JSON_OBJECT(
+        'description', '全栈个人博客平台：Spring Boot 双服务（主后端 + AI 服务） + Vue 3 + Docker Compose 架构，含个人博客基础功能， AI 聊天、Live2D 看板娘、SSE 流式对话与 TTS 语音合成，采用现代化容器编排部署。通过ci/cd实现发布一键式。',
+        'link', '/',
+        'name', 'LiuTech 博客',
+        'technologies', JSON_ARRAY(
+          'Vue 3',
+          'Spring Boot',
+          'MySQL',
+          'Docker'
+        )
+      )
     ),
-    JSON_OBJECT(
-      'name', 'LiuTech 博客',
-      'description', '全栈个人博客平台：Spring Boot 微服务 + Vue 3 + Docker Compose 架构，含 AI 聊天、Live2D 看板娘、SSE 流式对话与 TTS 语音合成。',
-      'technologies', JSON_ARRAY('Vue 3', 'Spring Boot', 'MySQL', 'Docker'),
-      'link', '/'
+    'skillGroups', JSON_ARRAY(
+      JSON_OBJECT(
+        'category', '前端开发',
+        'skills', JSON_ARRAY(
+          'Vue 3',
+          'TypeScript',
+          'Vite',
+          'uni-app',
+          'Flutter',
+          'ECharts',
+          'SCSS',
+          'Ant Design'
+        )
+      ),
+      JSON_OBJECT(
+        'category', '后端开发',
+        'skills', JSON_ARRAY(
+          'Spring Boot',
+          'Java',
+          'MyBatis-Plus',
+          'MySQL',
+          'Spring Security'
+        )
+      ),
+      JSON_OBJECT(
+        'category', '工程化',
+        'skills', JSON_ARRAY(
+          'Docker',
+          'Compose',
+          'Nginx',
+          'Linux',
+          '微服务网关',
+          'Actions',
+          'CI/CD'
+        )
+      ),
+      JSON_OBJECT(
+        'category', 'AI 探索',
+        'skills', JSON_ARRAY(
+          'OpenClaw',
+          'Ollama',
+          'Spring AI',
+          '大模型 API',
+          'Prompt 工程',
+          'Live2D',
+          'Claude Code'
+        )
+      )
+    ),
+    'socialLinks', JSON_ARRAY(
+      JSON_OBJECT(
+        'href', 'https://github.com/Liuxin4950',
+        'label', 'GitHub',
+        'value', 'Liuxin4950'
+      ),
+      JSON_OBJECT(
+        'href', 'mailto:liuxin4950@gmail.com',
+        'label', '邮箱',
+        'value', 'liuxin4950@gmail.com'
+      )
     )
-  ),
-  'honors', JSON_OBJECT(
-    'summary', '全国职业院校技能大赛团体二等奖、重庆市选拔赛第一名、Web 应用开发一等奖、金砖国家技能大赛三等奖……持续积累中。',
-    'imageUrl', NULL
-  ),
-  'contactText', '有文章内容、项目问题或技术交流，欢迎留言。',
-  'bannerDescription', '全栈工程师 & 技术博主 · 专注 Spring Boot、Vue 3 与 AI 应用实践',
-  'metaDescription', '关于 LiuTech 作者刘鑫：全栈工程师、技术博主，专注于 Spring Boot、Vue 3、AI 应用与软件工程实践。'
-) AS CHAR),
+  ) AS CHAR),
   '关于页结构化内容（JSON）'
-)
-ON DUPLICATE KEY UPDATE
-  description = VALUES(description);
+);
 
 -- 轮播图表
 CREATE TABLE IF NOT EXISTS carousels (
@@ -626,7 +738,7 @@ CREATE TABLE IF NOT EXISTS verification_codes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='验证码表';
 
 -- 重新开启外键检查
-SET FOREIGN_KEY_CHECKS = 1;
+SET FOREIGN_KEY_CHECKS = @liutech_fk_checks_before_init;
 
 -- =========================================================
 -- AI 服务数据库表结构（liutech_ai 库）
@@ -654,11 +766,10 @@ CREATE TABLE IF NOT EXISTS ai_tts_config (
   CONSTRAINT chk_ai_tts_config_singleton CHECK (id = 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI服务TTS配置';
 
-INSERT INTO ai_tts_config
-  (id, enabled, provider, base_url, voice_model, siliconflow_model, siliconflow_voice_uri, response_format, sample_rate, speed)
+-- 引擎/模型/格式按云端；账户专属音色不入库，配置 API Key 和自己的音色后再启用。
+INSERT IGNORE INTO ai_tts_config (id, enabled, provider, base_url, voice_model, siliconflow_model, siliconflow_voice_uri, response_format, sample_rate, speed)
 VALUES
-  (1, 1, 'GPT_SOVITS', NULL, NULL, 'FunAudioLLM/CosyVoice2-0.5B', NULL, 'mp3', 44100, 1.00)
-ON DUPLICATE KEY UPDATE id = VALUES(id);
+  (1, 0, 'SILICONFLOW', NULL, NULL, 'FunAudioLLM/CosyVoice2-0.5B', NULL, 'mp3', 44100, 1.0);
 
 -- AI 会话表
 CREATE TABLE IF NOT EXISTS ai_conversation
@@ -703,6 +814,14 @@ CREATE TABLE IF NOT EXISTS ai_chat_message
 
 -- 用户记忆摘要表（预留表，暂未使用 — 项目中无任何代码引用此表）
 
+-- 云端保留的用户生命周期状态表；只创建结构，不复制历史状态。
+CREATE TABLE IF NOT EXISTS ai_user_state (
+  `user_id` varchar(64) NOT NULL,
+  `purged` tinyint NOT NULL DEFAULT '0' COMMENT '1=永久清理，禁止旧请求重新创建数据',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='AI用户数据生命周期';
+
 -- AI 模型配置表
 CREATE TABLE IF NOT EXISTS ai_model_config (
   id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
@@ -724,22 +843,14 @@ CREATE TABLE IF NOT EXISTS ai_model_config (
   KEY idx_default (is_default) COMMENT '默认模型索引'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
 
-INSERT INTO ai_model_config
+-- 仅空模型目录初始化默认选择；不覆盖已有启用状态、预算、温度或默认模型。
+SET @liutech_initialize_model_catalog = NOT EXISTS (SELECT 1 FROM ai_model_config LIMIT 1);
+INSERT IGNORE INTO ai_model_config
   (model_name, display_name, provider, is_enabled, is_default, sort_order, max_tokens, context_window, temperature, description)
 VALUES
-  ('zai-org/GLM-4.6', 'GLM-4.6', 'siliconflow', 1, 1, 1, 8192, 205000, 0.90, '智谱AI GLM-4.6，上下文 205K（默认模型）'),
-  ('Qwen/Qwen2.5-7B-Instruct', 'Qwen2.5-7B', 'siliconflow', 1, 0, 2, 8192, 32768, 0.90, '阿里通义千问2.5-7B，上下文 32K'),
-  ('deepseek-ai/DeepSeek-V2.5', 'DeepSeek-V2.5', 'siliconflow', 0, 0, 3, 4096, 128000, 0.70, '深度求索V2.5，上下文 128K（默认禁用）')
-ON DUPLICATE KEY UPDATE
-  display_name = VALUES(display_name),
-  provider = VALUES(provider),
-  is_enabled = VALUES(is_enabled),
-  is_default = VALUES(is_default),
-  sort_order = VALUES(sort_order),
-  max_tokens = VALUES(max_tokens),
-  context_window = VALUES(context_window),
-  temperature = VALUES(temperature),
-  description = VALUES(description);
+  ('deepseek-ai/DeepSeek-V3.2', 'DeepSeek-V3.2', 'siliconflow', 1, @liutech_initialize_model_catalog, 2, 32768, 164000, 0.4, ''),
+  ('Qwen/Qwen2.5-7B-Instruct', 'Qwen2.5-7B', 'siliconflow', 0, 0, 1, 8192, 32768, 0.9, '通义千问 2.5-7B，免费/低价档位，适合做兜底或测试模型。');
+SET @liutech_initialize_model_catalog = NULL;
 
 -- 社区 AI：执行任务、租约、运行记录和独立公共互动记忆。
 
@@ -791,4 +902,5 @@ CREATE TABLE IF NOT EXISTS ai_community_memory_source (
  CONSTRAINT fk_community_memory_source FOREIGN KEY(memory_id) REFERENCES ai_community_memory(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-SET FOREIGN_KEY_CHECKS = 1;
+SET FOREIGN_KEY_CHECKS = @liutech_fk_checks_before_init;
+SET @liutech_fk_checks_before_init = NULL;

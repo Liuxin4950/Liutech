@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="content">
     <!-- 统计信息 -->
     <div class="stats-card card rounded-lg text-center">
@@ -79,7 +79,7 @@
       <h3 class="font-semibold mb-12">暂无文章</h3>
       <p class="text-base text-subtle mb-20">还没有发布任何文章</p>
       <img src="@/assets/image/扑到.png" alt="" class="fit-err">
-      <router-link to="/create" class="btn-primary">发布第一篇文章</router-link>
+      <router-link v-if="userStore.isAdmin" to="/create" class="btn-primary">发布第一篇文章</router-link>
     </div>
   </div>
 </template>
@@ -90,11 +90,13 @@ import { useRouter } from 'vue-router'
 import { PostService, type PostListItem } from '@/services/post'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import { useBannerStore } from '@/stores/banner'
+import { useUserStore } from '@/stores/user'
 import bannerFallback from '@/assets/image/banner/banner0.png'
 import LoadingState from '@/components/LoadingState.vue'
 
 const router = useRouter()
 const { handleAsync } = useErrorHandler()
+const userStore = useUserStore()
 
 // 响应式数据
 const loading = ref(false)
