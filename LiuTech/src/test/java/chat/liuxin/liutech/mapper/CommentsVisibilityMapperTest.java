@@ -40,6 +40,7 @@ class CommentsVisibilityMapperTest {
         return Stream.of(
                 new Query("selectRecentForCommunity", Map.of("postId",1L), "c"),
                 new Query("selectPublicCommentById", Map.of("id", 1L), "c"),
+                new Query("selectPublicCommentsByIds", Map.of("ids", List.of(1L,2L)), "c"),
                 new Query("selectCommentsByPostId", Map.of("postId", 1L), "c"),
                 new Query("selectTopLevelCommentsByPostId", Map.of("postId", 1L), "c"),
                 new Query("selectChildCommentsByParentId", Map.of("parentId", 1L), "c"),
@@ -50,8 +51,8 @@ class CommentsVisibilityMapperTest {
 
     @Test
     void publicQueriesShareAncestorVisibilityAndCommunityDoesNotBuildAnotherPolicy() {
-        for (String name:List.of("selectPublicCommentById","selectCommentsByPostId","selectLatestComments","countCommentsByPostId","selectRecentForCommunity")) {
-            String sql=sql(name, Map.of("id",1L,"postId",1L,"limit",5));
+        for (String name:List.of("selectPublicCommentById","selectPublicCommentsByIds","selectCommentsByPostId","selectLatestComments","countCommentsByPostId","selectRecentForCommunity")) {
+            String sql=sql(name, Map.of("id",1L,"postId",1L,"limit",5,"ids",List.of(1L,2L)));
             assertTrue(sql.contains("WITH RECURSIVE visible_comments AS"),sql);
             assertTrue(sql.contains("c.parent_id IS NULL AND c.deleted_at IS NULL"),sql);
             assertTrue(sql.contains("INNER JOIN visible_comments ancestor ON c.parent_id=ancestor.id WHERE c.deleted_at IS NULL"),sql);
@@ -73,6 +74,17 @@ class CommentsVisibilityMapperTest {
         String paged = sql("selectCommentsByPostId", Map.of("postId", 42L));
         assertTrue(paged.contains("AND c.post_id = ?"));
         assertTrue(paged.indexOf("p.status = 'published'") < paged.indexOf("ORDER BY"));
+    }
+
+    @Test
+    void metadataPostLabelsUseBoundedIdsAndOnlyPublicUndeletedArticles() {
+        configuration.addMapper(CommunityMapper.class);
+        var bound=configuration.getMappedStatement(CommunityMapper.class.getName()+".publicPostMetadata")
+            .getBoundSql(Map.of("ids",List.of(1L,2L)));
+        String sql=bound.getSql().replaceAll("\\s+"," ");
+        assertTrue(sql.contains("status='published' AND deleted_at IS NULL"),sql);
+        assertTrue(sql.contains("id IN"),sql);
+        assertEquals(2,bound.getParameterMappings().size());
     }
 
     @Test

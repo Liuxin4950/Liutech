@@ -22,7 +22,7 @@ class CommunityWorkerTest {
     private CommunityTask decided() {
         var task=new CommunityTask();task.setId("00000000-0000-0000-0000-000000000001");task.setBotId(1L);task.setPostId(2L);
         task.setEventId(3L);task.setRootEventId("root");task.setAttempts(1);task.setFailures(0);task.setMemoryEpoch(0L);
-        task.setDecisionJson("{\"decision\":\"COMMENT\",\"content\":\"一次评论\",\"contextVersion\":\"v1\",\"memoryEpoch\":0,\"participants\":[],\"sourceCommentIds\":[]}");
+        task.setDecisionJson("{\"modelRunId\":\"model-run\",\"decision\":\"COMMENT\",\"content\":\"一次评论\",\"contextVersion\":\"v1\",\"memoryEpoch\":0,\"participants\":[],\"sourceCommentIds\":[],\"inputTokens\":50,\"outputTokens\":20}");
         return task;
     }
     @Test void scheduledTickDoesNotBlockOrQueueMultipleWorkers() throws Exception {
@@ -51,6 +51,10 @@ class CommunityWorkerTest {
         verify(transport,times(2)).internalPost(eq("/internal/community/comments"),argThat(body->task.getId().equals(((Map<?,?>)body).get("taskId"))));
         verify(mapper).retry(eq(task.getId()),anyString(),eq(false),eq(30));
         verify(mapper).finish(task.getId(),"SUCCEEDED",null);
+        verify(mapper).updateRun(eq("model-run"),eq(task.getId()),eq(1L),eq("FAILED"),anyString(),anyString());
+        verify(mapper).updateRun(eq("model-run"),eq(task.getId()),eq(1L),eq("SUCCEEDED"),argThat(saved -> json.readTree(saved).path("publishedCommentId").asLong()==4
+                && json.readTree(saved).path("inputTokens").asLong()==50),isNull());
+        verify(mapper,never()).run(anyString(),anyString(),anyLong(),anyLong(),anyString(),anyString(),any());
     }
     @Test void staleContextClearsDecisionForAChargedRegenerationAndOtherFailuresAreBounded() {
         var task=decided();
@@ -60,6 +64,15 @@ class CommunityWorkerTest {
         task.setFailures(2);worker.execute(task);
         verify(mapper).finish(task.getId(),"FAILED","文章发生变化");
         verifyNoInteractions(service);
+    }
+    @Test void memoryFailureAfterConfirmedPublicationDoesNotHideTheActualPublishedComment() {
+        var task=decided();
+        when(transport.internalPost(eq("/internal/community/comments"),any())).thenReturn(json.readTree("{\"commentId\":4,\"createdAt\":\"2026-10-06T00:00:00\"}"));
+        when(transport.internalPost(eq("/internal/community/visibility"),any())).thenThrow(new AIServiceException.ConnectionException("来源核对暂时失败"));
+        worker.execute(task);
+        verify(mapper).updateRun(eq("model-run"),eq(task.getId()),eq(1L),eq("SUCCEEDED"),argThat(saved -> json.readTree(saved).path("publishedCommentId").asLong()==4),isNull());
+        verify(mapper,never()).updateRun(anyString(),anyString(),anyLong(),eq("FAILED"),anyString(),anyString());
+        verify(mapper).retry(eq(task.getId()),anyString(),eq(false),eq(30));
     }
     @Test void withdrawnPostTerminatesWithoutRegenerationOrRetry() {
         var task=decided();task.setDecisionJson(null);

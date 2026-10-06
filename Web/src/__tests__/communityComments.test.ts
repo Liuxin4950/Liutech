@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { addCommentToTree, commentAuthorName, commentAuthorAvatar, mergeCommentTree } from '@/services/commentTree'
+import { addCommentToTree, commentAuthorName, commentAuthorAvatar, flattenCommentReplies, mergeCommentTree } from '@/services/commentTree'
 import type { Comment } from '@/services/comment'
 import CommentSection from '@/components/CommentSection.vue'
 import CommentForm from '@/components/CommentForm.vue'
@@ -15,6 +15,95 @@ vi.mock('@/composables/useErrorHandler', () => ({ useErrorHandler: () => ({
 const comment = (id: number, children: Comment[] = [], parentId?: number): Comment => ({
   id, postId: 7, parentId, content: `内容 ${id}`, createdAt: '2026-10-05T10:00:00',
   user: { id: 1, username: '读者' }, children,
+})
+
+describe('平铺讨论回复', () => {
+  it('按时间和 ID 平铺全部子孙，保留对象及真实父评论，不递归遍历深链', () => {
+    const child = { ...comment(4, [], 2), createdAt: '2026-10-05T10:02:00' }
+    const parent = { ...comment(2, [child], 1), createdAt: '2026-10-05T10:01:00' }
+    const sameTime = { ...comment(3, [], 1), createdAt: parent.createdAt }
+    const early = { ...comment(5, [], 1), createdAt: '2026-10-05T10:00:00' }
+    const root = comment(1, [sameTime, parent, early])
+    const flat = flattenCommentReplies(root)
+    expect(flat.replies.map(item => item.id)).toEqual([5, 2, 3, 4])
+    expect(flat.replies[1]).toBe(parent)
+    expect(flat.byId.get(child.parentId!)).toBe(parent)
+    expect(child.parentId).toBe(2)
+    expect(root.children).toEqual([sameTime, parent, early])
+
+    const deep = comment(10)
+    let tail = deep
+    for (let id = 11; id <= 12000; id++) {
+      const next = comment(id, [], tail.id)
+      tail.children.push(next)
+      tail = next
+    }
+    expect(flattenCommentReplies(deep).replies).toHaveLength(11990)
+    expect(addCommentToTree([deep], comment(12001, [], 12000))).toBe(true)
+    expect(tail.children[0]?.parentId).toBe(12000)
+  })
+
+  it('只在根下显示三条预览与统一展开收起，深层回复显示对象昵称', async () => {
+    const target = { ...comment(2, [comment(3, [comment(4, [], 3)], 2)], 1), user: { id: 2, username: '小林' } }
+    const root = comment(1, [target, comment(5, [], 1), comment(6, [], 1)])
+    const wrapper = mount(CommentItem, { props: { postId: 7, comment: root }, global: { stubs: { RouterLink: true, Icon: true } } }); wrappers.push(wrapper)
+    expect(wrapper.findAll('.flat-reply').map(item => item.attributes('data-comment-id'))).toEqual(['2', '3', '4'])
+    expect(wrapper.find('[data-comment-id="3"] .reply-text').text()).toContain('回复 @小林：')
+    expect(wrapper.find('[data-comment-id="2"] .reply-text').text()).not.toContain('回复 @')
+    expect(wrapper.findAllComponents(CommentItem)).toHaveLength(0)
+    const expand = wrapper.findAll('.toggle-children-btn').find(button => button.text().includes('展开其余'))!
+    expect(expand.text()).toBe('展开其余 2 条')
+    await expand.trigger('click')
+    expect(wrapper.findAll('.flat-reply')).toHaveLength(5)
+    await wrapper.find('.collapse-replies').trigger('click')
+    expect(wrapper.findAll('.flat-reply')).toHaveLength(0)
+    expect(wrapper.find('.comment-text').text()).toBe('内容 1')
+    expect(wrapper.find('.toggle-children-btn').text()).toBe('展开全部 5 条回复')
+    await wrapper.find('.toggle-children-btn').trigger('click')
+    expect(wrapper.findAll('.flat-reply')).toHaveLength(5)
+  })
+
+  it.each([1, 3])('%i 条回复也可以收起，取消回复再打开保留同一草稿', async (count) => {
+    const root = comment(1, Array.from({ length: count }, (_, index) => comment(index + 2, [], 1)))
+    const wrapper = mount(CommentItem, { props: { postId: 7, comment: root }, global: { stubs: { RouterLink: true, Icon: true } } }); wrappers.push(wrapper)
+    expect(wrapper.findAll('.flat-reply')).toHaveLength(count)
+    await wrapper.find('.reply-btn').trigger('click')
+    await wrapper.find('textarea').setValue('仍在编辑的回复')
+    await wrapper.find('.cancel-btn').trigger('click')
+    await wrapper.find('.reply-btn').trigger('click')
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('仍在编辑的回复')
+    await wrapper.find('.collapse-replies').trigger('click')
+    expect(wrapper.findAll('.flat-reply')).toHaveLength(0)
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('仍在编辑的回复')
+  })
+
+  it('轮询与收起保留单表单草稿，回复深层作者发送真实父 ID，发布后展开新回复', async () => {
+    const nested = { ...comment(3, [], 2), user: { id: 3, username: '小周' } }
+    api.tree.mockResolvedValue([comment(1, [comment(2, [nested], 1), comment(4, [], 1)])])
+    const wrapper = mount(CommentSection, { props: { postId: 7 }, global: { stubs: { RouterLink: true, Icon: true, LoadingState: true } } }); wrappers.push(wrapper)
+    await flushPromises()
+    const card = wrapper.findComponent(CommentItem)
+    await card.find('[data-comment-id="3"] .reply-btn').trigger('click')
+    expect(card.findAll('form')).toHaveLength(1)
+    expect(card.find('.form-title').text()).toBe('回复 @小周')
+    await card.find('textarea').setValue('我的深层回复草稿')
+    await card.find('.collapse-replies').trigger('click')
+
+    api.tree.mockResolvedValue([comment(1, [comment(2, [{ ...nested, content: '更新后的内容' }], 1), comment(4, [], 1), comment(5, [], 1)])])
+    await vi.advanceTimersByTimeAsync(10000)
+    await flushPromises()
+    expect(card.findAll('.flat-reply')).toHaveLength(0)
+    expect((card.find('textarea').element as HTMLTextAreaElement).value).toBe('我的深层回复草稿')
+    expect(card.findAll('form')).toHaveLength(1)
+
+    api.create.mockResolvedValue(comment(7, [], 3))
+    await card.find('form').trigger('submit')
+    await flushPromises()
+    expect(api.create).toHaveBeenCalledWith({ postId: 7, content: '我的深层回复草稿', parentId: 3 })
+    expect(card.findAll('.flat-reply')).toHaveLength(5)
+    expect(card.find('[data-comment-id="7"] .reply-text').text()).toContain('回复 @小周：')
+    expect(card.find('textarea').exists()).toBe(false)
+  })
 })
 const sectionOptions = { props: { postId: 7 }, global: { stubs: { CommentForm: true, CommentItem: true, Icon: true, LoadingState: true } } }
 let hidden = false

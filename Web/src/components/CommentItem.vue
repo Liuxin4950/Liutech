@@ -1,373 +1,206 @@
 <template>
-  <div class="comment-item" :class="{ 'is-reply': isReply }">
-    <!-- 评论主体 -->
+  <article class="comment-item" :data-comment-id="comment.id">
     <div class="comment-main">
-      <!-- 用户头像 -->
-      <div class="comment-avatar">
-        <img
-          :src="commentAuthorAvatar(comment) || errImg"
-          :alt="commentAuthorName(comment)"
-          class="avatar-img"
-          @error="handleImageError"
-        />
-      </div>
-      
-      <!-- 评论内容区 -->
+      <img
+        :src="commentAuthorAvatar(comment) || errImg"
+        :alt="commentAuthorName(comment)"
+        class="avatar-img"
+        @error="handleImageError"
+      />
       <div class="comment-content">
-        <!-- 用户信息和时间 -->
         <div class="comment-header">
           <span class="username">{{ commentAuthorName(comment) }}</span>
           <span v-if="comment.authorType === 'BOT'" class="ai-badge">AI</span>
-          <span class="comment-time">{{ formatRelativeTime(comment.createdAt) }}</span>
         </div>
-        
-        <!-- 评论文本 -->
-        <div class="comment-text">
-          {{ comment.content }}
-        </div>
-        
-        <!-- 操作按钮 -->
+        <p class="comment-text">{{ comment.content }}</p>
         <div class="comment-actions">
+          <time class="comment-time" :datetime="comment.createdAt">{{ formatRelativeTime(comment.createdAt) }}</time>
           <button
-            @click="toggleReplyForm"
+            type="button"
             class="action-btn reply-btn"
-            :class="{ 'active': showReplyForm }"
+            :class="{ active: isReplyingTo(comment.id) }"
+            :aria-pressed="isReplyingTo(comment.id)"
+            @click="selectReply(comment)"
           >
             <Icon name="message" size="14" />
-            {{ showReplyForm ? '取消回复' : '回复' }}
+            {{ isReplyingTo(comment.id) ? '取消回复' : '回复' }}
           </button>
         </div>
-        
-        <!-- 回复表单 -->
-        <div v-if="showReplyForm" class="reply-form-container">
-          <CommentForm 
+
+        <section v-if="thread.replies.length" class="replies-panel" aria-label="评论回复">
+          <div :id="repliesId" class="children-list">
+            <div
+              v-for="reply in visibleReplies"
+              :key="reply.id"
+              class="flat-reply"
+              :data-comment-id="reply.id"
+            >
+              <img
+                :src="commentAuthorAvatar(reply) || errImg"
+                :alt="commentAuthorName(reply)"
+                class="reply-avatar"
+                @error="handleImageError"
+              />
+              <div class="reply-content">
+                <p class="reply-text">
+                  <span class="reply-author username">{{ commentAuthorName(reply) }}</span>
+                  <span v-if="reply.authorType === 'BOT'" class="ai-badge">AI</span>
+                  <span v-if="replyToName(reply)" class="reply-target"> 回复 <span class="mention">@{{ replyToName(reply) }}</span>：</span>
+                  <span v-else class="author-separator">：</span>
+                  <span class="reply-body">{{ reply.content }}</span>
+                </p>
+                <div class="comment-actions">
+                  <time class="comment-time" :datetime="reply.createdAt">{{ formatRelativeTime(reply.createdAt) }}</time>
+                  <button
+                    type="button"
+                    class="action-btn reply-btn"
+                    :class="{ active: isReplyingTo(reply.id) }"
+                    :aria-pressed="isReplyingTo(reply.id)"
+                    @click="selectReply(reply)"
+                  >{{ isReplyingTo(reply.id) ? '取消回复' : '回复' }}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="reply-toolbar">
+            <template v-if="replyVisibility === 'collapsed'">
+              <button type="button" class="toggle-children-btn" :aria-controls="repliesId" :aria-expanded="false" @click="replyVisibility = 'all'">
+                展开全部 {{ thread.replies.length }} 条回复
+              </button>
+            </template>
+            <template v-else>
+              <span class="reply-summary">共 {{ thread.replies.length }} 条回复</span>
+              <button v-if="remainingReplies > 0" type="button" class="toggle-children-btn" :aria-controls="repliesId" :aria-expanded="false" @click="replyVisibility = 'all'">
+                展开其余 {{ remainingReplies }} 条
+              </button>
+              <button type="button" class="toggle-children-btn collapse-replies" :aria-controls="repliesId" :aria-expanded="true" @click="replyVisibility = 'collapsed'">
+                收起回复
+              </button>
+            </template>
+          </div>
+        </section>
+
+        <!-- 收起回复或取消输入时保留同一个表单，避免轮询和折叠清空草稿。 -->
+        <div v-if="replyTarget" v-show="showReplyForm" ref="replyFormContainer" class="reply-form-container">
+          <CommentForm
             :post-id="postId"
-            :parent-id="comment.id"
+            :parent-id="replyTarget.id"
+            :reply-to-name="commentAuthorName(replyTarget)"
             @comment-created="handleReplyCreated"
             @cancel="showReplyForm = false"
           />
         </div>
       </div>
     </div>
-    
-    <!-- 子评论 -->
-    <div v-if="hasChildren" class="comment-children">
-      <!-- 折叠/展开按钮 -->
-      <button 
-        @click="toggleChildren"
-        class="toggle-children-btn"
-        :class="{ 'expanded': showChildren }"
-      >
-        <span class="toggle-icon">{{ showChildren ? '▼' : '▶' }}</span>
-        <span class="toggle-text">
-          {{ showChildren ? '收起' : '展开' }} {{ comment.children?.length || 0 }} 条回复
-        </span>
-      </button>
-      
-      <!-- 子评论列表 -->
-      <div v-if="showChildren" class="children-list">
-        <CommentItem
-          v-for="child in comment.children"
-          :key="child.id"
-          :comment="child"
-          :post-id="postId"
-          :is-reply="true"
-          :depth="depth + 1"
-          @reply-created="$emit('replyCreated', $event)"
-        />
-      </div>
-    </div>
-  </div>
+  </article>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { commentAuthorName, commentAuthorAvatar } from '@/services/commentTree'
+import { ref, computed, nextTick, watch } from 'vue'
+import { commentAuthorName, commentAuthorAvatar, flattenCommentReplies } from '@/services/commentTree'
 import type { Comment } from '@/services/comment'
 import { formatRelativeTime } from '@/utils/utils'
 import { handleImageError, errImg } from '@/composables/useImageFallback'
 import CommentForm from './CommentForm.vue'
 import Icon from './Icon.vue'
 
-// Props
-interface Props {
-  comment: Comment
-  postId: number
-  isReply?: boolean
-  depth?: number  // 层级深度：0=顶级评论，1=第一层回复，2=第二层...
-}
+const props = defineProps<{ comment: Comment; postId: number }>()
+const emit = defineEmits<{ replyCreated: [comment: Comment] }>()
 
-const props = withDefaults(defineProps<Props>(), {
-  isReply: false,
-  depth: 0
-})
-
-// Emits
-interface Emits {
-  replyCreated: [comment: Comment]
-}
-
-const emit = defineEmits<Emits>()
-
-// 响应式数据
+const replyVisibility = ref<'preview' | 'all' | 'collapsed'>('preview')
+const replyTarget = ref<Comment | null>(null)
 const showReplyForm = ref(false)
-const showChildren = ref(props.depth < 1) // depth=0(顶级评论)时默认展开子评论，depth>=1时默认隐藏
-
-// 计算属性
-const hasChildren = computed(() => {
-  return props.comment.children && props.comment.children.length > 0
+const replyFormContainer = ref<HTMLElement | null>(null)
+const thread = computed(() => flattenCommentReplies(props.comment))
+const repliesId = computed(() => `comment-replies-${props.postId}-${props.comment.id}`)
+const visibleReplies = computed(() => {
+  if (replyVisibility.value === 'collapsed') return []
+  return replyVisibility.value === 'preview' ? thread.value.replies.slice(0, 3) : thread.value.replies
 })
+const remainingReplies = computed(() => thread.value.replies.length - visibleReplies.value.length)
 
-// 方法
-const toggleReplyForm = () => {
-  showReplyForm.value = !showReplyForm.value
+function replyToName(reply: Comment): string | undefined {
+  if (!reply.parentId || reply.parentId === props.comment.id) return undefined
+  const parent = thread.value.byId.get(reply.parentId)
+  return parent ? commentAuthorName(parent) : undefined
 }
-
-const toggleChildren = () => {
-  showChildren.value = !showChildren.value
+function isReplyingTo(id: number): boolean {
+  return showReplyForm.value && replyTarget.value?.id === id
 }
-
-const handleReplyCreated = (newReply: Comment) => {
-  // 关闭回复表单
+async function selectReply(comment: Comment) {
+  if (replyTarget.value?.id === comment.id) {
+    showReplyForm.value = !showReplyForm.value
+  } else {
+    replyTarget.value = comment
+    showReplyForm.value = true
+  }
+  if (showReplyForm.value) {
+    await nextTick()
+    replyFormContainer.value?.querySelector('textarea')?.focus()
+  }
+}
+function handleReplyCreated(newReply: Comment) {
+  if (newReply.postId !== props.postId) return
+  replyVisibility.value = 'all'
   showReplyForm.value = false
-
-  // 确保子评论展开
-  showChildren.value = true
-
-  // 向上传递事件
+  replyTarget.value = null
   emit('replyCreated', newReply)
 }
-
-
+watch([() => props.postId, () => props.comment.id], () => {
+  replyVisibility.value = 'preview'
+  showReplyForm.value = false
+  replyTarget.value = null
+})
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+
 .comment-item {
-  margin-bottom: 16px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border-soft);
 }
+.comment-item:last-child { border-bottom: 0; }
+.comment-main { display: flex; gap: 12px; }
+.avatar-img, .reply-avatar { flex-shrink: 0; border-radius: 50%; object-fit: cover; background: var(--bg-soft); }
+.avatar-img { width: 40px; height: 40px; }
+.comment-content, .reply-content { flex: 1; min-width: 0; }
+.comment-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.username { font-size: 0.9rem; font-weight: 600; color: var(--text-main); overflow-wrap: anywhere; }
+.ai-badge { display: inline-block; margin: 0 4px; padding: 1px 5px; border: 1px solid var(--border-soft); border-radius: 4px; color: var(--color-primary); font-size: 0.65rem; line-height: 1.5; vertical-align: middle; }
+.comment-text, .reply-text { margin: 0; color: var(--text-main); line-height: 1.75; overflow-wrap: anywhere; }
+.comment-text, .reply-body { white-space: pre-wrap; }
+.comment-text { margin-bottom: 8px; }
+.comment-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; min-height: 28px; }
+.comment-time { font-size: 0.75rem; color: var(--text-subtle); }
+.action-btn, .toggle-children-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 0; border: 0; border-radius: 4px; background: transparent; cursor: pointer; color: var(--text-subtle); font: inherit; font-size: 0.8rem; }
+.action-btn:hover, .action-btn.active, .toggle-children-btn:hover { color: var(--color-primary); }
+.action-btn:focus-visible, .toggle-children-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+.replies-panel { margin-top: 12px; }
+.flat-reply { display: flex; gap: 10px; padding: 10px 0; }
+.reply-avatar { width: 28px; height: 28px; margin-top: 2px; }
+.reply-text { font-size: 0.88rem; }
+.reply-author { font-size: inherit; }
+.reply-target, .author-separator { color: var(--text-subtle); }
+.mention { color: var(--color-primary); }
+.reply-content .comment-actions { gap: 14px; margin-top: 3px; }
+.reply-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding-top: 4px; }
+.reply-summary { color: var(--text-subtle); font-size: 0.75rem; }
+.toggle-children-btn { color: var(--color-primary); }
+.collapse-replies { color: var(--text-subtle); }
+.reply-form-container { margin-top: 14px; }
+.reply-form-container :deep(.comment-form) { margin: 0; padding: 14px 0 0; border: 0; border-top: 1px solid var(--border-soft); border-radius: 0; background: transparent; }
+.reply-form-container :deep(.form-header) { margin-bottom: 10px; }
+.reply-form-container :deep(.form-title) { font-size: 0.85rem; }
+.reply-form-container :deep(.comment-textarea) { min-height: 84px; font-size: 0.88rem; }
+.reply-form-container :deep(.cancel-btn) { padding: 4px 8px; background: transparent; color: var(--text-subtle); opacity: 1; }
 
-.comment-item.is-reply {
-  margin-left: 20px;
-  padding-left: 20px;
-  border-left: 2px solid var(--border-base);
-}
-
-.comment-main {
-  display: flex;
-  gap: 12px;
-}
-
-.comment-avatar {
-  flex-shrink: 0;
-}
-
-.avatar-img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--border-base);
-}
-
-.comment-item.is-reply .avatar-img {
-  width: 32px;
-  height: 32px;
-}
-
-.comment-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.comment-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.username {
-  font-weight: 600;
-  color: var(--text-main);
-  font-size: 0.95rem;
-}
-
-.ai-badge {
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 5px;
-  color: var(--color-primary);
-  background: var(--bg-hover);
-  border: 1px solid var(--border-base);
-}
-
-.comment-time {
-  font-size: 0.8rem;
-  color: var(--text-subtle);
-}
-
-.comment-text {
-  color: var(--text-main);
-  line-height: 1.6;
-  margin-bottom: 12px;
-  word-wrap: break-word;
-  white-space: pre-wrap;
-}
-
-.comment-actions {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: none;
-  border: 1px solid var(--border-base);
-  border-radius: 16px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text-subtle);
-  transition: all 0.3s;
-}
-
-.action-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-base);
-  color: var(--text-main);
-}
-
-.action-btn.active {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.action-btn.liked {
-  color: var(--color-error);
-  border-color: var(--color-error);
-}
-
-.action-btn.liked:hover {
-  background: var(--bg-error);
-}
-
-.icon {
-  font-size: 0.9rem;
-}
-
-.count {
-  font-size: 0.8rem;
-  min-width: 16px;
-  text-align: center;
-}
-
-.reply-form-container {
-  margin-top: 12px;
-}
-
-.comment-children {
-  margin-top: 16px;
-}
-
-.toggle-children-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--bg-hover);
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text-subtle);
-  transition: all 0.3s;
-  margin-bottom: 12px;
-  margin-left: 52px;
-}
-
-.comment-item.is-reply .toggle-children-btn {
-  margin-left: 44px;
-}
-
-.toggle-children-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--color-primary);
-  color: var(--text-main);
-}
-
-.toggle-icon {
-  font-size: 0.7rem;
-  transition: transform 0.3s;
-}
-
-.toggle-children-btn.expanded .toggle-icon {
-  transform: rotate(0deg);
-}
-
-.children-list {
-  margin-left: 52px;
-}
-
-.comment-item.is-reply .children-list {
-  margin-left: 44px;
-}
-
-/* 响应式设计 */
 @include respond(md) {
-  .comment-item.is-reply {
-    margin-left: 12px;
-    padding-left: 12px;
-  }
-
-  .comment-main {
-    gap: 8px;
-  }
-
-  .avatar-img {
-    width: 36px;
-    height: 36px;
-  }
-
-  .comment-item.is-reply .avatar-img {
-    width: 28px;
-    height: 28px;
-  }
-
-  .comment-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .comment-actions {
-    gap: 12px;
-  }
-
-  .action-btn {
-    padding: 4px 8px;
-    font-size: 0.8rem;
-  }
-
-  .toggle-children-btn {
-    margin-left: 44px;
-    padding: 6px 10px;
-  }
-
-  .comment-item.is-reply .toggle-children-btn {
-    margin-left: 40px;
-  }
-
-  .children-list {
-    margin-left: 44px;
-  }
-
-  .comment-item.is-reply .children-list {
-    margin-left: 40px;
-  }
+  .comment-item { padding: 20px 0; }
+  .comment-main { gap: 10px; }
+  .avatar-img { width: 34px; height: 34px; }
+  .flat-reply { gap: 8px; }
+  .reply-avatar { width: 24px; height: 24px; }
+  .reply-toolbar { gap: 10px; }
 }
 </style>

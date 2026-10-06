@@ -2,7 +2,7 @@
   <div class="comment-form">
     <div class="form-header">
       <h4 v-if="!parentId" class="form-title">发表评论</h4>
-      <h4 v-else class="form-title">回复评论</h4>
+      <h4 v-else class="form-title">{{ replyToName ? `回复 @${replyToName}` : '回复评论' }}</h4>
       <button 
         v-if="parentId" 
         @click="$emit('cancel')"
@@ -17,7 +17,7 @@
       <div class="textarea-container">
         <textarea
           v-model="content"
-          :placeholder="parentId ? '写下你的回复...' : '写下你的评论...'"
+          :placeholder="parentId ? (replyToName ? `回复 @${replyToName}，写下你的想法…` : '写下你的回复…') : '写下你的评论…'"
           class="comment-textarea"
           rows="4"
           maxlength="1000"
@@ -56,6 +56,7 @@ import { useUserStore } from '@/stores/user'
 interface Props {
   postId: number
   parentId?: number
+  replyToName?: string
 }
 
 const props = defineProps<Props>()

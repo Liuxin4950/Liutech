@@ -23,6 +23,10 @@ public final class CommunityReq {
         @Min(0) @Max(3600) int cooldownSeconds, @Min(1) @Max(4) int maxChainComments) {}
     public record Enabled(@NotNull Boolean enabled) {}
     public record Invite(@Size(max=2) List<@Positive Long> botIds) {}
+    public record Backfill(@Min(1) @Max(20) Integer limit,
+        @Size(max=2) List<@NotNull @Positive Long> botIds) {
+        public Backfill { if (limit == null) limit = 10; }
+    }
     public record Claim(@Min(1) @Max(20) int limit, @Min(60) @Max(600) int leaseSeconds) {}
     public record Ack(@NotBlank String leaseToken) {}
     public record Attempt(@NotBlank String taskId, @Min(1) @Max(10) int attempt,
@@ -32,4 +36,6 @@ public final class CommunityReq {
         @NotBlank String contextVersion, @NotBlank @Size(max=1000) String content) {}
     public record Visibility(@NotNull @Size(max=200) List<@Positive Long> sourcePostIds,
         @NotNull @Size(max=200) List<@Positive Long> sourceCommentIds) {}
+    public record Metadata(@NotNull @Size(max=100) List<@NotNull @Positive Long> postIds,
+        @NotNull @Size(max=200) List<@NotNull @Positive Long> commentIds) {}
 }

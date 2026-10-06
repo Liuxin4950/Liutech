@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** AI 请求、流式延迟和供应商真实 Token 用量。 */
@@ -50,6 +51,12 @@ public class AiMetrics {
         doRecord(model, false, errorType == null ? "unknown" : errorType, responseTime, 0);
     }
 
+    /** 非流式业务请求也记录失败前已返回的供应商用量，不能因决策校验失败抹掉消耗。 */
+    public void recordCompleted(String model, String mode, boolean success, long responseTime, UsageTracker usage) {
+        doRecord(model, success, success ? "none" : mode, responseTime, usage.inputTokens() + usage.outputTokens());
+        recordUsage(model, mode, usage);
+    }
+
     public void recordStreamStarted(String model, String mode) {
         active(model, mode).incrementAndGet();
         Counter.builder("ai_stream_requests_started_total").tag("model", model).tag("mode", mode)
@@ -73,9 +80,14 @@ public class AiMetrics {
         long output = usage == null ? 0 : usage.outputTokens();
         doRecord(model, "success".equals(outcome), "success".equals(outcome) ? "none" : outcome,
                 elapsedMillis, input + output);
-        recordTokens(model, "input", input);
-        recordTokens(model, "output", output);
-        if (usage != null && usage.turns() > 0) {
+        recordUsage(model, mode, usage);
+    }
+
+    private void recordUsage(String model, String mode, UsageTracker usage) {
+        if (usage == null) return;
+        recordTokens(model, "input", usage.inputTokens());
+        recordTokens(model, "output", usage.outputTokens());
+        if (usage.turns() > 0) {
             DistributionSummary.builder("ai_model_turns").tag("model", model).tag("mode", mode)
                     .register(meterRegistry).record(usage.turns());
         }
@@ -97,21 +109,53 @@ public class AiMetrics {
         });
     }
 
-    /** 经 ToolContext 传给模型客户端，每轮供应商完整 usage 只调用 record 一次。 */
+    /** 经 ToolContext 传给模型客户端；用量只来自供应商，缺失与真实零值分别保留。 */
     public static final class UsageTracker {
         public static final String CONTEXT_KEY = "aiUsageTracker";
         private final AtomicLong input = new AtomicLong();
         private final AtomicLong output = new AtomicLong();
         private final AtomicLong turns = new AtomicLong();
+        private final AtomicLong reportedTurns = new AtomicLong();
+        private final AtomicLong completeTurns = new AtomicLong();
 
         public void record(long inputTokens, long outputTokens) {
-            input.addAndGet(Math.max(0, inputTokens));
-            output.addAndGet(Math.max(0, outputTokens));
+            Round round = startRound();
+            round.report(inputTokens, outputTokens);
+            round.finish();
+        }
+
+        public Round startRound() {
             turns.incrementAndGet();
+            return new Round();
         }
 
         public long inputTokens() { return input.get(); }
         public long outputTokens() { return output.get(); }
         public long turns() { return turns.get(); }
+        public boolean tokenUsageAvailable() { return reportedTurns.get() > 0; }
+        public boolean tokenUsageComplete() { return turns.get() > 0 && completeTurns.get() == turns.get(); }
+
+        /** 同轮流式 usage 是累计快照；重复帧不相加，错误或取消也只收尾一次。 */
+        public final class Round {
+            private final AtomicLong roundInput = new AtomicLong(-1);
+            private final AtomicLong roundOutput = new AtomicLong(-1);
+            private final AtomicBoolean finished = new AtomicBoolean();
+
+            public void report(Long inputTokens, Long outputTokens) {
+                if (inputTokens != null && inputTokens >= 0) roundInput.set(inputTokens);
+                if (outputTokens != null && outputTokens >= 0) roundOutput.set(outputTokens);
+            }
+
+            public Long outputTokens() { return roundOutput.get() < 0 ? null : roundOutput.get(); }
+
+            public void finish() {
+                if (!finished.compareAndSet(false, true)) return;
+                long in = roundInput.get(), out = roundOutput.get();
+                if (in >= 0) input.addAndGet(in);
+                if (out >= 0) output.addAndGet(out);
+                if (in >= 0 || out >= 0) reportedTurns.incrementAndGet();
+                if (in >= 0 && out >= 0) completeTurns.incrementAndGet();
+            }
+        }
     }
 }

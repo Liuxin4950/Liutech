@@ -1,6 +1,7 @@
 package chat.liuxin.ai.service.community;
 
 import chat.liuxin.ai.dto.community.CommunityTask;
+import chat.liuxin.ai.dto.community.CommunityTaskRetryResult;
 import chat.liuxin.ai.mapper.CommunityMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,16 @@ public class CommunityStore {
         CommunityTask task = mapper.next();
         if (task != null) mapper.lease(task.getId(), leaseSeconds);
         return task;
+    }
+
+    @Transactional
+    public CommunityTaskRetryResult retryFailed(String taskId) {
+        CommunityTask task=mapper.taskForRetry(taskId);
+        if(task==null) return new CommunityTaskRetryResult(false,"任务不存在");
+        if(!"FAILED".equals(task.getStatus())) return new CommunityTaskRetryResult(false,"只有失败任务可以重新排队，当前状态："+task.getStatus());
+        if(mapper.retryFailed(taskId)==0) return new CommunityTaskRetryResult(false,"任务状态已变化，请刷新列表");
+        log.info("管理员重新排队社区失败任务: taskId={}, attempts={}, hasDecision={}",taskId,task.getAttempts(),task.getDecisionJson()!=null);
+        return new CommunityTaskRetryResult(true,"已重新排队；已有生成结果将直接重交，新推理继续计入任务额度");
     }
 
     @Transactional

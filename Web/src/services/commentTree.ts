@@ -1,5 +1,25 @@
 import type { Comment } from './comment'
 
+/** 展示时将根评论的全部回复平铺，保留原对象和真实父评论关系。 */
+export function flattenCommentReplies(root: Comment): { replies: Comment[]; byId: ReadonlyMap<number, Comment> } {
+  const byId = new Map<number, Comment>([[root.id, root]])
+  const replies: Comment[] = []
+  const pending = [...(root.children || [])]
+  while (pending.length) {
+    const comment = pending.pop()!
+    if (byId.has(comment.id)) continue
+    byId.set(comment.id, comment)
+    replies.push(comment)
+    for (const child of comment.children || []) pending.push(child)
+  }
+  const timestamp = (comment: Comment): number => {
+    const value = Date.parse(comment.createdAt)
+    return Number.isFinite(value) ? value : 0
+  }
+  replies.sort((a, b) => timestamp(a) - timestamp(b) || a.id - b.id)
+  return { replies, byId }
+}
+
 /** 保留同 ID 的对象，避免轮询时重建评论组件、关闭回复框或改变展开状态。 */
 export function mergeCommentTree(current: Comment[], incoming: Comment[], preserveIds: ReadonlySet<number> = new Set()): Comment[] {
   const existing = new Map(current.map(comment => [comment.id, comment]))
@@ -28,13 +48,18 @@ export function addCommentToTree(comments: Comment[], comment: Comment): boolean
   return addReplyToChildren(comments, comment)
 }
 function addReplyToChildren(comments: Comment[], comment: Comment): boolean {
-  for (const parent of comments) {
+  const pending = [...comments]
+  const visited = new Set<number>()
+  while (pending.length) {
+    const parent = pending.pop()!
+    if (visited.has(parent.id)) continue
+    visited.add(parent.id)
     if (parent.id === comment.parentId) {
       parent.children ||= []
       if (!parent.children.some(item => item.id === comment.id)) parent.children.push(comment)
       return true
     }
-    if (addReplyToChildren(parent.children || [], comment)) return true
+    for (const child of parent.children || []) pending.push(child)
   }
   return false
 }

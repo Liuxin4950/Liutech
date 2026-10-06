@@ -50,5 +50,11 @@ public class CommunityAdminController {
     @PutMapping("/posts/{id}/enabled") @OperationLog(action="update",targetType="community-post",description="修改文章社区开关")
     public Result<Void> enabled(@PathVariable Long id,@Valid @RequestBody CommunityReq.Enabled req) { service.setPostEnabled(id,req.enabled()); return Result.success(); }
     @PostMapping("/posts/{id}/invite") @OperationLog(action="create",targetType="community-post",description="邀请角色评论文章")
-    public Result<Void> invite(@PathVariable Long id,@Valid @RequestBody CommunityReq.Invite req) { service.invite(id,req.botIds()); return Result.success(); }
+    public Result<CommunityResp.Queued> invite(@PathVariable Long id,@Valid @RequestBody CommunityReq.Invite req) {
+        return Result.success(service.invite(id,req.botIds()));
+    }
+    @PostMapping("/backfill") @OperationLog(action="create",targetType="community-post",description="为近期公开文章补评")
+    public Result<CommunityResp.Backfill> backfill(@Valid @RequestBody CommunityReq.Backfill req) {
+        return Result.success(service.backfill(req));
+    }
 }

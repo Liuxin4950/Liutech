@@ -13,6 +13,7 @@ import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.metadata.EmptyUsage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.MessageAggregator;
@@ -100,10 +101,10 @@ public class SiliconFlowChatClient {
             }
             Map<String, Object> serverContext = context == null ? new HashMap<>() : new HashMap<>(context);
             var params = resolveParameters(model, temperature, maxTokens, serverContext);
-            List<ToolCallback> callbacks = Arrays.asList(ToolCallbacks.from(
-                    roleBasedToolRegistry.getToolsForRoleAndMode(role, mode.name()).toArray()));
             ModelExecutionPolicy policy = serverContext.get(ModelExecutionPolicy.CONTEXT_KEY) instanceof ModelExecutionPolicy configured
                     ? configured : new ModelExecutionPolicy(mode != ChatMode.CHAT, null, null);
+            List<ToolCallback> callbacks = policy.toolsEnabled() ? Arrays.asList(ToolCallbacks.from(
+                    roleBasedToolRegistry.getToolsForRoleAndMode(role, mode.name()).toArray())) : List.of();
             RequestState state = new RequestState(model, params, messages, callbacks, serverContext, policy);
             return streamRound(state).doOnCancel(() -> state.cancelled.set(true))
                     .doFinally(ignored -> activeRequests.decrementAndGet());
@@ -138,9 +139,27 @@ public class SiliconFlowChatClient {
                     .streamUsage(true).toolCallbacks(guarded).toolContext(state.context).build();
             Prompt prompt = new Prompt(state.messages, options);
             AtomicReference<ChatResponse> aggregate = new AtomicReference<>();
+            AiMetrics.UsageTracker tracker = state.context.get(AiMetrics.UsageTracker.CONTEXT_KEY) instanceof AiMetrics.UsageTracker configured
+                    ? configured : new AiMetrics.UsageTracker();
+            AiMetrics.UsageTracker.Round round = tracker.startRound();
             ModelExecutionObserver activities = observer(state);
             if (activities != null) activities.modelRoundStarted();
-            return new MessageAggregator().aggregate(chatModel.stream(prompt), aggregate::set)
+            // 聚合器会把缺失 usage 合成为 (0,0)，必须在原始供应商帧上辨别是否真正报告。
+            Flux<ChatResponse> provider;
+            try {
+                provider = chatModel.stream(prompt).doOnNext(chunk -> {
+                    if (chunk.getMetadata() == null) return;
+                    var usage = chunk.getMetadata().getUsage();
+                    if (usage != null && !(usage instanceof EmptyUsage)) {
+                        round.report(usage.getPromptTokens() == null ? null : usage.getPromptTokens().longValue(),
+                                usage.getCompletionTokens() == null ? null : usage.getCompletionTokens().longValue());
+                    }
+                }).doOnComplete(round::finish).doOnError(error -> round.finish()).doOnCancel(round::finish);
+            } catch (RuntimeException error) {
+                round.finish();
+                throw error;
+            }
+            return new MessageAggregator().aggregate(provider, aggregate::set)
                     .concatMap(chunk -> {
                         checkCancelled(state);
                         if (chunk == null || chunk.getResult() == null) return Flux.<String>empty();
@@ -150,23 +169,17 @@ public class SiliconFlowChatClient {
                         if (state.policy.finalRoundOnly()) return Flux.<String>empty();
                         return text == null || text.isEmpty() ? Flux.<String>empty() : Flux.just(text);
                     })
-                    .concatWith(Flux.defer(() -> finishRound(state, prompt, aggregate.get())));
+                    .concatWith(Flux.defer(() -> finishRound(state, prompt, aggregate.get(), round.outputTokens())));
         });
     }
 
-    private Flux<String> finishRound(RequestState state, Prompt prompt, ChatResponse response) {
+    private Flux<String> finishRound(RequestState state, Prompt prompt, ChatResponse response, Long reportedOutputTokens) {
         checkCancelled(state);
         if (response == null || response.getResult() == null) {
             return Flux.error(new AIServiceException.ModelException("模型未返回有效结果，请重试"));
         }
-        var usage = response.getMetadata().getUsage();
-        if (state.context.get(AiMetrics.UsageTracker.CONTEXT_KEY) instanceof AiMetrics.UsageTracker tracker) {
-            tracker.record(usage.getPromptTokens() == null ? 0 : usage.getPromptTokens(),
-                    usage.getCompletionTokens() == null ? 0 : usage.getCompletionTokens());
-        }
-        int completionTokens = usage.getCompletionTokens() == null ? 0 : usage.getCompletionTokens();
         int estimated = promptBudget.estimateTokens(List.of(response.getResult().getOutput())) - 4;
-        state.outputSpent += completionTokens > 0 ? completionTokens : Math.max(0, estimated);
+        state.outputSpent += reportedOutputTokens == null || reportedOutputTokens == 0 ? Math.max(0, estimated) : reportedOutputTokens;
         String reason = response.getResult().getMetadata().getFinishReason();
         if ("length".equalsIgnoreCase(reason) || "max_tokens".equalsIgnoreCase(reason)
                 || state.outputSpent > state.params.maxTokens()) return Flux.error(outputLimit());

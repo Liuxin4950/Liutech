@@ -116,7 +116,7 @@ public class CommunityService {
         mapper.updateSettings(s); log.info("社区互动设置已修改 enabled={}",req.enabled()); return mapper.settings();
     }
 
-    /** 所有文章新增/编辑/状态发布路径在原事务内调用。关闭期间也记首次已见，不补发旧文章。 */
+    /** 文章保存路径在原事务内调用。旧文章需由管理员显式补评，开关本身不批量发任务。 */
     @Transactional(rollbackFor=Exception.class)
     public void articleSaved(Long postId) {
         Posts post = mapper.lockPost(postId);
@@ -125,7 +125,7 @@ public class CommunityService {
         if (!"published".equals(post.getStatus()) || mapper.markPublished(postId) == 0) return;
         CommunitySettings s = requireSettings(mapper.lockSettings());
         if (!s.getEnabled() || !mapper.postState(postId).getEnabled()) return;
-        enqueue(post, null, "ARTICLE_PUBLISHED", newRoot(postId), selectBots(post,null,null,2), s);
+        enqueueInitialArticle(post, selectBots(post,null,null,2), s);
     }
     @Transactional(readOnly=true)
     public boolean postEnabled(Long id) {
@@ -138,13 +138,45 @@ public class CommunityService {
         mapper.lockSettings(); mapper.ensurePost(id); mapper.setPostEnabled(id,enabled);
     }
     @Transactional(rollbackFor=Exception.class)
-    public void invite(Long id, List<Long> requested) {
+    public CommunityResp.Queued invite(Long id, List<Long> requested) {
         Posts post = requirePublic(mapper.lockPost(id));
         CommunitySettings s = requireSettings(mapper.lockSettings()); mapper.ensurePost(id);
         requireEnabled(s, null, mapper.postState(id));
         List<CommunityBot> bots = requested == null || requested.isEmpty()
             ? selectBots(post,null,null,2) : explicitBots(requested);
-        enqueue(post,null,"MANUAL_INVITE",newRoot(id),bots,s);
+        return new CommunityResp.Queued(bots.isEmpty() ? 0 : enqueue(post,null,"MANUAL_INVITE",newRoot(id),bots,s));
+    }
+
+    /** 显式小批补评：先按 ID 锁全部文章，再锁全局设置，复用初评事件与文章根链。 */
+    @Transactional(rollbackFor=Exception.class, isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    public CommunityResp.Backfill backfill(CommunityReq.Backfill req) {
+        if (req.limit() < 1 || req.limit() > 20)
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"每批补评文章数量为1至20");
+        List<Long> ids = mapper.recentPublicPostIds(req.limit());
+        List<Posts> posts = new ArrayList<>();
+        for (Long id : ids.stream().distinct().sorted().toList()) {
+            Posts post = mapper.lockPost(id);
+            if (post != null && post.getDeletedAt() == null && "published".equals(post.getStatus())) posts.add(post);
+        }
+        CommunitySettings s = requireSettings(mapper.lockSettings());
+        requireEnabled(s,null,null);
+        List<CommunityBot> requested = req.botIds() == null || req.botIds().isEmpty() ? null : explicitBots(req.botIds());
+        int queued = 0, skipped = 0;
+        for (Posts post : posts) {
+            mapper.ensurePost(post.getId());
+            // 补评也消费首次公开机会，避免之后一次普通编辑重复触发初评。
+            mapper.markPublished(post.getId());
+            List<CommunityBot> bots = requested == null ? selectBots(post,null,null,2) : requested;
+            if (!Boolean.TRUE.equals(mapper.postState(post.getId()).getEnabled())) {
+                skipped += bots.size();
+                continue;
+            }
+            int inserted = enqueueInitialArticle(post,bots,s);
+            queued += inserted;
+            skipped += bots.size() - inserted;
+        }
+        log.info("社区近期文章补评已安排 postCount={} queued={} skipped={}",posts.size(),queued,skipped);
+        return new CommunityResp.Backfill(queued,skipped,posts.size());
     }
     /** 真人插入前取得文章锁，避免与机器人发布形成 comment -> post 的反向锁序。 */
     @Transactional(rollbackFor=Exception.class)
@@ -161,13 +193,13 @@ public class CommunityService {
             if (parent != null && parent.getBotId() != null) targetIds.add(parent.getBotId());
         }
         if (targetIds.size() > 2) throw new BusinessException(ErrorCode.PARAMS_ERROR,"一次最多邀请两个角色");
-        // 即使全局关闭也拒绝不存在的提及目标；禁用角色不触发自动任务。
-        for (Long target : targetIds) requireBot(mapper.bot(target));
+        // 显式提及必须存在；历史 AI 评论作者停用或软删不应使普通真人回复回滚。
+        if (mentionedBotIds != null) for (Long target : mentionedBotIds) requireBot(mapper.bot(target));
         CommunitySettings s = requireSettings(mapper.lockSettings()); mapper.ensurePost(post.getId());
         if (!s.getEnabled() || !mapper.postState(post.getId()).getEnabled()) return;
         List<CommunityBot> bots = targetIds.isEmpty() ? selectBots(post,comment,null,1)
-            : targetIds.stream().map(mapper::bot).filter(b -> b.getEnabled()).toList();
-        enqueue(post,comment.getId(),"HUMAN_COMMENT",newRoot(post.getId()),bots,s);
+            : targetIds.stream().map(mapper::bot).filter(Objects::nonNull).filter(b -> b.getEnabled()).toList();
+        if (!bots.isEmpty()) enqueue(post,comment.getId(),"HUMAN_COMMENT",newRoot(post.getId()),bots,s);
     }
 
     @Transactional(rollbackFor=Exception.class)
@@ -235,11 +267,14 @@ public class CommunityService {
         CommunityResp.Context current = context(bot.getId(),post.getId(),req.contextCommentId());
         if (!MessageDigest.isEqual(current.contextVersion().getBytes(StandardCharsets.UTF_8),
                 req.contextVersion().getBytes(StandardCharsets.UTF_8))) throw new BusinessException(ErrorCode.COMMUNITY_STALE_CONTEXT);
-        if (req.parentId() != null) {
-            Comments parent = mapper.lockComment(req.parentId());
+        Long parentId = req.parentId();
+        if (parentId != null) {
+            Comments parent = mapper.lockComment(parentId);
             if (parent == null || !post.getId().equals(parent.getPostId())) throw new BusinessException(ErrorCode.PARENT_COMMENT_MISMATCH);
-            if (current.comments().stream().noneMatch(c -> c.getId().equals(req.parentId())))
+            if (current.comments().stream().noneMatch(c -> c.getId().equals(parentId)))
                 throw new BusinessException(ErrorCode.PARAMS_ERROR,"只能回复本轮已读取的评论");
+            if (Objects.equals(parent.getBotId(),bot.getId()))
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,"角色不能回复自己的评论");
         }
         Integer chainCount = mapper.chainCount(req.rootEventId(),req.postId());
         if (chainCount == null || chainCount >= settings.getMaxChainComments()) throw new BusinessException(ErrorCode.COMMUNITY_CHAIN_LIMIT);
@@ -252,7 +287,7 @@ public class CommunityService {
         if (last != null && now.getTime()-last.getTime() < settings.getCooldownSeconds()*1000L)
             throw new BusinessException(ErrorCode.COMMUNITY_COOLDOWN);
         Comments comment = new Comments(); comment.setBotId(bot.getId()); comment.setPostId(post.getId());
-        comment.setParentId(req.parentId()); comment.setContent(req.content().trim()); comment.setCommunityTaskId(req.taskId());
+        comment.setParentId(parentId); comment.setContent(req.content().trim()); comment.setCommunityTaskId(req.taskId());
         comment.setRootEventId(req.rootEventId()); comment.setCreatedAt(now); comment.setUpdatedAt(now);
         // 明确 SQL 插入，避免 MyMetaObjectHandler 从管理员认证上下文自动填入真人作者。
         commentsMapper.insertCommunityComment(comment);
@@ -271,19 +306,51 @@ public class CommunityService {
         return new CommunityResp.Visibility(posts,comments);
     }
 
+    /** 公开事实的批量标签；不返回用户资料或隐藏文章/评论，不增加浏览量。 */
+    @Transactional(readOnly=true)
+    public CommunityResp.Metadata metadata(CommunityReq.Metadata req) {
+        List<CommunityResp.PostMetadata> posts = req.postIds().isEmpty() ? List.of() : mapper.publicPostMetadata(req.postIds().stream().distinct().toList())
+            .stream().map(post -> new CommunityResp.PostMetadata(post.getId(),post.getTitle())).toList();
+        List<CommunityResp.CommentMetadata> comments = req.commentIds().isEmpty() ? List.of() : commentsMapper.selectPublicCommentsByIds(req.commentIds().stream().distinct().toList())
+            .stream().map(comment -> new CommunityResp.CommentMetadata(comment.getId(),comment.getContent(),
+                comment.getBotId() != null && comment.getBot() != null ? comment.getBot().name()
+                    : comment.getUser() == null ? "用户" : comment.getUser().getUsername())).toList();
+        return new CommunityResp.Metadata(posts,comments);
+    }
+
     private String newRoot(Long postId) { String root=UUID.randomUUID().toString(); mapper.insertChain(root,postId); return root; }
-    private void enqueue(Posts post, Long commentId, String type, String root, List<CommunityBot> bots, CommunitySettings s) {
+    /**
+     * 已失败或已确认的初评事件也保留去重；删除评论后发布回执仍阻止再次补评。
+     * ACK 只表示 AI 已接收，不能当作执行完成，所以已有人工邀请也保守跳过；显式邀请可再试。
+     */
+    private int enqueueInitialArticle(Posts post, List<CommunityBot> bots, CommunitySettings s) {
+        List<CommunityBot> eligible = bots.stream().filter(bot ->
+            mapper.lockArticleInvitation(post.getId(),bot.getId()) == null
+                && mapper.lockArticlePublication(bot.getId(),post.getId()) == null).toList();
+        if (eligible.isEmpty()) return 0;
+        String root = mapper.initialArticleRoot(post.getId());
+        if (root == null) root = newRoot(post.getId());
+        else {
+            Integer emitted = mapper.chainCount(root,post.getId());
+            if (emitted == null || emitted >= s.getMaxChainComments()) return 0;
+        }
+        return enqueue(post,null,"ARTICLE_PUBLISHED",root,eligible,s);
+    }
+    private int enqueue(Posts post, Long commentId, String type, String root, List<CommunityBot> bots, CommunitySettings s) {
+        int queued = 0;
         for (CommunityBot bot : bots) {
             CommunityEvent event = new CommunityEvent(); event.setBotId(bot.getId()); event.setPostId(post.getId());
             event.setCommentId(commentId); event.setEventType(type); event.setRootEventId(root);
             int delay = ThreadLocalRandom.current().nextInt(s.getMinDelaySeconds(),s.getMaxDelaySeconds()+1);
             event.setAvailableAt(Date.from(Instant.now().plusSeconds(delay)));
             String key = type+":"+("MANUAL_INVITE".equals(type) ? root : commentId == null ? post.getId() : commentId)+":"+bot.getId();
-            mapper.insertEvent(key,event);
+            queued += mapper.insertEvent(key,event);
         }
+        return queued;
     }
     private List<CommunityBot> explicitBots(List<Long> ids) {
-        if (ids.stream().distinct().count()>2) throw new BusinessException(ErrorCode.PARAMS_ERROR,"最多邀请两个角色");
+        if (ids.size()>2 || ids.stream().anyMatch(id -> id == null || id <= 0))
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"最多邀请两个有效角色");
         return ids.stream().distinct().map(id -> requireBot(mapper.bot(id))).peek(b -> {
             if (!b.getEnabled()) throw new BusinessException(ErrorCode.COMMUNITY_PAUSED);
         }).toList();
@@ -293,7 +360,7 @@ public class CommunityService {
             Objects.toString(post.getContent(),"")+" "+(comment == null ? "" : comment.getContent());
         return mapper.bots().stream().filter(b -> b.getEnabled() && !Objects.equals(b.getId(),excluded) && b.getParticipation()>0)
             .sorted(Comparator.<CommunityBot>comparingInt(b -> relevance(b,text)).reversed().thenComparing(CommunityBot::getId))
-            .filter(b -> relevance(b,text)>0 || b.getInterests()==null || b.getInterests().isBlank()).limit(limit).toList();
+            .limit(limit).toList();
     }
     private static int relevance(CommunityBot bot,String text) {
         String lower=text.toLowerCase(Locale.ROOT);
@@ -302,7 +369,7 @@ public class CommunityService {
         if (interests.isBlank()) return score;
         int matched=0;
         for (String interest:interests.split("[,，;；\\s]+")) if (!interest.isBlank() && lower.contains(interest.toLowerCase(Locale.ROOT))) matched++;
-        return matched==0 ? 0 : matched*100+score;
+        return matched*100+score;
     }
     private static CommunitySettings requireSettings(CommunitySettings settings) {
         if (settings==null) throw new BusinessException(ErrorCode.OPERATION_ERROR,"社区数据库尚未初始化"); return settings;

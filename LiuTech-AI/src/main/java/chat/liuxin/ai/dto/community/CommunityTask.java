@@ -11,6 +11,9 @@ public class CommunityTask {
     private Long botId;
     private Long postId;
     private Long commentId;
+    /** 列表展示事实，不入任务表；已生成任务优先使用该轮快照。 */
+    private String postTitle;
+    private String commentPreview;
     private String rootEventId;
     private String status;
     private Integer attempts;

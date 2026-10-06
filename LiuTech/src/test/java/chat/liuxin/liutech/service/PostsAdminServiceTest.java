@@ -85,6 +85,32 @@ class PostsAdminServiceTest {
         TableInfoHelper.initTableInfo(assistant, Posts.class);
     }
 
+    @Test
+    void batchPublishLocksAllArticlesBeforeUpdateAndCreatesCommunityEventsInOriginalTransaction() {
+        Posts first=new Posts();first.setId(1L);
+        Posts second=new Posts();second.setId(2L);
+        when(postsMapper.selectByIdForUpdate(1L)).thenReturn(first);
+        when(postsMapper.selectByIdForUpdate(2L)).thenReturn(second);
+        when(postsMapper.update(isNull(),any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(2);
+        assertTrue(postsAdminService.batchUpdateStatus(Arrays.asList(2L,1L,2L,9L),"published"));
+        var order=inOrder(postsMapper,communityService);
+        order.verify(postsMapper).selectByIdForUpdate(1L);
+        order.verify(postsMapper).selectByIdForUpdate(2L);
+        order.verify(postsMapper).selectByIdForUpdate(9L);
+        order.verify(postsMapper).update(isNull(),any(com.baomidou.mybatisplus.core.conditions.Wrapper.class));
+        order.verify(communityService).articleSaved(1L);
+        order.verify(communityService).articleSaved(2L);
+        verify(communityService,never()).articleSaved(9L);
+    }
+
+    @Test
+    void failedBatchPublishDoesNotScheduleCommunityTasks() {
+        Posts first=new Posts();first.setId(1L);
+        when(postsMapper.selectByIdForUpdate(1L)).thenReturn(first);
+        assertFalse(postsAdminService.batchUpdateStatus(Collections.singletonList(1L),"published"));
+        verifyNoInteractions(communityService);
+    }
+
     // ========== getPostListForAdmin 测试 ==========
 
     @Test

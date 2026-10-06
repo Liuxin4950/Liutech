@@ -1,13 +1,26 @@
 package chat.liuxin.ai.service.community;
 
 import chat.liuxin.ai.mapper.CommunityMapper;
+import chat.liuxin.ai.dto.community.CommunityTask;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CommunityStoreTest {
+    @Test void onlyFailedTasksCanBeQueuedAndExistingDecisionIsPreserved() {
+        var mapper=mock(CommunityMapper.class);var store=new CommunityStore(mapper,new ObjectMapper());
+        var task=new CommunityTask();task.setId("task");task.setStatus("FAILED");task.setAttempts(3);
+        task.setDecisionJson("cached");task.setMemoryEpoch(1L);
+        when(mapper.taskForRetry("task")).thenReturn(task);when(mapper.retryFailed("task")).thenReturn(1);
+        assertTrue(store.retryFailed("task").queued());
+        assertEquals(3,task.getAttempts());assertEquals("cached",task.getDecisionJson());assertEquals(1L,task.getMemoryEpoch());
+        task.setStatus("SUCCEEDED");assertFalse(store.retryFailed("task").queued());
+        task.setStatus("RUNNING");assertFalse(store.retryFailed("task").queued());
+        verify(mapper,times(1)).retryFailed("task");
+    }
     @Test void clearingEpochPreventsAnOlderTaskFromRestoringMemory() {
         var mapper=mock(CommunityMapper.class);var store=new CommunityStore(mapper,new ObjectMapper());
         when(mapper.epoch(1L)).thenReturn(2L);

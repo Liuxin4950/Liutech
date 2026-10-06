@@ -61,6 +61,14 @@ public interface CommunityMapper {
     Posts lockPost(Long id);
     @Select("SELECT * FROM posts WHERE id=#{id} AND status='published' AND deleted_at IS NULL")
     Posts publicPost(Long id);
+    @Select("SELECT id FROM posts WHERE status='published' AND deleted_at IS NULL ORDER BY created_at DESC,id DESC LIMIT #{limit}")
+    List<Long> recentPublicPostIds(int limit);
+    @Select("""
+        <script>SELECT id,title FROM posts WHERE status='published' AND deleted_at IS NULL
+        AND id IN <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY id</script>
+        """)
+    List<Posts> publicPostMetadata(@Param("ids") List<Long> ids);
     @Insert("INSERT IGNORE INTO community_post_state(post_id,enabled,first_public_seen,version) VALUES(#{id},TRUE,FALSE,1)")
     int ensurePost(Long id);
     @Select("SELECT * FROM community_post_state WHERE post_id=#{id}")
@@ -81,6 +89,23 @@ public interface CommunityMapper {
         VALUES(#{key},#{event.eventType},#{event.botId},#{event.postId},#{event.commentId},#{event.rootEventId},#{event.availableAt})
         """)
     int insertEvent(@Param("key") String key, @Param("event") CommunityEvent event);
+    /** 当前读而非事务快照，避免首次发布与补评在并发事务中重复安排。 */
+    @Select("""
+        SELECT id FROM community_events WHERE post_id=#{postId} AND bot_id=#{botId}
+        AND event_type IN ('ARTICLE_PUBLISHED','MANUAL_INVITE') ORDER BY id LIMIT 1 FOR UPDATE
+        """)
+    Long lockArticleInvitation(@Param("postId") Long postId, @Param("botId") Long botId);
+    @Select("""
+        SELECT root_event_id FROM community_events
+        WHERE event_key LIKE CONCAT('ARTICLE_PUBLISHED:',#{postId},':%')
+        ORDER BY event_key LIMIT 1 FOR UPDATE
+        """)
+    String initialArticleRoot(Long postId);
+    @Select("""
+        SELECT task_id FROM community_publications WHERE bot_id=#{botId} AND post_id=#{postId}
+        ORDER BY created_at LIMIT 1 FOR UPDATE
+        """)
+    String lockArticlePublication(@Param("botId") Long botId, @Param("postId") Long postId);
     @Select("""
         SELECT * FROM community_events WHERE acknowledged_at IS NULL AND available_at <= NOW()
         AND (lease_until IS NULL OR lease_until < NOW()) ORDER BY id LIMIT #{limit} FOR UPDATE SKIP LOCKED

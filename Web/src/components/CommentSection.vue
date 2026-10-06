@@ -53,7 +53,17 @@ const props = defineProps<{ postId: number }>()
 const comments = ref<Comment[]>([])
 const loading = ref(false)
 const error = ref('')
-const countComments = (items: Comment[]): number => items.reduce((total, item) => total + 1 + countComments(item.children || []), 0)
+const countComments = (items: Comment[]): number => {
+  const pending = [...items]
+  const visited = new Set<number>()
+  while (pending.length) {
+    const comment = pending.pop()!
+    if (visited.has(comment.id)) continue
+    visited.add(comment.id)
+    for (const child of comment.children || []) pending.push(child)
+  }
+  return visited.size
+}
 const totalComments = computed(() => countComments(comments.value))
 let timer: ReturnType<typeof setInterval> | undefined
 let controller: AbortController | undefined

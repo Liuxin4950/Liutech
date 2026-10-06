@@ -45,6 +45,9 @@ class CommunityServiceTest {
         when(mapper.postState(2L)).thenReturn(state);when(comments.selectRecentForCommunity(2L)).thenReturn(List.of());
         when(mapper.knowledge(1L)).thenReturn(List.of());when(mapper.bots()).thenReturn(List.of(bot));
         when(mapper.chainCount(ROOT,2L)).thenReturn(0);
+        when(mapper.insertEvent(any(),any())).thenReturn(1);
+        when(mapper.lockArticleInvitation(anyLong(),anyLong())).thenReturn(null);
+        when(mapper.recentPublicPostIds(10)).thenReturn(List.of(2L));
         doAnswer(invocation->{invocation.<Comments>getArgument(0).setId(99L);return 1;}).when(comments).insertCommunityComment(any());
     }
     private CommunityReq.Publish request(String version) {
@@ -56,6 +59,21 @@ class CommunityServiceTest {
         assertEquals(bot,context.bot());assertFalse(context.settings().getEnabled());
         verify(mapper).knowledge(1L);verify(mapper,never()).knowledge(2L);
         verify(mapper,never()).lockSettings();verify(mapper,never()).recordPublication(any(),any(),any(),any(),any());
+    }
+    @Test void replyingToRetiredBotCommentRemainsLegalWithoutInvitingAnotherBotButInvalidExplicitMentionStillFails() {
+        Comments parent=new Comments();parent.setId(77L);parent.setPostId(2L);parent.setBotId(1L);
+        Comments reply=new Comments();reply.setId(88L);reply.setPostId(2L);reply.setParentId(77L);reply.setContent("真人回复");
+        when(comments.selectPublicCommentById(77L)).thenReturn(parent);
+        when(mapper.bot(1L)).thenReturn(null);
+        assertDoesNotThrow(()->service.humanCommentCreated(reply,null));
+        bot.setEnabled(false);when(mapper.bot(1L)).thenReturn(bot);
+        assertDoesNotThrow(()->service.humanCommentCreated(reply,List.of()));
+        verify(mapper,never()).bots();
+        verify(mapper,never()).insertChain(any(),any());
+        verify(mapper,never()).insertEvent(any(),any());
+        when(mapper.bot(1L)).thenReturn(null);
+        var error=assertThrows(BusinessException.class,()->service.humanCommentCreated(reply,List.of(1L)));
+        assertEquals(ErrorCode.COMMUNITY_BOT_NOT_FOUND.getCode(),error.getCode());
     }
     @Test void realPublishRejectedWhenGlobalOrRolePaused() {
         String version=service.context(1L,2L,null).contextVersion();settings.setEnabled(false);
@@ -97,6 +115,52 @@ class CommunityServiceTest {
         assertNull(saved.getValue().getCreatedBy());verify(mapper,never()).insertEvent(any(),any());
         verify(mapper).incrementChain(ROOT);
     }
+    @Test void articleInvitationCanChooseToReplyToAnExistingVisibleComment() {
+        Comments target=new Comments();target.setId(88L);target.setPostId(2L);target.setContent("当前公开评论");
+        when(comments.selectRecentForCommunity(2L)).thenReturn(List.of(target));
+        when(mapper.lockComment(88L)).thenReturn(target);
+        String version=service.context(1L,2L,null).contextVersion();
+        var req=new CommunityReq.Publish(TASK,1L,2L,88L,null,ROOT,version,"文章观点");
+        service.publish(req);
+        ArgumentCaptor<Comments> saved=ArgumentCaptor.forClass(Comments.class);
+        verify(comments).insertCommunityComment(saved.capture());
+        assertEquals(88L,saved.getValue().getParentId());
+        verify(mapper).lockComment(88L);
+    }
+    @Test void modelMayChooseAnotherVisibleThreadCommentAsItsReplyTarget() {
+        Comments trigger=new Comments();trigger.setId(77L);trigger.setPostId(2L);trigger.setContent("触发评论");
+        Comments other=new Comments();other.setId(88L);other.setPostId(2L);other.setContent("线程其他评论");
+        when(comments.selectPublicCommentById(77L)).thenReturn(trigger);
+        when(mapper.threadComments(2L,77L)).thenReturn(List.of(trigger,other));
+        when(mapper.lockComment(88L)).thenReturn(other);
+        String version=service.context(1L,2L,77L).contextVersion();
+        var req=new CommunityReq.Publish(TASK,1L,2L,88L,77L,ROOT,version,"直接回复");
+        service.publish(req);
+        ArgumentCaptor<Comments> saved=ArgumentCaptor.forClass(Comments.class);
+        verify(comments).insertCommunityComment(saved.capture());
+        assertEquals(88L,saved.getValue().getParentId());
+        verify(mapper,never()).lockComment(77L);
+    }
+    @Test void modelCannotReplyToItselfEvenWhenOwnCommentIsVisibleInContext() {
+        Comments own=new Comments();own.setId(88L);own.setPostId(2L);own.setBotId(1L);own.setContent("我的旧评论");
+        when(comments.selectRecentForCommunity(2L)).thenReturn(List.of(own));
+        when(mapper.lockComment(88L)).thenReturn(own);
+        String version=service.context(1L,2L,null).contextVersion();
+        var req=new CommunityReq.Publish(TASK,1L,2L,88L,null,ROOT,version,"自我回复");
+        var error=assertThrows(BusinessException.class,()->service.publish(req));
+        assertEquals(ErrorCode.PARAMS_ERROR.getCode(),error.getCode());
+        assertEquals("角色不能回复自己的评论",error.getMessage());
+        verify(comments,never()).insertCommunityComment(any());
+    }
+    @Test void visibleReplyTargetStillMustBelongToTheCurrentReadableContext() {
+        Comments outside=new Comments();outside.setId(88L);outside.setPostId(2L);outside.setContent("本轮未读取");
+        when(mapper.lockComment(88L)).thenReturn(outside);
+        String version=service.context(1L,2L,null).contextVersion();
+        var req=new CommunityReq.Publish(TASK,1L,2L,88L,null,ROOT,version,"越界回复");
+        var error=assertThrows(BusinessException.class,()->service.publish(req));
+        assertEquals(ErrorCode.PARAMS_ERROR.getCode(),error.getCode());
+        verify(comments,never()).insertCommunityComment(any());
+    }
     @Test void attemptsPreviewStillConsumesQuotaAndRetryOfSameAttemptIsIdempotent() {
         bot.setEnabled(false);settings.setEnabled(false);
         var req=new CommunityReq.Attempt(TASK,1,1L,2L,true);assertTrue(service.authorizeAttempt(req).allowed());
@@ -109,6 +173,93 @@ class CommunityServiceTest {
         service.articleSaved(2L);settings.setEnabled(true);service.articleSaved(2L);
         verify(mapper,times(2)).markPublished(2L);verify(mapper,never()).insertChain(any(),any());
     }
+    @Test void backfillDefaultsToTenAndFallsBackWhenNoInterestMatches() {
+        bot.setInterests("天文,摄影");
+        var result=service.backfill(new CommunityReq.Backfill(null,null));
+        assertEquals(new CommunityResp.Backfill(1,0,1),result);
+        verify(mapper).recentPublicPostIds(10);
+        verify(mapper).markPublished(2L);
+        ArgumentCaptor<CommunityEvent> event=ArgumentCaptor.forClass(CommunityEvent.class);
+        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),event.capture());
+        assertEquals("ARTICLE_PUBLISHED",event.getValue().getEventType());
+        assertNull(event.getValue().getCommentId());
+    }
+    @Test void automaticPublicationFallsBackButStillExcludesDisabledAndZeroParticipationRoles() {
+        bot.setInterests("摄影");
+        CommunityBot paused=new CommunityBot();paused.setId(3L);paused.setEnabled(false);paused.setParticipation(100);
+        CommunityBot silent=new CommunityBot();silent.setId(4L);silent.setEnabled(true);silent.setParticipation(0);
+        when(mapper.bots()).thenReturn(List.of(paused,silent,bot));
+        when(mapper.markPublished(2L)).thenReturn(1);
+        service.articleSaved(2L);
+        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),any());
+        verify(mapper,times(1)).insertEvent(any(),any());
+    }
+    @Test void matchingRolesRankAheadAndEachArticleSharesOneRootForAtMostTwoBots() {
+        bot.setInterests("Java");bot.setParticipation(1);
+        CommunityBot other=new CommunityBot();other.setId(3L);other.setEnabled(true);other.setParticipation(100);other.setInterests("摄影");
+        CommunityBot third=new CommunityBot();third.setId(4L);third.setEnabled(true);third.setParticipation(50);
+        when(mapper.bots()).thenReturn(List.of(other,third,bot));
+        var result=service.backfill(new CommunityReq.Backfill(10,null));
+        assertEquals(2,result.queued());
+        ArgumentCaptor<CommunityEvent> events=ArgumentCaptor.forClass(CommunityEvent.class);
+        verify(mapper,times(2)).insertEvent(any(),events.capture());
+        assertEquals(List.of(1L,3L),events.getAllValues().stream().map(CommunityEvent::getBotId).toList());
+        assertEquals(events.getAllValues().get(0).getRootEventId(),events.getAllValues().get(1).getRootEventId());
+        verify(mapper,times(1)).insertChain(any(),eq(2L));
+    }
+    @Test void initialOrManualInvitationReceiptsPreventBackfillReplayEvenAfterAcknowledgementOrDeletion() {
+        when(mapper.lockArticleInvitation(2L,1L)).thenReturn(null,7L);
+        assertEquals(new CommunityResp.Backfill(1,0,1),service.backfill(new CommunityReq.Backfill(10,null)));
+        assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
+        verify(mapper,times(1)).insertEvent(any(),any());
+        when(mapper.lockArticleInvitation(2L,1L)).thenReturn(null);
+        when(mapper.lockArticlePublication(1L,2L)).thenReturn(TASK);
+        assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
+        verify(mapper,times(1)).insertEvent(any(),any());
+    }
+    @Test void newBackfillBotReusesExistingArticleRootAndExplicitInviteCanRetryIndependently() {
+        when(mapper.initialArticleRoot(2L)).thenReturn(ROOT);
+        assertEquals(1,service.backfill(new CommunityReq.Backfill(10,List.of(1L))).queued());
+        ArgumentCaptor<CommunityEvent> events=ArgumentCaptor.forClass(CommunityEvent.class);
+        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),events.capture());
+        assertEquals(ROOT,events.getValue().getRootEventId());
+        verify(mapper,never()).insertChain(any(),any());
+        when(mapper.lockArticleInvitation(2L,1L)).thenReturn(7L);
+        assertEquals(1,service.invite(2L,List.of(1L)).queued());
+        assertEquals(1,service.invite(2L,List.of(1L)).queued());
+        verify(mapper,times(2)).insertChain(any(),eq(2L));
+        verify(mapper,times(2)).insertEvent(startsWith("MANUAL_INVITE:"),any());
+    }
+    @Test void completedSharedArticleChainDoesNotSchedulePaidGenerationAgain() {
+        when(mapper.initialArticleRoot(2L)).thenReturn(ROOT);
+        when(mapper.chainCount(ROOT,2L)).thenReturn(4);
+        assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
+        verify(mapper,never()).insertEvent(any(),any());
+    }
+    @Test void backfillHonorsGlobalAndArticlePauseAndRejectsOversizedBatches() {
+        assertThrows(BusinessException.class,()->service.backfill(new CommunityReq.Backfill(21,null)));
+        verify(mapper,never()).recentPublicPostIds(21);
+        settings.setEnabled(false);
+        var paused=assertThrows(BusinessException.class,()->service.backfill(new CommunityReq.Backfill(10,null)));
+        assertEquals(ErrorCode.COMMUNITY_PAUSED.getCode(),paused.getCode());
+        verify(mapper,never()).markPublished(any());
+        settings.setEnabled(true);state.setEnabled(false);
+        assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
+        verify(mapper,never()).insertEvent(any(),any());
+    }
+    @Test void batchBackfillLocksAllArticlesInAscendingOrderBeforeSettingsAndIgnoresNoLongerPublicPosts() {
+        when(mapper.recentPublicPostIds(10)).thenReturn(List.of(8L,2L,5L));
+        Posts older=new Posts();older.setId(5L);older.setStatus("published");
+        when(mapper.lockPost(5L)).thenReturn(older);when(mapper.postState(5L)).thenReturn(state);
+        Posts removed=new Posts();removed.setId(8L);removed.setStatus("draft");
+        when(mapper.lockPost(8L)).thenReturn(removed);
+        var result=service.backfill(new CommunityReq.Backfill(10,null));
+        assertEquals(new CommunityResp.Backfill(2,0,2),result);
+        InOrder locks=inOrder(mapper);
+        locks.verify(mapper).lockPost(2L);locks.verify(mapper).lockPost(5L);locks.verify(mapper).lockPost(8L);
+        locks.verify(mapper).lockSettings();
+        verify(mapper,never()).ensurePost(8L);
+    }
     @Test void leaseUsesFreshOpaqueTokenForEachClaimAndAckUsesSameToken() {
         var event=new CommunityEvent();event.setId(7L);when(mapper.claimable(1)).thenReturn(List.of(event));
         service.claim(new CommunityReq.Claim(1,120));String token=event.getLeaseToken();assertNotNull(UUID.fromString(token));
@@ -118,5 +269,25 @@ class CommunityServiceTest {
         Date[] range=CommunityService.dayRange(Instant.parse("2026-10-04T16:01:00Z"));
         assertEquals(Instant.parse("2026-10-04T16:00:00Z"),range[0].toInstant());
         assertEquals(Instant.parse("2026-10-05T16:00:00Z"),range[1].toInstant());
+    }
+    @Test void metadataUsesBatchedVisibleFactsAndOnlyReturnsHumanOrBotDisplayName() {
+        Comments human=new Comments();human.setId(7L);human.setContent("真人评论");
+        Users author=new Users();author.setUsername("作者");human.setUser(author);
+        Comments role=new Comments();role.setId(8L);role.setBotId(1L);role.setContent("角色评论");
+        role.setBot(new CommunityResp.BotInfo(1L,"机器人",null));
+        when(mapper.publicPostMetadata(List.of(2L,5L))).thenReturn(List.of(post));
+        when(comments.selectPublicCommentsByIds(List.of(7L,8L,9L))).thenReturn(List.of(human,role));
+        var result=service.metadata(new CommunityReq.Metadata(List.of(2L,2L,5L),List.of(7L,8L,9L)));
+        assertEquals(List.of(new CommunityResp.PostMetadata(2L,"Java")),result.posts());
+        assertEquals(List.of(new CommunityResp.CommentMetadata(7L,"真人评论","作者"),
+            new CommunityResp.CommentMetadata(8L,"角色评论","机器人")),result.comments());
+        verify(mapper).publicPostMetadata(List.of(2L,5L));
+        verify(comments).selectPublicCommentsByIds(List.of(7L,8L,9L));
+        verify(comments,never()).selectPublicCommentById(any());
+    }
+    @Test void emptyMetadataDoesNotGenerateInvalidInClausesOrDatabaseQueries() {
+        assertEquals(new CommunityResp.Metadata(List.of(),List.of()),service.metadata(new CommunityReq.Metadata(List.of(),List.of())));
+        verify(mapper,never()).publicPostMetadata(any());
+        verify(comments,never()).selectPublicCommentsByIds(any());
     }
 }

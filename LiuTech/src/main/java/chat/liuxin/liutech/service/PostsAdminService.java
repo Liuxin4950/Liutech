@@ -201,26 +201,20 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
-        log.debug("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
-
-        try {
-            if (ids == null || ids.isEmpty()) {
-                return false;
-            }
-
-            LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.in(Posts::getId, ids)
-                    .set(Posts::getStatus, status)
-                    .set(Posts::getUpdatedAt, new Date());
-
-            boolean result = this.update(updateWrapper);
-            log.debug("管理端批量更新文章状态{} - 影响文章数: {}", result ? "成功" : "失败", ids.size());
-            return result;
-
-        } catch (Exception e) {
-            log.error("管理端批量更新文章状态失败 - 错误: {}", e.getMessage(), e);
-            throw new RuntimeException("批量更新文章状态失败: " + e.getMessage());
+        if (ids == null || ids.isEmpty()) return false;
+        // 一次先按稳定顺序锁定全部文章，再触达社区 settings；避免下一篇文章形成反向锁序。
+        List<Long> lockedIds = new ArrayList<>();
+        for (Long id : ids.stream().distinct().sorted().toList()) {
+            if (postsMapper.selectByIdForUpdate(id) != null) lockedIds.add(id);
         }
+        if (lockedIds.isEmpty()) return false;
+        LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.in(Posts::getId, lockedIds).isNull(Posts::getDeletedAt)
+                .set(Posts::getStatus, status).set(Posts::getUpdatedAt, new Date());
+        boolean result = this.update(updateWrapper);
+        if (result) for (Long id : lockedIds) communityService.articleSaved(id);
+        log.debug("管理端批量更新文章状态{} - 文章数: {}", result ? "成功" : "失败", lockedIds.size());
+        return result;
     }
 
     /**

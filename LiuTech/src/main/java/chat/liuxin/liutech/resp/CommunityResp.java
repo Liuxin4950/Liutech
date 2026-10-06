@@ -13,6 +13,12 @@ public final class CommunityResp {
         List<CommunityKnowledge> knowledge, String contextVersion, boolean postEnabled) {}
     public record Attempt(boolean allowed, String reason) {}
     public record Published(Long commentId, Date createdAt, boolean duplicate) {}
+    public record Queued(int queued) {}
+    /** queued 为新事件数，skipped 为已安排/已发布或文章停用的候选角色数，postCount 为本批检查的文章数。 */
+    public record Backfill(int queued, int skipped, int postCount) {}
+    public record PostMetadata(Long id, String title) {}
+    public record CommentMetadata(Long id, String content, String authorName) {}
+    public record Metadata(List<PostMetadata> posts, List<CommentMetadata> comments) {}
     public record Visibility(List<Long> visiblePostIds, List<Long> visibleCommentIds) {}
     public record Thread(Long postId, String postTitle, Long rootCommentId, long total,
         boolean truncated, List<Comments> comments) {}

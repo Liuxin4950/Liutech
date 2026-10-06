@@ -78,6 +78,13 @@
         AND c.id = #{id}
     </select>
 
+    <select id="selectPublicCommentsByIds" resultMap="CommentWithUserMap">
+        <include refid="baseSelectSql"/>
+        AND c.id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY c.id
+    </select>
+
     <select id="selectRecentForCommunity" resultMap="CommentWithUserMap">
         <include refid="baseSelectSql"/>
         AND c.post_id=#{postId}

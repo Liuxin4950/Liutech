@@ -23,4 +23,5 @@ public class CommunityInternalController {
     @PostMapping("/attempts") public Result<CommunityResp.Attempt> attempt(@Valid @RequestBody CommunityReq.Attempt req) { return Result.success(service.authorizeAttempt(req)); }
     @PostMapping("/comments") public Result<CommunityResp.Published> publish(@Valid @RequestBody CommunityReq.Publish req) { return Result.success(service.publish(req)); }
     @PostMapping("/visibility") public Result<CommunityResp.Visibility> visibility(@Valid @RequestBody CommunityReq.Visibility req) { return Result.success(service.visibility(req)); }
+    @PostMapping("/metadata") public Result<CommunityResp.Metadata> metadata(@Valid @RequestBody CommunityReq.Metadata req) { return Result.success(service.metadata(req)); }
 }

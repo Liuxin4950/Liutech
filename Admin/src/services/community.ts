@@ -40,14 +40,23 @@ export interface CommunityRun {
   taskId: number | string
   botId: number
   postId: number
+  postTitle?: string
+  commentId?: number
+  commentPreview?: string
+  targetCommentPreview?: string
+  targetAuthorName?: string
   decision?: 'SKIP' | 'COMMENT' | 'REPLY'
   reason?: string
   content?: string
+  contentTruncated?: boolean
   targetCommentId?: number
   publishedCommentId?: number
   model?: string
   inputTokens?: number
   outputTokens?: number
+  tokenUsageAvailable?: boolean
+  tokenUsageComplete?: boolean
+  modelRounds?: number
   readTrace?: CommunityReadTrace[]
   toolTrace?: CommunityToolTrace[]
   preview?: boolean
@@ -56,7 +65,7 @@ export interface CommunityRun {
   error?: string
   roleSnapshot?: CommunityBot
 }
-export type CommunityComment = Omit<Comment, 'id'> & { id: number }
+export type CommunityComment = Omit<Comment, 'id'> & { id: number; parentPreview?: string }
 export interface CommunityCommentThread {
   postId: number
   postTitle?: string
@@ -67,12 +76,15 @@ export interface CommunityCommentThread {
 }
 export interface CommunityTask {
   id: number | string; eventId?: number | string; botId: number; postId: number; commentId?: number
+  postTitle?: string; commentPreview?: string
   status: string; attempts: number; failures?: number; error?: string; availableAt?: string; leaseUntil?: string; createdAt?: string
 }
 export interface CommunityMemory {
   id: number | string; botId: number; sourcePostId: number; sourceCommentId?: number
+  postTitle?: string; sourceCommentPreview?: string
   sourceCommentIds?: number[]; participants?: number[]; summary: string; createdAt?: string
 }
+export interface CommunityBackfillResult { queued: number; skipped: number; postCount: number }
 
 async function aiData<T>(request: Promise<{ data: ApiResponse<T> & { success?: boolean } }>): Promise<T> {
   const { data } = await request
@@ -105,10 +117,12 @@ export const communityService = {
   saveSettings: async (data: CommunitySettings) => (await put<CommunitySettings>(`${base}/settings`, settingsInput(data))).data,
   postEnabled: async (postId: number) => (await get<{ enabled: boolean }>(`${base}/posts/${postId}/enabled`)).data,
   setPostEnabled: async (postId: number, enabled: boolean) => put(`${base}/posts/${postId}/enabled`, { enabled }),
-  invite: async (postId: number, botIds: number[]) => post(`${base}/posts/${postId}/invite`, { botIds }),
-  preview: (data: { botId: number; postId: number; commentId?: number }) => aiData<CommunityRun>(aiApi.post(aiBase + '/preview', data, { timeout: 180000 })),
+  invite: async (postId: number, botIds: number[]) => (await post<{ queued: number }>(`${base}/posts/${postId}/invite`, { botIds })).data,
+  backfill: async (limit = 10, botIds?: number[]) => (await post<CommunityBackfillResult>(`${base}/backfill`, { limit, botIds })).data,
+  preview: (data: { botId: number; postId: number; commentId?: number }, signal?: AbortSignal) => aiData<CommunityRun>(aiApi.post(aiBase + '/preview', data, { timeout: 180000, signal })),
   runs: (botId?: number) => aiData<CommunityRun[]>(aiApi.get(aiBase + '/runs', { params: { botId, limit: 100 } })),
   tasks: (botId?: number) => aiData<CommunityTask[]>(aiApi.get(aiBase + '/tasks', { params: { botId, limit: 100 } })),
+  retryTask: (taskId: number | string) => aiData<{ taskId?: number | string; queued: boolean; reason: string }>(aiApi.post(`${aiBase}/tasks/${encodeURIComponent(String(taskId))}/retry`)),
   memory: (botId: number) => aiData<CommunityMemory[]>(aiApi.get(aiBase + '/memory', { params: { botId } })),
   clearMemory: (botId: number) => aiData<void>(aiApi.delete(`${aiBase}/memory/${botId}`)),
 }

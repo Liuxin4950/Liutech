@@ -32,6 +32,8 @@ public interface CommentsMapper extends BaseMapper<Comments> {
 
     /** 公开评论详情：排除删除评论以及删除、未发布文章上的评论。 */
     Comments selectPublicCommentById(@Param("id") Long id);
+    /** 社区日志批量标签仍复用完整公开可见性条件，包含祖先评论状态。 */
+    List<Comments> selectPublicCommentsByIds(@Param("ids") List<Long> ids);
 
     /**
      * 分页查询文章评论（包含用户信息）

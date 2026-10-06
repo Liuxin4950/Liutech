@@ -47,11 +47,33 @@ public interface CommunityMapper {
     @Select("<script>SELECT * FROM ai_community_task <if test='botId != null'>WHERE bot_id=#{botId}</if> ORDER BY created_at DESC LIMIT #{limit}</script>")
     List<CommunityTask> tasks(@Param("botId") Long botId,@Param("limit") int limit);
 
+    @Select("SELECT * FROM ai_community_task WHERE id=#{id} FOR UPDATE")
+    @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
+    CommunityTask taskForRetry(String id);
+
+    /** 同一 taskId 继续执行；保留已生成结果、尝试次数与记忆版本，发布重交仍幂等。 */
+    @Update("UPDATE ai_community_task SET status='READY',failures=0,error=NULL,available_at=NOW(),lease_until=NULL " +
+            "WHERE id=#{id} AND status='FAILED'")
+    int retryFailed(String id);
+
     @Insert("INSERT INTO ai_community_run(id,task_id,bot_id,post_id,status,result_json,error) VALUES(#{id},#{taskId},#{botId},#{postId},#{status},#{json},#{error})")
     int run(@Param("id") String id,@Param("taskId") String taskId,@Param("botId") long botId,
             @Param("postId") long postId,@Param("status") String status,@Param("json") String json,@Param("error") String error);
 
-    @Select("<script>SELECT id,task_id,bot_id,post_id,status,result_json,error,created_at FROM ai_community_run <if test='botId != null'>WHERE bot_id=#{botId}</if> ORDER BY created_at DESC LIMIT #{limit}</script>")
+    @Update("UPDATE ai_community_run SET status=#{status},result_json=#{json},error=#{error} " +
+            "WHERE id=#{id} AND task_id=#{taskId} AND bot_id=#{botId}")
+    int updateRun(@Param("id") String id,@Param("taskId") String taskId,@Param("botId") long botId,
+                  @Param("status") String status,@Param("json") String json,@Param("error") String error);
+
+    /** 兼容升级前已缓存的决策；正式决策对应同一任务最后一轮有正文的生成记录。 */
+    @Select("SELECT id FROM ai_community_run WHERE task_id=#{taskId} " +
+            "AND JSON_UNQUOTE(JSON_EXTRACT(result_json,'$.decision')) IN ('COMMENT','REPLY') " +
+            "ORDER BY created_at DESC,id DESC LIMIT 1")
+    String latestGeneratedRun(String taskId);
+
+    @Select("<script>SELECT r.id,r.task_id,r.bot_id,r.post_id,t.comment_id,r.status,r.result_json,r.error,r.created_at " +
+            "FROM ai_community_run r LEFT JOIN ai_community_task t ON t.id=r.task_id " +
+            "<if test='botId != null'>WHERE r.bot_id=#{botId}</if> ORDER BY r.created_at DESC LIMIT #{limit}</script>")
     List<Map<String,Object>> runs(@Param("botId") Long botId,@Param("limit") int limit);
 
     @Insert("INSERT IGNORE INTO ai_community_role_state(bot_id,memory_epoch) VALUES(#{botId},0)")

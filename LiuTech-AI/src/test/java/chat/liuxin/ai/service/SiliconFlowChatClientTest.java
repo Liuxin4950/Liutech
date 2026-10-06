@@ -83,6 +83,53 @@ class SiliconFlowChatClientTest {
         assertEquals(70, tracker.outputTokens());
         assertEquals(200, tracker.inputTokens());
         assertEquals(2, tracker.turns());
+        assertTrue(tracker.tokenUsageAvailable());assertTrue(tracker.tokenUsageComplete());
+    }
+
+    @Test
+    void absentUsageRemainsUnknownAndDoesNotBecomeTheAggregatorsZeroSnapshot() {
+        var response=new ChatResponse(List.of(new Generation(new AssistantMessage("读后感"),ChatGenerationMetadata.builder().finishReason("stop").build())));
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response));
+        var tracker=new AiMetrics.UsageTracker();
+        stream(tracker).blockLast(Duration.ofSeconds(3));
+        assertEquals(1,tracker.turns());assertFalse(tracker.tokenUsageAvailable());assertFalse(tracker.tokenUsageComplete());
+        assertEquals(0,tracker.inputTokens());assertEquals(0,tracker.outputTokens());
+    }
+
+    @Test
+    void repeatedUsageSnapshotsCountOnceEvenWhenTheProviderStreamFails() {
+        ChatResponse usage=response("片段","stop",null,30);
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.concat(Flux.just(usage,usage),Flux.error(new IllegalStateException("connection lost"))));
+        var tracker=new AiMetrics.UsageTracker();
+        assertThrows(IllegalStateException.class,()->stream(tracker).blockLast(Duration.ofSeconds(3)));
+        assertEquals(100,tracker.inputTokens());assertEquals(30,tracker.outputTokens());assertEquals(1,tracker.turns());
+        assertTrue(tracker.tokenUsageAvailable());assertTrue(tracker.tokenUsageComplete());
+    }
+
+    @Test
+    void partialToolTurnUsageDoesNotClaimACompleteTotal() {
+        var second=new ChatResponse(List.of(new Generation(new AssistantMessage("最终正文"),ChatGenerationMetadata.builder().finishReason("stop").build())));
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("","tool_calls","read",30)),Flux.just(second));
+        var tracker=new AiMetrics.UsageTracker();
+        stream(tracker).blockLast(Duration.ofSeconds(3));
+        assertEquals(2,tracker.turns());assertTrue(tracker.tokenUsageAvailable());assertFalse(tracker.tokenUsageComplete());
+        assertEquals(100,tracker.inputTokens());assertEquals(30,tracker.outputTokens());
+    }
+
+    @Test
+    void communitySingleRoundOmitsToolSchemasButKeepsConfirmedCompletion() {
+        SiliconFlowChatClient community=new SiliconFlowChatClient(model,props,new RoleBasedToolRegistry(List.of(new CommunityReadTools())),
+                mock(AiModelPolicy.class),budget,ToolCallingManager.builder().build());
+        when(model.stream(any(Prompt.class))).thenAnswer(inv -> {
+            OpenAiChatOptions options=(OpenAiChatOptions)((Prompt)inv.getArgument(0)).getOptions();
+            assertTrue(options.getToolCallbacks().isEmpty());
+            return Flux.just(response("[COMMENT] 这篇文章的例子很直观。","stop",null,20));
+        });
+        community.chat(List.of(new UserMessage("自主判断")),"model",.3,1000,SiliconFlowChatClient.ChatMode.COMMUNITY,"BOT",Map.of(
+                SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY,limits,
+                chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
+                new chat.liuxin.ai.common.client.ModelExecutionPolicy(true,null,()->false,true,false)));
+        verify(model,times(1)).stream(any(Prompt.class));
     }
 
     @Test
