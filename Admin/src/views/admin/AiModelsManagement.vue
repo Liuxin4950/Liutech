@@ -337,9 +337,9 @@ const removeModel = (record: ModelConfig) => {
         <div class="title-row">
           <div class="title-left">
             <RobotOutlined />
-            <span>AI 模型</span>
+            <span>模型配置</span>
           </div>
-          <div class="title-sub">这里只维护博客前台真正会用到的模型和默认值。</div>
+          <div class="title-sub">统一管理文本模型的启用、默认选择与输入 / 输出预算，供聊天、写作和评论角色使用。语音模型在「语音服务」配置。</div>
         </div>
       </template>
       <template #extra>

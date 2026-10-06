@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /** 短事务只管理执行状态；网络和模型调用始终在事务之外。 */
@@ -38,7 +39,7 @@ public class CommunityStore {
     @Transactional
     public CommunityTask claim(int leaseSeconds) {
         CommunityTask task = mapper.next();
-        if (task != null) mapper.lease(task.getId(), leaseSeconds);
+        if (task != null && mapper.lease(task.getId(), leaseSeconds) == 0) return null;
         return task;
     }
 
@@ -46,10 +47,53 @@ public class CommunityStore {
     public CommunityTaskRetryResult retryFailed(String taskId) {
         CommunityTask task=mapper.taskForRetry(taskId);
         if(task==null) return new CommunityTaskRetryResult(false,"任务不存在");
-        if(!"FAILED".equals(task.getStatus())) return new CommunityTaskRetryResult(false,"只有失败任务可以重新排队，当前状态："+task.getStatus());
-        if(mapper.retryFailed(taskId)==0) return new CommunityTaskRetryResult(false,"任务状态已变化，请刷新列表");
-        log.info("管理员重新排队社区失败任务: taskId={}, attempts={}, hasDecision={}",taskId,task.getAttempts(),task.getDecisionJson()!=null);
-        return new CommunityTaskRetryResult(true,"已重新排队；已有生成结果将直接重交，新推理继续计入任务额度");
+        if(!"FAILED".equals(task.getStatus())) return new CommunityTaskRetryResult(false,"当前任务已非失败状态，请刷新；历史单次失败不需要重试");
+        describeRetry(task);
+        if(mapper.retryFailed(taskId,"regenerate".equals(task.getRetryKind()))==0)
+            return new CommunityTaskRetryResult(false,"任务状态已变化，请刷新列表");
+        log.info("管理员重新排队社区失败任务: taskId={}, attempts={}, retryKind={}",taskId,task.getAttempts(),task.getRetryKind());
+        return new CommunityTaskRetryResult(true,"已重新排队；"+task.getRetryReason(),task.getRetryKind());
+    }
+
+    /** 历史运行失败与当前任务失败分开；只根据已持久保存的事实解释恢复步骤。 */
+    public void describeRetry(CommunityTask task) {
+        JsonNode decision=savedDecision(task.getDecisionJson());
+        if(decision!=null && decision.path("publishedCommentId").asLong()>0)
+            task.setPublishedCommentId(decision.path("publishedCommentId").asLong());
+        if(!"FAILED".equals(task.getStatus())) return;
+        if(task.getPublishedCommentId()!=null) {
+            task.setRetryKind("postprocess");
+            task.setRetryReason("评论已发表，只恢复发布记录和公共记忆；不重新调用模型或重复发表评论");
+        } else if(decision!=null && "SKIP".equals(decision.path("decision").asText())) {
+            task.setRetryKind("complete");
+            task.setRetryReason("已决定保持沉默，只恢复任务结束状态；不调用模型或发表评论");
+        } else if(reusableDecision(decision)) {
+            task.setRetryKind("publish");
+            task.setRetryReason("继续提交已生成内容，无需重新调用模型；若讨论已变化，再读取当前上下文重新生成");
+        } else {
+            task.setRetryKind("regenerate");
+            task.setRetryReason("重新读取文章和讨论后生成；调用模型时计入新的模型任务额度。沿用原任务，避免重复发表");
+        }
+    }
+
+    JsonNode savedDecision(String json) {
+        if(json==null || json.isBlank()) return null;
+        try { return objectMapper.readTree(json); }
+        catch(RuntimeException invalid) { return null; }
+    }
+
+    /** 升级前损坏的缓存不能无限重交；目标仍由主后端基于当前公开事实核验。 */
+    static boolean reusableDecision(JsonNode decision) {
+        if(decision==null || !decision.isObject()) return false;
+        if(decision.path("publishedCommentId").asLong()>0) return true;
+        String action=decision.path("decision").asText();
+        if("SKIP".equals(action)) return true;
+        if(!Set.of("COMMENT","REPLY").contains(action) || decision.path("contextVersion").asText().isBlank()
+                || !decision.path("content").isTextual() || decision.path("content").asText().isBlank()
+                || decision.path("content").asText().length()>1000) return false;
+        JsonNode target=decision.path("targetCommentId");
+        return "COMMENT".equals(action) ? target.isMissingNode() || target.isNull()
+                : target.isIntegralNumber() && target.asLong()>0;
     }
 
     @Transactional

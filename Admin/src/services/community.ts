@@ -51,6 +51,9 @@ export interface CommunityRun {
   contentTruncated?: boolean
   targetCommentId?: number
   publishedCommentId?: number
+  publicationStatus?: string
+  publicationError?: string
+  publishedAt?: string
   model?: string
   inputTokens?: number
   outputTokens?: number
@@ -77,6 +80,7 @@ export interface CommunityCommentThread {
 export interface CommunityTask {
   id: number | string; eventId?: number | string; botId: number; postId: number; commentId?: number
   postTitle?: string; commentPreview?: string
+  retryKind?: 'regenerate' | 'publish' | 'postprocess' | 'complete'; retryReason?: string; publishedCommentId?: number
   status: string; attempts: number; failures?: number; error?: string; availableAt?: string; leaseUntil?: string; createdAt?: string
 }
 export interface CommunityMemory {
@@ -122,7 +126,7 @@ export const communityService = {
   preview: (data: { botId: number; postId: number; commentId?: number }, signal?: AbortSignal) => aiData<CommunityRun>(aiApi.post(aiBase + '/preview', data, { timeout: 180000, signal })),
   runs: (botId?: number) => aiData<CommunityRun[]>(aiApi.get(aiBase + '/runs', { params: { botId, limit: 100 } })),
   tasks: (botId?: number) => aiData<CommunityTask[]>(aiApi.get(aiBase + '/tasks', { params: { botId, limit: 100 } })),
-  retryTask: (taskId: number | string) => aiData<{ taskId?: number | string; queued: boolean; reason: string }>(aiApi.post(`${aiBase}/tasks/${encodeURIComponent(String(taskId))}/retry`)),
+  retryTask: (taskId: number | string) => aiData<{ taskId?: number | string; queued: boolean; reason: string; retryKind?: CommunityTask['retryKind'] }>(aiApi.post(`${aiBase}/tasks/${encodeURIComponent(String(taskId))}/retry`)),
   memory: (botId: number) => aiData<CommunityMemory[]>(aiApi.get(aiBase + '/memory', { params: { botId } })),
   clearMemory: (botId: number) => aiData<void>(aiApi.delete(`${aiBase}/memory/${botId}`)),
 }

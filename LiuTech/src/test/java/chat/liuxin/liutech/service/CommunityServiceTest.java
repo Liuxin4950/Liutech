@@ -97,6 +97,14 @@ class CommunityServiceTest {
         var result=service.publish(request("obsolete"));assertTrue(result.duplicate());assertEquals(99L,result.commentId());
         verify(mapper,never()).lockPost(any());verify(comments,never()).insertCommunityComment(any());
     }
+    @Test void publicationCommittedDuringLockWaitReturnsBeforeFreshQuotaAndContextChecks() {
+        when(mapper.publication(TASK)).thenReturn(null,new CommunityResp.Published(99L,new Date(),true));
+        var result=service.publish(request("obsolete"));
+        assertTrue(result.duplicate());assertEquals(99L,result.commentId());
+        verify(mapper,times(2)).publication(TASK);
+        verify(mapper,never()).publicationCount(any(),any(),any(),any());
+        verify(comments,never()).insertCommunityComment(any());
+    }
     @Test void sharedChainBudgetStopsParallelBranchAfterFourthComment() {
         when(mapper.chainCount(ROOT,2L)).thenReturn(4);
         var error=assertThrows(BusinessException.class,()->service.publish(request(service.context(1L,2L,null).contextVersion())));
@@ -140,6 +148,43 @@ class CommunityServiceTest {
         verify(comments).insertCommunityComment(saved.capture());
         assertEquals(88L,saved.getValue().getParentId());
         verify(mapper,never()).lockComment(77L);
+    }
+    @Test void commentContextKeepsOldTriggerAndDirectAiParentAlongsideRecentReplies() {
+        Comments parent=new Comments();parent.setId(10L);parent.setPostId(2L);parent.setBotId(1L);parent.setContent("AI 原话");
+        Comments trigger=new Comments();trigger.setId(11L);trigger.setPostId(2L);trigger.setParentId(10L);trigger.setContent("你在说什么");
+        List<Comments> thread=new ArrayList<>(List.of(parent,trigger));
+        for (long id=100;id<200;id++) {
+            Comments recent=new Comments();recent.setId(id);recent.setPostId(2L);recent.setParentId(10L);thread.add(recent);
+        }
+        when(comments.selectPublicCommentById(11L)).thenReturn(trigger);
+        when(mapper.threadComments(2L,11L)).thenReturn(thread);
+        var context=service.context(1L,2L,11L);
+        assertEquals(102,context.comments().size());
+        assertEquals("AI 原话",context.comments().getFirst().getContent());
+        assertEquals(10L,context.comments().get(1).getParentId());
+        assertEquals("文章正文",context.post().content());
+        verify(comments,never()).selectRecentForCommunity(2L);
+    }
+    @Test void threadWithoutTriggerOrItsDirectParentCannotGenerateFromUnrelatedRecentReplies() {
+        Comments trigger=new Comments();trigger.setId(11L);trigger.setPostId(2L);trigger.setParentId(10L);
+        Comments recent=new Comments();recent.setId(99L);recent.setPostId(2L);
+        when(comments.selectPublicCommentById(11L)).thenReturn(trigger);
+        when(mapper.threadComments(2L,11L)).thenReturn(List.of(recent),List.of(trigger,recent),List.of());
+        for (int i=0;i<3;i++) {
+            var error=assertThrows(BusinessException.class,()->service.context(1L,2L,11L));
+            assertEquals(ErrorCode.PARENT_COMMENT_NOT_FOUND.getCode(),error.getCode());
+        }
+        verify(mapper,never()).knowledge(any());
+    }
+    @Test void hiddenOrCrossPostTriggerIsRejectedBeforeReadingThreadOrRoleKnowledge() {
+        Comments otherPost=new Comments();otherPost.setId(11L);otherPost.setPostId(3L);
+        when(comments.selectPublicCommentById(11L)).thenReturn(null,otherPost);
+        for (int i=0;i<2;i++) {
+            var error=assertThrows(BusinessException.class,()->service.context(1L,2L,11L));
+            assertEquals(ErrorCode.PARENT_COMMENT_NOT_FOUND.getCode(),error.getCode());
+        }
+        verify(mapper,never()).threadComments(any(),any());
+        verify(mapper,never()).knowledge(any());
     }
     @Test void modelCannotReplyToItselfEvenWhenOwnCommentIsVisibleInContext() {
         Comments own=new Comments();own.setId(88L);own.setPostId(2L);own.setBotId(1L);own.setContent("我的旧评论");

@@ -220,12 +220,19 @@ public class CommunityService {
     public CommunityResp.Context context(Long botId, Long postId, Long commentId) {
         CommunityBot bot = requireBot(mapper.bot(botId)); Posts post = requirePublic(mapper.publicPost(postId));
         CommunitySettings settings = settings(); CommunityPostState state = mapper.postState(postId);
+        Comments trigger = null;
         if (commentId != null) {
-            Comments comment = commentsMapper.selectPublicCommentById(commentId);
-            if (comment == null || !postId.equals(comment.getPostId()))
+            trigger = commentsMapper.selectPublicCommentById(commentId);
+            if (trigger == null || !postId.equals(trigger.getPostId()))
                 throw new BusinessException(ErrorCode.PARENT_COMMENT_NOT_FOUND);
         }
         List<Comments> comments = commentId == null ? commentsMapper.selectRecentForCommunity(postId) : mapper.threadComments(postId,commentId);
+        if (trigger != null) {
+            Long parentId = trigger.getParentId();
+            if (comments.stream().noneMatch(c -> commentId.equals(c.getId()))
+                || parentId != null && comments.stream().noneMatch(c -> parentId.equals(c.getId())))
+                throw new BusinessException(ErrorCode.PARENT_COMMENT_NOT_FOUND,"评论讨论已不可见，请重新选择评论");
+        }
         List<CommunityKnowledge> knowledge = mapper.knowledge(botId);
         return new CommunityResp.Context(bot,settings,
             new CommunityResp.PostInfo(postId,post.getTitle(),post.getContent(),post.getSummary(),post.getUpdatedAt()),

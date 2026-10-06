@@ -28,7 +28,8 @@ public interface CommunityMapper {
     CommunityTask next();
 
     @Update("UPDATE ai_community_task SET status=IF(decision_json IS NULL,'RUNNING','DECIDED'), " +
-            "lease_until=TIMESTAMPADD(SECOND,#{seconds},NOW()) WHERE id=#{id}")
+            "lease_until=TIMESTAMPADD(SECOND,#{seconds},NOW()) WHERE id=#{id} " +
+            "AND status IN ('READY','RUNNING','DECIDED') AND (lease_until IS NULL OR lease_until < NOW())")
     int lease(@Param("id") String id, @Param("seconds") int seconds);
 
     @Update("UPDATE ai_community_task SET attempts=attempts+1,memory_epoch=COALESCE(memory_epoch,#{epoch}) WHERE id=#{id}")
@@ -40,7 +41,13 @@ public interface CommunityMapper {
     @Update("UPDATE ai_community_task SET status=#{status},error=#{error},lease_until=NULL WHERE id=#{id}")
     int finish(@Param("id") String id,@Param("status") String status,@Param("error") String error);
 
+    /** 最后一次失败也计数；过期决策即使耗尽自动重试也必须失效。 */
+    @Update("UPDATE ai_community_task SET status=#{status},failures=failures+1,error=#{error},lease_until=NULL, " +
+            "decision_json=IF(#{stale},NULL,decision_json),context_version=IF(#{stale},NULL,context_version) WHERE id=#{id}")
+    int fail(@Param("id") String id,@Param("status") String status,@Param("error") String error,@Param("stale") boolean stale);
+
     @Update("UPDATE ai_community_task SET status='READY',decision_json=IF(#{stale},NULL,decision_json), " +
+            "context_version=IF(#{stale},NULL,context_version), " +
             "failures=failures+1,error=#{error},lease_until=NULL,available_at=TIMESTAMPADD(SECOND,#{delay},NOW()) WHERE id=#{id}")
     int retry(@Param("id") String id,@Param("error") String error,@Param("stale") boolean stale,@Param("delay") int delay);
 
@@ -52,9 +59,10 @@ public interface CommunityMapper {
     CommunityTask taskForRetry(String id);
 
     /** 同一 taskId 继续执行；保留已生成结果、尝试次数与记忆版本，发布重交仍幂等。 */
-    @Update("UPDATE ai_community_task SET status='READY',failures=0,error=NULL,available_at=NOW(),lease_until=NULL " +
+    @Update("UPDATE ai_community_task SET status='READY',failures=0,error=NULL,available_at=NOW(),lease_until=NULL, " +
+            "decision_json=IF(#{regenerate},NULL,decision_json),context_version=IF(#{regenerate},NULL,context_version) " +
             "WHERE id=#{id} AND status='FAILED'")
-    int retryFailed(String id);
+    int retryFailed(@Param("id") String id,@Param("regenerate") boolean regenerate);
 
     @Insert("INSERT INTO ai_community_run(id,task_id,bot_id,post_id,status,result_json,error) VALUES(#{id},#{taskId},#{botId},#{postId},#{status},#{json},#{error})")
     int run(@Param("id") String id,@Param("taskId") String taskId,@Param("botId") long botId,

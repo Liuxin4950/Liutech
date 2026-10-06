@@ -70,6 +70,15 @@ public class CommunityWorker {
         JsonNode decision=null;
         boolean publicationConfirmed=false;
         try {
+            if(task.getDecisionJson()!=null) {
+                try { decision=objectMapper.readTree(task.getDecisionJson()); }
+                catch(RuntimeException invalid) { decision=null; }
+                if(!CommunityStore.reusableDecision(decision)) {
+                    // 旧版损坏缓存需读取当前事实，继续使用原 taskId 与递增的模型 attempt。
+                    task.setDecisionJson(null);
+                    decision=null;
+                }
+            }
             if(task.getDecisionJson()==null) {
                 long epoch=task.getMemoryEpoch()==null?store.epoch(task.getBotId()):task.getMemoryEpoch();
                 int attempt=task.getAttempts()+1;
@@ -78,22 +87,35 @@ public class CommunityWorker {
                 Map<String,Object> result=community.generate(task.getId(),task.getBotId(),task.getPostId(),task.getCommentId(),attempt,false,epoch);
                 decision=objectMapper.valueToTree(result);
                 mapper.decide(task.getId(),objectMapper.writeValueAsString(result),decision.path("contextVersion").asText());
-            } else decision=objectMapper.readTree(task.getDecisionJson());
+            }
             if("SKIP".equals(decision.path("decision").asText())) {
                 mapper.finish(task.getId(),"SKIPPED",null);
                 return;
             }
-            Map<String,Object> publish=new LinkedHashMap<>();
-            publish.put("taskId",task.getId());publish.put("botId",task.getBotId());publish.put("postId",task.getPostId());
-            publish.put("contextCommentId",task.getCommentId());
-            publish.put("parentId",decision.path("targetCommentId").isNumber()?decision.path("targetCommentId").asLong():null);
-            publish.put("rootEventId",task.getRootEventId());publish.put("contextVersion",decision.path("contextVersion").asText());
-            publish.put("content",decision.path("content").asText());
-            JsonNode published=transport.internalPost("/internal/community/comments",publish);
-            long commentId=published.path("commentId").asLong();
-            if(commentId<=0) throw new AIServiceException.ConnectionException("主服务没有确认评论发布结果");
-            publicationConfirmed=true;
-            recordPublication(task,decision,"SUCCEEDED",published,null);
+            long commentId=decision.path("publishedCommentId").asLong();
+            publicationConfirmed=commentId>0;
+            if(!publicationConfirmed) {
+                Map<String,Object> publish=new LinkedHashMap<>();
+                publish.put("taskId",task.getId());publish.put("botId",task.getBotId());publish.put("postId",task.getPostId());
+                publish.put("contextCommentId",task.getCommentId());
+                publish.put("parentId",decision.path("targetCommentId").isNumber()?decision.path("targetCommentId").asLong():null);
+                publish.put("rootEventId",task.getRootEventId());publish.put("contextVersion",decision.path("contextVersion").asText());
+                publish.put("content",decision.path("content").asText());
+                JsonNode published=transport.internalPost("/internal/community/comments",publish);
+                commentId=published.path("commentId").asLong();
+                if(commentId<=0) throw new AIServiceException.ConnectionException("主服务没有确认评论发布结果");
+                publicationConfirmed=true;
+                Map<String,Object> confirmed=objectMapper.convertValue(decision,Map.class);
+                confirmed.put("publishedCommentId",commentId);confirmed.put("publicationStatus","SUCCEEDED");
+                if(!published.path("createdAt").isMissingNode()) confirmed.put("publishedAt",published.path("createdAt").asText());
+                confirmed.remove("publicationError");confirmed.remove("error");
+                decision=objectMapper.valueToTree(confirmed);
+                // 先持久回执；后续审计/记忆失败只恢复后处理，避免再次请求发布。
+                String saved=objectMapper.writeValueAsString(confirmed);
+                mapper.decide(task.getId(),saved,decision.path("contextVersion").asText());
+                task.setDecisionJson(saved);
+            }
+            recordPublication(task,decision,"SUCCEEDED",null,null);
             // 落库应答丢失时下次只重交同一 taskId；不能重跑模型。
             List<Long> sourceIds=new ArrayList<>();decision.path("sourceCommentIds").forEach(id -> sourceIds.add(id.asLong()));
             sourceIds.add(commentId);
@@ -121,9 +143,9 @@ public class CommunityWorker {
                 try { recordPublication(task,decision,"FAILED",null,reason); }
                 catch(RuntimeException auditError) { log.warn("社区发布结果记录失败: taskId={}",task.getId()); }
             }
-            boolean terminal=Set.of(1700,1702,1703,1704,1101,1202,1203,404,403).contains(code);
-            if(terminal || task.getFailures()>=2) mapper.finish(task.getId(),terminal?"SKIPPED":"FAILED",reason);
-            else mapper.retry(task.getId(),reason,code==1701,30*(task.getFailures()+1));
+            boolean terminal=!publicationConfirmed && Set.of(1700,1702,1703,1704,1101,1202,1203,404,403).contains(code);
+            if(terminal || task.getFailures()>=2) mapper.fail(task.getId(),terminal?"SKIPPED":"FAILED",reason,code==1701 && !publicationConfirmed);
+            else mapper.retry(task.getId(),reason,code==1701 && !publicationConfirmed,30*(task.getFailures()+1));
             log.warn("社区任务执行失败: taskId={}, code={}, retry={}",task.getId(),code,!terminal && task.getFailures()<2);
         }
     }
@@ -136,6 +158,8 @@ public class CommunityWorker {
         if(published!=null) {
             result.put("publishedCommentId",published.path("commentId").asLong());
             if(!published.path("createdAt").isMissingNode()) result.put("publishedAt",published.path("createdAt").asText());
+            result.remove("publicationError");result.remove("error");
+        } else if("SUCCEEDED".equals(status)) {
             result.remove("publicationError");result.remove("error");
         } else { result.put("publicationError",error);result.put("error",error); }
         mapper.updateRun(runId,task.getId(),task.getBotId(),status,objectMapper.writeValueAsString(result),error);

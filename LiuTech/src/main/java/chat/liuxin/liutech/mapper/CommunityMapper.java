@@ -121,21 +121,31 @@ public interface CommunityMapper {
 
     @Select("SELECT * FROM comments WHERE id=#{id} AND deleted_at IS NULL FOR UPDATE")
     Comments lockComment(Long id);
+    /** 最近讨论与触发祖先合并，避免长线程或排队旧任务丢失回复对象。根不可达时不返回零散评论。 */
     @Select("""
         WITH RECURSIVE ancestors AS (
-          SELECT id,parent_id FROM comments WHERE id=#{commentId} AND post_id=#{postId} AND deleted_at IS NULL
-          UNION ALL SELECT c.id,c.parent_id FROM comments c JOIN ancestors a ON a.parent_id=c.id WHERE c.deleted_at IS NULL
+          SELECT id,parent_id,0 AS depth FROM comments WHERE id=#{commentId} AND post_id=#{postId} AND deleted_at IS NULL
+          UNION ALL SELECT c.id,c.parent_id,a.depth+1 FROM comments c JOIN ancestors a ON a.parent_id=c.id
+          WHERE c.post_id=#{postId} AND c.deleted_at IS NULL AND a.depth<999
         ), thread AS (
           SELECT c.* FROM comments c JOIN ancestors a ON c.id=a.id WHERE a.parent_id IS NULL
-          UNION ALL SELECT c.* FROM comments c JOIN thread t ON c.parent_id=t.id WHERE c.deleted_at IS NULL
+          UNION ALL SELECT c.* FROM comments c JOIN thread t ON c.parent_id=t.id
+          WHERE c.post_id=#{postId} AND c.deleted_at IS NULL
+        ), recent AS (
+          SELECT id FROM thread ORDER BY created_at DESC,id DESC LIMIT 100
+        ), selected AS (
+          SELECT id FROM recent UNION SELECT id FROM ancestors WHERE depth<=10
         ) SELECT t.*,u.username,u.avatar_url,b.name AS bot_name,b.avatar_url AS bot_avatar_url
-        FROM thread t LEFT JOIN users u ON u.id=t.user_id LEFT JOIN community_bots b ON b.id=t.bot_id
-        ORDER BY t.created_at,t.id LIMIT 100
+        FROM thread t JOIN selected s ON s.id=t.id
+        JOIN posts p ON p.id=t.post_id AND p.deleted_at IS NULL AND p.status='published'
+        LEFT JOIN users u ON u.id=t.user_id LEFT JOIN community_bots b ON b.id=t.bot_id
+        ORDER BY t.created_at,t.id
         """)
     @ResultMap("chat.liuxin.liutech.mapper.CommentsMapper.CommentWithUserMap")
     List<Comments> threadComments(@Param("postId") Long postId, @Param("commentId") Long commentId);
 
     @Select("SELECT comment_id AS commentId,created_at AS createdAt,TRUE AS duplicate FROM community_publications WHERE task_id=#{taskId}")
+    @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
     CommunityResp.Published publication(String taskId);
     @Insert("INSERT INTO community_publications(task_id,bot_id,post_id,comment_id,created_at) VALUES(#{taskId},#{botId},#{postId},#{commentId},#{now})")
     int recordPublication(@Param("taskId") String taskId, @Param("botId") Long botId, @Param("postId") Long postId,

@@ -62,7 +62,7 @@ class CommunityWorkerTest {
         worker.execute(task);
         verify(mapper).retry(task.getId(),"文章发生变化",true,30);
         task.setFailures(2);worker.execute(task);
-        verify(mapper).finish(task.getId(),"FAILED","文章发生变化");
+        verify(mapper).fail(task.getId(),"FAILED","文章发生变化",true);
         verifyNoInteractions(service);
     }
     @Test void memoryFailureAfterConfirmedPublicationDoesNotHideTheActualPublishedComment() {
@@ -73,13 +73,58 @@ class CommunityWorkerTest {
         verify(mapper).updateRun(eq("model-run"),eq(task.getId()),eq(1L),eq("SUCCEEDED"),argThat(saved -> json.readTree(saved).path("publishedCommentId").asLong()==4),isNull());
         verify(mapper,never()).updateRun(anyString(),anyString(),anyLong(),eq("FAILED"),anyString(),anyString());
         verify(mapper).retry(eq(task.getId()),anyString(),eq(false),eq(30));
+        assertEquals(4,json.readTree(task.getDecisionJson()).path("publishedCommentId").asLong());
+        when(transport.internalPost(eq("/internal/community/visibility"),any())).thenReturn(json.readTree("{\"visiblePostIds\":[2],\"visibleCommentIds\":[4]}"));
+        worker.execute(task);
+        verify(transport,times(1)).internalPost(eq("/internal/community/comments"),any());
+        verifyNoInteractions(service);
+        verify(mapper).finish(task.getId(),"SUCCEEDED",null);
+    }
+    @Test void confirmationSurvivesRunAuditFailureAndResumesWithoutRepublishing() {
+        var task=decided();
+        when(transport.internalPost(eq("/internal/community/comments"),any())).thenReturn(json.readTree("{\"commentId\":4}"));
+        when(mapper.updateRun(eq("model-run"),eq(task.getId()),eq(1L),eq("SUCCEEDED"),anyString(),isNull()))
+                .thenThrow(new RuntimeException("audit unavailable")).thenReturn(1);
+        when(transport.internalPost(eq("/internal/community/visibility"),any())).thenReturn(json.readTree("{\"visiblePostIds\":[2],\"visibleCommentIds\":[4]}"));
+        worker.execute(task);worker.execute(task);
+        verify(transport,times(1)).internalPost(eq("/internal/community/comments"),any());
+        verify(mapper,never()).updateRun(anyString(),anyString(),anyLong(),eq("FAILED"),anyString(),anyString());
+        verify(mapper).finish(task.getId(),"SUCCEEDED",null);
+    }
+    @Test void receiptPersistenceFailureRecoversTheOriginalPublicationWithoutFreshInference() {
+        var task=decided();
+        when(transport.internalPost(eq("/internal/community/comments"),any()))
+                .thenReturn(json.readTree("{\"commentId\":4}"),json.readTree("{\"commentId\":4,\"duplicate\":true}"));
+        when(mapper.decide(eq(task.getId()),anyString(),eq("v1")))
+                .thenThrow(new RuntimeException("receipt persistence unavailable")).thenReturn(1);
+        when(transport.internalPost(eq("/internal/community/visibility"),any()))
+                .thenReturn(json.readTree("{\"visiblePostIds\":[2],\"visibleCommentIds\":[4]}"));
+        worker.execute(task);
+        assertFalse(json.readTree(task.getDecisionJson()).has("publishedCommentId"));
+        worker.execute(task);
+        verify(transport,times(2)).internalPost(eq("/internal/community/comments"),
+                argThat(body -> task.getId().equals(((Map<?,?>)body).get("taskId"))));
+        verifyNoInteractions(service);
+        verify(mapper,never()).attempt(anyString(),anyLong());
+        verify(mapper,never()).updateRun(anyString(),anyString(),anyLong(),eq("FAILED"),anyString(),anyString());
+        verify(mapper).retry(eq(task.getId()),anyString(),eq(false),eq(30));
+        verify(mapper).finish(task.getId(),"SUCCEEDED",null);
+    }
+    @Test void malformedCachedDecisionIsRegeneratedWithSameTaskAndNextAttempt() {
+        var task=decided();task.setDecisionJson("{\"decision\":\"REPLY\",\"targetCommentId\":\"invalid\",\"content\":\"旧内容\",\"contextVersion\":\"v1\"}");
+        when(service.generate(task.getId(),1,2,null,2,false,0)).thenReturn(Map.of("decision","SKIP","contextVersion","v2"));
+        worker.execute(task);
+        verify(service).generate(task.getId(),1,2,null,2,false,0);
+        verify(mapper).attempt(task.getId(),0);
+        verify(mapper).finish(task.getId(),"SKIPPED",null);
+        verifyNoInteractions(transport);
     }
     @Test void withdrawnPostTerminatesWithoutRegenerationOrRetry() {
         var task=decided();task.setDecisionJson(null);
         when(store.epoch(1)).thenReturn(0L);
         when(service.generate(task.getId(),1,2,null,2,false,0)).thenThrow(new BackendApiTransport.InternalBusinessException(1101,"文章不存在"));
         worker.execute(task);
-        verify(mapper).finish(task.getId(),"SKIPPED","文章不存在");
+        verify(mapper).fail(task.getId(),"SKIPPED","文章不存在",false);
         verify(mapper,never()).retry(anyString(),anyString(),anyBoolean(),anyInt());
         verifyNoInteractions(transport);
     }

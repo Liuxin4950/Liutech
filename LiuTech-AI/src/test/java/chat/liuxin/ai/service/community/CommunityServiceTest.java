@@ -71,7 +71,7 @@ class CommunityServiceTest {
             List<org.springframework.ai.chat.messages.Message> messages=inv.getArgument(0);
             String prompt=messages.stream().map(org.springframework.ai.chat.messages.Message::getText).reduce("",String::concat);
             assertTrue(prompt.contains("缓存失效可以延迟重建"));assertTrue(prompt.contains("评论ID=4"));
-            assertTrue(prompt.contains("自己的历史评论（不可回复）"));assertFalse(prompt.contains("searchRoleKnowledge"));
+            assertFalse(prompt.contains("自己的旧评论"));assertFalse(prompt.contains("searchRoleKnowledge"));
             return "[REPLY:4]\n这个方法还可以补充一个缓存过期的例子。";
         });
         var result=service.preview(new CommunityPreviewRequest(1L,2L,3L));
@@ -80,6 +80,65 @@ class CommunityServiceTest {
         assertEquals("另一位读者",result.get("targetAuthorName"));
         verify(store,never()).remember(anyString(),anyLong(),anyLong(),anyLong(),anyLong(),anyString(),anyList(),anyList());
         verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
+    }
+    @Test void replyKeepsOwnDirectParentDespiteBusyThreadAndSeparatesArticleFromCommentSpeakers() {
+        configuredSnapshot();
+        var snapshot=json.readTree("""
+            {"bot":{"id":1,"name":"测试","enabled":true},"post":{"id":2,"title":"讨论帖子","content":"这是文章正文。"},
+            "knowledge":[],"settings":{"enabled":true},"postEnabled":true,"contextVersion":"v3",
+            "comments":[{"id":1,"userId":7,"content":"有人吗？"},
+                        {"id":2,"parentId":1,"botId":1,"content":"我之前误把文章里的批评当作你的话了。"},
+                        {"id":500,"parentId":2,"userId":7,"content":"你在说什么"}]}
+            """
+        );
+        for(int i=0;i<10;i++) snapshot.withArray("comments").add(json.readTree("{\"id\":"+(600+i)+",\"userId\":8,\"content\":\"无关的较新讨论\"}"));
+        when(transport.internalGet(anyString())).thenReturn(snapshot);
+        when(client.chat(anyList(),anyString(),anyDouble(),anyInt(),any(),anyString(),anyMap())).thenAnswer(inv -> {
+            List<org.springframework.ai.chat.messages.Message> messages=inv.getArgument(0);
+            String prompt=messages.stream().map(org.springframework.ai.chat.messages.Message::getText).reduce("",String::concat);
+            assertTrue(prompt.contains("我之前误把文章里的批评当作你的话了。"));
+            assertTrue(prompt.contains("当前触发的直接前文；自己的历史评论（不可回复）"));
+            assertTrue(prompt.contains("作者正文，不是评论者的话"));
+            assertTrue(prompt.contains("评论ID=500"));assertTrue(prompt.contains("回复对象=评论ID 2"));
+            assertTrue(new PromptBudget(new AiChatProperties()).estimateTokens(messages)<=8488);
+            return "[REPLY:500] 刚才我说偏了，我误把文章里的话当成了你的话。你只是来打招呼的。";
+        });
+        var result=service.preview(new CommunityPreviewRequest(1L,2L,500L));
+        assertEquals(500L,result.get("targetCommentId"));
+        var trace=json.valueToTree(result.get("readTrace"));
+        assertTrue(trace.toString().contains("\"id\":2"));
+    }
+    @Test void missingDirectParentStopsBeforeModelOrAttemptCharge() {
+        configuredSnapshot();
+        when(transport.internalGet(anyString())).thenReturn(json.readTree("""
+            {"bot":{"id":1,"enabled":true},"post":{"id":2,"title":"文章","content":"正文"},
+            "comments":[{"id":3,"parentId":99,"userId":7,"content":"你在说什么"}],"knowledge":[],
+            "settings":{"enabled":true},"postEnabled":true,"contextVersion":"v4"}
+            """));
+        assertThrows(AIServiceException.RequestException.class,()->service.preview(new CommunityPreviewRequest(1L,2L,3L)));
+        verifyNoInteractions(client);
+        verify(transport,never()).internalPost(eq("/internal/community/attempts"),any());
+    }
+    @Test void constrainedBudgetStillIncludesArticleAndOwnParentInsteadOfOnlyPersonaAndMemory() {
+        configuredSnapshot();
+        when(policy.resolveParameters(null,null,"configured-model")).thenReturn(new AiModelPolicy.ModelParameters(.3,1000,8500,6988,false,false,"test"));
+        when(transport.internalGet(anyString())).thenReturn(json.readTree("""
+            {"bot":{"id":1,"enabled":true},"post":{"id":2,"title":"缓存实践","content":"%s"},
+            "comments":[{"id":2,"botId":1,"content":"我说的是文章中的缓存失效重建。"},
+                        {"id":3,"parentId":2,"userId":7,"content":"什么意思"}],"knowledge":[],
+            "settings":{"enabled":true},"postEnabled":true,"contextVersion":"v5"}
+            """.formatted("缓存失效重建的真实正文".repeat(1000))));
+        when(client.chat(anyList(),anyString(),anyDouble(),anyInt(),any(),anyString(),anyMap())).thenAnswer(inv -> {
+            List<org.springframework.ai.chat.messages.Message> messages=inv.getArgument(0);
+            String prompt=messages.stream().map(org.springframework.ai.chat.messages.Message::getText).reduce("",String::concat);
+            assertTrue(prompt.contains("缓存失效重建的真实正文"));assertTrue(prompt.contains("我说的是文章中的缓存失效重建。"));
+            assertTrue(new PromptBudget(new AiChatProperties()).estimateTokens(messages)<=6988);
+            return "[SKIP] 已有充分解释";
+        });
+        var result=service.preview(new CommunityPreviewRequest(1L,2L,3L));
+        boolean articleTruncated=false;
+        for(var trace:json.valueToTree(result.get("readTrace"))) if("article".equals(trace.path("source").asText())) articleTruncated=trace.path("truncated").asBoolean();
+        assertTrue(articleTruncated);
     }
     @Test void failedDecisionStillStoresContextAndActualUsageAndPreviewDoesNotDeleteMemory() {
         configuredSnapshot();
@@ -116,6 +175,7 @@ class CommunityServiceTest {
         var first=new CommunityTask();first.setPostId(2L);first.setCommentId(3L);
         var second=new CommunityTask();second.setPostId(2L);second.setCommentId(4L);second.setDecisionJson("{\"postTitle\":\"当轮标题\",\"commentPreview\":\"当轮评论\"}");
         when(mapper.tasks(null,50)).thenReturn(List.of(first,second));
+        when(store.savedDecision(second.getDecisionJson())).thenReturn(json.readTree(second.getDecisionJson()));
         when(transport.internalPost(eq("/internal/community/metadata"),any())).thenReturn(json.readTree("{\"posts\":[{\"id\":2,\"title\":\"当前标题\"}],\"comments\":[{\"id\":3,\"content\":\"当前评论\"}]}"));
         var result=service.tasks(null,50);
         assertEquals("当前标题",result.get(0).getPostTitle());assertEquals("当轮标题",result.get(1).getPostTitle());

@@ -132,7 +132,7 @@ const routes: RouteRecordRaw[] = [
         name: 'AiModelsManagement',
         component: () => import('../views/admin/AiModelsManagement.vue'),
         meta: {
-          title: 'AI模型管理',
+          title: '模型配置',
           section: 'ai-models'
         }
       },
@@ -140,14 +140,14 @@ const routes: RouteRecordRaw[] = [
         path: 'community-ai',
         name: 'CommunityAiManagement',
         component: () => import('../views/admin/CommunityAiManagement.vue'),
-        meta: { title: '社区 AI 角色', section: 'community-ai' }
+        meta: { title: '评论角色', section: 'community-ai' }
       },
       {
         path: 'ai-settings',
         name: 'AiSettings',
         component: () => import('../views/admin/AiSettings.vue'),
         meta: {
-          title: 'AI设置',
+          title: '语音服务',
           section: 'ai-settings'
         }
       },

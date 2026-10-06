@@ -13,6 +13,7 @@ import {
   SettingOutlined,
   PictureOutlined,
   RobotOutlined,
+  SoundOutlined,
   MessageOutlined,
   CommentOutlined,
   DollarOutlined,
@@ -73,7 +74,7 @@ const menuItems = computed(() => [
     key: 'ai-center', icon: ThunderboltOutlined, label: t('menu.aiCenter'),
     children: [
       { key: 'ai-models', icon: RobotOutlined, label: t('menu.aiModels'), path: '/ai-models' },
-      { key: 'ai-settings', icon: SettingOutlined, label: t('menu.aiSettings'), path: '/ai-settings' },
+      { key: 'ai-settings', icon: SoundOutlined, label: t('menu.aiSettings'), path: '/ai-settings' },
       { key: 'community-ai', icon: CommentOutlined, label: t('menu.communityAi'), path: '/community-ai' },
     ],
   },

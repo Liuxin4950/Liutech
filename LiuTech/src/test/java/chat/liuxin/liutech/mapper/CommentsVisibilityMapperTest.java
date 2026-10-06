@@ -88,6 +88,23 @@ class CommentsVisibilityMapperTest {
     }
 
     @Test
+    void communityThreadRetainsLatestRepliesAndPinnedTriggerAncestorsBeforeFinalChronologicalOrder() {
+        configuration.addMapper(CommunityMapper.class);
+        String sql=configuration.getMappedStatement(CommunityMapper.class.getName()+".threadComments")
+            .getBoundSql(Map.of("postId",2L,"commentId",77L)).getSql().replaceAll("\\s+"," ").trim();
+        assertTrue(sql.contains("SELECT id FROM thread ORDER BY created_at DESC,id DESC LIMIT 100"),sql);
+        assertTrue(sql.contains("SELECT id FROM recent UNION SELECT id FROM ancestors WHERE depth<=10"),sql);
+        assertTrue(sql.contains("FROM thread t JOIN selected s ON s.id=t.id"),sql);
+        assertTrue(sql.endsWith("ORDER BY t.created_at,t.id"),sql);
+        assertFalse(sql.endsWith("LIMIT 100"),sql);
+        // 两个递归方向均限制同文章未删除节点；只有可达公开根的 thread 才能返回评论。
+        assertTrue(sql.contains("WHERE c.post_id=? AND c.deleted_at IS NULL AND a.depth<999"),sql);
+        assertTrue(sql.contains("WHERE c.post_id=? AND c.deleted_at IS NULL ), recent AS"),sql);
+        assertTrue(sql.contains("JOIN ancestors a ON c.id=a.id WHERE a.parent_id IS NULL"),sql);
+        assertTrue(sql.contains("JOIN posts p ON p.id=t.post_id AND p.deleted_at IS NULL AND p.status='published'"),sql);
+    }
+
+    @Test
     void adminQueriesCanStillReadCommentsOnHiddenPostsAndDeletedComments() {
         String detail = sql("selectCommentsForAdminById", Map.of("id", 1L));
         String list = sql("selectCommentsForAdmin", Map.of("includeDeleted", true, "offset", 0, "limit", 20));

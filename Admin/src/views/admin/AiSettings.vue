@@ -20,6 +20,8 @@ import {
 
 const loading = ref(false)
 const saving = ref(false)
+const ttsConfigurationLoaded = ref(false)
+const modelsLoaded = ref(false)
 const runtime = ref<AiRuntimeDTO | null>(null)
 const ttsStatus = ref<TtsStatusDTO | null>(null)
 const modelOptions = ref<ModelConfig[]>([])
@@ -30,7 +32,7 @@ const uploadingVoice = ref(false)
 const testingSpeech = ref(false)
 const selectedVoiceFile = ref<File | null>(null)
 
-const form = ref<TtsConfigDTO & { defaultModelId: number | null }>({
+const form = ref<TtsConfigDTO>({
   enabled: true,
   baseUrl: '',
   voiceModel: '',
@@ -39,8 +41,7 @@ const form = ref<TtsConfigDTO & { defaultModelId: number | null }>({
   siliconFlowVoiceUri: '',
   responseFormat: 'mp3',
   sampleRate: 44100,
-  speed: 1,
-  defaultModelId: null
+  speed: 1
 })
 
 const voiceUpload = ref({
@@ -55,8 +56,16 @@ const siliconFlowModelOptions = [
 ]
 
 const selectedDefaultModel = computed(() =>
-  modelOptions.value.find(item => item.id === form.value.defaultModelId) || null
+  modelOptions.value.find(item => item.isDefault) || null
 )
+const currentModelText = computed(() => runtime.value?.defaultModel || selectedDefaultModel.value?.displayName || '尚未读取')
+const voiceStatusText = computed(() => {
+  if (!ttsStatus.value) return '尚未检测'
+  if (!ttsStatus.value.enabled) return '已关闭'
+  if (ttsStatus.value.online) return '在线'
+  if (ttsStatus.value.configured && ttsStatus.value.onlineVerified === false) return '待确认'
+  return '离线'
+})
 
 const enabledModelCount = computed(() =>
   modelOptions.value.filter(item => item.isEnabled).length
@@ -71,7 +80,8 @@ const currentStatusText = computed(() => {
 
 const currentVoiceText = computed(() => {
   if (form.value.provider === 'SILICONFLOW') {
-    return form.value.siliconFlowVoiceUri || '未设置'
+    const voice = siliconFlowVoices.value.find(item => item.uri === form.value.siliconFlowVoiceUri)
+    return voice?.customName || (form.value.siliconFlowVoiceUri ? '自定义云端音色' : '未设置')
   }
   return form.value.voiceModel || '未设置'
 })
@@ -152,6 +162,7 @@ const refresh = async () => {
 
     if (modelsResult.status === 'fulfilled') {
       modelOptions.value = modelsResult.value
+      modelsLoaded.value = true
     } else {
       console.warn('加载模型列表失败(AI 服务可能未启动)', modelsResult.reason)
       // 后端业务错误已由响应拦截器提示；这里只兜底非业务错误（网络不通 / AI 服务未启动）
@@ -162,9 +173,6 @@ const refresh = async () => {
 
     if (ttsConfigResult.status === 'fulfilled') {
       const ttsConfig = ttsConfigResult.value
-      const currentDefaultModel = modelsResult.status === 'fulfilled'
-        ? modelsResult.value.find(item => item.isDefault) || null
-        : null
       form.value = {
         enabled: ttsConfig.enabled,
         baseUrl: ttsConfig.baseUrl || '',
@@ -174,9 +182,9 @@ const refresh = async () => {
         siliconFlowVoiceUri: ttsConfig.siliconFlowVoiceUri || '',
         responseFormat: ttsConfig.responseFormat || 'mp3',
         sampleRate: ttsConfig.sampleRate || 44100,
-        speed: ttsConfig.speed || 1,
-        defaultModelId: currentDefaultModel?.id || null
+        speed: ttsConfig.speed || 1
       }
+      ttsConfigurationLoaded.value = true
     } else {
       console.error('加载 TTS 配置失败', ttsConfigResult.reason)
       // 同上：业务错误已由拦截器提示，避免重复弹窗
@@ -187,14 +195,14 @@ const refresh = async () => {
 
     await Promise.all([refreshVoices(), refreshSiliconFlowVoices()])
   } catch (error: any) {
-    if (!error?.isBusiness) message.error('加载 AI 设置失败')
+    if (!error?.isBusiness) message.error('加载语音服务配置失败')
   } finally {
     loading.value = false
   }
 }
 
 const save = async () => {
-  if (saving.value) return
+  if (saving.value || loading.value || !ttsConfigurationLoaded.value) return
   saving.value = true
   try {
     await updateTtsConfig({
@@ -209,12 +217,7 @@ const save = async () => {
       speed: form.value.speed || 1
     })
 
-    const currentDefault = modelOptions.value.find(item => item.isDefault)
-    if (form.value.defaultModelId && currentDefault?.id !== form.value.defaultModelId) {
-      await aiModelsService.setDefaultModel(form.value.defaultModelId)
-    }
-
-    message.success('AI 设置已保存')
+    message.success('语音配置已保存')
     await refresh()
   } catch (error: any) {
     if (!error?.isBusiness) message.error('保存失败')
@@ -289,6 +292,10 @@ onMounted(() => {
 
 <template>
   <div class="p-24">
+    <div class="voice-page-heading">
+      <h2>语音服务</h2>
+      <p>配置朗读开关、语音引擎和音色，保存后可试听当前生效配置。</p>
+    </div>
     <a-row :gutter="[16, 16]" class="mb-16">
       <a-col :xs="24" :sm="12" :lg="6">
         <a-card :bordered="false" class="stat-card">
@@ -298,7 +305,7 @@ onMounted(() => {
             </div>
             <div class="stat-text">
               <div class="stat-label">AI 服务</div>
-              <div class="stat-value" :title="runtime?.aiOnline ? '在线' : '离线'">{{ runtime?.aiOnline ? '在线' : '离线' }}</div>
+              <div class="stat-value">{{ !runtime ? '尚未检测' : runtime.aiOnline ? '在线' : '离线' }}</div>
               <div class="stat-sub" :title="runtime?.aiMessage || '未检测'">{{ runtime?.aiMessage || '未检测' }}</div>
             </div>
           </div>
@@ -311,9 +318,9 @@ onMounted(() => {
               <RobotOutlined />
             </div>
             <div class="stat-text">
-              <div class="stat-label">默认模型</div>
-              <div class="stat-value compact" :title="runtime?.defaultModel || '未设置'">{{ runtime?.defaultModel || '未设置' }}</div>
-              <div class="stat-sub" :title="`已启用 ${enabledModelCount} 个模型`">已启用 {{ enabledModelCount }} 个模型</div>
+              <div class="stat-label">当前文本模型</div>
+              <div class="stat-value compact" :title="currentModelText">{{ currentModelText }}</div>
+              <div class="stat-sub">{{ modelsLoaded ? `已启用 ${enabledModelCount} 个模型` : '模型名单尚未读取' }}</div>
             </div>
           </div>
         </a-card>
@@ -325,8 +332,8 @@ onMounted(() => {
               <SoundOutlined />
             </div>
             <div class="stat-text">
-              <div class="stat-label">TTS 状态</div>
-              <div class="stat-value" :title="ttsStatus?.online ? '在线' : ttsStatus?.configured && ttsStatus?.onlineVerified === false ? '待确认' : '离线'">{{ ttsStatus?.online ? '在线' : ttsStatus?.configured && ttsStatus?.onlineVerified === false ? '待确认' : '离线' }}</div>
+              <div class="stat-label">语音服务状态</div>
+              <div class="stat-value">{{ voiceStatusText }}</div>
               <div class="stat-sub" :title="currentStatusText">{{ currentStatusText }}</div>
             </div>
           </div>
@@ -349,43 +356,37 @@ onMounted(() => {
     </a-row>
 
     <a-card :bordered="false" class="settings-card" :loading="loading">
-      <template #title>AI 设置</template>
+      <template #title>朗读与音色配置</template>
       <template #extra>
         <a-space>
-          <a-button @click="refresh" :loading="loading">
+          <a-button @click="refresh" :loading="loading" :disabled="saving">
             <template #icon><ReloadOutlined /></template>
             刷新
           </a-button>
-          <a-button type="primary" @click="save" :loading="saving">
+          <a-button type="primary" @click="save" :loading="saving" :disabled="loading || !ttsConfigurationLoaded">
             <template #icon><SaveOutlined /></template>
-            保存
+            保存语音配置
           </a-button>
         </a-space>
       </template>
 
-      <a-form layout="vertical">
+      <a-form layout="vertical" :disabled="saving || loading || !ttsConfigurationLoaded">
         <a-row :gutter="16">
-          <a-col :xs="24" :lg="12">
-            <div class="section-title">聊天模型</div>
-            <a-form-item label="默认模型">
-              <a-select
-                v-model:value="form.defaultModelId"
-                placeholder="请选择默认模型"
-                allow-clear
-                :options="modelOptions.filter(item => item.isEnabled).map(item => ({ value: item.id, label: `${item.displayName} (${item.modelName})` }))"
-              />
-            </a-form-item>
+          <a-col :xs="24" :lg="8">
+            <div class="section-title">文本模型信息</div>
             <a-alert
               type="info"
               show-icon
-              :message="selectedDefaultModel?.displayName || '未选择默认模型'"
-              :description="selectedDefaultModel?.description || '前台聊天默认使用这里设置的模型。模型的详细参数在“AI模型”页面维护。'"
+              :message="currentModelText"
+              description="此处只展示当前文本模型。默认模型、启用状态和上下文预算统一在「模型配置」维护。"
             />
+            <router-link to="/ai-models" class="model-config-link">前往模型配置 →</router-link>
+            <p class="voice-help">语音引擎负责将文字转换为音频。切换语音模型不会改变聊天、写作或评论角色使用的文本模型。</p>
           </a-col>
 
-          <a-col :xs="24" :lg="12">
-            <div class="section-title">语音推理</div>
-            <a-form-item label="全局开关">
+          <a-col :xs="24" :lg="16">
+            <div class="section-title">语音生成</div>
+            <a-form-item label="全站语音开关">
               <a-switch v-model:checked="form.enabled" />
             </a-form-item>
 
@@ -495,7 +496,7 @@ onMounted(() => {
                   </a-button>
                   <a-button @click="playTestSpeech" :loading="testingSpeech">
                     <template #icon><PlayCircleOutlined /></template>
-                    测试试听
+                    试听已保存配置
                   </a-button>
                 </a-space>
               </a-form-item>
@@ -553,6 +554,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.voice-page-heading h2 { margin: 0 0 8px; }
+.voice-page-heading p, .voice-help { color: var(--lt-color-text-secondary); }
+.voice-page-heading { margin-bottom: 20px; }
+.model-config-link { display: inline-block; margin: 16px 0; }
+.voice-help { line-height: 1.8; }
+
 .stat-card,
 .settings-card {
   border-radius: var(--lt-radius-lg);
@@ -645,4 +652,3 @@ onMounted(() => {
   font-size: var(--lt-font-size-sm);
 }
 </style>
-
