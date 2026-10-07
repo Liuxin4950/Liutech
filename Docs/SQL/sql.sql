@@ -2,7 +2,8 @@
 -- LiuTech 全栈初始化脚本（唯一权威版本）
 -- 
 -- 权威路径：Docs/SQL/sql.sql
--- 当前结构与基础数据基准：2026-10-06，已核对云端 53965f5 两库。
+-- 当前结构版本：2026-10-07，本地统一逻辑与云端评论区 AI 合并后的完整快照。
+-- 公开基础数据来源：2026-10-06 云端 53965f5 两库快照。
 -- 本文件同时初始化主后端库 liutech 和 AI 服务库 liutech_ai。
 -- Docker 部署时通过 docker-entrypoint-initdb.d 自动执行（仅首次初始化）。
 -- Docs/SQL 只维护这一份完整脚本，表结构和默认初始化数据一同更新。
@@ -21,12 +22,15 @@
 --   - about.content                  → 关于页当前结构化内容
 --   - ai_model_config.context_window → 模型输入预算配置
 --   - community_* / ai_community_*    → 评论 AI 角色、知识、任务、审查与公共记忆
+--   - user_purge_tasks / ai_user_state → 用户永久清理任务与防重建状态
+--   - ai_chat_message.uk_conv_seq    → 会话内消息序号唯一约束（AI V2）
 --
 -- 已有环境使用说明：
 --   本文件的职责是创建“当前完整的新环境”，不是生产迁移执行器。
 --   不要把整份初始化脚本直接重放到已有生产库；其中包含初始化数据，
 --   且 CREATE TABLE IF NOT EXISTS 不会为旧表自动补齐新增列。
---   已有环境按本文件的最终结构核对差异；一次性升级操作不另存为维护脚本。
+--   已有环境按本文件的最终结构核对差异，使用 Docs/SQL/migrations/README.md
+--   与 scripts/migrate.ps1 执行增量升级；已发布迁移长期保留。
 -- ============================================================================
 -- 明确连接字符集，公告和关于页中的中文/emoji 使用 UTF-8。
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
