@@ -21,7 +21,7 @@
 --   - user_achievement_claims        → 一次性成就领取记录
 --   - about.content                  → 关于页当前结构化内容
 --   - ai_model_config.context_window → 模型输入预算配置
---   - community_* / ai_community_*    → 评论 AI 角色、知识、任务、审查与公共记忆
+--   - community_* / ai_community_*    → 评论 AI 角色、知识、任务、审查与公共记忆（主库 V2 / AI V3）
 --   - user_purge_tasks / ai_user_state → 用户永久清理任务与防重建状态
 --   - ai_chat_message.uk_conv_seq    → 会话内消息序号唯一约束（AI V2）
 --

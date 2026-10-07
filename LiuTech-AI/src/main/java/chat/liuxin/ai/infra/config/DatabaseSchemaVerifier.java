@@ -13,9 +13,18 @@ public class DatabaseSchemaVerifier {
 
     @PostConstruct
     public void verify() throws java.sql.SQLException {
-        var required = java.util.Map.of(
-                "ai_chat_message", java.util.Set.of("conversation_id", "user_id", "seq_no"),
-                "ai_user_state", java.util.Set.of("user_id", "purged", "updated_at"));
+        var required = java.util.Map.ofEntries(
+                java.util.Map.entry("ai_chat_message", java.util.Set.of("conversation_id", "user_id", "seq_no")),
+                java.util.Map.entry("ai_user_state", java.util.Set.of("user_id", "purged", "updated_at")),
+                java.util.Map.entry("ai_community_inbox", java.util.Set.of("event_id", "event_json")),
+                java.util.Map.entry("ai_community_task", java.util.Set.of("id", "event_id", "status", "memory_epoch", "decision_json", "context_version", "lease_until")),
+                java.util.Map.entry("ai_community_worker", java.util.Set.of("id", "lease_token", "lease_until")),
+                java.util.Map.entry("ai_community_run", java.util.Set.of("id", "task_id", "status", "result_json")),
+                java.util.Map.entry("ai_community_role_state", java.util.Set.of("bot_id", "memory_epoch")),
+                java.util.Map.entry("ai_community_memory", java.util.Set.of("id", "task_id", "bot_id", "source_post_id", "source_comment_id", "summary")),
+                java.util.Map.entry("ai_community_memory_participant", java.util.Set.of("memory_id", "user_id")),
+                java.util.Map.entry("ai_community_user_state", java.util.Set.of("user_id", "purged")),
+                java.util.Map.entry("ai_community_memory_source", java.util.Set.of("memory_id", "source_comment_id")));
         try (var connection = dataSource.getConnection()) {
             for (var entry : required.entrySet()) {
                 var columns = new java.util.HashSet<String>();
