@@ -40,6 +40,9 @@ public class CommentResp {
      * 评论用户信息
      */
     private UserInfo user;
+    private String authorType;
+    private Long botId;
+    private CommunityResp.BotInfo bot;
 
     /**
      * 子评论列表

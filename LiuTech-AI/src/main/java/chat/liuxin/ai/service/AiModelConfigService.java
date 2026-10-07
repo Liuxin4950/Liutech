@@ -301,15 +301,19 @@ public class AiModelConfigService {
      * 2. 上下文窗口必须大于输出上限，否则输入预算为 0，任何请求都会失败。
      */
     private void validateLimits(ModelConfigRequest request) {
+        PromptBudget.ModelLimits resolved = promptBudget.resolveLimits(request.getMaxTokens(), request.getContextWindow());
+        if (resolved.inputBudgetTokens() <= 0) {
+            throw new AIServiceException.RequestException("上下文窗口必须大于输出上限加安全余量512，请检查模型配置");
+        }
         int ceiling = aiChatProperties.getSecurity().getModelPolicyMaxTokensCeiling();
-        if (request.getMaxTokens() != null && request.getMaxTokens() > ceiling) {
+        if (ceiling > 0 && request.getMaxTokens() != null && request.getMaxTokens() > ceiling) {
             throw new AIServiceException.RequestException(
                     "最大 Token %d 超过全局安全上限 %d，请调小该值或修改配置 spring.ai.security.model-policy-max-tokens-ceiling"
                             .formatted(request.getMaxTokens(), ceiling));
         }
 
         if (request.getContextWindow() != null && request.getMaxTokens() != null
-                && request.getContextWindow() <= request.getMaxTokens()) {
+                && request.getContextWindow() <= (long) request.getMaxTokens() + PromptBudget.SAFETY_MARGIN_TOKENS) {
             throw new AIServiceException.RequestException(
                     "上下文窗口 %d 必须大于最大 Token %d，否则没有输入空间（输入预算 = 上下文 − 输出 − 安全余量）"
                             .formatted(request.getContextWindow(), request.getMaxTokens()));

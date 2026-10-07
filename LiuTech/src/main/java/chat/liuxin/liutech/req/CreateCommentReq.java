@@ -29,4 +29,8 @@ public class CreateCommentReq {
      * 父评论ID（可选，用于回复评论）
      */
     private Long parentId;
+
+    /** 展示名称可改，提及绑定稳定角色 ID。 */
+    @Size(max=2, message="一次最多提及两个角色")
+    private java.util.List<@jakarta.validation.constraints.Positive Long> mentionedBotIds;
 }

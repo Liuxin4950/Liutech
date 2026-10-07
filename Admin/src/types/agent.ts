@@ -19,6 +19,8 @@ export type {
   WritingErrorPayload as AgentErrorPayload,
   WritingDataPayload as DataPayload,
   WritingFieldUpdatePayload as FieldUpdatePayload,
+  WritingActivityPayload as ActivityPayload,
+  WritingContentPatch as ContentPatch,
   WritingToolEventPayload as ToolEventPayload
 } from '../services/writingStream'
 

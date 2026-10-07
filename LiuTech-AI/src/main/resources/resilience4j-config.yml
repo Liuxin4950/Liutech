@@ -17,32 +17,15 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 10
         # 熔断器打开状态持续时间：30秒
         waitDurationInOpenState: 30s
-        # 慢调用阈值：60%
+        # 慢调用阈值：100%（仅全窗口慢调用时熔断，不能把普通流式生成当作故障）
         slowCallRateThreshold: 100
-        # 慢调用持续时间阈值：2秒
-        slowCallDurationThreshold: 2s
+        # 流式调用按整段响应耗时计量；与请求超时对齐，避免正常长文触发熔断。
+        slowCallDurationThreshold: 300s
         # 事件缓冲区大小：10
         eventConsumerBufferSize: 10
-        # 记录所有事件
-        recordEvents:
-          - ERROR
-          - FAILURE
-          - IGNORED_ERROR
-          - NOT_PERMITTED
-          - SUCCESS
-          - TIMEOUT
+        # 参数/权限错误不代表供应商故障，不能驱动全站模型熔断。
+        ignoreExceptions:
+          - org.springframework.web.server.ResponseStatusException
+          - chat.liuxin.ai.infra.exception.AIServiceException$RequestException
 
-  # 限流器配置
-  ratelimiter:
-    instances:
-      aiService:
-        # 刷新周期：1秒
-        limitRefreshPeriod: 1s
-        # 权限数量：10个请求
-        limitForPeriod: 10
-        # 超出限制时的等待时间：500毫秒
-        timeoutDuration: 500ms
-        # 事件缓冲区大小：100
-        eventConsumerBufferSize: 100
-        # 记录所有事件
-        registerHealthIndicator: true
+  # 请求频率由 AiRateLimitInterceptor 按身份限流；流式并发由流生命周期统一控制。

@@ -6,12 +6,16 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { UserService, type UserInfo, type RegisterRequest } from '../services/user'
 import { showErrorToast } from '../utils/errorHandler'
+import { getToken } from '../utils/auth'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
   const userInfo = ref<UserInfo | null>(null)
   const isLoading = ref(false)
   const lastFetchTime = ref<number>(0)
+  // 不持久化：只有当前 token 经主后端确认后，聊天才可恢复该用户的私有历史。
+  const authenticatedUserId = ref<number | null>(null)
+  let verifiedToken: string | null = null
 
   // 缓存时间（5分钟）
   const CACHE_DURATION = 5 * 60 * 1000
@@ -37,6 +41,8 @@ export const useUserStore = defineStore('user', () => {
     return userInfo.value?.role?.toLowerCase() === 'admin'
   })
 
+  const getAuthenticatedUserId = () => verifiedToken === getToken() ? authenticatedUserId.value : null
+
   // 动作
   /**
    * 登录
@@ -47,7 +53,9 @@ export const useUserStore = defineStore('user', () => {
     isLoading.value = true
     try {
       await UserService.login({ username, password })
-      await fetchUserInfo()
+      userInfo.value = null
+      authenticatedUserId.value = null
+      await fetchUserInfo(true)
       return true
     } catch (error) {
       // 重新抛出，由调用方（如 handleFormSubmit）捕获并弹出 Toast
@@ -81,6 +89,9 @@ export const useUserStore = defineStore('user', () => {
   const logout = () => {
     UserService.logout()
     userInfo.value = null
+    authenticatedUserId.value = null
+    verifiedToken = null
+    lastFetchTime.value = 0
   }
 
   /**
@@ -90,7 +101,9 @@ export const useUserStore = defineStore('user', () => {
     isLoading.value = true
     try {
       await UserService.verifyEmailLogin({ email, code })
-      await fetchUserInfo()
+      userInfo.value = null
+      authenticatedUserId.value = null
+      await fetchUserInfo(true)
       return true
     } catch (error) {
       throw error
@@ -106,19 +119,27 @@ export const useUserStore = defineStore('user', () => {
   const fetchUserInfo = async (forceRefresh = false) => {
     if (!UserService.isLoggedIn()) {
       userInfo.value = null
+      authenticatedUserId.value = null
+      verifiedToken = null
       return
     }
+    const requestToken = getToken()
+    if (verifiedToken !== requestToken) authenticatedUserId.value = null
 
     // 如果数据还在缓存期内且不强制刷新，跳过请求
-    if (!forceRefresh && userInfo.value && Date.now() - lastFetchTime.value < CACHE_DURATION) {
+    if (!forceRefresh && verifiedToken === requestToken && authenticatedUserId.value !== null && userInfo.value && Date.now() - lastFetchTime.value < CACHE_DURATION) {
       return
     }
 
     try {
       const userData = await UserService.getCurrentUser()
+      if (getToken() !== requestToken) return
+      verifiedToken = requestToken
       userInfo.value = userData
+      authenticatedUserId.value = userData.id ?? null
       lastFetchTime.value = Date.now()
     } catch (error: any) {
+      if (getToken() !== requestToken) return
       console.error('获取用户信息失败:', error)
       // 401错误静默处理（token无效或过期）
       if (error.response?.status === 401) {
@@ -154,6 +175,8 @@ export const useUserStore = defineStore('user', () => {
   return {
     // 状态
     userInfo,
+    authenticatedUserId,
+    getAuthenticatedUserId,
     isLoading,
     
     // 计算属性

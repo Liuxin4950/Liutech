@@ -10,11 +10,36 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.any;
+import org.springframework.web.server.ResponseStatusException;
 
 class TtsConfigServiceTest {
+
+    @Test
+    void rawPcmIsRejectedWithoutPersistingUnsupportedBrowserFormat() {
+        AiTtsConfigMapper mapper = mock(AiTtsConfigMapper.class);
+        TtsConfigRequest request = new TtsConfigRequest();
+        request.setResponseFormat("pcm");
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> new TtsConfigService(mapper).updateConfig(request));
+        assertEquals(400, error.getStatusCode().value());
+        verify(mapper, never()).updateById(any(AiTtsConfig.class));
+    }
+
+    @Test
+    void legacyPcmConfigFallsBackToPlayableMp3() {
+        AiTtsConfigMapper mapper = mock(AiTtsConfigMapper.class);
+        AiTtsConfig entity = new AiTtsConfig();
+        entity.setId(1L);
+        entity.setResponseFormat("pcm");
+        when(mapper.selectById(1L)).thenReturn(entity);
+        assertEquals("mp3", new TtsConfigService(mapper).getConfig().getResponseFormat());
+    }
 
     @Test
     void shouldReadTypedAiOwnedConfig() {

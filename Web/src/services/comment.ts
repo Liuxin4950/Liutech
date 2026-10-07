@@ -14,12 +14,16 @@ export interface Comment {
   content: string
   parentId?: number
   createdAt: string
-  user: UserInfo
+  authorType?: 'HUMAN' | 'BOT'
+  botId?: number
+  bot?: { id: number; name: string; avatarUrl?: string }
+  user?: UserInfo | null
   children: Comment[]
 }
 
 // 创建评论请求接口
 export interface CreateCommentRequest {
+  mentionedBotIds?: number[]
   postId: number
   content: string
   parentId?: number
@@ -32,8 +36,8 @@ export class CommentService {
    * @param postId 文章ID
    * @returns 树形评论列表
    */
-  static async getTreeComments(postId: number): Promise<Comment[]> {
-    const response = await get<Comment[]>(`/comments/post/${postId}/tree`)
+  static async getTreeComments(postId: number, signal?: AbortSignal): Promise<Comment[]> {
+    const response = await get<Comment[]>(`/comments/post/${postId}/tree`, {}, { signal })
     return response.data
   }
 

@@ -132,16 +132,22 @@ const routes: RouteRecordRaw[] = [
         name: 'AiModelsManagement',
         component: () => import('../views/admin/AiModelsManagement.vue'),
         meta: {
-          title: 'AI模型管理',
+          title: '模型配置',
           section: 'ai-models'
         }
+      },
+      {
+        path: 'community-ai',
+        name: 'CommunityAiManagement',
+        component: () => import('../views/admin/CommunityAiManagement.vue'),
+        meta: { title: '评论角色', section: 'community-ai' }
       },
       {
         path: 'ai-settings',
         name: 'AiSettings',
         component: () => import('../views/admin/AiSettings.vue'),
         meta: {
-          title: 'AI设置',
+          title: '语音服务',
           section: 'ai-settings'
         }
       },
@@ -262,6 +268,9 @@ router.beforeEach(async (to, from, next) => {
 
     const userStore = useUserStore()
     if (!userStore.userInfo) {
+      await userStore.fetchUserInfo()
+    } else if (userStore.userInfo.role?.toLowerCase() !== 'admin') {
+      // 缓存角色非 admin：强制刷新一次，避免 localStorage persist 陈旧数据（如权限刚被提升）导致的误拦截
       await userStore.fetchUserInfo()
     }
 

@@ -15,8 +15,8 @@ import java.util.List;
  * 会话管理接口
  * 路由说明：
  * - GET    /ai/conversations                 列出用户的会话（按 last_message_at 倒序）
- * - POST   /ai/conversations                 创建会话（title 可选）
- * - GET    /ai/conversations/{id}/messages   分页列出会话内消息（倒序）
+ * - POST   /ai/conversations                 创建会话（type/title 可选）
+ * - GET    /ai/conversations/{id}/messages   从最近消息开始分页列出会话内消息（页内正序）
  * - PUT    /ai/conversations/{id}/rename     重命名会话标题
  * - PUT    /ai/conversations/{id}/archive    归档会话（status=9）
  * - DELETE /ai/conversations/{id}            删除会话（先删消息再删会话）
@@ -32,15 +32,17 @@ public class AiConversationController {
 
     /** 列出当前用户的会话列表（按最后消息时间倒序） */
     @GetMapping
-    public List<AiConversation> list(@RequestParam(defaultValue = "1") int page,
+    public List<AiConversation> list(@RequestParam(required = false) String type,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         String userId = authUtils.getCurrentUserIdStr();
-        return memoryService.listConversations(userId, page, size);
+        return memoryService.listConversations(userId, type, page, size);
     }
 
     /** 创建新会话，返回新建会话ID */
     @PostMapping
-    public ChatResponse create(@RequestParam(required = false) String title) {
+    public ChatResponse create(@RequestParam(required = false) String type,
+            @RequestParam(required = false) String title) {
         String userId = authUtils.getCurrentUserIdStr();
         Long id = memoryService.createConversation(userId, title != null ? title : "新会话");
         return ChatResponse.builder()
@@ -50,7 +52,7 @@ public class AiConversationController {
                 .build();
     }
 
-    /** 分页列出指定会话的消息（倒序） */
+    /** 从最近消息开始分页列出指定会话的消息（页内正序） */
     @GetMapping("/{id}/messages")
     public List<AiChatMessage> messages(@PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,

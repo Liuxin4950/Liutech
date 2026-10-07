@@ -71,6 +71,8 @@ export function useTablePage<T extends Record<string, any>, P extends Record<str
 
   // 加载状态
   const loading = ref(false)
+  // 同一页面可连续搜索或翻页，只有最后一次请求可以回填状态。
+  let loadGeneration = 0
 
   // 数据源
   const dataSource = ref<T[]>([]) as Ref<T[]>
@@ -94,7 +96,8 @@ export function useTablePage<T extends Record<string, any>, P extends Record<str
   /**
    * 加载数据
    */
-  const load = async () => {
+  const load = async (): Promise<void> => {
+    const generation = ++loadGeneration
     try {
       loading.value = true
       const baseParams = transformSearchParams
@@ -108,12 +111,25 @@ export function useTablePage<T extends Record<string, any>, P extends Record<str
       }
 
       const res = await loadFn(params)
+      if (generation !== loadGeneration) return
+
+      // 删除末页最后一项后回到有效页，避免“有数据但列表为空”。
+      const lastPage = Math.max(1, Math.ceil(res.data.total / pagination.pageSize))
+      if (pagination.current > lastPage) {
+        pagination.current = lastPage
+        selectedRowKeys.value = []
+        await load()
+        return
+      }
+
       dataSource.value = res.data.records
       pagination.total = res.data.total
+      const visibleIds = new Set(res.data.records.map(record => record.id))
+      selectedRowKeys.value = selectedRowKeys.value.filter(id => visibleIds.has(id))
     } catch (e: any) {
-      if (!e?.isBusiness) message.error(loadErrorMessage)
+      if (generation === loadGeneration && !e?.isBusiness) message.error(loadErrorMessage)
     } finally {
-      loading.value = false
+      if (generation === loadGeneration) loading.value = false
     }
   }
 
@@ -121,6 +137,7 @@ export function useTablePage<T extends Record<string, any>, P extends Record<str
    * 搜索（重置到第一页后加载）
    */
   const handleSearch = () => {
+    selectedRowKeys.value = []
     pagination.current = 1
     load()
   }
@@ -129,6 +146,7 @@ export function useTablePage<T extends Record<string, any>, P extends Record<str
    * 重置搜索参数并重新加载
    */
   const handleReset = () => {
+    selectedRowKeys.value = []
     searchParams.value = { ...defaultSearchParams }
     pagination.current = 1
     load()
@@ -138,6 +156,7 @@ export function useTablePage<T extends Record<string, any>, P extends Record<str
    * 表格分页、排序、筛选变化处理
    */
   const handleTableChange = (p: any) => {
+    selectedRowKeys.value = []
     pagination.current = p.current
     pagination.pageSize = p.pageSize
     load()

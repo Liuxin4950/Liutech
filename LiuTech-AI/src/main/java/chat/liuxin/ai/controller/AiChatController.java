@@ -95,7 +95,7 @@ public class AiChatController {
         return aiChatService.processWriting(request, userId, authUtils.resolveRole());
     }
 
-    /** 写作助手流式版：管理员专属。事件序列同 /chat/stream 但没有会话持久化。 */
+    /** 写作助手流式版：管理员专属。统一 writing-event 信封，含真实活动与正文建议，不持久化会话。 */
     @PostMapping("/writing/stream")
     public SseEmitter writingStream(@Valid @RequestBody ChatRequest request, HttpServletResponse response) {
         markLegacyRoute(response);

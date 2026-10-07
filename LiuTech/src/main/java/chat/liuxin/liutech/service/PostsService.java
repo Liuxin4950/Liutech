@@ -79,6 +79,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
 
     private final ImageReferenceService imageReferenceService;
 
+    private final CommunityService communityService;
+
     /**
      * 分页查询文章列表（公开接口）
      * 支持按分类、标签、关键词、状态、作者等条件进行筛选
@@ -395,7 +397,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public PostCreateResp createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
@@ -443,6 +445,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     post.getId(), req.getDraftKey(), bindCount);
         }
 
+        communityService.articleSaved(post.getId());
+
         // 构建响应对象
         PostCreateResp response = new PostCreateResp();
         response.setId(post.getId());
@@ -465,7 +469,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean updatePost(PostUpdateReq req, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(req.getId());
@@ -507,6 +511,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     req.getId(), req.getDraftKey(), bindCount);
         }
 
+        communityService.articleSaved(req.getId());
         return true;
     }
 
@@ -514,7 +519,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 更新文章（管理员版本，跳过作者权限校验）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean updatePostForAdmin(PostUpdateReq req, Long operatorId) {
         Posts existPost = this.getById(req.getId());
         if (existPost == null || existPost.getDeletedAt() != null) {
@@ -545,6 +550,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                     req.getId(), req.getDraftKey(), bindCount);
         }
 
+        communityService.articleSaved(req.getId());
         return true;
     }
 
@@ -572,7 +578,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean deletePost(Long id, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(id);
@@ -585,19 +591,8 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
             throw new BusinessException(ErrorCode.ARTICLE_PERMISSION_DENIED);
         }
 
-        // 软删保留标签关联，物理删除才清理，恢复时沿用原标签。
-
-        // 软删除点赞记录
-        LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
-        likeUpdateWrapper.eq(PostLikes::getPostId, id)
-                .set(PostLikes::getDeletedAt, new Date());
-        postLikesMapper.update(null, likeUpdateWrapper);
-
-        // 软删除收藏记录
-        LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
-        favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
-                .set(PostFavorites::getDeletedAt, new Date());
-        postFavoritesMapper.update(null, favoriteUpdateWrapper);
+        // 只隐藏文章，保留标签、点赞与收藏，恢复时才能还原原有业务状态。
+        // 关联数据由文章可见性过滤；永久删除入口负责物理清理。
 
         // 软删除不改变 usage_count（引用仍存在，只是标记删除）
         // usage_count 只在物理删除时减少
@@ -619,7 +614,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean publishPost(Long id, Long authorId) {
         return updatePostStatus(id, "published", authorId);
     }
@@ -636,7 +631,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
     public boolean unpublishPost(Long id, Long authorId) {
         return updatePostStatus(id, "draft", authorId);
     }
@@ -672,7 +667,9 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
                 .set(Posts::getUpdatedAt, new Date())
                 .set(Posts::getUpdatedBy, authorId);
 
-        return this.update(updateWrapper);
+        boolean updated = this.update(updateWrapper);
+        if (updated) communityService.articleSaved(id);
+        return updated;
     }
 
     /**

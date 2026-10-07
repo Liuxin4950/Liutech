@@ -37,6 +37,12 @@ public interface PostsMapper extends BaseMapper<Posts> {
     int refreshInteractionCounts(@Param("ids") List<Long> ids);
 
 
+    /** 同一文章的交互写操作在当前事务内串行，避免计数覆盖。 */
+    @Select("SELECT * FROM posts WHERE id = #{id} AND deleted_at IS NULL FOR UPDATE")
+    @org.apache.ibatis.annotations.Options(useCache = false, flushCache = org.apache.ibatis.annotations.Options.FlushCachePolicy.TRUE)
+    Posts selectByIdForUpdate(@Param("id") Long id);
+
+
     /**
      * 获取所有已发布的文章（用于 sitemap 生成）
      * 只返回状态为 "published" 的文章

@@ -63,11 +63,15 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
     private final CommentsMapper commentsMapper;
 
+    private final CommentsAdminService commentsAdminService;
+
     private final FileUtil fileUtil;
 
     private final ImagesService imagesService;
 
     private final PostsService postsService;
+
+    private final CommunityService communityService;
 
     /**
      * 管理端分页查询文章列表
@@ -147,6 +151,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                     .set(Posts::getUpdatedBy, operatorId);
 
         boolean result = this.update(updateWrapper);
+            if (result) communityService.articleSaved(id);
             log.debug("管理端文章状态更新{} - 文章ID: {}", result ? "成功" : "失败", id);
             return result;
     }
@@ -163,17 +168,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                 throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND);
             }
 
-        // 软删保留标签关联，恢复后可继续使用；物理删除另行清理。
-
-        LambdaUpdateWrapper<PostLikes> likeUpdateWrapper = new LambdaUpdateWrapper<>();
-            likeUpdateWrapper.eq(PostLikes::getPostId, id)
-                    .set(PostLikes::getDeletedAt, new Date());
-            postLikesMapper.update(null, likeUpdateWrapper);
-
-        LambdaUpdateWrapper<PostFavorites> favoriteUpdateWrapper = new LambdaUpdateWrapper<>();
-            favoriteUpdateWrapper.eq(PostFavorites::getPostId, id)
-                    .set(PostFavorites::getDeletedAt, new Date());
-            postFavoritesMapper.update(null, favoriteUpdateWrapper);
+        // 只隐藏文章，保留关联以便恢复。
 
         int result = postsMapper.deleteById(id, new Date(), operatorId);
             boolean success = result > 0;
@@ -187,18 +182,26 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean batchUpdateStatus(List<Long> ids, String status) {
+        if (ids == null || ids.isEmpty()) return false;
         log.debug("管理端批量更新文章状态 - 文章数量: {}, 新状态: {}", ids.size(), status);
-        if (ids == null || ids.isEmpty()) {
-                return false;
-            }
+
+        // 先按稳定顺序锁定文章，再更新状态和社区任务，避免反向锁序。
+        List<Long> lockedIds = new ArrayList<>();
+        for (Long id : ids.stream().distinct().sorted().toList()) {
+            if (postsMapper.selectByIdForUpdate(id) != null) lockedIds.add(id);
+        }
+        if (lockedIds.isEmpty()) return false;
 
         LambdaUpdateWrapper<Posts> updateWrapper = new LambdaUpdateWrapper<>();
-            updateWrapper.in(Posts::getId, ids)
+            updateWrapper.in(Posts::getId, lockedIds).isNull(Posts::getDeletedAt)
                     .set(Posts::getStatus, status)
                     .set(Posts::getUpdatedAt, new Date());
 
         boolean result = this.update(updateWrapper);
-            log.debug("管理端批量更新文章状态{} - 影响文章数: {}", result ? "成功" : "失败", ids.size());
+            if (result) {
+                for (Long id : lockedIds) communityService.articleSaved(id);
+            }
+            log.debug("管理端批量更新文章状态{} - 影响文章数: {}", result ? "成功" : "失败", lockedIds.size());
             return result;
     }
 
@@ -215,17 +218,7 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
             postsMapper.selectForUpdateByIds(ids);
 
-            // 软删保留标签关联。
-
-            LambdaUpdateWrapper<PostLikes> likesUpdateWrapper = new LambdaUpdateWrapper<>();
-            likesUpdateWrapper.in(PostLikes::getPostId, ids)
-                    .set(PostLikes::getDeletedAt, new Date());
-            postLikesMapper.update(null, likesUpdateWrapper);
-
-            LambdaUpdateWrapper<PostFavorites> favoritesUpdateWrapper = new LambdaUpdateWrapper<>();
-            favoritesUpdateWrapper.in(PostFavorites::getPostId, ids)
-                    .set(PostFavorites::getDeletedAt, new Date());
-            postFavoritesMapper.update(null, favoritesUpdateWrapper);
+            // 批量软删除同样保留关联。
 
             LambdaUpdateWrapper<Posts> postsUpdateWrapper = new LambdaUpdateWrapper<>();
             postsUpdateWrapper.in(Posts::getId, ids)
@@ -253,7 +246,6 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
             List<Posts> locked = postsMapper.selectForUpdateByIds(List.of(id));
             if (locked.isEmpty() || locked.getFirst().getDeletedAt() == null) return false;
             int result = postsMapper.restorePostById(id);
-            if (result > 0) restoreInteractions(List.of(id));
             log.debug("恢复文章ID: {}, 结果: {}", id, result > 0 ? "成功" : "失败");
             return result > 0;
         } catch (Exception e) {
@@ -277,19 +269,12 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
                     .filter(post -> post.getDeletedAt() != null).map(Posts::getId).toList();
             if (deletedIds.isEmpty()) return false;
             int result = postsMapper.restorePostsByIds(deletedIds);
-            if (result > 0) restoreInteractions(deletedIds);
             log.debug("批量恢复文章ID列表: {}, 成功数量: {}", ids, result);
             return result > 0;
         } catch (Exception e) {
             log.error("批量恢复文章失败: {}", e.getMessage(), e);
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "批量恢复文章失败");
         }
-    }
-
-    private void restoreInteractions(List<Long> ids) {
-        postLikesMapper.restoreByPostIds(ids);
-        postFavoritesMapper.restoreByPostIds(ids);
-        postsMapper.refreshInteractionCounts(ids);
     }
 
     /**
@@ -311,8 +296,8 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
         postFavoritesMapper.deleteByPostId(id);
         postLikesMapper.deleteByPostId(id);
-        commentsMapper.deleteChildrenByPostId(id);
-        commentsMapper.deleteRootsByPostId(id);
+        List<Long> commentRoots = commentsMapper.selectRootCommentIdsByPostIds(List.of(id));
+        if (!commentRoots.isEmpty()) commentsAdminService.batchPermanentDeleteComments(commentRoots);
         postTagsMapper.deleteByPostId(id);
         postAttachmentsMapper.deleteByPostId(id);
 
@@ -349,8 +334,8 @@ public class PostsAdminService extends ServiceImpl<PostsMapper, Posts> {
 
         postFavoritesMapper.deleteByPostIds(ids);
         postLikesMapper.deleteByPostIds(ids);
-        commentsMapper.deleteChildrenByPostIds(ids);
-        commentsMapper.deleteRootsByPostIds(ids);
+        List<Long> commentRoots = commentsMapper.selectRootCommentIdsByPostIds(ids);
+        if (!commentRoots.isEmpty()) commentsAdminService.batchPermanentDeleteComments(commentRoots);
         postTagsMapper.deleteByPostIds(ids);
         postAttachmentsMapper.deleteByPostIds(ids);
 

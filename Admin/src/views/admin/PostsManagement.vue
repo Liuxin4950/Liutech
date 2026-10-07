@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted, nextTick } from 'vue'
+import { computed, ref, reactive, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined, StarOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
-import DOMPurify from 'dompurify'
+import { resolveWritingContentUpdate, writingDraftSignature, useWritingUndo } from '@/services/writingReview'
+import type { WritingLocalActivity } from '@/services/writingSession'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import { useTableExport } from '@/composables/useTableExport'
@@ -34,12 +35,14 @@ const {
 
 // ============== CRUD 操作 ==============
 const {
-  handleDelete, handleBatchDelete, handleRestore,
+  loading: crudLoading,
+  handleDelete, handleBatchDelete, handleRestore, handleBatchRestore,
   handlePermanentDelete, handleBatchPermanentDelete
 } = useCrudActions({
   deleteFn: (id) => PostsService.deletePost(id),
   batchDeleteFn: (ids) => PostsService.batchDeletePosts(ids),
   restoreFn: (id) => PostsService.restorePost(id),
+  batchRestoreFn: (ids) => PostsService.batchRestorePosts(ids),
   permanentDeleteFn: (id) => PostsService.permanentDeletePost(id),
   batchPermanentDeleteFn: (ids) => PostsService.batchPermanentDeletePosts(ids),
   onRefresh: load,
@@ -193,6 +196,20 @@ const createSeriesVisible = ref(false)
 const creatingCategory = ref(false)
 const creatingTag = ref(false)
 const creatingSeries = ref(false)
+const creatingAiSuggestion = ref('')
+const localActivities = ref<WritingLocalActivity[]>([])
+let taxonomyOperation = 0
+let taxonomyEpoch = 0
+let disposed = false
+const invalidateTaxonomyCreation = () => {
+  taxonomyEpoch++
+  taxonomyOperation++
+  creatingAiSuggestion.value = ''
+  localActivities.value = []
+}
+watch(modalVisible, visible => { if (!visible) invalidateTaxonomyCreation() }, { flush: 'sync' })
+watch(editingId, invalidateTaxonomyCreation, { flush: 'sync' })
+onBeforeUnmount(() => { disposed = true; invalidateTaxonomyCreation() })
 const newCategoryName = ref('')
 const newCategoryDescription = ref('')
 const newTagName = ref('')
@@ -238,6 +255,7 @@ const createSeries = async () => {
 }
 
 const createCategory = async () => {
+  if (creatingCategory.value || creatingAiSuggestion.value) return
   const name = newCategoryName.value.trim()
   if (!name) { message.warning('请输入分类名称'); return }
   try {
@@ -254,6 +272,7 @@ const createCategory = async () => {
 }
 
 const createTag = async () => {
+  if (creatingTag.value || creatingAiSuggestion.value) return
   const name = newTagName.value.trim()
   if (!name) { message.warning('请输入标签名称'); return }
   try {
@@ -276,6 +295,9 @@ const createTag = async () => {
 
 // ============== 覆盖 openCreate/openEdit ==============
 const openCreate = async () => {
+  invalidateTaxonomyCreation()
+  agentEditorSession.value++
+  resetAiChanges()
   if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
     await loadCategoriesAndTags()
   }
@@ -296,6 +318,9 @@ const openCreate = async () => {
 }
 
 const openEdit = async (record: PostListItem) => {
+  invalidateTaxonomyCreation()
+  agentEditorSession.value++
+  resetAiChanges()
   try {
     if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
       await loadCategoriesAndTags()
@@ -364,10 +389,21 @@ const removeCoverImage = () => { formModel.value.coverImage = '' }
 const removeThumbnail = () => { formModel.value.thumbnail = '' }
 
 // ============== AI Agent 集成 ==============
+const agentEditorSession = ref(0)
 const aiSuggestedCategoryName = ref('')
 const aiSuggestedTagNames = ref<string[]>([])
-const undoStack = ref<Array<{ field: string; oldValue: any }>>([])
 const highlightedFields = reactive<Record<string, boolean>>({})
+const { entries: undoStack, record: recordAiChanges, undoField: restoreAiField,
+  undoRound: undoAiRound, reset: resetAiChanges } = useWritingUndo(
+  () => editingId.value,
+  ({ field, oldValue }) => { (formModel.value as any)[field] = oldValue },
+  field => {
+    if (!field || field === 'categoryId' || field === 'tagIds') invalidateTaxonomyCreation()
+    if (!field || field === 'categoryId') aiSuggestedCategoryName.value = ''
+    if (!field || field === 'tagIds') aiSuggestedTagNames.value = []
+    if (!field) Object.keys(highlightedFields).forEach(key => { delete highlightedFields[key] })
+  }
+)
 
 const agentDraftSnapshot = computed(() => ({
   postId: editingId.value,
@@ -431,17 +467,27 @@ const rememberAiTaxonomySuggestions = (payload: FieldUpdatePayload) => {
   }
 }
 
-const handleFieldUpdate = (payload: FieldUpdatePayload) => {
+const handleFieldUpdate = (payload: FieldUpdatePayload, original?: AdminArticleDraftSnapshot) => {
+  const before = original || agentDraftSnapshot.value
+  if (writingDraftSignature(before) !== writingDraftSignature(agentDraftSnapshot.value)) return
+  let contentUpdate: string | undefined
+  try {
+    contentUpdate = resolveWritingContentUpdate(payload, before.content || '')
+  } catch {
+    message.warning('正文修改与当前原稿不匹配，请重新生成')
+    return
+  }
+  invalidateTaxonomyCreation()
   const entries: Array<[string, any]> = []
   if (payload.title !== undefined && payload.title !== null) entries.push(['title', payload.title])
   if (payload.summary !== undefined && payload.summary !== null) entries.push(['summary', payload.summary])
-  if (payload.contentHtml !== undefined && payload.contentHtml !== null) entries.push(['content', DOMPurify.sanitize(payload.contentHtml)])
+  if (contentUpdate !== undefined) entries.push(['content', contentUpdate])
   if (payload.categoryId !== undefined && payload.categoryId !== null) entries.push(['categoryId', payload.categoryId])
-  if (payload.tagIds?.length) entries.push(['tagIds', [...payload.tagIds]])
-  if (entries.length > 0) undoStack.value = []
+  if (Array.isArray(payload.tagIds)) entries.push(['tagIds', [...payload.tagIds]])
+  const nextUndoStack: Array<{ field: string; oldValue: any }> = []
   for (const [field, newValue] of entries) {
-    const oldValue = (formModel.value as any)[field]
-    undoStack.value.push({ field, oldValue })
+    const oldValue = field === 'tagIds' ? [...(before.tagIds || [])] : (before as any)[field]
+    nextUndoStack.push({ field, oldValue })
     ;(formModel.value as any)[field] = newValue
     highlightedFields[field] = true
     nextTick(() => {
@@ -451,62 +497,112 @@ const handleFieldUpdate = (payload: FieldUpdatePayload) => {
   if (entries.length > 0) {
     message.success(`AI 已更新 ${entries.map(([f]) => fieldLabelMap[f] || f).join('、')}`)
   }
+  if (payload.suggestedCategoryName && !nextUndoStack.some(entry => entry.field === 'categoryId')) nextUndoStack.push({ field: 'categoryId', oldValue: before.categoryId })
+  if (payload.suggestedTagNames?.length && !nextUndoStack.some(entry => entry.field === 'tagIds')) nextUndoStack.push({ field: 'tagIds', oldValue: [...(before.tagIds || [])] })
   rememberAiTaxonomySuggestions(payload)
+  recordAiChanges(before, nextUndoStack)
 }
 
 const undoField = (field: string) => {
-  let lastIdx = -1
-  for (let i = undoStack.value.length - 1; i >= 0; i--) {
-    if (undoStack.value[i].field === field) { lastIdx = i; break }
-  }
-  if (lastIdx < 0) return
-  const { oldValue } = undoStack.value[lastIdx]
-  undoStack.value.splice(lastIdx, 1)
-  ;(formModel.value as any)[field] = oldValue
+  if (!restoreAiField(field)) return
   message.info(`已撤销「${fieldLabelMap[field] || field}」`)
 }
 
-const createAiSuggestedCategory = async (name: string) => {
-  const categoryName = name.trim()
-  if (!categoryName) return
-  newCategoryName.value = categoryName
-  newCategoryDescription.value = '由 AI 写作助手建议创建'
-  await createCategory()
-  aiSuggestedCategoryName.value = ''
+const refreshTaxonomyOptions = async (kind: 'category' | 'tag', isCurrent: () => boolean) => {
+  const response = kind === 'category'
+    ? await CategoriesService.getCategoryList({ page: 1, size: 1000 })
+    : await TagsService.getTagList({ page: 1, size: 1000 })
+  if (response.code !== 200 || !Array.isArray(response.data?.records)) throw new Error('分类或标签列表未确认')
+  const options = response.data.records.filter(item => Number.isSafeInteger(item.id) && (item.id || 0) > 0)
+    .map(item => ({ label: item.name, value: item.id as number }))
+  if (isCurrent()) {
+    if (kind === 'category') categoryOptions.value = options
+    else tagOptions.value = options
+  }
+  return options
 }
 
-const createAiSuggestedTag = async (name: string) => {
-  const tagName = name.trim()
-  if (!tagName) return
-  newTagName.value = tagName
-  await createTag()
-  aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(item => !sameName(item, tagName))
+// 这些活动来自用户确认后的主后端 CRUD，真实成功并重新取得 ID 后才绑定编辑器。
+const processAiTaxonomy = async (items: Array<{ kind: 'category' | 'tag', name: string }>) => {
+  if (!items.length || creatingAiSuggestion.value || creatingCategory.value || creatingTag.value) return
+  const operation = ++taxonomyOperation
+  const epoch = taxonomyEpoch
+  const editorSession = agentEditorSession.value
+  const activityId = `local:taxonomy:${operation}`
+  const startedAt = Date.now()
+  const isCurrent = () => !disposed && modalVisible.value && operation === taxonomyOperation && epoch === taxonomyEpoch && editorSession === agentEditorSession.value
+  const progress = (stage: WritingLocalActivity['stage'], status: WritingLocalActivity['status'], text: string) => {
+    if (!isCurrent()) return
+    localActivities.value = [{ activityId, stage, status, message: text, startedAt,
+      ...(status !== 'running' ? { finishedAt: Date.now(), durationMs: Date.now() - startedAt } : {}) }]
+  }
+  creatingAiSuggestion.value = 'batch'
+  let selectedCount = 0
+  let unselectedCount = 0
+  try {
+    for (const item of items) {
+      if (!isCurrent()) return
+      const name = item.name.trim()
+      if (!name) continue
+      const isCategory = item.kind === 'category'
+      const label = isCategory ? '分类' : '标签'
+      const stage = isCategory ? 'creating_category' : 'creating_tag'
+      creatingAiSuggestion.value = `${item.kind}:${name}`
+      const categoryBefore = formModel.value.categoryId
+      const tagsBefore = JSON.stringify(formModel.value.tagIds || [])
+      progress('refreshing_taxonomy', 'running', `正在读取现有${label}并确认「${name}」`)
+      let options = await refreshTaxonomyOptions(item.kind, isCurrent)
+      if (!isCurrent()) return
+      let created = options.find(option => sameName(option.label, name))
+      if (!created) {
+        progress(stage, 'running', `正在创建${label}「${name}」`)
+        const response = isCategory
+          ? await CategoriesService.createCategory({ name, description: '由 AI 写作助手建议创建' })
+          : await TagsService.createTag({ name })
+        if (!isCurrent()) return
+        if (response.code !== 200) throw new Error('创建结果未确认')
+        progress('refreshing_taxonomy', 'running', `正在刷新${label}列表并确认「${name}」`)
+        options = await refreshTaxonomyOptions(item.kind, isCurrent)
+        if (!isCurrent()) return
+        created = options.find(option => sameName(option.label, name))
+      }
+      if (!created) {
+        progress(stage, 'failed', `${label}「${name}」创建结果未确认，建议已保留；请刷新列表后重试`)
+        return
+      }
+      const selectionUnchanged = isCategory
+        ? categoryBefore === formModel.value.categoryId
+        : tagsBefore === JSON.stringify(formModel.value.tagIds || [])
+      if (selectionUnchanged) {
+        if (isCategory) formModel.value.categoryId = created.value
+        else if (!(formModel.value.tagIds || []).includes(created.value)) formModel.value.tagIds = [...(formModel.value.tagIds || []), created.value]
+        selectedCount++
+      } else {
+        unselectedCount++
+      }
+      if (isCategory && sameName(aiSuggestedCategoryName.value, name)) aiSuggestedCategoryName.value = ''
+      if (!isCategory) aiSuggestedTagNames.value = aiSuggestedTagNames.value.filter(suggestion => !sameName(suggestion, name))
+      progress(stage, 'completed', selectionUnchanged ? `${label}「${name}」已创建或确认并选中，文章待保存` : `${label}「${name}」已创建；保留你刚修改的选择`)
+    }
+    if (isCurrent() && items.length > 1) progress('refreshing_taxonomy', 'completed', `已选中 ${selectedCount} 项${unselectedCount ? `，另 ${unselectedCount} 项已创建并保留你的选择` : ''}，文章待保存`)
+  } catch (error: any) {
+    if (!isCurrent()) return
+    progress(creatingAiSuggestion.value.startsWith('category:') ? 'creating_category' : 'creating_tag', 'failed', `创建未完成，已处理 ${selectedCount + unselectedCount} 项；未完成的建议已保留`)
+    if (!error?.isBusiness) message.error('创建分类或标签失败，请检查网络后重试；已创建的项目会复用')
+  } finally {
+    if (isCurrent()) creatingAiSuggestion.value = ''
+  }
 }
 
-const createAllAiSuggestedTags = async () => {
-  const names = [...aiSuggestedTagNames.value]
-  for (const name of names) await createAiSuggestedTag(name)
-}
-
-const createAllAiSuggestedTaxonomy = async () => {
-  const categoryName = aiSuggestedCategoryName.value
-  const tagNames = [...aiSuggestedTagNames.value]
-  if (categoryName) await createAiSuggestedCategory(categoryName)
-  for (const name of tagNames) await createAiSuggestedTag(name)
-}
+const createAiSuggestedCategory = (name: string) => processAiTaxonomy([{ kind: 'category', name }])
+const createAiSuggestedTag = (name: string) => processAiTaxonomy([{ kind: 'tag', name }])
+const createAllAiSuggestedTags = () => processAiTaxonomy(aiSuggestedTagNames.value.map(name => ({ kind: 'tag', name })))
+const createAllAiSuggestedTaxonomy = () => processAiTaxonomy([
+  ...(aiSuggestedCategoryName.value ? [{ kind: 'category' as const, name: aiSuggestedCategoryName.value }] : []),
+  ...aiSuggestedTagNames.value.map(name => ({ kind: 'tag' as const, name }))
+])
 
 // ============== 自定义操作 ==============
-const handleBatchRestore = async () => {
-  if (!selectedRowKeys.value.length) {
-    message.warning('请选择要恢复的文章')
-    return
-  }
-  const res = await PostsService.batchRestorePosts(selectedRowKeys.value)
-  message.success('批量恢复成功')
-  clearSelection()
-  load()
-}
-
 const handleBatchStatusUpdate = async (status: string) => {
   if (!selectedRowKeys.value.length) {
     message.warning('请选择要更新状态的文章')
@@ -607,7 +703,7 @@ onMounted(async () => {
                </a-popconfirm>
             </template>
             <template v-else>
-              <a-button :disabled="selectedRowKeys.length === 0" @click="handleBatchRestore">批量恢复</a-button>
+              <a-button :disabled="selectedRowKeys.length === 0" :loading="crudLoading" @click="handleBatchRestore(selectedRowKeys)">批量恢复</a-button>
               <a-popconfirm
                 title="确定要彻底删除选中的文章吗？此操作不可恢复！"
                 ok-text="确定"
@@ -849,7 +945,9 @@ onMounted(async () => {
       </a-form>
       </div>
       <AdminAgentSidebar
+        :key="agentEditorSession"
         :draft="agentDraftSnapshot"
+        :local-activities="localActivities"
         @field-update="handleFieldUpdate"
       />
       </div>
@@ -858,7 +956,8 @@ onMounted(async () => {
         <a-button
           v-if="aiSuggestedCategoryName"
           size="small"
-          :loading="creatingCategory"
+          :loading="creatingAiSuggestion === `category:${aiSuggestedCategoryName}`"
+          :disabled="!!creatingAiSuggestion || creatingCategory || creatingTag"
           @click="createAiSuggestedCategory(aiSuggestedCategoryName)"
         >
           分类：{{ aiSuggestedCategoryName }}
@@ -867,7 +966,8 @@ onMounted(async () => {
           v-for="name in aiSuggestedTagNames"
           :key="name"
           size="small"
-          :loading="creatingTag && newTagName === name"
+          :loading="creatingAiSuggestion === `tag:${name}`"
+          :disabled="!!creatingAiSuggestion || creatingCategory || creatingTag"
           @click="createAiSuggestedTag(name)"
         >
           标签：{{ name }}
@@ -877,7 +977,8 @@ onMounted(async () => {
           size="small"
           type="primary"
           ghost
-          :loading="creatingTag"
+          :loading="!!creatingAiSuggestion"
+          :disabled="!!creatingAiSuggestion || creatingCategory || creatingTag"
           @click="createAllAiSuggestedTags"
         >
           全部创建并选中
@@ -886,14 +987,17 @@ onMounted(async () => {
           v-if="aiSuggestedCategoryName && aiSuggestedTagNames.length"
           size="small"
           type="primary"
-          :loading="creatingCategory || creatingTag"
+          :loading="!!creatingAiSuggestion"
+          :disabled="!!creatingAiSuggestion || creatingCategory || creatingTag"
           @click="createAllAiSuggestedTaxonomy"
         >
           分类和标签全部处理
         </a-button>
+        <span>确认后新增并选入编辑器，保存文章后生效。</span>
       </div>
       <div v-if="undoStack.length" class="undo-bar">
         <span class="undo-bar-label">AI 已修改：</span>
+        <a-button size="small" @click="undoAiRound">撤销本轮修改</a-button>
         <a-button
           v-for="(entry, idx) in undoStack"
           :key="idx"
@@ -1132,4 +1236,3 @@ onMounted(async () => {
   white-space: nowrap;
 }
 </style>
-

@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onScopeDispose, watch } from 'vue'
 import { Ai, type AiChatRequest, type PostSummaryDTO } from '@/services/ai'
 import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
 import { AiStream, StreamError } from '@/services/aiStream'
-import { isLoggedIn } from '@/utils/auth'
+import { getToken, isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
 import { useUserStore } from '@/stores/user'
 import { useChatTts } from '@/composables/chatTts'
@@ -89,7 +89,7 @@ export const useChatStore = defineStore('chat', () => {
   const ttsCancelCounter = ref(0)
   const mode = ref<ChatMode>('stream')
   const errorMessage = ref('')
-  const defaultModel = ref<string>('deepseek-ai/DeepSeek-V3.2')  // 默认模型
+  const defaultModel = ref<string>('')  // 只展示服务端配置，不用前端硬编码兜底。
   const isModelLoading = ref(false)  // 模型加载状态
   const currentModelInfo = ref<ModelInfo | null>(null)  // 当前模型信息
 
@@ -131,9 +131,14 @@ export const useChatStore = defineStore('chat', () => {
   const GUEST_MODE_KEY = 'liutech-chat-mode-guest'
   const GUEST_TTS_ENABLED_KEY = 'liutech-chat-tts-enabled-guest'
 
-  const isGuestSession = () => !isLoggedIn()
+  const getIdentity = () => !isLoggedIn() ? 'guest' : userStore.getAuthenticatedUserId() !== null ? `user:${userStore.getAuthenticatedUserId()}` : 'pending'
+  const sessionOwner = ref(getIdentity())
+  let identityGeneration = 0
+  let normalAbortController: AbortController | null = null
+  const isGuestSession = () => sessionOwner.value === 'guest'
+  const scopedKey = (key: string, guestKey: string) => isGuestSession() ? guestKey : `${key}:${sessionOwner.value}`
   const ensureUserRoleLoaded = async () => {
-    if (isLoggedIn() && !userStore.userInfo) {
+    if (isLoggedIn() && userStore.getAuthenticatedUserId() === null) {
       await userStore.fetchUserInfo()
     }
   }
@@ -145,8 +150,9 @@ export const useChatStore = defineStore('chat', () => {
    */
   const saveToStorage = () => {
     try {
+      if (sessionOwner.value === 'pending') return
       const storage = getStorage()
-      const storageKey = isGuestSession() ? GUEST_STORAGE_KEY : STORAGE_KEY
+      const storageKey = scopedKey(STORAGE_KEY, GUEST_STORAGE_KEY)
       const data = {
         messages: messages.value.map(msg => ({
           ...msg,
@@ -166,10 +172,11 @@ export const useChatStore = defineStore('chat', () => {
    */
   const loadFromStorage = () => {
     try {
+      if (sessionOwner.value === 'pending') return
       const storage = getStorage()
-      const storageKey = isGuestSession() ? GUEST_STORAGE_KEY : STORAGE_KEY
-      const modeKey = isGuestSession() ? GUEST_MODE_KEY : MODE_KEY
-      const ttsKey = isGuestSession() ? GUEST_TTS_ENABLED_KEY : TTS_ENABLED_KEY
+      const storageKey = scopedKey(STORAGE_KEY, GUEST_STORAGE_KEY)
+      const modeKey = scopedKey(MODE_KEY, GUEST_MODE_KEY)
+      const ttsKey = scopedKey(TTS_ENABLED_KEY, GUEST_TTS_ENABLED_KEY)
       const stored = storage.getItem(storageKey)
       if (stored) {
         const data = JSON.parse(stored)
@@ -186,6 +193,7 @@ export const useChatStore = defineStore('chat', () => {
         messages.value.sort((a, b) =>
           a.timestamp.getTime() - b.timestamp.getTime()
         )
+        messageIdCounter = messages.value.reduce((lowest, message) => Math.min(lowest, message.id), 0)
 
         conversationId.value = isGuestSession() ? null : (data.conversationId || null)
       }
@@ -217,7 +225,7 @@ export const useChatStore = defineStore('chat', () => {
     chatTts.setTtsEnabled(enabled)
     try {
       const storage = getStorage()
-      storage.setItem(isGuestSession() ? GUEST_TTS_ENABLED_KEY : TTS_ENABLED_KEY, String(enabled))
+      if (sessionOwner.value !== 'pending') storage.setItem(scopedKey(TTS_ENABLED_KEY, GUEST_TTS_ENABLED_KEY), String(enabled))
     } catch {
     }
   }
@@ -238,13 +246,11 @@ export const useChatStore = defineStore('chat', () => {
    * 清理localStorage
    */
   const clearStorage = () => {
-    localStorage.removeItem(STORAGE_KEY)
-    localStorage.removeItem(CONVERSATION_ID_KEY)
-    localStorage.removeItem(MODE_KEY)
-    localStorage.removeItem(TTS_ENABLED_KEY)
-    sessionStorage.removeItem(GUEST_STORAGE_KEY)
-    sessionStorage.removeItem(GUEST_MODE_KEY)
-    sessionStorage.removeItem(GUEST_TTS_ENABLED_KEY)
+    if (sessionOwner.value === 'pending') return
+    const storage = getStorage()
+    storage.removeItem(scopedKey(STORAGE_KEY, GUEST_STORAGE_KEY))
+    storage.removeItem(scopedKey(MODE_KEY, GUEST_MODE_KEY))
+    storage.removeItem(scopedKey(TTS_ENABLED_KEY, GUEST_TTS_ENABLED_KEY))
   }
 
   const buildGuestTempMessages = () => {
@@ -358,39 +364,31 @@ export const useChatStore = defineStore('chat', () => {
    * @param context 上下文信息
    */
   const sendMessage = async (content: string, context?: Record<string, any>) => {
+    syncIdentity()
     if (!content.trim() || isLoading.value) return
-
+    const requestToken = getToken()
+    isLoading.value = true
     await ensureUserRoleLoaded()
+    if (getToken() !== requestToken) return
+    syncIdentity()
+    if (sessionOwner.value === 'pending') { isLoading.value = false; return }
+    const generation = identityGeneration
     const guestTempMessages = isGuestSession() ? buildGuestTempMessages() : undefined
-
-    // 清空之前的错误
     errorMessage.value = ''
-
-    // 添加用户消息
-    const userMessage = addUserMessage(content.trim())
-
-    // 根据模式发送请求
+    addUserMessage(content.trim())
     try {
       isLoading.value = true
-
-      // 构建请求，只在有conversationId时才包含该字段
       const request: AiChatRequest = {
-        message: content.trim(),
-        context,
-        ...(isGuestSession()
-          ? { tempMessages: guestTempMessages }
+        message: content.trim(), context,
+        ...(isGuestSession() ? { tempMessages: guestTempMessages }
           : { ...(conversationId.value && { conversationId: conversationId.value }) })
       }
-
-      if (mode.value === 'stream') {
-        await sendStreamMessage(request)
-      } else {
-        await sendNormalMessage(request)
-      }
+      if (mode.value === 'stream') await sendStreamMessage(request)
+      else await sendNormalMessage(request)
     } catch (error) {
-      handleError(error)
+      if (generation === identityGeneration) handleError(error)
     } finally {
-      isLoading.value = false
+      if (generation === identityGeneration) isLoading.value = false
     }
   }
 
@@ -398,6 +396,7 @@ export const useChatStore = defineStore('chat', () => {
    * 发送流式消息
    */
   const sendStreamMessage = async (request: AiChatRequest) => {
+    const generation = identityGeneration
     isStreaming.value = true
     aiThinking.value = true
     ttsCancelCounter.value++
@@ -418,15 +417,21 @@ export const useChatStore = defineStore('chat', () => {
         },
         // onChunk - 接收到内容块
         (chunk: string) => {
+          if (generation !== identityGeneration) return
           updateStreamingMessage(chunk)
         },
         // onEvent - SSE 事件分发
         // 处理的事件类型：start, article-results, avatar-cue, audio, audio-skip, audio-complete
         (eventType: string, payload: any) => {
+          if (generation !== identityGeneration) return
           // start: 首事件携带 conversationId，立即更新 store（避免后续请求用旧 id 或 null）
           if (eventType === 'start') {
             if (payload?.conversationId && !conversationId.value) {
               conversationId.value = payload.conversationId
+            }
+            if (payload?.model) {
+              aiMessage.modelName = formatModelName(payload.model)
+              currentModelInfo.value = { modelName: payload.model, displayName: aiMessage.modelName }
             }
             return
           }
@@ -482,6 +487,7 @@ export const useChatStore = defineStore('chat', () => {
         },
         // onComplete - 流完成
         (response) => {
+          if (generation !== identityGeneration) return
           completeStreamingMessage()
           isStreaming.value = false
           aiThinking.value = false
@@ -495,10 +501,18 @@ export const useChatStore = defineStore('chat', () => {
         },
         // onError - 发生错误
         (error) => {
-          // 移除流式消息
+          if (generation !== identityGeneration) return
+          // 断线或服务端错误时保留已收到的正文，仅移除尚未输出的占位消息。
           const index = messages.value.findIndex(msg => msg.id === aiMessage.id)
           if (index > -1) {
-            messages.value.splice(index, 1)
+            const partialMessage = messages.value[index]!
+            if (partialMessage.content) {
+              partialMessage.isStreaming = false
+              partialMessage.isThinking = false
+              partialMessage.renderedContent = undefined
+            } else {
+              messages.value.splice(index, 1)
+            }
           }
 
           // 添加错误消息
@@ -511,6 +525,7 @@ export const useChatStore = defineStore('chat', () => {
         }
       )
     } catch (error) {
+      if (generation !== identityGeneration) return
       // 清理流式消息
       const index = messages.value.findIndex(msg => msg.id === aiMessage.id)
       if (index > -1) {
@@ -519,6 +534,7 @@ export const useChatStore = defineStore('chat', () => {
 
       throw error
     } finally {
+      if (generation !== identityGeneration) return
       if (isStreaming.value) {
         isStreaming.value = false
       }
@@ -531,10 +547,15 @@ export const useChatStore = defineStore('chat', () => {
    * 发送普通消息
    */
   const sendNormalMessage = async (request: AiChatRequest) => {
+    const generation = identityGeneration
+    const controller = new AbortController()
+    normalAbortController = controller
     const pendingAiMessage = addAiMessage('', undefined, { isThinking: true })
 
     try {
-      const response = await Ai.chat(request)
+      const response = await Ai.chat(request, controller.signal)
+      if (generation !== identityGeneration) return
+      if (response.model) pendingAiMessage.modelName = formatModelName(response.model)
 
       updateAiMessage(pendingAiMessage.id, response.message, {
         isThinking: false,
@@ -550,11 +571,14 @@ export const useChatStore = defineStore('chat', () => {
         conversationId.value = response.conversationId
       }
     } catch (error) {
+      if (generation !== identityGeneration) return
       const index = messages.value.findIndex(msg => msg.id === pendingAiMessage.id)
       if (index > -1) {
         messages.value.splice(index, 1)
       }
       throw error
+    } finally {
+      if (normalAbortController === controller) normalAbortController = null
     }
   }
 
@@ -612,6 +636,14 @@ export const useChatStore = defineStore('chat', () => {
    */
   const clearHistory = async () => {
     try {
+      // 旧请求的回调不能在新会话中落入消息。
+      identityGeneration++
+      debouncedSave.cancel()
+      cancelTts()
+      clearAvatarCueQueue()
+      isLoading.value = false
+      isStreaming.value = false
+      aiThinking.value = false
       // 清理状态
       messages.value = []
       conversationId.value = null
@@ -621,6 +653,8 @@ export const useChatStore = defineStore('chat', () => {
 
       // 取消正在进行的流式请求
       AiStream.cancel()
+      normalAbortController?.abort()
+      normalAbortController = null
 
       // 清理本地存储
       clearStorage()
@@ -636,7 +670,7 @@ export const useChatStore = defineStore('chat', () => {
    */
   const setMode = (newMode: ChatMode) => {
     mode.value = newMode
-    getStorage().setItem(isGuestSession() ? GUEST_MODE_KEY : MODE_KEY, newMode)
+    if (sessionOwner.value !== 'pending') getStorage().setItem(scopedKey(MODE_KEY, GUEST_MODE_KEY), newMode)
   }
 
   // ===== 看板娘显示控制 =====
@@ -705,15 +739,15 @@ export const useChatStore = defineStore('chat', () => {
     try {
       isModelLoading.value = true
       const runtime = await getAiRuntime()
-      const modelName = runtime.defaultModel || defaultModel.value
+      const modelName = runtime.defaultModel || ''
       defaultModel.value = modelName
-      setTtsAvailable(runtime.tts.enabled === true && runtime.tts.online === true)
+      setTtsAvailable(runtime.tts.enabled === true && (runtime.tts.online === true || (runtime.tts.configured === true && runtime.tts.onlineVerified === false)))
 
       // 更新当前模型信息
-      currentModelInfo.value = {
+      currentModelInfo.value = modelName ? {
         modelName: modelName,
         displayName: formatModelName(modelName)
-      }
+      } : null
 
       return runtime
 
@@ -754,22 +788,44 @@ export const useChatStore = defineStore('chat', () => {
     }
   )
 
-  // 监听会话ID变化，自动保存
-  watch(
-    () => conversationId.value,
-    () => {
-      if (conversationId.value) {
-        if (!isGuestSession()) {
-          localStorage.setItem(CONVERSATION_ID_KEY, conversationId.value.toString())
-        }
-      } else {
-        localStorage.removeItem(CONVERSATION_ID_KEY)
-      }
-    }
-  )
+  const syncIdentity = () => {
+    const nextOwner = getIdentity()
+    if (nextOwner === sessionOwner.value) return
+    debouncedSave.cancel()
+    saveToStorage() // 按旧 owner 保存，不依赖已经变化的 token。
+    identityGeneration++
+    AiStream.cancel()
+    normalAbortController?.abort()
+    normalAbortController = null
+    cancelTts()
+    clearAvatarCueQueue()
+    sessionOwner.value = nextOwner
+    messages.value = []
+    conversationId.value = null
+    isLoading.value = false
+    isStreaming.value = false
+    aiThinking.value = false
+    errorMessage.value = ''
+    mode.value = 'stream'
+    ttsEnabled.value = true
+    loadFromStorage()
+  }
+  watch(() => userStore.authenticatedUserId, syncIdentity, { flush: 'sync' })
+  watch(() => userStore.userInfo, syncIdentity, { flush: 'sync' })
+  window.addEventListener('liutech-auth-change', syncIdentity)
+  window.addEventListener('storage', syncIdentity)
+  onScopeDispose(() => {
+    debouncedSave.cancel()
+    window.removeEventListener('liutech-auth-change', syncIdentity)
+    window.removeEventListener('storage', syncIdentity)
+    AiStream.cancel()
+    normalAbortController?.abort()
+  })
 
   // ===== 初始化 =====
   // 组件加载时从localStorage恢复状态
+  // 旧的无归属历史无法安全迁移，清除后只恢复明确归属的分桶。
+  for (const key of [STORAGE_KEY, CONVERSATION_ID_KEY, MODE_KEY, TTS_ENABLED_KEY]) localStorage.removeItem(key)
   loadFromStorage()
   // 加载默认模型和运行时状态
   loadRuntime()
@@ -803,6 +859,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 方法
     sendMessage,
+    syncIdentity,
     clearHistory,
     setMode,
     toggleChat,

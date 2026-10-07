@@ -347,7 +347,27 @@ describe('写作助手流式链路（Web 侧）', () => {
     })
 
     expect(errorMessage).toBe('连接中断，请重试')
-    expect(completed).toBe(true)
+    expect(completed).toBe(false)
+    recorder.restore()
+  })
+
+  it('截断error之后忽略字段与complete，不能把失败轮次变成成功', async () => {
+    installLocalStorage('unit-test-token')
+    const recorder = stubFetch(() => sseResponse(
+      frame('field-update', { contentHtml: '<p>部分正文</p>' }) +
+      frame('error', { code: 'OUTPUT_TRUNCATED', error: '输出达到上限，请重新生成' }) +
+      frame('field-update', { title: '迟到字段' }) + frame('complete', {})
+    ))
+    const AdminAgentService = await loadWritingAssistant()
+    const fields: any[] = []
+    const complete = vi.fn()
+    const error = vi.fn()
+    await AdminAgentService.stream({ message: '生成正文' }, {
+      onFieldUpdate: value => fields.push(value), onComplete: complete, onError: error
+    })
+    expect(fields).toEqual([{ contentHtml: '<p>部分正文</p>' }])
+    expect(error).toHaveBeenCalledWith('输出达到上限，请重新生成', 'OUTPUT_TRUNCATED')
+    expect(complete).not.toHaveBeenCalled()
     recorder.restore()
   })
 
@@ -477,10 +497,141 @@ describe('看板娘聊天流式链路', () => {
     expect(recorder.captured[0].url).toBe('https://test.local/ai/chat/stream')
     expect(chunks).toEqual(['第一段', '第二段'])
     expect(errors).toEqual([])
-    expect(events[0]).toEqual({ event: 'start', payload: { conversationId: 8 } })
+    expect(events[0]).toEqual({ event: 'start', payload: { conversationId: 8, model: 'qwen' } })
     expect(completedPayload.conversationId).toBe(8)
     expect(AiStream.isStreaming).toBe(false)
 
     recorder.restore()
+  })
+
+  it('文本 complete 之后继续接收 audio 和 audio-complete 事件', async () => {
+    installLocalStorage(null)
+    const recorder = stubFetch(() => sseResponse([
+      frame('data', { content: '正文' }),
+      frame('complete', { conversationId: 99 }),
+      frame('audio', { seq: 1, audioUrl: '/ai/tts/audio/test.mp3' }),
+      frame('audio-complete', { conversationId: 99 })
+    ].join('')))
+    const AiStream = await loadAiStream()
+    const onComplete = vi.fn()
+    const onError = vi.fn()
+    const events: string[] = []
+    await AiStream.streamChat({ message: '测试问题', ttsEnabled: true }, vi.fn(),
+      event => events.push(event), onComplete, onError)
+    expect(onComplete).toHaveBeenCalledOnce()
+    expect(events).toEqual(['audio', 'audio-complete'])
+    expect(onError).not.toHaveBeenCalled()
+    expect(recorder.captured).toHaveLength(1)
+    recorder.restore()
+  })
+
+  it('断流保留已收内容，只发一次 POST，不伪装完成', async () => {
+    installLocalStorage('unit-test-token')
+    const recorder = stubFetch(() => sseResponse(
+      frame('start', { conversationId: 99 }) + frame('data', { content: '已有正文' })
+    ))
+    const AiStream = await loadAiStream()
+    const onError = vi.fn()
+    const onComplete = vi.fn()
+    const chunks: string[] = []
+    await AiStream.streamChat({ message: '测试问题' }, chunk => chunks.push(chunk), undefined, onComplete, onError)
+    expect(recorder.captured).toHaveLength(1)
+    expect(chunks).toEqual(['已有正文'])
+    expect(JSON.parse(recorder.captured[0]!.init.body)).toEqual({ message: '测试问题' })
+    expect(recorder.captured[0]!.init.headers.Authorization).toBe('Bearer unit-test-token')
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onError.mock.calls[0]![0].code).toBe('STREAM_INCOMPLETE')
+    expect(AiStream.isStreaming).toBe(false)
+    recorder.restore()
+  })
+
+  it('读取网络流发生异常时不重新提交，正文分片不重复', async () => {
+    installLocalStorage(null)
+    const recorder = stubFetch(() => {
+      let read = false
+      return new Response(new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (read) controller.error(new TypeError('network interrupted'))
+          else {
+            read = true
+            controller.enqueue(new TextEncoder().encode(frame('data', { content: '已有正文' })))
+          }
+        }
+      }))
+    })
+    const AiStream = await loadAiStream()
+    const chunks: string[] = []
+    const onError = vi.fn()
+    await AiStream.streamChat({ message: '测试问题' }, chunk => chunks.push(chunk), undefined, undefined, onError)
+    expect(recorder.captured).toHaveLength(1)
+    expect(chunks).toEqual(['已有正文'])
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onError.mock.calls[0]![0].code).toBe('STREAM_ERROR')
+    expect(AiStream.isStreaming).toBe(false)
+    recorder.restore()
+  })
+
+  it.each([400, 401, 403, 429])('HTTP %i 只请求一次并透出后端文案', async status => {
+    installLocalStorage(null)
+    const recorder = stubFetch(() => errorResponse(status, '后端业务提示'))
+    const AiStream = await loadAiStream()
+    const onError = vi.fn()
+    await AiStream.streamChat({ message: '测试问题' }, vi.fn(), undefined, undefined, onError)
+    expect(recorder.captured).toHaveLength(1)
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onError.mock.calls[0]![0]).toMatchObject({ message: '后端业务提示', status })
+    recorder.restore()
+  })
+
+  it('服务端 error 事件只报告一次错误，不重发也不报告流中断', async () => {
+    installLocalStorage(null)
+    const recorder = stubFetch(() => sseResponse(frame('error', { error: '模型正忙' })))
+    const AiStream = await loadAiStream()
+    const onError = vi.fn()
+    await AiStream.streamChat({ message: '测试问题' }, vi.fn(), undefined, undefined, onError)
+    expect(recorder.captured).toHaveLength(1)
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onError.mock.calls[0]![0].message).toBe('模型正忙')
+    recorder.restore()
+  })
+
+  it('用户主动取消不会报告连接错误', async () => {
+    installLocalStorage(null)
+    vi.stubGlobal('fetch', (_input: unknown, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+    }))
+    const AiStream = await loadAiStream()
+    const onError = vi.fn()
+    const pending = AiStream.streamChat({ message: '测试问题' }, vi.fn(), undefined, undefined, onError)
+    AiStream.cancel()
+    await pending
+    expect(onError).not.toHaveBeenCalled()
+    expect(AiStream.isStreaming).toBe(false)
+  })
+
+  it('旧请求结束不会取消后来建立的新请求', async () => {
+    installLocalStorage(null)
+    const resolvers: Array<(response: Response) => void> = []
+    const signals: AbortSignal[] = []
+    vi.stubGlobal('fetch', (_input: unknown, init: RequestInit) => {
+      signals.push(init.signal as AbortSignal)
+      return new Promise<Response>(resolve => resolvers.push(resolve))
+    })
+    const AiStream = await loadAiStream()
+    const firstComplete = vi.fn()
+    const secondComplete = vi.fn()
+    const first = AiStream.streamChat({ message: '旧问题' }, vi.fn(), undefined, firstComplete)
+    const second = AiStream.streamChat({ message: '新问题' }, vi.fn(), undefined, secondComplete)
+    resolvers[0]!(sseResponse(frame('complete', {})))
+    await first
+    expect(signals[0]!.aborted).toBe(true)
+    expect(signals[1]!.aborted).toBe(false)
+    expect(AiStream.isStreaming).toBe(true)
+    expect(firstComplete).not.toHaveBeenCalled()
+    resolvers[1]!(sseResponse(frame('complete', {})))
+    await second
+    expect(secondComplete).toHaveBeenCalledOnce()
+    expect(AiStream.isStreaming).toBe(false)
   })
 })

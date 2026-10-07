@@ -23,6 +23,7 @@ import java.util.List;
 public class UserDataPurgeController {
 
     private final MemoryService memoryService;
+    private final chat.liuxin.ai.service.community.CommunityStore communityStore;
 
     @DeleteMapping("/{userId}/data")
     public UserDataPurgeResult purgeOne(@PathVariable Long userId) {
@@ -35,6 +36,7 @@ public class UserDataPurgeController {
     @DeleteMapping("/{userId}/permanent-data")
     public UserDataPurgeResult purgePermanent(@PathVariable Long userId) {
         MemoryService.PurgeCounts counts = memoryService.purgeUserData(String.valueOf(userId));
+        communityStore.purgeUser(userId);
         log.info("AI 用户数据已永久清理: userId={}", userId);
         return new UserDataPurgeResult(userId, counts.conversationsDeleted(), counts.messagesDeleted(), true);
     }
@@ -48,6 +50,7 @@ public class UserDataPurgeController {
 
     private UserDataPurgeResult purge(Long userId) {
         MemoryService.PurgeCounts counts = memoryService.clearAllMemory(String.valueOf(userId));
+        communityStore.purgeUser(userId);
         return new UserDataPurgeResult(userId, counts.conversationsDeleted(), counts.messagesDeleted());
     }
 }

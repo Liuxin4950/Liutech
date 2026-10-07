@@ -41,7 +41,7 @@ class MemoryMysqlTest {
                 "SELECT MAX(seq_no) FROM ai_chat_message WHERE conversation_id=?", Integer.class, id));
         var page = memory.listMessagesByConversation("owner", id, 2, 5);
         assertEquals(5, page.size());
-        assertEquals(6, page.getFirst().getSeqNo());
+        assertEquals(15, page.getFirst().getSeqNo());
         var tail = memory.listLastMessagesByConversation("owner", id, 3);
         assertEquals(3, tail.size());
         assertEquals(22, tail.getFirst().getSeqNo());
@@ -55,7 +55,7 @@ class MemoryMysqlTest {
                 () -> memory.listLastMessagesAsPromptMessages("attacker", id, 0));
         assertThrows(ResponseStatusException.class,
                 () -> memory.saveUserMessage("attacker", id, "input", "test", null));
-        new ChatServiceHelper(null, memory, null).saveErrorIfNeeded(false, "attacker", id, "test");
+        new ChatServiceHelper(null, memory, null, null).saveErrorIfNeeded(false, "attacker", id, "test");
         assertEquals(0, memory.getConversationOwnedByUser("victim", id).getMessageCount());
         assertEquals(0, db.jdbc.queryForObject(
                 "SELECT COUNT(*) FROM ai_chat_message WHERE conversation_id=?", Integer.class, id));
@@ -63,8 +63,8 @@ class MemoryMysqlTest {
 
     @Test void conversationsUseStableBoundedPagination() {
         for (int i = 0; i < 7; i++) memory.createConversation("pages", "title" + i);
-        var first = memory.listConversations("pages", 1, 3);
-        var second = memory.listConversations("pages", 2, 3);
+        var first = memory.listConversations("pages", null, 1, 3);
+        var second = memory.listConversations("pages", null, 2, 3);
         assertEquals(3, first.size());
         assertEquals(3, second.size());
         assertTrue(first.stream().noneMatch(a -> second.stream().anyMatch(b -> a.getId().equals(b.getId()))));

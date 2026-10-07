@@ -1,7 +1,6 @@
-import { ServiceType } from './api'
+import { ServiceType, getServiceBaseURL } from './serviceConfig'
 import type { AiChatRequest } from './aiTypes'
 import type { ArticleResultsPayload } from './ai'
-import { getServiceBaseURL } from '@/services/serviceConfig'
 import { getToken } from '@/utils/auth'
 import { parseSseEventText, readSseStream } from './sse'
 import type { ParsedSseEvent } from './sse'
@@ -71,11 +70,12 @@ export class StreamError extends Error {
 export class AiStream {
   // AbortController用于取消请求
   static abortController: AbortController | null = null
+
   /**
    * 发起流式聊天请求
    *
-   * 一轮生成只提交一次。后端没有续传/幂等协议，断线时保留已收内容并提示用户，
-   * 不自动重放带副作用的 POST；用户取消立即释放当前连接。
+   * 每次调用只提交一次 POST。服务端尚无续传/幂等协议，断线后由用户手动重试，
+   * 保留已收到的正文，避免重复落库、模型调用和内容拼接。
    *
    * @param request 聊天请求
    * @param onChunk 接收到内容块时的回调
@@ -91,48 +91,71 @@ export class AiStream {
     onComplete?: (response: any) => void,
     onError?: (error: StreamError) => void
   ): Promise<void> {
-    this.cleanup()
+    this.cancel()
     const controller = new AbortController()
     this.abortController = controller
-    let completed = false
+    let isCompleted = false
     let serverError = false
+
     try {
+      const token = getToken()
       const aiBaseUrl = getServiceBaseURL(ServiceType.AI)
       const { chatType, ...requestBody } = request
       const streamUrl = chatType === 'writing' ? `${aiBaseUrl}/writing/stream` : `${aiBaseUrl}/chat/stream`
-      const token = getToken()
+
       const response = await fetch(streamUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
+          Accept: 'text/event-stream',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal
       })
-      if (!response.ok) throw new StreamError(`HTTP ${response.status}: ${response.statusText}`, 'HTTP_ERROR', response.status)
-      if (!response.body) throw new StreamError('无法读取响应流', 'STREAM_READ_ERROR')
+
+      if (!response.ok) {
+        let message = `请求失败（HTTP ${response.status}），请稍后重试`
+        try {
+          const body = await response.json()
+          if (typeof body?.message === 'string' && body.message) message = body.message
+        } catch {
+          // 网关可能返回非 JSON 响应，保留状态码兜底文案。
+        }
+        throw new StreamError(message, 'HTTP_ERROR', response.status)
+      }
+      if (!response.body) {
+        throw new StreamError('无法读取响应流，请重试', 'STREAM_READ_ERROR')
+      }
+
       await readSseStream(response.body, {
         onEvent: (event: ParsedSseEvent) => {
-          if (controller.signal.aborted) return
-          this.dispatchEvent(event, onChunk, onEvent,
-            result => { completed = true; onComplete?.(result) },
-            error => { serverError = true; onError?.(error) })
+          if (controller.signal.aborted || serverError) return
+          this.dispatchEvent(event, onChunk, onEvent, (payload) => {
+            isCompleted = true
+            onComplete?.(payload)
+          }, (error) => {
+            serverError = true
+            onError?.(error)
+          })
         },
-        onParseError: (_rawData: string, error: unknown) => {
-          console.warn('忽略无法解析的 SSE 事件:', error)
+        onParseError: (rawData: string, error: unknown) => {
+          console.error('忽略无法解析的 SSE 事件:', error, rawData)
         }
       })
-      if (!completed && !serverError && !controller.signal.aborted) {
-        onError?.(new StreamError('连接已中断，已保留收到的内容，请手动重试', 'STREAM_INCOMPLETE'))
+
+      if (!isCompleted && !serverError && !controller.signal.aborted) {
+        onError?.(new StreamError('连接中断，已保留收到的内容，请重试', 'STREAM_INCOMPLETE'))
       }
     } catch (error: unknown) {
-      if (!controller.signal.aborted && !completed && !serverError) {
-        onError?.(error instanceof StreamError ? error : new StreamError('连接失败，请稍后重试', 'STREAM_ERROR'))
-      }
+      if (controller.signal.aborted || isCompleted || serverError) return
+      onError?.(error instanceof StreamError
+        ? error
+        : new StreamError('连接中断，已保留收到的内容，请重试', 'STREAM_ERROR'))
     } finally {
-      if (this.abortController === controller) this.cleanup()
+      // 旧请求结束时不能清理后来建立的新请求。
+      controller.abort()
+      if (this.abortController === controller) this.abortController = null
     }
   }
 
@@ -193,8 +216,8 @@ export class AiStream {
         // 首事件携带 conversationId，立即通知上层更新 store。
         // 后端当前下发裸 payload，conversationId 就在 payload 顶层；
         // envelope 形态下解析层已把 payload 剥出来，这里同样取得到。
-        const payload = parsedData as { conversationId?: number } | null
-        onEvent?.('start', { conversationId: payload?.conversationId })
+        const payload = parsedData as { conversationId?: number; model?: string } | null
+        onEvent?.('start', { conversationId: payload?.conversationId, ...(payload?.model ? { model: payload.model } : {}) })
         break
       }
 
@@ -260,7 +283,7 @@ export class AiStream {
   }
 
   /**
-   * 取消当前流式请求
+   * 取消当前流式请求，不报告连接错误。
    */
   static cancel(): void {
     this.cleanup()

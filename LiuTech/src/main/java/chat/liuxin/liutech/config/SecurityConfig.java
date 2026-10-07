@@ -89,7 +89,7 @@ public class SecurityConfig {
                 })
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // 白名单配置：公开接口（统一使用 SecurityWhitelist，与 JwtAuthenticationFilter 同源）
+            // 授权白名单统一使用 SecurityWhitelist；公开接口也可以携带有效登录身份
             .authorizeHttpRequests(authz -> {
                 // OPTIONS 预检请求
                 authz.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
@@ -127,6 +127,9 @@ public class SecurityConfig {
                     authz.requestMatchers(HttpMethod.GET, prefix + "**").denyAll();
                     authz.requestMatchers(HttpMethod.HEAD, prefix + "**").denyAll();
                 }
+
+                // 仅社区内部端点允许不携带真人 JWT；内部令牌过滤器仍先验证令牌。
+                authz.requestMatchers("/internal/community/**").permitAll();
 
                 // 管理后台
                 authz.requestMatchers("/admin/**").hasRole("ADMIN");

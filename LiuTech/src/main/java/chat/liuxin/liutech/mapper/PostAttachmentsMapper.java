@@ -71,6 +71,9 @@ public interface PostAttachmentsMapper extends BaseMapper<PostAttachments> {
      */
     PostAttachments selectByDraftKeyAndResourceId(@Param("draftKey") String draftKey, @Param("resourceId") Long resourceId);
 
+    /** 查询资源当前有效引用数，用于阻止无上下文的附件删除误伤共享资源。 */
+    long countActiveReferences(@Param("resourceId") Long resourceId);
+
     /**
      * 根据资源ID删除附件关联记录
      * @param resourceId 资源ID

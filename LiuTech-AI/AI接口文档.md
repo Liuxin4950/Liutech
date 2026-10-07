@@ -1,7 +1,8 @@
 # LiuTech AI 接口文档
 
-> 核对日期：2026-09-13。以当前工作树的 Controller、DTO、Service、Mapper 和安全配置为依据。
+> 核对日期：2026-10-05。以当前工作树的 Controller、DTO、Service、Mapper 和安全配置为依据。
 > 本文描述现有 HTTP 接口及 SSE 协议；示例 ID、文本和模型配置仅用于说明格式。线上配置可能不同。
+> 新增社区角色管理、预演、评论审查与后台任务接口见[社区 AI 总览](../Docs/架构/后端/社区AI/总览.md)，聊天和写作 SSE 协议保持兼容。
 
 ## 1. 接入与认证
 
@@ -50,17 +51,17 @@ AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过�
 | 字段 | 类型 | 必填 | 当前约束与用途 |
 | --- | --- | --- | --- |
 | `message` | string | 是 | 非空白，最多 20000 字符 |
-| `temperature` | number | 否 | 合法范围 0～1；越界时忽略该值并读取配置 |
-| `maxTokens` | integer | 否 | 只允许比模型配置**更小**；比配置大时按配置生效并打 WARN。模型配置本身受全局安全上限 `spring.ai.security.model-policy-max-tokens-ceiling`（默认 65536）约束 |
+| `temperature` | number | 否 | 合法范围0～1；越界返回400 |
+| `maxTokens` | integer | 否 | 只允许比模型配置**更小**；比配置大时按配置生效并打 WARN。模型配置本身受全局安全上限 `spring.ai.security.model-policy-max-tokens-ceiling`（默认0，仅显式正数时额外限制）约束 |
 | `context` | object | 否 | 页面与写作上下文，见下文 |
-| `tempMessages` | object[] | 否 | 游客/写作历史，按输入顺序取最后 7 条；登录聊天不使用 |
+| `tempMessages` | object[] | 否 | 临时历史最多14条；游客取末7条，写作取末7轮（14条），随后按模型预算裁剪；登录聊天不使用 |
 | `conversationId` | integer / null | 否 | 登录聊天的会话 ID；省略时新建 |
-| `ttsEnabled` | boolean | 否 | 仅流式接口且显式为 `true` 才尝试语音合成；默认关闭，同步接口不生成音频 |
+| `ttsEnabled` | boolean | 否 | 仅流式聊天且显式为 `true` 才尝试语音合成；写作及同步接口不生成音频 |
 | `draft` | object | 否 | 写作时的草稿快照，聊天端点不注入此快照 |
 
-`tempMessages[]` 每项为 `{role,content}`：两者都必须非空白，`content` 最多 20000 字符。建议仅传 `user` / `assistant`；服务端将规范化后的 `assistant` 作为助手历史，其他角色均作为用户历史，`system` 不会获得系统指令权限。
+`tempMessages[]` 每项为 `{role,content}`：两者都必须非空白，`content` 最多 20000 字符。角色仅允许`user/assistant`，其他角色返回400，不能获得系统指令权限。
 
-**模型选择**完全由服务端决定：优先启用的数据库默认模型，否则回退应用配置。请求 DTO 没有 `model`、`mode`、`chatType`、`enableTts`、`lastSeq` 字段，不应依赖这些字段产生效果。
+**模型选择**完全由服务端决定：使用数据库默认启用模型；无默认记录才回退应用配置，配置查询故障明确失败。请求 DTO 没有 `model`、`mode`、`chatType`、`enableTts`、`lastSeq` 字段，不应依赖这些字段产生效果。
 
 **参数优先级**（以管理端「模型配置」为权威，表 `ai_model_config`）：
 
@@ -69,9 +70,9 @@ AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过�
 | `temperature` | 模型配置优先；模型没配时用请求值，写作模式再兜底 0.3 |
 | 输出上限 | 模型配置的 `max_tokens`；请求可以要求更小，不允许更大。再受全局安全上限 `model-policy-max-tokens-ceiling` 约束（超限打 WARN） |
 | 上下文窗口 | 模型配置的 `context_window`；未配置时用 `model-policy-default-context-window`（默认 32768） |
-| 输入预算 | `上下文窗口 − 输出上限 − 安全余量(512)`，再受全局成本护栏 `model-policy-max-input-tokens`（默认 96000）约束 |
+| 输入预算 | `上下文窗口 − 输出上限 − 安全余量(512)`，再受全局成本护栏 `model-policy-max-input-tokens`（默认0，仅显式正数时限制）约束 |
 
-**输入预算怎么用**：组装好的 prompt（系统提示 + 站点/草稿上下文 + 历史 + 当前输入）在发给模型前按输入预算检查，超限时**先丢最旧的历史**，仍放不下则直接返回可读错误（给出本次占用、可用预算与解决办法），不再把超长 prompt 丢给上游干等。单个工具结果（如按 ID 读整篇文章）同样按预算截断并显式标注。详见 `Docs/架构/后端/AI服务/总览.md` 的「模型配额与输入预算」小节。
+**输入预算怎么用**：组装好的 prompt（系统提示 + 站点/草稿上下文 + 历史 + 当前输入）在发给模型前按输入预算检查，超限时**先丢最旧的历史**，仍放不下则直接返回可读错误（给出本次占用、可用预算与解决办法），不再把超长 prompt 丢给上游干等。单个工具结果（如按 ID 读整篇文章）同样按预算截断并显式标注。每轮还核对工具schema、参数和累计结果，最多8轮/24次工具；输入按UTF-8保守上界计。详见[模型预算与安全](../Docs/架构/后端/AI服务/模型预算与安全.md)。
 
 写作流式与同步写作现在共用同一套参数策略：温度未解析到值时使用 0.3，输出上限与上下文窗口一律以模型配置为准。历史上写作流式会用 `spring.ai.writing-max-tokens` 覆盖模型配置（且该覆盖与全局 ceiling 相互矛盾），该配置项已删除，不要再用。
 
@@ -82,11 +83,12 @@ AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过�
 | `page: "post-detail"` + `postId` | 服务端读取对应文章作为上下文；不是旧例中的 `articleId` |
 | `page: "home"` / `"about"` | 注入站点资料；问题含站点相关关键词时也可能注入 |
 | `recommendations` | 推荐历史数组；取最近有效组的 `type/reason/posts[{id,title}]`，最多引用 3 篇，用于后续追问 |
-| `requestedFields` | 写作草稿上下文选取，支持 `title/summary/content/category/tags`（也识别 `tag`）；空、含 `check` 或含完整五类字段时注入全部 |
+| `requestedFields` | 本轮修改范围，支持title/summary/content/category/tags/tag；check只读，完整草稿仍用于理解 |
+| `contentMode` | `patch/replace`；已有正文默认局部修改，空稿默认整篇生成 |
 
-`context.requestedFields` 控制送入模型的草稿资料，**不是服务端对返回字段的权限限制**。上下文不能声明或更改用户身份。
+`context.requestedFields`只能收窄本轮待采纳字段；check只读检查，不产生修改。上下文不能声明或更改用户身份。
 
-**draft 字段**均可选：`postId: integer`、`title: string`、`content: string`、`summary: string`、`categoryId: integer`、`tagIds: integer[]`、`status: string`。`content` 是编辑器当前正文；注入提示词时只取前 6000 字符。请求是 `content`，字段回写事件是 `contentHtml`，两者不要混用。
+**draft 字段**均可选：`postId: integer`、`title: string`、`content: string`、`summary: string`、`categoryId: integer`、`tagIds: integer[]`、`status: string`。`content`是编辑器完整正文，最多200000字符；不截断原稿，超模型预算明确失败。请求是 `content`，正文建议是 `contentPatch`（局部）或 `contentHtml`（整篇），两者不要混用。
 
 聊天示例（登录时可另传 `conversationId`）：
 
@@ -149,16 +151,16 @@ AI 服务不解析 JWT，也不持有 `JWT_SECRET`。带 Token 的请求通过�
 | `processingTime` | integer / null | 毫秒 |
 | `responseLength` | integer / null | 回复字符数，不是 Token 数 |
 | `conversationId` | integer / null | 游客为 null；登录聊天为实际会话 ID |
-| `mode` | string / null | `guest` 或 `user`；同步写作成功时也为 `user` |
+| `mode` | string / null | `guest` 或 `user`；同步写作成功时为 `writing` |
 | `emotion`、`action` | string / null | 保留字段，当前成功响应构造器不赋值 |
 
-同步写作不提供 SSE 的 `field-update` 结构化回写。写作服务内部捕获到的失败返回 **HTTP 200 + `success:false`**，并附 `message/model/processingTime`；请求校验、认证失败仍使用对应 HTTP 错误。
+同步写作以`fieldUpdates: FieldUpdatePayload[]`返回待采纳字段，不表示文章已保存或发布。写作服务内部捕获到的失败返回 **HTTP 200 + `success:false`**，并附 `message/model/processingTime`；请求校验、认证失败仍使用对应 HTTP 错误。
 
 ## 3. SSE 流式协议
 
 ### 3.1 线格式与生命周期
 
-流式接口使用 **POST + JSON 请求体**，返回 `text/event-stream`。`event:` 是事件名，`data:` 是该事件的 JSON 负载；没有额外的 `{event,data}` 或 `{payload,...}` 外层。
+流式接口使用 **POST + JSON 请求体**，返回 `text/event-stream`。`event:` 是事件名，`data:` 是该事件的 JSON 负载；聊天事件没有额外信封；写作统一使用下文版本信封。
 
 ```text
 event: start
@@ -183,37 +185,35 @@ data: {"conversationId":123,"responseLength":3,"mode":"user","ttsEnabled":false}
 
 | event | JSON 负载 | 含义 |
 | --- | --- | --- |
-| `start` | `{conversationId,model,mode}` | 开始；聊天 mode 为 `guest/user`，写作为 `writing`；conversationId 可空 |
+| `start` | `{conversationId,model,mode}` | 聊天开始；mode 为 `guest/user`；conversationId 可空 |
 | `heartbeat` | `{conversationId,timestamp}` | 首次及后续间隔均为 15 秒；timestamp 为 Unix 毫秒 |
 | `data` | `{content,conversationId}` | content 为文本增量，按顺序拼接；没有 seq |
 | `avatar-cue` | `{seq,conversationId,expression,motion,intensity,durationMs,text}` | Live2D 表情提示；expression 为字符串，intensity 为数值，durationMs 为毫秒；当前 motion 为 null |
 | `audio` | `{seq,text,audioUrl,conversationId}` | 单段音频地址；按 seq 对齐文本与播放次序 |
 | `audio-skip` | `{seq,text,reason,conversationId}` | 该段合成失败/无音频；reason 为 `empty-audio-url` 或异常类名 |
-| `tool-start` | `{toolName,displayName,inputSummary?}` | 写作工具开始，字段为字符串 |
-| `tool-result` | `{toolName,displayName,durationMs,success,resultSummary?,errorMessage?}` | 写作工具完成；耗时毫秒，success 为布尔值，成功/失败分别带摘要/错误 |
-| `field-update` | 第 3.3 节的字段对象 | 写作字段回写，不含 conversationId |
 | `article-results` | `{items,reason}` | 正常文本完成前发送，items 可以为空 |
-| `complete` | `{conversationId,responseLength,mode,ttsEnabled}` | **文本完成**；mode 按登录态返回 `guest/user`，写作这里也为 `user` |
+| `complete` | `{conversationId,responseLength,mode,ttsEnabled}` | **文本完成**；mode为guest/user/writing，写作保持writing |
 | `audio-complete` | `{conversationId,timedOut,segments}` | 存在 TTS 任务时的音频收尾；timedOut 为布尔值，segments 为本轮已编号文本段总数 |
 | `error` | `{conversationId,error}` | 本轮失败；读取 `error` 字符串，不是 `message` 或 `code` |
 
-`article-results` 当前从回复中的 `[标题](/post/ID)` 提取链接，按 ID 去重，最多 8 篇。`items` 是 `PostSummaryDTO[]`，当前仅填充 `id` 和 `title`，其他 DTO 字段可能为空；不能假定附带完整文章资料或 URL，详情链接可由 ID 组成 `/post/{id}`。
+`article-results` 当前从回复中的 `[标题](/post/ID)` 提取链接，按 ID 去重，最多 8 篇。`items` 是 `PostSummaryDTO[]`，向博客接口核验后使用真实 `id` 和 `title`，其他 DTO 字段可能为空；不能假定附带完整文章资料或 URL，详情链接可由 ID 组成 `/post/{id}`。
 
-### 3.3 写作字段回写
+### 3.3 写作统一事件和建议
 
-`field-update` 仅包含本次非 null 字段：
+写作仅发送 `event: writing-event`，data 为 `{version:1,requestId,sequence,timestamp,type,data}`。序号从1开始、每帧加1，首次type为 `started`，唯一终态为 `completed/failed`。详细字段、活动阶段和完整示例见[写作事件与局部修改](../Docs/架构/后端/AI服务/写作事件与局部修改.md)。
 
-| 字段 | 类型 | 用法 |
-| --- | --- | --- |
-| `title`、`summary` | string | 替换对应字段 |
-| `contentHtml` | string | 累计正文 HTML 快照，覆盖当前正文，不要当文本增量拼接 |
-| `categoryId`、`categoryName` | integer、string | 已有分类信息 |
-| `tagIds`、`tagNames` | integer[]、string[] | 已有标签信息 |
-| `suggestedCategoryName`、`suggestedTagNames` | string、string[] | 建议新分类/标签名称，不表示已经创建 |
+| type | 用途 |
+| --- | --- |
+| `started` | 实际model、mode=writing、baseRevision、contentMode |
+| `activity` | activityId、stage、status、message与真实起止时长 |
+| `delta` | 可见回复增量，不直接回写 |
+| `proposal` | 标题/摘要/分类/标签建议；正文为contentPatch或contentHtml，两者互斥 |
+| `references/heartbeat` | 核验文章引用/保活 |
+| `completed/failed` | 成功可预览采纳/失败不可采纳 |
 
-前端按字段合并，缺省字段保留。`applyArticleUpdate` 工具主要返回标题、摘要、分类和标签；正文从模型输出的 HTML 文本中提取并可能多次推送快照。并非每轮一定有字段回写，也不保证一次事件包含全部字段。
+上下文 `contentMode=patch/replace` 控制正文形态，已有正文默认patch、空稿默认replace；`requestedFields` 和check范围仍生效。局部建议为 `contentPatch:{baseRevision,edits:[{before,after}]}`，每个before逐字匹配本轮原稿唯一完整HTML段落，无重叠。模型只返回改动片段；空edits确认无需修改。整篇重写才返回contentHtml完整HTML。
 
-`tool-start` / `tool-result` 和 `field-update` 用于展示进度、更新编辑状态；工具成功不代表文章已保存或发布。
+proposal仅包含非null修改字段。缺省保持原值，summary空字符串/tagIds空数组明确清空；新分类和标签只提交suggestedCategoryName/suggestedTagNames，等待用户确认创建。所有建议在完整成功、原稿签名一致且用户明确采纳后应用，不表示文章已经保存或发布。写作不发送聊天TTS/表情事件。
 
 ### 3.4 语音、结束与中断
 
@@ -222,8 +222,8 @@ data: {"conversationId":123,"responseLength":3,"mode":"user","ttsEnabled":false}
 - `complete` 只结束文本。存在 TTS 任务时继续读取连接，等 `audio` / `audio-skip` 和 `audio-complete`；没有实际 TTS 任务时直接关闭，不发 `audio-complete`。
 - `audio-complete.timedOut=true` 表示音频等待超时；`segments` 是文本段数，不是成功音频数量。单段 TTS 失败不使整轮文本失败。
 - 仓库 `spring.ai.sse-timeout` 为 300000 毫秒。超时或网络中断不保证有 `error`；未收到 `complete` 就 EOF 应视作未完成，不能把连接关闭等同成功。
-- 登录聊天的模型流错误会尝试保存部分回复（status=3）和错误占位，再发送 `error`；游客和写作不保存消息。客户端断开、超时或 I/O 错误不保证部分回复落库。
-- 当前没有去重或断点续传 HTTP 接口，不处理 `lastSeq` / `Last-Event-ID`。SSE 关闭时 StreamLifecycle 取消上游订阅并回收计时器和 TTS；供应商是否停止计算由其取消行为决定。客户端生成 POST 不自动重放，异常断流保留已收内容并提示手动重试。
+- 登录聊天的模型流错误会尝试保存一次部分回复（status=3）或错误占位，再发送 `error`；游客和写作不保存消息。客户端取消会关闭SDK实际HTTP流；取消/失败最多保存一次partial错误态。
+- 当前无取消、去重或断点续传 HTTP 接口，也未处理 `lastSeq` / `Last-Event-ID`。客户端 Abort 只能结束本地请求，不能保证上游生成停止。自动重发 POST 可能再次生成、落库，不应视为续传。
 
 语音配置、状态、GPT-SoVITS/SiliconFlow 推理和临时缓存全部位于 AI 服务。`audioUrl` 是相对于 AI baseURL 的 `tts/audio/{fileName}`；开发环境拼为 `http://127.0.0.1:8081/ai/tts/audio/**`，生产同源路径为 `/ai/tts/audio/**`。
 
@@ -309,7 +309,7 @@ console.log(reply);
 // UI 的取消按钮可以调用 controller.abort()。
 ```
 
-同源 Nginx 环境将 `baseUrl` 设为空字符串；写作改为 `path: '/ai/writing/stream'` 并提供管理员 `token`。示例不会因为 `complete` 提前关闭连接，但返回文本不代表所有音频都合成成功。
+同源 Nginx 环境将 `baseUrl` 设为空字符串。此示例消费聊天协议，写作请使用仓库 `writingStream.ts` 并按第3.3节验证信封。聊天示例不会因为complete提前关闭连接，返回文本不代表音频全部成功。
 
 ## 4. 历史记录与会话
 
@@ -346,14 +346,14 @@ console.log(reply);
 | --- | --- | --- |
 | `GET /ai/conversations` | query：`type?`、`page=1`、`size=20` | 裸 `AiConversation[]`；排除归档，`updatedAt DESC,id DESC` |
 | `POST /ai/conversations` | query/form：`type?`、`title?` | `ChatResponse`：`success=true,message="会话创建成功",conversationId` |
-| `GET /ai/conversations/{id}/messages` | query：`page=1`、`size=50` | 裸 `AiChatMessage[]`；`seqNo ASC,id ASC` |
+| `GET /ai/conversations/{id}/messages` | query：`page=1`、`size=50` | 裸 `AiChatMessage[]`；从最近消息开始分页，页内 `seqNo ASC,id ASC` |
 | `PUT /ai/conversations/{id}/rename` | 必填 query/form：`title` | `ChatResponse`：`success=true,message="会话重命名成功"` |
 | `PUT /ai/conversations/{id}/archive` | 无请求体 | `ChatResponse`：`success=true,message="会话已归档"`；置 status=9，保留消息 |
 | `DELETE /ai/conversations/{id}` | 无请求体 | `ChatResponse`：`success=true,message="会话已删除"`；物理删除会话及其消息 |
 
 **当前实现限制**：
 
-- 会话列表与会话消息列表虽接收 `page/size`，当前 `MemoryService` 使用 `.last(false, "LIMIT ...")`，没有实际应用 SQL 分页；不能依赖 size 限制条数，也没有 total。全局 `/ai/chat/history` 不受此问题影响。
+- 会话列表与会话消息列表实际应用 SQL 分页：`page<1` 修正为 1，`size` 限为 1～100。消息第 1 页取最近记录，之后的页取更早记录，各页内部正序；返回数组不包含 total。
 - `type` 在创建和列表中均未使用，不能用于区分聊天/写作或筛选。
 - 创建仅在 `title` 缺省/null 时用“新会话”；空字符串不会自动替换。重命名未声明非空白/长度校验。
 - 归档仅让会话从列表隐藏；属主仍可访问其消息。当前没有恢复归档接口。
@@ -446,7 +446,7 @@ DTO 不包含 API Key、baseUrl 或创建/更新时间。
 
 `GET /ai/status` 公开返回裸文本 `服务可用，用户ID: null`；Token 被认可时替换为当前用户 ID。它不执行模型或 TTS 探测。直连健康检查是 `/actuator/health`。
 
-`GET /ai/runtime` 公开返回 `{aiOnline,aiMessage,defaultModel,tts:{enabled,online,provider,checkedAt,message}}`。`GET /ai/tts/audio/{fileName}` 公开读取当前容器的临时音频。
+`GET /ai/runtime` 公开返回 `{aiOnline,aiMessage,defaultModel,tts:{enabled,configured,online,onlineVerified,provider,checkedAt,message}}`。`GET /ai/tts/audio/{fileName}` 公开读取当前容器的临时音频。
 
 TTS 管理接口均要求管理员且成功响应为原始 DTO/数组：`GET/PUT /ai/admin/tts/config`、`GET /ai/admin/tts/status`、`GET /ai/admin/tts/voices`、`GET /ai/admin/tts/siliconflow/voices`、`POST /ai/admin/tts/siliconflow/voice`、`POST /ai/admin/tts/test-speech`。
 

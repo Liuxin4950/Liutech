@@ -40,7 +40,7 @@ public class TtsConfigRequest {
     private String siliconFlowVoiceUri;
 
     /**
-     * 输出格式：mp3 / wav / opus / pcm。
+     * 浏览器可播放的输出格式：mp3 / wav / opus；禁止无容器的原始 PCM。
      */
     private String responseFormat;
 

@@ -1,9 +1,8 @@
 package chat.liuxin.liutech.service;
 
+import chat.liuxin.liutech.mapper.*;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
-
-import chat.liuxin.liutech.mapper.*;
 import chat.liuxin.liutech.model.PostFavorites;
 import chat.liuxin.liutech.model.PostLikes;
 import chat.liuxin.liutech.model.Posts;
@@ -58,6 +57,9 @@ class PostsAdminServiceTest {
     private CommentsMapper commentsMapper;
 
     @Mock
+    private CommentsAdminService commentsAdminService;
+
+    @Mock
     private FileUtil fileUtil;
 
     @Mock
@@ -65,6 +67,9 @@ class PostsAdminServiceTest {
 
     @Mock
     private PostsService postsService;
+
+    @Mock
+    private CommunityService communityService;
 
     @InjectMocks
     private PostsAdminService postsAdminService;
@@ -80,6 +85,32 @@ class PostsAdminServiceTest {
         TableInfoHelper.initTableInfo(assistant, PostLikes.class);
         TableInfoHelper.initTableInfo(assistant, PostFavorites.class);
         TableInfoHelper.initTableInfo(assistant, Posts.class);
+    }
+
+    @Test
+    void batchPublishLocksAllArticlesBeforeUpdateAndCreatesCommunityEventsInOriginalTransaction() {
+        Posts first=new Posts();first.setId(1L);
+        Posts second=new Posts();second.setId(2L);
+        when(postsMapper.selectByIdForUpdate(1L)).thenReturn(first);
+        when(postsMapper.selectByIdForUpdate(2L)).thenReturn(second);
+        when(postsMapper.update(isNull(),any(com.baomidou.mybatisplus.core.conditions.Wrapper.class))).thenReturn(2);
+        assertTrue(postsAdminService.batchUpdateStatus(Arrays.asList(2L,1L,2L,9L),"published"));
+        var order=inOrder(postsMapper,communityService);
+        order.verify(postsMapper).selectByIdForUpdate(1L);
+        order.verify(postsMapper).selectByIdForUpdate(2L);
+        order.verify(postsMapper).selectByIdForUpdate(9L);
+        order.verify(postsMapper).update(isNull(),any(com.baomidou.mybatisplus.core.conditions.Wrapper.class));
+        order.verify(communityService).articleSaved(1L);
+        order.verify(communityService).articleSaved(2L);
+        verify(communityService,never()).articleSaved(9L);
+    }
+
+    @Test
+    void failedBatchPublishDoesNotScheduleCommunityTasks() {
+        Posts first=new Posts();first.setId(1L);
+        when(postsMapper.selectByIdForUpdate(1L)).thenReturn(first);
+        assertFalse(postsAdminService.batchUpdateStatus(Collections.singletonList(1L),"published"));
+        verifyNoInteractions(communityService);
     }
 
     // ========== getPostListForAdmin 测试 ==========
@@ -142,17 +173,13 @@ class PostsAdminServiceTest {
         post.setTitle("Test Post");
 
         when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
-        when(postLikesMapper.update(isNull(), any())).thenReturn(1);
-        when(postFavoritesMapper.update(isNull(), any())).thenReturn(1);
         when(postsMapper.deleteById(eq(postId), any(), eq(operatorId))).thenReturn(1);
 
         boolean result = postsAdminService.deletePostForAdmin(postId, operatorId);
 
         assertTrue(result);
 
-        verify(postTagsMapper, never()).deleteByPostId(postId);
-        verify(postLikesMapper).update(isNull(), any());
-        verify(postFavoritesMapper).update(isNull(), any());
+        verifyNoInteractions(postTagsMapper, postLikesMapper, postFavoritesMapper);
         verify(postsMapper).deleteById(eq(postId), any(), eq(operatorId));
     }
 
@@ -163,12 +190,10 @@ class PostsAdminServiceTest {
 
         when(postsMapper.selectActiveForUpdate(postId)).thenReturn(null);
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> postsAdminService.deletePostForAdmin(postId, operatorId));
 
-        // 服务层保留业务异常语义。
-        assertInstanceOf(BusinessException.class, ex);
-        assertEquals(ErrorCode.ARTICLE_NOT_FOUND.getCode(), ((BusinessException) ex).getCode());
+        assertEquals(ErrorCode.ARTICLE_NOT_FOUND.getCode(), ex.getCode());
 
         verify(postTagsMapper, never()).deleteByPostId(anyLong());
         verify(postsMapper, never()).deleteById(anyLong(), any(), anyLong());
@@ -185,15 +210,56 @@ class PostsAdminServiceTest {
 
         // ServiceImpl.getById() 对 @TableLogic 实体会自动过滤已删除记录，
         // 返回 null，从而触发 ARTICLE_NOT_FOUND 异常
-        when(postsMapper.selectById(postId)).thenReturn(null);
+        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(null);
 
-        RuntimeException ex = assertThrows(RuntimeException.class,
+        BusinessException ex = assertThrows(BusinessException.class,
                 () -> postsAdminService.deletePostForAdmin(postId, operatorId));
 
-        assertInstanceOf(BusinessException.class, ex);
-        assertEquals(ErrorCode.ARTICLE_NOT_FOUND.getCode(), ((BusinessException) ex).getCode());
+        assertEquals(ErrorCode.ARTICLE_NOT_FOUND.getCode(), ex.getCode());
 
         verify(postTagsMapper, never()).deleteByPostId(anyLong());
         verify(postsMapper, never()).deleteById(anyLong(), any(), anyLong());
     }
+    @Test
+    void batchSoftDeleteAndRestoreKeepRecoverableRelations() {
+        var ids = Arrays.asList(1L, 2L);
+        Posts first = new Posts(); first.setId(1L); first.setDeletedAt(new java.util.Date());
+        Posts second = new Posts(); second.setId(2L); second.setDeletedAt(new java.util.Date());
+        when(postsMapper.selectForUpdateByIds(ids)).thenReturn(java.util.List.of(), java.util.List.of(first, second));
+        when(postsMapper.update(isNull(), any())).thenReturn(2);
+        when(postsMapper.restorePostsByIds(ids)).thenReturn(2);
+        assertTrue(postsAdminService.removeByIds(ids));
+        assertTrue(postsAdminService.batchRestorePosts(ids));
+        verifyNoInteractions(postTagsMapper, postLikesMapper, postFavoritesMapper, postAttachmentsMapper);
+    }
+
+    @Test
+    void permanentDeleteStillRemovesAllRelations() {
+        Posts post = new Posts();
+        post.setId(1L);
+        when(postsMapper.selectByIdWithDeleted(1L)).thenReturn(post);
+        when(postsMapper.permanentDeleteById(1L)).thenReturn(1);
+        when(fileUtil.extractImageUrls(any())).thenReturn(Collections.emptyList());
+        assertTrue(postsAdminService.permanentDeletePost(1L));
+        verify(postTagsMapper).deleteByPostId(1L);
+        verify(postLikesMapper).deleteByPostId(1L);
+        verify(postFavoritesMapper).deleteByPostId(1L);
+        verify(postAttachmentsMapper).deleteByPostId(1L);
+    }
+
+    @Test
+    void articlePermanentDeleteReusesCommentTreeCleanupBeforeRemovingPost() {
+        Posts post = new Posts();
+        post.setId(1L);
+        when(postsMapper.selectByIdWithDeleted(1L)).thenReturn(post);
+        when(commentsMapper.selectRootCommentIdsByPostIds(Collections.singletonList(1L))).thenReturn(Arrays.asList(10L, 20L));
+        when(postsMapper.permanentDeleteById(1L)).thenReturn(1);
+        assertTrue(postsAdminService.permanentDeletePost(1L));
+        var order = inOrder(commentsAdminService, postsMapper);
+        order.verify(postsMapper).selectByIdWithDeleted(1L);
+        order.verify(commentsAdminService).batchPermanentDeleteComments(Arrays.asList(10L, 20L));
+        order.verify(postsMapper).permanentDeleteById(1L);
+        verify(commentsMapper, never()).deleteChildrenByPostId(anyLong());
+    }
+
 }

@@ -3,10 +3,13 @@ package chat.liuxin.ai.service;
 import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import chat.liuxin.ai.infra.security.PromptBudget;
+import chat.liuxin.ai.common.tools.RoleBasedToolRegistry;
+import org.springframework.ai.support.ToolCallbacks;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import chat.liuxin.ai.infra.exception.AIServiceException;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -27,6 +30,7 @@ public class ChatServiceHelper {
     private final PromptService promptService;
     private final MemoryService memoryService;
     private final PromptBudget promptBudget;
+    private final RoleBasedToolRegistry toolRegistry;
 
     /**
      * 组装本次调用要发送给模型的完整消息序列，并保证不超出模型的输入预算。
@@ -48,31 +52,40 @@ public class ChatServiceHelper {
     public List<Message> prepareMessages(ChatRequest request, String userId, Long conversationId,
                                          boolean guestMode, boolean writingMode,
                                          String modelName, AiModelPolicy.ModelParameters params) {
+        validateContext(request);
         PromptService.AssembledPrompt parts = promptService.assembleParts(
                 request, userId, conversationId, guestMode, writingMode, memoryService);
 
         // 当前输入属于必需内容：即使为空也补一条空 UserMessage，防止 Spring AI 报错
         Message currentInput = new UserMessage(request.getMessage() != null ? request.getMessage() : "");
 
-        int mandatoryTokens = promptBudget.estimateTokens(parts.mandatory())
-                + promptBudget.estimateTokens(currentInput.getText()) + 4;
+        var tools = toolRegistry == null ? List.<org.springframework.ai.tool.ToolCallback>of()
+                : java.util.Arrays.asList(ToolCallbacks.from(toolRegistry.getToolsForRoleAndMode(
+                    writingMode ? "ADMIN" : "GUEST", writingMode ? "WRITING" : "CHAT").toArray()));
+        return promptBudget.prepareInitial(modelName, params, parts.mandatory(), parts.references(),
+                parts.history(), currentInput, tools);
+    }
 
-        // 必需内容都放不下 → 立刻失败，并告诉用户超了多少、可以怎么做
-        promptBudget.assertMandatoryFits(modelName, mandatoryTokens,
-                params.inputBudgetTokens(), params.contextWindow(), params.maxTokens());
-
-        int historyBudget = params.inputBudgetTokens() - mandatoryTokens;
-        List<Message> history = promptBudget.trimHistory(parts.history(), historyBudget);
-
-        List<Message> messages = new ArrayList<>(parts.mandatory());
-        messages.addAll(history);
-        messages.add(currentInput);
-
-        int historyTokens = promptBudget.estimateTokens(history);
-        log.info("输入预算 - 模型: {}, 上下文: {}, 输出上限: {}, 输入预算: {}, 本次实际: {} token（必需 {} + 历史 {} 条 {}）, 消息数: {}",
-                modelName, params.contextWindow(), params.maxTokens(), params.inputBudgetTokens(),
-                mandatoryTokens + historyTokens, mandatoryTokens, history.size(), historyTokens, messages.size());
-        return messages;
+    private void validateContext(ChatRequest request) {
+        var context = request.getContext();
+        if (context == null) return;
+        var allowed = java.util.Set.of("page", "postId", "recommendations", "requestedFields", "source", "appendTags", "contentMode");
+        if (context.size() > allowed.size() || context.keySet().stream().anyMatch(key -> !allowed.contains(key))) {
+            throw new AIServiceException.RequestException("页面上下文包含不支持的字段");
+        }
+        if (String.valueOf(context).length() > 20000) {
+            throw new AIServiceException.RequestException("页面上下文过长，请减少推荐记录后重试");
+        }
+        Object fields = context.get("requestedFields");
+        if (fields != null && (!(fields instanceof List<?> values) || values.size() > 8
+                || values.stream().anyMatch(value -> !(value instanceof String)
+                || !java.util.Set.of("title", "summary", "content", "category", "tags", "tag", "check").contains(value)))) {
+            throw new AIServiceException.RequestException("写作字段范围无效");
+        }
+        Object contentMode = context.get("contentMode");
+        if (contentMode != null && !java.util.Set.of("patch", "replace").contains(contentMode)) {
+            throw new AIServiceException.RequestException("正文修改模式无效，请选择局部修改或整篇重写");
+        }
     }
 
     /**

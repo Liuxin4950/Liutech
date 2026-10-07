@@ -1,6 +1,5 @@
 package chat.liuxin.ai.infra.exception;
 
-import chat.liuxin.ai.common.utils.WebUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -53,7 +53,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AIServiceException.RequestException.class)
     public ResponseEntity<Map<String, Object>> handleRequestException(Exception ex) {
         log.warn("请求参数错误: {}", ex.getMessage());
-        return createErrorResponse("输入内容有误，请检查", HttpStatus.BAD_REQUEST);
+        return createErrorResponse(ex.getMessage() == null ? "输入内容有误，请检查" : ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
     /** 未细分类的 AIServiceException 兜底 500 */
@@ -85,12 +85,18 @@ public class GlobalExceptionHandler {
         return createErrorResponse(message, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadableRequest(HttpMessageNotReadableException ex) {
+        // JSON 解析异常可能携带正文片段；不向日志或客户端写入这些细节。
+        return createErrorResponse("请求 JSON 格式不正确，请检查输入", HttpStatus.BAD_REQUEST);
+    }
+
     /** 兜底：任何未处理的异常都归为 500，堆栈只写日志不返回前端，避免泄漏内部实现 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex, HttpServletRequest request, HttpServletResponse response) {
         // SSE 请求异常由 StreamingChatService.onError 处理（发 error 事件），这里跳过避免破坏 event-stream 格式
-        if (response.isCommitted() || WebUtils.isSseRequest(request)) {
-            log.warn("SSE请求异常，已跳过JSON写入: {}", ex.getMessage());
+        if (response.isCommitted()) {
+            log.warn("已提交响应的请求发生异常，跳过JSON写入: {}", ex.getClass().getSimpleName());
             return null;
         }
         log.error("系统异常: {}", ex.getMessage(), ex);
@@ -103,6 +109,7 @@ public class GlobalExceptionHandler {
         response.put("success", false);
         response.put("message", message);
         response.put("code", status.value());
-        return new ResponseEntity<>(response, status);
+        // 即使客户端 Accept 为 event-stream，流建立前的错误也必须是可读的 JSON。
+        return ResponseEntity.status(status).contentType(org.springframework.http.MediaType.APPLICATION_JSON).body(response);
     }
 }

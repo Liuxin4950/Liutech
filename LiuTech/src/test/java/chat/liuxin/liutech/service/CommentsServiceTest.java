@@ -30,12 +30,20 @@ class CommentsServiceTest {
     void setUp() {
         commentsMapper = mock(CommentsMapper.class);
         userUtils = mock(UserUtils.class);
-        commentsService = new CommentsService(commentsMapper, userUtils);
+        commentsService = new CommentsService(commentsMapper, userUtils, mock(CommunityService.class));
         // ServiceImpl 需要 baseMapper 字段
         ReflectionTestUtils.setField(commentsService, "baseMapper", commentsMapper);
     }
 
     // ========== getTopLevelCommentsByPostId ==========
+
+    @Test
+    void publicDetailDoesNotFallBackToUnrestrictedPrimaryKeyQuery() {
+        when(commentsMapper.selectPublicCommentById(99L)).thenReturn(null);
+        assertNull(commentsService.getPublicCommentById(99L));
+        verify(commentsMapper).selectPublicCommentById(99L);
+        verify(commentsMapper, never()).selectById(anyLong());
+    }
 
     @Test
     void getTopLevelCommentsByPostId_shouldReturnTreeStructure() {

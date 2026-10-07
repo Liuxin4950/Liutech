@@ -1,8 +1,9 @@
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
 import { ConversationService, type Conversation } from '@/services/conversation'
 import type { useChatStore } from '@/stores/chat'
 import { showConfirm, showWarning } from '@/utils/errorHandler'
 import { isLoggedIn } from '@/utils/auth'
+import { useUserStore } from '@/stores/user'
 
 type ChatStore = ReturnType<typeof useChatStore>
 
@@ -13,6 +14,8 @@ type ChatStore = ReturnType<typeof useChatStore>
  * 从 AiChat.vue 中提取，供 AiChat.vue 直接使用。
  */
 export function useConversationManager(chatStore: ChatStore) {
+  const userStore = useUserStore()
+  let lastUserId = userStore.getAuthenticatedUserId()
   const conversations = ref<Conversation[]>([])
   const isLoadingHistory = ref(false)
   const showHistorySidebar = ref(false)
@@ -21,15 +24,30 @@ export function useConversationManager(chatStore: ChatStore) {
   const editingTitle = ref('')
   const menuOpenId = ref<number | null>(null)
 
-  const syncAuthState = () => {
+  const syncAuthState = (event?: Event) => {
+    chatStore.syncIdentity()
     isAuthenticated.value = isLoggedIn()
+    const userId = userStore.getAuthenticatedUserId()
+    if (event?.type === 'storage' && isAuthenticated.value && userId === null) void userStore.fetchUserInfo()
+    if (userId !== lastUserId) {
+      lastUserId = userId
+      conversations.value = []
+      showHistorySidebar.value = false
+      editingConversationId.value = null
+      menuOpenId.value = null
+    }
   }
+  watch(() => userStore.authenticatedUserId, () => syncAuthState(), { flush: 'sync' })
+  watch(() => userStore.userInfo, () => syncAuthState(), { flush: 'sync' })
 
   const loadConversations = async () => {
     if (!isAuthenticated.value || isLoadingHistory.value) return
     try {
       isLoadingHistory.value = true
-      conversations.value = await ConversationService.list(1, 50)
+      const owner = userStore.getAuthenticatedUserId()
+      const result = await ConversationService.list(1, 50)
+      if (owner === null || owner !== userStore.getAuthenticatedUserId()) return
+      conversations.value = result
     } catch {
       // 加载会话历史失败时静默处理
     } finally {
@@ -52,7 +70,9 @@ export function useConversationManager(chatStore: ChatStore) {
   const loadConversation = async (conversationId: number, scrollToBottom: () => Promise<void>) => {
     try {
       isLoadingHistory.value = true
+      const owner = userStore.getAuthenticatedUserId()
       const historyMessages = await ConversationService.messages(conversationId, 1, 100)
+      if (owner === null || owner !== userStore.getAuthenticatedUserId()) return
 
       chatStore.clearHistory()
       chatStore.conversationId = conversationId

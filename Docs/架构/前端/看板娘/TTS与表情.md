@@ -1,12 +1,14 @@
 # TTS、音乐与口型
 
-> 播放状态由音频事件确认，模型就绪状态控制口型连接；语音偏好与服务在线状态独立。
+> 播放状态由音频事件确认，模型就绪状态控制口型连接；语音偏好、供应商配置状态与已验证在线状态独立。
 
 ## 文件地图
 
 | 文件 | 职责 |
 | --- | --- |
-| [chat.ts](../../../../Web/src/stores/chat.ts) | 语音偏好、在线状态、取消代次、SSE 音频入口 |
+| [chat.ts](../../../../Web/src/stores/chat.ts) | 语音偏好、runtime 可尝试状态、取消代次、SSE 音频入口 |
+| [aiRuntime.ts](../../../../Web/src/services/aiRuntime.ts) | `RuntimeTtsStatusDTO`：`enabled`、`online`、`configured`、`onlineVerified` |
+| [Admin/AiSettings.vue](../../../../Admin/src/views/admin/AiSettings.vue) | 配置状态、待确认展示、音色和试听、浏览器可播放输出格式 |
 | [chatTts.ts](../../../../Web/src/composables/chatTts.ts) | 音频/Avatar Cue 队列与预加载 |
 | [useSequencedBuffer.ts](../../../../Web/src/composables/useSequencedBuffer.ts) | seq 保序，丢弃已经消费的旧序号 |
 | [useTtsPlayer.ts](../../../../Web/src/composables/useTtsPlayer.ts) | TTS 消费循环、音乐互斥和模型就绪后补接 |
@@ -16,10 +18,25 @@
 
 ## 状态来源
 
-- `ttsEnabled` 是持久化的用户偏好；`ttsAvailable` 来自 runtime 检测，检测失败不再覆盖偏好。
+- `ttsEnabled` 是按聊天身份保存的用户偏好；`ttsAvailable` 表示当前 runtime 状态允许尝试语音，检测失败不覆盖偏好。
 - `cancelTts()` 增加 `ttsCancelCounter`、清队列并解除等待；流处理捕获自己的 `audioGeneration`，取消后迟到音频不能入队。
 - `live2dStatus` 与 `showModel` 决定是否能消费 TTS；模型还未 ready 时不提前取走队列。
 - MusicCapsule 的 `getCurrentAudio()` 只返回当前实际播放的人声或伴奏，`getActionVersion()` 表示用户主动操作版本。
+
+## 服务配置与验证状态
+
+[`chat.ts`](../../../../Web/src/stores/chat.ts) 与 [`AiChat.vue`](../../../../Web/src/components/AiChat.vue) 使用同一个条件：`enabled && (online || (configured && onlineVerified === false))`。
+
+| runtime 状态 | 前端处理 |
+| --- | --- |
+| `enabled=false` | 不请求语音，保留用户开关偏好 |
+| `online=true` | 允许语音 |
+| `configured=true` 且 `onlineVerified=false` | 已配置但尚未确认，允许首次尝试；不能把配置存在展示为在线 |
+| `online=false` 且已验证失败，或未配置 | 暂不可用，可通过重新检测刷新状态 |
+
+Admin 的未知状态显示“待确认”；`message` 展示服务端状态说明。供应商真实探测、失败冷却与缓存语义归 AI 服务，见[TTS与认证边界](../../后端/AI服务/TTS与认证边界.md)。
+
+输出格式入口仅提供 `mp3`、`wav`、`opus`。浏览器播放链路使用 `HTMLAudioElement`，不能把裸 PCM 当成可直接播放的音频。
 
 ## 顺序播放
 
@@ -31,7 +48,7 @@ SSE audio / audio-skip → chatTts → useSequencedBuffer
   → 下一项；所有出口清理监听和计时器
 ```
 
-`seq` 从 1 开始；缺少下一项时等待后续入队，不乱序播放。音频预加载先设置 crossOrigin 后设置 src。新消息、关闭语音和隐藏模型取消旧播放；重新开启只接收后续有效轮次。播放失败不进行无上限重试，音乐可恢复。
+`seq` 从 1 开始；缺少下一项时等待后续入队，不乱序播放。音频预加载先设置 crossOrigin 后设置 src。新消息、身份切换、清空会话、关闭语音和隐藏模型取消旧播放；重新开启只接收后续有效轮次。播放失败不进行无上限重试，音乐可恢复。
 
 `avatarCueQueue` 通过 `shiftBySeq` 与对应音频绑定；没有 TTS 等待时可独立驱动模型表情。模型本身的表情映射与复位规则见 [Live2d渲染](Live2d渲染.md)。
 
@@ -61,3 +78,5 @@ TTS 开始前暂停音乐并记录用户操作版本；分段之间等待音频�
 - 全局只由 `useTtsPlayer` 协调 TTS 与音乐，不往 chat store 塞播放器回调。
 - 真实音乐文件、TTS、跨域响应与浏览器播放许可仍需集成验证；单元测试只证明受控时序。
 - 自动化覆盖见 [audioLipSync.test.ts](../../../../Web/src/__tests__/audioLipSync.test.ts)、[chatTts.test.ts](../../../../Web/src/__tests__/chatTts.test.ts)。
+
+- runtime 未验证/已失败状态回归见[chatStream.test.ts](../../../../Web/src/__tests__/chatStream.test.ts)。

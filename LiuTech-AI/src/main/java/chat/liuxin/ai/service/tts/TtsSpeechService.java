@@ -105,6 +105,10 @@ public class TtsSpeechService {
     // ---- 状态缓存 ----
     private static final long STATUS_CACHE_TTL_MS = 5000L;
     private final AtomicReference<TtsStatusDTO> statusCache = new AtomicReference<>();
+    /** SiliconFlow 不发付费探测；用最近真实推理结果确认可用性，失败冷却后允许重试。 */
+    private static final long OUTCOME_TTL_MS = 60_000L;
+    private final AtomicReference<SpeechOutcome> siliconFlowOutcome = new AtomicReference<>();
+    private record SpeechOutcome(boolean success, long checkedAt) {}
 
     // ---- SiliconFlow Key 缓存 ----
     private static final String SOURCE_TTS = "SILICONFLOW_TTS_API_KEY";
@@ -124,21 +128,14 @@ public class TtsSpeechService {
     /** 流式聊天使用的容错入口；TTS 不可用时返回 null，由上层发送 audio-skip。 */
     public String inferSingleAudioUrl(String text) {
         TtsStatusDTO status = getStatus();
-        if (!status.isEnabled() || !status.isOnline()) return null;
-        boolean acquired = false;
+        boolean canAttempt = status.isOnline() || (status.isConfigured() && !status.isOnlineVerified());
+        if (!status.isEnabled() || !canAttempt) return null;
         try {
-            ttsSemaphore.acquire();
-            acquired = true;
             TtsSpeechDTO response = synthesize(text);
             return response == null ? null : response.getAudioUrl();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
         } catch (Exception e) {
             log.warn("TTS 推理失败: {}", e.getMessage());
             return null;
-        } finally {
-            if (acquired) ttsSemaphore.release();
         }
     }
 
@@ -147,20 +144,38 @@ public class TtsSpeechService {
         if (normalizedText == null) {
             throw badRequest("语音文本不能为空");
         }
+        if (normalizedText.length() > 1200) {
+            throw badRequest("单次语音文本不能超过1200个字符");
+        }
 
         TtsConfigDTO config = ttsConfigService.getConfig();
         if (!Boolean.TRUE.equals(config.getEnabled())) {
             throw badRequest("语音功能已关闭");
         }
 
-        if (TtsConfigService.PROVIDER_SILICONFLOW.equals(config.getProvider())) {
-            return synthesizeWithSiliconFlow(config, normalizedText);
+        boolean siliconFlow = TtsConfigService.PROVIDER_SILICONFLOW.equals(config.getProvider());
+        boolean acquired = false;
+        try {
+            // 管理端试播与流式语音共用同一并发上限。
+            ttsSemaphore.acquire();
+            acquired = true;
+            TtsSpeechDTO result = siliconFlow ? synthesizeWithSiliconFlow(config, normalizedText)
+                    : synthesizeWithGptSovits(config, normalizedText);
+            if (siliconFlow) recordSiliconFlowOutcome(true);
+            return result;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw upstreamUnavailable("语音请求已取消", e);
+        } catch (RuntimeException e) {
+            if (siliconFlow) recordSiliconFlowOutcome(false);
+            throw e;
+        } finally {
+            if (acquired) ttsSemaphore.release();
         }
-        return synthesizeWithGptSovits(config, normalizedText);
     }
 
     public Path resolveAudioFile(String fileName) {
-        if (fileName == null || !fileName.matches("[a-f0-9\\-]{36}\\.(mp3|wav|opus|pcm)")) {
+        if (fileName == null || !fileName.matches("[a-f0-9\\-]{36}\\.(mp3|wav|opus)")) {
             throw notFound("音频文件不存在");
         }
         Path path = cacheDir().resolve(fileName).normalize();
@@ -175,7 +190,6 @@ public class TtsSpeechService {
         if (lower.endsWith(".mp3")) return MediaType.parseMediaType("audio/mpeg");
         if (lower.endsWith(".wav")) return MediaType.parseMediaType("audio/wav");
         if (lower.endsWith(".opus")) return MediaType.parseMediaType("audio/ogg");
-        if (lower.endsWith(".pcm")) return MediaType.APPLICATION_OCTET_STREAM;
         return MediaType.APPLICATION_OCTET_STREAM;
     }
 
@@ -315,8 +329,13 @@ public class TtsSpeechService {
                 statusCache.set(status);
                 return status;
             }
-            status.setOnline(true);
-            status.setMessage("SiliconFlow 已配置");
+            status.setConfigured(true);
+            SpeechOutcome outcome = siliconFlowOutcome.get();
+            boolean recent = outcome != null && System.currentTimeMillis() - outcome.checkedAt() < OUTCOME_TTL_MS;
+            status.setOnlineVerified(recent);
+            status.setOnline(recent && outcome.success());
+            status.setMessage(recent ? (outcome.success() ? "最近语音请求成功" : "最近语音请求失败，稍后会重试")
+                    : "SiliconFlow 已配置，尚未确认语音服务可用");
             statusCache.set(status);
             return status;
         }
@@ -328,6 +347,9 @@ public class TtsSpeechService {
             return status;
         }
 
+        status.setConfigured(true);
+        status.setOnlineVerified(true);
+
         try {
             URI uri = URI.create(status.getBaseUrl() + "/infer_single");
             HttpRequest req = HttpRequest.newBuilder(uri)
@@ -335,8 +357,10 @@ public class TtsSpeechService {
                     .GET()
                     .build();
             HttpResponse<Void> resp = httpClient.send(req, HttpResponse.BodyHandlers.discarding());
-            status.setOnline(true);
-            status.setMessage("在线（HTTP " + resp.statusCode() + "）");
+            // /infer_single 通常仅支持 POST，GET 405 表示路由存在；5xx/错误地址不能算在线。
+            boolean online = (resp.statusCode() >= 200 && resp.statusCode() < 300) || resp.statusCode() == 405;
+            status.setOnline(online);
+            status.setMessage((online ? "可连通" : "语音服务不可用") + "（HTTP " + resp.statusCode() + "）");
         } catch (Exception e) {
             status.setOnline(false);
             status.setMessage("离线：" + e.getClass().getSimpleName());
@@ -347,6 +371,12 @@ public class TtsSpeechService {
     }
 
     public void clearStatusCache() {
+        statusCache.set(null);
+        siliconFlowOutcome.set(null);
+    }
+
+    private void recordSiliconFlowOutcome(boolean success) {
+        siliconFlowOutcome.set(new SpeechOutcome(success, System.currentTimeMillis()));
         statusCache.set(null);
     }
 
@@ -871,7 +901,7 @@ public class TtsSpeechService {
         if (normalized == null) return TtsConfigService.DEFAULT_RESPONSE_FORMAT;
         String lower = normalized.toLowerCase(Locale.ROOT);
         return switch (lower) {
-            case "wav", "opus", "pcm" -> lower;
+            case "wav", "opus" -> lower;
             default -> "mp3";
         };
     }

@@ -16,6 +16,8 @@ export interface TtsConfigDTO {
 export interface TtsStatusDTO {
   enabled: boolean
   online: boolean
+  configured?: boolean
+  onlineVerified?: boolean
   baseUrl: string | null
   voiceModel: string | null
   provider?: string | null

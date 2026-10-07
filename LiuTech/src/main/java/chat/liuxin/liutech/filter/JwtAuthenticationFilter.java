@@ -1,6 +1,5 @@
 package chat.liuxin.liutech.filter;
 
-import chat.liuxin.liutech.config.SecurityWhitelist;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.service.UserAuthLookupService;
 import chat.liuxin.liutech.utils.JwtUtil;
@@ -49,27 +48,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private tools.jackson.databind.ObjectMapper objectMapper;
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
-        String requestURI = request.getRequestURI();
-        String method = request.getMethod();
-        // 下游异常不得落入认证 catch 后再次执行过滤链。
-        if (shouldSkipAuthentication(requestURI, method)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+        return request.getRequestURI().startsWith("/internal/community/");
+    }
 
+    @Override
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
+            // 公开接口仍需识别可选登录身份；是否允许游客访问由 SecurityConfig 决定。
             String token = extractTokenFromRequest(request);
             if (token != null) {
                 processValidToken(token, request);
             }
         } catch (io.jsonwebtoken.JwtException | IllegalArgumentException e) {
             SecurityContextHolder.clearContext();
-            log.warn("JWT身份无效，请求路径: {}", requestURI);
+            log.warn("JWT身份无效，请求路径: {}", request.getRequestURI());
         } catch (Exception e) {
-            // 认证权威不可用与无效凭据不同，不能误报 401 导致客户端删除有效 token。
             SecurityContextHolder.clearContext();
-            log.error("认证服务处理失败，请求路径: {}", requestURI, e);
+            log.error("认证服务处理失败，请求路径: {}", request.getRequestURI(), e);
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             response.setContentType("application/json;charset=UTF-8");
             objectMapper.writeValue(response.getWriter(), chat.liuxin.liutech.common.Result.fail(
@@ -77,16 +73,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         filterChain.doFilter(request, response);
-    }
-
-    /**
-     * 判断是否应该跳过JWT认证（委托给 SecurityWhitelist 统一管理）
-     * @param requestURI 请求URI
-     * @param method HTTP方法
-     * @return 是否跳过认证
-     */
-    private boolean shouldSkipAuthentication(String requestURI, String method) {
-        return SecurityWhitelist.shouldSkipAuthentication(requestURI, method);
     }
 
     /**
@@ -108,18 +94,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * @param request HTTP请求
      */
     private void processValidToken(String token, HttpServletRequest request) {
-        JwtUtil.TokenIdentity identity = jwtUtil.parseIdentity(token);
-        if (identity == null) {
+        if (!jwtUtil.validateToken(token)) {
             log.warn("无效的JWT token，请求路径: {}", request.getRequestURI());
             return;
         }
 
-        String username = identity.username();
-        Long userId = identity.userId();
+        String username = jwtUtil.getUsernameFromToken(token);
+        Long userId = jwtUtil.getUserIdFromToken(token);
 
         if (username != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             Users currentUser = userAuthLookupService.selectById(userId);
-            if (!userAuthLookupService.isCurrentUserTokenValid(currentUser, identity)) {
+            if (!userAuthLookupService.isCurrentUserTokenValid(currentUser, username, token)) {
                 log.warn("JWT用户状态校验失败，用户ID: {}, 请求路径: {}", userId, request.getRequestURI());
                 return;
             }

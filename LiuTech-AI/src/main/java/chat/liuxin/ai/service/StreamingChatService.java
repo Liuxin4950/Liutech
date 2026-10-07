@@ -1,13 +1,17 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.service.tts.TtsSpeechService;
+import chat.liuxin.ai.common.client.BlogApiClient;
+import chat.liuxin.ai.common.monitor.AiMetrics;
 import chat.liuxin.ai.common.tts.AvatarCueService;
 import chat.liuxin.ai.common.tts.TtsSegmenter;
 import chat.liuxin.ai.dto.AvatarCuePayload;
 import chat.liuxin.ai.dto.FieldUpdatePayload;
 import chat.liuxin.ai.dto.ChatRequest;
+import chat.liuxin.ai.dto.PostDetailDTO;
 import chat.liuxin.ai.dto.PostSummaryDTO;
-import chat.liuxin.ai.common.mcp.ToolResultBudget;
+import chat.liuxin.ai.dto.WritingStreamEvent;
+import chat.liuxin.ai.common.tools.ToolResultBudget;
 import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.infra.security.PromptBudget;
@@ -15,57 +19,29 @@ import chat.liuxin.ai.infra.security.AiModelPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * 流式聊天服务。
- *
- * 从 AiChatServiceImpl 中抽取，专门处理 SSE 流式响应，包含：
- * - 看板聊天流式（processStreamChat）
- * - 写作助手流式（processWritingStream）
- * - TTS 语音合成编排
- * - Live2D 表情提示（AvatarCue）
- * - SSE 心跳保活
- */
+/** 聊天/写作 SSE 生命周期；关闭浏览器或超时会取消同一次模型订阅。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class StreamingChatService {
-
-    // ========== 流式内容回写阈值 ==========
-    /** HTML 片段最小长度，低于此不作为正文回写 */
-    private static final int MIN_HTML_LENGTH = 200;
-    /** 文章正文最小长度，超过才视为完整文章 */
-    private static final int MIN_ARTICLE_LENGTH = 400;
-    /** HTML 片段最小长度（extractHtmlBody 内分段判断） */
-    private static final int MIN_HTML_PART_LENGTH = 100;
-    /** content-update 事件触发的文本增量阈值 */
-    private static final int CONTENT_UPDATE_LENGTH_THRESHOLD = 300;
-    /** content-update 事件触发的最小时间间隔（毫秒） */
-    private static final long CONTENT_UPDATE_INTERVAL_MS = 800;
-    /** 心跳首次延迟（秒） */
-    private static final long HEARTBEAT_INITIAL_DELAY_SEC = 15;
-    /** 心跳发送间隔（秒） */
     private static final long HEARTBEAT_INTERVAL_SEC = 15;
-
     private final SiliconFlowChatClient siliconFlowChatClient;
     private final MemoryService memoryService;
     private final ChatServiceHelper chatServiceHelper;
@@ -74,454 +50,476 @@ public class StreamingChatService {
     private final AvatarCueService avatarCueService;
     private final AiChatProperties aiChatProperties;
     private final PromptBudget promptBudget;
+    private final BlogApiClient blogApiClient;
+    private final AiMetrics aiMetrics;
+    private ThreadPoolExecutor streamExecutor;
+    private ScheduledExecutorService heartbeatExecutor;
+    private Semaphore streamPermits;
+    private final Set<StreamSession> activeSessions = ConcurrentHashMap.newKeySet();
 
-    /** 流式任务线程池大小：个人博客并发有限，固定 16 足够，避免 commonPool 饥饿 */
-    private static final int STREAM_POOL_SIZE = 16;
-
-    /** SSE 流式任务专用线程池，避免长阻塞任务占用 ForkJoinPool.commonPool 影响其他并行计算 */
-    private ExecutorService streamExecutor;
-    private Semaphore streamCapacity;
-
-
-    // ==================== 线程池生命周期 ====================
-
-    /** 初始化流式线程池 */
     @PostConstruct
     void initStreamExecutor() {
-        streamExecutor = new ThreadPoolExecutor(STREAM_POOL_SIZE, STREAM_POOL_SIZE, 0, TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(32), new ThreadPoolExecutor.AbortPolicy());
-        streamCapacity = new Semaphore(Math.max(1, aiChatProperties.getMaxConcurrentStreams()));
+        int concurrency = Math.max(1, aiChatProperties.getAgent().getMaxConcurrentRequests());
+        int queueSize = Math.max(1, aiChatProperties.getAgent().getMaxQueuedRequests());
+        streamPermits = new Semaphore(concurrency);
+        streamExecutor = new ThreadPoolExecutor(concurrency, concurrency, 0, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(queueSize), new ThreadPoolExecutor.AbortPolicy());
+        heartbeatExecutor = Executors.newScheduledThreadPool(Math.min(4, concurrency));
     }
 
-    /** 优雅关闭流式线程池 */
     @PreDestroy
     void shutdownStreamExecutor() {
-        streamExecutor.shutdown();
-        try {
-            if (!streamExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                streamExecutor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            streamExecutor.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
+        for (StreamSession session : activeSessions) session.stop("cancelled", null, false);
+        SseEmitterHelper.shutdown(heartbeatExecutor, true);
+        SseEmitterHelper.shutdown(streamExecutor, true);
     }
 
-    /** 在流式线程池上执行任务，避免占用 ForkJoinPool.commonPool */
-    private void runOnStreamPool(Runnable task) {
-        try {
-            streamExecutor.execute(task);
-        } catch (RejectedExecutionException e) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "流式任务队列已满，请稍后重试");
-        }
-    }
-
-    private void submitStreamTask(StreamLifecycle session, Runnable task) {
-        try {
-            runOnStreamPool(() -> {
-                if (!session.closed.get()) task.run();
-            });
-        } catch (RuntimeException e) {
-            session.close();
-            throw e;
-        }
-    }
-
-    // ==================== 公开接口 ====================
-
-    /**
-     * 看板娘流式聊天入口。
-     *
-     * 立刻返回 {@link SseEmitter},真正逻辑跑在 {@link CompletableFuture#runAsync} 上,避免占用 Servlet 线程。
-     *
-     * 生命周期:
-     * - 先注册 onCompletion / onTimeout,确保心跳线程和 TTS 线程池一定被关闭。
-     * - 异步任务里:登录且无会话时先建会话 → 落库用户消息 → 发送 start 事件 →
-     *   起 15s 心跳定时任务 → 订阅底层 flux 并处理数据/TTS/AvatarCue。
-     * - 完成回调里落库完整 assistant 消息(status=1);错误回调里落库 partial 文本(status=3)
-     *   并写一条错误占位,再向前端发 error 事件。
-     */
     public SseEmitter processStreamChat(ChatRequest request, Long userId, String modelName,
                                         AiModelPolicy.ModelParameters params, String role) {
-        boolean guestMode = userId == null;
-        String userIdStr = userId != null ? userId.toString() : null;
-        Long conversationId = guestMode ? null : request.getConversationId();
-        String input = request.getMessage();
-
-        if (conversationId != null) {
-            memoryService.getConversationOwnedByUser(userIdStr, conversationId);
-        }
-
-        StreamLifecycle session = new StreamLifecycle(streamCapacity);
-        SseEmitter emitter = new SseEmitter(aiChatProperties.getSseTimeout());
-        AtomicReference<ExecutorService> ttsExecutorRef = session.tts;
-        AtomicReference<ScheduledExecutorService> heartbeatRef = session.heartbeat;
-        AtomicBoolean emitterClosed = session.closed;
-        // 超时回调早于会话创建执行，用引用把最终会话 id 带过去，保证超时事件也能带上它
-        AtomicReference<Long> conversationRef = new AtomicReference<>(conversationId);
-
-        session.bind(emitter, () -> SseEmitterHelper.safeSendError(emitter, conversationRef.get(), timeoutNotice()));
-
-        submitStreamTask(session, () -> {
-            try {
-                if (emitterClosed.get()) return;
-                Long convId = conversationId;
-                if (!guestMode && convId == null) {
-                    convId = memoryService.createConversation(userIdStr, chatServiceHelper.generateTitle(input));
-                }
-                final Long finalConvId = convId;
-                conversationRef.set(finalConvId);
-
-                if (emitterClosed.get()) return;
-                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, finalConvId, guestMode, false, modelName, params);
-                if (!guestMode && finalConvId != null) {
-                    memoryService.saveUserMessage(userIdStr, finalConvId, input, modelName, null);
-                }
-
-                SseEmitterHelper.sendSseEvent(emitter, "start", SseEmitterHelper.eventPayload(
-                        "conversationId", finalConvId, "model", modelName, "mode", guestMode ? "guest" : "user"));
-
-                ScheduledExecutorService hb = Executors.newSingleThreadScheduledExecutor();
-                heartbeatRef.set(hb);
-                if (emitterClosed.get()) { session.close(); return; }
-                hb.scheduleAtFixedRate(() -> {
-                    if (emitterClosed.get()) return;
-                    try {
-                        SseEmitterHelper.sendSseEvent(emitter, "heartbeat", SseEmitterHelper.eventPayload(
-                                "conversationId", finalConvId, "timestamp", System.currentTimeMillis()));
-                    } catch (Exception e) {
-                        log.debug("心跳发送失败: {}", e.getMessage());
-                        session.close();
-                        emitter.completeWithError(e);
-                    }
-                }, HEARTBEAT_INITIAL_DELAY_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS);
-
-                // 看板娘也能读整篇文章（getPostDetail），同样带上本次的工具结果预算
-                Map<String, Object> chatToolContext = new HashMap<>();
-                chatToolContext.put(ToolResultBudget.CONTEXT_KEY, promptBudget.toolResultCharBudget(
-                        params.inputBudgetTokens(), aiChatProperties.getAgent().getMaxToolResultChars()));
-
-                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.CHAT, role, chatToolContext);
-                boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
-
-                subscribeStream(emitter, flux, conversationRef.get(), ttsEnabled, emitterClosed, ttsExecutorRef, session,
-                        guestMode, userIdStr, modelName, false, null, null,
-                        fullResponse -> {
-                            if (!guestMode && conversationRef.get() != null) {
-                                memoryService.saveAssistantMessage(userIdStr, conversationRef.get(), fullResponse, modelName, MemoryService.MESSAGE_STATUS_NORMAL, null);
-                            }
-                        },
-                        (partial, errorMsg) -> {
-                            if (!guestMode && conversationRef.get() != null && partial != null && !partial.isBlank()) {
-                                memoryService.saveAssistantMessage(userIdStr, conversationRef.get(), partial, modelName, MemoryService.MESSAGE_STATUS_ERROR, null);
-                            } else {
-                                chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, finalConvId, modelName);
-                            }
-                        });
-
-            } catch (Exception e) {
-                log.error("流式聊天处理失败，用户ID: {}, 会话ID: {}", userIdStr, conversationRef.get(), e);
-                chatServiceHelper.saveErrorIfNeeded(guestMode, userIdStr, conversationRef.get(), modelName);
-                SseEmitterHelper.safeSendError(emitter, conversationRef.get(), toUserFriendlyError(e));
-                session.close();
-                emitter.completeWithError(e);
-            }
-        });
-
-        return emitter;
+        Long conversationId = userId == null ? null : request.getConversationId();
+        if (conversationId != null) memoryService.getConversationOwnedByUser(userId.toString(), conversationId);
+        return start(request, userId, modelName, params, role, false);
     }
 
-    /**
-     * 写作助手流式入口。
-     *
-     * 与看板娘流式的区别:走 WRITING 模式(注册 WritingTools)、不落库。
-     * 心跳线程与看板娘一致（CDN 空闲超时会掐断长流，写作长文生成停顿久，
-     * 曾因无心跳导致 ERR_HTTP2_PROTOCOL_ERROR；heartbeat 事件前端已兼容）。
-     * 其他 SSE 生命周期、TTS 编排、AvatarCue 逻辑与 {@link #processStreamChat} 共用。
-     */
     public SseEmitter processWritingStream(ChatRequest request, Long userId, String modelName,
                                            AiModelPolicy.ModelParameters params, String role) {
-        boolean guestMode = userId == null;
-        String userIdStr = userId != null ? userId.toString() : null;
-        Long conversationId = guestMode ? null : request.getConversationId();
-
-        StreamLifecycle session = new StreamLifecycle(streamCapacity);
-        SseEmitter emitter = new SseEmitter(aiChatProperties.getSseTimeout());
-        AtomicReference<ExecutorService> ttsExecutorRef = session.tts;
-        AtomicReference<ScheduledExecutorService> heartbeatRef = session.heartbeat;
-        AtomicBoolean emitterClosed = session.closed;
-
-        session.bind(emitter, () -> SseEmitterHelper.safeSendError(emitter, conversationId, timeoutNotice()));
-
-        submitStreamTask(session, () -> {
-            try {
-                List<Message> messages = chatServiceHelper.prepareMessages(request, userIdStr, conversationId, guestMode, true, modelName, params);
-
-                SseEmitterHelper.sendSseEvent(emitter, "start", SseEmitterHelper.eventPayload(
-                        "conversationId", conversationId, "model", modelName, "mode", "writing"));
-
-                ScheduledExecutorService hb = Executors.newSingleThreadScheduledExecutor();
-                heartbeatRef.set(hb);
-                if (emitterClosed.get()) { session.close(); return; }
-                hb.scheduleAtFixedRate(() -> {
-                    if (emitterClosed.get()) return;
-                    try {
-                        SseEmitterHelper.sendSseEvent(emitter, "heartbeat", SseEmitterHelper.eventPayload(
-                                "conversationId", conversationId, "timestamp", System.currentTimeMillis()));
-                    } catch (Exception e) {
-                        log.debug("心跳发送失败: {}", e.getMessage());
-                        session.close();
-                        emitter.completeWithError(e);
-                    }
-                }, HEARTBEAT_INITIAL_DELAY_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS);
-
-                FieldUpdateCollector collector = new FieldUpdateCollector();
-                Map<String, Object> toolContext = new HashMap<>();
-                toolContext.put(FieldUpdateCollector.CONTEXT_KEY, collector);
-
-                // 工具结果预算：按模型输入预算推导，读文章之类的大结果在这里被限制住
-                int toolResultCharBudget = promptBudget.toolResultCharBudget(
-                        params.inputBudgetTokens(), aiChatProperties.getAgent().getMaxToolResultChars());
-                toolContext.put(ToolResultBudget.CONTEXT_KEY, toolResultCharBudget);
-                log.debug("工具结果字符预算: {}（输入预算 {} token）", toolResultCharBudget, params.inputBudgetTokens());
-
-                // 工具事件回调：工具 start/success/error 实时转成 SSE tool-start/tool-result 事件推给前端
-                WritingToolEventSink toolEventSink = new WritingToolEventSink((eventName, payload) -> {
-                    try {
-                        SseEmitterHelper.sendSseEvent(emitter, eventName, payload);
-                    } catch (Exception e) {
-                        log.debug("发送工具事件SSE失败: {}", e.getMessage());
-                    }
-                });
-                toolContext.put(WritingToolEventSink.CONTEXT_KEY, toolEventSink);
-                Flux<String> flux = siliconFlowChatClient.streamChat(messages, modelName, params.temperature(), params.maxTokens(), SiliconFlowChatClient.ChatMode.WRITING, role, toolContext);
-                boolean ttsEnabled = Boolean.TRUE.equals(request.getTtsEnabled());
-
-                subscribeStream(emitter, flux, conversationId, ttsEnabled, emitterClosed, ttsExecutorRef, session,
-                        guestMode, userIdStr, modelName, true, new FieldUpdateParser(), collector,
-                        fullResponse -> {}, (partial, errorMsg) -> {});
-
-            } catch (Exception e) {
-                log.error("写作助手流式处理失败，用户ID: {}, 会话ID: {}", userIdStr, conversationId, e);
-                // 与流中错误保持同一口径：自家异常文案原样透出，技术异常做友好映射
-                SseEmitterHelper.safeSendError(emitter, conversationId, toUserFriendlyError(e));
-                emitter.completeWithError(e);
-            }
-        });
-
-        return emitter;
+        return start(request, userId, modelName, params, role, true);
     }
 
-    // ==================== 流式订阅核心（TTS + AvatarCue + SSE） ====================
-
-    /**
-     * 订阅底层 flux 并统一处理三种事件:数据分片、错误、完成。
-     *
-     * onNext: 把 chunk 累加到全量文本和分段缓冲区,由 {@link TtsSegmenter} 切出可播报段落;
-     * 每个段落分配自增 seq,先发 avatar-cue 事件保证表情提示时序,再按需异步跑 TTS;
-     * 原始 chunk 通过 data 事件透传给前端。
-     *
-     * onError: 触发 onError 回调(用于持久化 partial 文本)、发 error 事件、强制关线程池、completeWithError。
-     *
-     * onComplete: 触发 onComplete 回调(用于落库完整 assistant 消息)、flush 剩余文本、
-     * 从全量文本抽取 [标题](/post/ID) 生成 article-results、发 complete 事件;
-     * 若开启 TTS,再异步等所有 TTS 任务完成后发 audio-complete,最后 emitter.complete()。
-     * TTS 等待有超时保护(至少 30s 或配置的 sseTimeout),超时也照常收尾。
-     */
-    private void subscribeStream(
-            SseEmitter emitter,
-            Flux<String> flux,
-            Long conversationId,
-            boolean ttsEnabled,
-            AtomicBoolean emitterClosed,
-            AtomicReference<ExecutorService> ttsExecutorRef,
-            StreamLifecycle session,
-            boolean guestMode,
-            String userIdStr,
-            String modelName,
-            boolean writingMode,
-            FieldUpdateParser parser,
-            FieldUpdateCollector collector,
-            java.util.function.Consumer<String> onComplete,
-            java.util.function.BiConsumer<String, String> onError
-    ) {
-        AtomicReference<StringBuilder> fullResponseRef = new AtomicReference<>(new StringBuilder());
-        StringBuilder textBuffer = new StringBuilder();
-        AtomicInteger seq = new AtomicInteger(0);
-        AtomicBoolean fieldUpdateSent = new AtomicBoolean(false);
-        AtomicInteger lastContentUpdateLength = new AtomicInteger(0);
-        AtomicLong lastContentUpdateTime = new AtomicLong(System.currentTimeMillis());
-
-        // 写作模式：collector 实时监听，AI 每次调 applyArticleUpdate 立即发 SSE field-update 事件
-        // 不等 onComplete，避免用户看到长时等待；collector 由 processWritingStream 注入
-        if (writingMode && collector != null) {
-            collector.addListener(payload -> {
-                try {
-                    SseEmitterHelper.sendSseEvent(emitter, "field-update", toPayloadMap(payload));
-                    fieldUpdateSent.set(true);
-                } catch (Exception e) {
-                    log.warn("实时发送field-update事件失败: {}", e.getMessage());
-                }
-            });
+    private SseEmitter start(ChatRequest request, Long userId, String modelName,
+                             AiModelPolicy.ModelParameters params, String role, boolean writingMode) {
+        if (!streamPermits.tryAcquire()) {
+            aiMetrics.recordFailure(modelName, 0, "capacity");
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "AI 当前处理的请求较多，请稍后重试");
         }
+        StreamSession session = new StreamSession(userId, modelName, writingMode,
+                userId == null ? null : request.getConversationId());
+        session.originalDraftContent = writingMode && request.getDraft() != null ? request.getDraft().getContent() : null;
+        if (writingMode) {
+            session.contentSession = new WritingContentSession(session.originalDraftContent);
+            session.contentMode = WritingContentSession.contentMode(request);
+        }
+        Object requestedFields = request.getContext() == null ? null : request.getContext().get("requestedFields");
+        session.contentRequested = requestedFields instanceof List<?> fields
+                && fields.contains("content") && !fields.contains("check");
+        activeSessions.add(session);
+        session.emitter.onCompletion(() -> session.stop("cancelled", null, false));
+        session.emitter.onError(error -> session.stop("cancelled", error, false));
+        session.emitter.onTimeout(() -> session.stop("timeout", null, true));
+        try {
+            // 写作的第一条信封在入队前发出，连调度拒绝/排队超时也拥有相同的请求标识。
+            if (writingMode) {
+                session.sendStarted();
+                session.startHeartbeat();
+            }
+            // Servlet 自身的 timeout 回调执行前已把 emitter 标记完成，无法再推送错误；
+            // 应用 deadline 先通知，Servlet 稍后只作兜底。
+            session.setDeadline(heartbeatExecutor.schedule(() -> session.stop("timeout", null, true),
+                    Math.max(1, aiChatProperties.getSseTimeout()), TimeUnit.MILLISECONDS));
+            Future<?> future = streamExecutor.submit(() -> prepareAndSubscribe(session, request, params, role));
+            session.setFuture(future);
+        } catch (Exception error) {
+            session.stop("error", error, true);
+        }
+        return session.emitter;
+    }
 
-        int poolSize = Math.max(1, aiChatProperties.getTtsStreamConcurrency());
-        if (emitterClosed.get()) return;
-        ExecutorService ttsExecutor = ttsEnabled ? Executors.newFixedThreadPool(poolSize) : null;
-        ttsExecutorRef.set(ttsExecutor);
-        if (emitterClosed.get()) { session.close(); return; }
-        List<CompletableFuture<Void>> ttsFutures = Collections.synchronizedList(new ArrayList<>());
-
-        reactor.core.Disposable subscription = flux.subscribe(
-                // ---- onNext ----
-                chunk -> {
-                    if (emitterClosed.get()) return;
-                    try {
-                        if (writingMode && parser != null) {
-                            handleWritingChunk(emitter, parser, chunk, fullResponseRef, textBuffer, seq,
-                                    ttsEnabled, ttsExecutor, ttsFutures, conversationId, fieldUpdateSent,
-                                    lastContentUpdateLength, lastContentUpdateTime);
-                            return;
-                        }
-                        fullResponseRef.get().append(chunk);
-                        textBuffer.append(chunk);
-
-                        List<String> segments = ttsSegmenter.extractSegments(textBuffer, seq.get() > 0);
-                        for (String seg : segments) {
-                            int currentSeq = seq.incrementAndGet();
-                            sendAvatarCue(emitter, currentSeq, conversationId, seg);
-                            if (ttsEnabled) {
-                                enqueueTtsTask(emitter, ttsExecutor, ttsFutures, currentSeq, conversationId, seg);
-                            }
-                        }
-
-                        SseEmitterHelper.sendSseEvent(emitter, "data", SseEmitterHelper.eventPayload(
-                                "content", chunk, "conversationId", conversationId));
-                    } catch (java.io.IOException e) {
-                        log.debug("客户端已断开 SSE", e);
-                        session.close();
-                        emitter.completeWithError(e);
+    private void prepareAndSubscribe(StreamSession session, ChatRequest request,
+                                      AiModelPolicy.ModelParameters params, String role) {
+        session.preparationThread = Thread.currentThread();
+        try {
+            if (!session.isRunning()) return;
+            String draftActivity = null;
+            if (session.writingMode) {
+                draftActivity = session.activities.start("reading_draft", "AI 正在读取当前草稿正文");
+            }
+            List<Message> messages = chatServiceHelper.prepareMessages(request, session.userId,
+                    session.conversationId.get(), session.guestMode, session.writingMode, session.modelName, params);
+            if (draftActivity != null) session.activities.complete(draftActivity, "当前草稿已读取");
+            // 会话与用户消息变动和取消共用短临界区，避免取消后又落一条没有回复的用户消息。
+            synchronized (session) {
+                if (!session.isRunning()) return;
+                if (!session.guestMode && !session.writingMode) {
+                    Long id = session.conversationId.get();
+                    if (id == null) {
+                        id = memoryService.createConversation(session.userId,
+                                chatServiceHelper.generateTitle(request.getMessage()));
+                        session.conversationId.set(id);
                     }
-                },
-                // ---- onError ----
-                error -> {
-                    if (emitterClosed.get()) return;
-                    try {
-                        log.error("流式响应错误，用户ID: {}, 会话ID: {}", userIdStr, conversationId, error);
-                        String errorMsg = error != null ? error.getMessage() : "未知错误";
-                        onError.accept(fullResponseRef.get().toString(), errorMsg);
-                        SseEmitterHelper.safeSendError(emitter, conversationId, toUserFriendlyError(error));
-                    } finally {
-                        session.close();
-                        emitter.completeWithError(error != null ? error : new RuntimeException("流式响应发生未知错误"));
+                    memoryService.saveUserMessage(session.userId, id, request.getMessage(), session.modelName, null);
+                    session.userMessageSaved = true;
+                }
+            }
+            if (!session.isRunning()) return;
+            if (!session.writingMode) {
+                session.sendStarted();
+                session.startHeartbeat();
+            }
+
+            Map<String, Object> toolContext = new HashMap<>();
+            toolContext.put(AiMetrics.UsageTracker.CONTEXT_KEY, session.usage);
+            toolContext.put(SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY, params);
+            // prepareMessages 已校验字段白名单；该范围只能收窄写作入口原有权限。
+            Object requestedFields = request.getContext() == null ? null : request.getContext().get("requestedFields");
+            if (session.writingMode && requestedFields instanceof List<?> fields && !fields.isEmpty()) {
+                session.allowedWritingFields = fields.stream().map(String.class::cast).toList();
+                toolContext.put("allowedWritingFields", session.allowedWritingFields);
+            }
+            toolContext.put(ToolResultBudget.CONTEXT_KEY, promptBudget.toolResultCharBudget(
+                    params.inputBudgetTokens(), aiChatProperties.getAgent().getMaxToolResultChars()));
+            if (session.writingMode) {
+                toolContext.put(WritingContentSession.CONTEXT_KEY, session.contentSession);
+                toolContext.put("writingContentMode", session.contentMode);
+                toolContext.put(FieldUpdateCollector.CONTEXT_KEY, session.collector);
+                session.collector.addListener(payload -> {
+                    if (!session.isRunning()) return;
+                    // 字段只在前端作为待采用预览；正文不接受工具或旧文本协议回写。
+                    Map<String, Object> update = toPayloadMap(payload);
+                    if (!update.isEmpty()) {
+                        try { session.send("field-update", update); }
+                        catch (Exception error) { session.stop("cancelled", error, false); }
                     }
-                },
-                // ---- onComplete ----
-                () -> {
-                    if (emitterClosed.get()) return;
-                    try {
-                        if (writingMode && parser != null) {
-                            String rest = parser.flush();
-                            if (rest != null && !rest.isEmpty()) {
-                                fullResponseRef.get().append(rest);
-                                textBuffer.append(rest);
-                                SseEmitterHelper.sendSseEvent(emitter, "data", SseEmitterHelper.eventPayload(
-                                        "content", rest, "conversationId", conversationId));
-                            }
-                        }
-                        String fullResponse = fullResponseRef.get().toString();
-                        onComplete.accept(fullResponse);
+                });
+                toolContext.put(WritingToolEventSink.CONTEXT_KEY, session.activities);
+                toolContext.put(chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
+                        WritingResultValidator.executionPolicy(session.collector, session.contentSession, session.activities));
+            }
+            if (!session.isRunning()) return;
+            session.ttsEnabled = !session.writingMode && Boolean.TRUE.equals(request.getTtsEnabled());
+            if (session.ttsEnabled) {
+                session.setTtsExecutor(Executors.newFixedThreadPool(Math.max(1, aiChatProperties.getTtsStreamConcurrency())));
+            }
+            Flux<String> flux = siliconFlowChatClient.streamChat(messages, session.modelName,
+                    params.temperature(), params.maxTokens(), session.writingMode ? SiliconFlowChatClient.ChatMode.WRITING
+                            : SiliconFlowChatClient.ChatMode.CHAT, role, toolContext);
+            if (!session.isRunning()) return;
+            session.setSubscription(flux.subscribe(chunk -> handleChunk(session, chunk),
+                    error -> session.stop("error", error, true), () -> completeGeneration(session)));
+        } catch (Exception error) {
+            session.stop("error", error, true);
+        }
+    }
 
-
-                        // 正文回写：AI 自然输出的 HTML 文本（fullResponse）作为 contentHtml 写入编辑器。
-                        // AI 通过 applyArticleUpdate 工具实时回写了 title/summary/category/tagIds，
-                        // 正文因为是流文本不通过工具传（避免 tool arguments 长文本阻塞流式体验）。
-                        // 若整轮连工具都没调过且文本像文章，也走这条路径作为兜底。
-                        if (writingMode && looksLikeArticleContent(fullResponse)) {
-                            Map<String, Object> contentUpdate = new LinkedHashMap<>();
-                            String finalHtml = extractHtmlBody(fullResponse);
-                            if (finalHtml != null && finalHtml.length() >= MIN_HTML_LENGTH
-                                    && (finalHtml.contains("<p") || finalHtml.contains("<h") || finalHtml.contains("<pre"))) {
-                                contentUpdate.put("contentHtml", finalHtml);
-                                contentUpdate.put("fields", List.of("content"));
-                                SseEmitterHelper.sendSseEvent(emitter, "field-update", contentUpdate);
-                            }
-                        }
-
-                        // flush 剩余文本
-                        List<String> tailSegments = ttsSegmenter.extractSegments(textBuffer, seq.get() > 0);
-                        for (String seg : tailSegments) {
-                            int currentSeq = seq.incrementAndGet();
-                            sendAvatarCue(emitter, currentSeq, conversationId, seg);
-                            if (ttsEnabled) {
-                                enqueueTtsTask(emitter, ttsExecutor, ttsFutures, currentSeq, conversationId, seg);
-                            }
-                        }
-                        String rest = textBuffer.toString().trim();
-                        textBuffer.setLength(0);
-                        if (!rest.isEmpty()) {
-                            int currentSeq = seq.incrementAndGet();
-                            sendAvatarCue(emitter, currentSeq, conversationId, rest);
-                            if (ttsEnabled) {
-                                enqueueTtsTask(emitter, ttsExecutor, ttsFutures, currentSeq, conversationId, rest);
-                            }
-                        }
-
-                        SseEmitterHelper.sendSseEvent(emitter, "article-results", SseEmitterHelper.eventPayload(
-                                "items", extractArticleResults(fullResponse),
-                                "reason", "我找到这些文章，可以直接点开阅读。"));
-                        SseEmitterHelper.sendSseEvent(emitter, "complete", SseEmitterHelper.eventPayload(
-                                "conversationId", conversationId,
-                                "responseLength", fullResponse.length(),
-                                "mode", guestMode ? "guest" : "user",
-                                "ttsEnabled", ttsEnabled));
-
-                        if (ttsEnabled && !ttsFutures.isEmpty()) {
-                            runOnStreamPool(() -> {
-                                boolean timedOut = false;
-                                try {
-                                    CompletableFuture.allOf(ttsFutures.toArray(new CompletableFuture[0]))
-                                            .get(Math.max(30_000L, aiChatProperties.getSseTimeout()), TimeUnit.MILLISECONDS);
-                                } catch (TimeoutException e) {
-                                    timedOut = true;
-                                } catch (Exception e) {
-                                    log.warn("等待TTS完成异常: {}", e.getMessage());
-                                }
-                                try {
-                                    SseEmitterHelper.sendSseEvent(emitter, "audio-complete", SseEmitterHelper.eventPayload(
-                                            "conversationId", conversationId,
-                                            "timedOut", timedOut,
-                                            "segments", seq.get()));
-                                } catch (Exception ignore) {
-                                }
-                                emitterClosed.set(true);
-                                SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), false);
-                                session.close();
-                                emitter.complete();
-                            });
-                            return;
-                        }
-
-                        emitterClosed.set(true);
-                        SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
-                        session.close();
-                        emitter.complete();
-                    } catch (Exception e) {
-                        log.error("完成流式响应时发生错误", e);
-                        emitterClosed.set(true);
-                        SseEmitterHelper.shutdown(ttsExecutorRef.getAndSet(null), true);
-                        session.close();
-                        emitter.completeWithError(e);
+    private void handleChunk(StreamSession session, String chunk) {
+        if (!session.isRunning() || chunk == null || chunk.isEmpty()) return;
+        try {
+            List<String> dataTexts;
+            if (session.writingMode) {
+                // 旧文本标记只用于剥离；不允许模型文字绕过结构化工具校验修改字段。
+                dataTexts = session.parser.feed(chunk).dataTexts();
+            } else {
+                dataTexts = List.of(chunk);
+            }
+            for (String dataText : dataTexts) {
+                if (dataText.isEmpty() || !session.isRunning()) continue;
+                session.append(dataText);
+                if (session.firstToken.compareAndSet(false, true)) {
+                    aiMetrics.recordStreamFirstToken(session.modelName, session.mode(), session.elapsedMillis());
+                    if (session.writingMode && "replace".equals(session.contentMode) && session.allowsBodyPreview()) {
+                        session.bodyActivity = session.activities.start("editing_content", "AI 正在生成完整正文");
                     }
                 }
-        );
-        session.upstream.update(subscription);
-        if (emitterClosed.get()) session.close();
+                session.textBuffer.append(dataText);
+                sendSegments(session, ttsSegmenter.extractSegments(session.textBuffer, session.seq.get() > 0));
+                session.send("data", SseEmitterHelper.eventPayload("content", dataText, "conversationId", session.conversationId.get()));
+            }
+        } catch (Exception error) {
+            session.stop("cancelled", error, false);
+        }
+    }
+
+    private void completeGeneration(StreamSession session) {
+        // 正常模型完成先占用唯一终态：后续浏览器关闭不能把已完成内容改成错误或重复落库。
+        if (!session.modelEnded.compareAndSet(false, true)) return;
+        try {
+            String validationActivity = null;
+            if (session.writingMode) {
+                session.activities.modelRoundCompleted();
+                if (session.bodyActivity != null) session.activities.complete(session.bodyActivity, "正文生成已结束");
+                validationActivity = session.activities.start("validating", "正在校验本轮修改和原稿定位");
+                String rest = session.parser.flush();
+                if (rest != null && !rest.isEmpty()) {
+                    session.append(rest);
+                    session.textBuffer.append(rest);
+                    session.send("data", SseEmitterHelper.eventPayload("content", rest, "conversationId", session.conversationId.get()));
+                }
+            }
+            String fullResponse = session.responseText();
+            if (!session.writingMode && fullResponse.isBlank()) {
+                throw new AIServiceException.ModelException("AI 没有返回有效内容，请稍后重试");
+            }
+            boolean patchReviewed = session.writingMode && session.contentSession.wasReviewed();
+            var body = session.writingMode ? WritingResultValidator.validate(fullResponse,
+                    session.originalDraftContent, session.contentMode, session.allowedWritingFields,
+                    session.collector, session.contentSession) : null;
+            String articleHtml = body == null ? null : body.html();
+            var contentPatch = body == null ? null : body.patch();
+            if (!session.guestMode && !session.writingMode) {
+                memoryService.saveAssistantMessage(session.userId, session.conversationId.get(), fullResponse,
+                        session.modelName, MemoryService.MESSAGE_STATUS_NORMAL, null);
+                session.assistantSaved.set(true);
+            }
+            session.finishMetrics("success");
+            if (session.closed.get()) return;
+            if (session.writingMode) {
+                session.activities.complete(validationActivity, "本轮修改校验通过");
+                if (articleHtml != null) {
+                    session.send("field-update", SseEmitterHelper.eventPayload("contentHtml", articleHtml, "fields", List.of("content")));
+                }
+                if (contentPatch != null) {
+                    session.send("field-update", SseEmitterHelper.eventPayload("contentPatch", contentPatch, "fields", List.of("content")));
+                }
+            }
+            sendSegments(session, ttsSegmenter.extractSegments(session.textBuffer, session.seq.get() > 0));
+            String rest = session.textBuffer.toString().trim();
+            session.textBuffer.setLength(0);
+            if (!rest.isEmpty()) sendSegments(session, List.of(rest));
+            List<PostSummaryDTO> articles = extractArticleResults(fullResponse);
+            if (!articles.isEmpty()) {
+                session.send("article-results", SseEmitterHelper.eventPayload("items", articles,
+                        "reason", "这些文章已在博客中核实，可以点开阅读。"));
+            }
+            if (session.writingMode) {
+                boolean hasChanges = articleHtml != null || contentPatch != null || !session.collector.isEmpty();
+                String message = hasChanges ? "本轮结果已就绪，请检查后采纳"
+                        : patchReviewed ? "检查已完成，正文无需修改" : "本轮检查已完成，草稿未修改";
+                String readyActivity = session.activities.start("ready", message);
+                session.activities.complete(readyActivity, message);
+            }
+            session.send("complete", SseEmitterHelper.eventPayload("conversationId", session.conversationId.get(),
+                    "responseLength", fullResponse.length(), "mode", session.writingMode ? "writing" : session.guestMode ? "guest" : "user",
+                    "ttsEnabled", session.ttsEnabled));
+            if (session.ttsEnabled && !session.ttsFutures.isEmpty()) {
+                CompletableFuture.allOf(session.ttsFutures.toArray(new CompletableFuture[0]))
+                        .orTimeout(Math.max(30_000L, aiChatProperties.getSseTimeout()), TimeUnit.MILLISECONDS)
+                        .whenComplete((ignored, error) -> {
+                            try {
+                                session.send("audio-complete", SseEmitterHelper.eventPayload("conversationId", session.conversationId.get(),
+                                        "timedOut", error instanceof TimeoutException, "segments", session.seq.get()));
+                            } catch (Exception sendError) {
+                                log.debug("发送 audio-complete 失败: {}", sendError.getMessage());
+                            } finally {
+                                session.closeChannel();
+                                session.emitter.complete();
+                            }
+                        });
+            } else {
+                session.closeChannel();
+                session.emitter.complete();
+            }
+        } catch (Exception error) {
+            log.warn("AI 流式收尾失败: model={}, conversationId={}", session.modelName, session.conversationId.get(), error);
+            session.savePartialOnce();
+            session.finishMetrics("error");
+            if (session.writingMode) session.activities.finishRunning("failed", "本轮修改校验失败，草稿未修改");
+            session.sendError(toUserFriendlyError(error));
+            session.closeChannel();
+            // 错误已经通过SSE协议发送，正常关闭以免异步异常分派再写JSON破坏流。
+            session.emitter.complete();
+        }
+    }
+
+    private void sendSegments(StreamSession session, List<String> segments) {
+        if (session.writingMode) return;
+        for (String segment : segments) {
+            if (session.closed.get()) return;
+            int number = session.seq.incrementAndGet();
+            sendAvatarCue(session.emitter, number, session.conversationId.get(), segment);
+            if (session.ttsEnabled) {
+                enqueueTtsTask(session.emitter, session.ttsExecutor.get(), session.ttsFutures,
+                        number, session.conversationId.get(), segment);
+            }
+        }
+    }
+
+    /** 请求作用域的终态、订阅与资源；句柄晚到时也必须观察已经发生的取消。 */
+    private final class StreamSession {
+        final SseEmitter emitter = new SseEmitter(Math.max(1, aiChatProperties.getSseTimeout()) + 1000);
+        final String userId;
+        final boolean guestMode;
+        final boolean writingMode;
+        final String modelName;
+        final String requestId = UUID.randomUUID().toString();
+        final WritingToolEventSink activities;
+        final long startedNanos = System.nanoTime();
+        final AtomicReference<Long> conversationId;
+        final AtomicBoolean modelEnded = new AtomicBoolean();
+        final AtomicBoolean cancelled = new AtomicBoolean();
+        final AtomicBoolean closed = new AtomicBoolean();
+        final AtomicBoolean metricsFinished = new AtomicBoolean();
+        final AtomicBoolean assistantSaved = new AtomicBoolean();
+        final AtomicBoolean firstToken = new AtomicBoolean();
+        final AtomicReference<Disposable> subscription = new AtomicReference<>();
+        final AtomicReference<Future<?>> preparation = new AtomicReference<>();
+        final AtomicReference<Future<?>> heartbeat = new AtomicReference<>();
+        final AtomicReference<Future<?>> deadline = new AtomicReference<>();
+        final AtomicReference<ExecutorService> ttsExecutor = new AtomicReference<>();
+        final AiMetrics.UsageTracker usage = new AiMetrics.UsageTracker();
+        final FieldUpdateCollector collector = new FieldUpdateCollector();
+        final FieldUpdateParser parser = new FieldUpdateParser();
+        final StringBuilder response = new StringBuilder();
+        final StringBuilder textBuffer = new StringBuilder();
+        final AtomicInteger seq = new AtomicInteger();
+        final List<CompletableFuture<Void>> ttsFutures = Collections.synchronizedList(new ArrayList<>());
+        volatile boolean ttsEnabled;
+        long writingSequence;
+        boolean writingTerminal;
+        WritingContentSession contentSession;
+        String contentMode;
+        String bodyActivity;
+        boolean contentRequested;
+        String originalDraftContent;
+        List<String> allowedWritingFields = List.of();
+        volatile Thread preparationThread;
+        boolean userMessageSaved;
+
+        StreamSession(Long user, String model, boolean writing, Long conversation) {
+            userId = user == null ? null : user.toString();
+            guestMode = user == null;
+            writingMode = writing;
+            modelName = model;
+            conversationId = new AtomicReference<>(conversation);
+            activities = new WritingToolEventSink((event, payload) -> {
+                if (closed.get()) return;
+                try { send(event, payload); }
+                catch (Exception error) { stop("cancelled", error, false); }
+            });
+            aiMetrics.recordStreamStarted(modelName, mode());
+        }
+        String mode() { return writingMode ? "writing" : "chat"; }
+        boolean allowsBodyPreview() {
+            return allowedWritingFields.isEmpty() || (allowedWritingFields.contains("content")
+                    && !allowedWritingFields.contains("check"));
+        }
+        boolean isRunning() { return !modelEnded.get() && !closed.get(); }
+        long elapsedMillis() { return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedNanos); }
+        synchronized void append(String text) { response.append(text); }
+        synchronized String responseText() { return response.toString(); }
+        void send(String event, Map<String, Object> payload) throws java.io.IOException {
+            synchronized (emitter) {
+                if (closed.get()) throw new java.io.IOException("SSE 连接已关闭");
+                if (!writingMode) {
+                    SseEmitterHelper.sendSseEvent(emitter, event, payload);
+                    return;
+                }
+                if (writingTerminal) return;
+                String type = switch (event) {
+                    case "start" -> "started";
+                    case "data" -> "delta";
+                    case "activity" -> "activity";
+                    case "field-update" -> "proposal";
+                    case "article-results" -> "references";
+                    case "complete" -> "completed";
+                    case "error" -> "failed";
+                    case "heartbeat" -> "heartbeat";
+                    default -> null;
+                };
+                if (type == null) return;
+                WritingStreamEvent envelope = new WritingStreamEvent(1, requestId, ++writingSequence,
+                        System.currentTimeMillis(), type, payload);
+                SseEmitterHelper.sendSseEvent(emitter, WritingStreamEvent.EVENT_NAME, envelope.toPayload());
+                if ("completed".equals(type) || "failed".equals(type)) writingTerminal = true;
+            }
+        }
+        void sendStarted() throws java.io.IOException {
+            Map<String, Object> payload = SseEmitterHelper.eventPayload("conversationId", conversationId.get(),
+                    "model", modelName, "mode", writingMode ? "writing" : guestMode ? "guest" : "user");
+            if (writingMode) {
+                payload.put("baseRevision", contentSession.revision());
+                payload.put("contentMode", contentMode);
+            }
+            send("start", payload);
+        }
+        void startHeartbeat() {
+            setHeartbeat(heartbeatExecutor.scheduleAtFixedRate(() -> {
+                if (closed.get()) return;
+                try {
+                    send("heartbeat", SseEmitterHelper.eventPayload("conversationId", conversationId.get(),
+                            "timestamp", System.currentTimeMillis()));
+                } catch (Exception error) { stop("cancelled", error, false); }
+            }, HEARTBEAT_INTERVAL_SEC, HEARTBEAT_INTERVAL_SEC, TimeUnit.SECONDS));
+        }
+        void sendError(String message) {
+            try { send("error", SseEmitterHelper.eventPayload("conversationId", conversationId.get(), "error", message)); }
+            catch (Exception ignored) { }
+        }
+        void setSubscription(Disposable disposable) {
+            subscription.set(disposable);
+            if (cancelled.get() || closed.get()) disposable.dispose();
+        }
+        void setFuture(Future<?> future) {
+            preparation.set(future);
+            if (cancelled.get()) future.cancel(true);
+        }
+        void setHeartbeat(Future<?> task) {
+            heartbeat.set(task);
+            if (closed.get()) task.cancel(true);
+        }
+        void setDeadline(Future<?> task) {
+            deadline.set(task);
+            if (closed.get()) task.cancel(true);
+        }
+        void setTtsExecutor(ExecutorService executor) {
+            ttsExecutor.set(executor);
+            if (closed.get()) SseEmitterHelper.shutdown(ttsExecutor.getAndSet(null), true);
+        }
+        void finishMetrics(String outcome) {
+            if (metricsFinished.compareAndSet(false, true)) {
+                aiMetrics.recordStreamFinished(modelName, mode(), outcome, elapsedMillis(), usage);
+            }
+        }
+        synchronized void savePartialOnce() {
+            if (guestMode || writingMode || !userMessageSaved || !assistantSaved.compareAndSet(false, true)) return;
+            try {
+                String partial = responseText();
+                memoryService.saveAssistantMessage(userId, conversationId.get(), partial.isBlank() ? null : partial,
+                        modelName, MemoryService.MESSAGE_STATUS_ERROR, null);
+            } catch (Exception error) {
+                log.warn("保存中断的 AI 回复失败: userId={}, conversationId={}", userId, conversationId.get(), error);
+            }
+        }
+        void stop(String outcome, Throwable error, boolean notify) {
+            boolean stopped;
+            synchronized (this) {
+                stopped = modelEnded.compareAndSet(false, true);
+            }
+            if (stopped) {
+                if (error != null && "error".equals(outcome)) {
+                    log.warn("AI 流式请求失败: model={}, userId={}, conversationId={}",
+                            modelName, userId, conversationId.get(), error);
+                }
+                cancelled.set(true);
+                Disposable disposable = subscription.get();
+                if (disposable != null) disposable.dispose();
+                Future<?> future = preparation.get();
+                if (future != null) future.cancel(Thread.currentThread() != preparationThread);
+                savePartialOnce();
+                finishMetrics(outcome);
+                if (writingMode) activities.finishRunning("cancelled".equals(outcome) ? "cancelled" : "failed",
+                        "cancelled".equals(outcome) ? "本轮生成已停止，草稿未修改" : "本轮生成未完成，草稿未修改");
+                if (notify && !closed.get()) {
+                    sendError("timeout".equals(outcome) ? timeoutNotice() : toUserFriendlyError(error));
+                }
+            }
+            closeChannel();
+            // 终态到达后才关闭，timeout 提示先发送。
+            if (notify || stopped) {
+                emitter.complete();
+            }
+        }
+        void closeChannel() {
+            if (!closed.compareAndSet(false, true)) return;
+            activeSessions.remove(this);
+            Future<?> task = heartbeat.getAndSet(null);
+            if (task != null) task.cancel(true);
+            task = deadline.getAndSet(null);
+            if (task != null) task.cancel(true);
+            SseEmitterHelper.shutdown(ttsExecutor.getAndSet(null), true);
+            streamPermits.release();
+        }
     }
 
     // ==================== TTS / AvatarCue ====================
-
     /**
      * 为一段文本生成 Live2D 表情动作提示并通过 SSE 推给前端,失败仅记 debug 日志不打断主流程。
      */
@@ -545,26 +543,26 @@ public class StreamingChatService {
     private static final Pattern POST_LINK_PATTERN =
             Pattern.compile("\\[([^\\]]+)\\]\\(/post/(\\d+)\\)");
 
-    /** 从 AI 回复里解析 [标题](/post/ID) 链接，去重后返回最多 8 篇供前端展示推荐卡片 */
+    /** 卡片引用必须重新查询博客事实；模型编造的 ID 和标题不进入推荐结果。 */
     private List<PostSummaryDTO> extractArticleResults(String text) {
         if (text == null || text.isBlank()) return Collections.emptyList();
-        Map<Long, String> unique = new LinkedHashMap<>();
-        Matcher m = POST_LINK_PATTERN.matcher(text);
-        while (m.find()) {
-            try {
-                Long id = Long.parseLong(m.group(2));
-                unique.putIfAbsent(id, m.group(1));
-            } catch (NumberFormatException ignore) {
-            }
+        Set<Long> ids = new LinkedHashSet<>();
+        Matcher matcher = POST_LINK_PATTERN.matcher(text);
+        while (matcher.find() && ids.size() < aiChatProperties.getAgent().getMaxArticleResults()) {
+            try { ids.add(Long.parseLong(matcher.group(2))); }
+            catch (NumberFormatException ignored) { }
         }
-        if (unique.isEmpty()) return Collections.emptyList();
         List<PostSummaryDTO> result = new ArrayList<>();
-        for (Map.Entry<Long, String> entry : unique.entrySet()) {
-            PostSummaryDTO dto = new PostSummaryDTO();
-            dto.setId(entry.getKey());
-            dto.setTitle(entry.getValue());
-            result.add(dto);
-            if (result.size() >= aiChatProperties.getAgent().getMaxArticleResults()) break;
+        for (Long id : ids) {
+            PostDetailDTO detail = blogApiClient.getPostDetail(id);
+            if (detail == null || detail.getId() == null || !id.equals(detail.getId())
+                    || detail.getTitle() == null || detail.getTitle().isBlank()) continue;
+            PostSummaryDTO summary = new PostSummaryDTO();
+            summary.setId(id);
+            summary.setTitle(detail.getTitle());
+            summary.setSummary(detail.getSummary());
+            summary.setCategoryName(detail.getCategoryName());
+            result.add(summary);
         }
         return result;
     }
@@ -604,89 +602,13 @@ public class StreamingChatService {
         futures.add(task);
     }
 
-    /**
-     * 写作模式 chunk 处理：用 FieldUpdateParser 解析 chunk，标记外文本走 data/TTS/AvatarCue，
-     * 标记内 JSON 解析为 FieldUpdatePayload 后发 field-update 事件。
-     */
-    private void handleWritingChunk(SseEmitter emitter, FieldUpdateParser parser, String chunk,
-                                    AtomicReference<StringBuilder> fullResponseRef, StringBuilder textBuffer,
-                                    AtomicInteger seq, boolean ttsEnabled, ExecutorService ttsExecutor,
-                                    List<CompletableFuture<Void>> ttsFutures, Long conversationId,
-                                    AtomicBoolean fieldUpdateSent,
-                                    AtomicInteger lastContentUpdateLength,
-                                    AtomicLong lastContentUpdateTime) throws java.io.IOException {
-        FieldUpdateParser.ParseResult pr = parser.feed(chunk);
-        for (String dataText : pr.dataTexts()) {
-            if (dataText.isEmpty()) continue;
-            fullResponseRef.get().append(dataText);
-            textBuffer.append(dataText);
-            List<String> segments = ttsSegmenter.extractSegments(textBuffer, seq.get() > 0);
-            for (String seg : segments) {
-                int currentSeq = seq.incrementAndGet();
-                sendAvatarCue(emitter, currentSeq, conversationId, seg);
-                if (ttsEnabled) {
-                    enqueueTtsTask(emitter, ttsExecutor, ttsFutures, currentSeq, conversationId, seg);
-                }
-            }
-            SseEmitterHelper.sendSseEvent(emitter, "data", SseEmitterHelper.eventPayload(
-                    "content", dataText, "conversationId", conversationId));
-        }
-        for (FieldUpdatePayload fu : pr.fieldUpdates()) {
-            SseEmitterHelper.sendSseEvent(emitter, "field-update", toPayloadMap(fu));
-            fieldUpdateSent.set(true);
-        }
-        // 正文增量流式更新：严格校验后才发送
-        String fullText = fullResponseRef.get().toString();
-        int currentLength = fullText.length();
-        long now = System.currentTimeMillis();
-        if (currentLength - lastContentUpdateLength.get() >= CONTENT_UPDATE_LENGTH_THRESHOLD && now - lastContentUpdateTime.get() >= CONTENT_UPDATE_INTERVAL_MS) {
-            String htmlBody = extractHtmlBody(fullText);
-            boolean hasValidHtml = htmlBody != null && htmlBody.length() >= MIN_HTML_LENGTH
-                    && (htmlBody.contains("<p") || htmlBody.contains("<h") || htmlBody.contains("<pre") || htmlBody.contains("<ul"))
-                    && htmlBody.contains(">");
-            if (hasValidHtml && htmlBody.length() > lastContentUpdateLength.get()) {
-                Map<String, Object> contentUpdate = new LinkedHashMap<>();
-                contentUpdate.put("contentHtml", htmlBody);
-                contentUpdate.put("fields", List.of("content"));
-                SseEmitterHelper.sendSseEvent(emitter, "field-update", contentUpdate);
-                lastContentUpdateLength.set(currentLength);
-                lastContentUpdateTime.set(now);
-                fieldUpdateSent.set(true);
-            }
-        }
+    /** 兼容既有入口；统一校验由 WritingHtmlValidator 维护。 */
+    private String completeArticleHtml(String text) {
+        return WritingHtmlValidator.validate(text, null);
     }
 
-/** 判断 AI 全文回复是否看起来像文章内容（用于兜底写入），避免把纯对话废话塞进编辑器。 */
-    private boolean looksLikeArticleContent(String text) {
-        if (text == null || text.isBlank()) return false;
-        String trimmed = text.trim();
-        if (trimmed.length() < MIN_HTML_LENGTH) return false;
-        // 含 HTML 标签 或 含代码块/分段结构，视作文章内容
-        return trimmed.contains("<p") || trimmed.contains("<h") || trimmed.contains("<pre")
-                || trimmed.contains("```") || (trimmed.contains("\n\n") && trimmed.length() > MIN_ARTICLE_LENGTH);
-    }
-
-    /**
-     * 提取AI回复中的HTML正文部分，去掉前后自然语言说明。
-     * 例如："好的，文章如下：<p>xxx</p> 请查收" → "<p>xxx</p>"
-     */
-    private String extractHtmlBody(String text) {
-        if (text == null || text.isBlank()) return text;
-        String trimmed = text.trim();
-        int firstLt = trimmed.indexOf('<');           // 第一个 '<'（HTML 起始）
-        int lastGt = trimmed.lastIndexOf('>');        // 最后一个 '>'（HTML 结束）
-        int lastLtAfterGt = trimmed.lastIndexOf('<'); // 最后一个 '<'（可能落在 lastGt 之后，表示尾部有未闭合标签）
-        // 若最后一个 '<' 在最后一个 '>' 之后，说明尾部有杂散 '<'，回退到它之前最近的 '>'
-        if (lastLtAfterGt > lastGt) {
-            lastGt = trimmed.lastIndexOf('>', lastLtAfterGt - 1);
-        }
-        if (firstLt != -1 && lastGt != -1 && lastGt > firstLt) {
-            String htmlPart = trimmed.substring(firstLt, lastGt + 1).trim();
-            if (htmlPart.length() >= MIN_HTML_PART_LENGTH) {
-                return htmlPart;
-            }
-        }
-        return trimmed;
+    private String completeArticleHtml(String text, String originalContent) {
+        return WritingHtmlValidator.validate(text, originalContent);
     }
 
     /**
@@ -701,7 +623,6 @@ public class StreamingChatService {
 
         putIfPresent(map, writtenFields, "title", fu.getTitle());
         putIfPresent(map, writtenFields, "summary", fu.getSummary());
-        putIfPresent(map, writtenFields, "contentHtml", fu.getContentHtml());
         putIfPresent(map, writtenFields, "categoryId", fu.getCategoryId());
         putIfPresent(map, writtenFields, "categoryName", fu.getCategoryName());
         putIfPresent(map, writtenFields, "tagIds", fu.getTagIds());
@@ -768,11 +689,7 @@ public class StreamingChatService {
                 || msg.contains("繁忙") || msg.contains("限流") || msg.contains("频率")) {
             return "AI 服务当前繁忙，请稍后重试";
         }
-        return "AI 生成失败：" + rawMessage;
+        return "AI 服务暂时未能完成回复，请稍后重试";
     }
 
 }
-
-
-
-

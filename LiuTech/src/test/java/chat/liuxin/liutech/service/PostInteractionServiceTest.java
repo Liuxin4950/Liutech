@@ -60,7 +60,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.getLikeStatus(userId, postId)).thenReturn(0);
         when(postLikesMapper.countLikesByPostId(postId)).thenReturn(5);
         when(postsService.update(any())).thenReturn(true);
@@ -78,7 +78,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.getLikeStatus(userId, postId)).thenReturn(1);
         when(postLikesMapper.countLikesByPostId(postId)).thenReturn(4);
         when(postsService.update(any())).thenReturn(true);
@@ -95,7 +95,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.getLikeStatus(userId, postId)).thenReturn(null);
         when(postLikesMapper.countLikesByPostId(postId)).thenReturn(1);
         when(postsService.update(any())).thenReturn(true);
@@ -111,7 +111,7 @@ class PostInteractionServiceTest {
         Long postId = 999L;
         Long userId = 10L;
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(null);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(null);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postInteractionService.toggleLike(postId, userId));
@@ -125,7 +125,7 @@ class PostInteractionServiceTest {
         Posts post = createPost(postId);
         post.setDeletedAt(new Date());
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postInteractionService.toggleLike(postId, userId));
@@ -138,7 +138,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
         when(postLikesMapper.getLikeStatus(userId, postId)).thenReturn(0);
         when(postLikesMapper.countLikesByPostId(postId)).thenReturn(10);
         when(postsService.update(any())).thenReturn(true);
@@ -157,7 +157,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
         when(postFavoritesMapper.getFavoriteStatus(userId, postId)).thenReturn(0);
         when(postFavoritesMapper.countFavoritesByPostId(postId)).thenReturn(3);
         when(postsService.update(any())).thenReturn(true);
@@ -175,7 +175,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
         when(postFavoritesMapper.getFavoriteStatus(userId, postId)).thenReturn(1);
         when(postFavoritesMapper.countFavoritesByPostId(postId)).thenReturn(2);
         when(postsService.update(any())).thenReturn(true);
@@ -192,7 +192,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
         when(postFavoritesMapper.getFavoriteStatus(userId, postId)).thenReturn(null);
         when(postFavoritesMapper.countFavoritesByPostId(postId)).thenReturn(1);
         when(postsService.update(any())).thenReturn(true);
@@ -208,7 +208,7 @@ class PostInteractionServiceTest {
         Long postId = 999L;
         Long userId = 10L;
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(null);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(null);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postInteractionService.toggleFavorite(postId, userId));
@@ -222,7 +222,7 @@ class PostInteractionServiceTest {
         Posts post = createPost(postId);
         post.setDeletedAt(new Date());
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> postInteractionService.toggleFavorite(postId, userId));
@@ -235,7 +235,7 @@ class PostInteractionServiceTest {
         Long userId = 10L;
         Posts post = createPost(postId);
 
-        when(postsMapper.selectActiveForUpdate(postId)).thenReturn(post);
+        when(postsMapper.selectByIdForUpdate(postId)).thenReturn(post);
         when(postFavoritesMapper.getFavoriteStatus(userId, postId)).thenReturn(0);
         when(postFavoritesMapper.countFavoritesByPostId(postId)).thenReturn(7);
         when(postsService.update(any())).thenReturn(true);
@@ -244,6 +244,49 @@ class PostInteractionServiceTest {
 
         verify(postFavoritesMapper).countFavoritesByPostId(postId);
         verify(postsService).update(any());
+    }
+
+
+    @Test
+    void likeLocksArticleBeforeReadingStatusAndUpdatingCount() {
+        when(postsMapper.selectByIdForUpdate(1L)).thenReturn(createPost(1L));
+        when(postLikesMapper.countLikesByPostId(1L)).thenReturn(1);
+        when(postsService.update(any())).thenReturn(true);
+        postInteractionService.toggleLike(1L, 10L);
+        var order = inOrder(postsMapper, postLikesMapper, postsService);
+        order.verify(postsMapper).selectByIdForUpdate(1L);
+        order.verify(postLikesMapper).getLikeStatus(10L, 1L);
+        order.verify(postLikesMapper).insertOrUpdateLike(10L, 1L, 1);
+        order.verify(postLikesMapper).countLikesByPostId(1L);
+        order.verify(postsService).update(any());
+    }
+
+    @Test
+    void countUpdateFailureDoesNotReportSuccessfulLike() {
+        when(postsMapper.selectByIdForUpdate(1L)).thenReturn(createPost(1L));
+        when(postLikesMapper.countLikesByPostId(1L)).thenReturn(1);
+        when(postsService.update(any())).thenReturn(false);
+        assertThrows(BusinessException.class, () -> postInteractionService.toggleLike(1L, 10L));
+    }
+
+    @Test
+    void successfulLikeInvalidatesListAndRankingCaches() {
+        when(postsMapper.selectByIdForUpdate(1L)).thenReturn(createPost(1L));
+        when(postLikesMapper.countLikesByPostId(1L)).thenReturn(1);
+        when(postsService.update(any())).thenReturn(true);
+        var caches = new org.springframework.cache.concurrent.ConcurrentMapCacheManager("postList", "hotPosts", "latestPosts");
+        for (String name : caches.getCacheNames()) caches.getCache(name).put("cached", "stale");
+        var interceptor = new org.springframework.cache.interceptor.CacheInterceptor();
+        interceptor.setCacheManager(caches);
+        interceptor.setCacheOperationSources(new org.springframework.cache.annotation.AnnotationCacheOperationSource());
+        interceptor.afterPropertiesSet();
+        interceptor.afterSingletonsInstantiated();
+        var factory = new org.springframework.aop.framework.ProxyFactory(postInteractionService);
+        factory.setProxyTargetClass(true);
+        factory.addAdvice(interceptor);
+        var proxy = (PostInteractionService) factory.getProxy();
+        assertTrue(proxy.toggleLike(1L, 10L));
+        for (String name : caches.getCacheNames()) assertNull(caches.getCache(name).get("cached"), name);
     }
 
     // ========== 辅助方法 ==========

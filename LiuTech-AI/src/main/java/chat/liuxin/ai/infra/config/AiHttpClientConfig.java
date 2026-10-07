@@ -1,54 +1,62 @@
 package chat.liuxin.ai.infra.config;
 
+import com.openai.client.OpenAIClient;
+import com.openai.client.OpenAIClientAsync;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
+import org.springframework.ai.model.openai.autoconfigure.OpenAiAutoConfigurationUtil;
+import org.springframework.ai.model.openai.autoconfigure.OpenAiChatProperties;
+import org.springframework.ai.model.openai.autoconfigure.OpenAiCommonProperties;
+import org.springframework.ai.openai.http.okhttp.OpenAiHttpClientBuilderCustomizer;
+import org.springframework.ai.openai.setup.OpenAiSetup;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.http.client.reactive.JdkClientHttpConnector;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
 
-/**
- * 统一 AI 出站 HTTP 传输层。
- *
- * Spring AI 默认链路在当前环境下通过 WebClient 调用 SiliconFlow 时会出现 TLS handshake 被远端终止。
- * 这里显式切到 JDK HttpClient，和本地已验证可用的直连方式保持一致。
- */
-@Configuration
+/** 统一模型 SDK 连接参数与连接池；TTS 保持逐跳校验的独立 JDK 客户端。 */
+@Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties({OpenAiCommonProperties.class, OpenAiChatProperties.class})
 public class AiHttpClientConfig {
-
-    @Bean
-    public HttpClient aiHttpClient() {
-        return HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(15))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+    @Bean(destroyMethod = "close")
+    public OpenAIClient aiSdkClient(OpenAiCommonProperties common, OpenAiChatProperties chat,
+            ObjectProvider<ObservationRegistry> observations, ObjectProvider<MeterRegistry> meters,
+            ObjectProvider<OpenAiHttpClientBuilderCustomizer> customizers) {
+        var connection = OpenAiAutoConfigurationUtil.resolveCommonProperties(common, chat);
+        // 重试由明确业务策略决定。SDK 自动重放可能重复推理或工具，统一关闭。
+        return OpenAiSetup.setupSyncClient(normalizeBaseUrl(connection.getBaseUrl()), connection.getApiKey(), connection.getCredential(),
+                connection.getMicrosoftDeploymentName(), connection.getMicrosoftFoundryServiceVersion(),
+                connection.getOrganizationId(), connection.isMicrosoftFoundry(), connection.isGitHubModels(),
+                connection.getModel(), connection.getTimeout(), 0, connection.getProxy(), connection.getCustomHeaders(),
+                observations.getIfUnique(() -> ObservationRegistry.NOOP),
+                connection.isConnectionPoolMetricsEnabled() ? meters.getIfAvailable() : null,
+                customizers.orderedStream().toList());
     }
 
-    /** TTS 音频下载必须逐跳校验同源地址，因此禁止客户端自动跟随重定向。 */
+    /** 官方OpenAI兼容服务要求/v1，兼容旧环境变量仅配置域名的情况。自建端点不猜测路径。 */
+    static String normalizeBaseUrl(String value) {
+        java.net.URI uri = java.net.URI.create(value);
+        if (uri.getQuery() == null && uri.getFragment() == null
+                && (uri.getPath() == null || uri.getPath().isEmpty() || "/".equals(uri.getPath()))
+                && java.util.Set.of("api.siliconflow.cn", "api.siliconflow.com", "api.openai.com").contains(uri.getHost())) {
+            return value.replaceAll("/+$", "") + "/v1";
+        }
+        return value;
+    }
+
+    // sync/async 共用同一 SDK transport，关闭池只由 aiSdkClient 负责。
+    @Bean(destroyMethod = "")
+    public OpenAIClientAsync aiSdkAsyncClient(OpenAIClient aiSdkClient) {
+        return aiSdkClient.async();
+    }
+
+    /** TTS 音频下载必须逐跳校验同源地址，禁止客户端自动跟随重定向。 */
     @Bean("ttsHttpClient")
     public HttpClient ttsHttpClient() {
-        return HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
-    }
-
-    @Bean
-    @Primary
-    public RestClient.Builder aiRestClientBuilder(@Qualifier("aiHttpClient") HttpClient aiHttpClient) {
-        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(aiHttpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(90));
-        return RestClient.builder().requestFactory(requestFactory);
-    }
-
-    @Bean
-    @Primary
-    public WebClient.Builder aiWebClientBuilder(@Qualifier("aiHttpClient") HttpClient aiHttpClient) {
-        return WebClient.builder().clientConnector(new JdkClientHttpConnector(aiHttpClient));
+        return HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NEVER).build();
     }
 }

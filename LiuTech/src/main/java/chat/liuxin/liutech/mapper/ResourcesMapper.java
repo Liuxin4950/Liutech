@@ -1,5 +1,6 @@
 package chat.liuxin.liutech.mapper;
 
+import java.util.Date;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -72,12 +73,16 @@ public interface ResourcesMapper extends BaseMapper<Resources> {
     int permanentDeleteByIds(@Param("ids") List<Long> ids);
 
     /**
-     * 查重：同用户、同名、10 分钟内未删除的资源（防网络超时重试、刷新页面重传导致重复上传）
+     * 查重候选：同用户、同名、同草稿、时间窗口内未删除的文件资源；内容一致性由服务层校验
      *
      * @param userId   用户ID
      * @param fileName 文件名
-     * @return 已存在的重复资源，无则返回 null
+     * @param draftKey 同一上传草稿任务
+     * @param since 时间窗口起点，与应用写入 created_at 使用相同 Date 映射
+     * @return 候选资源列表，按最新优先
      */
-    Resources selectRecentDuplicate(@Param("userId") Long userId,
-                                    @Param("fileName") String fileName);
+    List<Resources> selectRecentUploadCandidates(@Param("userId") Long userId,
+                                                @Param("fileName") String fileName,
+                                                @Param("draftKey") String draftKey,
+                                                @Param("since") Date since);
 }

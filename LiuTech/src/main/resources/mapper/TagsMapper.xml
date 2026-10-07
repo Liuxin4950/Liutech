@@ -23,6 +23,7 @@
             t.name
         FROM tags t
         INNER JOIN post_tags pt ON t.id = pt.tag_id
+        INNER JOIN posts p ON p.id = pt.post_id AND p.deleted_at IS NULL AND p.status = 'published'
         WHERE pt.post_id = #{postId} AND t.deleted_at IS NULL
         ORDER BY t.name
     </select>
@@ -84,7 +85,7 @@
         FROM tags t
         LEFT JOIN users u ON t.created_by = u.id
         LEFT JOIN post_tags pt ON t.id = pt.tag_id
-        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published'
+        LEFT JOIN posts p ON pt.post_id = p.id AND p.deleted_at IS NULL
         <where>
             <if test="includeDeleted == null or includeDeleted == false">
                 t.deleted_at IS NULL
@@ -94,7 +95,7 @@
             </if>
         </where>
         GROUP BY t.id, t.name, t.description, t.created_at, t.updated_at, t.deleted_at, u.username
-        ORDER BY t.created_at DESC, t.id DESC
+        ORDER BY t.created_at DESC
         LIMIT #{offset}, #{limit}
     </select>
 

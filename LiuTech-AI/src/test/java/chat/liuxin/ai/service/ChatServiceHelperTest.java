@@ -44,7 +44,7 @@ class ChatServiceHelperTest {
         promptService = mock(PromptService.class);
         memoryService = mock(MemoryService.class);
         promptBudget = new PromptBudget(new AiChatProperties());
-        helper = new ChatServiceHelper(promptService, memoryService, promptBudget);
+        helper = new ChatServiceHelper(promptService, memoryService, promptBudget, null);
     }
 
     /** 构造生效参数：上下文 8192、输出 2048 → 输入预算 8192-2048-512=5632 */

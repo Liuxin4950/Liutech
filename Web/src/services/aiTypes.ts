@@ -31,5 +31,4 @@ export interface AiChatRequest {
    * - false：只返回文本，不做 TTS 推理
    */
   ttsEnabled?: boolean
-
 }

@@ -97,25 +97,22 @@
         </foreach>
     </delete>
 
-    <!-- 查重：同用户、同名、10 分钟内未删除的资源（防网络超时重试、刷新页面重传导致重复上传）。
-         不依赖草稿键：刷新页面 draftKey 会变化，按 draftKey 查重会漏。用户要传新版同名文件时先删除旧附件即可绕开。 -->
-    <select id="selectRecentDuplicate" resultType="chat.liuxin.liutech.model.Resources">
-        SELECT *
-        FROM resources
-        WHERE uploader_id = #{userId}
-          AND name = #{fileName}
-          AND deleted_at IS NULL
-          AND resource_type='file' AND file_url IS NOT NULL
-          AND created_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
-        ORDER BY id DESC
-        LIMIT 1
+    <!-- 文件名仅缩小候选范围，服务层验证内容及元信息后才允许复用。 -->
+    <select id="selectRecentUploadCandidates" resultType="chat.liuxin.liutech.model.Resources">
+        SELECT r.*
+        FROM resources r
+        WHERE r.uploader_id = #{userId}
+          AND r.name = #{fileName}
+          AND r.deleted_at IS NULL
+          AND r.file_url IS NOT NULL
+          AND r.resource_type = 'file'
+          AND r.created_at > #{since}
+          AND EXISTS (
+              SELECT 1 FROM post_attachments pa
+              WHERE pa.resource_id = r.id AND pa.draft_key = #{draftKey}
+                AND pa.post_id IS NULL AND pa.deleted_at IS NULL
+          )
+        ORDER BY r.id DESC
     </select>
 
-    <select id="selectIncludingDeletedById" resultType="chat.liuxin.liutech.model.Resources">
-        SELECT id, name, description, file_url, external_link, resource_type, purchased_note, uploader_id, download_type, points_needed, created_at, updated_at, created_by, updated_by, deleted_at FROM resources WHERE id=#{id}
-    </select>
-    <select id="selectIncludingDeletedByIds" resultType="chat.liuxin.liutech.model.Resources">
-        SELECT id, name, description, file_url, external_link, resource_type, purchased_note, uploader_id, download_type, points_needed, created_at, updated_at, created_by, updated_by, deleted_at FROM resources WHERE id IN
-        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
-    </select>
 </mapper>

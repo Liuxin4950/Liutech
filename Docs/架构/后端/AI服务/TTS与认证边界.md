@@ -90,3 +90,9 @@ Nginx 对 `/api/internal/**` 与 `/ai/internal/**` 直接返回 404；容器内�
 - 不把 TTS 缓存挂到 `/app/uploads`，避免两个服务共享文件所有权。
 - 不通过公网 Nginx 调内部接口。
 - 不对现有生产库执行完整 `Docs/SQL/sql.sql`。
+
+## 状态与可播放格式
+
+TTS状态含`configured/online/onlineVerified`。SiliconFlow仅配置齐全不代表已验证在线，首次允许尝试，真实合成结果确认状态；失败短暂降级后允许重试。GPT-SoVITS探测5xx/404判不可用，正常POST端点的GET405允许。语音失败通过`audio-skip`降级，不冒充文本成功或中断已完成的文本。
+
+输出支持MP3/WAV/Opus，不保存原始PCM配置；旧PCM配置读出回退MP3。临时音频仍是公开UUID地址，持有地址即可访问，当前清空会话不撤销浏览器已缓存音频。

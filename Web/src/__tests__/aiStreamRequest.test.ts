@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-vi.mock('@/services/api', () => ({ ServiceType: { AI: 'ai' } }))
-vi.mock('@/services/serviceConfig', () => ({ getServiceBaseURL: () => '/ai' }))
+vi.mock('@/services/serviceConfig', () => ({ ServiceType: { AI: 'ai' }, getServiceBaseURL: () => '/ai' }))
 vi.mock('@/utils/auth', () => ({ getToken: () => null }))
 import { AiStream } from '@/services/aiStream'
 

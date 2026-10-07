@@ -45,6 +45,40 @@ public class BackendApiTransport {
         return readTree(response);
     }
 
+    /** 所有内部业务请求沿用唯一传输层和内部令牌，绝不使用管理员 JWT。 */
+    public JsonNode internalGet(String path) { return internalExchange(path, HttpMethod.GET, null); }
+    public JsonNode internalPost(String path, Object body) { return internalExchange(path, HttpMethod.POST, body); }
+
+    private JsonNode internalExchange(String path, HttpMethod method, Object body) {
+        if (internalToken == null || internalToken.isBlank()) {
+            throw new AIServiceException.ConnectionException("内部服务令牌尚未配置");
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(InternalHeaders.INTERNAL_TOKEN, internalToken);
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        try {
+            JsonNode response = readTree(restTemplate.exchange(resolveUrl(path), method,
+                    new HttpEntity<>(body, headers), String.class).getBody());
+            if (response == null || response.path("code").asInt() != 200) {
+                throw new InternalBusinessException(response == null ? 500 : response.path("code").asInt(),
+                        response == null ? "内部服务返回异常" : response.path("message").asText("内部服务拒绝操作"));
+            }
+            return response.path("data");
+        } catch (HttpStatusCodeException error) {
+            JsonNode response = readTree(error.getResponseBodyAsString());
+            throw new InternalBusinessException(response.path("code").asInt(error.getStatusCode().value()),
+                    response.path("message").asText("内部服务请求失败"));
+        } catch (ResourceAccessException error) {
+            throw new AIServiceException.ConnectionException("主服务暂时无法连接，请稍后重试");
+        }
+    }
+
+    public static class InternalBusinessException extends AIServiceException.RequestException {
+        private final int businessCode;
+        public InternalBusinessException(int businessCode, String message) { super(message); this.businessCode = businessCode; }
+        public int businessCode() { return businessCode; }
+    }
+
     public JsonNode introspect(String bearerToken) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(bearerToken);

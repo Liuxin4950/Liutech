@@ -5,35 +5,18 @@ import chat.liuxin.ai.infra.exception.AIServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Prompt 预算守卫：把「模型能装多少」变成一条硬约束。
- *
- * <p>背景（本类存在的原因）：此前只有 {@code max_tokens}（单次输出上限）这一个配置，
- * 输入侧完全没有预算概念。组装好的 prompt（系统提示 + 站点上下文 + 草稿 + 历史 + 当前输入 + 工具结果）
- * 不看大小直接发给模型，于是出现两类线上问题：
- * <ul>
- *   <li>AI 用 {@code getArticleDetail} 读了一篇长文，或历史累积了多轮长回复，prompt 直接超出模型
- *       上下文窗口，上游报错或长时间不返回（表现为「模型卡住」）；</li>
- *   <li>超限之后没有任何本地校验，用户拿到的只有一句兜底提示，不知道是"内容太长"。</li>
- * </ul>
- *
- * <p>本类提供三件事：
- * <ol>
- *   <li>{@link #estimateTokens} —— 不引入 tokenizer 依赖的轻量估算（中文按 1 字 1 token，其余按 4 字符 1 token）；</li>
- *   <li>{@link #resolveLimits} —— 把「模型配置 + 全局护栏」解析成实际生效的 上下文 / 输出上限 / 输入预算；</li>
- *   <li>{@link #trimHistory} 与 {@link #assertMandatoryFits} —— 超限时的分级处理：
- *       先丢最旧的历史，丢完还不够就带着明确数字快速失败，绝不把超长 prompt 丢给上游干等。</li>
- * </ol>
- *
- * <p>为什么估算而不是精确计数：引入 tiktoken 之类的依赖要为每个模型维护词表，收益有限；
- * 我们的目的是"不超上限"，而这里的估算对中英混排偏保守（宁可少塞一点），足够安全。
- *
- * @author 刘鑫
+ * 模型输入预算。以 UTF-8 字节数作保守 Token 上界，不把该值当实际计费用量。
+ * 包含正文、工具 schema、工具参数及返回值；输出与安全余量从模型上下文中预留。
+ * 不具备对应模型 tokenizer 时会少用一部分窗口，以避免高熵/多字节文本低估。
  */
 @Slf4j
 @Component
@@ -53,30 +36,20 @@ public class PromptBudget {
 
     private final AiChatProperties aiChatProperties;
 
-    /**
-     * 估算一段文本的 token 数。
-     *
-     * 规则：CJK 字符（汉字/假名/韩文/全角标点）按 1 字符 ≈ 1 token；
-     * 其余字符（英文、代码、HTML 标签、空白）按 4 字符 ≈ 1 token 向上取整。
-     * 混排时两类分别计数再相加，比"统一除以 4"更接近真实值。
-     *
-     * @param text 待估算文本，可为 null
-     * @return 估算 token 数（非负）
-     */
+    /** UTF-8 保守预算，未配对代理字符按 JSON 转义的6字节预算。 */
     public int estimateTokens(String text) {
         if (text == null || text.isEmpty()) {
             return 0;
         }
-        int cjkChars = 0;
-        int otherChars = 0;
-        for (int i = 0; i < text.length(); i++) {
-            if (isCjk(text.charAt(i))) {
-                cjkChars++;
-            } else {
-                otherChars++;
-            }
+        int bytes = 0;
+        for (int i = 0; i < text.length();) {
+            int point = text.codePointAt(i);
+            i += Character.charCount(point);
+            // 使用 UTF-8 字节上界，避免 emoji、罕见字和高熵文本绕过字符/4估算。
+            bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2
+                    : point >= 0xd800 && point <= 0xdfff ? 6 : point <= 0xffff ? 3 : 4;
         }
-        return cjkChars + (otherChars + 3) / 4;
+        return bytes;
     }
 
     /**
@@ -93,6 +66,15 @@ public class PromptBudget {
         for (Message message : messages) {
             if (message == null) continue;
             total += estimateTokens(message.getText());
+            if (message instanceof AssistantMessage assistant) {
+                for (var call : assistant.getToolCalls()) {
+                    total += estimateTokens(call.name()) + estimateTokens(call.arguments()) + 8;
+                }
+            } else if (message instanceof ToolResponseMessage tool) {
+                for (var response : tool.getResponses()) {
+                    total += estimateTokens(response.name()) + estimateTokens(response.responseData()) + 8;
+                }
+            }
             // 每条消息的角色标签、分隔符等固定开销，粗略按 4 token 计
             total += 4;
         }
@@ -119,17 +101,18 @@ public class PromptBudget {
         int declaredOutput = (configuredMaxTokens != null && configuredMaxTokens > 0)
                 ? configuredMaxTokens
                 : DEFAULT_MAX_OUTPUT_TOKENS;
-        boolean outputClamped = declaredOutput > ceiling;
-        int maxOutputTokens = Math.min(declaredOutput, ceiling);
+        boolean outputClamped = ceiling > 0 && declaredOutput > ceiling;
+        int maxOutputTokens = ceiling > 0 ? Math.min(declaredOutput, ceiling) : declaredOutput;
         if (outputClamped) {
             log.warn("模型输出上限 {} 超过全局安全上限 {}，实际按 {} 生效", declaredOutput, ceiling, maxOutputTokens);
         }
 
         // 3. 输入预算 = 上下文窗口 − 输出上限 − 安全余量，再受全局输入护栏约束
-        int rawInputBudget = contextWindow - maxOutputTokens - SAFETY_MARGIN_TOKENS;
+        long rawInputBudget = (long) contextWindow - maxOutputTokens - SAFETY_MARGIN_TOKENS;
         int maxInputTokens = security.getModelPolicyMaxInputTokens();
         boolean inputCappedByPolicy = maxInputTokens > 0 && rawInputBudget > maxInputTokens;
-        int inputBudgetTokens = Math.max(0, inputCappedByPolicy ? maxInputTokens : rawInputBudget);
+        int inputBudgetTokens = (int) Math.max(0L, Math.min(Integer.MAX_VALUE,
+                inputCappedByPolicy ? maxInputTokens : rawInputBudget));
 
         if (rawInputBudget <= 0) {
             log.warn("上下文窗口 {} 小于输出上限 {} + 安全余量 {}，输入预算为 0，模型配置自相矛盾",
@@ -175,6 +158,34 @@ public class PromptBudget {
                     keepFrom, history.size() - keepFrom, used);
         }
         return new ArrayList<>(history.subList(keepFrom, history.size()));
+    }
+
+    /** 三类业务共用首次输入分配：必需内容不截断，参考资料节选，历史整条裁剪。 */
+    public List<Message> prepareInitial(String model, AiModelPolicy.ModelParameters params,
+            List<Message> mandatory, List<Message> references, List<Message> history,
+            Message currentInput, List<ToolCallback> tools) {
+        int required = estimateTokens(mandatory) + estimateTokens(List.of(currentInput)) + estimateToolTokens(tools);
+        assertMandatoryFits(model, required, params.inputBudgetTokens(), params.contextWindow(), params.maxTokens());
+        int remaining = params.inputBudgetTokens() - required;
+        remaining -= Math.min(remaining / 2, Math.min(12000, params.inputBudgetTokens() / 4));
+        int referenceBudget = remaining / 2;
+        List<Message> messages = new ArrayList<>(mandatory);
+        for (Message reference : references) {
+            if (referenceBudget < 128) break;
+            String text = reference.getText();
+            int cost = estimateTokens(text) + 4;
+            if (cost > referenceBudget) {
+                text = truncateReference(text, referenceBudget - 4,
+                    "\n[参考资料已按模型预算节选，不能声称已读取全文；请使用分段读取工具。]");
+                cost = estimateTokens(text) + 4;
+            }
+            messages.add(new org.springframework.ai.chat.messages.UserMessage(text));
+            remaining -= cost;
+            referenceBudget -= cost;
+        }
+        messages.addAll(trimHistory(history, remaining));
+        messages.add(currentInput);
+        return messages;
     }
 
     /**
@@ -224,32 +235,41 @@ public class PromptBudget {
      * @return 字符预算
      */
     public int toolResultCharBudget(int inputBudgetTokens, int configuredMaxChars) {
-        int byBudget = Math.max(500, inputBudgetTokens / 2);
+        int byBudget = Math.max(0, inputBudgetTokens / 2);
         if (configuredMaxChars <= 0) {
             return byBudget;
         }
         return Math.min(configuredMaxChars, byBudget);
     }
 
-    /** 判断字符是否属于 CJK 区段（这些字符按 1 字 ≈ 1 token 计） */
-    private static boolean isCjk(char c) {
-        return (c >= 0x4E00 && c <= 0x9FFF)      // 汉字基本区
-                || (c >= 0x3400 && c <= 0x4DBF)  // 汉字扩展 A
-                || (c >= 0x3000 && c <= 0x303F)  // 中日韩标点
-                || (c >= 0xFF00 && c <= 0xFFEF)  // 全角字符
-                || (c >= 0x3040 && c <= 0x30FF)  // 日文假名
-                || (c >= 0xAC00 && c <= 0xD7AF); // 韩文音节
+    /** 工具 schema 同样属于模型输入，不能只数正文。 */
+    public int estimateToolTokens(List<ToolCallback> tools) {
+        int tokens = 0;
+        for (ToolCallback tool : tools) {
+            var definition = tool.getToolDefinition();
+            tokens += estimateTokens(definition.name()) + estimateTokens(definition.description())
+                    + estimateTokens(definition.inputSchema()) + 16;
+        }
+        return tokens;
     }
 
-    /**
-     * 模型生效限制三元组。
-     *
-     * @param contextWindow      上下文窗口（输入 + 输出总上限）
-     * @param maxOutputTokens    单次输出上限（已受全局安全上限约束）
-     * @param inputBudgetTokens  输入预算（上下文 − 输出 − 安全余量，再受全局输入护栏约束）
-     * @param outputClamped      输出上限是否被全局安全上限夹小
-     * @param inputCappedByPolicy 输入预算是否被全局输入护栏夹小
-     */
+    /** 不切断 Unicode 码点；截断说明也占预算。原始写作草稿不使用此方法。 */
+    public String truncateReference(String text, int maxTokens, String notice) {
+        if (text == null || estimateTokens(text) <= maxTokens) return text;
+        int remaining = Math.max(0, maxTokens - estimateTokens(notice));
+        int end = 0;
+        int used = 0;
+        while (end < text.length()) {
+            int point = text.codePointAt(end);
+            int chars = Character.charCount(point);
+            int cost = estimateTokens(text.substring(end, end + chars));
+            if (used + cost > remaining) break;
+            used += cost;
+            end += chars;
+        }
+        return estimateTokens(notice) > maxTokens ? "" : text.substring(0, end) + notice;
+    }
+
     public record ModelLimits(int contextWindow, int maxOutputTokens, int inputBudgetTokens,
                               boolean outputClamped, boolean inputCappedByPolicy) {
     }

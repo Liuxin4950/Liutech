@@ -10,6 +10,7 @@
     <!-- 发表评论表单 -->
     <div class="comment-form-container">
       <CommentForm 
+        :key="postId"
         :post-id="postId"
         @comment-created="handleCommentCreated"
       />
@@ -40,93 +41,95 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { CommentService, type Comment } from '@/services/comment'
-import { useErrorHandler } from '@/composables/useErrorHandler'
+import { mergeCommentTree, addCommentToTree } from '@/services/commentTree'
 import CommentForm from './CommentForm.vue'
 import CommentItem from './CommentItem.vue'
 import Icon from './Icon.vue'
 import LoadingState from './LoadingState.vue'
 
-// Props
-interface Props {
-  postId: number
-}
-
-const props = defineProps<Props>()
-
-// Composables
-const { handleAsync } = useErrorHandler()
-
-// 响应式数据
+const props = defineProps<{ postId: number }>()
 const comments = ref<Comment[]>([])
 const loading = ref(false)
 const error = ref('')
-
-// 计算总评论数（包括子评论）
-const totalComments = computed(() => {
-  const countComments = (commentList: Comment[]): number => {
-    return commentList.reduce((total, comment) => {
-      return total + 1 + countComments(comment.children || [])
-    }, 0)
+const countComments = (items: Comment[]): number => {
+  const pending = [...items]
+  const visited = new Set<number>()
+  while (pending.length) {
+    const comment = pending.pop()!
+    if (visited.has(comment.id)) continue
+    visited.add(comment.id)
+    for (const child of comment.children || []) pending.push(child)
   }
-  return countComments(comments.value)
-})
+  return visited.size
+}
+const totalComments = computed(() => countComments(comments.value))
+let timer: ReturnType<typeof setInterval> | undefined
+let controller: AbortController | undefined
+let generation = 0
+let localRevision = 0
+const localAdds = new Map<number, number>()
+let disposed = false
 
-// 加载评论列表
-const loadComments = async () => {
-  await handleAsync(async () => {
-    loading.value = true
+async function loadComments() {
+  if (controller || disposed || document.hidden) return
+  const articleId = props.postId
+  const version = generation
+  const revisionAtStart = localRevision
+  const request = new AbortController()
+  controller = request
+  if (!comments.value.length) loading.value = true
+  try {
+    const data = await CommentService.getTreeComments(articleId, request.signal)
+    if (disposed || version !== generation || request.signal.aborted) return
+    const protect = new Set([...localAdds].filter(([, revision]) => revision > revisionAtStart).map(([id]) => id))
+    mergeCommentTree(comments.value, data, protect)
+    for (const [id, revision] of localAdds) if (revision <= revisionAtStart) localAdds.delete(id)
     error.value = ''
-    
-    const data = await CommentService.getTreeComments(props.postId)
-    comments.value = data
-  }, {
-    onError: () => {
-      error.value = '加载评论失败，请稍后重试'
-    },
-    onFinally: () => {
-      loading.value = false
-    }
-  })
-}
-
-// 处理新评论创建
-const handleCommentCreated = (newComment: Comment) => {
-  // 如果是顶级评论，直接添加到列表开头
-  if (!newComment.parentId) {
-    comments.value.unshift(newComment)
-  } else {
-    // 如果是回复评论，需要找到父评论并添加到其children中
-    addReplyToParent(comments.value, newComment)
+  } catch {
+    if (!request.signal.aborted && version === generation && !comments.value.length) error.value = '加载评论失败，请稍后重试'
+  } finally {
+    if (controller === request) controller = undefined
+    if (version === generation) loading.value = false
   }
 }
-
-// 处理回复创建
-const handleReplyCreated = (newReply: Comment) => {
-  addReplyToParent(comments.value, newReply)
+function handleCommentCreated(comment: Comment) {
+  if (comment.postId !== props.postId) return
+  localAdds.set(comment.id, ++localRevision)
+  addCommentToTree(comments.value, comment)
 }
-
-// 递归查找父评论并添加回复
-const addReplyToParent = (commentList: Comment[], reply: Comment) => {
-  for (const comment of commentList) {
-    if (comment.id === reply.parentId) {
-      if (!comment.children) {
-        comment.children = []
-      }
-      comment.children.push(reply)
-      return true
-    }
-    if (comment.children && addReplyToParent(comment.children, reply)) {
-      return true
-    }
-  }
-  return false
+const handleReplyCreated = handleCommentCreated
+function stopPolling() {
+  if (timer) clearInterval(timer)
+  timer = undefined
+  controller?.abort()
+  controller = undefined
+  loading.value = false
 }
-
-// 组件挂载时加载评论
+function startPolling() {
+  if (disposed || document.hidden) return
+  void loadComments()
+  if (!timer) timer = setInterval(() => { void loadComments() }, 10000)
+}
+function onVisibilityChange() { if (document.hidden) stopPolling(); else startPolling() }
+watch(() => props.postId, () => {
+  generation++
+  stopPolling()
+  comments.value = []
+  localAdds.clear()
+  error.value = ''
+  startPolling()
+})
 onMounted(() => {
-  loadComments()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  startPolling()
+})
+onBeforeUnmount(() => {
+  disposed = true
+  generation++
+  stopPolling()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 

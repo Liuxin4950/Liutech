@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * Security 白名单常量
- * SecurityConfig 与 JwtAuthenticationFilter 共享同一份白名单，避免双份维护导致不一致。
+ * SecurityConfig 统一管理公开访问权限；JWT 过滤器独立识别请求中的可选登录身份。
  *
  * @author 刘鑫
  */
@@ -52,6 +52,7 @@ public final class SecurityWhitelist {
      */
     public static final List<String> PUBLIC_GET_EXACT = List.of(
             "/carousels",
+            "/community/bots",
             "/about",
             "/user/author/profile",
             "/author/profile",
@@ -95,58 +96,4 @@ public final class SecurityWhitelist {
             "/posts/recommendations"
     );
 
-    // ==================== 匹配工具方法 ====================
-
-    /**
-     * 判断请求是否应跳过 JWT 认证（即公开接口）
-     *
-     * @param uri    请求 URI
-     * @param method HTTP 方法
-     * @return true 表示跳过认证
-     */
-    public static boolean shouldSkipAuthentication(String uri, String method) {
-        // OPTIONS 预检请求始终放行
-        if ("OPTIONS".equalsIgnoreCase(method)) {
-            return true;
-        }
-
-        // 需认证的精确路径，不跳过
-        if (AUTHENTICATED_PATHS.contains(uri)) {
-            return false;
-        }
-
-        // 完全公开路径
-        if (FULLY_PUBLIC.contains(uri)) {
-            return true;
-        }
-
-        if ("GET".equalsIgnoreCase(method)) {
-            // 精确匹配
-            if (PUBLIC_GET_EXACT.contains(uri)) {
-                return true;
-            }
-            // 前缀匹配
-            for (String prefix : PUBLIC_GET_PREFIXES) {
-                if (uri.startsWith(prefix)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        if ("HEAD".equalsIgnoreCase(method)) {
-            for (String prefix : PUBLIC_HEAD_PREFIXES) {
-                if (uri.startsWith(prefix)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        if ("POST".equalsIgnoreCase(method)) {
-            return PUBLIC_POST_EXACT.contains(uri);
-        }
-
-        return false;
-    }
 }

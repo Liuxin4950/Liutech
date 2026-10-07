@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import chat.liuxin.ai.common.utils.AuthUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Map;
@@ -14,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * AI 请求限流拦截器（滑动窗口，按角色分级）。
+ * AI 请求限流拦截器（固定窗口，按角色分级）。
  *
  * 每个请求按用户身份或客户端 IP 归入一个 Bucket，
  * 在 windowSeconds 时间窗内超过阈值就返回 HTTP 429。
@@ -33,7 +34,7 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
     private final ConcurrentHashMap<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final AtomicLong lastCleanupMillis = new AtomicLong(0);
 
-    /** 滑动窗口计数桶，每个 key 一个实例 */
+    /** 固定窗口计数桶，每个 key 一个实例 */
     private static class Bucket {
         private long windowStartMillis;
         private int count;
@@ -85,14 +86,15 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
         int maxRequests = resolveMaxRequests(role);
         long windowMillis = Math.max(1, properties.getWindowSeconds()) * 1000L;
 
-        Bucket bucket = buckets.computeIfAbsent(key, ignored -> new Bucket(now));
-        if (bucket.tryAcquire(now, windowMillis, maxRequests)) {
+        Bucket bucket = findOrCreateBucket(key, now);
+        if (bucket != null && bucket.tryAcquire(now, windowMillis, Math.max(1, maxRequests))) {
             return true;
         }
 
         response.setStatus(429);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
+        response.setHeader("Retry-After", String.valueOf(Math.max(1, properties.getWindowSeconds())));
         objectMapper.writeValue(response.getWriter(), Map.of(
                 "success", false,
                 "code", "RATE_LIMITED",
@@ -104,7 +106,7 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
      * 惰性清理过期 Bucket。
      *
      * 用 CAS 保证同一时刻只有一个线程执行清理；
-     * 超过 maxTrackedKeys 时直接清空 map 兜底防止内存无限增长。
+     * 只回收过期 Bucket；容量不足时拒绝新身份，不能清空已有配额给调用者放水。
      */
     private void cleanupIfNeeded(long now) {
         long previous = lastCleanupMillis.get();
@@ -114,8 +116,19 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
         }
         long ttlMillis = Math.max(60_000L, properties.getWindowSeconds() * 3000L);
         buckets.entrySet().removeIf(entry -> entry.getValue().expired(now, ttlMillis));
-        if (buckets.size() > properties.getMaxTrackedKeys()) {
-            buckets.clear();
+    }
+
+    private Bucket findOrCreateBucket(String key, long now) {
+        Bucket existing = buckets.get(key);
+        if (existing != null) return existing;
+        // 容量检查与新增必须原子化，避免并发的新身份穿透容量限制。
+        synchronized (buckets) {
+            existing = buckets.get(key);
+            if (existing != null) return existing;
+            if (buckets.size() >= Math.max(1, properties.getMaxTrackedKeys())) return null;
+            Bucket created = new Bucket(now);
+            buckets.put(key, created);
+            return created;
         }
     }
 
@@ -150,18 +163,27 @@ public class AiRateLimitInterceptor implements HandlerInterceptor {
     /**
      * 解析真实客户端 IP。
      *
-     * Nginx 反代下 X-Forwarded-For 是逗号分隔的链路，第一个是最原始的客户端 IP；
-     * 兜底读 X-Real-IP，都没有才用 RemoteAddr（此时通常是 Nginx 容器 IP，不准）。
+     * 只信任显式配置的直连代理。Nginx 覆盖 X-Real-IP，XFF 首段可由客户端伪造，始终忽略。
      */
     private String resolveClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
+        String remote = request.getRemoteAddr();
+        if (remote != null && properties.getTrustedProxies() != null) {
+            for (String trusted : properties.getTrustedProxies()) {
+                if (trusted == null || trusted.isBlank()) continue;
+                if (new IpAddressMatcher(trusted.trim()).matches(remote)) {
+                    String realIp = request.getHeader("X-Real-IP");
+                    if (realIp != null && realIp.trim().matches("[0-9a-fA-F:.]+")) {
+                        try {
+                            // 限制为数字字面量，绝不对用户控制的主机名发 DNS 查询。
+                            return java.net.InetAddress.getByName(realIp.trim()).getHostAddress();
+                        } catch (java.net.UnknownHostException ignored) {
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
         }
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-        return request.getRemoteAddr();
+        return remote == null ? "unknown" : remote;
     }
 }

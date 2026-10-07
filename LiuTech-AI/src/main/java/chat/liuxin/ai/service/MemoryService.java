@@ -1,12 +1,12 @@
 package chat.liuxin.ai.service;
 
 import chat.liuxin.ai.entity.AiChatMessage;
-import chat.liuxin.ai.dto.ChatHistoryResponse;
 import chat.liuxin.ai.entity.AiConversation;
+import chat.liuxin.ai.dto.ChatHistoryResponse;
 import chat.liuxin.ai.mapper.AiChatMessageMapper;
 import chat.liuxin.ai.mapper.AiConversationMapper;
+import chat.liuxin.ai.mapper.AiUserStateMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -36,7 +36,7 @@ public class MemoryService {
 
     private final AiChatMessageMapper messageMapper;
     private final AiConversationMapper conversationMapper;
-    private final chat.liuxin.ai.mapper.AiUserStateMapper userStateMapper;
+    private final AiUserStateMapper userStateMapper;
 
     // ========== 消息与会话状态常量 ==========
     /** 消息状态：正常完成 */
@@ -62,16 +62,16 @@ public class MemoryService {
      * 分页查用户所有历史消息(倒序),供管理后台/个人中心的消息记录列表使用。
      */
     public List<AiChatMessage> listHistoryMessages(String userId, int page, int size) {
-        if (page < 1 || size <= 0) return Collections.emptyList();
-        int safeSize = safeSize(size);
-        return messageMapper.selectHistoryMessagesByUserId(userId, offset(page, safeSize), safeSize);
+        int safeSize = size < 1 ? 20 : Math.min(size, 100);
+        long offset = (Math.max(1, page) - 1L) * safeSize;
+        return messageMapper.selectHistoryMessagesByUserId(userId, offset, safeSize);
     }
 
     @Transactional(readOnly = true)
     public ChatHistoryResponse getChatHistory(String userId, int page, int size) {
         requireUserId(userId);
         int current = Math.max(1, page);
-        int limit = size <= 0 ? 20 : safeSize(size);
+        int limit = size <= 0 ? 20 : Math.min(size, 100);
         return ChatHistoryResponse.success(listHistoryMessages(userId, current, limit), current, limit,
                 countHistoryMessages(userId), userId);
     }
@@ -95,9 +95,8 @@ public class MemoryService {
     @Transactional(rollbackFor = Exception.class)
     public void saveUserMessage(String userId, Long conversationId, String content, String model, String metadataJson) {
         lockActiveUser(userId);
-        lockOwnedConversation(userId, conversationId);
-        Integer maxSeqNo = messageMapper.selectLastSeqNoForUpdate(conversationId);
-        int nextSeqNo = Math.addExact(maxSeqNo == null ? 0 : maxSeqNo, 1);
+        lockConversationOwnedByUser(userId, conversationId);
+        Integer maxSeqNo = getMaxSeqNo(conversationId);
 
         AiChatMessage m = new AiChatMessage();
         m.setUserId(userId);
@@ -106,11 +105,9 @@ public class MemoryService {
         m.setContent(content);
         m.setModel(model);
         m.setStatus(MESSAGE_STATUS_NORMAL);
-        m.setSeqNo(nextSeqNo);
+        m.setSeqNo(maxSeqNo + 1);
         m.setCreatedAt(LocalDateTime.now());
-        if (messageMapper.insert(m) != 1) {
-            throw new IllegalStateException("消息保存失败");
-        }
+        if (messageMapper.insert(m) != 1) throw new IllegalStateException("消息保存失败");
         touchConversation(conversationId);
     }
 
@@ -123,9 +120,8 @@ public class MemoryService {
     @Transactional(rollbackFor = Exception.class)
     public void saveAssistantMessage(String userId, Long conversationId, String content, String model, int status, String metadataJson) {
         lockActiveUser(userId);
-        lockOwnedConversation(userId, conversationId);
-        Integer maxSeqNo = messageMapper.selectLastSeqNoForUpdate(conversationId);
-        int nextSeqNo = Math.addExact(maxSeqNo == null ? 0 : maxSeqNo, 1);
+        lockConversationOwnedByUser(userId, conversationId);
+        Integer maxSeqNo = getMaxSeqNo(conversationId);
 
         AiChatMessage m = new AiChatMessage();
         m.setUserId(userId);
@@ -134,44 +130,33 @@ public class MemoryService {
         m.setContent(content);
         m.setModel(model);
         m.setStatus(status);
-        m.setSeqNo(nextSeqNo);
+        m.setSeqNo(maxSeqNo + 1);
         m.setCreatedAt(LocalDateTime.now());
-        if (messageMapper.insert(m) != 1) {
-            throw new IllegalStateException("消息保存失败");
-        }
+        if (messageMapper.insert(m) != 1) throw new IllegalStateException("消息保存失败");
         touchConversation(conversationId);
     }
 
     /**
-     * 每插入一条消息后调,累加会话 messageCount、刷新 lastMessageAt / updatedAt。
-     * 已由写入口锁定并校验会话，更新失败回滚整次消息保存。
+     * 在持有会话行锁的消息事务中调用，原子累加计数并只更新消息统计字段。
      */
     private void touchConversation(Long conversationId) {
-        if (conversationMapper.incrementMessageCount(conversationId) != 1) {
+        if (conversationMapper.incrementMessageCount(conversationId, LocalDateTime.now()) != 1) {
             throw new IllegalStateException("会话统计更新失败");
         }
     }
 
-    private AiConversation lockOwnedConversation(String userId, Long conversationId) {
-        return requireOwned(userId, conversationMapper.selectForUpdate(conversationId));
-    }
-
-    private AiConversation requireOwned(String userId, AiConversation conversation) {
-        if (conversation == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在或已删除");
-        }
-        if (userId == null || !userId.equals(conversation.getUserId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限访问该会话");
-        }
-        return conversation;
-    }
-
-    private static int safeSize(int size) {
-        return Math.max(1, Math.min(size, 100));
-    }
-
-    private static long offset(int page, int size) {
-        return ((long) Math.max(1, page) - 1) * size;
+    /**
+     * 取会话内当前最大 seqNo,新消息插入时用于生成下一个序号。空会话返回 0。
+     */
+    private Integer getMaxSeqNo(Long conversationId) {
+        AiChatMessage lastMessage = messageMapper.selectOne(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getConversationId, conversationId)
+                .select(AiChatMessage::getSeqNo)
+                .orderByDesc(AiChatMessage::getSeqNo)
+                // 当前读：即使调用方事务已有 RR 快照，也读取前一条写入已提交的序号。
+                .last("LIMIT 1 FOR UPDATE")
+        );
+        return lastMessage != null ? lastMessage.getSeqNo() : 0;
     }
 
     /**
@@ -180,7 +165,12 @@ public class MemoryService {
     @Transactional(rollbackFor = Exception.class)
     public PurgeCounts clearAllMemory(String userId) {
         requireUserId(userId);
-        List<Long> conversationIds = conversationMapper.selectOwnedForUpdate(userId)
+        List<Long> conversationIds = conversationMapper.selectList(new LambdaQueryWrapper<AiConversation>()
+                .eq(AiConversation::getUserId, userId)
+                .select(AiConversation::getId)
+                .orderByAsc(AiConversation::getId)
+                // 与保存消息保持同一锁顺序：会话 -> 消息。
+                .last("FOR UPDATE"))
                 .stream().map(AiConversation::getId).toList();
 
         int deleted = 0;
@@ -201,9 +191,10 @@ public class MemoryService {
 
     public record PurgeCounts(int conversationsDeleted, int messagesDeleted) {}
 
-    /** 内部永久清理；与用户主动清空记忆不同，后续旧请求不得重新创建数据。 */
+    /** 永久清理后留下用户墓碑，阻止旧认证缓存或在途请求重建会话。 */
     @Transactional(rollbackFor = Exception.class)
     public PurgeCounts purgeUserData(String userId) {
+        requireUserId(userId);
         userStateMapper.ensureExists(userId);
         userStateMapper.selectPurgedForUpdate(userId);
         userStateMapper.markPurged(userId);
@@ -211,9 +202,7 @@ public class MemoryService {
     }
 
     private void lockActiveUser(String userId) {
-        if (userId == null || userId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "请先登录");
-        }
+        requireUserId(userId);
         userStateMapper.ensureExists(userId);
         if (Integer.valueOf(1).equals(userStateMapper.selectPurgedForUpdate(userId))) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "用户数据已永久清理");
@@ -241,9 +230,24 @@ public class MemoryService {
     /**
      * 会话列表分页查询,排除已归档(status=9),按更新时间倒序,size 上限 100 防滥用。
      */
-    public List<AiConversation> listConversations(String userId, int page, int size) {
-        int safeSize = safeSize(size);
-        return conversationMapper.selectVisiblePage(userId, offset(page, safeSize), safeSize);
+    public List<AiConversation> listConversations(String userId, String type, int page, int size) {
+        int safeSize = Math.max(1, Math.min(size, 100));
+        long offset = (Math.max(1, page) - 1L) * safeSize;
+        var qw = new LambdaQueryWrapper<AiConversation>()
+                .select(AiConversation::getId,
+                        AiConversation::getUserId,
+                        AiConversation::getTitle,
+                        AiConversation::getCreatedAt,
+                        AiConversation::getUpdatedAt,
+                        AiConversation::getStatus,
+                        AiConversation::getMessageCount,
+                        AiConversation::getLastMessageAt)
+                .eq(AiConversation::getUserId, userId)
+                .ne(AiConversation::getStatus, CONVERSATION_STATUS_ARCHIVED)
+                .orderByDesc(AiConversation::getUpdatedAt)
+                .orderByDesc(AiConversation::getId)
+                .last("LIMIT " + offset + ", " + safeSize);
+        return conversationMapper.selectList(qw);
     }
 
     /** 按主键查会话,不做权限校验,内部/管理场景使用。 */
@@ -257,16 +261,45 @@ public class MemoryService {
      * 会话不存在抛 404,归属他人或匿名访问抛 403。所有面向前端的会话读写都应经过这里,防越权。
      */
     public AiConversation getConversationOwnedByUser(String userId, Long conversationId) {
-        return requireOwned(userId, conversationMapper.selectById(conversationId));
+        AiConversation conversation = conversationMapper.selectById(conversationId);
+        return requireConversationOwnedByUser(userId, conversation);
+    }
+
+    /** 行锁持续到消息事务结束，同会话串行落库，不同会话仍可独立写入。 */
+    private void lockConversationOwnedByUser(String userId, Long conversationId) {
+        requireConversationOwnedByUser(userId, conversationMapper.lockById(conversationId));
+    }
+
+    private AiConversation requireConversationOwnedByUser(String userId, AiConversation conversation) {
+        if (conversation == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "会话不存在或已删除");
+        }
+        if (userId == null || !userId.equals(conversation.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "无权限访问该会话");
+        }
+        return conversation;
     }
 
     /**
-     * 分页取指定会话内的消息,按 seqNo 升序还原对话时序。会先做属主校验。
+     * 从最近消息开始分页,页内按 seqNo 升序还原对话时序。会先做属主校验。
      */
     public List<AiChatMessage> listMessagesByConversation(String userId, Long conversationId, int page, int size) {
         getConversationOwnedByUser(userId, conversationId);
-        int safeSize = safeSize(size);
-        return messageMapper.selectConversationPage(conversationId, offset(page, safeSize), safeSize);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        long offset = (Math.max(1, page) - 1L) * safeSize;
+        List<AiChatMessage> messages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .select(AiChatMessage::getId,
+                        AiChatMessage::getRole,
+                        AiChatMessage::getContent,
+                        AiChatMessage::getCreatedAt,
+                        AiChatMessage::getSeqNo)
+                .eq(AiChatMessage::getConversationId, conversationId)
+                .orderByDesc(AiChatMessage::getSeqNo)
+                .orderByDesc(AiChatMessage::getId)
+                .last("LIMIT " + offset + ", " + safeSize)
+        );
+        Collections.reverse(messages);
+        return messages;
     }
 
     /**
@@ -276,7 +309,12 @@ public class MemoryService {
         getConversationOwnedByUser(userId, conversationId);
         if (limit <= 0) return Collections.emptyList();
         int safeLimit = Math.max(1, Math.min(limit, 100));
-        List<AiChatMessage> messages = messageMapper.selectConversationTail(conversationId, safeLimit);
+        List<AiChatMessage> messages = messageMapper.selectList(new LambdaQueryWrapper<AiChatMessage>()
+                .eq(AiChatMessage::getConversationId, conversationId)
+                .orderByDesc(AiChatMessage::getSeqNo)
+                .orderByDesc(AiChatMessage::getId)
+                .last("LIMIT " + safeLimit)
+        );
         Collections.reverse(messages);
         return messages;
     }
@@ -300,29 +338,35 @@ public class MemoryService {
         }).collect(Collectors.toList());
     }
 
-    /** 属主校验与字段更新在同一事务中完成，避免覆盖消息计数。 */
+    /** 属主校验与字段更新在同一事务中完成。 */
     @Transactional(rollbackFor = Exception.class)
     public void renameConversation(String userId, Long conversationId, String title) {
-        lockOwnedConversation(userId, conversationId);
-        conversationMapper.update(null, new LambdaUpdateWrapper<AiConversation>()
-                .eq(AiConversation::getId, conversationId)
-                .set(AiConversation::getTitle, title)
-                .set(AiConversation::getUpdatedAt, LocalDateTime.now()));
+        lockConversationOwnedByUser(userId, conversationId);
+        AiConversation update = new AiConversation();
+        update.setId(conversationId);
+        update.setTitle(title);
+        update.setUpdatedAt(LocalDateTime.now());
+        conversationMapper.updateById(update);
     }
 
+    /** 软删除会话:置 status=9,列表查询会自动过滤,消息数据保留。 */
     @Transactional(rollbackFor = Exception.class)
     public void archiveConversation(String userId, Long conversationId) {
-        lockOwnedConversation(userId, conversationId);
-        conversationMapper.update(null, new LambdaUpdateWrapper<AiConversation>()
-                .eq(AiConversation::getId, conversationId)
-                .set(AiConversation::getStatus, CONVERSATION_STATUS_ARCHIVED)
-                .set(AiConversation::getUpdatedAt, LocalDateTime.now()));
+        lockConversationOwnedByUser(userId, conversationId);
+        AiConversation update = new AiConversation();
+        update.setId(conversationId);
+        update.setStatus(CONVERSATION_STATUS_ARCHIVED);
+        update.setUpdatedAt(LocalDateTime.now());
+        conversationMapper.updateById(update);
     }
 
-    /** 与消息保存一致：先锁会话，再操作消息。 */
+    /**
+     * 物理删除会话及其全部消息,先删消息再删会话避免孤儿数据。
+     * 属主校验与删除共用当前事务中的行锁。
+     */
     @Transactional(rollbackFor = Exception.class)
     public void deleteConversation(String userId, Long conversationId) {
-        lockOwnedConversation(userId, conversationId);
+        lockConversationOwnedByUser(userId, conversationId);
         messageMapper.delete(new LambdaQueryWrapper<AiChatMessage>()
                 .eq(AiChatMessage::getConversationId, conversationId));
         conversationMapper.deleteById(conversationId);

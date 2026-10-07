@@ -16,7 +16,7 @@
     <select id="selectByUserIdAndPostId" resultMap="PostFavoritesMap">
         SELECT id, user_id, post_id, is_favorite, created_at, updated_at
         FROM post_favorites
-        WHERE user_id = #{userId} AND post_id = #{postId} AND deleted_at IS NULL
+        WHERE user_id = #{userId} AND post_id = #{postId}
     </select>
 
     <!-- 统计文章的收藏数 -->
@@ -36,7 +36,7 @@
     <select id="getFavoriteStatus" resultType="java.lang.Integer">
         SELECT is_favorite
         FROM post_favorites
-        WHERE user_id = #{userId} AND post_id = #{postId} AND deleted_at IS NULL
+        WHERE user_id = #{userId} AND post_id = #{postId}
     </select>
     
     <!-- 插入或更新收藏记录 -->
@@ -45,7 +45,6 @@
         VALUES (#{userId}, #{postId}, #{status}, NOW(), NOW())
         ON DUPLICATE KEY UPDATE
         is_favorite = #{status},
-        deleted_at = NULL,
         updated_at = NOW()
     </insert>
     
@@ -66,8 +65,9 @@
     <select id="countFavoritesByUserId" resultType="java.lang.Integer">
         SELECT COUNT(*)
         FROM post_favorites f
-        INNER JOIN posts p ON p.id = f.post_id AND p.deleted_at IS NULL
+        INNER JOIN posts p ON p.id = f.post_id
         WHERE f.user_id = #{userId} AND f.is_favorite = 1 AND f.deleted_at IS NULL
+          AND p.deleted_at IS NULL AND p.status = 'published'
     </select>
 
     <!-- 分页查询收藏某篇文章的用户列表（JOIN users 带用户信息） -->
@@ -83,18 +83,5 @@
         WHERE f.post_id = #{postId} AND f.is_favorite = 1 AND f.deleted_at IS NULL
         ORDER BY f.updated_at DESC
     </select>
-
-    <!-- 恢复文章互动；仍被删除的账户记录不能复活。 -->
-    <update id="restoreByPostIds">
-        UPDATE post_favorites i
-        INNER JOIN posts p ON p.id = i.post_id
-        INNER JOIN users u ON u.id = i.user_id AND u.deleted_at IS NULL
-        SET i.deleted_at = NULL
-        WHERE i.post_id IN
-        <foreach collection="postIds" item="id" open="(" separator="," close=")">
-            #{id}
-        </foreach>
-        AND p.deleted_at IS NULL AND i.deleted_at IS NOT NULL
-    </update>
 
 </mapper>

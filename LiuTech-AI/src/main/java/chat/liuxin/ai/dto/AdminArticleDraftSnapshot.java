@@ -1,6 +1,8 @@
 package chat.liuxin.ai.dto;
 
 import lombok.Data;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Positive;
 
 import java.util.List;
 
@@ -16,23 +18,29 @@ import java.util.List;
 public class AdminArticleDraftSnapshot {
 
     /** 文章ID（新建时为空） */
+    @Positive
     private Long postId;
 
     /** 标题 */
+    @Size(max = 200)
     private String title;
 
     /** 正文（Markdown/HTML） */
+    @Size(max = 200000, message = "草稿过长，请分篇编辑")
     private String content;
 
     /** 摘要 */
+    @Size(max = 500)
     private String summary;
 
     /** 当前分类ID */
     private Long categoryId;
 
     /** 当前标签ID列表 */
+    @Size(max = 20)
     private List<Long> tagIds;
 
     /** 文章状态 */
+    @Size(max = 20)
     private String status;
 }

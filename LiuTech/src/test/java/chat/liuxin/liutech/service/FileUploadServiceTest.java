@@ -7,6 +7,7 @@ import chat.liuxin.liutech.mapper.PostAttachmentsMapper;
 import chat.liuxin.liutech.mapper.ResourcesMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Images;
+import chat.liuxin.liutech.model.Resources;
 import chat.liuxin.liutech.model.Users;
 import chat.liuxin.liutech.resp.FileUploadResp;
 import chat.liuxin.liutech.resp.ImageUploadResult;
@@ -22,7 +23,6 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.nio.file.Files;
-import java.io.InputStream;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -68,15 +68,15 @@ class FileUploadServiceTest {
         fileUploadService.uploadResourceChunk(new MockMultipartFile("file", new byte[]{1, 2}), 1L, "task", 0, 2, "test.zip");
         fileUploadService.uploadResourceChunk(new MockMultipartFile("file", new byte[]{3, 4}), 1L, "task", 1, 2, "test.zip");
         AtomicReference<byte[]> saved = new AtomicReference<>();
-        when(fileStorage.save(any(InputStream.class), eq(4L), eq("resources"), eq("test.zip"))).thenAnswer(call -> {
-            saved.set(((InputStream) call.getArgument(0)).readAllBytes());
+        when(fileStorage.save(any(byte[].class), eq("resources"), eq("test.zip"))).thenAnswer(call -> {
+            saved.set(call.getArgument(0));
             return "resources/test.zip";
         });
-        when(resourceRecordService.save(any(), isNull(), isNull())).thenThrow(new IllegalStateException("DB failed"));
+        when(resourcesMapper.insert(any(Resources.class))).thenThrow(new IllegalStateException("DB failed"));
         assertThrows(IllegalStateException.class,
                 () -> fileUploadService.mergeResourceChunks(1L, "task", 2, "test.zip", null, null, null, 0, 0));
         assertArrayEquals(new byte[]{1, 2, 3, 4}, saved.get());
-        verify(storageWriteCompensator).onFailure(eq("resources/test.zip"), any(IllegalStateException.class));
+        verify(fileStorage).delete("resources/test.zip");
         assertTrue(Files.exists(tempDirectory.resolve("tmp/1/task/0.part")));
         assertTrue(Files.exists(tempDirectory.resolve("tmp/1/task/1.part")));
     }
@@ -101,12 +101,6 @@ class FileUploadServiceTest {
 
     @Mock
     private FileStorage fileStorage;
-
-    @Mock
-    private ResourceRecordService resourceRecordService;
-
-    @Mock
-    private chat.liuxin.liutech.storage.StorageWriteCompensator storageWriteCompensator;
 
     @InjectMocks
     private FileUploadService fileUploadService;

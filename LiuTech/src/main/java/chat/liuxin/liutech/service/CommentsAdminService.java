@@ -163,7 +163,7 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
             // 递归查询所有子孙评论ID
             List<Long> descendantIds = commentsMapper.selectAllDescendantIds(List.of(id));
             if (descendantIds != null && !descendantIds.isEmpty()) {
-                commentsMapper.permanentDeleteByIds(descendantIds);
+                deleteDescendantsInOrder(descendantIds);
                 log.debug("彻底删除评论的子孙评论数量: {}", descendantIds.size());
             }
 
@@ -188,17 +188,16 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = {"postList", "hotPosts", "latestPosts"}, allEntries = true)
     public boolean batchPermanentDeleteComments(List<Long> ids) {
-        log.debug("批量彻底删除评论 - 评论数量: {}", ids.size());
-
         try {
             if (ids == null || ids.isEmpty()) {
                 return false;
             }
+            log.debug("批量彻底删除评论 - 评论数量: {}", ids.size());
 
             // 递归查询所有子孙评论ID
             List<Long> descendantIds = commentsMapper.selectAllDescendantIds(ids);
             if (descendantIds != null && !descendantIds.isEmpty()) {
-                commentsMapper.permanentDeleteByIds(descendantIds);
+                deleteDescendantsInOrder(descendantIds);
                 log.debug("批量彻底删除评论的子孙评论数量: {}", descendantIds.size());
             }
 
@@ -210,6 +209,12 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
         } catch (Exception e) {
             log.error("批量彻底删除评论失败 - 错误: {}", e.getMessage(), e);
             throw new RuntimeException("批量彻底删除评论失败: " + e.getMessage());
+        }
+    }
+    /** 子孙 ID 按最大深度倒序返回，逐条删除以遵守自引用外键。 */
+    private void deleteDescendantsInOrder(List<Long> descendantIds) {
+        for (Long descendantId : descendantIds) {
+            commentsMapper.permanentDeleteByIds(List.of(descendantId));
         }
     }
 }

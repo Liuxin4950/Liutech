@@ -48,6 +48,7 @@ interface ChangePasswordRequest {
 
 // 更新个人资料请求参数接口
 export interface UpdateProfileRequest {
+  username?: string
   email?: string
   avatarUrl?: string
   nickname?: string

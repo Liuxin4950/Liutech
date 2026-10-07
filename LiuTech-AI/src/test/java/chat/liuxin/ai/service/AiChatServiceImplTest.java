@@ -8,17 +8,23 @@ import chat.liuxin.ai.dto.ChatRequest;
 import chat.liuxin.ai.dto.ModelConfigDTO;
 import chat.liuxin.ai.infra.security.AiModelPolicy;
 import chat.liuxin.ai.infra.security.PromptBudget;
+import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.service.impl.AiChatServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
+import chat.liuxin.ai.dto.AdminArticleDraftSnapshot;
+import chat.liuxin.ai.dto.WritingContentPatch;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class AiChatServiceImplTest {
 
@@ -87,6 +93,136 @@ class AiChatServiceImplTest {
         when(aiModelConfigService.getDefaultModel()).thenReturn(Optional.empty());
 
         assertEquals("fallback-model", resolveModelName(request));
+    }
+
+    private PromptService prepareSyncChat() {
+        AiChatProperties properties = new AiChatProperties();
+        PromptService prompt = mock(PromptService.class);
+        when(prompt.assembleParts(any(), any(), any(), anyBoolean(), anyBoolean(), any()))
+                .thenReturn(new PromptService.AssembledPrompt(List.of(), List.of()));
+        chatServiceHelper = new ChatServiceHelper(prompt, memoryService, new PromptBudget(properties), null);
+        service = new AiChatServiceImpl(properties, siliconFlowChatClient, memoryService, aiMetrics,
+                chatServiceHelper, aiModelPolicy, streamingChatService);
+        when(aiModelConfigService.getDefaultModel()).thenReturn(Optional.empty());
+        return prompt;
+    }
+
+    private ChatRequest syncRequest(String message) {
+        ChatRequest request = new ChatRequest();
+        request.setMessage(message);
+        request.setConversationId(99L);
+        return request;
+    }
+
+    @Test
+    void knownModelFailureAfterSavingUserAlsoSavesOneErrorReply() {
+        prepareSyncChat();
+        AIServiceException.RequestException failure = new AIServiceException.RequestException("输出达到单次上限");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenThrow(failure);
+        assertSame(failure, assertThrows(AIServiceException.RequestException.class,
+                () -> service.processChat(syncRequest("请回答"), 7L, "USER")));
+        var order = inOrder(memoryService);
+        order.verify(memoryService).saveUserMessage("7", 99L, "请回答", "fallback-model", null);
+        order.verify(memoryService).saveAssistantMessage("7", 99L, null, "fallback-model", MemoryService.MESSAGE_STATUS_ERROR, null);
+        verify(memoryService, times(1)).saveAssistantMessage(anyString(), anyLong(), any(), anyString(), anyInt(), any());
+    }
+
+    @Test
+    void providerStatusFailureAfterSavingUserAlsoSavesErrorReplyAndKeepsStatus() {
+        prepareSyncChat();
+        ResponseStatusException failure = new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "当前繁忙");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenThrow(failure);
+        assertSame(failure, assertThrows(ResponseStatusException.class,
+                () -> service.processChat(syncRequest("请回答"), 7L, "USER")));
+        verify(memoryService, times(1)).saveAssistantMessage("7", 99L, null, "fallback-model", MemoryService.MESSAGE_STATUS_ERROR, null);
+    }
+
+    @Test
+    void ownerRejectionBeforeSavingUserCannotCreateErrorReply() {
+        PromptService prompt = prepareSyncChat();
+        ResponseStatusException failure = new ResponseStatusException(HttpStatus.FORBIDDEN, "无权访问会话");
+        when(prompt.assembleParts(any(), any(), any(), anyBoolean(), anyBoolean(), any())).thenThrow(failure);
+        assertSame(failure, assertThrows(ResponseStatusException.class,
+                () -> service.processChat(syncRequest("请回答"), 7L, "USER")));
+        verify(memoryService).getConversationOwnedByUser("7", 99L);
+        verifyNoMoreInteractions(memoryService);
+        verifyNoInteractions(siliconFlowChatClient);
+    }
+
+    @Test
+    void initialBudgetRejectionCannotCreateUserOrErrorReply() {
+        prepareSyncChat();
+        assertThrows(AIServiceException.RequestException.class,
+                () -> service.processChat(syncRequest("字".repeat(20_000)), 7L, "USER"));
+        verify(memoryService).getConversationOwnedByUser("7", 99L);
+        verifyNoMoreInteractions(memoryService);
+        verifyNoInteractions(siliconFlowChatClient);
+    }
+
+    private ChatRequest writingRequest(String mode) {
+        prepareSyncChat();
+        var request = syncRequest("只修复正文中的错误");
+        request.setDraft(new AdminArticleDraftSnapshot());
+        request.getDraft().setContent("<p>不修改的段落</p><p>错字</p>");
+        request.setContext(Map.of("requestedFields", List.of("content"), "contentMode", mode));
+        return request;
+    }
+
+    @Test
+    void synchronousWritingReturnsVerifiedPartialProposalWithoutRepeatingWholeArticle() {
+        var request = writingRequest("patch");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenAnswer(invocation -> {
+                    Map<String, Object> context = invocation.getArgument(6);
+                    ((WritingContentSession) context.get(WritingContentSession.CONTEXT_KEY))
+                            .add(List.of(new WritingContentPatch.Edit("<p>错字</p>", "<p>已改</p>")));
+                    return "只修改了一段";
+                });
+        var response = service.processWriting(request, 7L, "ADMIN");
+        assertTrue(response.getSuccess());
+        assertEquals("writing", response.getMode());
+        assertEquals("只修改了一段", response.getMessage());
+        assertEquals(1, response.getFieldUpdates().size());
+        assertNull(response.getFieldUpdates().getFirst().getContentHtml());
+        assertEquals("<p>已改</p>", response.getFieldUpdates().getFirst().getContentPatch().edits().getFirst().after());
+        verifyNoInteractions(memoryService);
+    }
+
+    @Test
+    void synchronousPatchModeRejectsUnexpectedWholeArticleInsteadOfOverwriting() {
+        var request = writingRequest("patch");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenReturn("<p>重写后丢失的整篇</p>");
+        var response = service.processWriting(request, 7L, "ADMIN");
+        assertFalse(response.getSuccess());
+        assertNull(response.getFieldUpdates());
+        verifyNoInteractions(memoryService);
+    }
+
+    @Test
+    void synchronousWholeArticleModeProducesCompleteHtmlProposal() {
+        var request = writingRequest("replace");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenReturn("<p>新的完整正文</p>");
+        var response = service.processWriting(request, 7L, "ADMIN");
+        assertTrue(response.getSuccess());
+        assertEquals("<p>新的完整正文</p>", response.getFieldUpdates().getFirst().getContentHtml());
+    }
+
+    @Test
+    void synchronousExplicitNoChangesCompletesWithoutCreatingAPreview() {
+        var request = writingRequest("patch");
+        when(siliconFlowChatClient.chat(anyList(), anyString(), any(), any(), any(), anyString(), anyMap()))
+                .thenAnswer(invocation -> {
+                    Map<String, Object> context = invocation.getArgument(6);
+                    ((WritingContentSession) context.get(WritingContentSession.CONTEXT_KEY)).add(List.of());
+                    return "";
+                });
+        var response = service.processWriting(request, 7L, "ADMIN");
+        assertTrue(response.getSuccess());
+        assertTrue(response.getFieldUpdates().isEmpty());
     }
 
     @Test

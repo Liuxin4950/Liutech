@@ -75,6 +75,9 @@ class PostsServiceTest {
     @Mock
     private ImageReferenceService imageReferenceService;
 
+    @Mock
+    private CommunityService communityService;
+
     @InjectMocks
     private PostsService postsService;
 
@@ -361,9 +364,7 @@ class PostsServiceTest {
         boolean result = postsService.deletePost(POST_ID, AUTHOR_ID);
 
         assertTrue(result);
-        verify(postTagsMapper, never()).deleteByPostId(POST_ID);
-        verify(postLikesMapper).update(isNull(), any());
-        verify(postFavoritesMapper).update(isNull(), any());
+        verifyNoInteractions(postTagsMapper, postLikesMapper, postFavoritesMapper);
         verify(postsMapper).deleteById(eq(POST_ID), any(Date.class), eq(AUTHOR_ID));
     }
 

@@ -28,6 +28,7 @@ export type ToolEventPayload = WritingToolEventPayload
 export type FieldUpdatePayload = WritingFieldUpdatePayload
 export type ArticleResultItem = WritingArticleItem
 export type ArticleResultsPayload = WritingArticleResultsPayload
+export type { WritingActivityPayload as ActivityPayload, WritingContentPatch as ContentPatch } from './writingStream'
 
 /**
  * 文章草稿快照

@@ -26,6 +26,14 @@ public class Comments extends BaseEntity {
      */
     private Long userId;
 
+    /** 机器人与真人作者二选一；不创建伪造 users。 */
+    private Long botId;
+    private String communityTaskId;
+    private String rootEventId;
+    @TableField(exist = false)
+    private chat.liuxin.liutech.resp.CommunityResp.BotInfo bot;
+    public String getAuthorType() { return botId == null ? "HUMAN" : "BOT"; }
+
     /**
      * 评论内容
      */
