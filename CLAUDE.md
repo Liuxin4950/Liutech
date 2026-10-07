@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - token 读写：`Web/src/utils/auth.ts` 与 `Admin/src/utils/auth.ts`（`getToken`/`setToken`/`removeToken`/`isLoggedIn`），其它文件不许直接碰 `localStorage` 的 token。
 - SSE 协议解析：`Web/src/services/sse.ts`（`parseSseEventText` + `readSseStream`），**不要**在业务里再写分帧/JSON 解析。
 - 写作助手流式客户端：`Web/src/services/writingStream.ts`，两端的 `adminAgent.ts` / `agent.ts` 只是注入 baseURL 与 token 的薄封装。
-- SSE解析、写作流式客户端、写作预览状态机 `writingReview.ts` 与会话逻辑 `writingSession.ts` 在 Web 与 Admin 各存一份**逐字节一致**的镜像文件（两个独立 Vite 根，暂无法共享 npm 包），改一侧必须 `cp` 同步另一侧；`node scripts/check-mirrored-modules.mjs` 会在 CI 拦下漂移。细节见 [网络封装总览](Docs/架构/设计/网络封装/总览.md)。
+- SSE解析、写作流式客户端、写作预览状态机 `writingReview.ts` 与会话逻辑 `writingSession.ts` 在 Web 与 Admin 各存一份**逐字节一致**的镜像文件（两个独立 Vite 根），改一侧必须同步另一侧并运行 `node scripts/check-mirrored-modules.mjs`。细节见[网络封装](Docs/架构/设计/网络封装/总览.md)，自动化工作流状态见[维护清单](Docs/维护清单.md)。
 
 ## 🛠️ 如何运行
 
@@ -46,7 +46,7 @@ cd LiuTech-AI && mvn spring-boot:run       # AI 服务 :8081
 
 AI 要自己启动项目验证：开发完接口后本地启动 + 实时读日志 + 调接口测试，小问题自行解决，避免麻烦用户。token 通过登录接口获取（请求参数：用户名 + 密码，返回 token）。
 
-**生产部署**：见 `.claude/skills/deploy.md`（连服务器、构建上传镜像、重启容器）。
+**生产部署**：公开流程见 [部署操作](Docs/架构/运维/部署运维/部署操作.md)；本机私有连接信息由 `.claude/skills/deploy.md` 提供（仅主工作区，禁止入库）。
 
 ⚠️ 真实密钥只在本地 `.env`，**不要**写入 CLAUDE.md 或任何入库文件。
 
@@ -61,12 +61,14 @@ mvn clean install -DskipTests                # 从根构建所有后端模块
 
 # 前端
 cd Web && npm run dev                        # 起 Web 开发服务器
-cd Web && npm test                           # Web 单元测试（vitest，CI 会跑）
+cd Web && npm test                           # Web 单元测试（vitest）
 cd Web && npm run build                      # 生产构建
 cd Admin && npm run build                    # Admin 构建
+node Web/node_modules/vitest/vitest.mjs run --config Admin/vitest.config.mts # Admin 测试（复用 Web Vitest）
 
 # 跨端镜像文件一致性（改过 Web/Admin 的 sse.ts、writingStream.ts、writingReview.ts 或 writingSession.ts 后必跑）
 node scripts/check-mirrored-modules.mjs
+node scripts/check-docs.mjs                  # 文档路径、锚点与索引
 
 # 数据库
 mysql -u root -p < Docs/SQL/sql.sql           # 初始化两个库
@@ -85,7 +87,7 @@ docker-compose logs -f backend               # 跟踪后端日志
 - **AI 服务 -> 主后端** URL：Docker 内 `http://backend:8080`（`BLOG_API_URL`），本地 `http://localhost:8080`。
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证。
 - **文件上传**：容器内 `/app/uploads` 绑定宿主机 `/liuxin/uploads`；**不要** `docker compose down -v`（清空 `mysql_data` 卷）。
-- **图片 URL 策略**：`FileStorage.generateUrl`（本地实现为 `LocalFileStorage.generateUrl`）返回**相对路径** `/uploads/...`，不拼 `serverBaseUrl`；数据库存相对路径，环境无关。**不要**为"开发环境图片显示不了"改 `.env` 的 `SERVER_BASE_URL`。详见 [当前架构.md](Docs/记录/当前架构.md)。
+- **图片 URL 策略**：本地存储返回 `/uploads/...` 相对 URL，COS 使用配置的完整域名；新代码复用 `FileStorage` 与 `FileUtil`，不要为开发代理问题改 `SERVER_BASE_URL`。具体口径见[存储抽象](Docs/架构/后端/图片管理/存储抽象.md)。
 - **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`（破坏 JSON 响应 406）。
 - **域名拓扑**：主站 `liuxin.chat` 走腾讯云 CDN 回源 443；后台 `admin.liuxin.chat` A 记录直连源站绕开 CDN（443）。证书 SAN 含 `liuxin.chat`/`www.liuxin.chat` 但**不含 admin 子域名**，浏览器报名称不匹配需手动继续，故 admin 站**不发 HSTS**；81 端口为其备用入口。详见 [部署运维总览](Docs/架构/运维/部署运维/总览.md)。
 - **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/liuxin.chat_bundle.crt` 与 `liuxin.chat.key`。
@@ -98,7 +100,7 @@ docker-compose logs -f backend               # 跟踪后端日志
 
 工作流靠判断力 + [`.claude/rules/style.md`](.claude/rules/style.md) 沟通风格，不设强制流程文档。复杂功能先口头确认方案再动手，做完按规范提交。
 
-**高风险领域**（认证授权、积分支付、数据库结构、上传下载、AI/SSE/TTS、Nginx/Docker/部署、跨服务调用）改动要特别谨慎：先读相关代码和 [当前架构.md](Docs/记录/当前架构.md)，确认影响范围再动手，不猜测。
+**高风险领域**（认证授权、积分支付、数据库结构、上传下载、AI/SSE/TTS、Nginx/Docker/部署、跨服务调用）改动要特别谨慎：先读相关代码和 [当前架构.md](Docs/架构/总览.md)，确认影响范围再动手，不猜测。
 
 **架构文档**：新增或大改功能模块时，在 `Docs/架构/<模块>/` 下补充文档并更新 `Docs/架构/README.md` 索引；每个模块以「总览.md」为入口，单一领域文档不超过 500 行。
 
@@ -127,12 +129,15 @@ docker-compose logs -f backend               # 跟踪后端日志
 
 - `README.md` - 完整功能介绍、特性列表、部署流程（产品向）
 - `LiuTech/src/main/java/chat/liuxin/liutech/controller/` - 后端 API 完整参考
-- `快速部署指南.md` - 生产环境部署步骤
-- `Docs/记录/当前架构.md` - 当前生效的总体架构
+- `Docs/架构/运维/部署运维/部署操作.md` - 当前生产发布、验证与回退
+- `Docs/架构/总览.md` - 当前生效的总体架构
 - `Docs/架构/README.md` - 模块化架构文档索引，接手某模块先读对应目录的「总览.md」
 - `AGENTS.md` - 给 Codex 的精简指引，指向本文件；改动约定时两处保持同步
 - `.claude/skills/` - `deploy.md`（部署步骤）、`docs-architecture/`（架构文档维护规范）
-- `Docs/` 子目录：`架构/`（模块文档）、`记录/`（当前架构 + 检查记录）、`教程/`、`PRD/`、`SQL/`（唯一初始化脚本）
+- `Docs/README.md` — 文档统一入口；`Docs/AGENTS.md` 约定维护与归档，`Docs/维护清单.md` 汇总已核实事项
+- `Docs/` 子目录：`架构/`（当前总览与模块文档）、`教程/`、`归档/`（历史评估、需求与提案）、`SQL/`（唯一完整初始化与版本迁移）
+
+功能、接口、配置或数据库行为改变后同步对应现行文档，并运行 `node scripts/check-docs.mjs`；历史方案不作为当前实现依据。
 
 ## 🧠 GBrain 持久知识库
 

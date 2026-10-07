@@ -1,7 +1,9 @@
 # PRD：上传文件迁移到腾讯云 COS 对象存储
 
+> 归档材料：保留写作时的评估、需求或方案，不作为当前实现或发布状态。当前入口见[文档总览](../../README.md)。
+
 > 状态：设计待确认 · 计划实现日期：2026-08-04
-> 关联架构：[部署运维/总览.md](../架构/运维/部署运维/总览.md)、[当前架构.md](../记录/当前架构.md)「文件上传与静态资源 URL」章节
+> 关联架构：[部署运维/总览.md](../../架构/运维/部署运维/总览.md)、[当前架构.md](../../架构/总览.md)「文件上传与静态资源 URL」章节
 
 ## 一、背景与目标
 
@@ -24,12 +26,12 @@ uploads 下有 5 类文件，处理方式不同：
 | `tts-cache/` | TTS 合成音频缓存 | 公开但临时 | `TtsSpeechService`（LRU 淘汰） | `/uploads/tts-cache/**` | **否**（高 churn、无备份价值） |
 
 关键代码位置：
-- 保存：[FileUtil.java:58](../../LiuTech/src/main/java/chat/liuxin/liutech/utils/FileUtil.java#L58) `saveFile`（本地落盘）、`:92` 字节数组版
-- URL 生成：[FileUtil.java:188](../../LiuTech/src/main/java/chat/liuxin/liutech/utils/FileUtil.java#L188) `generateFileUrl`（返回相对路径 `/uploads/...`）
-- 路径解析：[FileUtil.java:227](../../LiuTech/src/main/java/chat/liuxin/liutech/utils/FileUtil.java#L227) `extractRelativePath`（兼容绝对/相对 URL）
-- 删除：[FileUtil.java:202](../../LiuTech/src/main/java/chat/liuxin/liutech/utils/FileUtil.java#L202)、`:250` `deleteFileByUrl`
-- 图片去重：[ImagesService.java:45](../../LiuTech/src/main/java/chat/liuxin/liutech/service/ImagesService.java#L45)（按 `file_hash` 查重，命中则复用、不重复存文件）
-- 静态映射：[WebConfig.java:26](../../LiuTech/src/main/java/chat/liuxin/liutech/config/WebConfig.java#L26)
+- 保存：[FileUtil.java:58](../../../LiuTech/src/main/java/chat/liuxin/liutech/utils/FileUtil.java#L58) `saveFile`（本地落盘）、`:92` 字节数组版
+- URL 生成：[FileUtil.java:188](../../../LiuTech/src/main/java/chat/liuxin/liutech/utils/FileUtil.java#L188) `generateFileUrl`（返回相对路径 `/uploads/...`）
+- 路径解析：[FileUtil.java:227](../../../LiuTech/src/main/java/chat/liuxin/liutech/utils/FileUtil.java#L227) `extractRelativePath`（兼容绝对/相对 URL）
+- 删除：[FileUtil.java:202](../../../LiuTech/src/main/java/chat/liuxin/liutech/utils/FileUtil.java#L202)、`:250` `deleteFileByUrl`
+- 图片去重：[ImagesService.java:45](../../../LiuTech/src/main/java/chat/liuxin/liutech/service/ImagesService.java#L45)（按 `file_hash` 查重，命中则复用、不重复存文件）
+- 静态映射：[WebConfig.java:26](../../../LiuTech/src/main/java/chat/liuxin/liutech/config/WebConfig.java#L26)
 - 调用 `saveFile` 的地方：`ImagesService`、`FileUploadService.uploadDocument/uploadResource`、`MusicService:135,139`
 
 ## 三、目标架构

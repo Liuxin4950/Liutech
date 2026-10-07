@@ -22,7 +22,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 ## 关键约束
 
 - **JWT_SECRET** 只属于主后端；AI 服务禁止读取或自行解析用户 JWT
-- **LIUTECH_INTERNAL_TOKEN** 在 backend 和 ai 服务必须一致，仅用于容器内身份内省与用户数据清理
+- **LIUTECH_INTERNAL_TOKEN** 在 backend 和 ai 服务必须一致，用于容器内身份内省、社区内部接口与用户数据清理
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`
 - **AI 服务 → 主后端** Docker 内用 `http://backend:8080`
 - **TTS 完全归 AI 服务**；主后端不得新增 TTS 配置、推理、音色或音频缓存逻辑
@@ -33,13 +33,15 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 - `CLAUDE.md` — 项目结构、命令、跨服务约束、工作约定
 - `README.md` — 产品向介绍（含 API 概览）
-- `LiuTech-AI/AI接口文档.md` — AI 服务接口参考
-- `Docs/PRD/` — 历史 PRD 归档
-- `Docs/记录/` — 当前架构与项目检查记录
-- `Docs/记录/当前架构.md` — 当前生效的总体架构
-- `Docs/记录/2026-09-07-项目减法与可维护性检查.md` — 当前代码减法、Bug 与维护性清单
+- `Docs/架构/后端/AI服务/接口参考.md` — AI 服务接口参考
+- `Docs/README.md` — 文档统一入口；维护规则见 `Docs/AGENTS.md`
+- `Docs/归档/README.md` — 历史评估、需求与未实施方案
+- `Docs/架构/总览.md` — 当前生效的总体架构
+- `Docs/维护清单.md` — 已核实的维护事项与待验证边界
 - `Docs/SQL/sql.sql` — 两个数据库的唯一完整初始化脚本
 - `Docs/架构/README.md` — 模块化架构文档索引
+
+功能、接口、配置或数据库行为改变后同步相应现行文档，完成后运行 `node scripts/check-docs.mjs`。历史材料不作为当前实现依据。
 
 ## 数据库升级入口
 
