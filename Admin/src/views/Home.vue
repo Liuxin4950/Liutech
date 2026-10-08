@@ -36,9 +36,19 @@ const settings = useSettingsStore()
 
 const dashboardStats = ref<DashboardStats | null>(null)
 const loading = ref(true)
-const currentDate = dayjs().format('YYYY年MM月DD日 dddd')
+/** 加载失败原因。用于把「请求失败」和「后端确实没有数据」区分开——
+    两者都会让 dashboardStats 为 null，此前一律显示"暂无数据"，误导排查方向。 */
+const loadError = ref('')
+/** 时钟驱动源。systemInfo 里直接调 dayjs() 的 computed 没有任何响应式依赖，
+    求值一次后就永久缓存，页面上的"当前时间"会冻结在挂载那一刻。 */
+const now = ref(dayjs())
+let clockTimer: ReturnType<typeof setInterval> | undefined
+/** 最近一次成功加载的时刻（HH:mm）。Hero 原来写死一句"系统运行正常"，
+    但没有任何健康探测支撑——那是没有依据的断言。换成真实的数据时效更有用。 */
+const lastUpdated = ref('')
+const currentDate = computed(() => now.value.format('YYYY年MM月DD日 dddd'))
 const greeting = computed(() => {
-  const h = dayjs().hour()
+  const h = now.value.hour()
   if (h < 6) return '深夜好'
   if (h < 11) return '早上好'
   if (h < 14) return '中午好'
@@ -90,6 +100,7 @@ const kpis = computed(() => {
       token: '--lt-color-chart-1',
       trend: trend7.map((t) => t.count),
       delta: delta(trend7),
+      hasDelta: true,
       deltaLabel: '近 3 天较前 3 天（不含今日）',
       to: '/posts',
     },
@@ -101,6 +112,7 @@ const kpis = computed(() => {
       token: '--lt-color-chart-4',
       trend: userTrend7.map((t) => t.count),
       delta: delta(userTrend7),
+      hasDelta: true,
       deltaLabel: '近 3 天较前 3 天（不含今日）',
       to: '/users',
     },
@@ -111,7 +123,11 @@ const kpis = computed(() => {
       icon: EyeOutlined,
       token: '--lt-color-chart-8',
       trend: (s.topPosts || []).slice(0, 7).map((p) => p.viewCount),
+      // 这张卡的迷你图画的是 TOP 文章的浏览量——分类数据，不是时间序列，
+      // 压根不存在"环比"。此前写死 delta: 0 会被渲染成带减号图标的"持平"，
+      // 看起来像真实测量值，其实是编的。hasDelta: false 直接不渲染这个徽章。
       delta: 0,
+      hasDelta: false,
       deltaLabel: 'TOP 文章浏览分布',
       to: '/posts',
     },
@@ -122,7 +138,9 @@ const kpis = computed(() => {
       icon: CommentOutlined,
       token: '--lt-color-chart-7',
       trend: (s.topPosts || []).slice(0, 7).map((p) => p.commentCount),
+      // 同上：TOP 文章评论数分布，非时间序列，不提供环比徽章
       delta: 0,
+      hasDelta: false,
       deltaLabel: 'TOP 文章评论分布',
       to: '/comments',
     },
@@ -337,14 +355,17 @@ async function loadDashboardStats() {
       if (dashboardStats.value.topAuthors) {
         dashboardStats.value.topAuthors.sort((a, b) => b.postCount - a.postCount)
       }
+      loadError.value = ''
+      lastUpdated.value = dayjs().format('HH:mm')
       await nextTick()
       setTimeout(renderAll, 100)
     } else {
-      // code===200 但 data 为空时仍会走到这里（可达分支），展示后端 message
-      message.error(res.message || '加载统计数据失败')
+      loadError.value = res.message || '加载统计数据失败'
+      message.error(loadError.value)
     }
   } catch (error: any) {
-    if (!error?.isBusiness) message.error('加载统计数据失败')
+    loadError.value = error?.message || '加载统计数据失败'
+    if (!error?.isBusiness) message.error(loadError.value)
   } finally {
     loading.value = false
   }
@@ -356,6 +377,8 @@ let unwatch: (() => void) | null = null
 onMounted(() => {
   loadDashboardStats()
   window.addEventListener('resize', handleResize)
+  // 分钟级显示，30s 跳一次足够；页面在 KeepAlive 缓存中时也只是更新一个 ref
+  clockTimer = setInterval(() => { now.value = dayjs() }, 30_000)
   unwatch = watch(() => settings.isDark, () => {
     if (dashboardStats.value) setTimeout(renderAll, 60)
   })
@@ -369,6 +392,7 @@ const handleResize = () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  if (clockTimer) clearInterval(clockTimer)
   unwatch?.()
   trendChart.value?.dispose()
   pieChart.value?.dispose()
@@ -425,7 +449,7 @@ const systemInfo = computed(() => {
     { icon: RocketOutlined, label: '版本', value: `v${__APP_VERSION__}` },
     { icon: ClockCircleOutlined, label: '构建时间', value: buildTime.format('YYYY-MM-DD HH:mm') },
     { icon: CodeOutlined, label: '构建工具', value: `Vite ${__VITE_VERSION__}` },
-    { icon: InfoCircleOutlined, label: '当前时间', value: dayjs().format('YYYY-MM-DD HH:mm') },
+    { icon: InfoCircleOutlined, label: '当前时间', value: now.value.format('YYYY-MM-DD HH:mm') },
   ]
 })
 </script>
@@ -436,7 +460,7 @@ const systemInfo = computed(() => {
     <header class="lt-home__hero">
       <div>
         <h1 class="lt-home__title">{{ greeting }}，管理员</h1>
-        <p class="lt-home__subtitle">{{ currentDate }} · 系统运行正常</p>
+        <p class="lt-home__subtitle">{{ currentDate }}<template v-if="lastUpdated"> · 数据更新于 {{ lastUpdated }}</template></p>
       </div>
       <a-space>
         <a-tooltip title="刷新数据">
@@ -484,6 +508,17 @@ const systemInfo = computed(() => {
       </div>
 
       <div v-if="dashboardStats" class="lt-home__body">
+        <!-- 已有数据时刷新失败：保留上一次的数据继续展示，只用横幅提示，
+             不要因为一次网络抖动就把整页打成空白。 -->
+        <a-alert
+          v-if="loadError"
+          type="warning"
+          show-icon
+          closable
+          :message="`刷新失败，当前展示的是上一次成功加载的数据：${loadError}`"
+          @close="loadError = ''"
+        />
+
         <!-- 主 KPI 卡（4 张） -->
         <a-row :gutter="[12, 12]" class="lt-home__row">
           <a-col v-for="kpi in kpis" :key="kpi.key" :xs="24" :sm="12" :lg="6">
@@ -501,7 +536,7 @@ const systemInfo = computed(() => {
               </div>
               <div class="lt-kpi__value">{{ kpi.value.toLocaleString() }}</div>
               <div class="lt-kpi__footer">
-                <span class="lt-delta" :class="deltaClass(kpi.delta)">
+                <span v-if="kpi.hasDelta" class="lt-delta" :class="deltaClass(kpi.delta)">
                   <ArrowUpOutlined v-if="kpi.delta > 0" />
                   <ArrowDownOutlined v-else-if="kpi.delta < 0" />
                   <MinusOutlined v-else />
@@ -548,7 +583,7 @@ const systemInfo = computed(() => {
                 <span class="lt-card-title"><BarChartOutlined /> 近 7 日数据趋势</span>
               </template>
               <template #extra>
-                <a-tag color="processing" :bordered="false">实时</a-tag>
+                <a-tag v-if="lastUpdated" color="processing" :bordered="false">更新于 {{ lastUpdated }}</a-tag>
               </template>
               <div ref="trendChartRef" class="lt-echarts lt-echarts--tall" />
             </a-card>
@@ -690,6 +725,22 @@ const systemInfo = computed(() => {
           </a-col>
         </a-row>
       </div>
+
+      <!-- 加载失败：必须与「后端确实没有数据」区分开，否则排查方向会被误导。
+           此前失败只弹一个 toast，dashboardStats 仍为 null，页面落到"暂无数据"。 -->
+      <a-result
+        v-else-if="!loading && loadError"
+        status="error"
+        title="统计数据加载失败"
+        :sub-title="loadError"
+      >
+        <template #extra>
+          <a-button type="primary" @click="handleRefresh">
+            <template #icon><ReloadOutlined /></template>
+            重试
+          </a-button>
+        </template>
+      </a-result>
 
       <a-empty v-else-if="!loading" description="暂无数据" style="padding: 64px 0" />
     </a-spin>

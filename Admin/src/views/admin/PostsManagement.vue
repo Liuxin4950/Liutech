@@ -760,7 +760,7 @@ onMounted(async () => {
             <a-space>
               <template v-if="!record.deletedAt">
                 <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
-                <a-button type="link" size="small" :class="record.status === 'published' ? 'text-orange-500' : 'text-green-500'" @click="handleStatusChange(record.id, record.status === 'published' ? 'draft' : 'published')">
+                <a-button type="link" size="small" :class="record.status === 'published' ? 'lt-action-warn' : 'lt-action-ok'" @click="handleStatusChange(record.id, record.status === 'published' ? 'draft' : 'published')">
                   {{ record.status === 'published' ? '下线' : '发布' }}
                 </a-button>
                 <a-popconfirm title="确定删除该文章吗？" @confirm="handleDelete(record.id)">

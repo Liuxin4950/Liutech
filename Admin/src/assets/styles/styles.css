@@ -1,3 +1,17 @@
+/* ==========================================================================
+   LiuTech Admin · 全局基础样式
+   --------------------------------------------------------------------------
+   本文件只放三类东西：
+     1. 元素级 reset（* / a / img / button）与 @font-face
+     2. 全局焦点环
+     3. 少量「确实被多个页面共用」的工具类与语义类
+
+   颜色、间距、圆角、字号一律走 tokens.css 的 --lt-* 变量，不在这里写死数值。
+   历史遗留的 60+ 个零引用工具类（.flex-* / .gap-* / .text-* / .rounded-* /
+   .p-* / .m*-* / .z-* / .card / .tag / .badge / .list 等）已删除；
+   需要布局请直接用 antd 的 a-row/a-col/a-space/a-flex，或页面 scoped 样式。
+   ========================================================================== */
+
 * {
   margin: 0;
   padding: 0;
@@ -17,19 +31,22 @@ img {
 
 button {
   border: none;
-  outline: none;
   background: none;
   cursor: pointer;
 }
 
-.fit {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+/* 键盘焦点环。
+   这里原来 button 上写着 `outline: none`，配合全站唯一的 :focus-visible 规则只在
+   rich-content.css（且只作用于 TinyMCE iframe 内的正文链接），导致 Header 图标按钮、
+   侧栏、页签、命令面板这些自绘控件在键盘导航下完全没有焦点指示。
+   tokens.css 早就定义了 --lt-outline-focus / --lt-outline-focus-offset，但零引用。
+   现在接上：裸 :focus-visible 特异性 0,1,0，antd 自己的 .ant-btn:focus-visible（0,2,0）
+   仍然优先，所以这条只给「没有自带焦点样式」的自定义元素兜底。 */
+:focus-visible {
+  outline: var(--lt-outline-focus);
+  outline-offset: var(--lt-outline-focus-offset);
 }
-.link{
-  cursor: pointer;
-}
+
 /* 载入字体 */
 @font-face {
   font-family: 'DDFont';
@@ -38,108 +55,22 @@ button {
   font-style: normal;
 }
 
-
-/* =================================
-   应用容器样式
-   ================================= */
+/* 主题切换时让背景/文字平滑过渡。
+   颜色本身由 App.vue 的 html, body, #app, .app-container 用 --lt-* token 设定
+   （同特异性但注入更晚，会覆盖这里），本条只负责 transition。 */
 .app-container {
-  width: 100%;
-  min-height: 100vh;
-  background-color: var(--bg-main);
-  color: var(--text-main);
-  transition: background-color 0.3s, color 0.3s;
-}
-
-.content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  transition:
+    background-color var(--lt-duration-slow) var(--lt-ease-in-out),
+    color var(--lt-duration-slow) var(--lt-ease-in-out);
 }
 
 /* =================================
-   布局工具类 - Flex布局
+   共用工具类（仅保留有实际引用的）
    ================================= */
-.flex {
-  display: flex;
-}
 
-.flex-col {
-  flex-direction: column;
-}
-
-.flex-fw {
-  flex-wrap: wrap;
-}
-
-/* flex-1 用于让元素自动填充剩余空间
-   常用于flex布局中让某个子元素占据剩余的所有空间 */
+/* 让元素填满 flex 容器的剩余空间 */
 .flex-1 {
   flex: 1;
-}
-
-/* Flex对齐方式 */
-.flex-ct {
-  justify-content: center;
-  align-items: center;
-}
-
-.flex-sb {
-  justify-content: space-between;
-  align-items: center;
-}
-
-.flex-sa {
-  justify-content: space-around;
-}
-
-.flex-jc {
-  justify-content: center;
-}
-
-.flex-je {
-  justify-content: flex-end;
-}
-
-.flex-ac {
-  align-items: center;
-}
-
-.flex-as {
-  align-items: flex-start;
-}
-
-.flex-ae {
-  align-items: flex-end;
-}
-
-/* 布局工具类 - Grid布局 */
-.grid {
-  display: grid;
-}
-
-.grid-cols-1 {
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-}
-
-/* 布局工具类 - 显示类型 */
-.block {
-  display: block;
-}
-
-/* =================================
-   文本样式工具类
-   ================================= */
-/* 文本对齐 */
-.text-center {
-  text-align: center;
-}
-
-.text-left {
-  text-align: left;
-}
-
-.text-right {
-  text-align: right;
 }
 
 /* 管理页搜索区按钮列：桌面端右对齐，窄屏（<992px）左对齐避免贴边 */
@@ -154,6 +85,32 @@ button {
   }
 }
 
+/* 页面顶层容器不再叠加 padding：MainLayout 已提供 --lt-space-page-x/y。
+   保留 0 值仅为了兼容大量页面里 <div class="p-24">，实际间距由 layout 层承担。 */
+.p-24 {
+  padding: 0;
+}
+
+.mb-0 {
+  margin-bottom: 0;
+}
+
+.mb-16 {
+  margin-bottom: var(--lt-space-lg);
+}
+
+.mt-4 {
+  margin-top: var(--lt-space-xs);
+}
+
+.text-sm {
+  font-size: var(--lt-font-size-xs);
+}
+
+/* =================================
+   语义类
+   ================================= */
+
 /* 弹窗标题栏内的草稿状态提示（文章管理 / 公告管理共用） */
 .modal-title-with-draft {
   display: flex;
@@ -162,319 +119,28 @@ button {
 }
 .draft-hint {
   font-size: var(--lt-font-size-xs);
-  color: var(--lt-color-success);
+  color: var(--lt-color-success-text);
   font-weight: var(--lt-font-weight-regular);
   display: inline-flex;
   align-items: center;
   gap: var(--lt-space-xs);
 }
 
-.no-underline {
-  text-decoration: none;
+/* 表格操作列的语义色链接按钮。
+   antd 的 type="link" 只提供 danger 一种变体，而「下线 / 禁用」这类可逆操作
+   不该和紧邻的「删除」同为红色——那会稀释删除的警示性。这里补齐 caution / positive
+   两档，用 token 取色所以暗色主题自动跟随。
+   选择器带上 .ant-btn-link 是为了拿到 0,2,0 特异性，稳定压过 antd cssinjs 运行时
+   注入到 head 末尾的同级规则。 */
+.ant-btn-link.lt-action-warn {
+  color: var(--lt-color-warning-text);
 }
-
-/* =================================
-   组件样式
-   ================================= */
-.badge {
-  background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
+.ant-btn-link.lt-action-warn:hover {
+  color: var(--lt-color-warning-hover);
 }
-/* 卡片组件 */
-.card {
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 0px 2px rgba(0, 0, 0, 0.3);
+.ant-btn-link.lt-action-ok {
+  color: var(--lt-color-success-text);
 }
-
-.card-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-main);
-  padding-bottom: 8px;
-}
-
-/* 列表组件 */
-.list {
-  display: flex;
-  flex-direction: column;
-}
-
-.list-item {
-  padding: 8px 0;
-}
-
-/* 标签云组件 */
-.tags-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tag {
-  background: var(--bg-tag);
-  color: var(--text-main);
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid var(--border-soft);
-}
-
-.tag:hover {
-  background: var(--bg-tag-hover);
-  color:white;
-}
-
-.tag small {
-  opacity: 0.8;
-  margin-left: 4px;
-}
-
-/* =================================
-   间距工具类
-   ================================= */
-/* 间隙 */
-.gap-8 {
-  gap: 8px;
-}
-
-.gap-12 {
-  gap: 12px;
-}
-
-/* gap属性需要父元素设置display: flex、grid或column-gap等布局属性才能生效 */
-.gap-16 {
-  gap: 16px;
-}
-
-.gap-20 {
-  gap: 20px;
-}
-
-.gap-30 {
-  gap: 30px;
-}
-
-/* 内边距 */
-.p-4 {
-  padding: var(--lt-space-xs);
-}
-
-.p-8 {
-  padding: var(--lt-space-sm);
-}
-
-.p-12 {
-  padding: var(--lt-space-md);
-}
-
-.p-16 {
-  padding: var(--lt-space-lg);
-}
-
-.p-20 {
-  padding: var(--lt-space-lg);
-}
-
-.p-24 {
-  /* 页面顶层容器不再叠加 padding：MainLayout 已提供 --lt-space-page-x/y。
-     保留 0 值仅为了兼容大量页面里 <div class="p-24">，
-     实际间距由 layout 层承担。 */
-  padding: 0;
-}
-
-.px-20 {
-  padding-left: 20px;
-  padding-right: 20px;
-}
-
-.px-24 {
-  padding-left: 24px;
-  padding-right: 24px;
-}
-
-.py-12 {
-  padding-top: 12px;
-  padding-bottom: 12px;
-}
-
-.pb-16 {
-  padding-bottom: 16px;
-}
-
-.pt-16 {
-  padding-top: 16px;
-}
-
-/* 外边距 */
-.m-0 {
-  margin: 0;
-}
-
-.mb-0 {
-  margin-bottom: 0;
-}
-
-.mb-4 {
-  margin-bottom: var(--lt-space-xs);
-}
-
-.mb-8 {
-  margin-bottom: var(--lt-space-sm);
-}
-
-.mb-12 {
-  margin-bottom: var(--lt-space-md);
-}
-
-.mb-16 {
-  margin-bottom: var(--lt-space-lg);
-}
-
-.mb-20 {
-  margin-bottom: var(--lt-space-lg);
-}
-
-.mt-4 {
-  margin-top: var(--lt-space-xs);
-}
-
-.mt-8 {
-  margin-top: var(--lt-space-sm);
-}
-
-.mt-12 {
-  margin-top: var(--lt-space-md);
-}
-
-.mt-24 {
-  margin-top: var(--lt-space-lg);
-}
-
-.mx-auto {
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* 文本大小 */
-.text-xs {
-  font-size: 0.75rem;
-}
-
-.text-sm {
-  font-size: 0.75rem;
-}
-
-.text-base {
-  font-size: 0.85rem;
-}
-
-.text-lg {
-  font-size: 0.9rem;
-}
-
-.text-xl {
-  font-size: 1.25rem;
-}
-
-.text-2xl {
-  font-size: 1.5rem;
-}
-
-/* 字体粗细 */
-.font-medium {
-  font-weight: 500;
-}
-
-.font-semibold {
-  font-weight: 600;
-}
-
-.font-bold {
-  font-weight: 700;
-}
-
-/* =================================
-   圆角工具类
-   ================================= */
-/* 圆角 */
-.rounded {
-  border-radius: 8px;
-}
-
-.rounded-8 {
-  border-radius: 8px;
-}
-
-.rounded-lg {
-  border-radius: 12px;
-}
-
-.rounded-12 {
-  border-radius: 12px;
-}
-
-.rounded-full {
-  border-radius: 50%;
-}
-/* 过渡效果 */
-.transition {
-  transition: all 0.3s ease;
-}
-
-/* 定位 */
-.relative {
-  position: relative;
-}
-
-.absolute {
-  position: absolute;
-}
-
-.fixed {
-  position: fixed;
-}
-
-.sticky {
-  position: sticky;
-}
-
-/* 定位偏移 */
-.top-0 {
-  top: 0;
-}
-
-.left-0 {
-  left: 0;
-}
-
-.right-0 {
-  right: 0;
-}
-.bottom-0{
-  bottom: 0;
-}
-
-
-/* 层级 */
-.z-99 {
-  z-index: 99;
-}
-
-.z-100 {
-  z-index: 100;
-}
-
-.z-1000 {
-  z-index: 1000;
+.ant-btn-link.lt-action-ok:hover {
+  color: var(--lt-color-success-hover);
 }

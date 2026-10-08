@@ -203,6 +203,11 @@ public class DashboardResp {
         private String nickname;
 
         /**
+         * 头像 URL（users.avatar_url），为空时前端回退为昵称首字
+         */
+        private String avatar;
+
+        /**
          * 文章数量
          */
         private Long postCount;

@@ -135,14 +135,14 @@ const quickPrompts = writingQuickPrompts
 
 <style scoped>
 .writing-mode { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
-.writing-mode select { padding: 7px; border-radius: 6px; border: 1px solid var(--border-light, #ddd); background: transparent; color: inherit; }
-.writing-patch { margin-top: 10px; border-top: 1px solid var(--border-light, #ddd); padding-top: 10px; }
+.writing-mode select { padding: 7px; border-radius: 6px; border: 1px solid var(--lt-color-border-secondary); background: transparent; color: inherit; }
+.writing-patch { margin-top: 10px; border-top: 1px solid var(--lt-color-border-secondary); padding-top: 10px; }
 .patch-before, .patch-after { margin-top: 8px; padding: 8px; border-radius: 6px; max-height: 180px; overflow: auto; overflow-wrap: anywhere; }
-.patch-before { background: rgba(180, 70, 70, .08); }
-.patch-after { background: rgba(40, 140, 70, .08); }
+.patch-before { background: var(--lt-color-error-bg); }
+.patch-after { background: var(--lt-color-success-bg); }
 .patch-before > span, .patch-after > span { font-size: 11px; opacity: .7; }
 
-.writing-preview { border: 1px solid var(--border-light, #ddd); border-radius: 8px; padding: 12px; }
+.writing-preview { border: 1px solid var(--lt-color-border-secondary); border-radius: 8px; padding: 12px; }
 .writing-preview-body { max-height: 320px; overflow: auto; overflow-wrap: anywhere; }
 .writing-preview button { margin-top: 8px; cursor: pointer; }
 .writing-preview button:disabled { cursor: default; opacity: .5; }

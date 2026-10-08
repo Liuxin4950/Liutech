@@ -159,10 +159,12 @@ const findMenuItem = (key: string, items: any[] = menuItems.value): any => {
 
 <template>
   <div class="sidebar-content">
-    <div class="logo" :class="{ collapsed }" @click="router.push('/')">
+    <!-- 用 router-link 而非 div+@click：原生 <a> 自带键盘可达与焦点环。
+         alt 留在 img 上、h2 对读屏隐藏，避免折叠态与展开态重复播报同一句文案。 -->
+    <router-link class="logo" :class="{ collapsed }" to="/">
       <img :src="logoUrl" alt="LiuTech 管理后台" class="logo-mark" />
-      <h2 v-show="!collapsed">LiuTech 管理后台</h2>
-    </div>
+      <h2 v-show="!collapsed" aria-hidden="true">LiuTech 管理后台</h2>
+    </router-link>
 
     <a-menu
       v-model:selectedKeys="menuSelectedKeys"

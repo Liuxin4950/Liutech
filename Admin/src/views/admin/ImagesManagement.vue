@@ -566,7 +566,7 @@ const exportCtrl = useTableExport({
   justify-content: center;
   gap: var(--lt-space-md);
   padding: 12px 16px;
-  border-top: 1px solid var(--border-light, rgba(0, 0, 0, 0.08));
+  border-top: 1px solid var(--lt-color-border-secondary);
 }
 
 .preview-meta {

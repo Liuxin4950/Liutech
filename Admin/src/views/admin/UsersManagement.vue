@@ -320,7 +320,7 @@ const handleBatchDisable = async () => {
             <a-space>
               <template v-if="!record.deletedAt">
                 <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
-                <a-button type="link" size="small" :class="record.status === 1 ? 'text-orange-500' : 'text-green-500'" @click="handleStatusChange(record.id, record.status === 1 ? 0 : 1)">{{ record.status === 1 ? '禁用' : '启用' }}</a-button>
+                <a-button type="link" size="small" :class="record.status === 1 ? 'lt-action-warn' : 'lt-action-ok'" @click="handleStatusChange(record.id, record.status === 1 ? 0 : 1)">{{ record.status === 1 ? '禁用' : '启用' }}</a-button>
                 <a-popconfirm title="确定删除该用户吗？" @confirm="handleDelete(record.id)">
                   <a-button type="link" size="small" danger>删除</a-button>
                 </a-popconfirm>

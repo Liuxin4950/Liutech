@@ -121,7 +121,12 @@ onMounted(() => {
             :class="['tag-view', { active: isActive(tag), affix: tag.affix }]"
             :closable="!tag.affix"
             :bordered="false"
+            tabindex="0"
+            role="link"
+            :aria-current="isActive(tag) ? 'page' : undefined"
             @click="handleClick(tag)"
+            @keydown.enter.prevent="handleClick(tag)"
+            @keydown.space.prevent="handleClick(tag)"
             @close="handleClose($event, tag)"
           >
             <span class="tag-icon" v-if="tag.affix">

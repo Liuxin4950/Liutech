@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons-vue'
+import { ImageUploadService, pickUploadFile } from '@/services/upload'
 import { communityService, defaultCommunitySettings } from '@/services/community'
 import type { CommunityBot, CommunityBotInput, CommunityKnowledge, CommunityRun, CommunityTask, CommunityMemory, CommunityComment, CommunityCommentThread, CommunityBackfillResult } from '@/services/community'
 import PostsService, { type PostListItem } from '@/services/posts'
@@ -58,6 +59,7 @@ const botModal = ref(false)
 const editingBotId = ref<number>()
 const emptyBot = (): CommunityBotInput => ({ name: '', avatarUrl: '', personality: '', background: '', systemPrompt: '', interests: '', participation: 50, enabled: false })
 const botForm = ref(emptyBot())
+const botAvatarUploading = ref(false)
 const knowledgeModal = ref(false)
 const editingKnowledgeId = ref<number>()
 const knowledgeForm = ref({ title: '', content: '' })
@@ -492,6 +494,18 @@ function openBot(bot?: CommunityBot) {
   editingBotId.value = bot?.id
   botForm.value = bot ? { name: bot.name, avatarUrl: bot.avatarUrl || '', personality: bot.personality || '', background: bot.background || '', systemPrompt: bot.systemPrompt || '', interests: bot.interests || '', participation: bot.participation, enabled: bot.enabled } : emptyBot()
   botModal.value = true
+}
+async function uploadBotAvatar(info: any) {
+  const file = pickUploadFile(info)
+  if (!file) return
+  if (!file.type.startsWith('image/')) { message.warning('请选择图片文件'); return }
+  botAvatarUploading.value = true
+  try {
+    botForm.value.avatarUrl = (await ImageUploadService.uploadImage(file)).fileUrl
+    message.success('头像已上传，保存角色后生效')
+  } catch (error: any) {
+    if (!error?.isBusiness) message.error(errorMessage(error, '头像上传失败，请重试'))
+  } finally { botAvatarUploading.value = false }
 }
 async function saveBot() {
   if (!botForm.value.name.trim() || !botForm.value.personality.trim()) { message.warning('请填写角色名称和性格'); return }
@@ -1093,7 +1107,25 @@ onMounted(() => {
           <a-col :xs="24" :lg="12">
             <h3 class="form-group-title">身份与背景</h3>
             <a-form-item label="角色名称" required><a-input v-model:value="botForm.name" :maxlength="80" placeholder="读者看到的角色名称" /></a-form-item>
-            <a-form-item label="头像地址"><a-input v-model:value="botForm.avatarUrl" :maxlength="1000" placeholder="图片地址" /></a-form-item>
+            <a-form-item label="头像">
+              <div class="bot-avatar-field">
+                <a-avatar :size="64" :src="botForm.avatarUrl || undefined">{{ botForm.name.trim().charAt(0) || '角' }}</a-avatar>
+                <div class="bot-avatar-actions">
+                  <a-upload
+                    name="file"
+                    :show-upload-list="false"
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    :max-count="1"
+                    :before-upload="() => false"
+                    @change="uploadBotAvatar"
+                  >
+                    <a-button :loading="botAvatarUploading"><UploadOutlined />{{ botForm.avatarUrl ? '更换头像' : '上传头像' }}</a-button>
+                  </a-upload>
+                  <a-button v-if="botForm.avatarUrl" type="link" size="small" @click="botForm.avatarUrl = ''">移除</a-button>
+                  <p class="muted">支持 PNG / JPG / GIF / WEBP，不超过 5MB。不上传时显示角色名首字。</p>
+                </div>
+              </div>
+            </a-form-item>
             <a-form-item label="身份 / 背景"><a-textarea v-model:value="botForm.background" :rows="6" :maxlength="10000" show-count placeholder="角色是谁，有什么经历、立场和知识背景" /></a-form-item>
           </a-col>
           <a-col :xs="24" :lg="12">
@@ -1234,8 +1266,8 @@ onMounted(() => {
 .status-cell > strong.status-word { font-size: 22px; }
 .status-cell > .muted { font-size: 12px; }
 .status-cell .ant-btn { padding-left: 0; }
-.status-active { color: #389e0d; }
-.status-failed { color: #cf1322; }
+.status-active { color: var(--lt-color-success-text); }
+.status-failed { color: var(--lt-color-error-text); }
 .status-button { appearance: none; border: 1px solid transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .status-button:hover, .status-button:focus-visible { border-color: var(--lt-color-primary); }
 .status-button:disabled { cursor: default; }
@@ -1279,6 +1311,9 @@ onMounted(() => {
 .activity-item p { margin: 8px 0 0; }
 .enable-options { display: flex; flex-direction: column; gap: 12px; }
 .form-group-title { padding-bottom: 10px; border-bottom: 1px solid var(--lt-color-border); }
+.bot-avatar-field { display: flex; align-items: center; gap: 16px; }
+.bot-avatar-actions { min-width: 0; }
+.bot-avatar-actions p { margin: 6px 0 0; font-size: 12px; }
 .preview-loading { padding: 32px; text-align: center; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .table-summary { max-width: 320px; }

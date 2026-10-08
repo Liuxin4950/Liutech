@@ -20,6 +20,7 @@ export interface Resource {
   uploaderUsername?: string
 }
 
+// 下载日志
 export interface DownloadLog {
   id?: number
   userId?: number

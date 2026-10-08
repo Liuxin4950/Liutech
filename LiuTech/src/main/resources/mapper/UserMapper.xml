@@ -170,11 +170,12 @@
             u.id,
             u.username,
             u.nickname,
+            u.avatar_url AS avatar,
             COUNT(p.id) AS postCount
         FROM users u
         LEFT JOIN posts p ON u.id = p.author_id AND p.deleted_at IS NULL
         WHERE u.deleted_at IS NULL
-        GROUP BY u.id, u.username, u.nickname
+        GROUP BY u.id, u.username, u.nickname, u.avatar_url
         ORDER BY postCount DESC
         LIMIT #{limit}
     </select>

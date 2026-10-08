@@ -77,6 +77,15 @@
   --lt-color-info-bg: #e6f4ff;
   --lt-color-info-border: #91caff;
 
+  /* 语义色的「文字专用」档。
+     上面的 --lt-color-success/error/warning 是中明度色，给图标、边框、标签底用；
+     直接拿来当小字正文，在浅色底上对比度不够（#52c41a 对白约 2.2:1，远低于 AA）。
+     这里按 antd colorSuccessText 的思路单列一档：浅色用深色相、暗色用提亮色相，
+     两个主题下都能过 WCAG AA。需要「彩色文字」时一律用这三个，不要用基础色。 */
+  --lt-color-success-text: #389e0d;
+  --lt-color-error-text: #cf1322;
+  --lt-color-warning-text: #d48806;
+
   --lt-color-processing: #722ed1;
   --lt-color-processing-bg: #f9f0ff;
   --lt-color-processing-border: #d3adf7;
@@ -270,6 +279,11 @@
   --lt-color-warning-bg: rgba(250, 173, 20, 0.12);
   --lt-color-error-bg: rgba(255, 77, 79, 0.12);
   --lt-color-info-bg: rgba(22, 119, 255, 0.12);
+
+  /* 暗色下基础语义色在深底上偏暗，文字档整体提亮 */
+  --lt-color-success-text: #95de64;
+  --lt-color-error-text: #ff7875;
+  --lt-color-warning-text: #ffc53d;
   --lt-color-processing-bg: rgba(114, 46, 209, 0.12);
   --lt-color-gold-bg: rgba(212, 136, 6, 0.12);
   --lt-color-purple-bg: rgba(114, 46, 209, 0.12);
