@@ -215,9 +215,12 @@ public class CommunityService {
     }
 
     public List<Map<String,Object>> runs(Long botId,int limit) {
+        return runs(botId,null,limit);
+    }
+    public List<Map<String,Object>> runs(Long botId,Long postId,int limit) {
         List<Map<String,Object>> result=new ArrayList<>();
         Set<String> completedLegacy=new HashSet<>();
-        for(var row:mapper.runs(botId,limit(limit))) {
+        for(var row:mapper.runs(botId,postId,limit(limit))) {
             Object json=row.containsKey("result_json")?row.get("result_json"):row.get("resultJson");
             Map<String,Object> run=json==null?new LinkedHashMap<>():objectMapper.convertValue(objectMapper.readTree(String.valueOf(json)),Map.class);
             run.putIfAbsent("taskId",value(row,"task_id","taskId"));
@@ -250,7 +253,12 @@ public class CommunityService {
         return result;
     }
     public List<CommunityTask> tasks(Long botId,int limit) {
-        var result=mapper.tasks(botId,limit(limit));
+        return tasks(botId,null,null,limit);
+    }
+    public List<CommunityTask> tasks(Long botId,Long postId,String status,int limit) {
+        if(status!=null && !Set.of("READY","RUNNING","DECIDED","SKIPPED","SUCCEEDED","FAILED","CANCELLED").contains(status))
+            throw new AIServiceException.RequestException("任务状态不正确");
+        var result=mapper.tasks(botId,postId,status,limit(limit));
         Set<Long> postIds=new LinkedHashSet<>(),commentIds=new LinkedHashSet<>();
         for(var task:result) {
             store.describeRetry(task);
@@ -272,6 +280,23 @@ public class CommunityService {
     }
     public void clearMemory(long botId) { store.clearMemory(botId); }
     public CommunityTaskRetryResult retryTask(String taskId) { return store.retryFailed(taskId); }
+    /** 不持有 AI 数据库锁调用主后端；主后端与发布使用同一锁序裁定先后。 */
+    public CommunityTaskCancelResult cancelTask(String taskId) {
+        CommunityTask task=mapper.taskById(taskId);
+        if(task==null) return new CommunityTaskCancelResult(false,"任务不存在",null);
+        if("CANCELLED".equals(task.getStatus())) return new CommunityTaskCancelResult(true,"任务已经取消",null);
+        store.describeRetry(task);
+        if("SUCCEEDED".equals(task.getStatus()) || task.getPublishedCommentId()!=null)
+            return new CommunityTaskCancelResult(false,"评论已经发表，请撤回已发表的评论",task.getPublishedCommentId());
+        if(!Set.of("READY","RUNNING","DECIDED","FAILED").contains(task.getStatus()))
+            return new CommunityTaskCancelResult(false,"当前任务已结束，无需取消",null);
+        JsonNode result=transport.internalPost("/internal/community/tasks/cancel",Map.of(
+            "taskId",task.getId(),"eventId",task.getEventId(),"botId",task.getBotId(),"postId",task.getPostId()));
+        boolean cancelled=result.path("cancelled").asBoolean();
+        if(cancelled) store.cancel(taskId);
+        Long published=result.path("publishedCommentId").asLong()>0?result.path("publishedCommentId").asLong():null;
+        return new CommunityTaskCancelResult(cancelled,result.path("reason").asText(),published);
+    }
     private static int limit(int limit) { return Math.max(1,Math.min(100,limit)); }
     static long number(Map<String,Object> row,String snake,String camel) { return ((Number)(row.containsKey(snake)?row.get(snake):row.get(camel))).longValue(); }
     private static Set<Long> ids(JsonNode node) { Set<Long> ids=new HashSet<>();node.forEach(value -> ids.add(value.asLong()));return ids; }

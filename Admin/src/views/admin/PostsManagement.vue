@@ -53,7 +53,7 @@ const {
 // ============== 弹窗表单 ==============
 const {
   modalVisible, modalTitle, isEdit, editingId, confirmLoading,
-  formRef, formModel, draftSavedAt, handleOk, handleCancel
+  formRef, formModel, draftSavedAt, handleOk: submitForm, handleCancel
 } = useModalForm<Post>({
   createFn: (data) => PostsService.createPost(data as Post),
   updateFn: (id, data) => PostsService.updatePost(id, data as Post),
@@ -356,6 +356,7 @@ const uploadingCover = ref(false)
 const uploadingThumbnail = ref(false)
 
 const handleCoverImageChange = async (info: any) => {
+  if (uploadingCover.value || confirmLoading.value) return
   const file = pickUploadFile(info)
   if (!file) return
   try {
@@ -371,6 +372,7 @@ const handleCoverImageChange = async (info: any) => {
 }
 
 const handleThumbnailChange = async (info: any) => {
+  if (uploadingThumbnail.value || confirmLoading.value) return
   const file = pickUploadFile(info)
   if (!file) return
   try {
@@ -387,6 +389,10 @@ const handleThumbnailChange = async (info: any) => {
 
 const removeCoverImage = () => { formModel.value.coverImage = '' }
 const removeThumbnail = () => { formModel.value.thumbnail = '' }
+const handleOk = async () => {
+  if (uploadingCover.value || uploadingThumbnail.value || confirmLoading.value) return
+  await submitForm()
+}
 
 // ============== AI Agent 集成 ==============
 const agentEditorSession = ref(0)
@@ -509,11 +515,10 @@ const undoField = (field: string) => {
 }
 
 const refreshTaxonomyOptions = async (kind: 'category' | 'tag', isCurrent: () => boolean) => {
-  const response = kind === 'category'
-    ? await CategoriesService.getCategoryList({ page: 1, size: 1000 })
-    : await TagsService.getTagList({ page: 1, size: 1000 })
-  if (response.code !== 200 || !Array.isArray(response.data?.records)) throw new Error('分类或标签列表未确认')
-  const options = response.data.records.filter(item => Number.isSafeInteger(item.id) && (item.id || 0) > 0)
+  const records = kind === 'category'
+    ? await loadAllPages((page, size) => CategoriesService.getCategoryList({ page, size }))
+    : await loadAllPages((page, size) => TagsService.getTagList({ page, size }))
+  const options = records.filter(item => Number.isSafeInteger(item.id) && (item.id || 0) > 0)
     .map(item => ({ label: item.name, value: item.id as number }))
   if (isCurrent()) {
     if (kind === 'category') categoryOptions.value = options
@@ -787,7 +792,7 @@ onMounted(async () => {
     </a-card>
 
     <!-- 新建/编辑 弹窗 -->
-    <a-modal v-model:open="modalVisible" :width="1440" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
+    <a-modal v-model:open="modalVisible" :width="1440" :confirm-loading="confirmLoading" :ok-button-props="{ disabled: uploadingCover || uploadingThumbnail }" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
       <template #title>
         <div class="modal-title-with-draft">
           <span>{{ modalTitle }}</span>
@@ -826,6 +831,7 @@ onMounted(async () => {
                 :show-upload-list="false"
                 accept="image/*"
                 :max-count="1"
+                :disabled="uploadingCover || confirmLoading"
                 :before-upload="() => false"
                 @change="handleCoverImageChange"
               >
@@ -852,6 +858,7 @@ onMounted(async () => {
                 :show-upload-list="false"
                 accept="image/*"
                 :max-count="1"
+                :disabled="uploadingThumbnail || confirmLoading"
                 :before-upload="() => false"
                 @change="handleThumbnailChange"
               >

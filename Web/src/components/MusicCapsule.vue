@@ -51,6 +51,10 @@
             </svg>
           </button>
 
+          <button class="control-btn mode-btn" @click.stop="cyclePlayMode" :title="modeLabel + '，点击切换'" :aria-label="modeLabel + '，点击切换播放模式'">
+            {{ playMode === 'single' ? '↻1' : playMode === 'list' ? '↻' : '→|' }}
+          </button>
+
           <button class="control-btn list-btn" @click.stop="togglePlaylist" :title="showPlaylist ? '收起歌单' : '查看歌单'" :aria-label="showPlaylist ? '收起歌单' : '查看歌单'">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M8 6h12"></path>
@@ -68,6 +72,11 @@
     <!-- 播放列表向上弹出 -->
     <transition name="playlist">
       <div v-if="showPlaylist && !isCollapsed" class="playlist-panel">
+        <div class="playlist-toolbar">
+          <span>{{ modeLabel }}</span>
+          <span>{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+        </div>
+        <input class="music-progress" type="range" min="0" :max="duration || 0" :value="currentTime" step="0.1" :disabled="duration <= 0 || loading" aria-label="播放进度" @change="seekTo(Number(($event.target as HTMLInputElement).value))" />
         <button
           v-for="(item, index) in musicList"
           :key="item.id"
@@ -91,8 +100,9 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { getMusicList, type MusicItem } from '@/services/musicApi'
 import { handleImageError } from '@/composables/useImageFallback'
-import { resumeAudioContext } from '@/composables/useAudioLipSync'
+import { prepareAnalysisOnlyAudio, resumeAudioContext } from '@/composables/useAudioLipSync'
 
+type PlayMode = 'list' | 'single' | 'sequence'
 const emit = defineEmits<{ play: [audio: HTMLAudioElement]; pause: [] }>()
 const musicList = ref<MusicItem[]>([])
 const currentIndex = ref(0)
@@ -103,8 +113,14 @@ const loading = ref(false)
 const playbackError = ref('')
 const showPlaylist = ref(false)
 const isCollapsed = ref(true)
+const playMode = ref<PlayMode>('list')
+const currentTime = ref(0)
+const duration = ref(0)
+const modeLabels: Record<PlayMode, string> = { list: '列表循环', single: '单曲循环', sequence: '顺序播放' }
+const modeLabel = computed(() => modeLabels[playMode.value])
 let fullAudio: HTMLAudioElement | null = null
 let vocalAudio: HTMLAudioElement | null = null
+let vocalAvailable = false
 let loadedId: number | null = null
 let generation = 0
 let actionVersion = 0
@@ -113,11 +129,12 @@ let cleanupTracks = () => {}
 const pending = new Set<() => void>()
 const playOwners = new WeakMap<HTMLAudioElement, number>()
 const fabTitle = computed(() => !isCollapsed.value ? '折叠音乐胶囊' : isPlaying.value ? '展开播放器' : '播放音乐并展开')
-const getCurrentAudio = () => [vocalAudio, fullAudio].find(audio => audio && !audio.paused && !audio.ended) || null
+const getCurrentAudio = () => fullAudio && !fullAudio.paused && !fullAudio.ended && vocalAvailable
+  && vocalAudio && !vocalAudio.paused && !vocalAudio.ended ? vocalAudio : null
 const publishState = () => {
-  const source = getCurrentAudio()
-  isPlaying.value = !!source
-  if (source) emit('play', source)
+  isPlaying.value = !!fullAudio && !fullAudio.paused && !fullAudio.ended
+  // 仍发布主轨播放事件以协调 TTS；口型协调器只读取 getCurrentAudio 的纯人声。
+  if (isPlaying.value) emit('play', getCurrentAudio() || fullAudio!)
   else emit('pause')
 }
 const pauseMusic = (userInitiated = true) => {
@@ -128,6 +145,7 @@ const pauseMusic = (userInitiated = true) => {
   loading.value = false
   fullAudio?.pause()
   vocalAudio?.pause()
+  if (fullAudio) fullAudio.muted = false
   isPaused.value = true
   publishState()
 }
@@ -140,12 +158,15 @@ const stopMusic = () => {
   }
   fullAudio = vocalAudio = null
   loadedId = null
+  vocalAvailable = false
+  currentTime.value = duration.value = 0
   isPaused.value = false
 }
-const createAudio = (url: string) => {
+const createAudio = (url: string, analysis = false) => {
   const audio = new Audio()
   audio.crossOrigin = 'anonymous'
   audio.preload = 'auto'
+  if (analysis) prepareAnalysisOnlyAudio(audio)
   audio.src = url
   return audio
 }
@@ -155,38 +176,74 @@ const ensureTrack = () => {
   stopMusic()
   loadedId = item.id
   fullAudio = createAudio(item.fullAudioUrl)
-  vocalAudio = item.vocalUrl ? createAudio(item.vocalUrl) : null
+  vocalAudio = item.vocalUrl ? createAudio(item.vocalUrl, true) : null
+  vocalAvailable = !!vocalAudio
   const full = fullAudio
   const vocal = vocalAudio
+  let completed = false
+  const active = () => fullAudio === full && !disposed
   const synchronize = () => {
-    if (vocal && !vocal.paused && !full.paused && Math.abs(vocal.currentTime - full.currentTime) > 0.15) full.currentTime = vocal.currentTime
+    if (!active()) return
+    currentTime.value = full.currentTime
+    duration.value = Number.isFinite(full.duration) ? full.duration : 0
+    if (vocalAvailable && vocal && !vocal.paused && !full.paused && !vocal.ended
+      && Math.abs(vocal.currentTime - full.currentTime) > 0.08) vocal.currentTime = full.currentTime
   }
   const ended = () => {
-    if (getCurrentAudio()) return
-    isPlaying.value = false
-    if (musicList.value.length > 1) {
-      currentIndex.value = (currentIndex.value + 1) % musicList.value.length
-      currentMusic.value = musicList.value[currentIndex.value]
-      void startPlayback(false, false)
-    } else { isPaused.value = false; publishState() }
+    if (!active() || completed || loading.value) return
+    completed = true
+    pauseMusic(false)
+    isPaused.value = false
+    if (playMode.value === 'sequence' && currentIndex.value === musicList.value.length - 1) return
+    if (playMode.value !== 'single') currentIndex.value = (currentIndex.value + 1) % musicList.value.length
+    currentMusic.value = musicList.value[currentIndex.value] || null
+    // 同一首重播也必须重置完成标记。
+    completed = false
+    void startPlayback(false, false)
   }
-  const stateChanged = () => { if (!loading.value) publishState() }
-  const failed = () => { playbackError.value = '部分音轨无法播放，可切歌或重试'; stateChanged() }
+  const stateChanged = () => { if (active() && !loading.value) publishState() }
+  const vocalFailed = () => {
+    if (!active()) return
+    vocalAvailable = false
+    vocal?.pause()
+    playbackError.value = '人声音轨不可用，音乐继续播放，口型已暂停'
+    stateChanged()
+  }
+  const fullFailed = () => {
+    if (!active()) return
+    playbackError.value = '音乐无法播放，请检查网络后重试'
+    pauseMusic(false)
+  }
+  const buffering = (event: Event) => {
+    if (!active() || loading.value || !isPlaying.value || full.ended
+      || (event.currentTarget === vocal && (!vocalAvailable || vocal?.seeking))) return
+    // 任一有效轨道等待数据时统一暂停，重新就绪后对齐同一主轨时间。
+    pauseMusic(false)
+    void startPlayback(true, false)
+  }
   for (const audio of [full, vocal]) {
     audio?.addEventListener('pause', stateChanged)
     audio?.addEventListener('playing', stateChanged)
-    audio?.addEventListener('error', failed)
-    audio?.addEventListener('ended', ended)
+    audio?.addEventListener('waiting', buffering)
   }
-  vocal?.addEventListener('timeupdate', synchronize)
+  full.addEventListener('error', fullFailed)
+  full.addEventListener('ended', ended)
+  full.addEventListener('timeupdate', synchronize)
+  full.addEventListener('durationchange', synchronize)
+  vocal?.addEventListener('error', vocalFailed)
+  vocal?.addEventListener('ended', vocalFailed)
   cleanupTracks = () => {
     for (const audio of [full, vocal]) {
       audio?.removeEventListener('pause', stateChanged)
       audio?.removeEventListener('playing', stateChanged)
-      audio?.removeEventListener('error', failed)
-      audio?.removeEventListener('ended', ended)
+      audio?.removeEventListener('waiting', buffering)
     }
-    vocal?.removeEventListener('timeupdate', synchronize)
+    full.removeEventListener('error', fullFailed)
+    full.removeEventListener('ended', ended)
+    full.removeEventListener('timeupdate', synchronize)
+    full.removeEventListener('durationchange', synchronize)
+    vocal?.removeEventListener('error', vocalFailed)
+    vocal?.removeEventListener('ended', vocalFailed)
   }
 }
 const playTrack = (audio: HTMLAudioElement, token: number) => new Promise<boolean>(resolve => {
@@ -207,46 +264,58 @@ const playTrack = (audio: HTMLAudioElement, token: number) => new Promise<boolea
   pending.add(cancel)
   audio.addEventListener('error', failed, { once: true })
   timer = setTimeout(cancel, 8000)
-  audio.play().then(() => {
-    if (finished) { if (playOwners.get(audio) === token) audio.pause() }
-    else finish(true)
-  }, failed)
+  try {
+    audio.play().then(() => {
+      if (finished) { if (playOwners.get(audio) === token) audio.pause() }
+      else finish(true)
+    }, failed)
+  } catch { failed() }
 })
 const startPlayback = async (resume: boolean, userInitiated = true) => {
-  if (!currentMusic.value || disposed) return
+  if (!currentMusic.value || disposed || !musicList.value.length) return
   if (userInitiated) actionVersion++
   ensureTrack()
   const token = ++generation
-  const tracks = [fullAudio, vocalAudio].filter((audio): audio is HTMLAudioElement => !!audio)
+  const full = fullAudio!
+  const vocal = vocalAudio
+  const tracks = [full, vocal].filter((audio): audio is HTMLAudioElement => !!audio)
+  const position = resume && !full.ended ? full.currentTime : 0
   playbackError.value = ''
   loading.value = true
-  // 在用户点击调用栈内启动音轨和解锁 context，避免等待网络后丢失浏览器播放许可。
-  void resumeAudioContext().catch(() => {})
-  if (!resume) tracks.forEach(audio => { audio.currentTime = 0 })
-  if (!tracks.length) {
-    loading.value = false
-    playbackError.value = '播放失败，请检查音频地址'
-    publishState()
-    return
-  }
-  const results = await Promise.all(tracks.map(audio => playTrack(audio, token).then(ok => {
-    if (token === generation && !disposed) {
-      if (ok) {
-        loading.value = false
-        isPaused.value = false
-        publishState()
-      } else if (tracks.some(track => !track.paused && !track.ended)) {
-        loading.value = false
-        playbackError.value = '部分音轨不可用，正在播放可用音轨'
-        publishState()
-      }
-    }
+  isPlaying.value = false
+  full.muted = true
+  // 在点击栈中解锁两个元素；先静音预备，不能让先加载完成的音轨提前出声。
+  void resumeAudioContext().then(() => { if (token === generation && vocal) prepareAnalysisOnlyAudio(vocal) }).catch(() => {})
+  tracks.forEach(audio => { audio.currentTime = position })
+  const primed = await Promise.all(tracks.map(audio => playTrack(audio, token).then(ok => {
+    if (token === generation && !disposed) audio.pause()
     return ok
   })))
   if (token !== generation || disposed) return
+  if (!primed[0]) {
+    full.muted = false
+    loading.value = false
+    isPaused.value = true
+    playbackError.value = '播放失败，请检查网络后点击重试'
+    publishState()
+    return
+  }
+  vocalAvailable = !!vocal && !!primed[1]
+  const readyTracks = vocalAvailable ? tracks : [full]
+  readyTracks.forEach(audio => { audio.currentTime = position })
+  const results = await Promise.all(readyTracks.map(audio => playTrack(audio, token)))
+  if (token !== generation || disposed) return
   loading.value = false
-  isPaused.value = !results.some(Boolean)
-  if (!results.every(Boolean)) playbackError.value = results.some(Boolean) ? '部分音轨不可用，正在播放可用音轨' : '播放失败，请检查网络后点击重试'
+  if (!results[0]) {
+    readyTracks.forEach(audio => audio.pause())
+    playbackError.value = '播放失败，请检查网络后点击重试'
+  } else {
+    vocalAvailable = vocalAvailable && !!results[1]
+    if (vocalAvailable && vocal && Math.abs(vocal.currentTime - full.currentTime) > 0.08) vocal.currentTime = full.currentTime
+    if (!vocalAvailable) playbackError.value = '人声音轨不可用，音乐继续播放，口型已暂停'
+  }
+  full.muted = false
+  isPaused.value = !results[0]
   publishState()
 }
 const playMusic = () => startPlayback(false)
@@ -264,6 +333,17 @@ const selectTrack = (index: number) => {
 }
 const playPrev = () => { if (musicList.value.length > 1) selectTrack((currentIndex.value - 1 + musicList.value.length) % musicList.value.length) }
 const playNext = () => { if (musicList.value.length > 1) selectTrack((currentIndex.value + 1) % musicList.value.length) }
+const setPlayMode = (mode: PlayMode) => { playMode.value = mode }
+const cyclePlayMode = () => { playMode.value = ({ list: 'single', single: 'sequence', sequence: 'list' } as const)[playMode.value] }
+const seekTo = (position: number) => {
+  if (!fullAudio || !Number.isFinite(position) || duration.value <= 0) return
+  actionVersion++
+  const target = Math.max(0, Math.min(position, duration.value))
+  fullAudio.currentTime = target
+  if (vocalAudio && vocalAvailable) vocalAudio.currentTime = target
+  currentTime.value = target
+}
+const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`
 const togglePlaylist = () => { showPlaylist.value = !showPlaylist.value }
 const handleFabClick = () => {
   isCollapsed.value = !isCollapsed.value
@@ -274,12 +354,12 @@ onMounted(async () => {
   try {
     const items = await getMusicList()
     if (disposed) return
-    musicList.value = items.sort((a, b) => a.sortOrder - b.sortOrder)
+    musicList.value = items.sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id)
     currentMusic.value = musicList.value[0] || null
   } catch (error) { console.warn('[music] 歌单加载失败', error) }
 })
 onBeforeUnmount(() => { disposed = true; stopMusic() })
-defineExpose({ playMusic, pauseMusic, resumeMusic, stopMusic, togglePlay, playNext, playPrev, selectTrack, togglePlaylist, getCurrentAudio, getActionVersion: () => actionVersion, isPlaying: () => isPlaying.value, isPaused: () => isPaused.value })
+defineExpose({ playMusic, pauseMusic, resumeMusic, stopMusic, togglePlay, playNext, playPrev, selectTrack, togglePlaylist, setPlayMode, seekTo, getCurrentAudio, getActionVersion: () => actionVersion, isPlaying: () => isPlaying.value, isLoading: () => loading.value, isPaused: () => isPaused.value })
 </script>
 
 <style lang="scss" scoped>
@@ -497,6 +577,27 @@ defineExpose({ playMusic, pauseMusic, resumeMusic, stopMusic, togglePlay, playNe
     background: var(--bg-active);
     color: var(--text-title);
   }
+}
+
+.playlist-toolbar {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.music-progress {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 6px 12px 10px;
+  accent-color: var(--color-primary);
+}
+
+.mode-btn {
+  min-width: 28px;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .playlist-index {

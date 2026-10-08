@@ -403,9 +403,15 @@ export function usePostEditor() {
   const coverImageInput = ref<HTMLInputElement>()
   const thumbnailInput = ref<HTMLInputElement>()
   const attachmentInput = ref<HTMLInputElement>()
+  const uploadingCover = ref(false)
+  const uploadingThumbnail = ref(false)
 
-  const triggerCoverImageUpload = () => { coverImageInput.value?.click() }
-  const triggerThumbnailUpload = () => { thumbnailInput.value?.click() }
+  const triggerCoverImageUpload = () => {
+    if (!uploadingCover.value && !saving.value) coverImageInput.value?.click()
+  }
+  const triggerThumbnailUpload = () => {
+    if (!uploadingThumbnail.value && !saving.value) thumbnailInput.value?.click()
+  }
 
   // 拖拽上传：主封面 / 副封面都支持把图片从电脑直接拖进来
   const coverDragOver = ref(false)
@@ -416,6 +422,7 @@ export function usePostEditor() {
     const file = target.files?.[0]
     if (!file) return
     await uploadImage(file, 'cover')
+    target.value = ''
   }
 
   const handleThumbnailUpload = async (event: Event) => {
@@ -423,6 +430,7 @@ export function usePostEditor() {
     const file = target.files?.[0]
     if (!file) return
     await uploadImage(file, 'thumbnail')
+    target.value = ''
   }
 
   const handleCoverDrop = async (event: DragEvent) => {
@@ -440,11 +448,13 @@ export function usePostEditor() {
   // dragover 必须 preventDefault，否则浏览器不会触发 drop（会直接打开图片）
   const handleCoverDragOver = (event: DragEvent) => {
     event.preventDefault()
+    if (uploadingCover.value || saving.value) return
     coverDragOver.value = true
   }
 
   const handleThumbnailDragOver = (event: DragEvent) => {
     event.preventDefault()
+    if (uploadingThumbnail.value || saving.value) return
     thumbnailDragOver.value = true
   }
 
@@ -452,6 +462,9 @@ export function usePostEditor() {
   const handleThumbnailDragLeave = () => { thumbnailDragOver.value = false }
 
   const uploadImage = async (file: File, type: 'cover' | 'thumbnail') => {
+    const uploading = type === 'cover' ? uploadingCover : uploadingThumbnail
+    if (uploading.value || saving.value) return
+    uploading.value = true
     await handleAsync(async () => {
       try {
         const result = await ImageUploadService.uploadImage(file)
@@ -470,7 +483,8 @@ export function usePostEditor() {
     }, {
       onError: (err) => {
         Swal.fire('错误', err.message || '图片上传失败，请重试', 'error')
-      }
+      },
+      onFinally: () => { uploading.value = false }
     })
   }
 
@@ -896,6 +910,7 @@ export function usePostEditor() {
   const handleSubmit = async () => { await submitPost() }
 
   const submitPost = async () => {
+    if (saving.value || uploadingCover.value || uploadingThumbnail.value) return
     if (!form.value.title.trim()) {
       Swal.fire('错误', '请输入文章标题', 'error')
       return
@@ -1061,7 +1076,7 @@ export function usePostEditor() {
     coverImageInput, thumbnailInput, attachmentInput,
     triggerCoverImageUpload, triggerThumbnailUpload,
     handleCoverImageUpload, handleThumbnailUpload, uploadImage,
-    coverDragOver, thumbnailDragOver,
+    coverDragOver, thumbnailDragOver, uploadingCover, uploadingThumbnail,
     handleCoverDrop, handleThumbnailDrop,
     handleCoverDragOver, handleThumbnailDragOver,
     handleCoverDragLeave, handleThumbnailDragLeave,

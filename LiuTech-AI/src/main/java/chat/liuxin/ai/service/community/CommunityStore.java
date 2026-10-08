@@ -44,6 +44,12 @@ public class CommunityStore {
     }
 
     @Transactional
+    public void cancel(String taskId) {
+        mapper.cancel(taskId);
+        log.info("社区任务取消状态已保存: taskId={}",taskId);
+    }
+
+    @Transactional
     public CommunityTaskRetryResult retryFailed(String taskId) {
         CommunityTask task=mapper.taskForRetry(taskId);
         if(task==null) return new CommunityTaskRetryResult(false,"任务不存在");

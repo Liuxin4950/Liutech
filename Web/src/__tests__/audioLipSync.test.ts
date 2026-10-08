@@ -17,6 +17,7 @@ describe('音频与模型生命周期', () => {
   let contextState: string
   let contextListeners: Map<string, Set<() => void>>
   let resume: ReturnType<typeof vi.fn>
+  let silentGain: { gain: { value: number }; connect: ReturnType<typeof vi.fn> }
   /** 置 true 后 analyser 读取抛错，用于模拟分析器失效 */
   let analyserReadFails = false
 
@@ -39,10 +40,12 @@ describe('音频与模型生命周期', () => {
     contextListeners = new Map()
     analyserReadFails = false
     resume = vi.fn(async () => {})
+    silentGain = { gain: { value: 1 }, connect: vi.fn() }
     vi.stubGlobal('AudioContext', class {
       get state() { return contextState }
       destination = {}
       createMediaElementSource = createSource
+      createGain = () => silentGain
       createAnalyser = () => ({
         fftSize: 2048,
         disconnect: vi.fn(),
@@ -127,6 +130,27 @@ describe('音频与模型生命周期', () => {
     await next.start(audio)
     expect(createSource).toHaveBeenCalledTimes(1)
     next.destroy()
+  })
+
+  it('纯人声从零增益支路输出，分析仍读取原始信号，重复接入不会解除静音', async () => {
+    const { audio } = createAudio(false)
+    lipSyncModule.prepareAnalysisOnlyAudio(audio)
+    expect(audio.muted).toBe(true)
+    await lipSyncModule.resumeAudioContext()
+    lipSyncModule.prepareAnalysisOnlyAudio(audio)
+    expect(silentGain.gain.value).toBe(0)
+    expect(audio.muted).toBe(false)
+    expect(source.connect).toHaveBeenCalledWith(silentGain)
+    const mouth = vi.fn()
+    const lip = lipSyncModule.useAudioLipSync(mouth)
+    await lip.start(audio)
+    runFrame()
+    expect(mouth.mock.calls[mouth.mock.calls.length - 1]?.[0]).toBeGreaterThan(0)
+    lipSyncModule.prepareAnalysisOnlyAudio(audio)
+    expect(audio.muted).toBe(false)
+    expect(createSource).toHaveBeenCalledTimes(1)
+    expect(silentGain.gain.value).toBe(0)
+    lip.destroy()
   })
 
   it('上下文挂起时不挂载分析（保住声音），并给出可见提示', async () => {

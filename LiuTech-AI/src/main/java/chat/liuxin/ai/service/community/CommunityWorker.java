@@ -70,6 +70,7 @@ public class CommunityWorker {
         JsonNode decision=null;
         boolean publicationConfirmed=false;
         try {
+            if(mapper.cancelled(task.getId())) return;
             if(task.getDecisionJson()!=null) {
                 try { decision=objectMapper.readTree(task.getDecisionJson()); }
                 catch(RuntimeException invalid) { decision=null; }
@@ -80,13 +81,17 @@ public class CommunityWorker {
                 }
             }
             if(task.getDecisionJson()==null) {
+                JsonNode event=transport.internalGet("/internal/community/events/"+task.getEventId());
+                if("CANCELLED".equals(event.path("eventType").asText())) {
+                    store.cancel(task.getId());return;
+                }
                 long epoch=task.getMemoryEpoch()==null?store.epoch(task.getBotId()):task.getMemoryEpoch();
                 int attempt=task.getAttempts()+1;
-                mapper.attempt(task.getId(),epoch);
+                if(mapper.attempt(task.getId(),epoch)==0) return;
                 task.setMemoryEpoch(epoch);
                 Map<String,Object> result=community.generate(task.getId(),task.getBotId(),task.getPostId(),task.getCommentId(),attempt,false,epoch);
                 decision=objectMapper.valueToTree(result);
-                mapper.decide(task.getId(),objectMapper.writeValueAsString(result),decision.path("contextVersion").asText());
+                if(mapper.decide(task.getId(),objectMapper.writeValueAsString(result),decision.path("contextVersion").asText())==0) return;
             }
             if("SKIP".equals(decision.path("decision").asText())) {
                 mapper.finish(task.getId(),"SKIPPED",null);
@@ -95,6 +100,7 @@ public class CommunityWorker {
             long commentId=decision.path("publishedCommentId").asLong();
             publicationConfirmed=commentId>0;
             if(!publicationConfirmed) {
+                if(mapper.cancelled(task.getId())) return;
                 Map<String,Object> publish=new LinkedHashMap<>();
                 publish.put("taskId",task.getId());publish.put("botId",task.getBotId());publish.put("postId",task.getPostId());
                 publish.put("contextCommentId",task.getCommentId());
@@ -136,6 +142,12 @@ public class CommunityWorker {
             mapper.finish(task.getId(),"SUCCEEDED",null);
         } catch(RuntimeException error) {
             int code=error instanceof BackendApiTransport.InternalBusinessException business?business.businessCode():0;
+            if(code==1706) {
+                store.cancel(task.getId());
+                if(decision!=null) recordPublication(task,decision,"CANCELLED",null,"管理员已取消任务");
+                return;
+            }
+            if(mapper.cancelled(task.getId())) return;
             String reason=error instanceof AIServiceException?error.getMessage():"后台执行失败，将有限重试";
             if(reason==null) reason="后台执行失败";
             if(reason.length()>300) reason=reason.substring(0,300);

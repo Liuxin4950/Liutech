@@ -290,4 +290,7 @@ useShortcuts([
   font-size: var(--lt-font-size-xs);
   color: var(--lt-color-text-tertiary);
 }
+@media (max-width: 600px) {
+  .lt-header__breadcrumb, .lt-header__user-name { display: none; }
+}
 </style>

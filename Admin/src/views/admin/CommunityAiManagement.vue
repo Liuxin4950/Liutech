@@ -4,7 +4,7 @@ import { message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { ImageUploadService, pickUploadFile } from '@/services/upload'
 import { communityService, defaultCommunitySettings } from '@/services/community'
-import type { CommunityBot, CommunityBotInput, CommunityKnowledge, CommunityRun, CommunityTask, CommunityMemory, CommunityComment, CommunityCommentThread, CommunityBackfillResult } from '@/services/community'
+import type { CommunityBot, CommunityBotInput, CommunityKnowledge, CommunityRun, CommunityTask, CommunityMemory, CommunityComment, CommunityCommentThread, CommunityBackfillResult, CommunityEvent } from '@/services/community'
 import PostsService, { type PostListItem } from '@/services/posts'
 import CommentsService, { type Comment } from '@/services/comments'
 import { formatDateTime } from '@/utils/utils'
@@ -22,12 +22,16 @@ const activeTab = ref('roles')
 const knowledge = ref<CommunityKnowledge[]>([])
 const runs = ref<CommunityRun[]>([])
 const tasks = ref<CommunityTask[]>([])
+const events = ref<CommunityEvent[]>([])
+const postEvents = ref<CommunityEvent[]>([])
+const cancellingIds = ref<string[]>([])
+const withdrawingIds = ref<number[]>([])
 const recordsLoading = ref(false)
 const recordsLoaded = ref(false)
 const recordsError = ref('')
 const recordsScopeBotId = ref<number>()
 const recordsLoadedAt = ref('')
-const taskFilter = ref<'all' | 'pending' | 'failed'>('all')
+const taskFilter = ref<'all' | 'pending' | 'failed' | 'cancelled'>('pending')
 let recordsRequest = 0
 let recordsTimer: ReturnType<typeof setTimeout> | undefined
 let pageActive = true
@@ -39,6 +43,7 @@ const comments = ref<CommunityComment[]>([])
 const commentsPage = ref(1)
 const commentsSize = ref(20)
 const commentsTotal = ref(0)
+let commentsRequest = 0
 const threadOpen = ref(false)
 const threadLoading = ref(false)
 const thread = ref<CommunityCommentThread>()
@@ -117,8 +122,8 @@ const autoBots = computed(() => bots.value.filter(bot => bot.enabled && bot.part
 const pendingStatuses = new Set(['PENDING', 'RUNNING', 'RETRY', 'READY', 'DECIDED', 'GENERATED'])
 const pendingTasks = computed(() => tasks.value.filter(task => pendingStatuses.has(task.status)))
 const failedTasks = computed(() => tasks.value.filter(task => task.status === 'FAILED'))
-const visibleTasks = computed(() => taskFilter.value === 'pending' ? pendingTasks.value : taskFilter.value === 'failed' ? failedTasks.value : tasks.value)
-const recordsScope = computed(() => `${recordsScopeBotId.value ? botName(recordsScopeBotId.value) : '所有角色'} · 最近各 100 条运行 / 任务`)
+const visibleTasks = computed(() => taskFilter.value === 'pending' ? pendingTasks.value : taskFilter.value === 'failed' ? failedTasks.value : taskFilter.value === 'cancelled' ? tasks.value.filter(task => task.status === 'CANCELLED') : tasks.value)
+const recordsScope = computed(() => `${recordsScopeBotId.value ? botName(recordsScopeBotId.value) : '所有角色'} · 所有待处理与失败任务、最近 100 条运行与其它终结任务`)
 const usageSummary = computed(() => {
   let knownTokens = 0
   let missing = 0
@@ -155,7 +160,7 @@ const decisionDistribution = computed(() => {
 })
 const decisionTotal = computed(() => decisionDistribution.value.reduce((sum, entry) => sum + entry.count, 0))
 const participationNotice = computed(() => {
-  if (!communityEnabled.value) return '全站互动已暂停：预演可用，自动参与与已排队任务等待开启。'
+  if (!communityEnabled.value) return '全站互动已暂停。预演仍可用；待处理任务请到任务队列取消或检查状态。'
   if (!autoBots.value.length) return '没有可自动参与的角色：需要启用角色并将参与积极度设为大于 0。'
   if (!savedSettings.value.siteDailyTaskLimit || !savedSettings.value.botDailyTaskLimit) return '模型任务额度设置为 0：自动生成已停止，请检查参与规则。'
   if (!savedSettings.value.siteDailyCommentLimit || !savedSettings.value.botDailyCommentLimit || !savedSettings.value.postDailyCommentLimit) return '评论额度设置为 0：无法正式发表，请检查参与规则。'
@@ -250,7 +255,7 @@ const taskColumns = [
   { title: '本轮失败次数', key: 'failures', width: 130 },
   { title: '失败或沉默原因', dataIndex: 'error', key: 'error', ellipsis: true, width: 220 },
   { title: '下次处理时间', key: 'availableAt', width: 180 },
-  { title: '详情', key: 'detail', width: 80 },
+  { title: '操作', key: 'detail', width: 150, fixed: 'right' as const },
 ]
 const commentColumns = [
   { title: '时间', key: 'createdAt', width: 180 },
@@ -258,7 +263,7 @@ const commentColumns = [
   { title: '回复目标', key: 'parent', width: 110 },
   { title: '正文', dataIndex: 'content', key: 'content' },
   { title: '状态', key: 'deleted', width: 100 },
-  { title: '对话', key: 'thread', width: 90 },
+  { title: '操作', key: 'thread', width: 180, fixed: 'right' as const },
 ]
 const limitFields: { key: keyof ReturnType<typeof defaultCommunitySettings>; title: string; min: number; max: number }[] = [
   { key: 'minDelaySeconds', title: '最短等待（秒）', min: 0, max: 3600 },
@@ -300,6 +305,7 @@ watch(postId, (id) => {
   postCommentsLoading.value = false
   postRuns.value = []
   postTasks.value = []
+  postEvents.value = []
   postActivityError.value = ''
   ++postActivityRequest
   postActivityLoading.value = false
@@ -318,24 +324,43 @@ watch(activeTab, (tab) => {
     if (postId.value) void loadPostActivity()
   }
 })
+async function queryActivity(botId?: number, articleId?: number) {
+  const [runResult, taskResult, eventResult] = await Promise.allSettled([
+    communityService.runs(botId, articleId), communityService.tasks(botId, articleId), communityService.events(botId, articleId),
+  ])
+  const failures = [
+    runResult.status === 'rejected' ? `运行记录：${errorMessage(runResult.reason)}` : '',
+    taskResult.status === 'rejected' ? `AI 任务：${errorMessage(taskResult.reason)}` : '',
+    eventResult.status === 'rejected' ? `待接收事件：${errorMessage(eventResult.reason)}` : '',
+  ].filter(Boolean)
+  const recentTasks = taskResult.status === 'fulfilled' ? taskResult.value : []
+  return {
+    recentRuns: runResult.status === 'fulfilled' ? runResult.value : [], recentTasks,
+    recentEvents: eventResult.status === 'fulfilled'
+      ? eventResult.value.filter(event => !recentTasks.some(task => String(task.eventId) === String(event.id))) : [],
+    error: failures.join('；'), complete: !failures.length,
+  }
+}
 async function loadRecords(botId?: number) {
   if (recordsTimer) clearTimeout(recordsTimer)
   const request = ++recordsRequest
   recordsLoading.value = true
   recordsError.value = ''
   try {
-    const [recentRuns, recentTasks] = await Promise.all([communityService.runs(botId), communityService.tasks(botId)])
+    const { recentRuns, recentTasks, recentEvents, error, complete } = await queryActivity(botId)
     if (request !== recordsRequest) return
     runs.value = recentRuns
     tasks.value = recentTasks
+    events.value = recentEvents
+    recordsError.value = error
     if (taskDetail.value) taskDetail.value = recentTasks.find(task => String(task.id) === String(taskDetail.value!.id)) || taskDetail.value
     if (detail.value && detailMode.value === 'run' && detail.value.id !== undefined) {
       detail.value = recentRuns.find(run => String(run.id) === String(detail.value!.id)) || detail.value
     }
     recordsScopeBotId.value = botId
-    recordsLoaded.value = true
+    recordsLoaded.value = complete
     recordsLoadedAt.value = new Date().toISOString()
-    if (pageActive && !document.hidden && activeTab.value === 'runs' && pendingTasks.value.length) {
+    if (pageActive && !document.hidden && (activeTab.value === 'tasks' || activeTab.value === 'runs' && (pendingTasks.value.length || events.value.length))) {
       recordsTimer = setTimeout(() => { void loadRecords(recordsScopeBotId.value) }, 5000)
     }
   } catch (error) {
@@ -345,13 +370,12 @@ async function loadRecords(botId?: number) {
 function navigateRoleTab(tab: string, botId = selectedBotId.value) {
   if (botId) selectedBotId.value = botId
   activeTab.value = tab
-  if (['knowledge', 'memory', 'runs', 'comments'].includes(tab)) void refreshSelected()
+  if (['knowledge', 'memory', 'tasks', 'runs', 'comments'].includes(tab)) void refreshSelected()
 }
-function contextRoleChanged() { if (['knowledge', 'memory', 'runs', 'comments'].includes(activeTab.value)) void refreshSelected() }
-function showTaskFilter(filter: 'all' | 'pending' | 'failed') {
+function contextRoleChanged() { if (['knowledge', 'memory', 'tasks', 'runs', 'comments'].includes(activeTab.value)) void refreshSelected() }
+function showTaskFilter(filter: 'all' | 'pending' | 'failed' | 'cancelled') {
   taskFilter.value = filter
-  selectedBotId.value = recordsScopeBotId.value
-  activeTab.value = 'runs'
+  activeTab.value = 'tasks'
   void loadRecords(recordsScopeBotId.value)
 }
 async function searchPosts(query: string, append = false) {
@@ -408,15 +432,17 @@ async function loadPostActivity() {
   postActivityLoading.value = true
   postActivityError.value = ''
   try {
-    const [recentRuns, recentTasks] = await Promise.all([communityService.runs(), communityService.tasks()])
+    const { recentRuns, recentTasks, recentEvents, error } = await queryActivity(undefined, id)
     if (request !== postActivityRequest || postId.value !== id) return
     postRuns.value = recentRuns.filter(run => run.postId === id)
     postTasks.value = recentTasks.filter(task => task.postId === id)
+    postEvents.value = recentEvents
+    postActivityError.value = error
     if (taskDetail.value) taskDetail.value = recentTasks.find(task => String(task.id) === String(taskDetail.value!.id)) || taskDetail.value
     if (detail.value && detailMode.value === 'run' && detail.value.id !== undefined) {
       detail.value = recentRuns.find(run => String(run.id) === String(detail.value!.id)) || detail.value
     }
-    if (pageActive && !document.hidden && activeTab.value === 'preview' && postTasks.value.some(task => pendingStatuses.has(task.status))) {
+    if (pageActive && !document.hidden && activeTab.value === 'preview' && (postEvents.value.length || postTasks.value.some(task => pendingStatuses.has(task.status)))) {
       postActivityTimer = setTimeout(() => { void loadPostActivity() }, 5000)
     }
   } catch (error) {
@@ -427,7 +453,7 @@ function visibilityChanged() {
   if (recordsTimer) clearTimeout(recordsTimer)
   if (postActivityTimer) clearTimeout(postActivityTimer)
   if (!pageActive || document.hidden) return
-  if (recordsLoaded.value && activeTab.value === 'runs') void loadRecords(recordsScopeBotId.value)
+  if (['tasks', 'runs'].includes(activeTab.value)) void loadRecords(recordsScopeBotId.value)
   if (postId.value && activeTab.value === 'preview') void loadPostActivity()
 }
 onBeforeUnmount(() => {
@@ -446,7 +472,7 @@ onBeforeUnmount(() => {
 })
 onActivated(() => {
   pageActive = true
-  if (!document.hidden && recordsLoaded.value && activeTab.value === 'runs') void loadRecords(selectedBotId.value)
+  if (!document.hidden && ['tasks', 'runs'].includes(activeTab.value)) void loadRecords(recordsScopeBotId.value)
   if (!document.hidden && postId.value && activeTab.value === 'preview') void loadPostActivity()
 })
 onDeactivated(() => {
@@ -472,7 +498,7 @@ async function action(work: () => Promise<void>, success?: string) {
   }
   finally {
     busy.value = false
-    if (activeTab.value !== initialTab && ['knowledge', 'memory', 'runs', 'comments'].includes(activeTab.value)) void refreshSelected()
+    if (activeTab.value !== initialTab && ['knowledge', 'memory', 'tasks', 'runs', 'comments'].includes(activeTab.value)) void refreshSelected()
   }
 }
 async function load() {
@@ -497,8 +523,9 @@ function openBot(bot?: CommunityBot) {
 }
 async function uploadBotAvatar(info: any) {
   const file = pickUploadFile(info)
-  if (!file) return
-  if (!file.type.startsWith('image/')) { message.warning('请选择图片文件'); return }
+  if (!file || botAvatarUploading.value || busy.value) return
+  if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) { message.warning('请选择 PNG / JPG / GIF / WEBP 图片'); return }
+  if (file.size > 5 * 1024 * 1024) { message.warning('图片不能超过 5MB'); return }
   botAvatarUploading.value = true
   try {
     botForm.value.avatarUrl = (await ImageUploadService.uploadImage(file)).fileUrl
@@ -508,6 +535,7 @@ async function uploadBotAvatar(info: any) {
   } finally { botAvatarUploading.value = false }
 }
 async function saveBot() {
+  if (botAvatarUploading.value) return
   if (!botForm.value.name.trim() || !botForm.value.personality.trim()) { message.warning('请填写角色名称和性格'); return }
   await action(async () => {
     const saved = editingBotId.value ? await communityService.updateBot(editingBotId.value, botForm.value) : await communityService.createBot(botForm.value)
@@ -545,7 +573,7 @@ async function saveSettings() {
 async function backfillRecent() {
   backfillError.value = ''
   backfillResult.value = undefined
-  try { backfillResult.value = await communityService.backfill(10) }
+  try { backfillResult.value = await communityService.backfill(10); await loadRecords(recordsScopeBotId.value) }
   catch (error) { backfillError.value = `全站互动已开启，但补评未成功：${errorMessage(error)}` }
 }
 async function retryBackfill() { await action(backfillRecent) }
@@ -560,16 +588,17 @@ async function loadSelected() {
   } else if (activeTab.value === 'memory') {
     memories.value = []
     if (id) { const data = await communityService.memory(id); if (selectedBotId.value === id) memories.value = data }
-  } else if (activeTab.value === 'runs') {
-    await loadRecords(id)
+  } else if (['tasks', 'runs'].includes(activeTab.value)) {
+    await loadRecords(recordsScopeBotId.value)
   } else if (activeTab.value === 'comments') {
+    const request = ++commentsRequest
     comments.value = []
     commentsTotal.value = 0
     const page = commentsPage.value
     const size = commentsSize.value
     if (id) {
       const data = await communityService.comments(id, page, size)
-      if (selectedBotId.value === id && commentsPage.value === page && commentsSize.value === size) {
+      if (request === commentsRequest && selectedBotId.value === id && commentsPage.value === page && commentsSize.value === size) {
         comments.value = data.records
         commentsTotal.value = data.total
       }
@@ -642,7 +671,7 @@ async function loadPostState() {
   } finally { if (request === postStateRequest) postStateLoading.value = false }
 }
 async function setPost(enabled: boolean) {
-  if (!validPost()) return
+  if (!validPost() || inviteLoading.value || busy.value || postStateLoading.value || postEnabled.value === enabled) return
   await action(async () => {
     const id = postId.value!
     ++postStateRequest
@@ -655,7 +684,7 @@ async function invite() {
   if (!validPost()) return
   if (!communityEnabled.value) { message.warning('请先在参与规则中开启全站自动互动'); return }
   if (inviteIds.value.length > 2) { message.warning('每次最多邀请两个角色'); return }
-  if (inviteLoading.value || busy.value) return
+  if (inviteLoading.value || busy.value || postStateLoading.value || postEnabled.value === undefined) return
   const id = postId.value!
   const ids = [...inviteIds.value]
   inviteLoading.value = true
@@ -671,7 +700,7 @@ async function invite() {
     if (postId.value !== id) return
     inviteNotice.value = result.queued > 0
       ? `已加入 ${result.queued} 个邀请任务。角色将按设置等待 ${savedSettings.value.minDelaySeconds}–${savedSettings.value.maxDelaySeconds} 秒后处理，结果显示在下方。`
-      : '本次未创建任务：没有可参与的角色。请启用角色，或手动选择希望邀请的角色。'
+      : '本次未新增任务：已安排过的角色不会重复入队，或没有可参与的角色。请在任务队列查看现有任务；失败任务可重试原任务。'
     await loadPostActivity()
   } catch (error) {
     if (postId.value === id) inviteError.value = errorMessage(error, '邀请失败')
@@ -702,18 +731,61 @@ async function retryTask(task: CommunityTask) {
         record.availableAt = undefined
       }
     }
-    if (activeTab.value === 'runs') {
+    if (['tasks', 'runs'].includes(activeTab.value)) {
       try { await loadSelected() }
       catch (error) { message.error(`重试状态已返回，但刷新记录失败：${errorMessage(error)}`) }
     }
-    if (activeTab.value !== 'runs' && postId.value === task.postId) await loadPostActivity()
+    if (!['tasks', 'runs'].includes(activeTab.value) && postId.value === task.postId) await loadPostActivity()
     if (String(taskDetail.value?.id) === id) {
-      const source = activeTab.value === 'runs' ? tasks.value : postTasks.value
+      const source = ['tasks', 'runs'].includes(activeTab.value) ? tasks.value : postTasks.value
       taskDetail.value = source.find(item => String(item.id) === id) || (result.queued ? { ...task, status: 'READY', failures: 0, error: undefined, leaseUntil: undefined } : task)
     }
   } catch (error) {
     retryNotices.value[id] = { queued: false, message: errorMessage(error, '重试失败'), previousError }
   } finally { retryingTaskIds.value = retryingTaskIds.value.filter(item => item !== id) }
+}
+function canCancelTask(task: CommunityTask) {
+  return !task.publishedCommentId && (pendingStatuses.has(task.status) || task.status === 'FAILED')
+}
+async function refreshQueues() {
+  await loadRecords(recordsScopeBotId.value)
+  if (postId.value) await loadPostActivity()
+}
+async function cancelTask(task: CommunityTask) {
+  const key = 'task:' + task.id
+  if (!canCancelTask(task) || cancellingIds.value.includes(key)) return
+  cancellingIds.value = [...cancellingIds.value, key]
+  try {
+    const result = await communityService.cancelTask(task.id)
+    if (result.cancelled) message.success(result.reason || '任务已取消')
+    else message.warning(result.reason || '任务未能取消，请查看最新状态')
+    await refreshQueues()
+  } catch (error: any) { if (!error?.isBusiness) message.error(errorMessage(error, '取消失败')) }
+  finally { cancellingIds.value = cancellingIds.value.filter(id => id !== key) }
+}
+async function cancelEvent(event: CommunityEvent) {
+  const key = 'event:' + event.id
+  if (cancellingIds.value.includes(key)) return
+  cancellingIds.value = [...cancellingIds.value, key]
+  try {
+    const result = await communityService.cancelEvent(event.id)
+    if (result.data.cancelled) message.success(result.data.reason || '任务已取消')
+    else message.warning(result.data.reason || '任务状态已变化，请查看最新状态')
+    await refreshQueues()
+  } catch (error: any) { if (!error?.isBusiness) message.error(errorMessage(error, '取消失败')) }
+  finally { cancellingIds.value = cancellingIds.value.filter(id => id !== key) }
+}
+async function withdrawComment(id: number) {
+  if (withdrawingIds.value.includes(id)) return
+  withdrawingIds.value = [...withdrawingIds.value, id]
+  try {
+    await communityService.withdrawComment(id)
+    message.success('评论及其回复已撤回')
+    if (activeTab.value === 'comments') await loadSelected()
+    if (threadOpen.value && threadCommentId.value) await openThread(threadCommentId.value, threadBotId.value)
+    await refreshQueues()
+  } catch (error: any) { if (!error?.isBusiness) message.error(errorMessage(error, '撤回失败')) }
+  finally { withdrawingIds.value = withdrawingIds.value.filter(item => item !== id) }
 }
 async function clearMemory() {
   if (!selectedBotId.value) return
@@ -763,10 +835,11 @@ onMounted(() => {
       <div class="page-title">
         <div>
           <h2>评论角色</h2>
-          <p>配置角色与知识，结合文章和评论预演效果；开启参与后，审查实际对话和每个任务的处理结果。</p>
+          <p>预演效果、管理任务，审查和撤回角色发言。</p>
         </div>
-        <a-space>
+        <a-space wrap>
           <a-tag :color="communityEnabled ? 'green' : 'default'">{{ !configurationLoaded ? loading ? '读取配置中' : '配置未加载' : communityEnabled ? '互动已开启' : '互动已暂停' }}</a-tag>
+          <a-button @click="showTaskFilter('pending')">任务队列 {{ recordsLoaded ? events.length + pendingTasks.length : '—' }}</a-button>
           <a-button danger :disabled="!communityEnabled || busy" @click="pauseAll">暂停全部</a-button>
           <a-button :loading="loading" :disabled="busy" @click="load">
             <ReloadOutlined />刷新</a-button>
@@ -774,35 +847,7 @@ onMounted(() => {
       </div>
     </a-card>
     <a-alert v-if="loadError" type="error" :message="loadError" show-icon class="mb-16"><template #action><a-button :loading="loading" @click="load">重新加载</a-button></template></a-alert>
-    <div class="console-overview mb-16">
-      <a-card :bordered="false" class="overview-summary">
-        <div class="overview-heading"><h3>当前状态</h3><span class="muted">{{ recordsLoaded ? recordsScope : '执行记录尚未加载' }}</span><a-button size="small" :loading="recordsLoading" @click="loadRecords(recordsScopeBotId)">刷新状态</a-button></div>
-        <div class="status-grid">
-          <div class="status-cell"><span class="status-label">自动参与角色</span><strong>{{ configurationLoaded ? autoBots.length : '—' }}<small v-if="configurationLoaded"> / {{ bots.length }}</small></strong><span class="muted">已启用且积极度大于 0</span></div>
-          <div class="status-cell"><span class="status-label">全站互动</span><strong class="status-word" :class="{ 'status-active': communityEnabled }">{{ !configurationLoaded ? '未读取' : communityEnabled ? '已开启' : '已暂停' }}</strong><a-button type="link" size="small" @click="activeTab = 'settings'">调整开关与额度</a-button></div>
-          <button class="status-cell status-button" :disabled="!recordsLoaded" @click="showTaskFilter('pending')"><span class="status-label">待处理任务</span><strong>{{ recordsLoaded ? pendingTasks.length : '—' }}</strong><span class="muted">当前查询，含等待与处理中</span></button>
-          <button class="status-cell status-button" :disabled="!recordsLoaded" @click="showTaskFilter('failed')"><span class="status-label">已停止的失败任务</span><strong :class="{ 'status-failed': failedTasks.length }">{{ recordsLoaded ? failedTasks.length : '—' }}</strong><span class="muted">自动重试结束，待人工处理</span></button>
-          <div class="status-cell"><span class="status-label">已知 token 合计</span><strong>{{ recordsLoaded ? usageSummary.knownTokens.toLocaleString() : '—' }}</strong><span class="muted">当前 {{ runs.length }} 条运行，包含预演</span></div>
-        </div>
-        <p v-if="recordsLoaded" class="metric-note muted">卡片合计仅包含带用量标记的记录。用量缺失 {{ usageSummary.missing }} 条 · 部分提供 {{ usageSummary.partial }} 条 · 未调用模型 {{ usageSummary.notCalled }} 条<span v-if="usageSummary.legacy"> · 另有 {{ usageSummary.legacy }} 条旧记录提供 {{ usageSummary.legacyKnownTokens.toLocaleString() }} token，完整性未标注</span>。最近更新 {{ formatDateTime(recordsLoadedAt) }}。这里统计已加载记录，不代表全站累计或每日账单。</p>
-        <a-alert v-if="configurationLoaded && participationNotice" type="info" :message="participationNotice" show-icon class="mt-16"><template #action><a-button size="small" @click="activeTab = 'settings'">检查设置</a-button></template></a-alert>
-        <a-alert v-if="recordsError" type="error" :message="recordsError" :description="recordsLoaded ? '以下统计保留上次成功查询结果，请重新刷新。' : '暂时无法确认任务与模型用量。'" show-icon class="mt-16" />
-        <a-alert v-if="failedTasks.length" type="warning" :message="`当前查询有 ${failedTasks.length} 个任务已停止自动重试`" description="先查看失败阶段和原因，再手动重新入队。重试后成功的任务不会计入这里；历史失败执行记录会保留。" show-icon class="mt-16"><template #action><a-button size="small" @click="showTaskFilter('failed')">处理失败任务</a-button></template></a-alert>
-      </a-card>
-      <a-card :bordered="false" class="decision-summary">
-        <h3>最近执行结果</h3>
-        <p class="muted">当前查询的正式生成，排除预演。失败生成记录会保留；同轮发布结果更新原记录，重交不重复计算模型用量。</p>
-        <div v-for="entry in decisionDistribution" :key="entry.key" class="decision-row"><div class="decision-heading"><span>{{ entry.title }}</span><strong>{{ recordsLoaded ? entry.count : '—' }}</strong></div><div class="decision-track"><div class="decision-bar" :style="{ width: `${decisionTotal ? entry.count / decisionTotal * 100 : 0}%`, background: entry.color }" /></div></div>
-        <p class="metric-note muted">{{ recordsLoaded ? `共 ${decisionTotal} 条可归类记录` : '等待服务返回执行记录' }}</p>
-      </a-card>
-    </div>
     <a-card :bordered="false" class="mb-16 workflow-card">
-      <div class="workflow-path">
-        <div class="workflow-step"><span class="step-number">1</span><div><a-button type="link" @click="activeTab = 'roles'">配置角色</a-button><p class="muted">身份、性格和兴趣</p></div></div>
-        <div class="workflow-step"><span class="step-number">2</span><div><a-space :size="0"><a-button type="link" :disabled="!selectedBotId" @click="navigateRoleTab('knowledge')">准备资料</a-button><a-button type="link" :disabled="!selectedBotId" @click="navigateRoleTab('preview')">预演</a-button></a-space><p class="muted">先确认生成结果</p></div></div>
-        <div class="workflow-step"><span class="step-number">3</span><div><a-button type="link" @click="activeTab = 'settings'">允许参与</a-button><p class="muted">全站开关、额度与旧文补评</p></div></div>
-        <div class="workflow-step"><span class="step-number">4</span><div><a-button type="link" :disabled="!selectedBotId" @click="navigateRoleTab('comments')">审查讨论</a-button><p class="muted">实际发言、回复和运行结果</p></div></div>
-      </div>
       <div class="role-context"><span>当前操作角色</span><a-select v-model:value="selectedBotId" :disabled="busy" :options="botOptions" show-search allow-clear option-filter-prop="label" placeholder="选择角色后准备资料、预演和审查" class="context-select" @change="contextRoleChanged" /><template v-if="selectedBot"><a-tag :color="selectedBot.enabled ? 'green' : 'default'">{{ selectedBot.enabled ? '角色已启用' : '角色已暂停，仍可预演' }}</a-tag><a-button size="small" :disabled="busy" @click="openBot(selectedBot)">编辑角色</a-button></template><span v-else class="muted">请选择一个角色以继续资料、预演或讨论审查。</span></div>
     </a-card>
     <a-tabs v-model:activeKey="activeTab" @change="tabChanged">
@@ -926,10 +971,10 @@ onMounted(() => {
           </a-space>
           <a-alert v-if="postStateError" type="error" :message="postStateError" show-icon class="mb-16" />
           <a-alert v-if="!communityEnabled" type="warning" message="全站互动已暂停。预演仍可使用；正式邀请前请到参与规则开启全站互动。" show-icon class="mb-16"><template #action><a-button @click="activeTab = 'settings'">查看参与规则</a-button></template></a-alert>
-          <p class="muted">对上方选中的文章立即发起邀请，已发布文章也可参与。角色会读取内容后决定发言或沉默，等待和额度规则仍然生效。</p>
+          <p class="muted">文章开关只控制是否允许参与，不创建任务。每个角色对同一篇文章仅安排一次初评，已取消或沉默的初评不会再次邀请；新的评论讨论仍可触发参与。角色会读取内容后决定发言或沉默，等待和额度规则仍然生效。</p>
           <a-space wrap>
-            <a-button :disabled="!postId || busy || inviteLoading" @click="setPost(true)">开启该文章互动</a-button>
-            <a-button :disabled="!postId || busy || inviteLoading" @click="setPost(false)">关闭该文章互动</a-button>
+            <a-button :disabled="!postId || busy || inviteLoading || postStateLoading || postEnabled !== false" @click="setPost(true)">开启该文章互动</a-button>
+            <a-button :disabled="!postId || busy || inviteLoading || postStateLoading || postEnabled !== true" @click="setPost(false)">关闭该文章互动</a-button>
           </a-space>
           <div class="invite-form">
             <a-select :disabled="busy || inviteLoading" v-model:value="inviteIds" mode="multiple" :options="enabledBotOptions" placeholder="最多选择两名角色；留空自动选择" class="invite-select" />
@@ -941,9 +986,10 @@ onMounted(() => {
             <div class="activity-heading"><h3>这篇文章的处理结果</h3><a-button :loading="postActivityLoading" @click="loadPostActivity">刷新结果</a-button></div>
             <p class="muted">等待中的任务每 5 秒刷新一次。发言失败、沉默和成功都会显示真实结果；仅显示最近任务与运行记录。</p>
             <a-alert v-if="postActivityError" type="error" :message="postActivityError" show-icon class="mb-16" />
-            <a-empty v-if="!postTasks.length && !postRuns.length && !postActivityLoading" description="暂无邀请任务或自动参与记录" />
+            <a-empty v-if="!postEvents.length && !postTasks.length && !postRuns.length && !postActivityLoading" description="暂无邀请任务或自动参与记录" />
+            <div v-for="event in postEvents" :key="'event:' + event.id" class="activity-item"><div class="activity-heading"><strong>{{ botName(event.botId) }}</strong><a-tag>{{ event.status === 'DISPATCHING' ? '正在交接' : '等待 AI 接收' }}</a-tag><a-button danger size="small" :loading="cancellingIds.includes('event:' + event.id)" @click="cancelEvent(event)">取消任务</a-button></div><p class="muted">计划处理：{{ formatDateTime(event.availableAt) }}</p></div>
             <div v-for="task in postTasks" :key="task.id" class="activity-item">
-              <div class="activity-heading"><strong>{{ botName(task.botId) }}</strong><a-tag>{{ taskStatus(task) }}</a-tag><a-button type="link" size="small" @click="taskDetail = task; taskDetailOpen = true">任务详情</a-button><a-tooltip v-if="task.status === 'FAILED'" :title="retryDescription(task)"><a-button type="link" size="small" :loading="retryingTaskIds.includes(String(task.id))" @click="retryTask(task)">{{ retryLabel(task) }}</a-button></a-tooltip></div>
+              <div class="activity-heading"><strong>{{ botName(task.botId) }}</strong><a-tag>{{ taskStatus(task) }}</a-tag><a-button type="link" size="small" @click="taskDetail = task; taskDetailOpen = true">任务详情</a-button><a-popconfirm v-if="canCancelTask(task)" title="取消此任务并阻止发布？" @confirm="cancelTask(task)"><a-button type="link" danger size="small" :loading="cancellingIds.includes('task:' + task.id)">取消任务</a-button></a-popconfirm><a-tooltip v-if="task.status === 'FAILED'" :title="retryDescription(task)"><a-button type="link" size="small" :loading="retryingTaskIds.includes(String(task.id))" @click="retryTask(task)">{{ retryLabel(task) }}</a-button></a-tooltip></div>
               <p v-if="task.availableAt && pendingStatuses.has(task.status)" class="muted">{{ automaticRetry(task) ? '计划自动重试' : '下次处理' }}：{{ formatDateTime(task.availableAt) }}</p>
               <p class="muted">模型调用 {{ task.attempts }} 次 · 本轮失败：{{ failureCount(task) }}</p>
               <p v-if="task.error" class="comment-body">{{ task.error }}</p>
@@ -967,7 +1013,7 @@ onMounted(() => {
               <a-button :disabled="!selectedBotId" :loading="busy" @click="refreshSelected">刷新</a-button>
             </a-space>
           </template>
-          <p class="muted">查看角色实际发布的评论，包含已删除记录。打开对话可按时间查看同一线程的真人及 AI 发言。</p>
+          <p class="muted">查看角色实际发布的评论，包含已撤回记录。撤回会同时隐藏其回复（包含真人回复）；发布回执与已消耗额度保留。打开对话可按时间查看同一线程的真人及 AI 发言。</p>
           <a-empty v-if="!selectedBotId" description="请选择要审查的角色" />
           <template v-else>
             <a-table :columns="commentColumns" :data-source="comments" :loading="busy" :pagination="false" :row-key="(comment: CommunityComment) => comment.id" :scroll="{ x: 1000 }">
@@ -980,10 +1026,10 @@ onMounted(() => {
                 </template>
                 <template v-else-if="column.key === 'content'"><a-tooltip :title="record.content"><div class="truncate table-summary">{{ record.content }}</div></a-tooltip></template>
                 <template v-else-if="column.key === 'deleted'">
-                  <a-tag :color="record.deletedAt ? 'red' : 'green'">{{ record.deletedAt ? '已删除' : '已发布' }}</a-tag>
+                  <a-tag :color="record.deletedAt ? 'red' : 'green'">{{ record.deletedAt ? '已撤回' : '已发布' }}</a-tag>
                 </template>
                 <template v-else-if="column.key === 'thread'">
-                  <a-button type="link" @click="openThread(record.id)">查看对话</a-button>
+                  <a-space><a-button type="link" @click="openThread(record.id)">查看对话</a-button><a-popconfirm v-if="!record.deletedAt" title="撤回这条 AI 评论及其回复（包含真人回复）？已消耗的额度不会返还。" @confirm="withdrawComment(record.id)"><a-button type="link" danger :loading="withdrawingIds.includes(record.id)">撤回</a-button></a-popconfirm></a-space>
                 </template>
               </template>
             </a-table>
@@ -991,11 +1037,42 @@ onMounted(() => {
           </template>
         </a-card>
       </a-tab-pane>
+      <a-tab-pane key="tasks" tab="任务队列">
+        <a-card :bordered="false" title="待处理与可取消任务">
+          <template #extra><a-space wrap><a-select v-model:value="recordsScopeBotId" :options="botOptions" allow-clear placeholder="所有角色" class="bot-select" @change="loadRecords(recordsScopeBotId)" /><a-button :loading="recordsLoading" @click="loadRecords(recordsScopeBotId)">刷新队列</a-button></a-space></template>
+          <p class="muted">{{ recordsScope }} · 活动任务优先显示，包含尚未被 AI 接收的事件。</p>
+          <a-alert v-if="recordsError" type="error" :message="recordsError" class="mb-16" show-icon />
+          <div class="activity-heading"><span class="muted">筛选任务</span><a-radio-group v-model:value="taskFilter" button-style="solid" size="small"><a-radio-button value="all">全部 {{ tasks.length + events.length }}</a-radio-button><a-radio-button value="pending">待处理 {{ pendingTasks.length + events.length }}</a-radio-button><a-radio-button value="failed">失败 {{ failedTasks.length }}</a-radio-button><a-radio-button value="cancelled">已取消</a-radio-button></a-radio-group></div>
+          <p class="muted">任务队列展示当前结果。待处理任务可取消，已发布评论请在评论对话中撤回。取消会阻止后续发布；正在进行的模型调用可能仍产生用量。失败任务只能重试原任务。</p>
+          <details class="memory-record-details"><summary>刷新与自动重试规则</summary><p class="muted">本页可见时每 5 秒刷新。首次失败后最多自动重试 2 次，本轮失败 3 次后停止；实际模型轮数和 token 看运行详情。</p></details>
+          <template v-if="events.length && ['all', 'pending'].includes(taskFilter)">
+            <h3 class="queue-section-title">等待 AI 接收</h3>
+            <div v-for="event in events" :key="String(event.id)" class="activity-item">
+              <div class="activity-heading"><strong>{{ botName(event.botId) }}</strong><a-tag>{{ event.status === 'DISPATCHING' ? '正在交接' : '等待接收' }}</a-tag><span>{{ postTitle(event.postId, event.postTitle) }}</span>
+                <a-button danger size="small" :loading="cancellingIds.includes('event:' + event.id)" @click="cancelEvent(event)">取消</a-button>
+              </div><p class="muted">计划处理：{{ formatDateTime(event.availableAt) }}</p>
+            </div>
+          </template>
+          <h3 class="queue-section-title">AI 处理任务</h3>
+          <a-table :columns="taskColumns" :data-source="visibleTasks" :loading="busy || recordsLoading" :row-key="(task: CommunityTask) => task.id" :scroll="{ x: 1400 }">
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'bot'">{{ botName(record.botId) }}</template>
+              <template v-else-if="column.key === 'status'">{{ taskStatus(record) }}</template>
+              <template v-else-if="column.key === 'failures'">{{ failureCount(record) }}</template>
+              <template v-else-if="column.key === 'availableAt'"><span v-if="pendingStatuses.has(record.status)">{{ automaticRetry(record) ? '自动重试：' : '' }}{{ formatDateTime(record.availableAt) }}</span><span v-else>—</span></template>
+              <template v-else-if="column.key === 'post'"><a-tooltip :title="postTitle(record.postId, record.postTitle)"><div class="truncate table-summary">{{ postTitle(record.postId, record.postTitle) }}</div></a-tooltip></template>
+              <template v-else-if="column.key === 'comment'"><a-tooltip :title="record.commentPreview"><div class="truncate table-summary">{{ record.commentId ? record.commentPreview || '触发评论内容暂不可用' : '文章触发' }}</div></a-tooltip></template>
+              <template v-else-if="column.key === 'error'"><a-tooltip :title="record.error"><div class="truncate table-summary">{{ record.error || '—' }}</div></a-tooltip><a-tooltip v-if="retryNotices[String(record.id)]" :title="retryNotice(record)"><div class="truncate table-summary" :class="{ 'field-error': !retryNotices[String(record.id)].queued }">{{ retryNotice(record) }}</div></a-tooltip></template>
+              <template v-else-if="column.key === 'detail'"><a-space direction="vertical" :size="0"><a-button type="link" @click="taskDetail = record; taskDetailOpen = true">查看</a-button><a-tooltip v-if="record.status === 'FAILED'" :title="retryDescription(record)"><a-button type="link" :loading="retryingTaskIds.includes(String(record.id))" @click="retryTask(record)">{{ retryLabel(record) }}</a-button></a-tooltip><a-popconfirm v-if="canCancelTask(record)" title="取消此任务并阻止发布？正在进行的模型调用可能仍产生用量。" @confirm="cancelTask(record)"><a-button type="link" danger :loading="cancellingIds.includes('task:' + record.id)">取消任务</a-button></a-popconfirm></a-space></template>
+            </template>
+          </a-table>
+        </a-card>
+      </a-tab-pane>
       <a-tab-pane key="runs" tab="执行记录">
         <a-card :bordered="false" title="执行历史与当前任务">
           <template #extra>
             <a-space>
-              <a-select :disabled="busy" v-model:value="selectedBotId" :options="botOptions" allow-clear placeholder="所有角色" class="bot-select" @change="refreshSelected" />
+              <a-select v-model:value="recordsScopeBotId" :options="botOptions" allow-clear placeholder="所有角色" class="bot-select" @change="loadRecords(recordsScopeBotId)" />
               <a-button :loading="busy || recordsLoading" @click="refreshSelected">刷新</a-button>
             </a-space>
           </template>
@@ -1016,21 +1093,6 @@ onMounted(() => {
               <template v-else-if="column.key === 'detail'">
                 <a-button type="link" @click="showRun(record)">查看</a-button>
               </template>
-            </template>
-          </a-table>
-          <div class="activity-heading"><h3>任务队列</h3><a-radio-group v-model:value="taskFilter" button-style="solid" size="small"><a-radio-button value="all">全部 {{ tasks.length }}</a-radio-button><a-radio-button value="pending">待处理 {{ pendingTasks.length }}</a-radio-button><a-radio-button value="failed">失败 {{ failedTasks.length }}</a-radio-button></a-radio-group></div>
-          <p class="muted">任务队列展示当前结果。等待自动重试或已成功的任务不能手动重试；只有已停止的失败任务可重新入队。全站互动暂停时，入队后等待开启。</p>
-          <p class="muted">有待处理任务时，每 5 秒读取最新状态。首次失败后最多自动重试 2 次，本轮累计失败 3 次后停止。生成尝试含输入准备失败；实际模型轮数和 token 看运行详情。</p>
-          <a-table :columns="taskColumns" :data-source="visibleTasks" :loading="busy || recordsLoading" :row-key="(task: CommunityTask) => task.id" :scroll="{ x: 1400 }">
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.key === 'bot'">{{ botName(record.botId) }}</template>
-              <template v-else-if="column.key === 'status'">{{ taskStatus(record) }}</template>
-              <template v-else-if="column.key === 'failures'">{{ failureCount(record) }}</template>
-              <template v-else-if="column.key === 'availableAt'"><span v-if="pendingStatuses.has(record.status)">{{ automaticRetry(record) ? '自动重试：' : '' }}{{ formatDateTime(record.availableAt) }}</span><span v-else>—</span></template>
-              <template v-else-if="column.key === 'post'"><a-tooltip :title="postTitle(record.postId, record.postTitle)"><div class="truncate table-summary">{{ postTitle(record.postId, record.postTitle) }}</div></a-tooltip></template>
-              <template v-else-if="column.key === 'comment'"><a-tooltip :title="record.commentPreview"><div class="truncate table-summary">{{ record.commentId ? record.commentPreview || '触发评论内容暂不可用' : '文章触发' }}</div></a-tooltip></template>
-              <template v-else-if="column.key === 'error'"><a-tooltip :title="record.error"><div class="truncate table-summary">{{ record.error || '—' }}</div></a-tooltip><a-tooltip v-if="retryNotices[String(record.id)]" :title="retryNotice(record)"><div class="truncate table-summary" :class="{ 'field-error': !retryNotices[String(record.id)].queued }">{{ retryNotice(record) }}</div></a-tooltip></template>
-              <template v-else-if="column.key === 'detail'"><a-space direction="vertical" :size="0"><a-button type="link" @click="taskDetail = record; taskDetailOpen = true">查看</a-button><a-tooltip v-if="record.status === 'FAILED'" :title="retryDescription(record)"><a-button type="link" :loading="retryingTaskIds.includes(String(record.id))" @click="retryTask(record)">{{ retryLabel(record) }}</a-button></a-tooltip></a-space></template>
             </template>
           </a-table>
         </a-card>
@@ -1101,7 +1163,31 @@ onMounted(() => {
         </a-card>
       </a-tab-pane>
     </a-tabs>
-    <a-modal v-model:open="botModal" :title="editingBotId ? '编辑角色' : '创建角色'" :confirm-loading="busy" width="min(1100px, 92vw)" :body-style="{ maxHeight: '72vh', overflowY: 'auto' }" @ok="saveBot">
+    <details class="runtime-details"><summary>运行统计与模型用量 <span class="muted">展开查看最近查询的统计</span></summary>
+    <div class="console-overview mb-16">
+      <a-card :bordered="false" class="overview-summary">
+        <div class="overview-heading"><h3>当前状态</h3><span class="muted">{{ recordsLoaded ? recordsScope : '执行记录尚未加载' }}</span><a-button size="small" :loading="recordsLoading" @click="loadRecords(recordsScopeBotId)">刷新状态</a-button></div>
+        <div class="status-grid">
+          <div class="status-cell"><span class="status-label">自动参与角色</span><strong>{{ configurationLoaded ? autoBots.length : '—' }}<small v-if="configurationLoaded"> / {{ bots.length }}</small></strong><span class="muted">已启用且积极度大于 0</span></div>
+          <div class="status-cell"><span class="status-label">全站互动</span><strong class="status-word" :class="{ 'status-active': communityEnabled }">{{ !configurationLoaded ? '未读取' : communityEnabled ? '已开启' : '已暂停' }}</strong><a-button type="link" size="small" @click="activeTab = 'settings'">调整开关与额度</a-button></div>
+          <button class="status-cell status-button" :disabled="!recordsLoaded" @click="showTaskFilter('pending')"><span class="status-label">待处理任务</span><strong>{{ recordsLoaded ? events.length + pendingTasks.length : '—' }}</strong><span class="muted">当前查询，含等待与处理中</span></button>
+          <button class="status-cell status-button" :disabled="!recordsLoaded" @click="showTaskFilter('failed')"><span class="status-label">已停止的失败任务</span><strong :class="{ 'status-failed': failedTasks.length }">{{ recordsLoaded ? failedTasks.length : '—' }}</strong><span class="muted">自动重试结束，待人工处理</span></button>
+          <div class="status-cell"><span class="status-label">已知 token 合计</span><strong>{{ recordsLoaded ? usageSummary.knownTokens.toLocaleString() : '—' }}</strong><span class="muted">当前 {{ runs.length }} 条运行，包含预演</span></div>
+        </div>
+        <p v-if="recordsLoaded" class="metric-note muted">卡片合计仅包含带用量标记的记录。用量缺失 {{ usageSummary.missing }} 条 · 部分提供 {{ usageSummary.partial }} 条 · 未调用模型 {{ usageSummary.notCalled }} 条<span v-if="usageSummary.legacy"> · 另有 {{ usageSummary.legacy }} 条旧记录提供 {{ usageSummary.legacyKnownTokens.toLocaleString() }} token，完整性未标注</span>。最近更新 {{ formatDateTime(recordsLoadedAt) }}。这里统计已加载记录，不代表全站累计或每日账单。</p>
+        <a-alert v-if="configurationLoaded && participationNotice" type="info" :message="participationNotice" show-icon class="mt-16"><template #action><a-button size="small" @click="activeTab = 'settings'">检查设置</a-button></template></a-alert>
+        <a-alert v-if="recordsError" type="error" :message="recordsError" :description="recordsLoaded ? '本次查询不完整，请重新刷新。' : '暂时无法确认任务与模型用量。'" show-icon class="mt-16" />
+        <a-alert v-if="failedTasks.length" type="warning" :message="`当前查询有 ${failedTasks.length} 个任务已停止自动重试`" description="先查看失败阶段和原因，再手动重新入队。重试后成功的任务不会计入这里；历史失败执行记录会保留。" show-icon class="mt-16"><template #action><a-button size="small" @click="showTaskFilter('failed')">处理失败任务</a-button></template></a-alert>
+      </a-card>
+      <a-card :bordered="false" class="decision-summary">
+        <h3>最近执行结果</h3>
+        <p class="muted">当前查询的正式生成，排除预演。失败生成记录会保留；同轮发布结果更新原记录，重交不重复计算模型用量。</p>
+        <div v-for="entry in decisionDistribution" :key="entry.key" class="decision-row"><div class="decision-heading"><span>{{ entry.title }}</span><strong>{{ recordsLoaded ? entry.count : '—' }}</strong></div><div class="decision-track"><div class="decision-bar" :style="{ width: `${decisionTotal ? entry.count / decisionTotal * 100 : 0}%`, background: entry.color }" /></div></div>
+        <p class="metric-note muted">{{ recordsLoaded ? `共 ${decisionTotal} 条可归类记录` : '等待服务返回执行记录' }}</p>
+      </a-card>
+    </div>
+    </details>
+    <a-modal v-model:open="botModal" :title="editingBotId ? '编辑角色' : '创建角色'" :confirm-loading="busy" :ok-button-props="{ disabled: botAvatarUploading }" :cancel-button-props="{ disabled: botAvatarUploading }" :mask-closable="!botAvatarUploading" :closable="!botAvatarUploading" :keyboard="!botAvatarUploading" width="min(1100px, 92vw)" :body-style="{ maxHeight: '72vh', overflowY: 'auto' }" @ok="saveBot">
       <a-form layout="vertical">
         <a-row :gutter="24">
           <a-col :xs="24" :lg="12">
@@ -1111,7 +1197,8 @@ onMounted(() => {
               <div class="bot-avatar-field">
                 <a-avatar :size="64" :src="botForm.avatarUrl || undefined">{{ botForm.name.trim().charAt(0) || '角' }}</a-avatar>
                 <div class="bot-avatar-actions">
-                  <a-upload
+                  <a-upload-dragger
+                    :disabled="botAvatarUploading || busy"
                     name="file"
                     :show-upload-list="false"
                     accept="image/png,image/jpeg,image/gif,image/webp"
@@ -1120,8 +1207,9 @@ onMounted(() => {
                     @change="uploadBotAvatar"
                   >
                     <a-button :loading="botAvatarUploading"><UploadOutlined />{{ botForm.avatarUrl ? '更换头像' : '上传头像' }}</a-button>
-                  </a-upload>
-                  <a-button v-if="botForm.avatarUrl" type="link" size="small" @click="botForm.avatarUrl = ''">移除</a-button>
+                    <p class="muted">拖入图片或点击选择</p>
+                  </a-upload-dragger>
+                  <a-button v-if="botForm.avatarUrl" :disabled="botAvatarUploading" type="link" size="small" @click="botForm.avatarUrl = ''">移除</a-button>
                   <p class="muted">支持 PNG / JPG / GIF / WEBP，不超过 5MB。不上传时显示角色名首字。</p>
                 </div>
               </div>
@@ -1155,7 +1243,7 @@ onMounted(() => {
         </a-form-item>
       </a-form>
     </a-modal>
-    <a-modal v-model:open="detailOpen" :title="detailMode === 'preview' ? '预演结果（不会发布）' : '本次执行详情'" width="min(1100px, 92vw)" :body-style="{ maxHeight: '72vh', overflowY: 'auto' }" :footer="null">
+    <a-modal v-model:open="detailOpen" :title="detailMode === 'preview' ? '预演结果（不会发布）' : '本次执行详情'" :mask-closable="!previewLoading" width="min(1100px, 92vw)" :body-style="{ maxHeight: '72vh', overflowY: 'auto' }" :footer="null">
       <div v-if="previewLoading" class="preview-loading"><a-spin /><p>预演请求处理中，等待服务返回角色决策与生成结果…</p><p class="muted">模型响应可能需要一些时间。关闭窗口或更换角色、文章会取消本次等待。</p></div>
       <a-alert v-if="previewError" type="error" :message="previewError" show-icon class="mb-16" />
       <a-button v-if="previewError && detailMode === 'preview'" type="primary" class="mb-16" :loading="previewLoading" @click="preview">重新预演</a-button>
@@ -1209,6 +1297,7 @@ onMounted(() => {
     <a-modal v-model:open="taskDetailOpen" title="任务详情" width="min(1100px, 92vw)" :body-style="{ maxHeight: '72vh', overflowY: 'auto' }" :footer="null">
       <a-alert v-if="taskDetail && retryNotices[String(taskDetail.id)]" class="mb-16" :type="retryNoticeType(taskDetail)" :message="retryNotice(taskDetail)" show-icon />
       <a-alert v-if="taskDetail?.status === 'FAILED'" type="warning" show-icon class="mb-16" message="该任务已停止自动重试，可手动重新入队。" :description="retryDescription(taskDetail)"><template #action><a-button :loading="retryingTaskIds.includes(String(taskDetail.id))" @click="retryTask(taskDetail)">{{ retryLabel(taskDetail) }}</a-button></template></a-alert>
+      <a-popconfirm v-if="taskDetail && canCancelTask(taskDetail)" title="取消此任务并阻止发布？正在进行的模型调用可能仍产生用量。" @confirm="cancelTask(taskDetail!)"><a-button danger class="mb-16" :loading="cancellingIds.includes('task:' + taskDetail.id)">取消任务</a-button></a-popconfirm>
       <a-descriptions v-if="taskDetail" :column="{ xs: 1, sm: 2 }" bordered>
         <a-descriptions-item label="角色">{{ botName(taskDetail.botId) }}</a-descriptions-item>
         <a-descriptions-item label="当前状态">{{ taskStatus(taskDetail) }}</a-descriptions-item>
@@ -1236,7 +1325,8 @@ onMounted(() => {
             <div class="thread-heading">
               <strong>{{ authorName(comment) }}</strong>
               <a-tag :color="comment.authorType !== 'BOT' ? 'default' : comment.botId === threadBotId ? 'blue' : 'purple'">{{ comment.authorType !== 'BOT' ? '真人' : comment.botId === threadBotId ? '当前 AI' : '其他 AI' }}</a-tag>
-              <a-tag v-if="comment.deletedAt" color="red">已删除</a-tag>
+              <a-tag v-if="comment.deletedAt" color="red">已撤回</a-tag>
+              <a-popconfirm v-if="comment.authorType === 'BOT' && !comment.deletedAt" title="撤回这条 AI 评论及其回复（包含真人回复）？" @confirm="withdrawComment(comment.id)"><a-button type="link" danger size="small" :loading="withdrawingIds.includes(comment.id)">撤回</a-button></a-popconfirm>
               <span class="muted">{{ formatDateTime(comment.createdAt) }}</span>
             </div>
             <a-tooltip :title="replyTarget(comment)"><p class="muted truncate">回复 {{ replyTarget(comment) }}</p></a-tooltip>
@@ -1251,11 +1341,19 @@ onMounted(() => {
 
 <style scoped>
 .page-title { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-.page-title h2 { margin: 0 0 8px; }
+.page-title h2 { margin: 0 0 4px; font-size: 20px; }
+.page-title p { margin: 0; }
+.page-title > .ant-space { max-width: 100%; }
+.community-page > .ant-card:first-child :deep(.ant-card-body) { padding: 14px 18px; }
+.runtime-details { margin-top: 16px; }
+.runtime-details > summary { cursor: pointer; padding: 12px 16px; background: var(--lt-color-bg-container); border-radius: 8px; }
+.runtime-details > summary .muted { margin-left: 12px; font-size: 12px; }
+.runtime-details .console-overview { margin-top: 12px; }
+.queue-section-title { margin: 16px 0 8px; font-size: 15px; }
 .page-title p, .muted { color: var(--lt-color-text-secondary); }
-.console-overview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: stretch; }
+.console-overview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
 .overview-summary :deep(.ant-card-body), .decision-summary :deep(.ant-card-body), .workflow-card :deep(.ant-card-body) { padding: 18px; }
-.overview-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.overview-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .overview-heading h3 { margin: 0; }
 .overview-heading > .muted { flex: 1; font-size: 12px; }
 .status-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
@@ -1283,7 +1381,7 @@ onMounted(() => {
 .workflow-step .ant-btn { padding-left: 0; padding-right: 8px; height: auto; font-weight: 600; }
 .workflow-step p { margin: 6px 0 0; font-size: 12px; }
 .step-number { display: grid; place-items: center; flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--lt-color-bg-layout); color: var(--lt-color-primary); font-weight: 600; }
-.role-context { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--lt-color-border); }
+.role-context { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 0; padding-top: 0; }
 .context-select { width: min(340px, 100%); }
 .roles-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
 .role-next-actions .bot-heading p { margin: 6px 0 0; font-size: 12px; }

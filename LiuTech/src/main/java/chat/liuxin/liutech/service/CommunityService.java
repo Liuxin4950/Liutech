@@ -8,6 +8,7 @@ import chat.liuxin.liutech.model.*;
 import chat.liuxin.liutech.req.CommunityReq;
 import chat.liuxin.liutech.resp.CommunityResp;
 import chat.liuxin.liutech.resp.PageResp;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -62,6 +63,77 @@ public class CommunityService {
         long total = commentsMapper.countThreadCommentsForAdmin(rootId,comment.getPostId());
         List<Comments> thread = commentsMapper.selectThreadCommentsForAdmin(rootId,comment.getPostId(),200);
         return new CommunityResp.Thread(comment.getPostId(),comment.getPostTitle(),rootId,total,total>200,thread);
+    }
+
+    /** 保留审查与发布回执；软删整条分支使公开评论计数与实际可见内容一致。 */
+    @Transactional(rollbackFor=Exception.class)
+    @CacheEvict(value={"hotPosts","latestPosts","postList"},allEntries=true)
+    public void withdrawComment(Long commentId) {
+        Comments existing=commentsMapper.selectCommentsForAdminById(commentId);
+        if(existing==null) throw new BusinessException(ErrorCode.NOT_FOUND,"评论不存在");
+        if(existing.getBotId()==null) throw new BusinessException(ErrorCode.PARAMS_ERROR,"只能在此撤回 AI 评论");
+        mapper.lockPost(existing.getPostId());
+        mapper.lockSettings();
+        mapper.lockPostComments(existing.getPostId());
+        List<Long> ids=new ArrayList<>(commentsMapper.selectAllDescendantIds(List.of(commentId)));
+        ids.add(commentId);
+        Date deletedAt=new Date();
+        for(int offset=0;offset<ids.size();offset+=500) {
+            commentsMapper.update(null,new LambdaUpdateWrapper<Comments>()
+                .in(Comments::getId,ids.subList(offset,Math.min(ids.size(),offset+500)))
+                .eq(Comments::getPostId,existing.getPostId()).isNull(Comments::getDeletedAt)
+                .set(Comments::getDeletedAt,deletedAt));
+        }
+        log.info("管理员撤回社区 AI 评论分支: commentId={}, postId={}, commentCount={}",commentId,existing.getPostId(),ids.size());
+    }
+
+    public List<CommunityEvent> pendingEvents(Long botId,Long postId) {
+        return mapper.pendingEvents(botId,postId);
+    }
+
+    public CommunityEvent eventForWorker(Long eventId) {
+        CommunityEvent event=mapper.event(eventId);
+        if(event==null) throw new BusinessException(ErrorCode.NOT_FOUND,"任务来源事件不存在");
+        return event;
+    }
+
+    /** 主库是取消与发布的唯一仲裁者；AI 库状态在这个事务提交后更新。 */
+    @Transactional(rollbackFor=Exception.class,isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    public CommunityResp.Cancelled cancelTask(CommunityReq.Cancel req) {
+        validUuid(req.taskId());
+        CommunityEvent event=mapper.event(req.eventId());
+        if(event==null || !req.botId().equals(event.getBotId()) || !req.postId().equals(event.getPostId()))
+            throw new BusinessException(ErrorCode.PARAMS_ERROR,"任务来源与角色或文章不匹配");
+        mapper.lockPost(event.getPostId());
+        mapper.lockSettings();
+        mapper.lockBot(event.getBotId());
+        CommunityResp.Published publication=mapper.publication(req.taskId());
+        if(publication!=null) return new CommunityResp.Cancelled(false,"评论已经发表，请撤回已发表的评论",publication.commentId());
+        mapper.lockEvent(event.getId());
+        mapper.cancelEvent(event.getId());
+        log.info("管理员取消社区任务: taskId={}, eventId={}",req.taskId(),event.getId());
+        return new CommunityResp.Cancelled(true,"任务已取消，后台生成结果不会发表",null);
+    }
+
+    /** 尚未领取的延迟事件可直接取消；交接中的事件需在 AI 队列按 taskId 仲裁。 */
+    @Transactional(rollbackFor=Exception.class,isolation=org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    public CommunityResp.Cancelled cancelPendingEvent(Long eventId) {
+        CommunityEvent event=eventForWorker(eventId);
+        mapper.lockPost(event.getPostId());
+        mapper.lockSettings();
+        mapper.lockBot(event.getBotId());
+        event=mapper.lockEvent(eventId);
+        if("CANCELLED".equals(event.getEventType())) return new CommunityResp.Cancelled(true,"事件已取消",null);
+        if(event.getAcknowledgedAt()!=null || event.getLeaseToken()!=null
+                && event.getLeaseUntil()!=null && event.getLeaseUntil().after(new Date()))
+            return new CommunityResp.Cancelled(false,"事件正在交接或已进入执行队列，请刷新后取消对应任务",null);
+        if(event.getLeaseToken()!=null) {
+            CommunityResp.Published publication=mapper.eventPublication(event);
+            if(publication!=null) return new CommunityResp.Cancelled(false,"互动中已有该角色发表的评论，请刷新执行队列或撤回已发表评论",publication.commentId());
+        }
+        mapper.cancelEvent(eventId);
+        log.info("管理员取消社区待派发事件: eventId={}",eventId);
+        return new CommunityResp.Cancelled(true,"待派发事件已取消",null);
     }
 
     @Transactional(rollbackFor=Exception.class)
@@ -144,7 +216,7 @@ public class CommunityService {
         requireEnabled(s, null, mapper.postState(id));
         List<CommunityBot> bots = requested == null || requested.isEmpty()
             ? selectBots(post,null,null,2) : explicitBots(requested);
-        return new CommunityResp.Queued(bots.isEmpty() ? 0 : enqueue(post,null,"MANUAL_INVITE",newRoot(id),bots,s));
+        return new CommunityResp.Queued(enqueueInitialArticle(post,bots,s));
     }
 
     /** 显式小批补评：先按 ID 锁全部文章，再锁全局设置，复用初评事件与文章根链。 */
@@ -268,6 +340,9 @@ public class CommunityService {
         CommunitySettings settings = requireSettings(mapper.lockSettings());
         CommunityBot bot = requireBot(mapper.lockBot(req.botId()));
         duplicate = mapper.publication(req.taskId()); if (duplicate != null) return duplicate;
+        CommunityEvent event=mapper.publicationEvent(req.botId(),req.postId(),req.rootEventId(),req.contextCommentId());
+        if(event==null) throw new BusinessException(ErrorCode.PARAMS_ERROR,"评论发布没有对应的社区事件");
+        if("CANCELLED".equals(event.getEventType())) throw new BusinessException(ErrorCode.COMMUNITY_TASK_CANCELLED);
         mapper.ensurePost(post.getId()); requireEnabled(settings,bot,mapper.postState(post.getId()));
         // 锁定文章现有评论及索引范围，让父评论删除、同文章新增与最终版本核验有确定顺序。
         mapper.lockPostComments(post.getId());
@@ -328,7 +403,7 @@ public class CommunityService {
     private String newRoot(Long postId) { String root=UUID.randomUUID().toString(); mapper.insertChain(root,postId); return root; }
     /**
      * 已失败或已确认的初评事件也保留去重；删除评论后发布回执仍阻止再次补评。
-     * ACK 只表示 AI 已接收，不能当作执行完成，所以已有人工邀请也保守跳过；显式邀请可再试。
+     * ACK 只表示 AI 已接收，不能当作执行完成。手动邀请也复用此边界，失败只能重试原任务。
      */
     private int enqueueInitialArticle(Posts post, List<CommunityBot> bots, CommunitySettings s) {
         List<CommunityBot> eligible = bots.stream().filter(bot ->

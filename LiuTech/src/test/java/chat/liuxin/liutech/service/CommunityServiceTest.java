@@ -32,6 +32,8 @@ class CommunityServiceTest {
     static final String ROOT="848ca02c-0eaa-4bf8-97c1-fb5fd3cab0e2";
 
     @BeforeEach void setup() {
+        com.baomidou.mybatisplus.core.metadata.TableInfoHelper.initTableInfo(
+            new org.apache.ibatis.builder.MapperBuilderAssistant(new com.baomidou.mybatisplus.core.MybatisConfiguration(),""),Comments.class);
         bot=new CommunityBot();bot.setId(1L);bot.setName("角色");bot.setEnabled(true);bot.setParticipation(50);bot.setVersion(1L);
         settings=new CommunitySettings();settings.setEnabled(true);settings.setVersion(1L);
         settings.setBotDailyCommentLimit(20);settings.setSiteDailyCommentLimit(100);settings.setPostDailyCommentLimit(20);
@@ -48,6 +50,8 @@ class CommunityServiceTest {
         when(mapper.insertEvent(any(),any())).thenReturn(1);
         when(mapper.lockArticleInvitation(anyLong(),anyLong())).thenReturn(null);
         when(mapper.recentPublicPostIds(10)).thenReturn(List.of(2L));
+        CommunityEvent event=new CommunityEvent();event.setId(7L);event.setBotId(1L);event.setPostId(2L);event.setEventType("ARTICLE_PUBLISHED");
+        when(mapper.publicationEvent(anyLong(),anyLong(),anyString(),nullable(Long.class))).thenReturn(event);
         doAnswer(invocation->{invocation.<Comments>getArgument(0).setId(99L);return 1;}).when(comments).insertCommunityComment(any());
     }
     private CommunityReq.Publish request(String version) {
@@ -262,7 +266,7 @@ class CommunityServiceTest {
         assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
         verify(mapper,times(1)).insertEvent(any(),any());
     }
-    @Test void newBackfillBotReusesExistingArticleRootAndExplicitInviteCanRetryIndependently() {
+    @Test void newBackfillBotReusesExistingArticleRootAndRepeatedInviteCannotCreateAnotherTask() {
         when(mapper.initialArticleRoot(2L)).thenReturn(ROOT);
         assertEquals(1,service.backfill(new CommunityReq.Backfill(10,List.of(1L))).queued());
         ArgumentCaptor<CommunityEvent> events=ArgumentCaptor.forClass(CommunityEvent.class);
@@ -270,10 +274,59 @@ class CommunityServiceTest {
         assertEquals(ROOT,events.getValue().getRootEventId());
         verify(mapper,never()).insertChain(any(),any());
         when(mapper.lockArticleInvitation(2L,1L)).thenReturn(7L);
-        assertEquals(1,service.invite(2L,List.of(1L)).queued());
-        assertEquals(1,service.invite(2L,List.of(1L)).queued());
-        verify(mapper,times(2)).insertChain(any(),eq(2L));
-        verify(mapper,times(2)).insertEvent(startsWith("MANUAL_INVITE:"),any());
+        assertEquals(0,service.invite(2L,List.of(1L)).queued());
+        assertEquals(0,service.invite(2L,List.of(1L)).queued());
+        verify(mapper,never()).insertChain(any(),eq(2L));
+        verify(mapper,never()).insertEvent(startsWith("MANUAL_INVITE:"),any());
+    }
+    @Test void cancelledEventRejectsEvenACachedDecisionAndReceiptStillWinsForAnAlreadyPublishedTask() {
+        CommunityEvent event=new CommunityEvent();event.setEventType("CANCELLED");
+        when(mapper.publicationEvent(1L,2L,ROOT,null)).thenReturn(event);
+        var error=assertThrows(BusinessException.class,()->service.publish(request("cached-version")));
+        assertEquals(ErrorCode.COMMUNITY_TASK_CANCELLED.getCode(),error.getCode());
+        verify(comments,never()).insertCommunityComment(any());
+        when(mapper.publication(TASK)).thenReturn(new CommunityResp.Published(99L,new Date(),true));
+        assertEquals(99L,service.publish(request("cached-version")).commentId());
+    }
+    @Test void cancellationSerializesWithPublicationAndAnExistingReceiptRequiresWithdrawal() {
+        var event=new CommunityEvent();event.setId(7L);event.setBotId(1L);event.setPostId(2L);
+        when(mapper.event(7L)).thenReturn(event);
+        var req=new CommunityReq.Cancel(TASK,7L,1L,2L);
+        assertTrue(service.cancelTask(req).cancelled());
+        InOrder order=inOrder(mapper);
+        order.verify(mapper).lockPost(2L);order.verify(mapper).lockSettings();order.verify(mapper).lockBot(1L);
+        order.verify(mapper).publication(TASK);order.verify(mapper).lockEvent(7L);order.verify(mapper).cancelEvent(7L);
+        when(mapper.publication(TASK)).thenReturn(new CommunityResp.Published(99L,new Date(),true));
+        var published=service.cancelTask(req);
+        assertFalse(published.cancelled());assertEquals(99L,published.publishedCommentId());
+        verify(mapper,times(1)).cancelEvent(7L);
+    }
+    @Test void pendingEventCancellationRejectsTheHandoffWindowAndValidatesTaskBinding() {
+        var event=new CommunityEvent();event.setId(7L);event.setBotId(1L);event.setPostId(2L);event.setEventType("ARTICLE_PUBLISHED");
+        when(mapper.event(7L)).thenReturn(event);when(mapper.lockEvent(7L)).thenReturn(event);
+        assertTrue(service.cancelPendingEvent(7L).cancelled());
+        event.setLeaseToken("already-claimed");
+        event.setLeaseUntil(new Date(System.currentTimeMillis()+600000));
+        assertFalse(service.cancelPendingEvent(7L).cancelled());
+        verify(mapper,times(1)).cancelEvent(7L);
+        assertThrows(BusinessException.class,()->service.cancelTask(new CommunityReq.Cancel(TASK,7L,9L,2L)));
+    }
+    @Test void withdrawalKeepsPublicationReceiptsAndSoftDeletesTheEntireReplyBranchAfterArticleLock() {
+        Comments root=new Comments();root.setId(99L);root.setBotId(1L);root.setPostId(2L);
+        when(comments.selectCommentsForAdminById(99L)).thenReturn(root);
+        when(comments.selectAllDescendantIds(List.of(99L))).thenReturn(List.of(100L,101L));
+        service.withdrawComment(99L);
+        InOrder order=inOrder(mapper,comments);
+        order.verify(mapper).lockPost(2L);order.verify(mapper).lockSettings();order.verify(mapper).lockPostComments(2L);
+        order.verify(comments).selectAllDescendantIds(List.of(99L));
+        verify(comments).update(isNull(),argThat((com.baomidou.mybatisplus.core.conditions.Wrapper<Comments> wrapper)->{
+            wrapper.getSqlSegment();
+            var values=((com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<Comments>)wrapper).getParamNameValuePairs().values();
+            return values.containsAll(List.of(99L,100L,101L,2L));
+        }));
+        verify(mapper,never()).recordPublication(any(),any(),any(),any(),any());
+        root.setBotId(null);
+        assertThrows(BusinessException.class,()->service.withdrawComment(99L));
     }
     @Test void completedSharedArticleChainDoesNotSchedulePaidGenerationAgain() {
         when(mapper.initialArticleRoot(2L)).thenReturn(ROOT);

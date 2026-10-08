@@ -20,6 +20,8 @@ public class CommunityInternalController {
             @RequestParam(required=false) Long commentId) { return Result.success(service.context(botId,postId,commentId)); }
     @PostMapping("/events/claim") public Result<List<CommunityEvent>> claim(@Valid @RequestBody CommunityReq.Claim req) { return Result.success(service.claim(req)); }
     @PostMapping("/events/{id}/ack") public Result<Void> ack(@PathVariable Long id,@Valid @RequestBody CommunityReq.Ack req) { service.ack(id,req.leaseToken()); return Result.success(); }
+    @GetMapping("/events/{id}") public Result<CommunityEvent> event(@PathVariable Long id) { return Result.success(service.eventForWorker(id)); }
+    @PostMapping("/tasks/cancel") public Result<CommunityResp.Cancelled> cancel(@Valid @RequestBody CommunityReq.Cancel req) { return Result.success(service.cancelTask(req)); }
     @PostMapping("/attempts") public Result<CommunityResp.Attempt> attempt(@Valid @RequestBody CommunityReq.Attempt req) { return Result.success(service.authorizeAttempt(req)); }
     @PostMapping("/comments") public Result<CommunityResp.Published> publish(@Valid @RequestBody CommunityReq.Publish req) { return Result.success(service.publish(req)); }
     @PostMapping("/visibility") public Result<CommunityResp.Visibility> visibility(@Valid @RequestBody CommunityReq.Visibility req) { return Result.success(service.visibility(req)); }

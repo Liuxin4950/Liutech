@@ -202,18 +202,13 @@ const goToPost = (postId: number) => {
 
 // 加载归档数据
 const loadArchiveData = async () => {
+  if (loading.value) return
   await handleAsync(async () => {
     loading.value = true
     error.value = ''
     
-    // 获取所有已发布的文章，按创建时间倒序
-    const response = await PostService.getPostList({
-      page: 1,
-      size: 1000, // 获取所有文章
-      sortBy: 'latest'
-    })
-    
-    archiveData.value = response.records
+    // 每页保持在服务端上限以内；全部成功后才替换归档，避免展示残缺结果。
+    archiveData.value = await PostService.getArchivePosts()
     
     // 默认展开最近的几个月
     if (groupedArchive.value.length > 0) {
@@ -226,8 +221,8 @@ const loadArchiveData = async () => {
       }
     }
   }, {
-    onError: () => {
-      error.value = '加载归档数据失败，请稍后重试'
+    onError: (err) => {
+      error.value = err.message || '加载归档数据失败，请稍后重试'
     },
     onFinally: () => {
       loading.value = false

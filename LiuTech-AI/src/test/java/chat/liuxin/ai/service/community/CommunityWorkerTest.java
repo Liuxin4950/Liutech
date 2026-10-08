@@ -6,6 +6,7 @@ import chat.liuxin.ai.infra.config.AiChatProperties;
 import chat.liuxin.ai.infra.exception.AIServiceException;
 import chat.liuxin.ai.mapper.CommunityMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import tools.jackson.databind.ObjectMapper;
 import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,6 +20,12 @@ class CommunityWorkerTest {
     private final CommunityMapper mapper=mock(CommunityMapper.class);
     private final CommunityService service=mock(CommunityService.class);
     private final CommunityWorker worker=new CommunityWorker(transport,store,mapper,service,json,new AiChatProperties());
+    @BeforeEach void activeTask() {
+        when(mapper.attempt(anyString(),anyLong())).thenReturn(1);
+        when(mapper.decide(anyString(),anyString(),anyString())).thenReturn(1);
+        when(transport.internalGet(startsWith("/internal/community/events/")))
+            .thenReturn(json.readTree("{\"eventType\":\"ARTICLE_PUBLISHED\"}"));
+    }
     private CommunityTask decided() {
         var task=new CommunityTask();task.setId("00000000-0000-0000-0000-000000000001");task.setBotId(1L);task.setPostId(2L);
         task.setEventId(3L);task.setRootEventId("root");task.setAttempts(1);task.setFailures(0);task.setMemoryEpoch(0L);
@@ -117,7 +124,7 @@ class CommunityWorkerTest {
         verify(service).generate(task.getId(),1,2,null,2,false,0);
         verify(mapper).attempt(task.getId(),0);
         verify(mapper).finish(task.getId(),"SKIPPED",null);
-        verifyNoInteractions(transport);
+        verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
     }
     @Test void withdrawnPostTerminatesWithoutRegenerationOrRetry() {
         var task=decided();task.setDecisionJson(null);
@@ -126,7 +133,7 @@ class CommunityWorkerTest {
         worker.execute(task);
         verify(mapper).fail(task.getId(),"SKIPPED","文章不存在",false);
         verify(mapper,never()).retry(anyString(),anyString(),anyBoolean(),anyInt());
-        verifyNoInteractions(transport);
+        verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
     }
     @Test void regeneratingAnOldTaskKeepsItsOriginalEpochAfterMemoryClear() {
         var task=decided();task.setDecisionJson(null);task.setMemoryEpoch(5L);
@@ -144,6 +151,38 @@ class CommunityWorkerTest {
         verify(mapper).attempt(task.getId(),9L);
         verify(service).generate(task.getId(),1,2,null,3,false,9);
         verify(mapper).finish(task.getId(),"SKIPPED",null);
-        verifyNoInteractions(transport);
+        verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
+    }
+    @Test void cancelledTaskAndCancelledSourceDoNotSpendAnotherModelAttempt() {
+        var task=decided();task.setDecisionJson(null);
+        when(mapper.cancelled(task.getId())).thenReturn(true);
+        worker.execute(task);
+        verifyNoInteractions(service);
+        verify(mapper,never()).attempt(anyString(),anyLong());
+        when(mapper.cancelled(task.getId())).thenReturn(false);
+        when(transport.internalGet("/internal/community/events/3")).thenReturn(json.readTree("{\"eventType\":\"CANCELLED\"}"));
+        worker.execute(task);
+        verify(store).cancel(task.getId());
+        verifyNoInteractions(service);
+        verify(mapper,never()).attempt(anyString(),anyLong());
+    }
+    @Test void cancellationDuringGenerationDiscardsTheResultWithoutPublishingOrRevivingTask() {
+        var task=decided();task.setDecisionJson(null);
+        when(service.generate(task.getId(),1,2,null,2,false,0)).thenReturn(Map.of("decision","COMMENT","content","late result","contextVersion","v1"));
+        // 取消已经把状态改成 CANCELLED；条件更新不能重新写成 DECIDED。
+        when(mapper.decide(eq(task.getId()),anyString(),eq("v1"))).thenReturn(0);
+        worker.execute(task);
+        verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
+        verify(mapper,never()).finish(anyString(),anyString(),any());
+    }
+    @Test void authorityCancellationFenceDoesNotEnterTheRetryLoop() {
+        var task=decided();
+        when(transport.internalPost(eq("/internal/community/comments"),any()))
+            .thenThrow(new BackendApiTransport.InternalBusinessException(1706,"社区任务已取消"));
+        worker.execute(task);
+        verify(store).cancel(task.getId());
+        verify(mapper,never()).retry(anyString(),anyString(),anyBoolean(),anyInt());
+        verify(mapper,never()).fail(anyString(),anyString(),anyString(),anyBoolean());
+        verify(mapper).updateRun(eq("model-run"),eq(task.getId()),eq(1L),eq("CANCELLED"),anyString(),anyString());
     }
 }

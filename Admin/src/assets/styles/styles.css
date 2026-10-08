@@ -2,7 +2,7 @@
    LiuTech Admin · 全局基础样式
    --------------------------------------------------------------------------
    本文件只放三类东西：
-     1. 元素级 reset（* / a / img / button）与 @font-face
+     1. 元素级 reset（* / a / img / button）
      2. 全局焦点环
      3. 少量「确实被多个页面共用」的工具类与语义类
 
@@ -16,7 +16,11 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: "DDFont";
+}
+
+/* 表单控件跟随后台系统字体；代码区仍使用独立的等宽 token。 */
+button, input, textarea, select {
+  font: inherit;
 }
 
 a {
@@ -45,14 +49,6 @@ button {
 :focus-visible {
   outline: var(--lt-outline-focus);
   outline-offset: var(--lt-outline-focus-offset);
-}
-
-/* 载入字体 */
-@font-face {
-  font-family: 'DDFont';
-  src: url('@/assets/font/dd.ttf');
-  font-weight: normal;
-  font-style: normal;
 }
 
 /* 主题切换时让背景/文字平滑过渡。

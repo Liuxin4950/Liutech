@@ -26,6 +26,27 @@ class CommunityServiceTest {
     private final AiMetrics metrics=mock(AiMetrics.class);
     private final CommunityService service=new CommunityService(transport,client,policy,new PromptBudget(new AiChatProperties()),
             mapper,store,json,metrics);
+    @Test void cancellationPersistsOnlyAfterAuthorityFenceAndPublicationWinnerRequiresWithdrawal() {
+        var task=new CommunityTask();task.setId("task");task.setEventId(3L);task.setPostId(2L);task.setBotId(1L);task.setStatus("RUNNING");
+        when(mapper.taskById("task")).thenReturn(task);
+        when(transport.internalPost(eq("/internal/community/tasks/cancel"),any()))
+            .thenReturn(json.readTree("{\"cancelled\":true,\"reason\":\"已取消\"}"));
+        assertTrue(service.cancelTask("task").cancelled());
+        var order=inOrder(transport,store);
+        order.verify(transport).internalPost(eq("/internal/community/tasks/cancel"),any());order.verify(store).cancel("task");
+        when(transport.internalPost(eq("/internal/community/tasks/cancel"),any()))
+            .thenReturn(json.readTree("{\"cancelled\":false,\"reason\":\"已经发表\",\"publishedCommentId\":9}"));
+        var published=service.cancelTask("task");
+        assertFalse(published.cancelled());assertEquals(9L,published.publishedCommentId());
+        verify(store,times(1)).cancel("task");
+    }
+    @Test void authorityUnavailableDoesNotClaimCancellationOrChangeLocalTaskState() {
+        var task=new CommunityTask();task.setId("task");task.setEventId(3L);task.setPostId(2L);task.setBotId(1L);task.setStatus("READY");
+        when(mapper.taskById("task")).thenReturn(task);
+        when(transport.internalPost(eq("/internal/community/tasks/cancel"),any())).thenThrow(new AIServiceException.ConnectionException("不可连接"));
+        assertThrows(AIServiceException.class,()->service.cancelTask("task"));
+        verify(store,never()).cancel(anyString());
+    }
     @Test void disabledCommunityAllowsPreviewButChargesAttemptAndNeverPublishes() {
         when(transport.internalGet(anyString())).thenReturn(json.readTree("""
            {"bot":{"id":1,"name":"测试","enabled":false,"version":7,"systemPrompt":"证据不足时先提问，表达简洁"},"post":{"id":2,"title":"文章","content":"<p>正文</p>"},
@@ -160,7 +181,7 @@ class CommunityServiceTest {
         verify(metrics).recordCompleted(eq("configured-model"),eq("COMMUNITY"),eq(false),anyLong(),argThat(usage -> usage.inputTokens()==50 && usage.outputTokens()==20));
     }
     @Test void oldRunsUseOneMetadataBatchAndKeepTheSavedSnapshotTitle() {
-        when(mapper.runs(null,50)).thenReturn(List.of(
+        when(mapper.runs(null,null,50)).thenReturn(List.of(
                 Map.of("id","saved","post_id",2L,"status","PREVIEW","result_json","{\"postTitle\":\"原始标题\"}"),
                 Map.of("id","old","post_id",2L,"comment_id",3L,"status","FAILED","result_json","{\"targetCommentId\":4}")));
         when(transport.internalPost(eq("/internal/community/metadata"),any())).thenReturn(json.readTree("""
@@ -174,7 +195,7 @@ class CommunityServiceTest {
     @Test void taskListKeepsDtoAndFillsDisplayFactsInOneBatch() {
         var first=new CommunityTask();first.setPostId(2L);first.setCommentId(3L);
         var second=new CommunityTask();second.setPostId(2L);second.setCommentId(4L);second.setDecisionJson("{\"postTitle\":\"当轮标题\",\"commentPreview\":\"当轮评论\"}");
-        when(mapper.tasks(null,50)).thenReturn(List.of(first,second));
+        when(mapper.tasks(null,null,null,50)).thenReturn(List.of(first,second));
         when(store.savedDecision(second.getDecisionJson())).thenReturn(json.readTree(second.getDecisionJson()));
         when(transport.internalPost(eq("/internal/community/metadata"),any())).thenReturn(json.readTree("{\"posts\":[{\"id\":2,\"title\":\"当前标题\"}],\"comments\":[{\"id\":3,\"content\":\"当前评论\"}]}"));
         var result=service.tasks(null,50);
@@ -185,7 +206,7 @@ class CommunityServiceTest {
     @Test void legacyPublishedCopyDoesNotDisplayTheSameGenerationUsageTwice() {
         String attemptOne="{\"taskId\":\"task\",\"postId\":2,\"postTitle\":\"标题\",\"contextVersion\":\"v1\",\"processingTime\":10,\"inputTokens\":50,\"outputTokens\":20,\"attempt\":1,\"content\":\"正文\"}";
         String attemptTwo=attemptOne.replace("\"attempt\":1","\"attempt\":2");
-        when(mapper.runs(null,50)).thenReturn(List.of(Map.of("id","published","status","SUCCEEDED","result_json",attemptOne),
+        when(mapper.runs(null,null,50)).thenReturn(List.of(Map.of("id","published","status","SUCCEEDED","result_json",attemptOne),
                 Map.of("id","generated","status","GENERATED","result_json",attemptOne),
                 Map.of("id","other-attempt","status","GENERATED","result_json",attemptTwo)));
         var result=service.runs(null,50);

@@ -220,6 +220,7 @@
               <div class="image-upload-container">
                 <div class="image-preview-box" @click="triggerCoverImageUpload"
                   :class="{ 'has-image': form.coverImage, 'is-dragover': coverDragOver }"
+                  :aria-busy="uploadingCover"
                   @drop.prevent="handleCoverDrop"
                   @dragover="handleCoverDragOver"
                   @dragleave="handleCoverDragLeave">
@@ -227,7 +228,7 @@
                   <div class="upload-overlay">
                     <div class="upload-text">
                       <span class="overlay-icon"><Icon name="camera" /></span>
-                      <span>{{ form.coverImage ? '点击更换图片' : '点击或拖拽上传封面' }}</span>
+                      <span>{{ uploadingCover ? '上传中…' : form.coverImage ? '点击或拖拽更换图片' : '点击或拖拽上传封面' }}</span>
                     </div>
                   </div>
                 </div>
@@ -239,6 +240,7 @@
               <div class="image-upload-container">
                 <div class="image-preview-box thumbnail-box" @click="triggerThumbnailUpload"
                   :class="{ 'has-image': form.thumbnail, 'is-dragover': thumbnailDragOver }"
+                  :aria-busy="uploadingThumbnail"
                   @drop.prevent="handleThumbnailDrop"
                   @dragover="handleThumbnailDragOver"
                   @dragleave="handleThumbnailDragLeave">
@@ -246,7 +248,7 @@
                   <div class="upload-overlay">
                     <div class="upload-text">
                       <span class="overlay-icon"><Icon name="image" /></span>
-                      <span>{{ form.thumbnail ? '点击更换图片' : '点击或拖拽上传缩略图' }}</span>
+                      <span>{{ uploadingThumbnail ? '上传中…' : form.thumbnail ? '点击或拖拽更换图片' : '点击或拖拽上传缩略图' }}</span>
                     </div>
                   </div>
                 </div>
@@ -349,7 +351,7 @@
           </div>
         </div>
         <div class="flex gap-12">
-          <button @click="saveDraft" class="btn-secondary" :disabled="saving">
+          <button @click="saveDraft" class="btn-secondary" :disabled="saving || uploadingCover || uploadingThumbnail">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
               <polyline points="17,21 17,13 7,13 7,21" />
@@ -358,7 +360,7 @@
             {{ isEditMode ? '更新草稿' : '保存草稿' }}
           </button>
           <button @click="handleSubmit" class="btn-primary"
-            :disabled="saving || !form.title || !form.content || !form.categoryId">
+            :disabled="saving || uploadingCover || uploadingThumbnail || !form.title || !form.content || !form.categoryId">
             <svg v-if="saving" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2">
               <path d="M21 12a9 9 0 11-6.219-8.56" />
@@ -551,7 +553,7 @@ const {
   coverImageInput, thumbnailInput, attachmentInput,
   triggerCoverImageUpload, triggerThumbnailUpload,
   handleCoverImageUpload, handleThumbnailUpload,
-  coverDragOver, thumbnailDragOver,
+  coverDragOver, thumbnailDragOver, uploadingCover, uploadingThumbnail,
   handleCoverDrop, handleThumbnailDrop,
   handleCoverDragOver, handleThumbnailDragOver,
   handleCoverDragLeave, handleThumbnailDragLeave,

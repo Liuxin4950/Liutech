@@ -112,7 +112,7 @@ const loadContent = async () => {
 }
 
 const saveContent = async () => {
-  if (!form.value || saving.value) return
+  if (!form.value || saving.value || uploading.value) return
   normalizeContent(form.value)
   try {
     await formRef.value?.validate()
@@ -134,7 +134,7 @@ const saveContent = async () => {
 }
 
 const uploadImage = async (file: File, target: 'avatar' | 'honors') => {
-  if (!form.value || uploading.value) return
+  if (!form.value || uploading.value || saving.value) return
   uploading.value = target
   try {
     const result = await ImageUploadService.uploadImage(file)
@@ -199,7 +199,7 @@ onMounted(loadContent)
         </div>
         <a-space>
           <a-button :loading="loading" @click="loadContent"><ReloadOutlined />重新加载</a-button>
-          <a-button type="primary" :loading="saving" :disabled="!form" @click="saveContent"><SaveOutlined />保存并发布</a-button>
+          <a-button type="primary" :loading="saving" :disabled="!form || !!uploading" @click="saveContent"><SaveOutlined />保存并发布</a-button>
         </a-space>
       </div>
     </a-card>
@@ -239,9 +239,9 @@ onMounted(loadContent)
                     <div class="image-field">
                       <a-avatar :size="72" :src="form.author.avatar" />
                       <a-input v-model:value="form.author.avatar" />
-                      <a-upload :show-upload-list="false" accept="image/*" :before-upload="(file: File) => beforeImageUpload(file, 'avatar')">
-                        <a-button :loading="uploading === 'avatar'"><UploadOutlined />上传</a-button>
-                      </a-upload>
+                      <a-upload-dragger :show-upload-list="false" accept="image/*" :max-count="1" :disabled="!!uploading || saving" :before-upload="(file: File) => beforeImageUpload(file, 'avatar')">
+                        <span><UploadOutlined />{{ uploading === 'avatar' ? '上传中…' : '点击或拖拽上传' }}</span>
+                      </a-upload-dragger>
                     </div>
                   </a-form-item>
                 </a-col>
@@ -364,9 +364,9 @@ onMounted(loadContent)
                 <div class="image-field">
                   <a-image v-if="form.honors.imageUrl" :width="140" :src="form.honors.imageUrl" />
                   <a-input v-model:value="form.honors.imageUrl" placeholder="留空则使用前台默认图片" />
-                  <a-upload :show-upload-list="false" accept="image/*" :before-upload="(file: File) => beforeImageUpload(file, 'honors')">
-                    <a-button :loading="uploading === 'honors'"><UploadOutlined />上传</a-button>
-                  </a-upload>
+                  <a-upload-dragger :show-upload-list="false" accept="image/*" :max-count="1" :disabled="!!uploading || saving" :before-upload="(file: File) => beforeImageUpload(file, 'honors')">
+                    <span><UploadOutlined />{{ uploading === 'honors' ? '上传中…' : '点击或拖拽上传' }}</span>
+                  </a-upload-dragger>
                 </div>
               </a-form-item>
               <a-form-item label="联系区说明" name="contactText" :rules="requiredTextRules('请输入联系区说明', 300)">

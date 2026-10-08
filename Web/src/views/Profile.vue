@@ -95,7 +95,7 @@
                 class="avatar-dropzone"
                 :class="{ 'is-dragover': avatarDragOver, 'is-uploading': avatarUploading }"
                 @click="triggerAvatarUpload"
-                @drop="handleAvatarDrop"
+                @drop.prevent="handleAvatarDrop"
                 @dragover="handleAvatarDragOver"
                 @dragleave="handleAvatarDragLeave"
                 :title="avatarUploading ? '上传中...' : '点击或拖拽图片到此处'"
@@ -175,7 +175,7 @@
           </div>
           <div class="form-actions">
             <button type="button" @click="resetForm" class="btn btn-secondary">重置</button>
-            <button type="submit" class="btn btn-primary" :disabled="isLoading">
+            <button type="submit" class="btn btn-primary" :disabled="isLoading || avatarUploading">
               {{ isLoading ? '保存中...' : '保存' }}
             </button>
           </div>
@@ -269,6 +269,7 @@ const validateAvatarFile = (file: File): string | null => {
 }
 
 const uploadAvatar = async (file: File) => {
+  if (avatarUploading.value || isLoading.value) return
   const err = validateAvatarFile(file)
   if (err) {
     showError(err)
@@ -315,6 +316,7 @@ const handleAvatarDragLeave = () => {
 }
 
 const handleSubmit = async () => {
+  if (isLoading.value || avatarUploading.value) return
   if (!formData.email) return
   // 用户名规则与注册一致：3-20 位
   const username = (formData.username || '').trim()

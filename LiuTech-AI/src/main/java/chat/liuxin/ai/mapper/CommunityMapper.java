@@ -32,27 +32,43 @@ public interface CommunityMapper {
             "AND status IN ('READY','RUNNING','DECIDED') AND (lease_until IS NULL OR lease_until < NOW())")
     int lease(@Param("id") String id, @Param("seconds") int seconds);
 
-    @Update("UPDATE ai_community_task SET attempts=attempts+1,memory_epoch=COALESCE(memory_epoch,#{epoch}) WHERE id=#{id}")
+    @Update("UPDATE ai_community_task SET attempts=attempts+1,memory_epoch=COALESCE(memory_epoch,#{epoch}) WHERE id=#{id} AND status IN ('READY','RUNNING','DECIDED')")
     int attempt(@Param("id") String id, @Param("epoch") long epoch);
 
-    @Update("UPDATE ai_community_task SET decision_json=#{json},context_version=#{version},status='DECIDED' WHERE id=#{id}")
+    @Update("UPDATE ai_community_task SET decision_json=#{json},context_version=#{version},status='DECIDED' WHERE id=#{id} AND status IN ('READY','RUNNING','DECIDED')")
     int decide(@Param("id") String id,@Param("json") String json,@Param("version") String version);
 
-    @Update("UPDATE ai_community_task SET status=#{status},error=#{error},lease_until=NULL WHERE id=#{id}")
+    @Update("UPDATE ai_community_task SET status=#{status},error=#{error},lease_until=NULL WHERE id=#{id} AND status IN ('READY','RUNNING','DECIDED')")
     int finish(@Param("id") String id,@Param("status") String status,@Param("error") String error);
 
     /** 最后一次失败也计数；过期决策即使耗尽自动重试也必须失效。 */
     @Update("UPDATE ai_community_task SET status=#{status},failures=failures+1,error=#{error},lease_until=NULL, " +
-            "decision_json=IF(#{stale},NULL,decision_json),context_version=IF(#{stale},NULL,context_version) WHERE id=#{id}")
+            "decision_json=IF(#{stale},NULL,decision_json),context_version=IF(#{stale},NULL,context_version) WHERE id=#{id} AND status IN ('READY','RUNNING','DECIDED')")
     int fail(@Param("id") String id,@Param("status") String status,@Param("error") String error,@Param("stale") boolean stale);
 
     @Update("UPDATE ai_community_task SET status='READY',decision_json=IF(#{stale},NULL,decision_json), " +
             "context_version=IF(#{stale},NULL,context_version), " +
-            "failures=failures+1,error=#{error},lease_until=NULL,available_at=TIMESTAMPADD(SECOND,#{delay},NOW()) WHERE id=#{id}")
+            "failures=failures+1,error=#{error},lease_until=NULL,available_at=TIMESTAMPADD(SECOND,#{delay},NOW()) WHERE id=#{id} AND status IN ('READY','RUNNING','DECIDED')")
     int retry(@Param("id") String id,@Param("error") String error,@Param("stale") boolean stale,@Param("delay") int delay);
 
-    @Select("<script>SELECT * FROM ai_community_task <if test='botId != null'>WHERE bot_id=#{botId}</if> ORDER BY created_at DESC LIMIT #{limit}</script>")
-    List<CommunityTask> tasks(@Param("botId") Long botId,@Param("limit") int limit);
+    @Select("<script>SELECT * FROM (SELECT * FROM ai_community_task <where>" +
+            "<if test='botId != null'>AND bot_id=#{botId}</if> " +
+            "<if test='postId != null'>AND post_id=#{postId}</if> " +
+            "<choose><when test='status != null'>AND status=#{status}</when><otherwise>AND status IN ('READY','RUNNING','DECIDED','FAILED')</otherwise></choose></where> " +
+            "<if test='status == null'>UNION ALL (SELECT * FROM ai_community_task WHERE status NOT IN ('READY','RUNNING','DECIDED','FAILED') " +
+            "<if test='botId != null'>AND bot_id=#{botId}</if><if test='postId != null'>AND post_id=#{postId}</if> " +
+            "ORDER BY created_at DESC,id DESC LIMIT #{limit})</if>) queue " +
+            "ORDER BY IF(status IN ('READY','RUNNING','DECIDED'),0,1),created_at DESC,id DESC " +
+            "<if test='status != null'>LIMIT #{limit}</if></script>")
+    List<CommunityTask> tasks(@Param("botId") Long botId,@Param("postId") Long postId,@Param("status") String status,@Param("limit") int limit);
+
+    @Select("SELECT * FROM ai_community_task WHERE id=#{id}")
+    CommunityTask taskById(String id);
+    @Select("SELECT COUNT(*)>0 FROM ai_community_task WHERE id=#{id} AND status='CANCELLED'")
+    boolean cancelled(String id);
+    @Update("UPDATE ai_community_task SET status='CANCELLED',error='管理员已取消任务',lease_until=NULL " +
+            "WHERE id=#{id} AND status!='SUCCEEDED'")
+    int cancel(String id);
 
     @Select("SELECT * FROM ai_community_task WHERE id=#{id} FOR UPDATE")
     @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
@@ -81,8 +97,9 @@ public interface CommunityMapper {
 
     @Select("<script>SELECT r.id,r.task_id,r.bot_id,r.post_id,t.comment_id,r.status,r.result_json,r.error,r.created_at " +
             "FROM ai_community_run r LEFT JOIN ai_community_task t ON t.id=r.task_id " +
-            "<if test='botId != null'>WHERE r.bot_id=#{botId}</if> ORDER BY r.created_at DESC LIMIT #{limit}</script>")
-    List<Map<String,Object>> runs(@Param("botId") Long botId,@Param("limit") int limit);
+            "<where><if test='botId != null'>AND r.bot_id=#{botId}</if> " +
+            "<if test='postId != null'>AND r.post_id=#{postId}</if></where> ORDER BY r.created_at DESC,r.id DESC LIMIT #{limit}</script>")
+    List<Map<String,Object>> runs(@Param("botId") Long botId,@Param("postId") Long postId,@Param("limit") int limit);
 
     @Insert("INSERT IGNORE INTO ai_community_role_state(bot_id,memory_epoch) VALUES(#{botId},0)")
     int ensureRole(long botId);

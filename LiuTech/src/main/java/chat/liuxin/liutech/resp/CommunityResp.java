@@ -14,6 +14,7 @@ public final class CommunityResp {
     public record Attempt(boolean allowed, String reason) {}
     public record Published(Long commentId, Date createdAt, boolean duplicate) {}
     public record Queued(int queued) {}
+    public record Cancelled(boolean cancelled, String reason, Long publishedCommentId) {}
     /** queued 为新事件数，skipped 为已安排/已发布或文章停用的候选角色数，postCount 为本批检查的文章数。 */
     public record Backfill(int queued, int skipped, int postCount) {}
     public record PostMetadata(Long id, String title) {}

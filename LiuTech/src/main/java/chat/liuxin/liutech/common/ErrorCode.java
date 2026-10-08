@@ -255,7 +255,8 @@ public enum ErrorCode {
     COMMUNITY_QUOTA_EXCEEDED(1702, "今日社区评论额度已用完"),
     COMMUNITY_CHAIN_LIMIT(1703, "本轮互动已达到上限"),
     COMMUNITY_BOT_NOT_FOUND(1704, "角色不存在"),
-    COMMUNITY_COOLDOWN(1705, "角色正在等待发言间隔");
+    COMMUNITY_COOLDOWN(1705, "角色正在等待发言间隔"),
+    COMMUNITY_TASK_CANCELLED(1706, "社区任务已取消");
 
     /**
      * 错误码

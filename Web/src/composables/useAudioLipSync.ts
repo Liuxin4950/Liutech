@@ -34,6 +34,36 @@ function clearDegraded() {
 let context: AudioContext | null = null
 /** 音频元素 → 已绑定的源节点（WeakMap：元素被回收时一并释放） */
 let sources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>()
+/** 分离人声只供分析；完整音频负责可听输出，避免人声叠加。 */
+const analysisOnly = new WeakSet<HTMLMediaElement>()
+
+function getAudioSource(element: HTMLMediaElement): MediaElementAudioSourceNode {
+  const existing = sources.get(element)
+  if (existing) {
+    if (analysisOnly.has(element)) element.muted = false
+    return existing
+  }
+  const node = context!.createMediaElementSource(element)
+  if (analysisOnly.has(element)) {
+    const silent = context!.createGain()
+    silent.gain.value = 0
+    node.connect(silent)
+    silent.connect(context!.destination)
+    // 声音已由独立 GainNode 静音，元素保持原始振幅供分析。
+    element.muted = false
+  } else {
+    node.connect(context!.destination)
+  }
+  sources.set(element, node)
+  return node
+}
+
+/** 必须在首次播放/分析前标记；不支持 Web Audio 时保留原生静音。 */
+export function prepareAnalysisOnlyAudio(element: HTMLAudioElement): void {
+  analysisOnly.add(element)
+  element.muted = true
+  if (context?.state === 'running') getAudioSource(element)
+}
 
 /** 单次 resume() 的等待上限；超时不再算失败（见 resumeAudioContext 注释） */
 const RESUME_TIMEOUT_MS = 2000
@@ -139,12 +169,8 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
     // 关键：先彻底拆除上一路分析（含取消它的 rAF 循环），保证同一时刻只有一个循环在写口型
     teardownAnalysis()
     const myLoop = loopId
-    const node = sources.get(element) || context.createMediaElementSource(element)
-    if (!sources.has(element)) {
-      // 声音只连一次 destination，分析器是旁路，stop 不会将正在播放的音乐静音。
-      node.connect(context.destination)
-      sources.set(element, node)
-    }
+    // 声音主路只建立一次；纯人声经过零增益输出，分析支路仍读取原始信号。
+    const node = getAudioSource(element)
     source = node
     audio = element
     analyser = context.createAnalyser()

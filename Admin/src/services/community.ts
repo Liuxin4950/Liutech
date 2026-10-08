@@ -89,6 +89,10 @@ export interface CommunityMemory {
   sourceCommentIds?: number[]; participants?: number[]; summary: string; createdAt?: string
 }
 export interface CommunityBackfillResult { queued: number; skipped: number; postCount: number }
+export interface CommunityEvent {
+  id: number | string; botId: number; postId: number; postTitle?: string; commentId?: number
+  eventType?: string; status?: string; availableAt?: string; createdAt?: string
+}
 
 async function aiData<T>(request: Promise<{ data: ApiResponse<T> & { success?: boolean } }>): Promise<T> {
   const { data } = await request
@@ -112,6 +116,9 @@ export const communityService = {
   deleteBot: async (id: number) => del(`${base}/bots/${id}`),
   comments: async (botId: number, page = 1, size = 20) => (await get<PageResult<CommunityComment>>(`${base}/bots/${botId}/comments`, { page, size })).data,
   thread: async (commentId: number) => (await get<CommunityCommentThread>(`${base}/comments/${commentId}/thread`)).data,
+  withdrawComment: (commentId: number) => del<void>(`${base}/comments/${commentId}`),
+  events: async (botId?: number, postId?: number) => (await get<CommunityEvent[]>(`${base}/events`, { botId, postId, limit: 100 })).data,
+  cancelEvent: (eventId: number | string) => del<{ cancelled: boolean; reason: string }>(`${base}/events/${encodeURIComponent(String(eventId))}`),
   knowledge: async (botId: number) => (await get<CommunityKnowledge[]>(`${base}/bots/${botId}/knowledge`)).data,
   saveKnowledge: async (botId: number, data: { title: string; content: string }, id?: number) => id
     ? put<CommunityKnowledge>(`${base}/bots/${botId}/knowledge/${id}`, data)
@@ -124,8 +131,9 @@ export const communityService = {
   invite: async (postId: number, botIds: number[]) => (await post<{ queued: number }>(`${base}/posts/${postId}/invite`, { botIds })).data,
   backfill: async (limit = 10, botIds?: number[]) => (await post<CommunityBackfillResult>(`${base}/backfill`, { limit, botIds })).data,
   preview: (data: { botId: number; postId: number; commentId?: number }, signal?: AbortSignal) => aiData<CommunityRun>(aiApi.post(aiBase + '/preview', data, { timeout: 180000, signal })),
-  runs: (botId?: number) => aiData<CommunityRun[]>(aiApi.get(aiBase + '/runs', { params: { botId, limit: 100 } })),
-  tasks: (botId?: number) => aiData<CommunityTask[]>(aiApi.get(aiBase + '/tasks', { params: { botId, limit: 100 } })),
+  runs: (botId?: number, postId?: number) => aiData<CommunityRun[]>(aiApi.get(aiBase + '/runs', { params: { botId, postId, limit: 100 } })),
+  tasks: (botId?: number, postId?: number) => aiData<CommunityTask[]>(aiApi.get(aiBase + '/tasks', { params: { botId, postId, limit: 100 } })),
+  cancelTask: (taskId: number | string) => aiData<{ cancelled: boolean; reason: string; publishedCommentId?: number }>(aiApi.post(`${aiBase}/tasks/${encodeURIComponent(String(taskId))}/cancel`)),
   retryTask: (taskId: number | string) => aiData<{ taskId?: number | string; queued: boolean; reason: string; retryKind?: CommunityTask['retryKind'] }>(aiApi.post(`${aiBase}/tasks/${encodeURIComponent(String(taskId))}/retry`)),
   memory: (botId: number) => aiData<CommunityMemory[]>(aiApi.get(aiBase + '/memory', { params: { botId } })),
   clearMemory: (botId: number) => aiData<void>(aiApi.delete(`${aiBase}/memory/${botId}`)),

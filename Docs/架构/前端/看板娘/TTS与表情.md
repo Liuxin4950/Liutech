@@ -14,6 +14,7 @@
 | [useTtsPlayer.ts](../../../../Web/src/composables/useTtsPlayer.ts) | TTS 消费循环、音乐互斥和模型就绪后补接 |
 | [useAudioLipSync.ts](../../../../Web/src/composables/useAudioLipSync.ts) | 跨模型生命周期的声音主路、模型持有的分析支路 |
 | [MusicCapsule.vue](../../../../Web/src/components/MusicCapsule.vue) | 实际音乐音轨、加载/错误、播放代次、用户操作版本 |
+| [Admin/MusicManagement.vue](../../../../Admin/src/views/admin/MusicManagement.vue) | 完整音频/纯人声试听、双轨上传说明、封面拖拽上传 |
 | [MainLayout.vue](../../../../Web/src/layouts/MainLayout.vue) | 按需加载模型/聊天组件、桥接 ready 与音频事件 |
 
 ## 状态来源
@@ -21,7 +22,7 @@
 - `ttsEnabled` 是按聊天身份保存的用户偏好；`ttsAvailable` 表示当前 runtime 状态允许尝试语音，检测失败不覆盖偏好。
 - `cancelTts()` 增加 `ttsCancelCounter`、清队列并解除等待；流处理捕获自己的 `audioGeneration`，取消后迟到音频不能入队。
 - `live2dStatus` 与 `showModel` 决定是否能消费 TTS；模型还未 ready 时不提前取走队列。
-- MusicCapsule 的 `getCurrentAudio()` 只返回当前实际播放的人声或伴奏，`getActionVersion()` 表示用户主动操作版本。
+- MusicCapsule 的 `getCurrentAudio()` 只返回与主轨同时播放的纯人声；人声不可用时返回 `null`，不让伴奏驱动嘴型。`getActionVersion()` 表示用户主动操作版本。
 
 ## 服务配置与验证状态
 
@@ -57,9 +58,12 @@ SSE audio / audio-skip → chatTts → useSequencedBuffer
 ```text
 HTMLAudioElement → 唯一 MediaElementAudioSourceNode → AudioContext.destination
                                       └→ 当前模型的 AnalyserNode → RMS → ParamMouthOpenY
+
+音乐纯人声 → 唯一 MediaElementAudioSourceNode → GainNode(0) → destination
+                                      └→ 当前模型的 AnalyserNode → RMS → ParamMouthOpenY
 ```
 
-声音主路和 source 注册表在 `useAudioLipSync` 模块中跨模型实例保留。模型 destroy 只移除分析支路、事件与 RAF；页面播放器退出时才关闭 AudioContext。分析连接失败不假定口型已成功连接。
+声音主路和 source 注册表在 `useAudioLipSync` 模块中跨模型实例保留。模型 destroy 只移除分析支路、事件与 RAF；共享 AudioContext 不主动关闭。分析连接失败不假定口型已成功连接。音乐纯人声通过 `prepareAnalysisOnlyAudio()` 标记为仅分析，零增益输出避免与完整音频重复发声；Web Audio 不可用时保留元素原生静音。
 
 `playing` 启动采样，`pause/ended/error` 停止采样并闭嘴；监听保留到解除绑定，因此暂停后再次播放可重新采样。已经播放的音乐在模型 ready/重新显示后由协调器查询快照并补接。
 
@@ -69,7 +73,11 @@ HTMLAudioElement → 唯一 MediaElementAudioSourceNode → AudioContext.destina
 
 TTS 开始前暂停音乐并记录用户操作版本；分段之间等待音频时保持暂停。音频完成且队列清空，或者 TTS 取消/故障时，仅在用户操作版本未改变的情况下恢复音乐。用户切歌或手动播放优先，不能被旧轮次结束回调覆盖；音乐暂停事件不停止正在进行的 TTS 口型。
 
-音乐音轨播放有 8 秒上限，等待任务可取消；结果按实际可播放轨道发布。双轨部分失败会显示降级提示，并选择可用音轨驱动口型。旧播放 Promise 不能写回新一轮状态。只有当前音轨仍有效的回调才能影响当前播放器。
+音乐保留现有上传契约：`fullAudioUrl` 是包含伴奏和人声的完整音频，负责可听输出；`vocalUrl` 是同起点、同时间轴的纯人声，只用于嘴型分析。Admin 分别提供两轨试听，并明确保留开头静音、不要单独裁剪的要求。封面可拖入上传框，上传期间阻止重复上传和提交。
+
+两轨先静音预备，在点击调用栈内解锁播放权限；预备完成的音轨暂停等待另一轨。两轨就绪后统一定位并同时起播，按完整音频的时间校正人声（偏差超过 80ms），不跳动可听主轨。任一有效轨道缓冲时共同暂停、就绪后对齐恢复；每次 `play()` 等待上限 8 秒，取消会清理等待任务。人声失败时完整音频继续播放并暂停口型；主轨失败时停止播放。旧播放 Promise 不能写回新一轮状态。
+
+完成事件以完整音频的 `ended` 为准，暂停剩余人声后只推进一次，不等待较长的人声音轨。默认列表循环（单首也会重播），可切换单曲循环或顺序播放；顺序播放在最后一首结束后停止。歌单面板显示时间与可同步跳转的进度。TTS 暂停音乐时也包含仍在加载中的播放请求，恢复前仍校验用户操作版本。
 
 ## 约束与验证
 
@@ -77,6 +85,6 @@ TTS 开始前暂停音乐并记录用户操作版本；分段之间等待音频�
 - 同一 audio 不能被不同模型反复创建 source node；模型销毁也不能静音独立音乐。
 - 全局只由 `useTtsPlayer` 协调 TTS 与音乐，不往 chat store 塞播放器回调。
 - 真实音乐文件、TTS、跨域响应与浏览器播放许可仍需集成验证；单元测试只证明受控时序。
-- 自动化覆盖见 [audioLipSync.test.ts](../../../../Web/src/__tests__/audioLipSync.test.ts)、[chatTts.test.ts](../../../../Web/src/__tests__/chatTts.test.ts)。
+- 自动化覆盖见 [audioLipSync.test.ts](../../../../Web/src/__tests__/audioLipSync.test.ts)、[musicPlayback.test.ts](../../../../Web/src/__tests__/musicPlayback.test.ts)、[chatTts.test.ts](../../../../Web/src/__tests__/chatTts.test.ts)。
 
 - runtime 未验证/已失败状态回归见[chatStream.test.ts](../../../../Web/src/__tests__/chatStream.test.ts)。

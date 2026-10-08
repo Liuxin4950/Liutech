@@ -104,6 +104,7 @@ const beforeAvatarUpload = (file: File): boolean => {
 }
 
 const handleAvatarChange = async (info: any) => {
+  if (avatarUploading.value || profileLoading.value) return
   const file = pickUploadFile(info)
   if (!file) return
   if (!beforeAvatarUpload(file)) return
@@ -124,6 +125,7 @@ const handleAvatarChange = async (info: any) => {
 }
 
 const handleSaveProfile = async () => {
+  if (avatarUploading.value || profileLoading.value) return
   try {
     profileLoading.value = true
     const res = await UserService.updateProfile({
@@ -180,19 +182,20 @@ onMounted(() => {
                   <template #icon><UserOutlined /></template>
                 </a-avatar>
                 <div class="avatar-actions">
-                  <a-upload
+                  <a-upload-dragger
                     name="file"
                     :show-upload-list="false"
                     accept="image/png,image/jpeg,image/gif,image/webp"
                     :max-count="1"
+                    :disabled="avatarUploading || profileLoading"
                     :before-upload="() => false"
                     @change="handleAvatarChange"
                   >
                     <a-button :loading="avatarUploading">
                       <UploadOutlined />
-                      更换头像
+                      点击或拖拽更换头像
                     </a-button>
-                  </a-upload>
+                  </a-upload-dragger>
                   <div class="avatar-hint">支持 PNG / JPG / GIF / WEBP，大小不超过 2MB</div>
                 </div>
               </div>
@@ -221,7 +224,7 @@ onMounted(() => {
             </a-form-item>
 
             <a-form-item>
-              <a-button type="primary" :loading="profileLoading" @click="handleSaveProfile">
+              <a-button type="primary" :loading="profileLoading" :disabled="avatarUploading" @click="handleSaveProfile">
                 保存修改
               </a-button>
             </a-form-item>

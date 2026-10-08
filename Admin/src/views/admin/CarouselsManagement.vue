@@ -108,6 +108,7 @@ const openEdit = async (record: Carousel) => {
 
 // 自定义提交（含图片上传校验）
 const handleSubmit = async () => {
+  if (confirmLoading.value) return
   try {
     confirmLoading.value = true
 
@@ -145,6 +146,7 @@ const handleSubmit = async () => {
 
 // ============== 图片上传 ==============
 const handleImageChange = async (info: any) => {
+  if (imageUploading.value || confirmLoading.value) return
   const file = pickUploadFile(info)
   if (!file) return
 
@@ -428,11 +430,12 @@ const statusOptions = [
         <a-row :gutter="16">
           <a-col :span="24">
             <a-form-item label="轮播图图片" extra="请上传轮播图图片（必填）">
-              <a-upload
+              <a-upload-dragger
                 name="file"
                 :show-upload-list="false"
                 accept="image/*"
                 :max-count="1"
+                :disabled="imageUploading || confirmLoading"
                 :before-upload="() => false"
                 @change="handleImageChange"
               >
@@ -441,9 +444,9 @@ const statusOptions = [
                 </div>
                 <a-button v-else :loading="imageUploading">
                   <UploadOutlined />
-                  选择图片
+                  点击或拖拽选择图片
                 </a-button>
-              </a-upload>
+              </a-upload-dragger>
               <div class="upload-tips">
                 支持 jpg、png、gif 格式，大小不超过 5MB
               </div>

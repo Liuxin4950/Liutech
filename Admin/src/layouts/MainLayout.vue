@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, provide, onMounted, watch } from 'vue'
+import { ref, reactive, computed, provide, onMounted, onBeforeUnmount, watch } from 'vue'
 import TheHeader from '@/components/TheHeader.vue'
 import TheFooter from '@/components/TheFooter.vue'
 import TheSidebar from '@/components/TheSidebar.vue'
@@ -11,15 +11,24 @@ import { useRoute, useRouter } from 'vue-router'
 const settings = useSettingsStore()
 const route = useRoute()
 
-// 侧边栏折叠状态：初始值取自 settings（用户偏好），
-// 后续变化同步回 settings 以持久化。
-const collapsed = ref(settings.sidebarCollapsed)
-provide('sidebarCollapsed', collapsed)
-
-watch(collapsed, (v) => { settings.setSidebarCollapsed(v) })
-watch(() => settings.sidebarCollapsed, (v) => {
-  if (v !== collapsed.value) collapsed.value = v
+// 手机使用独立抽屉，不让 220px 侧栏挤占内容，也不覆盖桌面折叠偏好。
+const mobileQuery = window.matchMedia('(max-width: 767px)')
+const isMobile = ref(mobileQuery.matches)
+const mobileMenuOpen = ref(false)
+const collapsed = computed({
+  get: () => isMobile.value ? !mobileMenuOpen.value : settings.sidebarCollapsed,
+  set: (value: boolean) => {
+    if (isMobile.value) mobileMenuOpen.value = !value
+    else settings.setSidebarCollapsed(value)
+  },
 })
+provide('sidebarCollapsed', collapsed)
+const mobileChanged = (event: MediaQueryListEvent) => {
+  isMobile.value = event.matches
+  mobileMenuOpen.value = false
+}
+watch(() => route.path, () => { mobileMenuOpen.value = false })
+onBeforeUnmount(() => mobileQuery.removeEventListener('change', mobileChanged))
 
 const tagsStore = useTagsStore()
 
@@ -41,6 +50,7 @@ provide('ltReloadCurrentView', () => {
 })
 
 onMounted(() => {
+  mobileQuery.addEventListener('change', mobileChanged)
   const router = useRouter()
   const routes = router.options.routes
   tagsStore.addAffixTags([...routes])
@@ -51,6 +61,7 @@ onMounted(() => {
   <a-layout class="lt-shell">
     <!-- 侧边栏 -->
     <a-layout-sider
+      v-if="!isMobile"
       class="lt-shell__sider"
       :collapsed="collapsed"
       :collapsed-width="56"
@@ -60,6 +71,9 @@ onMounted(() => {
     >
       <TheSidebar />
     </a-layout-sider>
+    <a-drawer v-else v-model:open="mobileMenuOpen" placement="left" :width="220" :closable="false" :body-style="{ padding: 0 }">
+      <TheSidebar />
+    </a-drawer>
 
     <!-- 主区：Header（内含面包屑）+ TagsView + 内容 + Footer 纵向堆叠 -->
     <a-layout class="lt-shell__main">

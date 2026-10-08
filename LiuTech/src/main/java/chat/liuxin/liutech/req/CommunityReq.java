@@ -29,6 +29,8 @@ public final class CommunityReq {
     }
     public record Claim(@Min(1) @Max(20) int limit, @Min(60) @Max(600) int leaseSeconds) {}
     public record Ack(@NotBlank String leaseToken) {}
+    public record Cancel(@NotBlank String taskId, @NotNull @Positive Long eventId,
+        @NotNull @Positive Long botId, @NotNull @Positive Long postId) {}
     public record Attempt(@NotBlank String taskId, @Min(1) @Max(10) int attempt,
         @NotNull @Positive Long botId, @NotNull @Positive Long postId, boolean preview) {}
     public record Publish(@NotBlank String taskId, @NotNull @Positive Long botId, @NotNull @Positive Long postId,

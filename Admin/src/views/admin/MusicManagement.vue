@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -134,32 +134,55 @@ const openEdit = (record: MusicItem) => {
 const audioPlayer = new Audio()
 const currentPlayingId = ref<number | null>(null)
 const isPlaying = ref(false)
+const previewLoadingId = ref<number | null>(null)
+const previewTrack = ref<'full' | 'vocal'>('full')
+let previewVersion = 0
 
-audioPlayer.onended = () => {
+const stopPreview = () => {
+  previewVersion++
+  audioPlayer.pause()
   currentPlayingId.value = null
+  previewLoadingId.value = null
   isPlaying.value = false
 }
+audioPlayer.onended = stopPreview
+audioPlayer.onplaying = () => { isPlaying.value = true; previewLoadingId.value = null }
+audioPlayer.onpause = () => { isPlaying.value = false }
+audioPlayer.onerror = () => {
+  if (currentPlayingId.value !== null) message.error('试听失败，请检查音频文件或网络')
+  stopPreview()
+}
+watch(previewTrack, stopPreview)
 
-const playPreview = (record: Music) => {
-  if (currentPlayingId.value === record.id) {
-    if (isPlaying.value) {
-      audioPlayer.pause()
-      isPlaying.value = false
-    } else {
-      audioPlayer.play()
-      isPlaying.value = true
-    }
+const playPreview = async (record: Music) => {
+  if (currentPlayingId.value === record.id && (isPlaying.value || previewLoadingId.value === record.id)) {
+    previewVersion++
+    audioPlayer.pause()
+    previewLoadingId.value = null
     return
   }
-  audioPlayer.src = record.fullAudioUrl
-  audioPlayer.play()
-  currentPlayingId.value = record.id
-  isPlaying.value = true
+  const token = ++previewVersion
+  if (currentPlayingId.value !== record.id) {
+    audioPlayer.pause()
+    audioPlayer.src = previewTrack.value === 'full' ? record.fullAudioUrl : record.vocalUrl
+    currentPlayingId.value = record.id
+  }
+  previewLoadingId.value = record.id
+  try {
+    await audioPlayer.play()
+  } catch {
+    if (token !== previewVersion) return
+    stopPreview()
+    message.error('试听失败，请点击重试或检查音频文件')
+  } finally {
+    if (token === previewVersion) previewLoadingId.value = null
+  }
 }
 
 onUnmounted(() => {
-  audioPlayer.pause()
+  stopPreview()
   audioPlayer.src = ''
+  if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
 })
 
 // ============== 上传弹窗 ==============
@@ -177,15 +200,20 @@ const coverPreview = ref<string>('')
 const coverUploading = ref(false)
 
 const handleCoverChange = async (info: any) => {
+  if (coverUploading.value || uploadLoading.value) return
   const file = pickUploadFile(info)
   if (!file) return
+  if (!file.type.startsWith('image/')) { message.error('请选择图片文件'); return }
+  if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
   coverPreview.value = URL.createObjectURL(file)
+  uploadForm.value.coverUrl = ''
   try {
     coverUploading.value = true
     const result = await ImageUploadService.uploadImage(file)
     uploadForm.value.coverUrl = result.fileUrl
   } catch (e: any) {
     if (!e?.isBusiness) message.error('封面上传失败')
+    URL.revokeObjectURL(coverPreview.value)
     coverPreview.value = ''
   } finally {
     coverUploading.value = false
@@ -203,6 +231,7 @@ const handleVocalAudioChange = (info: any) => {
 }
 
 const resetUploadForm = () => {
+  if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
   uploadForm.value = {
     title: '',
     artist: '',
@@ -215,6 +244,7 @@ const resetUploadForm = () => {
 }
 
 const handleUpload = async () => {
+  if (uploadLoading.value || coverUploading.value) return
   const { title, artist, coverUrl, fullAudio, vocalAudio } = uploadForm.value
   if (!title.trim()) { message.error('请输入歌曲名'); return }
   if (!coverUrl) { message.error('请上传封面图'); return }
@@ -279,6 +309,7 @@ const handleStatusChange = async (id: number, status: number) => {
 
 <template>
   <div class="p-24">
+    <a-alert class="mb-16" type="info" show-icon message="前台播放完整音频，纯人声仅用于看板娘嘴型，不重复发声。两份音频请保持相同起点与时长；前台支持列表循环、单曲循环与顺序播放。" />
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
@@ -318,6 +349,10 @@ const handleStatusChange = async (id: number, status: number) => {
       </template>
       <template #extra>
         <a-space>
+          <a-select v-model:value="previewTrack" aria-label="试听音轨" style="width: 130px">
+            <a-select-option value="full">试听完整音频</a-select-option>
+            <a-select-option value="vocal">试听纯人声</a-select-option>
+          </a-select>
           <TableExportButton :ctrl="exportCtrl" />
           <TableColumnSettings :ctrl="columnPrefsCtrl" />
           <a-button type="primary" @click="uploadModalVisible = true">
@@ -390,12 +425,12 @@ const handleStatusChange = async (id: number, status: number) => {
 
           <template v-else-if="column.key === 'action'">
             <a-space>
-              <a-button type="link" size="small" @click="playPreview(record)">
+              <a-button type="link" size="small" :loading="previewLoadingId === record.id" @click="playPreview(record)">
                 <template #icon>
                   <PauseCircleOutlined v-if="currentPlayingId === record.id && isPlaying" />
                   <PlayCircleOutlined v-else />
                 </template>
-                {{ currentPlayingId === record.id && isPlaying ? '暂停' : '播放' }}
+                {{ currentPlayingId === record.id && isPlaying ? '暂停' : '试听' }}
               </a-button>
               <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm title="确定要彻底删除这首音乐吗？此操作不可恢复！" @confirm="handleDelete(record.id)">
@@ -412,6 +447,10 @@ const handleStatusChange = async (id: number, status: number) => {
       v-model:open="uploadModalVisible"
       title="上传AI音乐"
       :confirm-loading="uploadLoading"
+      :ok-button-props="{ disabled: coverUploading }"
+      :cancel-button-props="{ disabled: uploadLoading || coverUploading }"
+      :closable="!uploadLoading && !coverUploading"
+      :mask-closable="!uploadLoading && !coverUploading"
       :width="500"
       destroy-on-close
       @ok="handleUpload"
@@ -424,25 +463,23 @@ const handleStatusChange = async (id: number, status: number) => {
         <a-form-item label="艺术家">
           <a-input v-model:value="uploadForm.artist" placeholder="请输入艺术家名称" />
         </a-form-item>
-        <a-form-item label="封面图">
-          <a-upload :show-upload-list="false" accept="image/*" :max-count="1" :before-upload="() => false" @change="handleCoverChange">
+        <a-form-item label="封面图" required>
+          <a-upload-dragger :show-upload-list="false" accept="image/*" :max-count="1" :disabled="coverUploading || uploadLoading" :before-upload="() => false" @change="handleCoverChange">
             <div v-if="coverPreview" class="cover-preview">
               <img :src="coverPreview" alt="封面预览" />
             </div>
-            <a-button v-else>
-              <CloudOutlined /> 选择封面图
-            </a-button>
-          </a-upload>
+            <p class="ant-upload-text">{{ coverUploading ? '正在上传封面…' : '拖入封面图片，或点击选择' }}</p>
+          </a-upload-dragger>
         </a-form-item>
-        <a-form-item label="完整音频" required help="背景音乐（伴奏+人声混合）">
-          <a-upload :show-upload-list="false" accept="audio/*" :max-count="1" :before-upload="() => false" @change="handleFullAudioChange">
+        <a-form-item label="完整音频" required help="包含伴奏和人声的完整成品，前台实际播放此音轨。">
+          <a-upload :show-upload-list="false" accept="audio/*" :max-count="1" :disabled="uploadLoading" :before-upload="() => false" @change="handleFullAudioChange">
             <a-button :type="uploadForm.fullAudio ? 'primary' : 'default'">
               {{ uploadForm.fullAudio ? '已选择: ' + uploadForm.fullAudio.name : '选择完整音频' }}
             </a-button>
           </a-upload>
         </a-form-item>
-        <a-form-item label="人声音频" required help="纯人声，用于Live2D模型对口型">
-          <a-upload :show-upload-list="false" accept="audio/*" :max-count="1" :before-upload="() => false" @change="handleVocalAudioChange">
+        <a-form-item label="纯人声音频" required help="仅驱动 Live2D 嘴型；保留与完整音频相同的开头静音和时间轴，请勿单独裁剪。">
+          <a-upload :show-upload-list="false" accept="audio/*" :max-count="1" :disabled="uploadLoading" :before-upload="() => false" @change="handleVocalAudioChange">
             <a-button :type="uploadForm.vocalAudio ? 'primary' : 'default'">
               {{ uploadForm.vocalAudio ? '已选择: ' + uploadForm.vocalAudio.name : '选择人声音频' }}
             </a-button>
@@ -490,6 +527,7 @@ const handleStatusChange = async (id: number, status: number) => {
   border-radius: var(--lt-radius-lg);
   overflow: hidden;
   border: 1px dashed var(--lt-color-border);
+  margin: 0 auto 8px;
 }
 
 .cover-preview img {

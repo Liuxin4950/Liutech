@@ -13,6 +13,12 @@ public class CommunityEvent {
     private Long commentId;
     private String rootEventId;
     private String leaseToken;
+    private Date leaseUntil;
+    private Date acknowledgedAt;
+    /** 管理队列展示字段，不写入事件表。 */
+    private String postTitle;
+    private String commentPreview;
+    private String status;
     private Date availableAt;
     private Date createdAt;
 }

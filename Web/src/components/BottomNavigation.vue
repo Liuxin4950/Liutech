@@ -173,7 +173,7 @@ const musicCapsuleRef = ref<InstanceType<typeof MusicCapsule> | null>(null)
 defineExpose({
   getCurrentAudio: () => musicCapsuleRef.value?.getCurrentAudio() || null,
   getMusicActionVersion: () => musicCapsuleRef.value?.getActionVersion() ?? 0,
-  isMusicPlaying: () => !!musicCapsuleRef.value?.isPlaying?.(),
+  isMusicPlaying: () => !!musicCapsuleRef.value?.isPlaying?.() || !!musicCapsuleRef.value?.isLoading?.(),
   pauseMusic: () => musicCapsuleRef.value?.pauseMusic?.(false),
   resumeMusic: () => musicCapsuleRef.value?.resumeMusic?.(false)
 })

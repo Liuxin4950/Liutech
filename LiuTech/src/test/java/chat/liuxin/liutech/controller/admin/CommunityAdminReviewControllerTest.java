@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class CommunityAdminReviewControllerTest {
@@ -57,5 +58,16 @@ class CommunityAdminReviewControllerTest {
         var mvc=MockMvcBuilders.standaloneSetup(new CommunityAdminController(service)).build();
         mvc.perform(post("/admin/community/posts/2/invite").contentType(MediaType.APPLICATION_JSON).content("{}"))
             .andExpect(status().isOk()).andExpect(jsonPath("$.data.queued").value(0));
+    }
+    @Test void cancellationConflictIsExplicitAndWithdrawalUsesItsOwnAdminRoute() throws Exception {
+        CommunityService service=mock(CommunityService.class);
+        when(service.cancelPendingEvent(7L)).thenReturn(new CommunityResp.Cancelled(false,"正在交接",null));
+        var mvc=MockMvcBuilders.standaloneSetup(new CommunityAdminController(service)).build();
+        mvc.perform(delete("/admin/community/events/7"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.data.cancelled").value(false))
+            .andExpect(jsonPath("$.data.reason").value("正在交接"));
+        mvc.perform(delete("/admin/community/comments/99"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200));
+        verify(service).withdrawComment(99L);
     }
 }

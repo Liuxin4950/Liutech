@@ -75,7 +75,7 @@ public interface CommunityMapper {
     CommunityPostState postState(Long id);
     @Update("UPDATE community_post_state SET first_public_seen=TRUE WHERE post_id=#{id} AND first_public_seen=FALSE")
     int markPublished(Long id);
-    @Update("UPDATE community_post_state SET enabled=#{enabled},version=version+1 WHERE post_id=#{id}")
+    @Update("UPDATE community_post_state SET enabled=#{enabled},version=version+1 WHERE post_id=#{id} AND enabled!=#{enabled}")
     int setPostEnabled(@Param("id") Long id, @Param("enabled") boolean enabled);
 
     @Insert("INSERT INTO community_chains(root_event_id,post_id,emitted) VALUES(#{root},#{postId},0)")
@@ -92,7 +92,7 @@ public interface CommunityMapper {
     /** 当前读而非事务快照，避免首次发布与补评在并发事务中重复安排。 */
     @Select("""
         SELECT id FROM community_events WHERE post_id=#{postId} AND bot_id=#{botId}
-        AND event_type IN ('ARTICLE_PUBLISHED','MANUAL_INVITE') ORDER BY id LIMIT 1 FOR UPDATE
+        AND (event_key LIKE 'ARTICLE_PUBLISHED:%' OR event_key LIKE 'MANUAL_INVITE:%') ORDER BY id LIMIT 1 FOR UPDATE
         """)
     Long lockArticleInvitation(@Param("postId") Long postId, @Param("botId") Long botId);
     @Select("""
@@ -115,6 +115,36 @@ public interface CommunityMapper {
     int lease(@Param("id") Long id, @Param("token") String token, @Param("seconds") int seconds);
     @Update("UPDATE community_events SET acknowledged_at=NOW() WHERE id=#{id} AND lease_token=#{token} AND acknowledged_at IS NULL")
     int ack(@Param("id") Long id, @Param("token") String token);
+
+    @Select("SELECT * FROM community_events WHERE id=#{id}")
+    CommunityEvent event(Long id);
+    @Select("SELECT * FROM community_events WHERE id=#{id} FOR UPDATE")
+    @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
+    CommunityEvent lockEvent(Long id);
+    /** 事件绑定与取消栅栏在正式发布事务内当前读，覆盖旧版 AI 请求。 */
+    @Select("SELECT * FROM community_events WHERE bot_id=#{botId} AND post_id=#{postId} " +
+            "AND root_event_id=#{root} AND comment_id <=> #{commentId} ORDER BY id LIMIT 1 FOR UPDATE")
+    @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
+    CommunityEvent publicationEvent(@Param("botId") Long botId,@Param("postId") Long postId,
+        @Param("root") String root,@Param("commentId") Long commentId);
+    @Update("UPDATE community_events SET event_type='CANCELLED',acknowledged_at=COALESCE(acknowledged_at,NOW()), " +
+            "lease_token=NULL,lease_until=NULL WHERE id=#{id}")
+    int cancelEvent(Long id);
+    @Select("<script>SELECT e.*,p.title AS post_title,LEFT(c.content,200) AS comment_preview," +
+            "IF(e.lease_token IS NOT NULL AND e.lease_until &gt; NOW(),'DISPATCHING','WAITING') AS status FROM community_events e " +
+            "LEFT JOIN posts p ON p.id=e.post_id LEFT JOIN comments c ON c.id=e.comment_id " +
+            "WHERE e.acknowledged_at IS NULL AND e.event_type!='CANCELLED' " +
+            "<if test='botId != null'>AND e.bot_id=#{botId}</if> " +
+            "<if test='postId != null'>AND e.post_id=#{postId}</if> " +
+            "ORDER BY e.available_at,e.id</script>")
+    List<CommunityEvent> pendingEvents(@Param("botId") Long botId,@Param("postId") Long postId);
+    /** ACK 丢失时任务可能已发表；保留软删评论参与判断，不把撤回当作未发表。 */
+    @Select("SELECT p.comment_id AS commentId,p.created_at AS createdAt,TRUE AS duplicate " +
+            "FROM community_publications p JOIN comments c ON c.community_task_id=p.task_id " +
+            "WHERE p.bot_id=#{botId} AND p.post_id=#{postId} AND c.root_event_id=#{rootEventId} " +
+            "AND p.created_at >= #{createdAt} ORDER BY p.created_at DESC LIMIT 1")
+    @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
+    CommunityResp.Published eventPublication(CommunityEvent event);
 
     @Select("SELECT id FROM comments WHERE post_id=#{postId} FOR UPDATE")
     List<Long> lockPostComments(Long postId);

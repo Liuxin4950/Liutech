@@ -29,6 +29,19 @@ public class CommunityAdminController {
     public Result<CommunityResp.Thread> thread(@PathVariable Long commentId) {
         return Result.success(service.commentThreadForAdmin(commentId));
     }
+    @DeleteMapping("/comments/{commentId}") @OperationLog(action="delete",targetType="community-comment",description="撤回 AI 评论及回复分支")
+    public Result<Void> withdraw(@PathVariable Long commentId) {
+        service.withdrawComment(commentId);return Result.success();
+    }
+    @GetMapping("/events")
+    public Result<List<CommunityEvent>> pendingEvents(@RequestParam(required=false) Long botId,
+        @RequestParam(required=false) Long postId) {
+        return Result.success(service.pendingEvents(botId,postId));
+    }
+    @DeleteMapping("/events/{eventId}") @OperationLog(action="delete",targetType="community-event",description="取消社区待派发事件")
+    public Result<CommunityResp.Cancelled> cancelEvent(@PathVariable Long eventId) {
+        return Result.success(service.cancelPendingEvent(eventId));
+    }
     @PostMapping("/bots") @OperationLog(action="create",targetType="community-bot",description="创建社区角色")
     public Result<CommunityBot> create(@Valid @RequestBody CommunityReq.Bot req) { return Result.success(service.saveBot(null,req)); }
     @PutMapping("/bots/{id}") @OperationLog(action="update",targetType="community-bot",description="修改社区角色")

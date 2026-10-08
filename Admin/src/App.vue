@@ -29,7 +29,7 @@ const antTheme = computed(() => ({
     controlHeight: 32,
     controlHeightLG: 40,
     controlHeightSM: 24,
-    fontFamily: `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif`,
+    fontFamily: 'var(--lt-font-family)',
     fontSize: 14,
     wireframe: false,
   },

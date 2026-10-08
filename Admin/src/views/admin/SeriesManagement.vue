@@ -42,7 +42,7 @@ const {
 // 弹窗表单
 const {
   modalVisible, modalTitle, confirmLoading,
-  formRef, formModel, openCreate, openEdit, handleOk, handleCancel
+  formRef, formModel, openCreate, openEdit, handleOk: submitForm, handleCancel
 } = useModalForm<PostSeries>({
   createFn: (data) => PostSeriesService.createSeries(data) as any,
   updateFn: (id, data) => PostSeriesService.updateSeries(id, data) as any,
@@ -82,6 +82,7 @@ const exportCtrl = useTableExport({
 const uploadingCover = ref(false)
 
 const handleCoverChange = async (info: any) => {
+  if (uploadingCover.value || confirmLoading.value) return
   const file = pickUploadFile(info)
   if (!file) return
   try {
@@ -96,6 +97,10 @@ const handleCoverChange = async (info: any) => {
   }
 }
 const removeCover = () => { formModel.value.coverImage = '' }
+const handleOk = async () => {
+  if (uploadingCover.value || confirmLoading.value) return
+  await submitForm()
+}
 
 // ============== 系列内文章管理（拖拽排序） ==============
 const postsDrawerVisible = ref(false)
@@ -258,7 +263,7 @@ const saveOrder = async () => {
     </a-card>
 
     <!-- 新建/编辑弹窗 -->
-    <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
+    <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" :ok-button-props="{ disabled: uploadingCover }" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
         <a-form-item name="name" label="系列名称" required>
           <a-input v-model:value="formModel.name" placeholder="请输入系列名称" maxlength="50" />
@@ -273,6 +278,7 @@ const saveOrder = async () => {
             :show-upload-list="false"
             accept="image/*"
             :max-count="1"
+            :disabled="uploadingCover || confirmLoading"
             :before-upload="() => false"
             @change="handleCoverChange"
           >

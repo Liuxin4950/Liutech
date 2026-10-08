@@ -200,6 +200,36 @@ export class PostService {
     }
   }
 
+  /** 归档需要全量公开文章，逐页读取并在完整成功后交给页面。 */
+  static async getArchivePosts(): Promise<PostListItem[]> {
+    const size = 200
+    const records: PostListItem[] = []
+    const ids = new Set<number>()
+    let pages = 1
+    let total = 0
+    for (let page = 1; page <= pages; page++) {
+      const response = await PostService.getPostList({ page, size, sortBy: 'latest' })
+      if (!Array.isArray(response.records) || !Number.isInteger(response.pages) || response.pages < 0
+        || !Number.isInteger(response.total) || response.total < 0) {
+        throw new Error('归档数据格式不正确，请稍后重试')
+      }
+      if (page === 1) {
+        pages = response.pages
+        total = response.total
+      }
+      if (response.pages !== pages || response.total !== total || (total > 0 && response.records.length === 0)) {
+        throw new Error('文章列表发生变化，请重新加载归档')
+      }
+      for (const record of response.records) {
+        if (ids.has(record.id)) throw new Error('文章列表发生变化，请重新加载归档')
+        ids.add(record.id)
+        records.push(record)
+      }
+    }
+    if (records.length !== total) throw new Error('归档数据未加载完整，请重新加载')
+    return records
+  }
+
   /**
    * 获取文章详情
    * @param id 文章ID
