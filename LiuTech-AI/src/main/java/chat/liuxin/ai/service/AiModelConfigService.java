@@ -10,6 +10,7 @@ import chat.liuxin.ai.infra.security.PromptBudget;
 import chat.liuxin.ai.mapper.AiChatMessageMapper;
 import chat.liuxin.ai.mapper.AiModelConfigMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -148,14 +149,12 @@ public class AiModelConfigService {
      * 全量更新模型配置。isDefault 不在这里改,须走 {@link #setDefaultModel}。
      * 改名时若与其他记录冲突抛异常。
      */
+    @Transactional(rollbackFor=Exception.class)
     public ModelConfigDTO updateModel(Long id, ModelConfigRequest request) {
         log.info("更新模型配置，ID: {}, 模型名称: {}", id, request.getModelName());
 
-        AiModelConfig config = modelConfigMapper.selectById(id);
-        if (config == null) {
-            log.warn("模型配置不存在，ID: {}", id);
-            throw new AIServiceException.RequestException("模型配置不存在");
-        }
+        AiModelConfig config = lockedModel(id);
+        requireEnabledChange(config,Boolean.TRUE.equals(request.getIsEnabled()));
 
         // 检查模型名称是否与其他模型冲突
         AiModelConfig existing = modelConfigMapper.selectOne(
@@ -180,7 +179,12 @@ public class AiModelConfigService {
         config.setTemperature(request.getTemperature());
         config.setDescription(request.getDescription());
 
-        modelConfigMapper.updateById(config);
+        modelConfigMapper.update(null,new LambdaUpdateWrapper<AiModelConfig>().eq(AiModelConfig::getId,id)
+            .set(AiModelConfig::getModelName,config.getModelName()).set(AiModelConfig::getDisplayName,config.getDisplayName())
+            .set(AiModelConfig::getProvider,config.getProvider()).set(AiModelConfig::getIsEnabled,config.getIsEnabled())
+            .set(AiModelConfig::getSortOrder,config.getSortOrder()).set(AiModelConfig::getMaxTokens,config.getMaxTokens())
+            .set(AiModelConfig::getContextWindow,config.getContextWindow()).set(AiModelConfig::getTemperature,config.getTemperature())
+            .set(AiModelConfig::getDescription,config.getDescription()));
         log.info("模型配置更新成功，ID: {}", id);
         return toDTO(config);
     }
@@ -188,14 +192,11 @@ public class AiModelConfigService {
     /**
      * 物理删除模型配置。默认模型受保护,必须先把默认切走再删。
      */
+    @Transactional(rollbackFor=Exception.class)
     public void deleteModel(Long id) {
         log.info("删除模型配置，ID: {}", id);
 
-        AiModelConfig config = modelConfigMapper.selectById(id);
-        if (config == null) {
-            log.warn("模型配置不存在，ID: {}", id);
-            throw new AIServiceException.RequestException("模型配置不存在");
-        }
+        AiModelConfig config = lockedModel(id);
 
         // 不允许删除默认模型
         if (Boolean.TRUE.equals(config.getIsDefault())) {
@@ -215,11 +216,7 @@ public class AiModelConfigService {
     public void setDefaultModel(Long id) {
         log.info("设置默认模型，ID: {}", id);
 
-        AiModelConfig config = modelConfigMapper.selectById(id);
-        if (config == null) {
-            log.warn("模型配置不存在，ID: {}", id);
-            throw new AIServiceException.RequestException("模型配置不存在");
-        }
+        AiModelConfig config = lockedModel(id);
 
         // 确保模型是启用的
         if (!Boolean.TRUE.equals(config.getIsEnabled())) {
@@ -238,23 +235,18 @@ public class AiModelConfigService {
     /**
      * 启用或禁用模型。禁用默认模型受保护,必须先把默认切走。
      */
+    @Transactional(rollbackFor=Exception.class)
     public void toggleEnabled(Long id, boolean enabled) {
         log.info("切换模型启用状态，ID: {}, 启用: {}", id, enabled);
 
-        AiModelConfig config = modelConfigMapper.selectById(id);
-        if (config == null) {
-            log.warn("模型配置不存在，ID: {}", id);
-            throw new AIServiceException.RequestException("模型配置不存在");
-        }
+        AiModelConfig config = lockedModel(id);
 
         // 禁用默认模型时需要检查
-        if (!enabled && Boolean.TRUE.equals(config.getIsDefault())) {
-            log.warn("不能禁用默认模型，ID: {}", id);
-            throw new AIServiceException.RequestException("不能禁用默认模型，请先设置其他模型为默认");
-        }
+        requireEnabledChange(config,enabled);
 
         config.setIsEnabled(enabled);
-        modelConfigMapper.updateById(config);
+        modelConfigMapper.update(null,new LambdaUpdateWrapper<AiModelConfig>().eq(AiModelConfig::getId,id)
+            .set(AiModelConfig::getIsEnabled,enabled));
         log.info("模型启用状态切换成功，ID: {}, 启用: {}", id, enabled);
     }
 
@@ -266,6 +258,18 @@ public class AiModelConfigService {
         List<ModelUsageStats> stats = chatMessageMapper.selectTodayModelUsage();
         log.info("今日模型使用统计查询完成，模型数量: {}", stats.size());
         return stats;
+    }
+    private AiModelConfig lockedModel(Long id) {
+        modelConfigMapper.lockCatalog();
+        AiModelConfig config=modelConfigMapper.lockModel(id);
+        if(config==null) throw new AIServiceException.RequestException("模型配置不存在");
+        return config;
+    }
+    private void requireEnabledChange(AiModelConfig config,boolean enabled) {
+        if(!enabled && Boolean.TRUE.equals(config.getIsDefault())) {
+            log.warn("不能禁用默认模型，ID: {}",config.getId());
+            throw new AIServiceException.RequestException("不能禁用默认模型，请先设置其他模型为默认");
+        }
     }
 
     /** 实体转 DTO,字段一对一映射,并附带实际生效的限制(管理端据此判断配置是否被全局策略约束)。 */

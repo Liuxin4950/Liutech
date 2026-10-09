@@ -2,6 +2,7 @@ package chat.liuxin.ai.controller.admin;
 
 import chat.liuxin.ai.dto.community.CommunityPreviewRequest;
 import chat.liuxin.ai.service.community.CommunityService;
+import chat.liuxin.ai.service.community.CommunityWorkerMonitor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +17,8 @@ import java.util.Map;
 @org.springframework.validation.annotation.Validated
 public class CommunityAdminController {
     private final CommunityService community;
+    private final CommunityWorkerMonitor workerMonitor;
+    @GetMapping("/worker") public Map<String,Object> worker() { return success(workerMonitor.status()); }
     @PostMapping("/preview") public Map<String,Object> preview(@Valid @RequestBody CommunityPreviewRequest request) {
         return success(community.preview(request));
     }

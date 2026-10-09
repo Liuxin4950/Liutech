@@ -2,31 +2,39 @@
 import { computed, ref } from 'vue'
 import { useTablePage, useModalForm } from '@/composables'
 import aiModelsService from '@/services/aiModels'
+import { getAiRuntime } from '@/services/aiRuntime'
 import type { ModelConfig, ModelConfigRequest } from '@/services/aiModels'
 import { message, Modal } from 'ant-design-vue'
 import {
   ReloadOutlined,
   PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CheckCircleOutlined,
-  StopOutlined,
-  StarOutlined,
   StarFilled,
   RobotOutlined
 } from '@ant-design/icons-vue'
 
 // ============== 表格页面 ==============
+const loadError = ref('')
+const modelsLoaded = ref(false)
+const runtimeDefault = ref<string | null>(null)
+const mutationBusy = ref<string | null>(null)
+const confirmationOpen = ref(false)
 const {
   loading, dataSource,
   load
 } = useTablePage<ModelConfig, { keyword: string }>({
   loadFn: async () => {
-    const result = await aiModelsService.getModelList()
-    const list = Array.isArray(result) ? result
-      : Array.isArray((result as any)?.data) ? (result as any).data
-      : []
-    return { code: 200, message: 'ok', data: { records: list as ModelConfig[], total: list.length } }
+    try {
+      const [models, runtime] = await Promise.allSettled([aiModelsService.getModelList(), getAiRuntime()])
+      runtimeDefault.value = runtime.status === 'fulfilled' ? runtime.value.defaultModel : null
+      if (models.status === 'rejected') throw models.reason
+      if (!Array.isArray(models.value)) throw new Error('模型列表响应格式不正确')
+      loadError.value = ''
+      modelsLoaded.value = true
+      return { code: 200, message: 'ok', data: { records: models.value, total: models.value.length } }
+    } catch (error) {
+      loadError.value = '模型列表读取失败，已保留上次结果。重新读取成功后再操作。'
+      throw error
+    }
   },
   defaultSearchParams: { keyword: '' },
   autoLoad: true,
@@ -35,6 +43,10 @@ const {
 
 // 客户端搜索过滤
 const searchText = ref('')
+const defaultModel = computed(() => dataSource.value.find(item => item.isDefault))
+const defaultModelText = computed(() => defaultModel.value?.displayName || (runtimeDefault.value ? `服务端回退：${runtimeDefault.value}` : modelsLoaded.value ? '尚未配置默认模型' : '正在读取'))
+const enabledModelCount = computed(() => dataSource.value.filter(item => item.isEnabled).length)
+const actionsDisabled = computed(() => loading.value || !!loadError.value || !!mutationBusy.value || confirmLoading.value)
 const filteredModels = computed(() => {
   const keyword = searchText.value.trim().toLowerCase()
   if (!keyword) return dataSource.value
@@ -46,7 +58,7 @@ const filteredModels = computed(() => {
 })
 
 // ============== 预设模型 ==============
-/** 预设模型：数值取自 SiliconFlow 官方模型页，只用于新增时一键填充，管理员可再改 */
+/** 预设只帮助填写，提交前仍需按供应商当前规格核对。 */
 interface ModelPreset {
   /** 下拉选项的标识，用模型名保证唯一 */
   key: string
@@ -129,20 +141,12 @@ const {
   formRef, formModel, openCreate: baseOpenCreate, handleOk, handleCancel
 } = useModalForm<ModelConfigRequest>({
   createFn: async (data) => {
-    try {
-      const result = await aiModelsService.addModel(data as ModelConfigRequest)
-      return result && typeof result === 'object' && 'code' in result ? result : { code: 200, data: result }
-    } catch (e: any) {
-      return { code: 500, message: e?.message || '创建失败', data: null }
-    }
+    const result = await aiModelsService.addModel(data as ModelConfigRequest)
+    return { code: 200, data: result }
   },
   updateFn: async (id, data) => {
-    try {
-      const result = await aiModelsService.updateModel(id, data as ModelConfigRequest)
-      return result && typeof result === 'object' && 'code' in result ? result : { code: 200, data: result }
-    } catch (e: any) {
-      return { code: 500, message: e?.message || '更新失败', data: null }
-    }
+    const result = await aiModelsService.updateModel(id, data as ModelConfigRequest)
+    return { code: 200, data: result }
   },
   defaultForm: defaultModelForm,
   onCreateSuccess: load,
@@ -152,6 +156,7 @@ const {
 
 // 覆盖 openCreate：自定义标题和默认排序
 const openCreate = () => {
+  if (actionsDisabled.value) return
   baseOpenCreate()
   modalTitle.value = '新增模型'
   formModel.value.sortOrder = dataSource.value.length
@@ -161,6 +166,7 @@ const openCreate = () => {
 
 // 覆盖 openEdit：精确映射字段
 const openEdit = (record: ModelConfig) => {
+  if (actionsDisabled.value) return
   isEdit.value = true
   modalTitle.value = '编辑模型'
   editingId.value = record.id
@@ -234,8 +240,8 @@ const revalidateContextWindow = () => {
 
 // 表单校验规则
 const formRules = {
-  modelName: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
-  displayName: [{ required: true, message: '请输入显示名称', trigger: 'blur' }],
+  modelName: [{ required: true, whitespace: true, message: '请输入模型名称', trigger: 'blur' }],
+  displayName: [{ required: true, whitespace: true, message: '请输入显示名称', trigger: 'blur' }],
   contextWindow: [{ validator: validateContextWindow, trigger: 'change' }]
 }
 
@@ -290,57 +296,74 @@ const inputCapTip = (record: ModelConfig): string => {
 }
 
 // ============== 特殊操作 ==============
-const setDefaultModel = async (record: ModelConfig) => {
+const runMutation = async (key: string, action: () => Promise<void>, success: string) => {
+  if (actionsDisabled.value) return
+  mutationBusy.value = key
   try {
-    await aiModelsService.setDefaultModel(record.id)
-    message.success('默认模型已更新')
+    await action()
+    message.success(success)
     await load()
   } catch (error: any) {
-    if (!error?.isBusiness) message.error('设置默认模型失败')
+    if (!error?.isBusiness) message.error('操作失败，请检查网络后重试')
+    throw error
+  } finally {
+    mutationBusy.value = null
   }
 }
-
+const setDefaultModel = (record: ModelConfig) => {
+  if (actionsDisabled.value || confirmationOpen.value || record.isDefault || !record.isEnabled) return
+  confirmationOpen.value = true
+  Modal.confirm({
+    title: `将「${record.displayName}」设为全局默认？`,
+    content: '聊天、写作及跟随默认模型的评论角色会使用此模型，已有角色的单独指定模型不变。',
+    okText: '设为默认', cancelText: '取消',
+    afterClose: () => { confirmationOpen.value = false },
+    onOk: () => runMutation(`default:${record.id}`, () => aiModelsService.setDefaultModel(record.id), '全局默认模型已更新')
+  })
+}
 const toggleEnabled = async (record: ModelConfig) => {
-  try {
-    await aiModelsService.toggleEnabled(record.id, !record.isEnabled)
-    message.success(record.isEnabled ? '模型已禁用' : '模型已启用')
-    await load()
-  } catch (error: any) {
-    if (!error?.isBusiness) message.error('切换模型状态失败')
-  }
+  if (record.isDefault || actionsDisabled.value) return
+  try { await runMutation(`toggle:${record.id}`, () => aiModelsService.toggleEnabled(record.id, !record.isEnabled), record.isEnabled ? '模型已禁用' : '模型已启用') } catch { /* 失败由操作入口提示，保留当前列表 */ }
 }
-
 const removeModel = (record: ModelConfig) => {
+  if (record.isDefault || actionsDisabled.value || confirmationOpen.value) return
+  confirmationOpen.value = true
   Modal.confirm({
     title: '确认删除模型',
     content: `确定删除 "${record.displayName}" 吗？`,
     okText: '删除',
     okType: 'danger',
     cancelText: '取消',
-    onOk: async () => {
-      try {
-        await aiModelsService.deleteModel(record.id)
-        message.success('模型已删除')
-        await load()
-      } catch (error: any) {
-        if (!error?.isBusiness) message.error('删除失败')
-      }
-    }
+    afterClose: () => { confirmationOpen.value = false },
+    onOk: () => runMutation(`delete:${record.id}`, () => aiModelsService.deleteModel(record.id), '模型已删除')
   })
 }
+const submitModel = async () => {
+  if (confirmLoading.value || mutationBusy.value) return
+  await handleOk()
+}
+const refreshModels = () => { if (!loading.value && !mutationBusy.value && !confirmLoading.value) void load() }
 </script>
 
 <template>
   <div class="p-24">
+    <div class="page-heading">
+      <div><h2>模型配置</h2><p>全局文本模型统一用于聊天、写作与评论；语音引擎在 <router-link to="/ai-settings">语音服务</router-link> 配置。</p></div>
+      <a-space wrap>
+        <a-button @click="refreshModels" :loading="loading" :disabled="!!mutationBusy || confirmLoading"><ReloadOutlined /> 重新读取</a-button>
+        <a-button type="primary" @click="openCreate" :disabled="actionsDisabled"><PlusOutlined /> 新增模型</a-button>
+      </a-space>
+    </div>
+    <a-alert v-if="loadError" class="mb-16" type="error" show-icon :message="loadError" />
+    <div class="model-summary mb-16">
+      <span>全局默认 <strong>{{ defaultModelText }}</strong></span>
+      <a-tag v-if="loadError" color="orange">上次读取结果</a-tag>
+      <span v-if="modelsLoaded">已启用 {{ enabledModelCount }} / {{ dataSource.length }}</span>
+      <span class="summary-hint">角色可单独指定模型；未指定时跟随全局默认。</span>
+    </div>
     <a-card :bordered="false" class="models-card">
       <template #title>
-        <div class="title-row">
-          <div class="title-left">
-            <RobotOutlined />
-            <span>模型配置</span>
-          </div>
-          <div class="title-sub">统一管理文本模型的启用、默认选择与输入 / 输出预算，供聊天、写作和评论角色使用。语音模型在「语音服务」配置。</div>
-        </div>
+        <span><RobotOutlined /> 可用模型</span>
       </template>
       <template #extra>
         <a-space>
@@ -350,18 +373,10 @@ const removeModel = (record: ModelConfig) => {
             style="width: 220px"
             allow-clear
           />
-          <a-button @click="load" :loading="loading">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <a-button type="primary" @click="openCreate">
-            <template #icon><PlusOutlined /></template>
-            新增模型
-          </a-button>
         </a-space>
       </template>
 
-      <a-table :data-source="filteredModels" :loading="loading" :pagination="false" row-key="id" size="small">
+      <a-table :data-source="filteredModels" :loading="loading" :pagination="false" :scroll="{ x: 950 }" row-key="id" size="small">
         <a-table-column title="模型" key="model" :ellipsis="true">
           <template #default="{ record }">
             <div class="model-main">
@@ -372,7 +387,7 @@ const removeModel = (record: ModelConfig) => {
                 </a-tag>
               </div>
               <div class="model-name">{{ record.modelName }}</div>
-              <div v-if="record.description" class="model-desc">{{ record.description }}</div>
+              <div v-if="record.description" class="model-desc" :title="record.description">{{ record.description }}</div>
             </div>
           </template>
         </a-table-column>
@@ -382,10 +397,9 @@ const removeModel = (record: ModelConfig) => {
             <div class="param-text">上下文窗口：{{ formatTokenParam(record.contextWindow, record.effectiveContextWindow) }}</div>
             <div class="param-text">输出上限：{{ formatTokenParam(record.maxTokens, record.effectiveMaxTokens) }}</div>
             <div class="param-text">输入预算：{{ formatTokenParam(record.inputBudgetTokens, null, '未知') }}</div>
-            <div class="param-text">Temperature：{{ record.temperature ?? '默认' }}</div>
-            <div class="param-text">排序：{{ record.sortOrder ?? 0 }}</div>
-            <div v-if="isClamped(record)" class="param-text param-warn">{{ effectiveTip(record) }}</div>
-            <div v-if="isInputCapped(record)" class="param-text param-warn">{{ inputCapTip(record) }}</div>
+            <a-tooltip v-if="isClamped(record) || isInputCapped(record)" :title="[isClamped(record) ? effectiveTip(record) : '', isInputCapped(record) ? inputCapTip(record) : ''].filter(Boolean).join('；')">
+              <a-tag color="orange">受安全上限约束</a-tag>
+            </a-tooltip>
           </template>
         </a-table-column>
 
@@ -395,29 +409,15 @@ const removeModel = (record: ModelConfig) => {
           </template>
         </a-table-column>
 
-        <a-table-column title="操作" key="action" width="220">
+        <a-table-column title="操作" key="action" width="300" fixed="right">
           <template #default="{ record }">
             <a-space>
-              <a-tooltip v-if="!record.isDefault" title="设为默认">
-                <a-button type="link" size="small" @click="setDefaultModel(record)">
-                  <StarOutlined class="text-gold" />
-                </a-button>
+              <a-button v-if="!record.isDefault" type="link" size="small" :disabled="actionsDisabled || !record.isEnabled" :loading="mutationBusy === `default:${record.id}`" @click="setDefaultModel(record)">设为默认</a-button>
+              <a-tooltip :title="record.isDefault ? '先将其他启用模型设为默认，再禁用此模型' : ''">
+                <a-button type="link" size="small" :disabled="actionsDisabled || record.isDefault" :loading="mutationBusy === `toggle:${record.id}`" @click="toggleEnabled(record)">{{ record.isEnabled ? '禁用' : '启用' }}</a-button>
               </a-tooltip>
-              <a-tooltip :title="record.isEnabled ? '禁用' : '启用'">
-                <a-button type="link" size="small" @click="toggleEnabled(record)">
-                  <component :is="record.isEnabled ? StopOutlined : CheckCircleOutlined" :class="record.isEnabled ? 'text-red' : 'text-green'" />
-                </a-button>
-              </a-tooltip>
-              <a-tooltip title="编辑">
-                <a-button type="link" size="small" @click="openEdit(record)">
-                  <EditOutlined class="text-blue" />
-                </a-button>
-              </a-tooltip>
-              <a-tooltip v-if="!record.isDefault" title="删除">
-                <a-button type="link" size="small" danger @click="removeModel(record)">
-                  <DeleteOutlined />
-                </a-button>
-              </a-tooltip>
+              <a-button type="link" size="small" :disabled="actionsDisabled" @click="openEdit(record)">编辑</a-button>
+              <a-button v-if="!record.isDefault" type="link" size="small" danger :disabled="actionsDisabled" :loading="mutationBusy === `delete:${record.id}`" @click="removeModel(record)">删除</a-button>
             </a-space>
           </template>
         </a-table-column>
@@ -427,10 +427,15 @@ const removeModel = (record: ModelConfig) => {
     <a-modal
       v-model:open="modalVisible"
       :title="modalTitle"
-      @ok="handleOk"
+      @ok="submitModel"
+      @cancel="() => { if (!confirmLoading) handleCancel() }"
       :confirm-loading="confirmLoading"
+      :cancel-button-props="{ disabled: confirmLoading }"
+      :closable="!confirmLoading"
+      :mask-closable="!confirmLoading"
+      :keyboard="!confirmLoading"
     >
-      <a-form ref="formRef" :model="formModel" :rules="formRules" layout="vertical">
+      <a-form ref="formRef" :model="formModel" :rules="formRules" layout="vertical" :disabled="confirmLoading">
         <!-- 预设只在新增态出现：编辑态后端不允许改 modelName，套预设没有意义 -->
         <a-form-item v-if="!isEdit" label="从预设填充">
           <a-select
@@ -444,7 +449,7 @@ const removeModel = (record: ModelConfig) => {
               {{ preset.displayName }}（上下文 {{ preset.contextWindow }} / 输出 {{ preset.maxTokens }}）
             </a-select-option>
           </a-select>
-          <div class="param-text mt-4">预设数值取自 SiliconFlow 官方模型页，填充后仍可手动修改。</div>
+          <div class="param-text mt-4">预设只帮助填写，提交前请按供应商当前规格核对。</div>
         </a-form-item>
         <a-form-item label="显示名称" name="displayName">
           <a-input v-model:value="formModel.displayName" placeholder="例如：DeepSeek-V3.2" />
@@ -485,7 +490,7 @@ const removeModel = (record: ModelConfig) => {
           <a-textarea v-model:value="formModel.description" :rows="3" placeholder="写给你自己看的维护备注即可" />
         </a-form-item>
         <a-form-item>
-          <a-checkbox v-model:checked="formModel.isEnabled">立即启用</a-checkbox>
+          <a-checkbox v-model:checked="formModel.isEnabled" :disabled="isEdit && editingId === defaultModel?.id">启用模型</a-checkbox>
         </a-form-item>
       </a-form>
     </a-modal>
@@ -493,27 +498,16 @@ const removeModel = (record: ModelConfig) => {
 </template>
 
 <style scoped>
+.page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.page-heading h2 { margin: 0 0 4px; font-size: 20px; }
+.page-heading p { margin: 0; color: var(--lt-color-text-secondary); }
+.model-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; background: var(--lt-color-bg-container); border-radius: var(--lt-radius-lg); }
+.summary-hint { margin-left: auto; color: var(--lt-color-text-secondary); font-size: 12px; }
+.model-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 900px) { .page-heading { flex-direction: column; } .summary-hint { margin-left: 0; width: 100%; } }
 .models-card {
   border-radius: var(--lt-radius-xl);
   box-shadow: var(--lt-shadow-xs);
-}
-
-.title-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--lt-space-xs);
-}
-
-.title-left {
-  display: flex;
-  align-items: center;
-  gap: var(--lt-space-sm);
-  font-weight: var(--lt-font-weight-bold);
-}
-
-.title-sub {
-  font-size: var(--lt-font-size-xs);
-  color: var(--text-secondary);
 }
 
 .model-main {
@@ -542,17 +536,8 @@ const removeModel = (record: ModelConfig) => {
   color: var(--text-secondary);
 }
 
-/* 生效值提示：管理员配置被服务端夹小时用警示色标出来，避免"配了却没生效"毫无感知 */
-.param-warn {
-  color: var(--lt-color-warning);
-}
-
 .full-width {
   width: 100%;
 }
 
-.text-gold { color: var(--lt-color-gold); }
-.text-red { color: var(--lt-color-error); }
-.text-green { color: var(--lt-color-success); }
-.text-blue { color: var(--lt-color-primary); }
 </style>

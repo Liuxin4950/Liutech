@@ -6,6 +6,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.env.Environment;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestTemplate;
 
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -16,6 +21,8 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 class TtsSpeechStatusTest {
@@ -23,10 +30,11 @@ class TtsSpeechStatusTest {
     private TtsConfigDTO config;
     private HttpClient httpClient;
     private TtsSpeechService service;
+    private TtsConfigService configService;
 
     @BeforeEach
     void setUp() {
-        TtsConfigService configService = mock(TtsConfigService.class);
+        configService = mock(TtsConfigService.class);
         config = new TtsConfigDTO();
         config.setEnabled(true);
         config.setProvider("GPT_SOVITS");
@@ -92,6 +100,42 @@ class TtsSpeechStatusTest {
         assertFalse(service.getStatus().isOnline());
         assertNull(service.inferSingleAudioUrl("第二段"));
         verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    void voiceUploadReturnsModelAndUriWithoutReplacingSavedGlobalVoice() {
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.createServer(restTemplate);
+        server.expect(requestTo("https://siliconflow.example.invalid/v1/uploads/audio/voice"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"uri\":\"speech:new-voice\"}", MediaType.APPLICATION_JSON));
+
+        var voice = service.uploadSiliconFlowVoice(
+                new MockMultipartFile("file", "reference.wav", "audio/wav", new byte[]{1, 2, 3}),
+                "IndexTeam/IndexTTS-2", "reference", "参考文本");
+
+        assertEquals("speech:new-voice", voice.getUri());
+        assertEquals("IndexTeam/IndexTTS-2", voice.getModel());
+        verify(configService, never()).updateSiliconFlowVoiceUri(anyString());
+        verify(configService, never()).updateConfig(any());
+        server.verify();
+    }
+
+    @Test
+    void voiceUploadWithoutProviderUriFailsWithoutChangingSavedConfiguration() {
+        RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
+        MockRestServiceServer server = MockRestServiceServer.createServer(restTemplate);
+        server.expect(requestTo("https://siliconflow.example.invalid/v1/uploads/audio/voice"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> service.uploadSiliconFlowVoice(
+                        new MockMultipartFile("file", "reference.wav", "audio/wav", new byte[]{1}),
+                        "IndexTeam/IndexTTS-2", "reference", "参考文本"));
+
+        verify(configService, never()).updateSiliconFlowVoiceUri(anyString());
+        verify(configService, never()).updateConfig(any());
+        server.verify();
     }
 
     private void reply(int code, byte[] audio) throws Exception {

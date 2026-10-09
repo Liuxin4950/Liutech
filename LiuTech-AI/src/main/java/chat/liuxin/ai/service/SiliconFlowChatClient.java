@@ -68,9 +68,15 @@ public class SiliconFlowChatClient {
     @CircuitBreaker(name = "aiService", fallbackMethod = "fallbackChat")
     public String chat(List<Message> messages, String model, Double temperature, Integer maxTokens,
                        ChatMode mode, String role, Map<String, Object> context) {
-        return streamChat(messages, model, temperature, maxTokens, mode, role, context)
+        try {
+            return streamChat(messages, model, temperature, maxTokens, mode, role, context)
                 .collectList().map(parts -> String.join("", parts))
                 .block(Duration.ofMillis(Math.max(1000, aiChatProperties.getSseTimeout())));
+        } catch (IllegalStateException timeout) {
+            if(timeout.getCause() instanceof java.util.concurrent.TimeoutException)
+                throw new AIServiceException.TimeoutException("模型响应超过配置的执行时限，请稍后重试");
+            throw timeout;
+        }
     }
     public Flux<String> streamChat(List<Message> messages, String model, Double temperature, Integer maxTokens, String role) {
         return streamChat(messages, model, temperature, maxTokens, ChatMode.CHAT, role, null);

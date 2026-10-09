@@ -30,6 +30,7 @@ public class CommunityService {
     private final CommunityStore store;
     private final ObjectMapper objectMapper;
     private final AiMetrics metrics;
+    private final CommunityWorkerMonitor workerMonitor;
 
     public Map<String,Object> preview(CommunityPreviewRequest request) {
         String taskId=UUID.randomUUID().toString();
@@ -62,7 +63,9 @@ public class CommunityService {
         String model="unresolved";
         CommunityScope scope=null;
         try {
+            if(!preview) workerMonitor.taskPhase(taskId,"PREPARING_CONTEXT");
             JsonNode snapshot=context(botId,postId,commentId);
+            if(!preview) workerMonitor.progress(taskId);
             // 管理员审查历史运行时使用当时的配置，不把后来修改的人设误当作本轮依据。
             result.put("roleSnapshot", snapshot.path("bot"));
             result.put("postTitle",snapshot.path("post").path("title").asText());
@@ -76,7 +79,7 @@ public class CommunityService {
                     || !snapshot.path("bot").path("enabled").asBoolean() || !snapshot.path("postEnabled").asBoolean())) {
                 throw new BackendApiTransport.InternalBusinessException(1700,"社区互动已暂停");
             }
-            scope=new CommunityScope(snapshot,readMemories(botId,!preview));
+            scope=new CommunityScope(snapshot,readMemories(botId,!preview,preview?null:taskId));
             model=modelPolicy.resolveModelName();
             var params=modelPolicy.resolveParameters(null,null,model);
             String system="你是博客评论区的 AI 角色。站点已标明 AI 身份，被问到身份时如实说明，日常自然参与，不必反复自报身份。只评价当前公开文章和本线程；可以选择沉默。"
@@ -127,8 +130,13 @@ public class CommunityService {
             execution.put(CommunityScope.CONTEXT_KEY,scope);
             execution.put(chat.liuxin.ai.common.client.ModelExecutionPolicy.CONTEXT_KEY,
                     new chat.liuxin.ai.common.client.ModelExecutionPolicy(true, scope, () -> false, true, false));
-            String text=client.chat(messages,model,params.temperature(),params.maxTokens(),
-                    SiliconFlowChatClient.ChatMode.COMMUNITY,"BOT",execution);
+            if(!preview) workerMonitor.model(taskId,model);
+            String text;
+            try {
+                text=client.chat(messages,model,params.temperature(),params.maxTokens(),
+                        SiliconFlowChatClient.ChatMode.COMMUNITY,"BOT",execution);
+            } finally {if(!preview) workerMonitor.modelFinished(taskId);}
+            if(!preview) workerMonitor.taskPhase(taskId,"VALIDATING_RESULT");
             CommunityDecision decision=CommunityDecision.parse(text,objectMapper,scope.readTargets(),commentId);
             result.put("decision",decision.decision());result.put("reason",decision.reason());
             result.put("content",decision.content());result.put("targetCommentId",decision.targetCommentId());
@@ -148,7 +156,8 @@ public class CommunityService {
             result.put("participants",participants.stream().distinct().toList());
             return result;
         } catch(RuntimeException error) {
-            result.put("error",error instanceof AIServiceException ? error.getMessage():"角色执行失败，请查看服务日志");
+            result.put("error",error instanceof AIServiceException ? error.getMessage():
+                error instanceof org.springframework.web.server.ResponseStatusException status ? status.getReason():"角色执行失败，请查看服务日志");
             throw error;
         } finally {
             result.put("model",model);result.put("inputTokens",usage.inputTokens());result.put("outputTokens",usage.outputTokens());
@@ -160,6 +169,7 @@ public class CommunityService {
             result.put("toolTrace",scope==null?List.of():scope.toolTrace);
             String status=result.containsKey("error")?"FAILED":preview?"PREVIEW":"SKIP".equals(result.get("decision"))?"SKIPPED":"GENERATED";
             metrics.recordCompleted(model,"COMMUNITY",!result.containsKey("error"),System.currentTimeMillis()-started,usage);
+            if(!preview) workerMonitor.taskPhase(taskId,"PERSISTING_RUN");
             mapper.run(modelRunId,taskId,botId,postId,status,objectMapper.writeValueAsString(result),
                     (String)result.get("error"));
         }
@@ -181,6 +191,9 @@ public class CommunityService {
 
     /** 预演只过滤失效记忆，不清理或新增记忆。 */
     private List<Map<String,Object>> readMemories(long botId,boolean pruneInvalid) {
+        return readMemories(botId,pruneInvalid,null);
+    }
+    private List<Map<String,Object>> readMemories(long botId,boolean pruneInvalid,String taskId) {
         List<Map<String,Object>> rows=mapper.memories(botId);
         if(rows.isEmpty()) return List.of();
         List<Long> postIds=rows.stream().map(row -> number(row,"source_post_id","sourcePostId")).distinct().toList();
@@ -188,6 +201,7 @@ public class CommunityService {
         Set<Long> commentIds=new LinkedHashSet<>();
         for(var row:rows) {
             List<Long> sources=mapper.memorySources(String.valueOf(row.get("id")));
+            if(taskId!=null) workerMonitor.progress(taskId);
             sourceByMemory.put(String.valueOf(row.get("id")),sources);
             commentIds.addAll(sources);commentIds.add(number(row,"source_comment_id","sourceCommentId"));
         }
@@ -196,6 +210,7 @@ public class CommunityService {
         for(int offset=0;offset<requiredComments.size();offset+=100) {
             JsonNode visibility=transport.internalPost("/internal/community/visibility",Map.of("sourcePostIds",postIds,
                     "sourceCommentIds",requiredComments.subList(offset,Math.min(requiredComments.size(),offset+100))));
+            if(taskId!=null) workerMonitor.progress(taskId);
             visiblePosts.addAll(ids(visibility.path("visiblePostIds")));visibleComments.addAll(ids(visibility.path("visibleCommentIds")));
         }
         List<Map<String,Object>> result=new ArrayList<>();
@@ -228,7 +243,11 @@ public class CommunityService {
             run.putIfAbsent("postId",value(row,"post_id","postId"));
             run.putIfAbsent("commentId",value(row,"comment_id","commentId"));
             run.put("id",row.get("id"));run.put("status",row.get("status"));
-            run.put("createdAt",row.containsKey("created_at")?row.get("created_at"):row.get("createdAt"));
+            Object createdAtEpoch=value(row,"created_at_epoch_ms","createdAtEpochMs");
+            run.put("createdAt",createdAtEpoch instanceof Number timestamp
+                ? java.time.Instant.ofEpochMilli(timestamp.longValue()).toString()
+                : row.containsKey("created_at")?row.get("created_at"):row.get("createdAt"));
+            if(createdAtEpoch instanceof Number) run.put("createdAtEpochMs",createdAtEpoch);
             String legacyKey=legacyGenerationKey(run);
             if("SUCCEEDED".equals(run.get("status")) && legacyKey!=null) completedLegacy.add(legacyKey);
             if("GENERATED".equals(run.get("status")) && completedLegacy.contains(legacyKey)) continue;
@@ -293,7 +312,7 @@ public class CommunityService {
         JsonNode result=transport.internalPost("/internal/community/tasks/cancel",Map.of(
             "taskId",task.getId(),"eventId",task.getEventId(),"botId",task.getBotId(),"postId",task.getPostId()));
         boolean cancelled=result.path("cancelled").asBoolean();
-        if(cancelled) store.cancel(taskId);
+        if(cancelled) { store.cancel(taskId);workerMonitor.cancelled(taskId); }
         Long published=result.path("publishedCommentId").asLong()>0?result.path("publishedCommentId").asLong():null;
         return new CommunityTaskCancelResult(cancelled,result.path("reason").asText(),published);
     }

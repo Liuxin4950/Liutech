@@ -19,6 +19,10 @@ public class CommunityEvent {
     private String postTitle;
     private String commentPreview;
     private String status;
+    /** 数据库时钟计算：正数为距离可领取的秒数，零或负数为已到期。 */
+    private Long dueSeconds;
+    private Long availableAtEpochMs;
+    private Long leaseRemainingSeconds;
     private Date availableAt;
     private Date createdAt;
 }

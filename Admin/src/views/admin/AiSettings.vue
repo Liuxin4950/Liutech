@@ -1,654 +1,332 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { message } from 'ant-design-vue'
-import { ReloadOutlined, SaveOutlined, RobotOutlined, SoundOutlined, ApiOutlined, CheckCircleOutlined, CloudUploadOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
-import aiModelsService, { type ModelConfig } from '@/services/aiModels'
+import { ReloadOutlined, SaveOutlined, CloudUploadOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
+import { copyTtsConfig, sameTtsConfig, ttsStatusLabel } from '@/utils/ttsSettings'
 import {
-  getSiliconFlowVoices,
-  getTtsConfig,
-  getTtsStatus,
-  getTtsVoices,
-  resolveAiAudioUrl,
-  testTtsSpeech,
-  updateTtsConfig,
-  uploadSiliconFlowVoice,
-  type SiliconFlowVoiceDTO,
-  type TtsConfigDTO,
-  type TtsStatusDTO
+  getSiliconFlowVoices, getTtsConfig, getTtsStatus, getTtsVoices, resolveAiAudioUrl,
+  testTtsSpeech, updateTtsConfig, uploadSiliconFlowVoice,
+  type SiliconFlowVoiceDTO, type TtsConfigDTO, type TtsStatusDTO
 } from '@/services/tts'
 
 const loading = ref(false)
 const saving = ref(false)
-const ttsConfigurationLoaded = ref(false)
-const modelsLoaded = ref(false)
+const detecting = ref(false)
+const configReadOk = ref(false)
+const configError = ref('')
+const statusError = ref('')
+const runtimeError = ref('')
 const runtime = ref<AiRuntimeDTO | null>(null)
 const ttsStatus = ref<TtsStatusDTO | null>(null)
-const modelOptions = ref<ModelConfig[]>([])
+const savedConfig = ref<TtsConfigDTO | null>(null)
+const form = ref<TtsConfigDTO>({ enabled: false, baseUrl: '', voiceModel: '', provider: 'GPT_SOVITS' })
+const dirty = computed(() => !!savedConfig.value && !sameTtsConfig(form.value, savedConfig.value))
+const configBusy = computed(() => saving.value || loading.value || !configReadOk.value)
 const voiceOptions = ref<string[]>([])
 const siliconFlowVoices = ref<SiliconFlowVoiceDTO[]>([])
+const loadingVoices = ref(false)
+const loadingCloudVoices = ref(false)
+const voicesError = ref('')
+const cloudVoicesError = ref('')
 const uploadDialogOpen = ref(false)
 const uploadingVoice = ref(false)
-const testingSpeech = ref(false)
 const selectedVoiceFile = ref<File | null>(null)
-
-const form = ref<TtsConfigDTO>({
-  enabled: true,
-  baseUrl: '',
-  voiceModel: '',
-  provider: 'GPT_SOVITS',
-  siliconFlowModel: 'FunAudioLLM/CosyVoice2-0.5B',
-  siliconFlowVoiceUri: '',
-  responseFormat: 'mp3',
-  sampleRate: 44100,
-  speed: 1
-})
-
-const voiceUpload = ref({
-  customName: 'naxida',
-  text: '在一无所知中, 梦里的一天结束了，一个新的轮回便会开始'
-})
+const voiceUpload = ref({ model: '', customName: '', text: '' })
+const testingSpeech = ref(false)
+const isTestPlaying = ref(false)
+const previewReady = ref(false)
+const testError = ref('')
+const testText = ref('你好，这是当前已保存语音配置的试听。')
+let testAudio: HTMLAudioElement | null = null
+let testController: AbortController | null = null
+let testGeneration = 0
+let disposed = false
 
 const siliconFlowModelOptions = [
   { value: 'FunAudioLLM/CosyVoice2-0.5B', label: 'CosyVoice2-0.5B' },
   { value: 'IndexTeam/IndexTTS-2', label: 'IndexTTS-2' },
   { value: 'fnlp/MOSS-TTSD-v0.5', label: 'MOSS-TTSD-v0.5' }
 ]
-
-const selectedDefaultModel = computed(() =>
-  modelOptions.value.find(item => item.isDefault) || null
-)
-const currentModelText = computed(() => runtime.value?.defaultModel || selectedDefaultModel.value?.displayName || '尚未读取')
-const voiceStatusText = computed(() => {
-  if (!ttsStatus.value) return '尚未检测'
-  if (!ttsStatus.value.enabled) return '已关闭'
-  if (ttsStatus.value.online) return '在线'
-  if (ttsStatus.value.configured && ttsStatus.value.onlineVerified === false) return '待确认'
-  return '离线'
+const voiceStatusText = computed(() => ttsStatusLabel(ttsStatus.value, !!statusError.value))
+const voiceStatusColor = computed(() => statusError.value ? 'error' : !ttsStatus.value ? 'default' : ttsStatus.value.online ? 'success' : ttsStatus.value.enabled ? 'warning' : 'default')
+const currentStatusText = computed(() => statusError.value || ttsStatus.value?.message || '尚未检测语音服务')
+const currentModelText = computed(() => runtimeError.value ? '文本模型读取失败' : runtime.value?.defaultModel || '尚未读取')
+const checkedAtText = computed(() => ttsStatus.value?.checkedAt ? new Date(ttsStatus.value.checkedAt).toLocaleString('zh-CN') : '尚未检测')
+const savedProviderText = computed(() => !savedConfig.value ? '尚未读取' : savedConfig.value.provider === 'SILICONFLOW' ? 'SiliconFlow 云端' : 'GPT-SoVITS')
+const savedVoiceText = computed(() => {
+  const saved = savedConfig.value
+  if (!saved) return '尚未读取'
+  if (saved.provider === 'SILICONFLOW') return siliconFlowVoices.value.find(v => v.uri === saved.siliconFlowVoiceUri)?.customName || saved.siliconFlowVoiceUri || '未设置'
+  return saved.voiceModel || '使用服务默认模型'
+})
+const cloudVoiceOptions = computed(() => {
+  const options = siliconFlowVoices.value.filter(v => v.uri).map(v => ({ value: v.uri!, label: `${v.customName || '未命名'} · ${v.model || '未知模型'}` }))
+  const uri = form.value.siliconFlowVoiceUri
+  if (uri && !options.some(v => v.value === uri)) options.unshift({ value: uri, label: `当前音色：${uri}` })
+  return options
+})
+const cloudVoiceMismatch = computed(() => {
+  const voice = siliconFlowVoices.value.find(v => v.uri === form.value.siliconFlowVoiceUri)
+  return !!voice?.model && voice.model !== form.value.siliconFlowModel
+})
+const localVoiceOptions = computed(() => {
+  const options = voiceOptions.value.map(v => ({ value: v, label: v }))
+  if (form.value.voiceModel && !voiceOptions.value.includes(form.value.voiceModel)) options.unshift({ value: form.value.voiceModel, label: `${form.value.voiceModel}（当前配置）` })
+  return options
 })
 
-const enabledModelCount = computed(() =>
-  modelOptions.value.filter(item => item.isEnabled).length
-)
-
-const currentStatusText = computed(() => {
-  if (!ttsStatus.value) return '未检测'
-  if (!ttsStatus.value.enabled) return ttsStatus.value.message || '已关闭'
-  if (ttsStatus.value.configured && ttsStatus.value.onlineVerified === false) return ttsStatus.value.message || '已配置，待首次语音确认'
-  return ttsStatus.value.online ? (ttsStatus.value.message || '在线') : (ttsStatus.value.message || '离线')
-})
-
-const currentVoiceText = computed(() => {
-  if (form.value.provider === 'SILICONFLOW') {
-    const voice = siliconFlowVoices.value.find(item => item.uri === form.value.siliconFlowVoiceUri)
-    return voice?.customName || (form.value.siliconFlowVoiceUri ? '自定义云端音色' : '未设置')
-  }
-  return form.value.voiceModel || '未设置'
-})
-
-const currentVoiceSub = computed(() => {
-  if (form.value.provider === 'SILICONFLOW') {
-    return form.value.siliconFlowModel || '未设置云端模型'
-  }
-  return ttsStatus.value?.baseUrl || '未配置服务地址'
-})
-
-const selectedVoiceFileName = computed(() => selectedVoiceFile.value?.name || '未选择文件')
-
+const applyConfig = (config: TtsConfigDTO) => {
+  const value = copyTtsConfig(config)
+  if (savedConfig.value && !sameTtsConfig(value, savedConfig.value)) stopTestSpeech()
+  savedConfig.value = value
+  form.value = { ...value }
+  configReadOk.value = true
+  configError.value = ''
+}
+const detectStatus = async () => {
+  if (detecting.value || disposed) return
+  detecting.value = true
+  try {
+    const [runtimeResult, statusResult] = await Promise.allSettled([getAiRuntime(), getTtsStatus()])
+    if (disposed) return
+    if (runtimeResult.status === 'fulfilled') { runtime.value = runtimeResult.value; runtimeError.value = '' }
+    else { runtimeError.value = '文本模型状态读取失败，可重新检测'; runtime.value = null }
+    if (statusResult.status === 'fulfilled') { ttsStatus.value = statusResult.value; statusError.value = '' }
+    else statusError.value = '语音状态检测失败，可重新检测；不代表服务已确认离线。'
+  } finally { detecting.value = false }
+}
 const refreshVoices = async () => {
-  if (!form.value.baseUrl) {
-    voiceOptions.value = []
-    return
-  }
+  if (loadingVoices.value || configBusy.value) return
+  const baseUrl = form.value.baseUrl?.trim() || ''
+  if (!baseUrl) { voicesError.value = '请先填写服务地址'; return }
+  loadingVoices.value = true
   try {
-    voiceOptions.value = await getTtsVoices(form.value.baseUrl || '')
-    if (voiceOptions.value.length > 0 && !voiceOptions.value.includes(form.value.voiceModel || '')) {
-      form.value.voiceModel = voiceOptions.value[0]
-    }
-  } catch {
-    voiceOptions.value = []
-  }
+    const list = await getTtsVoices(baseUrl)
+    if (disposed || form.value.baseUrl?.trim() !== baseUrl) return
+    voiceOptions.value = list
+    voicesError.value = ''
+  } catch { voicesError.value = '语音模型读取失败，已保留当前选择，可重试。' }
+  finally { loadingVoices.value = false }
 }
-
 const refreshSiliconFlowVoices = async () => {
-  try {
-    siliconFlowVoices.value = await getSiliconFlowVoices()
-    if (!form.value.siliconFlowVoiceUri && siliconFlowVoices.value.length > 0) {
-      const naxida = siliconFlowVoices.value.find(item => item.customName === 'naxida')
-      form.value.siliconFlowVoiceUri = (naxida || siliconFlowVoices.value[0]).uri || ''
-    }
-  } catch {
-    siliconFlowVoices.value = []
-  }
+  if (loadingCloudVoices.value || configBusy.value) return
+  loadingCloudVoices.value = true
+  try { const list = await getSiliconFlowVoices(); if (!disposed) { siliconFlowVoices.value = list; cloudVoicesError.value = '' } }
+  catch { cloudVoicesError.value = '音色目录读取失败，已保留当前选择，可重试或填写 URI。' }
+  finally { loadingCloudVoices.value = false }
 }
-
-const selectCloudVoice = (uri?: string) => {
-  if (!uri) {
-    form.value.siliconFlowVoiceUri = ''
-    return
-  }
-  const voice = siliconFlowVoices.value.find(item => item.uri === uri)
-  if (voice) {
-    useCloudVoice(voice)
-    return
-  }
-  form.value.siliconFlowVoiceUri = uri
-}
-
-const refresh = async () => {
-  if (loading.value) return
+const loadConfiguration = async () => {
+  if (loading.value || saving.value || uploadingVoice.value) return
+  if (dirty.value) { message.warning('请先保存或放弃当前改动，再重新读取配置'); return }
   loading.value = true
-  try {
-    // 用 allSettled:单个 API 失败(如 AI 服务离线时 getModelList 500)不阻塞其他,
-    // 每项失败单独提示,不覆盖 form 里已有的值 —— 避免"整个表单被回滚到初始值,用户以为开关不生效"
-    const [runtimeResult, ttsConfigResult, ttsStatusResult, modelsResult] = await Promise.allSettled([
-      getAiRuntime(),
-      getTtsConfig(),
-      getTtsStatus(),
-      aiModelsService.getModelList()
-    ])
-
-    if (runtimeResult.status === 'fulfilled') {
-      runtime.value = runtimeResult.value
-    } else {
-      console.warn('加载 AI 运行时状态失败', runtimeResult.reason)
-    }
-
-    if (ttsStatusResult.status === 'fulfilled') {
-      ttsStatus.value = ttsStatusResult.value
-    } else {
-      console.warn('加载 TTS 状态失败', ttsStatusResult.reason)
-    }
-
-    if (modelsResult.status === 'fulfilled') {
-      modelOptions.value = modelsResult.value
-      modelsLoaded.value = true
-    } else {
-      console.warn('加载模型列表失败(AI 服务可能未启动)', modelsResult.reason)
-      // 后端业务错误已由响应拦截器提示；这里只兜底非业务错误（网络不通 / AI 服务未启动）
-      if (!(modelsResult.reason as any)?.isBusiness) {
-        message.warning('模型列表加载失败,请确认 AI 服务已启动')
-      }
-    }
-
-    if (ttsConfigResult.status === 'fulfilled') {
-      const ttsConfig = ttsConfigResult.value
-      form.value = {
-        enabled: ttsConfig.enabled,
-        baseUrl: ttsConfig.baseUrl || '',
-        voiceModel: ttsConfig.voiceModel || '',
-        provider: ttsConfig.provider || 'GPT_SOVITS',
-        siliconFlowModel: ttsConfig.siliconFlowModel || 'FunAudioLLM/CosyVoice2-0.5B',
-        siliconFlowVoiceUri: ttsConfig.siliconFlowVoiceUri || '',
-        responseFormat: ttsConfig.responseFormat || 'mp3',
-        sampleRate: ttsConfig.sampleRate || 44100,
-        speed: ttsConfig.speed || 1
-      }
-      ttsConfigurationLoaded.value = true
-    } else {
-      console.error('加载 TTS 配置失败', ttsConfigResult.reason)
-      // 同上：业务错误已由拦截器提示，避免重复弹窗
-      if (!(ttsConfigResult.reason as any)?.isBusiness) {
-        message.error('TTS 配置加载失败,页面表单可能不同步')
-      }
-    }
-
-    await Promise.all([refreshVoices(), refreshSiliconFlowVoices()])
-  } catch (error: any) {
-    if (!error?.isBusiness) message.error('加载语音服务配置失败')
-  } finally {
-    loading.value = false
+  configReadOk.value = false
+  try { const config = await getTtsConfig(); if (!disposed) applyConfig(config) }
+  catch { configError.value = '语音配置读取失败。当前内容不可提交，请重新读取配置。' }
+  finally { loading.value = false }
+  if (configReadOk.value) {
+    if (form.value.provider === 'SILICONFLOW') void refreshSiliconFlowVoices()
+    else if (form.value.baseUrl) void refreshVoices()
   }
 }
-
+const discardChanges = () => { if (savedConfig.value && !saving.value && !uploadingVoice.value) form.value = { ...savedConfig.value } }
 const save = async () => {
-  if (saving.value || loading.value || !ttsConfigurationLoaded.value) return
+  if (configBusy.value || uploadingVoice.value || !dirty.value) return
+  if (form.value.enabled && form.value.provider === 'GPT_SOVITS' && !form.value.baseUrl?.trim()) { message.warning('请输入 GPT-SoVITS 服务地址'); return }
+  if (form.value.enabled && form.value.provider === 'SILICONFLOW' && !form.value.siliconFlowVoiceUri?.trim()) { message.warning('请选择或填写云端音色 URI'); return }
+  if (form.value.provider === 'SILICONFLOW' && cloudVoiceMismatch.value) { message.warning('当前音色与云端模型不匹配，请重新选择音色或对应模型'); return }
   saving.value = true
+  stopTestSpeech()
   try {
-    await updateTtsConfig({
-      enabled: form.value.enabled,
-      baseUrl: form.value.baseUrl?.trim() || '',
-      voiceModel: form.value.voiceModel?.trim() || '',
-      provider: form.value.provider || 'GPT_SOVITS',
-      siliconFlowModel: form.value.siliconFlowModel?.trim() || 'FunAudioLLM/CosyVoice2-0.5B',
-      siliconFlowVoiceUri: form.value.siliconFlowVoiceUri?.trim() || '',
-      responseFormat: form.value.responseFormat || 'mp3',
-      sampleRate: form.value.sampleRate || 44100,
-      speed: form.value.speed || 1
-    })
-
-    message.success('语音配置已保存')
-    await refresh()
-  } catch (error: any) {
-    if (!error?.isBusiness) message.error('保存失败')
-  } finally {
-    saving.value = false
-  }
+    const updated = await updateTtsConfig(copyTtsConfig(form.value))
+    if (disposed) return
+    applyConfig(updated)
+    message.success('语音配置已保存并应用')
+    void detectStatus()
+  } catch (error: any) { if (!error?.isBusiness) message.error('保存失败，已保留当前改动，可重试') }
+  finally { saving.value = false }
 }
-
+const selectCloudVoice = (uri?: string) => {
+  form.value.siliconFlowVoiceUri = uri || ''
+  const voice = siliconFlowVoices.value.find(v => v.uri === uri)
+  if (voice?.model) form.value.siliconFlowModel = voice.model
+}
 const openVoiceUploadDialog = () => {
+  if (configBusy.value || uploadingVoice.value) return
   selectedVoiceFile.value = null
+  voiceUpload.value = { model: form.value.siliconFlowModel || 'FunAudioLLM/CosyVoice2-0.5B', customName: '', text: '' }
   uploadDialogOpen.value = true
 }
-
-const beforeVoiceUpload = (file: File) => {
-  selectedVoiceFile.value = file
-  return false
-}
-
+const beforeVoiceUpload = (file: File) => { if (!uploadingVoice.value) selectedVoiceFile.value = file; return false }
 const submitVoiceUpload = async () => {
-  if (uploadingVoice.value) return false
-  if (!selectedVoiceFile.value) {
-    message.warning('请先选择参考音频文件')
-    return false
-  }
-  if (!voiceUpload.value.text.trim()) {
-    message.warning('请填写参考音频对应文本')
-    return false
-  }
+  if (uploadingVoice.value || configBusy.value) return
+  if (!selectedVoiceFile.value) { message.warning('请选择参考音频'); return }
+  if (!voiceUpload.value.customName.trim() || !voiceUpload.value.text.trim()) { message.warning('请填写音色名称和音频对应文本'); return }
   uploadingVoice.value = true
   try {
-    const result = await uploadSiliconFlowVoice(
-      selectedVoiceFile.value,
-      form.value.siliconFlowModel || 'FunAudioLLM/CosyVoice2-0.5B',
-      voiceUpload.value.customName.trim() || 'naxida',
-      voiceUpload.value.text.trim()
-    )
-    form.value.siliconFlowVoiceUri = result.uri || ''
-    message.success('参考音频已上传')
+    const voice = await uploadSiliconFlowVoice(selectedVoiceFile.value, voiceUpload.value.model, voiceUpload.value.customName.trim(), voiceUpload.value.text.trim())
+    if (!voice.uri) throw new Error('服务未返回音色 URI')
+    if (disposed) return
+    form.value.siliconFlowModel = voice.model || voiceUpload.value.model
+    form.value.siliconFlowVoiceUri = voice.uri
+    siliconFlowVoices.value = [{ ...voice, model: form.value.siliconFlowModel }, ...siliconFlowVoices.value.filter(v => v.uri !== voice.uri)]
+    message.success('音色已上传并选入草稿，保存配置后生效')
     uploadDialogOpen.value = false
-    await refreshSiliconFlowVoices()
-  } catch (error: any) {
-    if (!error?.isBusiness) message.error('上传参考音频失败')
-  } finally {
-    uploadingVoice.value = false
-  }
-  return false
+  } catch (error: any) { if (!error?.isBusiness) message.error('上传失败，已保留音色名称、文本和文件，可重试') }
+  finally { uploadingVoice.value = false }
 }
-
-const useCloudVoice = (voice: SiliconFlowVoiceDTO) => {
-  form.value.siliconFlowModel = voice.model || form.value.siliconFlowModel
-  form.value.siliconFlowVoiceUri = voice.uri || ''
+const stopTestSpeech = () => {
+  testGeneration++
+  testController?.abort()
+  testController = null
+  if (testAudio) { testAudio.onended = null; testAudio.onerror = null; testAudio.pause(); testAudio.removeAttribute('src'); testAudio.load() }
+  testAudio = null
+  testingSpeech.value = isTestPlaying.value = previewReady.value = false
 }
-
 const playTestSpeech = async () => {
-  if (testingSpeech.value) return
-  testingSpeech.value = true
+  if (isTestPlaying.value) { stopTestSpeech(); return }
+  if (testingSpeech.value || !savedConfig.value?.enabled || configBusy.value) return
+  if (!testText.value.trim()) { message.warning('请输入试听文本'); return }
+  const token = ++testGeneration
+  testError.value = ''
   try {
-    const result = await testTtsSpeech('慢工出细活，再给我两分钟，你马上就能见识到超梦分析的厉害了。')
-    const audio = new Audio(resolveAiAudioUrl(result.audioUrl))
+    if (!previewReady.value || !testAudio) {
+      testingSpeech.value = true
+      testController = new AbortController()
+      const result = await testTtsSpeech(testText.value.trim(), testController.signal)
+      if (token !== testGeneration || disposed) return
+      if (!result.audioUrl) throw new Error('服务未返回音频')
+      testAudio = new Audio(resolveAiAudioUrl(result.audioUrl))
+      previewReady.value = true
+      testAudio.onended = stopTestSpeech
+      testAudio.onerror = () => { testError.value = '音频播放失败，可重新生成试听'; stopTestSpeech() }
+    }
+    const audio = testAudio
     await audio.play()
+    if (token !== testGeneration || disposed) { audio.pause(); return }
+    isTestPlaying.value = true
+    void detectStatus()
   } catch (error: any) {
-    if (!error?.isBusiness) message.error('试听失败')
-  } finally {
-    testingSpeech.value = false
-  }
+    if (token !== testGeneration || disposed) return
+    testError.value = previewReady.value ? '浏览器未开始播放，点击“播放试听”重试，无需重新合成。' : '试听生成失败，可检查状态后重试。'
+    if (!error?.isBusiness) message.error(testError.value)
+  } finally { if (token === testGeneration) { testingSpeech.value = false; testController = null } }
 }
-
-onMounted(() => {
-  refresh()
-})
+const stopHiddenPreview = () => { if (document.hidden) stopTestSpeech() }
+onMounted(() => { void loadConfiguration(); void detectStatus(); document.addEventListener('visibilitychange', stopHiddenPreview) })
+onDeactivated(stopTestSpeech)
+watch(testText, () => { if (previewReady.value && !isTestPlaying.value) stopTestSpeech() })
+onBeforeUnmount(() => { disposed = true; stopTestSpeech(); document.removeEventListener('visibilitychange', stopHiddenPreview) })
 </script>
 
 <template>
   <div class="p-24">
-    <div class="voice-page-heading">
-      <h2>语音服务</h2>
-      <p>配置朗读开关、语音引擎和音色，保存后可试听当前生效配置。</p>
+    <div class="page-heading">
+      <div><h2>语音服务</h2><p>选择引擎与音色，保存后应用到全站朗读。<router-link to="/ai-models">文本模型配置 →</router-link></p></div>
+      <a-space wrap>
+        <a-button @click="detectStatus" :loading="detecting">检测状态</a-button>
+        <a-button @click="loadConfiguration" :loading="loading" :disabled="saving || uploadingVoice || dirty"><ReloadOutlined /> 重新读取配置</a-button>
+        <a-button type="primary" @click="save" :loading="saving" :disabled="configBusy || uploadingVoice || !dirty"><SaveOutlined /> 保存并应用</a-button>
+        <a-button class="header-test" @click="playTestSpeech" :loading="testingSpeech" :disabled="!savedConfig?.enabled || configBusy"><PlayCircleOutlined /> {{ isTestPlaying ? '停止试听' : previewReady ? '播放试听' : '试听已保存配置' }}</a-button>
+        <a-button v-if="testingSpeech" class="header-test" @click="stopTestSpeech">取消试听</a-button>
+      </a-space>
     </div>
-    <a-row :gutter="[16, 16]" class="mb-16">
-      <a-col :xs="24" :sm="12" :lg="6">
-        <a-card :bordered="false" class="stat-card">
-          <div class="stat-row">
-            <div class="stat-icon bg-blue">
-              <ApiOutlined />
-            </div>
-            <div class="stat-text">
-              <div class="stat-label">AI 服务</div>
-              <div class="stat-value">{{ !runtime ? '尚未检测' : runtime.aiOnline ? '在线' : '离线' }}</div>
-              <div class="stat-sub" :title="runtime?.aiMessage || '未检测'">{{ runtime?.aiMessage || '未检测' }}</div>
-            </div>
-          </div>
-        </a-card>
-      </a-col>
-      <a-col :xs="24" :sm="12" :lg="6">
-        <a-card :bordered="false" class="stat-card">
-          <div class="stat-row">
-            <div class="stat-icon bg-green">
-              <RobotOutlined />
-            </div>
-            <div class="stat-text">
-              <div class="stat-label">当前文本模型</div>
-              <div class="stat-value compact" :title="currentModelText">{{ currentModelText }}</div>
-              <div class="stat-sub">{{ modelsLoaded ? `已启用 ${enabledModelCount} 个模型` : '模型名单尚未读取' }}</div>
-            </div>
-          </div>
-        </a-card>
-      </a-col>
-      <a-col :xs="24" :sm="12" :lg="6">
-        <a-card :bordered="false" class="stat-card">
-          <div class="stat-row">
-            <div class="stat-icon bg-orange">
-              <SoundOutlined />
-            </div>
-            <div class="stat-text">
-              <div class="stat-label">语音服务状态</div>
-              <div class="stat-value">{{ voiceStatusText }}</div>
-              <div class="stat-sub" :title="currentStatusText">{{ currentStatusText }}</div>
-            </div>
-          </div>
-        </a-card>
-      </a-col>
-      <a-col :xs="24" :sm="12" :lg="6">
-        <a-card :bordered="false" class="stat-card">
-          <div class="stat-row">
-            <div class="stat-icon bg-purple">
-              <CheckCircleOutlined />
-            </div>
-            <div class="stat-text">
-              <div class="stat-label">当前语音</div>
-              <div class="stat-value compact" :title="currentVoiceText">{{ currentVoiceText }}</div>
-              <div class="stat-sub" :title="currentVoiceSub">{{ currentVoiceSub }}</div>
-            </div>
-          </div>
-        </a-card>
-      </a-col>
-    </a-row>
-
-    <a-card :bordered="false" class="settings-card" :loading="loading">
-      <template #title>朗读与音色配置</template>
-      <template #extra>
-        <a-space>
-          <a-button @click="refresh" :loading="loading" :disabled="saving">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-          <a-button type="primary" @click="save" :loading="saving" :disabled="loading || !ttsConfigurationLoaded">
-            <template #icon><SaveOutlined /></template>
-            保存语音配置
-          </a-button>
-        </a-space>
-      </template>
-
-      <a-form layout="vertical" :disabled="saving || loading || !ttsConfigurationLoaded">
-        <a-row :gutter="16">
-          <a-col :xs="24" :lg="8">
-            <div class="section-title">文本模型信息</div>
-            <a-alert
-              type="info"
-              show-icon
-              :message="currentModelText"
-              description="此处只展示当前文本模型。默认模型、启用状态和上下文预算统一在「模型配置」维护。"
-            />
-            <router-link to="/ai-models" class="model-config-link">前往模型配置 →</router-link>
-            <p class="voice-help">语音引擎负责将文字转换为音频。切换语音模型不会改变聊天、写作或评论角色使用的文本模型。</p>
-          </a-col>
-
-          <a-col :xs="24" :lg="16">
-            <div class="section-title">语音生成</div>
-            <a-form-item label="全站语音开关">
-              <a-switch v-model:checked="form.enabled" />
-            </a-form-item>
-
-            <a-form-item label="推理引擎">
+    <a-alert v-if="configError" class="mb-16" type="error" show-icon :message="configError" />
+    <div class="status-strip mb-16">
+      <a-tag :color="voiceStatusColor">语音 {{ voiceStatusText }}</a-tag>
+      <span>{{ currentStatusText }}</span>
+      <a-tag v-if="dirty" color="orange">有未保存改动</a-tag>
+      <span class="text-secondary">检测时间 {{ checkedAtText }}</span>
+    </div>
+    <a-row :gutter="[16, 16]">
+      <a-col :xs="24" :lg="15">
+        <a-card :bordered="false" title="引擎与音色" :loading="loading">
+          <a-form layout="vertical" :disabled="configBusy || uploadingVoice">
+            <a-form-item label="全站朗读"><a-switch v-model:checked="form.enabled" /><span class="switch-label">{{ form.enabled ? '开启语音生成' : '关闭语音生成' }}</span></a-form-item>
+            <a-form-item label="语音引擎">
               <a-radio-group v-model:value="form.provider" button-style="solid">
-                <a-radio-button value="GPT_SOVITS">自定义 GPT-SoVITS</a-radio-button>
-                <a-radio-button value="SILICONFLOW">SiliconFlow 云端</a-radio-button>
+                <a-radio-button value="GPT_SOVITS">GPT-SoVITS</a-radio-button><a-radio-button value="SILICONFLOW">SiliconFlow 云端</a-radio-button>
               </a-radio-group>
             </a-form-item>
-
             <template v-if="form.provider === 'GPT_SOVITS'">
-              <a-form-item label="TTS 服务地址">
-                <a-input v-model:value="form.baseUrl" placeholder="http://127.0.0.1:8000" allow-clear />
-              </a-form-item>
-              <a-form-item>
-                <a-button @click="refreshVoices" :disabled="!form.baseUrl">
-                  <template #icon><ReloadOutlined /></template>
-                  读取可用语音模型
-                </a-button>
-              </a-form-item>
+              <a-form-item label="服务地址"><a-input v-model:value="form.baseUrl" placeholder="http://服务地址:8000" allow-clear /></a-form-item>
               <a-form-item label="语音模型">
-                <a-select
-                  v-model:value="form.voiceModel"
-                  :options="voiceOptions.map(item => ({ value: item, label: item }))"
-                  placeholder="请先配置服务地址并加载可用语音模型"
-                  allow-clear
-                />
+                <div class="input-with-actions"><a-select v-model:value="form.voiceModel" :options="localVoiceOptions" placeholder="留空使用服务默认模型" allow-clear /><a-button @click="refreshVoices" :loading="loadingVoices">读取模型</a-button></div>
               </a-form-item>
+              <p v-if="voicesError" class="field-error">{{ voicesError }}</p>
             </template>
-
             <template v-else>
-              <a-alert
-                v-if="!ttsStatus?.siliconFlowApiKeyConfigured"
-                class="mb-16"
-                type="warning"
-                show-icon
-                message="SiliconFlow API Key 未配置"
-                description="后端按 SILICONFLOW_TTS_API_KEY、SILICONFLOW_API_KEY、SPRING_AI_OPENAI_API_KEY 顺序读取；本地直跑也会读取项目根目录 .env，修改后需要重启后端。"
-              />
-              <a-alert
-                v-else
-                class="mb-16"
-                type="success"
-                show-icon
-                :message="`SiliconFlow Key 已配置${ttsStatus?.siliconFlowApiKeySource ? `：${ttsStatus.siliconFlowApiKeySource}` : ''}`"
-              />
-
-              <a-form-item label="云端模型">
-                <a-select
-                  v-model:value="form.siliconFlowModel"
-                  :options="siliconFlowModelOptions"
-                  placeholder="请选择 SiliconFlow TTS 模型"
-                />
+              <a-form-item label="云端模型"><a-select v-model:value="form.siliconFlowModel" :options="siliconFlowModelOptions" /></a-form-item>
+              <a-form-item label="云端音色">
+                <a-select :value="form.siliconFlowVoiceUri" :options="cloudVoiceOptions" placeholder="选择已上传音色，或在高级配置填写 URI" allow-clear @change="selectCloudVoice" />
               </a-form-item>
-              <a-form-item label="云端音色 URI">
-                <a-input
-                  v-model:value="form.siliconFlowVoiceUri"
-                  placeholder="speech:naxida:ss14k9ofjb:otzhoxllirkrcnsligpb"
-                  allow-clear
-                />
-              </a-form-item>
-              <a-form-item label="已上传音色">
-                <a-space compact class="full-width">
-                  <a-select
-                    class="flex-1"
-                    :value="form.siliconFlowVoiceUri"
-                    :options="siliconFlowVoices.map(item => ({ value: item.uri, label: `${item.customName || '未命名'} (${item.model || '未知模型'})` }))"
-                    placeholder="选择已上传的云端音色"
-                    allow-clear
-                    @change="selectCloudVoice"
-                  />
-                  <a-button @click="refreshSiliconFlowVoices">
-                    <template #icon><ReloadOutlined /></template>
-                  </a-button>
-                </a-space>
-              </a-form-item>
-
-              <a-row :gutter="12">
-                <a-col :xs="24" :sm="8">
-                  <a-form-item label="音频格式">
-                    <a-select
-                      v-model:value="form.responseFormat"
-                      :options="['mp3', 'wav', 'opus'].map(item => ({ value: item, label: item }))"
-                    />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24" :sm="8">
-                  <a-form-item label="采样率">
-                    <a-select
-                      v-model:value="form.sampleRate"
-                      :options="[32000, 44100, 48000, 24000, 16000, 8000].map(item => ({ value: item, label: `${item} Hz` }))"
-                    />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24" :sm="8">
-                  <a-form-item label="语速">
-                    <a-input-number v-model:value="form.speed" :min="0.25" :max="4" :step="0.05" class="full-width" />
-                  </a-form-item>
-                </a-col>
-              </a-row>
-
-              <a-form-item label="云端操作">
-                <a-space>
-                  <a-button @click="openVoiceUploadDialog">
-                    <template #icon><CloudUploadOutlined /></template>
-                    上传参考音频
-                  </a-button>
-                  <a-button @click="playTestSpeech" :loading="testingSpeech">
-                    <template #icon><PlayCircleOutlined /></template>
-                    试听已保存配置
-                  </a-button>
-                </a-space>
-              </a-form-item>
+              <p v-if="cloudVoiceMismatch" class="field-error">当前音色与云端模型不匹配，请重新选择后保存。</p>
+              <a-space wrap class="mb-16"><a-button @click="refreshSiliconFlowVoices" :loading="loadingCloudVoices"><ReloadOutlined /> 读取音色</a-button><a-button @click="openVoiceUploadDialog"><CloudUploadOutlined /> 上传新音色</a-button></a-space>
+              <p v-if="cloudVoicesError" class="field-error">{{ cloudVoicesError }}</p>
+              <p v-if="ttsStatus && !ttsStatus.siliconFlowApiKeyConfigured" class="field-error">云端凭据尚未配置，请联系服务维护者。</p>
             </template>
-
-            <a-alert
-              :type="ttsStatus?.online ? 'success' : 'warning'"
-              show-icon
-              :message="`TTS：${currentStatusText}`"
-              :description="form.provider === 'SILICONFLOW'
-                ? `云端音色：${form.siliconFlowVoiceUri || '未设置'}`
-                : (ttsStatus?.voiceModel ? `当前生效语音：${ttsStatus.voiceModel}` : '当前未设置语音模型')"
-            />
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
-
-    <a-modal
-      v-model:open="uploadDialogOpen"
-      title="上传 SiliconFlow 参考音频"
-      :confirm-loading="uploadingVoice"
-      ok-text="上传"
-      cancel-text="取消"
-      @ok="submitVoiceUpload"
-    >
-      <a-form layout="vertical">
-        <a-form-item label="云端模型">
-          <a-select
-            v-model:value="form.siliconFlowModel"
-            :options="siliconFlowModelOptions"
-            placeholder="请选择 SiliconFlow TTS 模型"
-          />
-        </a-form-item>
-        <a-form-item label="音色名称">
-          <a-input v-model:value="voiceUpload.customName" placeholder="例如 naxida" />
-        </a-form-item>
-        <a-form-item label="参考音频文本">
-          <a-textarea v-model:value="voiceUpload.text" :rows="3" placeholder="参考音频对应文本" />
-        </a-form-item>
-        <a-form-item label="参考音频文件">
-          <a-space direction="vertical" class="full-width">
-            <a-upload :show-upload-list="false" :before-upload="beforeVoiceUpload" accept=".mp3,.wav,.pcm,.opus,audio/*">
-              <a-button>
-                <template #icon><CloudUploadOutlined /></template>
-                选择音频文件
-              </a-button>
-            </a-upload>
-            <div class="upload-file-name">{{ selectedVoiceFileName }}</div>
-          </a-space>
-        </a-form-item>
+            <a-collapse ghost>
+              <a-collapse-panel key="advanced" header="高级配置 · 音频参数与音色 URI">
+                <a-form-item v-if="form.provider === 'SILICONFLOW'" label="音色 URI"><a-input v-model:value="form.siliconFlowVoiceUri" placeholder="speech:…" allow-clear /></a-form-item>
+                <a-row :gutter="12">
+                  <a-col :xs="24" :sm="8"><a-form-item label="输出格式"><a-select v-model:value="form.responseFormat" :options="['mp3','wav','opus'].map(v => ({ value: v, label: v }))" /></a-form-item></a-col>
+                  <a-col :xs="24" :sm="8"><a-form-item label="采样率"><a-select v-model:value="form.sampleRate" :options="[8000,16000,24000,32000,44100,48000].map(v => ({ value: v, label: `${v} Hz` }))" /></a-form-item></a-col>
+                  <a-col :xs="24" :sm="8"><a-form-item label="语速"><a-input-number v-model:value="form.speed" :min="0.25" :max="4" :step="0.05" style="width:100%" /></a-form-item></a-col>
+                </a-row>
+                <p class="text-secondary">音色选择会同步其对应的云端模型；读取目录不会替换当前选择。</p>
+              </a-collapse-panel>
+            </a-collapse>
+            <div v-if="dirty" class="draft-actions"><span>改动尚未应用。</span><a-button type="link" :disabled="saving || uploadingVoice" @click="discardChanges">放弃改动</a-button></div>
+          </a-form>
+        </a-card>
+      </a-col>
+      <a-col :xs="24" :lg="9">
+        <a-card :bordered="false" title="已保存配置与试听">
+          <dl class="saved-config"><dt>朗读</dt><dd>{{ !savedConfig ? '尚未读取' : savedConfig.enabled ? '已开启' : '已关闭' }}</dd><dt>引擎</dt><dd>{{ savedProviderText }}</dd><dt>音色</dt><dd :title="savedVoiceText">{{ savedVoiceText }}</dd><dt>文本模型</dt><dd :title="currentModelText">{{ currentModelText }} <router-link to="/ai-models">管理</router-link></dd></dl>
+          <a-divider />
+          <a-textarea v-model:value="testText" :rows="3" :maxlength="300" placeholder="输入试听文本" :disabled="testingSpeech || isTestPlaying" aria-label="试听文本" />
+          <p class="text-secondary">{{ dirty ? '试听当前已保存配置；左侧改动保存后才生效。' : '试听当前已保存配置，生成期间请勿重复提交。' }}</p>
+          <a-space wrap class="panel-test"><a-button @click="playTestSpeech" :loading="testingSpeech" :disabled="!savedConfig?.enabled || configBusy"><PlayCircleOutlined /> {{ isTestPlaying ? '停止试听' : previewReady ? '播放试听' : '试听已保存配置' }}</a-button><a-button v-if="testingSpeech" @click="stopTestSpeech">取消试听</a-button></a-space>
+          <p v-if="testError" class="field-error">{{ testError }}</p>
+          <p v-if="savedConfig && !savedConfig.enabled" class="text-secondary">开启朗读并保存后可试听。</p>
+        </a-card>
+        <a-collapse ghost class="diagnostics">
+          <a-collapse-panel key="diagnostics" header="状态说明与诊断">
+            <p>{{ currentStatusText }}</p><p>{{ runtimeError || runtime?.aiMessage || 'AI 服务状态尚未读取' }}</p>
+            <p>“待确认”表示配置齐全但尚未完成真实合成；保存成功不代表供应商已验证在线。</p>
+            <p v-if="ttsStatus?.siliconFlowApiKeySource">云端凭据来源：{{ ttsStatus.siliconFlowApiKeySource }}</p>
+          </a-collapse-panel>
+        </a-collapse>
+      </a-col>
+    </a-row>
+    <a-modal v-model:open="uploadDialogOpen" title="上传新音色" ok-text="上传并选入草稿" :confirm-loading="uploadingVoice" :cancel-button-props="{ disabled: uploadingVoice }" :closable="!uploadingVoice" :mask-closable="!uploadingVoice" :keyboard="!uploadingVoice" @ok="submitVoiceUpload">
+      <a-form layout="vertical" :disabled="uploadingVoice">
+        <a-form-item label="云端模型"><a-select v-model:value="voiceUpload.model" :options="siliconFlowModelOptions" /></a-form-item>
+        <a-form-item label="音色名称" required><a-input v-model:value="voiceUpload.customName" placeholder="给音色起个便于识别的名称" /></a-form-item>
+        <a-form-item label="音频对应文本" required><a-textarea v-model:value="voiceUpload.text" :rows="3" placeholder="准确填写参考音频中说出的文字" /></a-form-item>
+        <a-form-item label="参考音频" required><a-upload-dragger :show-upload-list="false" :before-upload="beforeVoiceUpload" :max-count="1" :disabled="uploadingVoice" accept=".mp3,.wav,.pcm,.opus,audio/*"><p>{{ selectedVoiceFile?.name || '拖入参考音频，或点击选择' }}</p></a-upload-dragger></a-form-item>
+        <p class="text-secondary">上传只创建音色并选入草稿，保存配置后才替换全站语音。</p>
       </a-form>
     </a-modal>
   </div>
 </template>
 
 <style scoped>
-.voice-page-heading h2 { margin: 0 0 8px; }
-.voice-page-heading p, .voice-help { color: var(--lt-color-text-secondary); }
-.voice-page-heading { margin-bottom: 20px; }
-.model-config-link { display: inline-block; margin: 16px 0; }
-.voice-help { line-height: 1.8; }
-
-.stat-card,
-.settings-card {
-  border-radius: var(--lt-radius-lg);
-  box-shadow: var(--lt-shadow-xs);
-}
-
-.stat-card {
-  height: 100%;
-}
-.stat-card :deep(.ant-card-body) {
-  height: 100%;
-  display: flex;
-  align-items: center;
-}
-
-.stat-row {
-  display: flex;
-  align-items: center;
-  gap: var(--lt-space-md);
-  min-width: 0;
-}
-
-.stat-icon {
-  width: var(--lt-size-stat-icon);
-  height: var(--lt-size-stat-icon);
-  border-radius: var(--lt-radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--lt-font-size-xl);
-  flex-shrink: 0;
-}
-
-.stat-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.bg-blue { background: var(--lt-color-info-bg); color: var(--lt-color-info); }
-.bg-green { background: var(--lt-color-success-bg); color: var(--lt-color-success); }
-.bg-orange { background: var(--lt-color-warning-bg); color: var(--lt-color-warning); }
-.bg-purple { background: var(--lt-color-purple-bg); color: var(--lt-color-purple); }
-
-.stat-label {
-  color: var(--lt-color-text-secondary);
-  font-size: var(--lt-font-size-sm);
-  margin-bottom: var(--lt-space-xs);
-}
-
-.stat-value {
-  font-size: var(--lt-font-size-xl);
-  font-weight: var(--lt-font-weight-bold);
-  color: var(--lt-color-text);
-  line-height: var(--lt-line-height-tight);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stat-value.compact {
-  font-size: var(--lt-font-size-base);
-}
-
-.stat-sub {
-  color: var(--lt-color-text-tertiary);
-  font-size: var(--lt-font-size-xs);
-  margin-top: var(--lt-space-xs);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.section-title {
-  font-size: var(--lt-font-size-base);
-  font-weight: var(--lt-font-weight-bold);
-  color: var(--lt-color-text-secondary);
-  margin-bottom: var(--lt-space-md);
-}
-
-.full-width {
-  width: 100%;
-}
-
-.flex-1 {
-  flex: 1;
-}
-
-.upload-file-name {
-  color: var(--lt-color-text-secondary);
-  font-size: var(--lt-font-size-sm);
-}
+.page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.page-heading h2 { margin:0 0 4px; font-size:20px; }
+.page-heading p { margin:0; color:var(--lt-color-text-secondary); }
+.status-strip { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:12px 16px; background:var(--lt-color-bg-container); border-radius:var(--lt-radius-lg); }
+.text-secondary { color:var(--lt-color-text-secondary); font-size:12px; line-height:1.7; margin-top:10px; }
+.switch-label { margin-left:10px; color:var(--lt-color-text-secondary); }
+.input-with-actions { display:flex; gap:8px; }
+.input-with-actions :deep(.ant-select) { flex:1; min-width:0; }
+.field-error { color:var(--lt-color-error); font-size:12px; line-height:1.6; }
+.saved-config { display:grid; grid-template-columns:72px minmax(0,1fr); gap:12px 8px; margin:0; }
+.saved-config dt { color:var(--lt-color-text-secondary); }
+.saved-config dd { margin:0; overflow-wrap:anywhere; }
+.draft-actions { display:flex; align-items:center; justify-content:space-between; margin-top:8px; color:var(--lt-color-warning); font-size:12px; }
+.diagnostics { margin-top:12px; }
+.header-test { display:none; }
+@media(max-width:1000px) { .page-heading { flex-direction:column; } }
+@media(max-width:991px) { .header-test { display:inline-flex; } .panel-test { display:none; } }
 </style>

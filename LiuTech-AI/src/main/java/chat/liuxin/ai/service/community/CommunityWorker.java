@@ -24,6 +24,7 @@ public class CommunityWorker {
     private final CommunityService community;
     private final ObjectMapper objectMapper;
     private final AiChatProperties properties;
+    private final CommunityWorkerMonitor monitor;
     private final java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor(
             Thread.ofPlatform().daemon(true).name("community-worker").factory());
     private final java.util.concurrent.atomic.AtomicBoolean dispatched = new java.util.concurrent.atomic.AtomicBoolean();
@@ -31,46 +32,71 @@ public class CommunityWorker {
 
     @Scheduled(fixedDelayString="${spring.ai.community.poll-delay-ms:5000}",initialDelayString="${spring.ai.community.initial-delay-ms:15000}")
     public void tick() {
+        monitor.heartbeat();
         if (closed || !dispatched.compareAndSet(false, true)) return;
         try {
             executor.execute(() -> {
+                monitor.pollStarted();
                 try { pollAndExecute(); }
-                finally { dispatched.set(false); }
+                finally { monitor.pollFinished();dispatched.set(false); }
             });
-        } catch (java.util.concurrent.RejectedExecutionException closing) { dispatched.set(false); }
+        } catch (java.util.concurrent.RejectedExecutionException closing) {
+            monitor.pollError("后台执行线程未能接收轮询请求");dispatched.set(false);
+        }
     }
 
     @jakarta.annotation.PreDestroy
-    public void shutdown() { closed = true; executor.shutdownNow(); }
+    public void shutdown() { closed = true;monitor.stopped();executor.shutdownNow(); }
 
     private void pollAndExecute() {
         String token=UUID.randomUUID().toString();
         boolean owned=false;
         try {
             // event ACK 必须在本地 inbox/task 提交之后；ACK 丢失时 UNIQUE(event_id,bot_id) 去重。
-            JsonNode events=transport.internalPost("/internal/community/events/claim",Map.of("limit",20,"leaseSeconds",600));
-            for(JsonNode event:events) {
-                store.ingest(event);
-                transport.internalPost("/internal/community/events/"+event.path("id").asLong()+"/ack",
-                        Map.of("leaseToken",event.path("leaseToken").asText()));
+            try {
+                monitor.phase("CLAIMING_EVENTS");
+                JsonNode events=transport.internalPost("/internal/community/events/claim",Map.of("limit",20,"leaseSeconds",600));
+                for(JsonNode event:events) {
+                    monitor.event(event.path("id").asLong(),event.path("botId").asLong(),event.path("postId").asLong());
+                    try {
+                        store.ingest(event);
+                        transport.internalPost("/internal/community/events/"+event.path("id").asLong()+"/ack",
+                                Map.of("leaseToken",event.path("leaseToken").asText()));
+                    } catch(RuntimeException deliveryError) {
+                        monitor.pollError("网站事件接收或确认失败；已保存任务仍继续处理（"+deliveryError.getClass().getSimpleName()+"）");
+                        log.warn("社区事件交接失败: eventId={}, error={}",event.path("id").asLong(),deliveryError.getClass().getSimpleName());
+                    }
+                }
+            } catch(RuntimeException intakeError) {
+                monitor.pollError("网站事件领取失败；已有 AI 任务仍继续处理（"+intakeError.getClass().getSimpleName()+"）");
+                log.warn("社区事件领取失败: {}",intakeError.getClass().getSimpleName());
             }
             int leaseSeconds=(int)Math.min(Integer.MAX_VALUE,Math.max(600L,properties.getSseTimeout()/1000L+120L));
+            monitor.phase("ACQUIRING_LEASE");
             owned=mapper.acquireWorker(token,leaseSeconds)>0;
             if(!owned) return;
+            monitor.acquiredLease(token);monitor.phase("CLAIMING_TASK");
             CommunityTask task=store.claim(leaseSeconds);
             if(task!=null) execute(task);
         } catch(RuntimeException error) {
+            monitor.pollError("后台领取或执行任务失败（"+error.getClass().getSimpleName()+"）");
             log.warn("社区后台轮询失败: {}",error.getClass().getSimpleName());
         } finally {
-            if(owned) mapper.releaseWorker(token);
+            if(owned) try {mapper.releaseWorker(token);monitor.releasedLease(token);}
+            catch(RuntimeException releaseError) {
+                monitor.pollError("执行租约释放失败，需等待租约到期（"+releaseError.getClass().getSimpleName()+"）");
+                log.warn("社区执行租约释放失败: {}",releaseError.getClass().getSimpleName());
+            }
         }
     }
 
     public void execute(CommunityTask task) {
         JsonNode decision=null;
         boolean publicationConfirmed=false;
+        String outcome="STATE_CHANGED";
+        monitor.taskStarted(task);
         try {
-            if(mapper.cancelled(task.getId())) return;
+            if(mapper.cancelled(task.getId())) {outcome="CANCELLED";return;}
             if(task.getDecisionJson()!=null) {
                 try { decision=objectMapper.readTree(task.getDecisionJson()); }
                 catch(RuntimeException invalid) { decision=null; }
@@ -83,24 +109,34 @@ public class CommunityWorker {
             if(task.getDecisionJson()==null) {
                 JsonNode event=transport.internalGet("/internal/community/events/"+task.getEventId());
                 if("CANCELLED".equals(event.path("eventType").asText())) {
-                    store.cancel(task.getId());return;
+                    store.cancel(task.getId());outcome="CANCELLED";return;
                 }
                 long epoch=task.getMemoryEpoch()==null?store.epoch(task.getBotId()):task.getMemoryEpoch();
                 int attempt=task.getAttempts()+1;
-                if(mapper.attempt(task.getId(),epoch)==0) return;
+                if(mapper.attempt(task.getId(),epoch)==0) {
+                    if(mapper.cancelled(task.getId())) outcome="CANCELLED";
+                    return;
+                }
                 task.setMemoryEpoch(epoch);
+                monitor.taskPhase(task.getId(),"PREPARING_CONTEXT");
                 Map<String,Object> result=community.generate(task.getId(),task.getBotId(),task.getPostId(),task.getCommentId(),attempt,false,epoch);
                 decision=objectMapper.valueToTree(result);
-                if(mapper.decide(task.getId(),objectMapper.writeValueAsString(result),decision.path("contextVersion").asText())==0) return;
+                monitor.taskPhase(task.getId(),"PERSISTING_DECISION");
+                if(mapper.decide(task.getId(),objectMapper.writeValueAsString(result),decision.path("contextVersion").asText())==0) {
+                    if(mapper.cancelled(task.getId())) outcome="CANCELLED";
+                    return;
+                }
             }
             if("SKIP".equals(decision.path("decision").asText())) {
-                mapper.finish(task.getId(),"SKIPPED",null);
+                int completed=mapper.finish(task.getId(),"SKIPPED",null);
+                outcome=completed>0?"SKIPPED":mapper.cancelled(task.getId())?"CANCELLED":"STATE_CHANGED";
                 return;
             }
             long commentId=decision.path("publishedCommentId").asLong();
             publicationConfirmed=commentId>0;
             if(!publicationConfirmed) {
-                if(mapper.cancelled(task.getId())) return;
+                if(mapper.cancelled(task.getId())) {outcome="CANCELLED";return;}
+                monitor.taskPhase(task.getId(),"PUBLISHING");
                 Map<String,Object> publish=new LinkedHashMap<>();
                 publish.put("taskId",task.getId());publish.put("botId",task.getBotId());publish.put("postId",task.getPostId());
                 publish.put("contextCommentId",task.getCommentId());
@@ -121,6 +157,7 @@ public class CommunityWorker {
                 mapper.decide(task.getId(),saved,decision.path("contextVersion").asText());
                 task.setDecisionJson(saved);
             }
+            monitor.taskPhase(task.getId(),"POSTPROCESSING");
             recordPublication(task,decision,"SUCCEEDED",null,null);
             // 落库应答丢失时下次只重交同一 taskId；不能重跑模型。
             List<Long> sourceIds=new ArrayList<>();decision.path("sourceCommentIds").forEach(id -> sourceIds.add(id.asLong()));
@@ -130,6 +167,7 @@ public class CommunityWorker {
                 var batch=sourceIds.subList(offset,Math.min(sourceIds.size(),offset+100));
                 JsonNode visibility=transport.internalPost("/internal/community/visibility",
                         Map.of("sourcePostIds",List.of(task.getPostId()),"sourceCommentIds",batch));
+                monitor.progress(task.getId());
                 if(!contains(visibility.path("visiblePostIds"),task.getPostId())
                         || !batch.stream().allMatch(id -> contains(visibility.path("visibleCommentIds"),id))) allVisible=false;
             }
@@ -140,25 +178,38 @@ public class CommunityWorker {
                 store.remember(task.getId(),task.getBotId(),decision.path("memoryEpoch").asLong(),task.getPostId(),commentId,summary,participants,sourceIds);
             }
             mapper.finish(task.getId(),"SUCCEEDED",null);
+            outcome="SUCCEEDED";
         } catch(RuntimeException error) {
-            int code=error instanceof BackendApiTransport.InternalBusinessException business?business.businessCode():0;
+            int code=error instanceof BackendApiTransport.InternalBusinessException business?business.businessCode():
+                error instanceof org.springframework.web.server.ResponseStatusException status?status.getStatusCode().value():0;
             if(code==1706) {
                 store.cancel(task.getId());
                 if(decision!=null) recordPublication(task,decision,"CANCELLED",null,"管理员已取消任务");
+                outcome="CANCELLED";
                 return;
             }
-            if(mapper.cancelled(task.getId())) return;
-            String reason=error instanceof AIServiceException?error.getMessage():"后台执行失败，将有限重试";
+            if(mapper.cancelled(task.getId())) {outcome="CANCELLED";return;}
+            String reason=error instanceof AIServiceException?error.getMessage():
+                error instanceof org.springframework.web.server.ResponseStatusException status?status.getReason():"后台执行失败，将有限重试";
             if(reason==null) reason="后台执行失败";
             if(reason.length()>300) reason=reason.substring(0,300);
+            monitor.taskError(task.getId(),reason);
             if(!publicationConfirmed && decision!=null && !"SKIP".equals(decision.path("decision").asText())) {
                 try { recordPublication(task,decision,"FAILED",null,reason); }
                 catch(RuntimeException auditError) { log.warn("社区发布结果记录失败: taskId={}",task.getId()); }
             }
             boolean terminal=!publicationConfirmed && Set.of(1700,1702,1703,1704,1101,1202,1203,404,403).contains(code);
-            if(terminal || task.getFailures()>=2) mapper.fail(task.getId(),terminal?"SKIPPED":"FAILED",reason,code==1701 && !publicationConfirmed);
-            else mapper.retry(task.getId(),reason,code==1701 && !publicationConfirmed,30*(task.getFailures()+1));
+            if(terminal || task.getFailures()>=2) {
+                String finalStatus=terminal?"SKIPPED":"FAILED";
+                int saved=mapper.fail(task.getId(),finalStatus,reason,code==1701 && !publicationConfirmed);
+                outcome=saved>0?finalStatus:mapper.cancelled(task.getId())?"CANCELLED":"STATE_CHANGED";
+            } else {
+                int saved=mapper.retry(task.getId(),reason,code==1701 && !publicationConfirmed,30*(task.getFailures()+1));
+                outcome=saved>0?"RETRY_SCHEDULED":mapper.cancelled(task.getId())?"CANCELLED":"STATE_CHANGED";
+            }
             log.warn("社区任务执行失败: taskId={}, code={}, retry={}",task.getId(),code,!terminal && task.getFailures()<2);
+        } finally {
+            monitor.taskFinished(task.getId(),outcome);
         }
     }
     private void recordPublication(CommunityTask task,JsonNode decision,String status,JsonNode published,String error) {

@@ -29,5 +29,10 @@ public class CommunityTask {
     private String error;
     private LocalDateTime availableAt;
     private LocalDateTime leaseUntil;
+    /** SQL 时钟计算，不根据 JDBC 映射后的日期推测调度；负数表示已到期。 */
+    private Long dueSeconds;
+    private Long leaseRemainingSeconds;
+    private Long availableAtEpochMs;
+    private Long createdAtEpochMs;
     private LocalDateTime createdAt;
 }

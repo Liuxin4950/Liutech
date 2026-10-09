@@ -86,9 +86,9 @@ public interface CommunityMapper {
     int incrementChain(String root);
     @Insert("""
         INSERT IGNORE INTO community_events(event_key,event_type,bot_id,post_id,comment_id,root_event_id,available_at)
-        VALUES(#{key},#{event.eventType},#{event.botId},#{event.postId},#{event.commentId},#{event.rootEventId},#{event.availableAt})
+        VALUES(#{key},#{event.eventType},#{event.botId},#{event.postId},#{event.commentId},#{event.rootEventId},TIMESTAMPADD(SECOND,#{delaySeconds},NOW(3)))
         """)
-    int insertEvent(@Param("key") String key, @Param("event") CommunityEvent event);
+    int insertEvent(@Param("key") String key, @Param("event") CommunityEvent event,@Param("delaySeconds") int delaySeconds);
     /** 当前读而非事务快照，避免首次发布与补评在并发事务中重复安排。 */
     @Select("""
         SELECT id FROM community_events WHERE post_id=#{postId} AND bot_id=#{botId}
@@ -131,6 +131,9 @@ public interface CommunityMapper {
             "lease_token=NULL,lease_until=NULL WHERE id=#{id}")
     int cancelEvent(Long id);
     @Select("<script>SELECT e.*,p.title AS post_title,LEFT(c.content,200) AS comment_preview," +
+            "TIMESTAMPDIFF(SECOND,NOW(3),e.available_at) AS due_seconds," +
+            "CAST(UNIX_TIMESTAMP(e.available_at)*1000 AS SIGNED) AS available_at_epoch_ms," +
+            "TIMESTAMPDIFF(SECOND,NOW(3),e.lease_until) AS lease_remaining_seconds," +
             "IF(e.lease_token IS NOT NULL AND e.lease_until &gt; NOW(),'DISPATCHING','WAITING') AS status FROM community_events e " +
             "LEFT JOIN posts p ON p.id=e.post_id LEFT JOIN comments c ON c.id=e.comment_id " +
             "WHERE e.acknowledged_at IS NULL AND e.event_type!='CANCELLED' " +
@@ -193,7 +196,9 @@ public interface CommunityMapper {
     int recordAttempt(@Param("taskId") String taskId,@Param("attempt") int attempt,@Param("botId") Long botId,
                       @Param("postId") Long postId,@Param("allowed") boolean allowed,@Param("reason") String reason);
     @Select("""
-        SELECT COUNT(*) FROM community_attempts WHERE allowed=TRUE AND created_at >= #{start} AND created_at < #{end}
+        SELECT COUNT(*) FROM community_attempts WHERE allowed=TRUE
+        AND created_at >= FROM_UNIXTIME(#{start.time,jdbcType=BIGINT}/1000)
+        AND created_at < FROM_UNIXTIME(#{end.time,jdbcType=BIGINT}/1000)
         AND (#{botId} IS NULL OR bot_id=#{botId})
         """)
     int attemptCount(@Param("botId") Long botId,@Param("start") Date start,@Param("end") Date end);

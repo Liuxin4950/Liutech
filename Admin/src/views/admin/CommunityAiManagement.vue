@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, toRaw, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined, UploadOutlined } from '@ant-design/icons-vue'
 import { ImageUploadService, pickUploadFile } from '@/services/upload'
 import { communityService, defaultCommunitySettings } from '@/services/community'
-import type { CommunityBot, CommunityBotInput, CommunityKnowledge, CommunityRun, CommunityTask, CommunityMemory, CommunityComment, CommunityCommentThread, CommunityBackfillResult, CommunityEvent } from '@/services/community'
+import type { CommunityBot, CommunityBotInput, CommunityKnowledge, CommunityRun, CommunityTask, CommunityMemory, CommunityComment, CommunityCommentThread, CommunityBackfillResult, CommunityEvent, CommunityWorkerStatus } from '@/services/community'
 import PostsService, { type PostListItem } from '@/services/posts'
 import CommentsService, { type Comment } from '@/services/comments'
 import { formatDateTime } from '@/utils/utils'
+import { queueCountdown, workerObservation } from '@/utils/communityProgress'
 
 const bots = ref<CommunityBot[]>([])
 const settings = ref(defaultCommunitySettings())
@@ -26,6 +27,15 @@ const events = ref<CommunityEvent[]>([])
 const postEvents = ref<CommunityEvent[]>([])
 const cancellingIds = ref<string[]>([])
 const withdrawingIds = ref<number[]>([])
+const worker = ref<CommunityWorkerStatus>()
+const workerLoading = ref(false)
+const workerError = ref('')
+const workerReceivedAt = ref(0)
+const displayNow = ref(Date.now())
+let workerRequest = 0
+let workerTimer: ReturnType<typeof setTimeout> | undefined
+let displayTimer: ReturnType<typeof setInterval> | undefined
+const queueSamples = new WeakMap<object, number>()
 const recordsLoading = ref(false)
 const recordsLoaded = ref(false)
 const recordsError = ref('')
@@ -120,6 +130,68 @@ const postCommentOptions = computed(() => postComments.value.filter(comment => c
 const enablingCommunity = computed(() => settings.value.enabled && !communityEnabled.value)
 const autoBots = computed(() => bots.value.filter(bot => bot.enabled && bot.participation > 0))
 const pendingStatuses = new Set(['PENDING', 'RUNNING', 'RETRY', 'READY', 'DECIDED', 'GENERATED'])
+const phaseLabels: Record<string, string> = {
+  CLAIMING_EVENTS: '接取待派发事件', INGESTING_EVENTS: '保存接取任务', ACQUIRING_LEASE: '获取执行权限', CLAIMING_TASK: '领取待执行任务',
+  CHECKING_SOURCE: '检查来源和取消状态', PREPARING_CONTEXT: '准备文章与角色资料', MODEL_GENERATION: '模型生成中',
+  VALIDATING_RESULT: '校验生成结果', PERSISTING_RUN: '保存执行记录', PERSISTING_DECISION: '保存生成结果', PUBLISHING: '提交评论', POSTPROCESSING: '保存执行记录与记忆',
+  FINISHING: '完成任务', IDLE: '等待下一轮接取',
+}
+const workerStateLabels: Record<string, string> = {
+  STARTING: '执行器启动中', IDLE: '空闲，正常轮询', POLLING: '正在接取任务', RUNNING: '正在执行任务', CANCELLING: '正在结束已取消任务',
+  WAITING_LEASE: '等待其他执行器释放租约', WAITING_TASK: '等待任务到期', ERROR: '执行器遇到错误', STOPPED: '执行器已停止', STALE: '执行进展需要核对',
+}
+const workerObserved = computed(() => workerObservation(worker.value, workerReceivedAt.value, displayNow.value, workerError.value))
+const workerFresh = computed(() => workerObserved.value.fresh)
+const workerOnline = computed(() => workerObserved.value.online)
+const workerTitle = computed(() => workerError.value ? '无法读取 AI 执行器' : !worker.value ? '执行器状态尚未读取'
+  : !workerFresh.value ? '执行器状态需要刷新' : workerStateLabels[worker.value.state] || worker.value.state)
+const phaseLabel = computed(() => phaseLabels[worker.value?.phase || ''] || worker.value?.phase || '—')
+const phaseElapsedSeconds = computed(() => workerObserved.value.phaseElapsedSeconds)
+const heartbeatAgeSeconds = computed(() => workerObserved.value.heartbeatAgeSeconds)
+const currentWorkerTask = computed(() => [...tasks.value, ...postTasks.value].find(task => String(task.id) === String(worker.value?.currentTaskId)))
+const workerTone = computed(() => workerFresh.value && worker.value?.state === 'STARTING' ? 'processing' : !workerOnline.value ? 'error' : worker.value?.busy ? 'processing' : 'success')
+const workerWarning = computed(() => workerError.value || (!worker.value ? '' : !workerFresh.value ? '状态已经超过刷新间隔，当前执行进度无法确认。'
+  : worker.value.state === 'STARTING' ? ''
+  : !worker.value.schedulerAlive ? '执行器没有正常轮询心跳，服务健康不代表后台任务正在执行。'
+  : worker.value.state === 'STALE' ? worker.value.blockReason || '当前执行阶段的进展长时间未更新，需要检查。'
+  : worker.value.state === 'ERROR' ? worker.value.lastError || worker.value.blockReason || '请查看执行器诊断信息。'
+  : worker.value.busy && worker.value.phaseTimeoutMs && phaseElapsedSeconds.value * 1000 > worker.value.phaseTimeoutMs
+    ? '当前阶段已超过服务端设置的等待时间，请查看执行器错误或取消任务；不会自动新建重复任务。' : ''))
+function durationText(seconds: number) {
+  const value = Math.max(0, Math.floor(seconds))
+  return value >= 3600 ? `${Math.floor(value / 3600)} 小时 ${Math.floor(value % 3600 / 60)} 分`
+    : value >= 60 ? `${Math.floor(value / 60)} 分 ${value % 60} 秒` : `${value} 秒`
+}
+function sampledSeconds(record: CommunityEvent | CommunityTask, key: 'dueSeconds' | 'leaseRemainingSeconds' = 'dueSeconds') {
+  const seconds = record[key]
+  if (seconds === undefined || seconds === null) return undefined
+  return queueCountdown(seconds, queueSamples.get(toRaw(record)) ?? displayNow.value, displayNow.value)
+}
+function plannedAt(record: CommunityEvent | CommunityTask) {
+  return record.availableAtEpochMs ? formatDateTime(new Date(record.availableAtEpochMs).toISOString()) : '计划时间尚未确认'
+}
+function eventProgress(event: CommunityEvent) {
+  if (event.status === 'DISPATCHING') return `执行器正在接取${event.leaseRemainingSeconds === undefined ? '' : `，交接租约剩余 ${durationText(sampledSeconds(event, 'leaseRemainingSeconds') || 0)}`}`
+  const remaining = sampledSeconds(event)
+  if (remaining === undefined) return '等待接取；到期时间尚未确认'
+  if (remaining > 0) return `等待到期，约 ${durationText(remaining)} 后可接取`
+  if (remaining === 0) return '正在检查是否到期，等待下一轮接取'
+  if (worker.value?.state === 'STARTING') return '已到期，等待执行器完成启动后接取'
+  return `已到期 ${durationText(-remaining)}，${workerOnline.value ? worker.value?.busy ? '等待当前任务处理完成' : '等待执行器接取' : '执行器状态异常，请检查连接与心跳'}`
+}
+function executingTask(task: CommunityTask) { return workerFresh.value && worker.value?.busy && String(task.id) === String(worker.value.currentTaskId) }
+function taskProgress(task: CommunityTask) {
+  if (executingTask(task)) return task.status === 'CANCELLED' ? '等待已发出的请求结束，结果不会发表' : `${phaseLabel.value} · 已耗时 ${durationText(phaseElapsedSeconds.value)}`
+  if (!pendingStatuses.has(task.status)) return ''
+  const remaining = sampledSeconds(task)
+  if (remaining !== undefined && remaining > 0) return `${automaticRetry(task) ? '等待重试' : '计划等待'} ${durationText(remaining)}`
+  const lease = sampledSeconds(task, 'leaseRemainingSeconds')
+  if (lease != null && lease > 0) return `任务已被领取，租约剩余 ${durationText(lease)}`
+  if (['RUNNING', 'DECIDED'].includes(task.status)) return '租约已到期，等待执行器重新接取'
+  if (worker.value?.state === 'STARTING') return '等待执行器完成启动后接取'
+  if (!workerOnline.value) return '尚未接取，执行器状态异常'
+  return worker.value?.busy ? '已到期，等待当前任务处理完成' : '已到期，等待下一轮接取'
+}
 const pendingTasks = computed(() => tasks.value.filter(task => pendingStatuses.has(task.status)))
 const failedTasks = computed(() => tasks.value.filter(task => task.status === 'FAILED'))
 const visibleTasks = computed(() => taskFilter.value === 'pending' ? pendingTasks.value : taskFilter.value === 'failed' ? failedTasks.value : taskFilter.value === 'cancelled' ? tasks.value.filter(task => task.status === 'CANCELLED') : tasks.value)
@@ -167,9 +239,10 @@ const participationNotice = computed(() => {
   return ''
 })
 const statusLabels: Record<string, string> = {
-  SUCCEEDED: '已发言', SKIPPED: '沉默', FAILED: '失败', PREVIEW: '预演', PENDING: '等待中',
+  SUCCEEDED: '已发言', SKIPPED: '已结束，未发表', FAILED: '失败', PREVIEW: '预演', PENDING: '等待中',
   RUNNING: '处理中', CANCELLED: '已取消', COMPLETED: '完成', DONE: '完成', RETRY: '等待重试',
   SKIP: '沉默', COMMENT: '评论文章', REPLY: '回复评论', READY: '等待中', DECIDED: '等待发布', GENERATED: '已生成',
+  RETRY_SCHEDULED: '已安排自动重试', STATE_CHANGED: '状态已变化',
 }
 const sourceLabels: Record<string, string> = { article: '文章正文', comment: '目标评论', comments: '相关评论', knowledge: '角色资料', 'knowledge-index': '资料索引', memory: '互动记忆' }
 const sourceName = (source: string) => sourceLabels[source] || source
@@ -181,13 +254,16 @@ function currentTask(run: CommunityRun) {
   return records.find(task => String(task.id) === String(run.taskId))
 }
 function taskStatus(task: CommunityTask) {
-  if (task.status === 'FAILED') return task.publishedCommentId ? '已发表，后处理失败' : '已停止自动重试'
+  const status = observedTaskStatus(task)
+  if (status === 'FAILED') return task.publishedCommentId ? '已发表，后处理失败' : '已停止自动重试'
   if (automaticRetry(task)) return task.publishedCommentId ? '已发表，自动恢复中' : '等待自动重试'
-  if (task.publishedCommentId && pendingStatuses.has(task.status)) return '已发表，处理中'
-  return label(task.status)
+  if (task.publishedCommentId && pendingStatuses.has(status)) return '已发表，处理中'
+  return label(status)
 }
+function observedTaskStatus(task: CommunityTask) { return executingTask(task) ? worker.value?.currentTaskStatus || task.status : task.status }
 function automaticRetry(task: CommunityTask) {
-  return task.status === 'RETRY' || (task.status === 'READY' && (task.failures ?? 0) > 0)
+  const status = observedTaskStatus(task)
+  return status === 'RETRY' || (status === 'READY' && (task.failures ?? 0) > 0)
 }
 function failureCount(task: CommunityTask) {
   if (task.status === 'FAILED' && (task.failures === undefined || task.failures < 3)) {
@@ -250,12 +326,15 @@ const runColumns = [
 ]
 const taskColumns = [
   { title: '角色', key: 'bot', width: 120 },
-  { title: '文章', key: 'post', width: 220 }, { title: '触发线索', key: 'comment', width: 180 },
-  { title: '当前状态', key: 'status', width: 150 }, { title: '生成尝试次数', dataIndex: 'attempts', key: 'attempts', width: 120 },
-  { title: '本轮失败次数', key: 'failures', width: 130 },
+  { title: '文章与触发', key: 'post', width: 220 },
+  { title: '状态与执行进度', key: 'status', width: 270 },
   { title: '失败或沉默原因', dataIndex: 'error', key: 'error', ellipsis: true, width: 220 },
   { title: '下次处理时间', key: 'availableAt', width: 180 },
   { title: '操作', key: 'detail', width: 150, fixed: 'right' as const },
+]
+const eventColumns = [
+  { title: '角色', key: 'bot', width: 120 }, { title: '文章', key: 'post', width: 220 },
+  { title: '接取进度', key: 'progress', width: 380 }, { title: '操作', key: 'action', width: 100, fixed: 'right' as const },
 ]
 const commentColumns = [
   { title: '时间', key: 'createdAt', width: 180 },
@@ -334,10 +413,12 @@ async function queryActivity(botId?: number, articleId?: number) {
     eventResult.status === 'rejected' ? `待接收事件：${errorMessage(eventResult.reason)}` : '',
   ].filter(Boolean)
   const recentTasks = taskResult.status === 'fulfilled' ? taskResult.value : []
+  const recentEvents = eventResult.status === 'fulfilled'
+    ? eventResult.value.filter(event => !recentTasks.some(task => String(task.eventId) === String(event.id))) : []
+  for (const record of [...recentTasks, ...recentEvents]) queueSamples.set(toRaw(record), Date.now())
   return {
     recentRuns: runResult.status === 'fulfilled' ? runResult.value : [], recentTasks,
-    recentEvents: eventResult.status === 'fulfilled'
-      ? eventResult.value.filter(event => !recentTasks.some(task => String(task.eventId) === String(event.id))) : [],
+    recentEvents,
     error: failures.join('；'), complete: !failures.length,
   }
 }
@@ -452,7 +533,9 @@ async function loadPostActivity() {
 function visibilityChanged() {
   if (recordsTimer) clearTimeout(recordsTimer)
   if (postActivityTimer) clearTimeout(postActivityTimer)
+  if (workerTimer) clearTimeout(workerTimer)
   if (!pageActive || document.hidden) return
+  void loadWorker()
   if (['tasks', 'runs'].includes(activeTab.value)) void loadRecords(recordsScopeBotId.value)
   if (postId.value && activeTab.value === 'preview') void loadPostActivity()
 }
@@ -464,14 +547,18 @@ onBeforeUnmount(() => {
   ++postActivityRequest
   ++postStateRequest
   ++recordsRequest
+  ++workerRequest
   if (recordsTimer) clearTimeout(recordsTimer)
   if (postSearchTimer) clearTimeout(postSearchTimer)
   if (postActivityTimer) clearTimeout(postActivityTimer)
+  if (workerTimer) clearTimeout(workerTimer)
+  if (displayTimer) clearInterval(displayTimer)
   layoutQuery?.removeEventListener('change', layoutChanged)
   document.removeEventListener('visibilitychange', visibilityChanged)
 })
 onActivated(() => {
   pageActive = true
+  if (!document.hidden) void loadWorker()
   if (!document.hidden && ['tasks', 'runs'].includes(activeTab.value)) void loadRecords(recordsScopeBotId.value)
   if (!document.hidden && postId.value && activeTab.value === 'preview') void loadPostActivity()
 })
@@ -479,7 +566,39 @@ onDeactivated(() => {
   pageActive = false
   if (recordsTimer) clearTimeout(recordsTimer)
   if (postActivityTimer) clearTimeout(postActivityTimer)
+  if (workerTimer) clearTimeout(workerTimer)
 })
+async function loadWorker() {
+  if (workerTimer) clearTimeout(workerTimer)
+  const request = ++workerRequest
+  workerLoading.value = true
+  try {
+    const status = await communityService.worker()
+    if (request !== workerRequest) return
+    if (!status?.observedAt) throw new Error('AI 服务未返回有效的执行器状态')
+    worker.value = status
+    workerReceivedAt.value = Date.now()
+    displayNow.value = Date.now()
+    workerError.value = ''
+  } catch (error) { if (request === workerRequest) workerError.value = errorMessage(error, '无法读取执行器状态') }
+  finally {
+    if (request === workerRequest) {
+      workerLoading.value = false
+      if (pageActive && !document.hidden) workerTimer = setTimeout(() => { void loadWorker() }, 5000)
+    }
+  }
+}
+async function openWorkerTask() {
+  const id = worker.value?.currentTaskId
+  if (!id) return
+  recordsScopeBotId.value = undefined
+  taskFilter.value = 'all'
+  activeTab.value = 'tasks'
+  await loadRecords()
+  const task = tasks.value.find(item => String(item.id) === String(id))
+  if (task) { taskDetail.value = task; taskDetailOpen.value = true }
+  else message.info('这条任务已经结束或状态已变化，请查看最新队列和执行记录。')
+}
 async function action(work: () => Promise<void>, success?: string) {
   if (busy.value) return
   const initialTab = activeTab.value
@@ -513,6 +632,7 @@ async function load() {
     configurationLoaded.value = true
     if (!bots.value.some(bot => bot.id === selectedBotId.value)) selectedBotId.value = bots.value[0]?.id
     await loadRecords(recordsLoaded.value ? recordsScopeBotId.value : undefined)
+    await loadWorker()
   } catch (error) { loadError.value = errorMessage(error, '加载评论角色与参与规则失败') }
   finally { loading.value = false }
 }
@@ -745,10 +865,11 @@ async function retryTask(task: CommunityTask) {
   } finally { retryingTaskIds.value = retryingTaskIds.value.filter(item => item !== id) }
 }
 function canCancelTask(task: CommunityTask) {
-  return !task.publishedCommentId && (pendingStatuses.has(task.status) || task.status === 'FAILED')
+  const status = observedTaskStatus(task)
+  return !task.publishedCommentId && (pendingStatuses.has(status) || status === 'FAILED')
 }
 async function refreshQueues() {
-  await loadRecords(recordsScopeBotId.value)
+  await Promise.all([loadRecords(recordsScopeBotId.value), loadWorker()])
   if (postId.value) await loadPostActivity()
 }
 async function cancelTask(task: CommunityTask) {
@@ -821,6 +942,7 @@ async function openThread(commentId: number, botId = selectedBotId.value) {
 function settingsValue(key: keyof ReturnType<typeof defaultCommunitySettings>) { return settings.value[key] as number }
 function updateSetting(key: keyof ReturnType<typeof defaultCommunitySettings>, value: number | null) { if (value !== null) Object.assign(settings.value, { [key]: value }) }
 onMounted(() => {
+  displayTimer = setInterval(() => { if (pageActive && !document.hidden) displayNow.value = Date.now() }, 1000)
   layoutQuery = window.matchMedia('(max-width: 960px)')
   compactLayout.value = layoutQuery.matches
   layoutQuery.addEventListener('change', layoutChanged)
@@ -839,6 +961,7 @@ onMounted(() => {
         </div>
         <a-space wrap>
           <a-tag :color="communityEnabled ? 'green' : 'default'">{{ !configurationLoaded ? loading ? '读取配置中' : '配置未加载' : communityEnabled ? '互动已开启' : '互动已暂停' }}</a-tag>
+          <a-tag v-if="worker || workerError" :color="workerOnline ? worker?.busy ? 'blue' : 'green' : 'red'">{{ workerTitle }}</a-tag>
           <a-button @click="showTaskFilter('pending')">任务队列 {{ recordsLoaded ? events.length + pendingTasks.length : '—' }}</a-button>
           <a-button danger :disabled="!communityEnabled || busy" @click="pauseAll">暂停全部</a-button>
           <a-button :loading="loading" :disabled="busy" @click="load">
@@ -987,10 +1110,10 @@ onMounted(() => {
             <p class="muted">等待中的任务每 5 秒刷新一次。发言失败、沉默和成功都会显示真实结果；仅显示最近任务与运行记录。</p>
             <a-alert v-if="postActivityError" type="error" :message="postActivityError" show-icon class="mb-16" />
             <a-empty v-if="!postEvents.length && !postTasks.length && !postRuns.length && !postActivityLoading" description="暂无邀请任务或自动参与记录" />
-            <div v-for="event in postEvents" :key="'event:' + event.id" class="activity-item"><div class="activity-heading"><strong>{{ botName(event.botId) }}</strong><a-tag>{{ event.status === 'DISPATCHING' ? '正在交接' : '等待 AI 接收' }}</a-tag><a-button danger size="small" :loading="cancellingIds.includes('event:' + event.id)" @click="cancelEvent(event)">取消任务</a-button></div><p class="muted">计划处理：{{ formatDateTime(event.availableAt) }}</p></div>
+            <div v-for="event in postEvents" :key="'event:' + event.id" class="activity-item"><div class="activity-heading"><strong>{{ botName(event.botId) }}</strong><a-tag>{{ event.status === 'DISPATCHING' ? '正在交接' : '等待 AI 接收' }}</a-tag><a-button danger size="small" :loading="cancellingIds.includes('event:' + event.id)" @click="cancelEvent(event)">取消任务</a-button></div><p class="muted">{{ eventProgress(event) }} · 计划处理：{{ plannedAt(event) }}</p></div>
             <div v-for="task in postTasks" :key="task.id" class="activity-item">
               <div class="activity-heading"><strong>{{ botName(task.botId) }}</strong><a-tag>{{ taskStatus(task) }}</a-tag><a-button type="link" size="small" @click="taskDetail = task; taskDetailOpen = true">任务详情</a-button><a-popconfirm v-if="canCancelTask(task)" title="取消此任务并阻止发布？" @confirm="cancelTask(task)"><a-button type="link" danger size="small" :loading="cancellingIds.includes('task:' + task.id)">取消任务</a-button></a-popconfirm><a-tooltip v-if="task.status === 'FAILED'" :title="retryDescription(task)"><a-button type="link" size="small" :loading="retryingTaskIds.includes(String(task.id))" @click="retryTask(task)">{{ retryLabel(task) }}</a-button></a-tooltip></div>
-              <p v-if="task.availableAt && pendingStatuses.has(task.status)" class="muted">{{ automaticRetry(task) ? '计划自动重试' : '下次处理' }}：{{ formatDateTime(task.availableAt) }}</p>
+              <p v-if="task.availableAt && pendingStatuses.has(task.status)" class="muted">{{ automaticRetry(task) ? '计划自动重试' : '下次处理' }}：{{ plannedAt(task) }}</p>
               <p class="muted">模型调用 {{ task.attempts }} 次 · 本轮失败：{{ failureCount(task) }}</p>
               <p v-if="task.error" class="comment-body">{{ task.error }}</p>
               <p v-else-if="postRuns.find(run => String(run.taskId) === String(task.id))?.reason" class="comment-body">{{ postRuns.find(run => String(run.taskId) === String(task.id))?.reason }}</p>
@@ -1039,33 +1162,45 @@ onMounted(() => {
       </a-tab-pane>
       <a-tab-pane key="tasks" tab="任务队列">
         <a-card :bordered="false" title="待处理与可取消任务">
-          <template #extra><a-space wrap><a-select v-model:value="recordsScopeBotId" :options="botOptions" allow-clear placeholder="所有角色" class="bot-select" @change="loadRecords(recordsScopeBotId)" /><a-button :loading="recordsLoading" @click="loadRecords(recordsScopeBotId)">刷新队列</a-button></a-space></template>
+          <template #extra><a-space wrap><a-select v-model:value="recordsScopeBotId" :options="botOptions" allow-clear placeholder="所有角色" class="bot-select" @change="loadRecords(recordsScopeBotId)" /><a-button :loading="recordsLoading || workerLoading" @click="refreshQueues">刷新队列</a-button></a-space></template>
+          <section class="worker-monitor" aria-label="自动评论执行器">
+            <div class="worker-heading"><h3>实时执行</h3><a-badge :status="workerTone" :text="workerTitle" /><span v-if="worker" class="muted">心跳：{{ heartbeatAgeSeconds === undefined ? '尚未收到' : durationText(heartbeatAgeSeconds) + '前' }} · 每 {{ (worker.pollIntervalMs || 5000) / 1000 }} 秒轮询</span></div>
+            <a-alert v-if="workerWarning" type="error" :message="workerWarning" show-icon class="mt-16" />
+            <div v-if="worker?.currentTaskId" class="worker-current-task">
+              <div><strong>{{ botName(worker.currentBotId!) }}</strong><span>{{ workerFresh ? '正在处理' : '上次处理' }}</span><strong>{{ currentWorkerTask ? postTitle(currentWorkerTask.postId, currentWorkerTask.postTitle) : `文章 #${worker.currentPostId || '—'}` }}</strong><a-button type="link" size="small" @click="openWorkerTask">查看这个任务</a-button><a-popconfirm v-if="currentWorkerTask && canCancelTask(currentWorkerTask)" title="取消当前任务并阻止发布？已送出的模型请求仍可能产生用量。" @confirm="cancelTask(currentWorkerTask!)"><a-button danger size="small" :loading="cancellingIds.includes('task:' + currentWorkerTask.id)">取消当前任务</a-button></a-popconfirm></div>
+              <p><a-spin v-if="workerOnline && worker.busy" size="small" /><strong>{{ phaseLabel }}</strong><span>已耗时 {{ durationText(phaseElapsedSeconds) }}</span><span v-if="worker.currentModel">模型 {{ worker.currentModel }}</span><span v-if="worker.phaseTimeoutMs">本阶段上限 {{ durationText(worker.phaseTimeoutMs / 1000) }}</span></p>
+              <a-alert v-if="worker.state === 'CANCELLING'" type="info" show-icon message="任务已经取消，等待已发出的模型请求结束；结果不会发表。" />
+            </div>
+            <p v-else-if="workerFresh && worker?.busy" class="worker-idle"><a-spin size="small" />{{ phaseLabel }} · 已耗时 {{ durationText(phaseElapsedSeconds) }}</p>
+            <p v-else class="worker-idle">{{ worker?.blockReason || (workerOnline ? '正在按轮询间隔检查任务，当前没有执行中的任务。' : '执行器状态无法确认，请刷新或检查 AI 服务。') }}</p>
+            <div v-if="worker?.queue && worker.database?.available" class="worker-queue-summary"><span>已到期待接取 <strong>{{ worker.queue.readyCount }}</strong></span><span>等待到期 <strong>{{ worker.queue.delayedCount }}</strong></span><span>已领取 <strong>{{ worker.queue.leasedCount }}</strong></span><span>停止的失败 <strong>{{ worker.queue.failedCount }}</strong></span><span>主服务待接收 <strong>{{ events.length }}</strong></span></div>
+            <p v-if="worker?.lastTaskFinishedAt" class="muted worker-last-task">最近处理：{{ label(worker.lastTaskOutcome) }} · {{ formatDateTime(worker.lastTaskFinishedAt) }}<span v-if="worker.lastTaskId"> · 任务 {{ worker.lastTaskId }}</span></p>
+            <details v-if="worker" class="worker-diagnostics"><summary>执行器诊断与最近错误</summary><p>实例 {{ worker.instanceId }} · 最近轮询 {{ formatDateTime(worker.lastPollStartedAt) }} · 最近完成轮询 {{ formatDateTime(worker.lastPollFinishedAt) }}</p><p>执行租约：{{ worker.leaseState === 'OWNED_ELSEWHERE' ? '其他实例持有' : worker.leaseOwned ? '本实例持有' : '当前未持有' }}<span v-if="worker.leaseRemainingSeconds != null"> · 剩余 {{ durationText(worker.leaseRemainingSeconds) }}</span></p><p v-if="worker.lastError">最近错误：{{ worker.lastError }} · {{ formatDateTime(worker.lastErrorAt) }} · 连续失败 {{ worker.consecutivePollFailures || 0 }} 次</p><p v-if="worker.database">数据库连接 {{ worker.database.available ? '正常' : '不可用' }} · 数据库时间 {{ worker.database.now || '未知' }} · 会话时区 {{ worker.database.sessionTimeZone || '未知' }} · 系统时区 {{ worker.database.systemTimeZone || '未知' }}</p></details>
+          </section>
           <p class="muted">{{ recordsScope }} · 活动任务优先显示，包含尚未被 AI 接收的事件。</p>
           <a-alert v-if="recordsError" type="error" :message="recordsError" class="mb-16" show-icon />
-          <div class="activity-heading"><span class="muted">筛选任务</span><a-radio-group v-model:value="taskFilter" button-style="solid" size="small"><a-radio-button value="all">全部 {{ tasks.length + events.length }}</a-radio-button><a-radio-button value="pending">待处理 {{ pendingTasks.length + events.length }}</a-radio-button><a-radio-button value="failed">失败 {{ failedTasks.length }}</a-radio-button><a-radio-button value="cancelled">已取消</a-radio-button></a-radio-group></div>
-          <p class="muted">任务队列展示当前结果。待处理任务可取消，已发布评论请在评论对话中撤回。取消会阻止后续发布；正在进行的模型调用可能仍产生用量。失败任务只能重试原任务。</p>
-          <details class="memory-record-details"><summary>刷新与自动重试规则</summary><p class="muted">本页可见时每 5 秒刷新。首次失败后最多自动重试 2 次，本轮失败 3 次后停止；实际模型轮数和 token 看运行详情。</p></details>
-          <template v-if="events.length && ['all', 'pending'].includes(taskFilter)">
-            <h3 class="queue-section-title">等待 AI 接收</h3>
-            <div v-for="event in events" :key="String(event.id)" class="activity-item">
-              <div class="activity-heading"><strong>{{ botName(event.botId) }}</strong><a-tag>{{ event.status === 'DISPATCHING' ? '正在交接' : '等待接收' }}</a-tag><span>{{ postTitle(event.postId, event.postTitle) }}</span>
-                <a-button danger size="small" :loading="cancellingIds.includes('event:' + event.id)" @click="cancelEvent(event)">取消</a-button>
-              </div><p class="muted">计划处理：{{ formatDateTime(event.availableAt) }}</p>
-            </div>
-          </template>
-          <h3 class="queue-section-title">AI 处理任务</h3>
-          <a-table :columns="taskColumns" :data-source="visibleTasks" :loading="busy || recordsLoading" :row-key="(task: CommunityTask) => task.id" :scroll="{ x: 1400 }">
+          <div class="activity-heading"><span class="muted">筛选任务</span><a-radio-group v-model:value="taskFilter" button-style="solid" size="small"><a-radio-button value="all">全部 {{ recordsLoaded ? tasks.length + events.length : '—' }}</a-radio-button><a-radio-button value="pending">待处理 {{ recordsLoaded ? pendingTasks.length + events.length : '—' }}</a-radio-button><a-radio-button value="failed">失败 {{ recordsLoaded ? failedTasks.length : '—' }}</a-radio-button><a-radio-button value="cancelled">已取消</a-radio-button></a-radio-group></div>
+          <details class="memory-record-details"><summary>任务操作与自动重试规则</summary><p class="muted">任务队列展示当前结果。待处理任务可取消，已发布评论请在评论对话中撤回。取消会阻止后续发布；正在进行的模型调用可能仍产生用量。失败任务只能重试原任务。</p><p class="muted">本页可见时每 5 秒刷新。首次失败后最多自动重试 2 次，本轮失败 3 次后停止；实际模型轮数和 token 看运行详情。</p></details>
+          <h3 v-if="visibleTasks.length" class="queue-section-title">AI 处理任务</h3>
+          <p v-else-if="recordsLoaded && !recordsLoading" class="muted">当前筛选没有已接取的处理任务；待接收事件会在接取后进入这里。</p>
+          <a-table v-if="visibleTasks.length" :columns="taskColumns" :data-source="visibleTasks" :loading="busy || recordsLoading" :row-key="(task: CommunityTask) => task.id" :scroll="{ x: 1160 }">
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'bot'">{{ botName(record.botId) }}</template>
-              <template v-else-if="column.key === 'status'">{{ taskStatus(record) }}</template>
+              <template v-else-if="column.key === 'status'"><a-tag :color="executingTask(record) ? 'blue' : undefined">{{ taskStatus(record) }}</a-tag><p v-if="taskProgress(record)" class="task-progress">{{ taskProgress(record) }}</p></template>
               <template v-else-if="column.key === 'failures'">{{ failureCount(record) }}</template>
-              <template v-else-if="column.key === 'availableAt'"><span v-if="pendingStatuses.has(record.status)">{{ automaticRetry(record) ? '自动重试：' : '' }}{{ formatDateTime(record.availableAt) }}</span><span v-else>—</span></template>
+              <template v-else-if="column.key === 'availableAt'"><span v-if="pendingStatuses.has(record.status)">{{ automaticRetry(record) ? '自动重试：' : '' }}{{ plannedAt(record) }}</span><span v-else>—</span></template>
               <template v-else-if="column.key === 'post'"><a-tooltip :title="postTitle(record.postId, record.postTitle)"><div class="truncate table-summary">{{ postTitle(record.postId, record.postTitle) }}</div></a-tooltip></template>
               <template v-else-if="column.key === 'comment'"><a-tooltip :title="record.commentPreview"><div class="truncate table-summary">{{ record.commentId ? record.commentPreview || '触发评论内容暂不可用' : '文章触发' }}</div></a-tooltip></template>
               <template v-else-if="column.key === 'error'"><a-tooltip :title="record.error"><div class="truncate table-summary">{{ record.error || '—' }}</div></a-tooltip><a-tooltip v-if="retryNotices[String(record.id)]" :title="retryNotice(record)"><div class="truncate table-summary" :class="{ 'field-error': !retryNotices[String(record.id)].queued }">{{ retryNotice(record) }}</div></a-tooltip></template>
               <template v-else-if="column.key === 'detail'"><a-space direction="vertical" :size="0"><a-button type="link" @click="taskDetail = record; taskDetailOpen = true">查看</a-button><a-tooltip v-if="record.status === 'FAILED'" :title="retryDescription(record)"><a-button type="link" :loading="retryingTaskIds.includes(String(record.id))" @click="retryTask(record)">{{ retryLabel(record) }}</a-button></a-tooltip><a-popconfirm v-if="canCancelTask(record)" title="取消此任务并阻止发布？正在进行的模型调用可能仍产生用量。" @confirm="cancelTask(record)"><a-button type="link" danger :loading="cancellingIds.includes('task:' + record.id)">取消任务</a-button></a-popconfirm></a-space></template>
             </template>
           </a-table>
+          <template v-if="events.length && ['all', 'pending'].includes(taskFilter)">
+            <h3 class="queue-section-title">等待 AI 接收</h3>
+            <a-table :columns="eventColumns" :data-source="events" :row-key="(event: CommunityEvent) => String(event.id)" size="small" :pagination="{ pageSize: 5, showSizeChanger: true, pageSizeOptions: ['5', '10', '20'] }" :scroll="{ x: 820 }">
+              <template #bodyCell="{ column, record }"><template v-if="column.key === 'bot'">{{ botName(record.botId) }}</template><template v-else-if="column.key === 'post'"><a-tooltip :title="postTitle(record.postId, record.postTitle)"><span class="truncate table-summary">{{ postTitle(record.postId, record.postTitle) }}</span></a-tooltip></template><template v-else-if="column.key === 'progress'"><p class="task-progress">{{ eventProgress(record) }}</p><span class="muted">{{ plannedAt(record) }}</span></template><template v-else-if="column.key === 'action'"><a-popconfirm title="取消这条待接收任务？取消后不会重新邀请同一初评。" @confirm="cancelEvent(record)"><a-button type="link" danger :loading="cancellingIds.includes('event:' + record.id)">取消</a-button></a-popconfirm></template></template>
+            </a-table>
+          </template>
         </a-card>
       </a-tab-pane>
       <a-tab-pane key="runs" tab="执行记录">
@@ -1295,6 +1430,7 @@ onMounted(() => {
       </template>
     </a-modal>
     <a-modal v-model:open="taskDetailOpen" title="任务详情" width="min(1100px, 92vw)" :body-style="{ maxHeight: '72vh', overflowY: 'auto' }" :footer="null">
+      <a-alert v-if="taskDetail && taskProgress(taskDetail)" :type="executingTask(taskDetail) ? 'info' : !workerOnline && pendingStatuses.has(taskDetail.status) ? 'warning' : 'info'" :message="taskProgress(taskDetail)" show-icon class="mb-16" />
       <a-alert v-if="taskDetail && retryNotices[String(taskDetail.id)]" class="mb-16" :type="retryNoticeType(taskDetail)" :message="retryNotice(taskDetail)" show-icon />
       <a-alert v-if="taskDetail?.status === 'FAILED'" type="warning" show-icon class="mb-16" message="该任务已停止自动重试，可手动重新入队。" :description="retryDescription(taskDetail)"><template #action><a-button :loading="retryingTaskIds.includes(String(taskDetail.id))" @click="retryTask(taskDetail)">{{ retryLabel(taskDetail) }}</a-button></template></a-alert>
       <a-popconfirm v-if="taskDetail && canCancelTask(taskDetail)" title="取消此任务并阻止发布？正在进行的模型调用可能仍产生用量。" @confirm="cancelTask(taskDetail!)"><a-button danger class="mb-16" :loading="cancellingIds.includes('task:' + taskDetail.id)">取消任务</a-button></a-popconfirm>
@@ -1303,7 +1439,7 @@ onMounted(() => {
         <a-descriptions-item label="当前状态">{{ taskStatus(taskDetail) }}</a-descriptions-item>
         <a-descriptions-item label="文章" :span="2">{{ postTitle(taskDetail.postId, taskDetail.postTitle) }}</a-descriptions-item>
         <a-descriptions-item label="触发线索" :span="2"><div class="comment-body">{{ taskDetail.commentId ? taskDetail.commentPreview || '触发评论内容暂不可用' : '文章触发' }}</div></a-descriptions-item>
-        <a-descriptions-item :label="automaticRetry(taskDetail) ? '计划自动重试' : '下次处理时间'">{{ pendingStatuses.has(taskDetail.status) ? formatDateTime(taskDetail.availableAt) : '—' }}</a-descriptions-item>
+        <a-descriptions-item :label="automaticRetry(taskDetail) ? '计划自动重试' : '下次处理时间'">{{ pendingStatuses.has(taskDetail.status) ? plannedAt(taskDetail) : '—' }}</a-descriptions-item>
         <a-descriptions-item label="生成尝试次数">{{ taskDetail.attempts }}</a-descriptions-item>
         <a-descriptions-item label="本轮失败次数">{{ failureCount(taskDetail) }}</a-descriptions-item>
         <a-descriptions-item v-if="taskDetail.publishedCommentId" label="评论已发表"><a-button type="link" @click="openThread(taskDetail.publishedCommentId!, taskDetail.botId)">查看已发布评论</a-button></a-descriptions-item>
@@ -1350,6 +1486,21 @@ onMounted(() => {
 .runtime-details > summary .muted { margin-left: 12px; font-size: 12px; }
 .runtime-details .console-overview { margin-top: 12px; }
 .queue-section-title { margin: 16px 0 8px; font-size: 15px; }
+.worker-monitor { margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--lt-color-border); border-radius: 8px; background: var(--lt-color-bg-layout); }
+.worker-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.worker-heading h3 { margin: 0; font-size: 16px; }
+.worker-heading > .muted { font-size: 12px; }
+.worker-current-task { margin-top: 12px; }
+.worker-current-task > div, .worker-current-task > p { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.worker-current-task > p > span { color: var(--lt-color-text-secondary); font-size: 12px; }
+.worker-idle { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; }
+.worker-queue-summary { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 12px; color: var(--lt-color-text-secondary); }
+.worker-queue-summary strong { color: var(--lt-color-text); font-variant-numeric: tabular-nums; }
+.worker-last-task { margin: 8px 0 0; font-size: 12px; overflow-wrap: anywhere; }
+.worker-diagnostics { margin-top: 8px; font-size: 12px; }
+.worker-diagnostics summary { cursor: pointer; color: var(--lt-color-text-secondary); }
+.worker-diagnostics p { margin: 8px 0 0; overflow-wrap: anywhere; }
+.task-progress { margin: 4px 0 0; font-size: 12px; color: var(--lt-color-text-secondary); white-space: normal; }
 .page-title p, .muted { color: var(--lt-color-text-secondary); }
 .console-overview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
 .overview-summary :deep(.ant-card-body), .decision-summary :deep(.ant-card-body), .workflow-card :deep(.ant-card-body) { padding: 18px; }

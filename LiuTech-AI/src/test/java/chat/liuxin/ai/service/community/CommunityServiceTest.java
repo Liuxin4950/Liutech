@@ -24,8 +24,9 @@ class CommunityServiceTest {
     private final CommunityMapper mapper=mock(CommunityMapper.class);
     private final CommunityStore store=mock(CommunityStore.class);
     private final AiMetrics metrics=mock(AiMetrics.class);
+    private final CommunityWorkerMonitor workerMonitor=mock(CommunityWorkerMonitor.class);
     private final CommunityService service=new CommunityService(transport,client,policy,new PromptBudget(new AiChatProperties()),
-            mapper,store,json,metrics);
+            mapper,store,json,metrics,workerMonitor);
     @Test void cancellationPersistsOnlyAfterAuthorityFenceAndPublicationWinnerRequiresWithdrawal() {
         var task=new CommunityTask();task.setId("task");task.setEventId(3L);task.setPostId(2L);task.setBotId(1L);task.setStatus("RUNNING");
         when(mapper.taskById("task")).thenReturn(task);

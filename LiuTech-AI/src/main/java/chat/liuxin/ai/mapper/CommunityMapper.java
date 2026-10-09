@@ -22,6 +22,26 @@ public interface CommunityMapper {
     @Update("UPDATE ai_community_worker SET lease_token=NULL,lease_until=NULL WHERE id=1 AND lease_token=#{token}")
     int releaseWorker(String token);
 
+    @Select("SELECT lease_token AS leaseToken,TIMESTAMPDIFF(SECOND,NOW(),lease_until) AS leaseRemainingSeconds," +
+            "IF(lease_token IS NOT NULL AND lease_until>NOW(),1,0) AS leaseOccupied," +
+            "DATE_FORMAT(NOW(),'%Y-%m-%d %H:%i:%s') AS databaseNow,@@session.time_zone AS sessionTimeZone,@@system_time_zone AS systemTimeZone " +
+            "FROM ai_community_worker WHERE id=1")
+    @Options(useCache=false,timeout=2)
+    Map<String,Object> workerStatus();
+
+    @Select("SELECT COALESCE(SUM(status IN ('READY','RUNNING','DECIDED') AND available_at<=NOW() " +
+            "AND (lease_until IS NULL OR lease_until<=NOW())),0) AS readyCount," +
+            "COALESCE(SUM(status IN ('READY','RUNNING','DECIDED') AND available_at>NOW()),0) AS delayedCount," +
+            "COALESCE(SUM(status IN ('READY','RUNNING','DECIDED') AND lease_until>NOW()),0) AS leasedCount," +
+            "COALESCE(SUM(status='FAILED'),0) AS failedCount," +
+            "MIN(IF(status IN ('READY','RUNNING','DECIDED') AND (lease_until IS NULL OR lease_until<=NOW())," +
+            "GREATEST(0,TIMESTAMPDIFF(SECOND,NOW(),available_at)),NULL)) AS nextDueSeconds," +
+            "COALESCE(MAX(IF(status IN ('READY','RUNNING','DECIDED') AND available_at<=NOW() " +
+            "AND (lease_until IS NULL OR lease_until<=NOW()),GREATEST(0,TIMESTAMPDIFF(SECOND,created_at,NOW())),0)),0) AS oldestReadySeconds " +
+            "FROM ai_community_task")
+    @Options(useCache=false,timeout=2)
+    Map<String,Object> queueStatus();
+
     @Select("SELECT * FROM ai_community_task WHERE status IN ('READY','RUNNING','DECIDED') AND available_at <= NOW() " +
             "AND (lease_until IS NULL OR lease_until < NOW()) ORDER BY created_at,id LIMIT 1 FOR UPDATE")
     @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
@@ -51,7 +71,10 @@ public interface CommunityMapper {
             "failures=failures+1,error=#{error},lease_until=NULL,available_at=TIMESTAMPADD(SECOND,#{delay},NOW()) WHERE id=#{id} AND status IN ('READY','RUNNING','DECIDED')")
     int retry(@Param("id") String id,@Param("error") String error,@Param("stale") boolean stale,@Param("delay") int delay);
 
-    @Select("<script>SELECT * FROM (SELECT * FROM ai_community_task <where>" +
+    @Select("<script>SELECT queue.*,TIMESTAMPDIFF(SECOND,NOW(),available_at) AS due_seconds," +
+            "TIMESTAMPDIFF(SECOND,NOW(),lease_until) AS lease_remaining_seconds," +
+            "CAST(UNIX_TIMESTAMP(available_at)*1000 AS SIGNED) AS available_at_epoch_ms," +
+            "CAST(UNIX_TIMESTAMP(created_at)*1000 AS SIGNED) AS created_at_epoch_ms FROM (SELECT * FROM ai_community_task <where>" +
             "<if test='botId != null'>AND bot_id=#{botId}</if> " +
             "<if test='postId != null'>AND post_id=#{postId}</if> " +
             "<choose><when test='status != null'>AND status=#{status}</when><otherwise>AND status IN ('READY','RUNNING','DECIDED','FAILED')</otherwise></choose></where> " +
@@ -95,7 +118,8 @@ public interface CommunityMapper {
             "ORDER BY created_at DESC,id DESC LIMIT 1")
     String latestGeneratedRun(String taskId);
 
-    @Select("<script>SELECT r.id,r.task_id,r.bot_id,r.post_id,t.comment_id,r.status,r.result_json,r.error,r.created_at " +
+    @Select("<script>SELECT r.id,r.task_id,r.bot_id,r.post_id,t.comment_id,r.status,r.result_json,r.error,r.created_at," +
+            "CAST(UNIX_TIMESTAMP(r.created_at)*1000 AS SIGNED) AS createdAtEpochMs " +
             "FROM ai_community_run r LEFT JOIN ai_community_task t ON t.id=r.task_id " +
             "<where><if test='botId != null'>AND r.bot_id=#{botId}</if> " +
             "<if test='postId != null'>AND r.post_id=#{postId}</if></where> ORDER BY r.created_at DESC,r.id DESC LIMIT #{limit}</script>")

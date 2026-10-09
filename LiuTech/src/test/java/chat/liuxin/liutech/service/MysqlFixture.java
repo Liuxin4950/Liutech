@@ -28,7 +28,17 @@ class MysqlFixture implements AutoCloseable {
     final Path repositoryRoot;
 
     MysqlFixture(String... mapperXml) throws Exception {
-        baseUrl = System.getenv("LIUTECH_TEST_MYSQL_URL");
+        this(java.util.Map.of(),mapperXml);
+    }
+
+    /** 单项回归可指定连接与会话时区，不影响其它测试连接。 */
+    MysqlFixture(java.util.Map<String,String> connectionOptions,String... mapperXml) throws Exception {
+        String configuredUrl = System.getenv("LIUTECH_TEST_MYSQL_URL");
+        String options = connectionOptions.entrySet().stream().map(entry -> "&"
+            +java.net.URLEncoder.encode(entry.getKey(),java.nio.charset.StandardCharsets.UTF_8)+"="
+            +java.net.URLEncoder.encode(entry.getValue(),java.nio.charset.StandardCharsets.UTF_8))
+            .collect(java.util.stream.Collectors.joining());
+        baseUrl = configuredUrl+options;
         if (!baseUrl.matches("jdbc:mysql://(127\\.0\\.0\\.1|localhost):[0-9]+/\\?.*")) {
             throw new IllegalArgumentException("测试只接受本机无库名的 JDBC URL");
         }

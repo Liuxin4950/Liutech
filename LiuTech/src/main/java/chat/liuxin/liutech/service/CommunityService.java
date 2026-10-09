@@ -424,9 +424,9 @@ public class CommunityService {
             CommunityEvent event = new CommunityEvent(); event.setBotId(bot.getId()); event.setPostId(post.getId());
             event.setCommentId(commentId); event.setEventType(type); event.setRootEventId(root);
             int delay = ThreadLocalRandom.current().nextInt(s.getMinDelaySeconds(),s.getMaxDelaySeconds()+1);
-            event.setAvailableAt(Date.from(Instant.now().plusSeconds(delay)));
             String key = type+":"+("MANUAL_INVITE".equals(type) ? root : commentId == null ? post.getId() : commentId)+":"+bot.getId();
-            queued += mapper.insertEvent(key,event);
+            // 领取条件也用数据库 NOW；只传相对秒数，不绑定可能与会话时区不同的 Java Date。
+            queued += mapper.insertEvent(key,event,delay);
         }
         return queued;
     }

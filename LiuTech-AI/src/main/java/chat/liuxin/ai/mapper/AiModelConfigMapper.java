@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.annotations.Options;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +20,13 @@ import java.util.Optional;
  */
 @Mapper
 public interface AiModelConfigMapper extends BaseMapper<AiModelConfig> {
+    /** 模型目录很小，管理写入按主键顺序共同加锁，串行裁定默认切换、停用和删除。 */
+    @Select("SELECT id FROM ai_model_config ORDER BY id FOR UPDATE")
+    @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
+    List<Long> lockCatalog();
+    @Select("SELECT * FROM ai_model_config WHERE id=#{id} FOR UPDATE")
+    @Options(useCache=false,flushCache=Options.FlushCachePolicy.TRUE)
+    AiModelConfig lockModel(Long id);
 
     /**
      * 查询所有启用的模型，按排序顺序

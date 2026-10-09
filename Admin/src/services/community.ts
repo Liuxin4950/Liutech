@@ -82,6 +82,7 @@ export interface CommunityTask {
   postTitle?: string; commentPreview?: string
   retryKind?: 'regenerate' | 'publish' | 'postprocess' | 'complete'; retryReason?: string; publishedCommentId?: number
   status: string; attempts: number; failures?: number; error?: string; availableAt?: string; leaseUntil?: string; createdAt?: string
+  dueSeconds?: number; availableAtEpochMs?: number; leaseRemainingSeconds?: number
 }
 export interface CommunityMemory {
   id: number | string; botId: number; sourcePostId: number; sourceCommentId?: number
@@ -92,6 +93,23 @@ export interface CommunityBackfillResult { queued: number; skipped: number; post
 export interface CommunityEvent {
   id: number | string; botId: number; postId: number; postTitle?: string; commentId?: number
   eventType?: string; status?: string; availableAt?: string; createdAt?: string
+  dueSeconds?: number; availableAtEpochMs?: number; leaseRemainingSeconds?: number
+}
+export interface CommunityWorkerStatus {
+  instanceId: string; state: string; phase: string; busy: boolean; schedulerAlive: boolean
+  observedAt: string; startedAt?: string; lastHeartbeatAt?: string; lastPollStartedAt?: string
+  heartbeatAgeMs?: number
+  lastProgressAt?: string; progressAgeMs?: number; progressWarningMs?: number
+  lastPollFinishedAt?: string; lastSuccessfulPollAt?: string; pollIntervalMs: number; initialDelayMs?: number
+  phaseStartedAt?: string; phaseElapsedMs?: number; modelTimeoutMs?: number; phaseTimeoutMs?: number; phaseDeadlineAt?: string
+  currentTaskId?: string; currentBotId?: number; currentPostId?: number; currentEventId?: number; currentModel?: string
+  currentTaskStartedAt?: string
+  currentTaskStatus?: string
+  lastTaskId?: string; lastTaskFinishedAt?: string; lastTaskOutcome?: string
+  leaseOwned?: boolean; leaseState?: string; leaseRemainingSeconds?: number
+  blockReason?: string; lastError?: string; lastErrorAt?: string; consecutivePollFailures?: number
+  queue?: { readyCount: number; delayedCount: number; leasedCount: number; failedCount: number; nextDueSeconds?: number; oldestReadySeconds?: number }
+  database?: { available: boolean; now?: string; sessionTimeZone?: string; systemTimeZone?: string }
 }
 
 async function aiData<T>(request: Promise<{ data: ApiResponse<T> & { success?: boolean } }>): Promise<T> {
@@ -134,6 +152,7 @@ export const communityService = {
   runs: (botId?: number, postId?: number) => aiData<CommunityRun[]>(aiApi.get(aiBase + '/runs', { params: { botId, postId, limit: 100 } })),
   tasks: (botId?: number, postId?: number) => aiData<CommunityTask[]>(aiApi.get(aiBase + '/tasks', { params: { botId, postId, limit: 100 } })),
   cancelTask: (taskId: number | string) => aiData<{ cancelled: boolean; reason: string; publishedCommentId?: number }>(aiApi.post(`${aiBase}/tasks/${encodeURIComponent(String(taskId))}/cancel`)),
+  worker: () => aiData<CommunityWorkerStatus>(aiApi.get(`${aiBase}/worker`)),
   retryTask: (taskId: number | string) => aiData<{ taskId?: number | string; queued: boolean; reason: string; retryKind?: CommunityTask['retryKind'] }>(aiApi.post(`${aiBase}/tasks/${encodeURIComponent(String(taskId))}/retry`)),
   memory: (botId: number) => aiData<CommunityMemory[]>(aiApi.get(aiBase + '/memory', { params: { botId } })),
   clearMemory: (botId: number) => aiData<void>(aiApi.delete(`${aiBase}/memory/${botId}`)),

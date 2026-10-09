@@ -47,7 +47,7 @@ class CommunityServiceTest {
         when(mapper.postState(2L)).thenReturn(state);when(comments.selectRecentForCommunity(2L)).thenReturn(List.of());
         when(mapper.knowledge(1L)).thenReturn(List.of());when(mapper.bots()).thenReturn(List.of(bot));
         when(mapper.chainCount(ROOT,2L)).thenReturn(0);
-        when(mapper.insertEvent(any(),any())).thenReturn(1);
+        when(mapper.insertEvent(any(),any(),anyInt())).thenReturn(1);
         when(mapper.lockArticleInvitation(anyLong(),anyLong())).thenReturn(null);
         when(mapper.recentPublicPostIds(10)).thenReturn(List.of(2L));
         CommunityEvent event=new CommunityEvent();event.setId(7L);event.setBotId(1L);event.setPostId(2L);event.setEventType("ARTICLE_PUBLISHED");
@@ -74,7 +74,7 @@ class CommunityServiceTest {
         assertDoesNotThrow(()->service.humanCommentCreated(reply,List.of()));
         verify(mapper,never()).bots();
         verify(mapper,never()).insertChain(any(),any());
-        verify(mapper,never()).insertEvent(any(),any());
+        verify(mapper,never()).insertEvent(any(),any(),anyInt());
         when(mapper.bot(1L)).thenReturn(null);
         var error=assertThrows(BusinessException.class,()->service.humanCommentCreated(reply,List.of(1L)));
         assertEquals(ErrorCode.COMMUNITY_BOT_NOT_FOUND.getCode(),error.getCode());
@@ -124,7 +124,7 @@ class CommunityServiceTest {
         assertEquals(99L,result.commentId());
         ArgumentCaptor<Comments> saved=ArgumentCaptor.forClass(Comments.class);verify(comments).insertCommunityComment(saved.capture());
         assertNull(saved.getValue().getUserId());assertEquals(1L,saved.getValue().getBotId());
-        assertNull(saved.getValue().getCreatedBy());verify(mapper,never()).insertEvent(any(),any());
+        assertNull(saved.getValue().getCreatedBy());verify(mapper,never()).insertEvent(any(),any(),anyInt());
         verify(mapper).incrementChain(ROOT);
     }
     @Test void articleInvitationCanChooseToReplyToAnExistingVisibleComment() {
@@ -229,9 +229,16 @@ class CommunityServiceTest {
         verify(mapper).recentPublicPostIds(10);
         verify(mapper).markPublished(2L);
         ArgumentCaptor<CommunityEvent> event=ArgumentCaptor.forClass(CommunityEvent.class);
-        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),event.capture());
+        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),event.capture(),anyInt());
         assertEquals("ARTICLE_PUBLISHED",event.getValue().getEventType());
         assertNull(event.getValue().getCommentId());
+    }
+    @Test void enqueuePassesOnlyRelativeDelaySoDatabaseGeneratesTheDeadline() {
+        settings.setMinDelaySeconds(30);settings.setMaxDelaySeconds(30);
+        assertEquals(1,service.invite(2L,List.of(1L)).queued());
+        ArgumentCaptor<CommunityEvent> event=ArgumentCaptor.forClass(CommunityEvent.class);
+        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),event.capture(),eq(30));
+        assertNull(event.getValue().getAvailableAt());
     }
     @Test void automaticPublicationFallsBackButStillExcludesDisabledAndZeroParticipationRoles() {
         bot.setInterests("摄影");
@@ -240,8 +247,8 @@ class CommunityServiceTest {
         when(mapper.bots()).thenReturn(List.of(paused,silent,bot));
         when(mapper.markPublished(2L)).thenReturn(1);
         service.articleSaved(2L);
-        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),any());
-        verify(mapper,times(1)).insertEvent(any(),any());
+        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),any(),anyInt());
+        verify(mapper,times(1)).insertEvent(any(),any(),anyInt());
     }
     @Test void matchingRolesRankAheadAndEachArticleSharesOneRootForAtMostTwoBots() {
         bot.setInterests("Java");bot.setParticipation(1);
@@ -251,7 +258,7 @@ class CommunityServiceTest {
         var result=service.backfill(new CommunityReq.Backfill(10,null));
         assertEquals(2,result.queued());
         ArgumentCaptor<CommunityEvent> events=ArgumentCaptor.forClass(CommunityEvent.class);
-        verify(mapper,times(2)).insertEvent(any(),events.capture());
+        verify(mapper,times(2)).insertEvent(any(),events.capture(),anyInt());
         assertEquals(List.of(1L,3L),events.getAllValues().stream().map(CommunityEvent::getBotId).toList());
         assertEquals(events.getAllValues().get(0).getRootEventId(),events.getAllValues().get(1).getRootEventId());
         verify(mapper,times(1)).insertChain(any(),eq(2L));
@@ -260,24 +267,24 @@ class CommunityServiceTest {
         when(mapper.lockArticleInvitation(2L,1L)).thenReturn(null,7L);
         assertEquals(new CommunityResp.Backfill(1,0,1),service.backfill(new CommunityReq.Backfill(10,null)));
         assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
-        verify(mapper,times(1)).insertEvent(any(),any());
+        verify(mapper,times(1)).insertEvent(any(),any(),anyInt());
         when(mapper.lockArticleInvitation(2L,1L)).thenReturn(null);
         when(mapper.lockArticlePublication(1L,2L)).thenReturn(TASK);
         assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
-        verify(mapper,times(1)).insertEvent(any(),any());
+        verify(mapper,times(1)).insertEvent(any(),any(),anyInt());
     }
     @Test void newBackfillBotReusesExistingArticleRootAndRepeatedInviteCannotCreateAnotherTask() {
         when(mapper.initialArticleRoot(2L)).thenReturn(ROOT);
         assertEquals(1,service.backfill(new CommunityReq.Backfill(10,List.of(1L))).queued());
         ArgumentCaptor<CommunityEvent> events=ArgumentCaptor.forClass(CommunityEvent.class);
-        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),events.capture());
+        verify(mapper).insertEvent(eq("ARTICLE_PUBLISHED:2:1"),events.capture(),anyInt());
         assertEquals(ROOT,events.getValue().getRootEventId());
         verify(mapper,never()).insertChain(any(),any());
         when(mapper.lockArticleInvitation(2L,1L)).thenReturn(7L);
         assertEquals(0,service.invite(2L,List.of(1L)).queued());
         assertEquals(0,service.invite(2L,List.of(1L)).queued());
         verify(mapper,never()).insertChain(any(),eq(2L));
-        verify(mapper,never()).insertEvent(startsWith("MANUAL_INVITE:"),any());
+        verify(mapper,never()).insertEvent(startsWith("MANUAL_INVITE:"),any(),anyInt());
     }
     @Test void cancelledEventRejectsEvenACachedDecisionAndReceiptStillWinsForAnAlreadyPublishedTask() {
         CommunityEvent event=new CommunityEvent();event.setEventType("CANCELLED");
@@ -332,7 +339,7 @@ class CommunityServiceTest {
         when(mapper.initialArticleRoot(2L)).thenReturn(ROOT);
         when(mapper.chainCount(ROOT,2L)).thenReturn(4);
         assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
-        verify(mapper,never()).insertEvent(any(),any());
+        verify(mapper,never()).insertEvent(any(),any(),anyInt());
     }
     @Test void backfillHonorsGlobalAndArticlePauseAndRejectsOversizedBatches() {
         assertThrows(BusinessException.class,()->service.backfill(new CommunityReq.Backfill(21,null)));
@@ -343,7 +350,7 @@ class CommunityServiceTest {
         verify(mapper,never()).markPublished(any());
         settings.setEnabled(true);state.setEnabled(false);
         assertEquals(new CommunityResp.Backfill(0,1,1),service.backfill(new CommunityReq.Backfill(10,null)));
-        verify(mapper,never()).insertEvent(any(),any());
+        verify(mapper,never()).insertEvent(any(),any(),anyInt());
     }
     @Test void batchBackfillLocksAllArticlesInAscendingOrderBeforeSettingsAndIgnoresNoLongerPublicPosts() {
         when(mapper.recentPublicPostIds(10)).thenReturn(List.of(8L,2L,5L));

@@ -4,6 +4,7 @@ import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CommentsMapper;
 import chat.liuxin.liutech.mapper.CommunityMapper;
+import chat.liuxin.liutech.model.CommunityEvent;
 import chat.liuxin.liutech.req.CommunityReq;
 import chat.liuxin.liutech.resp.CommunityResp;
 import org.junit.jupiter.api.*;
@@ -86,11 +87,74 @@ class CommunityLifecycleMysqlTest {
         assertEquals(105,service.pendingEvents(1L,2L).size());
         assertTrue(service.pendingEvents(1L,3L).isEmpty());
     }
+    @Test void eventDelayUsesDatabaseClockWithUtcSessionAndShanghaiJdbc() throws Exception {
+        try(var timezoneDb=new MysqlFixture(Map.of("serverTimezone","Asia/Shanghai",
+                "forceConnectionTimeZoneToSession","false","sessionVariables","time_zone='+00:00'"),"mapper/CommentsMapper.xml")) {
+            timezoneDb.session.getConfiguration().addMapper(CommunityMapper.class);
+            var timezoneMapper=timezoneDb.session.getMapper(CommunityMapper.class);
+            assertEquals("+00:00",timezoneDb.jdbc.queryForObject("SELECT @@session.time_zone",String.class));
+            timezoneDb.jdbc.update("INSERT INTO community_bots(id,name,personality,enabled,participation) VALUES(1,'时区测试','简洁',TRUE,50)");
+            // 重现旧写法：Java Date 按上海连接时区转换，UTC 数据库却把字面时间当成 UTC。
+            timezoneDb.jdbc.update("INSERT INTO community_events(event_key,event_type,bot_id,post_id,root_event_id,available_at) "
+                +"VALUES('old-java-date','ARTICLE_PUBLISHED',1,2,?,?)",ROOT,Date.from(java.time.Instant.now().plusSeconds(30)));
+            long oldDelay=timezoneDb.jdbc.queryForObject("SELECT TIMESTAMPDIFF(SECOND,created_at,available_at) "
+                +"FROM community_events WHERE event_key='old-java-date'",Long.class);
+            assertTrue(oldDelay>=28829 && oldDelay<=28831,"旧日期绑定应重现多出8小时，实际="+oldDelay);
+            for(int delay:List.of(20,90)) {
+                CommunityEvent event=new CommunityEvent();event.setEventType("ARTICLE_PUBLISHED");
+                event.setBotId(1L);event.setPostId(2L);event.setRootEventId(ROOT);
+                assertEquals(1,timezoneMapper.insertEvent("db-clock-"+delay,event,delay));
+                long actual=timezoneDb.jdbc.queryForObject("SELECT TIMESTAMPDIFF(SECOND,created_at,available_at) "
+                    +"FROM community_events WHERE event_key=?",Long.class,"db-clock-"+delay);
+                assertEquals(delay,actual);
+            }
+            var events=timezoneMapper.pendingEvents(1L,2L);
+            var minimum=events.stream().filter(event -> event.getDueSeconds()<25).findFirst().orElseThrow();
+            assertTrue(minimum.getDueSeconds()>=18 && minimum.getDueSeconds()<=20);
+            long databaseNow=timezoneDb.jdbc.queryForObject("SELECT CAST(UNIX_TIMESTAMP(NOW(3))*1000 AS SIGNED)",Long.class);
+            assertTrue(minimum.getAvailableAtEpochMs()-databaseNow>=18000 && minimum.getAvailableAtEpochMs()-databaseNow<=20000);
+            timezoneDb.jdbc.update("UPDATE community_events SET available_at=TIMESTAMPADD(SECOND,-5,NOW(3)), "
+                +"lease_token='expired',lease_until=TIMESTAMPADD(SECOND,-2,NOW(3)) WHERE available_at < TIMESTAMPADD(SECOND,25,NOW(3))");
+            var due=timezoneMapper.pendingEvents(1L,2L).getFirst();
+            assertTrue(due.getDueSeconds()<=-5);assertTrue(due.getLeaseRemainingSeconds()<=-2);
+            assertEquals("WAITING",due.getStatus());
+            assertTrue(timezoneMapper.claimable(20).stream().anyMatch(event -> event.getId().equals(due.getId())));
+        }
+    }
     @Test void crashedHandoffWithExpiredLeaseCanBeCancelledAndLateWorkerCannotPublish() {
         db.jdbc.update("UPDATE community_events SET lease_token='crashed',lease_until=TIMESTAMPADD(SECOND,-1,NOW()) WHERE id=7");
         assertEquals("WAITING",service.pendingEvents(1L,2L).getFirst().getStatus());
         assertTrue(service.cancelPendingEvent(7L).cancelled());
         assertEquals(1706,assertThrows(BusinessException.class,()->service.publish(publishRequest())).getCode());
+    }
+    @Test void nightModelQuotaUsesEpochBoundsWhilePublicationAndCooldownRemainCompatible() throws Exception {
+        java.time.Instant fixed=java.time.Instant.parse("2026-10-09T17:00:00Z"); // 北京次日 01:00
+        try(var timezoneDb=new MysqlFixture(Map.of("serverTimezone","Asia/Shanghai",
+                "forceConnectionTimeZoneToSession","false","sessionVariables","time_zone='+00:00',timestamp="+fixed.getEpochSecond()),
+                "mapper/CommentsMapper.xml")) {
+            timezoneDb.session.getConfiguration().addMapper(CommunityMapper.class);
+            var timezoneMapper=timezoneDb.session.getMapper(CommunityMapper.class);
+            assertEquals(fixed.getEpochSecond(),timezoneDb.jdbc.queryForObject("SELECT UNIX_TIMESTAMP(NOW())",Long.class));
+            Date[] day=CommunityService.dayRange(fixed);
+            assertEquals(1,timezoneMapper.recordAttempt(TASK,1,1L,2L,true,""));
+            long trueCount=timezoneDb.jdbc.queryForObject("SELECT COUNT(*) FROM community_attempts "
+                +"WHERE allowed=TRUE AND created_at>=FROM_UNIXTIME(?) AND created_at<FROM_UNIXTIME(?)",Long.class,
+                day[0].getTime()/1000,day[1].getTime()/1000);
+            assertEquals(1,trueCount);
+            // 旧 Date 参数查询仍可复现漏计，修复后的全站/角色查询应包含同一条夜间尝试。
+            assertEquals(0,timezoneDb.jdbc.queryForObject("SELECT COUNT(*) FROM community_attempts "
+                +"WHERE allowed=TRUE AND created_at>=? AND created_at<?",Integer.class,day[0],day[1]));
+            assertEquals(1,timezoneMapper.attemptCount(null,day[0],day[1]));
+            assertEquals(1,timezoneMapper.attemptCount(1L,day[0],day[1]));
+            assertEquals(0,timezoneMapper.attemptCount(2L,day[0],day[1]));
+            assertEquals(1,timezoneMapper.recordPublication(TASK,1L,2L,99L,Date.from(fixed)));
+            assertEquals(1,timezoneMapper.publicationCount(null,null,day[0],day[1]));
+            assertEquals(28800L,timezoneDb.jdbc.queryForObject("SELECT TIMESTAMPDIFF(SECOND,NOW(),created_at) "
+                +"FROM community_publications WHERE task_id=?",Long.class,TASK));
+            // 发布表写入与查询均经过同样的日期转换，现有冷却时间往返不会额外差 8 小时。
+            assertEquals(fixed.toEpochMilli(),timezoneMapper.lastPublication(1L,2L).getTime());
+            assertEquals(10000L,Date.from(fixed.plusSeconds(10)).getTime()-timezoneMapper.lastPublication(1L,2L).getTime());
+        }
     }
     @Test void lostAcknowledgementAfterPublicationCannotPretendTheCommentWasCancelledEvenAfterWithdrawal() {
         db.jdbc.update("UPDATE community_events SET lease_token='lost-ack',lease_until=TIMESTAMPADD(SECOND,600,NOW()) WHERE id=7");

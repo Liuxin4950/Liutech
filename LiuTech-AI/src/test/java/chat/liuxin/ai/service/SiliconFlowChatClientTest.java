@@ -321,6 +321,32 @@ class SiliconFlowChatClientTest {
         assertTrue(cancelled.await(3, TimeUnit.SECONDS));
         verify(model, times(1)).stream(any(Prompt.class));
     }
+    @Test void synchronousDeadlineReportsTimeoutAndCancelsProviderWithoutLeakingCapacity() throws Exception {
+        props.setSseTimeout(1000);props.getAgent().setMaxConcurrentRequests(1);
+        var cancelled=new CountDownLatch(1);
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.<ChatResponse>never().doOnCancel(cancelled::countDown));
+        var context=Map.<String,Object>of(SiliconFlowChatClient.MODEL_PARAMETERS_CONTEXT_KEY,limits);
+        assertThrows(AIServiceException.TimeoutException.class,()->client.chat(List.of(new UserMessage("deadline")),
+            "configured-model",0.3,1000,SiliconFlowChatClient.ChatMode.CHAT,"USER",context));
+        assertTrue(cancelled.await(3,TimeUnit.SECONDS));
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("recovered","stop",null,10)));
+        assertEquals("recovered",client.chat(List.of(new UserMessage("next")),"configured-model",0.3,1000,
+            SiliconFlowChatClient.ChatMode.CHAT,"USER",context));
+    }
+    @Test void fullCapacityReports429AndCancellationReleasesTheSlotForTheNextRequest() throws Exception {
+        props.getAgent().setMaxConcurrentRequests(1);
+        var subscribed=new CountDownLatch(1);
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.<ChatResponse>never().doOnSubscribe(ignored->subscribed.countDown()));
+        var first=stream(new AiMetrics.UsageTracker()).subscribe();
+        try {
+            assertTrue(subscribed.await(3,TimeUnit.SECONDS));
+            var busy=assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                ()->stream(new AiMetrics.UsageTracker()).blockLast(Duration.ofSeconds(3)));
+            assertEquals(429,busy.getStatusCode().value());assertTrue(busy.getReason().contains("繁忙"));
+        } finally {first.dispose();}
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(response("next-request","stop",null,10)));
+        assertEquals("next-request",String.join("",stream(new AiMetrics.UsageTracker()).collectList().block(Duration.ofSeconds(3))));
+    }
 
     private ChatResponse response(String text, String finish, String toolName, int completionTokens) {
         var output = AssistantMessage.builder().content(text).toolCalls(toolName == null ? List.of()

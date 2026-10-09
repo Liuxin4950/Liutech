@@ -19,10 +19,14 @@ class CommunityWorkerTest {
     private final CommunityStore store=mock(CommunityStore.class);
     private final CommunityMapper mapper=mock(CommunityMapper.class);
     private final CommunityService service=mock(CommunityService.class);
-    private final CommunityWorker worker=new CommunityWorker(transport,store,mapper,service,json,new AiChatProperties());
+    private final CommunityWorkerMonitor monitor=mock(CommunityWorkerMonitor.class);
+    private final CommunityWorker worker=new CommunityWorker(transport,store,mapper,service,json,new AiChatProperties(),monitor);
     @BeforeEach void activeTask() {
         when(mapper.attempt(anyString(),anyLong())).thenReturn(1);
         when(mapper.decide(anyString(),anyString(),anyString())).thenReturn(1);
+        when(mapper.finish(anyString(),anyString(),any())).thenReturn(1);
+        when(mapper.retry(anyString(),anyString(),anyBoolean(),anyInt())).thenReturn(1);
+        when(mapper.fail(anyString(),anyString(),anyString(),anyBoolean())).thenReturn(1);
         when(transport.internalGet(startsWith("/internal/community/events/")))
             .thenReturn(json.readTree("{\"eventType\":\"ARTICLE_PUBLISHED\"}"));
     }
@@ -46,6 +50,52 @@ class CommunityWorkerTest {
             worker.tick();
             verify(transport, times(1)).internalPost(eq("/internal/community/events/claim"), any());
         } finally { release.countDown(); worker.shutdown(); }
+    }
+    @Test void failedEventIntakeStillDrainsAnAlreadyPersistedTaskAndReportsTheFailure() throws Exception {
+        var task=decided();task.setDecisionJson("{\"decision\":\"SKIP\"}");
+        var finished=new java.util.concurrent.CountDownLatch(1);
+        when(transport.internalPost(eq("/internal/community/events/claim"),any()))
+            .thenThrow(new AIServiceException.ConnectionException("后台连接失败"));
+        when(mapper.acquireWorker(anyString(),anyInt())).thenReturn(1);
+        when(store.claim(anyInt())).thenReturn(task);
+        doAnswer(invocation->{finished.countDown();return null;}).when(monitor).pollFinished();
+        try {
+            worker.tick();assertTrue(finished.await(3,java.util.concurrent.TimeUnit.SECONDS));
+            verify(mapper).finish(task.getId(),"SKIPPED",null);
+            verify(monitor).pollError(contains("网站事件领取失败"));
+            verify(monitor).taskStarted(task);verify(monitor).taskFinished(task.getId(),"SKIPPED");
+            verifyNoInteractions(service);
+        } finally {worker.shutdown();}
+    }
+    @Test void aBlockedModelDoesNotBlockHeartbeatOrStatusReadsAndCancellationRemainsVisible() throws Exception {
+        var task=decided();task.setDecisionJson(null);
+        var started=new java.util.concurrent.CountDownLatch(1);
+        var release=new java.util.concurrent.CountDownLatch(1);
+        var finished=new java.util.concurrent.CountDownLatch(1);
+        var realMonitor=new CommunityWorkerMonitor(mapper,new AiChatProperties(),5000,0,60000);
+        var observedWorker=new CommunityWorker(transport,store,mapper,service,json,new AiChatProperties(),realMonitor);
+        when(mapper.workerStatus()).thenReturn(Map.of("leaseOccupied",0));
+        when(mapper.queueStatus()).thenReturn(Map.of("readyCount",0,"delayedCount",0,"leasedCount",0,"failedCount",0));
+        when(mapper.taskById(task.getId())).thenReturn(task);
+        when(service.generate(task.getId(),1,2,null,2,false,0)).thenAnswer(invocation->{
+            realMonitor.model(task.getId(),"blocked-test-model");started.countDown();
+            release.await(3,java.util.concurrent.TimeUnit.SECONDS);
+            return Map.of("decision","SKIP","contextVersion","v1");
+        });
+        // 模拟后台已经派发，另一个 scheduler tick 仅更新心跳，不排入第二次模型执行。
+        realMonitor.pollStarted();
+        Thread execution=Thread.ofPlatform().start(()->{try{observedWorker.execute(task);}finally{finished.countDown();}});
+        try {
+            assertTrue(started.await(3,java.util.concurrent.TimeUnit.SECONDS));
+            realMonitor.heartbeat();
+            var status=assertTimeout(java.time.Duration.ofSeconds(1),realMonitor::status);
+            assertEquals("MODEL_GENERATION",status.phase());assertEquals(task.getId(),status.currentTaskId());
+            assertTrue(status.schedulerAlive());
+            realMonitor.cancelled(task.getId());
+            assertEquals("CANCELLING",realMonitor.status().state());
+            release.countDown();assertTrue(finished.await(3,java.util.concurrent.TimeUnit.SECONDS));
+            assertEquals("CANCELLED",realMonitor.status().lastTaskOutcome());
+        } finally {release.countDown();observedWorker.shutdown();execution.join(3000);}
     }
 
     @Test void persistedDecisionIsRepublishedWithSameIdAfterLostResponseWithoutRegeneration() {
@@ -184,5 +234,14 @@ class CommunityWorkerTest {
         verify(mapper,never()).retry(anyString(),anyString(),anyBoolean(),anyInt());
         verify(mapper,never()).fail(anyString(),anyString(),anyString(),anyBoolean());
         verify(mapper).updateRun(eq("model-run"),eq(task.getId()),eq(1L),eq("CANCELLED"),anyString(),anyString());
+    }
+    @Test void modelCapacityFailureKeepsItsExplicitReasonInTaskAndWorkerStatus() {
+        var task=decided();task.setDecisionJson(null);
+        when(service.generate(task.getId(),1,2,null,2,false,0))
+            .thenThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,"模型服务当前繁忙，请稍后重试"));
+        worker.execute(task);
+        verify(mapper).retry(task.getId(),"模型服务当前繁忙，请稍后重试",false,30);
+        verify(monitor).taskError(task.getId(),"模型服务当前繁忙，请稍后重试");
+        verify(monitor).taskFinished(task.getId(),"RETRY_SCHEDULED");
     }
 }

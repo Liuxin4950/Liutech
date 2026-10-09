@@ -238,7 +238,7 @@ public class TtsSpeechService {
             if (uri == null || uri.isBlank()) {
                 throw upstreamUnavailable("SiliconFlow 未返回音色 URI");
             }
-            ttsConfigService.updateSiliconFlowVoiceUri(uri);
+            // 上传只创建供应商音色；全局模型/音色组合由管理员显式保存配置。
             return SiliconFlowVoiceDTO.builder()
                     .model(normalizedModel)
                     .customName(normalizedName)

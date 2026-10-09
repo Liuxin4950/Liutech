@@ -81,14 +81,14 @@ export const uploadSiliconFlowVoice = async (
   formData.append('model', model)
   formData.append('customName', customName)
   formData.append('text', text)
-  const response = await aiApi.post('/admin/tts/siliconflow/voice', formData, {
+  const response = await aiApi.post<SiliconFlowVoiceDTO>('/admin/tts/siliconflow/voice', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
-  return response.data.data
+  return response.data
 }
 
-export const testTtsSpeech = async (text: string): Promise<TtsSpeechResponseDTO> => {
-  const resp = await aiApi.post<TtsSpeechResponseDTO>('/admin/tts/test-speech', { text })
+export const testTtsSpeech = async (text: string, signal?: AbortSignal): Promise<TtsSpeechResponseDTO> => {
+  const resp = await aiApi.post<TtsSpeechResponseDTO>('/admin/tts/test-speech', { text }, { signal })
   return resp.data
 }
 
