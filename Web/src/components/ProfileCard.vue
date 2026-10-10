@@ -1,37 +1,36 @@
 <template>
-  <div class="profile-card card bg-card relative gap-20">
-    <div class="flex flex-col flex-ac">
+  <div class="profile-card card">
+    <div class="profile-header">
       <div class="avatar-wrapper">
         <img :src="avatar" :alt="name" class="avatar" @error="handleImageError">
       </div>
 
-      <div class="flex flex-col flex-ac">
-        <h3 class="font-semibold" style="font-size: 1.125rem; margin-bottom: 2px">{{ name }}</h3>
-        <p class="text-muted mb-0" style="font-size: 0.8rem">{{ title }}</p>
+      <div class="profile-identity">
+        <h3 class="profile-name">{{ name }}</h3>
+        <p class="profile-title">{{ title }}</p>
       </div>
     </div>
 
-    <div class="profile-bio">{{ bio }}</div>
+    <p class="profile-bio">{{ bio }}</p>
 
-    <div class="profile-stats flex flex-sb mb-16">
-      <div class="flex-1 text-center stat-item">
-        <span class="stat-number">{{ stats.posts }}</span>
-        <span class="stat-label">文章</span>
+    <dl class="profile-stats" aria-label="博客统计">
+      <div class="stat-item">
+        <dt class="stat-label">文章</dt>
+        <dd class="stat-number">{{ stats.posts }}</dd>
       </div>
-      <div class="flex-1 text-center stat-item">
-        <span class="stat-number">{{ stats.comments }}</span>
-        <span class="stat-label">评论</span>
+      <div class="stat-item">
+        <dt class="stat-label">评论</dt>
+        <dd class="stat-number">{{ stats.comments }}</dd>
       </div>
-      <div class="flex-1 text-center stat-item">
-        <span class="stat-number">{{ stats.views }}</span>
-        <span class="stat-label">访问</span>
+      <div class="stat-item">
+        <dt class="stat-label">访问</dt>
+        <dd class="stat-number">{{ stats.views }}</dd>
       </div>
-    </div>
+    </dl>
   </div>
 </template>
 
 <script setup lang="ts">
-import { getUserStats } from '@/services/user'
 import { handleImageError } from '@/composables/useImageFallback'
 
 // 定义props
@@ -49,88 +48,112 @@ interface Props {
   stats: Stats
 }
 
-
 withDefaults(defineProps<Props>(), {
   avatar: '/洛天依.png',
   name: 'Liuxin'
-  })
+})
 </script>
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
 .profile-card {
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  gap: $gap-md;
+  padding: 20px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: $gap-sm;
+  min-width: 0;
 }
 
 .avatar-wrapper {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
   border-radius: 50%;
-  padding: 3px;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-  margin-bottom: 4px;
+  padding: 2px;
+  background: var(--state-primary-bg);
+  border: 1px solid var(--state-primary-border);
 }
 
 .avatar {
+  display: block;
   width: 100%;
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--bg-card);
+  border: 2px solid var(--bg-card);
   background: var(--bg-card);
-  transition: transform 0.3s ease;
 }
 
-.profile-card:hover .avatar {
-  transform: scale(1.05);
+.profile-identity {
+  min-width: 0;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-title);
+  overflow-wrap: anywhere;
+}
+
+.profile-title {
+  margin: 3px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-subtle);
+  overflow-wrap: anywhere;
 }
 
 .profile-bio {
-  font-size: 0.875rem;
-  line-height: 1.6;
-  text-align: center;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.75;
   color: var(--text-subtle);
+  overflow-wrap: anywhere;
 }
 
 .profile-stats {
-  padding: 12px;
-  border-top: 1px solid var(--border-light);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.profile-card h3 {
-  margin-bottom: 4px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 14px 8px;
+  background: var(--bg-element);
+  border-radius: 10px;
 }
 
 .stat-item {
-  position: relative;
-
-  &:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1px;
-    height: 24px;
-    background: var(--border-light);
-  }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  text-align: center;
 }
 
 .stat-number {
-  display: block;
-  font-size: 1.125rem;
+  order: -1;
+  margin: 0;
+  max-width: 100%;
+  font-size: 1.375rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--text-title);
-  line-height: 1.2;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .stat-label {
-  display: block;
   font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-top: 2px;
+  line-height: 1.5;
+  color: var(--text-subtle);
 }
-
 </style>

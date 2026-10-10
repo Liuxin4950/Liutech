@@ -241,7 +241,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-24">
+  <div class="points-management p-24">
     <!-- 统计卡片：响应式栅格，窄屏堆叠 -->
     <a-row :gutter="[12, 12]" class="mb-16">
       <a-col :xs="24" :sm="24" :md="8">
@@ -281,9 +281,9 @@ onMounted(() => {
       <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
         <!-- 积分流水 Tab -->
         <a-tab-pane key="transactions" tab="积分流水">
-          <a-form layout="horizontal" :model="txSearchParams" class="mb-16">
+          <a-form layout="horizontal" :model="txSearchParams" class="points-filter-form mb-16">
             <a-row :gutter="[16, 12]" align="bottom">
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+              <a-col :xs="24" :sm="12" :xl="6">
                 <a-form-item label="用户" class="mb-0">
                   <a-select
                     v-model:value="txSearchParams.userId"
@@ -298,7 +298,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+              <a-col :xs="24" :sm="12" :xl="6">
                 <a-form-item label="交易类型" class="mb-0">
                   <a-select
                     v-model:value="txSearchParams.transactionType"
@@ -315,7 +315,7 @@ onMounted(() => {
                   </a-select>
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+              <a-col :xs="24" :sm="12" :xl="6">
                 <a-form-item label="开始时间" class="mb-0">
                   <a-date-picker
                     v-model:value="txSearchParams.startTime"
@@ -327,7 +327,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+              <a-col :xs="24" :sm="12" :xl="6">
                 <a-form-item label="结束时间" class="mb-0">
                   <a-date-picker
                     v-model:value="txSearchParams.endTime"
@@ -339,8 +339,8 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-                <a-space>
+              <a-col :span="24" class="points-filter-actions">
+                <a-space wrap>
                   <a-button type="primary" @click="handleTxSearch">搜索</a-button>
                   <a-button @click="handleTxReset">重置</a-button>
                 </a-space>
@@ -348,8 +348,8 @@ onMounted(() => {
             </a-row>
           </a-form>
 
-          <div class="mb-16">
-            <a-space>
+          <div class="points-table-toolbar mb-16">
+            <a-space wrap>
               <TableExportButton :ctrl="txExportCtrl" />
               <TableColumnSettings :ctrl="txColumnPrefsCtrl" />
               <a-button type="primary" @click="openAdjustModal">手动调整积分</a-button>
@@ -363,6 +363,7 @@ onMounted(() => {
             :pagination="txPagination"
             @change="handleTxTableChange"
             row-key="id"
+            :scroll="{ x: 960 }"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'transactionType'">
@@ -387,9 +388,9 @@ onMounted(() => {
 
         <!-- 签到记录 Tab -->
         <a-tab-pane key="checkins" tab="签到记录">
-          <a-form layout="horizontal" :model="checkinSearchParams" class="mb-16">
+          <a-form layout="horizontal" :model="checkinSearchParams" class="points-filter-form mb-16">
             <a-row :gutter="[16, 12]" align="bottom">
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+              <a-col :xs="24" :sm="12" :xl="8">
                 <a-form-item label="用户" class="mb-0">
                   <a-select
                     v-model:value="checkinSearchParams.userId"
@@ -404,7 +405,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+              <a-col :xs="24" :sm="12" :xl="8">
                 <a-form-item label="开始日期" class="mb-0">
                   <a-date-picker
                     v-model:value="checkinSearchParams.startDate"
@@ -415,7 +416,7 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6">
+              <a-col :xs="24" :sm="12" :xl="8">
                 <a-form-item label="结束日期" class="mb-0">
                   <a-date-picker
                     v-model:value="checkinSearchParams.endDate"
@@ -426,8 +427,8 @@ onMounted(() => {
                   />
                 </a-form-item>
               </a-col>
-              <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-                <a-space>
+              <a-col :span="24" class="points-filter-actions">
+                <a-space wrap>
                   <a-button type="primary" @click="handleCheckinSearch">搜索</a-button>
                   <a-button @click="handleCheckinReset">重置</a-button>
                 </a-space>
@@ -435,8 +436,8 @@ onMounted(() => {
             </a-row>
           </a-form>
 
-          <div class="mb-16">
-            <a-space>
+          <div class="points-table-toolbar mb-16">
+            <a-space wrap>
               <TableExportButton :ctrl="checkinExportCtrl" />
               <TableColumnSettings :ctrl="checkinColumnPrefsCtrl" />
             </a-space>
@@ -449,6 +450,7 @@ onMounted(() => {
             :pagination="checkinPagination"
             @change="handleCheckinTableChange"
             row-key="id"
+            :scroll="{ x: 730 }"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'pointsEarned'">
@@ -515,6 +517,32 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.points-filter-actions,
+.points-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.points-filter-actions :deep(.ant-space),
+.points-table-toolbar :deep(.ant-space) {
+  justify-content: flex-end;
+}
+
+.points-filter-form :deep(.ant-form-item-control) {
+  min-width: 0;
+}
+
+.points-filter-form :deep(.ant-select),
+.points-filter-form :deep(.ant-picker) {
+  width: 100%;
+}
+
+.points-filter-actions :deep(.ant-btn),
+.points-table-toolbar :deep(.ant-btn) {
+  white-space: nowrap;
+}
+
 .mt-16 {
   margin-top: var(--lt-space-md);
 }

@@ -236,7 +236,7 @@ onBeforeUnmount(() => { disposed = true; stopTestSpeech(); document.removeEventL
       <a-tag :color="voiceStatusColor">语音 {{ voiceStatusText }}</a-tag>
       <span>{{ currentStatusText }}</span>
       <a-tag v-if="dirty" color="orange">有未保存改动</a-tag>
-      <span class="text-secondary">检测时间 {{ checkedAtText }}</span>
+      <span class="text-secondary status-checked-at">检测时间 {{ checkedAtText }}</span>
     </div>
     <a-row :gutter="[16, 16]">
       <a-col :xs="24" :lg="15">
@@ -317,6 +317,8 @@ onBeforeUnmount(() => { disposed = true; stopTestSpeech(); document.removeEventL
 .page-heading p { margin:0; color:var(--lt-color-text-secondary); }
 .status-strip { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:12px 16px; background:var(--lt-color-bg-container); border-radius:var(--lt-radius-lg); }
 .text-secondary { color:var(--lt-color-text-secondary); font-size:12px; line-height:1.7; margin-top:10px; }
+.status-checked-at { margin-top:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.status-strip :deep(.ant-tag) { margin:0; }
 .switch-label { margin-left:10px; color:var(--lt-color-text-secondary); }
 .input-with-actions { display:flex; gap:8px; }
 .input-with-actions :deep(.ant-select) { flex:1; min-width:0; }

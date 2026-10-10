@@ -1,0 +1,47 @@
+@use "tokens" as *;
+
+// 分类与标签索引页使用相同的分区、搜索和标签规格。
+.categories-page,
+.tags-page {
+  > .card {
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    margin: 0 0 16px;
+  }
+
+  .card-title + .search-box {
+    margin-bottom: 16px;
+  }
+
+  > .card > .flex > .card-title { margin-bottom: 0; }
+
+  .taxonomy-chip {
+    font-size: 13px;
+    padding: 6px 12px;
+    text-decoration: none;
+
+    > span:first-of-type { font-size: 13px; font-weight: 500; }
+    > span:last-of-type { font-size: 12px; }
+  }
+
+  .search-box {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .search-input {
+    width: 100%;
+    min-height: 40px;
+    padding: 10px 36px 10px 12px;
+    font-size: 14px;
+  }
+
+  @include respond(sm) {
+    > .card { padding: 16px; }
+    .search-box { max-width: none; }
+    .taxonomy-chip { padding: 6px 10px; }
+  }
+}

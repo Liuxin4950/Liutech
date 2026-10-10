@@ -17,12 +17,14 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CarouselMapper;
+import chat.liuxin.liutech.mapper.CommunityMapper;
 import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.mapper.MusicMapper;
 import chat.liuxin.liutech.mapper.PostSeriesMapper;
 import chat.liuxin.liutech.mapper.PostsMapper;
 import chat.liuxin.liutech.mapper.UserMapper;
 import chat.liuxin.liutech.model.Carousel;
+import chat.liuxin.liutech.model.CommunityBot;
 import chat.liuxin.liutech.model.Images;
 import chat.liuxin.liutech.model.Music;
 import chat.liuxin.liutech.model.PostSeries;
@@ -57,6 +59,8 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
     private final MusicMapper musicMapper;
 
     private final PostSeriesMapper postSeriesMapper;
+    private final CommunityMapper communityMapper;
+    private final chat.liuxin.liutech.utils.FileUtil fileUtil;
 
     /**
      * 分页查询图片列表（管理端）
@@ -109,7 +113,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
         result.put("success", true);
 
         if (image.getUsageCount() != null && image.getUsageCount() > 0) {
-            result.put("warning", "该图片正在被 " + image.getUsageCount() + " 篇文章引用，删除后文章中的图片将无法显示");
+            result.put("warning", "该图片有 " + image.getUsageCount() + " 处引用，删除后相关内容中的图片将无法显示");
         }
 
         boolean success = removeById(id);
@@ -150,7 +154,7 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
 
         result.put("success", true);
         if (warningCount > 0) {
-            result.put("warning", "有 " + warningCount + " 张图片正在被文章引用，删除后文章中的图片将无法显示");
+            result.put("warning", "有 " + warningCount + " 张图片正在被内容引用，删除后相关图片将无法显示");
         }
 
         log.debug("批量软删除图片 - 数量: {}", ids.size());
@@ -359,6 +363,14 @@ public class ImagesAdminService extends ServiceImpl<ImagesMapper, Images> {
                 .isNull(PostSeries::getDeletedAt));
         for (PostSeries s : seriesList) {
             refs.add(new ImageReferenceResp("series_cover", s.getId(), s.getName(), "系列封面"));
+        }
+
+        // 角色头像与历史评论共用同一角色行，不按评论数重复计数。
+        for (CommunityBot bot : communityMapper.botsForImageReferences()) {
+            if (filePath.equals(fileUtil.normalizeToRelativePath(bot.getAvatarUrl()))) {
+                refs.add(new ImageReferenceResp("community_avatar", bot.getId(), bot.getName(),
+                    bot.getDeletedAt() == null ? "AI角色头像" : "AI角色头像（已删除，保留历史身份）"));
+            }
         }
 
         log.debug("查询图片引用来源 - 图片ID: {}, 引用数: {}", imageId, refs.size());

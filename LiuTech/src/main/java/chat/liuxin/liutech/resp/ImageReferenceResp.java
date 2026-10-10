@@ -17,7 +17,7 @@ public class ImageReferenceResp {
 
     /**
      * 引用来源类型
-     * post_cover/post_thumbnail/post_content/user_avatar/carousel/music_cover/series_cover
+     * post_cover/post_thumbnail/post_content/user_avatar/carousel/music_cover/series_cover/community_avatar
      */
     private String sourceType;
 

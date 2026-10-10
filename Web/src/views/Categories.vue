@@ -3,24 +3,25 @@
         <!-- 热门分类 -->
         <div v-if="popularCategories.length > 0" class="card bg-card shadow-sm mb-16">
             <div class="flex flex-col gap-16">
-                <h4 class="card-title"><span class="card-badge"><Icon name="fire" size="12" /> Hot</span><span class="card-title-text">热门<span class="card-highlight">分类</span></span></h4>
+                <h2 class="card-title"><span class="card-badge"><Icon name="fire" size="12" /> Hot</span><span class="card-title-text">热门<span class="card-highlight">分类</span></span></h2>
                 <div class="flex-fw gap-12">
-                    <div v-for="category in popularCategories" :key="category.id"
+                    <router-link v-for="category in popularCategories" :key="category.id"
                         class="taxonomy-chip flex flex-ac gap-8 link"
-                        @click="goToCategory(category.id)">
+                        :to="`/category-detail/${category.id}`">
                         <Icon name="folder" size="14" />
                         <span class="text-sm font-medium">{{ category.name }}</span>
                         <span class="text-xs text-muted">({{ category.postCount || 0 }})</span>
-                    </div>
+                    </router-link>
                 </div>
             </div>
         </div>
         <!-- 分类网格 -->
         <div class="card shadow-sm mb-16">
+            <h2 class="card-title"><span class="card-badge"><Icon name="book" size="12" /> All</span><span class="card-title-text">所有<span class="card-highlight">分类</span></span></h2>
             <!-- 搜索框 -->
             <div class="search-box mb-16">
                 <Icon name="search" size="16" class="search-icon" />
-                <input v-model="searchKeyword" type="text" placeholder="搜索分类..." class="search-input" />
+                <input v-model="searchKeyword" type="search" aria-label="搜索分类" placeholder="搜索分类..." class="search-input" />
             </div>
 
             <!-- 加载异常处理 -->
@@ -38,9 +39,9 @@
             </div>
             
             <div v-else class="grid gap-20">
-                <div v-for="category in filteredCategories" :key="category.id"
+                <router-link v-for="category in filteredCategories" :key="category.id"
                     class="category-card bg-card card cursor-pointer relative"
-                    @click="goToCategory(category.id)">
+                    :to="`/category-detail/${category.id}`">
                     <div class="flex flex-col gap-12 relative">
                         <!-- 标题行：分类名 + 文章数徽章 -->
                         <div class="flex flex-sb flex-ac">
@@ -53,8 +54,8 @@
                             <p v-if="category.description" class="text-muted text-sm mb-0 line-clamp-2 leading-relaxed">
                                 {{ category.description }}
                             </p>
-                            <p v-else class="text-muted text-sm mb-0 opacity-60 italic">
-                                暂无描述，点击查看该分类下的精彩内容
+                            <p v-else class="text-muted text-sm mb-0 line-clamp-2 leading-relaxed">
+                                浏览该分类下的文章
                             </p>
                         </div>
 
@@ -64,7 +65,7 @@
                             <Icon name="chevronRight" size="14" class="arrow-icon" />
                         </div>
                     </div>
-                </div>
+                </router-link>
             </div>
         </div>
 
@@ -74,7 +75,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { useCategoryStore } from '@/stores/category'
 import { useBannerStore } from '@/stores/banner'
 import bannerFallback from '@/assets/image/banner/banner0.png'
@@ -83,7 +83,6 @@ import type { Category } from '@/services/category'
 import Icon from '@/components/Icon.vue'
 import LoadingState from '@/components/LoadingState.vue'
 
-const router = useRouter()
 const categoryStore = useCategoryStore()
 const bannerStore = useBannerStore()
 const { handleAsync } = useErrorHandler()
@@ -133,11 +132,6 @@ const loadCategories = async () => {
     })
 }
 
-// 跳转到分类文章页面
-const goToCategory = (categoryId: number) => {
-    router.push(`/category-detail/${categoryId}`)
-}
-
 // 组件挂载时加载数据
 onMounted(() => {
     loadCategories()
@@ -164,9 +158,12 @@ watch([categories, totalPosts], () => {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+@use "@/assets/styles/taxonomy";
 
 /* 分类卡片样式 */
 .category-card {
+    display: block;
+    text-decoration: none;
     border: 1px solid var(--border-light);
     transition: background-color 0.18s ease, border-color 0.18s ease;
     overflow: hidden;
@@ -193,14 +190,9 @@ watch([categories, totalPosts], () => {
     transition: color 0.18s ease;
 }
 
-.category-card .flex-sb {
-    padding-top: 12px;
-}
-
-/* 暂无描述（原全局 .opacity-60/.italic 移入） */
-.category-description p:last-child {
-    opacity: 0.6;
-    font-style: italic;
+.category-card:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 3px;
 }
 
 .category-card:hover {
@@ -231,6 +223,7 @@ watch([categories, totalPosts], () => {
 .line-clamp-2 {
     display: -webkit-box;
     -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     overflow: hidden;
 }
 
@@ -241,15 +234,11 @@ watch([categories, totalPosts], () => {
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 }
 
 /* 响应式设计 */
 @include respond(md) {
-    .categories-page {
-        padding: 15px;
-    }
-    
     .category-card {
         padding: 16px;
     }

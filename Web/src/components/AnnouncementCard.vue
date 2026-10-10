@@ -1,555 +1,405 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useId } from 'vue'
 import DOMPurify from 'dompurify'
 import { useAnnouncementStore } from '../stores/announcement'
 import { AnnouncementService } from '../services/announcement'
 import type { Announcement } from '../services/announcement'
-import Icon from './Icon.vue'
+import { useNestedLenis } from '@/composables/useLenis'
 import { formatDate, formatDateTime } from '@/utils/utils'
+import Icon from './Icon.vue'
 import LoadingState from './LoadingState.vue'
 
-// 使用公告 store
 const announcementStore = useAnnouncementStore()
-
-// 响应式数据
 const showDetail = ref(false)
 const selectedAnnouncement = ref<Announcement | null>(null)
+const dialogRef = ref<HTMLElement | null>(null)
+const modalBodyRef = ref<HTMLElement | null>(null)
+const closeButtonRef = ref<HTMLButtonElement | null>(null)
+const dialogId = useId()
+const dialogTitleId = useId()
+let detailGeneration = 0
+let trigger: HTMLElement | null = null
 
-// 定义事件
-defineEmits<{
-  viewMore: []
-}>()
+defineEmits<{ viewMore: [] }>()
 
-// 计算属性
 const loading = computed(() => announcementStore.isLatestLoading)
 const announcements = computed(() => announcementStore.latestAnnouncements)
+const safeContent = computed(() => DOMPurify.sanitize(selectedAnnouncement.value?.content || ''))
+useNestedLenis(modalBodyRef)
 
-const sanitizeAnnouncementContent = (content?: string) => {
-  return DOMPurify.sanitize(content || '')
-}
-
-// 显示公告详情（调详情接口：后端自增浏览量并返回最新数据，与 admin 端浏览量概念同步）
+// 列表内容先呈现；真实详情请求仍为每次打开记录浏览量。
 const showAnnouncementDetail = async (announcement: Announcement) => {
+  const generation = ++detailGeneration
+  trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
   selectedAnnouncement.value = announcement
   showDetail.value = true
+  void nextTick(() => {
+    if (showDetail.value && generation === detailGeneration) closeButtonRef.value?.focus()
+  })
   try {
-    // 直接调详情接口（不经过 store 缓存）：每次打开都真实计一次浏览量，与 admin 端数据一致
     const fresh = await AnnouncementService.getAnnouncementById(announcement.id)
-    if (fresh) {
+    if (fresh && showDetail.value && generation === detailGeneration) {
       selectedAnnouncement.value = fresh
     }
   } catch {
-    // 详情加载失败用列表缓存数据展示，不打断浏览
+    // 请求失败时保留列表内容，避免中断阅读。
   }
 }
 
-// 关闭详情弹窗
 const closeDetail = () => {
+  detailGeneration++
   showDetail.value = false
   selectedAnnouncement.value = null
+  const opener = trigger
+  trigger = null
+  if (opener?.isConnected) opener.focus({ preventScroll: true })
 }
 
-// 获取优先级样式类
-const getPriorityClass = (priority: number) => {
-  const classMap: Record<number, string> = {
-    1: 'priority-gray',
-    2: 'priority-blue',
-    3: 'priority-orange',
-    4: 'priority-red'
+// 与站内搜索弹窗一致：ESC 关闭，Tab 在弹窗内循环，关闭后恢复触发元素焦点。
+const handleModalKeydown = (event: KeyboardEvent) => {
+  if (!showDetail.value) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeDetail()
+    return
   }
-  return classMap[priority] || 'priority-gray'
+  if (event.key !== 'Tab') return
+  const items = Array.from(dialogRef.value?.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]'
+  ) || []).filter(element => element.getClientRects().length)
+  const first = items[0]
+  const last = items[items.length - 1]
+  if (!first) {
+    event.preventDefault()
+    dialogRef.value?.focus()
+  } else if (!dialogRef.value?.contains(document.activeElement)) {
+    event.preventDefault()
+    first.focus()
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last?.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
 }
 
-// 获取最新公告
 const fetchAnnouncements = async () => {
   try {
-    const data = await announcementStore.fetchLatestAnnouncements(5)
+    await announcementStore.initAnnouncements()
+    if (announcements.value.length === 0) await announcementStore.fetchLatestAnnouncements(5)
   } catch {
-    // 获取公告失败时静默处理
+    // 加载失败保留空状态或已有内容。
   }
 }
 
-// 刷新公告数据（防抖：快速重复点击只触发一次请求，避免连续布局变化）
 let refreshTimer: number | null = null
 const refreshAnnouncements = () => {
-  if (refreshTimer) clearTimeout(refreshTimer)
+  if (refreshTimer !== null) clearTimeout(refreshTimer)
   refreshTimer = window.setTimeout(async () => {
+    refreshTimer = null
     try {
       await announcementStore.refreshLatestAnnouncements(5)
     } catch {
-      // 刷新公告失败时静默处理
+      // 刷新失败时保留已有列表。
     }
   }, 300)
 }
 
-// ESC键关闭弹窗
-const handleEscKey = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && showDetail.value) {
-    closeDetail()
-  }
-}
-
-// 组件挂载时获取数据
-onMounted(async () => {
-  // 初始化公告数据（会从缓存恢复或从服务器获取）
-  await announcementStore.initAnnouncements()
-  
-  // 如果没有数据，则主动获取
-  if (announcements.value.length === 0) {
-    await fetchAnnouncements()
-  }
-  
-  // 添加ESC键监听
-  document.addEventListener('keydown', handleEscKey)
+onMounted(() => {
+  document.addEventListener('keydown', handleModalKeydown)
+  void fetchAnnouncements()
 })
 
-// 组件卸载时清理
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleEscKey)
-  if (refreshTimer) {
-    clearTimeout(refreshTimer)
-    refreshTimer = null
-  }
+  detailGeneration++
+  document.removeEventListener('keydown', handleModalKeydown)
+  if (refreshTimer !== null) clearTimeout(refreshTimer)
 })
 </script>
 
 <template>
-  <div class="card">
-    <div class="flex flex-sb">
-      <h4 class="card-title"><span class="card-badge"><Icon name="message" size="12" /> Announcement</span><span class="card-title-text">公告<span class="card-highlight">栏</span></span></h4>
-      <button
-        @click="refreshAnnouncements"
-        :disabled="loading"
-        class="refresh-btn"
-        title="刷新公告"
-      >
-        <Icon name="refresh" :spin="loading" />
+  <section class="announcement-card card" aria-label="公告栏">
+    <div class="announcement-header">
+      <h4 class="card-title">
+        <span class="card-badge announcement-badge" aria-hidden="true"><Icon name="bell" size="14" /></span>
+        <span class="card-title-text">公告<span class="card-highlight">栏</span></span>
+      </h4>
+      <button type="button" class="refresh-btn" :disabled="loading" title="刷新公告" aria-label="刷新公告" @click="refreshAnnouncements">
+        <Icon name="refresh" size="15" :spin="loading" />
       </button>
     </div>
-    <!-- 仅首次加载（无数据）显示加载态；刷新时保留旧列表，避免闪烁 -->
-    <LoadingState
-      v-if="announcements.length === 0 && loading"
-      compact
-      label="正在加载公告…"
-    />
-    <div v-else-if="announcements.length === 0" class="text-center p-16 flex flex-col flex-ac">
-      <span class="text-sm">暂无公告</span>
-    </div>
-    <div v-else class="list">
-      <div
+
+    <LoadingState v-if="announcements.length === 0 && loading" compact label="正在加载公告…" />
+    <p v-else-if="announcements.length === 0" class="announcement-empty">暂无公告</p>
+    <div v-else class="announcement-list">
+      <button
         v-for="announcement in announcements"
         :key="announcement.id"
-        class="list-item link"
+        type="button"
+        class="announcement-item"
+        aria-haspopup="dialog"
+        :aria-controls="showDetail ? dialogId : undefined"
+        :aria-label="'查看公告：' + announcement.title"
         @click="showAnnouncementDetail(announcement)"
       >
-        <div class="flex flex-sb">
-          <span class="text-sm font-medium">{{ formatDate(announcement.createdAt) }}</span>
-          <div class="flex flex-sb gap-8">
-            <span v-if="announcement.isTop" class="priority-badge priority-red">置顶</span>
-            <span class="priority-badge priority-blue">{{ announcement.typeName }}</span>
-          </div>
-        </div>
-        <h5 class="text-lg font-medium announcement-title">{{ announcement.title }}</h5>
-      </div>
+        <span class="announcement-title">{{ announcement.title }}</span>
+        <span class="announcement-item-meta">
+          <time :datetime="announcement.createdAt">{{ formatDate(announcement.createdAt) }}</time>
+          <span class="announcement-tags">
+            <span v-if="announcement.isTop" class="announcement-tag is-top">置顶</span>
+            <span class="announcement-tag is-type">{{ announcement.typeName }}</span>
+          </span>
+        </span>
+      </button>
     </div>
 
-    <!-- 公告详情弹窗 -->
     <Teleport to="body">
-      <div v-if="showDetail && selectedAnnouncement"
-           class="modal-overlay"
-           :class="{ 'show': showDetail }"
-           @click="closeDetail">
-        <div class="modal-container" @click.stop>
+      <div v-if="showDetail && selectedAnnouncement" class="modal-overlay" data-lenis-prevent @click.self="closeDetail">
+        <div :id="dialogId" ref="dialogRef" class="modal-container" role="dialog" aria-modal="true" :aria-labelledby="dialogTitleId" tabindex="-1">
           <div class="modal-header">
-            <h3 class="modal-header-title">公告详情</h3>
-            <button @click="closeDetail" class="close-btn" aria-label="关闭弹窗">×</button>
-          </div>
-
-          <div class="modal-body">
-            <h2 class="modal-title">{{ selectedAnnouncement.title }}</h2>
-
-            <div class="modal-tags">
-              <span v-if="selectedAnnouncement.isTop" class="priority-badge priority-red">置顶</span>
-              <span class="priority-badge priority-blue">{{ selectedAnnouncement.typeName }}</span>
-              <span class="priority-badge" :class="getPriorityClass(selectedAnnouncement.priority)">{{ selectedAnnouncement.priorityName }}</span>
+            <div class="modal-heading">
+              <span class="modal-eyebrow"><Icon name="bell" size="14" />公告</span>
+              <span v-if="selectedAnnouncement.isTop" class="announcement-tag is-top">置顶</span>
+              <span class="announcement-tag is-type">{{ selectedAnnouncement.typeName }}</span>
             </div>
-
-            <div class="modal-content-text" v-html="sanitizeAnnouncementContent(selectedAnnouncement.content)"></div>
-
+            <button ref="closeButtonRef" type="button" class="close-btn" aria-label="关闭公告" @click="closeDetail"><Icon name="close" size="18" /></button>
+          </div>
+          <div ref="modalBodyRef" class="modal-body">
+            <h2 :id="dialogTitleId" class="modal-title">{{ selectedAnnouncement.title }}</h2>
+            <div class="modal-content-text rich-content" v-html="safeContent"></div>
             <div class="modal-meta">
-              <span class="meta-item">发布于 {{ formatDateTime(selectedAnnouncement.createdAt) }}</span>
-              <span v-if="selectedAnnouncement.startTime" class="meta-item">开始 {{ formatDateTime(selectedAnnouncement.startTime) }}</span>
-              <span v-if="selectedAnnouncement.endTime" class="meta-item">结束 {{ formatDateTime(selectedAnnouncement.endTime) }}</span>
-              <span class="meta-item meta-views"><Icon name="eye" size="12" /> {{ selectedAnnouncement.viewCount || 0 }} 次浏览</span>
+              <span v-if="selectedAnnouncement.createdAt">发布于 <time :datetime="selectedAnnouncement.createdAt">{{ formatDateTime(selectedAnnouncement.createdAt) }}</time></span>
+              <span class="meta-views"><Icon name="eye" size="14" />{{ selectedAnnouncement.viewCount || 0 }} 次浏览</span>
+              <span v-if="selectedAnnouncement.startTime" class="validity-meta">开始 <time :datetime="selectedAnnouncement.startTime">{{ formatDateTime(selectedAnnouncement.startTime) }}</time></span>
+              <span v-if="selectedAnnouncement.endTime" class="validity-meta">结束 <time :datetime="selectedAnnouncement.endTime">{{ formatDateTime(selectedAnnouncement.endTime) }}</time></span>
             </div>
           </div>
         </div>
       </div>
     </Teleport>
-  </div>
+  </section>
 </template>
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
-/* 弹窗遮罩层 */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--overlay-bg-strong);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 24px;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(2px);
-}
 
-.modal-overlay.show {
-  opacity: 1;
-  visibility: visible;
-}
-
-.modal-container {
-  background: var(--bg-card, #ffffff);
-  border-radius: 12px;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
-  width: 100%;
-  max-width: 720px;
-  max-height: min(85vh, 900px);
-  overflow: hidden;
-  transform: scale(0.95) translateY(20px);
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.modal-overlay.show .modal-container {
-  transform: scale(1) translateY(0);
-}
-
-.modal-header {
-  position: relative;
-  background: var(--bg-card, #ffffff);
-  border-bottom: 1px solid var(--border-soft, rgba(0, 0, 0, 0.08));
-  padding: 20px 24px;
+.announcement-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: $gap-sm;
+  margin-bottom: 8px;
 }
 
-.modal-header-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--text-main, #1f2937);
+.announcement-header .card-title {
+  min-width: 0;
   margin: 0;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.75rem;
-  color: var(--text-subtle, #9ca3af);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  line-height: 1;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
+.announcement-badge {
+  width: 28px;
+  height: 28px;
   justify-content: center;
-}
-
-.close-btn:hover {
-  background: var(--bg-soft, rgba(0, 0, 0, 0.05));
-  color: var(--text-main, #4b5563);
-}
-
-.modal-body {
-  padding: 24px;
-  overflow-y: auto;
-  max-height: calc(85vh - 80px);
-}
-
-.modal-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-main, #111827);
-  margin: 0 0 16px 0;
-  line-height: 1.4;
-}
-
-.modal-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-
-.priority-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.5;
-  white-space: nowrap;
-}
-
-.priority-red {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--color-error);
-}
-
-.priority-blue {
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--color-info);
-}
-
-.priority-orange {
-  background: rgba(249, 115, 22, 0.1);
-  color: var(--color-warning);
-}
-
-.priority-gray {
-  background: rgba(107, 114, 128, 0.1);
-  color: var(--text-muted);
-}
-
-.modal-content-text {
-  margin-bottom: 20px;
-  color: var(--text-subtle, #4b5563);
-  line-height: 1.75;
-  font-size: 0.9375rem;
-}
-
-.modal-content-text :deep(p) {
-  margin: 0 0 1em 0;
-}
-
-.modal-content-text :deep(h1),
-.modal-content-text :deep(h2),
-.modal-content-text :deep(h3),
-.modal-content-text :deep(h4),
-.modal-content-text :deep(h5),
-.modal-content-text :deep(h6) {
-  color: var(--text-main, #111827);
-  font-weight: 600;
-  margin: 1.5em 0 0.5em;
-  line-height: 1.3;
-}
-
-.modal-content-text :deep(h1) { font-size: 1.875rem; }
-.modal-content-text :deep(h2) { font-size: 1.5rem; }
-.modal-content-text :deep(h3) { font-size: 1.25rem; }
-.modal-content-text :deep(h4) { font-size: 1.125rem; }
-.modal-content-text :deep(h5) { font-size: 1rem; }
-
-.modal-content-text :deep(ul),
-.modal-content-text :deep(ol) {
-  margin: 1em 0;
-  padding-left: 1.75em;
-}
-
-.modal-content-text :deep(li) {
-  margin: 0.5em 0;
-}
-
-.modal-content-text :deep(blockquote) {
-  border-left: 4px solid var(--border-light, #e5e7eb);
-  padding-left: 1em;
-  margin: 1em 0;
-  color: var(--text-subtle, #6b7280);
-  font-style: italic;
-  background: var(--bg-soft, rgba(0, 0, 0, 0.02));
-  padding: 12px 16px;
-  border-radius: 6px;
-}
-
-.modal-content-text :deep(code) {
-  background: var(--bg-soft, #f3f4f6);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.875em;
-  font-family: 'Courier New', monospace;
-  color: #ef4444;
-}
-
-.modal-content-text :deep(pre) {
-  background: var(--bg-code);
-  color: #f9fafb;
-  border-radius: 8px;
-  padding: 16px;
-  overflow-x: auto;
-  margin: 1em 0;
-}
-
-.modal-content-text :deep(pre) code {
-  background: transparent;
-  color: inherit;
+  flex-shrink: 0;
   padding: 0;
 }
 
-.modal-content-text :deep(img) {
-  max-width: 100%;
-  height: auto;
+.refresh-btn,
+.close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--text-subtle);
   border-radius: 8px;
-  margin: 1em 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: color 0.2s ease, background-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--color-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--state-primary-border);
+    outline-offset: 2px;
+  }
 }
 
-.modal-content-text :deep(table) {
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.announcement-empty {
+  padding: 12px 0 4px;
+  margin: 0;
+  color: var(--text-subtle);
+  font-size: 0.8125rem;
+}
+
+.announcement-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.announcement-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
-  border-collapse: collapse;
-  margin: 1em 0;
-  font-size: 0.875rem;
-}
-
-.modal-content-text :deep(th),
-.modal-content-text :deep(td) {
-  border: 1px solid var(--border-soft, #e5e7eb);
-  padding: 12px;
+  min-width: 0;
+  padding: 12px 0;
   text-align: left;
+  border-bottom: 1px solid var(--border-light);
+
+  &:last-child { border-bottom: 0; padding-bottom: 2px; }
+  &:hover .announcement-title { color: var(--color-primary); }
+  &:focus-visible { outline: 2px solid var(--state-primary-border); outline-offset: 3px; border-radius: 4px; }
 }
 
-.modal-content-text :deep(th) {
-  background: var(--bg-soft, #f9fafb);
+.announcement-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: var(--text-main, #374151);
+  line-height: 1.6;
+  color: var(--text-title);
 }
 
-.modal-content-text :deep(a) {
-  color: #2563eb;
-  text-decoration: underline;
-  transition: color 0.2s;
+.announcement-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 8px;
+  font-size: 0.6875rem;
+  color: var(--text-subtle);
 }
 
-.modal-content-text :deep(a:hover) {
-  color: #1d4ed8;
+.announcement-tags,
+.modal-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.announcement-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+
+  &.is-top { background: rgba(var(--color-secondary-rgb), 0.1); color: var(--color-secondary); }
+  &.is-type { background: var(--state-primary-bg); color: var(--color-primary); }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(3px);
+}
+
+.modal-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 600px;
+  max-height: min(85dvh, 760px);
+  overflow: hidden;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-soft);
+  border-radius: $card-radius;
+  box-shadow: var(--shadow-modal);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $gap-sm;
+  flex-shrink: 0;
+  padding: 20px 24px 0;
+}
+
+.modal-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.modal-body {
+  min-height: 0;
+  padding: 12px 24px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.modal-title {
+  margin: 0 0 16px;
+  font-family: inherit;
+  font-size: 1.375rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--text-title);
+  overflow-wrap: anywhere;
+}
+
+.modal-content-text {
+  font-size: 0.9375rem;
+  line-height: 1.8;
 }
 
 .modal-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 20px;
-  border-top: 1px solid var(--border-soft, rgba(0, 0, 0, 0.08));
-  padding-top: 14px;
+  gap: 8px 12px;
   margin-top: 20px;
-  font-size: 0.8125rem;
-  color: var(--text-subtle, #6b7280);
-}
-
-.meta-item {
-  white-space: nowrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+  color: var(--text-subtle);
+  font-size: 0.75rem;
+  line-height: 1.6;
 }
 
 .meta-views {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--text-muted, #9ca3af);
+  margin-left: auto;
 }
 
-/* 刷新按钮 */
-.refresh-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  color: var(--text-subtle, #6b7280);
-}
-
-.refresh-btn:hover:not(:disabled) {
-  background: var(--bg-soft, rgba(0, 0, 0, 0.05));
-  color: var(--color-primary);
-}
-
-.refresh-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-
-/* 响应式设计 */
-@include respond(md) {
-  .modal-overlay {
-    padding: 16px;
-    align-items: flex-end;
-  }
-
-  .modal-container {
-    max-width: 100%;
-    width: 100%;
-    max-height: 90vh;
-    border-radius: 12px 12px 0 0;
-    transform: translateY(100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .modal-overlay.show .modal-container {
-    transform: translateY(0);
-  }
-
-  .modal-body {
-    padding: 20px;
-    max-height: calc(90vh - var(--header-height));
-  }
-
-  .modal-header {
-    padding: 16px 20px;
-  }
-
-  .modal-title {
-    font-size: 1.25rem;
-  }
-
-  .modal-tags {
-    gap: 6px;
-  }
-
-  .priority-badge {
-    font-size: 0.6875rem;
-    padding: 3px 10px;
-  }
-
-  .modal-meta {
-    gap: 6px 16px;
-    font-size: 0.75rem;
-  }
-
-  .meta-views {
-    margin-left: 0;
-  }
-}
+.validity-meta { width: 100%; }
 
 @include respond(sm) {
-  .modal-overlay {
-    padding: 12px;
-  }
-
-  .modal-body {
-    padding: 16px;
-  }
-}
-.announcement-title {
-  margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  .modal-overlay { padding: 12px; }
+  .modal-container { max-height: calc(100dvh - 24px); }
+  .modal-header { padding: 16px 16px 0; }
+  .modal-body { padding: 12px 16px 20px; }
+  .modal-title { font-size: 1.1875rem; }
+  .meta-views { margin-left: 0; }
 }
 </style>

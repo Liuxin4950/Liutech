@@ -36,7 +36,7 @@ public class ImagesService {
 
     /**
      * 上传图片（带去重）
-     * 如果相同内容的图片已存在，则增加引用计数并返回已有URL
+     * 如果相同内容的图片已存在，直接返回已有URL；业务保存引用时才计数。
      *
      * @param file 上传的文件
      * @param uploaderId 上传用户ID

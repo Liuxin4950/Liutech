@@ -196,31 +196,100 @@ const pendingTasks = computed(() => tasks.value.filter(task => pendingStatuses.h
 const failedTasks = computed(() => tasks.value.filter(task => task.status === 'FAILED'))
 const visibleTasks = computed(() => taskFilter.value === 'pending' ? pendingTasks.value : taskFilter.value === 'failed' ? failedTasks.value : taskFilter.value === 'cancelled' ? tasks.value.filter(task => task.status === 'CANCELLED') : tasks.value)
 const recordsScope = computed(() => `${recordsScopeBotId.value ? botName(recordsScopeBotId.value) : '所有角色'} · 所有待处理与失败任务、最近 100 条运行与其它终结任务`)
-const usageSummary = computed(() => {
-  let knownTokens = 0
+const isPreviewRun = (run: CommunityRun) => run.preview === true || run.status === 'PREVIEW'
+const failedRun = (run: CommunityRun) => !!run.error || run.status === 'FAILED' || run.publicationStatus === 'FAILED'
+function summarizeUsage(records: CommunityRun[]) {
+  let inputTokens = 0
+  let outputTokens = 0
+  let available = 0
   let missing = 0
   let partial = 0
   let notCalled = 0
   let legacy = 0
   let legacyKnownTokens = 0
-  for (const run of runs.value) {
+  for (const run of records) {
     if (run.modelRounds === 0) { ++notCalled; continue }
     if (run.tokenUsageAvailable === undefined && ((run.inputTokens ?? 0) > 0 || (run.outputTokens ?? 0) > 0)) {
       ++legacy
       legacyKnownTokens += (run.inputTokens ?? 0) + (run.outputTokens ?? 0)
       continue
     }
-    if (run.tokenUsageAvailable !== true) { ++missing; continue }
-    knownTokens += (run.inputTokens ?? 0) + (run.outputTokens ?? 0)
+    if (run.tokenUsageAvailable !== true || (run.inputTokens === undefined && run.outputTokens === undefined)) { ++missing; continue }
+    ++available
+    inputTokens += run.inputTokens ?? 0
+    outputTokens += run.outputTokens ?? 0
     if (run.tokenUsageComplete !== true || run.inputTokens === undefined || run.outputTokens === undefined) ++partial
   }
-  return { knownTokens, missing, partial, notCalled, legacy, legacyKnownTokens }
+  return { inputTokens, outputTokens, knownTokens: inputTokens + outputTokens, available, complete: available - partial, missing, partial, notCalled, legacy, legacyKnownTokens }
+}
+const usageSummary = computed(() => summarizeUsage(runs.value))
+const formalRuns = computed(() => runs.value.filter(run => !isPreviewRun(run)))
+const previewRuns = computed(() => runs.value.filter(isPreviewRun))
+const usageBreakdown = computed(() => [
+  { key: 'formal', title: '正式运行', records: formalRuns.value, usage: summarizeUsage(formalRuns.value) },
+  { key: 'preview', title: '效果预演', records: previewRuns.value, usage: summarizeUsage(previewRuns.value) },
+])
+const modelRoundSummary = computed(() => ({
+  total: runs.value.reduce((sum, run) => sum + (run.modelRounds ?? 0), 0),
+  missing: runs.value.filter(run => run.modelRounds === undefined).length,
+}))
+const taskDistribution = computed(() => {
+  const entries = [
+    { key: 'waiting', title: '等待处理', count: 0 },
+    { key: 'running', title: '正在处理', count: 0 },
+    { key: 'retry', title: '自动恢复', count: 0 },
+    { key: 'publishing', title: '等待发布', count: 0 },
+    { key: 'succeeded', title: '已发表完成', count: 0 },
+    { key: 'skipped', title: '沉默 / 条件终结', count: 0 },
+    { key: 'failed', title: '已停止失败', count: 0 },
+    { key: 'other', title: '取消 / 其他', count: 0 },
+  ]
+  for (const task of tasks.value) {
+    const key = automaticRetry(task) ? 'retry'
+      : ['READY', 'PENDING'].includes(task.status) ? 'waiting'
+        : task.status === 'RUNNING' ? 'running'
+          : ['DECIDED', 'GENERATED'].includes(task.status) ? 'publishing'
+            : ['SUCCEEDED', 'COMPLETED', 'DONE'].includes(task.status) ? 'succeeded'
+              : ['SKIPPED', 'SKIP'].includes(task.status) ? 'skipped'
+                : task.status === 'FAILED' ? 'failed' : 'other'
+    entries.find(entry => entry.key === key)!.count++
+  }
+  return entries
 })
+const roleMetrics = computed(() => {
+  const ids = recordsScopeBotId.value !== undefined ? [recordsScopeBotId.value]
+    : [...new Set([...bots.value.map(bot => bot.id), ...runs.value.map(run => run.botId), ...tasks.value.map(task => task.botId)])]
+  return ids.map(id => {
+    const bot = bots.value.find(bot => bot.id === id)
+    const roleRuns = runs.value.filter(run => run.botId === id)
+    const roleTasks = tasks.value.filter(task => task.botId === id)
+    const formal = roleRuns.filter(run => !isPreviewRun(run))
+    return {
+      id, name: bot?.name || roleRuns.find(run => run.roleSnapshot)?.roleSnapshot?.name || botName(id),
+      avatarUrl: bot?.avatarUrl, enabled: bot?.enabled, participation: bot?.participation,
+      formal: formal.length, preview: roleRuns.length - formal.length,
+      published: new Set(formal.flatMap(run => run.publishedCommentId ? [run.publishedCommentId] : [])).size,
+      runFailures: formal.filter(failedRun).length,
+      pending: roleTasks.filter(task => pendingStatuses.has(task.status)).length,
+      failed: roleTasks.filter(task => task.status === 'FAILED').length,
+      usage: summarizeUsage(roleRuns),
+    }
+  })
+})
+const roleMetricColumns = [
+  { title: '角色', key: 'role', width: 220 },
+  { title: '正式 / 预演', key: 'records', width: 130 },
+  { title: '已发表评论', dataIndex: 'published', width: 110 },
+  { title: '历史失败运行', dataIndex: 'runFailures', width: 120 },
+  { title: '待处理 / 停止失败', key: 'tasks', width: 160 },
+  { title: '输入 / 输出 token', key: 'tokens', width: 210 },
+  { title: '用量记录', key: 'coverage', width: 190 },
+]
 const decisionDistribution = computed(() => {
   const counts = { COMMENT: 0, REPLY: 0, SKIP: 0, FAILED: 0 }
   for (const run of runs.value) {
-    if (run.preview || run.status === 'PREVIEW') continue
-    if (run.error || run.status === 'FAILED') ++counts.FAILED
+    if (isPreviewRun(run)) continue
+    if (failedRun(run)) ++counts.FAILED
     else if (run.decision && run.decision in counts) ++counts[run.decision]
   }
   return [
@@ -370,6 +439,7 @@ function resetPreview() {
   if (detailMode.value === 'preview') { detail.value = undefined; detailOpen.value = false }
 }
 watch([selectedBotId, postId, commentId], resetPreview)
+watch(selectedBotId, () => { commentsPage.value = 1 }, { flush: 'sync' })
 watch(postId, (id) => {
   postEnabled.value = undefined
   postStateError.value = ''
@@ -449,9 +519,14 @@ async function loadRecords(botId?: number) {
   } finally { if (request === recordsRequest) recordsLoading.value = false }
 }
 function navigateRoleTab(tab: string, botId = selectedBotId.value) {
-  if (botId) selectedBotId.value = botId
+  if (busy.value) return
+  if (botId !== undefined) selectBot(botId)
   activeTab.value = tab
   if (['knowledge', 'memory', 'tasks', 'runs', 'comments'].includes(tab)) void refreshSelected()
+}
+function selectBot(botId: number) {
+  if (busy.value) return
+  selectedBotId.value = botId
 }
 function contextRoleChanged() { if (['knowledge', 'memory', 'tasks', 'runs', 'comments'].includes(activeTab.value)) void refreshSelected() }
 function showTaskFilter(filter: 'all' | 'pending' | 'failed' | 'cancelled') {
@@ -637,6 +712,7 @@ async function load() {
   finally { loading.value = false }
 }
 function openBot(bot?: CommunityBot) {
+  if (bot) selectBot(bot.id)
   editingBotId.value = bot?.id
   botForm.value = bot ? { name: bot.name, avatarUrl: bot.avatarUrl || '', personality: bot.personality || '', background: bot.background || '', systemPrompt: bot.systemPrompt || '', interests: bot.interests || '', participation: bot.participation, enabled: bot.enabled } : emptyBot()
   botModal.value = true
@@ -665,6 +741,7 @@ async function saveBot() {
   }, '角色已保存')
 }
 async function toggleBot(bot: CommunityBot) {
+  selectBot(bot.id)
   await action(async () => {
     const saved = await communityService.updateBot(bot.id, { name: bot.name, avatarUrl: bot.avatarUrl, personality: bot.personality, background: bot.background, systemPrompt: bot.systemPrompt || '', interests: bot.interests, participation: bot.participation, enabled: !bot.enabled })
     bots.value = bots.value.map(item => item.id === saved.id ? saved : item)
@@ -983,24 +1060,27 @@ onMounted(() => {
           </template>
           <a-empty v-if="!bots.length && !loading" description="创建第一个角色开始预演" />
           <div class="bot-grid">
-            <a-card v-for="bot in bots" :key="bot.id" size="small" :class="{ 'bot-card-selected': selectedBotId === bot.id }">
-              <div class="bot-heading">
-                <a-avatar :src="bot.avatarUrl">{{ bot.name.charAt(0) }}</a-avatar>
-                <a-tooltip :title="bot.name"><a-button type="link" class="bot-name-button" @click="selectedBotId = bot.id"><strong class="truncate">{{ bot.name }}</strong></a-button></a-tooltip>
-                <a-tag :color="bot.enabled ? 'green' : 'default'">{{ bot.enabled ? '启用' : '暂停' }}</a-tag>
-              </div>
-              <a-tooltip :title="bot.personality"><p class="bot-description role-excerpt">{{ bot.personality }}</p></a-tooltip>
-              <p class="muted">兴趣：{{ bot.interests || '不限' }} · 积极度 {{ bot.participation }}%</p>
-              <a-space wrap>
+            <a-card v-for="bot in bots" :key="bot.id" size="small" class="bot-card" :class="{ 'bot-card-selected': selectedBotId === bot.id }">
+              <button type="button" class="bot-select-area" :disabled="busy" :aria-pressed="selectedBotId === bot.id" :aria-label="`选择角色 ${bot.name}`" @click="selectBot(bot.id)">
+                <span class="bot-heading">
+                  <a-avatar :size="40" :src="bot.avatarUrl">{{ bot.name.charAt(0) }}</a-avatar>
+                  <strong class="bot-name truncate" :title="bot.name">{{ bot.name }}</strong>
+                  <a-tag :color="bot.enabled ? 'green' : 'default'">{{ bot.enabled ? '启用' : '暂停' }}</a-tag>
+                </span>
+                <span class="bot-description role-excerpt" :title="bot.personality">{{ bot.personality || '尚未设置性格与表达方式' }}</span>
+                <span class="bot-interest role-excerpt muted" :title="bot.interests">兴趣：{{ bot.interests || '不限' }}</span>
+                <span class="bot-selection-meta"><span class="muted">积极度 {{ bot.participation }}%</span><span class="bot-selection-state">{{ selectedBotId === bot.id ? '✓ 已选中' : '选择此角色' }}</span></span>
+              </button>
+              <div class="bot-card-actions">
                 <a-button size="small" :disabled="busy" @click="openBot(bot)">编辑</a-button>
                 <a-button size="small" :disabled="busy" @click="toggleBot(bot)">{{ bot.enabled ? '暂停' : '启用' }}</a-button>
-                <a-button size="small" @click="navigateRoleTab('preview', bot.id)">预演</a-button>
-                <a-button size="small" @click="navigateRoleTab('knowledge', bot.id)">资料</a-button>
-                <a-button size="small" @click="reviewBot(bot.id)">评论与对话</a-button>
+                <a-button size="small" :disabled="busy" @click="navigateRoleTab('preview', bot.id)">预演</a-button>
+                <a-button size="small" :disabled="busy" @click="navigateRoleTab('knowledge', bot.id)">资料</a-button>
+                <a-button size="small" :disabled="busy" @click="reviewBot(bot.id)">评论与对话</a-button>
                 <a-popconfirm title="删除角色后将停止其发言，确定删除？" @confirm="removeBot(bot.id)">
                   <a-button size="small" danger :disabled="busy">删除</a-button>
                 </a-popconfirm>
-              </a-space>
+              </div>
             </a-card>
           </div>
         </a-card>
@@ -1010,7 +1090,9 @@ onMounted(() => {
           <template v-if="selectedBot">
             <div class="bot-heading"><a-avatar :size="48" :src="selectedBot.avatarUrl">{{ selectedBot.name.charAt(0) }}</a-avatar><div><strong>{{ selectedBot.name }}</strong><p class="muted">{{ selectedBot.enabled ? '已允许正式参与' : '尚未允许正式参与' }}</p></div></div>
             <a-tooltip :title="selectedBot.background"><p class="role-excerpt">{{ selectedBot.background || '未设置身份背景，可在编辑角色中补充。' }}</p></a-tooltip>
-            <p class="muted">兴趣：{{ selectedBot.interests || '不限' }} · 积极度 {{ selectedBot.participation }}%</p>
+            <a-tooltip :title="selectedBot.interests"><p class="bot-interest role-excerpt muted">兴趣：{{ selectedBot.interests || '不限' }}</p></a-tooltip>
+            <div class="role-participation"><span class="muted">参与积极度</span><strong>{{ selectedBot.participation }}%</strong></div>
+            <a-progress :percent="selectedBot.participation" :show-info="false" size="small" class="role-participation-progress" />
             <a-alert v-if="!selectedBot.enabled" type="info" show-icon message="可以先预演，确认后再启用角色。" class="mb-16" />
             <a-alert v-else-if="selectedBot.participation === 0" type="info" show-icon message="这个角色的积极度为 0，不自动参与；仍可预演与手动邀请。" class="mb-16" />
             <div class="next-action-buttons"><a-button @click="navigateRoleTab('knowledge')">准备这个角色的资料</a-button><a-button type="primary" @click="navigateRoleTab('preview')">选择文章，预演看看</a-button><a-button v-if="!selectedBot.enabled" :loading="busy" @click="toggleBot(selectedBot)">允许角色正式参与</a-button><a-button @click="navigateRoleTab('comments')">查看实际评论与对话</a-button></div>
@@ -1298,10 +1380,11 @@ onMounted(() => {
         </a-card>
       </a-tab-pane>
     </a-tabs>
-    <details class="runtime-details"><summary>运行统计与模型用量 <span class="muted">展开查看最近查询的统计</span></summary>
+    <details class="runtime-overview" open>
+      <summary><strong>运行统计与模型用量</strong><span class="muted">按查询角色查看正式运行、预演及任务状态</span></summary>
     <div class="console-overview mb-16">
       <a-card :bordered="false" class="overview-summary">
-        <div class="overview-heading"><h3>当前状态</h3><span class="muted">{{ recordsLoaded ? recordsScope : '执行记录尚未加载' }}</span><a-button size="small" :loading="recordsLoading" @click="loadRecords(recordsScopeBotId)">刷新状态</a-button></div>
+        <div class="overview-heading"><h3>当前查询状态</h3><span class="muted">{{ recordsLoaded ? recordsScope : '执行记录尚未加载' }}</span><a-select :value="recordsScopeBotId" :options="botOptions" allow-clear placeholder="所有角色" class="stats-role-select" aria-label="统计查询角色" @change="loadRecords($event)" /><a-button size="small" :loading="recordsLoading" @click="loadRecords(recordsScopeBotId)">刷新状态</a-button></div>
         <div class="status-grid">
           <div class="status-cell"><span class="status-label">自动参与角色</span><strong>{{ configurationLoaded ? autoBots.length : '—' }}<small v-if="configurationLoaded"> / {{ bots.length }}</small></strong><span class="muted">已启用且积极度大于 0</span></div>
           <div class="status-cell"><span class="status-label">全站互动</span><strong class="status-word" :class="{ 'status-active': communityEnabled }">{{ !configurationLoaded ? '未读取' : communityEnabled ? '已开启' : '已暂停' }}</strong><a-button type="link" size="small" @click="activeTab = 'settings'">调整开关与额度</a-button></div>
@@ -1309,16 +1392,44 @@ onMounted(() => {
           <button class="status-cell status-button" :disabled="!recordsLoaded" @click="showTaskFilter('failed')"><span class="status-label">已停止的失败任务</span><strong :class="{ 'status-failed': failedTasks.length }">{{ recordsLoaded ? failedTasks.length : '—' }}</strong><span class="muted">自动重试结束，待人工处理</span></button>
           <div class="status-cell"><span class="status-label">已知 token 合计</span><strong>{{ recordsLoaded ? usageSummary.knownTokens.toLocaleString() : '—' }}</strong><span class="muted">当前 {{ runs.length }} 条运行，包含预演</span></div>
         </div>
-        <p v-if="recordsLoaded" class="metric-note muted">卡片合计仅包含带用量标记的记录。用量缺失 {{ usageSummary.missing }} 条 · 部分提供 {{ usageSummary.partial }} 条 · 未调用模型 {{ usageSummary.notCalled }} 条<span v-if="usageSummary.legacy"> · 另有 {{ usageSummary.legacy }} 条旧记录提供 {{ usageSummary.legacyKnownTokens.toLocaleString() }} token，完整性未标注</span>。最近更新 {{ formatDateTime(recordsLoadedAt) }}。这里统计已加载记录，不代表全站累计或每日账单。</p>
+        <template v-if="recordsLoaded">
+          <section class="statistics-section">
+            <div class="section-heading"><h4>模型用量明细</h4><span class="muted">已记录 {{ modelRoundSummary.total }} 轮模型调用<span v-if="modelRoundSummary.missing"> · {{ modelRoundSummary.missing }} 条未记录轮数</span></span></div>
+            <div class="usage-grid">
+              <div v-for="entry in usageBreakdown" :key="entry.key" class="usage-panel">
+                <div class="usage-heading"><strong>{{ entry.title }}</strong><span class="muted">{{ entry.records.length }} 条运行</span></div>
+                <dl class="usage-values"><div><dt>输入 token</dt><dd>{{ entry.usage.inputTokens.toLocaleString() }}</dd></div><div><dt>输出 token</dt><dd>{{ entry.usage.outputTokens.toLocaleString() }}</dd></div><div><dt>已知合计</dt><dd>{{ entry.usage.knownTokens.toLocaleString() }}</dd></div></dl>
+                <p class="usage-coverage muted">完整 {{ entry.usage.complete }} · 部分 {{ entry.usage.partial }} · 缺失 {{ entry.usage.missing }} · 未调用 {{ entry.usage.notCalled }}<span v-if="entry.usage.legacy"> · 旧记录 {{ entry.usage.legacy }}</span></p>
+              </div>
+            </div>
+          </section>
+          <section class="statistics-section">
+            <div class="section-heading"><h4>任务状态明细</h4><span class="muted">当前已载入 {{ tasks.length }} 个任务</span></div>
+            <div class="task-state-grid"><div v-for="entry in taskDistribution" :key="entry.key" class="task-state"><span class="muted">{{ entry.title }}</span><strong :class="{ 'status-failed': entry.key === 'failed' && entry.count }">{{ entry.count }}</strong></div></div>
+          </section>
+          <p class="metric-note muted">token 合计仅纳入标记为可用的供应商用量，部分返回按已知项累加<span v-if="usageSummary.legacy">；另有 {{ usageSummary.legacy }} 条旧记录提供 {{ usageSummary.legacyKnownTokens.toLocaleString() }} token，完整性未标注，未并入合计</span>。最近更新 {{ formatDateTime(recordsLoadedAt) }}。统计仅代表当前查询，任务包含全部未终结与失败任务，以及最近 100 条其它终结任务；运行只包含最近 100 条，不能作为全站累计或每日账单。</p>
+        </template>
         <a-alert v-if="configurationLoaded && participationNotice" type="info" :message="participationNotice" show-icon class="mt-16"><template #action><a-button size="small" @click="activeTab = 'settings'">检查设置</a-button></template></a-alert>
-        <a-alert v-if="recordsError" type="error" :message="recordsError" :description="recordsLoaded ? '本次查询不完整，请重新刷新。' : '暂时无法确认任务与模型用量。'" show-icon class="mt-16" />
+        <a-alert v-if="recordsError" type="error" :message="recordsError" :description="recordsLoaded ? '以下统计保留上次成功查询结果，请重新刷新。' : '暂时无法确认任务与模型用量。'" show-icon class="mt-16" />
         <a-alert v-if="failedTasks.length" type="warning" :message="`当前查询有 ${failedTasks.length} 个任务已停止自动重试`" description="先查看失败阶段和原因，再手动重新入队。重试后成功的任务不会计入这里；历史失败执行记录会保留。" show-icon class="mt-16"><template #action><a-button size="small" @click="showTaskFilter('failed')">处理失败任务</a-button></template></a-alert>
       </a-card>
       <a-card :bordered="false" class="decision-summary">
         <h3>最近执行结果</h3>
-        <p class="muted">当前查询的正式生成，排除预演。失败生成记录会保留；同轮发布结果更新原记录，重交不重复计算模型用量。</p>
+        <p class="muted">{{ formalRuns.length }} 条正式运行，排除 {{ previewRuns.length }} 条预演。评价与回复表示模型决策，实际发表请查看评论回执。</p>
         <div v-for="entry in decisionDistribution" :key="entry.key" class="decision-row"><div class="decision-heading"><span>{{ entry.title }}</span><strong>{{ recordsLoaded ? entry.count : '—' }}</strong></div><div class="decision-track"><div class="decision-bar" :style="{ width: `${decisionTotal ? entry.count / decisionTotal * 100 : 0}%`, background: entry.color }" /></div></div>
-        <p class="metric-note muted">{{ recordsLoaded ? `共 ${decisionTotal} 条可归类记录` : '等待服务返回执行记录' }}</p>
+        <p class="metric-note muted">{{ recordsLoaded ? `共 ${decisionTotal} 条可归类记录，${formalRuns.length - decisionTotal} 条暂未归类` : '等待服务返回执行记录' }}。历史失败保留，重试成功后的当前状态以任务队列为准。</p>
+      </a-card>
+      <a-card v-if="recordsLoaded" :bordered="false" title="按角色查看" class="role-statistics">
+        <a-table :columns="roleMetricColumns" :data-source="roleMetrics" row-key="id" :pagination="false" size="small" :scroll="{ x: 1240 }">
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'role'"><div class="statistics-role"><a-avatar :src="record.avatarUrl" :size="32">{{ record.name.charAt(0) }}</a-avatar><div><strong class="truncate" :title="record.name">{{ record.name }}</strong><span class="muted">{{ record.enabled === undefined ? '历史角色' : record.enabled ? '已启用' : '已暂停' }}<template v-if="record.participation !== undefined"> · 积极度 {{ record.participation }}%</template></span></div></div></template>
+            <template v-else-if="column.key === 'records'">{{ record.formal }} / {{ record.preview }}</template>
+            <template v-else-if="column.key === 'tasks'"><span>{{ record.pending }} / </span><span :class="{ 'status-failed': record.failed }">{{ record.failed }}</span></template>
+            <template v-else-if="column.key === 'tokens'">{{ record.usage.inputTokens.toLocaleString() }} / {{ record.usage.outputTokens.toLocaleString() }}</template>
+            <template v-else-if="column.key === 'coverage'"><span class="muted">完整 {{ record.usage.complete }} · 部分 {{ record.usage.partial }}<br />缺失 {{ record.usage.missing }} · 旧记录 {{ record.usage.legacy }}</span></template>
+          </template>
+        </a-table>
+        <p class="metric-note muted">已发表评论按当前正式运行的评论回执 ID 去重；token 包含正式运行与预演。无记录仅表示当前查询未载入该角色的数据。</p>
       </a-card>
     </div>
     </details>
@@ -1502,11 +1613,16 @@ onMounted(() => {
 .worker-diagnostics p { margin: 8px 0 0; overflow-wrap: anywhere; }
 .task-progress { margin: 4px 0 0; font-size: 12px; color: var(--lt-color-text-secondary); white-space: normal; }
 .page-title p, .muted { color: var(--lt-color-text-secondary); }
+.runtime-overview { margin-top: 24px; }
+.runtime-overview > summary { padding: 16px 18px; margin-bottom: 16px; border-radius: 8px; background: var(--lt-color-bg-container); cursor: pointer; }
+.runtime-overview > summary .muted { margin-left: 12px; font-size: 12px; }
 .console-overview { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.console-overview > * { min-width: 0; }
 .overview-summary :deep(.ant-card-body), .decision-summary :deep(.ant-card-body), .workflow-card :deep(.ant-card-body) { padding: 18px; }
 .overview-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .overview-heading h3 { margin: 0; }
 .overview-heading > .muted { flex: 1; font-size: 12px; }
+.stats-role-select { width: 160px; }
 .status-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .status-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; min-width: 0; background: var(--lt-color-bg-layout); border-radius: 8px; }
 .status-label { font-size: 13px; color: var(--lt-color-text-secondary); }
@@ -1527,6 +1643,25 @@ onMounted(() => {
 .decision-heading { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
 .decision-track { height: 8px; border-radius: 4px; overflow: hidden; background: var(--lt-color-bg-layout); }
 .decision-bar { height: 100%; border-radius: 4px; }
+.statistics-section { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--lt-color-border); }
+.section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.section-heading h4 { margin: 0; font-size: 14px; }
+.section-heading > .muted { font-size: 12px; }
+.usage-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.usage-panel { padding: 14px; border: 1px solid var(--lt-color-border); border-radius: 8px; min-width: 0; }
+.usage-heading { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.usage-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 14px 0 0; }
+.usage-values dt { color: var(--lt-color-text-secondary); font-size: 12px; }
+.usage-values dd { margin: 4px 0 0; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.usage-coverage { margin: 12px 0 0; font-size: 12px; line-height: 1.7; }
+.task-state-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.task-state { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 6px; background: var(--lt-color-bg-layout); font-size: 12px; }
+.task-state strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+.role-statistics { grid-column: 1 / -1; }
+.statistics-role { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.statistics-role > div { min-width: 0; }
+.statistics-role strong { display: block; max-width: 155px; }
+.statistics-role .muted { display: block; margin-top: 3px; font-size: 12px; }
 .workflow-path { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .workflow-step { display: flex; align-items: flex-start; gap: 10px; }
 .workflow-step .ant-btn { padding-left: 0; padding-right: 8px; height: auto; font-weight: 600; }
@@ -1539,14 +1674,30 @@ onMounted(() => {
 .role-excerpt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
 .role-next-actions .role-excerpt { margin-top: 16px; }
 .next-action-buttons { display: flex; flex-direction: column; gap: 12px; }
+.next-action-buttons .ant-btn { height: auto; min-height: 32px; white-space: normal; }
 .role-actions-summary { display: none; cursor: pointer; color: var(--lt-color-primary); }
-.bot-card-selected { border-color: var(--lt-color-primary); }
-.bot-name-button { padding: 0; height: auto; min-width: 0; }
-.bot-name-button strong { display: block; max-width: 160px; }
-.bot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.bot-card { min-width: 0; transition: border-color .2s; }
+.bot-card:hover, .bot-card-selected { border-color: var(--lt-color-primary); }
+.bot-card-selected { background: var(--lt-color-primary-bg); }
+.bot-card :deep(.ant-card-body) { height: 100%; display: flex; flex-direction: column; padding: 16px; }
+.bot-select-area { width: 100%; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.bot-select-area:focus-visible { outline: 2px solid var(--lt-color-primary); outline-offset: 6px; }
+.bot-select-area:disabled { cursor: default; }
+.bot-select-area .bot-heading { flex-wrap: nowrap; }
+.bot-name { min-width: 0; flex: 1; font-size: 15px; }
+.bot-select-area .ant-avatar, .bot-select-area .ant-tag { flex: none; }
+.bot-select-area .ant-tag { margin-inline-end: 0; }
+.bot-selection-meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; font-size: 12px; }
+.bot-selection-state { color: var(--lt-color-primary); }
+.bot-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 16px; }
+.bot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
 .bot-heading { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .bot-heading > div { min-width: 0; flex: 1; overflow-wrap: anywhere; }
-.bot-description { margin-top: 16px; white-space: pre-wrap; }
+.bot-description { margin-top: 16px; margin-bottom: 0; min-height: 63px; line-height: 21px; white-space: pre-wrap; }
+.bot-interest { margin: 10px 0 0; -webkit-line-clamp: 2; line-height: 20px; font-size: 13px; }
+.bot-select-area .bot-interest { min-height: 40px; }
+.role-participation { display: flex; justify-content: space-between; margin-top: 14px; font-size: 12px; }
+.role-participation-progress { margin: 2px 0 14px; }
 .bot-select { width: 170px; }
 .invite-form { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
 .invite-select { width: min(440px, 100%); }
@@ -1584,9 +1735,12 @@ onMounted(() => {
 .thread-focus { border-color: var(--lt-color-primary); background: var(--lt-color-bg-layout); }
 .thread-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 1300px) {
-  .bot-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+  .bot-grid { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
 }
-@media (max-width: 1100px) { .status-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1100px) {
+  .status-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .task-state-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 960px) {
   .console-overview, .roles-layout { grid-template-columns: minmax(0, 1fr); }
   .role-actions-summary { display: block; }
@@ -1604,5 +1758,8 @@ onMounted(() => {
   .bot-grid { grid-template-columns: minmax(0, 1fr); }
   .workflow-path { column-gap: 12px; row-gap: 20px; }
   .status-cell { padding: 12px; }
+  .usage-grid { grid-template-columns: minmax(0, 1fr); }
+  .runtime-overview > summary .muted { display: block; margin: 8px 0 0; }
+  .stats-role-select { width: 100%; }
 }
 </style>

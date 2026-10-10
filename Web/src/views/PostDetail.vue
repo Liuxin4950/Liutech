@@ -16,6 +16,7 @@ import { useUserStore } from '@/stores/user'
 import { usePostInteractionStore } from '@/stores/postInteraction'
 import TableOfContents from '@/components/TableOfContents.vue'
 import SeriesCatalog from '@/components/SeriesCatalog.vue'
+import SeriesNavigation from '@/components/SeriesNavigation.vue'
 import Icon from '@/components/Icon.vue'
 import LoadingState from '@/components/LoadingState.vue'
 import { sanitizePostHtml, highlightCodeBlocks } from '@/composables/useRichContent'
@@ -403,23 +404,6 @@ const handleTagClick = (tagId: number) => {
   router.push(`/tags/${tagId}`)
 }
 
-// ============== 系列导航 ==============
-const currentSeriesIndex = computed(() => {
-  if (!post.value?.seriesCatalog) return -1
-  return post.value.seriesCatalog.findIndex(item => item.current)
-})
-const prevSeriesPost = computed(() => {
-  if (!post.value?.seriesCatalog || currentSeriesIndex.value <= 0) return null
-  return post.value.seriesCatalog[currentSeriesIndex.value - 1]
-})
-const nextSeriesPost = computed(() => {
-  if (!post.value?.seriesCatalog || currentSeriesIndex.value < 0) return null
-  return post.value.seriesCatalog[currentSeriesIndex.value + 1] || null
-})
-const goToSeriesPost = (id: number) => {
-  router.push(`/post/${id}?from=series&seriesId=${post.value?.series?.id || ''}`)
-}
-
 const summarizeWithAi = () => {
   if (!post.value) return
 
@@ -571,46 +555,29 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
             </span>
           </div>
         </div>
+        <SeriesNavigation
+        v-if="post.series && post.seriesCatalog?.length"
+        :series="post.series"
+        :items="post.seriesCatalog"
+        :current-post-id="post.id"
+        label="正文前的系列文章导航"
+        compact
+      />
       </header>
 
-    
       <!-- 文章内容 -->
       <article class="post-article">
         <div ref="contentRef" class="rich-content" v-html="renderedContent"></div>
       </article>
 
       <!-- 系列导航 -->
-      <section v-if="post.series && post.seriesCatalog && post.seriesCatalog.length > 0" class="series-card">
-        <header class="series-card-head">
-          <span class="series-card-label">系列</span>
-          <router-link :to="`/series-detail/${post.series.id}`" class="series-card-name">{{ post.series.name }}</router-link>
-          <span class="series-card-progress">{{ currentSeriesIndex + 1 }} / {{ post.seriesCatalog.length }}</span>
-        </header>
-        <nav class="series-prev-next">
-          <router-link v-if="prevSeriesPost" :to="`/post/${prevSeriesPost.id}`" class="series-prev">
-            <Icon name="chevronLeft" size="14" />
-            <span class="series-pn-text">
-              <span class="series-pn-label">上一篇</span>
-              <span class="series-pn-title">{{ prevSeriesPost.title }}</span>
-            </span>
-          </router-link>
-          <span v-else class="series-prev is-disabled">
-            <Icon name="chevronLeft" size="14" />
-            <span class="series-pn-text"><span class="series-pn-label">已是第一篇</span></span>
-          </span>
-          <router-link v-if="nextSeriesPost" :to="`/post/${nextSeriesPost.id}`" class="series-next">
-            <span class="series-pn-text">
-              <span class="series-pn-label">下一篇</span>
-              <span class="series-pn-title">{{ nextSeriesPost.title }}</span>
-            </span>
-            <Icon name="chevronRight" size="14" />
-          </router-link>
-          <span v-else class="series-next is-disabled">
-            <span class="series-pn-text"><span class="series-pn-label">已是最后一篇</span></span>
-            <Icon name="chevronRight" size="14" />
-          </span>
-        </nav>
-      </section>
+      <SeriesNavigation
+        v-if="post.series && post.seriesCatalog?.length"
+        :series="post.series"
+        :items="post.seriesCatalog"
+        :current-post-id="post.id"
+        label="正文后的系列文章导航"
+      />
 
       <!-- 附件列表 -->
       <section v-if="post.attachments && post.attachments.length" class="attachment-section">
@@ -784,87 +751,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
 
-/* 系列导航 */
-.series-card {
-  margin: 24px 0;
-  padding: 14px 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-}
-.series-card-head {
-  flex-wrap: wrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-muted);
-  padding-bottom: 12px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid var(--border-soft);
-}
-.series-card-label {
-  color: var(--color-primary);
-  font-weight: 500;
-}
-.series-card-name {
-  color: var(--text-main);
-  font-weight: 600;
-  text-decoration: none;
-  &:hover { color: var(--color-primary); }
-}
-.series-card-progress {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.series-prev-next {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding-top: 12px;
-  margin-top: 4px;
-  border-top: 1px solid var(--border-soft);
-}
-.series-prev,
-.series-next {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  text-decoration: none;
-  color: var(--text-main);
-  font-size: 13px;
-  min-width: 0;
-  transition: background 0.15s;
-  &:hover { background: var(--surface-glass-muted, rgba(0, 0, 0, 0.03)); }
-  &.is-disabled {
-    color: var(--text-muted);
-    pointer-events: none;
-  }
-}
-.series-next {
-  justify-content: flex-end;
-  text-align: right;
-}
-.series-pn-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-  flex: 1;
-}
-.series-pn-label {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-.series-pn-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .post-detail {
   position: relative;
   margin: 0 auto;
