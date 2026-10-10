@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.*;
 class CommunityServiceTest {
     @Mock CommunityMapper mapper;
     @Mock CommentsMapper comments;
+    @Mock ImageReferenceService imageReferenceService;
     @InjectMocks CommunityService service;
     CommunityBot bot;
     CommunitySettings settings;
@@ -52,6 +53,24 @@ class CommunityServiceTest {
     }
     private CommunityReq.Publish request(String version) {
         return new CommunityReq.Publish(TASK,1L,2L,null,null,ROOT,version,"观点");
+    }
+    @Test void creatingAndReplacingAvatarSynchronizesImageReferencesInsideBotWrite() {
+        CommunityReq.Bot req = new CommunityReq.Bot("角色", "/uploads/new.png", "性格", null, null, true, 50);
+        doAnswer(invocation -> { invocation.<CommunityBot>getArgument(0).setId(1L); return 1; })
+            .when(mapper).insertBot(any());
+        service.saveBot(null, req);
+        verify(imageReferenceService).syncReferences(Collections.singletonList(null), List.of("/uploads/new.png"));
+        bot.setAvatarUrl("/uploads/old.png");
+        service.saveBot(1L, req);
+        verify(imageReferenceService).syncReferences(List.of("/uploads/old.png"), List.of("/uploads/new.png"));
+        service.saveBot(1L, new CommunityReq.Bot("角色", null, "性格", null, null, false, 0));
+        verify(imageReferenceService).syncReferences(List.of("/uploads/new.png"), Collections.singletonList(null));
+    }
+    @Test void retiredRoleRetainsItsAvatarReferenceForHistoricalComments() {
+        bot.setAvatarUrl("/uploads/role.png");
+        service.deleteBot(1L);
+        verify(mapper).deleteBot(1L);
+        verifyNoInteractions(imageReferenceService);
     }
     @Test void readPreviewWithDisabledSettingsAndBotDoesNotMutateOrExposeOtherRoles() {
         settings.setEnabled(false);bot.setEnabled(false);

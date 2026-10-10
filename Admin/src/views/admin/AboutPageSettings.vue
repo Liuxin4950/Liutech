@@ -10,10 +10,12 @@ import {
   ReloadOutlined,
   SaveOutlined,
   UploadOutlined,
+  UserOutlined,
 } from '@ant-design/icons-vue'
 import AboutPageService from '@/services/about'
 import type { AboutPageInfo, AboutSocialLink } from '@/services/about'
 import { ImageUploadService } from '@/services/upload'
+import defaultAuthorAvatar from '@/assets/image/author-avatar.png'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -22,6 +24,13 @@ const uploading = ref<'avatar' | 'honors' | null>(null)
 const form = ref<AboutPageInfo | null>(null)
 const formRef = ref<FormInstance>()
 const activeProjectKey = ref<string | string[]>('0')
+
+// 上传图片使用 Admin 已有的 /uploads 代理；默认头像来自前台静态资源。
+const resolvePreviewUrl = (url?: string | null): string | undefined => {
+  const path = url?.trim()
+  if (!path) return undefined
+  return path === '/洛天依.png' ? defaultAuthorAvatar : path
+}
 
 const socialColumns = [
   { title: '标签', key: 'label', width: 180 },
@@ -112,7 +121,7 @@ const loadContent = async () => {
 }
 
 const saveContent = async () => {
-  if (!form.value || saving.value) return
+  if (!form.value || saving.value || uploading.value) return
   normalizeContent(form.value)
   try {
     await formRef.value?.validate()
@@ -142,7 +151,7 @@ const uploadImage = async (file: File, target: 'avatar' | 'honors') => {
     else form.value.honors.imageUrl = result.fileUrl
     message.success('图片上传成功，保存页面后生效')
   } catch (error: any) {
-    if (!error?.isBusiness) message.error('图片上传失败')
+    if (!error?.isBusiness) message.error(error?.message || '图片上传失败')
   } finally {
     uploading.value = null
   }
@@ -197,9 +206,9 @@ onMounted(loadContent)
           <h2>关于页管理</h2>
           <p>统一管理作者资料、技术栈、项目经历与联系信息。</p>
         </div>
-        <a-space>
-          <a-button :loading="loading" @click="loadContent"><ReloadOutlined />重新加载</a-button>
-          <a-button type="primary" :loading="saving" :disabled="!form" @click="saveContent"><SaveOutlined />保存并发布</a-button>
+        <a-space class="page-actions" wrap>
+          <a-button :loading="loading" :disabled="saving || !!uploading" @click="loadContent"><ReloadOutlined />重新加载</a-button>
+          <a-button type="primary" :loading="saving" :disabled="!form || loading || !!uploading" @click="saveContent"><SaveOutlined />保存并发布</a-button>
         </a-space>
       </div>
     </a-card>
@@ -212,60 +221,76 @@ onMounted(loadContent)
       <a-form v-else-if="form" ref="formRef" :model="form" layout="vertical" class="about-form">
         <a-tabs type="card">
           <a-tab-pane key="basic" tab="基础信息" force-render>
-            <a-card :bordered="false" class="form-card">
-              <a-row :gutter="16">
-                <a-col :xs="24" :md="12">
-                  <a-form-item label="作者姓名" :name="['author', 'name']" :rules="requiredTextRules('请输入作者姓名', 50)">
-                    <a-input v-model:value="form.author.name" :maxlength="50" />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24" :md="12">
-                  <a-form-item label="作者头衔" :name="['author', 'title']" :rules="requiredTextRules('请输入作者头衔', 80)">
-                    <a-input v-model:value="form.author.title" :maxlength="80" />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24">
-                  <a-form-item label="首页作者简介" :name="['author', 'bio']" :rules="requiredTextRules('请输入首页作者简介', 500)">
-                    <a-textarea v-model:value="form.author.bio" :rows="3" :maxlength="500" show-count />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24">
-                  <a-form-item label="座右铭" name="motto" :rules="requiredTextRules('请输入座右铭', 120)">
-                    <a-input v-model:value="form.motto" :maxlength="120" />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24">
-                  <a-form-item label="作者头像" :name="['author', 'avatar']" :rules="linkRules(true, false)">
-                    <div class="image-field">
-                      <a-avatar :size="72" :src="form.author.avatar" />
-                      <a-input v-model:value="form.author.avatar" />
-                      <a-upload :show-upload-list="false" accept="image/*" :before-upload="(file: File) => beforeImageUpload(file, 'avatar')">
-                        <a-button :loading="uploading === 'avatar'"><UploadOutlined />上传</a-button>
-                      </a-upload>
-                    </div>
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24">
-                  <a-form-item label="Banner 描述" name="bannerDescription" :rules="requiredTextRules('请输入 Banner 描述', 200)">
-                    <a-input v-model:value="form.bannerDescription" :maxlength="200" />
-                  </a-form-item>
-                </a-col>
-                <a-col :xs="24">
-                  <a-form-item label="SEO 描述" name="metaDescription" :rules="requiredTextRules('请输入 SEO 描述', 300)">
-                    <a-textarea v-model:value="form.metaDescription" :rows="2" :maxlength="300" show-count />
-                  </a-form-item>
-                </a-col>
-              </a-row>
+            <div class="basic-editor-grid">
+              <a-card :bordered="false" class="form-card author-settings-card">
+                <div class="section-heading">
+                  <h3>作者资料</h3>
+                  <p>用于首页作者卡片与关于页的个人信息展示。</p>
+                </div>
 
-              <a-divider orientation="left">个人介绍段落</a-divider>
+                <div class="avatar-editor">
+                  <div class="avatar-preview">
+                    <a-avatar :size="88" :src="resolvePreviewUrl(form.author.avatar)" :alt="form.author.name">
+                      <template #icon><UserOutlined /></template>
+                    </a-avatar>
+                    <span>当前头像</span>
+                  </div>
+                  <div class="avatar-fields">
+                    <div class="upload-action">
+                      <a-upload :show-upload-list="false" :max-count="1" :disabled="!!uploading || saving" accept="image/*" :before-upload="(file: File) => beforeImageUpload(file, 'avatar')">
+                        <a-button :loading="uploading === 'avatar'" :disabled="(!!uploading && uploading !== 'avatar') || saving"><UploadOutlined />更换头像</a-button>
+                      </a-upload>
+                      <p class="field-hint">建议使用正方形图片，大小不超过 5MB。</p>
+                    </div>
+                    <a-form-item label="头像地址" :name="['author', 'avatar']" :rules="linkRules(true, false)" class="avatar-url-item">
+                      <a-input v-model:value="form.author.avatar" :maxlength="500" placeholder="/uploads/... 或 https://..." />
+                    </a-form-item>
+                  </div>
+                </div>
+
+                <div class="identity-fields">
+                  <a-form-item label="作者姓名" :name="['author', 'name']" :rules="requiredTextRules('请输入作者姓名', 50)">
+                    <a-input v-model:value="form.author.name" :maxlength="50" placeholder="前台展示的姓名" />
+                  </a-form-item>
+                  <a-form-item label="作者头衔" :name="['author', 'title']" :rules="requiredTextRules('请输入作者头衔', 80)">
+                    <a-input v-model:value="form.author.title" :maxlength="80" placeholder="例如：开发者 · 技术分享" />
+                  </a-form-item>
+                </div>
+                <a-form-item label="首页作者简介" :name="['author', 'bio']" :rules="requiredTextRules('请输入首页作者简介', 500)" extra="简要介绍你的关注领域，显示在首页侧栏。">
+                  <a-textarea v-model:value="form.author.bio" :auto-size="{ minRows: 3, maxRows: 6 }" :maxlength="500" show-count />
+                </a-form-item>
+                <a-form-item label="座右铭" name="motto" :rules="requiredTextRules('请输入座右铭', 120)" class="last-form-item">
+                  <a-input v-model:value="form.motto" :maxlength="120" placeholder="一句你想分享的话" />
+                </a-form-item>
+              </a-card>
+
+              <a-card :bordered="false" class="form-card display-settings-card">
+                <div class="section-heading">
+                  <h3>页面描述</h3>
+                  <p>设置关于页顶部文案与搜索摘要。</p>
+                </div>
+                <a-form-item label="顶部横幅描述" name="bannerDescription" :rules="requiredTextRules('请输入 Banner 描述', 200)" extra="显示在关于页顶部横幅中。">
+                  <a-textarea v-model:value="form.bannerDescription" :auto-size="{ minRows: 2, maxRows: 4 }" :maxlength="200" show-count />
+                </a-form-item>
+                <a-form-item label="搜索摘要（SEO）" name="metaDescription" :rules="requiredTextRules('请输入 SEO 描述', 300)" extra="简要概括页面内容，作为搜索引擎的页面描述。" class="last-form-item">
+                  <a-textarea v-model:value="form.metaDescription" :auto-size="{ minRows: 4, maxRows: 7 }" :maxlength="300" show-count />
+                </a-form-item>
+              </a-card>
+            </div>
+
+            <a-card :bordered="false" class="form-card intro-settings-card">
+              <div class="section-heading">
+                <h3>个人介绍</h3>
+                <p>在关于页按以下顺序展示，最多添加 6 个段落。</p>
+              </div>
               <div v-for="(_paragraph, index) in form.introParagraphs" :key="index" class="intro-row">
-                <a-form-item :name="['introParagraphs', index]" :rules="requiredTextRules('介绍段落不能为空', 800)" class="grow-form-item">
+                <a-form-item :label="`段落 ${index + 1}`" :name="['introParagraphs', index]" :rules="requiredTextRules('介绍段落不能为空', 800)" class="grow-form-item">
                   <a-textarea v-model:value="form.introParagraphs[index]" :rows="3" :maxlength="800" show-count />
                 </a-form-item>
-                <a-space direction="vertical">
-                  <a-button type="text" :disabled="index === 0" @click="moveItem(form.introParagraphs, index, -1)"><ArrowUpOutlined /></a-button>
-                  <a-button type="text" :disabled="index === form.introParagraphs.length - 1" @click="moveItem(form.introParagraphs, index, 1)"><ArrowDownOutlined /></a-button>
-                  <a-button type="text" :disabled="form.introParagraphs.length === 1" @click="confirmRemove('删除该介绍段落？', () => form!.introParagraphs.splice(index, 1))"><DeleteOutlined /></a-button>
+                <a-space class="intro-actions">
+                  <a-button type="text" aria-label="上移段落" title="上移段落" :disabled="index === 0" @click="moveItem(form.introParagraphs, index, -1)"><ArrowUpOutlined /></a-button>
+                  <a-button type="text" aria-label="下移段落" title="下移段落" :disabled="index === form.introParagraphs.length - 1" @click="moveItem(form.introParagraphs, index, 1)"><ArrowDownOutlined /></a-button>
+                  <a-button type="text" danger aria-label="删除段落" title="删除段落" :disabled="form.introParagraphs.length === 1" @click="confirmRemove('删除该介绍段落？', () => form!.introParagraphs.splice(index, 1))"><DeleteOutlined /></a-button>
                 </a-space>
               </div>
               <a-button type="dashed" block :disabled="form.introParagraphs.length >= 6" @click="addIntro"><PlusOutlined />添加介绍段落</a-button>
@@ -362,11 +387,16 @@ onMounted(loadContent)
               </a-form-item>
               <a-form-item label="荣誉区图片" :name="['honors', 'imageUrl']" :rules="linkRules(false, false)">
                 <div class="image-field">
-                  <a-image v-if="form.honors.imageUrl" :width="140" :src="form.honors.imageUrl" />
-                  <a-input v-model:value="form.honors.imageUrl" placeholder="留空则使用前台默认图片" />
-                  <a-upload :show-upload-list="false" accept="image/*" :before-upload="(file: File) => beforeImageUpload(file, 'honors')">
-                    <a-button :loading="uploading === 'honors'"><UploadOutlined />上传</a-button>
-                  </a-upload>
+                  <a-image v-if="form.honors.imageUrl" class="honors-preview" :width="140" :src="resolvePreviewUrl(form.honors.imageUrl)" />
+                  <div class="image-controls">
+                    <a-input v-model:value="form.honors.imageUrl" :maxlength="500" placeholder="留空则使用前台默认图片" />
+                    <div class="upload-action">
+                      <a-upload :show-upload-list="false" :max-count="1" :disabled="!!uploading || saving" accept="image/*" :before-upload="(file: File) => beforeImageUpload(file, 'honors')">
+                        <a-button :loading="uploading === 'honors'" :disabled="(!!uploading && uploading !== 'honors') || saving"><UploadOutlined />上传图片</a-button>
+                      </a-upload>
+                      <p class="field-hint">大小不超过 5MB，保存页面后生效。</p>
+                    </div>
+                  </div>
                 </div>
               </a-form-item>
               <a-form-item label="联系区说明" name="contactText" :rules="requiredTextRules('请输入联系区说明', 300)">
@@ -455,12 +485,119 @@ onMounted(loadContent)
   color: var(--lt-color-text-tertiary);
 }
 
+.page-actions {
+  flex-shrink: 0;
+}
+
 .about-form :deep(.ant-form-item) {
   margin-bottom: var(--lt-space-lg);
 }
 
+.about-form :deep(.ant-input),
+.about-form :deep(.ant-input-textarea) {
+  min-width: 0;
+}
+
 .form-card :deep(.ant-card-body) {
   padding: var(--lt-space-xl);
+}
+
+.basic-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: var(--lt-space-lg);
+}
+
+.basic-editor-grid > .form-card {
+  min-width: 0;
+}
+
+.section-heading {
+  margin-bottom: var(--lt-space-xl);
+}
+
+.section-heading h3 {
+  margin: 0;
+  font-size: var(--lt-font-size-md);
+  font-weight: var(--lt-font-weight-semibold);
+  color: var(--lt-color-text);
+}
+
+.section-heading p {
+  margin: var(--lt-space-xs) 0 0;
+  color: var(--lt-color-text-secondary);
+  font-size: var(--lt-font-size-sm);
+  line-height: var(--lt-line-height-relaxed);
+}
+
+.avatar-editor {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--lt-space-lg);
+  margin-bottom: var(--lt-space-xl);
+  padding: var(--lt-space-lg);
+  border: 1px solid var(--lt-color-border-secondary);
+  border-radius: var(--lt-radius-lg);
+  background: var(--lt-color-bg-spotlight);
+}
+
+.avatar-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lt-space-sm);
+}
+
+.avatar-preview :deep(.ant-avatar) {
+  flex-shrink: 0;
+  background: var(--lt-color-primary-bg);
+  color: var(--lt-color-primary);
+  border: 1px solid var(--lt-color-primary-border);
+}
+
+.avatar-preview > span {
+  color: var(--lt-color-text-secondary);
+  font-size: var(--lt-font-size-xs);
+}
+
+.avatar-fields {
+  min-width: 0;
+}
+
+.upload-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lt-space-sm) var(--lt-space-md);
+}
+
+.upload-action :deep(.ant-upload-wrapper) {
+  flex-shrink: 0;
+  width: auto;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--lt-color-text-secondary);
+  font-size: var(--lt-font-size-xs);
+  line-height: var(--lt-line-height-relaxed);
+}
+
+.avatar-fields .upload-action {
+  margin-bottom: var(--lt-space-md);
+}
+
+.about-form :deep(.avatar-url-item),
+.about-form :deep(.last-form-item) {
+  margin-bottom: 0;
+}
+
+.identity-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lt-space-lg);
 }
 
 .intro-row {
@@ -471,6 +608,10 @@ onMounted(loadContent)
   padding: var(--lt-space-lg);
   border: 1px solid var(--lt-color-border-secondary);
   border-radius: var(--lt-radius-lg);
+}
+
+.intro-actions {
+  align-self: start;
 }
 
 .grow-form-item,
@@ -494,8 +635,19 @@ onMounted(loadContent)
   gap: var(--lt-space-md);
 }
 
-.image-field .ant-input {
+.honors-preview {
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid var(--lt-color-border-secondary);
+  border-radius: var(--lt-radius-lg);
+}
+
+.image-controls {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lt-space-md);
 }
 
 .project-collapse {
@@ -522,6 +674,13 @@ onMounted(loadContent)
   margin-top: var(--lt-space-lg);
 }
 
+@media (max-width: 1100px) {
+  .basic-editor-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .page-header,
   .image-field {
@@ -534,9 +693,29 @@ onMounted(loadContent)
     grid-template-columns: 1fr;
   }
 
+  .intro-actions {
+    justify-self: end;
+  }
+
   .form-card :deep(.ant-card-body),
   .project-collapse :deep(.ant-collapse-content-box) {
     padding: var(--lt-space-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  .avatar-editor {
+    grid-template-columns: 1fr;
+    padding: var(--lt-space-md);
+  }
+
+  .identity-fields {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .upload-action {
+    align-items: flex-start;
   }
 }
 </style>

@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 public class CommunityService {
     private final CommunityMapper mapper;
     private final CommentsMapper commentsMapper;
+    private final ImageReferenceService imageReferenceService;
     private static final ZoneId DAY_ZONE = ZoneId.of("Asia/Shanghai");
 
     @Transactional(readOnly=true)
@@ -68,16 +69,20 @@ public class CommunityService {
     public CommunityBot saveBot(Long id, CommunityReq.Bot req) {
         mapper.lockSettings();
         CommunityBot bot = id == null ? new CommunityBot() : requireBot(mapper.lockBot(id));
+        String oldAvatarUrl = bot.getAvatarUrl();
         bot.setName(req.name().trim()); bot.setAvatarUrl(req.avatarUrl()); bot.setPersonality(req.personality());
         bot.setSystemPrompt(req.systemPrompt());
         bot.setBackground(req.background()); bot.setInterests(req.interests()); bot.setEnabled(req.enabled());
         bot.setParticipation(req.participation());
         if (id == null) mapper.insertBot(bot); else mapper.updateBot(bot);
+        imageReferenceService.syncReferences(Collections.singletonList(oldAvatarUrl),
+            Collections.singletonList(bot.getAvatarUrl()));
         log.info("社区角色配置已保存 botId={}", bot.getId());
         return mapper.bot(bot.getId());
     }
     @Transactional(rollbackFor=Exception.class)
     public void deleteBot(Long id) {
+        // 历史评论仍通过角色行展示头像；软删除只停止参与，保留图片引用。
         mapper.lockSettings(); requireBot(mapper.lockBot(id)); mapper.deleteBot(id);
         log.info("社区角色已软删除 botId={}", id);
     }

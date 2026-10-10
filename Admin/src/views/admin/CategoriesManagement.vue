@@ -77,15 +77,15 @@ const exportCtrl = useTableExport({
   <div class="p-24">
     <!-- 搜索卡片 -->
     <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
+      <a-form layout="horizontal" :model="searchParams" class="category-filter-form">
+        <a-row :gutter="[16, 12]" align="middle" justify="space-between">
           <a-col :xs="24" :sm="12" :lg="8" :xl="6">
             <a-form-item label="名称" class="mb-0">
               <a-input v-model:value="searchParams.name" placeholder="请输入分类名称" allow-clear @press-enter="handleSearch" />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
+          <a-col :xs="24" :sm="12" :lg="16" :xl="18" class="category-filter-actions">
+            <a-space wrap>
               <a-tooltip title="显示已删除">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
               </a-tooltip>
@@ -182,3 +182,23 @@ const exportCtrl = useTableExport({
     </a-modal>
   </div>
 </template>
+
+<style scoped>
+.category-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.category-filter-actions :deep(.ant-space) {
+  justify-content: flex-end;
+}
+
+.category-filter-actions :deep(.ant-btn) {
+  white-space: nowrap;
+}
+
+.category-filter-form :deep(.ant-form-item-control) {
+  min-width: 0;
+}
+</style>

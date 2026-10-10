@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import chat.liuxin.liutech.mapper.CarouselMapper;
+import chat.liuxin.liutech.mapper.CommunityMapper;
 import chat.liuxin.liutech.mapper.ImagesMapper;
 import chat.liuxin.liutech.mapper.MusicMapper;
 import chat.liuxin.liutech.mapper.PostSeriesMapper;
@@ -43,6 +44,7 @@ public class ImageUsageReconcileService {
     private final FileUtil fileUtil;
 
     private final ImageReferenceService imageReferenceService;
+    private final CommunityMapper communityMapper;
 
     @Scheduled(cron = "${image.reconcile.cron:0 55 2 * * ?}", zone = "${image.reconcile.zone:Asia/Shanghai}")
     @Transactional(rollbackFor = Exception.class)
@@ -55,6 +57,7 @@ public class ImageUsageReconcileService {
         allUrls.addAll(musicMapper.selectAllCoverUrls());
         allUrls.addAll(carouselMapper.selectAllImageUrls());
         allUrls.addAll(postSeriesMapper.selectAllCoverUrls());
+        communityMapper.botsForImageReferences().forEach(bot -> allUrls.add(bot.getAvatarUrl()));
 
         List<Posts> posts = postsMapper.selectAllPostsWithContent();
         for (Posts post : posts) {

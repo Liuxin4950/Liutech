@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { ReloadOutlined, SaveOutlined, RobotOutlined, SoundOutlined, ApiOutlined, CheckCircleOutlined, CloudUploadOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import aiModelsService, { type ModelConfig } from '@/services/aiModels'
 import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
+import { formatDateTime } from '@/utils/utils'
 import {
   getSiliconFlowVoices,
   getTtsConfig,
@@ -76,6 +77,15 @@ const currentStatusText = computed(() => {
   if (!ttsStatus.value.enabled) return ttsStatus.value.message || '已关闭'
   if (ttsStatus.value.configured && ttsStatus.value.onlineVerified === false) return ttsStatus.value.message || '已配置，待首次语音确认'
   return ttsStatus.value.online ? (ttsStatus.value.message || '在线') : (ttsStatus.value.message || '离线')
+})
+
+const statusCheckedAt = computed(() => {
+  const timestamp = Number(ttsStatus.value?.checkedAt)
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return null
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return null
+  const iso = date.toISOString()
+  return { iso, text: formatDateTime(iso) }
 })
 
 const currentVoiceText = computed(() => {
@@ -503,13 +513,22 @@ onMounted(() => {
             </template>
 
             <a-alert
+              class="tts-status-strip"
               :type="ttsStatus?.online ? 'success' : 'warning'"
               show-icon
-              :message="`TTS：${currentStatusText}`"
               :description="form.provider === 'SILICONFLOW'
                 ? `云端音色：${form.siliconFlowVoiceUri || '未设置'}`
                 : (ttsStatus?.voiceModel ? `当前生效语音：${ttsStatus.voiceModel}` : '当前未设置语音模型')"
-            />
+            >
+              <template #message>
+                <div class="tts-status-heading">
+                  <span class="tts-status-message">TTS：{{ currentStatusText }}</span>
+                  <time v-if="statusCheckedAt" :datetime="statusCheckedAt.iso" class="tts-status-time">
+                    检测于 {{ statusCheckedAt.text }}
+                  </time>
+                </div>
+              </template>
+            </a-alert>
           </a-col>
         </a-row>
       </a-form>
@@ -650,5 +669,30 @@ onMounted(() => {
 .upload-file-name {
   color: var(--lt-color-text-secondary);
   font-size: var(--lt-font-size-sm);
+}
+
+.tts-status-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lt-space-xs) var(--lt-space-md);
+}
+
+.tts-status-message {
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tts-status-time {
+  color: var(--lt-color-text-secondary);
+  font-size: var(--lt-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tts-status-strip :deep(.ant-alert-description) {
+  overflow-wrap: anywhere;
 }
 </style>

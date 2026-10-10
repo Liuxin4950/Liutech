@@ -2,8 +2,8 @@
   <div class="tags-page content">
     <!-- 热门标签 -->
     <div v-if="popularTags.length > 0" class="card bg-card mb-16">
-      <div class="flex flex-col gap-16">
-        <h4 class="card-title"><span class="card-badge"><Icon name="fire" size="12" /> Hot</span><span class="card-title-text">热门<span class="card-highlight">标签</span></span></h4>
+      <div class="taxonomy-section flex flex-col gap-16">
+        <h2 class="card-title"><span class="card-badge"><Icon name="fire" size="12" /> Hot</span><span class="card-title-text">热门<span class="card-highlight">标签</span></span></h2>
         <div class="flex flex-wrap flex-fw gap-12" >
           <router-link
             v-for="tag in popularTags"
@@ -21,15 +21,16 @@
 
     <!-- 所有标签 -->
     <div class="card bg-card mb-16">
-      <div class="flex flex-col gap-16">
-        <h4 class="card-title"><span class="card-badge"><Icon name="book" size="12" /> All</span><span class="card-title-text">所有<span class="card-highlight">标签</span></span></h4>
+      <div class="taxonomy-section flex flex-col gap-16">
+        <h2 class="card-title"><span class="card-badge"><Icon name="book" size="12" /> All</span><span class="card-title-text">所有<span class="card-highlight">标签</span></span></h2>
          <!-- 搜索框 -->
         <div class="search-section">
           <div class="search-box relative">
               <Icon name="search" size="16" class="search-icon" />
               <input
                 v-model="searchKeyword"
-                type="text"
+                type="search"
+                aria-label="搜索标签"
                 placeholder="搜索标签..."
                 class="search-input"
               />
@@ -199,6 +200,7 @@ watch([tags, totalPosts], () => {
 
 <style scoped lang="scss">
 @use "@/assets/styles/tokens" as *;
+@use "@/assets/styles/taxonomy";
 
 /* 空状态标题（原全局 .mb-8 移入） */
 .text-center h3 {

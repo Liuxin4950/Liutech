@@ -24,6 +24,9 @@ public interface CommunityMapper {
 
     @Select("SELECT * FROM community_bots WHERE deleted_at IS NULL ORDER BY id")
     List<CommunityBot> bots();
+    /** 历史评论仍引用软删除角色的身份；图片对账/溯源包含停用和已删除角色。 */
+    @Select("SELECT id,name,avatar_url,deleted_at FROM community_bots WHERE avatar_url IS NOT NULL AND avatar_url <> '' ORDER BY id")
+    List<CommunityBot> botsForImageReferences();
     @Select("SELECT * FROM community_bots WHERE id=#{id} AND deleted_at IS NULL")
     CommunityBot bot(Long id);
     /** 审查历史时保留停用及软删除角色身份。 */
