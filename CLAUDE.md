@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - token 读写：`Web/src/utils/auth.ts` 与 `Admin/src/utils/auth.ts`（`getToken`/`setToken`/`removeToken`/`isLoggedIn`），其它文件不许直接碰 `localStorage` 的 token。
 - SSE 协议解析：`Web/src/services/sse.ts`（`parseSseEventText` + `readSseStream`），**不要**在业务里再写分帧/JSON 解析。
 - 写作助手流式客户端：`Web/src/services/writingStream.ts`，两端的 `adminAgent.ts` / `agent.ts` 只是注入 baseURL 与 token 的薄封装。
-- SSE解析、写作流式客户端、写作预览状态机 `writingReview.ts` 与会话逻辑 `writingSession.ts` 在 Web 与 Admin 各存一份**逐字节一致**的镜像文件（两个独立 Vite 根），改一侧必须同步另一侧并运行 `node scripts/check-mirrored-modules.mjs`。细节见[网络封装](Docs/架构/设计/网络封装/总览.md)，自动化工作流状态见[维护清单](Docs/维护清单.md)。
+- SSE解析、写作流式客户端、写作预览状态机 `writingReview.ts` 与会话逻辑 `writingSession.ts` 在 Web 与 Admin 各存一份**逐字节一致**的镜像文件（两个独立 Vite 根），改一侧必须同步另一侧并核验 Web/Admin 四对镜像文件逐字节一致。细节见[网络封装](Docs/架构/设计/网络封装/总览.md)，自动化工作流状态见[维护清单](Docs/维护清单.md)。
 
 ## 🛠️ 如何运行
 
@@ -69,8 +69,8 @@ cd Admin && npm run build                    # Admin 构建
 node Web/node_modules/vitest/vitest.mjs run --config Admin/vitest.config.mts # Admin 测试（复用 Web Vitest）
 
 # 跨端镜像文件一致性（改过 Web/Admin 的 sse.ts、writingStream.ts、writingReview.ts 或 writingSession.ts 后必跑）
-node scripts/check-mirrored-modules.mjs
-node scripts/check-docs.mjs                  # 文档路径、锚点与索引
+# 核验 Web/Admin 四对镜像文件逐字节一致
+# 核验文档链接、章节锚点、索引及路径大小写                  # 文档路径、锚点与索引
 
 # 数据库
 mysql -u root -p < Docs/SQL/sql.sql           # 初始化两个库
@@ -139,7 +139,7 @@ docker-compose logs -f backend               # 跟踪后端日志
 - `Docs/README.md` — 文档统一入口；`Docs/AGENTS.md` 约定维护与归档，`Docs/维护清单.md` 汇总已核实事项
 - `Docs/` 子目录：`架构/`（当前总览与模块文档）、`教程/`、`归档/`（历史评估、需求与提案）、`SQL/`（唯一完整初始化与版本迁移）
 
-功能、接口、配置或数据库行为改变后同步对应现行文档，并运行 `node scripts/check-docs.mjs`；历史方案不作为当前实现依据。
+功能、接口、配置或数据库行为改变后同步对应现行文档，并核验文档链接、章节锚点、索引及路径大小写；历史方案不作为当前实现依据。
 
 ## 🧠 GBrain 持久知识库
 
@@ -166,4 +166,4 @@ docker-compose logs -f backend               # 跟踪后端日志
 
 ## 数据库升级入口
 
-`Docs/SQL/sql.sql` 仍是唯一完整初始化快照；增量发布使用 `Docs/SQL/migrations/README.md` 与 `scripts/migrate.ps1`。已发布迁移长期保留且不可修改；应用不执行 DDL。修改数据库结构时同步增量、快照、启动结构检查和真实 MySQL 回归，发布前先迁移再启动新版。
+`Docs/SQL/sql.sql` 仍是唯一完整初始化快照；增量发布使用 `Docs/SQL/migrations/README.md` 与 独立 Flyway Maven 工程。已发布迁移长期保留且不可修改；应用不执行 DDL。修改数据库结构时同步增量、快照、启动结构检查和真实 MySQL 回归，发布前先迁移再启动新版。

@@ -33,17 +33,17 @@ Flyway baseline 只标记已有结构，不校验整份历史业务结构；首�
 仓库根目录执行：
 
 ```powershell
-# 仅首次接入、已核验且没有台账的库使用 -Baseline
-./scripts/migrate.ps1 -Database main -Baseline
+# 仅首次接入、已核验且没有台账的库执行 flyway:baseline
+mvn -f Docs/SQL/migrations/pom.xml -Dmigration.database=main flyway:baseline flyway:migrate flyway:validate flyway:info
 # 改会话中的 FLYWAY_URL，指向 liutech_ai
-./scripts/migrate.ps1 -Database ai -Baseline
+mvn -f Docs/SQL/migrations/pom.xml -Dmigration.database=ai flyway:baseline flyway:migrate flyway:validate flyway:info
 
 # 已接入台账的后续发布，分别指定各库 URL，无需再次 baseline
-./scripts/migrate.ps1 -Database main
-./scripts/migrate.ps1 -Database ai
+mvn -f Docs/SQL/migrations/pom.xml -Dmigration.database=main flyway:migrate flyway:validate flyway:info
+mvn -f Docs/SQL/migrations/pom.xml -Dmigration.database=ai flyway:migrate flyway:validate flyway:info
 ```
 
-脚本读取环境凭据并依次执行 migrate、validate、info；任一步失败就以错误退出，不能继续启动新版应用。窗口包含空格或 JDBC URL 含 `&` 时也不需要把 URL 拼入 Maven 命令参数。
+Flyway 从会话环境读取凭据；命令依次执行 migrate、validate、info；任一步失败就以错误退出，不能继续启动新版应用。窗口包含空格或 JDBC URL 含 `&` 时也不需要把 URL 拼入 Maven 命令参数。
 
 ## 本轮发布顺序
 

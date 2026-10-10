@@ -30,7 +30,7 @@
 --   不要把整份初始化脚本直接重放到已有生产库；其中包含初始化数据，
 --   且 CREATE TABLE IF NOT EXISTS 不会为旧表自动补齐新增列。
 --   已有环境按本文件的最终结构核对差异，使用 Docs/SQL/migrations/README.md
---   与 scripts/migrate.ps1 执行增量升级；已发布迁移长期保留。
+--   与独立 Flyway Maven 工程执行增量升级；已发布迁移长期保留。
 -- ============================================================================
 -- 明确连接字符集，公告和关于页中的中文/emoji 使用 UTF-8。
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;

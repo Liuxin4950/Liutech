@@ -48,8 +48,8 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 - `Docs/SQL/sql.sql` — 两个数据库的唯一完整初始化脚本
 - `Docs/架构/README.md` — 模块化架构文档索引
 
-功能、接口、配置或数据库行为改变后同步相应现行文档，完成后运行 `node scripts/check-docs.mjs`。历史材料不作为当前实现依据。
+功能、接口、配置或数据库行为改变后同步相应现行文档，完成后核验文档链接、章节锚点、索引及路径大小写。历史材料不作为当前实现依据。
 
 ## 数据库升级入口
 
-`Docs/SQL/sql.sql` 仍是唯一完整初始化快照；增量发布使用 `Docs/SQL/migrations/README.md` 与 `scripts/migrate.ps1`。已发布迁移长期保留且不可修改；应用不执行 DDL。修改数据库结构时同步增量、快照、启动结构检查和真实 MySQL 回归，发布前先迁移再启动新版。
+`Docs/SQL/sql.sql` 仍是唯一完整初始化快照；增量发布使用 `Docs/SQL/migrations/README.md` 与 独立 Flyway Maven 工程。已发布迁移长期保留且不可修改；应用不执行 DDL。修改数据库结构时同步增量、快照、启动结构检查和真实 MySQL 回归，发布前先迁移再启动新版。

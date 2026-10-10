@@ -91,7 +91,7 @@ Nginx 对 `/api/internal/**` 与 `/ai/internal/**` 直接返回 404；容器内�
 
 `Docs/SQL/sql.sql` 只用于新数据库。已有生产库先备份，再执行一次性最小迁移：创建 `liutech_ai.ai_tts_config`，将主库九个 `tts.*` 值聚合写入 `id=1`，验证字段一致后切换应用账户与镜像。主库旧值保留七天供整组回滚，之后再单独备份并删除。
 
-数据库账户通过 `mysql/init-users.sh` 创建或更新。已有数据卷不会自动重跑初始化脚本，需要在维护窗口内显式执行该脚本并验证两个账户不能查询对方数据库。
+数据库管理员显式创建或更新应用账号，仅授予各自库的 CRUD；已有账号不随业务发布重建，调整后验证两个账户不能查询对方数据库。
 
 ## 陷阱与约束
 
@@ -111,4 +111,4 @@ TTS状态含`configured/online/onlineVerified`。SiliconFlow仅配置齐全不�
 
 - [TtsSpeechStatusTest](../../../../LiuTech-AI/src/test/java/chat/liuxin/ai/service/tts/TtsSpeechStatusTest.java) 覆盖真实合成确认状态、失败冷却与上传不隐式更换全局音色。
 - [ttsSettings.test.ts](../../../../Admin/tests/ttsSettings.test.ts)、[ttsService.test.ts](../../../../Admin/tests/ttsService.test.ts) 覆盖配置快照、未验证状态、原始 DTO 和取消信号。
-- [smoke-ai-settings.mjs](../../../../scripts/smoke-ai-settings.mjs) 在本地 Admin 开发服务运行：`node scripts/smoke-ai-settings.mjs`。默认地址为 `http://127.0.0.1:3011`，可用 `LIUTECH_ADMIN_SMOKE_URL` 指定 localhost 地址；API 均使用夹具，覆盖加载/保存失败、草稿保留、快速重复提交、音色上传与试听取消，不调用真实供应商。
+- 语音页面验收覆盖加载/保存失败、草稿保留、快速重复提交、音色上传与试听取消。原本地烟雾脚本已移除；单元测试仍由 Admin/tests/ttsService.test.ts 与 ttsSettings.test.ts 执行，页面检查使用隔离浏览器与模拟 API，不调用真实供应商。

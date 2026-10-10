@@ -65,8 +65,8 @@ mvn test
 npm --prefix Web test
 npm --prefix Web run build
 npm --prefix Admin run build
-node scripts/check-mirrored-modules.mjs
-node scripts/check-docs.mjs
+# 核验 Web/Admin 四对镜像文件逐字节一致
+# 核验文档链接、章节锚点、索引及路径大小写
 ```
 
 未设置 `LIUTECH_TEST_MYSQL_URL` 时会跳过可选 MySQL 回归；数据库变更必须另外运行真实 MySQL 验证，方法见[跨服务规范](Docs/架构/跨服务规范.md#104-数据库验证)。Admin 测试与本地运行命令见 [CLAUDE.md](CLAUDE.md)。

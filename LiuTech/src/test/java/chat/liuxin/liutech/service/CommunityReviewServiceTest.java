@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 class CommunityReviewServiceTest {
     @Mock CommunityMapper mapper;
     @Mock CommentsMapper comments;
+    @Mock ImageReferenceService imageReferenceService;
     @InjectMocks CommunityService service;
 
     @Test void deletedRoleHistoryIncludesDeletedCommentsWithoutPublicVisibilityCheck() {
