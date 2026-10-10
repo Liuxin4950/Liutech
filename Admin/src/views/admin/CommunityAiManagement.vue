@@ -1030,7 +1030,7 @@ onMounted(() => {
 
 <template>
   <div class="p-24 community-page">
-    <a-card :bordered="false" class="mb-16">
+    <a-card :bordered="false" class="mb-16 page-header-card">
       <div class="page-title">
         <div>
           <h2>评论角色</h2>
@@ -1587,9 +1587,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-title { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-.page-title h2 { margin: 0 0 4px; font-size: 20px; }
-.page-title p { margin: 0; }
+.page-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.page-title h2 { margin: 0 0 4px; font-size: 20px; line-height: 1.35; }
+.page-title p { margin: 0; font-size: 13px; line-height: 1.5; }
+.page-header-card :deep(.ant-card-body) { padding: 16px 20px; }
 .page-title > .ant-space { max-width: 100%; }
 .community-page > .ant-card:first-child :deep(.ant-card-body) { padding: 14px 18px; }
 .runtime-details { margin-top: 16px; }
@@ -1662,10 +1663,10 @@ onMounted(() => {
 .statistics-role > div { min-width: 0; }
 .statistics-role strong { display: block; max-width: 155px; }
 .statistics-role .muted { display: block; margin-top: 3px; font-size: 12px; }
-.workflow-path { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.workflow-path { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .workflow-step { display: flex; align-items: flex-start; gap: 10px; }
 .workflow-step .ant-btn { padding-left: 0; padding-right: 8px; height: auto; font-weight: 600; }
-.workflow-step p { margin: 6px 0 0; font-size: 12px; }
+.workflow-step p { margin: 2px 0 0; font-size: 12px; line-height: 1.4; }
 .step-number { display: grid; place-items: center; flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--lt-color-bg-layout); color: var(--lt-color-primary); font-weight: 600; }
 .role-context { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 0; padding-top: 0; }
 .context-select { width: min(340px, 100%); }

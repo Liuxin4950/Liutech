@@ -392,7 +392,7 @@ onMounted(loadContent)
                     <a-input v-model:value="form.honors.imageUrl" :maxlength="500" placeholder="留空则使用前台默认图片" />
                     <div class="upload-action">
                       <a-upload :show-upload-list="false" :max-count="1" :disabled="!!uploading || saving" accept="image/*" :before-upload="(file: File) => beforeImageUpload(file, 'honors')">
-                        <a-button :loading="uploading === 'honors'" :disabled="!!uploading || saving" :disabled="(!!uploading && uploading !== 'honors') || saving"><UploadOutlined />上传图片</a-button>
+                        <a-button :loading="uploading === 'honors'" :disabled="!!uploading || saving"><UploadOutlined />上传图片</a-button>
                       </a-upload>
                       <p class="field-hint">大小不超过 5MB，保存页面后生效。</p>
                     </div>

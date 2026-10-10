@@ -25,7 +25,8 @@ class CommunityLifecycleMysqlTest {
         db=new MysqlFixture("mapper/CommentsMapper.xml");
         db.session.getConfiguration().addMapper(CommunityMapper.class);
         mapper=db.session.getMapper(CommunityMapper.class);
-        service=db.transactional(new CommunityService(mapper,db.session.getMapper(CommentsMapper.class)));
+        service=db.transactional(new CommunityService(mapper,db.session.getMapper(CommentsMapper.class),
+            org.mockito.Mockito.mock(ImageReferenceService.class)));
         db.jdbc.update("INSERT INTO users(id,username,email,password_hash) VALUES(1,'test','test@example.test','unused')");
         db.jdbc.update("INSERT INTO categories(id,name) VALUES(1,'测试分类')");
         db.jdbc.update("INSERT INTO posts(id,title,content,category_id,author_id,status) VALUES(2,'文章','正文',1,1,'published')");
