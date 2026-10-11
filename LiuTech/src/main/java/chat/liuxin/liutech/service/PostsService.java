@@ -397,7 +397,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public PostCreateResp createPost(PostCreateReq req, Long authorId) {
         // 创建文章对象
         Posts post = new Posts();
@@ -469,7 +469,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean updatePost(PostUpdateReq req, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(req.getId());
@@ -519,7 +519,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * 更新文章（管理员版本，跳过作者权限校验）
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean updatePostForAdmin(PostUpdateReq req, Long operatorId) {
         Posts existPost = this.getById(req.getId());
         if (existPost == null || existPost.getDeletedAt() != null) {
@@ -578,7 +578,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean deletePost(Long id, Long authorId) {
         // 检查文章是否存在
         Posts existPost = this.getById(id);
@@ -614,7 +614,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean publishPost(Long id, Long authorId) {
         return updatePostStatus(id, "published", authorId);
     }
@@ -631,7 +631,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      * @date 2025-01-30
      */
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "hotTags" }, allEntries = true)
+    @CacheEvict(value = { "hotPosts", "latestPosts", "postList", "postSeries", "allTags", "categories", "hotTags" }, allEntries = true)
     public boolean unpublishPost(Long id, Long authorId) {
         return updatePostStatus(id, "draft", authorId);
     }

@@ -48,4 +48,20 @@ class ArchitectureBoundaryTest {
             }
         }
     }
+
+    /** 文章变更必须同时失效分类计数缓存，否则分类页 postCount 只能等 TTL 过期才刷新。 */
+    @Test void postMutationsMustEvictCategoriesCache() throws Exception {
+        for (String name : new String[] { "PostsService", "PostsAdminService" }) {
+            String source = Files.readString(Path.of("src/main/java/chat/liuxin/liutech/service/" + name + ".java"));
+            var matcher = java.util.regex.Pattern.compile("@CacheEvict\\(value = \\{([^}]*)\\}").matcher(source);
+            int found = 0;
+            while (matcher.find()) {
+                found++;
+                String list = matcher.group(1);
+                assertTrue(list.contains("\"postList\""), name + " 的失效列表必须包含 postList");
+                assertTrue(list.contains("\"categories\""), name + " 的失效列表必须包含 categories");
+            }
+            assertTrue(found > 0, name + " 应存在缓存失效声明");
+        }
+    }
 }
