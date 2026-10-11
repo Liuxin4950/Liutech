@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+src/__tests__
+tests
+.env.local
+.env.*.local
+*.log

@@ -1,3 +1,5 @@
+# 本地与云端共用此文件；环境差异只由 .env 的参数控制。
+name: ${COMPOSE_PROJECT_NAME:-liutech}
 services:
   # MySQL 数据库服务
   mysql:
@@ -8,14 +10,15 @@ services:
       # 通过 .env 注入密码，避免把真实默认值写入仓库
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       MYSQL_DATABASE: liutech
-      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
-      DB_AI_APP_PASSWORD: ${DB_AI_APP_PASSWORD:?DB_AI_APP_PASSWORD is required}
+      TZ: Asia/Shanghai
+    ports:
+      - "${INTERNAL_BIND_IP:-127.0.0.1}:${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./Docs/SQL/sql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:?DB_PASSWORD is required}"]
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_ROOT_PASSWORD mysqladmin ping -h localhost -u root --silent"]
       timeout: 20s
       retries: 10
       interval: 10s
@@ -24,8 +27,11 @@ services:
   # 后端应用服务
   backend:
     image: liutech-backend:${BACKEND_IMAGE_TAG:-latest}
+    build: ./LiuTech
     container_name: liutech-backend
     restart: unless-stopped
+    ports:
+      - "${INTERNAL_BIND_IP:-127.0.0.1}:${BACKEND_PORT:-8080}:8080"
     environment:
       # 数据库配置 - 生产环境从环境变量读取
       - DB_HOST=mysql
@@ -56,8 +62,7 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD:-}
       - MAIL_FROM=${MAIL_FROM:-}
       - MAIL_DISPLAY_NAME=${MAIL_DISPLAY_NAME:-LiuTech博客}
-      # 静态资源路径（可选，用于直接返回文件）
-      - SPRING_WEB_RESOURCES_STATIC_LOCATIONS=file:/app/uploads
+      - MANAGEMENT_HEALTH_MAIL_ENABLED=${MAIL_HEALTH_ENABLED:-true}
     volumes:
       # 文件上传持久化：本地默认 ./uploads，生产在 .env 配 UPLOADS_PATH=/liuxin/uploads
       - ${UPLOADS_PATH:-./uploads}:/app/uploads
@@ -84,8 +89,11 @@ services:
     # AI服务
   ai:
     image: liutech-ai:${AI_IMAGE_TAG:-latest}
+    build: ./LiuTech-AI
     container_name: liutech-ai
     restart: unless-stopped
+    ports:
+      - "${INTERNAL_BIND_IP:-127.0.0.1}:${AI_PORT:-8081}:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       # 数据库配置 - 生产环境从环境变量读取
@@ -135,8 +143,11 @@ services:
   # Web前端服务
   web:
     image: liutech-web:${WEB_IMAGE_TAG:-latest}
+    build: ./Web
     container_name: liutech-web
     restart: unless-stopped
+    ports:
+      - "${INTERNAL_BIND_IP:-127.0.0.1}:${WEB_PORT:-3000}:80"
     depends_on:
       - backend
       - ai
@@ -144,8 +155,11 @@ services:
   # Admin前端服务
   admin:
     image: liutech-admin:${ADMIN_IMAGE_TAG:-latest}
+    build: ./Admin
     container_name: liutech-admin
     restart: unless-stopped
+    ports:
+      - "${INTERNAL_BIND_IP:-127.0.0.1}:${ADMIN_PORT:-3001}:80"
     depends_on:
       - backend
       - ai
@@ -153,12 +167,13 @@ services:
   # Nginx反向代理服务
   nginx:
     image: liutech-nginx:${NGINX_IMAGE_TAG:-latest}
+    build: ./nginx
     container_name: liutech-nginx
     restart: unless-stopped
     ports:
-      - "${NGINX_HTTP:-80}:80"
-      - "${NGINX_HTTPS:-443}:443"
-      - "81:81"
+      - "${NGINX_BIND_IP:-0.0.0.0}:${NGINX_HTTP:-80}:80"
+      - "${NGINX_BIND_IP:-0.0.0.0}:${NGINX_HTTPS:-443}:443"
+      - "${NGINX_BIND_IP:-0.0.0.0}:${NGINX_ADMIN_PORT:-81}:81"
     volumes:
       # SSL 证书目录：本地默认 ./nginx/certs，生产在 .env 配 NGINX_SSL_PATH=/opt/liutech/nginx
       - ${NGINX_SSL_PATH:-./nginx/certs}:/etc/nginx/ssl:ro
@@ -171,4 +186,7 @@ services:
 # 数据卷配置
 volumes:
   mysql_data:
+    driver: local
+  # UPLOADS_PATH=uploads 使用命名卷；./uploads 或绝对路径使用宿主机目录。
+  uploads:
     driver: local

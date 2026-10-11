@@ -76,9 +76,12 @@ node Web/node_modules/vitest/vitest.mjs run --config Admin/vitest.config.mts # A
 mysql -u root -p < Docs/SQL/sql.sql           # 初始化两个库
 docker exec -it liutech-mysql mysql -u root -p
 
-# 全栈部署（Windows 一键）
-./快速打包文件.bat && docker-compose up -d
-docker-compose logs -f backend               # 跟踪后端日志
+# Compose 启动（本地/云端共用根目录 docker-compose.yml 与 .env）
+# 先用 JDK 21 构建两个后端 JAR；前端由原 Dockerfile 构建
+docker compose config -q
+docker compose build
+docker compose up -d
+docker compose logs -f backend               # 跟踪后端日志
 ```
 
 ## ⚠️ 跨服务集成约束（最容易出错的点）
@@ -88,15 +91,15 @@ docker-compose logs -f backend               # 跟踪后端日志
 - **TTS 归属 AI 服务**：配置、状态、GPT-SoVITS/SiliconFlow 调用、音色和临时音频缓存均在 `LiuTech-AI`；主后端不再提供 `/tts/**`。
 - **AI 服务 -> 主后端** URL：Docker 内 `http://backend:8080`（`BLOG_API_URL`），本地 `http://localhost:8080`。
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`，兼容 MySQL 8 认证。
-- **文件上传**：容器内 `/app/uploads` 绑定宿主机 `/liuxin/uploads`；**不要** `docker compose down -v`（清空 `mysql_data` 卷）。
+- **文件上传**：容器内 `/app/uploads` 由 `UPLOADS_PATH` 指定命名卷或宿主机目录；保留云端现有 `/liuxin/uploads` 挂载，**不要** `docker compose down -v`（清空持久卷）。
 - **图片 URL 策略**：本地存储返回 `/uploads/...` 相对 URL，COS 使用配置的完整域名；新代码复用 `FileStorage` 与 `FileUtil`，不要为开发代理问题改 `SERVER_BASE_URL`。具体口径见[存储抽象](Docs/架构/后端/图片管理/存储抽象.md)。
 - **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`（破坏 JSON 响应 406）。
 - **域名拓扑**：主站 `liuxin.chat` 走腾讯云 CDN 回源 443；后台 `admin.liuxin.chat` A 记录直连源站绕开 CDN（443）。主站与后台分别使用各自域名的独立证书，后台不发 HSTS；81 端口为其备用入口。详见 [部署运维总览](Docs/架构/运维/部署运维/总览.md)。
 - **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/` 下分别保存 `liuxin.chat_bundle.crt`/`liuxin.chat.key` 和 `admin.liuxin.chat_bundle.crt`/`admin.liuxin.chat.key`，通过只读卷挂载给 Nginx。
-- **nginx 配置烤进镜像**：`conf.d/*.conf` 是 `COPY` 进 nginx 镜像的，改 nginx 配置后**必须重新 build nginx 镜像并部署**，改宿主机文件不生效。
+- **nginx 配置烤进镜像**：两边共用原 Dockerfile 与 `conf.d/default.conf` 的 HTTPS 配置，修改配置需重建镜像。本机仅在既有证书挂载路径提供测试证书，页面从 `3000/3001` 直连，不新增模式配置或启动脚本。
 - **CORS allowedOrigins 双服务同步**：新增前端访问域名时，`LiuTech` 与 `LiuTech-AI` 两个 `SecurityConfig.java` 的 `allowedOrigins` 必须同步添加，否则该域名跨域请求被拦。
 - **环境变量**从根目录 `.env` 注入；`.env.example` 是模板，生产替换为强密钥。
-- **开发/生产 compose 区分**：`docker-compose.override.yml` 仅本地开发，暴露 mysql/backend/ai/web/admin 宿主机端口便于调试，`docker compose up` 自动合并；生产**不上传此文件**，只 `docker-compose.yml`，仅 nginx 暴露 80/443/81。
+- **本地/云端同一配置**：只使用 `docker-compose.yml` 与同结构 `.env`，不另建 Compose/override 或 local/prod 环境文件。内部端口默认 `INTERNAL_BIND_IP=127.0.0.1`；按环境调整绑定、路径、站点地址和实际镜像标签，保持既有项目名与持久卷。参数和账号匹配见[统一 Compose 与环境参数切换](Docs/架构/运维/部署运维/部署操作.md#统一-compose-与环境参数切换)。
 
 ## 🤖 工作约定
 

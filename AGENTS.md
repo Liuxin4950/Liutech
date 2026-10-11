@@ -17,6 +17,13 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 - 用户要求提交/合并并同步项目时，完成主目录 `main` 与 `origin/main` 的正常推送和一致性核对；报告实际提交号、主目录状态和验证范围。
 - 部署以已合入并同步的 `main` 提交为源，不能将独立分支部署成功视作已完成 Git 交付。
 
+### 启动配置统一
+
+- 本地与云端共用根目录 `docker-compose.yml` 和同一套 `.env` 变量，只改变环境值；不再创建 local/prod Compose、override 或另一套环境文件。变量模板以 `.env.example` 为准，具体切换见 [部署操作](Docs/架构/运维/部署运维/部署操作.md#统一-compose-与环境参数切换)。
+- 使用原 Dockerfile 与 Nginx HTTPS 配置；本机页面从 `3000/3001` 直连现有前端容器，不增加 Nginx 启动脚本或模式配置。内部服务端口默认仅绑定 `127.0.0.1`，已有环境保持项目名、数据卷及上传挂载。
+- 修改现有 `.env` 时保留已有供应商、邮箱、JWT 和数据库配置，按需要补充或调整目标键；密码变化必须与实际数据库账号同步，不能只改环境文件。
+- 本机验收不代表上线。用户要求仅本地运行时，不更新云端或生产版本记录。
+
 ## ⚠️ 改代码前必读（防重复造轮子 / 防方法不统一）
 
 **任何后端代码（主后端 `LiuTech/` 或 AI 服务 `LiuTech-AI/`）任务开始前，必须完成两步：**
@@ -33,7 +40,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 - **JDBC URL** 必须含 `allowPublicKeyRetrieval=true`
 - **AI 服务 → 主后端** Docker 内用 `http://backend:8080`
 - **TTS 完全归 AI 服务**；主后端不得新增 TTS 配置、推理、音色或音频缓存逻辑
-- **文件上传** 容器内 `/app/uploads` 绑定到宿主机 `/liuxin/uploads`；**不要** `docker compose down -v`（会清空 `mysql_data` 卷）
+- **文件上传** 容器内 `/app/uploads` 由 `UPLOADS_PATH` 指定命名卷或宿主机目录；云端既有路径 `/liuxin/uploads` 必须保留。**不要** `docker compose down -v`（会清空持久卷）
 - **SSE** Nginx 必须 `proxy_buffering off` 并提高 `proxy_read_timeout`；非 SSE 路径不要加 `Accept "text/event-stream"`（会破坏 JSON 响应 406）
 
 ## 其它资源
