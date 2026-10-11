@@ -73,9 +73,11 @@ public class MusicAdminController extends BaseAdminController {
             @RequestParam(required = false) String artist,
             @RequestParam(required = false) String coverUrl,
             @RequestParam(required = false) Integer sortOrder,
-            @RequestParam(required = false) Integer status) {
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) MultipartFile fullAudio,
+            @RequestParam(required = false) MultipartFile vocalAudio) {
         ValidationUtil.validateId(id, "音乐ID");
-        return handleOperationResult(musicService.updateMusic(id, title, artist, coverUrl, sortOrder, status), "音乐更新成功", "更新音乐");
+        return handleOperationResult(musicService.updateMusic(id, title, artist, coverUrl, sortOrder, status, fullAudio, vocalAudio), "音乐更新成功", "更新音乐");
     }
 
     /** 删除音乐（硬删除 + 清理文件） */

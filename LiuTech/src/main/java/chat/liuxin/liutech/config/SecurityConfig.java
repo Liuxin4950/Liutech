@@ -128,8 +128,8 @@ public class SecurityConfig {
                     authz.requestMatchers(HttpMethod.HEAD, prefix + "**").denyAll();
                 }
 
-                // 仅社区内部端点允许不携带真人 JWT；内部令牌过滤器仍先验证令牌。
-                authz.requestMatchers("/internal/community/**").permitAll();
+                // 受信任服务可调用社区与审计入口；内部令牌过滤器仍先验证令牌。
+                authz.requestMatchers("/internal/community/**", "/internal/audit/operations").permitAll();
 
                 // 管理后台
                 authz.requestMatchers("/admin/**").hasRole("ADMIN");

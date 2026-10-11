@@ -1,15 +1,81 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
 import ResourcesService from '../../services/resources'
-import type { Resource } from '../../services/resources'
+import type { Resource, ResourcePost } from '../../services/resources'
 import { formatDateTime } from '../../utils/utils'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
 import { useTableExport } from '@/composables/useTableExport'
 import TableExportButton from '@/components/TableExportButton.vue'
+
+const router = useRouter()
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailError = ref(false)
+const detailResource = ref<Resource | null>(null)
+let detailRequest = 0
+let detailId: number | undefined
+
+const openDetail = async (record: Resource) => {
+  if (!record.id) return
+  detailId = record.id
+  const request = ++detailRequest
+  detailVisible.value = true
+  detailLoading.value = true
+  detailError.value = false
+  detailResource.value = null
+  try {
+    const response = await ResourcesService.getResourceById(record.id)
+    if (request === detailRequest && detailVisible.value) detailResource.value = response.data
+  } catch (error: any) {
+    if (request !== detailRequest || !detailVisible.value) return
+    detailError.value = true
+    if (!error?.isBusiness) message.error('加载资源详情失败')
+  } finally {
+    if (request === detailRequest) detailLoading.value = false
+  }
+}
+
+const closeDetail = () => {
+  detailVisible.value = false
+  ++detailRequest
+  detailLoading.value = false
+}
+
+const retryDetail = () => {
+  if (detailId) void openDetail({ id: detailId, name: '' })
+}
+
+const getPostStatusLabel = (post: ResourcePost) => {
+  if (post.deletedAt) return '已删除'
+  const labels: Record<string, string> = { draft: '草稿', published: '已发布', archived: '已归档' }
+  return labels[post.status] || post.status
+}
+
+const openAssociatedPost = (post: ResourcePost) => {
+  closeDetail()
+  void router.push({
+    name: 'PostsManagement',
+    query: post.deletedAt ? { includeDeleted: 'true', title: post.title } : { edit: String(post.postId) }
+  })
+}
+
+// 存储地址只展示为文本；外部链接仅允许无凭据的 HTTP(S) 地址。
+const safeExternalLink = computed(() => {
+  const value = detailResource.value?.externalLink
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : undefined
+  } catch {
+    return undefined
+  }
+})
 
 const resourceTypeOptions = [
   { label: '文件', value: 'file' },
@@ -113,6 +179,7 @@ const columns = [
   { title: '下载类型', key: 'downloadType', width: 100 },
   { title: '所需积分', dataIndex: 'pointsNeeded', key: 'pointsNeeded', width: 100 },
   { title: '上传者', dataIndex: 'uploaderUsername', key: 'uploaderUsername', width: 100 },
+  { title: '关联文章', key: 'associatedPosts', width: 260 },
   { title: '状态', key: 'status', width: 80 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
   { title: '操作', key: 'action', width: 200, fixed: 'right' as const }
@@ -235,7 +302,7 @@ const handleBatchPermanentDeleteAction = () => {
         :pagination="pagination"
         :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
         row-key="id"
-        :scroll="{ x: 1200 }"
+        :scroll="{ x: 1460 }"
         @change="handleTableChange"
       >
         <template #bodyCell="{ column, record }">
@@ -248,12 +315,25 @@ const handleBatchPermanentDeleteAction = () => {
           <template v-else-if="column.key === 'pointsNeeded'">
             {{ record.downloadType === 1 ? (record.pointsNeeded || 0) : '-' }}
           </template>
+          <template v-else-if="column.key === 'associatedPosts'">
+            <div v-if="record.associatedPosts?.length" class="resource-post-summary">
+              <button type="button" class="resource-post-title" @click="openDetail(record)">
+                {{ record.associatedPosts[0].title }}
+              </button>
+              <span class="resource-post-caption">
+                {{ getPostStatusLabel(record.associatedPosts[0]) }}
+                <template v-if="record.associatedPosts.length > 1"> · 共 {{ record.associatedPosts.length }} 篇</template>
+              </span>
+            </div>
+            <span v-else class="resource-post-caption">未关联文章</span>
+          </template>
           <template v-else-if="column.key === 'status'">
             <LtStatusTag :status="record.deletedAt ? 'deleted' : 'normal'" />
           </template>
           <template v-else-if="column.key === 'createdAt'">{{ formatDateTime(record.createdAt) }}</template>
           <template v-else-if="column.key === 'action'">
             <a-space>
+              <a-button type="link" size="small" @click="openDetail(record)">详情</a-button>
               <template v-if="!record.deletedAt">
                 <a-button type="link" size="small" @click="openEdit(record)">编辑</a-button>
                 <a-popconfirm title="确定删除该资源吗？" @confirm="handleDelete(record.id)">
@@ -278,6 +358,52 @@ const handleBatchPermanentDeleteAction = () => {
         </template>
       </a-table>
     </a-card>
+
+    <a-drawer v-model:open="detailVisible" title="资源详情" width="min(640px, 100vw)" @close="closeDetail">
+      <a-spin :spinning="detailLoading">
+        <div class="resource-detail-body">
+        <a-alert v-if="detailError" type="error" show-icon message="资源详情加载失败">
+          <template #action><a-button size="small" @click="retryDetail">重试</a-button></template>
+        </a-alert>
+        <template v-else-if="detailResource">
+          <h2 class="resource-detail-title">{{ detailResource.name }}</h2>
+          <a-descriptions bordered :column="1" size="small">
+            <a-descriptions-item label="资源 ID">{{ detailResource.id }}</a-descriptions-item>
+            <a-descriptions-item label="资源类型">{{ getResourceTypeLabel(detailResource.resourceType) }}</a-descriptions-item>
+            <a-descriptions-item label="状态"><LtStatusTag :status="detailResource.deletedAt ? 'deleted' : 'normal'" /></a-descriptions-item>
+            <a-descriptions-item label="上传者">{{ detailResource.uploaderUsername || '-' }}<template v-if="detailResource.uploaderId">（#{{ detailResource.uploaderId }}）</template></a-descriptions-item>
+            <a-descriptions-item label="下载方式">{{ getDownloadTypeLabel(detailResource.downloadType) }}<template v-if="detailResource.downloadType === 1"> · {{ detailResource.pointsNeeded || 0 }} 积分</template></a-descriptions-item>
+            <a-descriptions-item label="描述"><span class="resource-detail-text">{{ detailResource.description || '暂无描述' }}</span></a-descriptions-item>
+            <a-descriptions-item label="文件地址"><span class="resource-detail-text">{{ detailResource.fileUrl || '-' }}</span></a-descriptions-item>
+            <a-descriptions-item label="外部链接">
+              <a v-if="safeExternalLink" :href="safeExternalLink" target="_blank" rel="noopener noreferrer" class="resource-detail-text">{{ detailResource.externalLink }}</a>
+              <span v-else class="resource-detail-text">{{ detailResource.externalLink || '-' }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="购买后说明"><span class="resource-detail-text">{{ detailResource.purchasedNote || '-' }}</span></a-descriptions-item>
+            <a-descriptions-item label="创建时间">{{ formatDateTime(detailResource.createdAt) || '-' }}</a-descriptions-item>
+            <a-descriptions-item label="更新时间">{{ formatDateTime(detailResource.updatedAt) || '-' }}</a-descriptions-item>
+            <a-descriptions-item v-if="detailResource.deletedAt" label="删除时间">{{ formatDateTime(detailResource.deletedAt) }}</a-descriptions-item>
+          </a-descriptions>
+
+          <h3 class="resource-detail-section">关联文章（{{ detailResource.associatedPosts?.length || 0 }}）</h3>
+          <a-list v-if="detailResource.associatedPosts?.length" :data-source="detailResource.associatedPosts" bordered>
+            <template #renderItem="{ item }">
+              <a-list-item>
+                <a-list-item-meta>
+                  <template #title><span class="resource-detail-text">{{ item.title }}</span></template>
+                  <template #description>#{{ item.postId }} · {{ getPostStatusLabel(item) }} · {{ item.authorUsername || '未知作者' }}</template>
+                </a-list-item-meta>
+                <template #actions>
+                  <a-button type="link" size="small" @click="openAssociatedPost(item)">{{ item.deletedAt ? '查看回收站' : '管理文章' }}</a-button>
+                </template>
+              </a-list-item>
+            </template>
+          </a-list>
+          <a-empty v-else description="此资源尚未关联文章，可能为独立资源或未绑定的草稿附件" />
+        </template>
+        </div>
+      </a-spin>
+    </a-drawer>
 
     <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close :width="640">
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">
@@ -322,3 +448,50 @@ const handleBatchPermanentDeleteAction = () => {
     </a-modal>
   </div>
 </template>
+
+<style scoped>
+.resource-post-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.resource-post-title {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ant-color-link, #1677ff);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-post-caption {
+  color: var(--ant-color-text-secondary, #64748b);
+  font-size: 12px;
+}
+
+.resource-detail-title {
+  margin: 0 0 20px;
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.resource-detail-body {
+  min-height: 160px;
+}
+
+.resource-detail-section {
+  margin: 24px 0 12px;
+  font-size: 16px;
+}
+
+.resource-detail-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+</style>

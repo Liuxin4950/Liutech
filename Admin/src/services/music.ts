@@ -39,6 +39,8 @@ export interface UpdateMusicParams {
   cover?: string
   sortOrder?: number
   status?: number
+  fullAudio?: File
+  vocalAudio?: File
 }
 
 const musicService = {
@@ -73,18 +75,16 @@ const musicService = {
    * 更新音乐信息
    */
   updateMusic: (id: number, params: UpdateMusicParams) => {
-    const formData = new URLSearchParams()
-    if (params.title) formData.append('title', params.title)
+    const formData = new FormData()
+    if (params.title !== undefined) formData.append('title', params.title)
     if (params.artist !== undefined) formData.append('artist', params.artist)
-    if (params.cover) formData.append('coverUrl', params.cover)
+    if (params.cover !== undefined) formData.append('coverUrl', params.cover)
     if (params.sortOrder !== undefined) formData.append('sortOrder', String(params.sortOrder))
     if (params.status !== undefined) formData.append('status', String(params.status))
 
-    return put<boolean>(`/admin/music/${id}`, formData, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    })
+    if (params.fullAudio) formData.append('fullAudio', params.fullAudio)
+    if (params.vocalAudio) formData.append('vocalAudio', params.vocalAudio)
+    return put<string>(`/admin/music/${id}`, formData, { timeout: 120000 })
   },
 
   /**

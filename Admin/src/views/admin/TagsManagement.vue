@@ -76,14 +76,12 @@ const exportCtrl = useTableExport({
     <!-- 搜索卡片 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="名称" class="mb-0">
-              <a-input v-model:value="searchParams.name" placeholder="请输入标签名称" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
+        <div class="filter-toolbar">
+          <a-form-item label="名称" class="mb-0 filter-field">
+            <a-input v-model:value="searchParams.name" placeholder="请输入标签名称" allow-clear @press-enter="handleSearch" />
+          </a-form-item>
+          <div class="filter-actions">
+            <a-space wrap>
               <a-tooltip title="显示已删除">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
               </a-tooltip>
@@ -96,8 +94,8 @@ const exportCtrl = useTableExport({
                 重置
               </a-button>
             </a-space>
-          </a-col>
-        </a-row>
+          </div>
+        </div>
       </a-form>
     </a-card>
 
@@ -180,3 +178,23 @@ const exportCtrl = useTableExport({
     </a-modal>
   </div>
 </template>
+
+<style scoped>
+/* 搜索筛选：字段靠左自适应，操作组始终右对齐，窄屏整体换行 */
+.filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.filter-field {
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 320px;
+}
+
+.filter-actions {
+  margin-left: auto;
+}
+</style>

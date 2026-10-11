@@ -5,6 +5,7 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.mapper.CommentsMapper;
 import chat.liuxin.liutech.model.Comments;
 import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.CommentThreadResp;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +63,24 @@ public class CommentsAdminService extends ServiceImpl<CommentsMapper, Comments> 
         }
         // 使用管理端关联查询，包含用户信息和文章标题
         return commentsMapper.selectCommentsForAdminById(id);
+    }
+
+    /**
+     * 同文章完整关系数据分批返回，前端取尽各页后呈现树。
+     * 不沿用公开可见性过滤，也不截取“最新 N 条”冒充完整关系。
+     */
+    @Transactional(readOnly = true)
+    public CommentThreadResp getCommentThread(Long id, Integer page, Integer size, Long snapshotMaxId) {
+        PageQuery query = PageQuery.of(page, size);
+        Comments current = commentsMapper.selectCommentsForAdminById(id);
+        if (current == null) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+        Long maxId = snapshotMaxId == null ? commentsMapper.selectPostCommentMaxIdForAdmin(current.getPostId()) : snapshotMaxId;
+        if (maxId == null || maxId < id) throw new BusinessException(ErrorCode.PARAMS_ERROR, "评论关系快照参数不正确");
+        List<Comments> records = commentsMapper.selectPostCommentsForAdmin(current.getPostId(),
+                maxId, query.offset(), (int) query.size());
+        long total = commentsMapper.countPostCommentsForAdmin(current.getPostId(), maxId);
+        return new CommentThreadResp(id, current.getPostId(), current.getPostTitle(), maxId,
+                new PageResp<>(records, total, query.current(), query.size()));
     }
 
     /**

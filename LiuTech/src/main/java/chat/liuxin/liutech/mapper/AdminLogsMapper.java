@@ -11,6 +11,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 import chat.liuxin.liutech.model.AdminLogs;
+import chat.liuxin.liutech.resp.LogSummaryResp;
 
 /**
  * 管理端操作日志Mapper接口
@@ -39,9 +40,16 @@ public interface AdminLogsMapper extends BaseMapper<AdminLogs> {
             @Param("operator") String operator,
             @Param("action") String action,
             @Param("targetType") String targetType,
-            @Param("startTime") String startTime,
-            @Param("endTime") String endTime,
+            @Param("startTime") Long startTime,
+            @Param("endTime") Long endTime,
             @Param("status") Integer status);
+
+    AdminLogs selectLogDetail(@Param("id") Long id);
+
+    LogSummaryResp selectSummary(@Param("operator") String operator, @Param("action") String action,
+            @Param("targetType") String targetType, @Param("startTime") Long startTime,
+            @Param("endTime") Long endTime, @Param("status") Integer status,
+            @Param("todayStart") long todayStart, @Param("todayEnd") long todayEnd);
 
     /**
      * 根据操作人ID查询日志数量

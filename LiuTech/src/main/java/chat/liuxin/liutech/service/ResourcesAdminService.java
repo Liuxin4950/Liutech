@@ -1,8 +1,9 @@
 package chat.liuxin.liutech.service;
 
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import chat.liuxin.liutech.common.PageQuery;
@@ -18,6 +19,7 @@ import chat.liuxin.liutech.model.Resources;
 import chat.liuxin.liutech.resp.DownloadLogResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.resp.ResourceResp;
+import chat.liuxin.liutech.resp.ResourcePostResp;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +63,8 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
         List<ResourceResp> resourceList = resourcesMapper.selectResourcesForAdmin(
                 offset, (int) query.size(), name, resourceType, downloadType, includeDeleted);
 
+        fillAssociatedPosts(resourceList);
+
         Integer total = resourcesMapper.countResourcesForAdmin(name, resourceType, downloadType, includeDeleted);
 
         return new PageResp<>(resourceList, total.longValue(), query.current(), query.size());
@@ -73,7 +77,24 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
      * @return 资源信息
      */
     public ResourceResp getResourceById(Long id) {
-        return resourcesMapper.selectResourceById(id);
+        ResourceResp resource = resourcesMapper.selectResourceById(id);
+        if (resource != null) {
+            fillAssociatedPosts(List.of(resource));
+        }
+        return resource;
+    }
+
+    /** 在资源分页完成后批量加载引用，避免多对多 JOIN 影响分页或逐条查询。 */
+    private void fillAssociatedPosts(List<ResourceResp> resources) {
+        if (resources.isEmpty()) {
+            return;
+        }
+        List<Long> resourceIds = resources.stream().map(ResourceResp::getId).toList();
+        Map<Long, List<ResourcePostResp>> postsByResource = resourcesMapper
+                .selectAssociatedPostsForAdmin(resourceIds).stream()
+                .collect(Collectors.groupingBy(ResourcePostResp::getResourceId));
+        resources.forEach(resource -> resource.setAssociatedPosts(
+                postsByResource.getOrDefault(resource.getId(), List.of())));
     }
 
     /**

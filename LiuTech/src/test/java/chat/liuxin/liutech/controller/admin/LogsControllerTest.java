@@ -97,7 +97,7 @@ class LogsControllerTest {
         log.setOperator("admin");
         log.setAction("create");
         log.setStatus(1);
-        when(logService.getById(1L)).thenReturn(log);
+        when(logService.getLogDetail(1L)).thenReturn(log);
 
         Result<LogResp> result = controller.getLogById(1L);
 
@@ -108,7 +108,7 @@ class LogsControllerTest {
 
     @Test
     void getLogById_shouldReturnErrorWhenNotFound() {
-        when(logService.getById(999L)).thenReturn(null);
+        when(logService.getLogDetail(999L)).thenReturn(null);
 
         Result<LogResp> result = controller.getLogById(999L);
 

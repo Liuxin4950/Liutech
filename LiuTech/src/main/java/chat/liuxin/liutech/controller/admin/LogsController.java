@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.AdminLogs;
 import chat.liuxin.liutech.resp.LogResp;
+import chat.liuxin.liutech.resp.LogSummaryResp;
 import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.LogService;
 
@@ -59,7 +60,7 @@ public class LogsController extends BaseAdminController {
     /** 获取日志详情 */
     @GetMapping("/{id}")
     public Result<LogResp> getLogById(@PathVariable Long id) {
-        AdminLogs log = logService.getById(id);
+        AdminLogs log = logService.getLogDetail(id);
         if (log == null) {
             return Result.fail(404, "日志不存在");
         }
@@ -70,6 +71,14 @@ public class LogsController extends BaseAdminController {
     @GetMapping("/action-stats")
     public Result<List<Map<String, Object>>> getActionStats() {
         return Result.success(logService.countByAction());
+    }
+
+    @GetMapping("/summary")
+    public Result<LogSummaryResp> getSummary(@RequestParam(required = false) String operator,
+            @RequestParam(required = false) String action, @RequestParam(required = false) String targetType,
+            @RequestParam(required = false) String startTime, @RequestParam(required = false) String endTime,
+            @RequestParam(required = false) Integer status) {
+        return Result.success(logService.getSummary(operator, action, targetType, startTime, endTime, status));
     }
 
     /** 获取操作类型列表 */
@@ -86,9 +95,14 @@ public class LogsController extends BaseAdminController {
 
     /** AdminLogs 转换为 LogResp */
     private LogResp toLogResp(AdminLogs log) {
+        java.time.Instant createdAt = log.getCreatedAtEpochMs() != null ? java.time.Instant.ofEpochMilli(log.getCreatedAtEpochMs())
+                : log.getCreatedAt() == null ? null : log.getCreatedAt().toInstant();
         return LogResp.builder()
                 .id(log.getId())
                 .operator(log.getOperator())
+                .operatorId(log.getOperatorId())
+                .currentOperator(log.getCurrentOperator())
+                .operatorAccountStatus(log.getOperatorAccountStatus())
                 .action(log.getAction())
                 .target(log.getTargetType())
                 .targetName(log.getTargetName())
@@ -96,7 +110,8 @@ public class LogsController extends BaseAdminController {
                 .ip(log.getIp())
                 .userAgent(log.getUserAgent())
                 .status(log.getStatus() != null && log.getStatus() == 1 ? "成功" : "失败")
-                .createdAt(log.getCreatedAt() != null ? log.getCreatedAt().toString() : null)
+                .createdAt(createdAt != null ? java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                        .withZone(java.time.ZoneId.of("Asia/Shanghai")).format(createdAt) : null)
                 .detail(log.getErrorMessage())
                 .build();
     }

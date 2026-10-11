@@ -207,6 +207,16 @@
         <result property="deletedAt" column="deleted_at"/>
         <!-- 文章标题（非实体字段，通过额外列传递） -->
         <result property="postTitle" column="post_title"/>
+        <association property="parent" javaType="chat.liuxin.liutech.resp.CommentParentResp" notNullColumn="parent_comment_id">
+            <constructor>
+                <arg column="parent_comment_id" javaType="java.lang.Long"/>
+                <arg column="parent_post_id" javaType="java.lang.Long"/>
+                <arg column="parent_content" javaType="java.lang.String"/>
+                <arg column="parent_author_name" javaType="java.lang.String"/>
+                <arg column="parent_author_type" javaType="java.lang.String"/>
+                <arg column="parent_deleted_at" javaType="java.util.Date"/>
+            </constructor>
+        </association>
         <association property="bot" javaType="chat.liuxin.liutech.resp.CommunityResp$BotInfo">
             <constructor>
                 <arg column="bot_id" javaType="java.lang.Long"/>
@@ -238,11 +248,18 @@
             u.username,
             u.email,
             u.avatar_url,
-            p.title AS post_title
+            p.title AS post_title,
+            parent.id AS parent_comment_id, parent.post_id AS parent_post_id,
+            parent.content AS parent_content, parent.deleted_at AS parent_deleted_at,
+            CASE WHEN parent.bot_id IS NOT NULL THEN parent_bot.name ELSE parent_user.username END AS parent_author_name,
+            CASE WHEN parent.bot_id IS NOT NULL THEN 'BOT' ELSE 'HUMAN' END AS parent_author_type
         FROM comments c
         LEFT JOIN users u ON c.user_id = u.id
         LEFT JOIN community_bots b ON c.bot_id = b.id
         LEFT JOIN posts p ON c.post_id = p.id
+        LEFT JOIN comments parent ON c.parent_id = parent.id
+        LEFT JOIN users parent_user ON parent.user_id = parent_user.id
+        LEFT JOIN community_bots parent_bot ON parent.bot_id = parent_bot.id
     </sql>
 
     <!-- 管理端分页查询评论列表 -->
@@ -303,6 +320,19 @@
     <select id="selectCommentsForAdminById" resultMap="AdminCommentMap">
         <include refid="adminCommentSelectSql"/>
         WHERE c.id = #{id}
+    </select>
+
+    <select id="selectPostCommentsForAdmin" resultMap="AdminCommentMap">
+        <include refid="adminCommentSelectSql"/>
+        WHERE c.post_id = #{postId} AND c.id &lt;= #{snapshotMaxId}
+        ORDER BY c.id ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+    <select id="selectPostCommentMaxIdForAdmin" resultType="java.lang.Long">
+        SELECT MAX(id) FROM comments WHERE post_id = #{postId}
+    </select>
+    <select id="countPostCommentsForAdmin" resultType="long">
+        SELECT COUNT(*) FROM comments WHERE post_id = #{postId} AND id &lt;= #{snapshotMaxId}
     </select>
 
     <select id="selectCommentsByBotForAdmin" resultMap="AdminCommentMap">

@@ -3,6 +3,7 @@ package chat.liuxin.liutech.model;
 import java.util.Date;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -30,6 +31,17 @@ public class AdminLogs extends IdEntity {
      * 操作人ID
      */
     private Long operatorId;
+
+    /** 当前账号信息仅用于管理界面解释历史身份，不改写历史 operator。 */
+    @TableField(exist = false)
+    private String currentOperator;
+
+    @TableField(exist = false)
+    private String operatorAccountStatus;
+
+    /** SQL 读取 TIMESTAMP 的 epoch，避免 JDBC 连接时区与数据库会话时区不同造成偏移。 */
+    @TableField(exist = false)
+    private Long createdAtEpochMs;
 
     /**
      * 操作类型(登录/创建/更新/删除/恢复/发布/下线等)

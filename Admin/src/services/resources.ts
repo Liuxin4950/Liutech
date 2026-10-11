@@ -2,6 +2,15 @@ import { get, post, put, del } from './api'
 import type { ApiResponse } from './api'
 import type { PageResult } from './types'
 
+export interface ResourcePost {
+  resourceId: number
+  postId: number
+  title: string
+  status: string
+  authorUsername?: string
+  deletedAt?: string | null
+}
+
 // 资源相关接口类型定义
 export interface Resource {
   id?: number
@@ -18,6 +27,7 @@ export interface Resource {
   updatedAt?: string
   deletedAt?: string
   uploaderUsername?: string
+  associatedPosts?: ResourcePost[]
 }
 
 // 下载日志
@@ -64,6 +74,11 @@ export class ResourcesService {
    */
   static async getResourceList(params: ResourceListParams = {}): Promise<ApiResponse<PageResult<Resource>>> {
     return get<PageResult<Resource>>(this.BASE_URL, params)
+  }
+
+  /** 管理端完整详情，包含所有有效文章引用及其删除状态。 */
+  static async getResourceById(id: number): Promise<ApiResponse<Resource>> {
+    return get<Resource>(`${this.BASE_URL}/${id}`)
   }
 
   /**

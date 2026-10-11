@@ -44,6 +44,10 @@ public class Comments extends BaseEntity {
      */
     private Long parentId;
 
+    /** 管理端父评论预览；公开查询不加载此字段。 */
+    @TableField(exist = false)
+    private chat.liuxin.liutech.resp.CommentParentResp parent;
+
     // 关联查询字段
     /**
      * 评论用户信息

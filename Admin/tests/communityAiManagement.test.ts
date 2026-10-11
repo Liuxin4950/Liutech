@@ -79,7 +79,9 @@ it('卡片选择区域是原生按钮，覆盖头像和描述，并同步右侧�
     ? node : (node.children || []).map(findSelectButton).find(Boolean)
   const selection = findSelectButton(result.ast)
   expect(selection.props.find((prop: any) => prop.name === 'on' && prop.arg?.content === 'click')?.exp.loc.source).toBe('selectBot(bot.id)')
-  expect(selection.children.some((node: any) => node.props?.some((prop: any) => prop.value?.content === 'bot-description role-excerpt'))).toBe(true)
+  const hasDescription = (node: any): boolean => node.props?.some((prop: any) => prop.value?.content === 'bot-description role-excerpt')
+    || (node.children || []).some(hasDescription)
+  expect(hasDescription(selection)).toBe(true)
   const page = createPage()
   page.bots.value = [bot(1, '哆啦A梦'), bot(2, '黑塔')]
   page.selectedBotId.value = 1

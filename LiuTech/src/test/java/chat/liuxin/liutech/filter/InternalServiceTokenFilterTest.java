@@ -41,4 +41,20 @@ class InternalServiceTokenFilterTest {
 
         assertEquals(403, response.getStatus());
     }
+
+    @Test
+    void auditReportRequiresTheSameInternalToken() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/audit/operations");
+        MockHttpServletResponse rejected = new MockHttpServletResponse();
+        MockFilterChain blocked = new MockFilterChain();
+        filter.doFilter(request, rejected, blocked);
+        assertEquals(403, rejected.getStatus());
+        org.junit.jupiter.api.Assertions.assertNull(blocked.getRequest());
+
+        MockHttpServletRequest valid = new MockHttpServletRequest("POST", "/internal/audit/operations");
+        valid.addHeader(InternalServiceTokenFilter.HEADER_NAME, "secret");
+        MockFilterChain accepted = new MockFilterChain();
+        filter.doFilter(valid, new MockHttpServletResponse(), accepted);
+        assertNotNull(accepted.getRequest());
+    }
 }

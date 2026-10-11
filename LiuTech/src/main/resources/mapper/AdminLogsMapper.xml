@@ -1,73 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="chat.liuxin.liutech.mapper.AdminLogsMapper">
-
-    <!-- 分页查询日志列表（带筛选条件） -->
-    <select id="selectLogList" resultType="chat.liuxin.liutech.model.AdminLogs">
-        SELECT
-            l.id,
-            l.operator,
-            l.operator_id,
-            l.action,
-            l.target_type,
-            l.target_id,
-            l.target_name,
-            l.description,
-            l.ip,
-            l.user_agent,
-            l.status,
-            l.error_message,
-            l.created_at
-        FROM system_logs l
+    <sql id="logColumns">
+        l.id,l.operator,l.operator_id,l.action,l.target_type,l.target_id,l.target_name,l.description,
+        l.ip,l.user_agent,l.status,l.error_message,l.created_at,
+        CAST(UNIX_TIMESTAMP(l.created_at)*1000 AS SIGNED) AS created_at_epoch_ms,
+        u.username AS current_operator,
+        CASE WHEN l.operator_id IS NULL THEN 'unverified'
+             WHEN u.id IS NULL OR u.deleted_at IS NOT NULL THEN 'deleted'
+             WHEN u.status != 1 THEN 'disabled'
+             WHEN u.role = 'admin' THEN 'admin' ELSE 'user' END AS operator_account_status
+    </sql>
+    <sql id="filters">
         <where>
-            <if test="operator != null and operator != ''">
-                AND l.operator LIKE CONCAT('%', #{operator}, '%')
-            </if>
-            <if test="action != null and action != ''">
-                AND l.action = #{action}
-            </if>
-            <if test="targetType != null and targetType != ''">
-                AND l.target_type = #{targetType}
-            </if>
-            <if test="startTime != null and startTime != ''">
-                AND l.created_at &gt;= #{startTime}
-            </if>
-            <if test="endTime != null and endTime != ''">
-                AND l.created_at &lt;= #{endTime}
-            </if>
-            <if test="status != null">
-                AND l.status = #{status}
-            </if>
+            <if test="operator != null and operator != ''">AND l.operator LIKE CONCAT('%', #{operator}, '%')</if>
+            <if test="action != null and action != ''">AND l.action = #{action}</if>
+            <if test="targetType != null and targetType != ''">AND l.target_type = #{targetType}</if>
+            <if test="startTime != null">AND l.created_at &gt;= FROM_UNIXTIME(#{startTime})</if>
+            <if test="endTime != null">AND l.created_at &lt;= FROM_UNIXTIME(#{endTime})</if>
+            <if test="status != null">AND l.status = #{status}</if>
         </where>
-        ORDER BY l.created_at DESC
+    </sql>
+    <select id="selectLogList" resultType="chat.liuxin.liutech.model.AdminLogs">
+        SELECT <include refid="logColumns"/>
+        FROM system_logs l LEFT JOIN users u ON u.id=l.operator_id
+        <include refid="filters"/>
+        ORDER BY l.created_at DESC,l.id DESC
     </select>
-
-    <!-- 根据操作人ID查询日志数量 -->
+    <select id="selectLogDetail" resultType="chat.liuxin.liutech.model.AdminLogs">
+        SELECT <include refid="logColumns"/>
+        FROM system_logs l LEFT JOIN users u ON u.id=l.operator_id WHERE l.id=#{id}
+    </select>
+    <select id="selectSummary" resultType="chat.liuxin.liutech.resp.LogSummaryResp">
+        SELECT COUNT(*) AS total,COALESCE(SUM(l.status=1),0) AS success,
+               COALESCE(SUM(l.status=0),0) AS failure,
+               COALESCE(SUM(l.created_at &gt;= FROM_UNIXTIME(#{todayStart}) AND l.created_at &lt; FROM_UNIXTIME(#{todayEnd})),0) AS today
+        FROM system_logs l <include refid="filters"/>
+    </select>
     <select id="countByOperatorId" resultType="java.lang.Integer">
-        SELECT COUNT(*)
-        FROM system_logs
-        WHERE operator_id = #{operatorId}
+        SELECT COUNT(*) FROM system_logs WHERE operator_id=#{operatorId}
     </select>
-
-    <!-- 统计各操作类型的数量 -->
     <select id="countByAction" resultType="java.util.Map">
-        SELECT action, COUNT(*) as count
-        FROM system_logs
-        GROUP BY action
-        ORDER BY count DESC
+        SELECT action,COUNT(*) AS count FROM system_logs GROUP BY action ORDER BY count DESC
     </select>
-
-    <!-- 统计指定时间范围内的日志数量 -->
     <select id="countByTimeRange" resultType="java.lang.Integer">
-        SELECT COUNT(*)
-        FROM system_logs
-        WHERE created_at &gt;= #{startTime} AND created_at &lt;= #{endTime}
+        SELECT COUNT(*) FROM system_logs WHERE created_at &gt;= #{startTime} AND created_at &lt;= #{endTime}
     </select>
-
-    <!-- 删除指定天数之前的日志（清理旧日志） -->
     <delete id="deleteLogsOlderThanDays">
-        DELETE FROM system_logs
-        WHERE created_at &lt; DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        DELETE FROM system_logs WHERE created_at &lt; DATE_SUB(NOW(),INTERVAL #{days} DAY)
     </delete>
-
 </mapper>

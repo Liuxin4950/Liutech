@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted, onDeactivated, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import {
   PlusOutlined,
@@ -32,6 +32,7 @@ interface MusicEditForm {
   artist: string
   sortOrder: number
   status: number
+  coverUrl: string
 }
 
 // 状态选项
@@ -103,36 +104,97 @@ const {
   formModel: editForm,
   isEdit,
   editingId,
-  handleOk: handleEditSubmit,
+  handleOk: submitEditForm,
   handleCancel: handleEditCancel
 } = useModalForm<MusicEditForm>({
   updateFn: (id, data) => musicService.updateMusic(id, {
     title: data.title,
     artist: data.artist,
     sortOrder: data.sortOrder,
-    status: data.status
+    status: data.status,
+    cover: data.coverUrl,
+    fullAudio: editFullAudio.value || undefined,
+    vocalAudio: editVocalAudio.value || undefined
   }),
-  defaultForm: () => ({ title: '', artist: '', sortOrder: 0, status: 1 }),
-  onUpdateSuccess: load,
+  defaultForm: () => ({ title: '', artist: '', sortOrder: 0, status: 1, coverUrl: '' }),
+  onUpdateSuccess: () => { stopPreview(); load() },
   entityName: '音乐',
 })
 
+const editFullAudio = ref<File | null>(null)
+const editVocalAudio = ref<File | null>(null)
+const editExistingAudio = ref({ full: '', vocal: '' })
+const editCoverPreview = ref('')
+const editCoverUploading = ref(false)
+const editFullPlayer = ref<HTMLAudioElement | null>(null)
+const editVocalPlayer = ref<HTMLAudioElement | null>(null)
+let editSession = 0
+const resetEditFiles = () => {
+  editFullPlayer.value?.pause()
+  editVocalPlayer.value?.pause()
+  editSession++
+  editFullAudio.value = editVocalAudio.value = null
+  if (editCoverPreview.value.startsWith('blob:')) URL.revokeObjectURL(editCoverPreview.value)
+  editCoverPreview.value = ''
+  editCoverUploading.value = false
+}
+watch(editModalVisible, (open) => { if (!open) resetEditFiles() })
+
+const handleEditSubmit = () => {
+  if (editLoading.value || editCoverUploading.value) return
+  return submitEditForm()
+}
+const handleEditCoverChange = async (info: any) => {
+  if (editCoverUploading.value || editLoading.value) return
+  const file = pickUploadFile(info)
+  if (!file) return
+  if (!file.type.startsWith('image/')) { message.error('请选择图片文件'); return }
+  const session = editSession
+  editCoverUploading.value = true
+  try {
+    const result = await ImageUploadService.uploadImage(file)
+    if (session !== editSession || !editModalVisible.value) return
+    if (editCoverPreview.value.startsWith('blob:')) URL.revokeObjectURL(editCoverPreview.value)
+    editCoverPreview.value = URL.createObjectURL(file)
+    editForm.value.coverUrl = result.fileUrl
+  } catch (error: any) {
+    if (session === editSession && !error?.isBusiness) message.error('封面上传失败，原封面已保留')
+  } finally {
+    if (session === editSession) editCoverUploading.value = false
+  }
+}
+const handleEditAudioChange = (info: any, track: 'full' | 'vocal') => {
+  const file = pickUploadFile(info)
+  if (!file || editLoading.value) return
+  if (!/\.(mp3|wav|ogg|flac|m4a|aac|webm|opus)$/i.test(file.name)) {
+    message.error('请选择支持的音频文件'); return
+  }
+  if (track === 'full') editFullAudio.value = file
+  else editVocalAudio.value = file
+}
+
 // 覆盖 openEdit：精确映射字段
 const openEdit = (record: MusicItem) => {
+  stopPreview()
+  resetEditFiles()
   isEdit.value = true
   editingId.value = record.id
   editForm.value = {
     title: record.title,
     artist: record.artist || '',
     sortOrder: record.sortOrder,
-    status: record.status
+    status: record.status,
+    coverUrl: record.coverUrl || ''
   }
+  editCoverPreview.value = record.coverUrl || ''
+  editExistingAudio.value = { full: record.fullAudioUrl, vocal: record.vocalUrl }
   editModalVisible.value = true
 }
 
 // ============== 播放控制 ==============
 const audioPlayer = new Audio()
 const currentPlayingId = ref<number | null>(null)
+const musicPage = ref<HTMLElement | null>(null)
 const isPlaying = ref(false)
 const previewLoadingId = ref<number | null>(null)
 const previewTrack = ref<'full' | 'vocal'>('full')
@@ -153,6 +215,12 @@ audioPlayer.onerror = () => {
   stopPreview()
 }
 watch(previewTrack, stopPreview)
+onDeactivated(() => {
+  stopPreview()
+  editFullPlayer.value?.pause()
+  editVocalPlayer.value?.pause()
+  musicPage.value?.querySelectorAll('audio').forEach(audio => audio.pause())
+})
 
 const playPreview = async (record: Music) => {
   if (currentPlayingId.value === record.id && (isPlaying.value || previewLoadingId.value === record.id)) {
@@ -181,6 +249,7 @@ const playPreview = async (record: Music) => {
 
 onUnmounted(() => {
   stopPreview()
+  resetEditFiles()
   audioPlayer.src = ''
   if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
 })
@@ -275,6 +344,7 @@ const handleUpload = async () => {
 // （MusicService.updateSortOrder: music.setSortOrder(i)），并不读取任何 sortOrder 字段。
 // 所以必须真正移动数组元素再发送；只交换两条记录的 sortOrder 字段、按原顺序发 id 是无效操作。
 const handleSortChange = async (id: number, direction: 'up' | 'down') => {
+  if (sortLoading.value || sortFiltered.value || loading.value) return
   const index = dataSource.value.findIndex((item) => item.id === id)
   if (index === -1) return
   const newIndex = direction === 'up' ? index - 1 : index + 1
@@ -283,22 +353,30 @@ const handleSortChange = async (id: number, direction: 'up' | 'down') => {
   const [moved] = list.splice(index, 1)
   list.splice(newIndex, 0, moved)
   dataSource.value = list
+  sortLoading.value = true
   try {
     await musicService.updateSortOrder(list.map((item) => item.id))
-    load()
+    await load()
   } catch (e: any) {
     if (!e?.isBusiness) message.error('排序更新失败')
-    load()
+    await load()
+  } finally {
+    sortLoading.value = false
   }
 }
+const sortLoading = ref(false)
+const sortFiltered = computed(() => searchParams.value.status !== undefined || !!searchParams.value.keyword?.trim())
 
 const handleStatusChange = async (id: number, status: number) => {
   const record = dataSource.value.find(item => item.id === id)
+  if (record?.statusLoading) return
   if (record) record.statusLoading = true
   try {
     await musicService.updateMusic(id, { status })
     message.success('状态更新成功')
     if (record) record.status = status
+    if (status === 0 && currentPlayingId.value === id) stopPreview()
+    await load()
   } catch (e: any) {
     if (!e?.isBusiness) message.error('状态更新失败')
   } finally {
@@ -308,7 +386,7 @@ const handleStatusChange = async (id: number, status: number) => {
 </script>
 
 <template>
-  <div class="p-24">
+  <div ref="musicPage" class="p-24">
     <a-alert class="mb-16" type="info" show-icon message="前台播放完整音频，纯人声仅用于看板娘嘴型，不重复发声。两份音频请保持相同起点与时长；前台支持列表循环、单曲循环与顺序播放。" />
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
@@ -398,12 +476,12 @@ const handleStatusChange = async (id: number, status: number) => {
           </template>
 
           <template v-else-if="column.key === 'sortOrder'">
-            <a-space>
-              <a-button type="link" size="small" :disabled="record.sortOrder === 0" @click="handleSortChange(record.id, 'up')">
+            <a-space :title="sortFiltered ? '请先重置筛选，再调整完整歌单顺序' : undefined">
+              <a-button type="link" size="small" :disabled="sortLoading || sortFiltered || loading || dataSource[0]?.id === record.id" @click="handleSortChange(record.id, 'up')">
                 <SortAscendingOutlined style="transform: rotate(180deg)" />
               </a-button>
               <span>{{ record.sortOrder }}</span>
-              <a-button type="link" size="small" @click="handleSortChange(record.id, 'down')">
+              <a-button type="link" size="small" :disabled="sortLoading || sortFiltered || loading || dataSource[dataSource.length - 1]?.id === record.id" @click="handleSortChange(record.id, 'down')">
                 <SortAscendingOutlined />
               </a-button>
             </a-space>
@@ -471,14 +549,14 @@ const handleStatusChange = async (id: number, status: number) => {
             <p class="ant-upload-text">{{ coverUploading ? '正在上传封面…' : '拖入封面图片，或点击选择' }}</p>
           </a-upload-dragger>
         </a-form-item>
-        <a-form-item label="完整音频" required help="包含伴奏和人声的完整成品，前台实际播放此音轨。">
+        <a-form-item label="完整音频（伴奏 + 人声）" required help="前台播放此完整成品。请勿只上传伴奏，否则播放时听不到人声。">
           <a-upload :show-upload-list="false" accept="audio/*" :max-count="1" :disabled="uploadLoading" :before-upload="() => false" @change="handleFullAudioChange">
             <a-button :type="uploadForm.fullAudio ? 'primary' : 'default'">
               {{ uploadForm.fullAudio ? '已选择: ' + uploadForm.fullAudio.name : '选择完整音频' }}
             </a-button>
           </a-upload>
         </a-form-item>
-        <a-form-item label="纯人声音频" required help="仅驱动 Live2D 嘴型；保留与完整音频相同的开头静音和时间轴，请勿单独裁剪。">
+        <a-form-item label="纯人声音频（口型分析）" required help="此轨静音播放，只驱动 Live2D 嘴型。两条音轨须保持相同起点和时间轴，请勿单独裁剪。">
           <a-upload :show-upload-list="false" accept="audio/*" :max-count="1" :disabled="uploadLoading" :before-upload="() => false" @change="handleVocalAudioChange">
             <a-button :type="uploadForm.vocalAudio ? 'primary' : 'default'">
               {{ uploadForm.vocalAudio ? '已选择: ' + uploadForm.vocalAudio.name : '选择人声音频' }}
@@ -493,7 +571,11 @@ const handleStatusChange = async (id: number, status: number) => {
       v-model:open="editModalVisible"
       title="编辑音乐"
       :confirm-loading="editLoading"
-      :width="400"
+      :width="600"
+      :closable="!editLoading && !editCoverUploading"
+      :mask-closable="!editLoading && !editCoverUploading"
+      :keyboard="!editLoading && !editCoverUploading"
+      :cancel-button-props="{ disabled: editLoading || editCoverUploading }"
       destroy-on-close
       @ok="handleEditSubmit"
       @cancel="handleEditCancel"
@@ -504,6 +586,35 @@ const handleStatusChange = async (id: number, status: number) => {
         </a-form-item>
         <a-form-item label="艺术家">
           <a-input v-model:value="editForm.artist" placeholder="请输入艺术家名称" />
+        </a-form-item>
+        <a-form-item label="封面">
+          <div class="edit-cover">
+            <img v-if="editCoverPreview" :src="editCoverPreview" alt="音乐封面" />
+            <a-upload :show-upload-list="false" accept="image/*" :before-upload="() => false" :disabled="editCoverUploading || editLoading" @change="handleEditCoverChange">
+              <a-button :loading="editCoverUploading">替换封面</a-button>
+            </a-upload>
+          </div>
+        </a-form-item>
+        <a-alert class="mb-16" type="info" show-icon message="未选择新文件时保留原音轨；换歌时请一起替换完整音频和人声，保持时间轴一致。" />
+        <a-form-item label="完整音频（伴奏 + 人声）" help="前台实际播放此轨。单独的背景伴奏不会自动与人声混音。">
+          <audio v-if="editExistingAudio.full" ref="editFullPlayer" :src="editExistingAudio.full" controls preload="none" class="edit-audio" />
+          <a-space wrap>
+            <a-upload :show-upload-list="false" accept="audio/*,.webm,.m4a" :before-upload="() => false" :disabled="editLoading" @change="(info: any) => handleEditAudioChange(info, 'full')">
+              <a-button>{{ editFullAudio ? '重选完整音频' : '替换完整音频' }}</a-button>
+            </a-upload>
+            <a-button v-if="editFullAudio" type="link" @click="editFullAudio = null">保留原文件</a-button>
+          </a-space>
+          <p v-if="editFullAudio" class="selected-audio">{{ editFullAudio.name }}</p>
+        </a-form-item>
+        <a-form-item label="纯人声音频（口型分析）" help="此轨仅驱动 Live2D 嘴型，前台静音播放；此处试听可检查人声。">
+          <audio v-if="editExistingAudio.vocal" ref="editVocalPlayer" :src="editExistingAudio.vocal" controls preload="none" class="edit-audio" />
+          <a-space wrap>
+            <a-upload :show-upload-list="false" accept="audio/*,.webm,.m4a" :before-upload="() => false" :disabled="editLoading" @change="(info: any) => handleEditAudioChange(info, 'vocal')">
+              <a-button>{{ editVocalAudio ? '重选人声音频' : '替换人声音频' }}</a-button>
+            </a-upload>
+            <a-button v-if="editVocalAudio" type="link" @click="editVocalAudio = null">保留原文件</a-button>
+          </a-space>
+          <p v-if="editVocalAudio" class="selected-audio">{{ editVocalAudio.name }}</p>
         </a-form-item>
         <a-form-item label="排序">
           <a-input-number v-model:value="editForm.sortOrder" :min="0" style="width: 100%" />
@@ -521,6 +632,10 @@ const handleStatusChange = async (id: number, status: number) => {
 </template>
 
 <style scoped>
+.edit-cover { display: flex; align-items: center; gap: 16px; }
+.edit-cover img { width: 72px; height: 72px; object-fit: cover; border-radius: var(--lt-radius-md); }
+.edit-audio { display: block; width: 100%; height: 36px; margin-bottom: 10px; }
+.selected-audio { margin: 8px 0 0; color: var(--lt-color-text-secondary); overflow-wrap: anywhere; }
 .cover-preview {
   width: 100px;
   height: 100px;

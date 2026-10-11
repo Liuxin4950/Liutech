@@ -7,15 +7,26 @@ import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
 import { useTableExport } from '@/composables/useTableExport'
 import TableExportButton from '@/components/TableExportButton.vue'
-import LogService, { type LogItem, type LogListParams } from '../../services/log'
+import LogService, { type LogItem, type LogListParams, type LogSummary } from '../../services/log'
 import { formatDateTime } from '../../utils/utils'
 
-// 表格页面：加载、分页、搜索
+const summary = ref<LogSummary | null>(null)
+let summaryGeneration = 0
+
+// 汇总和列表使用同一份实际提交的筛选条件。
 const {
   loading, dataSource, searchParams, pagination,
   load, handleSearch, handleReset, handleTableChange
 } = useTablePage<LogItem, LogListParams>({
-  loadFn: (params) => LogService.getLogList(params),
+  loadFn: async (params) => {
+    const generation = ++summaryGeneration
+    const [list, counts] = await Promise.all([
+      LogService.getLogList(params),
+      LogService.getSummary(params).catch(() => null)
+    ])
+    if (generation === summaryGeneration) summary.value = counts?.code === 200 ? counts.data : null
+    return list
+  },
   defaultSearchParams: { operator: '', action: '', targetType: undefined, status: undefined, startTime: undefined, endTime: undefined },
   // 日期选择器只精确到「日」，而后端是 created_at <= #{endTime} 的字符串比较，
   // 直接把 '2026-09-23' 传过去等于 <= '2026-09-23 00:00:00'，
@@ -33,7 +44,8 @@ const actionMap: Record<string, string> = {
   login: '登录', create: '创建', update: '更新', delete: '删除', restore: '恢复',
   publish: '发布', offline: '下线', enable: '启用', disable: '禁用',
   upload: '上传', download: '下载', purchase: '购买', checkin: '签到',
-  review: '审核', reply: '回复', export: '导出', import: '导入', test: '测试'
+  review: '审核', reply: '回复', export: '导出', import: '导入', test: '测试',
+  register: '注册', like: '点赞', favorite: '收藏', retry: '重试', cancel: '取消', verify: '验证码申请'
 }
 const actionOptions = ref<Array<{ label: string, value: string }>>([{ label: '全部', value: '' }])
 
@@ -56,9 +68,17 @@ const targetMap: Record<string, string> = {
   announcement: '公告', message: '留言', image: '图片',
   carousel: '轮播图', resource: '资源', attachment: '附件',
   points: '积分', comment: '评论', tts: '语音', ai_model: 'AI模型',
-  music: '音乐', document: '文档', system_setting: '系统设置'
+  music: '音乐', document: '文档', system_setting: '系统设置', series: '系列', avatar: '头像',
+  about: '关于页', about_page: '关于页', community: '社区互动', ai_community: 'AI社区互动',
+  'community-post': '社区文章互动', 'community-settings': '社区互动设置',
+  'community-bot': '社区AI角色', 'community-task': '社区AI任务',
+  'community-comment': '社区评论', 'community-event': '社区待发事件', 'community-knowledge': '社区知识', system: '系统'
 }
 const getTargetLabel = (target: string) => targetMap[target] || target || '-'
+const accountLabels: Record<string, string> = {
+  admin: '当前管理员', user: '当前普通用户', deleted: '账号已删除', disabled: '账号已停用', unverified: '身份未留存'
+}
+const getAccountLabel = (record: LogItem) => accountLabels[record.operatorAccountStatus || 'unverified'] || '身份未留存'
 
 // 详情弹窗
 const detailVisible = ref(false)
@@ -95,7 +115,7 @@ onMounted(loadFilterOptions)
 // 表格列定义
 const columns = [
   { title: '时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  { title: '操作人', dataIndex: 'operator', key: 'operator', width: 120 },
+  { title: '操作人', dataIndex: 'operator', key: 'operator', width: 165 },
   { title: '操作类型', dataIndex: 'action', key: 'action', width: 100 },
   { title: '目标', dataIndex: 'target', key: 'target', width: 110 },
   { title: '操作描述', dataIndex: 'description', key: 'description', ellipsis: true },
@@ -116,6 +136,17 @@ const exportCtrl = useTableExport({
 
 <template>
   <div class="p-24">
+    <div class="audit-intro">
+      <h1>系统操作记录</h1>
+      <p>记录主后端进入业务处理的写操作，以及 AI 服务的管理写操作。浏览查询、文章浏览计数、模型用量和后台自动任务不计入。</p>
+      <p class="audit-history">操作人保留当时的账号名称；账号已删除或改名仍可通过用户 ID 追踪。旧版未记录的操作无法补回。</p>
+    </div>
+    <div v-if="summary" class="audit-summary">
+      <div><span>筛选结果</span><strong>{{ summary.total }}</strong></div>
+      <div><span>成功</span><strong>{{ summary.success }}</strong></div>
+      <div><span>失败</span><strong>{{ summary.failure }}</strong></div>
+      <div><span>其中今日</span><strong>{{ summary.today }}</strong></div>
+    </div>
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
@@ -162,7 +193,7 @@ const exportCtrl = useTableExport({
               <a-date-picker v-model:value="searchParams.endTime" value-format="YYYY-MM-DD" placeholder="结束时间" style="width: 100%" />
             </a-form-item>
           </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
+          <a-col :xs="24" :sm="24" :lg="8" :xl="12" class="log-search-actions">
             <a-space>
               <a-button type="primary" @click="handleSearch">
                 <template #icon><SearchOutlined /></template>
@@ -206,6 +237,14 @@ const exportCtrl = useTableExport({
               <ClockCircleOutlined class="time-icon" />
               {{ formatDateTime(record.createdAt) }}
             </div>
+          </template>
+          <template v-else-if="column.key === 'operator'">
+            <a-tooltip :title="`当时账号：${record.operator || '-'}；用户 ID：${record.operatorId ?? '未留存'}；${getAccountLabel(record)}${record.currentOperator && record.currentOperator !== record.operator ? `；现名：${record.currentOperator}` : ''}`">
+              <div class="actor-cell">
+                <span>{{ record.operator || '-' }}</span>
+                <small>{{ record.operatorId ? `#${record.operatorId} · ` : '' }}{{ getAccountLabel(record) }}</small>
+              </div>
+            </a-tooltip>
           </template>
           <template v-else-if="column.key === 'action'">
             <a-tag :color="record.action === 'create' ? 'blue' :
@@ -262,7 +301,9 @@ const exportCtrl = useTableExport({
     >
       <a-descriptions v-if="detailLog" :column="1" size="middle" bordered>
         <a-descriptions-item label="时间">{{ formatDateTime(detailLog.createdAt) }}</a-descriptions-item>
-        <a-descriptions-item label="操作人">{{ detailLog.operator || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="当时操作人">{{ detailLog.operator || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="用户 ID">{{ detailLog.operatorId ?? '未留存' }}</a-descriptions-item>
+        <a-descriptions-item label="当前账号状态">{{ getAccountLabel(detailLog) }}<template v-if="detailLog.currentOperator"> · {{ detailLog.currentOperator }}</template></a-descriptions-item>
         <a-descriptions-item label="操作类型">{{ getActionLabel(detailLog.action) }}</a-descriptions-item>
         <a-descriptions-item label="目标">
           {{ getTargetLabel(detailLog.target) }}<template v-if="detailLog.targetName"> / {{ detailLog.targetName }}</template>
@@ -283,6 +324,17 @@ const exportCtrl = useTableExport({
 </template>
 
 <style scoped>
+.audit-intro { margin-bottom: 16px; }
+.audit-intro h1 { margin: 0 0 8px; color: var(--text-main); font-size: 22px; font-weight: 600; }
+.audit-intro p { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.7; }
+.audit-intro .audit-history { color: var(--text-tertiary); }
+.audit-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.audit-summary > div { display: flex; flex-direction: column; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; padding: 16px 20px; }
+.audit-summary span { color: var(--text-secondary); font-size: 13px; }
+.audit-summary strong { color: var(--text-main); font-size: 24px; font-variant-numeric: tabular-nums; }
+.log-search-actions { display: flex; justify-content: flex-end; }
+.actor-cell { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.actor-cell small { color: var(--text-tertiary); font-size: 11px; }
 .time-cell {
   display: flex;
   align-items: center;
@@ -373,6 +425,7 @@ const exportCtrl = useTableExport({
 }
 
 @media (max-width: 768px) {
+  .audit-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   :deep(.ant-form-inline) {
     display: flex;
     flex-direction: column;

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { SearchOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import CommentThreadDrawer from '@/components/CommentThreadDrawer.vue'
 import { useTablePage, useCrudActions } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
@@ -41,15 +42,22 @@ const truncateContent = (content: string) => {
   return content.length > 100 ? content.substring(0, 100) + '...' : content
 }
 
+const detailOpen = ref(false)
+const detailCommentId = ref<number>()
+const openDetail = (id: number) => {
+  detailCommentId.value = id
+  detailOpen.value = true
+}
+
 const columns = [
   { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
   { title: '文章标题', dataIndex: 'postTitle', key: 'postTitle', ellipsis: true },
   { title: '评论者', key: 'username', width: 120 },
   { title: '评论内容', dataIndex: 'content', key: 'content', ellipsis: true },
-  { title: '父评论', dataIndex: 'parentId', key: 'parentId', width: 100 },
+  { title: '父评论', dataIndex: 'parentId', key: 'parentId', width: 220 },
   { title: '状态', key: 'status', width: 80 },
   { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
-  { title: '操作', key: 'action', width: 180, fixed: 'right' as const }
+  { title: '操作', key: 'action', width: 220, fixed: 'right' as const }
 ]
 
 const columnPrefsCtrl = useTableColumnPrefs('comments', columns, { alwaysVisible: ["action"] })
@@ -198,7 +206,7 @@ const handleUserSearch = async (value: string) => {
         :row-selection="{ selectedRowKeys, onChange: onSelectChange }"
         row-key="id"
         @change="handleTableChange"
-        :scroll="{ x: 1100 }"
+        :scroll="{ x: 1350 }"
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'username'">
@@ -211,8 +219,18 @@ const handleUserSearch = async (value: string) => {
             </a-tooltip>
           </template>
           <template v-else-if="column.key === 'parentId'">
-            <a-tag v-if="record.parentId" color="blue">回复 #{{ record.parentId }}</a-tag>
-            <span v-else class="text-placeholder">-</span>
+            <div v-if="record.parentId" class="parent-preview">
+              <a-button type="link" size="small" class="parent-link" @click="openDetail(record.id)">
+                回复 {{ record.parent?.authorName || '#' + record.parentId }}
+              </a-button>
+              <a-tag v-if="record.parent?.deletedAt">已删除</a-tag>
+              <a-tooltip v-if="record.parent" :title="record.parent.content">
+                <p>{{ record.parent.content }}</p>
+              </a-tooltip>
+              <span v-else class="text-placeholder">父评论不可用</span>
+              <span v-if="record.parent && record.parent.postId !== record.postId" class="parent-warning">父评论文章不一致</span>
+            </div>
+            <span v-else class="text-placeholder">根评论</span>
           </template>
           <template v-else-if="column.key === 'status'">
             <LtStatusTag :status="record.deletedAt ? 'deleted' : 'normal'" />
@@ -220,6 +238,7 @@ const handleUserSearch = async (value: string) => {
           <template v-else-if="column.key === 'createdAt'">{{ formatDateTime(record.createdAt) }}</template>
           <template v-else-if="column.key === 'action'">
             <a-space>
+              <a-button type="link" size="small" @click="openDetail(record.id)">详情</a-button>
               <template v-if="!record.deletedAt">
                 <a-popconfirm title="确定删除该评论吗？" @confirm="handleDelete(record.id)">
                   <a-button type="link" size="small" danger>删除</a-button>
@@ -243,7 +262,15 @@ const handleUserSearch = async (value: string) => {
         </template>
       </a-table>
     </a-card>
+    <CommentThreadDrawer v-model:open="detailOpen" :comment-id="detailCommentId" />
   </div>
 </template>
+
+<style scoped>
+.parent-preview { min-width: 0; }
+.parent-link { padding: 0; height: auto; max-width: 100%; white-space: normal; text-align: left; }
+.parent-preview p { margin: 4px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; color: var(--lt-color-text-secondary); font-size: 12px; }
+.parent-warning { display: block; margin-top: 4px; color: var(--lt-color-warning-text, var(--lt-color-text-secondary)); font-size: 12px; }
+</style>
 
 

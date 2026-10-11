@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 import chat.liuxin.liutech.model.Resources;
 import chat.liuxin.liutech.resp.ResourceResp;
+import chat.liuxin.liutech.resp.ResourcePostResp;
 
 /**
  * 资源表 Mapper 接口
@@ -27,6 +28,9 @@ public interface ResourcesMapper extends BaseMapper<Resources> {
      * @return 资源详情
      */
     ResourceResp selectResourceById(@Param("id") Long id);
+
+    /** 批量查询资源的有效文章引用，管理端保留已软删文章的状态。 */
+    List<ResourcePostResp> selectAssociatedPostsForAdmin(@Param("resourceIds") List<Long> resourceIds);
 
     /**
      * 管理端分页查询资源列表（包含上传者信息）

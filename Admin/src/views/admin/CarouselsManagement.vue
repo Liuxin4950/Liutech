@@ -237,26 +237,24 @@ const statusOptions = [
     <!-- 搜索区域 -->
     <a-card :bordered="false" class="mb-16">
       <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="状态" class="mb-0">
-              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
-                <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
-                  {{ opt.label }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
+        <div class="filter-toolbar">
+          <a-form-item label="状态" class="mb-0 filter-field">
+            <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+              <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <div class="filter-actions">
+            <a-space wrap>
               <a-tooltip title="显示已删除">
                 <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
               </a-tooltip>
               <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
               <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
             </a-space>
-          </a-col>
-        </a-row>
+          </div>
+        </div>
       </a-form>
     </a-card>
 
@@ -542,6 +540,24 @@ const statusOptions = [
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* 搜索筛选：字段靠左自适应，操作组始终右对齐，窄屏整体换行 */
+.filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.filter-field {
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 320px;
+}
+
+.filter-actions {
+  margin-left: auto;
 }
 </style>
 

@@ -61,6 +61,26 @@
         WHERE r.id = #{id}
     </select>
 
+    <!-- 有效关联不限制文章状态；同一文章重复附件引用仅显示一次。 -->
+    <select id="selectAssociatedPostsForAdmin" resultType="chat.liuxin.liutech.resp.ResourcePostResp">
+        SELECT DISTINCT
+            pa.resource_id,
+            p.id AS post_id,
+            p.title,
+            p.status,
+            p.deleted_at,
+            u.username AS author_username
+        FROM post_attachments pa
+        INNER JOIN posts p ON p.id = pa.post_id
+        LEFT JOIN users u ON u.id = p.author_id
+        WHERE pa.deleted_at IS NULL
+          AND pa.resource_id IN
+          <foreach collection="resourceIds" item="resourceId" open="(" separator="," close=")">
+              #{resourceId}
+          </foreach>
+        ORDER BY pa.resource_id, p.id DESC
+    </select>
+
     <!-- 管理端查询资源总数 -->
     <select id="countResourcesForAdmin" resultType="java.lang.Integer">
         SELECT COUNT(DISTINCT r.id)

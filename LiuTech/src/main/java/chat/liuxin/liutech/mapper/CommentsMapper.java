@@ -162,6 +162,13 @@ public interface CommentsMapper extends BaseMapper<Comments> {
      */
     Comments selectCommentsForAdminById(@Param("id") Long id);
 
+    /** 同文章全部评论的稳定分页，包含隐藏文章、软删除评论及作者。 */
+    List<Comments> selectPostCommentsForAdmin(@Param("postId") Long postId,
+                                             @Param("snapshotMaxId") Long snapshotMaxId,
+                                             @Param("offset") long offset, @Param("limit") int limit);
+    Long selectPostCommentMaxIdForAdmin(@Param("postId") Long postId);
+    long countPostCommentsForAdmin(@Param("postId") Long postId, @Param("snapshotMaxId") Long snapshotMaxId);
+
     /** 角色发表过的评论，审查包括软删除评论和隐藏文章。 */
     List<Comments> selectCommentsByBotForAdmin(@Param("botId") Long botId,
                                                @Param("offset") long offset, @Param("limit") int limit);

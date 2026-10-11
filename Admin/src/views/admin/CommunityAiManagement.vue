@@ -424,6 +424,11 @@ const limitFields: { key: keyof ReturnType<typeof defaultCommunitySettings>; tit
   { key: 'siteDailyTaskLimit', title: '全站每日模型任务', min: 0, max: 10000 },
   { key: 'maxChainComments', title: '一轮最多 AI 发言', min: 1, max: 4 },
 ]
+// 角色长文本（性格、背景、兴趣）悬停提示：宽度受控、保留换行、超长可滚动
+const longTextTooltipProps = {
+  overlayStyle: { maxWidth: 'min(440px, calc(100vw - 32px))' },
+  overlayInnerStyle: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: '60vh', overflowY: 'auto' },
+} as const
 function errorMessage(error: any, fallback = '操作失败，请重试') {
   if (error?.response?.data?.message) return error.response.data.message as string
   if (['ECONNABORTED', 'ETIMEDOUT'].includes(error?.code)) return '请求超时，服务未在等待时间内返回结果，请检查模型配置或稍后重试'
@@ -1064,11 +1069,11 @@ onMounted(() => {
               <button type="button" class="bot-select-area" :disabled="busy" :aria-pressed="selectedBotId === bot.id" :aria-label="`选择角色 ${bot.name}`" @click="selectBot(bot.id)">
                 <span class="bot-heading">
                   <a-avatar :size="40" :src="bot.avatarUrl">{{ bot.name.charAt(0) }}</a-avatar>
-                  <strong class="bot-name truncate" :title="bot.name">{{ bot.name }}</strong>
+                  <a-tooltip :title="bot.name" v-bind="longTextTooltipProps"><strong class="bot-name truncate">{{ bot.name }}</strong></a-tooltip>
                   <a-tag :color="bot.enabled ? 'green' : 'default'">{{ bot.enabled ? '启用' : '暂停' }}</a-tag>
                 </span>
-                <span class="bot-description role-excerpt" :title="bot.personality">{{ bot.personality || '尚未设置性格与表达方式' }}</span>
-                <span class="bot-interest role-excerpt muted" :title="bot.interests">兴趣：{{ bot.interests || '不限' }}</span>
+                <a-tooltip :title="bot.personality" v-bind="longTextTooltipProps"><span class="bot-description role-excerpt">{{ bot.personality || '尚未设置性格与表达方式' }}</span></a-tooltip>
+                <a-tooltip :title="bot.interests" v-bind="longTextTooltipProps"><span class="bot-interest role-excerpt muted">兴趣：{{ bot.interests || '不限' }}</span></a-tooltip>
                 <span class="bot-selection-meta"><span class="muted">积极度 {{ bot.participation }}%</span><span class="bot-selection-state">{{ selectedBotId === bot.id ? '✓ 已选中' : '选择此角色' }}</span></span>
               </button>
               <div class="bot-card-actions">
@@ -1089,8 +1094,8 @@ onMounted(() => {
           <details :open="!compactLayout"><summary class="role-actions-summary">展开角色资料、预演与审查入口</summary>
           <template v-if="selectedBot">
             <div class="bot-heading"><a-avatar :size="48" :src="selectedBot.avatarUrl">{{ selectedBot.name.charAt(0) }}</a-avatar><div><strong>{{ selectedBot.name }}</strong><p class="muted">{{ selectedBot.enabled ? '已允许正式参与' : '尚未允许正式参与' }}</p></div></div>
-            <a-tooltip :title="selectedBot.background"><p class="role-excerpt">{{ selectedBot.background || '未设置身份背景，可在编辑角色中补充。' }}</p></a-tooltip>
-            <a-tooltip :title="selectedBot.interests"><p class="bot-interest role-excerpt muted">兴趣：{{ selectedBot.interests || '不限' }}</p></a-tooltip>
+            <a-tooltip :title="selectedBot.background" v-bind="longTextTooltipProps"><p class="role-excerpt">{{ selectedBot.background || '未设置身份背景，可在编辑角色中补充。' }}</p></a-tooltip>
+            <a-tooltip :title="selectedBot.interests" v-bind="longTextTooltipProps"><p class="bot-interest role-excerpt muted">兴趣：{{ selectedBot.interests || '不限' }}</p></a-tooltip>
             <div class="role-participation"><span class="muted">参与积极度</span><strong>{{ selectedBot.participation }}%</strong></div>
             <a-progress :percent="selectedBot.participation" :show-info="false" size="small" class="role-participation-progress" />
             <a-alert v-if="!selectedBot.enabled" type="info" show-icon message="可以先预演，确认后再启用角色。" class="mb-16" />

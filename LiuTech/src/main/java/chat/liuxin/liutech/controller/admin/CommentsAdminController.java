@@ -6,6 +6,7 @@ import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Comments;
 import chat.liuxin.liutech.resp.PageResp;
+import chat.liuxin.liutech.resp.CommentThreadResp;
 import chat.liuxin.liutech.service.CommentsAdminService;
 import chat.liuxin.liutech.utils.ValidationUtil;
 
@@ -46,6 +47,17 @@ public class CommentsAdminController extends BaseAdminController {
     public Result<Comments> getCommentById(@PathVariable Long id) {
         ValidationUtil.validateId(id, "评论ID");
         return checkResourceExists(commentsAdminService.getCommentById(id), ErrorCode.COMMENT_NOT_FOUND);
+    }
+
+    /** 同文章完整评论关系；继承类级管理员权限，包含软删除节点。 */
+    @GetMapping("/{id}/thread")
+    public Result<CommentThreadResp> getCommentThread(@PathVariable Long id,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "500") Integer size,
+            @RequestParam(required = false) Long snapshotMaxId) {
+        ValidationUtil.validateId(id, "评论ID");
+        if (snapshotMaxId != null) ValidationUtil.validateId(snapshotMaxId, "评论快照ID");
+        return Result.success(commentsAdminService.getCommentThread(id, page, size, snapshotMaxId));
     }
 
     /** 软删除评论 */

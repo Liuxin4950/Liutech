@@ -26,6 +26,12 @@ public class LogResp {
      */
     private String operator;
 
+    private Long operatorId;
+
+    private String currentOperator;
+
+    private String operatorAccountStatus;
+
     /**
      * 操作类型
      */
@@ -67,7 +73,7 @@ public class LogResp {
     private String createdAt;
 
     /**
-     * 详细信息（JSON格式）
+     * 安全的失败摘要（不含请求体、凭证或异常原文）
      */
     private String detail;
 }

@@ -12,6 +12,14 @@ export interface Comment {
   bot?: { id: number; name: string; avatarUrl?: string }
   content: string
   parentId?: number
+  parent?: {
+    id: number
+    postId: number
+    content: string
+    authorName?: string
+    authorType: 'HUMAN' | 'BOT'
+    deletedAt?: string
+  }
   createdAt?: string
   updatedAt?: string
   deletedAt?: string
@@ -35,6 +43,14 @@ export interface CommentListParams {
   includeDeleted?: boolean
 }
 
+export interface CommentThreadPage {
+  commentId: number
+  postId: number
+  postTitle?: string
+  snapshotMaxId: number
+  comments: PageResult<Comment>
+}
+
 /**
  * 评论管理服务
  * 对应后端 CommentsAdminController
@@ -49,6 +65,11 @@ export class CommentsService {
    */
   static async getCommentList(params: CommentListParams = {}): Promise<ApiResponse<PageResult<Comment>>> {
     return get<PageResult<Comment>>(this.BASE_URL, params)
+  }
+
+  /** 管理端同文章关系分页，包含软删除评论；完整关系必须取尽所有页。 */
+  static async getCommentThreadPage(id: number, page = 1, signal?: AbortSignal, snapshotMaxId?: number): Promise<ApiResponse<CommentThreadPage>> {
+    return get<CommentThreadPage>(`${this.BASE_URL}/${id}/thread`, { page, size: 500, snapshotMaxId }, { signal })
   }
 
   /**

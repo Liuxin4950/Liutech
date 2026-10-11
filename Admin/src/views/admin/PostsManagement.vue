@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined, StarOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
@@ -21,6 +22,9 @@ import TinyMCEEditor from '../../components/TinyMCEEditor.vue'
 import { ImageUploadService, pickUploadFile } from '../../services/upload'
 import AdminAgentSidebar from '../../components/agent/AdminAgentSidebar.vue'
 import type { AdminArticleDraftSnapshot, FieldUpdatePayload } from '../../types/agent'
+
+const route = useRoute()
+const router = useRouter()
 
 // ============== 表格页面 ==============
 const {
@@ -294,7 +298,9 @@ const createTag = async () => {
 }
 
 // ============== 覆盖 openCreate/openEdit ==============
+let editLoadRequest = 0
 const openCreate = async () => {
+  ++editLoadRequest
   invalidateTaxonomyCreation()
   agentEditorSession.value++
   resetAiChanges()
@@ -317,7 +323,8 @@ const openCreate = async () => {
   modalVisible.value = true
 }
 
-const openEdit = async (record: PostListItem) => {
+const openEdit = async (record: Pick<PostListItem, 'id'>) => {
+  const request = ++editLoadRequest
   invalidateTaxonomyCreation()
   agentEditorSession.value++
   resetAiChanges()
@@ -325,10 +332,12 @@ const openEdit = async (record: PostListItem) => {
     if (categoryOptions.value.length === 0 || tagOptions.value.length === 0) {
       await loadCategoriesAndTags()
     }
+    if (request !== editLoadRequest) return
     isEdit.value = true
     modalTitle.value = '编辑文章'
     editingId.value = record.id || null
     const res = await PostsService.getPostById(record.id)
+    if (request !== editLoadRequest) return
     const postDetail = res.data
     formModel.value = {
       id: postDetail.id,
@@ -345,9 +354,50 @@ const openEdit = async (record: PostListItem) => {
     }
     modalVisible.value = true
   } catch (e: any) {
+    if (request !== editLoadRequest) return
     if (!e?.isBusiness) message.error('获取文章详情失败')
   }
 }
+
+// 资源等页面可通过已存在的文章管理路由定位；KeepAlive 页面也响应新的查询参数。
+let routeReady = false
+let routeRequest = 0
+const applyRouteRequest = async () => {
+  if (!routeReady || route.name !== 'PostsManagement') return
+  const request = ++routeRequest
+  const edit = route.query.edit
+  if (typeof route.query.includeDeleted === 'string') {
+    searchParams.value = {
+      title: typeof route.query.title === 'string' ? route.query.title : '',
+      includeDeleted: route.query.includeDeleted === 'true'
+    }
+    pagination.current = 1
+    clearSelection()
+    await load()
+  }
+  if (typeof edit !== 'string' || request !== routeRequest) return
+  const id = Number(edit)
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    message.warning('文章 ID 无效')
+  } else if (modalVisible.value && (!isEdit.value || editingId.value !== id)) {
+    message.warning('请先完成或关闭当前文章编辑，再打开关联文章')
+  } else if (!modalVisible.value) {
+    await openEdit({ id })
+  }
+  if (request === routeRequest && route.name === 'PostsManagement' && route.query.edit === edit) {
+    const query = { ...route.query }
+    delete query.edit
+    await router.replace({ name: 'PostsManagement', query })
+  }
+}
+watch(() => [route.name, route.query.edit, route.query.includeDeleted, route.query.title], () => {
+  if (route.name !== 'PostsManagement') {
+    ++routeRequest
+    ++editLoadRequest
+    return
+  }
+  void applyRouteRequest()
+})
 
 // ============== 图片上传 ==============
 // 用 a-upload-dragger 承载：点击选择 + 直接把图片拖进来都能用。
@@ -636,6 +686,8 @@ const rules = {
 onMounted(async () => {
   await loadCategoriesAndTags()
   await load()
+  routeReady = true
+  await applyRouteRequest()
 })
 </script>
 <template>

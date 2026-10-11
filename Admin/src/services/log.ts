@@ -8,6 +8,9 @@ import type { PageResult } from './types'
 export interface LogItem {
   id: number
   operator: string
+  operatorId?: number
+  currentOperator?: string
+  operatorAccountStatus?: string
   action: string
   target: string
   targetName?: string
@@ -28,6 +31,13 @@ export interface LogListParams {
   status?: number
   startTime?: string
   endTime?: string
+}
+
+export interface LogSummary {
+  total: number
+  success: number
+  failure: number
+  today: number
 }
 
 const ADMIN_LOGS_URL = '/admin/logs'
@@ -53,9 +63,14 @@ export async function getTargetTypes(): Promise<ApiResponse<string[]>> {
   return get<string[]>(`${ADMIN_LOGS_URL}/target-types`)
 }
 
+export async function getSummary(params: LogListParams = {}): Promise<ApiResponse<LogSummary>> {
+  return get<LogSummary>(`${ADMIN_LOGS_URL}/summary`, params)
+}
+
 // 导出默认对象（兼容导入方式）
 export default {
   getLogList,
   getActionTypes,
-  getTargetTypes
+  getTargetTypes,
+  getSummary
 }
