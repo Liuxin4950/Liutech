@@ -26,6 +26,9 @@ public class CommunityAdminController {
         @RequestParam(required=false) @jakarta.validation.constraints.Positive Long postId,@RequestParam(defaultValue="50") int limit) {
         return success(community.runs(botId,postId,limit));
     }
+    @GetMapping("/runs/{runId}") public Map<String,Object> run(@PathVariable @jakarta.validation.constraints.Pattern(regexp="[0-9a-fA-F-]{36}") String runId) {
+        return success(community.run(runId));
+    }
     @GetMapping("/tasks") public Map<String,Object> tasks(@RequestParam(required=false) @jakarta.validation.constraints.Positive Long botId,
         @RequestParam(required=false) @jakarta.validation.constraints.Positive Long postId,
         @RequestParam(required=false) String status,@RequestParam(defaultValue="50") int limit) {

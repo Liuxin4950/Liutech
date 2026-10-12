@@ -17,6 +17,7 @@ export interface CommunityBot extends CommunityBotInput { id: number; version: n
 export interface CommunityKnowledge { id: number; botId: number; title: string; content: string; version: number }
 export interface CommunitySettings {
   enabled: boolean
+  botRelayEnabled: boolean
   minDelaySeconds: number
   maxDelaySeconds: number
   cooldownSeconds: number
@@ -29,12 +30,42 @@ export interface CommunitySettings {
   version?: number
 }
 export const defaultCommunitySettings = (): CommunitySettings => ({
-  enabled: false, minDelaySeconds: 20, maxDelaySeconds: 90, cooldownSeconds: 30,
+  enabled: false, botRelayEnabled: true, minDelaySeconds: 20, maxDelaySeconds: 90, cooldownSeconds: 30,
   botDailyCommentLimit: 20, siteDailyCommentLimit: 100, postDailyCommentLimit: 20,
   botDailyTaskLimit: 40, siteDailyTaskLimit: 200, maxChainComments: 4,
 })
 export interface CommunityReadTrace { source: string; id: number | string; start?: number; end?: number; total?: number; truncated?: boolean }
 export interface CommunityToolTrace { name: string; input?: unknown; status: string }
+export interface CommunityContextSection extends CommunityReadTrace {
+  kind: 'article' | 'trigger' | 'parent' | 'history' | 'discussion' | 'knowledge' | 'memory'
+  content: string
+  title?: string
+  authorName?: string
+  authorType?: 'BOT' | 'HUMAN'
+  authorId?: number
+  ownComment?: boolean
+  parentId?: number
+  messageIndex?: number
+  version?: number
+  sourcePostId?: number
+  sourceCommentId?: number
+}
+export interface CommunityContextSnapshot {
+  version: number
+  prepared: boolean
+  requestStarted: boolean
+  model?: string
+  temperature?: number
+  contextWindow?: number
+  inputBudgetTokens?: number
+  maxOutputTokens?: number
+  estimatedInputTokens?: number
+  availableComments?: number
+  availableKnowledge?: number
+  availableMemories?: number
+  sections: CommunityContextSection[]
+  messages: { role: string; content: string }[]
+}
 export interface CommunityRun {
   id?: number | string
   taskId: number | string
@@ -46,6 +77,9 @@ export interface CommunityRun {
   targetCommentPreview?: string
   targetAuthorName?: string
   decision?: 'SKIP' | 'COMMENT' | 'REPLY'
+  decisionSource?: 'MODEL' | 'RULE'
+  failureStage?: string
+  errorCode?: number
   reason?: string
   content?: string
   contentTruncated?: boolean
@@ -67,6 +101,7 @@ export interface CommunityRun {
   createdAt?: string
   error?: string
   roleSnapshot?: CommunityBot
+  contextSnapshot?: CommunityContextSnapshot
 }
 export type CommunityComment = Omit<Comment, 'id'> & { id: number; parentPreview?: string }
 export interface CommunityCommentThread {
@@ -120,9 +155,9 @@ async function aiData<T>(request: Promise<{ data: ApiResponse<T> & { success?: b
   return data.data
 }
 function settingsInput(data: CommunitySettings): Omit<CommunitySettings, 'version'> {
-  const { enabled, minDelaySeconds, maxDelaySeconds, cooldownSeconds, botDailyCommentLimit,
+  const { enabled, botRelayEnabled, minDelaySeconds, maxDelaySeconds, cooldownSeconds, botDailyCommentLimit,
     siteDailyCommentLimit, postDailyCommentLimit, botDailyTaskLimit, siteDailyTaskLimit, maxChainComments } = data
-  return { enabled, minDelaySeconds, maxDelaySeconds, cooldownSeconds, botDailyCommentLimit,
+  return { enabled, botRelayEnabled, minDelaySeconds, maxDelaySeconds, cooldownSeconds, botDailyCommentLimit,
     siteDailyCommentLimit, postDailyCommentLimit, botDailyTaskLimit, siteDailyTaskLimit, maxChainComments }
 }
 const base = '/admin/community'
@@ -150,6 +185,7 @@ export const communityService = {
   backfill: async (limit = 10, botIds?: number[]) => (await post<CommunityBackfillResult>(`${base}/backfill`, { limit, botIds })).data,
   preview: (data: { botId: number; postId: number; commentId?: number }, signal?: AbortSignal) => aiData<CommunityRun>(aiApi.post(aiBase + '/preview', data, { timeout: 180000, signal })),
   runs: (botId?: number, postId?: number) => aiData<CommunityRun[]>(aiApi.get(aiBase + '/runs', { params: { botId, postId, limit: 100 } })),
+  run: (id: number | string) => aiData<CommunityRun>(aiApi.get(`${aiBase}/runs/${encodeURIComponent(String(id))}`)),
   tasks: (botId?: number, postId?: number) => aiData<CommunityTask[]>(aiApi.get(aiBase + '/tasks', { params: { botId, postId, limit: 100 } })),
   cancelTask: (taskId: number | string) => aiData<{ cancelled: boolean; reason: string; publishedCommentId?: number }>(aiApi.post(`${aiBase}/tasks/${encodeURIComponent(String(taskId))}/cancel`)),
   worker: () => aiData<CommunityWorkerStatus>(aiApi.get(`${aiBase}/worker`)),

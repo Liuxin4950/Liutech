@@ -40,6 +40,41 @@ class CommunityLifecycleMysqlTest {
     CommunityReq.Publish publishRequest() {
         return new CommunityReq.Publish(TASK,1L,2L,null,null,ROOT,service.context(1L,2L,null).contextVersion(),"一次发言");
     }
+    @Test void relaySettingStopsQueuedTasksButPreservesArticlePreviewAndPublishedReceipts() {
+        db.jdbc.update("UPDATE community_settings SET bot_relay_enabled=FALSE WHERE id=1");
+        db.jdbc.update("UPDATE community_events SET event_type='BOT_COMMENT' WHERE id=7");
+        var attempt=new CommunityReq.Attempt(TASK,1,1L,2L,false,7L);
+        assertEquals(1700,assertThrows(BusinessException.class,()->service.authorizeAttempt(attempt)).getCode());
+        assertEquals(0,db.jdbc.queryForObject("SELECT COUNT(*) FROM community_attempts WHERE allowed=TRUE",Integer.class));
+        assertEquals(1700,assertThrows(BusinessException.class,()->service.publish(publishRequest())).getCode());
+        db.jdbc.update("UPDATE community_events SET event_type='ARTICLE_PUBLISHED' WHERE id=7");
+        assertTrue(service.authorizeAttempt(attempt).allowed());
+        long id=service.publish(publishRequest()).commentId();
+        db.jdbc.update("UPDATE community_events SET event_type='BOT_COMMENT' WHERE id=7");
+        assertEquals(id,service.publish(publishRequest()).commentId());
+        assertEquals(1,db.jdbc.queryForObject("SELECT COUNT(*) FROM community_publications",Integer.class));
+        assertEquals(1,db.jdbc.queryForObject("SELECT COUNT(*) FROM community_attempts WHERE allowed=TRUE",Integer.class));
+    }
+    @Test void precheckDoesNotReserveCapacityAndFinalPublicationStillRejectsExhaustedQuota() {
+        var attempt=new CommunityReq.Attempt(TASK,1,1L,2L,false,7L);
+        assertTrue(service.authorizeAttempt(attempt).allowed());
+        db.jdbc.update("UPDATE community_settings SET post_daily_comment_limit=0 WHERE id=1");
+        assertEquals(1702,assertThrows(BusinessException.class,()->service.publish(publishRequest())).getCode());
+        assertEquals(0,db.jdbc.queryForObject("SELECT COUNT(*) FROM community_publications",Integer.class));
+    }
+    @Test void directReplyConstraintIsEnforcedAgainstRealCommentRelationships() {
+        db.jdbc.update("UPDATE community_settings SET bot_relay_enabled=FALSE WHERE id=1");
+        db.jdbc.update("INSERT INTO comments(id,post_id,bot_id,content) VALUES(10,2,1,'原发言')");
+        db.jdbc.update("INSERT INTO comments(id,post_id,user_id,parent_id,content) VALUES(11,2,1,10,'请解释'),(12,2,1,10,'另一条评论')");
+        db.jdbc.update("UPDATE community_events SET event_type='HUMAN_COMMENT',comment_id=11 WHERE id=7");
+        String version=service.context(1L,2L,11L).contextVersion();
+        for(Long target:Arrays.asList(null,12L)) {
+            var request=new CommunityReq.Publish(TASK,1L,2L,target,11L,ROOT,version,"回答");
+            assertEquals(1707,assertThrows(BusinessException.class,()->service.publish(request)).getCode());
+        }
+        long id=service.publish(new CommunityReq.Publish(TASK,1L,2L,11L,11L,ROOT,version,"解释原发言")).commentId();
+        assertEquals(11L,db.jdbc.queryForObject("SELECT parent_id FROM comments WHERE id=?",Long.class,id));
+    }
     @Test void simultaneousCancelAndPublishHaveExactlyOneWinner() throws Exception {
         var request=publishRequest();
         var start=new CountDownLatch(1);

@@ -19,7 +19,7 @@ class MigrationMysqlTest {
             new chat.liuxin.liutech.config.DatabaseSchemaVerifier(upgraded.dataSource).verify();
             assertEquals(fresh.structure("main"), upgraded.structure("main"));
             assertEquals(0, flyway.migrate().migrationsExecuted);
-            fresh.jdbc.update("INSERT INTO community_settings(id,enabled,site_daily_task_limit) VALUES(1,TRUE,321)");
+            fresh.jdbc.update("INSERT INTO community_settings(id,enabled,site_daily_task_limit,bot_relay_enabled) VALUES(1,TRUE,321,FALSE)");
             var freshFlyway = Flyway.configure().dataSource(fresh.dataSource)
                     .locations("filesystem:" + fresh.repositoryRoot.resolve("Docs/SQL/migrations/main").toString().replace('\\','/'))
                     .baselineVersion("0").baselineOnMigrate(false).cleanDisabled(true).load();
@@ -28,7 +28,25 @@ class MigrationMysqlTest {
             freshFlyway.validate();
             assertEquals(321, fresh.jdbc.queryForObject("SELECT site_daily_task_limit FROM community_settings WHERE id=1", Integer.class));
             assertEquals(true, fresh.jdbc.queryForObject("SELECT enabled FROM community_settings WHERE id=1", Boolean.class));
+            assertEquals(false, fresh.jdbc.queryForObject("SELECT bot_relay_enabled FROM community_settings WHERE id=1", Boolean.class));
             assertEquals(upgraded.structure("main"), fresh.structure("main"));
+        }
+    }
+    @Test void versionThreeUpgradeAddsRelaySwitchWithoutResettingLiveSettings() throws Exception {
+        try(var db=new MysqlFixture()) {
+            db.jdbc.execute("ALTER TABLE community_settings DROP COLUMN bot_relay_enabled");
+            db.jdbc.update("INSERT INTO community_settings(id,enabled,site_daily_task_limit,version) VALUES(1,TRUE,321,17)");
+            var migrations=db.repositoryRoot.resolve("Docs/SQL/migrations/main").toString().replace('\\','/');
+            var old=Flyway.configure().dataSource(db.dataSource).locations("filesystem:"+migrations)
+                .baselineVersion("0").target("3").baselineOnMigrate(false).cleanDisabled(true).load();
+            old.baseline();old.migrate();
+            var latest=Flyway.configure().dataSource(db.dataSource).locations("filesystem:"+migrations).cleanDisabled(true).load();
+            assertEquals(1,latest.migrate().migrationsExecuted);latest.validate();
+            assertEquals(true,db.jdbc.queryForObject("SELECT bot_relay_enabled FROM community_settings WHERE id=1",Boolean.class));
+            assertEquals(321,db.jdbc.queryForObject("SELECT site_daily_task_limit FROM community_settings WHERE id=1",Integer.class));
+            assertEquals(17L,db.jdbc.queryForObject("SELECT version FROM community_settings WHERE id=1",Long.class));
+            assertEquals(0,latest.migrate().migrationsExecuted);
+            new chat.liuxin.liutech.config.DatabaseSchemaVerifier(db.dataSource).verify();
         }
     }
 }

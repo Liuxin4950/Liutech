@@ -20,7 +20,8 @@ public final class CommunityReq {
         @Min(0) @Max(10000) int siteDailyCommentLimit, @Min(0) @Max(1000) int postDailyCommentLimit,
         @Min(0) @Max(1000) int botDailyTaskLimit, @Min(0) @Max(10000) int siteDailyTaskLimit,
         @Min(0) @Max(3600) int minDelaySeconds, @Min(0) @Max(3600) int maxDelaySeconds,
-        @Min(0) @Max(3600) int cooldownSeconds, @Min(1) @Max(4) int maxChainComments) {}
+        @Min(0) @Max(3600) int cooldownSeconds, @Min(1) @Max(4) int maxChainComments,
+        Boolean botRelayEnabled) {}
     public record Enabled(@NotNull Boolean enabled) {}
     public record Invite(@Size(max=2) List<@Positive Long> botIds) {}
     public record Backfill(@Min(1) @Max(20) Integer limit,
@@ -32,7 +33,12 @@ public final class CommunityReq {
     public record Cancel(@NotBlank String taskId, @NotNull @Positive Long eventId,
         @NotNull @Positive Long botId, @NotNull @Positive Long postId) {}
     public record Attempt(@NotBlank String taskId, @Min(1) @Max(10) int attempt,
-        @NotNull @Positive Long botId, @NotNull @Positive Long postId, boolean preview) {}
+        @NotNull @Positive Long botId, @NotNull @Positive Long postId, boolean preview,
+        @Positive Long eventId) {
+        public Attempt(String taskId, int attempt, Long botId, Long postId, boolean preview) {
+            this(taskId, attempt, botId, postId, preview, null);
+        }
+    }
     public record Publish(@NotBlank String taskId, @NotNull @Positive Long botId, @NotNull @Positive Long postId,
         @Positive Long parentId, @Positive Long contextCommentId, @NotBlank String rootEventId,
         @NotBlank String contextVersion, @NotBlank @Size(max=1000) String content) {}

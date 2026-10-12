@@ -186,6 +186,8 @@ public class CommunityService {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "最短延迟不能大于最长延迟");
         CommunitySettings s = requireSettings(mapper.lockSettings());
         s.setEnabled(req.enabled()); s.setBotDailyCommentLimit(req.botDailyCommentLimit());
+        // 旧版客户端没有这个字段时保留当前值，不把保存其它额度当作开启接力。
+        if (req.botRelayEnabled() != null) s.setBotRelayEnabled(req.botRelayEnabled());
         s.setSiteDailyCommentLimit(req.siteDailyCommentLimit()); s.setPostDailyCommentLimit(req.postDailyCommentLimit());
         s.setBotDailyTaskLimit(req.botDailyTaskLimit()); s.setSiteDailyTaskLimit(req.siteDailyTaskLimit());
         s.setMinDelaySeconds(req.minDelaySeconds()); s.setMaxDelaySeconds(req.maxDelaySeconds());
@@ -324,8 +326,19 @@ public class CommunityService {
         CommunityResp.Attempt existing = mapper.attempt(req.taskId(),req.attempt());
         CommunityPostState state = mapper.postState(post.getId());
         String reason = "";
-        if (!req.preview() && (!s.getEnabled() || !bot.getEnabled() || state != null && !state.getEnabled())) reason="互动已暂停";
-        if (existing != null) return reason.isEmpty() ? existing : new CommunityResp.Attempt(false,reason);
+        if (!req.preview()) {
+            requireEnabled(s,bot,state);
+            CommunityEvent event = req.eventId() == null ? null : mapper.lockEvent(req.eventId());
+            if (req.eventId() != null && (event == null || !req.botId().equals(event.getBotId()) || !req.postId().equals(event.getPostId())))
+                throw new BusinessException(ErrorCode.PARAMS_ERROR,"任务来源与角色或文章不匹配");
+            if (event != null) {
+                requireEventEnabled(event,s);
+                // 复用公开快照验证触发评论、直接前文和完整根链；模型读取前不消耗尝试额度。
+                if (event.getCommentId() != null) context(bot.getId(),post.getId(),event.getCommentId());
+            }
+            requirePublicationCapacity(post,bot,s,event == null ? null : event.getRootEventId());
+        }
+        if (existing != null) return existing;
         Date[] day = dayRange(Instant.now());
         if (reason.isEmpty() && (mapper.attemptCount(null,day[0],day[1]) >= s.getSiteDailyTaskLimit()
             || mapper.attemptCount(bot.getId(),day[0],day[1]) >= s.getBotDailyTaskLimit())) reason="今日模型任务额度已用完";
@@ -347,7 +360,7 @@ public class CommunityService {
         duplicate = mapper.publication(req.taskId()); if (duplicate != null) return duplicate;
         CommunityEvent event=mapper.publicationEvent(req.botId(),req.postId(),req.rootEventId(),req.contextCommentId());
         if(event==null) throw new BusinessException(ErrorCode.PARAMS_ERROR,"评论发布没有对应的社区事件");
-        if("CANCELLED".equals(event.getEventType())) throw new BusinessException(ErrorCode.COMMUNITY_TASK_CANCELLED);
+        requireEventEnabled(event,settings);
         mapper.ensurePost(post.getId()); requireEnabled(settings,bot,mapper.postState(post.getId()));
         // 锁定文章现有评论及索引范围，让父评论删除、同文章新增与最终版本核验有确定顺序。
         mapper.lockPostComments(post.getId());
@@ -355,6 +368,9 @@ public class CommunityService {
         if (!MessageDigest.isEqual(current.contextVersion().getBytes(StandardCharsets.UTF_8),
                 req.contextVersion().getBytes(StandardCharsets.UTF_8))) throw new BusinessException(ErrorCode.COMMUNITY_STALE_CONTEXT);
         Long parentId = req.parentId();
+        Long requiredTarget = directReplyTarget(current.comments(),req.contextCommentId(),bot.getId());
+        if (requiredTarget != null && !requiredTarget.equals(parentId))
+            throw new BusinessException(ErrorCode.COMMUNITY_REPLY_TARGET_MISMATCH);
         if (parentId != null) {
             Comments parent = mapper.lockComment(parentId);
             if (parent == null || !post.getId().equals(parent.getPostId())) throw new BusinessException(ErrorCode.PARENT_COMMENT_MISMATCH);
@@ -363,23 +379,15 @@ public class CommunityService {
             if (Objects.equals(parent.getBotId(),bot.getId()))
                 throw new BusinessException(ErrorCode.PARAMS_ERROR,"角色不能回复自己的评论");
         }
-        Integer chainCount = mapper.chainCount(req.rootEventId(),req.postId());
-        if (chainCount == null || chainCount >= settings.getMaxChainComments()) throw new BusinessException(ErrorCode.COMMUNITY_CHAIN_LIMIT);
-        Date now = new Date(); Date[] day = dayRange(now.toInstant());
-        if (mapper.publicationCount(null,null,day[0],day[1]) >= settings.getSiteDailyCommentLimit()
-            || mapper.publicationCount(bot.getId(),null,day[0],day[1]) >= settings.getBotDailyCommentLimit()
-            || mapper.publicationCount(null,post.getId(),day[0],day[1]) >= settings.getPostDailyCommentLimit())
-            throw new BusinessException(ErrorCode.COMMUNITY_QUOTA_EXCEEDED);
-        Date last = mapper.lastPublication(bot.getId(),post.getId());
-        if (last != null && now.getTime()-last.getTime() < settings.getCooldownSeconds()*1000L)
-            throw new BusinessException(ErrorCode.COMMUNITY_COOLDOWN);
+        int chainCount = requirePublicationCapacity(post,bot,settings,req.rootEventId());
+        Date now = new Date();
         Comments comment = new Comments(); comment.setBotId(bot.getId()); comment.setPostId(post.getId());
         comment.setParentId(parentId); comment.setContent(req.content().trim()); comment.setCommunityTaskId(req.taskId());
         comment.setRootEventId(req.rootEventId()); comment.setCreatedAt(now); comment.setUpdatedAt(now);
         // 明确 SQL 插入，避免 MyMetaObjectHandler 从管理员认证上下文自动填入真人作者。
         commentsMapper.insertCommunityComment(comment);
         mapper.recordPublication(req.taskId(),bot.getId(),post.getId(),comment.getId(),now); mapper.incrementChain(req.rootEventId());
-        if (chainCount+1 < settings.getMaxChainComments())
+        if (Boolean.TRUE.equals(settings.getBotRelayEnabled()) && chainCount+1 < settings.getMaxChainComments())
             enqueue(post,comment.getId(),"BOT_COMMENT",req.rootEventId(),selectBots(post,comment,bot.getId(),1),settings);
         log.info("社区角色评论已发布 botId={} postId={} commentId={} taskId={}",bot.getId(),post.getId(),comment.getId(),req.taskId());
         return new CommunityResp.Published(comment.getId(),now,false);
@@ -406,6 +414,34 @@ public class CommunityService {
     }
 
     private String newRoot(Long postId) { String root=UUID.randomUUID().toString(); mapper.insertChain(root,postId); return root; }
+    /** 在既有文章、settings、角色锁内检查；预检查不预留额度，发布仍重新验证。 */
+    private int requirePublicationCapacity(Posts post,CommunityBot bot,CommunitySettings settings,String root) {
+        Integer count = root == null ? 0 : mapper.chainCount(root,post.getId());
+        if (count == null || count >= settings.getMaxChainComments()) throw new BusinessException(ErrorCode.COMMUNITY_CHAIN_LIMIT);
+        Date now = new Date(); Date[] day = dayRange(now.toInstant());
+        if (mapper.publicationCount(null,null,day[0],day[1]) >= settings.getSiteDailyCommentLimit()
+            || mapper.publicationCount(bot.getId(),null,day[0],day[1]) >= settings.getBotDailyCommentLimit()
+            || mapper.publicationCount(null,post.getId(),day[0],day[1]) >= settings.getPostDailyCommentLimit())
+            throw new BusinessException(ErrorCode.COMMUNITY_QUOTA_EXCEEDED);
+        Date last = mapper.lastPublication(bot.getId(),post.getId());
+        if (last != null && now.getTime()-last.getTime() < settings.getCooldownSeconds()*1000L)
+            throw new BusinessException(ErrorCode.COMMUNITY_COOLDOWN);
+        return count;
+    }
+    private static void requireEventEnabled(CommunityEvent event,CommunitySettings settings) {
+        if ("CANCELLED".equals(event.getEventType())) throw new BusinessException(ErrorCode.COMMUNITY_TASK_CANCELLED);
+        if ("BOT_COMMENT".equals(event.getEventType()) && !Boolean.TRUE.equals(settings.getBotRelayEnabled()))
+            throw new BusinessException(ErrorCode.COMMUNITY_PAUSED,"AI 自动接力已关闭");
+    }
+    /** 仅约束真人直接回复当前角色；普通评论、文章邀请和其它角色仍自主选择。 */
+    private static Long directReplyTarget(List<Comments> comments,Long triggerId,Long botId) {
+        if (triggerId == null) return null;
+        for (Comments trigger : comments) if (triggerId.equals(trigger.getId()) && trigger.getUserId() != null) {
+            for (Comments parent : comments) if (Objects.equals(trigger.getParentId(),parent.getId()) && botId.equals(parent.getBotId()))
+                return triggerId;
+        }
+        return null;
+    }
     /**
      * 已失败或已确认的初评事件也保留去重；删除评论后发布回执仍阻止再次补评。
      * ACK 只表示 AI 已接收，不能当作执行完成。手动邀请也复用此边界，失败只能重试原任务。

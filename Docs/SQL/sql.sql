@@ -256,6 +256,7 @@ CREATE TABLE IF NOT EXISTS community_knowledge (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS community_settings (
   id BIGINT PRIMARY KEY,enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  bot_relay_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   bot_daily_comment_limit INT NOT NULL DEFAULT 20,site_daily_comment_limit INT NOT NULL DEFAULT 100,
   post_daily_comment_limit INT NOT NULL DEFAULT 20,bot_daily_task_limit INT NOT NULL DEFAULT 40,
   site_daily_task_limit INT NOT NULL DEFAULT 200,min_delay_seconds INT NOT NULL DEFAULT 20,

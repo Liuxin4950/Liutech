@@ -77,7 +77,7 @@ class CommunityWorkerTest {
         when(mapper.workerStatus()).thenReturn(Map.of("leaseOccupied",0));
         when(mapper.queueStatus()).thenReturn(Map.of("readyCount",0,"delayedCount",0,"leasedCount",0,"failedCount",0));
         when(mapper.taskById(task.getId())).thenReturn(task);
-        when(service.generate(task.getId(),1,2,null,2,false,0)).thenAnswer(invocation->{
+        when(service.generate(task.getId(),1,2,null,2,false,0,3L)).thenAnswer(invocation->{
             realMonitor.model(task.getId(),"blocked-test-model");started.countDown();
             release.await(3,java.util.concurrent.TimeUnit.SECONDS);
             return Map.of("decision","SKIP","contextVersion","v1");
@@ -169,9 +169,9 @@ class CommunityWorkerTest {
     }
     @Test void malformedCachedDecisionIsRegeneratedWithSameTaskAndNextAttempt() {
         var task=decided();task.setDecisionJson("{\"decision\":\"REPLY\",\"targetCommentId\":\"invalid\",\"content\":\"旧内容\",\"contextVersion\":\"v1\"}");
-        when(service.generate(task.getId(),1,2,null,2,false,0)).thenReturn(Map.of("decision","SKIP","contextVersion","v2"));
+        when(service.generate(task.getId(),1,2,null,2,false,0,3L)).thenReturn(Map.of("decision","SKIP","contextVersion","v2"));
         worker.execute(task);
-        verify(service).generate(task.getId(),1,2,null,2,false,0);
+        verify(service).generate(task.getId(),1,2,null,2,false,0,3L);
         verify(mapper).attempt(task.getId(),0);
         verify(mapper).finish(task.getId(),"SKIPPED",null);
         verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
@@ -179,7 +179,7 @@ class CommunityWorkerTest {
     @Test void withdrawnPostTerminatesWithoutRegenerationOrRetry() {
         var task=decided();task.setDecisionJson(null);
         when(store.epoch(1)).thenReturn(0L);
-        when(service.generate(task.getId(),1,2,null,2,false,0)).thenThrow(new BackendApiTransport.InternalBusinessException(1101,"文章不存在"));
+        when(service.generate(task.getId(),1,2,null,2,false,0,3L)).thenThrow(new BackendApiTransport.InternalBusinessException(1101,"文章不存在"));
         worker.execute(task);
         verify(mapper).fail(task.getId(),"SKIPPED","文章不存在",false);
         verify(mapper,never()).retry(anyString(),anyString(),anyBoolean(),anyInt());
@@ -187,21 +187,29 @@ class CommunityWorkerTest {
     }
     @Test void regeneratingAnOldTaskKeepsItsOriginalEpochAfterMemoryClear() {
         var task=decided();task.setDecisionJson(null);task.setMemoryEpoch(5L);
-        when(service.generate(task.getId(),1,2,null,2,false,5)).thenReturn(Map.of("decision","SKIP","contextVersion","v2"));
+        when(service.generate(task.getId(),1,2,null,2,false,5,3L)).thenReturn(Map.of("decision","SKIP","contextVersion","v2"));
         worker.execute(task);
-        verify(service).generate(task.getId(),1,2,null,2,false,5);
+        verify(service).generate(task.getId(),1,2,null,2,false,5,3L);
         verify(store,never()).epoch(anyLong());
         verify(mapper).attempt(task.getId(),5);
     }
     @Test void skipCompletesWithoutPublishingAndAttemptsIncrementBeforeEveryGeneration() {
         var task=decided();task.setDecisionJson(null);task.setAttempts(2);task.setMemoryEpoch(null);
         when(store.epoch(1)).thenReturn(9L);
-        when(service.generate(task.getId(),1,2,null,3,false,9)).thenReturn(Map.of("decision","SKIP","contextVersion","v1"));
+        when(service.generate(task.getId(),1,2,null,3,false,9,3L)).thenReturn(Map.of("decision","SKIP","contextVersion","v1"));
         worker.execute(task);
         verify(mapper).attempt(task.getId(),9L);
-        verify(service).generate(task.getId(),1,2,null,3,false,9);
+        verify(service).generate(task.getId(),1,2,null,3,false,9,3L);
         verify(mapper).finish(task.getId(),"SKIPPED",null);
         verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
+    }
+    @Test void taskDecisionDoesNotDuplicateTheInputSnapshotStoredInTheRun() {
+        var task=decided();task.setDecisionJson(null);
+        when(service.generate(task.getId(),1,2,null,2,false,0,3L)).thenReturn(Map.of(
+            "decision","SKIP","contextVersion","v1","contextSnapshot",Map.of("messages",java.util.List.of("large input"))));
+        worker.execute(task);
+        verify(mapper).decide(eq(task.getId()),argThat(saved->!json.readTree(saved).has("contextSnapshot")),eq("v1"));
+        verify(mapper).finish(task.getId(),"SKIPPED",null);
     }
     @Test void cancelledTaskAndCancelledSourceDoNotSpendAnotherModelAttempt() {
         var task=decided();task.setDecisionJson(null);
@@ -218,7 +226,7 @@ class CommunityWorkerTest {
     }
     @Test void cancellationDuringGenerationDiscardsTheResultWithoutPublishingOrRevivingTask() {
         var task=decided();task.setDecisionJson(null);
-        when(service.generate(task.getId(),1,2,null,2,false,0)).thenReturn(Map.of("decision","COMMENT","content","late result","contextVersion","v1"));
+        when(service.generate(task.getId(),1,2,null,2,false,0,3L)).thenReturn(Map.of("decision","COMMENT","content","late result","contextVersion","v1"));
         // 取消已经把状态改成 CANCELLED；条件更新不能重新写成 DECIDED。
         when(mapper.decide(eq(task.getId()),anyString(),eq("v1"))).thenReturn(0);
         worker.execute(task);
@@ -237,11 +245,33 @@ class CommunityWorkerTest {
     }
     @Test void modelCapacityFailureKeepsItsExplicitReasonInTaskAndWorkerStatus() {
         var task=decided();task.setDecisionJson(null);
-        when(service.generate(task.getId(),1,2,null,2,false,0))
+        when(service.generate(task.getId(),1,2,null,2,false,0,3L))
             .thenThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,"模型服务当前繁忙，请稍后重试"));
         worker.execute(task);
         verify(mapper).retry(task.getId(),"模型服务当前繁忙，请稍后重试",false,30);
         verify(monitor).taskError(task.getId(),"模型服务当前繁忙，请稍后重试");
         verify(monitor).taskFinished(task.getId(),"RETRY_SCHEDULED");
+    }
+    @Test void oldCachedReplyWithWrongTargetIsRegeneratedInsteadOfRepeatedlyRepublished() {
+        var task=decided();
+        when(transport.internalPost(eq("/internal/community/comments"),any()))
+            .thenThrow(new BackendApiTransport.InternalBusinessException(1707,"必须回答当前真人"));
+        worker.execute(task);
+        verify(mapper).retry(task.getId(),"必须回答当前真人",true,30);
+        verifyNoInteractions(service);
+    }
+    @Test void cooldownPrecheckUsesBoundedExistingRetryWithoutPublicationAndDisabledRelayTerminates() {
+        var task=decided();task.setDecisionJson(null);
+        when(service.generate(task.getId(),1,2,null,2,false,0,3L))
+            .thenThrow(new BackendApiTransport.InternalBusinessException(1705,"角色正在等待发言间隔"));
+        worker.execute(task);
+        verify(mapper).retry(task.getId(),"角色正在等待发言间隔",false,30);
+        task.setFailures(2);worker.execute(task);
+        verify(mapper).fail(task.getId(),"FAILED","角色正在等待发言间隔",false);
+        doThrow(new BackendApiTransport.InternalBusinessException(1700,"AI 自动接力已关闭"))
+            .when(service).generate(task.getId(),1,2,null,2,false,0,3L);
+        task.setFailures(0);worker.execute(task);
+        verify(mapper).fail(task.getId(),"SKIPPED","AI 自动接力已关闭",false);
+        verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
     }
 }

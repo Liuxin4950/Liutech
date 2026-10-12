@@ -256,7 +256,8 @@ public enum ErrorCode {
     COMMUNITY_CHAIN_LIMIT(1703, "本轮互动已达到上限"),
     COMMUNITY_BOT_NOT_FOUND(1704, "角色不存在"),
     COMMUNITY_COOLDOWN(1705, "角色正在等待发言间隔"),
-    COMMUNITY_TASK_CANCELLED(1706, "社区任务已取消");
+    COMMUNITY_TASK_CANCELLED(1706, "社区任务已取消"),
+    COMMUNITY_REPLY_TARGET_MISMATCH(1707, "真人直接回复角色时，角色只能回复本次真人评论");
 
     /**
      * 错误码

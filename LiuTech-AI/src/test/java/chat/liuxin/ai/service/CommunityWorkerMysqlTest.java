@@ -13,6 +13,26 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named="LIUTECH_TEST_MYSQL_URL",matches=".+")
 class CommunityWorkerMysqlTest {
+    @Test void publicationUpdatesRetainOriginalSnapshotAndListsDoNotLoadItsBody() throws Exception {
+        try(var db=new MysqlFixture()) {
+            db.session.getConfiguration().addMapper(CommunityMapper.class);
+            var mapper=db.session.getMapper(CommunityMapper.class);
+            String run=UUID.randomUUID().toString(),task=UUID.randomUUID().toString();
+            var json=new ObjectMapper();
+            String original="{\"postTitle\":\"原始文章\",\"contextSnapshot\":{\"version\":1,\"sections\":[{\"content\":\"原始上下文\"}],\"messages\":[]}}";
+            mapper.run(run,task,1,2,"GENERATED",original,null);
+            mapper.updateRun(run,task,1,"FAILED","{\"publicationError\":\"连接中断\"}","连接中断");
+            mapper.updateRun(run,task,1,"SUCCEEDED","{\"publishedCommentId\":9}",null);
+            var row=mapper.runById(run);
+            var result=json.readTree(String.valueOf(row.containsKey("result_json")?row.get("result_json"):row.get("resultJson")));
+            assertEquals("原始上下文",result.path("contextSnapshot").path("sections").get(0).path("content").asText());
+            assertEquals(9,result.path("publishedCommentId").asInt());
+            var list=mapper.runs(1L,2L,10).getFirst();
+            String summary=String.valueOf(list.containsKey("result_json")?list.get("result_json"):list.get("resultJson"));
+            assertFalse(json.readTree(summary).has("contextSnapshot"));
+            assertFalse(summary.contains("原始上下文"));
+        }
+    }
     @Test void runCreationDatesUseTheDatabaseEpochInsteadOfAmbiguousJdbcDateTime() throws Exception {
         try(var db=new MysqlFixture()) {
             db.dataSource.setUrl(db.dataSource.getUrl()+"&serverTimezone=Asia/Shanghai&sessionVariables=time_zone='%2B00:00'");

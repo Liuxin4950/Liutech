@@ -12,6 +12,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class CommunityAdminControllerTest {
+    @Test void runDetailUsesTheExistingAdminEnvelopeAndHistoricalRecordId() throws Exception {
+        var service=mock(CommunityService.class);
+        String id="2c8dc80c-b09c-4327-9a67-9ba53d4a6800";
+        when(service.run(id)).thenReturn(java.util.Map.of("id",id,"contextSnapshot",java.util.Map.of("prepared",true)));
+        var mvc=MockMvcBuilders.standaloneSetup(new CommunityAdminController(service,mock(CommunityWorkerMonitor.class))).build();
+        mvc.perform(get("/ai/admin/community/runs/"+id)).andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true)).andExpect(jsonPath("$.data.contextSnapshot.prepared").value(true));
+        verify(service).run(id);
+        assertEquals("hasRole('ADMIN')",CommunityAdminController.class.getAnnotation(PreAuthorize.class).value());
+    }
     @Test void workerEndpointReportsRealSchedulingFactsInsteadOfHealthUp() throws Exception {
         var mapper=mock(chat.liuxin.ai.mapper.CommunityMapper.class);
         when(mapper.workerStatus()).thenReturn(java.util.Map.of("leaseOccupied",0));

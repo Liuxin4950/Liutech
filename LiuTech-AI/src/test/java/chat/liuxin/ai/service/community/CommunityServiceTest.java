@@ -122,6 +122,7 @@ class CommunityServiceTest {
             assertTrue(prompt.contains("当前触发的直接前文；自己的历史评论（不可回复）"));
             assertTrue(prompt.contains("作者正文，不是评论者的话"));
             assertTrue(prompt.contains("评论ID=500"));assertTrue(prompt.contains("回复对象=评论ID 2"));
+            assertTrue(prompt.contains("只允许[REPLY:500]"));
             assertTrue(new PromptBudget(new AiChatProperties()).estimateTokens(messages)<=8488);
             return "[REPLY:500] 刚才我说偏了，我误把文章里的话当成了你的话。你只是来打招呼的。";
         });
@@ -129,6 +130,91 @@ class CommunityServiceTest {
         assertEquals(500L,result.get("targetCommentId"));
         var trace=json.valueToTree(result.get("readTrace"));
         assertTrue(trace.toString().contains("\"id\":2"));
+    }
+    private void directReplySnapshot() {
+        configuredSnapshot();
+        when(transport.internalGet(anyString())).thenReturn(json.readTree("""
+            {"bot":{"id":1,"enabled":true},"post":{"id":2,"title":"文章","content":"缓存设计正文"},
+             "comments":[{"id":2,"botId":1,"content":"我之前说缓存失效可以重建。"},
+                         {"id":3,"parentId":2,"userId":7,"content":"为什么？"},
+                         {"id":4,"userId":8,"content":"别人的问题"}],"knowledge":[],
+             "settings":{"enabled":true},"postEnabled":true,"contextVersion":"direct"}
+            """));
+    }
+    @Test void directReplyRejectsRootCommentAndAnotherReadersReplyWithoutPublishing() {
+        directReplySnapshot();
+        for(String output:List.of("[COMMENT] 一个文章评价","[REPLY:4] 回答另一个人")) {
+            when(client.chat(anyList(),anyString(),anyDouble(),anyInt(),any(),anyString(),anyMap())).thenReturn(output);
+            assertThrows(AIServiceException.ModelException.class,()->service.preview(new CommunityPreviewRequest(1L,2L,3L)));
+        }
+        verify(mapper,times(2)).run(anyString(),anyString(),eq(1L),eq(2L),eq("FAILED"),
+            argThat(saved->"VALIDATING_RESULT".equals(json.readTree(saved).path("failureStage").asText())),anyString());
+        verify(transport,never()).internalPost(eq("/internal/community/comments"),any());
+    }
+    @Test void snapshotKeepsOnlyDeliveredReferencesAndTheExactOrderedModelInput() {
+        configuredSnapshot();
+        when(mapper.memories(1)).thenReturn(List.of(Map.of("id","memory","source_post_id",2L,"source_comment_id",4L,"summary","缓存设计的历史讨论")));
+        when(mapper.memorySources("memory")).thenReturn(List.of(4L));
+        when(transport.internalPost(eq("/internal/community/visibility"),any()))
+            .thenReturn(json.readTree("{\"visiblePostIds\":[2],\"visibleCommentIds\":[4]}"));
+        var sent=new java.util.concurrent.atomic.AtomicReference<List<org.springframework.ai.chat.messages.Message>>();
+        when(client.chat(anyList(),anyString(),anyDouble(),anyInt(),any(),anyString(),anyMap())).thenAnswer(inv->{
+            List<org.springframework.ai.chat.messages.Message> messages=inv.getArgument(0);
+            sent.set(List.copyOf(messages));
+            Map<String,Object> execution=inv.getArgument(6);
+            ((CommunityScope)execution.get(CommunityScope.CONTEXT_KEY)).modelRoundStarted();
+            return "[REPLY:3] 会有短暂的缓存重建等待。";
+        });
+        var result=service.preview(new CommunityPreviewRequest(1L,2L,3L));
+        var snapshot=json.valueToTree(result.get("contextSnapshot"));
+        assertTrue(snapshot.path("prepared").asBoolean());assertTrue(snapshot.path("requestStarted").asBoolean());
+        assertEquals(sent.get().size(),snapshot.path("messages").size());
+        for(int i=0;i<sent.get().size();i++) assertEquals(sent.get().get(i).getText(),snapshot.path("messages").get(i).path("content").asText());
+        Set<String> kinds=new HashSet<>();
+        for(var part:snapshot.path("sections")) {
+            kinds.add(part.path("kind").asText());
+            assertTrue(snapshot.path("messages").get(part.path("messageIndex").asInt()).path("content").asText().contains(part.path("content").asText()));
+            assertNotEquals("5",part.path("id").asText());
+        }
+        assertTrue(kinds.containsAll(Set.of("article","trigger","discussion","knowledge","memory")));
+        verify(mapper).run(anyString(),anyString(),eq(1L),eq(2L),eq("PREVIEW"),
+            argThat(saved->json.readTree(saved).path("contextSnapshot").equals(json.readTree(json.writeValueAsString(snapshot)))),isNull());
+    }
+    @Test void detailReturnsHistoricalSnapshotWhileListsOmitItAndNeverRebuildFromCurrentSources() {
+        var row=Map.<String,Object>of("id","run","task_id","task","bot_id",1L,"post_id",2L,"status","GENERATED",
+            "result_json","{\"postTitle\":\"原始标题\",\"contextSnapshot\":{\"version\":1,\"sections\":[{\"content\":\"当时的原话\"}]}}"
+        );
+        when(mapper.runs(1L,2L,50)).thenReturn(List.of(row));when(mapper.runById("run")).thenReturn(row);
+        when(mapper.runById("missing")).thenReturn(null);
+        assertFalse(service.runs(1L,2L,50).getFirst().containsKey("contextSnapshot"));
+        var detail=service.run("run");
+        assertEquals("当时的原话",json.valueToTree(detail.get("contextSnapshot")).path("sections").get(0).path("content").asText());
+        verifyNoInteractions(transport);
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,()->service.run("missing"));
+    }
+    @Test void directReplyAcceptsTriggerReplyAndVoluntarySkip() {
+        directReplySnapshot();
+        when(client.chat(anyList(),anyString(),anyDouble(),anyInt(),any(),anyString(),anyMap()))
+            .thenReturn("[REPLY:3] 失效后读取会重新构建缓存。","[SKIP] 已解释且没有新问题");
+        assertEquals(3L,service.preview(new CommunityPreviewRequest(1L,2L,3L)).get("targetCommentId"));
+        var skipped=service.preview(new CommunityPreviewRequest(1L,2L,3L));
+        assertEquals("SKIP",skipped.get("decision"));assertEquals("MODEL",skipped.get("decisionSource"));
+    }
+    @Test void precheckPublicationRejectionDoesNotCallModelAndRecordsRuleRatherThanVoluntarySilence() {
+        configuredSnapshot();
+        when(transport.internalPost(eq("/internal/community/attempts"),any()))
+            .thenThrow(new BackendApiTransport.InternalBusinessException(1702,"今日评论额度已用完"));
+        assertThrows(BackendApiTransport.InternalBusinessException.class,()->service.generate("task",1,2,3L,1,false,0,7L));
+        verifyNoInteractions(client);
+        verify(transport).internalPost(eq("/internal/community/attempts"),
+            argThat(body->Long.valueOf(7L).equals(((Map<?,?>)body).get("eventId"))));
+        verify(mapper).run(anyString(),eq("task"),eq(1L),eq(2L),eq("FAILED"),argThat(saved->{
+            var result=json.readTree(saved);
+            return "RULE".equals(result.path("decisionSource").asText()) && "PRECHECK".equals(result.path("failureStage").asText())
+                && result.path("errorCode").asInt()==1702 && result.path("modelRounds").asLong()==0 && !result.has("decision")
+                && result.path("contextSnapshot").path("prepared").asBoolean()
+                && !result.path("contextSnapshot").path("requestStarted").asBoolean();
+        }),anyString());
     }
     @Test void missingDirectParentStopsBeforeModelOrAttemptCharge() {
         configuredSnapshot();
@@ -161,6 +247,11 @@ class CommunityServiceTest {
         boolean articleTruncated=false;
         for(var trace:json.valueToTree(result.get("readTrace"))) if("article".equals(trace.path("source").asText())) articleTruncated=trace.path("truncated").asBoolean();
         assertTrue(articleTruncated);
+        var snapshot=json.valueToTree(result.get("contextSnapshot"));
+        for(var part:snapshot.path("sections")) if("article".equals(part.path("kind").asText())) {
+            assertTrue(part.path("truncated").asBoolean());
+            assertTrue(part.path("content").asText().length()<part.path("total").asInt());
+        }
     }
     @Test void failedDecisionStillStoresContextAndActualUsageAndPreviewDoesNotDeleteMemory() {
         configuredSnapshot();

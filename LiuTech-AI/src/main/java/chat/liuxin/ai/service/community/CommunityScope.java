@@ -12,11 +12,16 @@ public final class CommunityScope implements ModelExecutionObserver {
     public final List<Map<String,Object>> memories;
     public final List<Map<String,Object>> readTrace = new ArrayList<>();
     public final List<Map<String,Object>> toolTrace = new ArrayList<>();
+    /** 预算处理后实际选入本轮输入的文本，独立于仅含编号的旧读取轨迹。 */
+    public final List<Map<String,Object>> contextParts = new ArrayList<>();
     private final Set<Long> readTargets = new HashSet<>();
+    private boolean modelRequestStarted;
     private int toolReadStart;
     public CommunityScope(JsonNode context,List<Map<String,Object>> memories) { this.context=context;this.memories=memories; }
     public long botId() { return context.path("bot").path("id").asLong(); }
     public long postId() { return context.path("post").path("id").asLong(); }
+    @Override public synchronized void modelRoundStarted() { modelRequestStarted=true; }
+    public synchronized boolean modelRequestStarted() { return modelRequestStarted; }
     public synchronized void read(String source,Object id,int start,int end,int total) {
         readTrace.add(new LinkedHashMap<>(Map.of("source",source,"id",id,"start",start,"end",end,"total",total,"truncated",start>0 || end<total)));
     }

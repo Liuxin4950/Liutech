@@ -8,6 +8,8 @@ import java.util.Date;
 public class CommunitySettings {
     private Long id;
     private Boolean enabled;
+    /** 默认保留原有接力行为；管理员可独立关闭 AI 触发 AI。 */
+    private Boolean botRelayEnabled = true;
     private Integer botDailyCommentLimit;
     private Integer siteDailyCommentLimit;
     private Integer postDailyCommentLimit;

@@ -236,6 +236,68 @@ class CommunityServiceTest {
         when(mapper.attempt(TASK,1)).thenReturn(new CommunityResp.Attempt(true,""));
         service.authorizeAttempt(req);verify(mapper,times(1)).recordAttempt(TASK,1,1L,2L,true,"");
     }
+    private CommunityReq.Attempt eventAttempt() {
+        CommunityEvent event=new CommunityEvent();event.setId(7L);event.setBotId(1L);event.setPostId(2L);
+        event.setRootEventId(ROOT);event.setEventType("ARTICLE_PUBLISHED");
+        when(mapper.lockEvent(7L)).thenReturn(event);
+        return new CommunityReq.Attempt(TASK,1,1L,2L,false,7L);
+    }
+    @Test void precheckRejectsExhaustedPublicationQuotaChainAndCooldownWithoutChargingModelQuota() {
+        var req=eventAttempt();
+        when(mapper.publicationCount(isNull(),eq(2L),any(),any())).thenReturn(20);
+        assertEquals(1702,assertThrows(BusinessException.class,()->service.authorizeAttempt(req)).getCode());
+        when(mapper.publicationCount(isNull(),eq(2L),any(),any())).thenReturn(0);
+        when(mapper.chainCount(ROOT,2L)).thenReturn(4);
+        assertEquals(1703,assertThrows(BusinessException.class,()->service.authorizeAttempt(req)).getCode());
+        when(mapper.chainCount(ROOT,2L)).thenReturn(0);
+        when(mapper.lastPublication(1L,2L)).thenReturn(new Date());
+        assertEquals(1705,assertThrows(BusinessException.class,()->service.authorizeAttempt(req)).getCode());
+        verify(mapper,never()).recordAttempt(anyString(),anyInt(),anyLong(),anyLong(),anyBoolean(),anyString());
+    }
+    @Test void eventPrecheckStopsCancelledMismatchedAndDisabledRelayEvents() {
+        var req=eventAttempt();var event=mapper.lockEvent(7L);
+        event.setEventType("CANCELLED");
+        assertEquals(1706,assertThrows(BusinessException.class,()->service.authorizeAttempt(req)).getCode());
+        event.setEventType("BOT_COMMENT");settings.setBotRelayEnabled(false);
+        assertEquals(1700,assertThrows(BusinessException.class,()->service.authorizeAttempt(req)).getCode());
+        event.setBotId(9L);
+        assertEquals(400,assertThrows(BusinessException.class,()->service.authorizeAttempt(req)).getCode());
+        verify(mapper,never()).recordAttempt(anyString(),anyInt(),anyLong(),anyLong(),anyBoolean(),anyString());
+    }
+    @Test void directHumanReplyCannotBecomeRootCommentOrChangeTargetButCanPublishToTheTrigger() {
+        Comments parent=new Comments();parent.setId(10L);parent.setPostId(2L);parent.setBotId(1L);
+        Comments trigger=new Comments();trigger.setId(11L);trigger.setPostId(2L);trigger.setParentId(10L);trigger.setUserId(7L);
+        Comments other=new Comments();other.setId(12L);other.setPostId(2L);other.setUserId(8L);
+        when(comments.selectPublicCommentById(11L)).thenReturn(trigger);
+        when(mapper.threadComments(2L,11L)).thenReturn(List.of(parent,trigger,other));
+        when(mapper.lockComment(11L)).thenReturn(trigger);
+        String version=service.context(1L,2L,11L).contextVersion();
+        for(Long target:Arrays.asList(null,12L)) {
+            var req=new CommunityReq.Publish(TASK,1L,2L,target,11L,ROOT,version,"回答");
+            assertEquals(1707,assertThrows(BusinessException.class,()->service.publish(req)).getCode());
+        }
+        verify(comments,never()).insertCommunityComment(any());
+        service.publish(new CommunityReq.Publish(TASK,1L,2L,11L,11L,ROOT,version,"回答"));
+        verify(comments).insertCommunityComment(argThat(comment->Long.valueOf(11L).equals(comment.getParentId())));
+    }
+    @Test void relaySwitchBlocksCachedPublicationAndNewRelayButKeepsArticleAndHumanParticipation() {
+        settings.setBotRelayEnabled(false);
+        CommunityBot other=new CommunityBot();other.setId(3L);other.setEnabled(true);other.setParticipation(50);
+        when(mapper.bots()).thenReturn(List.of(bot,other));
+        service.publish(request(service.context(1L,2L,null).contextVersion()));
+        verify(mapper,never()).insertEvent(anyString(),any(),anyInt());
+        var event=mapper.publicationEvent(1L,2L,ROOT,null);event.setEventType("BOT_COMMENT");
+        assertEquals(1700,assertThrows(BusinessException.class,()->service.publish(request(service.context(1L,2L,null).contextVersion()))).getCode());
+        service.invite(2L,List.of(1L));
+        verify(mapper).insertEvent(anyString(),any(),anyInt());
+    }
+    @Test void oldSettingsClientPreservesRelaySwitchAndExplicitChangeUpdatesIt() {
+        settings.setBotRelayEnabled(false);
+        service.saveSettings(new CommunityReq.Settings(true,20,100,20,40,200,20,90,30,4,null));
+        assertFalse(settings.getBotRelayEnabled());
+        service.saveSettings(new CommunityReq.Settings(true,20,100,20,40,200,20,90,30,4,true));
+        assertTrue(settings.getBotRelayEnabled());
+    }
     @Test void firstPublicationWhileDisabledIsSeenAndNotReplayedWhenEnabled() {
         settings.setEnabled(false);when(mapper.markPublished(2L)).thenReturn(1,0);
         service.articleSaved(2L);settings.setEnabled(true);service.articleSaved(2L);

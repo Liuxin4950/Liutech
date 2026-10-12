@@ -19,7 +19,7 @@ public class DatabaseSchemaVerifier {
                 java.util.Map.entry("comments", java.util.Set.of("id", "user_id", "bot_id", "community_task_id", "root_event_id")),
                 java.util.Map.entry("community_bots", java.util.Set.of("id", "enabled", "system_prompt", "version")),
                 java.util.Map.entry("community_knowledge", java.util.Set.of("id", "bot_id", "version")),
-                java.util.Map.entry("community_settings", java.util.Set.of("id", "enabled", "site_daily_task_limit", "max_chain_comments", "version")),
+                java.util.Map.entry("community_settings", java.util.Set.of("id", "enabled", "bot_relay_enabled", "site_daily_task_limit", "max_chain_comments", "version")),
                 java.util.Map.entry("community_post_state", java.util.Set.of("post_id", "enabled", "first_public_seen", "version")),
                 java.util.Map.entry("community_chains", java.util.Set.of("root_event_id", "post_id", "emitted")),
                 java.util.Map.entry("community_events", java.util.Set.of("id", "event_key", "lease_token", "lease_until", "acknowledged_at")),

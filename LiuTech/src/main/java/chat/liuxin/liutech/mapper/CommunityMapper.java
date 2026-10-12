@@ -14,7 +14,7 @@ public interface CommunityMapper {
     @Select("SELECT * FROM community_settings WHERE id=1 FOR UPDATE")
     CommunitySettings lockSettings();
     @Update("""
-        UPDATE community_settings SET enabled=#{enabled}, bot_daily_comment_limit=#{botDailyCommentLimit},
+        UPDATE community_settings SET enabled=#{enabled},bot_relay_enabled=#{botRelayEnabled}, bot_daily_comment_limit=#{botDailyCommentLimit},
         site_daily_comment_limit=#{siteDailyCommentLimit},post_daily_comment_limit=#{postDailyCommentLimit},
         bot_daily_task_limit=#{botDailyTaskLimit},site_daily_task_limit=#{siteDailyTaskLimit},
         min_delay_seconds=#{minDelaySeconds},max_delay_seconds=#{maxDelaySeconds},cooldown_seconds=#{cooldownSeconds},

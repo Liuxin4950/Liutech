@@ -119,7 +119,10 @@ public class CommunityWorker {
                 }
                 task.setMemoryEpoch(epoch);
                 monitor.taskPhase(task.getId(),"PREPARING_CONTEXT");
-                Map<String,Object> result=community.generate(task.getId(),task.getBotId(),task.getPostId(),task.getCommentId(),attempt,false,epoch);
+                Map<String,Object> result=community.generate(task.getId(),task.getBotId(),task.getPostId(),task.getCommentId(),attempt,false,epoch,task.getEventId());
+                // 输入正文仅保存在运行记录；队列缓存不复制，发布更新会保留原运行快照。
+                result=new LinkedHashMap<>(result);
+                result.remove("contextSnapshot");
                 decision=objectMapper.valueToTree(result);
                 monitor.taskPhase(task.getId(),"PERSISTING_DECISION");
                 if(mapper.decide(task.getId(),objectMapper.writeValueAsString(result),decision.path("contextVersion").asText())==0) {
@@ -201,10 +204,10 @@ public class CommunityWorker {
             boolean terminal=!publicationConfirmed && Set.of(1700,1702,1703,1704,1101,1202,1203,404,403).contains(code);
             if(terminal || task.getFailures()>=2) {
                 String finalStatus=terminal?"SKIPPED":"FAILED";
-                int saved=mapper.fail(task.getId(),finalStatus,reason,code==1701 && !publicationConfirmed);
+                int saved=mapper.fail(task.getId(),finalStatus,reason,(code==1701 || code==1707) && !publicationConfirmed);
                 outcome=saved>0?finalStatus:mapper.cancelled(task.getId())?"CANCELLED":"STATE_CHANGED";
             } else {
-                int saved=mapper.retry(task.getId(),reason,code==1701 && !publicationConfirmed,30*(task.getFailures()+1));
+                int saved=mapper.retry(task.getId(),reason,(code==1701 || code==1707) && !publicationConfirmed,30*(task.getFailures()+1));
                 outcome=saved>0?"RETRY_SCHEDULED":mapper.cancelled(task.getId())?"CANCELLED":"STATE_CHANGED";
             }
             log.warn("社区任务执行失败: taskId={}, code={}, retry={}",task.getId(),code,!terminal && task.getFailures()<2);

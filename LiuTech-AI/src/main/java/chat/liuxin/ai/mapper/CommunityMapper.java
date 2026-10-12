@@ -107,7 +107,9 @@ public interface CommunityMapper {
     int run(@Param("id") String id,@Param("taskId") String taskId,@Param("botId") long botId,
             @Param("postId") long postId,@Param("status") String status,@Param("json") String json,@Param("error") String error);
 
-    @Update("UPDATE ai_community_run SET status=#{status},result_json=#{json},error=#{error} " +
+    @Update("UPDATE ai_community_run SET status=#{status},result_json=" +
+            "IF(JSON_CONTAINS_PATH(result_json,'one','$.contextSnapshot')," +
+            "JSON_SET(#{json},'$.contextSnapshot',JSON_EXTRACT(result_json,'$.contextSnapshot')),#{json}),error=#{error} " +
             "WHERE id=#{id} AND task_id=#{taskId} AND bot_id=#{botId}")
     int updateRun(@Param("id") String id,@Param("taskId") String taskId,@Param("botId") long botId,
                   @Param("status") String status,@Param("json") String json,@Param("error") String error);
@@ -118,12 +120,17 @@ public interface CommunityMapper {
             "ORDER BY created_at DESC,id DESC LIMIT 1")
     String latestGeneratedRun(String taskId);
 
-    @Select("<script>SELECT r.id,r.task_id,r.bot_id,r.post_id,t.comment_id,r.status,r.result_json,r.error,r.created_at," +
+    @Select("<script>SELECT r.id,r.task_id,r.bot_id,r.post_id,t.comment_id,r.status,JSON_REMOVE(r.result_json,'$.contextSnapshot') AS result_json,r.error,r.created_at," +
             "CAST(UNIX_TIMESTAMP(r.created_at)*1000 AS SIGNED) AS createdAtEpochMs " +
             "FROM ai_community_run r LEFT JOIN ai_community_task t ON t.id=r.task_id " +
             "<where><if test='botId != null'>AND r.bot_id=#{botId}</if> " +
             "<if test='postId != null'>AND r.post_id=#{postId}</if></where> ORDER BY r.created_at DESC,r.id DESC LIMIT #{limit}</script>")
     List<Map<String,Object>> runs(@Param("botId") Long botId,@Param("postId") Long postId,@Param("limit") int limit);
+
+    @Select("SELECT r.id,r.task_id,r.bot_id,r.post_id,t.comment_id,r.status,r.result_json,r.error,r.created_at," +
+            "CAST(UNIX_TIMESTAMP(r.created_at)*1000 AS SIGNED) AS createdAtEpochMs " +
+            "FROM ai_community_run r LEFT JOIN ai_community_task t ON t.id=r.task_id WHERE r.id=#{id}")
+    Map<String,Object> runById(String id);
 
     @Insert("INSERT IGNORE INTO ai_community_role_state(bot_id,memory_epoch) VALUES(#{botId},0)")
     int ensureRole(long botId);
