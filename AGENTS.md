@@ -20,7 +20,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 ### 启动配置统一
 
 - 本地与云端共用根目录 `docker-compose.yml` 和同一套 `.env` 变量，只改变环境值；不再创建 local/prod Compose、override 或另一套环境文件。变量模板以 `.env.example` 为准，具体切换见 [部署操作](Docs/架构/运维/部署运维/部署操作.md#统一-compose-与环境参数切换)。
-- 使用原 Dockerfile 与 Nginx HTTPS 配置；本机页面从 `3000/3001` 直连现有前端容器，不增加 Nginx 启动脚本或模式配置。内部服务端口默认仅绑定 `127.0.0.1`，已有环境保持项目名、数据卷及上传挂载。
+- 本地 Docker 用于部署预演，日常开发由用户手动启动服务。使用原 Dockerfile 与 Nginx HTTPS 配置，不增加启动脚本或模式配置；验收需覆盖 Nginx → 前端/API → 后端的完整链路，`3000/3001` 直连仅用于辅助定位。内部服务端口默认仅绑定 `127.0.0.1`，已有环境保持项目名、数据卷及上传挂载。
 - 修改现有 `.env` 时保留已有供应商、邮箱、JWT 和数据库配置，按需要补充或调整目标键；密码变化必须与实际数据库账号同步，不能只改环境文件。
 - 本机验收不代表上线。用户要求仅本地运行时，不更新云端或生产版本记录。
 
