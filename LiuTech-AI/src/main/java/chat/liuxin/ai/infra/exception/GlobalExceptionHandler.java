@@ -11,6 +11,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.ConstraintViolationException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -89,6 +90,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleUnreadableRequest(HttpMessageNotReadableException ex) {
         // JSON 解析异常可能携带正文片段；不向日志或客户端写入这些细节。
         return createErrorResponse("请求 JSON 格式不正确，请检查输入", HttpStatus.BAD_REQUEST);
+    }
+
+    /** @Validated 的路径/查询参数在调用业务前校验，沿用现有错误协议。 */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolationException(ConstraintViolationException ex) {
+        // 约束消息可能带用户输入或属性路径，不把异常原文写入响应或日志。
+        log.warn("URL参数校验失败");
+        return createErrorResponse("请求参数不合法，请检查ID和筛选条件", HttpStatus.BAD_REQUEST);
     }
 
     /** 兜底：任何未处理的异常都归为 500，堆栈只写日志不返回前端，避免泄漏内部实现 */
