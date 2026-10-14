@@ -1,4 +1,5 @@
 import { ref, watch, type Ref } from 'vue'
+import type { VoiceRecognitionState } from './avatarController'
 
 interface SpeechRecognitionLike {
   continuous: boolean
@@ -49,6 +50,7 @@ export function useVoiceRecognition(chatInput: Ref<string>, options: {
 } = {}) {
   const voiceSupported = ref(false)
   const voiceListening = ref(false)
+  const recognitionState = ref<VoiceRecognitionState>('idle')
   const voiceInterimText = ref('')
   const voiceError = ref('')
   const handsFree = ref(false)
@@ -69,6 +71,7 @@ export function useVoiceRecognition(chatInput: Ref<string>, options: {
     const previous = recognition
     recognition = null // abort 也可能触发回调，先使旧轮次失效。
     voiceListening.value = false
+    recognitionState.value = 'idle'
     voiceInterimText.value = ''
     try { previous?.abort() } catch { /* 已结束 */ }
   }
@@ -95,6 +98,7 @@ export function useVoiceRecognition(chatInput: Ref<string>, options: {
     const current = new RecognitionCtor()
     recognition = current
     voiceListening.value = true // 包含等待权限/onstart 的阶段，防止重复启动。
+    recognitionState.value = 'starting'
     const autoSend = handsFree.value
     let hasFinalText = false
     let failed = false
@@ -102,7 +106,7 @@ export function useVoiceRecognition(chatInput: Ref<string>, options: {
     current.interimResults = true
     current.lang = 'zh-CN'
     current.onstart = () => {
-      if (recognition === current) voiceError.value = ''
+      if (recognition === current) { voiceError.value = ''; recognitionState.value = 'listening' }
     }
     current.onresult = (event: any) => {
       if (recognition !== current || failed) return
@@ -134,6 +138,7 @@ export function useVoiceRecognition(chatInput: Ref<string>, options: {
       if (recognition !== current) return
       recognition = null
       voiceListening.value = false
+      recognitionState.value = 'idle'
       voiceInterimText.value = ''
       if (!autoSend || !handsFree.value || failed) return
       if (!hasFinalText || !chatInput.value.trim()) {
@@ -175,7 +180,7 @@ export function useVoiceRecognition(chatInput: Ref<string>, options: {
   }
 
   return {
-    voiceSupported, voiceListening, voiceInterimText, voiceError, handsFree,
+    voiceSupported, voiceListening, recognitionState, voiceInterimText, voiceError, handsFree,
     initVoiceRecognition, startVoiceRecognition, stopVoiceRecognition,
     toggleHandsFree, disableHandsFree, cleanupVoiceRecognition,
   }

@@ -101,8 +101,10 @@ it('乱序音频入队不会提前消费表情游标；缺失音频在终态补 
 
 function playbackFixture(status: 'loading' | 'ready' = 'ready') {
   const audio = document.createElement('audio')
-  vi.spyOn(audio, 'play').mockImplementation(async () => { audio.dispatchEvent(new Event('playing')) })
-  vi.spyOn(audio, 'pause').mockImplementation(() => {})
+  let paused = true
+  Object.defineProperty(audio, 'paused', { get: () => paused })
+  vi.spyOn(audio, 'play').mockImplementation(async () => { paused = false; audio.dispatchEvent(new Event('playing')) })
+  vi.spyOn(audio, 'pause').mockImplementation(() => { paused = true })
   const model = { applyAvatarCue: vi.fn(), stopMusicLipSync: vi.fn(), speakAudioElement: vi.fn().mockResolvedValue(audio) }
   const store = reactive({ showModel: true, isLoading: false, aiThinking: false, ttsEnabled: true, ttsAvailable: true, ttsAwaitingAudio: true,
     ttsPlaybackActive: false, ttsPlaybackState: 'idle', ttsPlaybackMessage: '', voiceInputActive: false,
@@ -155,6 +157,24 @@ it('表情等实际 playing 才切换；句间仍待合成时保持情绪，不�
   await flushPromises()
   expect(store.ttsPlaybackState).toBe('idle')
   expect(model.applyAvatarCue).toHaveBeenLastCalledWith({ expression: 'neutral', immediate: true })
+  wrapper.unmount()
+})
+
+it('模型在缓冲期间就绪时先补分析监听，恢复 playing 后接回口型且不重播', async () => {
+  const { audio, model, store, live2dStatus, player, wrapper } = playbackFixture('loading')
+  const playback = player.playNextTts()
+  await flushPromises()
+  audio.dispatchEvent(new Event('waiting'))
+  live2dStatus.value = 'ready'
+  await flushPromises()
+  expect(store.ttsPlaybackState).toBe('buffering')
+  expect(model.speakAudioElement).toHaveBeenCalledWith(audio)
+  expect(model.applyAvatarCue).not.toHaveBeenCalled()
+  audio.dispatchEvent(new Event('playing'))
+  expect(model.applyAvatarCue).toHaveBeenCalledWith(expect.objectContaining({ expression: 'happy' }))
+  expect(audio.play).toHaveBeenCalledOnce()
+  audio.dispatchEvent(new Event('ended'))
+  await playback
   wrapper.unmount()
 })
 

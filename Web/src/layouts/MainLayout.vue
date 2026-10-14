@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { defineAsyncComponent, onMounted, onUnmounted, ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import TheHeader from '../components/TheHeader.vue'
 import TheFooter from '../components/TheFooter.vue'
@@ -16,6 +16,7 @@ import { useBannerStore } from '@/stores/banner'
 import { useAuthModalStore } from '@/stores/authModal'
 import { useOnboarding } from '@/composables/useOnboarding'
 import { useTtsPlayer } from '@/composables/useTtsPlayer'
+import { deriveAvatarState } from '@/composables/avatarController'
 import OnboardingGuide from '@/components/OnboardingGuide.vue'
 import { initLenis, destroyLenis } from '@/composables/useLenis'
 
@@ -54,7 +55,11 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
 }
 
 // TTS 播放器 + Avatar Cue 调度 + 音乐桥接（集中在 useTtsPlayer composable）
-const { unlockAudio, handleMusicPlay: playerMusicPlay, handleMusicPause, handleSpeakStart } = useTtsPlayer({ chatStore, live2dRef, bottomNavRef, live2dStatus })
+const avatarPresentation = computed(() => deriveAvatarState({
+  recognition: chatStore.voiceRecognitionState, playback: chatStore.ttsPlaybackState,
+  loading: chatStore.isLoading, awaiting: chatStore.ttsAwaitingAudio, pending: chatStore.ttsPendingCount,
+}))
+const { syncCurrentAudio, unlockAudio, handleMusicPlay: playerMusicPlay, handleMusicPause, handleSpeakStart } = useTtsPlayer({ chatStore, live2dRef, bottomNavRef, live2dStatus })
 
 const handleMusicPlay = (audio: HTMLAudioElement) => {
   aiChatRef.value?.stopVoiceInteraction()
@@ -168,11 +173,13 @@ const handleAuthRequired = (action: () => void, message?: string) => {
             @speak-start="handleSpeakStart"
             @load-start="handleLive2dLoadStart"
             @ready="handleLive2dReady"
+            @resume="syncCurrentAudio"
             @error="handleLive2dError"
             class="live2d"
             :class="{ 'centered': chatStore.isExpanded, 'is-hidden': !chatStore.showModel }"
             :interactive="true"
             :visible="chatStore.showModel"
+            :presentation-state="avatarPresentation"
           ></Live2d>
           <AiChat
             v-show="chatStore.showChat"

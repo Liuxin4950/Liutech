@@ -7,6 +7,7 @@ import { getToken, isLoggedIn } from '@/utils/auth'
 import { debounce } from 'lodash-es'
 import { useUserStore } from '@/stores/user'
 import { useChatTts } from '@/composables/chatTts'
+import type { AvatarCue, VoiceRecognitionState } from '@/composables/avatarController'
 
 /**
  * 聊天消息接口
@@ -38,13 +39,8 @@ export interface TtsAudioItem {
   cue?: AvatarCueItem
 }
 
-export interface AvatarCueItem {
+export interface AvatarCueItem extends AvatarCue {
   seq: number
-  expression?: string
-  motion?: string | null
-  intensity?: number
-  durationMs?: number
-  text?: string
   conversationId?: number
   enqueuedAt?: number
 }
@@ -108,6 +104,7 @@ export const useChatStore = defineStore('chat', () => {
   // 播放器实际持有音频（含准备阶段），与 SSE 完成和队列长度分别记录。
   const ttsPlaybackActive = ref(false)
   const voiceInputActive = ref(false)
+  const voiceRecognitionState = ref<VoiceRecognitionState>('idle')
   const avatarLoadState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const ttsPlaybackState = ref<'idle' | 'preparing' | 'playing' | 'buffering' | 'error'>('idle')
   const ttsPlaybackMessage = ref('')
@@ -906,6 +903,7 @@ export const useChatStore = defineStore('chat', () => {
     ttsAwaitingAudio,
     ttsPlaybackActive,
     voiceInputActive,
+    voiceRecognitionState,
     avatarLoadState,
     ttsPlaybackState,
     ttsPlaybackMessage,

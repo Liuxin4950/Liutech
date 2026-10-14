@@ -4,7 +4,12 @@
             ref="canvasRef"
             class="live2d-canvas"
             :aria-hidden="loadState !== 'ready'"
-            @click="triggerRandomExpression"
+            @click="handleCanvasClick"
+            @pointerdown="onPointerDown"
+            @pointermove="onPointerMove"
+            @pointerup="onPointerUp"
+            @pointercancel="cancelPointer"
+            @lostpointercapture="cancelPointer"
         ></canvas>
 
         <div
@@ -50,6 +55,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import loadingArtworkUrl from '@/assets/aifile/live2d-loading.png'
 
 import { useAudioLipSync } from '@/composables/useAudioLipSync'
+import { createAvatarController, loadAvatarExpressions, type AvatarCue, type AvatarState } from '@/composables/avatarController'
 
 const emit = defineEmits<{
     click: []
@@ -57,16 +63,19 @@ const emit = defineEmits<{
     'load-start': []
     ready: []
     error: []
+    resume: []
 }>()
 
 const props = withDefaults(defineProps<{
     interactive?: boolean
     followPointer?: boolean
     visible?: boolean
+    presentationState?: AvatarState
 }>(), {
     interactive: true,
     followPointer: true,
-    visible: true
+    visible: true,
+    presentationState: 'idle'
 })
 
 // 声明全局变量类型
@@ -82,61 +91,6 @@ declare global {
 // Live2D模型路径
 const cubism4Model = '/live2d/model/Nahida/Nahida_1080.model3.json';
 
-// 可用的表情列表
-const expressions = [
-    "生气",
-    "遮脸",
-    "半眼",
-    "手势变化",
-    "开心1",
-    "草草",
-    "嘴型变化",
-    "伤心1",
-    "正常害羞",
-    "害羞",
-    "星星眼",
-    "眨眼",
-    "思考",
-    "生气动画",
-    "星星眼动画",
-    "嘟嘴",
-    "挑眉",
-    "嘟嘴思考",
-    "生气完整",
-    "伤心完整",
-    "害羞嘟嘴",
-    "惊讶完整",
-    "开心完整",
-    "好奇",
-    "慌张",
-    "坏笑"
-];
-
-interface AvatarCue {
-    expression?: string
-    motion?: string | null
-    intensity?: number
-    durationMs?: number
-    text?: string
-    skipResetTimer?: boolean
-    immediate?: boolean
-}
-
-const EXPRESSION_MIN_INTERVAL_MS = 1200
-const MOTION_MIN_INTERVAL_MS = 3000
-
-const expressionMap: Record<string, string | null> = {
-    happy: '开心1',
-    sad: '伤心1',
-    angry: '生气',
-    thinking: '思考',
-    surprised: '星星眼',
-    shy: '害羞',
-    confused: '遮脸',
-    neutral: null,
-    calm: '草草'
-}
-
 // 模型实例和PIXI应用实例
 let model: any = null;
 let app: any = null;
@@ -145,15 +99,13 @@ type Live2dLoadState = 'loading' | 'ready' | 'error'
 const loadState = ref<Live2dLoadState>('loading')
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let isComponentMounted = false
-let lastExpressionAt = 0
-let lastMotionAt = 0
-let pendingAvatarCue: AvatarCue | null = null
-let pendingAvatarCueTimer: ReturnType<typeof setTimeout> | null = null
-let expressionResetTimer: ReturnType<typeof setTimeout> | null = null
-
-// 拖拽相关变量
-let isDragging = false;
-let dragOffset = { x: 0, y: 0 };
+let avatar: ReturnType<typeof createAvatarController> | null = null
+let modelGeneration = 0
+let reducedMotion: MediaQueryList | null = null
+let pointerId: number | null = null
+let dragStart = { x: 0, y: 0, modelX: 0, modelY: 0 }
+let dragged = false
+let ignoreClick = false
 
 // 窗口大小调整处理器
 let resizeHandler: (() => void) | null = null;
@@ -163,7 +115,7 @@ let resizeTriggerCount = 0
 let lastDpr = 0
 let lastWidth = 0
 let lastHeight = 0
-let windowMouseMoveHandler: ((event: MouseEvent) => void) | null = null
+let windowMouseMoveHandler: ((event: PointerEvent) => void) | null = null
 
 // 音乐口型同步的 suspend 标记由 MainLayout 通过 speakAudioUrl/Element 的调用来触发挂起
 
@@ -177,70 +129,35 @@ const applyInteractionMode = () => {
 }
 
 const focusModelAtClientPoint = (clientX: number, clientY: number) => {
-    if (!model || !app?.renderer?.view) return
-    const canvas = app.renderer.view as HTMLCanvasElement
-    const rect = canvas.getBoundingClientRect()
-    if (!rect.width || !rect.height) return
-
-    const scaleX = app.renderer.width / rect.width
-    const scaleY = app.renderer.height / rect.height
-    const x = (clientX - rect.left) * scaleX
-    const y = (clientY - rect.top) * scaleY
-
-    model.focus(x, y)
+    if (!avatar || !canvasRef.value || !props.followPointer) return
+    const rect = canvasRef.value.getBoundingClientRect()
+    if (rect.width && rect.height) avatar.point((clientX - rect.left) / rect.width * 2 - 1, 1 - (clientY - rect.top) / rect.height * 2)
 }
 
 const updatePointerTracking = () => {
-    if (windowMouseMoveHandler) {
-        window.removeEventListener('mousemove', windowMouseMoveHandler)
-        windowMouseMoveHandler = null
+    if (windowMouseMoveHandler) window.removeEventListener('pointermove', windowMouseMoveHandler)
+    windowMouseMoveHandler = null
+    if (!props.followPointer) { avatar?.clearPointer(); return }
+    windowMouseMoveHandler = (event: PointerEvent) => {
+        if (event.pointerType === 'mouse') focusModelAtClientPoint(event.clientX, event.clientY)
     }
-
-    if (props.followPointer !== true || props.interactive === true) {
-        return
-    }
-
-    windowMouseMoveHandler = (event: MouseEvent) => {
-        focusModelAtClientPoint(event.clientX, event.clientY)
-    }
-
-    window.addEventListener('mousemove', windowMouseMoveHandler, { passive: true })
+    window.addEventListener('pointermove', windowMouseMoveHandler, { passive: true })
 }
-
-const setMouthOpen = (value: number) => {
-    try {
-        const v = Math.max(0, Math.min(1, value))
-        model?.internalModel?.coreModel?.setParameterValueById?.("ParamMouthOpenY", v)
-    } catch {
-    }
-}
-
-/**
- * 口型灵敏度
- *
- * 数值不能只凭手感拍：分析器给出的是波形 RMS（0~1），映射公式为
- *   mouth = clamp((rms - noiseFloor) * gain) ^ curve
- * 之前 gain=14 时，rms ≥ 0.086 就已经打满 —— 而正常说话大约在 0.08~0.12，
- * 于是"一开口就是全张"，动态范围全丢。
- * 现在 gain=6：轻声 ≈ 0.35、正常说话 ≈ 0.58、较响 ≈ 0.8~1.0，层次正常。
- */
-const lipSync = useAudioLipSync(setMouthOpen, {
-    noiseFloor: 0.02,
-    gain: 6,
-    smoothIn: 0.78,
-    smoothOut: 0.88,
-    curve: 0.75
-})
+const clearPointer = () => avatar?.clearPointer()
+// 分析只交付目标，不在独立 rAF 中改 Cubism 参数。
+const lipSync = useAudioLipSync(value => avatar?.setMouth(value))
 
 // 音乐播放事件处理：由 MainLayout 在收到 BottomNavigation 的音乐事件后调用
 function startMusicLipSync(audio: HTMLAudioElement) {
     if (!audio) return
-    if (!model) return
+    if (!model || !props.visible || document.hidden) return
+    avatar?.setState('music')
     void lipSync.start(audio)
 }
 
 function stopMusicLipSync() {
     lipSync.stop()
+    avatar?.setState(props.presentationState)
 }
 
 /**
@@ -264,7 +181,7 @@ const speakAudioUrl = async (url: string) => {
  * - 避免重复创建 Audio 导致再次等待网络/磁盘
  */
 const speakAudioElement = async (audio: HTMLAudioElement) => {
-    if (!model || loadState.value !== 'ready') return null
+    if (!model || loadState.value !== 'ready' || !props.visible || document.hidden) return null
     if (!audio) return null
     emit('speak-start')
     try {
@@ -279,89 +196,14 @@ const speakAudioElement = async (audio: HTMLAudioElement) => {
     return audio
 }
 
-const resetExpression = () => {
-    try {
-        const manager = model?.internalModel?.motionManager?.expressionManager
-        if (!manager) return
-        // null 不是有效表情索引；同时使迟到加载失效，允许下一轮重新使用同名表情。
-        manager.reserveExpressionIndex = -1
-        manager.resetExpression()
-        manager.currentExpression = manager.defaultExpression
-    } catch {
-    }
-}
-
-const resolveExpressionName = (cue: AvatarCue): string | null => {
-    const raw = (cue.expression || 'neutral').trim()
-    if (!raw) return null
-    if (expressions.includes(raw)) return raw
-    return expressionMap[raw] ?? null
-}
-
-const flushAvatarCue = () => {
-    if (pendingAvatarCueTimer) {
-        clearTimeout(pendingAvatarCueTimer)
-        pendingAvatarCueTimer = null
-    }
-    const cue = pendingAvatarCue
-    pendingAvatarCue = null
-    if (!cue || !model) return
-
-    const expression = resolveExpressionName(cue)
-    try {
-        if (expression) {
-            model.expression(expression)
-        } else {
-            resetExpression()
-        }
-        lastExpressionAt = Date.now()
-    } catch {
-        // 触发表情失败时静默处理
-    }
-
-    const motion = cue.motion?.trim()
-    if (motion && motion !== 'none') {
-        const now = Date.now()
-        if (now - lastMotionAt >= MOTION_MIN_INTERVAL_MS) {
-            try {
-                const motions = model?.internalModel?.settings?.motions
-                if (!motions || motions[motion]) {
-                    model.motion(motion)
-                    lastMotionAt = now
-                }
-            } catch {
-            }
-        }
-    }
-
-    if (expressionResetTimer) {
-        clearTimeout(expressionResetTimer)
-        expressionResetTimer = null
-    }
-    if (!cue.skipResetTimer) {
-        const duration = Math.max(1600, Math.min(6000, cue.durationMs || 2600))
-        expressionResetTimer = setTimeout(() => {
-            resetExpression()
-            expressionResetTimer = null
-        }, duration)
-    }
-}
-
 const applyAvatarCue = (cue: AvatarCue) => {
-    if (!cue) return
-    pendingAvatarCue = cue
-    const waitMs = cue.immediate ? 0 : Math.max(0, EXPRESSION_MIN_INTERVAL_MS - (Date.now() - lastExpressionAt))
-    if (waitMs <= 0) {
-        flushAvatarCue()
-        return
-    }
-    if (pendingAvatarCueTimer) {
-        clearTimeout(pendingAvatarCueTimer)
-    }
-    pendingAvatarCueTimer = setTimeout(flushAvatarCue, waitMs)
+    avatar?.applyCue(cue)
+    const motion = cue.motion?.trim()
+    if (motion && model) avatar?.playMotion(motion, model.internalModel.settings.motions, name => { void model.motion(name) })
 }
 
 defineExpose({
+    resetAvatar() { avatar?.reset() },
     speakAudioUrl,
     speakAudioElement,
     applyAvatarCue,
@@ -379,45 +221,58 @@ defineExpose({
     }
 })
 
-// 拖拽事件处理
-function onPointerDown(event: any) {
-    isDragging = true;
-    const position = event.data.getLocalPosition(event.currentTarget.parent);
-    dragOffset.x = position.x - event.currentTarget.x;
-    dragOffset.y = position.y - event.currentTarget.y;
+// DOM Pointer Events 不依赖模型缺失的 HitAreas；点击和拖拽只走这一条路径。
+function onPointerDown(event: PointerEvent) {
+    if (!props.interactive || !model || loadState.value !== 'ready' || pointerId !== null || event.button !== 0) return
+    pointerId = event.pointerId
+    dragged = false
+    ignoreClick = false
+    dragStart = { x: event.clientX, y: event.clientY, modelX: model.x, modelY: model.y }
+    canvasRef.value?.setPointerCapture?.(event.pointerId)
+    focusModelAtClientPoint(event.clientX, event.clientY)
 }
-// 鼠标移动事件处理
-function onPointerMove(event: any) {
-    if (isDragging) {
-        const position = event.data.getLocalPosition(event.currentTarget.parent);
-        event.currentTarget.x = position.x - dragOffset.x;
-        event.currentTarget.y = position.y - dragOffset.y;
+function onPointerMove(event: PointerEvent) {
+    if (pointerId !== event.pointerId || !model || !canvasRef.value) return
+    const dx = event.clientX - dragStart.x
+    const dy = event.clientY - dragStart.y
+    if (Math.hypot(dx, dy) > 6) dragged = true
+    if (dragged) {
+        const rect = canvasRef.value.getBoundingClientRect()
+        if (rect.width && rect.height) {
+            model.x = dragStart.modelX + dx * app.screen.width / rect.width
+            model.y = dragStart.modelY + dy * app.screen.height / rect.height
+        }
     }
 }
-// 鼠标松开事件处理
-function onPointerUp() {
-    isDragging = false;
+function onPointerUp(event: PointerEvent) {
+    if (pointerId !== event.pointerId) return
+    ignoreClick = dragged
+    pointerId = null
+    canvasRef.value?.releasePointerCapture?.(event.pointerId)
 }
-// 触发随机表情（点击看板娘时调用）
-function triggerRandomExpression() {
+function cancelPointer() { if (pointerId !== null) ignoreClick = true; pointerId = null }
+function handleCanvasClick() {
+    if (ignoreClick) { ignoreClick = false; return }
+    if (!props.interactive || !avatar || loadState.value !== 'ready') return
     emit('click')
-
-    if (!model) {
-        return;
-    }
-
-    // 随机选择一个表情
-    const randomIndex = Math.floor(Math.random() * expressions.length);
-    const randomExpression = expressions[randomIndex];
-
-    try {
-        model.expression(randomExpression);
-    } catch {
-        // 触发表情失败时静默处理
-    }
+    avatar.tap()
 }
 
-
+const updateReducedMotion = () => avatar?.setReduced(reducedMotion?.matches === true)
+const updateVisibility = () => {
+    const visible = props.visible && !document.hidden
+    avatar?.setEnabled(visible)
+    if (visible) {
+        avatar?.setState(props.presentationState)
+        app?.ticker?.start()
+        refreshRenderer()
+        emit('resume')
+    } else {
+        cancelPointer()
+        lipSync.stop()
+        app?.ticker?.stop()
+    }
+}
 
 // 动态加载 Live2D 脚本（按顺序，确保全局变量可用）
 const loadLive2DScripts = (): Promise<void> => {
@@ -501,6 +356,11 @@ const startLive2DLoad = () => {
 
 onMounted(() => {
     isComponentMounted = true
+    reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null
+    reducedMotion?.addEventListener('change', updateReducedMotion)
+    document.addEventListener('visibilitychange', updateVisibility)
+    window.addEventListener('blur', clearPointer)
+    document.documentElement.addEventListener('pointerleave', clearPointer)
     startLive2DLoad()
 });
 
@@ -588,13 +448,15 @@ const initLive2D = () => {
     });
 
     // 模型不可见时停止 ticker，避免 PIXI 空转耗 CPU/GPU
-    if (!props.visible) {
+    if (!props.visible || document.hidden) {
         app.ticker.stop()
     }
 
     // 加载Live2D模型
-    Live2DModelClass.from(cubism4Model).then((live2dModel: any) => {
-        if (!isComponentMounted || !app) {
+    const generation = ++modelGeneration
+    const creatingApp = app
+    Live2DModelClass.from(cubism4Model, { autoInteract: false }).then((live2dModel: any) => {
+        if (!isComponentMounted || app !== creatingApp || generation !== modelGeneration) {
             live2dModel.destroy?.()
             return
         }
@@ -605,44 +467,24 @@ const initLive2D = () => {
         // 模型居中显示 - 动态获取容器尺寸
         live2dModel.x = containerWidth / 2;
         live2dModel.y = containerHeight / 2;
-        // 固定模型大小，不受页面缩放影响
-        const fixedScale = 0.15;
-        live2dModel.scale.set(fixedScale);
+        // 保持原有模型大小与锚点，角色优化不改变布局。
+        live2dModel.scale.set(0.15);
 
-        // 启用交互
-        live2dModel.interactive = props.interactive === true;
-        // 监听鼠标按下事件，开始拖拽
-        live2dModel.on('pointerdown', onPointerDown);
-        // 监听鼠标移动事件，实现拖拽移动
-        live2dModel.on('pointermove', onPointerMove);
-        // 监听鼠标松开事件，结束拖拽
-        live2dModel.on('pointerup', onPointerUp);
-        // 监听鼠标移出模型区域事件，同样结束拖拽
-        live2dModel.on('pointerupoutside', onPointerUp);
-
-        // 鼠标跟随
-        app.stage.interactive = props.interactive === true;
-        app.stage.on('pointermove', (event: any) => {
-            const point = event.data.global;
-            live2dModel.focus(point.x, point.y);
-        });
-
-        // 点击触发动作
-        live2dModel.on('hit', (hitAreas: any) => {
-            if (hitAreas.includes('body')) {
-                live2dModel.motion('tap_body');
-                // 同时触发随机表情
-                triggerRandomExpression();
-            }
-        });
-
-        // 自动眨眼和呼吸
-        live2dModel.internalModel.motionManager.startRandomMotion('idle');
+        applyInteractionMode()
+        const controller = createAvatarController(live2dModel.internalModel)
+        avatar = controller
+        controller.setReduced(reducedMotion?.matches === true)
+        controller.setEnabled(props.visible && !document.hidden)
+        controller.setState(props.presentationState)
+        // 资源加载不阻塞 ready/声音；回调只补充当前控制器的能力。
+        void loadAvatarExpressions(live2dModel.internalModel.settings.expressions ?? [], '/live2d/model/Nahida/').then(resources => {
+            controller.setExpressions(resources)
+        })
         loadState.value = 'ready'
         performance.measure('liutech-live2d-load', 'liutech-live2d-load-start')
         emit('ready')
     }).catch(() => {
-        if (!isComponentMounted) return
+        if (!isComponentMounted || generation !== modelGeneration) return
         app?.ticker?.stop()
         loadState.value = 'error'
         emit('error')
@@ -667,6 +509,11 @@ const initLive2D = () => {
 };
 
 const retryLive2D = () => {
+    modelGeneration++
+    lipSync.stop()
+    avatar?.destroy()
+    avatar = null
+    cancelPointer()
     if (resizeHandler) {
         window.removeEventListener('resize', resizeHandler)
         resizeHandler = null
@@ -697,13 +544,10 @@ const cleanup = () => {
     // 1. 停止口型同步（音乐播放器现在挂在 BottomNavigation 上，由其自身生命周期负责停止）
     lipSync.stop()
 
-    // 2. 重置 Live2D 状态（嘴型、表情）
-    try {
-        if (model?.internalModel?.coreModel) {
-            model.internalModel.coreModel.setParameterValueById("ParamMouthOpenY", 0);
-        }
-        resetExpression()
-    } catch { }
+    modelGeneration++
+    avatar?.destroy()
+    avatar = null
+    cancelPointer()
 
     // 4. 移除窗口事件监听器
     if (resizeHandler) {
@@ -719,19 +563,9 @@ const cleanup = () => {
         resizeTimer = null
     }
     if (windowMouseMoveHandler) {
-        window.removeEventListener('mousemove', windowMouseMoveHandler)
+        window.removeEventListener('pointermove', windowMouseMoveHandler)
         windowMouseMoveHandler = null
     }
-    if (pendingAvatarCueTimer) {
-        clearTimeout(pendingAvatarCueTimer)
-        pendingAvatarCueTimer = null
-    }
-    if (expressionResetTimer) {
-        clearTimeout(expressionResetTimer)
-        expressionResetTimer = null
-    }
-    pendingAvatarCue = null
-
     // 5. 清理模型资源
     if (model) {
         try {
@@ -784,6 +618,10 @@ const cleanup = () => {
 // 组件卸载时清理资源
 onBeforeUnmount(() => {
     isComponentMounted = false
+    document.removeEventListener('visibilitychange', updateVisibility)
+    window.removeEventListener('blur', clearPointer)
+    document.documentElement.removeEventListener('pointerleave', clearPointer)
+    reducedMotion?.removeEventListener('change', updateReducedMotion)
     cleanup();
     lipSync.destroy()
 });
@@ -793,17 +631,8 @@ watch(() => [props.interactive, props.followPointer], () => {
     updatePointerTracking()
 })
 
-// 模型可见性变化：不可见时停 ticker 省资源，可见时恢复并刷新尺寸
-watch(() => props.visible, (visible) => {
-    if (!app?.ticker) return
-    if (visible) {
-        app.ticker.start()
-        refreshRenderer()
-    } else {
-        app.ticker.stop()
-    }
-})
-
+watch(() => props.presentationState, value => avatar?.setState(value))
+watch(() => props.visible, updateVisibility)
 
 </script>
 
@@ -821,6 +650,7 @@ watch(() => props.visible, (visible) => {
 }
 
 .live2d-canvas {
+    touch-action: none;
     width: 100%;
     height: 100%;
     opacity: 1;

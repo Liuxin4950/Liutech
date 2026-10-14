@@ -21,7 +21,7 @@
 
 - `ttsEnabled` 是按聊天身份保存的用户偏好；`ttsAvailable` 表示当前 runtime 状态允许尝试语音，检测失败不覆盖偏好。
 - `cancelTts()` 增加 `ttsCancelCounter`、清队列并解除等待；流处理捕获自己的 `audioGeneration`，取消后迟到音频不能入队。
-- `ttsPlaybackActive` 由播放器维护，包含音频准备和实际播放；`voiceInputActive` 表示手动监听或免提会话仍在进行，两者不持久化。
+- `ttsPlaybackActive` 由播放器维护，包含音频准备和实际播放；`voiceInputActive` 表示手动监听或免提会话仍在进行，两者不持久化。真实识别阶段另由 `voiceRecognitionState` 表示，角色状态派生见 [Live2d渲染](Live2d渲染.md#角色状态)。
 - `showModel` 控制是否朗读；`live2dStatus` 只控制模型口型和表情接入。音频不等待模型 ready，模型稍后就绪时补接当前音频。
 - MusicCapsule 的 `getCurrentAudio()` 只返回与主轨同时播放的纯人声；人声不可用时返回 `null`，不让伴奏驱动嘴型。`getActionVersion()` 表示用户主动操作版本。
 
@@ -52,7 +52,7 @@ SSE audio / audio-skip → chatTts → useSequencedBuffer
 
 `seq` 从 1 开始；生成期间缺少下一项时等待，`audio-complete` 或连接结束后按总段数补齐缺失跳过项。音频预加载先设置 crossOrigin 后设置 src。新消息、身份切换、清空会话、关闭语音和隐藏模型取消旧播放；重新开启只接收后续有效轮次。播放失败不进行无上限重试，音乐可恢复。
 
-`avatarCueQueue` 在音频按序出队时通过 `shiftBySeq` 绑定，避免乱序音频推进错误游标；没有 TTS 等待时可独立驱动模型表情。模型本身的表情映射与复位规则见 [Live2d渲染](Live2d渲染.md)。
+`avatarCueQueue` 在音频按序出队时通过 `shiftBySeq` 绑定，避免乱序音频推进错误游标；没有 TTS 等待时只应用尚未过期的最新独立表情。模型本身的表情映射与复位规则见 [Live2d渲染](Live2d渲染.md)。
 
 ## 语音输入与轮流免提
 
@@ -76,10 +76,10 @@ SSE audio / audio-skip → chatTts → useSequencedBuffer
 
 ```text
 HTMLAudioElement → 唯一 MediaElementAudioSourceNode → AudioContext.destination
-                                      └→ 当前模型的 AnalyserNode → RMS → ParamMouthOpenY
+                                      └→ 当前模型的 AnalyserNode → RMS/包络 → 角色控制器 → ParamMouthOpenY
 
 音乐纯人声 → 唯一 MediaElementAudioSourceNode → GainNode(0) → destination
-                                      └→ 当前模型的 AnalyserNode → RMS → ParamMouthOpenY
+                                      └→ 当前模型的 AnalyserNode → RMS/包络 → 角色控制器 → ParamMouthOpenY
 ```
 
 声音主路和 source 注册表在 `useAudioLipSync` 模块中跨模型实例保留。模型 destroy 只移除分析支路、事件与 RAF；共享 AudioContext 不主动关闭。分析连接失败不假定口型已成功连接。音乐纯人声通过 `prepareAnalysisOnlyAudio()` 标记为仅分析，零增益输出避免与完整音频重复发声；Web Audio 不可用时保留元素原生静音。

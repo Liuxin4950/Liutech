@@ -1,5 +1,6 @@
 /** 音频图属于页面播放器生命周期；模型只持有分析支路，销毁模型不切断声音。 */
 import { ref } from 'vue'
+import { createLipEnvelope, defaultLipSyncConfig, type LipSyncConfig } from './lipEnvelope'
 
 /**
  * 口型分析的诊断状态（模块级，UI 可直接读取）
@@ -107,16 +108,15 @@ export async function resumeAudioContext(): Promise<AudioContext | null> {
   return context
 }
 
-interface LipSyncConfig { noiseFloor: number; gain: number; smoothIn: number; smoothOut: number; curve: number }
-
 export function useAudioLipSync(setMouth: (value: number) => void, initial: Partial<LipSyncConfig> = {}) {
-  const config = { noiseFloor: 0.006, gain: 10, smoothIn: 0.6, smoothOut: 0.8, curve: 0.75, ...initial }
+  const config = { ...defaultLipSyncConfig, ...initial }
+  const envelope = createLipEnvelope(config)
+  let lastSampleAt: number | null = null
   let analyser: AnalyserNode | null = null
   let source: MediaElementAudioSourceNode | null = null
   let audio: HTMLAudioElement | null = null
   let frame = 0
   let generation = 0
-  let smoothed = 0
   let detach = () => {}
   /** 因上下文未就绪而暂缓挂载分析的音频元素（上下文恢复后自动补挂） */
   let deferredElement: HTMLAudioElement | null = null
@@ -133,7 +133,8 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
   const pauseSampling = () => {
     cancelAnimationFrame(frame)
     frame = 0
-    smoothed = 0
+    envelope.reset()
+    lastSampleAt = null
     // 口型只能由活跃循环驱动：循环一停就必须闭嘴
     setMouth(0)
   }
@@ -174,10 +175,10 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
     source = node
     audio = element
     analyser = context.createAnalyser()
-    analyser.fftSize = 2048
+    analyser.fftSize = 1024
     const data = new Uint8Array(analyser.fftSize)
     node.connect(analyser)
-    const tick = () => {
+    const tick = (timestamp: number) => {
       frame = 0
       // 已被更新的分析取代：安静退出，不再写任何口型值
       if (myLoop !== loopId) return
@@ -192,10 +193,9 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
       }
       let sum = 0
       for (const value of data) sum += ((value - 128) / 128) ** 2
-      const target = Math.pow(Math.max(0, Math.min(1, (Math.sqrt(sum / data.length) - config.noiseFloor) * config.gain)), config.curve)
-      const alpha = target > smoothed ? config.smoothIn : config.smoothOut
-      smoothed = smoothed * alpha + target * (1 - alpha)
-      setMouth(smoothed)
+      const elapsed = lastSampleAt === null ? 1000 / 60 : Math.max(0, timestamp - lastSampleAt)
+      lastSampleAt = timestamp
+      setMouth(envelope.sample(Math.sqrt(sum / data.length), elapsed))
       frame = requestAnimationFrame(tick)
     }
     const play = () => { if (!frame && token === generation && myLoop === loopId) frame = requestAnimationFrame(tick) }
@@ -286,7 +286,9 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
    */
   const retry = async (): Promise<boolean> => {
     const element = deferredElement ?? audio
+    const retryGeneration = generation
     await resumeAudioContext()
+    if (retryGeneration !== generation) return false
     if (!context || context.state !== 'running') {
       markDegraded('浏览器仍未允许音频分析，请再点击一次页面')
       return false
@@ -313,7 +315,10 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
     stop,
     speak,
     retry,
-    destroy: stop,
+    destroy: () => {
+      stop()
+      context?.removeEventListener('statechange', onContextStateChange)
+    },
     updateConfig: (value: Partial<LipSyncConfig>) => Object.assign(config, value),
     currentAudio: () => audio
   }

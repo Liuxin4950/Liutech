@@ -1,149 +1,98 @@
-# Live2d 渲染
+# Live2d 渲染与角色表现
 
-> Live2d 模型基于 PIXI.js + Live2D Cubism Core，负责模型渲染、口型同步、表情动作驱动、尺寸自适应。
-> 本文档描述资源加载状态、PIXI 生命周期、ticker 控制、口型同步、表情队列、resize。
+> PIXI/Cubism 负责模型与物理，角色控制器统一处理口型、表情、姿态和注视。声音、队列与识别生命周期见 [TTS与表情](TTS与表情.md)。
 
-## PIXI Application 生命周期
+## 入口与生命周期
 
-[`Live2d.vue`](../../../../Web/src/components/Live2d.vue) 在 `onMounted` 进入 `loading`，动态加载脚本后初始化：
+[Live2d.vue](../../../../Web/src/components/Live2d.vue) 按需加载脚本、模型与四张纹理，发出 `load-start/ready/error`。模型资源就绪即可播放与接入口型，不等待温和表情资源下载。占位图、错误重试与 Performance 模型加载计时保留。
 
+每次加载有独立代次，同时检查组件与 PIXI app 身份；重试、卸载后迟到的模型立即销毁。表情加载结果只补充所属控制器资源，不能重演加载发起时的 cue。
+
+模型隐藏或页面进入后台时停止 ticker、分析采样及指针交互，清除过期表情。恢复时发出 `resume`，由播放协调器查询当前音频并补接；不重播音频。卸载移除媒体查询、页面可见性、指针、resize 和模型更新监听，销毁模型与 PIXI；共享声音主路继续由播放器持有。
+
+## 单一参数写入入口
+
+[avatarController.ts](../../../../Web/src/composables/avatarController.ts) 定义共用 `AvatarCue`、`AvatarState`、`VoiceRecognitionState` 与一模型一个的控制器。
+
+```text
+现有 store/播放器 → MainLayout 派生 presentationState
+SSE cue / 点击 → 控制器的当前表情目标
+音频 RMS → lipEnvelope → 控制器的开合目标
+指针 → 有界注视目标
+    ↓
+Cubism beforeModelUpdate
+    → 按运行时真实 ID、默认值及上下限混合参数
+    → coreModel.update 绘制
+    → 库原有 loadParameters 撤销本帧叠加
 ```
-startLive2DLoad()
-  ├─ loadState = 'loading' + emit('load-start')
-  └─ loadLive2DScripts()               并行预下载、按序执行 4 个脚本（pixi/live2dcubismcore/live2d/cubism4）
-      └─ initLive2D()
-      ├─ new PIXI.Application({ view, width, height, backgroundAlpha:0, antialias, resolution })
-      ├─ if (!props.visible) app.ticker.stop()    初始不可见时停 ticker
-      ├─ Live2DModelClass.from(model3.json)       异步加载模型
-      │   ├─ anchor.set(0.5, 0.28)                锚点偏上
-      │   ├─ scale.set(0.15)                      固定缩放
-      │   ├─ 绑定 pointerdown/move/up             拖拽
-      │   ├─ stage.pointermove -> model.focus     鼠标跟随
-      │   └─ hit body -> motion('tap_body')       点击触发动作
-      ├─ startRandomMotion('idle')                自动眨眼+呼吸
-      └─ loadState = 'ready' + emit('ready')
-```
 
-**资源清理**（`onBeforeUnmount`）：移除事件监听、stopAllMotions、removeChild、destroy 模型、destroy PIXI app（含纹理）。`useAudioLipSync.destroy` 只清理分析支路，声音主路由页面播放器生命周期管理。
+分析器不直接写 Cubism 参数；控制器不另开动画循环、不逐帧更新 Vue 状态。原有眨眼、呼吸与物理保留，头部/身体角度限制在温和范围；不存在的参数不会调用 SDK 创建虚拟参数。
 
-## 加载反馈与重试
+## 角色状态
 
-`loadState` 取值为 `loading | ready | error`：
-
-| 状态 | 界面与事件 |
+| 状态 | 来源与表现 |
 | --- | --- |
-| `loading` | 静态纳西妲占位图 + “首次加载模型需要一点时间”，canvas 禁止点击，发出 `load-start` |
-| `ready` | 占位消失、canvas 淡入并恢复点击，发出 `ready` |
-| `error` | 显示错误说明与“重新加载”，发出 `error` |
+| `idle` | 无识别或回复活动；安静待机 |
+| `listening` | 识别器真实 `onstart` 后；回正关注，轻微调整眉头与头部 |
+| `thinking` | 回复生成中；轻微偏头与现有思考姿态 |
+| `preparing` | 首段/后段语音准备；保持思考姿态，不张嘴冒充讲话 |
+| `speaking` | TTS 实际 `playing`；播放相应 cue，音频独占开合 |
+| `buffering` | 实际缓冲或段间等待；闭嘴，保留当前情绪 |
+| `music` | 协调器接入当前纯人声；仅由纯人声驱动开合 |
 
-`retryLive2D()` 会移除当前 resize 监听、销毁失败的模型/PIXI app（保留 canvas DOM），再重新进入 `startLive2DLoad()`。脚本加载 Promise 缓存在 `window.__LIUTECH_LIVE2D_SCRIPTS__`，避免快速开关模型时并行插入第二套脚本；脚本失败会清除缓存，允许重试。
+实际 TTS 播放优先于识别状态。`voiceInputActive` 仍表示监听或免提会话，不能用于判断角色是否正在听；`voiceRecognitionState` 区分 `idle/starting/listening`。
 
-异步模型返回前检查 `isComponentMounted` 与 `app`。组件已经卸载时立即销毁迟到的模型，不能再访问失效 canvas。
+## 口型包络
 
-## ticker 控制（性能关键）
+[useAudioLipSync.ts](../../../../Web/src/composables/useAudioLipSync.ts) 使用 1024 点波形 RMS；[lipEnvelope.ts](../../../../Web/src/composables/lipEnvelope.ts) 处理滞回静音门、有界归一化与按毫秒计算的过渡。
 
-PIXI ticker 默认 60fps 持续渲染。模型不可见时必须停 ticker，否则空转耗 CPU/GPU。
-
-```
-props.visible
-  ├─ true  -> app.ticker.start() + refreshRenderer()
-  └─ false -> app.ticker.stop()
-```
-
-- `visible` prop 由 MainLayout 传 `:visible="chatStore.showModel"`
-- `watch(visible)` 切换时执行
-- `initLive2D` 创建 app 后立即检查 `props.visible`，初始不可见则 stop
-
-**陷阱**：`is-hidden` CSS 只设 `visibility:hidden + pointer-events:none`，PIXI 仍渲染。必须配合 ticker.stop 才能真正省资源。
-
-## 口型同步：useAudioLipSync
-
-[useAudioLipSync.ts](../../../../Web/src/composables/useAudioLipSync.ts) 根据时域波形的 RMS 驱动 `ParamMouthOpenY`（映射公式 `clamp((rms − noiseFloor) × gain) ^ curve`）。Live2d 传入模型口型写入函数，配置为 `noiseFloor=0.02, gain=6, smoothIn=0.78, smoothOut=0.88, curve=0.75`，通过 `lipSyncConfig/setLipSyncConfig` 暴露。
-
-采样从实际 `playing` 事件开始；暂停/结束闭嘴，恢复播放可再次采样。模型销毁只断开自己的分析支路，同一音频的 source node 可被后续模型复用。音乐和 TTS 的互斥、取消及声音主路见 [TTS与表情](TTS与表情.md)。
-
-**AudioContext 的两条硬约束**（2026-09-10 修复，踩过一次"有声音但模型不张嘴"）：
-
-1. **全页只用一个 AudioContext，且从不主动 close。** `HTMLMediaElement` 一旦绑定过某个 AudioContext 就再也无法改绑（`createMediaElementSource` 抛 `InvalidStateError`）。旧实现在 TTS 播放器卸载时 `close()` 掉上下文，导致音乐播放器那个跨会话长生命周期的 `<audio>` 此后**永久**失去口型能力。上下文现在由 `resumeAudioContext()` 单例托管。
-2. **上下文不是 `running` 时绝不挂载分析。** 一旦 `createMediaElementSource` 生效，声音就完全走 AudioContext 输出，挂起状态下挂载会**连声音一起弄没**。此时的做法是：先让声音按原生方式播出来，把音频元素记在 `deferredElement`，并监听 `statechange`；用户手势让上下文恢复 `running` 后自动补挂，口型随即生效（对应 `start()` 的延迟挂载分支）。
-
-**失败不再静默**：分析接不上时置位模块级的 `lipSyncDegraded` / `lipSyncMessage`，`AiChatHeader` 据此显示可点击的 ⚠ 提示；点击派发 `lip-sync-retry` 事件，由 `MainLayout.handleLipSyncRetry` 借这次用户手势解锁上下文并调用 `live2dRef.retryMouthSync()` 补挂。`resume()` 的 2 秒等待超时只作为诊断信息，不再把整次挂载判死——自动播放策略下 `resume()` 会一直挂起，等手势才恢复，旧实现因此表现为"这一次失败就永远没口型"。
-
-## 表情与动作：applyAvatarCue
-
-`applyAvatarCue(cue)` 驱动模型表情/动作，由 useTtsPlayer 调用。播放 `playing`、思考和取消复位携带 `immediate=true`，立即取消旧表情等待并执行，避免 1.2 秒限速把表情延后到别的句子；普通交互仍限速：
-
-```
-applyAvatarCue(cue)
-  ├─ pendingAvatarCue = cue
-  ├─ 若距上次表情 < 1200ms:
-  │   └─ pendingAvatarCueTimer = setTimeout(flush, 等待差值)   防抖
-  └─ 否则 flushAvatarCue() 立即执行
-      ├─ resolveExpressionName(cue)   happy/sad/angry/... -> 模型表情名
-      ├─ model.expression(name)       设置表情
-      ├─ model.motion(motion)         触发动作（3000ms 防抖）
-      └─ expressionResetTimer          duration 后重置（默认 2600ms，clip 1600-6000）
-```
-
-**表情映射**：`expressionMap` 把语义名（happy/sad/angry/thinking/surprised/shy/confused/calm）映射到模型表情名。`neutral` 重置为 null。
-
-当前模型资源没有 `Motions` 分组，不能仅凭 `motion` 字符串认为手势动画已实现。
-
-**防抖**：`EXPRESSION_MIN_INTERVAL_MS=1200` 防止表情频繁切换；`MOTION_MIN_INTERVAL_MS=3000` 防止动作频繁触发。
-
-## 尺寸自适应：ResizeObserver + resolution
-
-窗口大小、容器尺寸、分辨率（DPR）变化时刷新渲染：
-
-```
-ResizeObserver(容器) + window resize
-  └─ debouncedRefresh (150ms 防抖)
-      └─ refreshRenderer()
-          ├─ rawWidth/rawHeight = container.clientWidth/Height
-          ├─ 跳过: DPR 和尺寸都没变 -> return
-          ├─ app.renderer.resolution = devicePixelRatio   同步 DPR
-          ├─ app.renderer.resize(width, height)           重设 canvas backing store
-          └─ model.x/y = width/2, height/2                重新居中
-```
-
-**DPR 同步**：浏览器缩放（Ctrl+Plus）改变 `devicePixelRatio`，`renderer.resolution` 赋值 + `resize` 更新 canvas backing store，避免模糊。
-
-**跳过逻辑**：`lastDpr/lastWidth/lastHeight` 记录上次值，都未变化时跳过（避免无意义 resize）。
-
-**日志**：`[Live2D] refresh WxH @DPR (合并 N 次触发)` 打印触发情况，可据此判断是否异常。
-
-## 交互
-
-| 交互 | 触发 | 处理 |
-| --- | --- | --- |
-| 拖拽模型 | pointerdown/move/up on model | 移动 model.x/y |
-| 鼠标跟随 | stage.pointermove | model.focus(x, y) 眼睛跟随 |
-| 点击模型 | hit area 'body' | motion('tap_body') + 随机表情 |
-| 滚轮（展开态） | wheel on canvas | preventDefault + scrollBodyBy 转发给聊天列表 |
-
-`interactive` prop 控制是否启用交互（`applyInteractionMode`）。`followPointer` prop 控制非交互时是否鼠标跟随。
-
-## 暴露的 API（defineExpose）
-
-| 方法 | 用途 |
+| 默认参数 | 值与用途 |
 | --- | --- |
-| `speakAudioUrl(url)` | 播放音频 URL + 口型同步 |
-| `speakAudioElement(audio)` | 用已预加载的 Audio 播放 + 口型同步 |
-| `applyAvatarCue(cue)` | 应用表情/动作 |
-| `startMusicLipSync(audio)` | 音乐口型同步 |
-| `stopMusicLipSync()` | 停止音乐口型 |
-| `refresh()` | 手动触发 resize + render |
-| `retryMouthSync()` | 重试当前音频的口型分析（用户点击 ⚠ 提示后调用） |
-| `lipSyncConfig` / `setLipSyncConfig` | 口型参数 |
+| `noiseFloor` | 0.006；静音门打开/闭合阈值分别为其 1.6/1.15 倍 |
+| `gain` | 6，限制在 2–8；归一化参考不低于 `1/gain`，持续低电平不被放大成讲话 |
+| `curve` | 0.75 |
+| `attackMs/releaseMs` | 30/45ms，约 95% 的过渡完成时间 |
+| `silenceMs` | 25ms 静音确认 |
 
-## 陷阱与约束
+峰值参考按 1500ms 衰减，开合上限 0.92。暂停、缓冲、结束、取消、分析失败立即清空目标；受控测试覆盖 30/60/120Hz 下静音输入后 100ms 内降到 0.05 以下。
 
-- **ticker 必须随 visible 停启**：否则隐藏时 60fps 空转
-- **resolution 更新要配合 resize**：单独 set resolution 不生效，必须 resize 触发 backing store 重设
-- **模型 scale 固定 0.15**：不随容器缩放，大容器模型偏小是设计选择
-- **拖拽和交互依赖 ticker**：ticker 停时交互失效，但隐藏时不需要交互
-- **资源清理必须彻底**：模型 destroy + PIXI app destroy（含纹理），否则内存泄漏；但 **AudioContext 不要 close**（见上「两条硬约束」第 1 条）
-- **加载完成以 `ready` 事件为准**：脚本已下载或 canvas 已出现都不代表模型已经可交互
-- **失败脚本必须允许重试**：清理失败的 script 与全局 Promise，不能把 rejected Promise 永久缓存
+`ParamMouthOpenY` 始终由有效音频独占；`ParamMouthForm` 是情绪嘴角变化，不是音素。左右偏移、鼓腮和嘴部切换不作为语音识别结果使用。当前没有音素时间轴或逐字嘴形。
 
-完整的加载、推理、语音播放并行关系与延迟测量见[对话时序与延迟](对话时序与延迟.md)。
+AudioContext 继续使用全页单例，不主动关闭。同一 audio 的 source node 只创建一次；挂起时不新建会重定向声音的分析源，先原生播放，恢复后补挂。分析失败仍通过现有可点击提示重试；重试等待期间若轮次改变，不补回旧音频。
+
+## 表情、强度与姿态
+
+控制器从现有 `.exp3.json` 加载温和表情，按参数原生范围计算目标，再应用强度，避免 `Add:30` 先放大后直接饱和。强度限制在 0–0.6，缺省 0.45；切换 250ms、复位 350ms。资源中的手部参数 `Param17` 运行时范围为 0–30，思考时过渡到已有姿态，结束时回收。
+
+| 语义 cue | 资源 |
+| --- | --- |
+| `happy/sad/angry` | 开心1/伤心1/生气 |
+| `thinking/shy` | 思考/害羞 |
+| `surprised/confused` | 挑眉/半眼 |
+| `neutral/calm` | 中性，不触发草元素或星星眼特效 |
+
+所有入口均通过控制器，不直接调用 `model.expression`，不再随机选择全部 26 个表情。cue 默认持续 2600ms，时长限制 1600–6000ms；语音 cue 持续到整轮结束或取消。没有声音的 cue 可定时复位；模型晚到时，播放器只应用尚未过期的最新独立 cue。
+
+模型没有 `Motions` 分组，因此不调用虚构的 `idle/tap_body`；兼容字段 `motion` 只有在资源确实提供同名动作时才调用，并保留 3 秒冷却。现有手部姿态不等同于挥手动画。
+
+## 注视与交互
+
+统一使用 DOM Pointer Events，不依赖模型缺失的 `HitAreas`。点击打开/关闭聊天，仅待机时短暂微笑或挑眉，表情冷却 3 秒；交流时点击不抢语音 cue。拖动超过 6 CSS 像素不触发点击，支持指针捕获与取消。
+
+注视目标限制到 ±0.18，1500ms 无活动后回正；聆听与思考时关注正前方，说话时跟随幅度进一步减小。鼠标离开页面或失去焦点清除目标；触摸按下可短暂注视。
+
+减少动态效果偏好通过 `matchMedia` 跟踪：关闭额外姿态与指针跟随，限制自然转头，保留音频开合。
+
+角色表现迭代保留既有布局：模型容器位置、尺寸、层叠关系、展开/折叠规则和响应式断点不调整。
+
+## 尺寸与暴露 API
+
+ResizeObserver 与 window resize 共用 150ms 防抖；DPR/尺寸未变跳过刷新。模型保持原有 scale=0.15、anchor=(0.5, 0.28)，初始化与 resize 时仍按既有规则居中。
+
+`defineExpose` 保留 `speakAudioUrl/speakAudioElement`、音乐口型入口、`retryMouthSync`、`applyAvatarCue`、`lipSyncConfig/setLipSyncConfig`、`refresh`，新增 `resetAvatar` 清空当前角色目标。
+
+## 验证边界
+
+[avatarController.test.ts](../../../../Web/src/__tests__/avatarController.test.ts) 覆盖包络、强度、帧内混合、无累计漂移、状态、复位、隐藏和减少动态；音频生命周期与播放时序分别见 [audioLipSync.test.ts](../../../../Web/src/__tests__/audioLipSync.test.ts) 和 [chatTts.test.ts](../../../../Web/src/__tests__/chatTts.test.ts)。
+
+隔离 Chromium 使用实际模型与受控音频验证了参数强度、开口/暂停、思考姿态回收、拖拽/点击、隐藏停 ticker 和窄屏触摸；这是模拟环境，不代表真实手机 GPU、中文语音观感、麦克风权限或真实供应商延迟验收。

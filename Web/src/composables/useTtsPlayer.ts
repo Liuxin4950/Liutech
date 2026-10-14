@@ -23,7 +23,6 @@ export function useTtsPlayer(options: {
   let musicResumeVersion: number | null = null
   let disposed = false
   let hasSpeech = false
-  let showingThinking = false
   let keepTimedCue = false
   let lastAudioEnd: number | null = null
   const canPlay = () => !disposed && chatStore.showModel
@@ -47,9 +46,8 @@ export function useTtsPlayer(options: {
   const finishTurn = () => {
     if (isTtsPlaying || chatStore.isLoading || chatStore.ttsAwaitingAudio || chatStore.ttsPendingCount > 0) return
     if (chatStore.ttsPlaybackState !== 'error') chatStore.ttsPlaybackState = 'idle'
-    if ((hasSpeech || showingThinking) && !keepTimedCue) live2dRef.value?.applyAvatarCue({ expression: 'neutral', immediate: true })
+    if (hasSpeech && !keepTimedCue) live2dRef.value?.applyAvatarCue({ expression: 'neutral', immediate: true })
     hasSpeech = false
-    showingThinking = false
     resumeMusic()
     syncMusic()
   }
@@ -64,9 +62,9 @@ export function useTtsPlayer(options: {
     chatStore.ttsPlaybackActive = false
     chatStore.ttsPlaybackState = 'idle'
     lastAudioEnd = null
-    if (hasSpeech || showingThinking) live2dRef.value?.applyAvatarCue({ expression: 'neutral', immediate: true })
+    live2dRef.value?.resetAvatar?.()
+    if (hasSpeech) live2dRef.value?.applyAvatarCue({ expression: 'neutral', immediate: true })
     hasSpeech = false
-    showingThinking = false
     keepTimedCue = false
     live2dRef.value?.stopMusicLipSync()
     resumeMusic()
@@ -170,16 +168,15 @@ export function useTtsPlayer(options: {
       }
     }
   }
-  const updateThinkingCue = () => {
-    if (ready() && chatStore.aiThinking && !isTtsPlaying && !hasSpeech) {
-      showingThinking = true
-      live2dRef.value?.applyAvatarCue({ expression: 'thinking', skipResetTimer: true, immediate: true })
-    }
-  }
   const applyNextAvatarCues = () => {
     if (!ready() || isTtsPlaying || chatStore.ttsAwaitingAudio || chatStore.ttsPendingCount > 0) return
     let cue = chatStore.shiftAvatarCueQueue()
-    while (cue) { live2dRef.value?.applyAvatarCue(cue); cue = chatStore.shiftAvatarCueQueue() }
+    let latest: AvatarCueItem | null = null
+    while (cue) {
+      if (!cue.enqueuedAt || Date.now() - cue.enqueuedAt < Math.max(1600, Math.min(6000, cue.durationMs || 2600))) latest = cue
+      cue = chatStore.shiftAvatarCueQueue()
+    }
+    if (latest) live2dRef.value?.applyAvatarCue(latest)
   }
   const unlockAudio = () => { void resumeAudioContext().then(syncMusic).catch(error => console.warn('[audio] 请点击播放以启用声音', error)) }
   const handleMusicPlay = (_audio: HTMLAudioElement) => {
@@ -193,20 +190,20 @@ export function useTtsPlayer(options: {
   const handleMusicPause = () => { if (!isTtsPlaying) live2dRef.value?.stopMusicLipSync() }
   watch(() => [chatStore.ttsEnabled, chatStore.ttsAvailable, chatStore.ttsPendingCount, chatStore.ttsAwaitingAudio, chatStore.isLoading, chatStore.aiThinking], () => {
     if (!chatStore.ttsEnabled || !chatStore.ttsAvailable) { stopTtsPlayback(); chatStore.clearTtsAudioQueue() }
-    else { updateThinkingCue(); void playNextTts(); finishTurn(); applyNextAvatarCues() }
+    else { void playNextTts(); finishTurn(); applyNextAvatarCues() }
   })
   watch(() => chatStore.ttsCancelCounter, stopTtsPlayback, { flush: 'sync' })
   watch(() => chatStore.avatarCuePendingCount, applyNextAvatarCues)
-  watch(() => [chatStore.showModel, live2dStatus.value], async () => {
+  const syncCurrentAudio = async () => {
     if (!chatStore.showModel) { chatStore.cancelTts(); stopTtsPlayback(); return }
-    updateThinkingCue()
     const audio = currentTtsAudio
     const token = playbackToken
-    if (ready() && audio) {
+    if (ready() && audio && !audio.ended) {
       await live2dRef.value?.speakAudioElement(audio)
-      if (token === playbackToken && currentTtsAudio === audio && !audio.paused) applySpeakingCue()
+      if (token === playbackToken && currentTtsAudio === audio && !audio.paused && chatStore.ttsPlaybackState === 'playing') applySpeakingCue()
     } else { syncMusic(); void playNextTts(); applyNextAvatarCues() }
-  }, { flush: 'post' })
+  }
+  watch(() => [chatStore.showModel, live2dStatus.value], syncCurrentAudio, { flush: 'post' })
   onBeforeUnmount(() => { disposed = true; stopTtsPlayback() })
-  return { stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio, syncMusic, isTtsPlaying: () => isTtsPlaying, handleMusicPlay, handleMusicPause, handleSpeakStart }
+  return { syncCurrentAudio, stopTtsPlayback, playNextTts, applyNextAvatarCues, unlockAudio, syncMusic, isTtsPlaying: () => isTtsPlaying, handleMusicPlay, handleMusicPause, handleSpeakStart }
 }

@@ -52,6 +52,7 @@ const {
 const {
   voiceSupported,
   voiceListening,
+  recognitionState,
   voiceInterimText,
   voiceError,
   initVoiceRecognition,
@@ -74,6 +75,7 @@ const responseActive = computed(() => chatStore.isLoading || chatStore.ttsAwaiti
 const stopReply = () => { disableHandsFree(); chatStore.interruptReply() }
 const dialogueStatus = computed(() => {
   if (chatStore.ttsPlaybackMessage) return chatStore.ttsPlaybackMessage
+  if (recognitionState.value === 'starting') return '正在准备麦克风，请确认浏览器权限…'
   if (voiceListening.value) return handsFree.value ? '正在听，说完自动发送' : '正在听，识别后可编辑发送'
   if (chatStore.ttsPlaybackState === 'playing') return chatStore.avatarLoadState === 'loading' ? '她正在说话，模型还在加载' : '她正在说话 · 点击麦克风可接话'
   if (chatStore.ttsPlaybackState === 'buffering') return chatStore.speechTimings.firstPlaybackMs === undefined ? '正在准备声音…' : '正在接上下一句…'
@@ -85,7 +87,8 @@ const dialogueStatus = computed(() => {
 watch(() => chatStore.ttsPlaybackMessage, message => {
   if (message && handsFree.value) disableHandsFree()
 })
-watch([handsFree, voiceListening], () => {
+watch([handsFree, voiceListening, recognitionState], () => {
+  chatStore.voiceRecognitionState = recognitionState.value
   chatStore.voiceInputActive = handsFree.value || voiceListening.value
 }, { flush: 'sync' })
 watch(() => [chatStore.showChat, handsFreeAvailable.value], ([visible, available]) => {
@@ -297,6 +300,7 @@ onUnmounted(() => {
   window.removeEventListener('liutech-auth-change', handleAuthChange)
   window.removeEventListener('storage', handleAuthChange)
   chatStore.voiceInputActive = false
+  chatStore.voiceRecognitionState = 'idle'
   cleanupVoiceRecognition()
   AiStream.cancel()
 })
