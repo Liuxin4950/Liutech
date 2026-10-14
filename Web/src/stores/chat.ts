@@ -105,6 +105,19 @@ export const useChatStore = defineStore('chat', () => {
    */
   const ttsAvailable = ref<boolean>(false)
   const ttsAwaitingAudio = ref<boolean>(false)
+  // 播放器实际持有音频（含准备阶段），与 SSE 完成和队列长度分别记录。
+  const ttsPlaybackActive = ref(false)
+  const voiceInputActive = ref(false)
+  const avatarLoadState = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const ttsPlaybackState = ref<'idle' | 'preparing' | 'playing' | 'buffering' | 'error'>('idle')
+  const ttsPlaybackMessage = ref('')
+  // 仅保留当前轮的相对耗时，不记录文本、不跨设备比较时钟、不持久化。
+  const speechTimings = ref<{ startedAt: number; firstTextMs?: number; firstAudioMs?: number; firstPlaybackMs?: number; maxGapMs: number }>({ startedAt: 0, maxGapMs: 0 })
+  const recordSpeechPlayback = () => {
+    if (speechTimings.value.startedAt && speechTimings.value.firstPlaybackMs === undefined) {
+      speechTimings.value.firstPlaybackMs = performance.now() - speechTimings.value.startedAt
+    }
+  }
 
   // TTS 音频队列 + Avatar Cue 管理（拆分到 composables/chatTts.ts）
   const chatTts = useChatTts({ ttsEnabled, ttsAvailable, ttsAwaitingAudio })
@@ -134,6 +147,7 @@ export const useChatStore = defineStore('chat', () => {
   const getIdentity = () => !isLoggedIn() ? 'guest' : userStore.getAuthenticatedUserId() !== null ? `user:${userStore.getAuthenticatedUserId()}` : 'pending'
   const sessionOwner = ref(getIdentity())
   let identityGeneration = 0
+  let replyCancellationGeneration = 0
   let normalAbortController: AbortController | null = null
   const isGuestSession = () => sessionOwner.value === 'guest'
   const scopedKey = (key: string, guestKey: string) => isGuestSession() ? guestKey : `${key}:${sessionOwner.value}`
@@ -357,6 +371,27 @@ export const useChatStore = defineStore('chat', () => {
     return message
   }
 
+  /** 用户接话：停止旧请求与朗读，保留已显示的部分回答。 */
+  const interruptReply = () => {
+    replyCancellationGeneration++
+    identityGeneration++
+    ttsPlaybackMessage.value = ''
+    AiStream.cancel()
+    normalAbortController?.abort()
+    normalAbortController = null
+    cancelTts()
+    clearAvatarCueQueue()
+    messages.value = messages.value.filter(message => {
+      if (!message.isStreaming && !message.isThinking) return true
+      message.isStreaming = false
+      message.isThinking = false
+      return !!message.content || !!message.articleResults?.length
+    })
+    isLoading.value = false
+    isStreaming.value = false
+    aiThinking.value = false
+  }
+
   // ===== 聊天操作方法 =====
   /**
    * 发送消息
@@ -367,12 +402,13 @@ export const useChatStore = defineStore('chat', () => {
     syncIdentity()
     if (!content.trim() || isLoading.value) return
     const requestToken = getToken()
+    const pendingGeneration = replyCancellationGeneration
     isLoading.value = true
     await ensureUserRoleLoaded()
-    if (getToken() !== requestToken) return
+    if (getToken() !== requestToken || pendingGeneration !== replyCancellationGeneration) return
     syncIdentity()
     if (sessionOwner.value === 'pending') { isLoading.value = false; return }
-    const generation = identityGeneration
+    const generation = ++identityGeneration
     const guestTempMessages = isGuestSession() ? buildGuestTempMessages() : undefined
     errorMessage.value = ''
     addUserMessage(content.trim())
@@ -403,7 +439,12 @@ export const useChatStore = defineStore('chat', () => {
     clearTtsAudioQueue()
     clearAvatarCueQueue()
     const audioGeneration = ttsCancelCounter.value
-    const shouldUseTts = ttsEnabled.value === true && ttsAvailable.value === true
+    let audioCompleted = false
+    let expectedSegments: number | undefined
+    speechTimings.value = { startedAt: performance.now(), maxGapMs: 0 }
+    ttsPlaybackMessage.value = ''
+    ttsPlaybackState.value = 'idle'
+    const shouldUseTts = showModel.value && ttsEnabled.value === true && ttsAvailable.value === true
     ttsAwaitingAudio.value = shouldUseTts
 
     // 创建空的AI消息用于流式更新
@@ -418,6 +459,7 @@ export const useChatStore = defineStore('chat', () => {
         // onChunk - 接收到内容块
         (chunk: string) => {
           if (generation !== identityGeneration) return
+          if (speechTimings.value.firstTextMs === undefined) speechTimings.value.firstTextMs = performance.now() - speechTimings.value.startedAt
           updateStreamingMessage(chunk)
         },
         // onEvent - SSE 事件分发
@@ -459,12 +501,17 @@ export const useChatStore = defineStore('chat', () => {
           }
           // audio-complete 用来解除“等待音频绑定 cue”的状态
           if (eventType === 'audio-complete' && audioGeneration === ttsCancelCounter.value) {
+            audioCompleted = true
+            if (chatTts.finishTtsAudio(payload?.segments ?? expectedSegments) > 0) {
+              ttsPlaybackMessage.value = '部分语音未能生成，完整回答请查看文字；可点击麦克风继续接话。'
+            }
             ttsAwaitingAudio.value = false
             return
           }
           // TTS 未启用时，丢弃音频事件（avatar-cue 不受此限制，始终处理）
-          if (audioGeneration !== ttsCancelCounter.value || ttsEnabled.value !== true || ttsAvailable.value !== true) return
+          if (audioCompleted || audioGeneration !== ttsCancelCounter.value || ttsEnabled.value !== true || ttsAvailable.value !== true) return
           if (eventType === 'audio' && payload && payload.audioUrl && typeof payload.seq === 'number') {
+            if (speechTimings.value.firstAudioMs === undefined) speechTimings.value.firstAudioMs = performance.now() - speechTimings.value.startedAt
             enqueueTtsAudio({
               seq: payload.seq,
               audioUrl: payload.audioUrl,
@@ -475,6 +522,7 @@ export const useChatStore = defineStore('chat', () => {
             return
           }
           if (eventType === 'audio-skip' && payload && typeof payload.seq === 'number') {
+            if (payload.reason !== 'no-speech') ttsPlaybackMessage.value = '部分语音未能生成，完整回答请查看文字；可点击麦克风继续接话。'
             enqueueTtsAudio({
               seq: payload.seq,
               text: payload.text,
@@ -491,7 +539,9 @@ export const useChatStore = defineStore('chat', () => {
           completeStreamingMessage()
           isStreaming.value = false
           aiThinking.value = false
-          ttsAwaitingAudio.value = false
+          expectedSegments = response.segments
+          // complete 只表示正文结束；audio-complete 或连接结束才解除音频等待。
+          if (response.ttsEnabled === false) ttsAwaitingAudio.value = false
           isLoading.value = false
 
           // 更新会话ID
@@ -539,7 +589,12 @@ export const useChatStore = defineStore('chat', () => {
         isStreaming.value = false
       }
       aiThinking.value = false
-      ttsAwaitingAudio.value = false
+      if (audioGeneration === ttsCancelCounter.value) {
+        if (shouldUseTts && !audioCompleted && chatTts.finishTtsAudio(expectedSegments) > 0) {
+          ttsPlaybackMessage.value = '部分语音未能生成，完整回答请查看文字；可点击麦克风继续接话。'
+        }
+        ttsAwaitingAudio.value = false
+      }
     }
   }
 
@@ -849,6 +904,13 @@ export const useChatStore = defineStore('chat', () => {
     ttsEnabled,
     ttsAvailable,
     ttsAwaitingAudio,
+    ttsPlaybackActive,
+    voiceInputActive,
+    avatarLoadState,
+    ttsPlaybackState,
+    ttsPlaybackMessage,
+    speechTimings,
+    recordSpeechPlayback,
     ttsPendingCount: chatTts.ttsAudioQueue.pendingCount,
     avatarCuePendingCount: chatTts.avatarCueQueue.pendingCount,
 
@@ -859,6 +921,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // 方法
     sendMessage,
+    interruptReply,
     syncIdentity,
     clearHistory,
     setMode,

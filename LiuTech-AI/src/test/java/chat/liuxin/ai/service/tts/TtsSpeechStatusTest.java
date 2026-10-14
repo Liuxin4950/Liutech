@@ -17,6 +17,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -68,6 +70,26 @@ class TtsSpeechStatusTest {
     }
 
     @Test
+    void gptSpeechDoesNotWaitForDiagnosticGetBeforeSynthesis() throws Exception {
+        HttpResponse post = mock(HttpResponse.class);
+        when(post.statusCode()).thenReturn(200);
+        when(post.body()).thenReturn("{\"audio_url\":\"/test.wav\"}");
+        HttpResponse audio = mock(HttpResponse.class);
+        when(audio.statusCode()).thenReturn(200);
+        when(audio.body()).thenReturn(new byte[]{1, 2, 3});
+        doAnswer(call -> {
+            HttpRequest request = call.getArgument(0);
+            if (request.uri().getPath().equals("/infer_single")) {
+                assertEquals("POST", request.method(), "首声路径不能先等待诊断 GET");
+                return post;
+            }
+            return audio;
+        }).when(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        assertNotNull(service.inferSingleAudioUrl("直接合成这一句。"));
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
     void gptWrongEndpoint404IsNotOnline() throws Exception {
         reply(404, null);
         assertFalse(service.getStatus().isOnline());
@@ -100,6 +122,41 @@ class TtsSpeechStatusTest {
         assertFalse(service.getStatus().isOnline());
         assertNull(service.inferSingleAudioUrl("第二段"));
         verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
+    void busyQueueTimesOutWithoutLeakingPermitOrMarkingProviderOffline() throws Exception {
+        config.setProvider("SILICONFLOW");
+        config.setSiliconFlowVoiceUri("speech:test");
+        Semaphore permits = new Semaphore(0);
+        ReflectionTestUtils.setField(service, "ttsSemaphore", permits);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+                () -> service.synthesize("测试语音"));
+        assertEquals(503, error.getStatusCode().value());
+        assertEquals(0, permits.availablePermits());
+        assertFalse(service.getStatus().isOnlineVerified());
+        verify(httpClient, never()).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+
+        permits.release();
+        reply(200, new byte[]{1, 2, 3});
+        assertNotNull(service.synthesize("下一段"));
+        assertEquals(1, permits.availablePermits());
+        assertTrue(service.getStatus().isOnline());
+    }
+
+    @Test
+    void interruptedQueuePreservesInterruptAndDoesNotReleaseUnownedPermit() {
+        Semaphore permits = new Semaphore(0);
+        ReflectionTestUtils.setField(service, "ttsSemaphore", permits);
+        Thread.currentThread().interrupt();
+        try {
+            assertThrows(ResponseStatusException.class, () -> service.synthesize("测试语音"));
+            assertTrue(Thread.currentThread().isInterrupted());
+            assertEquals(0, permits.availablePermits());
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     @Test

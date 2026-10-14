@@ -43,6 +43,7 @@ const searchModalRef = ref<InstanceType<typeof GlobalSearchModal> | null>(null)
 const { initOnboarding, step: onboardingStep, nextStep: nextOnboardingStep } = useOnboarding()
 let onboardingTimer: number | null = null
 const live2dStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+watch(live2dStatus, value => { chatStore.avatarLoadState = value }, { immediate: true })
 
 // 全局搜索快捷键
 const handleGlobalKeydown = (e: KeyboardEvent) => {
@@ -53,7 +54,12 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
 }
 
 // TTS 播放器 + Avatar Cue 调度 + 音乐桥接（集中在 useTtsPlayer composable）
-const { unlockAudio, handleMusicPlay, handleMusicPause, handleSpeakStart } = useTtsPlayer({ chatStore, live2dRef, bottomNavRef, live2dStatus })
+const { unlockAudio, handleMusicPlay: playerMusicPlay, handleMusicPause, handleSpeakStart } = useTtsPlayer({ chatStore, live2dRef, bottomNavRef, live2dStatus })
+
+const handleMusicPlay = (audio: HTMLAudioElement) => {
+  aiChatRef.value?.stopVoiceInteraction()
+  playerMusicPlay(audio)
+}
 
 /**
  * 用户点击"口型未启用"提示时调用。
@@ -123,16 +129,6 @@ onUnmounted(() => {
 })
 
 // TTS 生命周期：这些 watcher 将 chatStore 的响应式状态变化桥接到 useTtsPlayer 的命令式 API
-
-// AI 开始思考时，给 Live2D 应用"思考"表情（半眼+手势变化）
-watch(
-  () => chatStore.aiThinking,
-  (thinking) => {
-    if (thinking && live2dRef.value && chatStore.showModel) {
-      live2dRef.value.applyAvatarCue?.({ expression: 'thinking', durationMs: 8000 })
-    }
-  }
-)
 
 const handleModelClick = () => {
   if (live2dStatus.value !== 'ready') return

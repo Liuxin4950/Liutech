@@ -15,17 +15,17 @@ import org.springframework.stereotype.Component;
 public class TtsSegmenterProperties {
 
     /** 首段最小发送长度（字符数） */
-    private int firstSegmentMinLen = 20;
+    private int firstSegmentMinLen = 12;
 
     /** 首段硬切长度（无标点时强制切分） */
     private int firstSegmentHardCutLen = 40;
 
     /** 后续段最小发送长度 */
-    private int followSegmentMinLen = 60;
+    private int followSegmentMinLen = 24;
 
     /** 后续段软标点切分长度 */
-    private int followSegmentSoftPunctLen = 80;
+    private int followSegmentSoftPunctLen = 40;
 
     /** 后续段硬切长度 */
-    private int followSegmentHardCutLen = 100;
+    private int followSegmentHardCutLen = 72;
 }

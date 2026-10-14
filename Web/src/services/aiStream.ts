@@ -36,6 +36,7 @@ interface CompletePayload {
   responseLength?: number
   mode?: string
   ttsEnabled?: boolean
+  segments?: number
 }
 
 /**

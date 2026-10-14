@@ -38,7 +38,7 @@ const {
   menuOpenId,
   syncAuthState,
   toggleHistorySidebar,
-  deleteConversation,
+  deleteConversation: _deleteConversation,
   startEditTitle,
   saveTitle,
   cancelEditTitle,
@@ -57,8 +57,47 @@ const {
   initVoiceRecognition,
   startVoiceRecognition,
   stopVoiceRecognition,
+  handsFree,
+  toggleHandsFree,
+  disableHandsFree,
   cleanupVoiceRecognition,
-} = useVoiceRecognition(chatInput)
+} = useVoiceRecognition(chatInput, {
+  canListen: () => !chatStore.isLoading && !chatStore.ttsPlaybackActive
+    && !chatStore.ttsAwaitingAudio && chatStore.ttsPendingCount === 0,
+  beforeListen: () => { chatStore.interruptReply(); primeMediaOnce() },
+  onSubmit: () => sendMessage(),
+})
+const handsFreeAvailable = computed(() => chatStore.ttsEnabled && chatStore.ttsAvailable
+  && chatStore.showModel && chatStore.mode === 'stream')
+const stopVoiceInteraction = () => { disableHandsFree() }
+const responseActive = computed(() => chatStore.isLoading || chatStore.ttsAwaitingAudio || chatStore.ttsPendingCount > 0 || chatStore.ttsPlaybackActive)
+const stopReply = () => { disableHandsFree(); chatStore.interruptReply() }
+const dialogueStatus = computed(() => {
+  if (chatStore.ttsPlaybackMessage) return chatStore.ttsPlaybackMessage
+  if (voiceListening.value) return handsFree.value ? '正在听，说完自动发送' : '正在听，识别后可编辑发送'
+  if (chatStore.ttsPlaybackState === 'playing') return chatStore.avatarLoadState === 'loading' ? '她正在说话，模型还在加载' : '她正在说话 · 点击麦克风可接话'
+  if (chatStore.ttsPlaybackState === 'buffering') return chatStore.speechTimings.firstPlaybackMs === undefined ? '正在准备声音…' : '正在接上下一句…'
+  if (chatStore.ttsPlaybackState === 'preparing') return '准备开口…'
+  if (chatStore.isLoading) return chatStore.aiThinking ? '正在思考…' : '正在组织回复…'
+  if (chatStore.ttsAwaitingAudio) return '文字已就绪，正在准备语音…'
+  return handsFree.value ? '即将继续聆听…' : ''
+})
+watch(() => chatStore.ttsPlaybackMessage, message => {
+  if (message && handsFree.value) disableHandsFree()
+})
+watch([handsFree, voiceListening], () => {
+  chatStore.voiceInputActive = handsFree.value || voiceListening.value
+}, { flush: 'sync' })
+watch(() => [chatStore.showChat, handsFreeAvailable.value], ([visible, available]) => {
+  if (!visible || !available) disableHandsFree()
+}, { flush: 'sync' })
+watch(() => chatStore.errorMessage, error => {
+  if (error && handsFree.value) disableHandsFree()
+})
+const handleVisibilityChange = () => {
+  if (document.hidden) disableHandsFree()
+}
+const handleAuthChange = () => { disableHandsFree() }
 
 const messages = computed(() => chatStore.messages)
 const isLoading = computed(() => chatStore.isLoading)
@@ -147,15 +186,24 @@ const setMode = (newMode: ChatMode) => {
 }
 
 const clearHistory = async () => {
+  disableHandsFree()
   await chatStore.clearHistory()
 }
 
 // 加载会话历史消息（模板中 @click 调用）
-const loadConversation = (conversationId: number) =>
-  _loadConversation(conversationId, scrollToBottom)
+const loadConversation = (conversationId: number) => {
+  disableHandsFree()
+  return _loadConversation(conversationId, scrollToBottom)
+}
+
+const deleteConversation = (conversationId: number, event: Event) => {
+  disableHandsFree()
+  return _deleteConversation(conversationId, event)
+}
 
 const sendMessage = async () => {
-  if (!chatInput.value.trim() || isLoading.value) return
+  if (!chatInput.value.trim()) return
+  if (responseActive.value) chatStore.interruptReply()
   syncAuthState()
   stopVoiceRecognition()
 
@@ -175,7 +223,7 @@ const handleExpandChat = () => {
 }
 
 const handleCloseChat = () => {
-  stopVoiceRecognition()
+  disableHandsFree()
   chatStore.closeChat()
 }
 
@@ -218,6 +266,9 @@ onMounted(async () => {
   window.addEventListener('storage', syncAuthState)
   window.addEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
   document.addEventListener('click', handleMenuClickOutside)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('liutech-auth-change', handleAuthChange)
+  window.addEventListener('storage', handleAuthChange)
   initVoiceRecognition()
 
   try {
@@ -242,13 +293,18 @@ onUnmounted(() => {
   window.removeEventListener('storage', syncAuthState)
   window.removeEventListener('ai-chat-apply-prompt', handleOpenChatEvent as EventListener)
   document.removeEventListener('click', handleMenuClickOutside)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('liutech-auth-change', handleAuthChange)
+  window.removeEventListener('storage', handleAuthChange)
+  chatStore.voiceInputActive = false
   cleanupVoiceRecognition()
   AiStream.cancel()
 })
 
 defineExpose({
   scrollToBottom,
-  scrollBodyBy
+  scrollBodyBy,
+  stopVoiceInteraction,
 })
 </script>
 
@@ -366,14 +422,20 @@ defineExpose({
           <AiChatInput
             v-model="chatInput"
             :is-loading="isLoading"
+            :response-active="responseActive"
             :expanded="expanded"
             :voice-supported="voiceSupported"
             :voice-listening="voiceListening"
             :voice-interim-text="voiceInterimText"
             :voice-error="voiceError"
+            :dialogue-status="dialogueStatus"
+            :hands-free="handsFree"
+            :hands-free-available="handsFreeAvailable"
             @send="sendMessage"
+            @stop-reply="stopReply"
             @start-voice="startVoiceRecognition"
-            @stop-voice="stopVoiceRecognition"
+            @stop-voice="stopVoiceInteraction"
+            @toggle-hands-free="toggleHandsFree"
           />
         </div>
       </div>

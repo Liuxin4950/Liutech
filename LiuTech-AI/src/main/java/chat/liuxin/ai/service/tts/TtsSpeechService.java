@@ -45,6 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
@@ -70,6 +71,7 @@ public class TtsSpeechService {
     @Value("${tts.concurrency:${TTS_CONCURRENCY:1}}")
     private int ttsConcurrency;
 
+    private static final long TTS_QUEUE_TIMEOUT_SECONDS = 2;
     private volatile Semaphore ttsSemaphore = new Semaphore(1);
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -127,11 +129,18 @@ public class TtsSpeechService {
 
     /** 流式聊天使用的容错入口；TTS 不可用时返回 null，由上层发送 audio-skip。 */
     public String inferSingleAudioUrl(String text) {
-        TtsStatusDTO status = getStatus();
-        boolean canAttempt = status.isOnline() || (status.isConfigured() && !status.isOnlineVerified());
-        if (!status.isEnabled() || !canAttempt) return null;
+        TtsConfigDTO config = ttsConfigService.getConfig();
+        if (!Boolean.TRUE.equals(config.getEnabled())) return null;
+        if (TtsConfigService.PROVIDER_SILICONFLOW.equals(config.getProvider())) {
+            TtsStatusDTO status = getStatus();
+            boolean canAttempt = status.isOnline() || (status.isConfigured() && !status.isOnlineVerified());
+            if (!canAttempt) return null;
+        } else if (config.getBaseUrl() == null || config.getBaseUrl().isBlank()) {
+            return null;
+        }
+        // GPT-SoVITS 直接执行真实合成，诊断 GET 留给 runtime/管理检测，不串入首声路径。
         try {
-            TtsSpeechDTO response = synthesize(text);
+            TtsSpeechDTO response = synthesize(text, config);
             return response == null ? null : response.getAudioUrl();
         } catch (Exception e) {
             log.warn("TTS 推理失败: {}", e.getMessage());
@@ -140,6 +149,10 @@ public class TtsSpeechService {
     }
 
     public TtsSpeechDTO synthesize(String text) {
+        return synthesize(text, null);
+    }
+
+    private TtsSpeechDTO synthesize(String text, TtsConfigDTO preparedConfig) {
         String normalizedText = normalizeText(text);
         if (normalizedText == null) {
             throw badRequest("语音文本不能为空");
@@ -148,7 +161,7 @@ public class TtsSpeechService {
             throw badRequest("单次语音文本不能超过1200个字符");
         }
 
-        TtsConfigDTO config = ttsConfigService.getConfig();
+        TtsConfigDTO config = preparedConfig == null ? ttsConfigService.getConfig() : preparedConfig;
         if (!Boolean.TRUE.equals(config.getEnabled())) {
             throw badRequest("语音功能已关闭");
         }
@@ -157,8 +170,10 @@ public class TtsSpeechService {
         boolean acquired = false;
         try {
             // 管理端试播与流式语音共用同一并发上限。
-            ttsSemaphore.acquire();
-            acquired = true;
+            acquired = ttsSemaphore.tryAcquire(TTS_QUEUE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!acquired) {
+                throw upstreamUnavailable("语音服务繁忙，请稍后重试");
+            }
             TtsSpeechDTO result = siliconFlow ? synthesizeWithSiliconFlow(config, normalizedText)
                     : synthesizeWithGptSovits(config, normalizedText);
             if (siliconFlow) recordSiliconFlowOutcome(true);
@@ -167,7 +182,7 @@ public class TtsSpeechService {
             Thread.currentThread().interrupt();
             throw upstreamUnavailable("语音请求已取消", e);
         } catch (RuntimeException e) {
-            if (siliconFlow) recordSiliconFlowOutcome(false);
+            if (siliconFlow && acquired) recordSiliconFlowOutcome(false);
             throw e;
         } finally {
             if (acquired) ttsSemaphore.release();

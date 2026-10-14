@@ -55,14 +55,30 @@ export function useChatTts(state: {
       } catch {
       }
     }
-    const cue = avatarCueQueue.shiftBySeq(item.seq)
-    if (cue) {
-      enriched.cue = cue
-    }
     ttsAudioQueue.enqueue(enriched)
   }
 
-  const shiftTtsAudioQueue = (): TtsAudioItem | null => ttsAudioQueue.shift()
+  const shiftTtsAudioQueue = (): TtsAudioItem | null => {
+    const item = ttsAudioQueue.shift()
+    if (item && !item.cue) item.cue = avatarCueQueue.shiftBySeq(item.seq) ?? undefined
+    return item
+  }
+  /** audio-complete/断流后填补未返回的序号，不让后续可播音频永久卡住。 */
+  const finishTtsAudio = (totalSegments?: number) => {
+    const known = [...Object.keys(ttsAudioQueue.buffer.value), ...Object.keys(avatarCueQueue.buffer.value)].map(Number)
+    const last = Number.isSafeInteger(totalSegments) && totalSegments! >= 0
+      ? totalSegments! : Math.max(0, ...known)
+    // 保护客户端循环；正常单轮回复远少于这个上限。
+    if (last > 4096) return 0
+    let missing = 0
+    for (let seq = ttsAudioQueue.nextSeq.value; seq <= last; seq++) {
+      if (!ttsAudioQueue.buffer.value[seq]) {
+        missing++
+        ttsAudioQueue.enqueue({ seq, status: 'skipped', reason: 'audio-missing' })
+      }
+    }
+    return missing
+  }
   const clearTtsAudioQueue = () => ttsAudioQueue.clear()
 
   const enqueueAvatarCue = (item: AvatarCueItem) => {
@@ -81,6 +97,7 @@ export function useChatTts(state: {
     setTtsAvailable,
     enqueueTtsAudio,
     shiftTtsAudioQueue,
+    finishTtsAudio,
     clearTtsAudioQueue,
     enqueueAvatarCue,
     shiftAvatarCueQueue,

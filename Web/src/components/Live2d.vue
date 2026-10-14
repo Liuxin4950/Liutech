@@ -119,6 +119,7 @@ interface AvatarCue {
     durationMs?: number
     text?: string
     skipResetTimer?: boolean
+    immediate?: boolean
 }
 
 const EXPRESSION_MIN_INTERVAL_MS = 1200
@@ -280,7 +281,12 @@ const speakAudioElement = async (audio: HTMLAudioElement) => {
 
 const resetExpression = () => {
     try {
-        model?.expressionManager?.setExpression?.(null)
+        const manager = model?.internalModel?.motionManager?.expressionManager
+        if (!manager) return
+        // null 不是有效表情索引；同时使迟到加载失效，允许下一轮重新使用同名表情。
+        manager.reserveExpressionIndex = -1
+        manager.resetExpression()
+        manager.currentExpression = manager.defaultExpression
     } catch {
     }
 }
@@ -344,7 +350,7 @@ const flushAvatarCue = () => {
 const applyAvatarCue = (cue: AvatarCue) => {
     if (!cue) return
     pendingAvatarCue = cue
-    const waitMs = Math.max(0, EXPRESSION_MIN_INTERVAL_MS - (Date.now() - lastExpressionAt))
+    const waitMs = cue.immediate ? 0 : Math.max(0, EXPRESSION_MIN_INTERVAL_MS - (Date.now() - lastExpressionAt))
     if (waitMs <= 0) {
         flushAvatarCue()
         return
@@ -426,6 +432,17 @@ const loadLive2DScripts = (): Promise<void> => {
         '/live2d/cubism4.min.js'
     ]
 
+    // 保持执行依赖顺序，下载可并行；组件按需挂载后才预取，不在首屏主动加载模型脚本。
+    for (const src of scripts) {
+        if (document.querySelector(`link[data-live2d-preload="${src}"]`)) continue
+        const preload = document.createElement('link')
+        preload.rel = 'preload'
+        preload.as = 'script'
+        preload.href = src
+        preload.dataset.live2dPreload = src
+        document.head.appendChild(preload)
+    }
+
     const loadScript = (src: string): Promise<void> =>
         new Promise((resolve, reject) => {
             const selector = `script[data-liutech-live2d-script="${src}"]`
@@ -470,6 +487,7 @@ const startLive2DLoad = () => {
     if (isInitialized) return
 
     loadState.value = 'loading'
+    performance.mark('liutech-live2d-load-start')
     emit('load-start')
 
     loadLive2DScripts().then(() => {
@@ -621,6 +639,7 @@ const initLive2D = () => {
         // 自动眨眼和呼吸
         live2dModel.internalModel.motionManager.startRandomMotion('idle');
         loadState.value = 'ready'
+        performance.measure('liutech-live2d-load', 'liutech-live2d-load-start')
         emit('ready')
     }).catch(() => {
         if (!isComponentMounted) return
@@ -683,9 +702,7 @@ const cleanup = () => {
         if (model?.internalModel?.coreModel) {
             model.internalModel.coreModel.setParameterValueById("ParamMouthOpenY", 0);
         }
-        if (model?.expressionManager) {
-            model.expressionManager.setExpression(null);
-        }
+        resetExpression()
     } catch { }
 
     // 4. 移除窗口事件监听器

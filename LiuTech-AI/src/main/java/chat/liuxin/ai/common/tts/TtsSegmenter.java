@@ -49,9 +49,9 @@ public class TtsSegmenter {
     /**
      * 流式增量切分:从 buffer 头部尽可能多地取出可播报片段并返回,已切走的字符从 buffer 移除。
      *
-     * 首段(firstSegmentSent=false)使用更小的 firstSegmentMinLen/HardCutLen,
+     * 完整短句优先立即返回，不等待凑满 minLen；首段使用较小的 firstSegmentMinLen/HardCutLen,
      * 目的是尽快开播降低首帧延迟,并允许软标点(逗号、顿号、冒号)作为切分点。
-     * 后续段(firstSegmentSent=true)优先匹配强标点(。！？；\n)满足 followSegmentMinLen,
+     * 后续段优先匹配首个强标点(。！？；\n),
      * 强标点缺失时若软标点位置超过 followSegmentSoftPunctLen 也可切,再不行才走 HardCutLen 硬切。
      * 达不到 minSendLen 或没有可用切点时直接返回,让调用方继续追加流数据。
      */
@@ -67,9 +67,8 @@ public class TtsSegmenter {
             final int hardCutLen = firstSegmentSent
                     ? properties.getFollowSegmentHardCutLen()
                     : properties.getFirstSegmentHardCutLen();
-            final boolean allowSoftPunctuation = !firstSegmentSent;
 
-            if (len < minSendLen) break;
+            if (len == 0) break;
 
             int cut = -1;
             int scanLen = Math.min(len, hardCutLen);
@@ -78,17 +77,21 @@ public class TtsSegmenter {
             for (int i = 0; i < scanLen; i++) {
                 char c = buffer.charAt(i);
                 if (isStrongTtsCutPunctuation(c)) {
-                    lastStrongPuncBeforeLimit = i + 1;
-                } else if (allowSoftPunctuation && isSoftTtsCutPunctuation(c)) {
+                    // 首个完整句即可合成，不为凑长度等待下一句或整段。
+                    if (containsSpeakableText(buffer.substring(0, i + 1))) {
+                        lastStrongPuncBeforeLimit = i + 1;
+                        break;
+                    }
+                } else if (isSoftTtsCutPunctuation(c)) {
                     lastSoftPuncBeforeLimit = i + 1;
                 }
             }
 
-            if (lastStrongPuncBeforeLimit >= minSendLen) {
+            if (lastStrongPuncBeforeLimit > 0) {
                 cut = lastStrongPuncBeforeLimit;
             } else if (!firstSegmentSent && lastSoftPuncBeforeLimit >= minSendLen) {
                 cut = lastSoftPuncBeforeLimit;
-            } else if (firstSegmentSent && lastSoftPuncBeforeLimit >= properties.getFollowSegmentSoftPunctLen()) {
+            } else if (firstSegmentSent && lastSoftPuncBeforeLimit >= Math.max(minSendLen, properties.getFollowSegmentSoftPunctLen())) {
                 cut = lastSoftPuncBeforeLimit;
             } else if (len >= hardCutLen) {
                 cut = hardCutLen;
@@ -96,6 +99,9 @@ public class TtsSegmenter {
 
             if (cut <= 0) break;
 
+            // UTF-16 硬切不能拆开补充平面字符。
+            if (Character.isHighSurrogate(buffer.charAt(cut - 1))) cut--;
+            if (cut <= 0) break;
             String segment = buffer.substring(0, cut).trim();
             buffer.delete(0, cut);
             if (!segment.isEmpty()) out.add(segment);

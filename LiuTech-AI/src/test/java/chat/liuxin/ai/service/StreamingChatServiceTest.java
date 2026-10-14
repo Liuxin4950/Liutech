@@ -46,6 +46,7 @@ class StreamingChatServiceTest {
     private final BlogApiClient blog = mock(BlogApiClient.class);
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
     private StreamingChatService service;
+    private final TtsSpeechService speech = mock(TtsSpeechService.class);
     private final AtomicReference<FluxSink<String>> source = new AtomicReference<>();
     private final CountDownLatch subscribed = new CountDownLatch(1);
     private final CountDownLatch disposed = new CountDownLatch(1);
@@ -66,7 +67,7 @@ class StreamingChatServiceTest {
     }
 
     private StreamingChatService createService() {
-        return new StreamingChatService(client, memory, helper, mock(TtsSpeechService.class),
+        return new StreamingChatService(client, memory, helper, speech,
                 new TtsSegmenter(new TtsSegmenterProperties()), new AvatarCueService(new AvatarCueProperties()),
                 properties, new PromptBudget(properties), blog, new AiMetrics(registry));
     }
@@ -417,6 +418,52 @@ class StreamingChatServiceTest {
         assertEquals(0, registry.get("ai_stream_active_requests").gauge().value());
         assertNull(registry.find("ai_stream_requests_total").tag("outcome", "cancelled").counter());
         verify(memory, times(1)).saveAssistantMessage("7", 99L, "回答", "model", MemoryService.MESSAGE_STATUS_NORMAL, null);
+    }
+
+    @Test
+    void speechStartsBeforeModelEndsAndSlowTtsDoesNotBlockTextCompletion() throws Exception {
+        CountDownLatch synthesisStarted = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        when(speech.inferSingleAudioUrl(anyString())).thenAnswer(call -> {
+            synthesisStarted.countDown();
+            assertTrue(release.await(3, TimeUnit.SECONDS));
+            return "tts/audio/test.wav";
+        });
+        ChatRequest request = request();
+        request.setTtsEnabled(true);
+        SseEmitter emitter = service.processStreamChat(request, null, "model", params, "guest");
+        assertTrue(subscribed.await(3, TimeUnit.SECONDS));
+        source.get().next("你好，我来解释。");
+        try {
+            assertTrue(synthesisStarted.await(3, TimeUnit.SECONDS));
+            assertTrue(payloads(emitter).stream().anyMatch(map -> "你好，我来解释。".equals(map.get("content"))));
+            assertEquals(1, registry.get("ai_speech_stage_seconds").tag("stage", "first_segment").timer().count());
+            source.get().complete();
+            assertTrue(payloads(emitter).stream().anyMatch(map -> map.containsKey("responseLength")));
+            assertFalse(payloads(emitter).stream().anyMatch(map -> map.containsKey("audioUrl")));
+        } finally { release.countDown(); }
+        await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
+            assertTrue(payloads(emitter).stream().anyMatch(map -> "tts/audio/test.wav".equals(map.get("audioUrl"))));
+            assertTrue(payloads(emitter).stream().anyMatch(map -> map.containsKey("timedOut") && Integer.valueOf(1).equals(map.get("segments"))));
+        });
+        assertEquals(1, registry.get("ai_speech_stage_seconds").tag("stage", "first_audio_ready").timer().count());
+    }
+
+    @Test
+    void punctuationSegmentEmitsSkipSoLaterAudioHasNoUnresolvedSequence() throws Exception {
+        when(speech.inferSingleAudioUrl(anyString())).thenReturn("tts/audio/next.wav");
+        ChatRequest request = request();
+        request.setTtsEnabled(true);
+        SseEmitter emitter = service.processStreamChat(request, null, "model", params, "guest");
+        assertTrue(subscribed.await(3, TimeUnit.SECONDS));
+        source.get().next("！".repeat(40));
+        source.get().next("这是下一句。");
+        source.get().complete();
+        await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
+            assertTrue(payloads(emitter).stream().anyMatch(map -> "no-speech".equals(map.get("reason")) && Integer.valueOf(1).equals(map.get("seq"))));
+            assertTrue(payloads(emitter).stream().anyMatch(map -> map.containsKey("audioUrl") && Integer.valueOf(2).equals(map.get("seq"))));
+        });
+        verify(speech, times(1)).inferSingleAudioUrl("这是下一句。");
     }
 
     @Test

@@ -10,7 +10,7 @@
 ```
 startLive2DLoad()
   ├─ loadState = 'loading' + emit('load-start')
-  └─ loadLive2DScripts()               按序加载 4 个脚本（pixi/live2dcubismcore/live2d/cubism4）
+  └─ loadLive2DScripts()               并行预下载、按序执行 4 个脚本（pixi/live2dcubismcore/live2d/cubism4）
       └─ initLive2D()
       ├─ new PIXI.Application({ view, width, height, backgroundAlpha:0, antialias, resolution })
       ├─ if (!props.visible) app.ticker.stop()    初始不可见时停 ticker
@@ -71,7 +71,7 @@ props.visible
 
 ## 表情与动作：applyAvatarCue
 
-`applyAvatarCue(cue)` 驱动模型表情/动作，由 useTtsPlayer 调用：
+`applyAvatarCue(cue)` 驱动模型表情/动作，由 useTtsPlayer 调用。播放 `playing`、思考和取消复位携带 `immediate=true`，立即取消旧表情等待并执行，避免 1.2 秒限速把表情延后到别的句子；普通交互仍限速：
 
 ```
 applyAvatarCue(cue)
@@ -86,6 +86,8 @@ applyAvatarCue(cue)
 ```
 
 **表情映射**：`expressionMap` 把语义名（happy/sad/angry/thinking/surprised/shy/confused/calm）映射到模型表情名。`neutral` 重置为 null。
+
+当前模型资源没有 `Motions` 分组，不能仅凭 `motion` 字符串认为手势动画已实现。
 
 **防抖**：`EXPRESSION_MIN_INTERVAL_MS=1200` 防止表情频繁切换；`MOTION_MIN_INTERVAL_MS=3000` 防止动作频繁触发。
 
@@ -143,3 +145,5 @@ ResizeObserver(容器) + window resize
 - **资源清理必须彻底**：模型 destroy + PIXI app destroy（含纹理），否则内存泄漏；但 **AudioContext 不要 close**（见上「两条硬约束」第 1 条）
 - **加载完成以 `ready` 事件为准**：脚本已下载或 canvas 已出现都不代表模型已经可交互
 - **失败脚本必须允许重试**：清理失败的 script 与全局 Promise，不能把 rejected Promise 永久缓存
+
+完整的加载、推理、语音播放并行关系与延迟测量见[对话时序与延迟](对话时序与延迟.md)。

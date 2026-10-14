@@ -5,18 +5,24 @@ import Icon from './Icon.vue'
 const props = defineProps<{
   modelValue: string
   isLoading: boolean
+  responseActive?: boolean
   expanded?: boolean
   voiceSupported: boolean
   voiceListening: boolean
   voiceInterimText: string
   voiceError: string
+  dialogueStatus?: string
+  handsFree?: boolean
+  handsFreeAvailable?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
   send: []
+  stopReply: []
   startVoice: []
   stopVoice: []
+  toggleHandsFree: []
 }>()
 
 const textValue = computed({
@@ -24,7 +30,8 @@ const textValue = computed({
   set: (value: string) => emit('update:modelValue', value)
 })
 
-const canSend = computed(() => props.modelValue.trim().length > 0 && !props.isLoading)
+const canSend = computed(() => props.modelValue.trim().length > 0)
+const responseBusy = computed(() => props.responseActive ?? props.isLoading)
 const inputPlaceholder = computed(() => {
   if (props.voiceListening) {
     return props.voiceInterimText || '正在识别语音...'
@@ -56,27 +63,39 @@ const toggleVoice = () => {
 
 <template>
   <div data-onboarding="chat-input" class="chat-input" :class="{ expanded, compact: !expanded }">
+    <div class="voice-options">
+      <button
+        class="hands-free-btn"
+        :class="{ active: handsFree }"
+        :aria-pressed="!!handsFree"
+        :disabled="!voiceSupported || (!handsFree && !handsFreeAvailable)"
+        :title="!voiceSupported ? '当前浏览器不支持语音输入' : (!handsFreeAvailable ? '免提需要显示看板娘、开启语音并使用流式回复' : '轮流对话：说完自动发送，回复播完自动聆听；点击麦克风可打断')"
+        @click="emit('toggleHandsFree')"
+      >{{ handsFree ? '退出免提' : '免提对话' }}</button>
+      <span v-if="dialogueStatus && !voiceError" role="status">{{ dialogueStatus }}</span>
+      <span v-if="voiceError" class="voice-error" role="status">{{ voiceError }}</span>
+    </div>
     <div class="input-container">
       <textarea
         v-model="textValue"
         @keypress="handleKeyPress"
         :placeholder="inputPlaceholder"
         rows="1"
-        :disabled="isLoading"
       ></textarea>
 
       <button
         class="voice-toggle-btn"
         :class="{ listening: voiceListening }"
         :disabled="!voiceSupported"
-        :title="voiceListening ? '停止语音识别' : (voiceSupported ? '开始语音识别' : '当前浏览器不支持语音输入')"
+        :aria-pressed="voiceListening"
+        :title="voiceListening ? '停止语音识别' : (voiceSupported ? '接话（打断当前回复）' : '当前浏览器不支持语音输入')"
         @click="toggleVoice"
       >
         <Icon :name="voiceSupported ? (voiceListening ? 'close' : 'mic') : 'micOff'" :size="16" />
       </button>
 
-      <button @click="emit('send')" :disabled="!canSend" class="send-btn" title="发送消息">
-        {{ isLoading ? '发送中' : '发送' }}
+      <button @click="canSend ? emit('send') : emit('stopReply')" :disabled="!canSend && !responseBusy" class="send-btn" :title="canSend ? (responseBusy ? '接话并发送新消息' : '发送消息') : (responseBusy ? '停止当前回复' : '发送消息')">
+        {{ canSend ? '发送' : (responseBusy ? '停止' : '发送') }}
       </button>
     </div>
   </div>
@@ -103,6 +122,26 @@ const toggleVoice = () => {
 .chat-input.compact {
   border-radius: 0 0 16px 16px;
 }
+
+.voice-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-subtle);
+  flex-wrap: wrap;
+}
+.hands-free-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-hover);
+  color: var(--text-main);
+  cursor: pointer;
+}
+.hands-free-btn.active { color: var(--color-primary); border-color: var(--color-primary); }
+.hands-free-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.voice-error { color: var(--color-error); }
 
 .input-container {
   position: relative;

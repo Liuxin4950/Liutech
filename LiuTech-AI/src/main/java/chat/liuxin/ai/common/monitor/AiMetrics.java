@@ -69,6 +69,13 @@ public class AiMetrics {
                 .record(Math.max(0, elapsedMillis), TimeUnit.MILLISECONDS);
     }
 
+    /** 语音链路分阶段计时；stage 由调用方使用固定集合，不含请求 ID 或正文。 */
+    public void recordSpeechStage(String model, String stage, long elapsedMillis) {
+        Timer.builder("ai_speech_stage_seconds").description("语音对话阶段耗时")
+                .tag("model", model).tag("stage", stage).register(meterRegistry)
+                .record(Math.max(0, elapsedMillis), TimeUnit.MILLISECONDS);
+    }
+
     /** 调用方保证每次请求只收尾一次；取消、超时也记真实已返回的 usage。 */
     public void recordStreamFinished(String model, String mode, String outcome, long elapsedMillis, UsageTracker usage) {
         active(model, mode).updateAndGet(value -> Math.max(0, value - 1));

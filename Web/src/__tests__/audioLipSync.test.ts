@@ -162,8 +162,9 @@ describe('音频与模型生命周期', () => {
 
     // 关键：即使上下文没恢复也要立刻返回 false，不能把播放卡住
     const pending = lip.start(audio)
-    await vi.advanceTimersByTimeAsync(2100)   // 触发 resume 的 2 秒等待上限
+    // 不推进计时：口型等待不能给首句声音增加 2 秒延迟。
     expect(await pending).toBe(false)
+    await vi.advanceTimersByTimeAsync(2100)
     // 不能碰音频元素：一旦 createMediaElementSource 生效，挂起的上下文会把声音一起吞掉
     expect(createSource).not.toHaveBeenCalled()
     expect(lipSyncModule.lipSyncDegraded.value).toBe(true)

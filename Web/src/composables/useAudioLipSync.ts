@@ -201,11 +201,15 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
     const play = () => { if (!frame && token === generation && myLoop === loopId) frame = requestAnimationFrame(tick) }
     element.addEventListener('playing', play)
     element.addEventListener('pause', pauseSampling)
+    element.addEventListener('waiting', pauseSampling)
+    element.addEventListener('stalled', pauseSampling)
     element.addEventListener('ended', pauseSampling)
     element.addEventListener('error', pauseSampling)
     detach = () => {
       element.removeEventListener('playing', play)
       element.removeEventListener('pause', pauseSampling)
+      element.removeEventListener('waiting', pauseSampling)
+      element.removeEventListener('stalled', pauseSampling)
       element.removeEventListener('ended', pauseSampling)
       element.removeEventListener('error', pauseSampling)
     }
@@ -239,7 +243,9 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
     stop()
     const token = generation
     try {
-      const ctx = await resumeAudioContext()
+      // resume() 可能等待用户手势；分析不能把声音阻塞 2 秒。
+      const resuming = resumeAudioContext().catch(() => null)
+      const ctx = context
       if (!ctx || token !== generation) return false
 
       if (ctx.state !== 'running') {
@@ -247,6 +253,7 @@ export function useAudioLipSync(setMouth: (value: number) => void, initial: Part
         deferredToken = token
         ctx.removeEventListener('statechange', onContextStateChange)
         ctx.addEventListener('statechange', onContextStateChange)
+        void resuming.then(() => { if (token === generation) onContextStateChange() })
         markDegraded('浏览器暂未允许音频分析，点击页面任意处即可启用口型')
         return false
       }

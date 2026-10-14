@@ -49,6 +49,8 @@ StreamingChatService 文本分段
   → Web 按 AI baseURL 解析并播放
 ```
 
+管理端试听与聊天语音共用 `TTS_CONCURRENCY` 并发上限（默认 1）。等待空位最多 2 秒，超时返回现有 503 错误；聊天入口将其降级为 `audio-skip`，文本继续。只有取得许可后才在收尾释放，本地排队超时不记为 SiliconFlow 供应商离线。该限制仅约束排队时间，不替代供应商请求自身的超时。
+
 管理端通过 `/ai/admin/tts/**` 读写配置、查询状态、上传/列出音色和试听。公共 `GET /ai/runtime` 同时返回默认模型与最小 TTS 状态；公共音频由 `GET /ai/tts/audio/{fileName}` 提供。
 
 ### 管理配置与试听
@@ -102,6 +104,8 @@ Nginx 对 `/api/internal/**` 与 `/ai/internal/**` 直接返回 404；容器内�
 - 不对现有生产库执行完整 `Docs/SQL/sql.sql`。
 
 ## 状态与可播放格式
+
+GPT-SoVITS 聊天合成直接发真实请求，不在首声路径先做诊断 GET；`getStatus()` 仍保留独立连通性检测。
 
 TTS状态含`configured/online/onlineVerified`。SiliconFlow仅配置齐全不代表已验证在线，首次允许尝试，真实合成结果确认状态；失败短暂降级后允许重试。GPT-SoVITS探测5xx/404判不可用，正常POST端点的GET405允许。语音失败通过`audio-skip`降级，不冒充文本成功或中断已完成的文本。
 

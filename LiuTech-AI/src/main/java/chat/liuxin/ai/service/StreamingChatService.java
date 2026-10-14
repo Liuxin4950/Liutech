@@ -185,6 +185,7 @@ public class StreamingChatService {
                         WritingResultValidator.executionPolicy(session.collector, session.contentSession, session.activities));
             }
             if (!session.isRunning()) return;
+            if (!session.writingMode) aiMetrics.recordSpeechStage(session.modelName, "prepared", session.elapsedMillis());
             session.ttsEnabled = !session.writingMode && Boolean.TRUE.equals(request.getTtsEnabled());
             if (session.ttsEnabled) {
                 session.setTtsExecutor(Executors.newFixedThreadPool(Math.max(1, aiChatProperties.getTtsStreamConcurrency())));
@@ -288,7 +289,7 @@ public class StreamingChatService {
             }
             session.send("complete", SseEmitterHelper.eventPayload("conversationId", session.conversationId.get(),
                     "responseLength", fullResponse.length(), "mode", session.writingMode ? "writing" : session.guestMode ? "guest" : "user",
-                    "ttsEnabled", session.ttsEnabled));
+                    "ttsEnabled", session.ttsEnabled, "segments", session.seq.get()));
             if (session.ttsEnabled && !session.ttsFutures.isEmpty()) {
                 CompletableFuture.allOf(session.ttsFutures.toArray(new CompletableFuture[0]))
                         .orTimeout(Math.max(30_000L, aiChatProperties.getSseTimeout()), TimeUnit.MILLISECONDS)
@@ -324,10 +325,10 @@ public class StreamingChatService {
         for (String segment : segments) {
             if (session.closed.get()) return;
             int number = session.seq.incrementAndGet();
+            if (number == 1) aiMetrics.recordSpeechStage(session.modelName, "first_segment", session.elapsedMillis());
             sendAvatarCue(session.emitter, number, session.conversationId.get(), segment);
             if (session.ttsEnabled) {
-                enqueueTtsTask(session.emitter, session.ttsExecutor.get(), session.ttsFutures,
-                        number, session.conversationId.get(), segment);
+                enqueueTtsTask(session, number, segment);
             }
         }
     }
@@ -349,6 +350,7 @@ public class StreamingChatService {
         final AtomicBoolean metricsFinished = new AtomicBoolean();
         final AtomicBoolean assistantSaved = new AtomicBoolean();
         final AtomicBoolean firstToken = new AtomicBoolean();
+        final AtomicBoolean firstAudio = new AtomicBoolean();
         final AtomicReference<Disposable> subscription = new AtomicReference<>();
         final AtomicReference<Future<?>> preparation = new AtomicReference<>();
         final AtomicReference<Future<?>> heartbeat = new AtomicReference<>();
@@ -573,33 +575,45 @@ public class StreamingChatService {
      * seq 与 avatar-cue、data 事件共享,前端按序号对齐播放。
      * 空文本或不可播报文本(纯符号等)直接跳过;合成失败或返回空 URL 时发 audio-skip 事件,不影响主流程。
      */
-    private void enqueueTtsTask(
-            SseEmitter emitter, ExecutorService executor,
-            List<CompletableFuture<Void>> futures,
-            int seq, Long conversationId, String text
-    ) {
+    private void enqueueTtsTask(StreamSession session, int seq, String text) {
         String segment = text == null ? "" : text.trim();
-        if (segment.isEmpty() || !ttsSegmenter.containsSpeakableText(segment)) return;
-
+        // 即使没有可朗读字符，每个序号也必须有终态，否则客户端会一直等这一段。
+        if (segment.isEmpty() || !ttsSegmenter.containsSpeakableText(segment)) {
+            try {
+                session.send("audio-skip", SseEmitterHelper.eventPayload("seq", seq, "text", segment,
+                        "reason", "no-speech", "conversationId", session.conversationId.get()));
+            } catch (Exception error) { session.stop("cancelled", error, false); }
+            return;
+        }
+        long queuedNanos = System.nanoTime();
         CompletableFuture<Void> task = CompletableFuture.runAsync(() -> {
+            if (session.closed.get()) return;
+            aiMetrics.recordSpeechStage(session.modelName, "segment_queue",
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - queuedNanos));
             try {
                 String audioUrl = ttsSpeechService.inferSingleAudioUrl(segment);
+                if (session.closed.get()) return;
                 if (audioUrl == null || audioUrl.isBlank()) {
-                    SseEmitterHelper.sendSseEvent(emitter, "audio-skip", SseEmitterHelper.eventPayload(
-                            "seq", seq, "text", segment, "reason", "empty-audio-url", "conversationId", conversationId));
+                    session.send("audio-skip", SseEmitterHelper.eventPayload("seq", seq, "text", segment,
+                            "reason", "empty-audio-url", "conversationId", session.conversationId.get()));
                     return;
                 }
-                SseEmitterHelper.sendSseEvent(emitter, "audio", SseEmitterHelper.eventPayload(
-                        "seq", seq, "text", segment, "audioUrl", audioUrl, "conversationId", conversationId));
-            } catch (Exception e) {
-                try {
-                    SseEmitterHelper.sendSseEvent(emitter, "audio-skip", SseEmitterHelper.eventPayload(
-                            "seq", seq, "text", segment, "reason", e.getClass().getSimpleName(), "conversationId", conversationId));
-                } catch (Exception ignore) {
+                if (session.firstAudio.compareAndSet(false, true)) {
+                    aiMetrics.recordSpeechStage(session.modelName, "first_audio_ready", session.elapsedMillis());
                 }
+                session.send("audio", SseEmitterHelper.eventPayload("seq", seq, "text", segment,
+                        "audioUrl", audioUrl, "conversationId", session.conversationId.get()));
+            } catch (Exception error) {
+                try {
+                    session.send("audio-skip", SseEmitterHelper.eventPayload("seq", seq, "text", segment,
+                            "reason", "synthesis-failed", "conversationId", session.conversationId.get()));
+                } catch (Exception ignored) { }
+            } finally {
+                aiMetrics.recordSpeechStage(session.modelName, "segment_total",
+                        TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - queuedNanos));
             }
-        }, executor);
-        futures.add(task);
+        }, session.ttsExecutor.get());
+        session.ttsFutures.add(task);
     }
 
     /** 兼容既有入口；统一校验由 WritingHtmlValidator 维护。 */

@@ -21,7 +21,8 @@
 
 - `ttsEnabled` 是按聊天身份保存的用户偏好；`ttsAvailable` 表示当前 runtime 状态允许尝试语音，检测失败不覆盖偏好。
 - `cancelTts()` 增加 `ttsCancelCounter`、清队列并解除等待；流处理捕获自己的 `audioGeneration`，取消后迟到音频不能入队。
-- `live2dStatus` 与 `showModel` 决定是否能消费 TTS；模型还未 ready 时不提前取走队列。
+- `ttsPlaybackActive` 由播放器维护，包含音频准备和实际播放；`voiceInputActive` 表示手动监听或免提会话仍在进行，两者不持久化。
+- `showModel` 控制是否朗读；`live2dStatus` 只控制模型口型和表情接入。音频不等待模型 ready，模型稍后就绪时补接当前音频。
 - MusicCapsule 的 `getCurrentAudio()` 只返回与主轨同时播放的纯人声；人声不可用时返回 `null`，不让伴奏驱动嘴型。`getActionVersion()` 表示用户主动操作版本。
 
 ## 服务配置与验证状态
@@ -43,15 +44,33 @@ Admin 的未知状态显示“待确认”；`message` 展示服务端状态说�
 
 ```text
 SSE audio / audio-skip → chatTts → useSequencedBuffer
-  → 模型 ready 且语音允许时 shift 下一项
-  → 应用同 seq 的 cue → speakAudioElement / speakAudioUrl
-  → audio.play → 等待 ended/error/pause/取消/60 秒超时
+  → 模型可见且语音允许时 shift 下一项
+  → audio.play → playing 时应用同 seq 的 cue、接入口型
+  → 等待 ended/error/取消/有界超时
   → 下一项；所有出口清理监听和计时器
 ```
 
-`seq` 从 1 开始；缺少下一项时等待后续入队，不乱序播放。音频预加载先设置 crossOrigin 后设置 src。新消息、身份切换、清空会话、关闭语音和隐藏模型取消旧播放；重新开启只接收后续有效轮次。播放失败不进行无上限重试，音乐可恢复。
+`seq` 从 1 开始；生成期间缺少下一项时等待，`audio-complete` 或连接结束后按总段数补齐缺失跳过项。音频预加载先设置 crossOrigin 后设置 src。新消息、身份切换、清空会话、关闭语音和隐藏模型取消旧播放；重新开启只接收后续有效轮次。播放失败不进行无上限重试，音乐可恢复。
 
-`avatarCueQueue` 通过 `shiftBySeq` 与对应音频绑定；没有 TTS 等待时可独立驱动模型表情。模型本身的表情映射与复位规则见 [Live2d渲染](Live2d渲染.md)。
+`avatarCueQueue` 在音频按序出队时通过 `shiftBySeq` 绑定，避免乱序音频推进错误游标；没有 TTS 等待时可独立驱动模型表情。模型本身的表情映射与复位规则见 [Live2d渲染](Live2d渲染.md)。
+
+## 语音输入与轮流免提
+
+[useVoiceRecognition.ts](../../../../Web/src/composables/useVoiceRecognition.ts) 每次开麦创建独立识别器；“等待权限”也计入 `voiceListening`，避免重复启动。显式停止、切会话、清空、删除会话、身份变更、关闭聊天、隐藏页面或卸载时终止监听并使旧回调失效；只有已确认的最终文本保留在输入框，中间结果不会自动发送。
+
+手动点击麦克风先调用 `chatStore.interruptReply()`：增加旧回复代次、取消浏览器的 SSE/普通请求、调用 `cancelTts()`、清理表情队列并解除加载状态。已显示正文保留，空的思考占位移除；迟到正文、音频和完成事件不能修改新一轮状态。浏览器取消不等同于供应商已经停止推理，也没有增加“用户已听到哪一句”的后端历史回写协议。
+
+免提要求模型可见、语音开启且 runtime 可尝试、使用流式回复，流程为：
+
+```text
+点击免提 → 聆听 → speechend 请求停止识别 → 最终结果 + end → 自动发送
+  → 等待 isLoading / ttsAwaitingAudio / ttsPendingCount / ttsPlaybackActive 全部解除
+  → 350ms 收尾间隔 → 再次聆听
+```
+
+免提期间音乐保持暂停，退出后按原用户操作版本恢复；主动播放音乐退出语音交互。关闭 TTS、语音不可用或隐藏模型也退出免提。识别权限/网络/无语音错误停止自动循环并显示提示，保留草稿；聊天错误停止免提，避免持续重试。支持与否依据浏览器的 `SpeechRecognition/webkitSpeechRecognition` 能力检测，不支持时仍可打字。
+
+当前是轮流免提，播放期间需要点击麦克风接话；未实现持续人声检测、回声消除或仅凭开口自动打断。350ms 间隔是输出收尾缓冲，不能视为回声消除。真实浏览器的麦克风权限、中文停顿分句、自动播放限制及设备回声仍需验收。
 
 ## 音频图与模型生命周期
 
@@ -67,7 +86,7 @@ HTMLAudioElement → 唯一 MediaElementAudioSourceNode → AudioContext.destina
 
 `playing` 启动采样，`pause/ended/error` 停止采样并闭嘴；监听保留到解除绑定，因此暂停后再次播放可重新采样。已经播放的音乐在模型 ready/重新显示后由协调器查询快照并补接。
 
-`resumeAudioContext()` 在真实用户交互中恢复实际使用的 context，等待上限 2 秒；不使用临时静音 context 冒充其它 context 已解锁。
+`resumeAudioContext()` 在真实用户交互中恢复实际使用的 context，解锁等待上限 2 秒；自动口型接入不等待这个 Promise，因此不阻塞声音。不使用临时静音 context 冒充其它 context 已解锁。
 
 ## 音乐与 TTS
 
@@ -85,6 +104,7 @@ TTS 开始前暂停音乐并记录用户操作版本；分段之间等待音频�
 - 同一 audio 不能被不同模型反复创建 source node；模型销毁也不能静音独立音乐。
 - 全局只由 `useTtsPlayer` 协调 TTS 与音乐，不往 chat store 塞播放器回调。
 - 真实音乐文件、TTS、跨域响应与浏览器播放许可仍需集成验证；单元测试只证明受控时序。
-- 自动化覆盖见 [audioLipSync.test.ts](../../../../Web/src/__tests__/audioLipSync.test.ts)、[musicPlayback.test.ts](../../../../Web/src/__tests__/musicPlayback.test.ts)、[chatTts.test.ts](../../../../Web/src/__tests__/chatTts.test.ts)。
+- 自动化覆盖见 [audioLipSync.test.ts](../../../../Web/src/__tests__/audioLipSync.test.ts)、[musicPlayback.test.ts](../../../../Web/src/__tests__/musicPlayback.test.ts)、[chatTts.test.ts](../../../../Web/src/__tests__/chatTts.test.ts)、[voiceRecognition.test.ts](../../../../Web/src/__tests__/voiceRecognition.test.ts)。
 
+- 首声等待、推理/合成/播放终态、缓冲超时与指标详见[对话时序与延迟](对话时序与延迟.md)。
 - runtime 未验证/已失败状态回归见[chatStream.test.ts](../../../../Web/src/__tests__/chatStream.test.ts)。
