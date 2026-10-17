@@ -109,7 +109,7 @@ const exportCtrl = useTableExport({
   filename: 'posts',
 })
 
-// ============== 收藏用户弹窗 ==============
+// ============== 收藏用户弹窗（子表格复用 useTablePage，autoLoad 关闭、打开弹窗时手动加载） ==============
 const favColumns = [
   { title: '头像', dataIndex: 'user', key: 'user', width: 70 },
   { title: '用户名', dataIndex: 'username', key: 'username', width: 150 },
@@ -118,42 +118,30 @@ const favColumns = [
 ]
 const favVisible = ref(false)
 const favPost = ref<PostListItem | null>(null)
-const favList = ref<PostFavoriteUser[]>([])
-const favLoading = ref(false)
-const favPagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: false,
-  showTotal: (total: number) => `共 ${total} 位用户收藏`
+
+const {
+  loading: favLoading,
+  dataSource: favList,
+  pagination: favPagination,
+  searchParams: favSearchParams,
+  load: loadFavoriteUsers,
+  handleTableChange: onFavTableChange
+} = useTablePage<PostFavoriteUser, { postId?: number }>({
+  loadFn: ({ postId, ...pageParams }) => PostsService.getPostFavoriteUsers(postId!, pageParams),
+  defaultSearchParams: {},
+  defaultPageSize: 10,
+  loadErrorMessage: '加载收藏用户失败',
+  autoLoad: false
 })
+// 弹窗内小分页：不支持切换每页大小，总计文案突出"用户"语义
+favPagination.showSizeChanger = false
+favPagination.showTotal = (total: number) => `共 ${total} 位用户收藏`
 
 const openFavoriteUsers = (record: PostListItem) => {
   favPost.value = record
   favVisible.value = true
+  favSearchParams.value.postId = record.id
   favPagination.current = 1
-  loadFavoriteUsers()
-}
-
-const loadFavoriteUsers = async () => {
-  if (!favPost.value) return
-  favLoading.value = true
-  try {
-    const res = await PostsService.getPostFavoriteUsers(favPost.value.id, {
-      page: favPagination.current,
-      size: favPagination.pageSize
-    })
-    favList.value = res.data.records
-    favPagination.total = res.data.total
-  } catch (e: any) {
-    if (!e?.isBusiness) message.error('加载收藏用户失败')
-  } finally {
-    favLoading.value = false
-  }
-}
-
-const onFavTableChange = (p: any) => {
-  favPagination.current = p.current
   loadFavoriteUsers()
 }
 

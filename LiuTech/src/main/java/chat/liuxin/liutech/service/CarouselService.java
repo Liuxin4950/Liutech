@@ -1,8 +1,10 @@
 package chat.liuxin.liutech.service;
 
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanUtils;
@@ -230,20 +232,33 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
     }
 
     /**
-     * 更新轮播图排序
-     * @param id 轮播图ID
-     * @param sortOrder 新排序
+     * 批量重写轮播图排序（对齐音乐排序协议：前端传显示顺序的完整 id 列表，事务内校验完整性后按序重写）。
+     * 轮播展示为 sort_order DESC（越大越靠前），故显示顺序第 i 位写入 sortOrder = size-1-i，保持既有语义。
+     * @param ids 显示顺序的完整轮播图ID列表
      * @return 是否成功
      */
     @Transactional(rollbackFor = Exception.class)
-    public boolean updateCarouselSort(Long id, Integer sortOrder) {
-        validateCarouselId(id);
-        validateCarouselExistsAndNotDeleted(id);
-
-        LambdaUpdateWrapper<Carousel> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(Carousel::getId, id)
-                .set(Carousel::getSortOrder, sortOrder);
-        return this.update(updateWrapper);
+    public boolean updateSortOrder(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return true;
+        }
+        ids.forEach(this::validateCarouselId);
+        if (ids.stream().distinct().count() != ids.size()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "排序列表不能包含重复轮播图");
+        }
+        // 对未删除全集加锁并校验，避免筛选子集或过期列表造成排序重复/遗漏
+        List<Carousel> current = carouselMapper.selectAllForUpdate();
+        Set<Long> currentIds = current.stream().map(Carousel::getId).collect(Collectors.toSet());
+        if (!currentIds.equals(new HashSet<>(ids))) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请刷新完整轮播图列表后再调整顺序");
+        }
+        for (int i = 0; i < ids.size(); i++) {
+            carouselMapper.update(null, new LambdaUpdateWrapper<Carousel>()
+                    .eq(Carousel::getId, ids.get(i))
+                    .set(Carousel::getSortOrder, ids.size() - 1 - i)
+                    .set(Carousel::getUpdatedAt, new Date()));
+        }
+        return true;
     }
 
     /**

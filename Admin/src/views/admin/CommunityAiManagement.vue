@@ -701,6 +701,7 @@ onBeforeUnmount(() => {
 })
 onActivated(() => {
   pageActive = true
+  if (!displayTimer) displayTimer = setInterval(() => { if (pageActive && !document.hidden) displayNow.value = Date.now() }, 1000)
   if (!document.hidden) void loadWorker()
   if (!document.hidden && ['overview', 'tasks', 'runs'].includes(activeTab.value)) void loadRecords(recordsScopeBotId.value)
   if (!document.hidden && postId.value && activeTab.value === 'preview') void loadPostActivity()
@@ -710,6 +711,8 @@ onDeactivated(() => {
   if (recordsTimer) clearTimeout(recordsTimer)
   if (postActivityTimer) clearTimeout(postActivityTimer)
   if (workerTimer) clearTimeout(workerTimer)
+  // displayTimer 每秒触发一次，离开页面时停止，重新激活时在 onActivated 中重启
+  if (displayTimer) { clearInterval(displayTimer); displayTimer = undefined }
 })
 async function loadWorker() {
   if (workerTimer) clearTimeout(workerTimer)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined, SortAscendingOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
@@ -18,10 +18,7 @@ const {
   loading, dataSource, selectedRowKeys, searchParams, pagination,
   load: loadCarousels, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
 } = useTablePage<Carousel, CarouselListParams>({
-  loadFn: (params) => {
-    const { page, ...rest } = params
-    return CarouselService.getCarouselList({ current: page, ...rest })
-  },
+  loadFn: (params) => CarouselService.getCarouselList(params),
   defaultSearchParams: {
     status: undefined,
     includeDeleted: false
@@ -176,32 +173,32 @@ const handleStatusChange = async (id: number, status: number) => {
   }
 }
 
+// 后端 PUT /admin/carousels/sort 与音乐排序同协议：按「传入 id 列表的顺序」重写 sortOrder
+// （轮播为 DESC 展示，后端把显示顺序第 i 位写成 size-1-i）。必须真正移动数组元素再发送；
+// 只交换两条记录的 sortOrder 字段、按原顺序发 id 是无效操作。
+const sortLoading = ref(false)
+const sortFiltered = computed(() => searchParams.value.status !== undefined || searchParams.value.includeDeleted)
+
 const handleSortChange = async (id: number, direction: 'up' | 'down') => {
+  if (sortLoading.value || sortFiltered.value || loading.value) return
   const index = dataSource.value.findIndex((item) => item.id === id)
   if (index === -1) return
-
   const newIndex = direction === 'up' ? index - 1 : index + 1
   if (newIndex < 0 || newIndex >= dataSource.value.length) return
-
-  const current = dataSource.value[index]
-  const neighbor = dataSource.value[newIndex]
-  const tempSort = current.sortOrder
-  current.sortOrder = neighbor.sortOrder
-  neighbor.sortOrder = tempSort
-
+  const list = [...dataSource.value]
+  const [moved] = list.splice(index, 1)
+  list.splice(newIndex, 0, moved)
+  dataSource.value = list
+  sortLoading.value = true
   try {
-    const [res1, res2] = await Promise.all([
-      CarouselService.updateCarouselSort(current.id!, current.sortOrder),
-      CarouselService.updateCarouselSort(neighbor.id!, neighbor.sortOrder)
-    ])
-    if (res1?.code === 200 && res2?.code === 200) {
-      message.success('排序更新成功')
-    }
-    // 失败已在响应拦截器统一提示并抛错（进入下方 catch），无需再弹一次
-    loadCarousels()
+    await CarouselService.updateSortOrder(list.map((item) => item.id!))
+    message.success('排序更新成功')
+    await loadCarousels()
   } catch (e: any) {
     if (!e?.isBusiness) message.warning('排序更新失败，请稍后重试')
-    loadCarousels()
+    await loadCarousels()
+  } finally {
+    sortLoading.value = false
   }
 }
 
@@ -348,22 +345,24 @@ const statusOptions = [
                   编辑
                 </a-button>
 
-                <a-button
-                  type="link"
-                  size="small"
-                  :disabled="dataSource.indexOf(record) === 0"
-                  @click="handleSortChange(record.id, 'up')"
-                >
-                  <SortAscendingOutlined style="transform: rotate(180deg)" />
-                </a-button>
-                <a-button
-                  type="link"
-                  size="small"
-                  :disabled="dataSource.indexOf(record) === dataSource.length - 1"
-                  @click="handleSortChange(record.id, 'down')"
-                >
-                  <SortAscendingOutlined />
-                </a-button>
+                <a-space :title="sortFiltered ? '请先重置筛选，再调整完整列表顺序' : undefined">
+                  <a-button
+                    type="link"
+                    size="small"
+                    :disabled="sortLoading || sortFiltered || loading || dataSource.indexOf(record) === 0"
+                    @click="handleSortChange(record.id, 'up')"
+                  >
+                    <SortAscendingOutlined style="transform: rotate(180deg)" />
+                  </a-button>
+                  <a-button
+                    type="link"
+                    size="small"
+                    :disabled="sortLoading || sortFiltered || loading || dataSource.indexOf(record) === dataSource.length - 1"
+                    @click="handleSortChange(record.id, 'down')"
+                  >
+                    <SortAscendingOutlined />
+                  </a-button>
+                </a-space>
 
                 <a-switch
                   :checked="record.status === 1"

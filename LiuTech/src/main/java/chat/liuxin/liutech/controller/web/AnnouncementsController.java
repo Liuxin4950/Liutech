@@ -9,10 +9,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.AnnouncementResp;
+import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.AnnouncementsService;
 
 /**
@@ -29,16 +28,15 @@ public class AnnouncementsController {
 
     /**
      * 分页查询有效公告（前台用户）
-     * @param current 当前页
+     * @param page 当前页
      * @param size 每页大小
      * @return 公告分页数据
      */
     @GetMapping("/list")
-    public Result<IPage<AnnouncementResp>> getValidAnnouncements(
-            @RequestParam(defaultValue = "1") long current,
+    public Result<PageResp<AnnouncementResp>> getValidAnnouncements(
+            @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "10") long size) {
-        IPage<AnnouncementResp> result = announcementsService.getValidAnnouncements(current, size);
-        return Result.success(result);
+        return Result.success(PageResp.of(announcementsService.getValidAnnouncements(page, size)));
     }
 
     /**

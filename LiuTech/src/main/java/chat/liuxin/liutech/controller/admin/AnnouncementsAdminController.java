@@ -19,14 +19,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.req.AnnouncementReq;
 import chat.liuxin.liutech.resp.AnnouncementResp;
+import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.AnnouncementImportService;
 import chat.liuxin.liutech.service.AnnouncementsService;
 import lombok.Data;
@@ -48,14 +47,14 @@ public class AnnouncementsAdminController {
 
     /** 管理员分页查询所有公告 */
     @GetMapping
-    public Result<IPage<AnnouncementResp>> getAllAnnouncements(
-            @RequestParam(defaultValue = "1") long current,
+    public Result<PageResp<AnnouncementResp>> getAllAnnouncements(
+            @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) Integer type,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        return Result.success(announcementsService.getAllAnnouncements(current, size, status, type, keyword, includeDeleted));
+        return Result.success(PageResp.of(announcementsService.getAllAnnouncements(page, size, status, type, keyword, includeDeleted)));
     }
 
     /** 管理员根据ID获取公告详情（不限状态） */

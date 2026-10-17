@@ -2,6 +2,8 @@ package chat.liuxin.liutech.resp;
 
 import java.util.List;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+
 import lombok.Data;
 
 /**
@@ -54,5 +56,12 @@ public class PageResp<T> {
         this.pages = (total + size - 1) / size;
         this.hasNext = current < pages;
         this.hasPrevious = current > 1;
+    }
+
+    /**
+     * 从 MyBatis-Plus 分页对象转换，Controller 统一经由此工厂封装分页响应，避免直接泄漏 IPage
+     */
+    public static <T> PageResp<T> of(IPage<T> page) {
+        return new PageResp<>(page.getRecords(), page.getTotal(), page.getCurrent(), page.getSize());
     }
 }

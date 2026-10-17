@@ -63,7 +63,7 @@ async function loadData() {
   try {
     const [msgRes, annRes] = await Promise.all([
       MessagesService.getMessageList({ page: 1, size: 5, status: 0 }).catch(() => null),
-      AnnouncementsService.getAnnouncementList({ current: 1, size: 5 }).catch(() => null),
+      AnnouncementsService.getAnnouncementList({ page: 1, size: 5 }).catch(() => null),
     ])
     if (msgRes?.code === 200) pendingMessages.value = msgRes.data?.records || []
     if (annRes?.code === 200) recentAnnouncements.value = annRes.data?.records || []

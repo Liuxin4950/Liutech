@@ -40,13 +40,13 @@ export interface PageResponse<T> {
 export class AnnouncementService {
   /**
    * 分页查询有效公告（前台用户）
-   * @param current 当前页
+   * @param page 当前页
    * @param size 每页大小
    * @returns 公告分页数据
    */
-  static async getValidAnnouncements(current: number = 1, size: number = 10): Promise<PageResponse<Announcement>> {
+  static async getValidAnnouncements(page: number = 1, size: number = 10): Promise<PageResponse<Announcement>> {
     try {
-      const response = await get('/announcements/list', { current, size })
+      const response = await get('/announcements/list', { page, size })
       return response.data
     } catch (error) {
       console.error('获取有效公告失败:', error)

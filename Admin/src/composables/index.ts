@@ -10,3 +10,6 @@ export type { UseCrudActionsOptions } from './useCrudActions'
 
 export { useModalForm } from './useModalForm'
 export type { UseModalFormOptions } from './useModalForm'
+
+export { useBatchAction } from './useBatchAction'
+export type { UseBatchActionOptions } from './useBatchAction'

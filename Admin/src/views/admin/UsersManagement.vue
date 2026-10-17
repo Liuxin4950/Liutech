@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { h } from 'vue'
+import { h, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, DownOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
 import UserService from '../../services/user'
 import type { User } from '../../services/user'
 import { formatDateTime } from '../../utils/utils'
-import { useTablePage, useCrudActions, useModalForm } from '@/composables'
+import { useTablePage, useCrudActions, useModalForm, useBatchAction } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
 import { useTableExport } from '@/composables/useTableExport'
@@ -191,41 +191,28 @@ const handleStatusChange = async (id: number, newStatus: number) => {
   }
 }
 
-const handleBatchEnable = async () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要启用的用户')
-    return
-  }
+// ============== 批量启停（统一走 useBatchAction） ==============
+const { run: runBatchEnable, loading: batchEnableLoading } = useBatchAction({
+  action: (ids) => UserService.batchUpdateUserStatus(ids, true),
+  successMessage: '批量启用成功',
+  emptyMessage: '请选择要启用的用户',
+  failMessage: '批量启用失败',
+  onRefresh: load,
+  clearSelection
+})
 
-  try {
-    const response = await UserService.batchUpdateUserStatus(selectedRowKeys.value, true)
-    if (response.code === 200) {
-      message.success('批量启用成功')
-      clearSelection()
-      load()
-    }
-  } catch (error: any) {
-    if (!error?.isBusiness) message.error('批量启用失败')
-  }
-}
+const { run: runBatchDisable, loading: batchDisableLoading } = useBatchAction({
+  action: (ids) => UserService.batchUpdateUserStatus(ids, false),
+  successMessage: '批量禁用成功',
+  emptyMessage: '请选择要禁用的用户',
+  failMessage: '批量禁用失败',
+  onRefresh: load,
+  clearSelection
+})
 
-const handleBatchDisable = async () => {
-  if (selectedRowKeys.value.length === 0) {
-    message.warning('请选择要禁用的用户')
-    return
-  }
-
-  try {
-    const response = await UserService.batchUpdateUserStatus(selectedRowKeys.value, false)
-    if (response.code === 200) {
-      message.success('批量禁用成功')
-      clearSelection()
-      load()
-    }
-  } catch (error: any) {
-    if (!error?.isBusiness) message.error('批量禁用失败')
-  }
-}
+const handleBatchEnable = () => runBatchEnable(selectedRowKeys.value)
+const handleBatchDisable = () => runBatchDisable(selectedRowKeys.value)
+const batchActionLoading = computed(() => batchEnableLoading.value || batchDisableLoading.value)
 
 </script>
 
@@ -289,7 +276,7 @@ const handleBatchDisable = async () => {
                 <a-menu-item @click="handleBatchDisable">批量禁用</a-menu-item>
               </a-menu>
             </template>
-            <a-button :disabled="selectedRowKeys.length === 0">批量操作 <DownOutlined /></a-button>
+            <a-button :disabled="selectedRowKeys.length === 0" :loading="batchActionLoading">批量操作 <DownOutlined /></a-button>
           </a-dropdown>
         </a-space>
       </template>

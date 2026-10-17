@@ -18,13 +18,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Carousel;
 import chat.liuxin.liutech.req.CarouselReq;
 import chat.liuxin.liutech.resp.CarouselResp;
+import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.CarouselService;
 
 /**
@@ -41,12 +40,12 @@ public class CarouselAdminController extends BaseAdminController {
 
     /** 分页查询轮播图列表 */
     @GetMapping
-    public Result<IPage<CarouselResp>> getCarouselList(
-            @RequestParam(defaultValue = "1") long current,
+    public Result<PageResp<CarouselResp>> getCarouselList(
+            @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "10") long size,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        return Result.success(carouselService.getAllCarousels(current, size, status, includeDeleted));
+        return Result.success(PageResp.of(carouselService.getAllCarousels(page, size, status, includeDeleted)));
     }
 
     /** 根据ID获取轮播图详情 */
@@ -102,11 +101,11 @@ public class CarouselAdminController extends BaseAdminController {
         return Result.success(carouselService.batchUpdateCarouselStatus(request.getIds(), request.getStatus()));
     }
 
-    /** 更新轮播图排序 */
-    @OperationLog(action = "update", targetType = "carousel", description = "更新轮播图排序")
-    @PutMapping("/{id}/sort")
-    public Result<Boolean> updateCarouselSort(@PathVariable Long id, @RequestBody SortUpdateRequest request) {
-        return Result.success(carouselService.updateCarouselSort(id, request.getSortOrder()));
+    /** 批量重写轮播图排序（对齐音乐排序协议：传显示顺序的完整 id 列表） */
+    @OperationLog(action = "update", targetType = "carousel", description = "批量更新轮播图排序")
+    @PutMapping("/sort")
+    public Result<Boolean> updateSortOrder(@RequestParam List<Long> ids) {
+        return Result.success(carouselService.updateSortOrder(ids));
     }
 
     /** 恢复已删除的轮播图 */
@@ -135,13 +134,6 @@ public class CarouselAdminController extends BaseAdminController {
         private Integer status;
         public Integer getStatus() { return status; }
         public void setStatus(Integer status) { this.status = status; }
-    }
-
-    /** 排序更新请求 */
-    public static class SortUpdateRequest {
-        private Integer sortOrder;
-        public Integer getSortOrder() { return sortOrder; }
-        public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     }
 
     /** 批量状态更新请求 */

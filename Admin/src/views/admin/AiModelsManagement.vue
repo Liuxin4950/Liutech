@@ -129,7 +129,8 @@ const defaultModelForm = (): ModelConfigRequest => ({
   displayName: '',
   provider: 'siliconflow',
   isEnabled: true,
-  sortOrder: 0,
+  // 不传 sortOrder，由后端取当前最大值 +1 追加到列表末尾，避免并发新增重号
+  sortOrder: undefined,
   maxTokens: undefined,
   contextWindow: undefined,
   temperature: undefined,
@@ -154,12 +155,11 @@ const {
   entityName: '模型'
 })
 
-// 覆盖 openCreate：自定义标题和默认排序
+// 覆盖 openCreate：自定义标题
 const openCreate = () => {
   if (actionsDisabled.value) return
   baseOpenCreate()
   modalTitle.value = '新增模型'
-  formModel.value.sortOrder = dataSource.value.length
   // 每次新增都从"未选预设"开始，避免沿用上一次的选择
   selectedPresetKey.value = undefined
 }

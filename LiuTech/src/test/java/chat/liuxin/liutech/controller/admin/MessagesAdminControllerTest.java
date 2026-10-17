@@ -4,9 +4,9 @@ import chat.liuxin.liutech.common.BusinessException;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Messages;
+import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.MessagesService;
 import chat.liuxin.liutech.utils.UserUtils;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +38,7 @@ class MessagesAdminControllerTest {
         page.setTotal(0);
         when(messagesService.getMessagesForAdmin(1, 10, null, null, false)).thenReturn(page);
 
-        Result<IPage<Messages>> result = controller.getMessagesList(1, 10, null, null, false);
+        Result<PageResp<Messages>> result = controller.getMessagesList(1, 10, null, null, false);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertNotNull(result.getData());
@@ -50,7 +50,7 @@ class MessagesAdminControllerTest {
         page.setTotal(3);
         when(messagesService.getMessagesForAdmin(1, 10, "test", 1, true)).thenReturn(page);
 
-        Result<IPage<Messages>> result = controller.getMessagesList(1, 10, "test", 1, true);
+        Result<PageResp<Messages>> result = controller.getMessagesList(1, 10, "test", 1, true);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         verify(messagesService).getMessagesForAdmin(1, 10, "test", 1, true);

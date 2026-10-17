@@ -134,7 +134,8 @@ public class AiModelConfigService {
         config.setProvider(request.getProvider());
         config.setIsEnabled(request.getIsEnabled());
         config.setIsDefault(false);
-        config.setSortOrder(Objects.requireNonNullElse(request.getSortOrder(), 0));
+        // sortOrder 由服务端统一计算（追加到列表末尾），避免前端用列表长度推算导致并发新增重号
+        config.setSortOrder(nextSortOrder(request.getSortOrder()));
         config.setMaxTokens(request.getMaxTokens());
         config.setContextWindow(request.getContextWindow());
         config.setTemperature(request.getTemperature());
@@ -143,6 +144,22 @@ public class AiModelConfigService {
         modelConfigMapper.insert(config);
         log.info("新模型配置添加成功，ID: {}, 模型名称: {}", config.getId(), config.getModelName());
         return toDTO(config);
+    }
+
+    /**
+     * 计算新模型的 sortOrder：显式指定则采用指定值；未指定时取当前最大值 +1，追加到列表末尾。
+     */
+    private Integer nextSortOrder(Integer requested) {
+        if (requested != null) {
+            return requested;
+        }
+        AiModelConfig max = modelConfigMapper.selectOne(
+                new LambdaQueryWrapper<AiModelConfig>()
+                        .select(AiModelConfig::getSortOrder)
+                        .orderByDesc(AiModelConfig::getSortOrder)
+                        .last("LIMIT 1")
+        );
+        return max == null ? 0 : max.getSortOrder() + 1;
     }
 
     /**
@@ -173,7 +190,8 @@ public class AiModelConfigService {
         config.setDisplayName(request.getDisplayName());
         config.setProvider(request.getProvider());
         config.setIsEnabled(request.getIsEnabled());
-        config.setSortOrder(Objects.requireNonNullElse(request.getSortOrder(), 0));
+        // 更新时未显式传 sortOrder 则保留原值，避免把既有顺序静默重置为 0
+        config.setSortOrder(Objects.requireNonNullElse(request.getSortOrder(), config.getSortOrder()));
         config.setMaxTokens(request.getMaxTokens());
         config.setContextWindow(request.getContextWindow());
         config.setTemperature(request.getTemperature());

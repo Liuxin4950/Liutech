@@ -21,7 +21,6 @@ export interface Carousel {
 
 export interface CarouselListParams {
   page?: number
-  current?: number
   size?: number
   status?: number
   includeDeleted?: boolean
@@ -92,10 +91,12 @@ export class CarouselService {
   }
 
   /**
-   * 更新轮播图排序
+   * 批量重写排序（对齐音乐排序协议：传显示顺序的完整 id 列表，后端按序重写 sortOrder）
    */
-  static async updateCarouselSort(id: number, sortOrder: number): Promise<ApiResponse<boolean>> {
-    return put<boolean>(`${this.ADMIN_BASE_URL}/${id}/sort`, { sortOrder })
+  static async updateSortOrder(ids: number[]): Promise<ApiResponse<boolean>> {
+    const params = new URLSearchParams()
+    ids.forEach((id) => params.append('ids', String(id)))
+    return put<boolean>(`${this.ADMIN_BASE_URL}/sort?${params.toString()}`)
   }
 
   /**

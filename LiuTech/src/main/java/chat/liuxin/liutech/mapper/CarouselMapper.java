@@ -90,4 +90,11 @@ public interface CarouselMapper extends BaseMapper<Carousel> {
      * @return 影响的行数
      */
     int restoreCarouselById(@Param("id") Long id);
+
+    /**
+     * 锁定全部未删除轮播图（批量重写排序用，协议对齐 MusicMapper.selectAllForUpdate）
+     * @return 轮播图列表（仅含 id）
+     */
+    @Select("SELECT id FROM carousels WHERE deleted_at IS NULL ORDER BY id FOR UPDATE")
+    List<Carousel> selectAllForUpdate();
 }

@@ -6,12 +6,11 @@ import java.util.List;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-
 import chat.liuxin.liutech.aspect.OperationLog;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.model.Messages;
+import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.MessagesService;
 import chat.liuxin.liutech.utils.UserUtils;
 import chat.liuxin.liutech.utils.ValidationUtil;
@@ -33,13 +32,13 @@ public class MessagesAdminController extends BaseAdminController {
 
     /** 分页查询留言列表 */
     @GetMapping
-    public Result<IPage<Messages>> getMessagesList(
+    public Result<PageResp<Messages>> getMessagesList(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String nickname,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "false") Boolean includeDeleted) {
-        return Result.success(messagesService.getMessagesForAdmin(page, size, nickname, status, includeDeleted));
+        return Result.success(PageResp.of(messagesService.getMessagesForAdmin(page, size, nickname, status, includeDeleted)));
     }
 
     /** 根据ID查询留言详情 */

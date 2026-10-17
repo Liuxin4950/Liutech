@@ -3,8 +3,8 @@ package chat.liuxin.liutech.controller.web;
 import chat.liuxin.liutech.common.ErrorCode;
 import chat.liuxin.liutech.common.Result;
 import chat.liuxin.liutech.resp.AnnouncementResp;
+import chat.liuxin.liutech.resp.PageResp;
 import chat.liuxin.liutech.service.AnnouncementsService;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,12 +30,12 @@ class AnnouncementsControllerTest {
 
     @Test
     void getValidAnnouncements_shouldReturnPage() {
-        IPage<AnnouncementResp> page = new Page<>();
+        Page<AnnouncementResp> page = new Page<>(1, 10);
         page.setRecords(Collections.emptyList());
         page.setTotal(0);
         when(announcementsService.getValidAnnouncements(1, 10)).thenReturn(page);
 
-        Result<IPage<AnnouncementResp>> result = controller.getValidAnnouncements(1, 10);
+        Result<PageResp<AnnouncementResp>> result = controller.getValidAnnouncements(1, 10);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         assertNotNull(result.getData());
@@ -43,12 +43,12 @@ class AnnouncementsControllerTest {
 
     @Test
     void getValidAnnouncements_shouldPassPaginationParams() {
-        IPage<AnnouncementResp> page = new Page<>();
+        Page<AnnouncementResp> page = new Page<>(2, 5);
         page.setRecords(Collections.emptyList());
         page.setTotal(0);
         when(announcementsService.getValidAnnouncements(2, 5)).thenReturn(page);
 
-        Result<IPage<AnnouncementResp>> result = controller.getValidAnnouncements(2, 5);
+        Result<PageResp<AnnouncementResp>> result = controller.getValidAnnouncements(2, 5);
 
         assertEquals(ErrorCode.SUCCESS.getCode(), result.getCode());
         verify(announcementsService).getValidAnnouncements(2, 5);

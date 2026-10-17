@@ -40,7 +40,7 @@ export interface AnnouncementListItem {
 }
 
 export interface AnnouncementListParams {
-  current?: number
+  page?: number
   size?: number
   status?: number
   type?: number

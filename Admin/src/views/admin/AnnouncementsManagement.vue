@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined } from '@ant-design/icons-vue'
@@ -20,10 +20,7 @@ const {
   loading, dataSource, selectedRowKeys, searchParams, pagination,
   load: loadAnnouncements, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
 } = useTablePage<AnnouncementListItem, AnnouncementListParams & { keyword?: string }>({
-  loadFn: (params) => {
-    const { page, ...rest } = params
-    return AnnouncementsService.getAnnouncementList({ current: page, ...rest })
-  },
+  loadFn: (params) => AnnouncementsService.getAnnouncementList(params),
   defaultSearchParams: {
     status: undefined,
     type: undefined,
