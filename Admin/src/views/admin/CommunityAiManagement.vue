@@ -9,6 +9,7 @@ import PostsService, { type PostListItem } from '@/services/posts'
 import CommentsService, { type Comment } from '@/services/comments'
 import { formatDateTime } from '@/utils/utils'
 import { queueCountdown, workerObservation } from '@/utils/communityProgress'
+import LtPageHeader from '@/components/LtPageHeader.vue'
 
 const bots = ref<CommunityBot[]>([])
 const settings = ref(defaultCommunitySettings())
@@ -1148,22 +1149,16 @@ onMounted(() => {
 
 <template>
   <div class="p-24 community-page">
-    <a-card :bordered="false" class="mb-16 page-header-card">
-      <div class="page-title">
-        <div>
-          <h2>AI 评论控制台</h2>
-          <p>预演效果、管理任务，审查和撤回角色发言。</p>
-        </div>
-        <a-space wrap>
-          <a-tag :color="communityEnabled ? 'green' : 'default'">{{ !configurationLoaded ? loading ? '读取配置中' : '配置未加载' : communityEnabled ? '互动已开启' : '互动已暂停' }}</a-tag>
-          <a-tag v-if="worker || workerError" :color="workerOnline ? worker?.busy ? 'blue' : 'green' : 'red'">{{ workerTitle }}</a-tag>
-          <a-button @click="showTaskFilter('pending')">任务队列 {{ recordsLoaded ? events.length + pendingTasks.length : '—' }}</a-button>
-          <a-button danger :disabled="!configurationWritable || !communityEnabled || busy" @click="pauseAll">暂停全部</a-button>
-          <a-button :loading="loading" :disabled="busy" @click="load">
-            <ReloadOutlined />刷新</a-button>
-        </a-space>
-      </div>
-    </a-card>
+    <LtPageHeader title="AI 评论控制台" subtitle="预演效果、管理任务，审查和撤回角色发言。">
+      <template #actions>
+        <a-tag :color="communityEnabled ? 'green' : 'default'">{{ !configurationLoaded ? loading ? '读取配置中' : '配置未加载' : communityEnabled ? '互动已开启' : '互动已暂停' }}</a-tag>
+        <a-tag v-if="worker || workerError" :color="workerOnline ? worker?.busy ? 'blue' : 'green' : 'red'">{{ workerTitle }}</a-tag>
+        <a-button @click="showTaskFilter('pending')">任务队列 {{ recordsLoaded ? events.length + pendingTasks.length : '—' }}</a-button>
+        <a-button danger :disabled="!configurationWritable || !communityEnabled || busy" @click="pauseAll">暂停全部</a-button>
+        <a-button :loading="loading" :disabled="busy" @click="load">
+          <ReloadOutlined />刷新</a-button>
+      </template>
+    </LtPageHeader>
     <a-alert v-if="loadError" type="error" :message="loadError" show-icon class="mb-16"><template #action><a-button :loading="loading" @click="load">重新加载</a-button></template></a-alert>
     <a-card v-if="['roles', 'knowledge', 'preview', 'comments', 'memory'].includes(activeTab)" :bordered="false" class="mb-16 workflow-card">
       <div class="role-context"><span>当前操作角色</span><a-select v-model:value="selectedBotId" :disabled="busy" :options="botOptions" show-search allow-clear option-filter-prop="label" placeholder="选择角色后准备资料、预演和审查" class="context-select" @change="contextRoleChanged" /><template v-if="selectedBot"><a-tag :color="selectedBot.enabled ? 'green' : 'default'">{{ selectedBot.enabled ? '角色已启用' : '角色已暂停，仍可预演' }}</a-tag><a-button size="small" :disabled="busy || !configurationWritable" @click="openBot(selectedBot)">编辑角色</a-button></template><span v-else class="muted">请选择一个角色以继续资料、预演或讨论审查。</span></div>
@@ -1756,12 +1751,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.page-title h2 { margin: 0 0 4px; font-size: 20px; line-height: 1.35; }
-.page-title p { margin: 0; font-size: 13px; line-height: 1.5; }
-.page-header-card :deep(.ant-card-body) { padding: 16px 20px; }
-.page-title > .ant-space { max-width: 100%; }
-.community-page > .ant-card:first-child :deep(.ant-card-body) { padding: 14px 18px; }
 .runtime-details { margin-top: 16px; }
 .runtime-details > summary { cursor: pointer; padding: 12px 16px; background: var(--lt-color-bg-container); border-radius: 8px; }
 .runtime-details > summary .muted { margin-left: 12px; font-size: 12px; }
@@ -1782,7 +1771,7 @@ onMounted(() => {
 .worker-diagnostics summary { cursor: pointer; color: var(--lt-color-text-secondary); }
 .worker-diagnostics p { margin: 8px 0 0; overflow-wrap: anywhere; }
 .task-progress { margin: 4px 0 0; font-size: 12px; color: var(--lt-color-text-secondary); white-space: normal; }
-.page-title p, .muted { color: var(--lt-color-text-secondary); }
+.muted { color: var(--lt-color-text-secondary); }
 .runtime-overview { margin-top: 24px; }
 .runtime-overview > summary { padding: 16px 18px; margin-bottom: 16px; border-radius: 8px; background: var(--lt-color-bg-container); cursor: pointer; }
 .runtime-overview > summary .muted { margin-left: 12px; font-size: 12px; }
