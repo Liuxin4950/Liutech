@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, onMounted, h } from 'vue'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -12,6 +12,8 @@ import {
   LinkOutlined
 } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import ImagesService from '../../services/images'
 import type { Image, ImageListParams, ImageReference } from '../../services/images'
 import { formatDateTime } from '../../utils/utils'
@@ -225,85 +227,70 @@ const exportCtrl = useTableExport({
 <template>
   <div class="p-24">
     <!-- 搜索区域 -->
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="文件名" class="mb-0">
-              <a-input v-model:value="searchParams.fileName" placeholder="请输入文件名" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="类型" class="mb-0">
-              <a-select v-model:value="searchParams.mimeType" placeholder="全部类型" allow-clear @change="handleSearch">
-                <a-select-option value="image/png">PNG</a-select-option>
-                <a-select-option value="image/jpeg">JPEG</a-select-option>
-                <a-select-option value="image/gif">GIF</a-select-option>
-                <a-select-option value="image/webp">WEBP</a-select-option>
-                <a-select-option value="image/bmp">BMP</a-select-option>
-                <a-select-option value="image/svg+xml">SVG</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
-              <a-tooltip title="显示已删除">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="文件名" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.fileName" placeholder="请输入文件名" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <a-form-item label="类型" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.mimeType" placeholder="全部类型" allow-clear @change="handleSearch">
+          <a-select-option value="image/png">PNG</a-select-option>
+          <a-select-option value="image/jpeg">JPEG</a-select-option>
+          <a-select-option value="image/gif">GIF</a-select-option>
+          <a-select-option value="image/webp">WEBP</a-select-option>
+          <a-select-option value="image/bmp">BMP</a-select-option>
+          <a-select-option value="image/svg+xml">SVG</a-select-option>
+        </a-select>
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          搜索
+        </a-button>
+        <a-button @click="handleReset">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </template>
+    </LtFilterBar>
 
     <!-- 列表区域 -->
-    <a-card :bordered="false">
-      <template #title>
-        <span>图片列表</span>
-      </template>
-      <template #extra>
-        <a-space>
-          <a-button @click="handleShowOrphans">
-            <template #icon><ClearOutlined /></template>
-            孤立清理
+    <LtTableCard title="图片列表">
+      <template #actions>
+        <a-button @click="handleShowOrphans">
+          <template #icon><ClearOutlined /></template>
+          孤立清理
+        </a-button>
+        <a-button :loading="reconcileLoading" @click="handleReconcile">
+          <template #icon><SyncOutlined /></template>
+          引用对账
+        </a-button>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-popconfirm
+          v-if="!searchParams.includeDeleted"
+          title="确定要批量删除选中的图片吗？被引用的图片会给出引用提示。"
+          ok-text="确定"
+          cancel-text="取消"
+          @confirm="handleBatchDelete"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">
+            <template #icon><DeleteOutlined /></template>批量删除
           </a-button>
-          <a-button :loading="reconcileLoading" @click="handleReconcile">
-            <template #icon><SyncOutlined /></template>
-            引用对账
+        </a-popconfirm>
+        <a-popconfirm
+          v-if="searchParams.includeDeleted"
+          title="确定要批量彻底删除选中的图片吗？此操作不可恢复！"
+          ok-text="确定"
+          cancel-text="取消"
+          @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">
+            <template #icon><DeleteOutlined /></template>批量彻底删除
           </a-button>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <a-popconfirm
-            v-if="!searchParams.includeDeleted"
-            title="确定要批量删除选中的图片吗？被引用的图片会给出引用提示。"
-            ok-text="确定"
-            cancel-text="取消"
-            @confirm="handleBatchDelete"
-          >
-            <a-button danger :disabled="selectedRowKeys.length === 0">
-              <template #icon><DeleteOutlined /></template>批量删除
-            </a-button>
-          </a-popconfirm>
-          <a-popconfirm
-            v-if="searchParams.includeDeleted"
-            title="确定要批量彻底删除选中的图片吗？此操作不可恢复！"
-            ok-text="确定"
-            cancel-text="取消"
-            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
-          >
-            <a-button danger :disabled="selectedRowKeys.length === 0">
-              <template #icon><DeleteOutlined /></template>批量彻底删除
-            </a-button>
-          </a-popconfirm>
-        </a-space>
+        </a-popconfirm>
       </template>
 
       <a-table
@@ -395,7 +382,7 @@ const exportCtrl = useTableExport({
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <!-- 图片预览弹窗 -->
     <a-modal

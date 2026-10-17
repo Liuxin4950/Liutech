@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import ResourcesService from '../../services/resources'
 import type { Resource, ResourcePost } from '../../services/resources'
 import { formatDateTime } from '../../utils/utils'
@@ -231,69 +233,54 @@ const handleBatchPermanentDeleteAction = () => {
 
 <template>
   <div class="p-24">
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="名称" class="mb-0">
-              <a-input v-model:value="searchParams.name" placeholder="请输入资源名称" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="资源类型" class="mb-0">
-              <a-select v-model:value="searchParams.resourceType" placeholder="全部" allow-clear>
-                <a-select-option v-for="opt in resourceTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="下载类型" class="mb-0">
-              <a-select v-model:value="searchParams.downloadType" placeholder="全部" allow-clear>
-                <a-select-option v-for="opt in downloadTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
-              <a-tooltip title="显示已删除">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="名称" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.name" placeholder="请输入资源名称" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <a-form-item label="资源类型" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.resourceType" placeholder="全部" allow-clear>
+          <a-select-option v-for="opt in resourceTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="下载类型" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.downloadType" placeholder="全部" allow-clear>
+          <a-select-option v-for="opt in downloadTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          搜索
+        </a-button>
+        <a-button @click="handleReset">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </template>
+    </LtFilterBar>
 
-    <a-card :bordered="false">
-      <template #title><span>资源列表</span></template>
-      <template #extra>
-        <a-space>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <a-button type="primary" @click="openCreate">
-            <template #icon><PlusOutlined /></template>新建资源
-          </a-button>
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
-            <template #icon><DeleteOutlined /></template>批量删除
-          </a-button>
-          <a-popconfirm
-            v-if="searchParams.includeDeleted"
-            title="确定要批量彻底删除选中的资源吗？此操作不可恢复！"
-            ok-text="确定"
-            cancel-text="取消"
-            @confirm="handleBatchPermanentDeleteAction"
-          >
-            <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
-          </a-popconfirm>
-        </a-space>
+    <LtTableCard title="资源列表">
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-button type="primary" @click="openCreate">
+          <template #icon><PlusOutlined /></template>新建资源
+        </a-button>
+        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
+          <template #icon><DeleteOutlined /></template>批量删除
+        </a-button>
+        <a-popconfirm
+          v-if="searchParams.includeDeleted"
+          title="确定要批量彻底删除选中的资源吗？此操作不可恢复！"
+          ok-text="确定"
+          cancel-text="取消"
+          @confirm="handleBatchPermanentDeleteAction"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+        </a-popconfirm>
       </template>
       <a-table
         :columns="prefColumns"
@@ -357,7 +344,7 @@ const handleBatchPermanentDeleteAction = () => {
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <a-drawer v-model:open="detailVisible" title="资源详情" width="min(640px, 100vw)" @close="closeDetail">
       <a-spin :spinning="detailLoading">

@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { SearchOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import CommentThreadDrawer from '@/components/CommentThreadDrawer.vue'
 import { useTablePage, useCrudActions } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
@@ -118,85 +120,68 @@ const handleUserSearch = async (value: string) => {
 
 <template>
   <div class="p-24">
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="文章" class="mb-0">
-              <a-select
-                v-model:value="searchParams.postId"
-                placeholder="输入文章标题搜索"
-                show-search
-                :filter-option="false"
-                :options="postOptions"
-                :loading="postSearchLoading"
-                @search="handlePostSearch"
-                style="width: 100%"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="用户" class="mb-0">
-              <a-select
-                v-model:value="searchParams.userId"
-                placeholder="输入用户名搜索"
-                show-search
-                :filter-option="false"
-                :options="userOptions"
-                :loading="userSearchLoading"
-                @search="handleUserSearch"
-                style="width: 100%"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="状态" class="mb-0">
-              <a-select v-model:value="searchParams.status" placeholder="全部" allow-clear>
-                <a-select-option value="active">正常</a-select-option>
-                <a-select-option value="deleted">已删除</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
-              <a-tooltip title="显示已删除">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="文章" class="lt-filter-bar__field">
+        <a-select
+          v-model:value="searchParams.postId"
+          placeholder="输入文章标题搜索"
+          show-search
+          :filter-option="false"
+          :options="postOptions"
+          :loading="postSearchLoading"
+          @search="handlePostSearch"
+          allow-clear
+        />
+      </a-form-item>
+      <a-form-item label="用户" class="lt-filter-bar__field">
+        <a-select
+          v-model:value="searchParams.userId"
+          placeholder="输入用户名搜索"
+          show-search
+          :filter-option="false"
+          :options="userOptions"
+          :loading="userSearchLoading"
+          @search="handleUserSearch"
+          allow-clear
+        />
+      </a-form-item>
+      <a-form-item label="状态" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.status" placeholder="全部" allow-clear>
+          <a-select-option value="active">正常</a-select-option>
+          <a-select-option value="deleted">已删除</a-select-option>
+        </a-select>
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          搜索
+        </a-button>
+        <a-button @click="handleReset">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </template>
+    </LtFilterBar>
 
-    <a-card :bordered="false">
-      <template #title><span>评论列表</span></template>
-      <template #extra>
-        <a-space>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
-            <template #icon><DeleteOutlined /></template>批量删除
-          </a-button>
-          <a-popconfirm
-            v-if="searchParams.includeDeleted"
-            title="确定要批量彻底删除选中的评论吗？此操作不可恢复！"
-            ok-text="确定"
-            cancel-text="取消"
-            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
-          >
-            <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
-          </a-popconfirm>
-        </a-space>
+    <LtTableCard title="评论列表">
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
+          <template #icon><DeleteOutlined /></template>批量删除
+        </a-button>
+        <a-popconfirm
+          v-if="searchParams.includeDeleted"
+          title="确定要批量彻底删除选中的评论吗？此操作不可恢复！"
+          ok-text="确定"
+          cancel-text="取消"
+          @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+        </a-popconfirm>
       </template>
       <a-table
         :columns="prefColumns"
@@ -261,7 +246,7 @@ const handleUserSearch = async (value: string) => {
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
     <CommentThreadDrawer v-model:open="detailOpen" :comment-id="detailCommentId" />
   </div>
 </template>
