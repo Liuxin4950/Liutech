@@ -122,6 +122,18 @@ button {
   max-width: 480px;
 }
 
+/* LtPageHeader 标题内的辅助链接（如"语音服务 → 文本模型配置"） */
+.lt-page-header__title .title-link {
+  margin-left: var(--lt-space-md);
+  font-size: var(--lt-font-size-xs);
+  font-weight: var(--lt-font-weight-regular);
+  color: var(--lt-color-text-tertiary);
+  transition: color var(--lt-duration-base) var(--lt-ease-in-out);
+}
+.lt-page-header__title .title-link:hover {
+  color: var(--lt-color-primary);
+}
+
 /* 弹窗标题栏内的草稿状态提示（文章管理 / 公告管理共用） */
 .modal-title-with-draft {
   display: flex;

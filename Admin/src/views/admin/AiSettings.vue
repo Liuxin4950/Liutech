@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, SaveOutlined, CloudUploadOutlined, PlayCircleOutlined } from '@ant-design/icons-vue'
 import { getAiRuntime, type AiRuntimeDTO } from '@/services/aiRuntime'
+import LtPageHeader from '@/components/LtPageHeader.vue'
 import { copyTtsConfig, sameTtsConfig, ttsStatusLabel } from '@/utils/ttsSettings'
 import {
   getSiliconFlowVoices, getTtsConfig, getTtsStatus, getTtsVoices, resolveAiAudioUrl,
@@ -221,16 +222,19 @@ onBeforeUnmount(() => { disposed = true; stopTestSpeech(); document.removeEventL
 
 <template>
   <div class="p-24">
-    <div class="page-heading">
-      <div><h2>语音服务</h2><p>选择引擎与音色，保存后应用到全站朗读。<router-link to="/ai-models">文本模型配置 →</router-link></p></div>
-      <a-space wrap>
+    <LtPageHeader subtitle="选择引擎与音色，保存后应用到全站朗读。">
+      <template #title>
+        语音服务
+        <router-link to="/ai-models" class="title-link">文本模型配置 →</router-link>
+      </template>
+      <template #actions>
         <a-button @click="detectStatus" :loading="detecting">检测状态</a-button>
         <a-button @click="loadConfiguration" :loading="loading" :disabled="saving || uploadingVoice || dirty"><ReloadOutlined /> 重新读取配置</a-button>
         <a-button type="primary" @click="save" :loading="saving" :disabled="configBusy || uploadingVoice || !dirty"><SaveOutlined /> 保存并应用</a-button>
         <a-button class="header-test" @click="playTestSpeech" :loading="testingSpeech" :disabled="!savedConfig?.enabled || configBusy"><PlayCircleOutlined /> {{ isTestPlaying ? '停止试听' : previewReady ? '播放试听' : '试听已保存配置' }}</a-button>
         <a-button v-if="testingSpeech" class="header-test" @click="stopTestSpeech">取消试听</a-button>
-      </a-space>
-    </div>
+      </template>
+    </LtPageHeader>
     <a-alert v-if="configError" class="mb-16" type="error" show-icon :message="configError" />
     <div class="status-strip mb-16">
       <a-tag :color="voiceStatusColor">语音 {{ voiceStatusText }}</a-tag>
@@ -312,9 +316,6 @@ onBeforeUnmount(() => { disposed = true; stopTestSpeech(); document.removeEventL
 </template>
 
 <style scoped>
-.page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; }
-.page-heading h2 { margin:0 0 4px; font-size:20px; }
-.page-heading p { margin:0; color:var(--lt-color-text-secondary); }
 .status-strip { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; padding:12px 16px; background:var(--lt-color-bg-container); border-radius:var(--lt-radius-lg); }
 .text-secondary { color:var(--lt-color-text-secondary); font-size:12px; line-height:1.7; margin-top:10px; }
 .status-checked-at { margin-top:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
@@ -329,6 +330,5 @@ onBeforeUnmount(() => { disposed = true; stopTestSpeech(); document.removeEventL
 .draft-actions { display:flex; align-items:center; justify-content:space-between; margin-top:8px; color:var(--lt-color-warning); font-size:12px; }
 .diagnostics { margin-top:12px; }
 .header-test { display:none; }
-@media(max-width:1000px) { .page-heading { flex-direction:column; } }
 @media(max-width:991px) { .header-test { display:inline-flex; } .panel-test { display:none; } }
 </style>

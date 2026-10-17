@@ -7,7 +7,7 @@
  * 副标题、右侧操作按钮的位置不一致。
  *
  * 本组件提供唯一骨架：
- *   - 主标题（大字号 + 半粗）
+ *   - 主标题（大字号 + 半粗），可用 #title 插槽覆盖以加入链接等附加元素
  *   - 可选副标题（描述性小字）
  *   - 右侧操作插槽（刷新/保存/检测 等）
  *   - 底部一条细分隔线，与内容区拉开层级
@@ -19,10 +19,18 @@
  *       <a-button type="primary" @click="save">保存</a-button>
  *     </template>
  *   </LtPageHeader>
+ *
+ * 带附加元素的标题：
+ *   <LtPageHeader subtitle="选择引擎与音色">
+ *     <template #title>
+ *       语音服务 <router-link to="/ai-models" class="title-link">文本模型 →</router-link>
+ *     </template>
+ *     <template #actions>...</template>
+ *   </LtPageHeader>
  */
 
 interface Props {
-  title: string
+  title?: string
   subtitle?: string
 }
 
@@ -32,7 +40,9 @@ defineProps<Props>()
 <template>
   <header class="lt-page-header">
     <div class="lt-page-header__main">
-      <h1 class="lt-page-header__title">{{ title }}</h1>
+      <h1 v-if="title || $slots.title" class="lt-page-header__title">
+        <slot name="title">{{ title }}</slot>
+      </h1>
       <p v-if="subtitle" class="lt-page-header__subtitle">{{ subtitle }}</p>
     </div>
     <div v-if="$slots.actions" class="lt-page-header__actions">
