@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, PictureOutlined, UploadOutlined, SortAscendingOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import type { Carousel, CarouselListParams, CarouselFormData } from '../../services/carousel'
 import CarouselService from '../../services/carousel'
 import { formatDateTime, formatRelativeTime } from '../../utils/utils'
@@ -247,59 +249,51 @@ const statusOptions = [
 <template>
   <div class="p-24">
     <!-- 搜索区域 -->
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <div class="filter-toolbar">
-          <a-form-item label="状态" class="mb-0 filter-field">
-            <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
-              <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
-                {{ opt.label }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-          <div class="filter-actions">
-            <a-space wrap>
-              <a-tooltip title="显示已删除">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
-              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
-              <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
-            </a-space>
-          </div>
-        </div>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="状态" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+          <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </a-select-option>
+        </a-select>
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
+        <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
+      </template>
+    </LtFilterBar>
 
     <!-- 表格区域 -->
-    <a-card :bordered="false">
+    <LtTableCard>
       <template #title>
         <span><PictureOutlined /> 轮播图列表</span>
       </template>
-      <template #extra>
-        <a-space>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <template v-if="searchParams.includeDeleted">
-            <a-popconfirm
-              title="确定要批量彻底删除选中的轮播图吗？此操作不可恢复！"
-              ok-text="确定"
-              cancel-text="取消"
-              @confirm="handleBatchPermanentDelete(selectedRowKeys)"
-            >
-              <a-button type="primary" danger :disabled="selectedRowKeys.length === 0">
-                <DeleteOutlined /> 批量彻底删除
-              </a-button>
-            </a-popconfirm>
-          </template>
-          <template v-else>
-            <a-button type="primary" @click="openCreate">
-              <PlusOutlined /> 新建轮播图
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <template v-if="searchParams.includeDeleted">
+          <a-popconfirm
+            title="确定要批量彻底删除选中的轮播图吗？此操作不可恢复！"
+            ok-text="确定"
+            cancel-text="取消"
+            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+          >
+            <a-button type="primary" danger :disabled="selectedRowKeys.length === 0">
+              <DeleteOutlined /> 批量彻底删除
             </a-button>
-            <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
-              <DeleteOutlined /> 批量删除
-            </a-button>
-          </template>
-        </a-space>
+          </a-popconfirm>
+        </template>
+        <template v-else>
+          <a-button type="primary" @click="openCreate">
+            <PlusOutlined /> 新建轮播图
+          </a-button>
+          <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
+            <DeleteOutlined /> 批量删除
+          </a-button>
+        </template>
       </template>
       <a-table
         :columns="prefColumns"
@@ -413,7 +407,7 @@ const statusOptions = [
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <!-- 新建/编辑弹窗 -->
     <a-modal
@@ -554,24 +548,6 @@ const statusOptions = [
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-/* 搜索筛选：字段靠左自适应，操作组始终右对齐，窄屏整体换行 */
-.filter-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 16px;
-}
-
-.filter-field {
-  flex: 1 1 220px;
-  min-width: 180px;
-  max-width: 320px;
-}
-
-.filter-actions {
-  margin-left: auto;
 }
 </style>
 

@@ -16,6 +16,8 @@ import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
 import { useTableExport } from '@/composables/useTableExport'
 import TableExportButton from '@/components/TableExportButton.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import type { Music } from '../../services/music'
 import musicService from '../../services/music'
 import { formatDateTime } from '../../utils/utils'
@@ -394,62 +396,50 @@ const handleStatusChange = async (id: number, status: number) => {
   <div ref="musicPage" class="p-24">
     <a-alert class="mb-16" type="info" show-icon message="前台播放完整音频，纯人声仅用于看板娘嘴型，不重复发声。两份音频请保持相同起点与时长；前台支持列表循环、单曲循环与顺序播放。" />
     <!-- 搜索区域 -->
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="状态" class="mb-0">
-              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear @change="handleSearch">
-                <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="关键词" class="mb-0">
-              <a-input v-model:value="searchParams.keyword" placeholder="搜索歌曲名/艺术家" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="状态" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear @change="handleSearch">
+          <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="关键词" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.keyword" placeholder="搜索歌曲名/艺术家" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <template #actions>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          搜索
+        </a-button>
+        <a-button @click="handleReset">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </template>
+    </LtFilterBar>
 
     <!-- 表格区域 -->
-    <a-card :bordered="false">
+    <LtTableCard>
       <template #title>
         <span><CloudOutlined /> AI音乐管理</span>
       </template>
-      <template #extra>
-        <a-space>
-          <a-select v-model:value="previewTrack" aria-label="试听音轨" style="width: 130px">
-            <a-select-option value="full">试听完整音频</a-select-option>
-            <a-select-option value="vocal">试听纯人声</a-select-option>
-          </a-select>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <a-button type="primary" @click="uploadModalVisible = true">
-            <PlusOutlined /> 上传音乐
+      <template #actions>
+        <a-select v-model:value="previewTrack" aria-label="试听音轨" style="width: 130px">
+          <a-select-option value="full">试听完整音频</a-select-option>
+          <a-select-option value="vocal">试听纯人声</a-select-option>
+        </a-select>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-button type="primary" @click="uploadModalVisible = true">
+          <PlusOutlined /> 上传音乐
+        </a-button>
+        <a-popconfirm
+          title="确定要批量彻底删除选中的音乐吗？此操作不可恢复！"
+          @confirm="handleBatchDelete(selectedRowKeys)"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">
+            <DeleteOutlined /> 批量删除
           </a-button>
-          <a-popconfirm
-            title="确定要批量彻底删除选中的音乐吗？此操作不可恢复！"
-            @confirm="handleBatchDelete(selectedRowKeys)"
-          >
-            <a-button danger :disabled="selectedRowKeys.length === 0">
-              <DeleteOutlined /> 批量删除
-            </a-button>
-          </a-popconfirm>
-        </a-space>
+        </a-popconfirm>
       </template>
 
       <a-table
@@ -523,7 +513,7 @@ const handleStatusChange = async (id: number, status: number) => {
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <!-- 上传弹窗 -->
     <a-modal
