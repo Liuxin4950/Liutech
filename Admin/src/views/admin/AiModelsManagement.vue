@@ -4,6 +4,7 @@ import { useTablePage, useModalForm } from '@/composables'
 import aiModelsService from '@/services/aiModels'
 import { getAiRuntime } from '@/services/aiRuntime'
 import type { ModelConfig, ModelConfigRequest } from '@/services/aiModels'
+import LtPageHeader from '@/components/LtPageHeader.vue'
 import { message, Modal } from 'ant-design-vue'
 import {
   ReloadOutlined,
@@ -347,13 +348,16 @@ const refreshModels = () => { if (!loading.value && !mutationBusy.value && !conf
 
 <template>
   <div class="p-24">
-    <div class="page-heading">
-      <div><h2>模型配置</h2><p>全局文本模型统一用于聊天、写作与评论；语音引擎在 <router-link to="/ai-settings">语音服务</router-link> 配置。</p></div>
-      <a-space wrap>
+    <LtPageHeader subtitle="全局文本模型统一用于聊天、写作与评论。">
+      <template #title>
+        模型配置
+        <router-link to="/ai-settings" class="title-link">语音服务 →</router-link>
+      </template>
+      <template #actions>
         <a-button @click="refreshModels" :loading="loading" :disabled="!!mutationBusy || confirmLoading"><ReloadOutlined /> 重新读取</a-button>
         <a-button type="primary" @click="openCreate" :disabled="actionsDisabled"><PlusOutlined /> 新增模型</a-button>
-      </a-space>
-    </div>
+      </template>
+    </LtPageHeader>
     <a-alert v-if="loadError" class="mb-16" type="error" show-icon :message="loadError" />
     <div class="model-summary mb-16">
       <span>全局默认 <strong>{{ defaultModelText }}</strong></span>
@@ -498,13 +502,10 @@ const refreshModels = () => { if (!loading.value && !mutationBusy.value && !conf
 </template>
 
 <style scoped>
-.page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-.page-heading h2 { margin: 0 0 4px; font-size: 20px; }
-.page-heading p { margin: 0; color: var(--lt-color-text-secondary); }
 .model-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; background: var(--lt-color-bg-container); border-radius: var(--lt-radius-lg); }
 .summary-hint { margin-left: auto; color: var(--lt-color-text-secondary); font-size: 12px; }
 .model-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-@media (max-width: 900px) { .page-heading { flex-direction: column; } .summary-hint { margin-left: 0; width: 100%; } }
+@media (max-width: 900px) { .summary-hint { margin-left: 0; width: 100%; } }
 .models-card {
   border-radius: var(--lt-radius-xl);
   box-shadow: var(--lt-shadow-xs);
