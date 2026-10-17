@@ -27,11 +27,22 @@
  *   </LtFilterBar>
  *
  * 字段统一加 `.lt-filter-bar__field` 类（或 `:class`），让本组件控制 flex 自适应。
+ *
+ * ⚠️ bare 模式：当搜索区需要嵌入 Tab 内部 / 抽屉 / 弹窗等
+ * 已有容器时，传 `bare` 关闭卡片包裹与底边距，避免"卡片套卡片"。
+ * 例：PointsManagement 的双 Tab 各自内嵌筛选。
  */
+
+interface Props {
+  /** 关闭 a-card 包裹，用于嵌入 Tab / 抽屉等已有容器 */
+  bare?: boolean
+}
+
+defineProps<Props>()
 </script>
 
 <template>
-  <a-card :bordered="false" class="lt-filter-bar">
+  <a-card v-if="!bare" :bordered="false" class="lt-filter-bar">
     <a-form layout="horizontal" class="lt-filter-bar__form">
       <div class="lt-filter-bar__inner">
         <slot />
@@ -43,12 +54,25 @@
       </div>
     </a-form>
   </a-card>
+  <a-form v-else layout="horizontal" class="lt-filter-bar-bare">
+    <div class="lt-filter-bar__inner">
+      <slot />
+      <div v-if="$slots.actions" class="lt-filter-bar__actions">
+        <a-space wrap>
+          <slot name="actions" />
+        </a-space>
+      </div>
+    </div>
+  </a-form>
 </template>
 
 <style scoped>
 .lt-filter-bar {
   margin-bottom: var(--lt-space-lg);
 }
+
+/* bare 模式：根元素用独立 class（不继承 .lt-filter-bar 的 margin-bottom），
+   使用方自行加全局工具类控制节奏，例：PointsManagement 的 class="mb-16"。 */
 
 .lt-filter-bar__inner {
   display: flex;

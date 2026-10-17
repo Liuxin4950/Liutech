@@ -6,6 +6,8 @@ import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
 import { useTableExport } from '@/composables/useTableExport'
 import TableExportButton from '@/components/TableExportButton.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import PointsService from '../../services/points'
 import { UserService } from '../../services/user'
 import type { TransactionListParams, CheckinListParams, PointsStats } from '../../services/points'
@@ -281,72 +283,59 @@ onMounted(() => {
       <a-tabs v-model:activeKey="activeTab" @change="handleTabChange">
         <!-- 积分流水 Tab -->
         <a-tab-pane key="transactions" tab="积分流水">
-          <a-form layout="horizontal" :model="txSearchParams" class="points-filter-form mb-16">
-            <a-row :gutter="[16, 12]" align="bottom">
-              <a-col :xs="24" :sm="12" :xl="6">
-                <a-form-item label="用户" class="mb-0">
-                  <a-select
-                    v-model:value="txSearchParams.userId"
-                    placeholder="输入用户名搜索"
-                    show-search
-                    :filter-option="false"
-                    :options="txUserOptions"
-                    :loading="txUserSearchLoading"
-                    @search="handleTxUserSearch"
-                    style="width: 100%"
-                    allow-clear
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :xs="24" :sm="12" :xl="6">
-                <a-form-item label="交易类型" class="mb-0">
-                  <a-select
-                    v-model:value="txSearchParams.transactionType"
-                    placeholder="请选择类型"
-                    allow-clear
-                  >
-                    <a-select-option
-                      v-for="opt in transactionTypeOptions"
-                      :key="opt.value"
-                      :value="opt.value"
-                    >
-                      {{ opt.label }}
-                    </a-select-option>
-                  </a-select>
-                </a-form-item>
-              </a-col>
-              <a-col :xs="24" :sm="12" :xl="6">
-                <a-form-item label="开始时间" class="mb-0">
-                  <a-date-picker
-                    v-model:value="txSearchParams.startTime"
-                    show-time
-                    format="YYYY-MM-DD HH:mm:ss"
-                    value-format="YYYY-MM-DD HH:mm:ss"
-                    placeholder="选择开始时间"
-                    style="width: 100%"
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :xs="24" :sm="12" :xl="6">
-                <a-form-item label="结束时间" class="mb-0">
-                  <a-date-picker
-                    v-model:value="txSearchParams.endTime"
-                    show-time
-                    format="YYYY-MM-DD HH:mm:ss"
-                    value-format="YYYY-MM-DD HH:mm:ss"
-                    placeholder="选择结束时间"
-                    style="width: 100%"
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :span="24" class="points-filter-actions">
-                <a-space wrap>
-                  <a-button type="primary" @click="handleTxSearch">搜索</a-button>
-                  <a-button @click="handleTxReset">重置</a-button>
-                </a-space>
-              </a-col>
-            </a-row>
-          </a-form>
+          <LtFilterBar bare class="mb-16">
+            <a-form-item label="用户" class="lt-filter-bar__field">
+              <a-select
+                v-model:value="txSearchParams.userId"
+                placeholder="输入用户名搜索"
+                show-search
+                :filter-option="false"
+                :options="txUserOptions"
+                :loading="txUserSearchLoading"
+                @search="handleTxUserSearch"
+                allow-clear
+              />
+            </a-form-item>
+            <a-form-item label="交易类型" class="lt-filter-bar__field">
+              <a-select
+                v-model:value="txSearchParams.transactionType"
+                placeholder="请选择类型"
+                allow-clear
+              >
+                <a-select-option
+                  v-for="opt in transactionTypeOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="开始时间" class="lt-filter-bar__field">
+              <a-date-picker
+                v-model:value="txSearchParams.startTime"
+                show-time
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                placeholder="选择开始时间"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <a-form-item label="结束时间" class="lt-filter-bar__field">
+              <a-date-picker
+                v-model:value="txSearchParams.endTime"
+                show-time
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                placeholder="选择结束时间"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <template #actions>
+              <a-button type="primary" @click="handleTxSearch">搜索</a-button>
+              <a-button @click="handleTxReset">重置</a-button>
+            </template>
+          </LtFilterBar>
 
           <div class="points-table-toolbar mb-16">
             <a-space wrap>
@@ -388,53 +377,42 @@ onMounted(() => {
 
         <!-- 签到记录 Tab -->
         <a-tab-pane key="checkins" tab="签到记录">
-          <a-form layout="horizontal" :model="checkinSearchParams" class="points-filter-form mb-16">
-            <a-row :gutter="[16, 12]" align="bottom">
-              <a-col :xs="24" :sm="12" :xl="8">
-                <a-form-item label="用户" class="mb-0">
-                  <a-select
-                    v-model:value="checkinSearchParams.userId"
-                    placeholder="输入用户名搜索"
-                    show-search
-                    :filter-option="false"
-                    :options="checkinUserOptions"
-                    :loading="checkinUserSearchLoading"
-                    @search="handleCheckinUserSearch"
-                    style="width: 100%"
-                    allow-clear
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :xs="24" :sm="12" :xl="8">
-                <a-form-item label="开始日期" class="mb-0">
-                  <a-date-picker
-                    v-model:value="checkinSearchParams.startDate"
-                    format="YYYY-MM-DD"
-                    value-format="YYYY-MM-DD"
-                    placeholder="选择开始日期"
-                    style="width: 100%"
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :xs="24" :sm="12" :xl="8">
-                <a-form-item label="结束日期" class="mb-0">
-                  <a-date-picker
-                    v-model:value="checkinSearchParams.endDate"
-                    format="YYYY-MM-DD"
-                    value-format="YYYY-MM-DD"
-                    placeholder="选择结束日期"
-                    style="width: 100%"
-                  />
-                </a-form-item>
-              </a-col>
-              <a-col :span="24" class="points-filter-actions">
-                <a-space wrap>
-                  <a-button type="primary" @click="handleCheckinSearch">搜索</a-button>
-                  <a-button @click="handleCheckinReset">重置</a-button>
-                </a-space>
-              </a-col>
-            </a-row>
-          </a-form>
+          <LtFilterBar bare class="mb-16">
+            <a-form-item label="用户" class="lt-filter-bar__field">
+              <a-select
+                v-model:value="checkinSearchParams.userId"
+                placeholder="输入用户名搜索"
+                show-search
+                :filter-option="false"
+                :options="checkinUserOptions"
+                :loading="checkinUserSearchLoading"
+                @search="handleCheckinUserSearch"
+                allow-clear
+              />
+            </a-form-item>
+            <a-form-item label="开始日期" class="lt-filter-bar__field">
+              <a-date-picker
+                v-model:value="checkinSearchParams.startDate"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                placeholder="选择开始日期"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <a-form-item label="结束日期" class="lt-filter-bar__field">
+              <a-date-picker
+                v-model:value="checkinSearchParams.endDate"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                placeholder="选择结束日期"
+                style="width: 100%"
+              />
+            </a-form-item>
+            <template #actions>
+              <a-button type="primary" @click="handleCheckinSearch">搜索</a-button>
+              <a-button @click="handleCheckinReset">重置</a-button>
+            </template>
+          </LtFilterBar>
 
           <div class="points-table-toolbar mb-16">
             <a-space wrap>
@@ -517,28 +495,16 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.points-filter-actions,
 .points-table-toolbar {
   display: flex;
   justify-content: flex-end;
   align-items: center;
 }
 
-.points-filter-actions :deep(.ant-space),
 .points-table-toolbar :deep(.ant-space) {
   justify-content: flex-end;
 }
 
-.points-filter-form :deep(.ant-form-item-control) {
-  min-width: 0;
-}
-
-.points-filter-form :deep(.ant-select),
-.points-filter-form :deep(.ant-picker) {
-  width: 100%;
-}
-
-.points-filter-actions :deep(.ant-btn),
 .points-table-toolbar :deep(.ant-btn) {
   white-space: nowrap;
 }
