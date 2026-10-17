@@ -227,10 +227,10 @@ class AiChatServiceImplTest {
 
     @Test
     void shouldExtractSegmentAtPunctuationAfterMinimumLength() throws Exception {
-        List<String> segments = extractSegments("这是第一句测试内容已经明显超过六十个字了会在句号处稳定切开并且保持更长的连续播报效果避免下一段还没推理好就已经播完了同时再补充一些上下文信息保证触发当前后续段阈值。后面这一段不足六十", true);
+        List<String> segments = extractSegments("这是第一句测试内容已经明显超过四十个字会在句号处稳定切开并且保持连续播报效果避免下一段还没推理好就已经播完了。后面这一段不足最小长度", true);
 
         assertEquals(1, segments.size());
-        assertEquals("这是第一句测试内容已经明显超过六十个字了会在句号处稳定切开并且保持更长的连续播报效果避免下一段还没推理好就已经播完了同时再补充一些上下文信息保证触发当前后续段阈值。", segments.get(0));
+        assertEquals("这是第一句测试内容已经明显超过四十个字会在句号处稳定切开并且保持连续播报效果避免下一段还没推理好就已经播完了。", segments.get(0));
     }
 
     @Test
@@ -240,7 +240,8 @@ class AiChatServiceImplTest {
         List<String> segments = extractSegments(content, true);
 
         assertEquals(1, segments.size());
-        assertEquals(100, segments.get(0).length());
+        // followSegmentHardCutLen 默认 72：无标点时在 72 字符处硬切，剩余长度不足硬切阈值留在缓冲区
+        assertEquals(72, segments.get(0).length());
     }
 
     @Test
@@ -261,10 +262,10 @@ class AiChatServiceImplTest {
 
     @Test
     void shouldNotCutFollowSegmentTooEarlyAtComma() throws Exception {
-        List<String> segments = extractSegments("这是一段后续语音内容虽然在前面很快出现了逗号，但是为了避免音频太短需要继续累积更多文字和信息密度直到超过六十个字以后再观察切分点最后在这一句完整结束时再切开。", true);
+        List<String> segments = extractSegments("这是一段后续语音内容虽然在前面很快出现了逗号，但是为了避免音频太短需要继续累积更多文字和信息密度直到超过最短长度再观察切分。", true);
 
         assertEquals(1, segments.size());
-        assertEquals("这是一段后续语音内容虽然在前面很快出现了逗号，但是为了避免音频太短需要继续累积更多文字和信息密度直到超过六十个字以后再观察切分点最后在这一句完整结束时再切开。", segments.get(0));
+        assertEquals("这是一段后续语音内容虽然在前面很快出现了逗号，但是为了避免音频太短需要继续累积更多文字和信息密度直到超过最短长度再观察切分。", segments.get(0));
     }
 
     @Test

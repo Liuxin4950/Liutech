@@ -190,8 +190,8 @@ public class AiModelConfigService {
         config.setDisplayName(request.getDisplayName());
         config.setProvider(request.getProvider());
         config.setIsEnabled(request.getIsEnabled());
-        // 更新时未显式传 sortOrder 则保留原值，避免把既有顺序静默重置为 0
-        config.setSortOrder(Objects.requireNonNullElse(request.getSortOrder(), config.getSortOrder()));
+        // 更新时未显式传 sortOrder 则保留原值（含历史 null 行），避免把既有顺序静默重置为 0
+        config.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : config.getSortOrder());
         config.setMaxTokens(request.getMaxTokens());
         config.setContextWindow(request.getContextWindow());
         config.setTemperature(request.getTemperature());
