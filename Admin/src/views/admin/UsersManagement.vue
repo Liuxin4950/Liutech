@@ -3,6 +3,8 @@ import { h, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, DownOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import UserService from '../../services/user'
 import type { User } from '../../services/user'
 import { formatDateTime } from '../../utils/utils'
@@ -218,67 +220,50 @@ const batchActionLoading = computed(() => batchEnableLoading.value || batchDisab
 
 <template>
   <div class="p-24">
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="用户名" class="mb-0">
-              <a-input v-model:value="searchParams.username" placeholder="请输入用户名" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="邮箱" class="mb-0">
-              <a-input v-model:value="searchParams.email" placeholder="请输入邮箱" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="角色" class="mb-0">
-              <a-select v-model:value="searchParams.role" placeholder="请选择角色" allow-clear>
-                <a-select-option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="状态" class="mb-0">
-              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
-                <a-select-option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
-              <a-tooltip title="显示已删除">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
-              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
-              <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="用户名" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.username" placeholder="请输入用户名" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <a-form-item label="邮箱" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.email" placeholder="请输入邮箱" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <a-form-item label="角色" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.role" placeholder="请选择角色" allow-clear>
+          <a-select-option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="状态" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+          <a-select-option v-for="option in statusOptions" :key="option.value" :value="option.value">{{ option.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
+        <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
+      </template>
+    </LtFilterBar>
 
-    <a-card :bordered="false">
-      <template #title><span>用户列表</span></template>
-      <template #extra>
-        <a-space>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <a-button type="primary" @click="openCreate">新建用户</a-button>
-          <a-popconfirm title="确定批量删除选中的用户吗？" @confirm="handleBatchDelete(selectedRowKeys)">
-            <a-button danger :disabled="selectedRowKeys.length === 0">批量删除</a-button>
-          </a-popconfirm>
-          <a-button :disabled="selectedRowKeys.length === 0" :loading="crudLoading" @click="handleBatchRestore(selectedRowKeys)">批量恢复</a-button>
-          <a-dropdown>
-            <template #overlay>
-              <a-menu>
-                <a-menu-item @click="handleBatchEnable">批量启用</a-menu-item>
-                <a-menu-item @click="handleBatchDisable">批量禁用</a-menu-item>
-              </a-menu>
-            </template>
-            <a-button :disabled="selectedRowKeys.length === 0" :loading="batchActionLoading">批量操作 <DownOutlined /></a-button>
-          </a-dropdown>
-        </a-space>
+    <LtTableCard title="用户列表">
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-button type="primary" @click="openCreate">新建用户</a-button>
+        <a-popconfirm title="确定批量删除选中的用户吗？" @confirm="handleBatchDelete(selectedRowKeys)">
+          <a-button danger :disabled="selectedRowKeys.length === 0">批量删除</a-button>
+        </a-popconfirm>
+        <a-button :disabled="selectedRowKeys.length === 0" :loading="crudLoading" @click="handleBatchRestore(selectedRowKeys)">批量恢复</a-button>
+        <a-dropdown>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item @click="handleBatchEnable">批量启用</a-menu-item>
+              <a-menu-item @click="handleBatchDisable">批量禁用</a-menu-item>
+            </a-menu>
+          </template>
+          <a-button :disabled="selectedRowKeys.length === 0" :loading="batchActionLoading">批量操作 <DownOutlined /></a-button>
+        </a-dropdown>
       </template>
 
       <a-table
@@ -324,7 +309,7 @@ const batchActionLoading = computed(() => batchEnableLoading.value || batchDisab
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
       <a-form :model="formModel" :rules="rules" ref="formRef" layout="vertical">

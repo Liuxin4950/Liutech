@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, NotificationOutlined, DownOutlined, EyeOutlined, UploadOutlined, DownloadOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import DOMPurify from 'dompurify'
 import dayjs, { Dayjs } from 'dayjs'
 import AnnouncementsService from '../../services/announcements'
@@ -367,96 +369,82 @@ const stripHtml = (html: string) => {
 <template>
   <div class="p-24">
     <!-- 搜索区域 -->
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="关键词" class="mb-0">
-              <a-input
-                v-model:value="searchParams.keyword"
-                placeholder="搜索标题或内容"
-                @press-enter="handleSearch"
-                allow-clear
-              />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="类型" class="mb-0">
-              <a-select v-model:value="searchParams.type" placeholder="请选择类型" allow-clear>
-                <a-select-option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="状态" class="mb-0">
-              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
-                <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6" class="search-actions">
-            <a-space>
-               <a-tooltip title="显示已删除">
-                  <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-               </a-tooltip>
-              <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
-              <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="关键词" class="lt-filter-bar__field">
+        <a-input
+          v-model:value="searchParams.keyword"
+          placeholder="搜索标题或内容"
+          @press-enter="handleSearch"
+          allow-clear
+        />
+      </a-form-item>
+      <a-form-item label="类型" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.type" placeholder="请选择类型" allow-clear>
+          <a-select-option v-for="opt in typeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="状态" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+          <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch"><template #icon><SearchOutlined /></template>搜索</a-button>
+        <a-button @click="handleReset"><template #icon><ReloadOutlined /></template>重置</a-button>
+      </template>
+    </LtFilterBar>
 
     <!-- 表格区域 -->
-    <a-card :bordered="false">
+    <LtTableCard>
       <template #title>
         <span><NotificationOutlined /> 公告列表</span>
       </template>
-      <template #extra>
-         <a-space>
-            <TableExportButton :ctrl="exportCtrl" />
-            <TableColumnSettings :ctrl="columnPrefsCtrl" />
-            <a-button type="primary" @click="openCreate">
-              <PlusOutlined /> 新建公告
-            </a-button>
-            <a-tooltip title="导出全部公告（服务端 Excel，含所有分页）">
-              <a-button :disabled="!exportImportEnabled" @click="handleExport">
-                <DownloadOutlined /> 导出全部
-              </a-button>
-            </a-tooltip>
-            <a-button :disabled="!exportImportEnabled" @click="uploadVisible = true">
-              <UploadOutlined /> 导入Excel
-            </a-button>
-            <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
-              <DeleteOutlined /> 批量删除
-            </a-button>
-            <a-popconfirm
-              v-if="searchParams.includeDeleted"
-              title="确定要批量彻底删除选中的公告吗？此操作不可恢复！"
-              ok-text="确定"
-              cancel-text="取消"
-              @confirm="handleBatchPermanentDelete(selectedRowKeys)"
-            >
-              <a-button danger :disabled="selectedRowKeys.length === 0">
-                <DeleteOutlined /> 批量彻底删除
-              </a-button>
-            </a-popconfirm>
-            <a-dropdown>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item key="publish" @click="handleBatchStatusUpdate(1)">批量发布</a-menu-item>
-                  <a-menu-item key="draft" @click="handleBatchStatusUpdate(0)">批量设为草稿</a-menu-item>
-                  <a-menu-item key="offline" @click="handleBatchStatusUpdate(2)">批量下线</a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="setTop" @click="handleBatchTopUpdate(1)">批量置顶</a-menu-item>
-                  <a-menu-item key="cancelTop" @click="handleBatchTopUpdate(0)">批量取消置顶</a-menu-item>
-                </a-menu>
-              </template>
-              <a-button :disabled="selectedRowKeys.length === 0">
-                批量操作 <DownOutlined />
-              </a-button>
-            </a-dropdown>
-         </a-space>
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-button type="primary" @click="openCreate">
+          <PlusOutlined /> 新建公告
+        </a-button>
+        <a-tooltip title="导出全部公告（服务端 Excel，含所有分页）">
+          <a-button :disabled="!exportImportEnabled" @click="handleExport">
+            <DownloadOutlined /> 导出全部
+          </a-button>
+        </a-tooltip>
+        <a-button :disabled="!exportImportEnabled" @click="uploadVisible = true">
+          <UploadOutlined /> 导入Excel
+        </a-button>
+        <a-button danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
+          <DeleteOutlined /> 批量删除
+        </a-button>
+        <a-popconfirm
+          v-if="searchParams.includeDeleted"
+          title="确定要批量彻底删除选中的公告吗？此操作不可恢复！"
+          ok-text="确定"
+          cancel-text="取消"
+          @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">
+            <DeleteOutlined /> 批量彻底删除
+          </a-button>
+        </a-popconfirm>
+        <a-dropdown>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item key="publish" @click="handleBatchStatusUpdate(1)">批量发布</a-menu-item>
+              <a-menu-item key="draft" @click="handleBatchStatusUpdate(0)">批量设为草稿</a-menu-item>
+              <a-menu-item key="offline" @click="handleBatchStatusUpdate(2)">批量下线</a-menu-item>
+              <a-menu-divider />
+              <a-menu-item key="setTop" @click="handleBatchTopUpdate(1)">批量置顶</a-menu-item>
+              <a-menu-item key="cancelTop" @click="handleBatchTopUpdate(0)">批量取消置顶</a-menu-item>
+            </a-menu>
+          </template>
+          <a-button :disabled="selectedRowKeys.length === 0">
+            批量操作 <DownOutlined />
+          </a-button>
+        </a-dropdown>
       </template>
       <a-table
         :columns="prefColumns"
@@ -576,7 +564,7 @@ const stripHtml = (html: string) => {
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <!-- 新建/编辑弹窗 -->
     <a-modal
