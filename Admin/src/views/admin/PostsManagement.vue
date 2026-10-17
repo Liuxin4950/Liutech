@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CloudUploadOutlined, StarOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import { resolveWritingContentUpdate, writingDraftSignature, useWritingUndo } from '@/services/writingReview'
 import type { WritingLocalActivity } from '@/services/writingSession'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
@@ -689,84 +691,67 @@ onMounted(async () => {
 <template>
   <div class="p-24">
     <!-- 搜索区域 -->
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="标题" name="title" class="mb-0">
-              <a-input v-model:value="searchParams.title" placeholder="请输入标题" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="分类" name="categoryId" class="mb-0">
-              <a-select v-model:value="searchParams.categoryId" placeholder="请选择分类" allow-clear>
-                <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="状态" name="status" class="mb-0">
-              <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
-                <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="24" :xl="6" class="search-actions">
-            <a-space>
-              <a-tooltip title="显示已删除的文章">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="标题" name="title" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.title" placeholder="请输入标题" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <a-form-item label="分类" name="categoryId" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.categoryId" placeholder="请选择分类" allow-clear>
+          <a-select-option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="状态" name="status" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+          <a-select-option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除的文章">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          搜索
+        </a-button>
+        <a-button @click="handleReset">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </template>
+    </LtFilterBar>
 
     <!-- 表格区域 -->
-    <a-card :bordered="false">
-      <template #title>
-        <span>文章列表</span>
-      </template>
-      <template #extra>
-         <a-space>
-            <TableExportButton :ctrl="exportCtrl" />
-            <TableColumnSettings :ctrl="columnPrefsCtrl" />
-            <a-button type="primary" @click="openCreate">
-              <template #icon><PlusOutlined /></template>
-              新建文章
+    <LtTableCard title="文章列表">
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-button type="primary" @click="openCreate">
+          <template #icon><PlusOutlined /></template>
+          新建文章
+        </a-button>
+        <template v-if="!searchParams.includeDeleted">
+          <a-popconfirm
+            title="确定要批量删除选中的文章吗？"
+            @confirm="handleBatchDelete(selectedRowKeys)"
+            :disabled="selectedRowKeys.length === 0"
+          >
+            <a-button danger :disabled="selectedRowKeys.length === 0">
+              <template #icon><DeleteOutlined /></template>
+              批量删除
             </a-button>
-            <template v-if="!searchParams.includeDeleted">
-               <a-popconfirm
-                  title="确定要批量删除选中的文章吗？"
-                  @confirm="handleBatchDelete(selectedRowKeys)"
-                  :disabled="selectedRowKeys.length === 0"
-                >
-                  <a-button danger :disabled="selectedRowKeys.length === 0">
-                     <template #icon><DeleteOutlined /></template>
-                     批量删除
-                  </a-button>
-               </a-popconfirm>
-            </template>
-            <template v-else>
-              <a-button :disabled="selectedRowKeys.length === 0" :loading="crudLoading" @click="handleBatchRestore(selectedRowKeys)">批量恢复</a-button>
-              <a-popconfirm
-                title="确定要彻底删除选中的文章吗？此操作不可恢复！"
-                ok-text="确定"
-                cancel-text="取消"
-                @confirm="handleBatchPermanentDelete(selectedRowKeys)"
-              >
-                <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
-              </a-popconfirm>
-            </template>
-         </a-space>
+          </a-popconfirm>
+        </template>
+        <template v-else>
+          <a-button :disabled="selectedRowKeys.length === 0" :loading="crudLoading" @click="handleBatchRestore(selectedRowKeys)">批量恢复</a-button>
+          <a-popconfirm
+            title="确定要彻底删除选中的文章吗？此操作不可恢复！"
+            ok-text="确定"
+            cancel-text="取消"
+            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+          >
+            <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+          </a-popconfirm>
+        </template>
       </template>
 
       <a-table
@@ -837,7 +822,7 @@ onMounted(async () => {
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <!-- 新建/编辑 弹窗 -->
     <a-modal v-model:open="modalVisible" :width="1440" :confirm-loading="confirmLoading" :ok-button-props="{ disabled: uploadingCover || uploadingThumbnail }" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
