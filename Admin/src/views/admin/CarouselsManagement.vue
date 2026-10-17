@@ -202,16 +202,20 @@ const handleSortChange = async (id: number, direction: 'up' | 'down') => {
   if (index === -1) return
   const newIndex = direction === 'up' ? index - 1 : index + 1
   if (newIndex < 0 || newIndex >= dataSource.value.length) return
-  const list = [...dataSource.value]
+  const originalList = dataSource.value
+  const list = [...originalList]
   const [moved] = list.splice(index, 1)
   list.splice(newIndex, 0, moved)
   dataSource.value = list
+  const optimisticList = dataSource.value
   sortLoading.value = true
   try {
     await CarouselService.updateSortOrder(list.map((item) => item.id!))
     message.success('排序更新成功')
     await loadCarousels()
   } catch (e: any) {
+    // 不依赖重载成功才回滚；期间已由新查询替换的列表不回填旧快照。
+    if (dataSource.value === optimisticList) dataSource.value = originalList
     if (!e?.isBusiness) message.warning('排序更新失败，请稍后重试')
     await loadCarousels()
   } finally {

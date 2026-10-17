@@ -33,6 +33,8 @@ async function createPage(query: Record<string, string> = {}) {
     'ant-design-vue': { message: { error: vi.fn(), warning, success: vi.fn() } },
     '@ant-design/icons-vue': {},
     '@/components/LtStatusTag.vue': {},
+    '@/components/LtFilterBar.vue': {},
+    '@/components/LtTableCard.vue': {},
     '@/services/writingReview': { useWritingUndo: () => ({ entries: vue.ref([]), record: vi.fn(), undoField: vi.fn(), undoRound: vi.fn(), reset: vi.fn() }) },
     '@/composables': {
       useTablePage: () => ({ load, selectedRowKeys: vue.ref([]), dataSource: vue.ref([]), searchParams: vue.ref({ title: '', status: 'draft', categoryId: 99 }), pagination: {}, clearSelection: vi.fn() }),

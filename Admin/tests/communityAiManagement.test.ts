@@ -45,6 +45,7 @@ function createPage() {
     vue: { ...vue, onMounted() {}, onActivated() {}, onDeactivated() {}, onBeforeUnmount() {} },
     'ant-design-vue': { message: { error: vi.fn(), success: vi.fn(), warning: vi.fn() } },
     '@ant-design/icons-vue': {},
+    '@/components/LtPageHeader.vue': {},
     '@/services/upload': {},
     '@/services/community': { communityService: service, defaultCommunitySettings: settingsDefaults },
     '@/services/posts': { __esModule: true, default: {} },

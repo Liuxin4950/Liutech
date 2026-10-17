@@ -28,6 +28,8 @@ function createPage() {
     vue: { ...vue, onUnmounted() {}, onDeactivated(callback: () => void) { onDeactivate = callback } },
     'ant-design-vue': { message: { error: vi.fn(), warning: vi.fn(), success: vi.fn() } },
     '@ant-design/icons-vue': {},
+    '@/components/LtFilterBar.vue': {},
+    '@/components/LtTableCard.vue': {},
     '@/composables': {
       useTablePage: () => ({ loading: vue.ref(false), selectedRowKeys: vue.ref([]), dataSource: vue.ref([]), searchParams: vue.ref({ status: undefined, keyword: '' }), pagination: {}, load }),
       useCrudActions: () => ({}),

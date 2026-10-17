@@ -56,6 +56,7 @@ defineProps<Props>()
 <style scoped>
 .lt-page-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--lt-space-lg);
@@ -66,7 +67,8 @@ defineProps<Props>()
 
 .lt-page-header__main {
   min-width: 0;
-  flex: 1;
+  flex: 1 1 240px;
+  overflow-wrap: anywhere;
 }
 
 .lt-page-header__title {
@@ -84,13 +86,19 @@ defineProps<Props>()
 }
 
 .lt-page-header__actions {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  margin-left: auto;
 }
 
 @media (max-width: 575px) {
   .lt-page-header {
     flex-direction: column;
     align-items: stretch;
+  }
+  .lt-page-header__main {
+    flex-basis: auto;
   }
   .lt-page-header__actions {
     width: 100%;

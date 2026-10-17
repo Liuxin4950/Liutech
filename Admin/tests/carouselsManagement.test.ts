@@ -37,6 +37,8 @@ function createPage() {
     'ant-design-vue': { message: { error: vi.fn(), warning: vi.fn(), success: vi.fn() } },
     '@ant-design/icons-vue': {},
     '@/components/LtStatusTag.vue': {},
+    '@/components/LtFilterBar.vue': {},
+    '@/components/LtTableCard.vue': {},
     '@/composables': {
       useTablePage: () => ({
         loading: vue.ref(false),
@@ -142,5 +144,37 @@ it('排序失败后回滚展示顺序并重新加载列表', async () => {
   await page.handleSortChange(3, 'up')
   expect(service.updateSortOrder).toHaveBeenCalledWith([1, 3, 2])
   await vi.waitFor(() => expect(load).toHaveBeenCalledOnce())
+  expect(page.dataSource.value.map((item: any) => item.id)).toEqual([1, 2, 3])
   expect(page.sortLoading.value).toBe(false)
+})
+
+it('保存失败时立即回滚，即使重载未完成或失败也不保留未保存顺序', async () => {
+  service.updateSortOrder.mockRejectedValueOnce(new Error('network'))
+  const { page, load } = createPage()
+  let finishReload!: () => void
+  // useTablePage.load 会捕获重载错误，失败时保留现有列表并正常返回。
+  load.mockImplementationOnce(() => new Promise<void>((resolve) => { finishReload = resolve }))
+  page.dataSource.value = [record(1), record(2), record(3)]
+  const sorting = page.handleSortChange(2, 'up')
+  await vi.waitFor(() => expect(load).toHaveBeenCalledOnce())
+  expect(page.dataSource.value.map((item: any) => item.id)).toEqual([1, 2, 3])
+  expect(page.sortLoading.value).toBe(true)
+  await page.handleSortChange(3, 'up')
+  expect(service.updateSortOrder).toHaveBeenCalledTimes(1)
+  finishReload()
+  await sorting
+  expect(page.dataSource.value.map((item: any) => item.id)).toEqual([1, 2, 3])
+  expect(page.sortLoading.value).toBe(false)
+})
+
+it('排序失败不会用原顺序覆盖期间新查询返回的列表', async () => {
+  let failSort!: (reason: Error) => void
+  service.updateSortOrder.mockImplementationOnce(() => new Promise((_resolve, reject) => { failSort = reject }))
+  const { page } = createPage()
+  page.dataSource.value = [record(1), record(2), record(3)]
+  const sorting = page.handleSortChange(2, 'up')
+  page.dataSource.value = [record(4)]
+  failSort(new Error('network'))
+  await sorting
+  expect(page.dataSource.value.map((item: any) => item.id)).toEqual([4])
 })

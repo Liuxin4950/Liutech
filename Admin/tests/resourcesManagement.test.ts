@@ -24,6 +24,8 @@ function createPage() {
     'ant-design-vue': { message: { error: vi.fn(), warning: vi.fn() } },
     '@ant-design/icons-vue': {},
     '@/components/LtStatusTag.vue': {},
+    '@/components/LtFilterBar.vue': {},
+    '@/components/LtTableCard.vue': {},
     '../../services/resources': { __esModule: true, default: service },
     '../../utils/utils': { formatDateTime: (value: string) => value },
     '@/composables': {
