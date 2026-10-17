@@ -62,6 +62,8 @@ const {
   loading, dataSource, selectedRowKeys, searchParams, pagination,
   load, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
 } = useTablePage<MusicItem, { status: number | undefined; keyword: string }>({
+  // 后端音乐列表返回全量数组（不分页）：单页装下全量，避免分页器显示虚假多页、
+  // 翻页后每页重复全量数据；排序协议也要求 dataSource 保持完整歌单
   loadFn: async (params) => {
     const res = await musicService.getMusicList(params)
     if (res.code === 200) {
@@ -70,9 +72,12 @@ const {
     }
     return { code: res.code || 500, message: res.message || '加载失败', data: { records: [] as MusicItem[], total: 0 } }
   },
+  defaultPageSize: 500,
   defaultSearchParams: { status: undefined, keyword: '' },
   loadErrorMessage: '加载音乐列表失败'
 })
+pagination.showSizeChanger = false
+pagination.showQuickJumper = false
 
 const exportCtrl = useTableExport({
   columns: prefColumns,

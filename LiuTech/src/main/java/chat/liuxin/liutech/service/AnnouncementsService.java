@@ -51,14 +51,14 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
 
     /**
      * 获取有效公告（分页）
-     * @param current 当前页
+     * @param page 当前页
      * @param size 每页大小
      * @return 公告分页数据
      */
     @Transactional(readOnly = true)
-    public IPage<AnnouncementResp> getValidAnnouncements(long current, long size) {
-        Page<Announcements> page = new PageQuery(current, size).toPage();
-        IPage<Announcements> announcementPage = announcementsMapper.selectValidAnnouncements(page);
+    public IPage<AnnouncementResp> getValidAnnouncements(long page, long size) {
+        Page<Announcements> p = new PageQuery(page, size).toPage();
+        IPage<Announcements> announcementPage = announcementsMapper.selectValidAnnouncements(p);
         return announcementPage.convert(this::convertToResp);
     }
 
@@ -147,7 +147,7 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
 
     /**
      * 管理员分页查询所有公告
-     * @param current 当前页
+     * @param page 当前页
      * @param size 每页大小
      * @param status 状态筛选
      * @param type 类型筛选
@@ -155,15 +155,15 @@ public class AnnouncementsService extends ServiceImpl<AnnouncementsMapper, Annou
      * @return 公告分页数据
      */
     @Transactional(readOnly = true)
-    public IPage<AnnouncementResp> getAllAnnouncements(long current, long size, Integer status, Integer type, Boolean includeDeleted) {
-        return getAllAnnouncements(current, size, status, type, null, includeDeleted);
+    public IPage<AnnouncementResp> getAllAnnouncements(long page, long size, Integer status, Integer type, Boolean includeDeleted) {
+        return getAllAnnouncements(page, size, status, type, null, includeDeleted);
     }
 
     @Transactional(readOnly = true)
-    public IPage<AnnouncementResp> getAllAnnouncements(long current, long size, Integer status, Integer type, String keyword, Boolean includeDeleted) {
-        Page<Announcements> page = new PageQuery(current, size).toPage();
+    public IPage<AnnouncementResp> getAllAnnouncements(long page, long size, Integer status, Integer type, String keyword, Boolean includeDeleted) {
+        Page<Announcements> p = new PageQuery(page, size).toPage();
         QueryWrapper<Announcements> queryWrapper = buildAnnouncementQueryWrapper(status, type, keyword, includeDeleted);
-        IPage<Announcements> announcementPage = this.page(page, queryWrapper);
+        IPage<Announcements> announcementPage = this.page(p, queryWrapper);
         return announcementPage.convert(this::convertToResp);
     }
 

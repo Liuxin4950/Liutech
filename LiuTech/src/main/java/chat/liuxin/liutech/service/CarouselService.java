@@ -59,30 +59,30 @@ public class CarouselService extends ServiceImpl<CarouselMapper, Carousel> {
 
     /**
      * 获取有效轮播图（分页）
-     * @param current 当前页
+     * @param page 当前页
      * @param size 每页大小
      * @return 轮播图分页数据
      */
     @Transactional(readOnly = true)
-    public IPage<CarouselResp> getValidCarousels(long current, long size) {
-        Page<Carousel> page = new PageQuery(current, size).toPage();
-        IPage<Carousel> carouselPage = carouselMapper.selectValidCarousels(page);
+    public IPage<CarouselResp> getValidCarousels(long page, long size) {
+        Page<Carousel> p = new PageQuery(page, size).toPage();
+        IPage<Carousel> carouselPage = carouselMapper.selectValidCarousels(p);
         return carouselPage.convert(this::convertToResp);
     }
 
     /**
      * 管理员分页查询所有轮播图
-     * @param current 当前页
+     * @param page 当前页
      * @param size 每页大小
      * @param status 状态筛选
      * @param includeDeleted 是否包含已删除的轮播图
      * @return 轮播图分页数据
      */
     @Transactional(readOnly = true)
-    public IPage<CarouselResp> getAllCarousels(long current, long size, Integer status, Boolean includeDeleted) {
-        Page<Carousel> page = new PageQuery(current, size).toPage();
+    public IPage<CarouselResp> getAllCarousels(long page, long size, Integer status, Boolean includeDeleted) {
+        Page<Carousel> p = new PageQuery(page, size).toPage();
         // 使用自定义查询，绕过 @TableLogic 逻辑删除
-        IPage<Carousel> carouselPage = carouselMapper.selectAllCarouselsWithDeleted(page, status, Boolean.TRUE.equals(includeDeleted));
+        IPage<Carousel> carouselPage = carouselMapper.selectAllCarouselsWithDeleted(p, status, Boolean.TRUE.equals(includeDeleted));
         return carouselPage.convert(this::convertToResp);
     }
 

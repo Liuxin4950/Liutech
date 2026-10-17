@@ -651,16 +651,24 @@ const handleBatchStatusUpdate = async (status: string) => {
     message.warning('请选择要更新状态的文章')
     return
   }
-  const res = await PostsService.batchUpdatePostStatus(selectedRowKeys.value, status)
-  message.success('批量状态更新成功')
-  clearSelection()
-  load()
+  try {
+    await PostsService.batchUpdatePostStatus(selectedRowKeys.value, status)
+    message.success('批量状态更新成功')
+    clearSelection()
+    load()
+  } catch (e: any) {
+    if (!e?.isBusiness) message.error('批量状态更新失败，请重试')
+  }
 }
 
 const handleStatusChange = async (id: number, status: string) => {
-  const res = await PostsService.updatePostStatus(id, status)
-  message.success('状态更新成功')
-  load()
+  try {
+    await PostsService.updatePostStatus(id, status)
+    message.success('状态更新成功')
+    load()
+  } catch (e: any) {
+    if (!e?.isBusiness) message.warning('状态更新失败，请稍后重试')
+  }
 }
 
 // 表单校验规则

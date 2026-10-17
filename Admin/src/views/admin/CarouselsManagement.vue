@@ -18,13 +18,18 @@ const {
   loading, dataSource, selectedRowKeys, searchParams, pagination,
   load: loadCarousels, handleSearch, handleReset, handleTableChange, onSelectChange, clearSelection
 } = useTablePage<Carousel, CarouselListParams>({
+  // 排序协议要求提交完整 id 列表（后端校验全集），轮播数量远小于分页上限，
+  // 因此与音乐页一致一次加载全部：单页装下全量，分页器不生效
   loadFn: (params) => CarouselService.getCarouselList(params),
+  defaultPageSize: 500,
   defaultSearchParams: {
     status: undefined,
     includeDeleted: false
   },
   loadErrorMessage: '加载轮播图列表失败'
 })
+pagination.showSizeChanger = false
+pagination.showQuickJumper = false
 
 // ============== CRUD 操作 ==============
 const {
@@ -165,7 +170,7 @@ const handleImageChange = async (info: any) => {
 // ============== 状态与排序 ==============
 const handleStatusChange = async (id: number, status: number) => {
   try {
-    const res = await CarouselService.updateCarouselStatus(id, status)
+    await CarouselService.updateCarouselStatus(id, status)
     message.success('状态更新成功')
     loadCarousels()
   } catch (e: any) {
@@ -177,7 +182,17 @@ const handleStatusChange = async (id: number, status: number) => {
 // （轮播为 DESC 展示，后端把显示顺序第 i 位写成 size-1-i）。必须真正移动数组元素再发送；
 // 只交换两条记录的 sortOrder 字段、按原顺序发 id 是无效操作。
 const sortLoading = ref(false)
-const sortFiltered = computed(() => searchParams.value.status !== undefined || searchParams.value.includeDeleted)
+// 排序要求提交完整列表：筛选生效或列表被分页截断时禁止操作，避免后端全集校验拒绝
+const sortFiltered = computed(() =>
+  searchParams.value.status !== undefined
+  || searchParams.value.includeDeleted
+  || pagination.total > dataSource.value.length
+)
+const sortBlockedHint = computed(() =>
+  searchParams.value.status !== undefined || searchParams.value.includeDeleted
+    ? '请先重置筛选，再调整完整列表顺序'
+    : '列表未完整加载，请先调整每页数量或刷新'
+)
 
 const handleSortChange = async (id: number, direction: 'up' | 'down') => {
   if (sortLoading.value || sortFiltered.value || loading.value) return
@@ -345,7 +360,7 @@ const statusOptions = [
                   编辑
                 </a-button>
 
-                <a-space :title="sortFiltered ? '请先重置筛选，再调整完整列表顺序' : undefined">
+                <a-space :title="sortFiltered ? sortBlockedHint : undefined">
                   <a-button
                     type="link"
                     size="small"
