@@ -16,6 +16,7 @@ import AboutPageService from '@/services/about'
 import type { AboutPageInfo, AboutSocialLink } from '@/services/about'
 import { ImageUploadService } from '@/services/upload'
 import defaultAuthorAvatar from '@/assets/image/author-avatar.png'
+import LtPageHeader from '@/components/LtPageHeader.vue'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -200,18 +201,12 @@ onMounted(loadContent)
 
 <template>
   <div class="about-settings">
-    <a-card :bordered="false" class="page-card">
-      <div class="page-header">
-        <div>
-          <h2>关于页管理</h2>
-          <p>统一管理作者资料、技术栈、项目经历与联系信息。</p>
-        </div>
-        <a-space class="page-actions" wrap>
-          <a-button :loading="loading" :disabled="saving || !!uploading" @click="loadContent"><ReloadOutlined />重新加载</a-button>
-          <a-button type="primary" :loading="saving" :disabled="!form || loading || !!uploading" @click="saveContent"><SaveOutlined />保存并发布</a-button>
-        </a-space>
-      </div>
-    </a-card>
+    <LtPageHeader title="关于页管理" subtitle="统一管理作者资料、技术栈、项目经历与联系信息。">
+      <template #actions>
+        <a-button :loading="loading" :disabled="saving || !!uploading" @click="loadContent"><ReloadOutlined />重新加载</a-button>
+        <a-button type="primary" :loading="saving" :disabled="!form || loading || !!uploading" @click="saveContent"><SaveOutlined />保存并发布</a-button>
+      </template>
+    </LtPageHeader>
 
     <a-spin :spinning="loading">
       <a-result v-if="loadFailed && !form" status="error" title="关于页内容加载失败">
@@ -456,37 +451,14 @@ onMounted(loadContent)
   margin: 0 auto;
 }
 
-.page-card,
 .form-card {
   border-radius: var(--lt-radius-xl);
   box-shadow: var(--lt-shadow-xs);
 }
 
-.page-card,
 .form-card,
 .section-tip {
   margin-bottom: var(--lt-space-lg);
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--lt-space-lg);
-}
-
-.page-header h2 {
-  margin: 0;
-  color: var(--lt-color-text);
-}
-
-.page-header p {
-  margin: var(--lt-space-xs) 0 0;
-  color: var(--lt-color-text-tertiary);
-}
-
-.page-actions {
-  flex-shrink: 0;
 }
 
 .about-form :deep(.ant-form-item) {
@@ -682,7 +654,6 @@ onMounted(loadContent)
 }
 
 @media (max-width: 768px) {
-  .page-header,
   .image-field {
     align-items: stretch;
     flex-direction: column;
