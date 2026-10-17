@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { message } from 'ant-design-vue'
 import { SearchOutlined, ReloadOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, MessageOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import MessagesService from '../../services/message'
 import type { Message } from '../../services/message'
 import { formatDateTime } from '../../utils/utils'
@@ -188,61 +190,52 @@ const handleBatchReject = async () => {
 
 <template>
   <div class="p-24">
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <div class="filter-toolbar">
-          <a-form-item label="昵称" class="mb-0 filter-field">
-            <a-input v-model:value="searchParams.nickname" placeholder="请输入昵称" allow-clear @press-enter="handleSearch" />
-          </a-form-item>
-          <a-form-item label="状态" class="mb-0 filter-field">
-            <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
-              <a-select-option v-for="option in statusOptions" :key="option.label" :value="option.value">{{ option.label }}</a-select-option>
-            </a-select>
-          </a-form-item>
-          <div class="filter-actions">
-            <a-space wrap>
-              <a-tooltip title="显示已删除">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </div>
-        </div>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="昵称" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.nickname" placeholder="请输入昵称" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <a-form-item label="状态" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.status" placeholder="请选择状态" allow-clear>
+          <a-select-option v-for="option in statusOptions" :key="option.label" :value="option.value">{{ option.label }}</a-select-option>
+        </a-select>
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          搜索
+        </a-button>
+        <a-button @click="handleReset">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </template>
+    </LtFilterBar>
 
-    <a-card :bordered="false">
-      <template #title><span>留言列表</span></template>
-      <template #extra>
-        <a-space>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <a-button v-if="!searchParams.includeDeleted" type="primary" :disabled="selectedRowKeys.length === 0" @click="handleBatchApprove">
-            <template #icon><CheckOutlined /></template>批量通过
-          </a-button>
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchReject">
-            <template #icon><CloseOutlined /></template>批量拒绝
-          </a-button>
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
-            <template #icon><DeleteOutlined /></template>批量删除
-          </a-button>
-          <a-popconfirm
-            v-if="searchParams.includeDeleted"
-            title="确定要批量彻底删除选中的留言吗？此操作不可恢复！"
-            ok-text="确定"
-            cancel-text="取消"
-            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
-          >
-            <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
-          </a-popconfirm>
-        </a-space>
+    <LtTableCard title="留言列表">
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-button v-if="!searchParams.includeDeleted" type="primary" :disabled="selectedRowKeys.length === 0" @click="handleBatchApprove">
+          <template #icon><CheckOutlined /></template>批量通过
+        </a-button>
+        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchReject">
+          <template #icon><CloseOutlined /></template>批量拒绝
+        </a-button>
+        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
+          <template #icon><DeleteOutlined /></template>批量删除
+        </a-button>
+        <a-popconfirm
+          v-if="searchParams.includeDeleted"
+          title="确定要批量彻底删除选中的留言吗？此操作不可恢复！"
+          ok-text="确定"
+          cancel-text="取消"
+          @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+        </a-popconfirm>
       </template>
       <a-table
         :columns="prefColumns"
@@ -298,7 +291,7 @@ const handleBatchReject = async () => {
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <a-modal
       v-model:open="replyModalVisible"
@@ -333,24 +326,4 @@ const handleBatchReject = async () => {
     </a-modal>
   </div>
 </template>
-
-<style scoped>
-/* 搜索筛选：字段靠左自适应，操作组始终右对齐，窄屏整体换行 */
-.filter-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px 16px;
-}
-
-.filter-field {
-  flex: 1 1 220px;
-  min-width: 180px;
-  max-width: 320px;
-}
-
-.filter-actions {
-  margin-left: auto;
-}
-</style>
 

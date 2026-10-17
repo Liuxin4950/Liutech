@@ -107,6 +107,21 @@ button {
    语义类
    ================================= */
 
+/* LtFilterBar 搜索区的字段统一类。
+   业务页面在 a-form-item 上加 .lt-filter-bar__field，由本规则接管 flex 自适应；
+   不能放在 LtFilterBar.vue 的 scoped 里——scoped 无法穿透到父组件的字段。 */
+.lt-filter-bar__field {
+  margin-bottom: 0;
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 320px;
+}
+/* 特殊字段可以更宽：日期范围、多条件复合 */
+.lt-filter-bar__field--wide {
+  flex: 2 1 320px;
+  max-width: 480px;
+}
+
 /* 弹窗标题栏内的草稿状态提示（文章管理 / 公告管理共用） */
 .modal-title-with-draft {
   display: flex;

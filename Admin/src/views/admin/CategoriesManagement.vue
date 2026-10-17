@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { SearchOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import { useTablePage, useCrudActions, useModalForm } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
@@ -76,56 +78,45 @@ const exportCtrl = useTableExport({
 <template>
   <div class="p-24">
     <!-- 搜索卡片 -->
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams" class="category-filter-form">
-        <a-row :gutter="[16, 12]" align="middle" justify="space-between">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="名称" class="mb-0">
-              <a-input v-model:value="searchParams.name" placeholder="请输入分类名称" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="16" :xl="18" class="category-filter-actions">
-            <a-space wrap>
-              <a-tooltip title="显示已删除">
-                <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
-              </a-tooltip>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">
-                <template #icon><ReloadOutlined /></template>
-                重置
-              </a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="名称" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.name" placeholder="请输入分类名称" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <template #actions>
+        <a-tooltip title="显示已删除">
+          <a-switch v-model:checked="searchParams.includeDeleted" @change="handleSearch" checked-children="删" un-checked-children="正常" />
+        </a-tooltip>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          搜索
+        </a-button>
+        <a-button @click="handleReset">
+          <template #icon><ReloadOutlined /></template>
+          重置
+        </a-button>
+      </template>
+    </LtFilterBar>
 
     <!-- 表格卡片 -->
-    <a-card :bordered="false">
-      <template #title><span>分类列表</span></template>
-      <template #extra>
-        <a-space>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <a-button type="primary" @click="openCreate">
-            <template #icon><PlusOutlined /></template>新建分类
-          </a-button>
-          <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
-            <template #icon><DeleteOutlined /></template>批量删除
-          </a-button>
-          <a-popconfirm
-            v-if="searchParams.includeDeleted"
-            title="确定要批量彻底删除选中的分类吗？此操作不可恢复！"
-            ok-text="确定"
-            cancel-text="取消"
-            @confirm="handleBatchPermanentDelete(selectedRowKeys)"
-          >
-            <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
-          </a-popconfirm>
-        </a-space>
+    <LtTableCard title="分类列表">
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <a-button type="primary" @click="openCreate">
+          <template #icon><PlusOutlined /></template>新建分类
+        </a-button>
+        <a-button v-if="!searchParams.includeDeleted" danger :disabled="selectedRowKeys.length === 0" @click="handleBatchDelete(selectedRowKeys)">
+          <template #icon><DeleteOutlined /></template>批量删除
+        </a-button>
+        <a-popconfirm
+          v-if="searchParams.includeDeleted"
+          title="确定要批量彻底删除选中的分类吗？此操作不可恢复！"
+          ok-text="确定"
+          cancel-text="取消"
+          @confirm="handleBatchPermanentDelete(selectedRowKeys)"
+        >
+          <a-button danger :disabled="selectedRowKeys.length === 0">批量彻底删除</a-button>
+        </a-popconfirm>
       </template>
       <a-table
         :columns="prefColumns"
@@ -167,7 +158,7 @@ const exportCtrl = useTableExport({
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <!-- 新建/编辑弹窗 -->
     <a-modal v-model:open="modalVisible" :title="modalTitle" :confirm-loading="confirmLoading" @ok="handleOk" @cancel="handleCancel" destroy-on-close>
@@ -182,23 +173,3 @@ const exportCtrl = useTableExport({
     </a-modal>
   </div>
 </template>
-
-<style scoped>
-.category-filter-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.category-filter-actions :deep(.ant-space) {
-  justify-content: flex-end;
-}
-
-.category-filter-actions :deep(.ant-btn) {
-  white-space: nowrap;
-}
-
-.category-filter-form :deep(.ant-form-item-control) {
-  min-width: 0;
-}
-</style>
