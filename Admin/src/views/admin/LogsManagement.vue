@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { SearchOutlined, ReloadOutlined, FileTextOutlined, ClockCircleOutlined, GlobalOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import LtStatusTag from '@/components/LtStatusTag.vue'
+import LtFilterBar from '@/components/LtFilterBar.vue'
+import LtTableCard from '@/components/LtTableCard.vue'
 import { useTablePage } from '@/composables'
 import { useTableColumnPrefs } from '@/composables/useTableColumnPrefs'
 import TableColumnSettings from '@/components/TableColumnSettings.vue'
@@ -148,79 +150,59 @@ const exportCtrl = useTableExport({
       <div><span>其中今日</span><strong>{{ summary.today }}</strong></div>
     </div>
     <!-- 搜索区域 -->
-    <a-card :bordered="false" class="mb-16">
-      <a-form layout="horizontal" :model="searchParams">
-        <a-row :gutter="[16, 12]" align="bottom">
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="操作人" class="mb-0">
-              <a-input v-model:value="searchParams.operator" placeholder="输入操作人" allow-clear @press-enter="handleSearch" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="操作类型" class="mb-0">
-              <a-select v-model:value="searchParams.action" placeholder="全部" allow-clear>
-                <a-select-option v-for="option in actionOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="目标类型" class="mb-0">
-              <a-select v-model:value="searchParams.targetType" placeholder="全部" allow-clear>
-                <a-select-option v-for="option in targetOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="状态" class="mb-0">
-              <a-select v-model:value="searchParams.status" placeholder="全部" allow-clear>
-                <a-select-option v-for="option in statusOptions" :key="String(option.value)" :value="option.value">
-                  {{ option.label }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="开始" class="mb-0">
-              <a-date-picker v-model:value="searchParams.startTime" value-format="YYYY-MM-DD" placeholder="开始时间" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="12" :lg="8" :xl="6">
-            <a-form-item label="结束" class="mb-0">
-              <a-date-picker v-model:value="searchParams.endTime" value-format="YYYY-MM-DD" placeholder="结束时间" style="width: 100%" />
-            </a-form-item>
-          </a-col>
-          <a-col :xs="24" :sm="24" :lg="8" :xl="12" class="log-search-actions">
-            <a-space>
-              <a-button type="primary" @click="handleSearch">
-                <template #icon><SearchOutlined /></template>
-                搜索
-              </a-button>
-              <a-button @click="handleReset">重置</a-button>
-            </a-space>
-          </a-col>
-        </a-row>
-      </a-form>
-    </a-card>
+    <LtFilterBar>
+      <a-form-item label="操作人" class="lt-filter-bar__field">
+        <a-input v-model:value="searchParams.operator" placeholder="输入操作人" allow-clear @press-enter="handleSearch" />
+      </a-form-item>
+      <a-form-item label="操作类型" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.action" placeholder="全部" allow-clear>
+          <a-select-option v-for="option in actionOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="目标类型" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.targetType" placeholder="全部" allow-clear>
+          <a-select-option v-for="option in targetOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="状态" class="lt-filter-bar__field">
+        <a-select v-model:value="searchParams.status" placeholder="全部" allow-clear>
+          <a-select-option v-for="option in statusOptions" :key="String(option.value)" :value="option.value">
+            {{ option.label }}
+          </a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="开始" class="lt-filter-bar__field">
+        <a-date-picker v-model:value="searchParams.startTime" value-format="YYYY-MM-DD" placeholder="开始时间" style="width: 100%" />
+      </a-form-item>
+      <a-form-item label="结束" class="lt-filter-bar__field">
+        <a-date-picker v-model:value="searchParams.endTime" value-format="YYYY-MM-DD" placeholder="结束时间" style="width: 100%" />
+      </a-form-item>
+      <template #actions>
+        <a-button type="primary" @click="handleSearch">
+          <template #icon><SearchOutlined /></template>
+          搜索
+        </a-button>
+        <a-button @click="handleReset">重置</a-button>
+      </template>
+    </LtFilterBar>
 
     <!-- 表格区域 -->
-    <a-card :bordered="false">
+    <LtTableCard>
       <template #title>
         <span><FileTextOutlined /> 操作日志</span>
       </template>
-      <template #extra>
-        <a-space>
-          <TableExportButton :ctrl="exportCtrl" />
-          <TableColumnSettings :ctrl="columnPrefsCtrl" />
-          <span class="text-secondary text-sm mr-4">共 {{ pagination.total }} 条记录</span>
-          <a-button type="primary" @click="load" :loading="loading">
-            <template #icon><ReloadOutlined /></template>
-            刷新
-          </a-button>
-        </a-space>
+      <template #actions>
+        <TableExportButton :ctrl="exportCtrl" />
+        <TableColumnSettings :ctrl="columnPrefsCtrl" />
+        <span class="text-secondary text-sm">共 {{ pagination.total }} 条记录</span>
+        <a-button type="primary" @click="load" :loading="loading">
+          <template #icon><ReloadOutlined /></template>
+          刷新
+        </a-button>
       </template>
       <a-table
         :columns="prefColumns"
@@ -290,7 +272,7 @@ const exportCtrl = useTableExport({
           </template>
         </template>
       </a-table>
-    </a-card>
+    </LtTableCard>
 
     <!-- 日志详情弹窗 -->
     <a-modal
@@ -332,7 +314,6 @@ const exportCtrl = useTableExport({
 .audit-summary > div { display: flex; flex-direction: column; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; padding: 16px 20px; }
 .audit-summary span { color: var(--text-secondary); font-size: 13px; }
 .audit-summary strong { color: var(--text-main); font-size: 24px; font-variant-numeric: tabular-nums; }
-.log-search-actions { display: flex; justify-content: flex-end; }
 .actor-cell { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
 .actor-cell small { color: var(--text-tertiary); font-size: 11px; }
 .time-cell {
