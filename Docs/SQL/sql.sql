@@ -2,16 +2,17 @@
 -- LiuTech 全栈初始化脚本（唯一权威版本）
 -- 
 -- 权威路径：Docs/SQL/sql.sql
--- 当前结构版本：2026-10-07，本地统一逻辑与云端评论区 AI 合并后的完整快照。
--- 公开基础数据来源：2026-10-06 云端 53965f5 两库快照。
+-- 当前结构基线：主库 V4 / AI 库 V3；2026-10-18 核对初始化行为。
+-- 公开基础数据来源：2026-10-06 云端 53965f5，仅保留可公开的站点资料。
 -- 本文件同时初始化主后端库 liutech 和 AI 服务库 liutech_ai。
 -- Docker 部署时通过 docker-entrypoint-initdb.d 自动执行（仅首次初始化）。
 -- Docs/SQL 只维护这一份完整脚本，表结构和默认初始化数据一同更新。
 --
 -- 幂等性保证：
---   - 所有 CREATE TABLE 使用 IF NOT EXISTS，重复执行不会报错。
+--   - 当前结构下重复执行只补基础数据；IF NOT EXISTS 不是旧库升级机制。
 --   - 基础数据只补缺失项，不覆盖管理员配置，不复制云端账号与业务历史。
---   - 新模型目录默认使用 DeepSeek-V3.2；已有目录的默认选择和参数保留。
+--   - 仅空模型目录播种 DeepSeek-V3.2 与停用的备选模型；非空目录完整保留。
+--   - 不创建数据库应用账号或固定密码，账号和 CRUD 授权按数据库初始化文档显式配置。
 --
 -- 已合并的历史变更：
 --   - sql/ai_chat_tables.sql         → 合并到本文件
@@ -22,6 +23,7 @@
 --   - about.content                  → 关于页当前结构化内容
 --   - ai_model_config.context_window → 模型输入预算配置
 --   - community_* / ai_community_*    → 评论 AI 角色、知识、任务、审查与公共记忆（主库 V2 / AI V3）
+--   - community_settings.bot_relay_enabled → 评论 AI 接力开关（主库 V4）
 --   - user_purge_tasks / ai_user_state → 用户永久清理任务与防重建状态
 --   - ai_chat_message.uk_conv_seq    → 会话内消息序号唯一约束（AI V2）
 --
@@ -33,10 +35,8 @@
 --   与独立 Flyway Maven 工程执行增量升级；已发布迁移长期保留。
 -- ============================================================================
 -- 明确连接字符集，公告和关于页中的中文/emoji 使用 UTF-8。
+-- 按依赖顺序建表，全程保留调用方的外键检查设置，不关闭约束。
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
-SET @liutech_fk_checks_before_init = @@FOREIGN_KEY_CHECKS;
--- 关闭本连接外键检查，完成后恢复原值。
-SET FOREIGN_KEY_CHECKS = 0;
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS liutech DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -119,7 +119,7 @@ VALUES
   ('Docker', NULL),
   ('Dsh', NULL),
   ('Agent', NULL),
-  ('Fultter', NULL),
+  ('Flutter', NULL),
   ('Route', NULL),
   ('Widget', NULL);
 
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS post_series (
 -- 云端公开基础目录；用名称去重，不固定生产 ID 或用户审计 ID。
 INSERT IGNORE INTO post_series (name, description, cover_image)
 VALUES
-  ('Fultter学习', NULL, NULL);
+  ('Flutter学习', NULL, NULL);
 
 CREATE TABLE IF NOT EXISTS posts (
   id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '文章ID',
@@ -265,10 +265,10 @@ CREATE TABLE IF NOT EXISTS community_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 -- 社区默认暂停；启用、角色配置和额度调整由 Admin 管理。
 INSERT IGNORE INTO community_settings
-  (id, enabled, bot_daily_comment_limit, site_daily_comment_limit, post_daily_comment_limit,
+  (id, enabled, bot_relay_enabled, bot_daily_comment_limit, site_daily_comment_limit, post_daily_comment_limit,
    bot_daily_task_limit, site_daily_task_limit, min_delay_seconds, max_delay_seconds,
    cooldown_seconds, max_chain_comments, version)
-VALUES (1, FALSE, 20, 100, 20, 40, 200, 20, 90, 30, 4, 1);
+VALUES (1, FALSE, TRUE, 20, 100, 20, 40, 200, 20, 90, 30, 4, 1);
 CREATE TABLE IF NOT EXISTS community_post_state (
   post_id BIGINT PRIMARY KEY,enabled BOOLEAN NOT NULL DEFAULT TRUE,
   first_public_seen BOOLEAN NOT NULL DEFAULT FALSE,version BIGINT NOT NULL DEFAULT 1
@@ -742,16 +742,11 @@ CREATE TABLE IF NOT EXISTS verification_codes (
   KEY idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='验证码表';
 
--- 重新开启外键检查
-SET FOREIGN_KEY_CHECKS = @liutech_fk_checks_before_init;
-
 -- =========================================================
 -- AI 服务数据库表结构（liutech_ai 库）
 -- =========================================================
 CREATE DATABASE IF NOT EXISTS liutech_ai DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE liutech_ai;
-
-SET FOREIGN_KEY_CHECKS = 0;
 
 -- AI TTS 单行配置表（配置归 AI 服务所有）
 CREATE TABLE IF NOT EXISTS ai_tts_config (
@@ -817,8 +812,6 @@ CREATE TABLE IF NOT EXISTS ai_chat_message
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='AI聊天消息表';
 
--- 用户记忆摘要表（预留表，暂未使用 — 项目中无任何代码引用此表）
-
 -- 云端保留的用户生命周期状态表；只创建结构，不复制历史状态。
 CREATE TABLE IF NOT EXISTS ai_user_state (
   `user_id` varchar(64) NOT NULL,
@@ -848,13 +841,16 @@ CREATE TABLE IF NOT EXISTS ai_model_config (
   KEY idx_default (is_default) COMMENT '默认模型索引'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
 
--- 仅空模型目录初始化默认选择；不覆盖已有启用状态、预算、温度或默认模型。
+-- 仅空目录播种模型；非空目录不补入、启用或恢复已移除的模型。
+-- 这是站点初始配置，不承诺供应商当前可用性、价格或模型额度；启用前按实际账户核验。
 SET @liutech_initialize_model_catalog = NOT EXISTS (SELECT 1 FROM ai_model_config LIMIT 1);
-INSERT IGNORE INTO ai_model_config
+INSERT INTO ai_model_config
   (model_name, display_name, provider, is_enabled, is_default, sort_order, max_tokens, context_window, temperature, description)
-VALUES
-  ('deepseek-ai/DeepSeek-V3.2', 'DeepSeek-V3.2', 'siliconflow', 1, @liutech_initialize_model_catalog, 2, 32768, 164000, 0.4, ''),
-  ('Qwen/Qwen2.5-7B-Instruct', 'Qwen2.5-7B', 'siliconflow', 0, 0, 1, 8192, 32768, 0.9, '通义千问 2.5-7B，免费/低价档位，适合做兜底或测试模型。');
+SELECT 'deepseek-ai/DeepSeek-V3.2', 'DeepSeek-V3.2', 'siliconflow', 1, 1, 2, 32768, 164000, 0.4, '初始默认模型；按实际供应商账户核验可用性与额度。'
+WHERE @liutech_initialize_model_catalog
+UNION ALL
+SELECT 'Qwen/Qwen2.5-7B-Instruct', 'Qwen2.5-7B', 'siliconflow', 0, 0, 1, 8192, 32768, 0.9, '可选测试模型，默认停用；启用前核对供应商可用性与额度。'
+WHERE @liutech_initialize_model_catalog;
 SET @liutech_initialize_model_catalog = NULL;
 
 -- 社区 AI：执行任务、租约、运行记录和独立公共互动记忆。
@@ -906,6 +902,3 @@ CREATE TABLE IF NOT EXISTS ai_community_memory_source (
  PRIMARY KEY(memory_id,source_comment_id),
  CONSTRAINT fk_community_memory_source FOREIGN KEY(memory_id) REFERENCES ai_community_memory(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-SET FOREIGN_KEY_CHECKS = @liutech_fk_checks_before_init;
-SET @liutech_fk_checks_before_init = NULL;
