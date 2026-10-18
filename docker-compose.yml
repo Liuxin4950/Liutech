@@ -1,4 +1,5 @@
 # 本地与云端共用此文件；环境差异只由 .env 的参数控制。
+# 仅 Nginx 发布宿主机端口；其它服务通过 Docker 内网服务名通信。
 name: ${COMPOSE_PROJECT_NAME:-liutech}
 services:
   # MySQL 数据库服务
@@ -11,8 +12,6 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       MYSQL_DATABASE: liutech
       TZ: Asia/Shanghai
-    ports:
-      - "${INTERNAL_BIND_IP:-127.0.0.1}:${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./Docs/SQL/sql.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
@@ -30,8 +29,6 @@ services:
     build: ./LiuTech
     container_name: liutech-backend
     restart: unless-stopped
-    ports:
-      - "${INTERNAL_BIND_IP:-127.0.0.1}:${BACKEND_PORT:-8080}:8080"
     environment:
       # 数据库配置 - 生产环境从环境变量读取
       - DB_HOST=mysql
@@ -92,8 +89,6 @@ services:
     build: ./LiuTech-AI
     container_name: liutech-ai
     restart: unless-stopped
-    ports:
-      - "${INTERNAL_BIND_IP:-127.0.0.1}:${AI_PORT:-8081}:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       # 数据库配置 - 生产环境从环境变量读取
@@ -146,8 +141,6 @@ services:
     build: ./Web
     container_name: liutech-web
     restart: unless-stopped
-    ports:
-      - "${INTERNAL_BIND_IP:-127.0.0.1}:${WEB_PORT:-3000}:80"
     depends_on:
       - backend
       - ai
@@ -158,8 +151,6 @@ services:
     build: ./Admin
     container_name: liutech-admin
     restart: unless-stopped
-    ports:
-      - "${INTERNAL_BIND_IP:-127.0.0.1}:${ADMIN_PORT:-3001}:80"
     depends_on:
       - backend
       - ai

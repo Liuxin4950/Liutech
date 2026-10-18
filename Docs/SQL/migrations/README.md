@@ -45,6 +45,26 @@ mvn -f Docs/SQL/migrations/pom.xml -Dmigration.database=ai flyway:migrate flyway
 
 Flyway 从会话环境读取凭据；命令依次执行 migrate、validate、info；任一步失败就以错误退出，不能继续启动新版应用。窗口包含空格或 JDBC URL 含 `&` 时也不需要把 URL 拼入 Maven 命令参数。
 
+### Docker 内网迁移
+
+Compose 只发布 Nginx 入口，数据库不映射宿主机端口。可使用一次性 Maven/JDK 21 容器加入数据库所在网络，继续运行本目录同一套 Flyway 工程，不增加常驻服务或第二份 Compose。先用 `docker inspect liutech-mysql` 核实网络名，本机现有网络为 `liutech-local_default`，云端为 `liutech_default`，不能仅凭项目名猜测。
+
+在仓库根目录的 PowerShell 中，通过会话安全注入 `FLYWAY_USER/FLYWAY_PASSWORD` 后执行下面的只读校验。密码只用 `-e FLYWAY_PASSWORD` 传递，不写参数值或日志；主库 URL 如下，AI 库改为 `liutech_ai` 并使用对应账号：
+
+```powershell
+$env:FLYWAY_URL = 'jdbc:mysql://mysql:3306/liutech?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=GMT%2B8'
+$repoRoot = (Get-Location).Path
+docker run --rm --network liutech-local_default `
+  --mount "type=bind,source=$repoRoot/pom.xml,target=/workspace/pom.xml,readonly" `
+  --mount "type=bind,source=$repoRoot/Docs/SQL/migrations,target=/workspace/Docs/SQL/migrations,readonly" `
+  --workdir /workspace -e FLYWAY_URL -e FLYWAY_USER -e FLYWAY_PASSWORD `
+  maven:3-eclipse-temurin-21 mvn -B -f Docs/SQL/migrations/pom.xml `
+  '-Dmigration.database=main' flyway:validate flyway:info
+# 对 AI 库使用 '-Dmigration.database=ai'，并检查每次命令退出码。
+```
+
+该路径需要预先准备 Maven 维护镜像及 Flyway/JDBC 依赖；离线云端需提前导入镜像和依赖，不能在发布过程中临时依赖外网下载。Linux 发布机也可直接通过当前数据库私网 IP 运行本机 Maven，或使用上文的 SSH 隧道。实际升级改用已审核的独立 DDL 账号并按前述顺序执行 `flyway:migrate flyway:validate flyway:info`；有待执行迁移时，升级前的普通严格 validate 会报告未应用迁移，不能用 repair 绕过。
+
 ## 本轮发布顺序
 
 社区轻量优化增加主库 V4，AI 库仍为 V3。先备份并执行主库迁移、validate，通过后再更新应用。`bot_relay_enabled` 默认 TRUE，保留升级前接力行为；已有字段和值不覆盖，其它配置、历史事件、任务和回执不重置。旧客户端保存其它设置时缺省该字段会保留当前值。应用启动结构检查包含这个字段，不能只更新应用而遗漏迁移。

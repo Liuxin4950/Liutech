@@ -96,10 +96,10 @@ docker compose logs -f backend               # 跟踪后端日志
 - **SSE（AI 流式响应）** Nginx 必须 `proxy_buffering off;` 并提高 `proxy_read_timeout`；**不要**给非 SSE 路径加 `proxy_set_header Accept "text/event-stream";`（破坏 JSON 响应 406）。
 - **域名拓扑**：主站 `liuxin.chat` 走腾讯云 CDN 回源 443；后台 `admin.liuxin.chat` A 记录直连源站绕开 CDN（443）。主站与后台分别使用各自域名的独立证书，后台不发 HSTS；81 端口为其备用入口。详见 [部署运维总览](Docs/架构/运维/部署运维/总览.md)。
 - **HTTPS 证书**位置（生产）：`/opt/liutech/nginx/` 下分别保存 `liuxin.chat_bundle.crt`/`liuxin.chat.key` 和 `admin.liuxin.chat_bundle.crt`/`admin.liuxin.chat.key`，通过只读卷挂载给 Nginx。
-- **nginx 配置烤进镜像**：两边共用原 Dockerfile 与 `conf.d/default.conf` 的 HTTPS 配置，修改配置需重建镜像。本地 Docker 是部署预演，需要验证 Nginx 的完整入口链路；`3000/3001` 直连只用于辅助定位，不新增模式配置或启动脚本。本机测试证书仍走既有证书挂载。
+- **nginx 配置烤进镜像**：两边共用原 Dockerfile 与 `conf.d/default.conf` 的 HTTPS 配置，修改配置需重建镜像。本地 Docker 是部署预演，需要验证 Nginx 的完整入口链路；仅发布 Nginx 的 `80/443/81`，其它服务不发布宿主机端口，不新增模式配置或启动脚本。本机测试证书仍走既有证书挂载。
 - **CORS allowedOrigins 双服务同步**：新增前端访问域名时，`LiuTech` 与 `LiuTech-AI` 两个 `SecurityConfig.java` 的 `allowedOrigins` 必须同步添加，否则该域名跨域请求被拦。
 - **环境变量**从根目录 `.env` 注入；`.env.example` 是模板，生产替换为强密钥。
-- **本地/云端同一配置**：只使用 `docker-compose.yml` 与同结构 `.env`，不另建 Compose/override 或 local/prod 环境文件。内部端口默认 `INTERNAL_BIND_IP=127.0.0.1`；按环境调整绑定、路径、站点地址和实际镜像标签，保持既有项目名与持久卷。参数和账号匹配见[统一 Compose 与环境参数切换](Docs/架构/运维/部署运维/部署操作.md#统一-compose-与环境参数切换)。
+- **本地/云端同一配置**：只使用 `docker-compose.yml` 与同结构 `.env`，不另建 Compose/override 或 local/prod 环境文件。只有 Nginx 发布宿主机端口；按环境调整 Nginx 绑定、路径、站点地址和实际镜像标签，保持既有项目名与持久卷。参数和账号匹配见[统一 Compose 与环境参数切换](Docs/架构/运维/部署运维/部署操作.md#统一-compose-与环境参数切换)。
 
 ## 🤖 工作约定
 
