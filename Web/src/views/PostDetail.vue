@@ -764,12 +764,17 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
 }
 
 .post-card {
+  --post-footer-outset: 18px;
   min-width: 0;
   padding: 10px 40px 0;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 12px;
   box-shadow: var(--shadow-md);
+}
+
+.post-card > .series-navigation:not(.is-compact) {
+  margin-inline: calc(-1 * var(--post-footer-outset));
 }
 
 .article-toc-panel {
@@ -929,6 +934,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   }
 
   .post-card {
+    --post-footer-outset: 8px;
     padding: 24px 22px 0;
     border-radius: 14px;
   }
@@ -959,7 +965,7 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
   align-items: center;
   gap: 16px;
   padding: 12px 14px;
-  margin: 10px -18px 0;
+  margin: 10px calc(-1 * var(--post-footer-outset)) 0;
   border: 1px solid var(--border-light);
   background-color: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
@@ -1149,8 +1155,6 @@ watch(() => interactionStore.lastFavoriteEvent, (ev) => {
     flex-direction: column;
     gap: 12px;
     padding: 16px;
-    margin-left: -8px;
-    margin-right: -8px;
   }
 
   .actions-left {

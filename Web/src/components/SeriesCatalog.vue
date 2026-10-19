@@ -5,6 +5,7 @@ defineProps<{ series: NonNullable<PostDetail['series']>; items: NonNullable<Post
 
 <template>
   <section class="series-catalog" aria-label="所属系列">
+    <h5 class="series-label">所属系列</h5>
     <router-link class="series-heading" :to="`/series-detail/${series.id}`">{{ series.name }}</router-link>
     <ol>
       <li v-for="(item, index) in items" :key="item.id">
@@ -18,6 +19,7 @@ defineProps<{ series: NonNullable<PostDetail['series']>; items: NonNullable<Post
 
 <style scoped>
 .series-catalog { border-top: 1px solid var(--border-light); padding: 12px 8px 4px; }
+.series-label { margin: 0; padding: 0 8px 6px; color: var(--text-muted); font-size: 11px; font-weight: 500; }
 .series-heading { display: block; padding: 0 8px 8px; color: var(--text-title); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
 ol { list-style: none; margin: 0; padding: 0; }
 li a { display: flex; gap: 8px; padding: 9px 8px; min-height: 36px; color: var(--text-subtle); font-size: 12px; line-height: 1.5; border-radius: 8px; text-decoration: none; }

@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="headings.length > 0 || $slots.series"
+    v-if="headingsExtracted || $slots.series"
     class="table-of-contents"
     :class="{
       visible: isVisible,
@@ -21,7 +21,8 @@
     </div>
     <!-- :key 强制重建：折叠（display:none）时初始化的嵌套 Lenis 尺寸为 0，展开后需重建才能滚动 -->
     <nav ref="tocNavRef" class="toc-nav" v-show="isVisible" :key="isVisible ? 'open' : 'closed'" data-lenis-prevent>
-      <ul class="toc-list" :class="{ 'toc-panel-hidden': activePanel !== 'article' && !!$slots.series }">
+      <p v-if="headingsExtracted && headings.length === 0" class="toc-empty">本文暂无可跳转目录</p>
+      <ul v-if="headings.length" class="toc-list" :class="{ 'toc-panel-hidden': activePanel !== 'article' && !!$slots.series }">
         <li 
           v-for="heading in headings" 
           :key="heading.id"
@@ -63,6 +64,7 @@ interface Heading {
 const tocNavRef = ref<HTMLElement | null>(null)
 
 const headings = ref<Heading[]>([])
+const headingsExtracted = ref(false)
 const activeId = ref<string>('')
 const activePanel = ref<'article' | 'series'>('article')
 const isVisible = ref(true)
@@ -165,6 +167,7 @@ const extractHeadings = () => {
   }
 
   headings.value = extractedHeadings
+  headingsExtracted.value = true
 }
 
 // 滚动偏移量，与固定头部高度一致
@@ -410,6 +413,14 @@ defineExpose({
   list-style: none;
   margin: 0;
   padding: 0 6px;
+}
+
+.toc-empty {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .toc-item {

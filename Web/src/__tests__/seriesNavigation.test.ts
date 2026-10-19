@@ -1,9 +1,9 @@
-import { defineComponent } from 'vue'
+import { defineComponent, nextTick } from 'vue'
 import type { Component } from 'vue'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PostDetail } from '@/services/post'
 
 const mocks = vi.hoisted(() => ({ getPostDetail: vi.fn() }))
@@ -17,8 +17,11 @@ vi.mock('@/composables/useErrorHandler', () => ({ useErrorHandler: () => ({
     try { await action() } catch { options.onError?.() } finally { options.onFinally?.() }
   }
 }) }))
+vi.mock('@/composables/useLenis', () => ({ useNestedLenis: vi.fn(), getLenis: () => null }))
 
 import SeriesNavigation from '@/components/SeriesNavigation.vue'
+import SeriesCatalog from '@/components/SeriesCatalog.vue'
+import TableOfContents from '@/components/TableOfContents.vue'
 import PostDetailView from '@/views/PostDetail.vue'
 
 const series = { id: 7, name: 'Vue 学习' }
@@ -39,6 +42,68 @@ async function createTestRouter(component: Component = defineComponent({ templat
 }
 
 beforeEach(() => { vi.clearAllMocks() })
+
+describe('阅读导航的目录与系列区分', () => {
+  let content: HTMLElement
+  beforeEach(() => {
+    vi.useFakeTimers()
+    content = document.createElement('div')
+    content.className = 'rich-content'
+    document.body.appendChild(content)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 800, height: 30, top: 0, bottom: 30, left: 0, right: 800, x: 0, y: 0, toJSON: () => ({})
+    })
+  })
+  afterEach(() => {
+    content.remove()
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  it.each([false, true])('无标题时显示提示，系列存在状态为 %s', async (hasSeries) => {
+    content.innerHTML = '<p>只有正文，没有标题层级</p>'
+    const router = await createTestRouter()
+    const wrapper = mount(TableOfContents, {
+      slots: hasSeries ? { series: () => '系列篇目' } : {},
+      global: { plugins: [router] }
+    })
+    wrapper.vm.extractHeadings()
+    await nextTick()
+    expect(wrapper.find('.toc-empty').text()).toBe('本文暂无可跳转目录')
+    expect(wrapper.findAll('.toc-link')).toHaveLength(0)
+    if (hasSeries) expect(wrapper.find('.toc-nav').text()).toContain('系列篇目')
+
+    // 异步正文更新为带标题后，应恢复目录并移除空提示。
+    content.innerHTML = '<h2>开始实践</h2><h3>配置主题</h3>'
+    wrapper.vm.extractHeadings()
+    await nextTick()
+    expect(wrapper.find('.toc-empty').exists()).toBe(false)
+    expect(wrapper.findAll('.toc-link').map(link => link.text())).toEqual(['开始实践', '配置主题'])
+    expect(wrapper.find('.toc-level-1').text()).toBe('开始实践')
+    wrapper.unmount()
+  })
+
+  it('窄屏默认折叠，展开后仍能看到无目录提示', async () => {
+    content.innerHTML = '<p>正文</p>'
+    const wrapper = mount(TableOfContents, { props: { collapsedBelow: 1680, embedded: true } })
+    wrapper.vm.extractHeadings()
+    await nextTick()
+    expect(wrapper.find('.toggle-btn').attributes('aria-expanded')).toBe('false')
+    await wrapper.find('.toggle-btn').trigger('click')
+    expect(wrapper.find('.toggle-btn').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('.toc-empty').isVisible()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('系列名称前有可见的所属系列标识，并保留篇目链接和当前文章状态', async () => {
+    const router = await createTestRouter()
+    const wrapper = mount(SeriesCatalog, { props: { series, items }, global: { plugins: [router] } })
+    expect(wrapper.find('.series-label').text()).toBe('所属系列')
+    expect(wrapper.find('.series-heading').text()).toBe('Vue 学习')
+    expect(wrapper.find('a[aria-current="page"]').attributes('href')).toBe('/post/11')
+    wrapper.unmount()
+  })
+})
 
 describe('系列切换入口', () => {
   it.each([
