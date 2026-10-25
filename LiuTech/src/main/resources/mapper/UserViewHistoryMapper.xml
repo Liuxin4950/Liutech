@@ -16,6 +16,7 @@
 
     <!-- 分页查询用户浏览历史：JOIN 文章信息，仅已发布未删除文章，按浏览时间倒序 -->
     <select id="selectViewHistory" resultMap="chat.liuxin.liutech.mapper.PostsMapper.PostListRespMap">
+        <include refid="chat.liuxin.liutech.mapper.CommentsMapper.visibleCommentCte"/>
         SELECT
             p.id,
             p.title,
@@ -27,7 +28,7 @@
             p.favorite_count,
             p.series_id,
             p.series_sort,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <include refid="chat.liuxin.liutech.mapper.PostsMapper.publicCommentCount"/> as comment_count,
             p.status,
             p.created_at,
             p.updated_at,

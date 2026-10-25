@@ -158,7 +158,7 @@ public class CommentsService extends ServiceImpl<CommentsMapper, Comments> {
      */
     @Transactional(readOnly = true)
     public List<Comments> getLatestComments(Integer limit) {
-        return commentsMapper.selectLatestComments(limit);
+        return commentsMapper.selectLatestComments((int) PageQuery.of(1, limit).size());
     }
 
     /**

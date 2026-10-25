@@ -168,10 +168,24 @@ const {
   entityName: '资源'
 })
 
+function handleDownloadTypeChange(type: number) {
+  if (type === 0) {
+    formModel.value.pointsNeeded = 0
+  } else if (!formModel.value.pointsNeeded || formModel.value.pointsNeeded <= 0) {
+    formModel.value.pointsNeeded = 1
+  }
+}
+
 const rules = {
   name: [{ required: true, message: '请输入资源名称' }],
   resourceType: [{ required: true, message: '请选择资源类型' }],
-  downloadType: [{ required: true, message: '请选择下载类型' }]
+  downloadType: [{ required: true, message: '请选择下载类型' }],
+  pointsNeeded: [{ validator: (_rule: unknown, value: number | null) => {
+    if (formModel.value.downloadType !== 1 || (value != null && value > 0 && value <= 9999999999.99)) {
+      return Promise.resolve()
+    }
+    return Promise.reject(new Error('积分价格必须大于0且不超过9999999999.99'))
+  } }]
 }
 
 const columns = [
@@ -419,7 +433,7 @@ const handleBatchPermanentDeleteAction = () => {
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item name="downloadType" label="下载类型" required>
-              <a-select v-model:value="formModel.downloadType">
+              <a-select v-model:value="formModel.downloadType" @change="handleDownloadTypeChange">
                 <a-select-option :value="0">免费</a-select-option>
                 <a-select-option :value="1">积分</a-select-option>
               </a-select>
@@ -427,7 +441,7 @@ const handleBatchPermanentDeleteAction = () => {
           </a-col>
           <a-col :span="12">
             <a-form-item v-if="formModel.downloadType === 1" name="pointsNeeded" label="所需积分">
-              <a-input-number v-model:value="formModel.pointsNeeded" :min="0" :precision="2" placeholder="请输入积分" style="width: 100%" />
+              <a-input-number v-model:value="formModel.pointsNeeded" :min="0.01" :max="9999999999.99" :precision="2" placeholder="请输入积分" style="width: 100%" />
             </a-form-item>
           </a-col>
         </a-row>

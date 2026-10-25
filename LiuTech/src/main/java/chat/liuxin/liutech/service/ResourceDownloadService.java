@@ -76,7 +76,7 @@ public class ResourceDownloadService {
         }
 
         // 2. 检查是否为免费资源
-        if (resource.getDownloadType() == Resources.DOWNLOAD_TYPE_FREE) {
+        if (!isPaidResource(resource)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该资源为免费资源，无需购买");
         }
 
@@ -86,6 +86,9 @@ public class ResourceDownloadService {
         }
 
         BigDecimal requiredPoints = resource.getPointsNeeded();
+        if (requiredPoints == null || requiredPoints.signum() < 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "资源积分配置异常，请联系管理员");
+        }
 
         // 4. 先插入购买记录（利用唯一索引防止重复购买）
         // 注意：先插入记录，再扣减积分，避免积分扣减成功但记录插入失败
@@ -107,8 +110,11 @@ public class ResourceDownloadService {
         }
 
         // 余额与购买记录同事务；业务失败保留 PointsService 的错误码和消息。
-        pointsService.deductPoints(userId, requiredPoints, PointsService.SOURCE_RESOURCE_DOWNLOAD,
-                resourceId, "购买资源：" + resource.getName());
+        // 兼容历史零价积分资源：保留防重购买记录，余额与积分流水不发生变动。
+        if (requiredPoints.signum() > 0) {
+            pointsService.deductPoints(userId, requiredPoints, PointsService.SOURCE_RESOURCE_DOWNLOAD,
+                    resourceId, "购买资源：" + resource.getName());
+        }
 
         log.info("用户{}成功购买资源{}，消费{}积分", userId, resourceId, requiredPoints);
     }

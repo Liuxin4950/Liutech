@@ -96,6 +96,26 @@ class PostsServiceTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), UserViewHistory.class);
     }
 
+    @Test
+    void publicListLimitsRejectInvalidValuesBeforeQuerying() {
+        for (int invalid : new int[]{-1, 0, 501, Integer.MAX_VALUE}) {
+            assertThrows(BusinessException.class, () -> postsService.getHotPosts(invalid));
+            assertThrows(BusinessException.class, () -> postsService.getLatestPosts(invalid));
+            assertThrows(BusinessException.class, () -> postsService.getPersonalizedRecommendations(invalid, AUTHOR_ID));
+        }
+        verifyNoInteractions(postsMapper, userViewHistoryMapper);
+    }
+
+    @Test
+    void publicListLimitsAllowTheDocumentedMaximum() {
+        when(postsMapper.selectHotPostListResp(500, null)).thenReturn(Collections.emptyList());
+        when(postsMapper.selectLatestPostListResp(500, null)).thenReturn(Collections.emptyList());
+        assertTrue(postsService.getHotPosts(500).isEmpty());
+        assertTrue(postsService.getLatestPosts(500).isEmpty());
+        verify(postsMapper).selectHotPostListResp(500, null);
+        verify(postsMapper).selectLatestPostListResp(500, null);
+    }
+
     // ========== 辅助方法 ==========
 
     private Posts createDefaultPost() {

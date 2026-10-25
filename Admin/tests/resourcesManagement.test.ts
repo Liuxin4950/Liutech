@@ -31,7 +31,7 @@ function createPage() {
     '@/composables': {
       useTablePage: () => ({ selectedRowKeys: vue.ref([]), dataSource: vue.ref([]), searchParams: vue.ref({}), pagination: {}, load: vi.fn() }),
       useCrudActions: () => ({}),
-      useModalForm: () => ({}),
+      useModalForm: (options: any) => ({ formModel: vue.ref(options.defaultForm()) }),
     },
     '@/composables/useTableColumnPrefs': { useTableColumnPrefs: () => ({ prefColumns: vue.ref([]) }) },
     '@/composables/useTableExport': { useTableExport: () => ({}) },
@@ -55,6 +55,31 @@ function deferred() {
 
 beforeEach(() => { vi.resetAllMocks() })
 afterEach(() => { for (const scope of scopes.splice(0)) scope.stop() })
+
+it('资源从积分切为免费时清除旧价，重新选择积分时给出正数默认值', () => {
+  const page = createPage()
+  page.formModel.value.downloadType = 1
+  page.formModel.value.pointsNeeded = 2.5
+  page.handleDownloadTypeChange(0)
+  expect(page.formModel.value.pointsNeeded).toBe(0)
+  page.handleDownloadTypeChange(1)
+  expect(page.formModel.value.pointsNeeded).toBe(1)
+  page.formModel.value.pointsNeeded = 2.5
+  page.handleDownloadTypeChange(1)
+  expect(page.formModel.value.pointsNeeded).toBe(2.5)
+})
+
+it('积分资源拒绝零价、负价与空价，并保留正常小数价格', async () => {
+  const page = createPage()
+  page.formModel.value.downloadType = 1
+  const validate = page.rules.pointsNeeded[0].validator
+  for (const price of [0, -1, null, 10000000000]) {
+    await expect(validate({}, price)).rejects.toThrow('积分价格必须大于0')
+  }
+  await expect(validate({}, 2.5)).resolves.toBeUndefined()
+  page.formModel.value.downloadType = 0
+  await expect(validate({}, 0)).resolves.toBeUndefined()
+})
 
 it('真实详情抽屉模板可编译，35 个关联文章完整保留', async () => {
   const template = compileTemplate({ source: descriptor.template.content, filename: 'ResourcesManagement.vue', id: 'resources-detail-regression' })

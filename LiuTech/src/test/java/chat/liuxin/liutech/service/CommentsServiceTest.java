@@ -35,6 +35,24 @@ class CommentsServiceTest {
         ReflectionTestUtils.setField(commentsService, "baseMapper", commentsMapper);
     }
 
+    @Test
+    void latestCommentsRejectInvalidLimitsBeforeQuerying() {
+        for (int invalid : new int[]{-1, 0, 501, Integer.MAX_VALUE}) {
+            assertThrows(BusinessException.class, () -> commentsService.getLatestComments(invalid));
+        }
+        verifyNoInteractions(commentsMapper);
+    }
+
+    @Test
+    void latestCommentsAllowMaximumAndDefaultLimits() {
+        when(commentsMapper.selectLatestComments(500)).thenReturn(List.of());
+        when(commentsMapper.selectLatestComments(10)).thenReturn(List.of());
+        assertTrue(commentsService.getLatestComments(500).isEmpty());
+        assertTrue(commentsService.getLatestComments(null).isEmpty());
+        verify(commentsMapper).selectLatestComments(500);
+        verify(commentsMapper).selectLatestComments(10);
+    }
+
     // ========== getTopLevelCommentsByPostId ==========
 
     @Test

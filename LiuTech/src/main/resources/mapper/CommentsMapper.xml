@@ -46,7 +46,7 @@
         )
     </sql>
     <sql id="visibleCommentCte">
-        WITH RECURSIVE <include refid="visibleCommentDefinitions"/>
+        WITH RECURSIVE <include refid="chat.liuxin.liutech.mapper.CommentsMapper.visibleCommentDefinitions"/>
     </sql>
 
     <!-- 公开评论基础查询SQL片段 -->

@@ -109,6 +109,13 @@
         </collection>
     </resultMap>
 
+    <!-- 公开文章的评论数字与评论树共用可见节点，后台统计保留独立口径。 -->
+    <sql id="publicCommentCount">
+        (SELECT COUNT(*) FROM comments cm
+         INNER JOIN visible_comments visible ON visible.id = cm.id
+         WHERE cm.post_id = p.id AND p.deleted_at IS NULL AND p.status = 'published')
+    </sql>
+
     <!-- 基础查询SQL片段 -->
     <sql id="baseSelectSql">
         SELECT
@@ -340,6 +347,7 @@
 
     <!-- 查询最新文章列表（返回PostListResp） -->
     <select id="selectLatestPostListResp" resultMap="PostListRespMap">
+        <include refid="chat.liuxin.liutech.mapper.CommentsMapper.visibleCommentCte"/>
         SELECT
             p.id,
             p.title,
@@ -362,7 +370,7 @@
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <include refid="publicCommentCount"/> as comment_count,
             <if test="userId != null">
                 CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
                 CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
@@ -386,6 +394,7 @@
 
     <!-- 分页查询文章列表（返回PostListResp） -->
     <select id="selectPostListResp" resultMap="PostListRespMap">
+        <include refid="chat.liuxin.liutech.mapper.CommentsMapper.visibleCommentCte"/>
         SELECT
             p.id,
             p.title,
@@ -408,7 +417,7 @@
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <include refid="publicCommentCount"/> as comment_count,
             <if test="userId != null">
                 CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
                 CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
@@ -470,6 +479,7 @@
 
     <!-- 查询文章详情（返回PostDetailResp） -->
     <select id="selectPostDetailResp" resultMap="PostDetailRespMap">
+        <include refid="chat.liuxin.liutech.mapper.CommentsMapper.visibleCommentCte"/>
         SELECT
             p.id,
             p.title,
@@ -501,7 +511,7 @@
             u.bio as author_bio,
             t.id as tag_id,
             t.name as tag_name,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <include refid="publicCommentCount"/> as comment_count,
             <if test="userId != null">
                 CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
                 CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
@@ -525,6 +535,7 @@
 
     <!-- 查询热门文章列表（返回PostListResp） -->
     <select id="selectHotPostListResp" resultMap="PostListRespMap">
+        <include refid="chat.liuxin.liutech.mapper.CommentsMapper.visibleCommentCte"/>
         SELECT
             p.id,
             p.title,
@@ -547,7 +558,7 @@
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <include refid="publicCommentCount"/> as comment_count,
             <if test="userId != null">
                 CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
                 CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status
@@ -575,6 +586,7 @@
          - 标签重合：与用户浏览过的标签重合，每个标签 +1 分
          排除用户已浏览过的文章，按得分降序（同分按热度降序）。 -->
     <select id="selectRecommendedPostListResp" resultMap="PostListRespMap">
+        <include refid="chat.liuxin.liutech.mapper.CommentsMapper.visibleCommentCte"/>
         SELECT
             p.id,
             p.title,
@@ -597,7 +609,7 @@
             u.id as author_user_id,
             u.username as author_username,
             u.avatar_url as author_avatar_url,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <include refid="publicCommentCount"/> as comment_count,
             CASE WHEN pl.id IS NOT NULL THEN 1 ELSE 0 END as like_status,
             CASE WHEN pf.id IS NOT NULL THEN 1 ELSE 0 END as favorite_status,
             -- 相关度得分：分类命中 2 分 + 标签重合数
@@ -635,6 +647,7 @@
 
     <!-- 查询当前用户的收藏文章列表（返回PostListResp） -->
     <select id="selectFavoritePostList" resultMap="PostListRespMap">
+        <include refid="chat.liuxin.liutech.mapper.CommentsMapper.visibleCommentCte"/>
         SELECT
             p.id,
             p.title,
@@ -646,7 +659,7 @@
             p.favorite_count,
             p.series_id,
             p.series_sort,
-            (SELECT COUNT(*) FROM comments cm WHERE cm.post_id = p.id AND cm.deleted_at IS NULL) as comment_count,
+            <include refid="publicCommentCount"/> as comment_count,
             p.status,
             p.created_at,
             p.updated_at,

@@ -240,6 +240,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(readOnly = true)
     public List<PostListResp> getHotPosts(Integer limit, Long userId) {
+        limit = (int) PageQuery.of(1, limit).size();
         List<PostListResp> posts = postsMapper.selectHotPostListResp(limit, userId);
         fillTags(posts);
         return posts;
@@ -333,6 +334,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(readOnly = true)
     public List<PostListResp> getLatestPosts(Integer limit, Long userId) {
+        limit = (int) PageQuery.of(1, limit).size();
         List<PostListResp> posts = postsMapper.selectLatestPostListResp(limit, userId);
         fillTags(posts);
         return posts;
@@ -348,6 +350,7 @@ public class PostsService extends ServiceImpl<PostsMapper, Posts> {
      */
     @Transactional(readOnly = true)
     public List<PostListResp> getPersonalizedRecommendations(Integer limit, Long userId) {
+        limit = (int) PageQuery.of(1, limit).size();
         // 用户已浏览过的文章ID集合：推荐结果里不重复出现已读文章
         Set<Long> viewedIds = userViewHistoryMapper.selectList(
                         new LambdaQueryWrapper<UserViewHistory>()

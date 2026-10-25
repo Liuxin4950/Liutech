@@ -1,6 +1,7 @@
 package chat.liuxin.liutech.service;
 
 import java.util.Date;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -112,8 +113,7 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
         resource.setResourceType(resourceResp.getResourceType());
         resource.setPurchasedNote(resourceResp.getPurchasedNote());
         resource.setUploaderId(resourceResp.getUploaderId());
-        resource.setDownloadType(resourceResp.getDownloadType());
-        resource.setPointsNeeded(resourceResp.getPointsNeeded());
+        applyPricing(resourceResp, resource, false);
         return super.save(resource);
     }
 
@@ -133,9 +133,34 @@ public class ResourcesAdminService extends ServiceImpl<ResourcesMapper, Resource
         resource.setResourceType(resourceResp.getResourceType());
         resource.setPurchasedNote(resourceResp.getPurchasedNote());
         resource.setUploaderId(resourceResp.getUploaderId());
-        resource.setDownloadType(resourceResp.getDownloadType());
-        resource.setPointsNeeded(resourceResp.getPointsNeeded());
+        applyPricing(resourceResp, resource, true);
         return super.updateById(resource);
+    }
+
+    /** 创建与编辑共用计费校验；局部更新未提交价格时保留现行值。 */
+    private void applyPricing(ResourceResp request, Resources resource, boolean updating) {
+        Integer type = request.getDownloadType();
+        BigDecimal points = request.getPointsNeeded();
+        if (updating && type == null && points == null) return;
+        if (updating && (type == null || points == null)) {
+            Resources existing = resourcesMapper.selectById(request.getId());
+            if (existing == null) throw new BusinessException(ErrorCode.NOT_FOUND, "资源不存在");
+            if (type == null) type = existing.getDownloadType();
+            if (points == null) points = existing.getPointsNeeded();
+        }
+        if (type == null) type = Resources.DOWNLOAD_TYPE_FREE;
+        if (type != Resources.DOWNLOAD_TYPE_FREE && type != Resources.DOWNLOAD_TYPE_PAID) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "下载类型不正确");
+        }
+        if (type == Resources.DOWNLOAD_TYPE_FREE) {
+            points = BigDecimal.ZERO;
+        } else if (points == null || points.signum() <= 0
+                || points.stripTrailingZeros().scale() > 2
+                || points.compareTo(new BigDecimal("9999999999.99")) > 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "积分资源价格必须大于0，最多保留两位小数且不超过9999999999.99");
+        }
+        resource.setDownloadType(type);
+        resource.setPointsNeeded(points);
     }
 
     /**
