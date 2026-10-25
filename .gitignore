@@ -25,6 +25,7 @@ target/
 ### 本地配置 ###
 .claude
 .codex
+.commandcode
 
 ### 大型二进制资源 ###
 **/*.flac
