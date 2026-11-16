@@ -20,7 +20,7 @@
  *
  * @author 刘鑫
  */
-import { readSseStream } from './sse'
+import { readSseStream, SSE_IDLE_TIMEOUT_MS } from './sse'
 import type { ParsedSseEvent } from './sse'
 
 /**
@@ -390,7 +390,15 @@ export async function streamWritingAssistant(options: WritingStreamOptions): Pro
       }
     },
     onParseError: () => { if (!signal?.aborted) fail() },
-    shouldStop: () => terminal || !!signal?.aborted
+    shouldStop: () => terminal || !!signal?.aborted,
+    idleTimeoutMs: SSE_IDLE_TIMEOUT_MS,
+    onIdle: () => {
+      // 心跳 15s 一次，45s 无任何数据说明连接已静默死亡；不能伪造完成
+      if (!terminal && !signal?.aborted) {
+        terminal = true
+        handlers.onError?.('连接长时间无响应，请重试', 'STREAM_IDLE_TIMEOUT')
+      }
+    }
     })
   } catch (error) {
     // 已收到确定终态后，传输层的关闭异常不能把成功结果改判成失败。

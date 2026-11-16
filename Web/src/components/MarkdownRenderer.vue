@@ -12,7 +12,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { hljs } from '@/utils/highlightLanguages'
-import { useMarkdown } from '@/composables/useMarkdown'
+import { StreamingMarkdownRenderer, useMarkdown } from '@/composables/useMarkdown'
 import 'highlight.js/styles/github-dark.css'
 
 interface Props {
@@ -27,40 +27,35 @@ const props = withDefaults(defineProps<Props>(), {
 const { processMarkdown } = useMarkdown()
 const contentRef = ref<HTMLElement | null>(null)
 const router = useRouter()
+const streamingRenderer = new StreamingMarkdownRenderer()
 
-const appendStreamingCaret = (html: string) => {
-  if (!html) {
-    return '<span class="streaming-caret" aria-hidden="true"></span>'
-  }
+// 不做节流：历史实测 rAF/setTimeout 合并分片会"一顿一顿"。
+// 性能靠块级增量渲染保证——每次只解析末尾未定稿尾部，定稿块缓存 HTML。
+const renderedContent = computed(() => {
+  if (!props.content) return ''
+  if (!props.isStreaming) return processMarkdown(props.content)
+  return streamingRenderer.render(props.content)
+})
 
-  const container = document.createElement('div')
-  container.innerHTML = html
-
-  const candidates = container.querySelectorAll('p, li, blockquote, h1, h2, h3, h4, h5, h6, td, th, code')
-  const target = candidates[candidates.length - 1]
+// 光标在渲染后直接 DOM 追加，避免每个分片把整段 HTML 重新解析一遍
+const placeStreamingCaret = () => {
+  const root = contentRef.value
+  if (!root) return
+  root.querySelectorAll('.streaming-caret').forEach((node) => node.remove())
+  if (!props.isStreaming) return
+  const candidates = root.querySelectorAll('p, li, blockquote, h1, h2, h3, h4, h5, h6, td, th, code')
+  const target = candidates[candidates.length - 1] || root
   const caret = document.createElement('span')
   caret.className = 'streaming-caret'
   caret.setAttribute('aria-hidden', 'true')
-
-  if (target) {
-    target.appendChild(caret)
-  } else {
-    container.appendChild(caret)
-  }
-
-  return container.innerHTML
+  target.appendChild(caret)
 }
-
-const renderedContent = computed(() => {
-  if (!props.content) return ''
-  const html = processMarkdown(props.content, props.isStreaming)
-  return props.isStreaming ? appendStreamingCaret(html) : html
-})
 
 // Watch for rendered content changes to re-highlight code blocks
 watch(renderedContent, async () => {
   await nextTick()
   highlightCodeBlocks()
+  placeStreamingCaret()
 }, { immediate: true })
 
 watch(() => props.isStreaming, async (streaming) => {

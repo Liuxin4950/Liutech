@@ -2,7 +2,7 @@ import { ServiceType, getServiceBaseURL } from './serviceConfig'
 import type { AiChatRequest } from './aiTypes'
 import type { ArticleResultsPayload } from './ai'
 import { getToken } from '@/utils/auth'
-import { parseSseEventText, readSseStream } from './sse'
+import { parseSseEventText, readSseStream, SSE_IDLE_TIMEOUT_MS } from './sse'
 import type { ParsedSseEvent } from './sse'
 
 /**
@@ -97,6 +97,7 @@ export class AiStream {
     this.abortController = controller
     let isCompleted = false
     let serverError = false
+    let idleTimedOut = false
 
     try {
       const token = getToken()
@@ -142,10 +143,14 @@ export class AiStream {
         },
         onParseError: (rawData: string, error: unknown) => {
           console.error('忽略无法解析的 SSE 事件:', error, rawData)
-        }
+        },
+        idleTimeoutMs: SSE_IDLE_TIMEOUT_MS,
+        onIdle: () => { idleTimedOut = true }
       })
 
-      if (!isCompleted && !serverError && !controller.signal.aborted) {
+      if (idleTimedOut && !isCompleted && !serverError && !controller.signal.aborted) {
+        onError?.(new StreamError('连接长时间无响应，已保留收到的内容，请重试', 'STREAM_IDLE_TIMEOUT'))
+      } else if (!isCompleted && !serverError && !controller.signal.aborted) {
         onError?.(new StreamError('连接中断，已保留收到的内容，请重试', 'STREAM_INCOMPLETE'))
       }
     } catch (error: unknown) {

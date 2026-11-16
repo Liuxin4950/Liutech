@@ -7,6 +7,17 @@ export type WritingLocalActivity = Omit<WritingActivityPayload, 'stage'> & {
   stage: WritingActivityStage | 'creating_category' | 'creating_tag' | 'refreshing_taxonomy'
 }
 export interface WritingFieldScope { fields: Array<'title' | 'summary' | 'content' | 'category' | 'tags' | 'check'>; appendTags: boolean }
+/** 用户显式选择的修改范围；auto 时才走关键词推断 */
+export type WritingFieldScopeChoice = 'auto' | WritingFieldScope['fields'][number]
+export const writingFieldScopeOptions: Array<{ value: WritingFieldScopeChoice; label: string }> = [
+  { value: 'auto', label: '自动' },
+  { value: 'content', label: '正文' },
+  { value: 'title', label: '标题' },
+  { value: 'summary', label: '摘要' },
+  { value: 'category', label: '分类' },
+  { value: 'tags', label: '标签' },
+  { value: 'check', label: '仅检查' }
+]
 export interface WritingHistoryMessage { role: 'user' | 'assistant'; content: string }
 export interface WritingSessionRequest {
   message: string
@@ -96,6 +107,7 @@ export function useWritingSession<T extends WritingDraftSnapshot>(options: {
   const articles = ref<WritingArticleItem[]>([])
   const articleResultReason = ref('')
   const contentMode = ref<'patch' | 'replace'>(options.getDraft().content?.trim() ? 'patch' : 'replace')
+  const fieldScope = ref<WritingFieldScopeChoice>('auto')
   const review = useWritingReview(options.getDraft, options.onApply)
   let controller: AbortController | null = null
   let serial = 0
@@ -148,7 +160,10 @@ export function useWritingSession<T extends WritingDraftSnapshot>(options: {
     controller = active
     loading.value = true
     const original = review.begin()
-    const scope = inferWritingFieldScope(message)
+    // 显式选择优先；关键词推断只服务"自动"，避免词表外表达被默认改正文
+    const scope: WritingFieldScope = fieldScope.value === 'auto'
+      ? inferWritingFieldScope(message)
+      : { fields: [fieldScope.value], appendTags: false }
     if (mode) contentMode.value = mode
     else if (/写一篇|生成一篇|新文章|完整文章|全文重写|整篇重写/.test(message)) contentMode.value = 'replace'
     unified = false
@@ -240,7 +255,7 @@ export function useWritingSession<T extends WritingDraftSnapshot>(options: {
     catch (error) { review.fail(); streamError.value = error instanceof Error ? error.message : '无法应用本轮修改' }
   }
   return { prompt, loading, answer, showFullAnswer, history, activity, generatedChars, streamError, finished, articles, articleResultReason,
-    contentMode, review, pendingUpdate: review.pending, draftConflict: review.conflict, canApply: review.canApply, hasChanges: review.hasChanges,
+    contentMode, fieldScope, review, pendingUpdate: review.pending, draftConflict: review.conflict, canApply: review.canApply, hasChanges: review.hasChanges,
     missingMedia: review.missingMedia, applied: review.applied, previewHtml, patchPreviews, displayAnswer, canExpand, previewText,
     statusLine, showProcessCard: computed(() => loading.value || activity.value.length > 0 || !!streamError.value), canSend: computed(() => !!prompt.value.trim() && !loading.value),
     activityStatus, activityMeta, activityTitle: (item: WritingActivityItem) => item.message,

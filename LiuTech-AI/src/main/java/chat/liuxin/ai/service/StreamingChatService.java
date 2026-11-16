@@ -616,15 +616,6 @@ public class StreamingChatService {
         session.ttsFutures.add(task);
     }
 
-    /** 兼容既有入口；统一校验由 WritingHtmlValidator 维护。 */
-    private String completeArticleHtml(String text) {
-        return WritingHtmlValidator.validate(text, null);
-    }
-
-    private String completeArticleHtml(String text, String originalContent) {
-        return WritingHtmlValidator.validate(text, originalContent);
-    }
-
     /**
      * FieldUpdatePayload 转为 SSE 事件 payload Map（只含非 null 字段，对齐前端 FieldUpdatePayload）。
      *

@@ -154,8 +154,9 @@ class AiChatServiceImplTest {
     @Test
     void initialBudgetRejectionCannotCreateUserOrErrorReply() {
         prepareSyncChat();
+        // 校准口径下 1 汉字 ≈ 1 token，4 万字超出默认窗口输入预算（约 28160）
         assertThrows(AIServiceException.RequestException.class,
-                () -> service.processChat(syncRequest("字".repeat(20_000)), 7L, "USER"));
+                () -> service.processChat(syncRequest("字".repeat(40_000)), 7L, "USER"));
         verify(memoryService).getConversationOwnedByUser("7", 99L);
         verifyNoMoreInteractions(memoryService);
         verifyNoInteractions(siliconFlowChatClient);

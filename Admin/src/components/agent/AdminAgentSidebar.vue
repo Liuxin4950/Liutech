@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useWritingSession, writingQuickPrompts } from '@/services/writingSession'
+import { useWritingSession, writingQuickPrompts, writingFieldScopeOptions } from '@/services/writingSession'
 import type { WritingLocalActivity } from '@/services/writingSession'
 import { SendOutlined } from '@ant-design/icons-vue'
 import AgentService from '../../services/agent'
@@ -11,11 +11,12 @@ const session = useWritingSession({
   onApply: (update, original) => emit('fieldUpdate', update, original),
   stream: (request, handlers, signal) => AgentService.stream(request as Parameters<typeof AgentService.stream>[0], handlers, signal), source: 'admin-post-editor'
 })
-const { prompt, loading, showFullAnswer, activity, streamError, articles, contentMode,
+const { prompt, loading, showFullAnswer, activity, streamError, articles, contentMode, fieldScope,
   pendingUpdate, draftConflict, canApply, hasChanges, missingMedia, applied, previewHtml, patchPreviews,
   displayAnswer, canExpand: canExpandAnswer, previewText: answerPreviewText, statusLine, showProcessCard, canSend,
   activityStatus, activityMeta, activityTitle, activityInput, activityOutcome, stop, send, handleKeydown, apply, openWritingPreviewLink } = session
 const quickPrompts = writingQuickPrompts
+const fieldScopeOptions = writingFieldScopeOptions
 </script>
 
 <template>
@@ -45,6 +46,18 @@ const quickPrompts = writingQuickPrompts
         <option value="replace">整篇生成 / 重写</option>
       </select>
     </label>
+
+    <div class="field-scope" role="group" aria-label="修改范围">
+      <span class="field-scope-label">修改范围</span>
+      <a-button
+        v-for="option in fieldScopeOptions"
+        :key="option.value"
+        size="small"
+        :type="fieldScope === option.value ? 'primary' : 'default'"
+        :disabled="loading"
+        @click="fieldScope = option.value"
+      >{{ option.label }}</a-button>
+    </div>
 
     <a-textarea
       v-model:value="prompt"
@@ -136,6 +149,8 @@ const quickPrompts = writingQuickPrompts
 <style scoped>
 .writing-mode { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
 .writing-mode select { padding: 7px; border-radius: 6px; border: 1px solid var(--lt-color-border-secondary); background: transparent; color: inherit; }
+.field-scope { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.field-scope-label { opacity: .7; }
 .writing-patch { margin-top: 10px; border-top: 1px solid var(--lt-color-border-secondary); padding-top: 10px; }
 .patch-before, .patch-after { margin-top: 8px; padding: 8px; border-radius: 6px; max-height: 180px; overflow: auto; overflow-wrap: anywhere; }
 .patch-before { background: var(--lt-color-error-bg); }

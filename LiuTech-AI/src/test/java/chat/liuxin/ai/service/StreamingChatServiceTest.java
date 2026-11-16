@@ -313,20 +313,20 @@ class StreamingChatServiceTest {
     @Test
     void newOrChangedMediaCannotUseExistingDraftException() {
         String existing = "<video controls><source src='/uploads/original.mp4'></video>";
-        assertNull(ReflectionTestUtils.invokeMethod(service, "completeArticleHtml",
+        assertNull(WritingHtmlValidator.validate(
                 "<p>正文</p><video controls><source src='/uploads/unknown.mp4'></video>", existing));
-        assertNull(ReflectionTestUtils.invokeMethod(service, "completeArticleHtml",
+        assertNull(WritingHtmlValidator.validate(
                 "<p>正文</p><iframe src='https://unknown.example/'></iframe>", existing));
-        assertNull(ReflectionTestUtils.invokeMethod(service, "completeArticleHtml",
+        assertNull(WritingHtmlValidator.validate(
                 "<p>正文</p><video controls><source src='/uploads/original.mp4'>", existing));
-        assertNull(ReflectionTestUtils.invokeMethod(service, "completeArticleHtml",
+        assertNull(WritingHtmlValidator.validate(
                 "<p>正文</p><audio src='/uploads/new.mp3'></audio>", null));
     }
 
     @Test
     void validComparisonTextInsideCodeDoesNotRequireEscapingGreaterThan() {
         String html = "<pre><code>if (count > 0) return count;</code></pre>";
-        assertEquals(html, ReflectionTestUtils.invokeMethod(service, "completeArticleHtml", html));
+        assertEquals(html, WritingHtmlValidator.validate(html, null));
     }
 
     @Test
@@ -334,7 +334,7 @@ class StreamingChatServiceTest {
         for (String text : List.of("普通建议".repeat(100), "<p>" + "正文".repeat(150),
                 "说明如下：<p>" + "正文".repeat(150) + "</p>",
                 "<p onclick='alert(1)'>" + "正文".repeat(150) + "</p>")) {
-            assertNull(ReflectionTestUtils.invokeMethod(service, "completeArticleHtml", text));
+            assertNull(WritingHtmlValidator.validate(text, null));
         }
     }
 

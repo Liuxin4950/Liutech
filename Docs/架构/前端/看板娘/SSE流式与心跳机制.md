@@ -39,7 +39,7 @@ event: complete
 data: {"conversationId":7,"responseLength":2,"mode":"user"}
 ```
 
-[`sse.ts:181`](../../../../Web/src/services/sse.ts) 用 `TextDecoder(..., { stream: true })` 保留半个 UTF-8 字符，兼容 LF/CRLF 帧边界，缓存半帧直到下一块或 EOF。多行 `data:` 合并后解析。坏 JSON 帧返回 `invalid`，客户端跳过并留痕；若关键终态因此缺失，EOF 会被判为未完整结束。
+[`sse.ts`](../../../../Web/src/services/sse.ts) 的 `readSseStream` 用 `TextDecoder(..., { stream: true })` 保留半个 UTF-8 字符，兼容 LF/CRLF 帧边界，缓存半帧直到下一块或 EOF。多行 `data:` 合并后解析。坏 JSON 帧返回 `invalid`，客户端跳过并留痕；若关键终态因此缺失，EOF 会被判为未完整结束。
 
 解析器也接受 `contractVersion=1` envelope 并剥壳；业务客户端收到的都是解析后的 payload，不能各自重写分帧。
 
@@ -63,13 +63,14 @@ data: {"conversationId":7,"responseLength":2,"mode":"user"}
 
 ## 成功、断流与截断
 
-[`writingStream.ts:264`](../../../../Web/src/services/writingStream.ts) 区分三类结果：
+[`writingStream.ts`](../../../../Web/src/services/writingStream.ts) 的 `streamWritingAssistant` 区分三类结果：
 
 | 结果 | 客户端处理 | 写作原稿 |
 | --- | --- | --- |
 | 收到 `complete`，且此前无错误或取消 | 标记成功，结束生成后可明确采纳 | 采纳前保持原稿 |
 | 收到 `error`，包括输出达到上限或正文校验失败 | 调用 `onError`，后续字段和终态不再分发 | 部分结果仅供查看，不可应用 |
 | EOF 未收到 `complete/error`，或读取失败 | 报告连接中断；不能伪造 `onComplete` | 不可应用 |
+| 超过 45s 无任何网络数据（空闲看门狗） | 聊天报 `STREAM_IDLE_TIMEOUT` 并保留已收正文；写作报 `STREAM_IDLE_TIMEOUT`，不可应用 | 不可应用 |
 
 HTTP 非 2xx 或无 body 会 reject；403/429 有身份/限流文案，其余优先采用后端 JSON `message`。组件在 `finally` 释放 loading，不靠伪造成功事件收尾。
 
@@ -95,6 +96,10 @@ HTTP 非 2xx 或无 body 会 reject；403/429 有身份/限流文案，其余优
 ```
 
 心跳只处理连接的空闲保活，不能证明模型成功，也不能修复上游输出截断。间隔应短于实际部署链路中最严格的空闲超时；更换代理/CDN 后需要重新核对。代理的配置边界统一见[网络封装](../../设计/网络封装/总览.md#陷阱与约束)。
+
+### 客户端空闲看门狗
+
+心跳的反向用途：`readSseStream` 支持 `idleTimeoutMs`/`onIdle`，聊天与写作客户端均启用 `SSE_IDLE_TIMEOUT_MS = 45s`（3 倍心跳间隔，容忍偶发心跳丢失）。每收到一块网络数据重置计时；超时即取消读流并向用户报告，覆盖移动端网络切换等"连接静默死亡、fetch 不报错"的场景，不再让用户等到 TCP 超时。正常收到终态后看门狗随读流结束清理，不会把成功改判失败。回归见[sseIdleWatchdog.test.ts](../../../../Web/src/__tests__/sseIdleWatchdog.test.ts)。
 
 ## 分层排查与回归
 

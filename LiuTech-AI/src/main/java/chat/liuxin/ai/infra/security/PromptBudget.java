@@ -14,9 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 模型输入预算。以 UTF-8 字节数作保守 Token 上界，不把该值当实际计费用量。
+ * 模型输入预算。校准后的保守 Token 上界估算，不把该值当实际计费用量：
+ * CJK（汉字/假名/谚文及中文标点、全角符号）按 1 token/字，ASCII 按约 4 字符/token 向上取整，
+ * 其余文字（emoji、西里尔等）保留 UTF-8 字节上界。
  * 包含正文、工具 schema、工具参数及返回值；输出与安全余量从模型上下文中预留。
- * 不具备对应模型 tokenizer 时会少用一部分窗口，以避免高熵/多字节文本低估。
+ * 不具备对应模型 tokenizer 时仍偏保守，但不再对中文按 3 字节/字高估约 3 倍。
  */
 @Slf4j
 @Component
@@ -36,20 +38,40 @@ public class PromptBudget {
 
     private final AiChatProperties aiChatProperties;
 
-    /** UTF-8 保守预算，未配对代理字符按 JSON 转义的6字节预算。 */
+    /**
+     * 校准保守估算：CJK 1 token/字（DeepSeek 系实际约 0.6~1），ASCII 合计 ceil(n/4)，
+     * 其余码点按 UTF-8 字节上界（未配对代理按 JSON 转义的 6 字节）。
+     */
     public int estimateTokens(String text) {
         if (text == null || text.isEmpty()) {
             return 0;
         }
-        int bytes = 0;
+        int tokens = 0;
+        int ascii = 0;
         for (int i = 0; i < text.length();) {
             int point = text.codePointAt(i);
             i += Character.charCount(point);
-            // 使用 UTF-8 字节上界，避免 emoji、罕见字和高熵文本绕过字符/4估算。
-            bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2
-                    : point >= 0xd800 && point <= 0xdfff ? 6 : point <= 0xffff ? 3 : 4;
+            if (point <= 0x7f) {
+                ascii++;
+            } else if (isCjk(point)) {
+                tokens += 1;
+            } else {
+                // 高熵/多字节文字保留字节上界，避免 emoji、罕见文字绕过预算
+                tokens += point >= 0xd800 && point <= 0xdfff ? 6 : point <= 0xffff ? 3 : 4;
+            }
         }
-        return bytes;
+        return tokens + (ascii + 3) / 4;
+    }
+
+    private static boolean isCjk(int point) {
+        return (point >= 0x4E00 && point <= 0x9FFF)      // CJK 统一表意文字
+                || (point >= 0x3400 && point <= 0x4DBF)  // 扩展 A
+                || (point >= 0x20000 && point <= 0x2FA1F) // 扩展 B~F 与兼容补充
+                || (point >= 0xF900 && point <= 0xFAFF)  // 兼容表意文字
+                || (point >= 0x3000 && point <= 0x303F)  // CJK 标点
+                || (point >= 0xFF00 && point <= 0xFFEF)  // 全角/半角形式
+                || (point >= 0x3040 && point <= 0x30FF)  // 平假名/片假名
+                || (point >= 0xAC00 && point <= 0xD7AF); // 谚文音节
     }
 
     /**

@@ -207,3 +207,26 @@ it('上一轮分类创建失败留在历史中，不覆盖下一轮模型真实�
   expect(wrapper.find('.process-status').text()).not.toContain('分类创建失败')
   wrapper.unmount()
 })
+
+it('显式修改范围优先于关键词推断，词表外表达不再默认改正文', async () => {
+  stream.mockImplementation(async (_request, handlers) => { handlers.onComplete({}) })
+  const wrapper = mount(AdminWritingAssistant, { props: { draft: { postId: 1, content: '<p>原稿</p>' } } })
+  const chips = wrapper.findAll('.field-scope button')
+  expect(chips.map(chip => chip.text())).toEqual(['自动', '正文', '标题', '摘要', '分类', '标签', '仅检查'])
+
+  // "优化一下这篇文章"不在关键词表内：自动模式落默认正文，显式"仅检查"必须覆盖推断
+  await wrapper.find('textarea').setValue('优化一下这篇文章')
+  await wrapper.find('.send-btn').trigger('click'); await flushPromises()
+  expect(stream.mock.calls[0]![0].context.requestedFields).toEqual(['content'])
+
+  await chips.find(chip => chip.text() === '仅检查')!.trigger('click')
+  await wrapper.find('textarea').setValue('优化一下这篇文章')
+  await wrapper.find('.send-btn').trigger('click'); await flushPromises()
+  expect(stream.mock.calls[1]![0].context.requestedFields).toEqual(['check'])
+
+  await chips.find(chip => chip.text() === '标题')!.trigger('click')
+  await wrapper.find('textarea').setValue('优化一下这篇文章')
+  await wrapper.find('.send-btn').trigger('click'); await flushPromises()
+  expect(stream.mock.calls[2]![0].context.requestedFields).toEqual(['title'])
+  wrapper.unmount()
+})

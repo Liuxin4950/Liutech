@@ -12,23 +12,23 @@
 ```
 props.content 变化（流式 chunk 或完整内容）
   └─ renderedContent (computed)
-      ├─ processMarkdown(content, isStreaming)
-      │   ├─ isStreaming: processStreamingMarkdown  补全未闭合标记 + marked + DOMPurify
-      │   └─ 否则: marked.parse + DOMPurify.sanitize
-      └─ isStreaming ? appendStreamingCaret(html) : html   流式追加光标
-  └─ watch(renderedContent) -> highlightCodeBlocks          高亮代码块
+      ├─ isStreaming: StreamingMarkdownRenderer.render(content)
+      │   ├─ 以「围栏外空行」为安全边界切块，定稿块解析一次并缓存 HTML
+      │   ├─ 末尾未定稿尾部: completeStreamingTail 补全 + marked + DOMPurify
+      │   └─ 新内容不是旧内容前缀（切换消息）时重置缓存
+      └─ 否则: processMarkdown 整文 marked.parse + DOMPurify.sanitize
+  └─ watch(renderedContent) -> highlightCodeBlocks + placeStreamingCaret
 ```
+
+流结束（`isStreaming=false`）改走整文解析，保证最终排版与整文一致；块级切分只影响流式过程。
 
 ### 流式补全标记
 
-流式内容可能未闭合（如代码块 ``` 只有一半），直接解析会渲染错乱。`processStreamingMarkdown` 补全：
+流式内容可能未闭合（如代码块 ``` 只有一半），直接解析会渲染错乱。`completeStreamingTail` 只处理未定稿尾部：
 
-```ts
-if (``` 数量为奇数) content += '\n```'      // 代码块
-if (` 数量为奇数) content += '`'             // 行内代码
-if (** 数量为奇数) content += '**'           // 加粗
-if (单 * 数量为奇数) content += '*'          // 斜体（排除 ** 中的 *）
-```
+- 逐行跟踪 ```/~~~ 围栏状态，未闭合围栏按原字符与长度补全；
+- 行内代码按同长度反引号串配对，未闭合的串按其长度补全；
+- 加粗/斜体只在围栏与行内代码**之外**统计奇偶，代码内容里的 ` 与 ** 不再触发误补全（旧全文奇偶计数的真实伪影，已废弃）。
 
 补全后 `marked.parse` + `DOMPurify.sanitize`。
 
@@ -46,13 +46,14 @@ if (单 * 数量为奇数) content += '*'          // 斜体（排除 ** 中的 
 DOMPurify 配置白名单：
 
 - **允许标签**：h1-h6, p, br, strong, em, ul, ol, li, blockquote, code, pre, a, img, table 等
+- **允许属性**：href, title, alt, src, class（不含 id，避免 DOM clobbering 面）
 - **禁止标签**：script, object, embed, iframe, form, input, button
 - **禁止属性**：onclick, onload, onerror, onmouseover
 - **禁止 data-* 属性**
 
 ### 流式光标
 
-`appendStreamingCaret` 在最后一个块级元素（p/li/blockquote/h/pre/code 等）内追加 `<span class="streaming-caret">`，CSS 闪烁动画。流式结束（`isStreaming=false`）时 watch 移除所有光标。
+`placeStreamingCaret` 在渲染后的 DOM 上把 `<span class="streaming-caret">` 追加到最后一个块级元素（p/li/blockquote/h/pre/code 等）内，CSS 闪烁动画。不经过 HTML 字符串重新解析——旧实现每个分片把整段 HTML 塞进 detached div 再序列化，既重复解析又会让其中 `<img>` 每分片触发加载。流式结束（`isStreaming=false`）时 watch 移除所有光标。
 
 ### 链接处理
 
@@ -61,13 +62,15 @@ DOMPurify 配置白名单：
 - 外部链接：`target="_blank" rel="noopener noreferrer"`
 - 非 http(s)/mailto/相对路径：丢弃链接只留文本
 
-## 性能：保持 computed 同步
+## 性能：块级增量 + 不节流
 
-**不要用 rAF/setTimeout 节流流式渲染**。实测 rAF 节流会"一顿一顿"（chunk 合并到下一帧 + 单次 marked.parse 耗时长掉帧），computed 每 chunk 同步更新虽然频繁但平滑。
+**不要用 rAF/setTimeout 节流流式渲染**。实测 rAF 节流会"一顿一顿"（chunk 合并到下一帧），computed 每 chunk 同步更新平滑。
 
-性能优化方向（如需）：减少单次解析耗时，而非节流次数：
-- 流式时跳过代码高亮（renderer.code 不调 hljs），完成后再高亮
-- 增量渲染或 Web Worker（改动大）
+旧实现的性能问题不在更新频率，而在**每个分片全量重解析整篇**（marked + DOMPurify + 全部代码块 hljs，O(n²)）。现行方案消除单次解析成本而不是节流次数：
+
+- `StreamingMarkdownRenderer` 缓存定稿块 HTML，每次只解析末尾未定稿尾部；
+- 光标渲染后 DOM 追加，不再整段 HTML 重解析；
+- 回归见 [markdownStreaming.test.ts](../../../../Web/src/__tests__/markdownStreaming.test.ts)：40 段长回复逐分片追加，增量解析总输入量低于全量路径的 1/10。
 
 ## 会话历史
 
@@ -158,7 +161,7 @@ auth.ts setToken/removeToken 发出 liutech-auth-change
 
 ## 陷阱与约束
 
-- **流式渲染不要节流**：computed 同步最平滑，rAF 会卡顿
+- **流式渲染不要节流**：computed 同步最平滑，rAF 会卡顿；性能靠块级增量渲染保证
 - **DOMPurify 不能跳过**：模型输出、检索正文和工具结果都可能包含不可信 HTML
 - **会话列表每次打开刷新**：避免 messageCount 旧值
 - **菜单点击外部关闭**：`@click.stop` 在更多按钮和菜单内，document 监听点击其他区域

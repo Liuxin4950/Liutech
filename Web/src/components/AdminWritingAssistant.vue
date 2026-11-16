@@ -20,6 +20,18 @@
       </select>
     </label>
 
+    <div class="field-scope" role="group" aria-label="修改范围">
+      <span class="field-scope-label">修改范围</span>
+      <button
+        v-for="option in fieldScopeOptions"
+        :key="option.value"
+        type="button"
+        :class="{ active: fieldScope === option.value }"
+        :disabled="loading"
+        @click="fieldScope = option.value"
+      >{{ option.label }}</button>
+    </div>
+
     <textarea v-model="prompt" :disabled="loading" placeholder="告诉纳西妲你想写什么...（Enter发送，Shift+Enter换行）" rows="4" @keydown="handleKeydown"></textarea>
     <button type="button" class="send-btn" :disabled="!canSend" @click="send()">
       {{ loading ? '生成中...' : '发送给纳西妲' }}
@@ -110,7 +122,7 @@
 </template>
 
 <script setup lang="ts">
-import { useWritingSession, writingQuickPrompts } from '@/services/writingSession'
+import { useWritingSession, writingQuickPrompts, writingFieldScopeOptions } from '@/services/writingSession'
 import type { WritingLocalActivity } from '@/services/writingSession'
 import { AdminAgentService, type AdminArticleDraftSnapshot, type FieldUpdatePayload } from '@/services/adminAgent'
 const props = defineProps<{ draft: AdminArticleDraftSnapshot; localActivities?: WritingLocalActivity[] }>()
@@ -120,17 +132,23 @@ const session = useWritingSession({
   onApply: (update, original) => emit('fieldUpdate', update, original),
   stream: (request, handlers, signal) => AdminAgentService.stream(request, handlers, signal), source: 'web-create-post'
 })
-const { prompt, loading, showFullAnswer, activity, streamError, articleResultReason, contentMode,
+const { prompt, loading, showFullAnswer, activity, streamError, articleResultReason, contentMode, fieldScope,
   pendingUpdate, draftConflict, canApply, hasChanges, missingMedia, applied, previewHtml, patchPreviews,
   displayAnswer, canExpand, previewText, statusLine, showProcessCard, canSend,
   activityStatus, activityMeta, activityTitle, activityInput, activityOutcome, stop, send, handleKeydown, apply, openWritingPreviewLink } = session
 const articleResults = session.articles
 const quickPrompts = writingQuickPrompts
+const fieldScopeOptions = writingFieldScopeOptions
 </script>
 
 <style scoped>
 .writing-mode { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
 .writing-mode select { padding: 7px; border-radius: 6px; border: 1px solid var(--border-light, #ddd); background: transparent; color: inherit; }
+.field-scope { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.field-scope-label { opacity: .7; }
+.field-scope button { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border-light, #ddd); background: transparent; color: inherit; cursor: pointer; font-size: 12px; }
+.field-scope button.active { border-color: var(--primary-color, #3b82f6); color: var(--primary-color, #3b82f6); }
+.field-scope button:disabled { opacity: .5; cursor: default; }
 .writing-patch { margin-top: 10px; border-top: 1px solid var(--border-light, #ddd); padding-top: 10px; }
 .patch-before, .patch-after { margin-top: 8px; padding: 8px; border-radius: 6px; max-height: 180px; overflow: auto; overflow-wrap: anywhere; }
 .patch-before { background: rgba(180, 70, 70, .08); }

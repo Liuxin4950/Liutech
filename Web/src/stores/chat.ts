@@ -16,7 +16,6 @@ export interface ChatMessage {
   id: number
   type: 'user' | 'ai'
   content: string
-  renderedContent?: string // Cache for rendered HTML
   timestamp: Date
   isStreaming?: boolean
   isThinking?: boolean
@@ -335,8 +334,6 @@ export const useChatStore = defineStore('chat', () => {
     if (streamingMsg) {
       streamingMsg.isStreaming = false
       streamingMsg.isThinking = false
-      // Clear rendered cache since streaming is complete
-      streamingMsg.renderedContent = undefined
     }
   }
 
@@ -350,7 +347,6 @@ export const useChatStore = defineStore('chat', () => {
     if (typeof options?.isStreaming === 'boolean') {
       message.isStreaming = options.isStreaming
     }
-    message.renderedContent = undefined
   }
 
   /**
@@ -478,8 +474,7 @@ export const useChatStore = defineStore('chat', () => {
             aiMessage.articleResults = payload.items
             aiMessage.articleResultReason = payload.reason || '我找到这些文章，可以直接点开阅读。'
             aiMessage.isThinking = false
-            aiMessage.renderedContent = undefined
-            return
+                  return
           }
           // avatar-cue: 表情提示到达，说明 AI 已开始输出，结束"思考"状态
           if (eventType === 'avatar-cue' && payload && typeof payload.seq === 'number') {
@@ -556,8 +551,7 @@ export const useChatStore = defineStore('chat', () => {
             if (partialMessage.content) {
               partialMessage.isStreaming = false
               partialMessage.isThinking = false
-              partialMessage.renderedContent = undefined
-            } else {
+                    } else {
               messages.value.splice(index, 1)
             }
           }
@@ -616,8 +610,7 @@ export const useChatStore = defineStore('chat', () => {
       if (response.articleResults?.items?.length) {
         pendingAiMessage.articleResults = response.articleResults.items
         pendingAiMessage.articleResultReason = response.articleResults.reason || '我找到这些文章，可以直接点开阅读。'
-        pendingAiMessage.renderedContent = undefined
-      }
+        }
       // 更新会话ID
       if (!isGuestSession() && response.conversationId && !conversationId.value) {
         conversationId.value = response.conversationId

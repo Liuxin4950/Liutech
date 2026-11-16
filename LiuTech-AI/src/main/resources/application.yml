@@ -28,7 +28,6 @@ spring:
       max-lifetime: 1800000
       leak-detection-threshold: 60000
   ai:
-    max-concurrent-streams: ${AI_MAX_CONCURRENT_STREAMS:32}
     openai:
       # API密钥 - 生产环境必须配置（通过环境变量注入）
       # 本地开发也应通过环境变量或启动参数注入，避免默认密钥入库
@@ -101,8 +100,8 @@ spring:
       max-article-results: 8
       max-tool-rounds: 8
       max-tool-calls: 24
-      max-concurrent-requests: 16
-      max-queued-requests: 32
+      max-concurrent-requests: ${AI_MAX_CONCURRENT_REQUESTS:16}
+      max-queued-requests: ${AI_MAX_QUEUED_REQUESTS:32}
       blog-connect-timeout-ms: 3000
       blog-read-timeout-ms: 8000
     # 看板娘角色配置

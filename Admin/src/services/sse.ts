@@ -91,7 +91,18 @@ export interface SseStreamHandlers {
   onParseError?: (rawData: string, error: unknown) => void
   /** 调用方已收到终态或取消时主动关闭读流；聊天语音续流不提供此回调。 */
   shouldStop?: () => boolean
+  /**
+   * 空闲看门狗：超过该毫秒数没有收到任何网络数据即触发 onIdle 并结束读流。
+   * 服务端心跳为 15s 一次，45s 无数据说明连接已静默死亡（如移动端网络切换），
+   * 不能让用户一直等 TCP 超时。不传则不启用。
+   */
+  idleTimeoutMs?: number
+  /** 空闲超时触发时调用；调用方负责向用户报告并决定终态语义。 */
+  onIdle?: () => void
 }
+
+/** 默认空闲看门狗阈值：3 倍心跳间隔，容忍偶发心跳丢失 */
+export const SSE_IDLE_TIMEOUT_MS = 45_000
 
 /**
  * 判断一个值是否为 envelope 结构
@@ -187,6 +198,25 @@ export async function readSseStream(
   const reader = body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
+  let idleTimer: ReturnType<typeof setTimeout> | null = null
+  let idleFired = false
+
+  const clearIdleTimer = () => {
+    if (idleTimer !== null) {
+      clearTimeout(idleTimer)
+      idleTimer = null
+    }
+  }
+  const armIdleTimer = () => {
+    if (!handlers.idleTimeoutMs || idleFired) return
+    clearIdleTimer()
+    idleTimer = setTimeout(() => {
+      idleFired = true
+      handlers.onIdle?.()
+      // cancel 会让挂起的 read() 以 done 结束，读流循环随之退出
+      void reader.cancel()
+    }, handlers.idleTimeoutMs)
+  }
 
   /**
    * 处理缓冲区里已经完整的帧，保留最后一段（可能被网络从中间切断）
@@ -209,6 +239,7 @@ export async function readSseStream(
   }
 
   try {
+    armIdleTimer()
     while (true) {
       if (handlers.shouldStop?.()) {
         await reader.cancel()
@@ -219,6 +250,7 @@ export async function readSseStream(
 
       // stream: true 保证多字节字符被网络切断时不会被解码成乱码
       buffer += decoder.decode(value, { stream: true })
+      armIdleTimer()
       drainBuffer(false)
       if (handlers.shouldStop?.()) {
         await reader.cancel()
@@ -230,6 +262,7 @@ export async function readSseStream(
     buffer += decoder.decode()
     drainBuffer(true)
   } finally {
+    clearIdleTimer()
     // 释放读锁，避免调用方复用响应体时报 "locked to a reader"；
     // 取消场景下锁可能已失效，这里的失败不影响主流程，因此单独兜住。
     try {

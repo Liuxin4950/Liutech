@@ -6,4 +6,4 @@ RUN apk add --no-cache tzdata && \
 RUN mkdir -p /app/logs /app/tts-cache
 COPY target/liutech-ai-*.jar app.jar
 EXPOSE 8081
-CMD ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
+CMD ["java", "-XX:MaxRAMPercentage=65.0", "-Dspring.profiles.active=prod", "-jar", "app.jar"]

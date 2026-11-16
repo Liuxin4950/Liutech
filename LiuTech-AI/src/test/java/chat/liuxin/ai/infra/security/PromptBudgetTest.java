@@ -35,21 +35,35 @@ class PromptBudgetTest {
     // ==================== token 估算 ====================
 
     @Test
-    void shouldBudgetChineseByUtf8UpperBound() {
-        // 10 个汉字 ≈ 10 token（不含包装开销）
-        assertEquals(30, budget.estimateTokens("你好世界一二三四五六"));
+    void shouldBudgetChineseOneTokenPerChar() {
+        // 10 个汉字 ≈ 10 token（校准口径，不再按 3 字节/字高估）
+        assertEquals(10, budget.estimateTokens("你好世界一二三四五六"));
     }
 
     @Test
-    void shouldNotDiscountHighEntropyAscii() {
+    void shouldBudgetAsciiFourCharsPerToken() {
         // 40 个 ASCII 字符 ≈ 10 token
-        assertEquals(40, budget.estimateTokens("a".repeat(40)));
+        assertEquals(10, budget.estimateTokens("a".repeat(40)));
+        // 不足 4 个也至少计 1，向上取整保持保守
+        assertEquals(1, budget.estimateTokens("a"));
     }
 
     @Test
     void shouldEstimateMixedTextBySummingBothParts() {
         // 5 汉字 + 40 ASCII ≈ 5 + 10 = 15
-        assertEquals(55, budget.estimateTokens("你好世界啊" + "b".repeat(40)));
+        assertEquals(15, budget.estimateTokens("你好世界啊" + "b".repeat(40)));
+    }
+
+    @Test
+    void tenThousandCharChineseDraftFitsDefaultWindow() {
+        // 回归：旧字节口径下 1 万字中文草稿 ≈ 30000，超过默认窗口输入预算被误判"输入内容过长"；
+        // 校准后 ≈ 10000，必须能放进 32768 窗口（减输出 4096 与余量 512）
+        var limits = budget.resolveLimits(4096, 32768);
+        int draftTokens = budget.estimateTokens("文".repeat(10000));
+        assertEquals(10000, draftTokens);
+        assertTrue(draftTokens < limits.inputBudgetTokens());
+        budget.assertMandatoryFits("deepseek-ai/DeepSeek-V3.2", draftTokens,
+                limits.inputBudgetTokens(), limits.contextWindow(), limits.maxOutputTokens());
     }
 
     @Test
@@ -62,7 +76,7 @@ class PromptBudgetTest {
     void shouldCountPerMessageOverheadWhenEstimatingMessages() {
         List<Message> messages = List.of(new UserMessage("你好"), new AssistantMessage("你好"));
         // 2 条消息各 2 token 内容 + 各 4 token 包装开销
-        assertEquals(20, budget.estimateTokens(messages));
+        assertEquals(12, budget.estimateTokens(messages));
     }
 
     // ==================== 生效限制解析 ====================
